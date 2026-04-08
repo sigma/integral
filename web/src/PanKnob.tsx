@@ -42,6 +42,10 @@ export function PanKnob({ value, onChange, label = "PAN" }: Props) {
     dragging.current = false;
   }, []);
 
+  const handleDoubleClick = useCallback(() => {
+    onChange(64); // center
+  }, [onChange]);
+
   const angle = valueToAngle(value);
 
   return (
@@ -53,6 +57,7 @@ export function PanKnob({ value, onChange, label = "PAN" }: Props) {
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onDoubleClick={handleDoubleClick}
       >
         {/* Outer ring */}
         <circle cx="22" cy="22" r="19" fill="none" stroke="#3a3a5a" strokeWidth="1" />
