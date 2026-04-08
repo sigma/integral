@@ -1,49 +1,23 @@
 import { VolumeFader } from "./VolumeFader";
-import { PanKnob } from "./PanKnob";
-import { EqKnob } from "./EqKnob";
-import { EqSection } from "./EqSection";
-import { defaultEqState } from "./types";
 import css from "./ChannelStrip.module.css";
 import exCss from "./ExStrip.module.css";
 
 interface Props {
   level: number;
   muted: boolean;
-  eqExpanded: boolean;
   onLevelChange: (value: number) => void;
   onMuteToggle: () => void;
 }
 
-const noop = () => {};
-const noopParam = (_offset: number, _value: number) => {};
-
 export function ExStrip({
   level,
   muted,
-  eqExpanded,
   onLevelChange,
   onMuteToggle,
 }: Props) {
   return (
     <div className={`${css.strip} ${exCss.override}`}>
       <div className={css.partNumber}>EX</div>
-      {/* Hidden spacers matching ChannelStrip layout for alignment */}
-      <div className={exCss.hidden}>
-        {eqExpanded && (
-          <EqSection
-            eq={defaultEqState()}
-            onToggleSwitch={noop}
-            onParam={noopParam}
-          />
-        )}
-        <PanKnob value={64} onChange={noop} />
-        <div className={css.sends}>
-          <EqKnob label="CHO" value={0} min={0} max={127} defaultValue={0}
-            onChange={noop} formatValue={(v) => String(v)} />
-          <EqKnob label="REV" value={0} min={0} max={127} defaultValue={0}
-            onChange={noop} formatValue={(v) => String(v)} />
-        </div>
-      </div>
       <span className={css.muteLabel}>MUTE</span>
       <button
         className={`${css.muteButton} ${muted ? css.muted : ""}`}

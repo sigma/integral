@@ -93,7 +93,6 @@ export function MixerPage({ mixer }: Props) {
           <ExStrip
             level={state.extLevel}
             muted={state.extMuted}
-            eqExpanded={state.eqExpanded}
             onLevelChange={mixer.setExtLevel}
             onMuteToggle={mixer.toggleExtMute}
           />
