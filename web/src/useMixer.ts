@@ -76,6 +76,7 @@ export interface UseMixerResult {
   setPartLevel: (part: number, value: number) => void;
   setPartPan: (part: number, value: number) => void;
   togglePartMute: (part: number) => void;
+  setPartReceiveChannel: (part: number, channel: number) => void;
   setPartChorusSend: (part: number, value: number) => void;
   setPartReverbSend: (part: number, value: number) => void;
   setMasterLevel: (value: number) => void;
@@ -294,6 +295,14 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     [service, markSent],
   );
 
+  const setPartReceiveChannel = useCallback(
+    (part: number, channel: number) => {
+      setState((prev) => updatePart(prev, part, { receiveChannel: channel }));
+      service?.setPartReceiveChannel(part, channel);
+    },
+    [service],
+  );
+
   const setPartChorusSend = useCallback(
     (part: number, value: number) => {
       setState((prev) => updatePart(prev, part, { chorusSend: value }));
@@ -429,6 +438,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     setPartLevel,
     setPartPan,
     togglePartMute,
+    setPartReceiveChannel,
     setPartChorusSend,
     setPartReverbSend,
     setMasterLevel,

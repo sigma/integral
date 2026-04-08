@@ -233,6 +233,10 @@ export class IntegraService {
     this.sendDt1(Array.from(part_mute_address(part)), [muted ? 1 : 0]);
   }
 
+  setPartReceiveChannel(part: number, channel: number): void {
+    this.sendDt1(Array.from(part_receive_channel_address(part)), [channel]);
+  }
+
   setPartChorusSend(part: number, value: number): void {
     this.sendDt1(Array.from(part_chorus_send_address(part)), [value]);
   }

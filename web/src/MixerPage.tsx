@@ -53,6 +53,7 @@ export function MixerPage({ mixer }: Props) {
                 onMuteToggle={() => mixer.togglePartMute(i)}
                 onChorusSendChange={(v) => mixer.setPartChorusSend(i, v)}
                 onReverbSendChange={(v) => mixer.setPartReverbSend(i, v)}
+                onReceiveChannelChange={(ch) => mixer.setPartReceiveChannel(i, ch)}
                 onEqToggle={() => mixer.togglePartEqSwitch(i)}
                 onEqParam={(offset, v) => mixer.setPartEqParam(i, offset, v)}
               />

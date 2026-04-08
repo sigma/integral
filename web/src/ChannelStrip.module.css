@@ -21,6 +21,29 @@
   border-radius: 3px;
 }
 
+.channelSelect {
+  font-size: 12px;
+  font-weight: 700;
+  color: #c0c0e0;
+  background: #2a2a4a;
+  width: 100%;
+  text-align: center;
+  padding: 4px 2px;
+  border-radius: 3px;
+  border: 1px solid #3a3a5a;
+  cursor: pointer;
+  appearance: none;
+}
+
+.channelSelect:hover {
+  border-color: #4a6cf7;
+}
+
+.channelSelect option {
+  background: #2a2a4a;
+  color: #c0c0e0;
+}
+
 .sends {
   display: grid;
   grid-template-columns: 1fr 1fr;

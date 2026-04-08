@@ -14,6 +14,7 @@ interface Props {
   onMuteToggle: () => void;
   onChorusSendChange: (value: number) => void;
   onReverbSendChange: (value: number) => void;
+  onReceiveChannelChange: (channel: number) => void;
   onEqToggle: () => void;
   onEqParam: (paramOffset: number, value: number) => void;
 }
@@ -31,12 +32,24 @@ export function ChannelStrip({
   onMuteToggle,
   onChorusSendChange,
   onReverbSendChange,
+  onReceiveChannelChange,
   onEqToggle,
   onEqParam,
 }: Props) {
   return (
     <div className={css.strip}>
-      <div className={css.partNumber}>{partIndex + 1}</div>
+      <select
+        className={css.channelSelect}
+        value={part.receiveChannel}
+        onChange={(e) => onReceiveChannelChange(Number(e.target.value))}
+        title={`Part ${partIndex + 1}`}
+      >
+        {Array.from({ length: 16 }, (_, i) => (
+          <option key={i} value={i}>
+            Ch {i + 1}
+          </option>
+        ))}
+      </select>
       {eqExpanded && (
         <EqSection
           eq={part.eq}
