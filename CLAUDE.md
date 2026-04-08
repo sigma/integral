@@ -14,6 +14,7 @@ crates/
   openlink-wasm/    # WASM bindings for the web frontend
   openlink-vst/     # VST3 wrapper via nih-plug
 web/                # TypeScript / React frontend
+scripts/            # Utility scripts (device ping, etc.)
 docs/               # Design docs, PRD, MIDI reference notes
   midi/             # INTEGRA-7 MIDI Implementation (see docs/midi/README.md)
 ```
@@ -103,4 +104,7 @@ Implementation document:
 - **No speculative features.** Only build what's requested.
 - **Verify builds.** Run `nix develop --command cargo check` after Rust changes.
 - **Test after changes.** Run `nix develop --command cargo test` when tests exist.
+- **Ping the device.** At the start of MIDI-related work sessions, run
+  `nix develop --command python3 scripts/ping-device.py` to verify the
+  Integra-7 is reachable. Fail fast if the device is offline.
 - **Keep CLAUDE.md current.** Update this file when conventions change.

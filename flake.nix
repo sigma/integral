@@ -20,6 +20,10 @@
           extensions = [ "rust-src" "rust-analyzer" "clippy" ];
           targets = [ "wasm32-unknown-unknown" ];
         };
+        python = pkgs.python3.withPackages (ps: [
+          ps.mido
+          ps.python-rtmidi
+        ]);
       in
       {
         devShells.default = pkgs.mkShell {
@@ -30,6 +34,7 @@
             pkgs.nodejs
             pkgs.typescript
             pkgs.cargo-watch
+            python
           ];
 
           shellHook = ''
