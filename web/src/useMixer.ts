@@ -48,6 +48,8 @@ export interface UseMixerResult {
 
 export function useMixer(service: IntegraService | null): UseMixerResult {
   const [state, setState] = useState<MixerState>(defaultMixerState);
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const recentSends = useRef(new Map<string, number>());
 
   // Track a recently sent value to suppress echoes
@@ -172,12 +174,10 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
 
   const togglePartMute = useCallback(
     (part: number) => {
-      setState((prev) => {
-        const muted = !prev.parts[part]!.muted;
-        service?.setPartMute(part, muted);
-        markSent(new Uint8Array(part_mute_address(part)));
-        return updatePart(prev, part, { muted });
-      });
+      const muted = !stateRef.current.parts[part]!.muted;
+      setState((prev) => updatePart(prev, part, { muted }));
+      markSent(new Uint8Array(part_mute_address(part)));
+      service?.setPartMute(part, muted);
     },
     [service, markSent],
   );
@@ -196,15 +196,14 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
 
   const preview = useCallback(() => {
     if (!service) return;
-    setState((prev) => {
-      const part = prev.parts[prev.selectedPart];
-      if (!part) return prev;
-      service.sendNoteOn(part.receiveChannel, 60, 100);
-      setTimeout(() => {
-        service.sendNoteOff(part.receiveChannel, 60);
-      }, 500);
-      return prev;
-    });
+    const current = stateRef.current;
+    const part = current.parts[current.selectedPart];
+    if (!part) return;
+    const ch = part.receiveChannel;
+    service.sendNoteOn(ch, 60, 100);
+    setTimeout(() => {
+      service.sendNoteOff(ch, 60);
+    }, 500);
   }, [service]);
 
   return {

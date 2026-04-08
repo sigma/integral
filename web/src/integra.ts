@@ -176,7 +176,7 @@ export class IntegraService {
 
     let parsed;
     try {
-      parsed = parse_dt1(new Uint8Array(raw.buffer));
+      parsed = parse_dt1(new Uint8Array(raw));
     } catch {
       return; // not a DT1 we understand
     }

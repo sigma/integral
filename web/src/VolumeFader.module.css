@@ -3,16 +3,29 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  /* Reserve vertical space for the rotated fader */
+  height: 140px;
+  justify-content: flex-end;
+}
+
+.faderWrapper {
+  /* Fader is 120px wide, rotated 270deg to become vertical */
+  width: 120px;
+  height: 24px;
+  transform: rotate(270deg);
+  transform-origin: center center;
+  /* Offset to fit in the vertical space */
+  margin: 48px 0;
 }
 
 .fader {
-  writing-mode: vertical-lr;
-  direction: rtl;
   appearance: none;
   width: 120px;
   height: 6px;
   background: transparent;
   cursor: pointer;
+  margin: 0;
+  padding: 0;
 }
 
 .fader::-webkit-slider-runnable-track {
@@ -24,18 +37,18 @@
 
 .fader::-webkit-slider-thumb {
   appearance: none;
-  width: 24px;
-  height: 12px;
-  background: linear-gradient(to bottom, #ccc, #999);
+  width: 12px;
+  height: 24px;
+  background: linear-gradient(to right, #999, #ccc, #999);
   border: 1px solid #555;
   border-radius: 2px;
-  margin-top: -4px;
+  margin-top: -10px;
   cursor: grab;
 }
 
 .fader::-webkit-slider-thumb:active {
   cursor: grabbing;
-  background: linear-gradient(to bottom, #eee, #bbb);
+  background: linear-gradient(to right, #bbb, #eee, #bbb);
 }
 
 .fader::-moz-range-track {
@@ -46,9 +59,9 @@
 }
 
 .fader::-moz-range-thumb {
-  width: 24px;
-  height: 12px;
-  background: linear-gradient(to bottom, #ccc, #999);
+  width: 12px;
+  height: 24px;
+  background: linear-gradient(to right, #999, #ccc, #999);
   border: 1px solid #555;
   border-radius: 2px;
   cursor: grab;

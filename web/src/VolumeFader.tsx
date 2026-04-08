@@ -8,14 +8,16 @@ interface Props {
 export function VolumeFader({ value, onChange }: Props) {
   return (
     <div className={css.container}>
-      <input
-        className={css.fader}
-        type="range"
-        min={0}
-        max={127}
-        value={value}
-        onInput={(e) => onChange(Number(e.currentTarget.value))}
-      />
+      <div className={css.faderWrapper}>
+        <input
+          className={css.fader}
+          type="range"
+          min={0}
+          max={127}
+          value={value}
+          onInput={(e) => onChange(Number(e.currentTarget.value))}
+        />
+      </div>
       <span className={css.value}>{value}</span>
     </div>
   );
