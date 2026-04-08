@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T15:55:45Z",
+  "description": "Add address constants for chorus/reverb blocks (type, level, output, switch). Document the type-dependent parameter name mappings from the Parameter Guide (chorus types 0-3, reverb types 0-6).",
+  "id": "i7-2ul.1",
+  "labels": [],
+  "parent": "i7-2ul",
+  "priority": 2,
+  "status": "open",
+  "title": "Add chorus/reverb core params and document FX parameter mappings",
+  "type": "task",
+  "updated_at": "2026-04-08T15:55:45Z"
+}
