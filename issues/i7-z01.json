@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T17:50:10Z",
+  "description": "Add tone browser with 'By Tone \u0026 Bank' view. Uses undocumented catalog query at 0F 00 04 02 for tone names. Allows selecting tones for any part.",
+  "id": "i7-z01",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Tone selection: browse and change tones per part",
+  "type": "epic",
+  "updated_at": "2026-04-08T17:50:10Z"
+}
