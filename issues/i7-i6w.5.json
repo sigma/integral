@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-i6w.4"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-i6w.6"
+  ],
   "created": "2026-04-08T16:58:27Z",
   "description": "",
   "id": "i7-i6w.5",
