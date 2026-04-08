@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [],
   "blocks": [
     "i7-2ul.2"
@@ -10,8 +10,8 @@
   "labels": [],
   "parent": "i7-2ul",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Add chorus/reverb core params and document FX parameter mappings",
   "type": "task",
-  "updated_at": "2026-04-08T15:55:54Z"
+  "updated_at": "2026-04-08T15:56:52Z"
 }
