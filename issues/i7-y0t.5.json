@@ -4,7 +4,9 @@
     "i7-y0t.3",
     "i7-y0t.4"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-y0t.6"
+  ],
   "created": "2026-04-08T06:53:23Z",
   "description": "",
   "id": "i7-y0t.5",
