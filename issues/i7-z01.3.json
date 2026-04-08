@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-z01.2"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-z01.4"
+  ],
   "created": "2026-04-08T17:50:29Z",
   "description": "Modal overlay with bank tree on left (SN-A/SN-S/SN-D/PCM-S/PCM-D/GM2/Expansion × Preset/User), scrollable tone list on right. Lazy-loads names via catalog. Click to select.",
   "id": "i7-z01.3",
