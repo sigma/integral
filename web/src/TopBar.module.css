@@ -1,0 +1,48 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: #0f0f1a;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+.studioSet {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4ae0e0;
+  background: #1a2a3e;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid #2a4a5a;
+  white-space: nowrap;
+}
+
+.toneInfo {
+  flex: 1;
+  font-size: 13px;
+  color: #c0c0e0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previewButton {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #2a3e2a;
+  color: #6ddb6d;
+  border: 1px solid #3a5a3a;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.previewButton:hover {
+  background: #3a4e3a;
+}
+
+.previewButton:active {
+  background: #4a6a4a;
+}
