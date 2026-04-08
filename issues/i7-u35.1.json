@@ -2,7 +2,8 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [
-    "i7-u35.2"
+    "i7-u35.2",
+    "i7-u35.4"
   ],
   "created": "2026-04-08T06:18:52Z",
   "description": "Add sysex module: identity_request() builder, parse_identity_reply() parser, DeviceIdentity type with is_integra7() check. Constants for Roland ID, Integra-7 model/family.",

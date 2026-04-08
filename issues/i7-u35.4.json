@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-u35.1"
+  ],
   "blocks": [],
   "created": "2026-04-08T06:18:52Z",
   "description": "New integral-cli crate with midir for native MIDI. Implements ping subcommand using integral-core identity functions. Remove Python script.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Add Rust CLI ping tool replacing Python script",
   "type": "task",
-  "updated_at": "2026-04-08T06:18:52Z"
+  "updated_at": "2026-04-08T06:18:56Z"
 }
