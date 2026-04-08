@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-z01.2"
+  ],
   "blocks": [],
   "created": "2026-04-08T17:50:29Z",
   "description": "Modal overlay with bank tree on left (SN-A/SN-S/SN-D/PCM-S/PCM-D/GM2/Expansion × Preset/User), scrollable tone list on right. Lazy-loads names via catalog. Click to select.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Add ToneSelector UI with By Tone \u0026 Bank view",
   "type": "task",
-  "updated_at": "2026-04-08T17:50:29Z"
+  "updated_at": "2026-04-08T17:50:39Z"
 }

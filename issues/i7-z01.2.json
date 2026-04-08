@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-z01.1"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-z01.3"
+  ],
   "created": "2026-04-08T17:50:29Z",
   "description": "Add requestToneCatalog(msb, lsb) using 0F 00 04 02 address. Cache results per (msb, lsb). Build core catalog function for tone address.",
   "id": "i7-z01.2",
