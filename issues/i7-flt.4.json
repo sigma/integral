@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-flt.3"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-flt.5"
+  ],
   "created": "2026-04-08T12:29:35Z",
   "description": "Load part EQ and master EQ during initial state load. Add setters, DT1 listeners, eqExpanded toggle.",
   "id": "i7-flt.4",
