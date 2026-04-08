@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   initWasm,
   requestMidiAccess,
@@ -8,6 +8,8 @@ import {
   type MidiPortPair,
   type DeviceIdentity,
 } from "./midi";
+import { IntegraService } from "./integra";
+import { useMixer } from "./useMixer";
 import { DeviceSelector } from "./DeviceSelector";
 import {
   Identifying,
@@ -16,6 +18,7 @@ import {
   NoDevices,
   MidiError,
 } from "./DeviceStatus";
+import { MixerPage } from "./MixerPage";
 import css from "./App.module.css";
 
 type DeviceStatus =
@@ -46,7 +49,8 @@ export function App() {
       try {
         access = await requestMidiAccess();
       } catch {
-        if (!cancelled) setMidiError("Web MIDI API not available. Use Chrome or Edge.");
+        if (!cancelled)
+          setMidiError("Web MIDI API not available. Use Chrome or Edge.");
         return;
       }
       if (cancelled) return;
@@ -59,25 +63,31 @@ export function App() {
     }
 
     init();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const identify = useCallback(async (port: MidiPortPair) => {
-    const gen = ++identifyGenRef.current;
-    setStatus({ step: "identifying" });
+  const identify = useCallback(
+    async (port: MidiPortPair) => {
+      const gen = ++identifyGenRef.current;
+      setStatus({ step: "identifying" });
 
-    const identity = await identifyDevice(port);
-    if (identifyGenRef.current !== gen) return;
+      const identity = await identifyDevice(port);
+      if (identifyGenRef.current !== gen) return;
 
-    if (identity) {
-      setStatus({ step: "connected", identity });
-    } else {
-      setStatus({
-        step: "failed",
-        reason: "No response — device may not be an Integra-7, or is powered off.",
-      });
-    }
-  }, []);
+      if (identity) {
+        setStatus({ step: "connected", identity });
+      } else {
+        setStatus({
+          step: "failed",
+          reason:
+            "No response — device may not be an Integra-7, or is powered off.",
+        });
+      }
+    },
+    [],
+  );
 
   const handleSelect = useCallback(
     (portId: string) => {
@@ -95,6 +105,32 @@ export function App() {
   }, [ports, selectedId, identify]);
 
   const selectedPort = ports.find((p) => p.id === selectedId);
+
+  // Create IntegraService when connected to an Integra-7
+  const service = useMemo(() => {
+    if (
+      status.step !== "connected" ||
+      !status.identity.isIntegra7() ||
+      !selectedPort
+    ) {
+      return null;
+    }
+    return new IntegraService(selectedPort, status.identity.device_id);
+  }, [status, selectedPort]);
+
+  // Clean up service on change
+  useEffect(() => {
+    return () => {
+      service?.destroy();
+    };
+  }, [service]);
+
+  const mixer = useMixer(service);
+
+  // Show mixer when connected to an Integra-7
+  if (service) {
+    return <MixerPage mixer={mixer} />;
+  }
 
   return (
     <main className={css.main}>
