@@ -4,14 +4,15 @@
   "blocks": [
     "i7-jpn.3"
   ],
+  "closed_at": "2026-04-08T05:11:56Z",
   "created": "2026-04-08T05:08:09Z",
   "description": "Set up flake.nix with Rust toolchain, wasm-pack, and development tools.",
   "id": "i7-jpn.2",
   "labels": [],
   "parent": "i7-jpn",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Create nix flake with Rust dev environment",
   "type": "task",
-  "updated_at": "2026-04-08T05:09:47Z"
+  "updated_at": "2026-04-08T05:11:56Z"
 }
