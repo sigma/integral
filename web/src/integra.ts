@@ -23,6 +23,8 @@ import {
   tone_name_address,
   tone_name_size,
   setup_studio_set_pc_address,
+  ext_part_level_address,
+  ext_part_mute_address,
   part_eq_address,
   part_eq_size,
   master_eq_address,
@@ -334,6 +336,34 @@ export class IntegraService {
   /** Set the Master EQ Switch. */
   setMasterEqSwitch(enabled: boolean): void {
     this.sendDt1(Array.from(master_eq_switch_address()), [enabled ? 1 : 0]);
+  }
+
+  // -----------------------------------------------------------------------
+  // Ext Part
+  // -----------------------------------------------------------------------
+
+  async requestExtPartLevel(): Promise<number> {
+    const data = await this.requestData(
+      Array.from(ext_part_level_address()),
+      Array.from(single_byte_size()),
+    );
+    return data[0]!;
+  }
+
+  async requestExtPartMute(): Promise<boolean> {
+    const data = await this.requestData(
+      Array.from(ext_part_mute_address()),
+      Array.from(single_byte_size()),
+    );
+    return data[0] === 1;
+  }
+
+  setExtPartLevel(value: number): void {
+    this.sendDt1(Array.from(ext_part_level_address()), [value]);
+  }
+
+  setExtPartMute(muted: boolean): void {
+    this.sendDt1(Array.from(ext_part_mute_address()), [muted ? 1 : 0]);
   }
 
   // -----------------------------------------------------------------------

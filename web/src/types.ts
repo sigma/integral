@@ -66,6 +66,10 @@ export interface MixerState {
   parts: PartState[];
   /** Currently selected part index (0–15). */
   selectedPart: number;
+  /** External input level (0–127). */
+  extLevel: number;
+  /** External input mute. */
+  extMuted: boolean;
   /** Master EQ settings. */
   masterEq: EqState;
   /** Whether the EQ section is expanded in all strips. */
@@ -99,6 +103,8 @@ export function defaultMixerState(): MixerState {
     masterLevel: 100,
     parts: Array.from({ length: 16 }, () => defaultPartState()),
     selectedPart: 0,
+    extLevel: 100,
+    extMuted: false,
     masterEq: defaultEqState(),
     eqExpanded: false,
     loading: true,

@@ -363,6 +363,20 @@ pub fn part_eq_address(part_index: u8, param_offset: u8) -> Vec<u8> {
     addr_to_vec(params::part_eq_address(part_index, param_offset))
 }
 
+// ---------------------------------------------------------------------------
+// Ext Part addresses
+// ---------------------------------------------------------------------------
+
+#[wasm_bindgen]
+pub fn ext_part_level_address() -> Vec<u8> {
+    addr_to_vec(params::EXT_PART_LEVEL)
+}
+
+#[wasm_bindgen]
+pub fn ext_part_mute_address() -> Vec<u8> {
+    addr_to_vec(params::EXT_PART_MUTE)
+}
+
 /// Returns the RQ1 size for reading all Part EQ parameters (8 bytes).
 #[wasm_bindgen]
 pub fn part_eq_size() -> Vec<u8> {

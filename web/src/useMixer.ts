@@ -79,6 +79,8 @@ export interface UseMixerResult {
   togglePartEqSwitch: (part: number) => void;
   setMasterEqParam: (paramOffset: number, value: number) => void;
   toggleMasterEqSwitch: () => void;
+  setExtLevel: (value: number) => void;
+  toggleExtMute: () => void;
   toggleEqExpanded: () => void;
   selectPart: (part: number) => void;
   switchStudioSet: (pc: number) => void;
@@ -187,6 +189,14 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
               ...prev,
               masterEq: { ...parseMasterEqDump(eqData), enabled },
             }));
+          },
+        ).catch(() => {});
+
+        // Load Ext Part state (non-blocking)
+        Promise.all([svc.requestExtPartLevel(), svc.requestExtPartMute()]).then(
+          ([level, muted]) => {
+            if (!isCurrent()) return;
+            setState((prev) => ({ ...prev, extLevel: level, extMuted: muted }));
           },
         ).catch(() => {});
 
@@ -364,6 +374,20 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     service?.setMasterEqSwitch(enabled);
   }, [service]);
 
+  const setExtLevel = useCallback(
+    (value: number) => {
+      setState((prev) => ({ ...prev, extLevel: value }));
+      service?.setExtPartLevel(value);
+    },
+    [service],
+  );
+
+  const toggleExtMute = useCallback(() => {
+    const muted = !stateRef.current.extMuted;
+    setState((prev) => ({ ...prev, extMuted: muted }));
+    service?.setExtPartMute(muted);
+  }, [service]);
+
   const toggleEqExpanded = useCallback(() => {
     setState((prev) => ({ ...prev, eqExpanded: !prev.eqExpanded }));
   }, []);
@@ -390,6 +414,8 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     togglePartEqSwitch,
     setMasterEqParam,
     toggleMasterEqSwitch,
+    setExtLevel,
+    toggleExtMute,
     toggleEqExpanded,
     selectPart,
     switchStudioSet,

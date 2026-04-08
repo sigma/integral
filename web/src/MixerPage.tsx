@@ -1,6 +1,7 @@
 import { TopBar } from "./TopBar";
 import { PartSelector } from "./PartSelector";
 import { ChannelStrip } from "./ChannelStrip";
+import { ExStrip } from "./ExStrip";
 import { MasterStrip } from "./MasterStrip";
 import type { UseMixerResult } from "./useMixer";
 import css from "./MixerPage.module.css";
@@ -55,6 +56,13 @@ export function MixerPage({ mixer }: Props) {
               />
             ))}
           </div>
+          <ExStrip
+            level={state.extLevel}
+            muted={state.extMuted}
+            eqExpanded={state.eqExpanded}
+            onLevelChange={mixer.setExtLevel}
+            onMuteToggle={mixer.toggleExtMute}
+          />
           <MasterStrip
             value={state.masterLevel}
             onChange={mixer.setMasterLevel}

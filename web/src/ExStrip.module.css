@@ -1,0 +1,14 @@
+/* Override ChannelStrip.strip for the EX strip */
+.override {
+  border-right: none;
+  border-left: 1px solid #2a4a2a;
+}
+
+.hidden {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  visibility: hidden;
+  pointer-events: none;
+}
