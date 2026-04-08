@@ -23,6 +23,11 @@ import {
   tone_name_address,
   tone_name_size,
   setup_studio_set_pc_address,
+  part_eq_address,
+  part_eq_size,
+  master_eq_address,
+  master_eq_size,
+  master_eq_switch_address,
   setup_studio_set_bs_msb_address,
   build_studio_set_catalog_request,
   parse_catalog_entry,
@@ -285,6 +290,50 @@ export class IntegraService {
     } catch {
       return "";
     }
+  }
+
+  // -----------------------------------------------------------------------
+  // EQ parameters
+  // -----------------------------------------------------------------------
+
+  /** Read all Part EQ parameters (8 bytes). */
+  async requestPartEq(part: number): Promise<Uint8Array> {
+    return this.requestData(
+      Array.from(part_eq_address(part, 0)),
+      Array.from(part_eq_size()),
+    );
+  }
+
+  /** Set a single Part EQ parameter. */
+  setPartEqParam(part: number, paramOffset: number, value: number): void {
+    this.sendDt1(Array.from(part_eq_address(part, paramOffset)), [value]);
+  }
+
+  /** Read all Master EQ parameters (7 bytes). */
+  async requestMasterEq(): Promise<Uint8Array> {
+    return this.requestData(
+      Array.from(master_eq_address(0)),
+      Array.from(master_eq_size()),
+    );
+  }
+
+  /** Set a single Master EQ parameter. */
+  setMasterEqParam(paramOffset: number, value: number): void {
+    this.sendDt1(Array.from(master_eq_address(paramOffset)), [value]);
+  }
+
+  /** Read the Master EQ Switch (from Studio Set Common). */
+  async requestMasterEqSwitch(): Promise<boolean> {
+    const data = await this.requestData(
+      Array.from(master_eq_switch_address()),
+      Array.from(single_byte_size()),
+    );
+    return data[0] === 1;
+  }
+
+  /** Set the Master EQ Switch. */
+  setMasterEqSwitch(enabled: boolean): void {
+    this.sendDt1(Array.from(master_eq_switch_address()), [enabled ? 1 : 0]);
   }
 
   // -----------------------------------------------------------------------
