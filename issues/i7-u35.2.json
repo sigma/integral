@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-u35.1"
+  ],
   "blocks": [],
   "created": "2026-04-08T06:18:52Z",
   "description": "Thin wasm-bindgen wrappers for identity_request and parse_identity_reply. JS-friendly return types.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Expose identity functions via integral-wasm",
   "type": "task",
-  "updated_at": "2026-04-08T06:18:52Z"
+  "updated_at": "2026-04-08T06:18:56Z"
 }
