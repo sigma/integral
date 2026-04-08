@@ -319,6 +319,12 @@ pub fn build_studio_set_catalog_request(device_id: u8) -> Vec<u8> {
     catalog::build_studio_set_catalog_request(device_id)
 }
 
+/// Build a catalog query for tone names in a specific bank.
+#[wasm_bindgen]
+pub fn build_tone_catalog_request(device_id: u8, msb: u8, lsb: u8, start_pc: u8) -> Vec<u8> {
+    catalog::build_tone_catalog_request(device_id, msb, lsb, start_pc)
+}
+
 /// A parsed catalog entry (name for a preset/user slot).
 #[wasm_bindgen]
 pub struct CatalogEntry {

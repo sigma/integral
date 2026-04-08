@@ -41,6 +41,7 @@ import {
   master_eq_switch_address,
   setup_studio_set_bs_msb_address,
   build_studio_set_catalog_request,
+  build_tone_catalog_request,
   parse_catalog_entry,
 } from "../pkg/integral_wasm.js";
 import type { MidiPortPair } from "./midi";
@@ -578,6 +579,74 @@ export class IntegraService {
       );
 
       this.enqueue("catalog", msg, () => {
+        resetTimeout();
+      });
+    });
+  }
+
+  /**
+   * Request tone names for a specific bank (MSB/LSB).
+   * Uses the undocumented tone catalog query at address 0F 00 04 02.
+   * Returns a Map of PC index to name.
+   */
+  async requestToneCatalog(
+    msb: number,
+    lsb: number,
+  ): Promise<Map<number, string>> {
+    const names = new Map<number, string>();
+    const msg = new Uint8Array(
+      build_tone_catalog_request(this.deviceId, msb, lsb, 0),
+    );
+
+    return new Promise((resolve) => {
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const absoluteTimeout = setTimeout(() => done(), 15000);
+
+      const done = () => {
+        clearTimeout(timeoutId);
+        clearTimeout(absoluteTimeout);
+        cleanup();
+        resolve(names);
+      };
+
+      const resetTimeout = () => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(done, 3000);
+      };
+
+      const handler = (event: MIDIMessageEvent) => {
+        const raw = event.data;
+        if (!raw || raw.length < 14 || raw[0] !== 0xf0) return;
+
+        let parsed;
+        try {
+          parsed = parse_dt1(new Uint8Array(raw));
+        } catch {
+          return;
+        }
+
+        const data = new Uint8Array(parsed.data());
+        const entry = parse_catalog_entry(data);
+        if (entry) {
+          names.set(entry.pc, entry.name());
+          entry.free();
+        }
+        resetTimeout();
+      };
+
+      const cleanup = () => {
+        this.port.input.removeEventListener(
+          "midimessage",
+          handler as EventListener,
+        );
+      };
+
+      this.port.input.addEventListener(
+        "midimessage",
+        handler as EventListener,
+      );
+
+      this.enqueue(`tone-catalog:${msb}:${lsb}`, msg, () => {
         resetTimeout();
       });
     });

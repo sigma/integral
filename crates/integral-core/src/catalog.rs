@@ -7,8 +7,11 @@
 
 use crate::sysex;
 
-/// Catalog query address (undocumented).
-const CATALOG_ADDR: [u8; 4] = [0x0F, 0x00, 0x03, 0x02];
+/// Studio Set catalog query address (undocumented).
+const STUDIO_SET_CATALOG_ADDR: [u8; 4] = [0x0F, 0x00, 0x03, 0x02];
+
+/// Tone catalog query address (undocumented).
+const TONE_CATALOG_ADDR: [u8; 4] = [0x0F, 0x00, 0x04, 0x02];
 
 /// Studio Set bank: MSB = 85 (0x55), LSB = 0.
 pub const STUDIO_SET_MSB: u8 = 0x55;
@@ -31,13 +34,37 @@ pub fn build_studio_set_catalog_request(device_id: u8) -> Vec<u8> {
         sysex::MODEL_ID[1],
         sysex::MODEL_ID[2],
         sysex::CMD_RQ1,
-        CATALOG_ADDR[0],
-        CATALOG_ADDR[1],
-        CATALOG_ADDR[2],
-        CATALOG_ADDR[3],
+        STUDIO_SET_CATALOG_ADDR[0],
+        STUDIO_SET_CATALOG_ADDR[1],
+        STUDIO_SET_CATALOG_ADDR[2],
+        STUDIO_SET_CATALOG_ADDR[3],
         STUDIO_SET_MSB,
         STUDIO_SET_LSB,
         0x00, // start from index 0
+        0xF7,
+    ]
+}
+
+/// Build a catalog query for tone names in a specific bank.
+///
+/// Uses address `0F 00 04 02` (tone catalog) with the given MSB/LSB.
+/// No checksum. The last byte before F7 is the starting PC (0-indexed).
+pub fn build_tone_catalog_request(device_id: u8, msb: u8, lsb: u8, start_pc: u8) -> Vec<u8> {
+    vec![
+        0xF0,
+        sysex::ROLAND_ID,
+        device_id,
+        sysex::MODEL_ID[0],
+        sysex::MODEL_ID[1],
+        sysex::MODEL_ID[2],
+        sysex::CMD_RQ1,
+        TONE_CATALOG_ADDR[0],
+        TONE_CATALOG_ADDR[1],
+        TONE_CATALOG_ADDR[2],
+        TONE_CATALOG_ADDR[3],
+        msb,
+        lsb,
+        start_pc,
         0xF7,
     ]
 }
@@ -93,6 +120,18 @@ mod tests {
             msg,
             vec![
                 0xF0, 0x41, 0x10, 0x00, 0x00, 0x64, 0x11, 0x0F, 0x00, 0x03, 0x02, 0x55, 0x00, 0x00,
+                0xF7
+            ]
+        );
+    }
+
+    #[test]
+    fn build_tone_catalog_sn_acoustic_preset() {
+        let msg = build_tone_catalog_request(0x10, 0x59, 0x40, 0x00);
+        assert_eq!(
+            msg,
+            vec![
+                0xF0, 0x41, 0x10, 0x00, 0x00, 0x64, 0x11, 0x0F, 0x00, 0x04, 0x02, 0x59, 0x40, 0x00,
                 0xF7
             ]
         );
