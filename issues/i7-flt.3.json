@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-flt.2"
+  ],
   "blocks": [],
   "created": "2026-04-08T12:29:35Z",
   "description": "Add EqState interface to types.ts. Add requestPartEq, setPartEqParam, requestMasterEq, setMasterEqParam to integra.ts.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Add EqState types and IntegraService EQ methods",
   "type": "task",
-  "updated_at": "2026-04-08T12:29:35Z"
+  "updated_at": "2026-04-08T12:29:44Z"
 }

@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-flt.1"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-flt.3"
+  ],
   "created": "2026-04-08T12:29:35Z",
   "description": "Add part_eq_address, master_eq_address, part_eq_size, master_eq_size to integral-wasm.",
   "id": "i7-flt.2",
