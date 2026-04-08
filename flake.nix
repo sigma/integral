@@ -31,10 +31,6 @@
           ];
           targets = [ "wasm32-unknown-unknown" ];
         };
-        python = pkgs.python3.withPackages (ps: [
-          ps.mido
-          ps.python-rtmidi
-        ]);
       in
       {
         devShells.default = pkgs.mkShell {
@@ -47,7 +43,6 @@
             pkgs.cargo-watch
             pkgs.just
             pkgs.nixfmt
-            python
           ];
 
           shellHook = ''

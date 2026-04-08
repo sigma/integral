@@ -13,8 +13,8 @@ crates/
   integral-core/    # Portable Rust library: SysEx engine, state, address maps
   integral-wasm/    # WASM bindings for the web frontend
   integral-vst/     # VST3 wrapper via nih-plug
+  integral-cli/     # CLI tools (device ping, etc.)
 web/                # TypeScript / React frontend
-scripts/            # Utility scripts (device ping, etc.)
 docs/               # Design docs, PRD, MIDI reference notes
   midi/             # INTEGRA-7 MIDI Implementation (see docs/midi/README.md)
 ```
@@ -122,6 +122,6 @@ The `justfile` provides standard targets. Run `just` to list them.
   fmt-check, lint, build (native + WASM), and tests. Do not commit
   if any target fails.
 - **Ping the device.** At the start of MIDI-related work sessions, run
-  `just ping` to verify the Integra-7 is reachable. Fail fast if the
-  device is offline.
+  `just ping` (which runs `cargo run -p integral-cli -- ping`) to verify
+  the Integra-7 is reachable. Fail fast if the device is offline.
 - **Keep CLAUDE.md current.** Update this file when conventions change.

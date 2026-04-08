@@ -4,6 +4,7 @@ members = [
     "crates/integral-core",
     "crates/integral-wasm",
     "crates/integral-vst",
+    "crates/integral-cli",
 ]
 
 [workspace.package]

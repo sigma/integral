@@ -55,7 +55,7 @@ clean:
 
 # ping the INTEGRA-7 device
 ping *ARGS:
-    python3 scripts/ping-device.py {{ARGS}}
+    cargo run -p integral-cli -- ping {{ARGS}}
 
 # start the web dev server
 dev-web:
