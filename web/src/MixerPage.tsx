@@ -43,7 +43,7 @@ export function MixerPage({ mixer }: Props) {
           className={css.eqToggle}
           onClick={mixer.toggleEqExpanded}
         >
-          EQ {state.eqExpanded ? "▲" : "▼"}
+          Details {state.eqExpanded ? "▲" : "▼"}
         </button>
       </div>
       {state.loading ? (

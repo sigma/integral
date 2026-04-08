@@ -1,6 +1,8 @@
 import { VolumeFader } from "./VolumeFader";
 import { PanKnob } from "./PanKnob";
 import { EqKnob } from "./EqKnob";
+import { EqSection } from "./EqSection";
+import { defaultEqState } from "./types";
 import type { FxState } from "./types";
 import type { FxParamDef } from "./fxParams";
 import css from "./ChannelStrip.module.css";
@@ -20,6 +22,7 @@ interface Props {
 }
 
 const noop = () => {};
+const noopParam = (_o: number, _v: number) => {};
 
 export function FxStrip({
   label,
@@ -38,7 +41,8 @@ export function FxStrip({
     <div className={`${css.strip} ${fxCss.override}`}>
       <div className={css.partNumber}>{label}</div>
 
-      {eqExpanded && (
+      {eqExpanded ? (
+        /* FX-specific controls shown in place of EQ section */
         <div className={fxCss.controls}>
           <button
             className={`${fxCss.switchButton} ${fx.enabled ? fxCss.switchOn : fxCss.switchOff}`}
@@ -90,9 +94,14 @@ export function FxStrip({
             </div>
           )}
         </div>
+      ) : (
+        /* When collapsed, hidden EQ section placeholder for height alignment */
+        <div className={masterCss.hidden}>
+          <EqSection eq={defaultEqState()} onToggleSwitch={noop} onParam={noopParam} />
+        </div>
       )}
 
-      {/* Hidden spacers for alignment */}
+      {/* Hidden PAN + sends + MUTE spacers for fader alignment */}
       <div className={masterCss.hidden}>
         <PanKnob value={64} onChange={noop} />
         <div className={css.sends}>
@@ -101,9 +110,10 @@ export function FxStrip({
           <EqKnob label="FX2" value={0} min={0} max={127} defaultValue={0}
             onChange={noop} formatValue={(v) => String(v)} />
         </div>
+        <span className={css.muteLabel}>MUTE</span>
+        <button className={css.muteButton}>M</button>
       </div>
 
-      <span className={css.muteLabel}>LEVEL</span>
       <div className={css.faderArea}>
         <VolumeFader value={fx.level} onChange={(v) => onParam(1, v)} />
       </div>
