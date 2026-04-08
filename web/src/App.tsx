@@ -129,7 +129,7 @@ export function App() {
 
   // Show mixer when connected to an Integra-7
   if (service) {
-    return <MixerPage mixer={mixer} />;
+    return <MixerPage mixer={mixer} service={service} />;
   }
 
   return (

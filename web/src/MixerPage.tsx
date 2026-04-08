@@ -12,16 +12,29 @@ import {
   REVERB_TYPE_NAMES,
   REVERB_OUTPUT_NAMES,
 } from "./fxParams";
+import { ToneSelector } from "./ToneSelector";
+import type { IntegraService } from "./integra";
 import type { UseMixerResult } from "./useMixer";
+import { useState, useCallback } from "react";
 import css from "./MixerPage.module.css";
 
 interface Props {
   mixer: UseMixerResult;
+  service: IntegraService;
 }
 
-export function MixerPage({ mixer }: Props) {
+export function MixerPage({ mixer, service }: Props) {
   const { state } = mixer;
   const selectedPart = state.parts[state.selectedPart]!;
+  const [toneSelectorOpen, setToneSelectorOpen] = useState(false);
+
+  const handleToneSelect = useCallback(
+    (msb: number, lsb: number, pc: number) => {
+      mixer.changePartTone(state.selectedPart, msb, lsb, pc);
+      setToneSelectorOpen(false);
+    },
+    [mixer, state.selectedPart],
+  );
 
   return (
     <div className={css.page}>
@@ -33,6 +46,7 @@ export function MixerPage({ mixer }: Props) {
         onStudioSetChange={mixer.switchStudioSet}
         onLoadNames={mixer.loadStudioSetNames}
         onPreview={mixer.preview}
+        onToneClick={() => setToneSelectorOpen(true)}
       />
       <div className={css.controls}>
         <PartSelector
@@ -105,6 +119,17 @@ export function MixerPage({ mixer }: Props) {
             onEqParam={mixer.setMasterEqParam}
           />
         </div>
+      )}
+      {toneSelectorOpen && (
+        <ToneSelector
+          partIndex={state.selectedPart}
+          currentMsb={selectedPart.toneBankMsb}
+          currentLsb={selectedPart.toneBankLsb}
+          currentPC={selectedPart.tonePC}
+          service={service}
+          onSelect={handleToneSelect}
+          onClose={() => setToneSelectorOpen(false)}
+        />
       )}
     </div>
   );

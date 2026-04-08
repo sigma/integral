@@ -10,6 +10,7 @@ interface Props {
   onStudioSetChange: (pc: number) => void;
   onLoadNames: () => void;
   onPreview: () => void;
+  onToneClick: () => void;
 }
 
 function toneDisplay(part: PartState): string {
@@ -48,6 +49,7 @@ export function TopBar({
   onStudioSetChange,
   onLoadNames,
   onPreview,
+  onToneClick,
 }: Props) {
   return (
     <div className={css.bar}>
@@ -57,7 +59,7 @@ export function TopBar({
         onSelect={onStudioSetChange}
         onLoadNames={onLoadNames}
       />
-      <span className={css.toneInfo}>
+      <span className={css.toneInfo} onClick={onToneClick} style={{ cursor: "pointer" }}>
         Part {selectedPartIndex + 1} : {toneDisplay(selectedPart)}
       </span>
       <button className={css.previewButton} onClick={onPreview}>
