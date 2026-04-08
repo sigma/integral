@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T06:53:23Z",
+  "description": "",
+  "id": "i7-y0t.6",
+  "labels": [],
+  "parent": "i7-y0t",
+  "priority": 2,
+  "status": "open",
+  "title": "Web: IntegraService with throttled SysEx communication",
+  "type": "task",
+  "updated_at": "2026-04-08T06:53:23Z"
+}
