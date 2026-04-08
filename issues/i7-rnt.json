@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T05:37:41Z",
+  "description": "Create a Python script that sends SysEx Identity Request to the Integra-7 and verifies the reply. Add CLAUDE.md guidance for session-start device check.",
+  "id": "i7-rnt",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Add device ping script and session check guidance",
+  "type": "task",
+  "updated_at": "2026-04-08T05:37:41Z"
+}
