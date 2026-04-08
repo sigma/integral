@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T06:18:41Z",
+  "description": "Implement Identity Request/Reply in integral-core, expose via integral-wasm for the web app, and create a Rust CLI ping tool replacing the Python script.",
+  "id": "i7-u35",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Move SysEx identity logic to Rust core and wire through WASM + CLI",
+  "type": "epic",
+  "updated_at": "2026-04-08T06:18:41Z"
+}
