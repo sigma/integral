@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T05:08:01Z",
+  "description": "Set up the initial project structure, CLAUDE.md agent rules, nix flake, and Rust workspace for the OpenLink cross-platform Integra-7 control surface.",
+  "id": "i7-jpn",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Project bootstrap: OpenLink (Integra-7)",
+  "type": "epic",
+  "updated_at": "2026-04-08T05:08:01Z"
+}
