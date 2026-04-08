@@ -24,6 +24,8 @@ import {
   tone_name_size,
   setup_studio_set_pc_address,
   setup_studio_set_bs_msb_address,
+  build_studio_set_catalog_request,
+  parse_catalog_entry,
 } from "../pkg/integral_wasm.js";
 import type { MidiPortPair } from "./midi";
 
@@ -283,6 +285,84 @@ export class IntegraService {
     } catch {
       return "";
     }
+  }
+
+  // -----------------------------------------------------------------------
+  // Catalog queries (undocumented)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Request all 64 Studio Set names.
+   *
+   * Sends the undocumented 2-byte catalog query. The device responds with
+   * all entries in a stream with delimiter messages interspersed.
+   */
+  async requestStudioSetNames(): Promise<Map<number, string>> {
+    const names = new Map<number, string>();
+    const msg = new Uint8Array(
+      build_studio_set_catalog_request(this.deviceId),
+    );
+
+    return new Promise((resolve) => {
+      let timeoutId: ReturnType<typeof setTimeout>;
+      // Absolute deadline: 15s max regardless of activity
+      const absoluteTimeout = setTimeout(() => {
+        done();
+      }, 15000);
+
+      const done = () => {
+        clearTimeout(timeoutId);
+        clearTimeout(absoluteTimeout);
+        cleanup();
+        resolve(names);
+      };
+
+      const resetTimeout = () => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(done, 3000);
+      };
+
+      const handler = (event: MIDIMessageEvent) => {
+        const raw = event.data;
+        if (!raw || raw.length < 14 || raw[0] !== 0xf0) return;
+
+        let parsed;
+        try {
+          parsed = parse_dt1(new Uint8Array(raw));
+        } catch {
+          return;
+        }
+
+        const data = new Uint8Array(parsed.data());
+        const entry = parse_catalog_entry(data);
+        if (entry) {
+          names.set(entry.pc, entry.name());
+          entry.free();
+          if (names.size >= 64) {
+            done();
+            return;
+          }
+        }
+        // Reset silence timer on any catalog-related response
+        resetTimeout();
+      };
+
+      const cleanup = () => {
+        this.port.input.removeEventListener(
+          "midimessage",
+          handler as EventListener,
+        );
+      };
+
+      this.port.input.addEventListener(
+        "midimessage",
+        handler as EventListener,
+      );
+
+      this.enqueue("catalog", msg, () => {
+        resetTimeout();
+      });
+    });
   }
 
   // -----------------------------------------------------------------------

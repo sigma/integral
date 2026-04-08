@@ -32,6 +32,8 @@ export interface MixerState {
   selectedPart: number;
   /** Whether initial state is still loading from the device. */
   loading: boolean;
+  /** All 64 Studio Set names (indexed 0–63). Populated via catalog query. */
+  studioSetNames: Map<number, string>;
 }
 
 /** Default state for a single part. */
@@ -57,5 +59,6 @@ export function defaultMixerState(): MixerState {
     parts: Array.from({ length: 16 }, () => defaultPartState()),
     selectedPart: 0,
     loading: true,
+    studioSetNames: new Map(),
   };
 }

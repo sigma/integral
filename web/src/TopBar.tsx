@@ -1,12 +1,14 @@
+import { StudioSetSelector } from "./StudioSetSelector";
 import type { PartState } from "./types";
 import css from "./TopBar.module.css";
 
 interface Props {
-  studioSetName: string;
   studioSetPC: number;
+  studioSetNames: Map<number, string>;
   selectedPart: PartState;
   selectedPartIndex: number;
   onStudioSetChange: (pc: number) => void;
+  onLoadNames: () => void;
   onPreview: () => void;
 }
 
@@ -39,31 +41,22 @@ function toneTypeLabel(bankMsb: number): string {
 }
 
 export function TopBar({
-  studioSetName,
   studioSetPC,
+  studioSetNames,
   selectedPart,
   selectedPartIndex,
   onStudioSetChange,
+  onLoadNames,
   onPreview,
 }: Props) {
   return (
     <div className={css.bar}>
-      <div className={css.studioSetGroup}>
-        <span className={css.studioSetLabel}>STUDIO SET</span>
-        <select
-          className={css.studioSetSelect}
-          value={studioSetPC}
-          onChange={(e) => onStudioSetChange(Number(e.target.value))}
-        >
-          {Array.from({ length: 64 }, (_, i) => (
-            <option key={i} value={i}>
-              {i === studioSetPC && studioSetName
-                ? `${i + 1}: ${studioSetName}`
-                : `${i + 1}`}
-            </option>
-          ))}
-        </select>
-      </div>
+      <StudioSetSelector
+        currentPC={studioSetPC}
+        names={studioSetNames}
+        onSelect={onStudioSetChange}
+        onLoadNames={onLoadNames}
+      />
       <span className={css.toneInfo}>
         Part {selectedPartIndex + 1} : {toneDisplay(selectedPart)}
       </span>

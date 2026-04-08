@@ -444,7 +444,13 @@ fn raw_read(port_pattern: &str, timeout: Duration, addr_hex: &str, size_hex: &st
     // Print as ASCII (printable chars only)
     let ascii: String = data
         .iter()
-        .map(|&b| if (0x20..=0x7E).contains(&b) { b as char } else { '.' })
+        .map(|&b| {
+            if (0x20..=0x7E).contains(&b) {
+                b as char
+            } else {
+                '.'
+            }
+        })
         .collect();
     println!("ASCII: {ascii}");
 
@@ -547,7 +553,13 @@ fn send_raw_hex(port_pattern: &str, timeout: Duration, hex: &str) -> Result<()> 
                             }
                         })
                         .collect();
-                    println!("[{}] addr={} ({} bytes) {}", count, dt1.address, dt1.data.len(), ascii);
+                    println!(
+                        "[{}] addr={} ({} bytes) {}",
+                        count,
+                        dt1.address,
+                        dt1.data.len(),
+                        ascii
+                    );
                 } else {
                     let hex_out: Vec<String> = msg.iter().map(|b| format!("{:02X}", b)).collect();
                     println!("[{}] raw: {}", count, hex_out.join(" "));
@@ -589,21 +601,21 @@ fn probe_catalog(port_pattern: &str) -> Result<()> {
         let mut count = 0;
         while let Ok(response) = rx.try_recv() {
             count += 1;
-            if count <= 3 {
-                if let Ok(dt1) = sysex::parse_dt1(&response) {
-                    let ascii: String = dt1
-                        .data
-                        .iter()
-                        .map(|&b| {
-                            if (0x20..=0x7E).contains(&b) {
-                                b as char
-                            } else {
-                                '.'
-                            }
-                        })
-                        .collect();
-                    eprint!("[{}] ", ascii);
-                }
+            if count <= 3
+                && let Ok(dt1) = sysex::parse_dt1(&response)
+            {
+                let ascii: String = dt1
+                    .data
+                    .iter()
+                    .map(|&b| {
+                        if (0x20..=0x7E).contains(&b) {
+                            b as char
+                        } else {
+                            '.'
+                        }
+                    })
+                    .collect();
+                eprint!("[{}] ", ascii);
             }
         }
         eprintln!("{count} response(s)");
@@ -611,12 +623,7 @@ fn probe_catalog(port_pattern: &str) -> Result<()> {
     Ok(())
 }
 
-fn raw_send(
-    port_pattern: &str,
-    timeout: Duration,
-    addr_hex: &str,
-    data_hex: &str,
-) -> Result<()> {
+fn raw_send(port_pattern: &str, timeout: Duration, addr_hex: &str, data_hex: &str) -> Result<()> {
     let addr = parse_hex_addr(addr_hex)?;
     let data = parse_hex_bytes(data_hex)?;
     let (_conn_in, mut conn_out, rx) = open_midi(port_pattern)?;

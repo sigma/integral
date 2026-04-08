@@ -21,10 +21,10 @@ populates the Studio Set selector dropdown.
 
 ### Request Format
 
-A short-form RQ1 to address `0F 00 03 02` with a 3-byte payload:
+A short-form RQ1 to address `0F 00 03 02` with **no checksum**:
 
 ```
-F0 41 <dev> 00 00 64 11 0F 00 03 02 <MSB> <LSB> <start> <checksum> F7
+F0 41 <dev> 00 00 64 11 0F 00 03 02 <MSB> <LSB> <start> F7
 ```
 
 | Byte(s)       | Value          | Description                                |
@@ -38,12 +38,12 @@ F0 41 <dev> 00 00 64 11 0F 00 03 02 <MSB> <LSB> <start> <checksum> F7
 | `MSB`         | e.g. `55`      | Bank Select MSB of the category to query   |
 | `LSB`         | e.g. `00`      | Bank Select LSB                            |
 | `start`       | `00`–`3F`     | Starting program number (0-indexed)        |
-| `checksum`    |                | Roland checksum over addr + MSB + LSB + start |
 | `F7`          | `F7`           | SysEx end                                  |
 
-**Note:** This is a non-standard RQ1 — the "size" field is only 3 bytes
-(`MSB LSB start`) instead of the standard 4 bytes. The device accepts this
-shortened format and responds normally.
+**Important:** This command does NOT use a Roland checksum. The byte
+immediately before `F7` is the starting program number, not a checksum.
+If a checksum byte is included, the device interprets it as part of the
+payload, which changes the effective start index.
 
 ### Known Bank Values
 
@@ -105,10 +105,10 @@ number.
 **Request all Studio Set names starting from index 0:**
 
 ```
-F0 41 10 00 00 64 11 0F 00 03 02 55 00 00 17 F7
+F0 41 10 00 00 64 11 0F 00 03 02 55 00 00 F7
 ```
 
-Checksum: `0F + 00 + 03 + 02 + 55 + 00 + 00 = 69H → (128 - 105) % 128 = 23 = 17H`
+No checksum. The `00` before `F7` is the start index.
 
 **Response (first entry):**
 
@@ -122,7 +122,7 @@ Data bytes: `55 00 00 00 00` + "Integra Preview " (16 ASCII chars)
 **Request names starting from index 4 (Techno Set):**
 
 ```
-F0 41 10 00 00 64 11 0F 00 03 02 55 00 04 13 F7
+F0 41 10 00 00 64 11 0F 00 03 02 55 00 04 F7
 ```
 
 First response: `55 00 04 00 00` + "Techno Set      "

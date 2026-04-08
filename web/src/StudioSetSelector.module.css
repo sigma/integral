@@ -1,0 +1,80 @@
+.container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.label {
+  font-size: 9px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #4ae0e0;
+  background: #1a2a3e;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #2a4a5a;
+  cursor: pointer;
+  min-width: 200px;
+  text-align: left;
+}
+
+.button:hover {
+  border-color: #4ae0e0;
+}
+
+.arrow {
+  margin-left: auto;
+  font-size: 10px;
+  color: #4ae0e0;
+}
+
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 260px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: #1a2a3e;
+  border: 1px solid #2a4a5a;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #c0c0e0;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.item:hover {
+  background: #223355;
+}
+
+.selected {
+  color: #4ae0e0;
+  font-weight: 600;
+  background: #2a4a6a;
+}
+
+.placeholder {
+  color: #555;
+}

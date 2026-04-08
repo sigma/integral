@@ -1,6 +1,7 @@
 //! WASM bindings for the Integral Integra-7 control surface.
 
 use integral_core::address::{Address, DataSize};
+use integral_core::catalog;
 use integral_core::sysex;
 use integral_core::{params, params::part};
 use wasm_bindgen::prelude::*;
@@ -303,4 +304,50 @@ pub fn tone_name_address(part_index: u8, bank_msb: u8) -> Vec<u8> {
 #[wasm_bindgen]
 pub fn tone_name_size() -> Vec<u8> {
     params::TONE_NAME_SIZE.as_bytes().to_vec()
+}
+
+// ---------------------------------------------------------------------------
+// Catalog queries (undocumented)
+// ---------------------------------------------------------------------------
+
+/// Build a catalog query for all Studio Set names.
+///
+/// Returns the raw SysEx bytes to send. The device responds with multiple
+/// DT1 messages containing all 64 Studio Set names.
+#[wasm_bindgen]
+pub fn build_studio_set_catalog_request(device_id: u8) -> Vec<u8> {
+    catalog::build_studio_set_catalog_request(device_id)
+}
+
+/// A parsed catalog entry (name for a preset/user slot).
+#[wasm_bindgen]
+pub struct CatalogEntry {
+    #[wasm_bindgen(readonly)]
+    pub bank_msb: u8,
+    #[wasm_bindgen(readonly)]
+    pub bank_lsb: u8,
+    #[wasm_bindgen(readonly)]
+    pub pc: u8,
+    name: String,
+}
+
+#[wasm_bindgen]
+impl CatalogEntry {
+    /// Returns the entry name.
+    pub fn name(&self) -> String {
+        self.name.clone()
+    }
+}
+
+/// Parse a DT1 response as a catalog entry.
+///
+/// Returns null for delimiter messages (all-zero data) or invalid data.
+#[wasm_bindgen]
+pub fn parse_catalog_entry(data: &[u8]) -> Option<CatalogEntry> {
+    catalog::parse_catalog_entry(data).map(|e| CatalogEntry {
+        bank_msb: e.bank_msb,
+        bank_lsb: e.bank_lsb,
+        pc: e.pc,
+        name: e.name,
+    })
 }

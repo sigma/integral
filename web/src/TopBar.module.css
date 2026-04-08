@@ -7,36 +7,6 @@
   border-bottom: 1px solid #2a2a4a;
 }
 
-.studioSetGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.studioSetLabel {
-  font-size: 9px;
-  color: #888;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.studioSetSelect {
-  font-size: 14px;
-  font-weight: 600;
-  color: #4ae0e0;
-  background: #1a2a3e;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid #2a4a5a;
-  cursor: pointer;
-  min-width: 180px;
-}
-
-.studioSetSelect option {
-  background: #1a2a3e;
-  color: #e0e0e0;
-}
-
 .toneInfo {
   flex: 1;
   font-size: 13px;

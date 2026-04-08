@@ -49,6 +49,7 @@ export interface UseMixerResult {
   setMasterLevel: (value: number) => void;
   selectPart: (part: number) => void;
   switchStudioSet: (pc: number) => void;
+  loadStudioSetNames: () => void;
   preview: () => void;
 }
 
@@ -111,6 +112,9 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
 
         if (!isCurrent()) return;
 
+        const initialNames = new Map<number, string>();
+        initialNames.set(studioSetPC, name);
+
         setState((prev) => ({
           ...prev,
           studioSetName: name,
@@ -121,6 +125,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
             ...parts[i],
           })),
           loading: false,
+          studioSetNames: initialNames,
         }));
 
         // Load tone names (non-blocking)
@@ -132,6 +137,8 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
             setState((prev) => updatePart(prev, i, { toneName }));
           });
         }
+
+        // Studio Set catalog is loaded lazily when the dropdown is opened.
       } catch {
         setState((prev) => ({ ...prev, loading: false }));
       }
@@ -144,6 +151,20 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     if (!service) return;
     loadState(service);
   }, [service, loadState]);
+
+  // Load studio set names on demand (triggered when dropdown opens)
+  const catalogLoaded = useRef(false);
+  const loadStudioSetNames = useCallback(
+    async () => {
+      if (!service || catalogLoaded.current) return;
+      catalogLoaded.current = true;
+
+      const names = await service.requestStudioSetNames();
+      console.log("[mixer] Studio Set catalog:", names.size, "names");
+      setState((prev) => ({ ...prev, studioSetNames: names }));
+    },
+    [service],
+  );
 
   // Listen for incoming DT1 messages
   useEffect(() => {
@@ -251,6 +272,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     setMasterLevel,
     selectPart,
     switchStudioSet,
+    loadStudioSetNames,
     preview,
   };
 }
