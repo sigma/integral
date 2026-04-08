@@ -3,7 +3,7 @@
 use integral_core::address::{Address, DataSize};
 use integral_core::catalog;
 use integral_core::sysex;
-use integral_core::{params, params::part};
+use integral_core::{params, params::part, params::part_eq};
 use wasm_bindgen::prelude::*;
 
 // ---------------------------------------------------------------------------
@@ -350,4 +350,75 @@ pub fn parse_catalog_entry(data: &[u8]) -> Option<CatalogEntry> {
         pc: e.pc,
         name: e.name,
     })
+}
+
+// ---------------------------------------------------------------------------
+// EQ addresses
+// ---------------------------------------------------------------------------
+
+/// Returns the address for a Part EQ parameter.
+/// `part_index` is 0-indexed, `param_offset` is a part_eq constant (0-7).
+#[wasm_bindgen]
+pub fn part_eq_address(part_index: u8, param_offset: u8) -> Vec<u8> {
+    addr_to_vec(params::part_eq_address(part_index, param_offset))
+}
+
+/// Returns the RQ1 size for reading all Part EQ parameters (8 bytes).
+#[wasm_bindgen]
+pub fn part_eq_size() -> Vec<u8> {
+    params::PART_EQ_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address for a Master EQ parameter.
+/// `param_offset` is a master_eq constant (0-6).
+#[wasm_bindgen]
+pub fn master_eq_address(param_offset: u8) -> Vec<u8> {
+    addr_to_vec(params::master_eq_address(param_offset))
+}
+
+/// Returns the RQ1 size for reading all Master EQ parameters (7 bytes).
+#[wasm_bindgen]
+pub fn master_eq_size() -> Vec<u8> {
+    params::MASTER_EQ_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address for the Master EQ Switch.
+#[wasm_bindgen]
+pub fn master_eq_switch_address() -> Vec<u8> {
+    addr_to_vec(params::MASTER_EQ_SWITCH)
+}
+
+// Re-export EQ parameter offset constants for JS use.
+
+#[wasm_bindgen]
+pub fn eq_switch_offset() -> u8 {
+    part_eq::SWITCH
+}
+#[wasm_bindgen]
+pub fn eq_low_freq_offset() -> u8 {
+    part_eq::LOW_FREQ
+}
+#[wasm_bindgen]
+pub fn eq_low_gain_offset() -> u8 {
+    part_eq::LOW_GAIN
+}
+#[wasm_bindgen]
+pub fn eq_mid_freq_offset() -> u8 {
+    part_eq::MID_FREQ
+}
+#[wasm_bindgen]
+pub fn eq_mid_gain_offset() -> u8 {
+    part_eq::MID_GAIN
+}
+#[wasm_bindgen]
+pub fn eq_mid_q_offset() -> u8 {
+    part_eq::MID_Q
+}
+#[wasm_bindgen]
+pub fn eq_high_freq_offset() -> u8 {
+    part_eq::HIGH_FREQ
+}
+#[wasm_bindgen]
+pub fn eq_high_gain_offset() -> u8 {
+    part_eq::HIGH_GAIN
 }
