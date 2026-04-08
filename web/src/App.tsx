@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
+  initWasm,
   requestMidiAccess,
   getPairedPorts,
   findIntegraPort,
   identifyDevice,
   type MidiPortPair,
-  type Integra7Identity,
+  type DeviceIdentity,
 } from "./midi";
 import { DeviceSelector } from "./DeviceSelector";
 import {
@@ -20,7 +21,7 @@ import css from "./App.module.css";
 type DeviceStatus =
   | { step: "idle" }
   | { step: "identifying" }
-  | { step: "connected"; identity: Integra7Identity }
+  | { step: "connected"; identity: DeviceIdentity }
   | { step: "failed"; reason: string };
 
 export function App() {
@@ -34,6 +35,13 @@ export function App() {
     let cancelled = false;
 
     async function init() {
+      try {
+        await initWasm();
+      } catch {
+        if (!cancelled) setMidiError("Failed to load WASM module.");
+        return;
+      }
+
       let access: MIDIAccess;
       try {
         access = await requestMidiAccess();

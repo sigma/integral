@@ -1,4 +1,4 @@
-import type { Integra7Identity } from "./midi";
+import type { DeviceIdentity } from "./midi";
 import css from "./DeviceStatus.module.css";
 
 function formatHex(value: number): string {
@@ -19,33 +19,37 @@ export function Identifying({ portName }: IdentifyingProps) {
 
 interface ConnectedProps {
   portName: string;
-  identity: Integra7Identity;
+  identity: DeviceIdentity;
 }
 
 export function Connected({ portName, identity }: ConnectedProps) {
   return (
     <div>
       <div className={css.success}>
-        <strong>Roland INTEGRA-7</strong> connected on{" "}
-        <strong>{portName}</strong>
+        {identity.isIntegra7() ? (
+          <strong>Roland INTEGRA-7</strong>
+        ) : (
+          <strong>Unknown device</strong>
+        )}{" "}
+        connected on <strong>{portName}</strong>
       </div>
       <table className={css.table}>
         <tbody>
           <tr>
             <td className={css.tdLabel}>Device ID</td>
-            <td className={css.tdValue}>{formatHex(identity.deviceId)}H</td>
+            <td className={css.tdValue}>{formatHex(identity.device_id)}H</td>
           </tr>
           <tr>
             <td className={css.tdLabel}>Family Code</td>
-            <td className={css.tdValue}>{identity.familyCode}</td>
+            <td className={css.tdValue}>{identity.familyCodeHex()}</td>
           </tr>
           <tr>
             <td className={css.tdLabel}>Family Number</td>
-            <td className={css.tdValue}>{identity.familyNumber}</td>
+            <td className={css.tdValue}>{identity.familyNumberHex()}</td>
           </tr>
           <tr>
             <td className={css.tdLabel}>Revision</td>
-            <td className={css.tdValue}>{identity.revision}</td>
+            <td className={css.tdValue}>{identity.revisionHex()}</td>
           </tr>
         </tbody>
       </table>

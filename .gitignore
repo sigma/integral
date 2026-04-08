@@ -11,6 +11,9 @@ node_modules/
 dist/
 .parcel-cache/
 
+# WASM build output
+web/pkg/
+
 # IDE
 .idea/
 .vscode/

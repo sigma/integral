@@ -29,16 +29,20 @@ lint-web:
 build:
     cargo build --workspace
 
-# build WASM targets
+# build WASM targets (check only)
 build-wasm:
     cargo build --target wasm32-unknown-unknown -p integral-core -p integral-wasm
+
+# build WASM package for web consumption
+pack-wasm:
+    wasm-pack build crates/integral-wasm --target web --out-dir ../../web/pkg
 
 # run all tests
 test:
     cargo test --workspace
 
-# build the web app for production
-build-web:
+# build the web app for production (includes WASM pack)
+build-web: pack-wasm
     cd web && npx vite build
 
 # format, lint, build, and test — the full pre-commit check
@@ -47,7 +51,7 @@ check: fmt-check lint lint-web build build-wasm test
 # clean build artifacts
 clean:
     cargo clean
-    rm -rf web/dist
+    rm -rf web/dist web/pkg
 
 # ping the INTEGRA-7 device
 ping *ARGS:
