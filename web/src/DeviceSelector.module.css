@@ -1,0 +1,35 @@
+.label {
+  display: block;
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 12px;
+}
+
+.select {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  margin-top: 6px;
+  font-size: 14px;
+  background: #0f0f1a;
+  color: #e0e0e0;
+  border: 1px solid #333;
+  border-radius: 6px;
+}
+
+.button {
+  margin-top: 12px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #4a6cf7;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

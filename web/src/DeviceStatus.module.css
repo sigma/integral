@@ -1,0 +1,47 @@
+.success {
+  margin-top: 16px;
+  background: #0a2a0a;
+  border: 1px solid #2d6a2d;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  color: #6ddb6d;
+}
+
+.error {
+  color: #ff6b6b;
+}
+
+.warning {
+  color: #ffaa44;
+}
+
+.button {
+  margin-top: 12px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #4a6cf7;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tdLabel {
+  padding: 4px 8px 4px 0;
+  color: #888;
+  white-space: nowrap;
+}
+
+.tdValue {
+  padding: 4px 0;
+  font-family: monospace;
+  color: #c0c0e0;
+}

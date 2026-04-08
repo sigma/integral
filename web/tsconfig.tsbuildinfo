@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/midi.ts"],"version":"5.8.3"}
+{"root":["./src/app.tsx","./src/deviceselector.tsx","./src/devicestatus.tsx","./src/main.tsx","./src/midi.ts","./src/vite-env.d.ts"],"version":"5.8.3"}
