@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T12:29:35Z",
+  "description": "Add part_eq and master_eq modules to params.rs with all EQ offsets, address computation, and tests.",
+  "id": "i7-flt.1",
+  "labels": [],
+  "parent": "i7-flt",
+  "priority": 2,
+  "status": "open",
+  "title": "Add EQ parameter addresses to integral-core",
+  "type": "task",
+  "updated_at": "2026-04-08T12:29:35Z"
+}
