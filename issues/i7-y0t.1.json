@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-y0t.2"
+  ],
   "created": "2026-04-08T06:53:22Z",
   "description": "",
   "id": "i7-y0t.1",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Add Address/DataSize newtypes with 7-bit arithmetic",
   "type": "task",
-  "updated_at": "2026-04-08T06:53:22Z"
+  "updated_at": "2026-04-08T06:53:30Z"
 }
