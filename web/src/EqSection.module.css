@@ -1,0 +1,55 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 2px;
+  background: #161630;
+  border-radius: 4px;
+  border: 1px solid #2a2a4a;
+  width: 100%;
+}
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.switchButton {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid #3a3a5a;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.switchOn {
+  background: #2a5a2a;
+  color: #6ddb6d;
+  border-color: #4a8a4a;
+}
+
+.switchOff {
+  background: #222238;
+  color: #666;
+}
+
+.band {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  justify-content: center;
+}
+
+.bandLabel {
+  font-size: 8px;
+  font-weight: 600;
+  color: #888;
+  width: 22px;
+  text-align: right;
+  flex-shrink: 0;
+}
