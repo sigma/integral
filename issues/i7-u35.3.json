@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T06:18:52Z",
+  "description": "Load integral-wasm in the web app. Replace hardcoded identity request bytes and reply parsing in midi.ts with calls to the WASM module.",
+  "id": "i7-u35.3",
+  "labels": [],
+  "parent": "i7-u35",
+  "priority": 2,
+  "status": "open",
+  "title": "Wire WASM into web app, replace TS SysEx logic",
+  "type": "task",
+  "updated_at": "2026-04-08T06:18:52Z"
+}
