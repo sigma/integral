@@ -32,7 +32,7 @@ export function PanKnob({ value, onChange, label = "PAN" }: Props) {
       if (!dragging.current) return;
       const dy = lastY.current - e.clientY;
       lastY.current = e.clientY;
-      const newValue = Math.max(0, Math.min(127, value + dy));
+      const newValue = Math.max(0, Math.min(127, Math.round(value + dy)));
       onChange(newValue);
     },
     [value, onChange],
