@@ -45,27 +45,18 @@ Run `just` for the full list. Key targets:
 
 ## Architecture
 
-```
-                    ┌──────────────┐
-                    │ integral-core│  Rust library (no I/O)
-                    │  SysEx engine│  - identity request/reply
-                    │  checksum    │  - address maps
-                    │  state mgmt  │  - parameter encoding
-                    └──────┬───────┘
-                           │
-              ┌────────────┼────────────┐
-              │            │            │
-     ┌────────▼───┐ ┌──────▼─────┐ ┌───▼──────────┐
-     │integral-wasm│ │integral-cli│ │ integral-vst │
-     │  WASM/JS   │ │  native    │ │  VST3 plugin │
-     │  bindings  │ │  midir     │ │  (planned)   │
-     └─────┬──────┘ └────────────┘ └──────────────┘
-           │
-     ┌─────▼──────┐
-     │   web/     │  React + TypeScript
-     │  Web MIDI  │  Vite dev server
-     │  API       │
-     └────────────┘
+```mermaid
+graph TD
+    core["integral-core\nSysEx engine, checksum, address maps"]
+    wasm["integral-wasm\nWASM bindings (wasm-bindgen)"]
+    cli["integral-cli\nnative MIDI (midir)"]
+    vst["integral-vst\nVST3 plugin (planned)"]
+    web["web/\nReact + Vite + Web MIDI API"]
+
+    core --> wasm
+    core --> cli
+    core --> vst
+    wasm --> web
 ```
 
 ## License
