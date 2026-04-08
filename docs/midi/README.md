@@ -17,6 +17,7 @@ Extracted from the official Roland INTEGRA-7 MIDI Implementation document
 | [08-supernatural-synth-tone.md](08-supernatural-synth-tone.md) | SuperNATURAL Synth Tone: Common, MFX, Partials 1-3 |
 | [09-supernatural-acoustic-tone.md](09-supernatural-acoustic-tone.md) | SuperNATURAL Acoustic Tone: Common, MFX |
 | [10-supernatural-drum-kit.md](10-supernatural-drum-kit.md) | SuperNATURAL Drum Kit: Common, MFX, Comp/EQ, per-key Notes |
+| [11-fx-parameters.md](11-fx-parameters.md) | FX Parameters: Chorus/Reverb type-dependent parameter mappings |
 | [99-undocumented.md](99-undocumented.md) | Undocumented: catalog queries, user storage addresses |
 
 ## Address Space Quick Reference

@@ -54,6 +54,66 @@ pub const EXT_PART_REVERB_SEND: Address = Address::new(0x18, 0x00, 0x00, 0x4E);
 pub const EXT_PART_MUTE: Address = Address::new(0x18, 0x00, 0x00, 0x4F);
 
 // ---------------------------------------------------------------------------
+// Studio Set Common: Chorus (offset 00 04 00)
+// ---------------------------------------------------------------------------
+
+/// Chorus block base address.
+pub const CHORUS_BASE: Address = Address::new(0x18, 0x00, 0x04, 0x00);
+
+/// Chorus Switch (in Studio Set Common at offset `00 41`).
+pub const CHORUS_SWITCH: Address = Address::new(0x18, 0x00, 0x00, 0x41);
+
+/// Chorus parameter offsets within the Chorus block.
+pub mod chorus {
+    /// Chorus Type (0=OFF, 1=Chorus, 2=Delay, 3=GM2 Chorus).
+    pub const TYPE: u8 = 0x00;
+    /// Chorus Level (0–127).
+    pub const LEVEL: u8 = 0x01;
+    /// Chorus Output Select (0=MAIN, 1=REV, 2=MAIN+REV).
+    pub const OUTPUT_SELECT: u8 = 0x03;
+    /// First nibblized parameter offset (Param 1 at 0x04, each is 4 bytes).
+    pub const PARAM_BASE: u8 = 0x04;
+}
+
+/// Compute the absolute address for a Chorus parameter.
+pub const fn chorus_address(param_offset: u8) -> Address {
+    CHORUS_BASE.offset([0x00, 0x00, 0x00, param_offset])
+}
+
+/// Size for reading Chorus core params (type + level + reserved + output = 4 bytes).
+pub const CHORUS_CORE_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x04);
+
+// ---------------------------------------------------------------------------
+// Studio Set Common: Reverb (offset 00 06 00)
+// ---------------------------------------------------------------------------
+
+/// Reverb block base address.
+pub const REVERB_BASE: Address = Address::new(0x18, 0x00, 0x06, 0x00);
+
+/// Reverb Switch (in Studio Set Common at offset `00 40`).
+pub const REVERB_SWITCH: Address = Address::new(0x18, 0x00, 0x00, 0x40);
+
+/// Reverb parameter offsets within the Reverb block.
+pub mod reverb {
+    /// Reverb Type (0=OFF, 1=Room1, 2=Room2, 3=Hall1, 4=Hall2, 5=Plate, 6=GM2 Reverb).
+    pub const TYPE: u8 = 0x00;
+    /// Reverb Level (0–127).
+    pub const LEVEL: u8 = 0x01;
+    /// Reverb Output Assign (0=A, 1=B, 2=C, 3=D).
+    pub const OUTPUT_ASSIGN: u8 = 0x02;
+    /// First nibblized parameter offset (Param 1 at 0x03, each is 4 bytes).
+    pub const PARAM_BASE: u8 = 0x03;
+}
+
+/// Compute the absolute address for a Reverb parameter.
+pub const fn reverb_address(param_offset: u8) -> Address {
+    REVERB_BASE.offset([0x00, 0x00, 0x00, param_offset])
+}
+
+/// Size for reading Reverb core params (type + level + output = 3 bytes).
+pub const REVERB_CORE_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x03);
+
+// ---------------------------------------------------------------------------
 // Studio Set Part offsets (within a Part block)
 // ---------------------------------------------------------------------------
 
@@ -274,6 +334,40 @@ mod tests {
         // Part 8 = index 7
         let addr = part_address(7, part::CHORUS_SEND);
         assert_eq!(addr, Address::new(0x18, 0x00, 0x27, 0x27));
+    }
+
+    #[test]
+    fn chorus_addresses() {
+        assert_eq!(
+            chorus_address(chorus::TYPE),
+            Address::new(0x18, 0x00, 0x04, 0x00)
+        );
+        assert_eq!(
+            chorus_address(chorus::LEVEL),
+            Address::new(0x18, 0x00, 0x04, 0x01)
+        );
+        assert_eq!(
+            chorus_address(chorus::OUTPUT_SELECT),
+            Address::new(0x18, 0x00, 0x04, 0x03)
+        );
+        assert_eq!(CHORUS_SWITCH, Address::new(0x18, 0x00, 0x00, 0x41));
+    }
+
+    #[test]
+    fn reverb_addresses() {
+        assert_eq!(
+            reverb_address(reverb::TYPE),
+            Address::new(0x18, 0x00, 0x06, 0x00)
+        );
+        assert_eq!(
+            reverb_address(reverb::LEVEL),
+            Address::new(0x18, 0x00, 0x06, 0x01)
+        );
+        assert_eq!(
+            reverb_address(reverb::OUTPUT_ASSIGN),
+            Address::new(0x18, 0x00, 0x06, 0x02)
+        );
+        assert_eq!(REVERB_SWITCH, Address::new(0x18, 0x00, 0x00, 0x40));
     }
 
     #[test]
