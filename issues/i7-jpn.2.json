@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-jpn.3"
+  ],
   "created": "2026-04-08T05:08:09Z",
   "description": "Set up flake.nix with Rust toolchain, wasm-pack, and development tools.",
   "id": "i7-jpn.2",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Create nix flake with Rust dev environment",
   "type": "task",
-  "updated_at": "2026-04-08T05:08:09Z"
+  "updated_at": "2026-04-08T05:08:14Z"
 }
