@@ -24,7 +24,7 @@ export function defaultEqState(): EqState {
     enabled: true,
     lowFreq: 1,   // 400 Hz
     lowGain: 15,  // 0 dB
-    midFreq: 9,   // 1000 Hz
+    midFreq: 7,   // 1000 Hz
     midGain: 15,  // 0 dB
     midQ: 1,      // 1.0
     highFreq: 1,  // 4000 Hz

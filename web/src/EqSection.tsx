@@ -160,7 +160,7 @@ export function EqSection({ eq, onToggleSwitch, onParam, showSwitch = true }: Pr
           </div>
           <div className={css.r4} ref={setKnobRef("midFreq")}>
             <EqKnob
-              label="Freq" value={eq.midFreq} min={0} max={16} defaultValue={9}
+              label="Freq" value={eq.midFreq} min={0} max={16} defaultValue={7}
               onChange={(v) => onParam(3, v)}
               formatValue={(v) => formatFreq(v, MID_FREQ_VALUES)} color="#6c6"
             />
