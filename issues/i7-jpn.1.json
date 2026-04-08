@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T05:08:09Z",
+  "description": "Define coding conventions, VCS workflow, project architecture, and agent behavior rules.",
+  "id": "i7-jpn.1",
+  "labels": [],
+  "parent": "i7-jpn",
+  "priority": 2,
+  "status": "open",
+  "title": "Create CLAUDE.md with project rules and agent guidelines",
+  "type": "task",
+  "updated_at": "2026-04-08T05:08:09Z"
+}
