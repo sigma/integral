@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [
     "i7-9o2.1"
   ],
@@ -10,8 +10,8 @@
   "labels": [],
   "parent": "i7-9o2",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Make strip header show editable MIDI channel",
   "type": "task",
-  "updated_at": "2026-04-08T15:23:02Z"
+  "updated_at": "2026-04-08T15:29:42Z"
 }
