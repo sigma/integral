@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-2ul.1"
+  ],
   "blocks": [],
   "created": "2026-04-08T15:55:45Z",
   "description": "Add FxState type (type, level, output, switch, params array). WASM address exports. IntegraService methods for read/write. Nibblized parameter encoding/decoding.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "WASM + service + types for FX state",
   "type": "task",
-  "updated_at": "2026-04-08T15:55:45Z"
+  "updated_at": "2026-04-08T15:55:54Z"
 }
