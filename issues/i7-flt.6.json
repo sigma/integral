@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-flt.5"
+  ],
   "blocks": [],
   "created": "2026-04-08T12:29:35Z",
   "description": "Replace disabled EQ button with ON/OFF toggle. Show EqSection when expanded. Widen strips to 130px. Add global EQ expand toggle. Master strip EQ support.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Integrate EQ into channel strips with collapsible toggle",
   "type": "task",
-  "updated_at": "2026-04-08T12:29:35Z"
+  "updated_at": "2026-04-08T12:29:44Z"
 }

@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-flt.4"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-flt.6"
+  ],
   "created": "2026-04-08T12:29:35Z",
   "description": "EqKnob: smaller rotary knob with configurable range and value formatting. EqSection: compact 3-band EQ layout for channel strips.",
   "id": "i7-flt.5",
