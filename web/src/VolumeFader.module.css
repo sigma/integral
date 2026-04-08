@@ -9,8 +9,7 @@
 .track {
   position: relative;
   width: 40px;
-  /* ~10cm at 96dpi ≈ 380px, constrained for screen fit */
-  height: 280px;
+  height: 420px;
   cursor: pointer;
 }
 

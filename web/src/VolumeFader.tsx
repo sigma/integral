@@ -8,7 +8,7 @@ interface Props {
 }
 
 /** Must match .track height in CSS. */
-const TRACK_HEIGHT = 280;
+const TRACK_HEIGHT = 420;
 const CAP_HEIGHT = 18;
 const PAD = 8;
 /** Usable range for the center of the cap. */
