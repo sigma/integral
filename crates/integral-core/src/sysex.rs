@@ -2,6 +2,7 @@
 //!
 //! Reference: `docs/midi/01-protocol.md`
 
+use crate::address::{Address, DataSize};
 use thiserror::Error;
 
 // ---------------------------------------------------------------------------
@@ -147,6 +148,61 @@ pub fn parse_identity_reply(data: &[u8]) -> Result<DeviceIdentity, IdentityParse
 }
 
 // ---------------------------------------------------------------------------
+// DT1 / RQ1 builders
+// ---------------------------------------------------------------------------
+
+/// Build a DT1 (Data Set 1) SysEx message.
+///
+/// ```text
+/// F0 41 <dev_id> 00 00 64 12 <addr[4]> <data[..]> <checksum> F7
+/// ```
+///
+/// The checksum covers the address and data bytes.
+pub fn build_dt1(device_id: u8, address: &Address, data: &[u8]) -> Vec<u8> {
+    let addr = address.as_bytes();
+    let chk_data: Vec<u8> = addr.iter().chain(data.iter()).copied().collect();
+    let chk = checksum(&chk_data);
+
+    let mut msg = Vec::with_capacity(7 + 4 + data.len() + 2);
+    msg.push(SYSEX_START);
+    msg.push(ROLAND_ID);
+    msg.push(device_id);
+    msg.extend_from_slice(&MODEL_ID);
+    msg.push(CMD_DT1);
+    msg.extend_from_slice(addr);
+    msg.extend_from_slice(data);
+    msg.push(chk);
+    msg.push(SYSEX_END);
+    msg
+}
+
+/// Build an RQ1 (Data Request 1) SysEx message.
+///
+/// ```text
+/// F0 41 <dev_id> 00 00 64 11 <addr[4]> <size[4]> <checksum> F7
+/// ```
+///
+/// The checksum covers the address and size bytes.
+pub fn build_rq1(device_id: u8, address: &Address, size: &DataSize) -> Vec<u8> {
+    let addr = address.as_bytes();
+    let sz = size.as_bytes();
+    let chk_data: Vec<u8> = addr.iter().chain(sz.iter()).copied().collect();
+    let chk = checksum(&chk_data);
+
+    let mut msg = Vec::with_capacity(7 + 4 + 4 + 2);
+    msg.push(SYSEX_START);
+    msg.push(ROLAND_ID);
+    msg.push(device_id);
+    msg.extend_from_slice(&MODEL_ID);
+    msg.push(CMD_RQ1);
+    msg.extend_from_slice(addr);
+    msg.extend_from_slice(sz);
+    msg.push(chk);
+    msg.push(SYSEX_END);
+    msg
+}
+
+// ---------------------------------------------------------------------------
 // Checksum
 // ---------------------------------------------------------------------------
 
@@ -219,6 +275,44 @@ mod tests {
             parse_identity_reply(&bad),
             Err(IdentityParseError::NotUniversalNonRealtime(0x7F))
         );
+    }
+
+    #[test]
+    fn build_dt1_part1_level() {
+        // Set Part 1 Level to 100: address 18 00 20 09, data 0x64
+        let addr = Address::new(0x18, 0x00, 0x20, 0x09);
+        let msg = build_dt1(0x10, &addr, &[0x64]);
+
+        // Verify header
+        assert_eq!(&msg[..7], &[0xF0, 0x41, 0x10, 0x00, 0x00, 0x64, 0x12]);
+        // Verify address
+        assert_eq!(&msg[7..11], &[0x18, 0x00, 0x20, 0x09]);
+        // Verify data
+        assert_eq!(msg[11], 0x64);
+        // Verify checksum: (128 - ((0x18+0x00+0x20+0x09+0x64) % 128)) % 128
+        // sum = 0xA5 = 165, 165 % 128 = 37, 128 - 37 = 91 = 0x5B
+        assert_eq!(msg[12], 0x5B);
+        // Verify EOX
+        assert_eq!(msg[13], 0xF7);
+    }
+
+    #[test]
+    fn build_rq1_studio_set_name() {
+        // Request Studio Set name: address 18 00 00 00, size 00 00 00 10 (16 bytes)
+        let addr = Address::new(0x18, 0x00, 0x00, 0x00);
+        let size = DataSize::SIXTEEN;
+        let msg = build_rq1(0x10, &addr, &size);
+
+        // Verify header
+        assert_eq!(&msg[..7], &[0xF0, 0x41, 0x10, 0x00, 0x00, 0x64, 0x11]);
+        // Verify address
+        assert_eq!(&msg[7..11], &[0x18, 0x00, 0x00, 0x00]);
+        // Verify size
+        assert_eq!(&msg[11..15], &[0x00, 0x00, 0x00, 0x10]);
+        // Verify checksum: (128 - ((0x18+0x10) % 128)) % 128 = (128 - 40) = 88 = 0x58
+        assert_eq!(msg[15], 0x58);
+        // Verify EOX
+        assert_eq!(msg[16], 0xF7);
     }
 
     #[test]
