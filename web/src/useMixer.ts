@@ -13,7 +13,12 @@ import {
   part_mute_address,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
-import { defaultMixerState, type MixerState, type PartState } from "./types";
+import {
+  defaultMixerState,
+  defaultPartState,
+  type MixerState,
+  type PartState,
+} from "./types";
 
 /** Duration to suppress incoming DT1 echoes after a local send (ms). */
 const ECHO_SUPPRESS_MS = 150;
@@ -43,6 +48,7 @@ export interface UseMixerResult {
   togglePartMute: (part: number) => void;
   setMasterLevel: (value: number) => void;
   selectPart: (part: number) => void;
+  switchStudioSet: (pc: number) => void;
   preview: () => void;
 }
 
@@ -70,30 +76,30 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     return false;
   }, []);
 
-  // Load initial state from device
-  useEffect(() => {
-    if (!service) return;
+  const loadGenRef = useRef(0);
 
-    let cancelled = false;
+  const loadState = useCallback(
+    async (svc: IntegraService) => {
+      const gen = ++loadGenRef.current;
+      const isCurrent = () => loadGenRef.current === gen;
 
-    async function loadState() {
-      if (!service) return;
+      setState((prev) => ({ ...prev, loading: true }));
 
       try {
-        console.log("[mixer] Loading studio set name and master level...");
-        const [name, masterLevel] = await Promise.all([
-          service.requestStudioSetName(),
-          service.requestMasterLevel(),
+        console.log("[mixer] Loading studio set name, PC, and master level...");
+        const [name, studioSetPC, masterLevel] = await Promise.all([
+          svc.requestStudioSetName(),
+          svc.requestStudioSetPC(),
+          svc.requestMasterLevel(),
         ]);
-        console.log("[mixer] Studio set:", name, "Master level:", masterLevel);
+        console.log("[mixer] Studio set:", name, "PC:", studioSetPC, "Master:", masterLevel);
 
-        if (cancelled) return;
+        if (!isCurrent()) return;
 
-        // Load parts sequentially (throttle queue handles timing)
         const parts: Partial<PartState>[] = [];
         for (let i = 0; i < 16; i++) {
           try {
-            const dump = await service.requestPartMixerState(i);
+            const dump = await svc.requestPartMixerState(i);
             const parsed = parsePartDump(dump);
             console.log(`[mixer] Part ${i + 1}:`, parsed);
             parts.push(parsed);
@@ -103,38 +109,41 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
           }
         }
 
-        if (cancelled) return;
+        if (!isCurrent()) return;
 
         setState((prev) => ({
           ...prev,
           studioSetName: name,
+          studioSetPC,
           masterLevel,
-          parts: prev.parts.map((p, i) => ({ ...p, ...parts[i] })),
+          parts: prev.parts.map((_p, i) => ({
+            ...defaultPartState(),
+            ...parts[i],
+          })),
           loading: false,
         }));
 
-        // Load tone names (non-blocking, after mixer state is loaded)
+        // Load tone names (non-blocking)
         for (let i = 0; i < 16; i++) {
-          const partData = parts[i];
-          const msb = partData?.toneBankMsb;
+          const msb = parts[i]?.toneBankMsb;
           if (msb === undefined) continue;
-          service.requestToneName(i, msb).then((toneName) => {
-            if (cancelled || !toneName) return;
+          svc.requestToneName(i, msb).then((toneName) => {
+            if (!isCurrent() || !toneName) return;
             setState((prev) => updatePart(prev, i, { toneName }));
           });
         }
       } catch {
-        if (!cancelled) {
-          setState((prev) => ({ ...prev, loading: false }));
-        }
+        setState((prev) => ({ ...prev, loading: false }));
       }
-    }
+    },
+    [],
+  );
 
-    loadState();
-    return () => {
-      cancelled = true;
-    };
-  }, [service]);
+  // Load initial state from device
+  useEffect(() => {
+    if (!service) return;
+    loadState(service);
+  }, [service, loadState]);
 
   // Listen for incoming DT1 messages
   useEffect(() => {
@@ -210,6 +219,18 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     setState((prev) => ({ ...prev, selectedPart: part }));
   }, []);
 
+  const switchStudioSet = useCallback(
+    (pc: number) => {
+      if (!service) return;
+      service.switchStudioSet(pc);
+      // Wait a moment for the device to load the new set, then reload state
+      setTimeout(() => {
+        loadState(service);
+      }, 500);
+    },
+    [service, loadState],
+  );
+
   const preview = useCallback(() => {
     if (!service) return;
     const current = stateRef.current;
@@ -229,6 +250,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     togglePartMute,
     setMasterLevel,
     selectPart,
+    switchStudioSet,
     preview,
   };
 }

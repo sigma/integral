@@ -17,8 +17,10 @@ export function MixerPage({ mixer }: Props) {
     <div className={css.page}>
       <TopBar
         studioSetName={state.studioSetName}
+        studioSetPC={state.studioSetPC}
         selectedPart={selectedPart}
         selectedPartIndex={state.selectedPart}
+        onStudioSetChange={mixer.switchStudioSet}
         onPreview={mixer.preview}
       />
       <PartSelector

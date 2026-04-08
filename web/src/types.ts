@@ -22,6 +22,8 @@ export interface PartState {
 export interface MixerState {
   /** Studio Set name (up to 16 ASCII chars). */
   studioSetName: string;
+  /** Current Studio Set PC (0–63). */
+  studioSetPC: number;
   /** System master level (0–127). */
   masterLevel: number;
   /** All 16 parts. */
@@ -50,6 +52,7 @@ export function defaultPartState(): PartState {
 export function defaultMixerState(): MixerState {
   return {
     studioSetName: "",
+    studioSetPC: 0,
     masterLevel: 100,
     parts: Array.from({ length: 16 }, () => defaultPartState()),
     selectedPart: 0,

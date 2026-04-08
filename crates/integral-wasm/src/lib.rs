@@ -212,6 +212,18 @@ pub fn studio_set_name_address() -> Vec<u8> {
     addr_to_vec(params::STUDIO_SET_NAME)
 }
 
+/// Returns the address for Setup Studio Set Program Change.
+#[wasm_bindgen]
+pub fn setup_studio_set_pc_address() -> Vec<u8> {
+    addr_to_vec(params::SETUP_STUDIO_SET_PC)
+}
+
+/// Returns the address for Setup Studio Set BS MSB.
+#[wasm_bindgen]
+pub fn setup_studio_set_bs_msb_address() -> Vec<u8> {
+    addr_to_vec(params::SETUP_STUDIO_SET_BS_MSB)
+}
+
 /// Returns the address for a part's Level parameter.
 /// `part` is 0-indexed (0 = Part 1).
 #[wasm_bindgen]

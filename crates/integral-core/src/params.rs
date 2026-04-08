@@ -8,6 +8,19 @@
 use crate::address::{Address, DataSize};
 
 // ---------------------------------------------------------------------------
+// Setup (base: 01 00 00 00)
+// ---------------------------------------------------------------------------
+
+/// Setup: Studio Set Bank Select MSB (CC#0). Value 85 for Studio Sets.
+pub const SETUP_STUDIO_SET_BS_MSB: Address = Address::new(0x01, 0x00, 0x00, 0x04);
+
+/// Setup: Studio Set Bank Select LSB (CC#32). Value 0 for Studio Sets.
+pub const SETUP_STUDIO_SET_BS_LSB: Address = Address::new(0x01, 0x00, 0x00, 0x05);
+
+/// Setup: Studio Set Program Change (0–63 for Studio Sets 1–64).
+pub const SETUP_STUDIO_SET_PC: Address = Address::new(0x01, 0x00, 0x00, 0x06);
+
+// ---------------------------------------------------------------------------
 // System Common (base: 02 00 00 00)
 // ---------------------------------------------------------------------------
 

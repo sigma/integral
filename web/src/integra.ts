@@ -22,6 +22,8 @@ import {
   single_byte_size,
   tone_name_address,
   tone_name_size,
+  setup_studio_set_pc_address,
+  setup_studio_set_bs_msb_address,
 } from "../pkg/integral_wasm.js";
 import type { MidiPortPair } from "./midi";
 
@@ -222,6 +224,29 @@ export class IntegraService {
 
   setMasterLevel(value: number): void {
     this.sendDt1(Array.from(master_level_address()), [value]);
+  }
+
+  /** Read the current Studio Set PC (0-63). */
+  async requestStudioSetPC(): Promise<number> {
+    const data = await this.requestData(
+      Array.from(setup_studio_set_pc_address()),
+      Array.from(single_byte_size()),
+    );
+    return data[0]!;
+  }
+
+  /**
+   * Switch to a different Studio Set by PC number (0-63).
+   * Writes BS MSB=85, BS LSB=0, PC=pc to the Setup block.
+   * The device needs a moment to load the new set.
+   */
+  switchStudioSet(pc: number): void {
+    this.sendDt1(Array.from(setup_studio_set_bs_msb_address()), [85]);
+    // LSB is at MSB+1
+    const lsbAddr = Array.from(setup_studio_set_bs_msb_address());
+    lsbAddr[3] = lsbAddr[3]! + 1;
+    this.sendDt1(lsbAddr, [0]);
+    this.sendDt1(Array.from(setup_studio_set_pc_address()), [pc]);
   }
 
   async requestStudioSetName(): Promise<string> {
