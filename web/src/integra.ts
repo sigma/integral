@@ -26,22 +26,24 @@ import {
 import type { MidiPortPair } from "./midi";
 
 /** Minimum interval between SysEx sends (ms). */
-const THROTTLE_MS = 20;
+const THROTTLE_MS = 40;
 
-/** Timeout for RQ1 responses (ms). */
-const REQUEST_TIMEOUT_MS = 500;
+/** Timeout for RQ1 responses after the message is actually sent (ms). */
+const REQUEST_TIMEOUT_MS = 2000;
 
 type Dt1Callback = (address: Uint8Array, data: Uint8Array) => void;
 
 interface QueuedMessage {
-  address: string; // 4-byte key for coalescing
+  key: string;
   bytes: Uint8Array;
+  onSent?: () => void;
 }
 
 interface PendingRequest {
   addressKey: string;
   resolve: (data: Uint8Array) => void;
-  timer: ReturnType<typeof setTimeout>;
+  reject: (err: Error) => void;
+  timer?: ReturnType<typeof setTimeout>;
 }
 
 /** High-level communication service for the INTEGRA-7. */
@@ -64,7 +66,6 @@ export class IntegraService {
     );
   }
 
-  /** Clean up listeners. */
   destroy(): void {
     this.port.input.removeEventListener(
       "midimessage",
@@ -73,16 +74,15 @@ export class IntegraService {
     this.queue = [];
     this.dt1Listeners.clear();
     for (const req of this.pendingRequests) {
-      clearTimeout(req.timer);
+      if (req.timer) clearTimeout(req.timer);
     }
     this.pendingRequests = [];
   }
 
   // -----------------------------------------------------------------------
-  // DT1 send (with throttle + coalescing)
+  // Send queue with throttle + coalescing
   // -----------------------------------------------------------------------
 
-  /** Send a DT1 message. Coalesces by address and throttles to 20ms. */
   sendDt1(address: number[], data: number[]): void {
     const bytes = new Uint8Array(
       build_dt1(
@@ -94,16 +94,21 @@ export class IntegraService {
         new Uint8Array(data),
       ),
     );
-    const key = addressKey(address);
+    const key = "dt1:" + addressKey(address);
 
-    // Coalesce: replace any queued message for the same address
-    const idx = this.queue.findIndex((m) => m.address === key);
+    // Coalesce: replace any queued DT1 for the same address
+    const idx = this.queue.findIndex((m) => m.key === key);
     if (idx >= 0) {
-      this.queue[idx] = { address: key, bytes };
+      this.queue[idx] = { key, bytes };
     } else {
-      this.queue.push({ address: key, bytes });
+      this.queue.push({ key, bytes });
     }
 
+    this.drain();
+  }
+
+  private enqueue(key: string, bytes: Uint8Array, onSent?: () => void): void {
+    this.queue.push({ key, bytes, onSent });
     this.drain();
   }
 
@@ -113,6 +118,7 @@ export class IntegraService {
 
     const msg = this.queue.shift()!;
     this.port.output.send(msg.bytes);
+    msg.onSent?.();
 
     setTimeout(() => {
       this.sending = false;
@@ -124,11 +130,7 @@ export class IntegraService {
   // RQ1 request/response
   // -----------------------------------------------------------------------
 
-  /** Send an RQ1 and wait for the matching DT1 response. */
-  requestData(
-    address: number[],
-    size: number[],
-  ): Promise<Uint8Array> {
+  requestData(address: number[], size: number[]): Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
       const bytes = new Uint8Array(
         build_rq1(
@@ -145,19 +147,18 @@ export class IntegraService {
       );
 
       const key = addressKey(address);
+      const pending: PendingRequest = { addressKey: key, resolve, reject };
+      this.pendingRequests.push(pending);
 
-      const timer = setTimeout(() => {
-        this.pendingRequests = this.pendingRequests.filter(
-          (r) => r.addressKey !== key,
-        );
-        reject(new Error(`RQ1 timeout for address ${key}`));
-      }, REQUEST_TIMEOUT_MS);
-
-      this.pendingRequests.push({ addressKey: key, resolve, timer });
-
-      // RQ1 goes through the throttle queue too
-      this.queue.push({ address: key + ":rq1", bytes });
-      this.drain();
+      // Start timeout only when actually sent
+      this.enqueue("rq1:" + key, bytes, () => {
+        pending.timer = setTimeout(() => {
+          this.pendingRequests = this.pendingRequests.filter(
+            (r) => r !== pending,
+          );
+          reject(new Error(`RQ1 timeout for address ${key}`));
+        }, REQUEST_TIMEOUT_MS);
+      });
     });
   }
 
@@ -165,7 +166,6 @@ export class IntegraService {
   // DT1 receive
   // -----------------------------------------------------------------------
 
-  /** Register a callback for incoming DT1 messages. Returns unsubscribe fn. */
   onDt1(callback: Dt1Callback): () => void {
     this.dt1Listeners.add(callback);
     return () => this.dt1Listeners.delete(callback);
@@ -180,7 +180,7 @@ export class IntegraService {
     try {
       parsed = parse_dt1(new Uint8Array(raw));
     } catch {
-      return; // not a DT1 we understand
+      return;
     }
 
     const addr = new Uint8Array(parsed.address());
@@ -193,7 +193,7 @@ export class IntegraService {
     );
     if (reqIdx >= 0) {
       const req = this.pendingRequests[reqIdx]!;
-      clearTimeout(req.timer);
+      if (req.timer) clearTimeout(req.timer);
       this.pendingRequests.splice(reqIdx, 1);
       req.resolve(data);
     }
@@ -246,7 +246,6 @@ export class IntegraService {
     return data[0]!;
   }
 
-  /** Read the tone name for a part, given its bank MSB. Returns empty string on failure. */
   async requestToneName(part: number, bankMsb: number): Promise<string> {
     const addr = tone_name_address(part, bankMsb);
     if (addr.length === 0) return "";
@@ -262,7 +261,7 @@ export class IntegraService {
   }
 
   // -----------------------------------------------------------------------
-  // Standard MIDI messages (not SysEx)
+  // Standard MIDI messages
   // -----------------------------------------------------------------------
 
   sendNoteOn(channel: number, note: number, velocity: number): void {
@@ -278,7 +277,6 @@ export class IntegraService {
   }
 }
 
-/** Convert a 4-byte address to a string key for map lookups. */
 function addressKey(address: number[]): string {
   return address.map((b) => b.toString(16).padStart(2, "0")).join("");
 }

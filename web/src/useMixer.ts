@@ -80,10 +80,12 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
       if (!service) return;
 
       try {
+        console.log("[mixer] Loading studio set name and master level...");
         const [name, masterLevel] = await Promise.all([
           service.requestStudioSetName(),
           service.requestMasterLevel(),
         ]);
+        console.log("[mixer] Studio set:", name, "Master level:", masterLevel);
 
         if (cancelled) return;
 
@@ -92,8 +94,11 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
         for (let i = 0; i < 16; i++) {
           try {
             const dump = await service.requestPartMixerState(i);
-            parts.push(parsePartDump(dump));
-          } catch {
+            const parsed = parsePartDump(dump);
+            console.log(`[mixer] Part ${i + 1}:`, parsed);
+            parts.push(parsed);
+          } catch (e) {
+            console.warn(`[mixer] Part ${i + 1} failed:`, e);
             parts.push({});
           }
         }

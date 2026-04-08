@@ -7,12 +7,10 @@ interface Props {
   label?: string;
 }
 
-/** Map 0–127 to rotation degrees. 0=full left (-135°), 64=center (0°), 127=full right (+135°). */
 function valueToAngle(value: number): number {
   return ((value - 64) / 64) * 135;
 }
 
-/** Format pan value for display. */
 function formatPan(value: number): string {
   if (value === 64) return "C";
   if (value < 64) return `L${64 - value}`;
@@ -23,19 +21,16 @@ export function PanKnob({ value, onChange, label = "PAN" }: Props) {
   const dragging = useRef(false);
   const lastY = useRef(0);
 
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      dragging.current = true;
-      lastY.current = e.clientY;
-      e.currentTarget.setPointerCapture(e.pointerId);
-    },
-    [],
-  );
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    dragging.current = true;
+    lastY.current = e.clientY;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, []);
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (!dragging.current) return;
-      const dy = lastY.current - e.clientY; // up = positive
+      const dy = lastY.current - e.clientY;
       lastY.current = e.clientY;
       const newValue = Math.max(0, Math.min(127, value + dy));
       onChange(newValue);
@@ -54,26 +49,32 @@ export function PanKnob({ value, onChange, label = "PAN" }: Props) {
       <span className={css.label}>{label}</span>
       <svg
         className={css.knob}
-        viewBox="0 0 48 48"
+        viewBox="0 0 44 44"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        {/* Knob body */}
-        <circle cx="24" cy="24" r="18" fill="#2a2a3e" stroke="#555" strokeWidth="1.5" />
+        {/* Outer ring */}
+        <circle cx="22" cy="22" r="19" fill="none" stroke="#3a3a5a" strokeWidth="1" />
+        {/* Knob body — gradient to look 3D */}
+        <defs>
+          <radialGradient id="knobGrad" cx="40%" cy="35%">
+            <stop offset="0%" stopColor="#888" />
+            <stop offset="100%" stopColor="#333" />
+          </radialGradient>
+        </defs>
+        <circle cx="22" cy="22" r="16" fill="url(#knobGrad)" />
         {/* Indicator line */}
         <line
-          x1="24"
-          y1="24"
-          x2="24"
-          y2="10"
-          stroke="#e0e0e0"
+          x1="22"
+          y1="22"
+          x2="22"
+          y2="9"
+          stroke="#fff"
           strokeWidth="2"
           strokeLinecap="round"
-          transform={`rotate(${angle} 24 24)`}
+          transform={`rotate(${angle} 22 22)`}
         />
-        {/* Center dot */}
-        <circle cx="24" cy="24" r="2" fill="#888" />
       </svg>
       <span className={css.value}>{formatPan(value)}</span>
     </div>

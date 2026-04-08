@@ -9,6 +9,7 @@ export function VolumeFader({ value, onChange }: Props) {
   return (
     <div className={css.container}>
       <div className={css.faderWrapper}>
+        <div className={css.track} />
         <input
           className={css.fader}
           type="range"

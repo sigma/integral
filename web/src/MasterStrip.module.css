@@ -3,16 +3,35 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  min-width: 72px;
-  background: #1a1a2e;
+  padding: 10px 12px 8px;
+  min-width: 80px;
+  background: linear-gradient(to bottom, #1e1e35, #161628);
+  border-left: 2px solid #3a3a5a;
 }
 
 .label {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   color: #b0b0d0;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   white-space: nowrap;
+  background: #2a2a4a;
+  width: 100%;
+  text-align: center;
+  padding: 4px 0;
+  border-radius: 3px;
+}
+
+.faderArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: #111122;
+  border-radius: 4px;
+  border: 1px solid #1a1a30;
+  padding: 4px 0;
 }

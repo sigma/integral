@@ -9,8 +9,10 @@ interface Props {
 export function MasterStrip({ value, onChange }: Props) {
   return (
     <div className={css.strip}>
-      <span className={css.label}>Master Level</span>
-      <VolumeFader value={value} onChange={onChange} />
+      <div className={css.label}>Master</div>
+      <div className={css.faderArea}>
+        <VolumeFader value={value} onChange={onChange} />
+      </div>
     </div>
   );
 }
