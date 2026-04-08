@@ -24,10 +24,18 @@ export function MixerPage({ mixer }: Props) {
         onLoadNames={mixer.loadStudioSetNames}
         onPreview={mixer.preview}
       />
-      <PartSelector
-        selectedPart={state.selectedPart}
-        onSelect={mixer.selectPart}
-      />
+      <div className={css.controls}>
+        <PartSelector
+          selectedPart={state.selectedPart}
+          onSelect={mixer.selectPart}
+        />
+        <button
+          className={css.eqToggle}
+          onClick={mixer.toggleEqExpanded}
+        >
+          EQ {state.eqExpanded ? "▲" : "▼"}
+        </button>
+      </div>
       {state.loading ? (
         <div className={css.loading}>Loading mixer state from device...</div>
       ) : (
@@ -38,15 +46,22 @@ export function MixerPage({ mixer }: Props) {
                 key={i}
                 partIndex={i}
                 part={part}
+                eqExpanded={state.eqExpanded}
                 onLevelChange={(v) => mixer.setPartLevel(i, v)}
                 onPanChange={(v) => mixer.setPartPan(i, v)}
                 onMuteToggle={() => mixer.togglePartMute(i)}
+                onEqToggle={() => mixer.togglePartEqSwitch(i)}
+                onEqParam={(offset, v) => mixer.setPartEqParam(i, offset, v)}
               />
             ))}
           </div>
           <MasterStrip
             value={state.masterLevel}
             onChange={mixer.setMasterLevel}
+            eq={state.masterEq}
+            eqExpanded={state.eqExpanded}
+            onEqToggle={mixer.toggleMasterEqSwitch}
+            onEqParam={mixer.setMasterEqParam}
           />
         </div>
       )}

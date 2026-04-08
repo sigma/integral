@@ -4,8 +4,8 @@
   align-items: center;
   gap: 6px;
   padding: 10px 6px 8px;
-  min-width: 100px;
-  width: 100px;
+  min-width: 130px;
+  width: 130px;
   border-right: 1px solid #1a1a30;
   background: linear-gradient(to bottom, #1e1e35, #161628);
 }
@@ -19,18 +19,6 @@
   text-align: center;
   padding: 4px 0;
   border-radius: 3px;
-}
-
-.eqButton {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 4px 14px;
-  background: #2a2a3e;
-  color: #999;
-  border: 1px solid #3a3a5a;
-  border-radius: 4px;
-  cursor: default;
-  letter-spacing: 1px;
 }
 
 .muteLabel {

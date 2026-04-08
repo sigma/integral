@@ -1,14 +1,18 @@
 import { VolumeFader } from "./VolumeFader";
 import { PanKnob } from "./PanKnob";
+import { EqSection } from "./EqSection";
 import type { PartState } from "./types";
 import css from "./ChannelStrip.module.css";
 
 interface Props {
   partIndex: number;
   part: PartState;
+  eqExpanded: boolean;
   onLevelChange: (value: number) => void;
   onPanChange: (value: number) => void;
   onMuteToggle: () => void;
+  onEqToggle: () => void;
+  onEqParam: (paramOffset: number, value: number) => void;
 }
 
 function toneLabel(part: PartState): string {
@@ -18,16 +22,23 @@ function toneLabel(part: PartState): string {
 export function ChannelStrip({
   partIndex,
   part,
+  eqExpanded,
   onLevelChange,
   onPanChange,
   onMuteToggle,
+  onEqToggle,
+  onEqParam,
 }: Props) {
   return (
     <div className={css.strip}>
       <div className={css.partNumber}>{partIndex + 1}</div>
-      <button className={css.eqButton} disabled>
-        EQ
-      </button>
+      {eqExpanded && (
+        <EqSection
+          eq={part.eq}
+          onToggleSwitch={onEqToggle}
+          onParam={onEqParam}
+        />
+      )}
       <PanKnob value={part.pan} onChange={onPanChange} />
       <span className={css.muteLabel}>MUTE</span>
       <button
