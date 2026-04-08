@@ -6,14 +6,15 @@
   "blocks": [
     "i7-z01.3"
   ],
+  "closed_at": "2026-04-08T18:34:19Z",
   "created": "2026-04-08T17:50:29Z",
   "description": "Add requestToneCatalog(msb, lsb) using 0F 00 04 02 address. Cache results per (msb, lsb). Build core catalog function for tone address.",
   "id": "i7-z01.2",
   "labels": [],
   "parent": "i7-z01",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Add tone catalog query service",
   "type": "task",
-  "updated_at": "2026-04-08T18:30:18Z"
+  "updated_at": "2026-04-08T18:34:19Z"
 }
