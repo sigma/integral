@@ -48,9 +48,9 @@ export function ChannelStrip({
         M
       </button>
       <div className={css.faderArea}>
+        <span className={css.toneName}>{toneLabel(part)}</span>
         <VolumeFader value={part.level} onChange={onLevelChange} />
       </div>
-      <span className={css.toneName}>{toneLabel(part)}</span>
     </div>
   );
 }

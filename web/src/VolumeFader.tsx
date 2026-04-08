@@ -11,12 +11,10 @@ interface Props {
 const TRACK_HEIGHT = 420;
 const CAP_HEIGHT = 18;
 const PAD = 8;
-/** Usable range for the center of the cap. */
 const MIN_TOP = PAD;
 const MAX_TOP = TRACK_HEIGHT - PAD - CAP_HEIGHT;
 
 function valueToTop(value: number): number {
-  // value 127 → MIN_TOP (top), value 0 → MAX_TOP (bottom)
   return MIN_TOP + (MAX_TOP - MIN_TOP) * (1 - value / 127);
 }
 
@@ -25,17 +23,23 @@ function topToValue(top: number): number {
   return Math.round(Math.max(0, Math.min(127, ratio * 127)));
 }
 
+/** MIDI value ruler marks */
+const RULER_MARKS = [127, 100, 80, 60, 40, 20, 0];
+
 export function VolumeFader({ value, onChange, defaultValue = 100 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
-  const valueFromClientY = useCallback((clientY: number) => {
-    const track = trackRef.current;
-    if (!track) return value;
-    const rect = track.getBoundingClientRect();
-    const top = clientY - rect.top;
-    return topToValue(top);
-  }, [value]);
+  const valueFromClientY = useCallback(
+    (clientY: number) => {
+      const track = trackRef.current;
+      if (!track) return value;
+      const rect = track.getBoundingClientRect();
+      const top = clientY - rect.top;
+      return topToValue(top);
+    },
+    [value],
+  );
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -74,6 +78,22 @@ export function VolumeFader({ value, onChange, defaultValue = 100 }: Props) {
         onPointerUp={handlePointerUp}
         onDoubleClick={handleDoubleClick}
       >
+        {/* Ruler marks */}
+        {RULER_MARKS.map((midi) => {
+          const top = valueToTop(midi) + CAP_HEIGHT / 2;
+          const isZeroDb = midi === 100;
+          return (
+            <div
+              key={midi}
+              className={`${css.rulerMark} ${isZeroDb ? css.rulerZero : ""}`}
+              style={{ top }}
+            >
+              <span className={css.rulerLabel}>
+                {isZeroDb ? "0dB" : midi}
+              </span>
+            </div>
+          );
+        })}
         <div className={css.groove} />
         <div className={css.cap} style={{ top: capTop }} />
       </div>

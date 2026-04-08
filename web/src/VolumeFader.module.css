@@ -8,7 +8,7 @@
 
 .track {
   position: relative;
-  width: 40px;
+  width: 60px;
   height: 420px;
   cursor: pointer;
 }
@@ -16,8 +16,7 @@
 .groove {
   position: absolute;
   width: 4px;
-  left: 50%;
-  margin-left: -2px;
+  left: 18px;
   top: 8px;
   bottom: 8px;
   background: #0a0a18;
@@ -29,8 +28,7 @@
   position: absolute;
   width: 34px;
   height: 18px;
-  left: 50%;
-  margin-left: -17px;
+  left: 3px;
   background: linear-gradient(
     to bottom,
     #aaa 0%,
@@ -47,6 +45,7 @@
     0 1px 3px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
   cursor: grab;
+  z-index: 2;
 }
 
 .cap::after {
@@ -61,6 +60,42 @@
 
 .cap:active {
   cursor: grabbing;
+}
+
+/* Ruler marks on the right side of the groove */
+.rulerMark {
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.rulerMark::before {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 1px;
+  background: #444;
+}
+
+.rulerZero::before {
+  width: 10px;
+  height: 2px;
+  background: #888;
+}
+
+.rulerLabel {
+  font-size: 8px;
+  color: #555;
+  font-variant-numeric: tabular-nums;
+}
+
+.rulerZero .rulerLabel {
+  color: #aaa;
+  font-weight: 700;
 }
 
 .value {
