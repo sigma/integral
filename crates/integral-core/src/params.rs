@@ -38,6 +38,22 @@ pub const STUDIO_SET_NAME: Address = Address::new(0x18, 0x00, 0x00, 0x00);
 pub const STUDIO_SET_NAME_SIZE: DataSize = DataSize::SIXTEEN;
 
 // ---------------------------------------------------------------------------
+// Studio Set Common: Ext Part parameters
+// ---------------------------------------------------------------------------
+
+/// Ext Part Level (0–127). Studio Set Common offset `00 4C`.
+pub const EXT_PART_LEVEL: Address = Address::new(0x18, 0x00, 0x00, 0x4C);
+
+/// Ext Part Chorus Send Level (0–127). Studio Set Common offset `00 4D`.
+pub const EXT_PART_CHORUS_SEND: Address = Address::new(0x18, 0x00, 0x00, 0x4D);
+
+/// Ext Part Reverb Send Level (0–127). Studio Set Common offset `00 4E`.
+pub const EXT_PART_REVERB_SEND: Address = Address::new(0x18, 0x00, 0x00, 0x4E);
+
+/// Ext Part Mute Switch (0=OFF, 1=ON). Studio Set Common offset `00 4F`.
+pub const EXT_PART_MUTE: Address = Address::new(0x18, 0x00, 0x00, 0x4F);
+
+// ---------------------------------------------------------------------------
 // Studio Set Part offsets (within a Part block)
 // ---------------------------------------------------------------------------
 
@@ -258,6 +274,12 @@ mod tests {
         // Part 8 = index 7
         let addr = part_address(7, part::CHORUS_SEND);
         assert_eq!(addr, Address::new(0x18, 0x00, 0x27, 0x27));
+    }
+
+    #[test]
+    fn ext_part_addresses() {
+        assert_eq!(EXT_PART_LEVEL, Address::new(0x18, 0x00, 0x00, 0x4C));
+        assert_eq!(EXT_PART_MUTE, Address::new(0x18, 0x00, 0x00, 0x4F));
     }
 
     #[test]
