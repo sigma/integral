@@ -18,6 +18,7 @@ import {
   defaultPartState,
   type MixerState,
   type PartState,
+  type EqState,
 } from "./types";
 
 /** Duration to suppress incoming DT1 echoes after a local send (ms). */
@@ -36,6 +37,33 @@ function parsePartDump(data: Uint8Array): Partial<PartState> {
   };
 }
 
+/** Parse 8-byte Part EQ dump. */
+function parsePartEqDump(data: Uint8Array): EqState {
+  return {
+    enabled: data[0] === 1,
+    lowFreq: data[1] ?? 0,
+    lowGain: data[2] ?? 15,
+    midFreq: data[3] ?? 0,
+    midGain: data[4] ?? 15,
+    midQ: data[5] ?? 0,
+    highFreq: data[6] ?? 0,
+    highGain: data[7] ?? 15,
+  };
+}
+
+/** Parse 7-byte Master EQ dump (no switch byte). */
+function parseMasterEqDump(data: Uint8Array): Omit<EqState, "enabled"> {
+  return {
+    lowFreq: data[0] ?? 0,
+    lowGain: data[1] ?? 15,
+    midFreq: data[2] ?? 0,
+    midGain: data[3] ?? 15,
+    midQ: data[4] ?? 0,
+    highFreq: data[5] ?? 0,
+    highGain: data[6] ?? 15,
+  };
+}
+
 /** Check if two 4-byte addresses match. */
 function addressEquals(a: Uint8Array, b: Uint8Array): boolean {
   return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
@@ -47,6 +75,11 @@ export interface UseMixerResult {
   setPartPan: (part: number, value: number) => void;
   togglePartMute: (part: number) => void;
   setMasterLevel: (value: number) => void;
+  setPartEqParam: (part: number, paramOffset: number, value: number) => void;
+  togglePartEqSwitch: (part: number) => void;
+  setMasterEqParam: (paramOffset: number, value: number) => void;
+  toggleMasterEqSwitch: () => void;
+  toggleEqExpanded: () => void;
   selectPart: (part: number) => void;
   switchStudioSet: (pc: number) => void;
   loadStudioSetNames: () => void;
@@ -137,6 +170,25 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
             setState((prev) => updatePart(prev, i, { toneName }));
           });
         }
+
+        // Load Part EQ state (non-blocking)
+        for (let i = 0; i < 16; i++) {
+          svc.requestPartEq(i).then((eqData) => {
+            if (!isCurrent()) return;
+            setState((prev) => updatePart(prev, i, { eq: parsePartEqDump(eqData) }));
+          }).catch(() => {});
+        }
+
+        // Load Master EQ (non-blocking)
+        Promise.all([svc.requestMasterEq(), svc.requestMasterEqSwitch()]).then(
+          ([eqData, enabled]) => {
+            if (!isCurrent()) return;
+            setState((prev) => ({
+              ...prev,
+              masterEq: { ...parseMasterEqDump(eqData), enabled },
+            }));
+          },
+        ).catch(() => {});
 
         // Studio Set catalog is loaded lazily when the dropdown is opened.
       } catch {
@@ -252,6 +304,70 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     [service, loadState],
   );
 
+  // --- EQ setters ---
+
+  const setPartEqParam = useCallback(
+    (part: number, paramOffset: number, value: number) => {
+      setState((prev) => {
+        const eq = { ...prev.parts[part]!.eq };
+        switch (paramOffset) {
+          case 0: eq.enabled = value === 1; break;
+          case 1: eq.lowFreq = value; break;
+          case 2: eq.lowGain = value; break;
+          case 3: eq.midFreq = value; break;
+          case 4: eq.midGain = value; break;
+          case 5: eq.midQ = value; break;
+          case 6: eq.highFreq = value; break;
+          case 7: eq.highGain = value; break;
+        }
+        return updatePart(prev, part, { eq });
+      });
+      service?.setPartEqParam(part, paramOffset, value);
+    },
+    [service],
+  );
+
+  const togglePartEqSwitch = useCallback(
+    (part: number) => {
+      const enabled = !stateRef.current.parts[part]!.eq.enabled;
+      setPartEqParam(part, 0, enabled ? 1 : 0);
+    },
+    [setPartEqParam],
+  );
+
+  const setMasterEqParam = useCallback(
+    (paramOffset: number, value: number) => {
+      setState((prev) => {
+        const eq = { ...prev.masterEq };
+        switch (paramOffset) {
+          case 0: eq.lowFreq = value; break;
+          case 1: eq.lowGain = value; break;
+          case 2: eq.midFreq = value; break;
+          case 3: eq.midGain = value; break;
+          case 4: eq.midQ = value; break;
+          case 5: eq.highFreq = value; break;
+          case 6: eq.highGain = value; break;
+        }
+        return { ...prev, masterEq: eq };
+      });
+      service?.setMasterEqParam(paramOffset, value);
+    },
+    [service],
+  );
+
+  const toggleMasterEqSwitch = useCallback(() => {
+    const enabled = !stateRef.current.masterEq.enabled;
+    setState((prev) => ({
+      ...prev,
+      masterEq: { ...prev.masterEq, enabled },
+    }));
+    service?.setMasterEqSwitch(enabled);
+  }, [service]);
+
+  const toggleEqExpanded = useCallback(() => {
+    setState((prev) => ({ ...prev, eqExpanded: !prev.eqExpanded }));
+  }, []);
+
   const preview = useCallback(() => {
     if (!service) return;
     const current = stateRef.current;
@@ -270,6 +386,11 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     setPartPan,
     togglePartMute,
     setMasterLevel,
+    setPartEqParam,
+    togglePartEqSwitch,
+    setMasterEqParam,
+    toggleMasterEqSwitch,
+    toggleEqExpanded,
     selectPart,
     switchStudioSet,
     loadStudioSetNames,
