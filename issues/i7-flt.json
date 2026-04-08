@@ -2,13 +2,14 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-08T12:45:46Z",
   "created": "2026-04-08T12:29:22Z",
   "description": "Add 3-band parametric EQ controls (Low/Mid/High with Freq, Gain, Q) directly inline in each channel strip, with collapsible toggle and Master EQ support.",
   "id": "i7-flt",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Inline EQ controls in channel strips",
   "type": "epic",
-  "updated_at": "2026-04-08T12:29:22Z"
+  "updated_at": "2026-04-08T12:45:46Z"
 }
