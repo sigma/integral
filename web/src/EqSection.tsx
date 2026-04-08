@@ -170,7 +170,7 @@ export function EqSection({ eq, onToggleSwitch, onParam, showSwitch = true, para
           </div>
           <div className={css.r5} ref={setKnobRef("midQ")}>
             <EqKnob
-              label="Q" value={eq.midQ} min={0} max={4} defaultValue={1}
+              label="Q" value={eq.midQ} min={0} max={4} defaultValue={0}
               onChange={(v) => onParam(paramBase + 4, v)} formatValue={formatQ} color="#6c6"
             />
           </div>
