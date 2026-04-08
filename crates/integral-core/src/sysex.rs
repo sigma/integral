@@ -148,6 +148,98 @@ pub fn parse_identity_reply(data: &[u8]) -> Result<DeviceIdentity, IdentityParse
 }
 
 // ---------------------------------------------------------------------------
+// DT1 parsing
+// ---------------------------------------------------------------------------
+
+/// A parsed DT1 (Data Set 1) message from the INTEGRA-7.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Dt1Message {
+    /// Device ID of the sender.
+    pub device_id: u8,
+    /// 4-byte parameter address.
+    pub address: Address,
+    /// Parameter data (one or more bytes).
+    pub data: Vec<u8>,
+}
+
+/// Errors that can occur when parsing a DT1 SysEx message.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum Dt1ParseError {
+    /// Message is too short to contain a valid DT1.
+    #[error("message too short: expected at least 13 bytes, got {0}")]
+    TooShort(usize),
+    /// Missing SysEx start byte.
+    #[error("missing SysEx start byte (F0)")]
+    MissingSysexStart,
+    /// Missing SysEx end byte.
+    #[error("missing SysEx end byte (F7)")]
+    MissingSysexEnd,
+    /// Not a Roland message.
+    #[error("not a Roland message (expected manufacturer 41, got {0:#04X})")]
+    NotRoland(u8),
+    /// Not an INTEGRA-7 message.
+    #[error("wrong model ID")]
+    WrongModelId,
+    /// Not a DT1 command.
+    #[error("not a DT1 command (expected 12, got {0:#04X})")]
+    NotDt1(u8),
+    /// Checksum mismatch.
+    #[error("checksum mismatch: expected {expected:#04X}, got {actual:#04X}")]
+    ChecksumMismatch { expected: u8, actual: u8 },
+}
+
+/// Parse a raw SysEx message as a DT1 from the INTEGRA-7.
+///
+/// Expected format:
+/// ```text
+/// F0 41 dev 00 00 64 12 aa bb cc dd ee ... ff sum F7
+/// ```
+///
+/// Validates the header, model ID, command, and checksum.
+pub fn parse_dt1(raw: &[u8]) -> Result<Dt1Message, Dt1ParseError> {
+    // Minimum: F0 41 dev 00 00 64 12 aa bb cc dd (1 data) sum F7 = 14 bytes
+    // But a DT1 with 1 data byte is 14 bytes. With 0 data it's 13 (invalid).
+    if raw.len() < 14 {
+        return Err(Dt1ParseError::TooShort(raw.len()));
+    }
+    if raw[0] != SYSEX_START {
+        return Err(Dt1ParseError::MissingSysexStart);
+    }
+    if raw[raw.len() - 1] != SYSEX_END {
+        return Err(Dt1ParseError::MissingSysexEnd);
+    }
+    if raw[1] != ROLAND_ID {
+        return Err(Dt1ParseError::NotRoland(raw[1]));
+    }
+    if raw[3..6] != MODEL_ID {
+        return Err(Dt1ParseError::WrongModelId);
+    }
+    if raw[6] != CMD_DT1 {
+        return Err(Dt1ParseError::NotDt1(raw[6]));
+    }
+
+    let device_id = raw[2];
+    let address = Address::new(raw[7], raw[8], raw[9], raw[10]);
+
+    // Data runs from byte 11 to len-3 (last two bytes are checksum + F7)
+    let data = raw[11..raw.len() - 2].to_vec();
+
+    // Verify checksum: covers address + data bytes (bytes 7 to len-3)
+    let chk_bytes = &raw[7..raw.len() - 2];
+    let expected = checksum(chk_bytes);
+    let actual = raw[raw.len() - 2];
+    if expected != actual {
+        return Err(Dt1ParseError::ChecksumMismatch { expected, actual });
+    }
+
+    Ok(Dt1Message {
+        device_id,
+        address,
+        data,
+    })
+}
+
+// ---------------------------------------------------------------------------
 // DT1 / RQ1 builders
 // ---------------------------------------------------------------------------
 
@@ -313,6 +405,58 @@ mod tests {
         assert_eq!(msg[15], 0x58);
         // Verify EOX
         assert_eq!(msg[16], 0xF7);
+    }
+
+    #[test]
+    fn parse_dt1_valid() {
+        let addr = Address::new(0x18, 0x00, 0x20, 0x09);
+        let msg = build_dt1(0x10, &addr, &[0x64]);
+        let parsed = parse_dt1(&msg).unwrap();
+        assert_eq!(parsed.device_id, 0x10);
+        assert_eq!(parsed.address, addr);
+        assert_eq!(parsed.data, vec![0x64]);
+    }
+
+    #[test]
+    fn parse_dt1_multi_byte_data() {
+        // Studio Set name: 16 bytes of ASCII
+        let addr = Address::new(0x18, 0x00, 0x00, 0x00);
+        let name = b"Test Studio Set!";
+        let msg = build_dt1(0x10, &addr, name);
+        let parsed = parse_dt1(&msg).unwrap();
+        assert_eq!(parsed.address, addr);
+        assert_eq!(parsed.data, name.to_vec());
+    }
+
+    #[test]
+    fn parse_dt1_bad_checksum() {
+        let mut msg = build_dt1(0x10, &Address::new(0x18, 0x00, 0x20, 0x09), &[0x64]);
+        // Corrupt the checksum
+        let idx = msg.len() - 2;
+        msg[idx] ^= 0x01;
+        assert!(matches!(
+            parse_dt1(&msg),
+            Err(Dt1ParseError::ChecksumMismatch { .. })
+        ));
+    }
+
+    #[test]
+    fn parse_dt1_not_roland() {
+        let mut msg = build_dt1(0x10, &Address::new(0x18, 0x00, 0x20, 0x09), &[0x64]);
+        msg[1] = 0x42; // not Roland
+        assert_eq!(parse_dt1(&msg), Err(Dt1ParseError::NotRoland(0x42)));
+    }
+
+    #[test]
+    fn dt1_roundtrip() {
+        // Build → parse should recover exact address and data
+        let addr = Address::new(0x02, 0x00, 0x00, 0x05);
+        let data = vec![0x7F];
+        let msg = build_dt1(0x10, &addr, &data);
+        let parsed = parse_dt1(&msg).unwrap();
+        assert_eq!(parsed.device_id, 0x10);
+        assert_eq!(parsed.address, addr);
+        assert_eq!(parsed.data, data);
     }
 
     #[test]
