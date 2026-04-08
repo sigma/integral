@@ -60,7 +60,7 @@ export function ChannelStrip({
       <PanKnob value={part.pan} onChange={onPanChange} />
       <div className={css.sends}>
         <EqKnob
-          label="CHO"
+          label="FX1"
           value={part.chorusSend}
           min={0}
           max={127}
@@ -70,7 +70,7 @@ export function ChannelStrip({
           color="#668"
         />
         <EqKnob
-          label="REV"
+          label="FX2"
           value={part.reverbSend}
           min={0}
           max={127}
