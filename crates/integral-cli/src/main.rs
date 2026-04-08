@@ -46,6 +46,53 @@ enum Cli {
         #[arg(long)]
         value: u8,
     },
+    /// Send RQ1 and capture all responses (for multi-response queries). E.g.: raw-rq1 0F000302 00000540
+    RawRq1 {
+        #[arg(long, default_value = "Integra")]
+        port: String,
+        #[arg(long, default_value_t = 5.0)]
+        timeout: f64,
+        /// 4-byte hex address
+        addr: String,
+        /// 4-byte hex size
+        size: String,
+    },
+    /// Read raw bytes from a SysEx address (hex). E.g.: raw-read 10000000 10
+    RawRead {
+        #[arg(long, default_value = "Integra")]
+        port: String,
+        #[arg(long, default_value_t = 5.0)]
+        timeout: f64,
+        /// 4-byte hex address (e.g. 10000000)
+        addr: String,
+        /// Hex size to read (e.g. 10 for 16 bytes)
+        size: String,
+    },
+    /// Send raw hex bytes as SysEx and capture all responses.
+    RawHex {
+        #[arg(long, default_value = "Integra")]
+        port: String,
+        #[arg(long, default_value_t = 5.0)]
+        timeout: f64,
+        /// Raw hex string (e.g. "F04110000064110F000302550017F7")
+        hex: String,
+    },
+    /// Probe undocumented command IDs to find catalog request format.
+    Probe {
+        #[arg(long, default_value = "Integra")]
+        port: String,
+    },
+    /// Send a raw DT1 message and capture responses. E.g.: raw-send 0F000302 5500
+    RawSend {
+        #[arg(long, default_value = "Integra")]
+        port: String,
+        #[arg(long, default_value_t = 3.0)]
+        timeout: f64,
+        /// 4-byte hex address
+        addr: String,
+        /// Hex data bytes (e.g. "5500" for two bytes 0x55 0x00)
+        data: String,
+    },
     /// Dump all incoming MIDI messages (for debugging).
     Monitor {
         #[arg(long, default_value = "Integra")]
@@ -363,6 +410,264 @@ fn monitor(port_pattern: &str) -> Result<()> {
     }
 }
 
+fn parse_hex_addr(s: &str) -> Result<Address> {
+    let bytes = u32::from_str_radix(s, 16).context("invalid hex address")?;
+    Ok(Address::new(
+        ((bytes >> 24) & 0xFF) as u8,
+        ((bytes >> 16) & 0xFF) as u8,
+        ((bytes >> 8) & 0xFF) as u8,
+        (bytes & 0xFF) as u8,
+    ))
+}
+
+fn parse_hex_size(s: &str) -> Result<DataSize> {
+    let bytes = u32::from_str_radix(s, 16).context("invalid hex size")?;
+    Ok(DataSize::new(
+        ((bytes >> 24) & 0xFF) as u8,
+        ((bytes >> 16) & 0xFF) as u8,
+        ((bytes >> 8) & 0xFF) as u8,
+        (bytes & 0xFF) as u8,
+    ))
+}
+
+fn raw_read(port_pattern: &str, timeout: Duration, addr_hex: &str, size_hex: &str) -> Result<()> {
+    let addr = parse_hex_addr(addr_hex)?;
+    let size = parse_hex_size(size_hex)?;
+    let (_conn_in, mut conn_out, rx) = open_midi(port_pattern)?;
+
+    let data = request_data(&mut conn_out, &rx, &addr, &size, timeout)?;
+
+    // Print as hex
+    let hex: Vec<String> = data.iter().map(|b| format!("{:02X}", b)).collect();
+    println!("Hex:   {}", hex.join(" "));
+
+    // Print as ASCII (printable chars only)
+    let ascii: String = data
+        .iter()
+        .map(|&b| if (0x20..=0x7E).contains(&b) { b as char } else { '.' })
+        .collect();
+    println!("ASCII: {ascii}");
+
+    Ok(())
+}
+
+fn parse_hex_bytes(s: &str) -> Result<Vec<u8>> {
+    (0..s.len())
+        .step_by(2)
+        .map(|i| {
+            u8::from_str_radix(&s[i..i + 2], 16)
+                .with_context(|| format!("invalid hex at position {i}"))
+        })
+        .collect()
+}
+
+fn raw_rq1_multi(
+    port_pattern: &str,
+    timeout: Duration,
+    addr_hex: &str,
+    size_hex: &str,
+) -> Result<()> {
+    let addr = parse_hex_addr(addr_hex)?;
+    let size = parse_hex_size(size_hex)?;
+    let (_conn_in, mut conn_out, rx) = open_midi(port_pattern)?;
+
+    let rq1 = sysex::build_rq1(DEVICE_ID, &addr, &size);
+    eprintln!("Sending RQ1: addr={}, size={}", addr, size);
+    conn_out.send(&rq1).context("failed to send RQ1")?;
+
+    let deadline = std::time::Instant::now() + timeout;
+    let mut count = 0;
+    loop {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        match rx.recv_timeout(remaining) {
+            Ok(msg) => {
+                count += 1;
+                if let Ok(dt1) = sysex::parse_dt1(&msg) {
+                    let ascii: String = dt1
+                        .data
+                        .iter()
+                        .map(|&b| {
+                            if (0x20..=0x7E).contains(&b) {
+                                b as char
+                            } else {
+                                '.'
+                            }
+                        })
+                        .collect();
+                    println!(
+                        "[{}] addr={} ({} bytes) {}",
+                        count,
+                        dt1.address,
+                        dt1.data.len(),
+                        ascii
+                    );
+                } else {
+                    let hex: Vec<String> = msg.iter().map(|b| format!("{:02X}", b)).collect();
+                    println!("[{}] raw ({} bytes): {}", count, msg.len(), hex.join(" "));
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => break,
+            Err(mpsc::RecvTimeoutError::Disconnected) => bail!("disconnected"),
+        }
+    }
+    eprintln!("Received {} messages", count);
+    Ok(())
+}
+
+fn send_raw_hex(port_pattern: &str, timeout: Duration, hex: &str) -> Result<()> {
+    let bytes = parse_hex_bytes(hex)?;
+    let (_conn_in, mut conn_out, rx) = open_midi(port_pattern)?;
+
+    let hex_display: Vec<String> = bytes.iter().map(|b| format!("{:02X}", b)).collect();
+    eprintln!("Sending raw: {}", hex_display.join(" "));
+    conn_out.send(&bytes).context("send failed")?;
+
+    let deadline = std::time::Instant::now() + timeout;
+    let mut count = 0;
+    loop {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        match rx.recv_timeout(remaining) {
+            Ok(msg) => {
+                count += 1;
+                if let Ok(dt1) = sysex::parse_dt1(&msg) {
+                    let ascii: String = dt1
+                        .data
+                        .iter()
+                        .map(|&b| {
+                            if (0x20..=0x7E).contains(&b) {
+                                b as char
+                            } else {
+                                '.'
+                            }
+                        })
+                        .collect();
+                    println!("[{}] addr={} ({} bytes) {}", count, dt1.address, dt1.data.len(), ascii);
+                } else {
+                    let hex_out: Vec<String> = msg.iter().map(|b| format!("{:02X}", b)).collect();
+                    println!("[{}] raw: {}", count, hex_out.join(" "));
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => break,
+            Err(mpsc::RecvTimeoutError::Disconnected) => bail!("disconnected"),
+        }
+    }
+    eprintln!("Received {} messages", count);
+    Ok(())
+}
+
+fn probe_catalog(port_pattern: &str) -> Result<()> {
+    let (_conn_in, mut conn_out, rx) = open_midi(port_pattern)?;
+
+    let addr: [u8; 4] = [0x0F, 0x00, 0x03, 0x02];
+    let data: [u8; 2] = [0x55, 0x00];
+
+    // Try different command IDs
+    for cmd_id in [0x0Bu8, 0x0C, 0x0D, 0x0E, 0x0F, 0x11, 0x12, 0x13, 0x14, 0x15] {
+        // Build raw SysEx: F0 41 10 00 00 64 CMD addr data chk F7
+        let mut chk_data = Vec::new();
+        chk_data.extend_from_slice(&addr);
+        chk_data.extend_from_slice(&data);
+        let chk = sysex::checksum(&chk_data);
+
+        let mut msg = vec![0xF0, 0x41, DEVICE_ID, 0x00, 0x00, 0x64, cmd_id];
+        msg.extend_from_slice(&addr);
+        msg.extend_from_slice(&data);
+        msg.push(chk);
+        msg.push(0xF7);
+
+        eprint!("cmd={:#04X}: ", cmd_id);
+        conn_out.send(&msg).context("send failed")?;
+
+        std::thread::sleep(Duration::from_millis(200));
+
+        let mut count = 0;
+        while let Ok(response) = rx.try_recv() {
+            count += 1;
+            if count <= 3 {
+                if let Ok(dt1) = sysex::parse_dt1(&response) {
+                    let ascii: String = dt1
+                        .data
+                        .iter()
+                        .map(|&b| {
+                            if (0x20..=0x7E).contains(&b) {
+                                b as char
+                            } else {
+                                '.'
+                            }
+                        })
+                        .collect();
+                    eprint!("[{}] ", ascii);
+                }
+            }
+        }
+        eprintln!("{count} response(s)");
+    }
+    Ok(())
+}
+
+fn raw_send(
+    port_pattern: &str,
+    timeout: Duration,
+    addr_hex: &str,
+    data_hex: &str,
+) -> Result<()> {
+    let addr = parse_hex_addr(addr_hex)?;
+    let data = parse_hex_bytes(data_hex)?;
+    let (_conn_in, mut conn_out, rx) = open_midi(port_pattern)?;
+
+    let dt1 = sysex::build_dt1(DEVICE_ID, &addr, &data);
+    eprintln!("Sending DT1: addr={}, data={}", addr, data_hex);
+    conn_out.send(&dt1).context("failed to send DT1")?;
+
+    // Capture all responses until timeout
+    let deadline = std::time::Instant::now() + timeout;
+    let mut count = 0;
+    loop {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        match rx.recv_timeout(remaining) {
+            Ok(msg) => {
+                count += 1;
+                if let Ok(dt1) = sysex::parse_dt1(&msg) {
+                    let ascii: String = dt1
+                        .data
+                        .iter()
+                        .map(|&b| {
+                            if (0x20..=0x7E).contains(&b) {
+                                b as char
+                            } else {
+                                '.'
+                            }
+                        })
+                        .collect();
+                    println!(
+                        "[{}] addr={} ({} bytes) {}",
+                        count,
+                        dt1.address,
+                        dt1.data.len(),
+                        ascii
+                    );
+                } else {
+                    let hex: Vec<String> = msg.iter().map(|b| format!("{:02X}", b)).collect();
+                    println!("[{}] raw ({} bytes): {}", count, msg.len(), hex.join(" "));
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => break,
+            Err(mpsc::RecvTimeoutError::Disconnected) => bail!("disconnected"),
+        }
+    }
+    eprintln!("Received {} messages", count);
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -384,6 +689,28 @@ fn main() -> Result<()> {
             part,
             value,
         } => write_param(&port, &what, part, value),
+        Cli::RawRead {
+            port,
+            timeout,
+            addr,
+            size,
+        } => raw_read(&port, Duration::from_secs_f64(timeout), &addr, &size),
+        Cli::RawHex { port, timeout, hex } => {
+            send_raw_hex(&port, Duration::from_secs_f64(timeout), &hex)
+        }
+        Cli::Probe { port } => probe_catalog(&port),
+        Cli::RawRq1 {
+            port,
+            timeout,
+            addr,
+            size,
+        } => raw_rq1_multi(&port, Duration::from_secs_f64(timeout), &addr, &size),
+        Cli::RawSend {
+            port,
+            timeout,
+            addr,
+            data,
+        } => raw_send(&port, Duration::from_secs_f64(timeout), &addr, &data),
         Cli::Monitor { port } => monitor(&port),
     }
 }

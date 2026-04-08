@@ -57,6 +57,10 @@ clean:
 ping *ARGS:
     cargo run -p integral-cli -- ping {{ARGS}}
 
+# monitor the MIDI traffic
+monitor *ARGS:
+    cargo run -p integral-cli -- monitor {{ARGS}}
+
 # start the web dev server
 dev-web: pack-wasm
     cd web && npx vite
