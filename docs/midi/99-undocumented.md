@@ -15,7 +15,7 @@ variations via the CLI.
 
 ### Purpose
 
-Read the names of all 64 Studio Sets (or potentially other preset categories)
+Read the names of all 64 Studio Sets (both factory presets and user sets)
 without loading them into the Temporary area. This is how the iPad app
 populates the Studio Set selector dropdown.
 
@@ -42,14 +42,14 @@ F0 41 <dev> 00 00 64 11 0F 00 03 02 <MSB> <LSB> <start> F7
 
 **Important:** This command does NOT use a Roland checksum. The byte
 immediately before `F7` is the starting program number, not a checksum.
-If a checksum byte is included, the device interprets it as part of the
-payload, which changes the effective start index.
+If an extra byte is appended (e.g. a computed checksum), the device
+interprets it as part of the payload, changing the effective start index.
 
 ### Known Bank Values
 
 | MSB  | LSB  | Category        | Entries | Notes                          |
 |------|------|-----------------|---------|--------------------------------|
-| `55` | `00` | Studio Sets     | 64      | 1–16 factory, 17–64 user      |
+| `55` | `00` | Studio Sets     | 64      | 0–15 factory, 16–63 user      |
 
 Other MSB/LSB combinations likely work for tone categories (PCM Synth, SN
 Acoustic, etc.) but have not been tested yet. The Bank Select values match
@@ -57,9 +57,9 @@ the standard bank select table from the MIDI Implementation.
 
 ### Response Format
 
-The device responds with multiple DT1 messages at the same address
-(`0F 00 03 02`), one per entry from `start` through the last available
-entry. Each response has 21 data bytes:
+The device responds with multiple standard DT1 messages at address
+`0F 00 03 02`, one per entry. The responses use normal DT1 framing
+including a valid Roland checksum:
 
 ```
 F0 41 <dev> 00 00 64 12 0F 00 03 02 <data[21]> <checksum> F7
@@ -78,27 +78,28 @@ Data layout (21 bytes):
 
 ### Delimiter Messages
 
-Between batches of responses (approximately every 8–16 entries), the device
-inserts a zero-data delimiter message:
+The device inserts zero-data delimiter messages at irregular intervals
+within the response stream:
 
 ```
 F0 41 10 00 00 64 12 0F 00 03 02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 6C F7
 ```
 
-All 21 data bytes are `00`. These should be ignored when parsing the
-response stream.
+All 21 data bytes are `00`. These should be filtered out when parsing.
+The delimiters do NOT indicate the end of the stream — more entries may
+follow after a delimiter.
 
-### Batching / Lazy Loading
+### Response Behavior
 
-The iPad app requests names in batches as the user scrolls:
+With `start=00`, the device returns all 64 entries (plus delimiters) in a
+single stream. The entries include both factory preset names ("Integra
+Preview", "Techno Set", etc. for indices 0–15) and user set names ("INIT
+STUDIO" for unmodified user slots 16–63).
 
-1. Initial load: `start=00` → receives entries 0–15 (factory presets)
-2. Scroll to 17–32: `start=10` → receives entries 16 onward
-3. Continue scrolling: further requests with higher start indices
-
-Each request returns all entries from `start` through the end (entry 63),
-so overlapping responses are expected. Clients should deduplicate by program
-number.
+The total response is approximately 65 messages (64 entries + delimiters)
+and takes several seconds to arrive. Clients should collect responses until
+either all 64 unique program numbers have been seen, or a sufficient silence
+timeout (3+ seconds) has elapsed.
 
 ### Example
 
@@ -161,24 +162,24 @@ Temporary area.
 
 ### Address Map
 
-| Base Address   | Description                       |
-|----------------|-----------------------------------|
-| `10 00 00 00`  | User Studio Set 1 (stored data)   |
-| `20 NN 00 00`  | User Studio Set NN (name only?)   |
+| Base Address   | Description                            |
+|----------------|----------------------------------------|
+| `10 00 00 00`  | User Studio Set 1 (full structure)     |
+| `20 NN 00 00`  | User Studio Set by index (NN = 0–63)  |
 
-The address `20 NN 00 00` (byte 1 = set index 0–63) returns the user-stored
-Studio Set name for that slot. On a factory-default device, all 64 entries
-return "INIT LIVE" (not "INIT STUDIO" — the distinction between the catalog
-query result and direct read is noted but not fully understood).
+The address `20 NN 00 00` (byte 1 = set index 0–63) provides access to
+user-stored Studio Set data. On a factory-default device, all 64 slots
+return "INIT LIVE" as the name — this is the user storage default, distinct
+from the factory preset names returned by the catalog query.
 
 The address `10 00 00 00` contains the full Studio Set structure for user
 slot 0, mirroring the Temporary Studio Set layout (Common at `00 00`,
 Chorus at `00 04 00`, Parts at `00 20 00`–`00 2F 00`, etc.).
 
-**Note:** Factory preset names ("Integra Preview", etc.) are NOT available
-at these addresses — they are only accessible via the catalog query at
-`0F 00 03 02` (Section 1 above) or by reading the Temporary Studio Set
-after loading the preset.
+**Note:** Factory preset names ("Integra Preview", etc.) are NOT accessible
+via user storage addresses. They are only available via:
+1. The catalog query at `0F 00 03 02` (Section 1 above)
+2. Reading the Temporary Studio Set at `18 00 00 00` after loading the preset
 
 ---
 
@@ -193,5 +194,4 @@ after loading the preset.
   be queryable via the same mechanism with their respective bank select values.
 
 - **Other catalog addresses**: The `0F 00 03 XX` range may have additional
-  catalog endpoints for different data types (e.g., `0F 00 03 00` for a
-  top-level index, `0F 00 03 01` for something else).
+  catalog endpoints for different data types.
