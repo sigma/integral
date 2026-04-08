@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T16:58:26Z",
+  "description": "",
+  "id": "i7-i6w.2",
+  "labels": [],
+  "parent": "i7-i6w",
+  "priority": 2,
+  "status": "open",
+  "title": "WASM: expose surround address helpers",
+  "type": "task",
+  "updated_at": "2026-04-08T16:58:26Z"
+}
