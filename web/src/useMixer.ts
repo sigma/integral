@@ -84,6 +84,12 @@ export interface UseMixerResult {
   togglePartEqSwitch: (part: number) => void;
   setMasterEqParam: (paramOffset: number, value: number) => void;
   toggleMasterEqSwitch: () => void;
+  setChorusParam: (offset: number, value: number) => void;
+  setChorusNibParam: (paramIndex: number, value: number) => void;
+  toggleChorusSwitch: () => void;
+  setReverbParam: (offset: number, value: number) => void;
+  setReverbNibParam: (paramIndex: number, value: number) => void;
+  toggleReverbSwitch: () => void;
   setExtLevel: (value: number) => void;
   toggleExtMute: () => void;
   toggleEqExpanded: () => void;
@@ -204,6 +210,44 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
             setState((prev) => ({ ...prev, extLevel: level, extMuted: muted }));
           },
         ).catch(() => {});
+
+        // Load Chorus (FX1) state (non-blocking)
+        Promise.all([
+          svc.requestChorusCore(),
+          svc.requestChorusSwitch(),
+          svc.requestChorusParams(),
+        ]).then(([core, enabled, params]) => {
+          if (!isCurrent()) return;
+          setState((prev) => ({
+            ...prev,
+            chorus: {
+              enabled,
+              type: core[0] ?? 0,
+              level: core[1] ?? 0,
+              output: core[3] ?? 0,
+              params,
+            },
+          }));
+        }).catch(() => {});
+
+        // Load Reverb (FX2) state (non-blocking)
+        Promise.all([
+          svc.requestReverbCore(),
+          svc.requestReverbSwitch(),
+          svc.requestReverbParams(),
+        ]).then(([core, enabled, params]) => {
+          if (!isCurrent()) return;
+          setState((prev) => ({
+            ...prev,
+            reverb: {
+              enabled,
+              type: core[0] ?? 0,
+              level: core[1] ?? 0,
+              output: core[2] ?? 0,
+              params,
+            },
+          }));
+        }).catch(() => {});
 
         // Studio Set catalog is loaded lazily when the dropdown is opened.
       } catch {
@@ -403,6 +447,72 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     service?.setMasterEqSwitch(enabled);
   }, [service]);
 
+  // --- FX setters ---
+
+  const setChorusParam = useCallback(
+    (offset: number, value: number) => {
+      setState((prev) => {
+        const chorus = { ...prev.chorus };
+        if (offset === 0) chorus.type = value;
+        else if (offset === 1) chorus.level = value;
+        else if (offset === 3) chorus.output = value;
+        return { ...prev, chorus };
+      });
+      service?.setChorusParam(offset, value);
+    },
+    [service],
+  );
+
+  const setChorusNibParam = useCallback(
+    (paramIndex: number, value: number) => {
+      setState((prev) => {
+        const params = [...prev.chorus.params];
+        params[paramIndex] = value;
+        return { ...prev, chorus: { ...prev.chorus, params } };
+      });
+      service?.setChorusNibParam(paramIndex, value);
+    },
+    [service],
+  );
+
+  const toggleChorusSwitch = useCallback(() => {
+    const enabled = !stateRef.current.chorus.enabled;
+    setState((prev) => ({ ...prev, chorus: { ...prev.chorus, enabled } }));
+    service?.setChorusSwitch(enabled);
+  }, [service]);
+
+  const setReverbParam = useCallback(
+    (offset: number, value: number) => {
+      setState((prev) => {
+        const reverb = { ...prev.reverb };
+        if (offset === 0) reverb.type = value;
+        else if (offset === 1) reverb.level = value;
+        else if (offset === 2) reverb.output = value;
+        return { ...prev, reverb };
+      });
+      service?.setReverbParam(offset, value);
+    },
+    [service],
+  );
+
+  const setReverbNibParam = useCallback(
+    (paramIndex: number, value: number) => {
+      setState((prev) => {
+        const params = [...prev.reverb.params];
+        params[paramIndex] = value;
+        return { ...prev, reverb: { ...prev.reverb, params } };
+      });
+      service?.setReverbNibParam(paramIndex, value);
+    },
+    [service],
+  );
+
+  const toggleReverbSwitch = useCallback(() => {
+    const enabled = !stateRef.current.reverb.enabled;
+    setState((prev) => ({ ...prev, reverb: { ...prev.reverb, enabled } }));
+    service?.setReverbSwitch(enabled);
+  }, [service]);
+
   const setExtLevel = useCallback(
     (value: number) => {
       setState((prev) => ({ ...prev, extLevel: value }));
@@ -446,6 +556,12 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     togglePartEqSwitch,
     setMasterEqParam,
     toggleMasterEqSwitch,
+    setChorusParam,
+    setChorusNibParam,
+    toggleChorusSwitch,
+    setReverbParam,
+    setReverbNibParam,
+    toggleReverbSwitch,
     setExtLevel,
     toggleExtMute,
     toggleEqExpanded,
