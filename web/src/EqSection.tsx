@@ -30,6 +30,9 @@ interface Props {
   onToggleSwitch: () => void;
   onParam: (paramOffset: number, value: number) => void;
   showSwitch?: boolean;
+  /** Offset added to all param indices. Part EQ has switch at 0 so params start at 1.
+   *  Master EQ has no switch so params start at 0. Default: 1 (Part EQ). */
+  paramBase?: number;
 }
 
 interface DividerLines {
@@ -42,7 +45,7 @@ interface DividerLines {
   loLabel: { x: number; y: number };
 }
 
-export function EqSection({ eq, onToggleSwitch, onParam, showSwitch = true }: Props) {
+export function EqSection({ eq, onToggleSwitch, onParam, showSwitch = true, paramBase = 1 }: Props) {
   const knobAreaRef = useRef<HTMLDivElement>(null);
   const knobRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [lines, setLines] = useState<DividerLines | null>(null);
@@ -142,46 +145,46 @@ export function EqSection({ eq, onToggleSwitch, onParam, showSwitch = true }: Pr
           <div className={css.r1} ref={setKnobRef("hiGain")}>
             <EqKnob
               label="Gain" value={eq.highGain} min={0} max={30} defaultValue={15}
-              onChange={(v) => onParam(7, v)} formatValue={formatGain} color="#c66"
+              onChange={(v) => onParam(paramBase + 6, v)} formatValue={formatGain} color="#c66"
             />
           </div>
           <div className={css.r2} ref={setKnobRef("hiFreq")}>
             <EqKnob
               label="Freq" value={eq.highFreq} min={0} max={2} defaultValue={1}
-              onChange={(v) => onParam(6, v)}
+              onChange={(v) => onParam(paramBase + 5, v)}
               formatValue={(v) => formatFreq(v, HIGH_FREQ_VALUES)} color="#c66"
             />
           </div>
           <div className={css.r3} ref={setKnobRef("midGain")}>
             <EqKnob
               label="Gain" value={eq.midGain} min={0} max={30} defaultValue={15}
-              onChange={(v) => onParam(4, v)} formatValue={formatGain} color="#6c6"
+              onChange={(v) => onParam(paramBase + 3, v)} formatValue={formatGain} color="#6c6"
             />
           </div>
           <div className={css.r4} ref={setKnobRef("midFreq")}>
             <EqKnob
               label="Freq" value={eq.midFreq} min={0} max={16} defaultValue={7}
-              onChange={(v) => onParam(3, v)}
+              onChange={(v) => onParam(paramBase + 2, v)}
               formatValue={(v) => formatFreq(v, MID_FREQ_VALUES)} color="#6c6"
             />
           </div>
           <div className={css.r5} ref={setKnobRef("midQ")}>
             <EqKnob
               label="Q" value={eq.midQ} min={0} max={4} defaultValue={1}
-              onChange={(v) => onParam(5, v)} formatValue={formatQ} color="#6c6"
+              onChange={(v) => onParam(paramBase + 4, v)} formatValue={formatQ} color="#6c6"
             />
           </div>
           <div className={css.r6} ref={setKnobRef("loFreq")}>
             <EqKnob
               label="Freq" value={eq.lowFreq} min={0} max={1} defaultValue={1}
-              onChange={(v) => onParam(1, v)}
+              onChange={(v) => onParam(paramBase + 0, v)}
               formatValue={(v) => formatFreq(v, LOW_FREQ_VALUES)} color="#66c"
             />
           </div>
           <div className={css.r7} ref={setKnobRef("loGain")}>
             <EqKnob
               label="Gain" value={eq.lowGain} min={0} max={30} defaultValue={15}
-              onChange={(v) => onParam(2, v)} formatValue={formatGain} color="#66c"
+              onChange={(v) => onParam(paramBase + 1, v)} formatValue={formatGain} color="#66c"
             />
           </div>
         </div>

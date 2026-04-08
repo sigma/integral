@@ -32,6 +32,7 @@ export function MasterStrip({
           eq={eq}
           onToggleSwitch={onEqToggle}
           onParam={onEqParam}
+          paramBase={0}
         />
       )}
       {/* Hidden replica of PAN + MUTE for fader alignment */}
