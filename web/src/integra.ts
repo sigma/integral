@@ -25,6 +25,7 @@ import {
   tone_name_address,
   tone_name_size,
   setup_studio_set_pc_address,
+  part_tone_bank_address,
   chorus_address,
   chorus_switch_address,
   chorus_core_size,
@@ -249,6 +250,24 @@ export class IntegraService {
 
   setPartReverbSend(part: number, value: number): void {
     this.sendDt1(Array.from(part_reverb_send_address(part)), [value]);
+  }
+
+  /**
+   * Change the tone on a part by sending Bank MSB, LSB, and PC.
+   * The three parameters are at consecutive offsets (06, 07, 08) in the part block.
+   */
+  setPartTone(part: number, msb: number, lsb: number, pc: number): void {
+    const baseAddr = Array.from(part_tone_bank_address(part)) as number[];
+    // MSB at offset 06
+    this.sendDt1(baseAddr, [msb]);
+    // LSB at offset 07
+    const lsbAddr = [...baseAddr];
+    lsbAddr[3] = (lsbAddr[3]! + 1) & 0x7f;
+    this.sendDt1(lsbAddr, [lsb]);
+    // PC at offset 08
+    const pcAddr = [...baseAddr];
+    pcAddr[3] = (pcAddr[3]! + 2) & 0x7f;
+    this.sendDt1(pcAddr, [pc]);
   }
 
   setMasterLevel(value: number): void {

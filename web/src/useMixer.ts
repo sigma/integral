@@ -76,6 +76,7 @@ export interface UseMixerResult {
   setPartLevel: (part: number, value: number) => void;
   setPartPan: (part: number, value: number) => void;
   togglePartMute: (part: number) => void;
+  changePartTone: (part: number, msb: number, lsb: number, pc: number) => void;
   setPartReceiveChannel: (part: number, channel: number) => void;
   setPartChorusSend: (part: number, value: number) => void;
   setPartReverbSend: (part: number, value: number) => void;
@@ -339,6 +340,31 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     [service, markSent],
   );
 
+  const changePartTone = useCallback(
+    (part: number, msb: number, lsb: number, pc: number) => {
+      if (!service) return;
+      // Update state optimistically
+      setState((prev) =>
+        updatePart(prev, part, {
+          toneBankMsb: msb,
+          toneBankLsb: lsb,
+          tonePC: pc,
+          toneName: "", // clear until re-read
+        }),
+      );
+      service.setPartTone(part, msb, lsb, pc);
+      // Re-read tone name after the device loads the new tone
+      setTimeout(() => {
+        service.requestToneName(part, msb).then((toneName) => {
+          if (toneName) {
+            setState((prev) => updatePart(prev, part, { toneName }));
+          }
+        });
+      }, 300);
+    },
+    [service],
+  );
+
   const setPartReceiveChannel = useCallback(
     (part: number, channel: number) => {
       setState((prev) => updatePart(prev, part, { receiveChannel: channel }));
@@ -548,6 +574,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     setPartLevel,
     setPartPan,
     togglePartMute,
+    changePartTone,
     setPartReceiveChannel,
     setPartChorusSend,
     setPartReverbSend,
