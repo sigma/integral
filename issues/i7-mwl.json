@@ -1,0 +1,16 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T05:07:48Z",
+  "description": "bw 0.12.0 → 0.12.1 is available.\n\n## What's new\n\n## 0.12.1 — 2026-04-07\n\n- **Subtree-aware `bw ready` and `bw blocked`** — epics with children are now classified based on their full subtree instead of individually. If all blockers are internal to the subtree, the parent shows as ready and descendants are suppressed from both lists. If any descendant has an external blocker, the parent shows as blocked with those external blocker IDs aggregated. This reduces noise for projects with deep issue hierarchies — you see the actionable root, not every leaf.\n\n## To upgrade\n\nRun `bw upgrade --yes` or `bw upgrade` for interactive mode.\n",
+  "id": "i7-mwl",
+  "labels": [
+    "beadwork-upgrade"
+  ],
+  "priority": 1,
+  "status": "open",
+  "title": "Upgrade bw to 0.12.1",
+  "type": "task",
+  "updated_at": "2026-04-08T05:07:48Z"
+}
