@@ -27,20 +27,19 @@ export function MasterStrip({
   return (
     <div className={`${css.strip} ${masterCss.override}`}>
       <div className={css.partNumber}>Master</div>
-      {eqExpanded ? (
+      {eqExpanded && (
         <EqSection
           eq={eq}
           onToggleSwitch={onEqToggle}
           onParam={onEqParam}
         />
-      ) : (
-        /* Hidden replica for alignment when EQ is collapsed */
-        <div className={masterCss.hidden}>
-          <PanKnob value={64} onChange={noop} />
-          <span className={css.muteLabel}>MUTE</span>
-          <button className={css.muteButton}>M</button>
-        </div>
       )}
+      {/* Hidden replica of PAN + MUTE for fader alignment */}
+      <div className={masterCss.hidden}>
+        <PanKnob value={64} onChange={noop} />
+        <span className={css.muteLabel}>MUTE</span>
+        <button className={css.muteButton}>M</button>
+      </div>
       <div className={css.faderArea}>
         <VolumeFader value={value} onChange={onChange} />
       </div>
