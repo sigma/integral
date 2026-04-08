@@ -7,13 +7,15 @@ set dotenv-load := false
 default:
     @just --list
 
-# format all Rust code
+# format all code (Rust + Nix)
 fmt:
     cargo fmt --all
+    nixfmt *.nix
 
 # check formatting without modifying files
 fmt-check:
     cargo fmt --all --check
+    nixfmt --check *.nix
 
 # run clippy on all targets
 lint:

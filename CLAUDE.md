@@ -103,7 +103,7 @@ The `justfile` provides standard targets. Run `just` to list them.
 
 | Target | Purpose |
 |--------|---------|
-| `just fmt` | Format all Rust code |
+| `just fmt` | Format all code (Rust + Nix) |
 | `just fmt-check` | Check formatting (no changes) |
 | `just lint` | Clippy with `-D warnings` |
 | `just build` | Build all crates (native) |
