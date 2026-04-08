@@ -1,0 +1,11 @@
+[package]
+name = "openlink-core"
+description = "Integra-7 SysEx engine, state management, and address maps"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror = "2"
+
+[dev-dependencies]
