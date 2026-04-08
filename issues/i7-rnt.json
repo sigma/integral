@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-04-08T05:37:41Z",
@@ -7,8 +7,8 @@
   "id": "i7-rnt",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Add device ping script and session check guidance",
   "type": "task",
-  "updated_at": "2026-04-08T05:37:41Z"
+  "updated_at": "2026-04-08T05:37:45Z"
 }
