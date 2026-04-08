@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-y0t.3"
+  ],
   "blocks": [],
   "created": "2026-04-08T06:53:23Z",
   "description": "",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "WASM: expose DT1/RQ1 builders, parser, address helpers",
   "type": "task",
-  "updated_at": "2026-04-08T06:53:23Z"
+  "updated_at": "2026-04-08T06:53:30Z"
 }
