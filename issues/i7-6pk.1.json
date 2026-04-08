@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-6pk.2"
+  ],
   "created": "2026-04-08T05:53:31Z",
   "description": "Initialize the web app with Vite, React, TypeScript strict mode. Add just targets for web dev/build.",
   "id": "i7-6pk.1",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Scaffold Vite + React + TypeScript project in web/",
   "type": "task",
-  "updated_at": "2026-04-08T05:53:31Z"
+  "updated_at": "2026-04-08T05:53:35Z"
 }
