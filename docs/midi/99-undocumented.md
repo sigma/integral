@@ -45,15 +45,30 @@ immediately before `F7` is the starting program number, not a checksum.
 If an extra byte is appended (e.g. a computed checksum), the device
 interprets it as part of the payload, changing the effective start index.
 
-### Known Bank Values
+### Known Addresses and Bank Values
+
+**Address `0F 00 03 02` — Studio Set catalog:**
 
 | MSB  | LSB  | Category        | Entries | Notes                          |
 |------|------|-----------------|---------|--------------------------------|
 | `55` | `00` | Studio Sets     | 64      | 0–15 factory, 16–63 user      |
 
-Other MSB/LSB combinations likely work for tone categories (PCM Synth, SN
-Acoustic, etc.) but have not been tested yet. The Bank Select values match
-the standard bank select table from the MIDI Implementation.
+**Address `0F 00 04 02` — Tone catalog:**
+
+| MSB  | LSB  | Category        | Entries tested | Notes                 |
+|------|------|-----------------|----------------|-----------------------|
+| `59` | `40` | SN Acoustic Preset | 247         | Full Grand 1, etc.    |
+| `57` | `40` | PCM Synth Preset   | 247         | 128voicePno, etc.     |
+| `5F` | `40` | SN Synth Preset    | 247         | JP8 Strings1, etc.    |
+
+Other MSB/LSB combinations (User banks, SRX expansions, GM2, Drum kits)
+likely work at the same `0F 00 04 02` address but have not been tested.
+The Bank Select MSB/LSB values match the standard bank select table from
+the MIDI Implementation.
+
+**Note:** The padding bytes (offsets 3-4 in each response) are always `00`
+for tones — no category information is included. The iPad app's "By Category"
+grouping must use an internal lookup table.
 
 ### Response Format
 
@@ -185,13 +200,15 @@ via user storage addresses. They are only available via:
 
 ## Future Investigation
 
-- **Tone catalog queries**: The `0F 00 03 02` address with different MSB/LSB
-  values (e.g., MSB=87 for PCM Synth, MSB=89 for SN Acoustic) likely returns
-  tone name catalogs. This would enable a tone browser without loading each
-  tone individually.
+- **Expansion board tone catalogs**: SRX, ExSN, ExPCM tones at `0F 00 04 02`
+  with their respective MSB/LSB values (MSB 93, 92, 97, 96, etc.) — untested
+  but expected to work.
 
-- **Expansion board catalog**: Expansion sounds (SRX, ExSN, ExPCM) may also
-  be queryable via the same mechanism with their respective bank select values.
+- **User tone catalogs**: User tone banks (LSB 0-3 instead of 64+) likely
+  return user-defined tone names via the same mechanism.
 
-- **Other catalog addresses**: The `0F 00 03 XX` range may have additional
-  catalog endpoints for different data types.
+- **Drum kit catalogs**: MSB 88 (SN Drum) and MSB 86 (PCM Drum) catalogs —
+  untested.
+
+- **Other catalog addresses**: The `0F 00 XX 02` range may have additional
+  catalog endpoints (we know `03 02` = Studio Sets, `04 02` = Tones).
