@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-04-08T05:08:09Z",
@@ -8,8 +8,8 @@
   "labels": [],
   "parent": "i7-jpn",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Create CLAUDE.md with project rules and agent guidelines",
   "type": "task",
-  "updated_at": "2026-04-08T05:08:09Z"
+  "updated_at": "2026-04-08T05:08:20Z"
 }
