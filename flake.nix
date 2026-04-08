@@ -1,5 +1,5 @@
 {
-  description = "OpenLink — Integra-7 control surface";
+  description = "Integral — Integra-7 control surface";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -38,7 +38,7 @@
           ];
 
           shellHook = ''
-            echo "OpenLink dev shell — Rust $(rustc --version | cut -d' ' -f2)"
+            echo "Integral dev shell — Rust $(rustc --version | cut -d' ' -f2)"
           '';
         };
       }

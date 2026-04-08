@@ -1,5 +1,5 @@
 [package]
-name = "openlink-core"
+name = "integral-core"
 description = "Integra-7 SysEx engine, state management, and address maps"
 version.workspace = true
 edition.workspace = true

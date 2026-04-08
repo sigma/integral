@@ -1,4 +1,4 @@
-//! OpenLink Core — Integra-7 SysEx engine.
+//! Integral Core — Integra-7 SysEx engine.
 //!
 //! This crate implements the portable business logic for communicating with
 //! the Roland INTEGRA-7 via SysEx messages, including address mapping,

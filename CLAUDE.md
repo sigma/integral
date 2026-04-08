@@ -1,8 +1,8 @@
-# OpenLink — Integra-7 Control Surface
+# Integral — Integra-7 Control Surface
 
 ## Project Overview
 
-OpenLink is a cross-platform, open-source control surface for the Roland
+Integral is a cross-platform, open-source control surface for the Roland
 INTEGRA-7 Synthesizer Module. It provides a web UI (via WASM) and a VST3
 plugin, both backed by a shared Rust core library.
 
@@ -10,9 +10,9 @@ plugin, both backed by a shared Rust core library.
 
 ```
 crates/
-  openlink-core/    # Portable Rust library: SysEx engine, state, address maps
-  openlink-wasm/    # WASM bindings for the web frontend
-  openlink-vst/     # VST3 wrapper via nih-plug
+  integral-core/    # Portable Rust library: SysEx engine, state, address maps
+  integral-wasm/    # WASM bindings for the web frontend
+  integral-vst/     # VST3 wrapper via nih-plug
 web/                # TypeScript / React frontend
 scripts/            # Utility scripts (device ping, etc.)
 docs/               # Design docs, PRD, MIDI reference notes
@@ -57,7 +57,7 @@ body when applicable.
 - All public API items must have doc comments.
 - Run `cargo clippy -- -D warnings` and `cargo fmt --check` before
   committing. The nix dev shell provides these tools.
-- Target `wasm32-unknown-unknown` must always compile for `openlink-core`.
+- Target `wasm32-unknown-unknown` must always compile for `integral-core`.
 
 ## Nix
 

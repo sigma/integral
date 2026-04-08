@@ -1,6 +1,6 @@
 [package]
-name = "openlink-wasm"
-description = "WASM bindings for the OpenLink web frontend"
+name = "integral-wasm"
+description = "WASM bindings for the Integral web frontend"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,5 +9,5 @@ license.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-openlink-core = { path = "../openlink-core" }
+integral-core = { path = "../integral-core" }
 wasm-bindgen = "0.2"

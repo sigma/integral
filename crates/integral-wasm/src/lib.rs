@@ -1,4 +1,4 @@
-//! WASM bindings for the OpenLink Integra-7 control surface.
+//! WASM bindings for the Integral Integra-7 control surface.
 
 use wasm_bindgen::prelude::*;
 

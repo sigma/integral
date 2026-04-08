@@ -1,9 +1,9 @@
 [workspace]
 resolver = "3"
 members = [
-    "crates/openlink-core",
-    "crates/openlink-wasm",
-    "crates/openlink-vst",
+    "crates/integral-core",
+    "crates/integral-wasm",
+    "crates/integral-vst",
 ]
 
 [workspace.package]

@@ -1,4 +1,4 @@
-# OpenLink — Integra-7 Control Surface
+# Integral — Integra-7 Control Surface
 
 A cross-platform, open-source control surface for the Roland INTEGRA-7
 Synthesizer Module.
@@ -23,9 +23,9 @@ cargo test    # run tests
 
 | Path | Description |
 |------|-------------|
-| `crates/openlink-core/` | Portable Rust library: SysEx engine, state, address maps |
-| `crates/openlink-wasm/` | WASM bindings for the web frontend |
-| `crates/openlink-vst/` | VST3 wrapper via nih-plug |
+| `crates/integral-core/` | Portable Rust library: SysEx engine, state, address maps |
+| `crates/integral-wasm/` | WASM bindings for the web frontend |
+| `crates/integral-vst/` | VST3 wrapper via nih-plug |
 | `web/` | TypeScript / React frontend (planned) |
 
 ## License
