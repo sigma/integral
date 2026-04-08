@@ -13,9 +13,10 @@ import {
   REVERB_OUTPUT_NAMES,
 } from "./fxParams";
 import { ToneSelector } from "./ToneSelector";
+import { ToneCatalog } from "./toneCatalog";
 import type { IntegraService } from "./integra";
 import type { UseMixerResult } from "./useMixer";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import css from "./MixerPage.module.css";
 
 interface Props {
@@ -27,6 +28,7 @@ export function MixerPage({ mixer, service }: Props) {
   const { state } = mixer;
   const selectedPart = state.parts[state.selectedPart]!;
   const [toneSelectorOpen, setToneSelectorOpen] = useState(false);
+  const catalog = useMemo(() => new ToneCatalog(service), [service]);
 
   const handleToneSelect = useCallback(
     (msb: number, lsb: number, pc: number) => {
@@ -126,7 +128,7 @@ export function MixerPage({ mixer, service }: Props) {
           currentMsb={selectedPart.toneBankMsb}
           currentLsb={selectedPart.toneBankLsb}
           currentPC={selectedPart.tonePC}
-          service={service}
+          catalog={catalog}
           onSelect={handleToneSelect}
           onClose={() => setToneSelectorOpen(false)}
         />

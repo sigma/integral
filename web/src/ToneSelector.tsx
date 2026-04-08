@@ -1,14 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { IntegraService } from "./integra";
 import { TONE_BANK_GROUPS, type ToneBank } from "./toneBanks";
+import type { ToneCatalog, ToneEntry } from "./toneCatalog";
 import css from "./ToneSelector.module.css";
 
-interface ToneEntry {
-  msb: number;
-  lsb: number;
-  pc: number;
-  globalIndex: number; // 1-based display number across all LSBs
-  name: string;
+interface DisplayEntry extends ToneEntry {
+  globalIndex: number; // 1-based display number
 }
 
 interface Props {
@@ -16,7 +12,7 @@ interface Props {
   currentMsb: number;
   currentLsb: number;
   currentPC: number;
-  service: IntegraService;
+  catalog: ToneCatalog;
   onSelect: (msb: number, lsb: number, pc: number) => void;
   onClose: () => void;
 }
@@ -26,7 +22,7 @@ export function ToneSelector({
   currentMsb,
   currentLsb,
   currentPC,
-  service,
+  catalog,
   onSelect,
   onClose,
 }: Props) {
@@ -35,63 +31,36 @@ export function ToneSelector({
   const [selectedBank, setSelectedBank] = useState<ToneBank | null>(
     initialBank,
   );
-  const [tones, setTones] = useState<ToneEntry[]>([]);
+  const [tones, setTones] = useState<DisplayEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const cacheRef = useRef<Map<string, ToneEntry[]>>(new Map());
 
-  // Load tone names when bank changes — query all LSBs and merge
+  // Subscribe to catalog updates for the selected bank.
   useEffect(() => {
     if (!selectedBank) return;
 
-    const key = `${selectedBank.msb}:${selectedBank.lsbs.join(",")}`;
-    const cached = cacheRef.current.get(key);
-    if (cached) {
-      setTones(cached);
-      return;
+    const updateFromCatalog = (entries: ToneEntry[]) => {
+      setTones(entries.map((e, i) => ({ ...e, globalIndex: i + 1 })));
+    };
+
+    // Initialize from cache.
+    const cached = catalog.get(selectedBank);
+    if (cached.length > 0) {
+      updateFromCatalog(cached);
     }
 
-    setLoading(true);
-    setTones([]);
+    setLoading(!catalog.isComplete(selectedBank));
 
-    // Incrementally load pages — each page of 64 entries updates the list
-    // as it arrives so the user sees results immediately.
-    let cancelled = false;
-    const accumulated: ToneEntry[] = [];
+    // Subscribe to future updates.
+    const unsub = catalog.subscribe(selectedBank, (entries) => {
+      updateFromCatalog(entries);
+      setLoading(!catalog.isComplete(selectedBank));
+    });
 
-    (async () => {
-      for (const lsb of selectedBank.lsbs) {
-        for (const start of [0, 64]) {
-          if (cancelled) return;
-          const page = await service.requestToneCatalogPage(
-            selectedBank.msb,
-            lsb,
-            start,
-            64,
-          );
-          if (cancelled) return;
-          console.log(`[tone-catalog] page LSB=${lsb} start=${start}: ${page.length} entries, total=${accumulated.length + page.length}`);
+    // Trigger fetch (no-op if already complete or in progress).
+    catalog.fetch(selectedBank);
 
-          for (const e of page) {
-            accumulated.push({
-              msb: e.msb,
-              lsb: e.lsb,
-              pc: e.pc,
-              globalIndex: accumulated.length + 1,
-              name: e.name,
-            });
-          }
-          setTones([...accumulated]);
-        }
-      }
-
-      cacheRef.current.set(key, accumulated);
-      setLoading(false);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedBank, service]);
+    return unsub;
+  }, [selectedBank, catalog]);
 
   // Scroll to active tone when list loads
   const toneListRef = useRef<HTMLDivElement>(null);
@@ -105,7 +74,7 @@ export function ToneSelector({
   }, [tones, selectedBank]);
 
   const handleSelect = useCallback(
-    (entry: ToneEntry) => {
+    (entry: DisplayEntry) => {
       onSelect(entry.msb, entry.lsb, entry.pc);
     },
     [onSelect],
@@ -154,30 +123,35 @@ export function ToneSelector({
             ))}
           </div>
           <div className={css.toneList} ref={toneListRef}>
-            {loading ? (
+            {tones.length === 0 && loading ? (
               <div className={css.loading}>Loading tones...</div>
             ) : tones.length === 0 && selectedBank ? (
               <div className={css.loading}>No tones found</div>
             ) : (
-              tones.map((entry) => {
-                const isActive =
-                  entry.msb === currentMsb &&
-                  entry.lsb === currentLsb &&
-                  entry.pc === currentPC;
-                return (
-                  <button
-                    key={`${entry.lsb}-${entry.pc}`}
-                    {...(isActive ? { "data-active": true } : {})}
-                    className={`${css.toneItem} ${isActive ? css.toneActive : ""}`}
-                    onClick={() => handleSelect(entry)}
-                  >
-                    <span className={css.toneNumber}>
-                      {String(entry.globalIndex).padStart(4, "0")}
-                    </span>
-                    <span className={css.toneName}>{entry.name}</span>
-                  </button>
-                );
-              })
+              <>
+                {tones.map((entry) => {
+                  const isActive =
+                    entry.msb === currentMsb &&
+                    entry.lsb === currentLsb &&
+                    entry.pc === currentPC;
+                  return (
+                    <button
+                      key={entry.globalIndex}
+                      {...(isActive ? { "data-active": true } : {})}
+                      className={`${css.toneItem} ${isActive ? css.toneActive : ""}`}
+                      onClick={() => handleSelect(entry)}
+                    >
+                      <span className={css.toneNumber}>
+                        {String(entry.globalIndex).padStart(4, "0")}
+                      </span>
+                      <span className={css.toneName}>{entry.name}</span>
+                    </button>
+                  );
+                })}
+                {loading && (
+                  <div className={css.loading}>Loading more...</div>
+                )}
+              </>
             )}
           </div>
         </div>
