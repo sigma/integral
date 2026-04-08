@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-flt.2"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-flt.4"
+  ],
   "created": "2026-04-08T12:29:35Z",
   "description": "Add EqState interface to types.ts. Add requestPartEq, setPartEqParam, requestMasterEq, setMasterEqParam to integra.ts.",
   "id": "i7-flt.3",
