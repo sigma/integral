@@ -1,0 +1,27 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Nix
+/result
+/result-*
+
+# Node / Web
+node_modules/
+dist/
+.parcel-cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
