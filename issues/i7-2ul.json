@@ -2,13 +2,14 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-08T16:34:27Z",
   "created": "2026-04-08T15:55:33Z",
   "description": "Add dedicated FX1 (Chorus) and FX2 (Reverb) strips between part 16 and EX. Each has ON/OFF, Type dropdown, Output routing, Level fader, and type-specific parameter knobs shown in the EQ expanded area. Rename per-part send knobs from CHO/REV to FX1/FX2.",
   "id": "i7-2ul",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Add FX1/FX2 mixer strips with type-aware parameters",
   "type": "epic",
-  "updated_at": "2026-04-08T15:55:33Z"
+  "updated_at": "2026-04-08T16:34:27Z"
 }
