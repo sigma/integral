@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-flt.1"
+  ],
   "blocks": [],
   "created": "2026-04-08T12:29:35Z",
   "description": "Add part_eq_address, master_eq_address, part_eq_size, master_eq_size to integral-wasm.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Expose EQ address helpers via WASM",
   "type": "task",
-  "updated_at": "2026-04-08T12:29:35Z"
+  "updated_at": "2026-04-08T12:29:44Z"
 }
