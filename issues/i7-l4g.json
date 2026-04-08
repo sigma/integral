@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-04-08T05:17:05Z",
@@ -7,8 +7,8 @@
   "id": "i7-l4g",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Extract MIDI Implementation PDF into reference docs",
   "type": "task",
-  "updated_at": "2026-04-08T05:17:05Z"
+  "updated_at": "2026-04-08T05:17:11Z"
 }
