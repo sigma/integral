@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-7gx.1"
+  ],
   "blocks": [],
   "created": "2026-04-08T13:46:04Z",
   "description": "Expose ext part addresses via WASM, add service methods, extend MixerState with extLevel/extMuted, load on startup, add ExStrip component between part 16 and Master.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Wire EX strip through WASM, service, state, and UI",
   "type": "task",
-  "updated_at": "2026-04-08T13:46:04Z"
+  "updated_at": "2026-04-08T13:46:15Z"
 }

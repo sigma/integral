@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-7gx.2"
+  ],
   "created": "2026-04-08T13:46:04Z",
   "description": "Add ext_part module to params.rs with LEVEL (00 4C), CHORUS_SEND (00 4D), REVERB_SEND (00 4E), MUTE (00 4F) addresses.",
   "id": "i7-7gx.1",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Add Ext Part parameter addresses to core",
   "type": "task",
-  "updated_at": "2026-04-08T13:46:04Z"
+  "updated_at": "2026-04-08T13:46:15Z"
 }
