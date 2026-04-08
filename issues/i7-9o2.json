@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T15:22:35Z",
+  "description": "Add staggered chorus/reverb send knobs between PAN and MUTE in each channel strip. Make the strip header editable to show/set the MIDI receive channel (e.g. 'Ch 1').",
+  "id": "i7-9o2",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Add chorus/reverb send knobs and editable MIDI channel to mixer strips",
+  "type": "epic",
+  "updated_at": "2026-04-08T15:22:35Z"
+}
