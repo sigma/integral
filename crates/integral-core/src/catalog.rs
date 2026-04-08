@@ -20,12 +20,12 @@ pub const STUDIO_SET_LSB: u8 = 0x00;
 /// Build a catalog query for Studio Set names.
 ///
 /// This undocumented command uses a non-standard format with NO checksum.
-/// The last byte before F7 is the starting program number (0-indexed).
+/// Format: `MSB LSB start count F7`
 ///
 /// ```text
-/// F0 41 <dev> 00 00 64 11 0F 00 03 02 55 00 <start> F7
+/// F0 41 <dev> 00 00 64 11 0F 00 03 02 55 00 <start> <count> F7
 /// ```
-pub fn build_studio_set_catalog_request(device_id: u8) -> Vec<u8> {
+pub fn build_studio_set_catalog_request(device_id: u8, start: u8, count: u8) -> Vec<u8> {
     vec![
         0xF0,
         sysex::ROLAND_ID,
@@ -40,16 +40,25 @@ pub fn build_studio_set_catalog_request(device_id: u8) -> Vec<u8> {
         STUDIO_SET_CATALOG_ADDR[3],
         STUDIO_SET_MSB,
         STUDIO_SET_LSB,
-        0x00, // start from index 0
+        start,
+        count,
         0xF7,
     ]
 }
 
 /// Build a catalog query for tone names in a specific bank.
 ///
-/// Uses address `0F 00 04 02` (tone catalog) with the given MSB/LSB.
-/// No checksum. The last byte before F7 is the starting PC (0-indexed).
-pub fn build_tone_catalog_request(device_id: u8, msb: u8, lsb: u8, start_pc: u8) -> Vec<u8> {
+/// Uses address `0F 00 04 02` (tone catalog). No checksum.
+/// Format: `MSB LSB start count F7`
+/// - `start`: starting PC index within this LSB (0-127)
+/// - `count`: number of entries to return (1-127, typically 64)
+pub fn build_tone_catalog_request(
+    device_id: u8,
+    msb: u8,
+    lsb: u8,
+    start_pc: u8,
+    count: u8,
+) -> Vec<u8> {
     vec![
         0xF0,
         sysex::ROLAND_ID,
@@ -65,6 +74,7 @@ pub fn build_tone_catalog_request(device_id: u8, msb: u8, lsb: u8, start_pc: u8)
         msb,
         lsb,
         start_pc,
+        count,
         0xF7,
     ]
 }
@@ -114,25 +124,25 @@ mod tests {
 
     #[test]
     fn build_catalog_request() {
-        let msg = build_studio_set_catalog_request(0x10);
-        // No checksum — last byte before F7 is start index (0x00)
+        let msg = build_studio_set_catalog_request(0x10, 0x00, 0x40);
+        // No checksum — format: MSB LSB start count F7
         assert_eq!(
             msg,
             vec![
                 0xF0, 0x41, 0x10, 0x00, 0x00, 0x64, 0x11, 0x0F, 0x00, 0x03, 0x02, 0x55, 0x00, 0x00,
-                0xF7
+                0x40, 0xF7
             ]
         );
     }
 
     #[test]
     fn build_tone_catalog_sn_acoustic_preset() {
-        let msg = build_tone_catalog_request(0x10, 0x59, 0x40, 0x00);
+        let msg = build_tone_catalog_request(0x10, 0x59, 0x40, 0x00, 0x40);
         assert_eq!(
             msg,
             vec![
                 0xF0, 0x41, 0x10, 0x00, 0x00, 0x64, 0x11, 0x0F, 0x00, 0x04, 0x02, 0x59, 0x40, 0x00,
-                0xF7
+                0x40, 0xF7
             ]
         );
     }

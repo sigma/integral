@@ -519,7 +519,7 @@ export class IntegraService {
   async requestStudioSetNames(): Promise<Map<number, string>> {
     const names = new Map<number, string>();
     const msg = new Uint8Array(
-      build_studio_set_catalog_request(this.deviceId),
+      build_studio_set_catalog_request(this.deviceId, 0, 64),
     );
 
     return new Promise((resolve) => {
@@ -584,34 +584,38 @@ export class IntegraService {
     });
   }
 
+  /** A single tone catalog entry with full bank info. */
+
   /**
-   * Request tone names for a specific bank (MSB/LSB).
-   * Uses the undocumented tone catalog query at address 0F 00 04 02.
-   * Returns a Map of PC index to name.
+   * Request one page of tone names (up to `count` entries).
+   * Format: MSB LSB start count F7
    */
-  async requestToneCatalog(
+  private requestToneCatalogPage(
     msb: number,
     lsb: number,
-  ): Promise<Map<number, string>> {
-    const names = new Map<number, string>();
+    start: number,
+    count: number,
+  ): Promise<{ msb: number; lsb: number; pc: number; name: string }[]> {
+    const entries: { msb: number; lsb: number; pc: number; name: string }[] =
+      [];
     const msg = new Uint8Array(
-      build_tone_catalog_request(this.deviceId, msb, lsb, 0),
+      build_tone_catalog_request(this.deviceId, msb, lsb, start, count),
     );
 
     return new Promise((resolve) => {
       let timeoutId: ReturnType<typeof setTimeout>;
-      const absoluteTimeout = setTimeout(() => done(), 15000);
+      const absoluteTimeout = setTimeout(() => done(), 10000);
 
       const done = () => {
         clearTimeout(timeoutId);
         clearTimeout(absoluteTimeout);
         cleanup();
-        resolve(names);
+        resolve(entries);
       };
 
       const resetTimeout = () => {
         clearTimeout(timeoutId);
-        timeoutId = setTimeout(done, 3000);
+        timeoutId = setTimeout(done, 2000);
       };
 
       const handler = (event: MIDIMessageEvent) => {
@@ -628,8 +632,17 @@ export class IntegraService {
         const data = new Uint8Array(parsed.data());
         const entry = parse_catalog_entry(data);
         if (entry) {
-          names.set(entry.pc, entry.name());
+          entries.push({
+            msb: entry.bank_msb,
+            lsb: entry.bank_lsb,
+            pc: entry.pc,
+            name: entry.name(),
+          });
           entry.free();
+          if (entries.length >= count) {
+            done();
+            return;
+          }
         }
         resetTimeout();
       };
@@ -646,10 +659,23 @@ export class IntegraService {
         handler as EventListener,
       );
 
-      this.enqueue(`tone-catalog:${msb}:${lsb}`, msg, () => {
+      this.enqueue(`tone-catalog:${msb}:${lsb}:${start}`, msg, () => {
         resetTimeout();
       });
     });
+  }
+
+  /**
+   * Request all tone names for a specific LSB.
+   * Paginates with 2 pages of 64 entries each (covering PC 0-127).
+   */
+  async requestToneCatalogForLsb(
+    msb: number,
+    lsb: number,
+  ): Promise<{ msb: number; lsb: number; pc: number; name: string }[]> {
+    const page1 = await this.requestToneCatalogPage(msb, lsb, 0, 64);
+    const page2 = await this.requestToneCatalogPage(msb, lsb, 64, 64);
+    return [...page1, ...page2];
   }
 
   // -----------------------------------------------------------------------

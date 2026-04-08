@@ -3,6 +3,14 @@ import type { IntegraService } from "./integra";
 import { TONE_BANK_GROUPS, type ToneBank } from "./toneBanks";
 import css from "./ToneSelector.module.css";
 
+interface ToneEntry {
+  msb: number;
+  lsb: number;
+  pc: number;
+  globalIndex: number; // 1-based display number across all LSBs
+  name: string;
+}
+
 interface Props {
   partIndex: number;
   currentMsb: number;
@@ -22,62 +30,71 @@ export function ToneSelector({
   onSelect,
   onClose,
 }: Props) {
-  // Find the initial bank matching the current tone
   const initialBank = findBank(currentMsb, currentLsb);
 
   const [selectedBank, setSelectedBank] = useState<ToneBank | null>(
     initialBank,
   );
-  const [toneNames, setToneNames] = useState<Map<number, string>>(new Map());
+  const [tones, setTones] = useState<ToneEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const cacheRef = useRef<Map<string, Map<number, string>>>(new Map());
+  const cacheRef = useRef<Map<string, ToneEntry[]>>(new Map());
 
-  // Load tone names when bank changes
+  // Load tone names when bank changes — query all LSBs and merge
   useEffect(() => {
     if (!selectedBank) return;
 
-    const key = `${selectedBank.msb}:${selectedBank.lsb}`;
+    const key = `${selectedBank.msb}:${selectedBank.lsbs.join(",")}`;
     const cached = cacheRef.current.get(key);
     if (cached) {
-      setToneNames(cached);
+      setTones(cached);
       return;
     }
 
     setLoading(true);
-    setToneNames(new Map());
+    setTones([]);
 
-    service.requestToneCatalog(selectedBank.msb, selectedBank.lsb).then(
-      (names) => {
-        cacheRef.current.set(key, names);
-        setToneNames(names);
-        setLoading(false);
-      },
-    );
+    // Query each LSB with proper pagination (2 pages of 64 per LSB).
+    (async () => {
+      const allRaw: { msb: number; lsb: number; pc: number; name: string }[] = [];
+
+      for (const lsb of selectedBank.lsbs) {
+        const entries = await service.requestToneCatalogForLsb(
+          selectedBank.msb,
+          lsb,
+        );
+        allRaw.push(...entries);
+      }
+
+      const allTones: ToneEntry[] = allRaw.map((e, i) => ({
+        msb: e.msb,
+        lsb: e.lsb,
+        pc: e.pc,
+        globalIndex: i + 1,
+        name: e.name,
+      }));
+
+      cacheRef.current.set(key, allTones);
+      setTones(allTones);
+      setLoading(false);
+    })();
   }, [selectedBank, service]);
 
   // Scroll to active tone when list loads
   const toneListRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (
-      toneNames.size > 0 &&
-      selectedBank?.msb === currentMsb &&
-      selectedBank?.lsb === currentLsb
-    ) {
+    if (tones.length > 0 && selectedBank) {
       requestAnimationFrame(() => {
-        const el = toneListRef.current?.querySelector(
-          `[data-pc="${currentPC}"]`,
-        );
+        const el = toneListRef.current?.querySelector("[data-active]");
         el?.scrollIntoView({ block: "center" });
       });
     }
-  }, [toneNames, selectedBank, currentMsb, currentLsb, currentPC]);
+  }, [tones, selectedBank]);
 
   const handleSelect = useCallback(
-    (pc: number) => {
-      if (!selectedBank) return;
-      onSelect(selectedBank.msb, selectedBank.lsb, pc);
+    (entry: ToneEntry) => {
+      onSelect(entry.msb, entry.lsb, entry.pc);
     },
-    [selectedBank, onSelect],
+    [onSelect],
   );
 
   // Close on Escape
@@ -108,10 +125,10 @@ export function ToneSelector({
                 {group.banks.map((bank) => {
                   const isActive =
                     selectedBank?.msb === bank.msb &&
-                    selectedBank?.lsb === bank.lsb;
+                    selectedBank?.lsbs.join() === bank.lsbs.join();
                   return (
                     <button
-                      key={`${bank.msb}-${bank.lsb}`}
+                      key={`${bank.msb}-${bank.lsbs.join()}`}
                       className={`${css.bankButton} ${isActive ? css.bankActive : ""}`}
                       onClick={() => setSelectedBank(bank)}
                     >
@@ -125,30 +142,28 @@ export function ToneSelector({
           <div className={css.toneList} ref={toneListRef}>
             {loading ? (
               <div className={css.loading}>Loading tones...</div>
-            ) : toneNames.size === 0 && selectedBank ? (
+            ) : tones.length === 0 && selectedBank ? (
               <div className={css.loading}>No tones found</div>
             ) : (
-              Array.from(toneNames.entries())
-                .sort(([a], [b]) => a - b)
-                .map(([pc, name]) => {
-                  const isActive =
-                    selectedBank?.msb === currentMsb &&
-                    selectedBank?.lsb === currentLsb &&
-                    pc === currentPC;
-                  return (
-                    <button
-                      key={pc}
-                      data-pc={pc}
-                      className={`${css.toneItem} ${isActive ? css.toneActive : ""}`}
-                      onClick={() => handleSelect(pc)}
-                    >
-                      <span className={css.toneNumber}>
-                        {String(pc + 1).padStart(4, "0")}
-                      </span>
-                      <span className={css.toneName}>{name}</span>
-                    </button>
-                  );
-                })
+              tones.map((entry) => {
+                const isActive =
+                  entry.msb === currentMsb &&
+                  entry.lsb === currentLsb &&
+                  entry.pc === currentPC;
+                return (
+                  <button
+                    key={`${entry.lsb}-${entry.pc}`}
+                    {...(isActive ? { "data-active": true } : {})}
+                    className={`${css.toneItem} ${isActive ? css.toneActive : ""}`}
+                    onClick={() => handleSelect(entry)}
+                  >
+                    <span className={css.toneNumber}>
+                      {String(entry.globalIndex).padStart(4, "0")}
+                    </span>
+                    <span className={css.toneName}>{entry.name}</span>
+                  </button>
+                );
+              })
             )}
           </div>
         </div>
@@ -160,7 +175,7 @@ export function ToneSelector({
 function findBank(msb: number, lsb: number): ToneBank | null {
   for (const group of TONE_BANK_GROUPS) {
     for (const bank of group.banks) {
-      if (bank.msb === msb && bank.lsb === lsb) return bank;
+      if (bank.msb === msb && bank.lsbs.includes(lsb)) return bank;
     }
   }
   return null;

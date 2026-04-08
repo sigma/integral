@@ -315,14 +315,20 @@ pub fn tone_name_size() -> Vec<u8> {
 /// Returns the raw SysEx bytes to send. The device responds with multiple
 /// DT1 messages containing all 64 Studio Set names.
 #[wasm_bindgen]
-pub fn build_studio_set_catalog_request(device_id: u8) -> Vec<u8> {
-    catalog::build_studio_set_catalog_request(device_id)
+pub fn build_studio_set_catalog_request(device_id: u8, start: u8, count: u8) -> Vec<u8> {
+    catalog::build_studio_set_catalog_request(device_id, start, count)
 }
 
 /// Build a catalog query for tone names in a specific bank.
 #[wasm_bindgen]
-pub fn build_tone_catalog_request(device_id: u8, msb: u8, lsb: u8, start_pc: u8) -> Vec<u8> {
-    catalog::build_tone_catalog_request(device_id, msb, lsb, start_pc)
+pub fn build_tone_catalog_request(
+    device_id: u8,
+    msb: u8,
+    lsb: u8,
+    start_pc: u8,
+    count: u8,
+) -> Vec<u8> {
+    catalog::build_tone_catalog_request(device_id, msb, lsb, start_pc, count)
 }
 
 /// A parsed catalog entry (name for a preset/user slot).
