@@ -2,13 +2,14 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-08T15:00:06Z",
   "created": "2026-04-08T13:45:56Z",
   "description": "Add an EX strip between part 16 and Master, with fader (level) and mute only. Params are in Studio Set Common at offsets 4C-4F.",
   "id": "i7-7gx",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Add EX (external input) strip to mixer",
   "type": "epic",
-  "updated_at": "2026-04-08T13:45:56Z"
+  "updated_at": "2026-04-08T15:00:06Z"
 }
