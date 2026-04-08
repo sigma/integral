@@ -4,4 +4,5 @@
 //! the Roland INTEGRA-7 via SysEx messages, including address mapping,
 //! checksum calculation, message construction, and state management.
 
+pub mod address;
 pub mod sysex;
