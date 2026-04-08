@@ -25,6 +25,12 @@ import {
   tone_name_address,
   tone_name_size,
   setup_studio_set_pc_address,
+  chorus_address,
+  chorus_switch_address,
+  chorus_core_size,
+  reverb_address,
+  reverb_switch_address,
+  reverb_core_size,
   ext_part_level_address,
   ext_part_mute_address,
   part_eq_address,
@@ -353,6 +359,106 @@ export class IntegraService {
   }
 
   // -----------------------------------------------------------------------
+  // Chorus (FX1)
+  // -----------------------------------------------------------------------
+
+  async requestChorusCore(): Promise<Uint8Array> {
+    return this.requestData(
+      Array.from(chorus_address(0)),
+      Array.from(chorus_core_size()),
+    );
+  }
+
+  async requestChorusSwitch(): Promise<boolean> {
+    const data = await this.requestData(
+      Array.from(chorus_switch_address()),
+      Array.from(single_byte_size()),
+    );
+    return data[0] === 1;
+  }
+
+  setChorusSwitch(enabled: boolean): void {
+    this.sendDt1(Array.from(chorus_switch_address()), [enabled ? 1 : 0]);
+  }
+
+  setChorusParam(offset: number, value: number): void {
+    this.sendDt1(Array.from(chorus_address(offset)), [value]);
+  }
+
+  /** Write a nibblized 4-byte FX parameter. */
+  setChorusNibParam(paramIndex: number, value: number): void {
+    const raw = value + 32768;
+    const bytes = [
+      (raw >> 12) & 0x0f,
+      (raw >> 8) & 0x0f,
+      (raw >> 4) & 0x0f,
+      raw & 0x0f,
+    ];
+    // Param N is at offset 0x04 + N*4
+    const offset = 0x04 + paramIndex * 4;
+    this.sendDt1(Array.from(chorus_address(offset)), bytes);
+  }
+
+  /** Read all nibblized chorus params (20 params × 4 bytes = 80 bytes). */
+  async requestChorusParams(): Promise<number[]> {
+    const data = await this.requestData(
+      Array.from(chorus_address(0x04)),
+      [0x00, 0x00, 0x00, 0x50], // 80 bytes
+    );
+    return decodeNibParams(data, 20);
+  }
+
+  // -----------------------------------------------------------------------
+  // Reverb (FX2)
+  // -----------------------------------------------------------------------
+
+  async requestReverbCore(): Promise<Uint8Array> {
+    return this.requestData(
+      Array.from(reverb_address(0)),
+      Array.from(reverb_core_size()),
+    );
+  }
+
+  async requestReverbSwitch(): Promise<boolean> {
+    const data = await this.requestData(
+      Array.from(reverb_switch_address()),
+      Array.from(single_byte_size()),
+    );
+    return data[0] === 1;
+  }
+
+  setReverbSwitch(enabled: boolean): void {
+    this.sendDt1(Array.from(reverb_switch_address()), [enabled ? 1 : 0]);
+  }
+
+  setReverbParam(offset: number, value: number): void {
+    this.sendDt1(Array.from(reverb_address(offset)), [value]);
+  }
+
+  /** Write a nibblized 4-byte FX parameter. */
+  setReverbNibParam(paramIndex: number, value: number): void {
+    const raw = value + 32768;
+    const bytes = [
+      (raw >> 12) & 0x0f,
+      (raw >> 8) & 0x0f,
+      (raw >> 4) & 0x0f,
+      raw & 0x0f,
+    ];
+    // Param N is at offset 0x03 + N*4
+    const offset = 0x03 + paramIndex * 4;
+    this.sendDt1(Array.from(reverb_address(offset)), bytes);
+  }
+
+  /** Read all nibblized reverb params (24 params × 4 bytes = 96 bytes). */
+  async requestReverbParams(): Promise<number[]> {
+    const data = await this.requestData(
+      Array.from(reverb_address(0x03)),
+      [0x00, 0x00, 0x00, 0x60], // 96 bytes
+    );
+    return decodeNibParams(data, 24);
+  }
+
+  // -----------------------------------------------------------------------
   // Ext Part
   // -----------------------------------------------------------------------
 
@@ -477,4 +583,20 @@ export class IntegraService {
 
 function addressKey(address: number[]): string {
   return address.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Decode nibblized FX parameters: each param is 4 nibble bytes → signed display value. */
+function decodeNibParams(data: Uint8Array, count: number): number[] {
+  const result: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const off = i * 4;
+    if (off + 3 >= data.length) break;
+    const raw =
+      ((data[off]! & 0x0f) << 12) |
+      ((data[off + 1]! & 0x0f) << 8) |
+      ((data[off + 2]! & 0x0f) << 4) |
+      (data[off + 3]! & 0x0f);
+    result.push(raw - 32768);
+  }
+  return result;
 }

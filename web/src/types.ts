@@ -32,6 +32,31 @@ export function defaultEqState(): EqState {
   };
 }
 
+/** Chorus/Reverb FX state. */
+export interface FxState {
+  /** Effect on/off. */
+  enabled: boolean;
+  /** Effect type index (Chorus: 0-3, Reverb: 0-6). */
+  type: number;
+  /** Effect level (0-127). */
+  level: number;
+  /** Output routing (Chorus: 0-2 MAIN/REV/MAIN+REV; Reverb: 0-3 A/B/C/D). */
+  output: number;
+  /** Type-dependent parameters (nibblized values, decoded to display range). */
+  params: number[];
+}
+
+/** Default FX state. */
+export function defaultFxState(): FxState {
+  return {
+    enabled: true,
+    type: 0,
+    level: 0,
+    output: 0,
+    params: [],
+  };
+}
+
 /** State of a single Part in the mixer. */
 export interface PartState {
   /** Part level / volume (0–127). */
@@ -70,6 +95,10 @@ export interface MixerState {
   parts: PartState[];
   /** Currently selected part index (0–15). */
   selectedPart: number;
+  /** Chorus (FX1) state. */
+  chorus: FxState;
+  /** Reverb (FX2) state. */
+  reverb: FxState;
   /** External input level (0–127). */
   extLevel: number;
   /** External input mute. */
@@ -109,6 +138,8 @@ export function defaultMixerState(): MixerState {
     masterLevel: 100,
     parts: Array.from({ length: 16 }, () => defaultPartState()),
     selectedPart: 0,
+    chorus: defaultFxState(),
+    reverb: defaultFxState(),
     extLevel: 100,
     extMuted: false,
     masterEq: defaultEqState(),

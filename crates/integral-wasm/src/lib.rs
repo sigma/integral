@@ -364,6 +364,40 @@ pub fn part_eq_address(part_index: u8, param_offset: u8) -> Vec<u8> {
 }
 
 // ---------------------------------------------------------------------------
+// Chorus / Reverb addresses
+// ---------------------------------------------------------------------------
+
+#[wasm_bindgen]
+pub fn chorus_address(param_offset: u8) -> Vec<u8> {
+    addr_to_vec(params::chorus_address(param_offset))
+}
+
+#[wasm_bindgen]
+pub fn chorus_switch_address() -> Vec<u8> {
+    addr_to_vec(params::CHORUS_SWITCH)
+}
+
+#[wasm_bindgen]
+pub fn chorus_core_size() -> Vec<u8> {
+    params::CHORUS_CORE_SIZE.as_bytes().to_vec()
+}
+
+#[wasm_bindgen]
+pub fn reverb_address(param_offset: u8) -> Vec<u8> {
+    addr_to_vec(params::reverb_address(param_offset))
+}
+
+#[wasm_bindgen]
+pub fn reverb_switch_address() -> Vec<u8> {
+    addr_to_vec(params::REVERB_SWITCH)
+}
+
+#[wasm_bindgen]
+pub fn reverb_core_size() -> Vec<u8> {
+    params::REVERB_CORE_SIZE.as_bytes().to_vec()
+}
+
+// ---------------------------------------------------------------------------
 // Ext Part addresses
 // ---------------------------------------------------------------------------
 
