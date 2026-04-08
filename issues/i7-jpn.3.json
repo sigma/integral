@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T05:08:09Z",
+  "description": "Set up Cargo workspace with core library crate (openlink-core) and placeholder crates for wasm and vst targets.",
+  "id": "i7-jpn.3",
+  "labels": [],
+  "parent": "i7-jpn",
+  "priority": 2,
+  "status": "open",
+  "title": "Create Rust workspace and crate structure",
+  "type": "task",
+  "updated_at": "2026-04-08T05:08:09Z"
+}
