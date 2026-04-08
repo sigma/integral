@@ -70,10 +70,16 @@ pub const fn part_address(part_index: u8, param_offset: [u8; 3]) -> Address {
 /// Part 1 = `19 00 00 00`, Part 2 = `19 20 00 00`, ..., Part 16 = `1C 60 00 00`.
 /// Parts are spaced `00 20 00 00` apart starting at `19 00 00 00`.
 pub const fn temporary_tone_base(part_index: u8) -> Address {
-    // Part 0 (Part 1): 19 00 00 00
-    // Part 1 (Part 2): 19 20 00 00
-    // ...carried via 7-bit arithmetic
-    Address::new(0x19, 0x00, 0x00, 0x00).offset([0x00, part_index * 0x02, 0x00, 0x00])
+    // Each part is offset by 00 20 00 00 in the address space.
+    // part_index 0 → 19 00 00 00 (no offset)
+    // part_index 1 → 19 20 00 00 (+ 00 20 00 00)
+    // part_index 4 → 1A 00 00 00 (+ 01 00 00 00, via 7-bit carry: 4*0x20=0x80=overflow)
+    //
+    // We add part_index * 0x20 to byte 1, with 7-bit arithmetic handling carry.
+    let total = (part_index as u16) * 0x20;
+    let byte0_add = (total / 128) as u8;
+    let byte1_add = (total % 128) as u8;
+    Address::new(0x19, 0x00, 0x00, 0x00).offset([byte0_add, byte1_add, 0x00, 0x00])
 }
 
 /// Tone type offsets within a Temporary Tone block.
@@ -140,32 +146,32 @@ mod tests {
     #[test]
     fn part1_level_address() {
         let addr = part_address(0, part::LEVEL);
-        assert_eq!(addr, Address::new(0x18, 0x20, 0x00, 0x09));
+        assert_eq!(addr, Address::new(0x18, 0x00, 0x20, 0x09));
     }
 
     #[test]
     fn part1_pan_address() {
         let addr = part_address(0, part::PAN);
-        assert_eq!(addr, Address::new(0x18, 0x20, 0x00, 0x0A));
+        assert_eq!(addr, Address::new(0x18, 0x00, 0x20, 0x0A));
     }
 
     #[test]
     fn part16_mute_address() {
         let addr = part_address(15, part::MUTE);
-        assert_eq!(addr, Address::new(0x18, 0x2F, 0x00, 0x25));
+        assert_eq!(addr, Address::new(0x18, 0x00, 0x2F, 0x25));
     }
 
     #[test]
     fn part1_tone_bank_msb_address() {
         let addr = part_address(0, part::TONE_BANK_MSB);
-        assert_eq!(addr, Address::new(0x18, 0x20, 0x00, 0x06));
+        assert_eq!(addr, Address::new(0x18, 0x00, 0x20, 0x06));
     }
 
     #[test]
     fn part8_chorus_send_address() {
         // Part 8 = index 7
         let addr = part_address(7, part::CHORUS_SEND);
-        assert_eq!(addr, Address::new(0x18, 0x27, 0x00, 0x27));
+        assert_eq!(addr, Address::new(0x18, 0x00, 0x27, 0x27));
     }
 
     #[test]
@@ -179,10 +185,23 @@ mod tests {
     }
 
     #[test]
+    fn temporary_tone_part2() {
+        assert_eq!(temporary_tone_base(1), Address::new(0x19, 0x20, 0x00, 0x00));
+    }
+
+    #[test]
+    fn temporary_tone_part5() {
+        // Part 5 = index 4, 4*0x20 = 0x80 → overflow byte 1, carry to byte 0
+        // 19 00 + 00 80 → 19 00 + 01 00 (7-bit carry) = 1A 00
+        assert_eq!(temporary_tone_base(4), Address::new(0x1A, 0x00, 0x00, 0x00));
+    }
+
+    #[test]
     fn temporary_tone_part16() {
+        // Part 16 = index 15, 15*0x20 = 0x1E0 = 3*128 + 96 = carry 3, remainder 0x60
         assert_eq!(
             temporary_tone_base(15),
-            Address::new(0x19, 0x1E, 0x00, 0x00)
+            Address::new(0x1C, 0x60, 0x00, 0x00)
         );
     }
 
@@ -194,6 +213,7 @@ mod tests {
 
     #[test]
     fn tone_name_sn_acoustic_part1() {
+        // SN Acoustic offset is 02 00 00, so byte 1 of the tone block gets +2
         let addr = tone_name_address(0, tone_type::SN_ACOUSTIC);
         assert_eq!(addr, Address::new(0x19, 0x02, 0x00, 0x00));
     }

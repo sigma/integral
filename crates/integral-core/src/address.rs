@@ -134,10 +134,12 @@ pub const STUDIO_SET: Address = Address::new(0x18, 0x00, 0x00, 0x00);
 /// `part` is 0-indexed (0 = Part 1, 15 = Part 16).
 /// `param_offset` is the parameter's offset within the Part block.
 ///
-/// Part *n* (0-indexed) is at Studio Set base + `[0x00, 0x20 + n, 0x00, 0x00]`.
+/// From the docs, Part offsets within the Studio Set are:
+///   Part 1: `00 00 20 00`, Part 2: `00 00 21 00`, ..., Part 16: `00 00 2F 00`
 pub const fn studio_set_part(part: u8, param_offset: [u8; 3]) -> Address {
     STUDIO_SET
-        .offset([0x00, 0x20 + part, param_offset[0], param_offset[1]])
+        .offset([0x00, 0x00, 0x20 + part, param_offset[0]])
+        .offset([0x00, 0x00, 0x00, param_offset[1]])
         .offset([0x00, 0x00, 0x00, param_offset[2]])
 }
 
@@ -174,16 +176,16 @@ mod tests {
 
     #[test]
     fn part_1_level_address() {
-        // Part 1 (index 0) Level is at 18 00 20 09
+        // Part 1 (index 0) Level: 18 00 00 00 + 00 00 20 00 + 00 00 00 09 = 18 00 20 09
         let addr = studio_set_part(0, [0x00, 0x00, 0x09]);
-        assert_eq!(addr, Address::new(0x18, 0x20, 0x00, 0x09));
+        assert_eq!(addr, Address::new(0x18, 0x00, 0x20, 0x09));
     }
 
     #[test]
     fn part_16_level_address() {
-        // Part 16 (index 15) Level is at 18 00 2F 09
+        // Part 16 (index 15) Level: 18 00 00 00 + 00 00 2F 00 + 00 00 00 09 = 18 00 2F 09
         let addr = studio_set_part(15, [0x00, 0x00, 0x09]);
-        assert_eq!(addr, Address::new(0x18, 0x2F, 0x00, 0x09));
+        assert_eq!(addr, Address::new(0x18, 0x00, 0x2F, 0x09));
     }
 
     #[test]
