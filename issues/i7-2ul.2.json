@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-2ul.1"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-2ul.3"
+  ],
   "created": "2026-04-08T15:55:45Z",
   "description": "Add FxState type (type, level, output, switch, params array). WASM address exports. IntegraService methods for read/write. Nibblized parameter encoding/decoding.",
   "id": "i7-2ul.2",
