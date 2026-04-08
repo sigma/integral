@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-04-08T15:55:45Z",
@@ -8,8 +8,8 @@
   "labels": [],
   "parent": "i7-2ul",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Rename per-part send knobs to FX1/FX2",
   "type": "task",
-  "updated_at": "2026-04-08T15:55:45Z"
+  "updated_at": "2026-04-08T15:56:07Z"
 }
