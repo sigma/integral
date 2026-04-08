@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   requestMidiAccess,
   getPairedPorts,
@@ -8,16 +8,18 @@ import {
   type Integra7Identity,
 } from "./midi";
 
-type ConnectionState =
-  | { status: "idle" }
-  | { status: "no-midi" }
-  | { status: "ready"; ports: MidiPortPair[]; selectedId: string | null }
-  | { status: "identifying"; port: MidiPortPair }
-  | { status: "connected"; port: MidiPortPair; identity: Integra7Identity }
-  | { status: "failed"; port: MidiPortPair; reason: string };
+type DeviceStatus =
+  | { step: "idle" }
+  | { step: "identifying" }
+  | { step: "connected"; identity: Integra7Identity }
+  | { step: "failed"; reason: string };
 
 export function App() {
-  const [state, setState] = useState<ConnectionState>({ status: "idle" });
+  const [midiError, setMidiError] = useState<string | null>(null);
+  const [ports, setPorts] = useState<MidiPortPair[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [status, setStatus] = useState<DeviceStatus>({ step: "idle" });
+  const identifyGenRef = useRef(0);
 
   // Initialize MIDI access on mount
   useEffect(() => {
@@ -28,89 +30,55 @@ export function App() {
       try {
         access = await requestMidiAccess();
       } catch {
-        if (!cancelled) setState({ status: "no-midi" });
+        if (!cancelled) setMidiError("Web MIDI API not available. Use Chrome or Edge.");
         return;
       }
-
       if (cancelled) return;
 
-      const ports = getPairedPorts(access);
-      const integraPort = findIntegraPort(ports);
+      const pairs = getPairedPorts(access);
+      setPorts(pairs);
 
-      setState({
-        status: "ready",
-        ports,
-        selectedId: integraPort?.id ?? ports[0]?.id ?? null,
-      });
-
-      // Auto-identify if we found an Integra port
-      if (integraPort) {
-        setState({ status: "identifying", port: integraPort });
-        const identity = await identifyDevice(integraPort);
-        if (cancelled) return;
-
-        if (identity) {
-          setState({ status: "connected", port: integraPort, identity });
-        } else {
-          setState({
-            status: "failed",
-            port: integraPort,
-            reason: "No response — is the device powered on?",
-          });
-        }
-      }
+      const integra = findIntegraPort(pairs);
+      setSelectedId(integra?.id ?? pairs[0]?.id ?? null);
     }
 
     init();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
+  }, []);
+
+  const identify = useCallback(async (port: MidiPortPair) => {
+    const gen = ++identifyGenRef.current;
+    setStatus({ step: "identifying" });
+
+    const identity = await identifyDevice(port);
+    if (identifyGenRef.current !== gen) return; // stale
+
+    if (identity) {
+      setStatus({ step: "connected", identity });
+    } else {
+      setStatus({
+        step: "failed",
+        reason: "No response — device may not be an Integra-7, or is powered off.",
+      });
+    }
   }, []);
 
   const handleSelect = useCallback(
     (portId: string) => {
-      if (state.status !== "ready") return;
-      setState({ ...state, selectedId: portId });
+      setSelectedId(portId);
+      setStatus({ step: "idle" });
+      const port = ports.find((p) => p.id === portId);
+      if (port) identify(port);
     },
-    [state],
+    [ports, identify],
   );
 
-  const handleConnect = useCallback(async () => {
-    if (state.status !== "ready" || !state.selectedId) return;
-    const port = state.ports.find((p) => p.id === state.selectedId);
-    if (!port) return;
+  const handleIdentify = useCallback(() => {
+    const port = ports.find((p) => p.id === selectedId);
+    if (port) identify(port);
+  }, [ports, selectedId, identify]);
 
-    setState({ status: "identifying", port });
-    const identity = await identifyDevice(port);
-
-    if (identity) {
-      setState({ status: "connected", port, identity });
-    } else {
-      setState({
-        status: "failed",
-        port,
-        reason: "No response — device may not be an Integra-7, or is powered off.",
-      });
-    }
-  }, [state]);
-
-  const handleRetry = useCallback(async () => {
-    if (state.status !== "failed" && state.status !== "connected") return;
-    const port = state.port;
-
-    setState({ status: "identifying", port });
-    const identity = await identifyDevice(port);
-
-    if (identity) {
-      setState({ status: "connected", port, identity });
-    } else {
-      setState({
-        status: "failed",
-        port,
-        reason: "No response — device may not be an Integra-7, or is powered off.",
-      });
-    }
-  }, [state]);
+  const selectedPort = ports.find((p) => p.id === selectedId);
 
   return (
     <main style={styles.main}>
@@ -119,114 +87,94 @@ export function App() {
 
       <div style={styles.card}>
         <h2 style={styles.cardTitle}>MIDI Connection</h2>
-        {renderContent(state, handleSelect, handleConnect, handleRetry)}
+
+        {midiError ? (
+          <p style={styles.error}>{midiError}</p>
+        ) : ports.length === 0 ? (
+          <p style={styles.warning}>No MIDI devices found.</p>
+        ) : (
+          <>
+            <label style={styles.label}>
+              MIDI Device
+              <select
+                style={styles.select}
+                value={selectedId ?? ""}
+                onChange={(e) => handleSelect(e.target.value)}
+              >
+                {ports.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {status.step === "idle" && (
+              <button
+                style={styles.button}
+                onClick={handleIdentify}
+                disabled={!selectedId}
+              >
+                Identify Device
+              </button>
+            )}
+
+            {status.step === "identifying" && selectedPort && (
+              <p>
+                Identifying <strong>{selectedPort.name}</strong>...
+              </p>
+            )}
+
+            {status.step === "connected" && selectedPort && (
+              <div>
+                <div style={styles.success}>
+                  <strong>Roland INTEGRA-7</strong> connected on{" "}
+                  <strong>{selectedPort.name}</strong>
+                </div>
+                <table style={styles.table}>
+                  <tbody>
+                    <tr>
+                      <td style={styles.tdLabel}>Device ID</td>
+                      <td style={styles.tdValue}>
+                        {status.identity.deviceId
+                          .toString(16)
+                          .toUpperCase()
+                          .padStart(2, "0")}
+                        H
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style={styles.tdLabel}>Family Code</td>
+                      <td style={styles.tdValue}>{status.identity.familyCode}</td>
+                    </tr>
+                    <tr>
+                      <td style={styles.tdLabel}>Family Number</td>
+                      <td style={styles.tdValue}>{status.identity.familyNumber}</td>
+                    </tr>
+                    <tr>
+                      <td style={styles.tdLabel}>Revision</td>
+                      <td style={styles.tdValue}>{status.identity.revision}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {status.step === "failed" && selectedPort && (
+              <div>
+                <p style={styles.error}>
+                  Failed on <strong>{selectedPort.name}</strong>: {status.reason}
+                </p>
+                <button style={styles.button} onClick={handleIdentify}>
+                  Retry
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </main>
   );
-}
-
-function renderContent(
-  state: ConnectionState,
-  onSelect: (id: string) => void,
-  onConnect: () => void,
-  onRetry: () => void,
-) {
-  switch (state.status) {
-    case "idle":
-      return <p>Requesting MIDI access...</p>;
-
-    case "no-midi":
-      return (
-        <p style={styles.error}>
-          Web MIDI API not available. Use Chrome or Edge, and ensure SysEx permissions are
-          granted.
-        </p>
-      );
-
-    case "ready":
-      if (state.ports.length === 0) {
-        return <p style={styles.warning}>No MIDI devices found.</p>;
-      }
-      return (
-        <div>
-          <label style={styles.label}>
-            MIDI Device
-            <select
-              style={styles.select}
-              value={state.selectedId ?? ""}
-              onChange={(e) => onSelect(e.target.value)}
-            >
-              {state.ports.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            style={styles.button}
-            onClick={onConnect}
-            disabled={!state.selectedId}
-          >
-            Identify Device
-          </button>
-        </div>
-      );
-
-    case "identifying":
-      return (
-        <p>
-          Identifying <strong>{state.port.name}</strong>...
-        </p>
-      );
-
-    case "connected":
-      return (
-        <div>
-          <div style={styles.success}>
-            <strong>Roland INTEGRA-7</strong> connected on{" "}
-            <strong>{state.port.name}</strong>
-          </div>
-          <table style={styles.table}>
-            <tbody>
-              <tr>
-                <td style={styles.tdLabel}>Device ID</td>
-                <td style={styles.tdValue}>
-                  {state.identity.deviceId.toString(16).toUpperCase().padStart(2, "0")}H
-                </td>
-              </tr>
-              <tr>
-                <td style={styles.tdLabel}>Family Code</td>
-                <td style={styles.tdValue}>{state.identity.familyCode}</td>
-              </tr>
-              <tr>
-                <td style={styles.tdLabel}>Family Number</td>
-                <td style={styles.tdValue}>{state.identity.familyNumber}</td>
-              </tr>
-              <tr>
-                <td style={styles.tdLabel}>Revision</td>
-                <td style={styles.tdValue}>{state.identity.revision}</td>
-              </tr>
-            </tbody>
-          </table>
-          <button style={styles.buttonSecondary} onClick={onRetry}>
-            Re-identify
-          </button>
-        </div>
-      );
-
-    case "failed":
-      return (
-        <div>
-          <p style={styles.error}>
-            Failed on <strong>{state.port.name}</strong>: {state.reason}
-          </p>
-          <button style={styles.button} onClick={onRetry}>
-            Retry
-          </button>
-        </div>
-      );
-  }
 }
 
 const styles: Record<string, React.CSSProperties> = {
@@ -292,17 +240,8 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 6,
     cursor: "pointer",
   },
-  buttonSecondary: {
-    marginTop: 12,
-    padding: "8px 16px",
-    fontSize: 13,
-    background: "transparent",
-    color: "#4a6cf7",
-    border: "1px solid #4a6cf7",
-    borderRadius: 6,
-    cursor: "pointer",
-  },
   success: {
+    marginTop: 16,
     background: "#0a2a0a",
     border: "1px solid #2d6a2d",
     borderRadius: 8,
