@@ -45,14 +45,10 @@
 }
 
 .sends {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  justify-items: center;
+  display: flex;
+  justify-content: center;
+  gap: 2px;
   width: 100%;
-}
-
-.sends > :nth-child(2) {
-  padding-top: 16px;
 }
 
 .muteLabel {
