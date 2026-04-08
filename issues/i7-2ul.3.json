@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-2ul.2"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-2ul.4"
+  ],
   "created": "2026-04-08T15:55:45Z",
   "description": "Load chorus/reverb state on startup. Add setters for type, level, output, switch, and individual parameters. Add to MixerState.",
   "id": "i7-2ul.3",

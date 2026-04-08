@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-2ul.3"
+  ],
   "blocks": [],
   "created": "2026-04-08T15:55:45Z",
   "description": "FxStrip component with type-specific knobs. Position between part 16 and EX.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "FX strip UI with type-aware parameter knobs",
   "type": "task",
-  "updated_at": "2026-04-08T15:55:45Z"
+  "updated_at": "2026-04-08T15:55:54Z"
 }
