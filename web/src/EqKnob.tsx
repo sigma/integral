@@ -30,11 +30,15 @@ export function EqKnob({
 }: Props) {
   const dragging = useRef(false);
   const lastY = useRef(0);
+  const accumulator = useRef(0);
   const range = max - min;
+  // Pixels per step: scale so small ranges are still usable
+  const pxPerStep = range > 0 ? Math.max(3, Math.min(8, 100 / range)) : 5;
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     dragging.current = true;
     lastY.current = e.clientY;
+    accumulator.current = 0;
     e.currentTarget.setPointerCapture(e.pointerId);
   }, []);
 
@@ -43,12 +47,17 @@ export function EqKnob({
       if (!dragging.current) return;
       const dy = lastY.current - e.clientY;
       lastY.current = e.clientY;
-      // Scale sensitivity: full range over ~100px of drag
-      const step = dy * (range / 100);
-      const newValue = Math.max(min, Math.min(max, Math.round(value + step)));
-      onChange(newValue);
+      accumulator.current += dy;
+
+      // Convert accumulated pixels to integer steps
+      const steps = Math.trunc(accumulator.current / pxPerStep);
+      if (steps !== 0) {
+        accumulator.current -= steps * pxPerStep;
+        const newValue = Math.max(min, Math.min(max, value + steps));
+        onChange(newValue);
+      }
     },
-    [value, onChange, min, max, range],
+    [value, onChange, min, max, pxPerStep],
   );
 
   const handlePointerUp = useCallback(() => {
