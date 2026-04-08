@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-jpn.3"
+  ],
   "created": "2026-04-08T05:08:09Z",
   "description": "Standard ignores for Rust, Nix, Node, and IDE artifacts.",
   "id": "i7-jpn.4",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Create .gitignore",
   "type": "task",
-  "updated_at": "2026-04-08T05:08:09Z"
+  "updated_at": "2026-04-08T05:08:14Z"
 }
