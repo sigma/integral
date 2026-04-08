@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T12:29:35Z",
+  "description": "EqKnob: smaller rotary knob with configurable range and value formatting. EqSection: compact 3-band EQ layout for channel strips.",
+  "id": "i7-flt.5",
+  "labels": [],
+  "parent": "i7-flt",
+  "priority": 2,
+  "status": "open",
+  "title": "Add EqKnob and EqSection components",
+  "type": "task",
+  "updated_at": "2026-04-08T12:29:35Z"
+}
