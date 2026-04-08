@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T05:08:09Z",
+  "description": "Brief project overview pointing to the PRD.",
+  "id": "i7-jpn.5",
+  "labels": [],
+  "parent": "i7-jpn",
+  "priority": 2,
+  "status": "open",
+  "title": "Create project README",
+  "type": "task",
+  "updated_at": "2026-04-08T05:08:09Z"
+}
