@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-9o2.1"
+  ],
   "blocks": [],
   "created": "2026-04-08T15:22:51Z",
   "description": "Replace the part number header with 'Ch N' showing the MIDI receive channel (already in PartState as receiveChannel, offset 00 00). Clicking cycles through channels 1-16, or use a small dropdown.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Make strip header show editable MIDI channel",
   "type": "task",
-  "updated_at": "2026-04-08T15:22:51Z"
+  "updated_at": "2026-04-08T15:23:02Z"
 }

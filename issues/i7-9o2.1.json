@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-9o2.2"
+  ],
   "created": "2026-04-08T15:22:51Z",
   "description": "Add two staggered knobs (CHO and REV, 0-127) between PAN and MUTE in each channel strip. Data already loaded in PartState (part offsets 00 27 and 00 28). Need WASM address helpers, service setters, useMixer setters, and UI components. Reuse EqKnob for the send knobs.",
   "id": "i7-9o2.1",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Add chorus/reverb send knobs to channel strips",
   "type": "task",
-  "updated_at": "2026-04-08T15:22:51Z"
+  "updated_at": "2026-04-08T15:23:02Z"
 }
