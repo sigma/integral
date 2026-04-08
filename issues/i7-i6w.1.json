@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-i6w.2"
+  ],
   "created": "2026-04-08T16:58:26Z",
   "description": "",
   "id": "i7-i6w.1",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Core: Motional Surround parameter addresses",
   "type": "task",
-  "updated_at": "2026-04-08T16:58:26Z"
+  "updated_at": "2026-04-08T16:58:39Z"
 }
