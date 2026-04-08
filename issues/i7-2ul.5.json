@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T15:55:45Z",
+  "description": "Change CHO/REV labels on per-part send knobs to FX1/FX2.",
+  "id": "i7-2ul.5",
+  "labels": [],
+  "parent": "i7-2ul",
+  "priority": 2,
+  "status": "open",
+  "title": "Rename per-part send knobs to FX1/FX2",
+  "type": "task",
+  "updated_at": "2026-04-08T15:55:45Z"
+}
