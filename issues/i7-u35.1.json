@@ -5,14 +5,15 @@
     "i7-u35.2",
     "i7-u35.4"
   ],
+  "closed_at": "2026-04-08T06:20:36Z",
   "created": "2026-04-08T06:18:52Z",
   "description": "Add sysex module: identity_request() builder, parse_identity_reply() parser, DeviceIdentity type with is_integra7() check. Constants for Roland ID, Integra-7 model/family.",
   "id": "i7-u35.1",
   "labels": [],
   "parent": "i7-u35",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Implement SysEx identity logic in integral-core",
   "type": "task",
-  "updated_at": "2026-04-08T06:19:04Z"
+  "updated_at": "2026-04-08T06:20:36Z"
 }
