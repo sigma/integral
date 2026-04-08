@@ -53,30 +53,44 @@ export function ToneSelector({
     setLoading(true);
     setTones([]);
 
-    // Query each LSB with proper pagination (2 pages of 64 per LSB).
-    (async () => {
-      const allRaw: { msb: number; lsb: number; pc: number; name: string }[] = [];
+    // Incrementally load pages — each page of 64 entries updates the list
+    // as it arrives so the user sees results immediately.
+    let cancelled = false;
+    const accumulated: ToneEntry[] = [];
 
+    (async () => {
       for (const lsb of selectedBank.lsbs) {
-        const entries = await service.requestToneCatalogForLsb(
-          selectedBank.msb,
-          lsb,
-        );
-        allRaw.push(...entries);
+        for (const start of [0, 64]) {
+          if (cancelled) return;
+          const page = await service.requestToneCatalogPage(
+            selectedBank.msb,
+            lsb,
+            start,
+            64,
+          );
+          if (cancelled) return;
+          console.log(`[tone-catalog] page LSB=${lsb} start=${start}: ${page.length} entries, total=${accumulated.length + page.length}`);
+
+          for (const e of page) {
+            accumulated.push({
+              msb: e.msb,
+              lsb: e.lsb,
+              pc: e.pc,
+              globalIndex: accumulated.length + 1,
+              name: e.name,
+            });
+          }
+          setTones([...accumulated]);
+        }
       }
 
-      const allTones: ToneEntry[] = allRaw.map((e, i) => ({
-        msb: e.msb,
-        lsb: e.lsb,
-        pc: e.pc,
-        globalIndex: i + 1,
-        name: e.name,
-      }));
-
-      cacheRef.current.set(key, allTones);
-      setTones(allTones);
+      cacheRef.current.set(key, accumulated);
       setLoading(false);
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedBank, service]);
 
   // Scroll to active tone when list loads

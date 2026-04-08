@@ -590,7 +590,7 @@ export class IntegraService {
    * Request one page of tone names (up to `count` entries).
    * Format: MSB LSB start count F7
    */
-  private requestToneCatalogPage(
+  requestToneCatalogPage(
     msb: number,
     lsb: number,
     start: number,
@@ -604,7 +604,7 @@ export class IntegraService {
 
     return new Promise((resolve) => {
       let timeoutId: ReturnType<typeof setTimeout>;
-      const absoluteTimeout = setTimeout(() => done(), 10000);
+      const absoluteTimeout = setTimeout(() => done(), 5000);
 
       const done = () => {
         clearTimeout(timeoutId);
@@ -615,7 +615,10 @@ export class IntegraService {
 
       const resetTimeout = () => {
         clearTimeout(timeoutId);
-        timeoutId = setTimeout(done, 2000);
+        // Short timeout — if we requested 64 entries, the early completion
+        // fires as soon as we get them all. This timeout only matters for
+        // the last partial page of a bank.
+        timeoutId = setTimeout(done, 500);
       };
 
       const handler = (event: MIDIMessageEvent) => {
