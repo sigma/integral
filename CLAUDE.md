@@ -15,6 +15,7 @@ crates/
   openlink-vst/     # VST3 wrapper via nih-plug
 web/                # TypeScript / React frontend
 docs/               # Design docs, PRD, MIDI reference notes
+  midi/             # INTEGRA-7 MIDI Implementation (see docs/midi/README.md)
 ```
 
 ## Version Control (jj)
@@ -62,6 +63,18 @@ body when applicable.
 - The `flake.nix` defines the dev environment. Enter with `nix develop`.
 - Never install tooling globally — add it to the flake's `devShells`.
 - Pin all inputs via `flake.lock`.
+
+## MIDI Implementation Reference
+
+The complete INTEGRA-7 MIDI Implementation (v1.00) is extracted into
+`docs/midi/`. **Always consult these docs** when implementing SysEx
+parameters, address maps, or bank select logic. Key files:
+
+- `docs/midi/01-protocol.md` — DT1/RQ1 message format, checksum algorithm
+- `docs/midi/04-address-map.md` — Top-level address map, Setup, System
+- `docs/midi/05-studio-set.md` — Studio Set parameters (all sub-blocks)
+- `docs/midi/06-pcm-synth-tone.md` — PCM Synth Tone (Common, MFX, Partials)
+- `docs/midi/03-bank-select-tables.md` — Bank Select MSB/LSB/PC for all types
 
 ## SysEx Engine Rules
 
