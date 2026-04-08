@@ -97,14 +97,31 @@ Implementation document:
 - React functional components with hooks.
 - State flows from the Rust/WASM core — the React layer is a thin view.
 
+## Just Targets
+
+The `justfile` provides standard targets. Run `just` to list them.
+
+| Target | Purpose |
+|--------|---------|
+| `just fmt` | Format all Rust code |
+| `just fmt-check` | Check formatting (no changes) |
+| `just lint` | Clippy with `-D warnings` |
+| `just build` | Build all crates (native) |
+| `just build-wasm` | Build WASM targets |
+| `just test` | Run all tests |
+| `just check` | Full pre-commit: fmt-check + lint + build + build-wasm + test |
+| `just clean` | Remove build artifacts |
+| `just ping` | Ping the INTEGRA-7 device |
+
 ## Agent Behavior
 
 - **Read before editing.** Never modify code you haven't read.
 - **Granular commits.** Each logical change gets its own jj commit.
 - **No speculative features.** Only build what's requested.
-- **Verify builds.** Run `nix develop --command cargo check` after Rust changes.
-- **Test after changes.** Run `nix develop --command cargo test` when tests exist.
+- **Run `just check` before completing any Rust change.** This runs
+  fmt-check, lint, build (native + WASM), and tests. Do not commit
+  if any target fails.
 - **Ping the device.** At the start of MIDI-related work sessions, run
-  `nix develop --command python3 scripts/ping-device.py` to verify the
-  Integra-7 is reachable. Fail fast if the device is offline.
+  `just ping` to verify the Integra-7 is reachable. Fail fast if the
+  device is offline.
 - **Keep CLAUDE.md current.** Update this file when conventions change.

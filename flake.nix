@@ -34,6 +34,7 @@
             pkgs.nodejs
             pkgs.typescript
             pkgs.cargo-watch
+            pkgs.just
             python
           ];
 
