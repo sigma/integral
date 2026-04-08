@@ -75,6 +75,79 @@ pub const fn part_address(part_index: u8, param_offset: [u8; 3]) -> Address {
 }
 
 // ---------------------------------------------------------------------------
+// Studio Set Part EQ (offset 00 50 00 to 00 5F 00, one per part)
+// ---------------------------------------------------------------------------
+
+/// Per-part EQ parameter offsets within the Part EQ block.
+///
+/// Part EQ *n* (0-indexed) is at Studio Set base + `[0x00, 0x00, 0x50 + n, 0x00]`.
+/// Use [`part_eq_address`] to compute the absolute address.
+pub mod part_eq {
+    /// EQ Switch (0=OFF, 1=ON).
+    pub const SWITCH: u8 = 0x00;
+    /// Low Freq (0=200Hz, 1=400Hz).
+    pub const LOW_FREQ: u8 = 0x01;
+    /// Low Gain (0–30, display: -15 to +15 dB).
+    pub const LOW_GAIN: u8 = 0x02;
+    /// Mid Freq (0–16, 17 values from 200Hz to 8000Hz).
+    pub const MID_FREQ: u8 = 0x03;
+    /// Mid Gain (0–30, display: -15 to +15 dB).
+    pub const MID_GAIN: u8 = 0x04;
+    /// Mid Q (0–4, display: 0.5, 1.0, 2.0, 4.0, 8.0).
+    pub const MID_Q: u8 = 0x05;
+    /// High Freq (0=2000Hz, 1=4000Hz, 2=8000Hz).
+    pub const HIGH_FREQ: u8 = 0x06;
+    /// High Gain (0–30, display: -15 to +15 dB).
+    pub const HIGH_GAIN: u8 = 0x07;
+}
+
+/// Compute the absolute address for a Part EQ parameter.
+///
+/// `part_index` is 0-based (0 = Part 1, 15 = Part 16).
+/// `param_offset` is one of the `part_eq::*` constants.
+pub const fn part_eq_address(part_index: u8, param_offset: u8) -> Address {
+    crate::address::STUDIO_SET.offset([0x00, 0x00, 0x50 + part_index, param_offset])
+}
+
+/// Size for reading all Part EQ parameters in one RQ1 (8 bytes).
+pub const PART_EQ_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x08);
+
+// ---------------------------------------------------------------------------
+// Studio Set Master EQ (offset 00 09 00)
+// ---------------------------------------------------------------------------
+
+/// Master EQ parameter offsets.
+///
+/// Base address: Studio Set + `[0x00, 0x00, 0x09, 0x00]` = `18 00 09 00`.
+pub mod master_eq {
+    /// Low Freq (0=200Hz, 1=400Hz).
+    pub const LOW_FREQ: u8 = 0x00;
+    /// Low Gain (0–30, display: -15 to +15 dB).
+    pub const LOW_GAIN: u8 = 0x01;
+    /// Mid Freq (0–16, 17 values from 200Hz to 8000Hz).
+    pub const MID_FREQ: u8 = 0x02;
+    /// Mid Gain (0–30, display: -15 to +15 dB).
+    pub const MID_GAIN: u8 = 0x03;
+    /// Mid Q (0–4, display: 0.5, 1.0, 2.0, 4.0, 8.0).
+    pub const MID_Q: u8 = 0x04;
+    /// High Freq (0=2000Hz, 1=4000Hz, 2=8000Hz).
+    pub const HIGH_FREQ: u8 = 0x05;
+    /// High Gain (0–30, display: -15 to +15 dB).
+    pub const HIGH_GAIN: u8 = 0x06;
+}
+
+/// Compute the absolute address for a Master EQ parameter.
+pub const fn master_eq_address(param_offset: u8) -> Address {
+    crate::address::STUDIO_SET.offset([0x00, 0x00, 0x09, param_offset])
+}
+
+/// Size for reading all Master EQ parameters in one RQ1 (7 bytes).
+pub const MASTER_EQ_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x07);
+
+/// Master EQ Switch — in the Studio Set Common block at offset `00 42`.
+pub const MASTER_EQ_SWITCH: Address = Address::new(0x18, 0x00, 0x00, 0x42);
+
+// ---------------------------------------------------------------------------
 // Temporary Tone (tone name reading)
 // ---------------------------------------------------------------------------
 
@@ -239,5 +312,40 @@ mod tests {
         assert_eq!(tone_type_from_bank_msb(86), Some(tone_type::PCM_DRUM));
         assert_eq!(tone_type_from_bank_msb(88), Some(tone_type::SN_DRUM));
         assert_eq!(tone_type_from_bank_msb(0), None);
+    }
+
+    #[test]
+    fn part1_eq_switch_address() {
+        let addr = part_eq_address(0, part_eq::SWITCH);
+        assert_eq!(addr, Address::new(0x18, 0x00, 0x50, 0x00));
+    }
+
+    #[test]
+    fn part1_eq_low_gain_address() {
+        let addr = part_eq_address(0, part_eq::LOW_GAIN);
+        assert_eq!(addr, Address::new(0x18, 0x00, 0x50, 0x02));
+    }
+
+    #[test]
+    fn part16_eq_high_gain_address() {
+        let addr = part_eq_address(15, part_eq::HIGH_GAIN);
+        assert_eq!(addr, Address::new(0x18, 0x00, 0x5F, 0x07));
+    }
+
+    #[test]
+    fn master_eq_low_freq_address() {
+        let addr = master_eq_address(master_eq::LOW_FREQ);
+        assert_eq!(addr, Address::new(0x18, 0x00, 0x09, 0x00));
+    }
+
+    #[test]
+    fn master_eq_high_gain_address() {
+        let addr = master_eq_address(master_eq::HIGH_GAIN);
+        assert_eq!(addr, Address::new(0x18, 0x00, 0x09, 0x06));
+    }
+
+    #[test]
+    fn master_eq_switch_address() {
+        assert_eq!(MASTER_EQ_SWITCH, Address::new(0x18, 0x00, 0x00, 0x42));
     }
 }
