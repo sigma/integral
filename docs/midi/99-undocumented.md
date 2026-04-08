@@ -21,10 +21,10 @@ populates the Studio Set selector dropdown.
 
 ### Request Format
 
-A short-form RQ1 to address `0F 00 03 02` with **no checksum**:
+A short-form RQ1 with **no checksum**:
 
 ```
-F0 41 <dev> 00 00 64 11 0F 00 03 02 <MSB> <LSB> <start> F7
+F0 41 <dev> 00 00 64 11 <addr[4]> <MSB> <LSB> <start> <count> F7
 ```
 
 | Byte(s)       | Value          | Description                                |
@@ -34,16 +34,22 @@ F0 41 <dev> 00 00 64 11 0F 00 03 02 <MSB> <LSB> <start> F7
 | `dev`         | `10`–`1F`     | Device ID                                  |
 | `00 00 64`    | `00 00 64`     | INTEGRA-7 model ID                         |
 | `11`          | `11`           | Command ID (RQ1)                           |
-| `0F 00 03 02` | `0F 00 03 02`  | Catalog query address (undocumented)       |
+| `addr`        | see below      | Catalog address (4 bytes)                  |
 | `MSB`         | e.g. `55`      | Bank Select MSB of the category to query   |
 | `LSB`         | e.g. `00`      | Bank Select LSB                            |
-| `start`       | `00`–`3F`     | Starting program number (0-indexed)        |
+| `start`       | `00`–`7F`     | Starting index within this LSB (0-indexed) |
+| `count`       | `01`–`7F`     | Number of entries to return (max 127)      |
 | `F7`          | `F7`           | SysEx end                                  |
 
-**Important:** This command does NOT use a Roland checksum. The byte
-immediately before `F7` is the starting program number, not a checksum.
-If an extra byte is appended (e.g. a computed checksum), the device
-interprets it as part of the payload, changing the effective start index.
+**Important:** This command does NOT use a Roland checksum. All bytes
+between the address and `F7` are payload.
+
+**Catalog addresses:**
+
+| Address        | Content       |
+|----------------|---------------|
+| `0F 00 03 02`  | Studio Sets   |
+| `0F 00 04 02`  | Tones         |
 
 ### Known Addresses and Bank Values
 
@@ -104,27 +110,34 @@ All 21 data bytes are `00`. These should be filtered out when parsing.
 The delimiters do NOT indicate the end of the stream — more entries may
 follow after a delimiter.
 
-### Response Behavior
+### Pagination
 
-With `start=00`, the device returns all 64 entries (plus delimiters) in a
-single stream. The entries include both factory preset names ("Integra
-Preview", "Techno Set", etc. for indices 0–15) and user set names ("INIT
-STUDIO" for unmodified user slots 16–63).
+Each query returns exactly `count` entries (plus occasional delimiter
+messages). Each LSB holds up to 128 entries (PC 0–127). To retrieve all
+entries in a multi-LSB bank:
 
-The total response is approximately 65 messages (64 entries + delimiters)
-and takes several seconds to arrive. Clients should collect responses until
-either all 64 unique program numbers have been seen, or a sufficient silence
-timeout (3+ seconds) has elapsed.
+1. For each LSB in the bank, send 2 queries: `start=0, count=64` and
+   `start=64, count=64`
+2. Collect entries from each query and concatenate in order
+
+For Studio Sets (single LSB, 64 entries): one query with `count=64` suffices.
+
+For tone banks spanning multiple LSBs (e.g., SN Acoustic Preset with
+LSB 64-65 = 256 tones): query each LSB with 2 pages of 64 entries each.
+
+**Tone catalog responses** include entries with the real `(MSB, LSB, PC)`
+from the data — not necessarily matching the queried LSB. The response also
+includes a **category byte** at offset 3 in the data (see below).
 
 ### Example
 
-**Request all Studio Set names starting from index 0:**
+**Request all 64 Studio Set names:**
 
 ```
-F0 41 10 00 00 64 11 0F 00 03 02 55 00 00 F7
+F0 41 10 00 00 64 11 0F 00 03 02 55 00 00 40 F7
 ```
 
-No checksum. The `00` before `F7` is the start index.
+`55 00` = Studio Set bank, `00` = start from index 0, `40` = return 64 entries.
 
 **Response (first entry):**
 
@@ -135,13 +148,21 @@ F0 41 10 00 00 64 12 0F 00 03 02 55 00 00 00 00
 
 Data bytes: `55 00 00 00 00` + "Integra Preview " (16 ASCII chars)
 
-**Request names starting from index 4 (Techno Set):**
+**Request Studio Sets 5-20 (start=4, count=16):**
 
 ```
-F0 41 10 00 00 64 11 0F 00 03 02 55 00 04 F7
+F0 41 10 00 00 64 11 0F 00 03 02 55 00 04 10 F7
 ```
 
 First response: `55 00 04 00 00` + "Techno Set      "
+
+**Request SN Acoustic Preset tones (first 64):**
+
+```
+F0 41 10 00 00 64 11 0F 00 04 02 59 40 00 40 F7
+```
+
+`59 40` = SN Acoustic Preset bank, `00` = start, `40` = 64 entries.
 
 ### Verified Factory Studio Set Names (Indices 0–15)
 
