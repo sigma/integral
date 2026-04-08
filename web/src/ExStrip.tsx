@@ -1,5 +1,6 @@
 import { VolumeFader } from "./VolumeFader";
 import { PanKnob } from "./PanKnob";
+import { EqKnob } from "./EqKnob";
 import { EqSection } from "./EqSection";
 import { defaultEqState } from "./types";
 import css from "./ChannelStrip.module.css";
@@ -36,6 +37,12 @@ export function ExStrip({
           />
         )}
         <PanKnob value={64} onChange={noop} />
+        <div className={css.sends}>
+          <EqKnob label="CHO" value={0} min={0} max={127} defaultValue={0}
+            onChange={noop} formatValue={(v) => String(v)} />
+          <EqKnob label="REV" value={0} min={0} max={127} defaultValue={0}
+            onChange={noop} formatValue={(v) => String(v)} />
+        </div>
       </div>
       <span className={css.muteLabel}>MUTE</span>
       <button

@@ -48,6 +48,10 @@ export interface PartState {
   tonePC: number;
   /** MIDI receive channel (0–15). */
   receiveChannel: number;
+  /** Chorus send level (0–127). */
+  chorusSend: number;
+  /** Reverb send level (0–127). */
+  reverbSend: number;
   /** Tone name read from the device. */
   toneName: string;
   /** Per-part EQ settings. */
@@ -89,6 +93,8 @@ export function defaultPartState(): PartState {
     toneBankMsb: 0,
     toneBankLsb: 0,
     tonePC: 0,
+    chorusSend: 0,
+    reverbSend: 0,
     receiveChannel: 0,
     toneName: "",
     eq: defaultEqState(),

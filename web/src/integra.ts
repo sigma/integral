@@ -15,6 +15,8 @@ import {
   part_pan_address,
   part_mute_address,
   part_receive_channel_address,
+  part_chorus_send_address,
+  part_reverb_send_address,
   part_mixer_size,
   master_level_address,
   studio_set_name_address,
@@ -229,6 +231,14 @@ export class IntegraService {
 
   setPartMute(part: number, muted: boolean): void {
     this.sendDt1(Array.from(part_mute_address(part)), [muted ? 1 : 0]);
+  }
+
+  setPartChorusSend(part: number, value: number): void {
+    this.sendDt1(Array.from(part_chorus_send_address(part)), [value]);
+  }
+
+  setPartReverbSend(part: number, value: number): void {
+    this.sendDt1(Array.from(part_reverb_send_address(part)), [value]);
   }
 
   setMasterLevel(value: number): void {

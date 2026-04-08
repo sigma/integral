@@ -33,6 +33,8 @@ function parsePartDump(data: Uint8Array): Partial<PartState> {
     tonePC: data[0x08],
     level: data[0x09],
     pan: data[0x0a],
+    chorusSend: data[0x27],
+    reverbSend: data[0x28],
     muted: data[0x25] === 1,
   };
 }
@@ -74,6 +76,8 @@ export interface UseMixerResult {
   setPartLevel: (part: number, value: number) => void;
   setPartPan: (part: number, value: number) => void;
   togglePartMute: (part: number) => void;
+  setPartChorusSend: (part: number, value: number) => void;
+  setPartReverbSend: (part: number, value: number) => void;
   setMasterLevel: (value: number) => void;
   setPartEqParam: (part: number, paramOffset: number, value: number) => void;
   togglePartEqSwitch: (part: number) => void;
@@ -290,6 +294,22 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     [service, markSent],
   );
 
+  const setPartChorusSend = useCallback(
+    (part: number, value: number) => {
+      setState((prev) => updatePart(prev, part, { chorusSend: value }));
+      service?.setPartChorusSend(part, value);
+    },
+    [service],
+  );
+
+  const setPartReverbSend = useCallback(
+    (part: number, value: number) => {
+      setState((prev) => updatePart(prev, part, { reverbSend: value }));
+      service?.setPartReverbSend(part, value);
+    },
+    [service],
+  );
+
   const setMasterLevel = useCallback(
     (value: number) => {
       setState((prev) => ({ ...prev, masterLevel: value }));
@@ -409,6 +429,8 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     setPartLevel,
     setPartPan,
     togglePartMute,
+    setPartChorusSend,
+    setPartReverbSend,
     setMasterLevel,
     setPartEqParam,
     togglePartEqSwitch,

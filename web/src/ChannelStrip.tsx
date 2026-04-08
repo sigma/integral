@@ -1,5 +1,6 @@
 import { VolumeFader } from "./VolumeFader";
 import { PanKnob } from "./PanKnob";
+import { EqKnob } from "./EqKnob";
 import { EqSection } from "./EqSection";
 import type { PartState } from "./types";
 import css from "./ChannelStrip.module.css";
@@ -11,6 +12,8 @@ interface Props {
   onLevelChange: (value: number) => void;
   onPanChange: (value: number) => void;
   onMuteToggle: () => void;
+  onChorusSendChange: (value: number) => void;
+  onReverbSendChange: (value: number) => void;
   onEqToggle: () => void;
   onEqParam: (paramOffset: number, value: number) => void;
 }
@@ -26,6 +29,8 @@ export function ChannelStrip({
   onLevelChange,
   onPanChange,
   onMuteToggle,
+  onChorusSendChange,
+  onReverbSendChange,
   onEqToggle,
   onEqParam,
 }: Props) {
@@ -40,6 +45,28 @@ export function ChannelStrip({
         />
       )}
       <PanKnob value={part.pan} onChange={onPanChange} />
+      <div className={css.sends}>
+        <EqKnob
+          label="CHO"
+          value={part.chorusSend}
+          min={0}
+          max={127}
+          defaultValue={0}
+          onChange={onChorusSendChange}
+          formatValue={(v) => String(v)}
+          color="#668"
+        />
+        <EqKnob
+          label="REV"
+          value={part.reverbSend}
+          min={0}
+          max={127}
+          defaultValue={0}
+          onChange={onReverbSendChange}
+          formatValue={(v) => String(v)}
+          color="#686"
+        />
+      </div>
       <span className={css.muteLabel}>MUTE</span>
       <button
         className={`${css.muteButton} ${part.muted ? css.muted : ""}`}
