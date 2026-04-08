@@ -58,7 +58,7 @@ ping *ARGS:
     cargo run -p integral-cli -- ping {{ARGS}}
 
 # start the web dev server
-dev-web:
+dev-web: pack-wasm
     cd web && npx vite
 
 # watch for changes and rebuild
