@@ -2,13 +2,14 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-08T05:56:58Z",
   "created": "2026-04-08T05:53:22Z",
   "description": "Set up a React/TypeScript web app with Vite that lists MIDI devices via Web MIDI API, auto-selects Integra, and confirms identity via SysEx.",
   "id": "i7-6pk",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Basic web app with MIDI device selection and Integra-7 identification",
   "type": "epic",
-  "updated_at": "2026-04-08T05:53:22Z"
+  "updated_at": "2026-04-08T05:56:58Z"
 }
