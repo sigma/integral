@@ -7,38 +7,51 @@ interface Props {
   defaultValue?: number;
 }
 
-const PADDING = 8; // px padding top/bottom inside the track
+/** Must match .track height in CSS. */
+const TRACK_HEIGHT = 280;
+const CAP_HEIGHT = 18;
+const PAD = 8;
+/** Usable range for the center of the cap. */
+const MIN_TOP = PAD;
+const MAX_TOP = TRACK_HEIGHT - PAD - CAP_HEIGHT;
+
+function valueToTop(value: number): number {
+  // value 127 → MIN_TOP (top), value 0 → MAX_TOP (bottom)
+  return MIN_TOP + (MAX_TOP - MIN_TOP) * (1 - value / 127);
+}
+
+function topToValue(top: number): number {
+  const ratio = 1 - (top - MIN_TOP) / (MAX_TOP - MIN_TOP);
+  return Math.round(Math.max(0, Math.min(127, ratio * 127)));
+}
 
 export function VolumeFader({ value, onChange, defaultValue = 100 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
-  const valueFromY = useCallback((clientY: number) => {
+  const valueFromClientY = useCallback((clientY: number) => {
     const track = trackRef.current;
     if (!track) return value;
     const rect = track.getBoundingClientRect();
-    const usableHeight = rect.height - PADDING * 2;
-    const y = clientY - rect.top - PADDING;
-    // Invert: top = max, bottom = min
-    const ratio = 1 - Math.max(0, Math.min(1, y / usableHeight));
-    return Math.round(ratio * 127);
+    const top = clientY - rect.top;
+    return topToValue(top);
   }, [value]);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       dragging.current = true;
       e.currentTarget.setPointerCapture(e.pointerId);
-      onChange(valueFromY(e.clientY));
+      onChange(valueFromClientY(e.clientY));
     },
-    [onChange, valueFromY],
+    [onChange, valueFromClientY],
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (!dragging.current) return;
-      onChange(valueFromY(e.clientY));
+      onChange(valueFromClientY(e.clientY));
     },
-    [onChange, valueFromY],
+    [onChange, valueFromClientY],
   );
 
   const handlePointerUp = useCallback(() => {
@@ -49,8 +62,7 @@ export function VolumeFader({ value, onChange, defaultValue = 100 }: Props) {
     onChange(defaultValue);
   }, [onChange, defaultValue]);
 
-  // Position: 0 = bottom, 127 = top
-  const pct = `${((1 - value / 127) * 100).toFixed(1)}%`;
+  const capTop = valueToTop(value);
 
   return (
     <div className={css.container}>
@@ -63,7 +75,7 @@ export function VolumeFader({ value, onChange, defaultValue = 100 }: Props) {
         onDoubleClick={handleDoubleClick}
       >
         <div className={css.groove} />
-        <div className={css.cap} style={{ top: `calc(${pct} + ${PADDING}px - 8px)` }} />
+        <div className={css.cap} style={{ top: capTop }} />
       </div>
       <span className={css.value}>{value}</span>
     </div>

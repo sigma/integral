@@ -2,23 +2,23 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100%;
   user-select: none;
   touch-action: none;
 }
 
 .track {
   position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
+  width: 40px;
+  /* ~10cm at 96dpi ≈ 380px, constrained for screen fit */
+  height: 280px;
   cursor: pointer;
 }
 
 .groove {
   position: absolute;
   width: 4px;
+  left: 50%;
+  margin-left: -2px;
   top: 8px;
   bottom: 8px;
   background: #0a0a18;
@@ -28,10 +28,10 @@
 
 .cap {
   position: absolute;
-  width: 32px;
-  height: 16px;
+  width: 34px;
+  height: 18px;
   left: 50%;
-  margin-left: -16px;
+  margin-left: -17px;
   background: linear-gradient(
     to bottom,
     #aaa 0%,
@@ -53,7 +53,7 @@
 .cap::after {
   content: "";
   position: absolute;
-  top: 7px;
+  top: 8px;
   left: 6px;
   right: 6px;
   height: 1px;
@@ -69,5 +69,4 @@
   color: #888;
   font-variant-numeric: tabular-nums;
   margin-top: 4px;
-  flex-shrink: 0;
 }
