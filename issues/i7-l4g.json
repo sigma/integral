@@ -2,13 +2,14 @@
   "assignee": "unknown",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-08T05:28:59Z",
   "created": "2026-04-08T05:17:05Z",
   "description": "Convert the 29-page INTEGRA-7 MIDI Implementation PDF into structured markdown files under docs/midi/. Split by logical section: protocol, channel messages, bank select tables, and parameter address maps for each block type.",
   "id": "i7-l4g",
   "labels": [],
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Extract MIDI Implementation PDF into reference docs",
   "type": "task",
-  "updated_at": "2026-04-08T05:17:11Z"
+  "updated_at": "2026-04-08T05:28:59Z"
 }
