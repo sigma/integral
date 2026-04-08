@@ -1,5 +1,7 @@
 import { VolumeFader } from "./VolumeFader";
 import { PanKnob } from "./PanKnob";
+import { EqSection } from "./EqSection";
+import { defaultEqState } from "./types";
 import css from "./ChannelStrip.module.css";
 import exCss from "./ExStrip.module.css";
 
@@ -12,6 +14,7 @@ interface Props {
 }
 
 const noop = () => {};
+const noopParam = (_offset: number, _value: number) => {};
 
 export function ExStrip({
   level,
@@ -23,11 +26,14 @@ export function ExStrip({
   return (
     <div className={`${css.strip} ${exCss.override}`}>
       <div className={css.partNumber}>EX</div>
-      {/* Hidden spacers for alignment with channel strips */}
+      {/* Hidden spacers matching ChannelStrip layout for alignment */}
       <div className={exCss.hidden}>
         {eqExpanded && (
-          /* Approximate EQ section height placeholder */
-          <div style={{ height: 300 }} />
+          <EqSection
+            eq={defaultEqState()}
+            onToggleSwitch={noop}
+            onParam={noopParam}
+          />
         )}
         <PanKnob value={64} onChange={noop} />
       </div>
