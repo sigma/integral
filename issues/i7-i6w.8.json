@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-i6w.4"
+  ],
   "blocks": [],
   "created": "2026-04-08T16:58:27Z",
   "description": "",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Web: AMB send knob in channel strips when surround enabled",
   "type": "task",
-  "updated_at": "2026-04-08T16:58:27Z"
+  "updated_at": "2026-04-08T16:58:39Z"
 }
