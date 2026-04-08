@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T05:53:31Z",
+  "description": "Web MIDI API integration: list devices, auto-select Integra, send Identity Request, display confirmed device info.",
+  "id": "i7-6pk.2",
+  "labels": [],
+  "parent": "i7-6pk",
+  "priority": 2,
+  "status": "open",
+  "title": "Implement MIDI device selector with auto-detect and SysEx ping",
+  "type": "task",
+  "updated_at": "2026-04-08T05:53:31Z"
+}
