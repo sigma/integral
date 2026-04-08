@@ -21,6 +21,10 @@ fmt-check:
 lint:
     cargo clippy --workspace --all-targets -- -D warnings
 
+# typecheck the web app
+lint-web:
+    cd web && npx tsc -b
+
 # build all crates (native)
 build:
     cargo build --workspace
@@ -33,16 +37,25 @@ build-wasm:
 test:
     cargo test --workspace
 
+# build the web app for production
+build-web:
+    cd web && npx vite build
+
 # format, lint, build, and test — the full pre-commit check
-check: fmt-check lint build build-wasm test
+check: fmt-check lint lint-web build build-wasm test
 
 # clean build artifacts
 clean:
     cargo clean
+    rm -rf web/dist
 
 # ping the INTEGRA-7 device
 ping *ARGS:
     python3 scripts/ping-device.py {{ARGS}}
+
+# start the web dev server
+dev-web:
+    cd web && npx vite
 
 # watch for changes and rebuild
 watch:
