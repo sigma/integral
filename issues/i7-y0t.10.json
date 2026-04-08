@@ -4,14 +4,15 @@
     "i7-y0t.9"
   ],
   "blocks": [],
+  "closed_at": "2026-04-08T07:07:13Z",
   "created": "2026-04-08T06:53:23Z",
   "description": "",
   "id": "i7-y0t.10",
   "labels": [],
   "parent": "i7-y0t",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Web: MixerPage integration and Preview button",
   "type": "task",
-  "updated_at": "2026-04-08T07:06:19Z"
+  "updated_at": "2026-04-08T07:07:13Z"
 }
