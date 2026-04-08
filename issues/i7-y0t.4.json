@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-y0t.1"
+  ],
   "blocks": [],
   "created": "2026-04-08T06:53:22Z",
   "description": "",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Add parameter definitions for mixer addresses",
   "type": "task",
-  "updated_at": "2026-04-08T06:53:22Z"
+  "updated_at": "2026-04-08T06:53:30Z"
 }
