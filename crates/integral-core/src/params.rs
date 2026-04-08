@@ -61,6 +61,65 @@ pub const fn part_address(part_index: u8, param_offset: [u8; 3]) -> Address {
     crate::address::studio_set_part(part_index, param_offset)
 }
 
+// ---------------------------------------------------------------------------
+// Temporary Tone (tone name reading)
+// ---------------------------------------------------------------------------
+
+/// Temporary Tone base addresses per part.
+///
+/// Part 1 = `19 00 00 00`, Part 2 = `19 20 00 00`, ..., Part 16 = `1C 60 00 00`.
+/// Parts are spaced `00 20 00 00` apart starting at `19 00 00 00`.
+pub const fn temporary_tone_base(part_index: u8) -> Address {
+    // Part 0 (Part 1): 19 00 00 00
+    // Part 1 (Part 2): 19 20 00 00
+    // ...carried via 7-bit arithmetic
+    Address::new(0x19, 0x00, 0x00, 0x00).offset([0x00, part_index * 0x02, 0x00, 0x00])
+}
+
+/// Tone type offsets within a Temporary Tone block.
+pub mod tone_type {
+    /// PCM Synth Tone.
+    pub const PCM_SYNTH: [u8; 3] = [0x00, 0x00, 0x00];
+    /// SuperNATURAL Synth Tone.
+    pub const SN_SYNTH: [u8; 3] = [0x01, 0x00, 0x00];
+    /// SuperNATURAL Acoustic Tone.
+    pub const SN_ACOUSTIC: [u8; 3] = [0x02, 0x00, 0x00];
+    /// SuperNATURAL Drum Kit.
+    pub const SN_DRUM: [u8; 3] = [0x03, 0x00, 0x00];
+    /// PCM Drum Kit.
+    pub const PCM_DRUM: [u8; 3] = [0x10, 0x00, 0x00];
+}
+
+/// Determine the tone type offset from the Bank Select MSB.
+///
+/// Returns the tone type offset to use within the Temporary Tone block,
+/// or `None` if the MSB doesn't map to a known type.
+pub fn tone_type_from_bank_msb(msb: u8) -> Option<[u8; 3]> {
+    match msb {
+        87 | 93 | 97 | 121 => Some(tone_type::PCM_SYNTH),
+        95 => Some(tone_type::SN_SYNTH),
+        89 => Some(tone_type::SN_ACOUSTIC),
+        88 => Some(tone_type::SN_DRUM),
+        86 | 92 | 96 | 120 => Some(tone_type::PCM_DRUM),
+        _ => None,
+    }
+}
+
+/// Compute the address of the tone name for a given part and tone type.
+///
+/// Tone names are 12 ASCII bytes at offset `00 00`–`00 0B` in the tone's Common block.
+pub const fn tone_name_address(part_index: u8, tone_type_offset: [u8; 3]) -> Address {
+    temporary_tone_base(part_index).offset([
+        0x00,
+        tone_type_offset[0],
+        tone_type_offset[1],
+        tone_type_offset[2],
+    ])
+}
+
+/// Size for reading a tone name (12 bytes).
+pub const TONE_NAME_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x0C);
+
 /// Size for reading a single-byte parameter.
 pub const SINGLE_BYTE_SIZE: DataSize = DataSize::ONE;
 
@@ -112,5 +171,40 @@ mod tests {
     #[test]
     fn system_master_level() {
         assert_eq!(SYSTEM_MASTER_LEVEL, Address::new(0x02, 0x00, 0x00, 0x05));
+    }
+
+    #[test]
+    fn temporary_tone_part1() {
+        assert_eq!(temporary_tone_base(0), Address::new(0x19, 0x00, 0x00, 0x00));
+    }
+
+    #[test]
+    fn temporary_tone_part16() {
+        assert_eq!(
+            temporary_tone_base(15),
+            Address::new(0x19, 0x1E, 0x00, 0x00)
+        );
+    }
+
+    #[test]
+    fn tone_name_pcm_synth_part1() {
+        let addr = tone_name_address(0, tone_type::PCM_SYNTH);
+        assert_eq!(addr, Address::new(0x19, 0x00, 0x00, 0x00));
+    }
+
+    #[test]
+    fn tone_name_sn_acoustic_part1() {
+        let addr = tone_name_address(0, tone_type::SN_ACOUSTIC);
+        assert_eq!(addr, Address::new(0x19, 0x02, 0x00, 0x00));
+    }
+
+    #[test]
+    fn tone_type_bank_msb_mapping() {
+        assert_eq!(tone_type_from_bank_msb(89), Some(tone_type::SN_ACOUSTIC));
+        assert_eq!(tone_type_from_bank_msb(95), Some(tone_type::SN_SYNTH));
+        assert_eq!(tone_type_from_bank_msb(87), Some(tone_type::PCM_SYNTH));
+        assert_eq!(tone_type_from_bank_msb(86), Some(tone_type::PCM_DRUM));
+        assert_eq!(tone_type_from_bank_msb(88), Some(tone_type::SN_DRUM));
+        assert_eq!(tone_type_from_bank_msb(0), None);
     }
 }

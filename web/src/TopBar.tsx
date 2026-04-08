@@ -9,7 +9,23 @@ interface Props {
 }
 
 function toneDisplay(part: PartState): string {
+  if (part.toneName) {
+    return `${toneTypeLabel(part.toneBankMsb)} : ${part.tonePC + 1} : ${part.toneName}`;
+  }
   return `Bank ${part.toneBankMsb}-${part.toneBankLsb} : PC ${part.tonePC + 1}`;
+}
+
+function toneTypeLabel(bankMsb: number): string {
+  switch (bankMsb) {
+    case 87: return "PCM Synth";
+    case 89: return "SN Acoustic";
+    case 95: return "SN Synth";
+    case 86: return "PCM Drum";
+    case 88: return "SN Drum";
+    case 93: return "Expansion PCM";
+    case 121: return "GM2";
+    default: return `Bank ${bankMsb}`;
+  }
 }
 
 export function TopBar({

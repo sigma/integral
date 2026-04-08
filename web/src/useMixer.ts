@@ -107,6 +107,17 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
           parts: prev.parts.map((p, i) => ({ ...p, ...parts[i] })),
           loading: false,
         }));
+
+        // Load tone names (non-blocking, after mixer state is loaded)
+        for (let i = 0; i < 16; i++) {
+          const partData = parts[i];
+          const msb = partData?.toneBankMsb;
+          if (msb === undefined) continue;
+          service.requestToneName(i, msb).then((toneName) => {
+            if (cancelled || !toneName) return;
+            setState((prev) => updatePart(prev, i, { toneName }));
+          });
+        }
       } catch {
         if (!cancelled) {
           setState((prev) => ({ ...prev, loading: false }));

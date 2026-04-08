@@ -273,3 +273,22 @@ pub fn studio_set_name_size() -> Vec<u8> {
 pub fn single_byte_size() -> Vec<u8> {
     params::SINGLE_BYTE_SIZE.as_bytes().to_vec()
 }
+
+/// Returns the address for reading a tone name, given a part and bank MSB.
+///
+/// The bank MSB determines the tone type (PCM Synth, SN Acoustic, etc.)
+/// which determines the address block to read from.
+/// Returns null (empty vec) if the bank MSB doesn't map to a known type.
+#[wasm_bindgen]
+pub fn tone_name_address(part_index: u8, bank_msb: u8) -> Vec<u8> {
+    match params::tone_type_from_bank_msb(bank_msb) {
+        Some(tt) => addr_to_vec(params::tone_name_address(part_index, tt)),
+        None => vec![],
+    }
+}
+
+/// Returns the RQ1 size for reading a tone name (12 bytes).
+#[wasm_bindgen]
+pub fn tone_name_size() -> Vec<u8> {
+    params::TONE_NAME_SIZE.as_bytes().to_vec()
+}

@@ -14,6 +14,8 @@ export interface PartState {
   tonePC: number;
   /** MIDI receive channel (0–15). */
   receiveChannel: number;
+  /** Tone name read from the device. */
+  toneName: string;
 }
 
 /** Full mixer state. */
@@ -40,6 +42,7 @@ export function defaultPartState(): PartState {
     toneBankLsb: 0,
     tonePC: 0,
     receiveChannel: 0,
+    toneName: "",
   };
 }
 

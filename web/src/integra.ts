@@ -20,6 +20,8 @@ import {
   studio_set_name_address,
   studio_set_name_size,
   single_byte_size,
+  tone_name_address,
+  tone_name_size,
 } from "../pkg/integral_wasm.js";
 import type { MidiPortPair } from "./midi";
 
@@ -242,6 +244,21 @@ export class IntegraService {
       Array.from(single_byte_size()),
     );
     return data[0]!;
+  }
+
+  /** Read the tone name for a part, given its bank MSB. Returns empty string on failure. */
+  async requestToneName(part: number, bankMsb: number): Promise<string> {
+    const addr = tone_name_address(part, bankMsb);
+    if (addr.length === 0) return "";
+    try {
+      const data = await this.requestData(
+        Array.from(addr),
+        Array.from(tone_name_size()),
+      );
+      return String.fromCharCode(...data).trimEnd();
+    } catch {
+      return "";
+    }
   }
 
   // -----------------------------------------------------------------------

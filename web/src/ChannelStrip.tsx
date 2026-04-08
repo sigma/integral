@@ -13,7 +13,7 @@ interface Props {
 
 /** Format tone info as a short display string. */
 function toneLabel(part: PartState): string {
-  return `${part.toneBankMsb}-${part.toneBankLsb}-${part.tonePC + 1}`;
+  return part.toneName || `${part.toneBankMsb}-${part.toneBankLsb}-${part.tonePC + 1}`;
 }
 
 export function ChannelStrip({
