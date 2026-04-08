@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-z01.2"
+  ],
   "created": "2026-04-08T17:50:29Z",
   "description": "Add setPartTone(part, msb, lsb, pc) to IntegraService and changePartTone to useMixer. Re-reads tone name after change.",
   "id": "i7-z01.1",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Add tone change service methods",
   "type": "task",
-  "updated_at": "2026-04-08T17:50:29Z"
+  "updated_at": "2026-04-08T17:50:39Z"
 }
