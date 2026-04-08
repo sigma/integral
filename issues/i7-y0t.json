@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T06:53:14Z",
+  "description": "Implement the main mixer page: Rust core SysEx primitives, WASM bindings, web MIDI communication layer, React state management, and mixer UI components matching the Roland iPad app.",
+  "id": "i7-y0t",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Mixer control surface",
+  "type": "epic",
+  "updated_at": "2026-04-08T06:53:14Z"
+}
