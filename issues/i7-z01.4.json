@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-08T17:50:29Z",
+  "description": "Click tone name in TopBar or channel strip to open ToneSelector for that part. Preview works with new tone.",
+  "id": "i7-z01.4",
+  "labels": [],
+  "parent": "i7-z01",
+  "priority": 2,
+  "status": "open",
+  "title": "Integrate ToneSelector into mixer",
+  "type": "task",
+  "updated_at": "2026-04-08T17:50:29Z"
+}
