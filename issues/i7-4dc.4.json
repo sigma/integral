@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-4dc.2"
+  ],
   "blocks": [],
   "created": "2026-04-09T19:05:08Z",
   "description": "WASM bindings for SN-A state read/write, instrument param table lookup by type, DeviceState setters.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "WASM: expose SN-A bindings",
   "type": "task",
-  "updated_at": "2026-04-09T19:05:08Z"
+  "updated_at": "2026-04-09T19:05:15Z"
 }
