@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-svb.4"
+  ],
   "blocks": [],
   "created": "2026-04-09T19:05:42Z",
   "description": "Per-key editor panel: instrument selector (from instrument list), level, pan, tune (coarse/fine), decay, brilliance, variation, ambience send, dynamic range, stereo width, output assign (PART/COMP+EQ 1-6). Show instrument type and which params are applicable.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Web: SN-D per-key instrument panel",
   "type": "task",
-  "updated_at": "2026-04-09T19:05:42Z"
+  "updated_at": "2026-04-09T19:05:50Z"
 }
