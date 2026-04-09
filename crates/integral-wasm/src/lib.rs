@@ -2,6 +2,7 @@
 
 use integral_core::address::{Address, DataSize};
 use integral_core::catalog;
+use integral_core::device::DeviceState;
 use integral_core::state::parse as state_parse;
 use integral_core::sysex;
 use integral_core::{fx_params, params, params::part, params::part_eq, tone_banks};
@@ -773,4 +774,334 @@ pub fn reverb_output_names() -> Vec<String> {
         .iter()
         .map(|s| s.to_string())
         .collect()
+}
+
+// ---------------------------------------------------------------------------
+// DeviceState — stateful device manager
+// ---------------------------------------------------------------------------
+
+/// Stateful device manager exposed to JS.
+///
+/// Owns the mixer state, send queue (with coalescing/throttle), and echo
+/// suppression.  The JS layer feeds incoming MIDI and drains outbound
+/// messages; all business logic lives in Rust.
+#[wasm_bindgen]
+pub struct WasmDeviceState {
+    inner: DeviceState,
+}
+
+#[wasm_bindgen]
+impl WasmDeviceState {
+    /// Create a new device state with the given SysEx device ID.
+    #[wasm_bindgen(constructor)]
+    pub fn new(device_id: u8) -> Self {
+        Self {
+            inner: DeviceState::new(device_id),
+        }
+    }
+
+    // -- Send queue --------------------------------------------------------
+
+    /// Drain the next outbound SysEx message if the throttle has elapsed.
+    ///
+    /// `now_ms` is a monotonic timestamp (e.g. `performance.now()`).
+    /// Returns `undefined` if nothing to send.
+    pub fn drain(&mut self, now_ms: f64) -> Option<Vec<u8>> {
+        self.inner.drain(now_ms)
+    }
+
+    /// Whether there are queued messages waiting to be sent.
+    #[wasm_bindgen(js_name = hasPending)]
+    pub fn has_pending(&self) -> bool {
+        self.inner.has_pending()
+    }
+
+    /// Queue a raw SysEx message (for catalog requests etc.).
+    #[wasm_bindgen(js_name = sendRaw)]
+    pub fn send_raw(&mut self, key: &str, bytes: Vec<u8>) {
+        self.inner.send_raw(key, bytes);
+    }
+
+    // -- Incoming DT1 ------------------------------------------------------
+
+    /// Process an incoming DT1.  Returns true if state changed.
+    #[wasm_bindgen(js_name = handleDt1)]
+    pub fn handle_dt1(&mut self, addr: &[u8], data: &[u8], now_ms: f64) -> bool {
+        if addr.len() < 4 {
+            return false;
+        }
+        let address = Address::new(addr[0], addr[1], addr[2], addr[3]);
+        self.inner.handle_dt1(&address, data, now_ms)
+    }
+
+    // -- State read --------------------------------------------------------
+
+    /// Read a snapshot of the full mixer state as a JS object.
+    ///
+    /// Returns a JsValue that mirrors the TypeScript `MixerState` shape.
+    #[wasm_bindgen(js_name = readState)]
+    pub fn read_state(&self) -> Result<JsValue, JsError> {
+        let s = self.inner.state();
+        serde_wasm_bindgen::to_value(s).map_err(|e| JsError::new(&e.to_string()))
+    }
+
+    // -- Part setters ------------------------------------------------------
+
+    #[wasm_bindgen(js_name = setPartLevel)]
+    pub fn set_part_level(&mut self, part: u8, value: u8) {
+        self.inner.set_part_level(part, value);
+    }
+
+    #[wasm_bindgen(js_name = setPartPan)]
+    pub fn set_part_pan(&mut self, part: u8, value: u8) {
+        self.inner.set_part_pan(part, value);
+    }
+
+    #[wasm_bindgen(js_name = setPartMute)]
+    pub fn set_part_mute(&mut self, part: u8, muted: bool) {
+        self.inner.set_part_mute(part, muted);
+    }
+
+    #[wasm_bindgen(js_name = togglePartMute)]
+    pub fn toggle_part_mute(&mut self, part: u8) {
+        self.inner.toggle_part_mute(part);
+    }
+
+    #[wasm_bindgen(js_name = setPartChorusSend)]
+    pub fn set_part_chorus_send(&mut self, part: u8, value: u8) {
+        self.inner.set_part_chorus_send(part, value);
+    }
+
+    #[wasm_bindgen(js_name = setPartReverbSend)]
+    pub fn set_part_reverb_send(&mut self, part: u8, value: u8) {
+        self.inner.set_part_reverb_send(part, value);
+    }
+
+    #[wasm_bindgen(js_name = setPartReceiveChannel)]
+    pub fn set_part_receive_channel(&mut self, part: u8, channel: u8) {
+        self.inner.set_part_receive_channel(part, channel);
+    }
+
+    #[wasm_bindgen(js_name = changePartTone)]
+    pub fn change_part_tone(&mut self, part: u8, msb: u8, lsb: u8, pc: u8) {
+        self.inner.change_part_tone(part, msb, lsb, pc);
+    }
+
+    #[wasm_bindgen(js_name = setMasterLevel)]
+    pub fn set_master_level(&mut self, value: u8) {
+        self.inner.set_master_level(value);
+    }
+
+    // -- EQ setters --------------------------------------------------------
+
+    #[wasm_bindgen(js_name = setPartEqParam)]
+    pub fn set_part_eq_param(&mut self, part: u8, param_offset: u8, value: u8) {
+        self.inner.set_part_eq_param(part, param_offset, value);
+    }
+
+    #[wasm_bindgen(js_name = setMasterEqParam)]
+    pub fn set_master_eq_param(&mut self, param_offset: u8, value: u8) {
+        self.inner.set_master_eq_param(param_offset, value);
+    }
+
+    #[wasm_bindgen(js_name = toggleMasterEqSwitch)]
+    pub fn toggle_master_eq_switch(&mut self) {
+        self.inner.toggle_master_eq_switch();
+    }
+
+    // -- FX setters --------------------------------------------------------
+
+    #[wasm_bindgen(js_name = setChorusParam)]
+    pub fn set_chorus_param(&mut self, offset: u8, value: u8) {
+        self.inner.set_chorus_param(offset, value);
+    }
+
+    #[wasm_bindgen(js_name = setChorusNibParam)]
+    pub fn set_chorus_nib_param(&mut self, param_index: u32, value: i32) {
+        self.inner.set_chorus_nib_param(param_index as usize, value);
+    }
+
+    #[wasm_bindgen(js_name = toggleChorusSwitch)]
+    pub fn toggle_chorus_switch(&mut self) {
+        self.inner.toggle_chorus_switch();
+    }
+
+    #[wasm_bindgen(js_name = setReverbParam)]
+    pub fn set_reverb_param(&mut self, offset: u8, value: u8) {
+        self.inner.set_reverb_param(offset, value);
+    }
+
+    #[wasm_bindgen(js_name = setReverbNibParam)]
+    pub fn set_reverb_nib_param(&mut self, param_index: u32, value: i32) {
+        self.inner.set_reverb_nib_param(param_index as usize, value);
+    }
+
+    #[wasm_bindgen(js_name = toggleReverbSwitch)]
+    pub fn toggle_reverb_switch(&mut self) {
+        self.inner.toggle_reverb_switch();
+    }
+
+    // -- Ext part ----------------------------------------------------------
+
+    #[wasm_bindgen(js_name = setExtLevel)]
+    pub fn set_ext_level(&mut self, value: u8) {
+        self.inner.set_ext_level(value);
+    }
+
+    #[wasm_bindgen(js_name = toggleExtMute)]
+    pub fn toggle_ext_mute(&mut self) {
+        self.inner.toggle_ext_mute();
+    }
+
+    // -- Studio Set --------------------------------------------------------
+
+    #[wasm_bindgen(js_name = switchStudioSet)]
+    pub fn switch_studio_set(&mut self, pc: u8) {
+        self.inner.switch_studio_set(pc);
+    }
+
+    // -- RQ1 builders (return bytes to send) -------------------------------
+
+    #[wasm_bindgen(js_name = buildPartMixerRequest)]
+    pub fn build_part_mixer_request(&self, part: u8) -> Vec<u8> {
+        self.inner.build_part_mixer_request(part)
+    }
+
+    #[wasm_bindgen(js_name = buildMasterLevelRequest)]
+    pub fn build_master_level_request(&self) -> Vec<u8> {
+        self.inner.build_master_level_request()
+    }
+
+    #[wasm_bindgen(js_name = buildStudioSetNameRequest)]
+    pub fn build_studio_set_name_request(&self) -> Vec<u8> {
+        self.inner.build_studio_set_name_request()
+    }
+
+    #[wasm_bindgen(js_name = buildStudioSetPcRequest)]
+    pub fn build_studio_set_pc_request(&self) -> Vec<u8> {
+        self.inner.build_studio_set_pc_request()
+    }
+
+    // -- Direct state mutation (for load responses) ------------------------
+
+    /// Patch the mixer state with a parsed part dump.
+    #[wasm_bindgen(js_name = applyPartDump)]
+    pub fn apply_part_dump(&mut self, part: u8, data: &[u8]) {
+        let parsed = state_parse::parse_part_dump(data);
+        let p = &mut self.inner.state_mut().parts[part as usize];
+        p.receive_channel = parsed.receive_channel;
+        p.tone_bank_msb = parsed.tone_bank_msb;
+        p.tone_bank_lsb = parsed.tone_bank_lsb;
+        p.tone_pc = parsed.tone_pc;
+        p.level = parsed.level;
+        p.pan = parsed.pan;
+        p.muted = parsed.muted;
+        p.chorus_send = parsed.chorus_send;
+        p.reverb_send = parsed.reverb_send;
+    }
+
+    /// Patch the part EQ with a parsed dump.
+    #[wasm_bindgen(js_name = applyPartEqDump)]
+    pub fn apply_part_eq_dump(&mut self, part: u8, data: &[u8]) {
+        let eq = state_parse::parse_part_eq_dump(data);
+        self.inner.state_mut().parts[part as usize].eq = eq;
+    }
+
+    /// Patch the master EQ with a parsed dump.
+    #[wasm_bindgen(js_name = applyMasterEqDump)]
+    pub fn apply_master_eq_dump(&mut self, data: &[u8]) {
+        let eq = state_parse::parse_master_eq_dump(data);
+        // Preserve the enabled flag (read separately).
+        let enabled = self.inner.state().master_eq.enabled;
+        self.inner.state_mut().master_eq = eq;
+        self.inner.state_mut().master_eq.enabled = enabled;
+    }
+
+    /// Set master EQ enabled state.
+    #[wasm_bindgen(js_name = setMasterEqEnabled)]
+    pub fn set_master_eq_enabled(&mut self, enabled: bool) {
+        self.inner.state_mut().master_eq.enabled = enabled;
+    }
+
+    /// Set the studio set name.
+    #[wasm_bindgen(js_name = setStudioSetName)]
+    pub fn set_studio_set_name(&mut self, name: &str) {
+        self.inner.state_mut().studio_set_name = name.to_string();
+    }
+
+    /// Set the studio set PC.
+    #[wasm_bindgen(js_name = setStudioSetPc)]
+    pub fn set_studio_set_pc(&mut self, pc: u8) {
+        self.inner.state_mut().studio_set_pc = pc;
+    }
+
+    /// Set the master level.
+    #[wasm_bindgen(js_name = applyMasterLevel)]
+    pub fn apply_master_level(&mut self, value: u8) {
+        self.inner.state_mut().master_level = value;
+    }
+
+    /// Set a part's tone name.
+    #[wasm_bindgen(js_name = setPartToneName)]
+    pub fn set_part_tone_name(&mut self, part: u8, name: &str) {
+        self.inner.state_mut().parts[part as usize].tone_name = name.to_string();
+    }
+
+    /// Set chorus state from core bytes.
+    #[wasm_bindgen(js_name = applyChorusCore)]
+    pub fn apply_chorus_core(&mut self, data: &[u8]) {
+        if data.len() >= 3 {
+            let fx = &mut self.inner.state_mut().chorus;
+            fx.fx_type = data[0];
+            fx.level = data[1];
+            fx.output = data[2];
+        }
+    }
+
+    /// Set chorus enabled.
+    #[wasm_bindgen(js_name = setChorusEnabled)]
+    pub fn set_chorus_enabled(&mut self, enabled: bool) {
+        self.inner.state_mut().chorus.enabled = enabled;
+    }
+
+    /// Set chorus params from decoded nib values.
+    #[wasm_bindgen(js_name = applyChorusParams)]
+    pub fn apply_chorus_params(&mut self, params: Vec<i32>) {
+        self.inner.state_mut().chorus.params = params;
+    }
+
+    /// Set reverb state from core bytes.
+    #[wasm_bindgen(js_name = applyReverbCore)]
+    pub fn apply_reverb_core(&mut self, data: &[u8]) {
+        if data.len() >= 3 {
+            let fx = &mut self.inner.state_mut().reverb;
+            fx.fx_type = data[0];
+            fx.level = data[1];
+            fx.output = data[2];
+        }
+    }
+
+    /// Set reverb enabled.
+    #[wasm_bindgen(js_name = setReverbEnabled)]
+    pub fn set_reverb_enabled(&mut self, enabled: bool) {
+        self.inner.state_mut().reverb.enabled = enabled;
+    }
+
+    /// Set reverb params from decoded nib values.
+    #[wasm_bindgen(js_name = applyReverbParams)]
+    pub fn apply_reverb_params(&mut self, params: Vec<i32>) {
+        self.inner.state_mut().reverb.params = params;
+    }
+
+    /// Set ext part level.
+    #[wasm_bindgen(js_name = applyExtLevel)]
+    pub fn apply_ext_level(&mut self, value: u8) {
+        self.inner.state_mut().ext_level = value;
+    }
+
+    /// Set ext part muted.
+    #[wasm_bindgen(js_name = applyExtMuted)]
+    pub fn apply_ext_muted(&mut self, muted: bool) {
+        self.inner.state_mut().ext_muted = muted;
+    }
 }

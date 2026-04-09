@@ -17,6 +17,7 @@ pub const NUM_PARTS: usize = 16;
 
 /// 3-band parametric EQ state.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EqState {
     /// EQ on/off.
     pub enabled: bool,
@@ -57,6 +58,7 @@ impl Default for EqState {
 
 /// Chorus or Reverb FX block state.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FxState {
     /// Effect on/off.
     pub enabled: bool,
@@ -88,6 +90,7 @@ impl Default for FxState {
 
 /// State of a single Part in the mixer.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PartState {
     /// Part level / volume (0–127).
     pub level: u8,
@@ -137,6 +140,7 @@ impl Default for PartState {
 
 /// Full mixer state.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MixerState {
     /// Studio Set name (up to 16 ASCII chars).
     pub studio_set_name: String,

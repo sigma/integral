@@ -210,12 +210,17 @@ impl DeviceState {
         self.send_dt1(&addr, &[value]);
     }
 
-    /// Toggle a part's mute state.
-    pub fn toggle_part_mute(&mut self, part: u8) {
-        let muted = !self.state.parts[part as usize].muted;
+    /// Set a part's mute state.
+    pub fn set_part_mute(&mut self, part: u8, muted: bool) {
         self.state.parts[part as usize].muted = muted;
         let addr = params::part_address(part, part::MUTE);
         self.send_dt1(&addr, &[u8::from(muted)]);
+    }
+
+    /// Toggle a part's mute state.
+    pub fn toggle_part_mute(&mut self, part: u8) {
+        let muted = !self.state.parts[part as usize].muted;
+        self.set_part_mute(part, muted);
     }
 
     /// Set a part's chorus send level (0–127).

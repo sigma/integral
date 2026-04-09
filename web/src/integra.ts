@@ -1,31 +1,22 @@
 /**
- * IntegraService — high-level SysEx communication with the Roland INTEGRA-7.
+ * IntegraService — thin MIDI bridge for the Roland INTEGRA-7.
  *
- * Handles DT1 send/receive with 20ms throttling, address coalescing,
- * RQ1 request/response, and standard MIDI messages (Note On/Off).
- *
- * All SysEx construction and parsing is delegated to integral-wasm.
+ * Business logic (state management, send queue, echo suppression) is
+ * delegated to the Rust `WasmDeviceState`.  This TS layer handles:
+ * - Web MIDI I/O (platform-specific)
+ * - RQ1 request/response pairing (async Promises)
+ * - Catalog query handlers (event-driven with timeouts)
+ * - The drain loop (polls Rust queue via setInterval)
  */
 
 import {
-  build_dt1,
   build_rq1,
   parse_dt1,
-  part_level_address,
-  part_pan_address,
-  part_mute_address,
-  part_receive_channel_address,
-  part_chorus_send_address,
-  part_reverb_send_address,
-  part_mixer_size,
-  master_level_address,
-  studio_set_name_address,
-  studio_set_name_size,
-  single_byte_size,
-  tone_name_address,
-  tone_name_size,
-  setup_studio_set_pc_address,
-  part_tone_bank_address,
+  part_eq_address,
+  part_eq_size,
+  master_eq_address,
+  master_eq_size,
+  master_eq_switch_address,
   chorus_address,
   chorus_switch_address,
   chorus_core_size,
@@ -34,31 +25,30 @@ import {
   reverb_core_size,
   ext_part_level_address,
   ext_part_mute_address,
-  part_eq_address,
-  part_eq_size,
-  master_eq_address,
-  master_eq_size,
-  master_eq_switch_address,
-  setup_studio_set_bs_msb_address,
+  setup_studio_set_pc_address,
+  studio_set_name_address,
+  studio_set_name_size,
+  master_level_address,
+  single_byte_size,
+  tone_name_address,
+  tone_name_size,
+  part_mixer_size,
+  part_receive_channel_address,
   build_studio_set_catalog_request,
   build_tone_catalog_request,
   parse_catalog_entry,
+  decode_nib_params,
+  WasmDeviceState,
 } from "../pkg/integral_wasm.js";
 import type { MidiPortPair } from "./midi";
-
-/** Minimum interval between SysEx sends (ms). */
-const THROTTLE_MS = 40;
 
 /** Timeout for RQ1 responses after the message is actually sent (ms). */
 const REQUEST_TIMEOUT_MS = 2000;
 
-type Dt1Callback = (address: Uint8Array, data: Uint8Array) => void;
+/** Drain loop interval (ms). */
+const DRAIN_INTERVAL_MS = 5;
 
-interface QueuedMessage {
-  key: string;
-  bytes: Uint8Array;
-  onSent?: () => void;
-}
+type Dt1Callback = (address: Uint8Array, data: Uint8Array) => void;
 
 interface PendingRequest {
   addressKey: string;
@@ -70,29 +60,33 @@ interface PendingRequest {
 /** High-level communication service for the INTEGRA-7. */
 export class IntegraService {
   private port: MidiPortPair;
-  private deviceId: number;
-  private queue: QueuedMessage[] = [];
-  private sending = false;
+  readonly deviceId: number;
+  /** Rust-side state machine (queue, echo suppression, state). */
+  readonly device: WasmDeviceState;
   private dt1Listeners: Set<Dt1Callback> = new Set();
   private pendingRequests: PendingRequest[] = [];
   private boundHandler: (event: MIDIMessageEvent) => void;
+  private drainTimer: ReturnType<typeof setInterval>;
 
   constructor(port: MidiPortPair, deviceId: number) {
     this.port = port;
     this.deviceId = deviceId;
+    this.device = new WasmDeviceState(deviceId);
     this.boundHandler = this.handleMidiMessage.bind(this);
     this.port.input.addEventListener(
       "midimessage",
       this.boundHandler as EventListener,
     );
+    // Poll Rust drain queue.
+    this.drainTimer = setInterval(() => this.drainRust(), DRAIN_INTERVAL_MS);
   }
 
   destroy(): void {
+    clearInterval(this.drainTimer);
     this.port.input.removeEventListener(
       "midimessage",
       this.boundHandler as EventListener,
     );
-    this.queue = [];
     this.dt1Listeners.clear();
     for (const req of this.pendingRequests) {
       if (req.timer) clearTimeout(req.timer);
@@ -101,54 +95,19 @@ export class IntegraService {
   }
 
   // -----------------------------------------------------------------------
-  // Send queue with throttle + coalescing
+  // Drain loop — polls Rust queue and sends via Web MIDI
   // -----------------------------------------------------------------------
 
-  sendDt1(address: number[], data: number[]): void {
-    const bytes = new Uint8Array(
-      build_dt1(
-        this.deviceId,
-        address[0]!,
-        address[1]!,
-        address[2]!,
-        address[3]!,
-        new Uint8Array(data),
-      ),
-    );
-    const key = "dt1:" + addressKey(address);
-
-    // Coalesce: replace any queued DT1 for the same address
-    const idx = this.queue.findIndex((m) => m.key === key);
-    if (idx >= 0) {
-      this.queue[idx] = { key, bytes };
-    } else {
-      this.queue.push({ key, bytes });
+  private drainRust(): void {
+    const now = performance.now();
+    const msg = this.device.drain(now);
+    if (msg) {
+      this.port.output.send(msg);
     }
-
-    this.drain();
-  }
-
-  private enqueue(key: string, bytes: Uint8Array, onSent?: () => void): void {
-    this.queue.push({ key, bytes, onSent });
-    this.drain();
-  }
-
-  private drain(): void {
-    if (this.sending || this.queue.length === 0) return;
-    this.sending = true;
-
-    const msg = this.queue.shift()!;
-    this.port.output.send(msg.bytes);
-    msg.onSent?.();
-
-    setTimeout(() => {
-      this.sending = false;
-      this.drain();
-    }, THROTTLE_MS);
   }
 
   // -----------------------------------------------------------------------
-  // RQ1 request/response
+  // RQ1 request/response (stays in TS — async Promise pattern)
   // -----------------------------------------------------------------------
 
   requestData(address: number[], size: number[]): Promise<Uint8Array> {
@@ -171,15 +130,15 @@ export class IntegraService {
       const pending: PendingRequest = { addressKey: key, resolve, reject };
       this.pendingRequests.push(pending);
 
-      // Start timeout only when actually sent
-      this.enqueue("rq1:" + key, bytes, () => {
-        pending.timer = setTimeout(() => {
-          this.pendingRequests = this.pendingRequests.filter(
-            (r) => r !== pending,
-          );
-          reject(new Error(`RQ1 timeout for address ${key}`));
-        }, REQUEST_TIMEOUT_MS);
-      });
+      // Use Rust queue for throttled send; start timeout on send.
+      this.device.sendRaw("rq1:" + key, bytes);
+      // Start timeout immediately (the Rust queue will send it soon).
+      pending.timer = setTimeout(() => {
+        this.pendingRequests = this.pendingRequests.filter(
+          (r) => r !== pending,
+        );
+        reject(new Error(`RQ1 timeout for address ${key}`));
+      }, REQUEST_TIMEOUT_MS);
     });
   }
 
@@ -208,7 +167,7 @@ export class IntegraService {
     const data = new Uint8Array(parsed.data());
     const key = addressKey(Array.from(addr));
 
-    // Resolve pending RQ1 requests
+    // Resolve pending RQ1 requests.
     const reqIdx = this.pendingRequests.findIndex(
       (r) => r.addressKey === key,
     );
@@ -219,83 +178,209 @@ export class IntegraService {
       req.resolve(data);
     }
 
-    // Notify DT1 listeners
+    // Feed to Rust state machine (handles echo suppression internally).
+    this.device.handleDt1(addr, data, performance.now());
+
+    // Notify TS-side DT1 listeners (for catalog handlers etc.).
     for (const cb of this.dt1Listeners) {
       cb(addr, data);
     }
   }
 
   // -----------------------------------------------------------------------
-  // Convenience: mixer parameters
+  // Convenience: mixer parameters (delegate to Rust DeviceState)
   // -----------------------------------------------------------------------
 
   setPartLevel(part: number, value: number): void {
-    this.sendDt1(Array.from(part_level_address(part)), [value]);
+    this.device.setPartLevel(part, value);
   }
 
   setPartPan(part: number, value: number): void {
-    this.sendDt1(Array.from(part_pan_address(part)), [value]);
+    this.device.setPartPan(part, value);
   }
 
   setPartMute(part: number, muted: boolean): void {
-    this.sendDt1(Array.from(part_mute_address(part)), [muted ? 1 : 0]);
+    this.device.setPartMute(part, muted);
   }
 
   setPartReceiveChannel(part: number, channel: number): void {
-    this.sendDt1(Array.from(part_receive_channel_address(part)), [channel]);
+    this.device.setPartReceiveChannel(part, channel);
   }
 
   setPartChorusSend(part: number, value: number): void {
-    this.sendDt1(Array.from(part_chorus_send_address(part)), [value]);
+    this.device.setPartChorusSend(part, value);
   }
 
   setPartReverbSend(part: number, value: number): void {
-    this.sendDt1(Array.from(part_reverb_send_address(part)), [value]);
+    this.device.setPartReverbSend(part, value);
   }
 
-  /**
-   * Change the tone on a part by sending Bank MSB, LSB, and PC.
-   * The three parameters are at consecutive offsets (06, 07, 08) in the part block.
-   */
   setPartTone(part: number, msb: number, lsb: number, pc: number): void {
-    const baseAddr = Array.from(part_tone_bank_address(part)) as number[];
-    // MSB at offset 06
-    this.sendDt1(baseAddr, [msb]);
-    // LSB at offset 07
-    const lsbAddr = [...baseAddr];
-    lsbAddr[3] = (lsbAddr[3]! + 1) & 0x7f;
-    this.sendDt1(lsbAddr, [lsb]);
-    // PC at offset 08
-    const pcAddr = [...baseAddr];
-    pcAddr[3] = (pcAddr[3]! + 2) & 0x7f;
-    this.sendDt1(pcAddr, [pc]);
+    this.device.changePartTone(part, msb, lsb, pc);
   }
 
   setMasterLevel(value: number): void {
-    this.sendDt1(Array.from(master_level_address()), [value]);
+    this.device.setMasterLevel(value);
   }
 
-  /** Read the current Studio Set PC (0-63). */
+  switchStudioSet(pc: number): void {
+    this.device.switchStudioSet(pc);
+  }
+
+  // -----------------------------------------------------------------------
+  // EQ parameters
+  // -----------------------------------------------------------------------
+
+  async requestPartEq(part: number): Promise<Uint8Array> {
+    return this.requestData(
+      Array.from(part_eq_address(part, 0)),
+      Array.from(part_eq_size()),
+    );
+  }
+
+  setPartEqParam(part: number, paramOffset: number, value: number): void {
+    this.device.setPartEqParam(part, paramOffset, value);
+  }
+
+  async requestMasterEq(): Promise<Uint8Array> {
+    return this.requestData(
+      Array.from(master_eq_address(0)),
+      Array.from(master_eq_size()),
+    );
+  }
+
+  setMasterEqParam(paramOffset: number, value: number): void {
+    this.device.setMasterEqParam(paramOffset, value);
+  }
+
+  async requestMasterEqSwitch(): Promise<boolean> {
+    const data = await this.requestData(
+      Array.from(master_eq_switch_address()),
+      Array.from(single_byte_size()),
+    );
+    return data[0] === 1;
+  }
+
+  setMasterEqSwitch(_enabled: boolean): void {
+    this.device.toggleMasterEqSwitch();
+  }
+
+  // -----------------------------------------------------------------------
+  // Chorus (FX1)
+  // -----------------------------------------------------------------------
+
+  async requestChorusCore(): Promise<Uint8Array> {
+    return this.requestData(
+      Array.from(chorus_address(0)),
+      Array.from(chorus_core_size()),
+    );
+  }
+
+  async requestChorusSwitch(): Promise<boolean> {
+    const data = await this.requestData(
+      Array.from(chorus_switch_address()),
+      Array.from(single_byte_size()),
+    );
+    return data[0] === 1;
+  }
+
+  setChorusSwitch(_enabled: boolean): void {
+    this.device.toggleChorusSwitch();
+  }
+
+  setChorusParam(offset: number, value: number): void {
+    this.device.setChorusParam(offset, value);
+  }
+
+  setChorusNibParam(paramIndex: number, value: number): void {
+    this.device.setChorusNibParam(paramIndex, value);
+  }
+
+  async requestChorusParams(): Promise<number[]> {
+    const data = await this.requestData(
+      Array.from(chorus_address(0x04)),
+      [0x00, 0x00, 0x00, 0x50],
+    );
+    return Array.from(decode_nib_params(data, 20));
+  }
+
+  // -----------------------------------------------------------------------
+  // Reverb (FX2)
+  // -----------------------------------------------------------------------
+
+  async requestReverbCore(): Promise<Uint8Array> {
+    return this.requestData(
+      Array.from(reverb_address(0)),
+      Array.from(reverb_core_size()),
+    );
+  }
+
+  async requestReverbSwitch(): Promise<boolean> {
+    const data = await this.requestData(
+      Array.from(reverb_switch_address()),
+      Array.from(single_byte_size()),
+    );
+    return data[0] === 1;
+  }
+
+  setReverbSwitch(_enabled: boolean): void {
+    this.device.toggleReverbSwitch();
+  }
+
+  setReverbParam(offset: number, value: number): void {
+    this.device.setReverbParam(offset, value);
+  }
+
+  setReverbNibParam(paramIndex: number, value: number): void {
+    this.device.setReverbNibParam(paramIndex, value);
+  }
+
+  async requestReverbParams(): Promise<number[]> {
+    const data = await this.requestData(
+      Array.from(reverb_address(0x03)),
+      [0x00, 0x00, 0x00, 0x60],
+    );
+    return Array.from(decode_nib_params(data, 24));
+  }
+
+  // -----------------------------------------------------------------------
+  // Ext Part
+  // -----------------------------------------------------------------------
+
+  async requestExtPartLevel(): Promise<number> {
+    const data = await this.requestData(
+      Array.from(ext_part_level_address()),
+      Array.from(single_byte_size()),
+    );
+    return data[0]!;
+  }
+
+  async requestExtPartMute(): Promise<boolean> {
+    const data = await this.requestData(
+      Array.from(ext_part_mute_address()),
+      Array.from(single_byte_size()),
+    );
+    return data[0] === 1;
+  }
+
+  setExtPartLevel(value: number): void {
+    this.device.setExtLevel(value);
+  }
+
+  setExtPartMute(_muted: boolean): void {
+    this.device.toggleExtMute();
+  }
+
+  // -----------------------------------------------------------------------
+  // Request helpers (read from device)
+  // -----------------------------------------------------------------------
+
   async requestStudioSetPC(): Promise<number> {
     const data = await this.requestData(
       Array.from(setup_studio_set_pc_address()),
       Array.from(single_byte_size()),
     );
     return data[0]!;
-  }
-
-  /**
-   * Switch to a different Studio Set by PC number (0-63).
-   * Writes BS MSB=85, BS LSB=0, PC=pc to the Setup block.
-   * The device needs a moment to load the new set.
-   */
-  switchStudioSet(pc: number): void {
-    this.sendDt1(Array.from(setup_studio_set_bs_msb_address()), [85]);
-    // LSB is at MSB+1
-    const lsbAddr = Array.from(setup_studio_set_bs_msb_address());
-    lsbAddr[3] = lsbAddr[3]! + 1;
-    this.sendDt1(lsbAddr, [0]);
-    this.sendDt1(Array.from(setup_studio_set_pc_address()), [pc]);
   }
 
   async requestStudioSetName(): Promise<string> {
@@ -307,9 +392,10 @@ export class IntegraService {
   }
 
   async requestPartMixerState(part: number): Promise<Uint8Array> {
-    const addr = part_receive_channel_address(part);
-    const size = part_mixer_size();
-    return this.requestData(Array.from(addr), Array.from(size));
+    return this.requestData(
+      Array.from(part_receive_channel_address(part)),
+      Array.from(part_mixer_size()),
+    );
   }
 
   async requestMasterLevel(): Promise<number> {
@@ -335,187 +421,9 @@ export class IntegraService {
   }
 
   // -----------------------------------------------------------------------
-  // EQ parameters
+  // Catalog queries (stay in TS — event-driven with timeouts)
   // -----------------------------------------------------------------------
 
-  /** Read all Part EQ parameters (8 bytes). */
-  async requestPartEq(part: number): Promise<Uint8Array> {
-    return this.requestData(
-      Array.from(part_eq_address(part, 0)),
-      Array.from(part_eq_size()),
-    );
-  }
-
-  /** Set a single Part EQ parameter. */
-  setPartEqParam(part: number, paramOffset: number, value: number): void {
-    this.sendDt1(Array.from(part_eq_address(part, paramOffset)), [value]);
-  }
-
-  /** Read all Master EQ parameters (7 bytes). */
-  async requestMasterEq(): Promise<Uint8Array> {
-    return this.requestData(
-      Array.from(master_eq_address(0)),
-      Array.from(master_eq_size()),
-    );
-  }
-
-  /** Set a single Master EQ parameter. */
-  setMasterEqParam(paramOffset: number, value: number): void {
-    this.sendDt1(Array.from(master_eq_address(paramOffset)), [value]);
-  }
-
-  /** Read the Master EQ Switch (from Studio Set Common). */
-  async requestMasterEqSwitch(): Promise<boolean> {
-    const data = await this.requestData(
-      Array.from(master_eq_switch_address()),
-      Array.from(single_byte_size()),
-    );
-    return data[0] === 1;
-  }
-
-  /** Set the Master EQ Switch. */
-  setMasterEqSwitch(enabled: boolean): void {
-    this.sendDt1(Array.from(master_eq_switch_address()), [enabled ? 1 : 0]);
-  }
-
-  // -----------------------------------------------------------------------
-  // Chorus (FX1)
-  // -----------------------------------------------------------------------
-
-  async requestChorusCore(): Promise<Uint8Array> {
-    return this.requestData(
-      Array.from(chorus_address(0)),
-      Array.from(chorus_core_size()),
-    );
-  }
-
-  async requestChorusSwitch(): Promise<boolean> {
-    const data = await this.requestData(
-      Array.from(chorus_switch_address()),
-      Array.from(single_byte_size()),
-    );
-    return data[0] === 1;
-  }
-
-  setChorusSwitch(enabled: boolean): void {
-    this.sendDt1(Array.from(chorus_switch_address()), [enabled ? 1 : 0]);
-  }
-
-  setChorusParam(offset: number, value: number): void {
-    this.sendDt1(Array.from(chorus_address(offset)), [value]);
-  }
-
-  /** Write a nibblized 4-byte FX parameter. */
-  setChorusNibParam(paramIndex: number, value: number): void {
-    const raw = value + 32768;
-    const bytes = [
-      (raw >> 12) & 0x0f,
-      (raw >> 8) & 0x0f,
-      (raw >> 4) & 0x0f,
-      raw & 0x0f,
-    ];
-    // Param N is at offset 0x04 + N*4
-    const offset = 0x04 + paramIndex * 4;
-    this.sendDt1(Array.from(chorus_address(offset)), bytes);
-  }
-
-  /** Read all nibblized chorus params (20 params × 4 bytes = 80 bytes). */
-  async requestChorusParams(): Promise<number[]> {
-    const data = await this.requestData(
-      Array.from(chorus_address(0x04)),
-      [0x00, 0x00, 0x00, 0x50], // 80 bytes
-    );
-    return decodeNibParams(data, 20);
-  }
-
-  // -----------------------------------------------------------------------
-  // Reverb (FX2)
-  // -----------------------------------------------------------------------
-
-  async requestReverbCore(): Promise<Uint8Array> {
-    return this.requestData(
-      Array.from(reverb_address(0)),
-      Array.from(reverb_core_size()),
-    );
-  }
-
-  async requestReverbSwitch(): Promise<boolean> {
-    const data = await this.requestData(
-      Array.from(reverb_switch_address()),
-      Array.from(single_byte_size()),
-    );
-    return data[0] === 1;
-  }
-
-  setReverbSwitch(enabled: boolean): void {
-    this.sendDt1(Array.from(reverb_switch_address()), [enabled ? 1 : 0]);
-  }
-
-  setReverbParam(offset: number, value: number): void {
-    this.sendDt1(Array.from(reverb_address(offset)), [value]);
-  }
-
-  /** Write a nibblized 4-byte FX parameter. */
-  setReverbNibParam(paramIndex: number, value: number): void {
-    const raw = value + 32768;
-    const bytes = [
-      (raw >> 12) & 0x0f,
-      (raw >> 8) & 0x0f,
-      (raw >> 4) & 0x0f,
-      raw & 0x0f,
-    ];
-    // Param N is at offset 0x03 + N*4
-    const offset = 0x03 + paramIndex * 4;
-    this.sendDt1(Array.from(reverb_address(offset)), bytes);
-  }
-
-  /** Read all nibblized reverb params (24 params × 4 bytes = 96 bytes). */
-  async requestReverbParams(): Promise<number[]> {
-    const data = await this.requestData(
-      Array.from(reverb_address(0x03)),
-      [0x00, 0x00, 0x00, 0x60], // 96 bytes
-    );
-    return decodeNibParams(data, 24);
-  }
-
-  // -----------------------------------------------------------------------
-  // Ext Part
-  // -----------------------------------------------------------------------
-
-  async requestExtPartLevel(): Promise<number> {
-    const data = await this.requestData(
-      Array.from(ext_part_level_address()),
-      Array.from(single_byte_size()),
-    );
-    return data[0]!;
-  }
-
-  async requestExtPartMute(): Promise<boolean> {
-    const data = await this.requestData(
-      Array.from(ext_part_mute_address()),
-      Array.from(single_byte_size()),
-    );
-    return data[0] === 1;
-  }
-
-  setExtPartLevel(value: number): void {
-    this.sendDt1(Array.from(ext_part_level_address()), [value]);
-  }
-
-  setExtPartMute(muted: boolean): void {
-    this.sendDt1(Array.from(ext_part_mute_address()), [muted ? 1 : 0]);
-  }
-
-  // -----------------------------------------------------------------------
-  // Catalog queries (undocumented)
-  // -----------------------------------------------------------------------
-
-  /**
-   * Request all 64 Studio Set names.
-   *
-   * Sends the undocumented 2-byte catalog query. The device responds with
-   * all entries in a stream with delimiter messages interspersed.
-   */
   async requestStudioSetNames(): Promise<Map<number, string>> {
     const names = new Map<number, string>();
     const msg = new Uint8Array(
@@ -524,10 +432,7 @@ export class IntegraService {
 
     return new Promise((resolve) => {
       let timeoutId: ReturnType<typeof setTimeout>;
-      // Absolute deadline: 15s max regardless of activity
-      const absoluteTimeout = setTimeout(() => {
-        done();
-      }, 15000);
+      const absoluteTimeout = setTimeout(() => done(), 15000);
 
       const done = () => {
         clearTimeout(timeoutId);
@@ -562,7 +467,6 @@ export class IntegraService {
             return;
           }
         }
-        // Reset silence timer on any catalog-related response
         resetTimeout();
       };
 
@@ -578,18 +482,11 @@ export class IntegraService {
         handler as EventListener,
       );
 
-      this.enqueue("catalog", msg, () => {
-        resetTimeout();
-      });
+      this.device.sendRaw("catalog", msg);
+      resetTimeout();
     });
   }
 
-  /** A single tone catalog entry with full bank info. */
-
-  /**
-   * Request one page of tone names (up to `count` entries).
-   * Format: MSB LSB start count F7
-   */
   requestToneCatalogPage(
     msb: number,
     lsb: number,
@@ -615,9 +512,6 @@ export class IntegraService {
 
       const resetTimeout = () => {
         clearTimeout(timeoutId);
-        // Short timeout — if we requested 64 entries, the early completion
-        // fires as soon as we get them all. This timeout only matters for
-        // the last partial page of a bank.
         timeoutId = setTimeout(done, 500);
       };
 
@@ -662,16 +556,11 @@ export class IntegraService {
         handler as EventListener,
       );
 
-      this.enqueue(`tone-catalog:${msb}:${lsb}:${start}`, msg, () => {
-        resetTimeout();
-      });
+      this.device.sendRaw(`tone-catalog:${msb}:${lsb}:${start}`, msg);
+      resetTimeout();
     });
   }
 
-  /**
-   * Request all tone names for a specific LSB.
-   * Paginates with 2 pages of 64 entries each (covering PC 0-127).
-   */
   async requestToneCatalogForLsb(
     msb: number,
     lsb: number,
@@ -682,7 +571,7 @@ export class IntegraService {
   }
 
   // -----------------------------------------------------------------------
-  // Standard MIDI messages
+  // Standard MIDI messages (bypass queue — no throttle needed)
   // -----------------------------------------------------------------------
 
   sendNoteOn(channel: number, note: number, velocity: number): void {
@@ -700,20 +589,4 @@ export class IntegraService {
 
 function addressKey(address: number[]): string {
   return address.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-/** Decode nibblized FX parameters: each param is 4 nibble bytes → signed display value. */
-function decodeNibParams(data: Uint8Array, count: number): number[] {
-  const result: number[] = [];
-  for (let i = 0; i < count; i++) {
-    const off = i * 4;
-    if (off + 3 >= data.length) break;
-    const raw =
-      ((data[off]! & 0x0f) << 12) |
-      ((data[off + 1]! & 0x0f) << 8) |
-      ((data[off + 2]! & 0x0f) << 4) |
-      (data[off + 3]! & 0x0f);
-    result.push(raw - 32768);
-  }
-  return result;
 }

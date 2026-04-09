@@ -9,5 +9,6 @@ license.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-integral-core = { path = "../integral-core" }
+integral-core = { path = "../integral-core", features = ["serde"] }
+serde-wasm-bindgen = "0.6"
 wasm-bindgen = "0.2"
