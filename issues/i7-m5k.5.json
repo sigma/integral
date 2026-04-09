@@ -7,7 +7,8 @@
     "i7-3og.7",
     "i7-4dc.8",
     "i7-m5k.6",
-    "i7-m5k.7"
+    "i7-m5k.7",
+    "i7-svb.8"
   ],
   "created": "2026-04-09T19:03:49Z",
   "description": "React component: MFX type selector dropdown, dynamic knob grid that adapts to selected type using the parameter table. Knobs show proper labels/ranges/units per effect type. Include dry/wet and output assign controls.",
@@ -18,5 +19,5 @@
   "status": "open",
   "title": "Web: MfxEditor component with dynamic parameter grid",
   "type": "task",
-  "updated_at": "2026-04-09T19:05:15Z"
+  "updated_at": "2026-04-09T19:05:50Z"
 }
