@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-3og.1"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-3og.3"
+  ],
   "created": "2026-04-09T19:04:30Z",
   "description": "Parse SN-S common dump + 3 partial dumps into SnSynthState. Each partial has ~55 parameters. Common has ~14 parameters. Total read is split across multiple RQ1 blocks per the address map.",
   "id": "i7-3og.2",
