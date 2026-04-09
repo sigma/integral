@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T11:28:26Z",
+  "description": "",
+  "id": "i7-7nv.8",
+  "labels": [],
+  "parent": "i7-7nv",
+  "priority": 2,
+  "status": "open",
+  "title": "Replace IntegraService with thin MIDI bridge",
+  "type": "task",
+  "updated_at": "2026-04-09T11:28:26Z"
+}
