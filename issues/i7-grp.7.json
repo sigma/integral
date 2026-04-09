@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-grp.3"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-grp.8"
+  ],
   "created": "2026-04-09T19:07:06Z",
   "description": "Kit-level controls: name, phrase, and per-key common params (key assign, mute group, env mode). Reuse drum key selector from SN-D.",
   "id": "i7-grp.7",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "Web: PCMD common panel",
   "type": "task",
-  "updated_at": "2026-04-09T19:07:16Z"
+  "updated_at": "2026-04-09T19:07:17Z"
 }
