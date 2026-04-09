@@ -71,6 +71,51 @@ pub fn parse_master_eq_dump(data: &[u8]) -> EqState {
 }
 
 // ---------------------------------------------------------------------------
+// Motional Surround parsing
+// ---------------------------------------------------------------------------
+
+/// Parse the 13-byte Motional Surround common dump.
+pub fn parse_surround_common(data: &[u8]) -> super::SurroundState {
+    let mut s = super::SurroundState::default();
+    if data.len() < 13 {
+        return s;
+    }
+    s.enabled = data[0] == 1;
+    s.room_type = data[1];
+    s.ambience_level = data[2];
+    s.room_size = data[3];
+    s.ambience_time = data[4];
+    s.ambience_density = data[5];
+    s.ambience_hf_damp = data[6];
+    s.ext.lr = data[7];
+    s.ext.fb = data[8];
+    s.ext.width = data[9];
+    s.ext.ambience_send = data[10];
+    s.ext_control_channel = data[11];
+    s.depth = data[12];
+    s
+}
+
+/// Parse 4-byte per-part surround data (LR, FB, Width, AmbSend).
+///
+/// Note: the part block has LR at offset 0x44, FB at 0x46 (skipping 0x45),
+/// Width at 0x48, AmbSend at 0x49. So if reading from offset 0x44, the data
+/// at indices [0, 2, 4, 5] maps to [LR, FB, Width, AmbSend].
+pub fn parse_surround_part(
+    lr: u8,
+    fb: u8,
+    width: u8,
+    ambience_send: u8,
+) -> super::SurroundPartState {
+    super::SurroundPartState {
+        lr,
+        fb,
+        width,
+        ambience_send,
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Comp+EQ parsing
 // ---------------------------------------------------------------------------
 

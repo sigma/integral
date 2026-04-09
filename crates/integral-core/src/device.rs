@@ -417,6 +417,56 @@ impl DeviceState {
     }
 
     // -----------------------------------------------------------------------
+    // Motional Surround
+    // -----------------------------------------------------------------------
+
+    /// Set a Motional Surround common parameter.
+    pub fn set_surround_param(&mut self, param_offset: u8, value: u8) {
+        let s = &mut self.state.surround;
+        match param_offset {
+            0x00 => s.enabled = value == 1,
+            0x01 => s.room_type = value,
+            0x02 => s.ambience_level = value,
+            0x03 => s.room_size = value,
+            0x04 => s.ambience_time = value,
+            0x05 => s.ambience_density = value,
+            0x06 => s.ambience_hf_damp = value,
+            0x07 => s.ext.lr = value,
+            0x08 => s.ext.fb = value,
+            0x09 => s.ext.width = value,
+            0x0A => s.ext.ambience_send = value,
+            0x0B => s.ext_control_channel = value,
+            0x0C => s.depth = value,
+            _ => return,
+        }
+        let addr = params::surround_address(param_offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Set a per-part surround parameter.
+    pub fn set_part_surround_param(&mut self, part_idx: u8, param: [u8; 3], value: u8) {
+        let ps = &mut self.state.surround.parts[part_idx as usize];
+        match param {
+            params::part_surround::LR => ps.lr = value,
+            params::part_surround::FB => ps.fb = value,
+            params::part_surround::WIDTH => ps.width = value,
+            params::part_surround::AMBIENCE_SEND => ps.ambience_send = value,
+            _ => return,
+        }
+        let addr = params::part_address(part_idx, param);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Build an RQ1 to read the Motional Surround common block (13 bytes).
+    pub fn build_surround_common_request(&self) -> Vec<u8> {
+        sysex::build_rq1(
+            self.device_id,
+            &params::SURROUND_BASE,
+            &params::SURROUND_COMMON_SIZE,
+        )
+    }
+
+    // -----------------------------------------------------------------------
     // Drum Comp+EQ
     // -----------------------------------------------------------------------
 

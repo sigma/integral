@@ -140,6 +140,83 @@ impl Default for PartState {
 }
 
 // ---------------------------------------------------------------------------
+// Motional Surround
+// ---------------------------------------------------------------------------
+
+/// Per-part surround positioning.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct SurroundPartState {
+    /// L-R position (0–127, display: −64 to +63).
+    pub lr: u8,
+    /// F-B position (0–127, display: −64 to +63).
+    pub fb: u8,
+    /// Width (0–32).
+    pub width: u8,
+    /// Ambience send level (0–127).
+    pub ambience_send: u8,
+}
+
+impl Default for SurroundPartState {
+    fn default() -> Self {
+        Self {
+            lr: 64,
+            fb: 64,
+            width: 16,
+            ambience_send: 0,
+        }
+    }
+}
+
+/// Motional Surround global state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct SurroundState {
+    /// Global on/off.
+    pub enabled: bool,
+    /// Room type (0–3: ROOM1, ROOM2, HALL1, HALL2).
+    pub room_type: u8,
+    /// Room size (0–2: SMALL, MEDIUM, LARGE).
+    pub room_size: u8,
+    /// Depth (0–100).
+    pub depth: u8,
+    /// Ambience level (0–127).
+    pub ambience_level: u8,
+    /// Ambience time (0–100).
+    pub ambience_time: u8,
+    /// Ambience density (0–100).
+    pub ambience_density: u8,
+    /// Ambience HF damp (0–100).
+    pub ambience_hf_damp: u8,
+    /// Per-part positioning (16 parts).
+    pub parts: [SurroundPartState; NUM_PARTS],
+    /// Ext part positioning.
+    pub ext: SurroundPartState,
+    /// Ext part control channel (0–16: 1–16, OFF).
+    pub ext_control_channel: u8,
+}
+
+impl Default for SurroundState {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            room_type: 0,
+            room_size: 1,
+            depth: 50,
+            ambience_level: 64,
+            ambience_time: 50,
+            ambience_density: 50,
+            ambience_hf_damp: 50,
+            parts: std::array::from_fn(|_| SurroundPartState::default()),
+            ext: SurroundPartState::default(),
+            ext_control_channel: 16, // OFF
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Drum Comp+EQ
 // ---------------------------------------------------------------------------
 
@@ -255,6 +332,8 @@ pub struct MixerState {
     pub ext_muted: bool,
     /// Master EQ settings.
     pub master_eq: EqState,
+    /// Motional Surround state.
+    pub surround: SurroundState,
     /// Drum Comp+EQ (6 units, assigned to one part).
     pub drum_comp_eq: DrumCompEqState,
     /// All 64 Studio Set names (indexed 0–63).  Populated via catalog query.
@@ -274,6 +353,7 @@ impl Default for MixerState {
             ext_level: 100,
             ext_muted: false,
             master_eq: EqState::default(),
+            surround: SurroundState::default(),
             drum_comp_eq: DrumCompEqState::default(),
             studio_set_names: HashMap::new(),
         }
