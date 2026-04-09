@@ -9,14 +9,15 @@
   "blocks": [
     "i7-3og.8"
   ],
+  "closed_at": "2026-04-09T19:38:54Z",
   "created": "2026-04-09T19:04:30Z",
   "description": "Container page: partial tab selector (1/2/3), common panel, per-partial panels, MFX tab. Load SN-S state on entry (detect tone type from bank MSB). Wire all setters. Navigate from mixer part click.",
   "id": "i7-3og.7",
   "labels": [],
   "parent": "i7-3og",
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Web: SN-S tone editor page shell",
   "type": "task",
-  "updated_at": "2026-04-09T19:04:40Z"
+  "updated_at": "2026-04-09T19:38:54Z"
 }
