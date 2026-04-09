@@ -147,6 +147,8 @@ export interface MixerState {
   studioSetPC: number;
   /** System master level (0–127). */
   masterLevel: number;
+  /** Solo Part (0=OFF, 1–16=Part 1–16). */
+  soloPart: number;
   /** All 16 parts. */
   parts: PartState[];
   /** Currently selected part index (0–15). */
@@ -194,6 +196,7 @@ export function defaultMixerState(): MixerState {
     studioSetName: "",
     studioSetPC: 0,
     masterLevel: 100,
+    soloPart: 0,
     parts: Array.from({ length: 16 }, () => defaultPartState()),
     selectedPart: 0,
     chorus: defaultFxState(),

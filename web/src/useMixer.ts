@@ -22,6 +22,7 @@ export interface UseMixerResult {
   setPartLevel: (part: number, value: number) => void;
   setPartPan: (part: number, value: number) => void;
   togglePartMute: (part: number) => void;
+  toggleSolo: (part: number) => void;
   changePartTone: (part: number, msb: number, lsb: number, pc: number) => void;
   setPartReceiveChannel: (part: number, channel: number) => void;
   setPartChorusSend: (part: number, value: number) => void;
@@ -68,6 +69,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
       studioSetName: rs.studioSetName ?? "",
       studioSetPC: rs.studioSetPC ?? 0,
       masterLevel: rs.masterLevel ?? 100,
+      soloPart: rs.soloPart ?? 0,
       parts: (rs.parts ?? []).map((p: PartState) => p),
       chorus: rs.chorus ?? prev.chorus,
       reverb: rs.reverb ?? prev.reverb,
@@ -106,10 +108,11 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
       setState((prev) => ({ ...prev, loading: true }));
 
       try {
-        const [name, studioSetPC, masterLevel] = await Promise.all([
+        const [name, studioSetPC, masterLevel, soloPart] = await Promise.all([
           svc.requestStudioSetName(),
           svc.requestStudioSetPC(),
           svc.requestMasterLevel(),
+          svc.requestSoloPart(),
         ]);
 
         if (!isCurrent()) return;
@@ -117,6 +120,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
         dev.setStudioSetName(name);
         dev.setStudioSetPc(studioSetPC);
         dev.applyMasterLevel(masterLevel);
+        dev.setSoloPart(soloPart);
 
         for (let i = 0; i < 16; i++) {
           try {
@@ -263,6 +267,14 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   const togglePartMute = useCallback(
     (part: number) => {
       service?.device.togglePartMute(part);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
+  const toggleSolo = useCallback(
+    (part: number) => {
+      service?.device.toggleSolo(part);
       syncFromRust();
     },
     [service, syncFromRust],
@@ -479,6 +491,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     setPartLevel,
     setPartPan,
     togglePartMute,
+    toggleSolo,
     changePartTone,
     setPartReceiveChannel,
     setPartChorusSend,

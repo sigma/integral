@@ -223,6 +223,9 @@ pub const MASTER_EQ_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x07);
 /// Master EQ Switch — in the Studio Set Common block at offset `00 42`.
 pub const MASTER_EQ_SWITCH: Address = Address::new(0x18, 0x00, 0x00, 0x42);
 
+/// Solo Part — Studio Set Common offset `00 3F`. Value 0=OFF, 1–16=Part 1–16.
+pub const SOLO_PART: Address = Address::new(0x18, 0x00, 0x00, 0x3F);
+
 // ---------------------------------------------------------------------------
 // Drum Comp/EQ (Studio Set Common + Temporary Tone)
 // ---------------------------------------------------------------------------

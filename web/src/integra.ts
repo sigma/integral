@@ -413,6 +413,14 @@ export class IntegraService {
     return data[0]!;
   }
 
+  async requestSoloPart(): Promise<number> {
+    const data = await this.requestData(
+      [0x18, 0x00, 0x00, 0x3F],
+      [0x00, 0x00, 0x00, 0x01],
+    );
+    return data[0]!;
+  }
+
   async requestStudioSetName(): Promise<string> {
     const data = await this.requestData(
       Array.from(studio_set_name_address()),

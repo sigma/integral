@@ -960,6 +960,16 @@ impl WasmDeviceState {
         self.inner.switch_studio_set(pc);
     }
 
+    #[wasm_bindgen(js_name = toggleSolo)]
+    pub fn toggle_solo(&mut self, part: u8) {
+        self.inner.toggle_solo(part);
+    }
+
+    #[wasm_bindgen(js_name = setSoloPart)]
+    pub fn set_solo_part(&mut self, value: u8) {
+        self.inner.set_solo_part(value);
+    }
+
     // -- RQ1 builders (return bytes to send) -------------------------------
 
     #[wasm_bindgen(js_name = buildPartMixerRequest)]

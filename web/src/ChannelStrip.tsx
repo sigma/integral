@@ -50,6 +50,8 @@ interface Props {
   onLevelChange?: (value: number) => void;
   onPanChange?: (value: number) => void;
   onMuteToggle?: () => void;
+  soloed?: boolean;
+  onSoloToggle?: () => void;
   onChorusSendChange?: (value: number) => void;
   onReverbSendChange?: (value: number) => void;
   onReceiveChannelChange?: (channel: number) => void;
@@ -93,6 +95,8 @@ export function ChannelStrip({
   onLevelChange,
   onPanChange,
   onMuteToggle,
+  soloed,
+  onSoloToggle,
   onChorusSendChange,
   onReverbSendChange,
   onReceiveChannelChange,
@@ -234,13 +238,22 @@ export function ChannelStrip({
         </>
       ) : (
         <>
-          <button
-            className={`${css.muteButton} ${isMuted ? css.muted : ""}`}
-            onClick={onMuteToggle ?? noop}
-            style={hideIf(showMute)}
-          >
-            M
-          </button>
+          <div className={css.muteRow} style={hideIf(showMute)}>
+            <button
+              className={`${css.muteButton} ${isMuted ? css.muted : ""}`}
+              onClick={onMuteToggle ?? noop}
+            >
+              M
+            </button>
+            {isPart && (
+              <button
+                className={`${css.muteButton} ${soloed ? css.soloed : ""}`}
+                onClick={onSoloToggle ?? noop}
+              >
+                S
+              </button>
+            )}
+          </div>
           {isPart ? (
             <button
               className={`${css.compEqButton} ${compEqAssigned ? css.compOn : ""}`}

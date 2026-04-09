@@ -241,6 +241,8 @@ pub struct MixerState {
     pub studio_set_pc: u8,
     /// System master level (0–127).
     pub master_level: u8,
+    /// Solo Part (0=OFF, 1–16=Part 1–16).
+    pub solo_part: u8,
     /// All 16 parts.
     pub parts: [PartState; NUM_PARTS],
     /// Chorus (FX1) state.
@@ -265,6 +267,7 @@ impl Default for MixerState {
             studio_set_name: String::new(),
             studio_set_pc: 0,
             master_level: 100,
+            solo_part: 0,
             parts: std::array::from_fn(|_| PartState::default()),
             chorus: FxState::default(),
             reverb: FxState::default(),

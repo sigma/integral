@@ -101,6 +101,19 @@
   box-shadow: 0 0 6px rgba(255, 68, 68, 0.3);
 }
 
+.soloed {
+  background: #4a4a1a;
+  color: #ffdd44;
+  border-color: #ffdd44;
+  box-shadow: 0 0 6px rgba(255, 221, 68, 0.3);
+}
+
+.muteRow {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
 .faderArea {
   position: relative;
   display: flex;

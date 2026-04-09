@@ -388,6 +388,24 @@ impl DeviceState {
         self.send_dt1(&params::EXT_PART_MUTE, &[u8::from(self.state.ext_muted)]);
     }
 
+    /// Set the Solo Part (0=OFF, 1–16=solo that part).
+    pub fn set_solo_part(&mut self, value: u8) {
+        self.state.solo_part = value;
+        self.send_dt1(&params::SOLO_PART, &[value]);
+    }
+
+    /// Toggle solo for a part (0-indexed).
+    ///
+    /// If the part is already soloed, turns solo off.
+    /// Otherwise, solos that part (exclusive — only one at a time).
+    pub fn toggle_solo(&mut self, part: u8) {
+        if self.state.solo_part == part + 1 {
+            self.set_solo_part(0);
+        } else {
+            self.set_solo_part(part + 1);
+        }
+    }
+
     /// Switch studio set by program change.
     ///
     /// Sends BS MSB=85, BS LSB=0, PC=pc.
