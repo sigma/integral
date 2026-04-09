@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:03:49Z",
+  "description": "UI for 4 MFX Control slots: source selector (CC, pitch bend, aftertouch, etc.), destination selector (varies by MFX type), sense (-63 to +63), depth. Show which parameters are controllable (marked with # in docs).",
+  "id": "i7-m5k.6",
+  "labels": [],
+  "parent": "i7-m5k",
+  "priority": 2,
+  "status": "open",
+  "title": "Web: MFX Control panel (4 slots)",
+  "type": "task",
+  "updated_at": "2026-04-09T19:03:49Z"
+}
