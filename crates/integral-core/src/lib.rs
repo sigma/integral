@@ -8,3 +8,4 @@ pub mod address;
 pub mod catalog;
 pub mod params;
 pub mod sysex;
+pub mod tone_banks;
