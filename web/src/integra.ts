@@ -372,6 +372,36 @@ export class IntegraService {
   }
 
   // -----------------------------------------------------------------------
+  // Drum Comp+EQ
+  // -----------------------------------------------------------------------
+
+  /** Read Drum Comp+EQ common params: switch (0x43), part (0x44), 6 output assigns (0x45-0x4A). */
+  async requestDrumCompEqCommon(): Promise<{ enabled: boolean; part: number; outputAssigns: number[] }> {
+    // Read 8 bytes from 0x43 to 0x4A inclusive.
+    const data = await this.requestData(
+      [0x18, 0x00, 0x00, 0x43],
+      [0x00, 0x00, 0x00, 0x08],
+    );
+    return {
+      enabled: data[0] === 1,
+      part: data[1] ?? 9,
+      outputAssigns: [data[2] ?? 0, data[3] ?? 0, data[4] ?? 0, data[5] ?? 0, data[6] ?? 0, data[7] ?? 0],
+    };
+  }
+
+  /** Read the full 84-byte Comp+EQ block for the given part index. */
+  async requestCompEqBlock(partIndex: number): Promise<Uint8Array> {
+    // Address: temporary_tone_base(partIndex) + 00 08 00 00
+    const total = partIndex * 0x20;
+    const byte0 = 0x19 + Math.floor(total / 128);
+    const byte1 = total % 128;
+    return this.requestData(
+      [byte0, byte1, 0x08, 0x00],
+      [0x00, 0x00, 0x00, 0x54],
+    );
+  }
+
+  // -----------------------------------------------------------------------
   // Request helpers (read from device)
   // -----------------------------------------------------------------------
 

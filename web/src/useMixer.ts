@@ -198,6 +198,19 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
           syncFromRust();
         }).catch(() => {});
 
+        // Drum Comp+EQ
+        svc.requestDrumCompEqCommon().then(({ enabled, part, outputAssigns }) => {
+          if (!isCurrent()) return;
+          dev.applyDrumCompEqCommon(enabled, part, new Uint8Array(outputAssigns));
+          // Read the 6 units from the assigned part's tone block.
+          svc.requestCompEqBlock(part).then((blockData) => {
+            if (!isCurrent()) return;
+            dev.applyCompEqBlock(blockData);
+            syncFromRust();
+          }).catch(() => {});
+          syncFromRust();
+        }).catch(() => {});
+
       } catch {
         setState((prev) => ({ ...prev, loading: false }));
       }
