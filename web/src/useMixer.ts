@@ -40,6 +40,11 @@ export interface UseMixerResult {
   toggleReverbSwitch: () => void;
   setExtLevel: (value: number) => void;
   toggleExtMute: () => void;
+  setSurroundParam: (paramOffset: number, value: number) => void;
+  setPartSurroundLr: (part: number, value: number) => void;
+  setPartSurroundFb: (part: number, value: number) => void;
+  setPartSurroundWidth: (part: number, value: number) => void;
+  setPartSurroundAmbienceSend: (part: number, value: number) => void;
   setDrumCompEqSwitch: (enabled: boolean) => void;
   setDrumCompEqPart: (part: number) => void;
   setDrumCompEqOutputAssign: (unit: number, value: number) => void;
@@ -76,6 +81,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
       extLevel: rs.extLevel ?? 100,
       extMuted: rs.extMuted ?? false,
       masterEq: rs.masterEq ?? prev.masterEq,
+      surround: rs.surround ?? prev.surround,
       drumCompEq: rs.drumCompEq ?? prev.drumCompEq,
       // UI-only fields preserved from React state.
       selectedPart: prev.selectedPart,
@@ -204,6 +210,21 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
           dev.applyReverbCore(core);
           dev.setReverbEnabled(enabled);
           dev.applyReverbParams(Int32Array.from(params));
+          syncFromRust();
+        }).catch(() => {});
+
+        // Motional Surround
+        svc.requestSurroundCommon().then((data) => {
+          if (!isCurrent()) return;
+          dev.applySurroundCommon(data);
+          // Load per-part surround positioning.
+          for (let i = 0; i < 16; i++) {
+            svc.requestPartSurround(i).then(({ lr, fb, width, ambienceSend }) => {
+              if (!isCurrent()) return;
+              dev.applyPartSurround(i, lr, fb, width, ambienceSend);
+              syncFromRust();
+            }).catch(() => {});
+          }
           syncFromRust();
         }).catch(() => {});
 
@@ -434,6 +455,48 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     syncFromRust();
   }, [service, syncFromRust]);
 
+  // --- Motional Surround ---
+
+  const setSurroundParam = useCallback(
+    (paramOffset: number, value: number) => {
+      service?.device.setSurroundParam(paramOffset, value);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
+  const setPartSurroundLr = useCallback(
+    (part: number, value: number) => {
+      service?.device.setPartSurroundLr(part, value);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
+  const setPartSurroundFb = useCallback(
+    (part: number, value: number) => {
+      service?.device.setPartSurroundFb(part, value);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
+  const setPartSurroundWidth = useCallback(
+    (part: number, value: number) => {
+      service?.device.setPartSurroundWidth(part, value);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
+  const setPartSurroundAmbienceSend = useCallback(
+    (part: number, value: number) => {
+      service?.device.setPartSurroundAmbienceSend(part, value);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
   // --- Drum Comp+EQ ---
 
   const setDrumCompEqSwitch = useCallback(
@@ -509,6 +572,11 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     toggleReverbSwitch,
     setExtLevel,
     toggleExtMute,
+    setSurroundParam,
+    setPartSurroundLr,
+    setPartSurroundFb,
+    setPartSurroundWidth,
+    setPartSurroundAmbienceSend,
     setDrumCompEqSwitch,
     setDrumCompEqPart,
     setDrumCompEqOutputAssign,

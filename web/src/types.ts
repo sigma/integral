@@ -139,6 +139,49 @@ export function defaultDrumCompEqState(): DrumCompEqState {
   };
 }
 
+/** Per-part surround positioning. */
+export interface SurroundPartState {
+  lr: number;
+  fb: number;
+  width: number;
+  ambienceSend: number;
+}
+
+/** Motional Surround global state. */
+export interface SurroundState {
+  enabled: boolean;
+  roomType: number;
+  roomSize: number;
+  depth: number;
+  ambienceLevel: number;
+  ambienceTime: number;
+  ambienceDensity: number;
+  ambienceHfDamp: number;
+  parts: SurroundPartState[];
+  ext: SurroundPartState;
+  extControlChannel: number;
+}
+
+function defaultSurroundPartState(): SurroundPartState {
+  return { lr: 64, fb: 64, width: 16, ambienceSend: 0 };
+}
+
+export function defaultSurroundState(): SurroundState {
+  return {
+    enabled: false,
+    roomType: 0,
+    roomSize: 1,
+    depth: 50,
+    ambienceLevel: 64,
+    ambienceTime: 50,
+    ambienceDensity: 50,
+    ambienceHfDamp: 50,
+    parts: Array.from({ length: 16 }, () => defaultSurroundPartState()),
+    ext: defaultSurroundPartState(),
+    extControlChannel: 16,
+  };
+}
+
 /** Full mixer state. */
 export interface MixerState {
   /** Studio Set name (up to 16 ASCII chars). */
@@ -163,6 +206,8 @@ export interface MixerState {
   extMuted: boolean;
   /** Master EQ settings. */
   masterEq: EqState;
+  /** Motional Surround state. */
+  surround: SurroundState;
   /** Drum Comp+EQ (6 units, assigned to one part). */
   drumCompEq: DrumCompEqState;
   /** Whether the EQ section is expanded in all strips. */
@@ -204,6 +249,7 @@ export function defaultMixerState(): MixerState {
     extLevel: 100,
     extMuted: false,
     masterEq: defaultEqState(),
+    surround: defaultSurroundState(),
     drumCompEq: defaultDrumCompEqState(),
     eqExpanded: false,
     loading: true,

@@ -402,6 +402,41 @@ export class IntegraService {
   }
 
   // -----------------------------------------------------------------------
+  // Motional Surround
+  // -----------------------------------------------------------------------
+
+  /** Read the 13-byte Motional Surround common block. */
+  async requestSurroundCommon(): Promise<Uint8Array> {
+    return this.requestData(
+      [0x18, 0x00, 0x08, 0x00],
+      [0x00, 0x00, 0x00, 0x0D],
+    );
+  }
+
+  /** Read per-part surround params (LR at 0x44, FB at 0x46, Width at 0x48, AmbSend at 0x49). */
+  async requestPartSurround(part: number): Promise<{ lr: number; fb: number; width: number; ambienceSend: number }> {
+    // Read 6 bytes from offset 0x44 to cover LR(44), ??(45), FB(46), ??(47), Width(48), AmbSend(49)
+    const addr = this.partSurroundAddress(part);
+    const data = await this.requestData(addr, [0x00, 0x00, 0x00, 0x06]);
+    return {
+      lr: data[0] ?? 64,
+      fb: data[2] ?? 64,
+      width: data[4] ?? 16,
+      ambienceSend: data[5] ?? 0,
+    };
+  }
+
+  private partSurroundAddress(part: number): number[] {
+    // Part surround LR is at part block offset 0x44
+    // Part block base in Studio Set: 18 00 {20+part} 00
+    // But we need 7-bit address arithmetic...
+    // Studio Set base: 18 00 00 00
+    // Part N offset: 00 {20 + N} 00 00 (each part is 0x01 apart in byte 2)
+    // So Part 0 = 18 00 20 44, Part 1 = 18 00 21 44, etc.
+    return [0x18, 0x00, 0x20 + part, 0x44];
+  }
+
+  // -----------------------------------------------------------------------
   // Request helpers (read from device)
   // -----------------------------------------------------------------------
 
