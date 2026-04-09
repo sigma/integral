@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:06:27Z",
+  "description": "Per-partial dual LFOs: shape, rate, fade mode/time, delay, pitch/TVF/TVA depth, key follow. Step LFO: 16-step sequencer with visual step editor. Rate sync to tempo.",
+  "id": "i7-9q7.9",
+  "labels": [],
+  "parent": "i7-9q7",
+  "priority": 2,
+  "status": "open",
+  "title": "Web: PCMS LFO panel (LFO1, LFO2, Step LFO)",
+  "type": "task",
+  "updated_at": "2026-04-09T19:06:27Z"
+}
