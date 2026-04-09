@@ -5,6 +5,7 @@ interface Props {
   value: number;
   onChange: (value: number) => void;
   label?: string;
+  style?: React.CSSProperties;
 }
 
 function valueToAngle(value: number): number {
@@ -17,7 +18,7 @@ function formatPan(value: number): string {
   return `R${value - 64}`;
 }
 
-export function PanKnob({ value, onChange, label = "PAN" }: Props) {
+export function PanKnob({ value, onChange, label = "PAN", style }: Props) {
   const dragging = useRef(false);
   const lastY = useRef(0);
 
@@ -49,7 +50,7 @@ export function PanKnob({ value, onChange, label = "PAN" }: Props) {
   const angle = valueToAngle(value);
 
   return (
-    <div className={css.container}>
+    <div className={css.container} style={style}>
       <span className={css.label}>{label}</span>
       <svg
         className={css.knob}

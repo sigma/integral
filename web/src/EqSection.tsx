@@ -33,6 +33,7 @@ interface Props {
   /** Offset added to all param indices. Part EQ has switch at 0 so params start at 1.
    *  Master EQ has no switch so params start at 0. Default: 1 (Part EQ). */
   paramBase?: number;
+  style?: React.CSSProperties;
 }
 
 interface DividerLines {
@@ -45,7 +46,7 @@ interface DividerLines {
   loLabel: { x: number; y: number };
 }
 
-export function EqSection({ eq, onToggleSwitch, onParam, showSwitch = true, paramBase = 1 }: Props) {
+export function EqSection({ eq, onToggleSwitch, onParam, showSwitch = true, paramBase = 1, style }: Props) {
   const knobAreaRef = useRef<HTMLDivElement>(null);
   const knobRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [lines, setLines] = useState<DividerLines | null>(null);
@@ -120,7 +121,7 @@ export function EqSection({ eq, onToggleSwitch, onParam, showSwitch = true, para
   }, [measure]);
 
   return (
-    <div className={css.section}>
+    <div className={css.section} style={style}>
       {showSwitch && (
         <button
           className={`${css.switchButton} ${eq.enabled ? css.switchOn : css.switchOff}`}

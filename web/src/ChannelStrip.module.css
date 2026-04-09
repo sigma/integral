@@ -97,6 +97,16 @@
   margin-top: auto;
 }
 
+.extOverride {
+  border-right: none;
+  border-left: 1px solid #2a4a2a;
+}
+
+.masterOverride {
+  border-right: none;
+  border-left: 2px solid #3a3a5a;
+}
+
 .toneName {
   position: absolute;
   left: 4px;

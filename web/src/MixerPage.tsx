@@ -2,8 +2,7 @@ import { TopBar } from "./TopBar";
 import { PartSelector } from "./PartSelector";
 import { ChannelStrip } from "./ChannelStrip";
 import { FxStrip } from "./FxStrip";
-import { ExStrip } from "./ExStrip";
-import { MasterStrip } from "./MasterStrip";
+// ExStrip and MasterStrip are now ChannelStrip variants.
 import {
   CHORUS_PARAMS,
   CHORUS_TYPE_NAMES,
@@ -84,6 +83,15 @@ export function MixerPage({ mixer, service }: Props) {
               />
             ))}
           </div>
+          <ChannelStrip
+            variant="ext"
+            label="EX"
+            level={state.extLevel}
+            muted={state.extMuted}
+            eqExpanded={state.eqExpanded}
+            onLevelChange={mixer.setExtLevel}
+            onMuteToggle={mixer.toggleExtMute}
+          />
           <FxStrip
             label="FX1"
             fx={state.chorus}
@@ -106,17 +114,13 @@ export function MixerPage({ mixer, service }: Props) {
             onParam={mixer.setReverbParam}
             onNibParam={mixer.setReverbNibParam}
           />
-          <ExStrip
-            level={state.extLevel}
-            muted={state.extMuted}
-            onLevelChange={mixer.setExtLevel}
-            onMuteToggle={mixer.toggleExtMute}
-          />
-          <MasterStrip
-            value={state.masterLevel}
-            onChange={mixer.setMasterLevel}
+          <ChannelStrip
+            variant="master"
+            label="Master"
+            level={state.masterLevel}
             eq={state.masterEq}
             eqExpanded={state.eqExpanded}
+            onLevelChange={mixer.setMasterLevel}
             onEqToggle={mixer.toggleMasterEqSwitch}
             onEqParam={mixer.setMasterEqParam}
           />
