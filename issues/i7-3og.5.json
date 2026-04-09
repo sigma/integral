@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-3og.3"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-3og.7"
+  ],
   "created": "2026-04-09T19:04:30Z",
   "description": "Per-partial tabbed panel. OSC section: waveform selector (SAW/SQR/PW-SQR/TRI/SINE/NOISE/SP-SAW/PCM), pitch controls (coarse/fine), pulse width, super saw detune. Filter section: type selector (6 modes), cutoff, resonance, envelope (A/D/S/R), key follow. Amp section: level, velocity, envelope (A/D/S/R). Build as one component, instantiate 3 times.",
   "id": "i7-3og.5",
