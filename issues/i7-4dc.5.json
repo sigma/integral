@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-4dc.4"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-4dc.8"
+  ],
   "created": "2026-04-09T19:05:08Z",
   "description": "UI for common params: Tone Level, Mono/Poly, Octave Shift, Cutoff/Resonance/Attack/Release offsets, Portamento Time, Vibrato Rate/Depth/Delay. Note: some params don't apply to TW Organ.",
   "id": "i7-4dc.5",
