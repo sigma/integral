@@ -8,6 +8,7 @@ pub mod address;
 pub mod catalog;
 pub mod device;
 pub mod fx_params;
+pub mod mfx;
 pub mod params;
 pub mod state;
 pub mod sysex;
