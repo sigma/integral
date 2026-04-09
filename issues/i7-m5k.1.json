@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:03:49Z",
+  "description": "Add MFX block address constants for all tone types (each tone type stores MFX at a different offset within the temporary tone block). Add MfxState struct: type (0-67), params Vec, dry/wet, output assign. Add MfxCtrlState: 4 control sources with source/destination/sense/depth.",
+  "id": "i7-m5k.1",
+  "labels": [],
+  "parent": "i7-m5k",
+  "priority": 2,
+  "status": "open",
+  "title": "Core: MFX address map and state types",
+  "type": "task",
+  "updated_at": "2026-04-09T19:03:49Z"
+}
