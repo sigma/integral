@@ -4,7 +4,8 @@
     "i7-18x.2"
   ],
   "blocks": [
-    "i7-18x.4"
+    "i7-18x.4",
+    "i7-18x.5"
   ],
   "created": "2026-04-09T12:18:38Z",
   "description": "During useMixer loadState, if the Drum Comp+EQ Part setting points to a drum kit part, bulk-read the 6 Comp+EQ units from the temporary tone block. Store in MixerState. Re-read when studio set changes.",
