@@ -7,14 +7,15 @@
     "i7-18x.4",
     "i7-18x.5"
   ],
+  "closed_at": "2026-04-09T16:06:51Z",
   "created": "2026-04-09T12:18:38Z",
   "description": "During useMixer loadState, if the Drum Comp+EQ Part setting points to a drum kit part, bulk-read the 6 Comp+EQ units from the temporary tone block. Store in MixerState. Re-read when studio set changes.",
   "id": "i7-18x.3",
   "labels": [],
   "parent": "i7-18x",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Read Comp+EQ state from device on mixer load",
   "type": "task",
-  "updated_at": "2026-04-09T16:05:31Z"
+  "updated_at": "2026-04-09T16:06:51Z"
 }
