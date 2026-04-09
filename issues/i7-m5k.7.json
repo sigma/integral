@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-m5k.5"
+  ],
   "blocks": [],
   "created": "2026-04-09T19:03:49Z",
   "description": "Add MFX tab to the tone editor shell. Load MFX state when entering tone edit. Wire setters. Show MFX editor + MFX Control as sub-tabs or sections.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Web: integrate MFX editor into tone edit page",
   "type": "task",
-  "updated_at": "2026-04-09T19:03:49Z"
+  "updated_at": "2026-04-09T19:03:56Z"
 }
