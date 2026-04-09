@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-9q7.2"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-9q7.4"
+  ],
   "created": "2026-04-09T19:06:26Z",
   "description": "WASM bindings for PCMS state read/write, per-partial param setters, structure type, matrix control slots.",
   "id": "i7-9q7.3",

@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-9q7.3"
+  ],
   "blocks": [],
   "created": "2026-04-09T19:06:26Z",
   "description": "Tone level, structure type selector (visual diagram showing how 4 partials connect: series, parallel, ring combos), portamento, legato, octave shift, pitch env.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Web: PCMS Common panel",
   "type": "task",
-  "updated_at": "2026-04-09T19:06:26Z"
+  "updated_at": "2026-04-09T19:06:37Z"
 }
