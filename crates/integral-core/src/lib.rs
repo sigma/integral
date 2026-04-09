@@ -8,5 +8,6 @@ pub mod address;
 pub mod catalog;
 pub mod fx_params;
 pub mod params;
+pub mod state;
 pub mod sysex;
 pub mod tone_banks;
