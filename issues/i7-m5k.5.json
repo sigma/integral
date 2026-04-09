@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [
     "i7-m5k.4"
   ],
@@ -18,8 +18,8 @@
   "labels": [],
   "parent": "i7-m5k",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Web: MfxEditor component with dynamic parameter grid",
   "type": "task",
-  "updated_at": "2026-04-09T19:07:17Z"
+  "updated_at": "2026-04-09T19:27:36Z"
 }
