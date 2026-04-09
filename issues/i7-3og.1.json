@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-3og.2"
+  ],
   "created": "2026-04-09T19:04:30Z",
   "description": "Add address constants for SN-S tone block (Common at offset 00 00 00, Partial 1-3, MFX). SN-S has: Common (ring, wave shape, unison, portamento, tone level, 14 params), per-partial OSC (waveform, pitch, PW, detune, 8 params), Filter (type, cutoff, reso, env, key follow, 12 params), Amp (level, vel, env, 8 params), LFO (shape, rate, fade, delay, pitch/filter/amp depth, 10 params), Mod LFO (9 params), Aftertouch (2 params), Misc (6 params). Add SnSynthState, SnSynthPartialState structs.",
   "id": "i7-3og.1",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Core: SN-S address map and state types",
   "type": "task",
-  "updated_at": "2026-04-09T19:04:30Z"
+  "updated_at": "2026-04-09T19:04:40Z"
 }
