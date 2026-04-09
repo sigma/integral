@@ -2,13 +2,14 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-09T18:40:18Z",
   "created": "2026-04-08T16:58:12Z",
   "description": "Add Motional Surround support: tab navigation, XY pad for 16-part spatial positioning, global room controls, per-part width/ambience, AMB send in mixer strips.",
   "id": "i7-i6w",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Motional Surround: XY pad positioning and surround page",
   "type": "epic",
-  "updated_at": "2026-04-08T16:58:12Z"
+  "updated_at": "2026-04-09T18:40:18Z"
 }
