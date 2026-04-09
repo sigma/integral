@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-9q7.3"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-9q7.12"
+  ],
   "created": "2026-04-09T19:06:27Z",
   "description": "4 control slots: source (CC1-95, pitch bend, aftertouch, sys ctrl 1-4, velocity, key follow, tempo, LFO1/2), destination (long list of tone params), sense, depth. Table-style UI. Destination list depends on what params exist.",
   "id": "i7-9q7.10",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "Web: PCMS Matrix Control panel",
   "type": "task",
-  "updated_at": "2026-04-09T19:06:37Z"
+  "updated_at": "2026-04-09T19:06:38Z"
 }
