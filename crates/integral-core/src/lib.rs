@@ -11,6 +11,7 @@ pub mod fx_params;
 pub mod mfx;
 pub mod mfx_params;
 pub mod params;
+pub mod sn_synth;
 pub mod state;
 pub mod sysex;
 pub mod tone_banks;
