@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:05:08Z",
+  "description": "Parse SN-A common dump + instrument block into SnAcousticState. Detect instrument type from the loaded tone to select correct parameter interpretation.",
+  "id": "i7-4dc.3",
+  "labels": [],
+  "parent": "i7-4dc",
+  "priority": 2,
+  "status": "open",
+  "title": "Core: SN-A parse functions",
+  "type": "task",
+  "updated_at": "2026-04-09T19:05:08Z"
+}
