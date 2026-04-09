@@ -6,7 +6,8 @@
   ],
   "blocks": [
     "i7-svb.5",
-    "i7-svb.6"
+    "i7-svb.6",
+    "i7-svb.7"
   ],
   "created": "2026-04-09T19:05:42Z",
   "description": "WASM bindings for SN-D state read/write, instrument list lookup, per-note param setters.",
