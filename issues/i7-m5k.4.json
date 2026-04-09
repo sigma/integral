@@ -4,7 +4,9 @@
     "i7-m5k.2",
     "i7-m5k.3"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-m5k.5"
+  ],
   "created": "2026-04-09T19:03:49Z",
   "description": "WASM bindings for MFX state read/write, parameter table lookup, and DeviceState MFX setters. Include build request for bulk MFX read.",
   "id": "i7-m5k.4",
