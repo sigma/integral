@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:05:08Z",
+  "description": "Container: common panel, instrument panel, MFX tab. Load SN-A state on entry. Wire setters. Detect instrument type change and reload parameter table.",
+  "id": "i7-4dc.8",
+  "labels": [],
+  "parent": "i7-4dc",
+  "priority": 2,
+  "status": "open",
+  "title": "Web: SN-A tone editor page shell",
+  "type": "task",
+  "updated_at": "2026-04-09T19:05:08Z"
+}
