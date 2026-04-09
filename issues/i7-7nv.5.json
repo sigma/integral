@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-7nv.1"
+  ],
   "blocks": [],
   "created": "2026-04-09T11:28:26Z",
   "description": "",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Wire web frontend to Rust types and parsing via WASM",
   "type": "task",
-  "updated_at": "2026-04-09T11:28:26Z"
+  "updated_at": "2026-04-09T11:28:33Z"
 }
