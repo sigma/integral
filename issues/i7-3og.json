@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:04:05Z",
+  "description": "3-partial virtual analog synth editor. OSC, Filter, Amp, LFO per partial. Ring mod, wave shape, unison common controls.",
+  "id": "i7-3og",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Tone Editor: SuperNATURAL Synth (SN-S)",
+  "type": "task",
+  "updated_at": "2026-04-09T19:04:05Z"
+}
