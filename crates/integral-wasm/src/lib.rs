@@ -2,8 +2,9 @@
 
 use integral_core::address::{Address, DataSize};
 use integral_core::catalog;
+use integral_core::state::parse as state_parse;
 use integral_core::sysex;
-use integral_core::{params, params::part, params::part_eq};
+use integral_core::{fx_params, params, params::part, params::part_eq, tone_banks};
 use wasm_bindgen::prelude::*;
 
 // ---------------------------------------------------------------------------
@@ -481,4 +482,295 @@ pub fn eq_high_freq_offset() -> u8 {
 #[wasm_bindgen]
 pub fn eq_high_gain_offset() -> u8 {
     part_eq::HIGH_GAIN
+}
+
+// ---------------------------------------------------------------------------
+// State parsing
+// ---------------------------------------------------------------------------
+
+/// Parsed part mixer state from a 0x29-byte dump.
+#[wasm_bindgen]
+pub struct WasmPartState {
+    #[wasm_bindgen(readonly, js_name = receiveChannel)]
+    pub receive_channel: u8,
+    #[wasm_bindgen(readonly, js_name = toneBankMsb)]
+    pub tone_bank_msb: u8,
+    #[wasm_bindgen(readonly, js_name = toneBankLsb)]
+    pub tone_bank_lsb: u8,
+    #[wasm_bindgen(readonly, js_name = tonePC)]
+    pub tone_pc: u8,
+    #[wasm_bindgen(readonly)]
+    pub level: u8,
+    #[wasm_bindgen(readonly)]
+    pub pan: u8,
+    #[wasm_bindgen(readonly)]
+    pub muted: bool,
+    #[wasm_bindgen(readonly, js_name = chorusSend)]
+    pub chorus_send: u8,
+    #[wasm_bindgen(readonly, js_name = reverbSend)]
+    pub reverb_send: u8,
+}
+
+/// Parse a 0x29-byte part mixer dump.
+#[wasm_bindgen]
+pub fn parse_part_dump(data: &[u8]) -> WasmPartState {
+    let p = state_parse::parse_part_dump(data);
+    WasmPartState {
+        receive_channel: p.receive_channel,
+        tone_bank_msb: p.tone_bank_msb,
+        tone_bank_lsb: p.tone_bank_lsb,
+        tone_pc: p.tone_pc,
+        level: p.level,
+        pan: p.pan,
+        muted: p.muted,
+        chorus_send: p.chorus_send,
+        reverb_send: p.reverb_send,
+    }
+}
+
+/// Parsed EQ state.
+#[wasm_bindgen]
+pub struct WasmEqState {
+    #[wasm_bindgen(readonly)]
+    pub enabled: bool,
+    #[wasm_bindgen(readonly, js_name = lowFreq)]
+    pub low_freq: u8,
+    #[wasm_bindgen(readonly, js_name = lowGain)]
+    pub low_gain: u8,
+    #[wasm_bindgen(readonly, js_name = midFreq)]
+    pub mid_freq: u8,
+    #[wasm_bindgen(readonly, js_name = midGain)]
+    pub mid_gain: u8,
+    #[wasm_bindgen(readonly, js_name = midQ)]
+    pub mid_q: u8,
+    #[wasm_bindgen(readonly, js_name = highFreq)]
+    pub high_freq: u8,
+    #[wasm_bindgen(readonly, js_name = highGain)]
+    pub high_gain: u8,
+}
+
+impl From<integral_core::state::EqState> for WasmEqState {
+    fn from(eq: integral_core::state::EqState) -> Self {
+        Self {
+            enabled: eq.enabled,
+            low_freq: eq.low_freq,
+            low_gain: eq.low_gain,
+            mid_freq: eq.mid_freq,
+            mid_gain: eq.mid_gain,
+            mid_q: eq.mid_q,
+            high_freq: eq.high_freq,
+            high_gain: eq.high_gain,
+        }
+    }
+}
+
+/// Parse an 8-byte Part EQ dump.
+#[wasm_bindgen]
+pub fn parse_part_eq_dump(data: &[u8]) -> WasmEqState {
+    state_parse::parse_part_eq_dump(data).into()
+}
+
+/// Parse a 7-byte Master EQ dump (no switch byte).
+#[wasm_bindgen]
+pub fn parse_master_eq_dump(data: &[u8]) -> WasmEqState {
+    state_parse::parse_master_eq_dump(data).into()
+}
+
+// ---------------------------------------------------------------------------
+// Nibble codec
+// ---------------------------------------------------------------------------
+
+/// Decode nibblized FX parameters from raw SysEx data.
+///
+/// Each param is 4 nibble bytes → signed display value.
+#[wasm_bindgen]
+pub fn decode_nib_params(data: &[u8], count: usize) -> Vec<i32> {
+    state_parse::decode_nib_params(data, count)
+}
+
+/// Encode a signed display value into 4 nibble bytes for SysEx DT1.
+#[wasm_bindgen]
+pub fn encode_nib_param(value: i32) -> Vec<u8> {
+    state_parse::encode_nib_param(value).to_vec()
+}
+
+// ---------------------------------------------------------------------------
+// Tone bank definitions
+// ---------------------------------------------------------------------------
+
+/// A tone bank exposed to JS.
+#[wasm_bindgen]
+pub struct WasmToneBank {
+    #[wasm_bindgen(readonly)]
+    pub msb: u8,
+    label: String,
+    lsbs: Vec<u8>,
+}
+
+#[wasm_bindgen]
+impl WasmToneBank {
+    #[wasm_bindgen(getter)]
+    pub fn label(&self) -> String {
+        self.label.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn lsbs(&self) -> Vec<u8> {
+        self.lsbs.clone()
+    }
+}
+
+/// A tone bank group exposed to JS.
+#[wasm_bindgen]
+pub struct WasmToneBankGroup {
+    label: String,
+    banks: Vec<WasmToneBank>,
+}
+
+#[wasm_bindgen]
+impl WasmToneBankGroup {
+    #[wasm_bindgen(getter)]
+    pub fn label(&self) -> String {
+        self.label.clone()
+    }
+
+    /// Number of banks in this group.
+    #[wasm_bindgen(getter, js_name = bankCount)]
+    pub fn bank_count(&self) -> usize {
+        self.banks.len()
+    }
+
+    /// Get bank at index.
+    #[wasm_bindgen(js_name = getBank)]
+    pub fn get_bank(&self, index: usize) -> Option<WasmToneBank> {
+        self.banks.get(index).map(|b| WasmToneBank {
+            msb: b.msb,
+            label: b.label.clone(),
+            lsbs: b.lsbs.clone(),
+        })
+    }
+}
+
+/// Returns all tone bank groups.
+#[wasm_bindgen]
+pub fn tone_bank_groups() -> Vec<WasmToneBankGroup> {
+    tone_banks::TONE_BANK_GROUPS
+        .iter()
+        .map(|g| WasmToneBankGroup {
+            label: g.label.to_string(),
+            banks: g
+                .banks
+                .iter()
+                .map(|b| WasmToneBank {
+                    msb: b.msb,
+                    label: b.label.to_string(),
+                    lsbs: b.lsbs.to_vec(),
+                })
+                .collect(),
+        })
+        .collect()
+}
+
+/// Find the bank containing a given (MSB, LSB) pair.
+/// Returns null if not found.
+#[wasm_bindgen]
+pub fn find_tone_bank(msb: u8, lsb: u8) -> Option<WasmToneBank> {
+    tone_banks::find_bank(msb, lsb).map(|b| WasmToneBank {
+        msb: b.msb,
+        label: b.label.to_string(),
+        lsbs: b.lsbs.to_vec(),
+    })
+}
+
+// ---------------------------------------------------------------------------
+// FX parameter definitions
+// ---------------------------------------------------------------------------
+
+/// A single FX parameter definition exposed to JS.
+#[wasm_bindgen]
+pub struct WasmFxParamDef {
+    #[wasm_bindgen(readonly)]
+    pub index: u8,
+    #[wasm_bindgen(readonly)]
+    pub min: i32,
+    #[wasm_bindgen(readonly)]
+    pub max: i32,
+    #[wasm_bindgen(readonly, js_name = defaultValue)]
+    pub default_value: i32,
+    inner: &'static fx_params::FxParamDef,
+}
+
+#[wasm_bindgen]
+impl WasmFxParamDef {
+    #[wasm_bindgen(getter)]
+    pub fn name(&self) -> String {
+        self.inner.name.to_string()
+    }
+
+    /// Format a raw value for display.
+    #[wasm_bindgen(js_name = formatValue)]
+    pub fn format_value(&self, value: i32) -> String {
+        self.inner.format_value(value)
+    }
+}
+
+fn wrap_fx_params(params: &'static [fx_params::FxParamDef]) -> Vec<WasmFxParamDef> {
+    params
+        .iter()
+        .map(|p| WasmFxParamDef {
+            index: p.index,
+            min: p.min,
+            max: p.max,
+            default_value: p.default_value,
+            inner: p,
+        })
+        .collect()
+}
+
+/// Returns chorus parameter definitions for the given type index.
+#[wasm_bindgen]
+pub fn chorus_params(chorus_type: u8) -> Vec<WasmFxParamDef> {
+    wrap_fx_params(fx_params::chorus_params(chorus_type))
+}
+
+/// Returns reverb parameter definitions for the given type index.
+#[wasm_bindgen]
+pub fn reverb_params(reverb_type: u8) -> Vec<WasmFxParamDef> {
+    wrap_fx_params(fx_params::reverb_params(reverb_type))
+}
+
+/// Returns chorus type display names.
+#[wasm_bindgen]
+pub fn chorus_type_names() -> Vec<String> {
+    fx_params::CHORUS_TYPE_NAMES
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Returns reverb type display names.
+#[wasm_bindgen]
+pub fn reverb_type_names() -> Vec<String> {
+    fx_params::REVERB_TYPE_NAMES
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Returns chorus output routing names.
+#[wasm_bindgen]
+pub fn chorus_output_names() -> Vec<String> {
+    fx_params::CHORUS_OUTPUT_NAMES
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Returns reverb output routing names.
+#[wasm_bindgen]
+pub fn reverb_output_names() -> Vec<String> {
+    fx_params::REVERB_OUTPUT_NAMES
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
 }
