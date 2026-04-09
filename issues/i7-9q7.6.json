@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-9q7.3"
+  ],
   "blocks": [],
   "created": "2026-04-09T19:06:26Z",
   "description": "Per-partial filter: type (OFF, LPF, BPF, HPF, PKG, LPF2, LPF3), cutoff, resonance, key follow. TVF Envelope: ADSR with velocity sensitivity, time key follow. Visual ADSR editor component (reusable for TVA too).",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Web: PCMS TVF (filter) panel with envelope",
   "type": "task",
-  "updated_at": "2026-04-09T19:06:26Z"
+  "updated_at": "2026-04-09T19:06:37Z"
 }
