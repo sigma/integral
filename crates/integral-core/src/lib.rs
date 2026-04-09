@@ -9,6 +9,7 @@ pub mod catalog;
 pub mod device;
 pub mod fx_params;
 pub mod mfx;
+pub mod mfx_params;
 pub mod params;
 pub mod state;
 pub mod sysex;
