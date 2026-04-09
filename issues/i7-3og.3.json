@@ -4,7 +4,8 @@
     "i7-3og.2"
   ],
   "blocks": [
-    "i7-3og.4"
+    "i7-3og.4",
+    "i7-3og.5"
   ],
   "created": "2026-04-09T19:04:30Z",
   "description": "WASM bindings for SN-S state read/write, parse, DeviceState setters for all common + per-partial params.",
