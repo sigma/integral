@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:03:49Z",
+  "description": "WASM bindings for MFX state read/write, parameter table lookup, and DeviceState MFX setters. Include build request for bulk MFX read.",
+  "id": "i7-m5k.4",
+  "labels": [],
+  "parent": "i7-m5k",
+  "priority": 2,
+  "status": "open",
+  "title": "WASM: expose MFX bindings",
+  "type": "task",
+  "updated_at": "2026-04-09T19:03:49Z"
+}
