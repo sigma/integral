@@ -1159,4 +1159,66 @@ impl WasmDeviceState {
             dce.output_assigns[i] = v;
         }
     }
+
+    // -- Motional Surround -------------------------------------------------
+
+    #[wasm_bindgen(js_name = setSurroundParam)]
+    pub fn set_surround_param(&mut self, param_offset: u8, value: u8) {
+        self.inner.set_surround_param(param_offset, value);
+    }
+
+    #[wasm_bindgen(js_name = setPartSurroundLr)]
+    pub fn set_part_surround_lr(&mut self, part: u8, value: u8) {
+        self.inner
+            .set_part_surround_param(part, integral_core::params::part_surround::LR, value);
+    }
+
+    #[wasm_bindgen(js_name = setPartSurroundFb)]
+    pub fn set_part_surround_fb(&mut self, part: u8, value: u8) {
+        self.inner
+            .set_part_surround_param(part, integral_core::params::part_surround::FB, value);
+    }
+
+    #[wasm_bindgen(js_name = setPartSurroundWidth)]
+    pub fn set_part_surround_width(&mut self, part: u8, value: u8) {
+        self.inner.set_part_surround_param(
+            part,
+            integral_core::params::part_surround::WIDTH,
+            value,
+        );
+    }
+
+    #[wasm_bindgen(js_name = setPartSurroundAmbienceSend)]
+    pub fn set_part_surround_ambience_send(&mut self, part: u8, value: u8) {
+        self.inner.set_part_surround_param(
+            part,
+            integral_core::params::part_surround::AMBIENCE_SEND,
+            value,
+        );
+    }
+
+    /// Apply a parsed 13-byte Motional Surround common dump.
+    #[wasm_bindgen(js_name = applySurroundCommon)]
+    pub fn apply_surround_common(&mut self, data: &[u8]) {
+        let parsed = state_parse::parse_surround_common(data);
+        // Preserve per-part data (loaded separately).
+        let parts = self.inner.state().surround.parts.clone();
+        self.inner.state_mut().surround = parsed;
+        self.inner.state_mut().surround.parts = parts;
+    }
+
+    /// Set per-part surround positioning directly.
+    #[wasm_bindgen(js_name = applyPartSurround)]
+    pub fn apply_part_surround(&mut self, part: u8, lr: u8, fb: u8, width: u8, ambience_send: u8) {
+        let ps = &mut self.inner.state_mut().surround.parts[part as usize];
+        ps.lr = lr;
+        ps.fb = fb;
+        ps.width = width;
+        ps.ambience_send = ambience_send;
+    }
+
+    #[wasm_bindgen(js_name = buildSurroundCommonRequest)]
+    pub fn build_surround_common_request(&self) -> Vec<u8> {
+        self.inner.build_surround_common_request()
+    }
 }
