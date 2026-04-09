@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-m5k.1"
+  ],
   "blocks": [],
   "created": "2026-04-09T19:03:49Z",
   "description": "Parse MFX dump data into MfxState. MFX params are nibblized (4 bytes per param). Encode MfxState changes back to DT1 messages. Handle MFX Control source/destination mapping.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Core: MFX parse/encode functions",
   "type": "task",
-  "updated_at": "2026-04-09T19:03:49Z"
+  "updated_at": "2026-04-09T19:03:56Z"
 }
