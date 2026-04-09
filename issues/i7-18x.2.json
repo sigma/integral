@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-18x.1"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-18x.3"
+  ],
   "created": "2026-04-09T12:18:38Z",
   "description": "Expose Comp+EQ address helpers, parse functions, and DeviceState setters via integral-wasm. Include: read all 6 units in one RQ1, set individual comp/EQ params, read/set Studio Set Comp+EQ common params.",
   "id": "i7-18x.2",
