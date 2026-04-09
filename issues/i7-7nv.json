@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T11:28:18Z",
+  "description": "Parent ticket for moving all non-UI logic from TypeScript to integral-core for web+VST parity",
+  "id": "i7-7nv",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Migrate TS business logic to Rust core",
+  "type": "task",
+  "updated_at": "2026-04-09T11:28:18Z"
+}
