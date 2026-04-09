@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-3og.3"
+  ],
   "blocks": [],
   "created": "2026-04-09T19:04:30Z",
   "description": "UI for SN-S common parameters: Tone Level, Ring Switch, Wave Shape, Unison Switch/Size/Detune, Portamento Switch/Time/Mode, Legato Switch, Analog Feel, Wave Shape Assign. Group logically.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Web: SN-S Common panel",
   "type": "task",
-  "updated_at": "2026-04-09T19:04:30Z"
+  "updated_at": "2026-04-09T19:04:40Z"
 }
