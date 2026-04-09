@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:05:08Z",
+  "description": "Add address constants for SN-A tone block (Common, Instrument-specific params, MFX). Common has 13 params (level, mono/poly, octave, cutoff/reso/atk/rel offsets, portamento, vibrato rate/depth/delay). Instrument params are at a fixed offset but the meaning varies by instrument type. Add SnAcousticState with common fields + generic inst_params Vec\u003cu8\u003e.",
+  "id": "i7-4dc.1",
+  "labels": [],
+  "parent": "i7-4dc",
+  "priority": 2,
+  "status": "open",
+  "title": "Core: SN-A address map and state types",
+  "type": "task",
+  "updated_at": "2026-04-09T19:05:08Z"
+}
