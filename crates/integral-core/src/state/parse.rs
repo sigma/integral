@@ -71,6 +71,48 @@ pub fn parse_master_eq_dump(data: &[u8]) -> EqState {
 }
 
 // ---------------------------------------------------------------------------
+// Comp+EQ parsing
+// ---------------------------------------------------------------------------
+
+/// Bytes per Comp+EQ unit (6 comp + 8 eq = 14).
+const COMP_EQ_UNIT_BYTES: usize = 14;
+
+/// Parse a single 14-byte Comp+EQ unit.
+pub fn parse_comp_eq_unit(data: &[u8]) -> super::CompEqUnit {
+    let mut unit = super::CompEqUnit::default();
+    if data.len() < COMP_EQ_UNIT_BYTES {
+        return unit;
+    }
+    unit.comp_switch = data[0] == 1;
+    unit.comp_attack = data[1];
+    unit.comp_release = data[2];
+    unit.comp_threshold = data[3];
+    unit.comp_ratio = data[4];
+    unit.comp_output_gain = data[5];
+    unit.eq_switch = data[6] == 1;
+    unit.eq_low_freq = data[7];
+    unit.eq_low_gain = data[8];
+    unit.eq_mid_freq = data[9];
+    unit.eq_mid_gain = data[10];
+    unit.eq_mid_q = data[11];
+    unit.eq_high_freq = data[12];
+    unit.eq_high_gain = data[13];
+    unit
+}
+
+/// Parse the full 84-byte (0x54) Comp+EQ block into 6 units.
+pub fn parse_comp_eq_block(data: &[u8]) -> [super::CompEqUnit; 6] {
+    std::array::from_fn(|i| {
+        let offset = i * COMP_EQ_UNIT_BYTES;
+        if offset + COMP_EQ_UNIT_BYTES <= data.len() {
+            parse_comp_eq_unit(&data[offset..])
+        } else {
+            super::CompEqUnit::default()
+        }
+    })
+}
+
+// ---------------------------------------------------------------------------
 // Nibble codec
 // ---------------------------------------------------------------------------
 

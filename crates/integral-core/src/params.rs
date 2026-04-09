@@ -224,6 +224,82 @@ pub const MASTER_EQ_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x07);
 pub const MASTER_EQ_SWITCH: Address = Address::new(0x18, 0x00, 0x00, 0x42);
 
 // ---------------------------------------------------------------------------
+// Drum Comp/EQ (Studio Set Common + Temporary Tone)
+// ---------------------------------------------------------------------------
+
+/// Drum Comp/EQ Switch — Studio Set Common offset `00 43`.
+pub const DRUM_COMP_EQ_SWITCH: Address = Address::new(0x18, 0x00, 0x00, 0x43);
+
+/// Drum Comp/EQ Part assignment — Studio Set Common offset `00 44` (0–15 → Part 1–16).
+pub const DRUM_COMP_EQ_PART: Address = Address::new(0x18, 0x00, 0x00, 0x44);
+
+/// Drum Comp/EQ Output Assign for unit N (0-based) — Studio Set Common offsets `00 45`–`00 4A`.
+pub const fn drum_comp_eq_output_assign(unit: u8) -> Address {
+    Address::new(0x18, 0x00, 0x00, 0x45 + unit)
+}
+
+/// Number of Comp+EQ units.
+pub const COMP_EQ_UNIT_COUNT: usize = 6;
+
+/// Bytes per Comp+EQ unit in the tone block (comp 6 + eq 8 = 14).
+pub const COMP_EQ_UNIT_SIZE: u8 = 0x0E;
+
+/// Total size of the Comp+EQ block (6 units × 14 bytes = 84 = 0x54).
+pub const COMP_EQ_BLOCK_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x54);
+
+/// Per-unit compressor parameter offsets (within the 14-byte unit).
+pub mod comp {
+    /// Compressor Switch (0=OFF, 1=ON).
+    pub const SWITCH: u8 = 0x00;
+    /// Attack Time (0–31).
+    pub const ATTACK: u8 = 0x01;
+    /// Release Time (0–23).
+    pub const RELEASE: u8 = 0x02;
+    /// Threshold (0–127).
+    pub const THRESHOLD: u8 = 0x03;
+    /// Ratio (0–19: 1:1, 2:1 ... 100:1, inf:1).
+    pub const RATIO: u8 = 0x04;
+    /// Output Gain (0–24: 0 to +24 dB).
+    pub const OUTPUT_GAIN: u8 = 0x05;
+}
+
+/// Per-unit EQ parameter offsets (within the 14-byte unit, starting at 0x06).
+pub mod comp_eq {
+    /// EQ Switch (0=OFF, 1=ON).
+    pub const EQ_SWITCH: u8 = 0x06;
+    /// EQ Low Freq (0=200Hz, 1=400Hz).
+    pub const EQ_LOW_FREQ: u8 = 0x07;
+    /// EQ Low Gain (0–30, display: -15 to +15 dB).
+    pub const EQ_LOW_GAIN: u8 = 0x08;
+    /// EQ Mid Freq (0–16).
+    pub const EQ_MID_FREQ: u8 = 0x09;
+    /// EQ Mid Gain (0–30).
+    pub const EQ_MID_GAIN: u8 = 0x0A;
+    /// EQ Mid Q (0–4).
+    pub const EQ_MID_Q: u8 = 0x0B;
+    /// EQ High Freq (0–2).
+    pub const EQ_HIGH_FREQ: u8 = 0x0C;
+    /// EQ High Gain (0–30).
+    pub const EQ_HIGH_GAIN: u8 = 0x0D;
+}
+
+/// Compute the absolute address of the Comp+EQ block for a part's tone.
+///
+/// The block starts at offset `00 08 00` within the temporary tone.
+pub const fn comp_eq_block_address(part_index: u8) -> Address {
+    temporary_tone_base(part_index).offset([0x00, 0x08, 0x00, 0x00])
+}
+
+/// Compute the absolute address for a specific parameter within a
+/// Comp+EQ unit.
+///
+/// `unit` is 0-based (0–5), `param_offset` is a `comp::` or `comp_eq::` constant.
+pub const fn comp_eq_param_address(part_index: u8, unit: u8, param_offset: u8) -> Address {
+    let unit_byte_offset = unit * COMP_EQ_UNIT_SIZE + param_offset;
+    comp_eq_block_address(part_index).offset([0x00, 0x00, 0x00, unit_byte_offset])
+}
+
+// ---------------------------------------------------------------------------
 // Temporary Tone (tone name reading)
 // ---------------------------------------------------------------------------
 

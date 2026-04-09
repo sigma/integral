@@ -140,6 +140,92 @@ impl Default for PartState {
 }
 
 // ---------------------------------------------------------------------------
+// Drum Comp+EQ
+// ---------------------------------------------------------------------------
+
+/// State of a single Comp+EQ unit (compressor + 3-band EQ).
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct CompEqUnit {
+    /// Compressor on/off.
+    pub comp_switch: bool,
+    /// Compressor attack time (0–31).
+    pub comp_attack: u8,
+    /// Compressor release time (0–23).
+    pub comp_release: u8,
+    /// Compressor threshold (0–127).
+    pub comp_threshold: u8,
+    /// Compressor ratio (0–19).
+    pub comp_ratio: u8,
+    /// Compressor output gain (0–24, display: 0 to +24 dB).
+    pub comp_output_gain: u8,
+    /// EQ on/off.
+    pub eq_switch: bool,
+    /// EQ low freq (0=200 Hz, 1=400 Hz).
+    pub eq_low_freq: u8,
+    /// EQ low gain (0–30, display: −15 to +15 dB).
+    pub eq_low_gain: u8,
+    /// EQ mid freq (0–16).
+    pub eq_mid_freq: u8,
+    /// EQ mid gain (0–30).
+    pub eq_mid_gain: u8,
+    /// EQ mid Q (0–4).
+    pub eq_mid_q: u8,
+    /// EQ high freq (0–2).
+    pub eq_high_freq: u8,
+    /// EQ high gain (0–30).
+    pub eq_high_gain: u8,
+}
+
+impl Default for CompEqUnit {
+    fn default() -> Self {
+        Self {
+            comp_switch: false,
+            comp_attack: 10,
+            comp_release: 10,
+            comp_threshold: 127,
+            comp_ratio: 0,
+            comp_output_gain: 0,
+            eq_switch: false,
+            eq_low_freq: 1,
+            eq_low_gain: 15,
+            eq_mid_freq: 7,
+            eq_mid_gain: 15,
+            eq_mid_q: 0,
+            eq_high_freq: 1,
+            eq_high_gain: 15,
+        }
+    }
+}
+
+/// Drum Comp+EQ state (6 units + Studio Set common settings).
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct DrumCompEqState {
+    /// Global on/off (Studio Set Common).
+    pub enabled: bool,
+    /// Assigned part index (0–15).
+    pub part: u8,
+    /// Per-unit output assign (0–12: PART, A, B, C, D, 1–8).
+    pub output_assigns: [u8; 6],
+    /// The 6 Comp+EQ units.
+    pub units: [CompEqUnit; 6],
+}
+
+impl Default for DrumCompEqState {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            part: 9, // Part 10 (0-indexed)
+            output_assigns: [0; 6],
+            units: std::array::from_fn(|_| CompEqUnit::default()),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Full mixer state
 // ---------------------------------------------------------------------------
 
@@ -167,6 +253,8 @@ pub struct MixerState {
     pub ext_muted: bool,
     /// Master EQ settings.
     pub master_eq: EqState,
+    /// Drum Comp+EQ (6 units, assigned to one part).
+    pub drum_comp_eq: DrumCompEqState,
     /// All 64 Studio Set names (indexed 0–63).  Populated via catalog query.
     pub studio_set_names: HashMap<u8, String>,
 }
@@ -183,6 +271,7 @@ impl Default for MixerState {
             ext_level: 100,
             ext_muted: false,
             master_eq: EqState::default(),
+            drum_comp_eq: DrumCompEqState::default(),
             studio_set_names: HashMap::new(),
         }
     }
