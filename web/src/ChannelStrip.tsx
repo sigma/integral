@@ -55,6 +55,10 @@ interface Props {
   onChorusSendChange?: (value: number) => void;
   onReverbSendChange?: (value: number) => void;
   onReceiveChannelChange?: (channel: number) => void;
+  /** When surround is enabled, show AMB send instead of FX1/FX2. */
+  surroundEnabled?: boolean;
+  ambienceSend?: number;
+  onAmbienceSendChange?: (value: number) => void;
   onEqToggle?: () => void;
   onEqParam?: (paramOffset: number, value: number) => void;
 }
@@ -100,6 +104,9 @@ export function ChannelStrip({
   onChorusSendChange,
   onReverbSendChange,
   onReceiveChannelChange,
+  surroundEnabled,
+  ambienceSend,
+  onAmbienceSendChange,
   onEqToggle,
   onEqParam,
 }: Props) {
@@ -212,10 +219,17 @@ export function ChannelStrip({
         </div>
       ) : (
         <div className={css.sends} style={hideIf(showSends)}>
-          <EqKnob label="FX1" value={p.chorusSend} min={0} max={127} defaultValue={0}
-            onChange={onChorusSendChange ?? noop} formatValue={(v) => String(v)} color="#668" />
-          <EqKnob label="FX2" value={p.reverbSend} min={0} max={127} defaultValue={0}
-            onChange={onReverbSendChange ?? noop} formatValue={(v) => String(v)} color="#686" />
+          {surroundEnabled ? (
+            <EqKnob label="AMB" value={ambienceSend ?? 0} min={0} max={127} defaultValue={0}
+              onChange={onAmbienceSendChange ?? noop} formatValue={(v) => String(v)} color="#a6f" />
+          ) : (
+            <>
+              <EqKnob label="FX1" value={p.chorusSend} min={0} max={127} defaultValue={0}
+                onChange={onChorusSendChange ?? noop} formatValue={(v) => String(v)} color="#668" />
+              <EqKnob label="FX2" value={p.reverbSend} min={0} max={127} defaultValue={0}
+                onChange={onReverbSendChange ?? noop} formatValue={(v) => String(v)} color="#686" />
+            </>
+          )}
         </div>
       )}
 

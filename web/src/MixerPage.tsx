@@ -88,6 +88,9 @@ export function MixerPage({ mixer, service }: Props) {
                 onSoloToggle={() => mixer.toggleSolo(i)}
                 onChorusSendChange={(v) => mixer.setPartChorusSend(i, v)}
                 onReverbSendChange={(v) => mixer.setPartReverbSend(i, v)}
+                surroundEnabled={state.surround.enabled}
+                ambienceSend={state.surround.parts[i]?.ambienceSend}
+                onAmbienceSendChange={(v) => mixer.setPartSurroundAmbienceSend(i, v)}
                 onReceiveChannelChange={(ch) => mixer.setPartReceiveChannel(i, ch)}
                 onEqToggle={() => mixer.togglePartEqSwitch(i)}
                 onEqParam={(offset, v) => mixer.setPartEqParam(i, offset, v)}

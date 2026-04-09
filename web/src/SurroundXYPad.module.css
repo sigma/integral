@@ -1,8 +1,6 @@
 .container {
-  position: relative;
-  width: 100%;
-  max-width: 500px;
-  aspect-ratio: 1;
+  position: absolute;
+  inset: 0;
 }
 
 .labels {
@@ -13,17 +11,17 @@
 
 .labelTop, .labelBottom, .labelLeft, .labelRight {
   position: absolute;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   color: #555;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
-.labelTop { top: -16px; left: 50%; transform: translateX(-50%); }
-.labelBottom { bottom: -16px; left: 50%; transform: translateX(-50%); }
-.labelLeft { left: -18px; top: 50%; transform: translateY(-50%); }
-.labelRight { right: -18px; top: 50%; transform: translateY(-50%); }
+.labelTop { top: 4px; left: 50%; transform: translateX(-50%); z-index: 4; }
+.labelBottom { bottom: 4px; left: 50%; transform: translateX(-50%); z-index: 4; }
+.labelLeft { left: 6px; top: 50%; transform: translateY(-50%); z-index: 4; }
+.labelRight { right: 6px; top: 50%; transform: translateY(-50%); z-index: 4; }
 
 .pad {
   position: absolute;
@@ -57,12 +55,12 @@
 
 .dot {
   position: absolute;
-  width: 20px;
-  height: 20px;
-  margin-left: -10px;
-  margin-top: -10px;
+  width: 24px;
+  height: 24px;
+  margin-left: -12px;
+  margin-top: -12px;
   border-radius: 50%;
-  background: rgba(74, 108, 247, 0.6);
+  background: rgba(74, 108, 247, 0.5);
   border: 2px solid #4a6cf7;
   cursor: grab;
   display: flex;
@@ -70,6 +68,7 @@
   justify-content: center;
   touch-action: none;
   z-index: 1;
+  transition: background 0.1s;
 }
 
 .dot:hover {
@@ -81,10 +80,14 @@
   background: rgba(255, 170, 68, 0.7);
   border-color: #ffaa44;
   z-index: 3;
+  width: 30px;
+  height: 30px;
+  margin-left: -15px;
+  margin-top: -15px;
 }
 
 .dotLabel {
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 700;
   color: #fff;
   pointer-events: none;
