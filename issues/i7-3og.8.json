@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-3og.7"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-4dc.8"
+  ],
   "created": "2026-04-09T19:04:31Z",
   "description": "Add an Edit button or double-click on a part's tone name in the mixer to navigate to the tone editor. Detect tone type from bank MSB and route to the correct editor. Add a new tab or modal. Back navigation to mixer.",
   "id": "i7-3og.8",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "Web: tone edit navigation from mixer",
   "type": "task",
-  "updated_at": "2026-04-09T19:04:40Z"
+  "updated_at": "2026-04-09T19:05:15Z"
 }
