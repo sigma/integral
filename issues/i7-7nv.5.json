@@ -9,14 +9,15 @@
   "blocks": [
     "i7-7nv.6"
   ],
+  "closed_at": "2026-04-09T11:37:07Z",
   "created": "2026-04-09T11:28:26Z",
   "description": "",
   "id": "i7-7nv.5",
   "labels": [],
   "parent": "i7-7nv",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Wire web frontend to Rust types and parsing via WASM",
   "type": "task",
-  "updated_at": "2026-04-09T11:36:04Z"
+  "updated_at": "2026-04-09T11:37:07Z"
 }
