@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-svb.4"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-svb.8"
+  ],
   "created": "2026-04-09T19:05:42Z",
   "description": "Kit-level controls: phrase number, kit level, ambience level.",
   "id": "i7-svb.7",
