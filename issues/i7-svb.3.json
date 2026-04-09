@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:05:41Z",
+  "description": "Parse SN-D common dump and per-note dumps into SnDrumKitState. Each note block is small (~20 bytes) but there are 62 of them.",
+  "id": "i7-svb.3",
+  "labels": [],
+  "parent": "i7-svb",
+  "priority": 2,
+  "status": "open",
+  "title": "Core: SN-D parse functions",
+  "type": "task",
+  "updated_at": "2026-04-09T19:05:41Z"
+}
