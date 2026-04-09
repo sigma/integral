@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:05:42Z",
+  "description": "WASM bindings for SN-D state read/write, instrument list lookup, per-note param setters.",
+  "id": "i7-svb.4",
+  "labels": [],
+  "parent": "i7-svb",
+  "priority": 2,
+  "status": "open",
+  "title": "WASM: expose SN-D bindings",
+  "type": "task",
+  "updated_at": "2026-04-09T19:05:42Z"
+}
