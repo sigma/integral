@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:07:06Z",
+  "description": "Parse PCMD common + per-partial dumps. 88 partials, each with multiple sub-blocks. Efficient bulk reading strategy needed (read per-key on demand, not all 88 at once).",
+  "id": "i7-grp.2",
+  "labels": [],
+  "parent": "i7-grp",
+  "priority": 2,
+  "status": "open",
+  "title": "Core: PCMD parse functions",
+  "type": "task",
+  "updated_at": "2026-04-09T19:07:06Z"
+}
