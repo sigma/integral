@@ -4,7 +4,8 @@
     "i7-9q7.2"
   ],
   "blocks": [
-    "i7-9q7.4"
+    "i7-9q7.4",
+    "i7-9q7.5"
   ],
   "created": "2026-04-09T19:06:26Z",
   "description": "WASM bindings for PCMS state read/write, per-partial param setters, structure type, matrix control slots.",
