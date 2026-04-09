@@ -6,6 +6,7 @@
   "blocks": [
     "i7-3og.7",
     "i7-4dc.8",
+    "i7-9q7.12",
     "i7-m5k.6",
     "i7-m5k.7",
     "i7-svb.8"
@@ -19,5 +20,5 @@
   "status": "open",
   "title": "Web: MfxEditor component with dynamic parameter grid",
   "type": "task",
-  "updated_at": "2026-04-09T19:05:50Z"
+  "updated_at": "2026-04-09T19:06:38Z"
 }
