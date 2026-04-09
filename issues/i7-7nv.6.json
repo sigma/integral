@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-7nv.5"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-7nv.7"
+  ],
   "created": "2026-04-09T11:28:26Z",
   "description": "",
   "id": "i7-7nv.6",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "Add DeviceState with send queue and echo suppression",
   "type": "task",
-  "updated_at": "2026-04-09T11:28:33Z"
+  "updated_at": "2026-04-09T11:28:34Z"
 }

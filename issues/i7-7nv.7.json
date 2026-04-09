@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-7nv.6"
+  ],
   "blocks": [],
   "created": "2026-04-09T11:28:26Z",
   "description": "",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Add tone catalog cache to DeviceState",
   "type": "task",
-  "updated_at": "2026-04-09T11:28:26Z"
+  "updated_at": "2026-04-09T11:28:34Z"
 }
