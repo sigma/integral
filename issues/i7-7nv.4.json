@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-7nv.5"
+  ],
   "created": "2026-04-09T11:28:26Z",
   "description": "",
   "id": "i7-7nv.4",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Add dump parsing and nibble codec to core",
   "type": "task",
-  "updated_at": "2026-04-09T11:28:26Z"
+  "updated_at": "2026-04-09T11:28:33Z"
 }
