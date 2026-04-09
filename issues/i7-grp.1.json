@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:07:06Z",
+  "description": "Address constants for PCMD tone block: Common, Common2, per-partial (88 keys). Each partial: 4 WMT waves (wave group/number, gain, panorama, velocity range, random switch), TVF (type, cutoff, reso, env ADSR), TVA (level, pan, env ADSR), Pitch Env, Output (level, chorus/reverb send, output assign). ~30+ params per key × 4 WMT. Add PcmDrumKitState, PcmDrumPartialState structs.",
+  "id": "i7-grp.1",
+  "labels": [],
+  "parent": "i7-grp",
+  "priority": 2,
+  "status": "open",
+  "title": "Core: PCMD address map and state types",
+  "type": "task",
+  "updated_at": "2026-04-09T19:07:06Z"
+}
