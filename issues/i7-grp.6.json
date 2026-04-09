@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-grp.3"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-grp.8"
+  ],
   "created": "2026-04-09T19:07:06Z",
   "description": "Pitch envelope with 4 time/level points. Output: level, chorus send, reverb send, output assign (PART/COMP+EQ 1-6), pitch bend range.",
   "id": "i7-grp.6",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "Web: PCMD per-key Pitch Env + Output panels",
   "type": "task",
-  "updated_at": "2026-04-09T19:07:16Z"
+  "updated_at": "2026-04-09T19:07:17Z"
 }
