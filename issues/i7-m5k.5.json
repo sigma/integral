@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:03:49Z",
+  "description": "React component: MFX type selector dropdown, dynamic knob grid that adapts to selected type using the parameter table. Knobs show proper labels/ranges/units per effect type. Include dry/wet and output assign controls.",
+  "id": "i7-m5k.5",
+  "labels": [],
+  "parent": "i7-m5k",
+  "priority": 2,
+  "status": "open",
+  "title": "Web: MfxEditor component with dynamic parameter grid",
+  "type": "task",
+  "updated_at": "2026-04-09T19:03:49Z"
+}
