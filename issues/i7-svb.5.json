@@ -4,6 +4,7 @@
     "i7-svb.4"
   ],
   "blocks": [
+    "i7-grp.7",
     "i7-svb.8"
   ],
   "created": "2026-04-09T19:05:42Z",
@@ -15,5 +16,5 @@
   "status": "open",
   "title": "Web: drum key selector component",
   "type": "task",
-  "updated_at": "2026-04-09T19:05:50Z"
+  "updated_at": "2026-04-09T19:07:17Z"
 }
