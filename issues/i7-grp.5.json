@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-grp.3"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-grp.8"
+  ],
   "created": "2026-04-09T19:07:06Z",
   "description": "Per-key filter and amplifier with ADSR envelopes. Reuse ADSR editor component from PCMS. Filter type, cutoff, resonance, velocity sensitivity. Amp level, pan, velocity curve.",
   "id": "i7-grp.5",
