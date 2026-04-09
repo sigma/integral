@@ -102,6 +102,7 @@ export class IntegraService {
     const now = performance.now();
     const msg = this.device.drain(now);
     if (msg) {
+      console.log(`[midi-out] ${Array.from(msg).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
       this.port.output.send(msg);
     }
   }

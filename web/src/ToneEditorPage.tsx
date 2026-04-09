@@ -1,4 +1,5 @@
 import { SnSynthEditor } from "./SnSynthEditor";
+import { useMidiKeyboard } from "./useMidiKeyboard";
 import type { IntegraService } from "./integra";
 import type { UseMixerResult } from "./useMixer";
 import css from "./ToneEditorPage.module.css";
@@ -27,6 +28,12 @@ export function ToneEditorPage({ mixer, service, onBack }: Props) {
   const toneType = TONE_TYPE_LABELS[bankMsb] ?? `Unknown (MSB ${bankMsb})`;
   const isSns = bankMsb === 95;
 
+  const { octave, setOctave } = useMidiKeyboard({
+    service,
+    channel: part.receiveChannel,
+    enabled: true,
+  });
+
   return (
     <div className={css.page}>
       <div className={css.header}>
@@ -37,6 +44,11 @@ export function ToneEditorPage({ mixer, service, onBack }: Props) {
         <span className={css.toneType}>{toneType}</span>
         <span className={css.toneLabel}>
           {part.toneName || `${bankMsb}-${part.toneBankLsb}-${part.tonePC + 1}`}
+        </span>
+        <span className={css.octaveControl}>
+          <button className={css.octaveBtn} onClick={() => setOctave((o) => Math.max(0, o - 1))}>-</button>
+          <span className={css.octaveLabel}>Oct {octave}</span>
+          <button className={css.octaveBtn} onClick={() => setOctave((o) => Math.min(9, o + 1))}>+</button>
         </span>
       </div>
       {isSns ? (

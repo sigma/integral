@@ -32,9 +32,9 @@ pub const SNS_PARTIAL_SIZE: usize = 0x3D;
 
 /// Partial block offsets (relative to SN-S base), indexed 0–2.
 const SNS_PARTIAL_OFFSETS: [[u8; 4]; 3] = [
-    [0x00, 0x20, 0x00, 0x00],
-    [0x00, 0x21, 0x00, 0x00],
-    [0x00, 0x22, 0x00, 0x00],
+    [0x00, 0x00, 0x20, 0x00],
+    [0x00, 0x00, 0x21, 0x00],
+    [0x00, 0x00, 0x22, 0x00],
 ];
 
 /// Compute the absolute SN-S base address for a part.
@@ -508,15 +508,15 @@ mod tests {
     #[test]
     fn sns_partial_address_part1() {
         let addr = sns_partial_address(0, 0);
-        // 19 01 00 00 + 00 20 00 00 = 19 21 00 00
-        assert_eq!(addr, Address::new(0x19, 0x21, 0x00, 0x00));
+        // 19 01 00 00 + 00 00 20 00 = 19 01 20 00
+        assert_eq!(addr, Address::new(0x19, 0x01, 0x20, 0x00));
     }
 
     #[test]
     fn sns_partial_address_part1_partial3() {
         let addr = sns_partial_address(0, 2);
-        // 19 01 00 00 + 00 22 00 00 = 19 23 00 00
-        assert_eq!(addr, Address::new(0x19, 0x23, 0x00, 0x00));
+        // 19 01 00 00 + 00 00 22 00 = 19 01 22 00
+        assert_eq!(addr, Address::new(0x19, 0x01, 0x22, 0x00));
     }
 
     #[test]
@@ -528,8 +528,8 @@ mod tests {
     #[test]
     fn sns_partial_param_address_filter_cutoff() {
         let addr = sns_partial_param_address(0, 1, 0x0C);
-        // partial 1 = 19 22 00 00, + 0C = 19 22 00 0C
-        assert_eq!(addr, Address::new(0x19, 0x22, 0x00, 0x0C));
+        // partial 1 = 19 01 21 00, + 0C = 19 01 21 0C
+        assert_eq!(addr, Address::new(0x19, 0x01, 0x21, 0x0C));
     }
 
     #[test]

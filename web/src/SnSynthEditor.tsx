@@ -286,6 +286,7 @@ export function SnSynthEditor({ partIndex, service }: Props) {
   // ---------------------------------------------------------------------------
   const setPartialParam = useCallback(
     (partial: number, offset: number, value: number) => {
+      console.log(`[sns] setPartialParam part=${partIndex} partial=${partial} offset=0x${offset.toString(16)} value=${value}`);
       service.device.setSnsPartialParam(partIndex, partial, offset, value);
       setPartials((prev) => {
         const next = [...prev];
@@ -661,6 +662,9 @@ function OscPanel({
           <SelectParam label="Var" value={partial.oscWaveVariation}
             options={OSC_VARIATION_NAMES.map((l, i) => ({ v: i, l }))}
             onChange={(v) => onChange(0x01, v)} />
+          {partial.oscWave === 7 && (
+            <span className={css.waveNumber}>PCM #{partial.waveNumber}</span>
+          )}
         </div>
         <div className={css.panelRow}>
           <EqKnob label="Pitch" value={partial.oscPitch} min={40} max={88} defaultValue={64}
