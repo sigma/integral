@@ -5,7 +5,9 @@ use integral_core::catalog;
 use integral_core::device::DeviceState;
 use integral_core::state::parse as state_parse;
 use integral_core::sysex;
-use integral_core::{fx_params, params, params::part, params::part_eq, tone_banks};
+use integral_core::{
+    fx_params, mfx, mfx_params, params, params::part, params::part_eq, tone_banks,
+};
 use wasm_bindgen::prelude::*;
 
 // ---------------------------------------------------------------------------
@@ -1221,4 +1223,85 @@ impl WasmDeviceState {
     pub fn build_surround_common_request(&self) -> Vec<u8> {
         self.inner.build_surround_common_request()
     }
+
+    // -- MFX ---------------------------------------------------------------
+
+    #[wasm_bindgen(js_name = setMfxParam)]
+    pub fn set_mfx_param(&mut self, part: u8, param_offset: u8, value: u8) {
+        self.inner.set_mfx_param(part, param_offset, value);
+    }
+
+    #[wasm_bindgen(js_name = setMfxNibParam)]
+    pub fn set_mfx_nib_param(&mut self, part: u8, param_index: u8, value: i32) {
+        self.inner.set_mfx_nib_param(part, param_index, value);
+    }
+
+    #[wasm_bindgen(js_name = buildMfxRequest)]
+    pub fn build_mfx_request(&self, part: u8) -> Vec<u8> {
+        self.inner.build_mfx_request(part)
+    }
+
+    /// Apply a full MFX block dump to the part's MFX state.
+    #[wasm_bindgen(js_name = applyMfxBlock)]
+    pub fn apply_mfx_block(&mut self, _part: u8, data: &[u8]) -> JsValue {
+        let state = mfx::parse_mfx_block(data);
+        serde_wasm_bindgen::to_value(&state).unwrap_or(JsValue::NULL)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MFX parameter table (standalone functions)
+// ---------------------------------------------------------------------------
+
+/// Get MFX type names as an array.
+#[wasm_bindgen]
+pub fn mfx_type_names() -> Vec<String> {
+    mfx_params::MFX_TYPE_NAMES
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Get the number of parameters for a given MFX type.
+#[wasm_bindgen]
+pub fn mfx_type_param_count(mfx_type: u8) -> u32 {
+    mfx_params::mfx_type_def(mfx_type)
+        .map(|d| d.params.len() as u32)
+        .unwrap_or(0)
+}
+
+/// Get MFX parameter definition by type and parameter index (0-based).
+/// Returns null if type or index is invalid.
+#[wasm_bindgen]
+pub struct WasmMfxParamDef {
+    #[wasm_bindgen(readonly)]
+    pub index: u8,
+    #[wasm_bindgen(readonly)]
+    pub min: i32,
+    #[wasm_bindgen(readonly)]
+    pub max: i32,
+    #[wasm_bindgen(readonly, js_name = defaultValue)]
+    pub default_value: i32,
+    name: String,
+}
+
+#[wasm_bindgen]
+impl WasmMfxParamDef {
+    #[wasm_bindgen(getter)]
+    pub fn name(&self) -> String {
+        self.name.clone()
+    }
+}
+
+#[wasm_bindgen]
+pub fn mfx_param_def(mfx_type: u8, param_idx: u32) -> Option<WasmMfxParamDef> {
+    let def = mfx_params::mfx_type_def(mfx_type)?;
+    let p = def.params.get(param_idx as usize)?;
+    Some(WasmMfxParamDef {
+        index: p.index,
+        min: p.min,
+        max: p.max,
+        default_value: p.default_value,
+        name: p.name.to_string(),
+    })
 }

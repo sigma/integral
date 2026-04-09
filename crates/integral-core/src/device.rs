@@ -417,6 +417,29 @@ impl DeviceState {
     }
 
     // -----------------------------------------------------------------------
+    // MFX
+    // -----------------------------------------------------------------------
+
+    /// Set an MFX header parameter (type, sends, control slots).
+    pub fn set_mfx_param(&mut self, part: u8, param_offset: u8, value: u8) {
+        let addr = crate::mfx::mfx_address(part, param_offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Set a nibblized MFX effect parameter (0-based index).
+    pub fn set_mfx_nib_param(&mut self, part: u8, param_index: u8, value: i32) {
+        let bytes = crate::mfx::encode_mfx_param(value);
+        let addr = crate::mfx::mfx_param_address(part, param_index);
+        self.send_dt1(&addr, &bytes);
+    }
+
+    /// Build an RQ1 to read the full MFX block for a part.
+    pub fn build_mfx_request(&self, part: u8) -> Vec<u8> {
+        let addr = crate::mfx::mfx_block_address(part);
+        sysex::build_rq1(self.device_id, &addr, &crate::mfx::MFX_BLOCK_SIZE)
+    }
+
+    // -----------------------------------------------------------------------
     // Motional Surround
     // -----------------------------------------------------------------------
 
