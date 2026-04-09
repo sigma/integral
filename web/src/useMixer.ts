@@ -133,7 +133,8 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
 
         // Non-blocking loads: tone names
         for (let i = 0; i < 16; i++) {
-          const msb = dev.readState().parts[i]?.tone_bank_msb;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const msb = (dev.readState() as any).parts?.[i]?.toneBankMsb;
           if (msb === undefined) continue;
           svc.requestToneName(i, msb).then((toneName) => {
             if (!isCurrent() || !toneName) return;
