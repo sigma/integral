@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-svb.5"
+  ],
   "blocks": [],
   "created": "2026-04-09T19:05:42Z",
   "description": "Container: key selector at top, per-key panel in middle, common panel, Comp+EQ (reuse existing), MFX tab. Load SN-D state on entry.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Web: SN-D tone editor page shell",
   "type": "task",
-  "updated_at": "2026-04-09T19:05:42Z"
+  "updated_at": "2026-04-09T19:05:50Z"
 }
