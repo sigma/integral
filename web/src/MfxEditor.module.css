@@ -1,0 +1,92 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.typeLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: #b0b0d0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.typeSelect {
+  font-size: 12px;
+  background: #2a2a4a;
+  color: #c0c0e0;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  padding: 4px 8px;
+  max-width: 260px;
+}
+
+.paramGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+  background: #161628;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+}
+
+.ctrlSection {
+  background: #161628;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.ctrlTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.ctrlSlots {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ctrlSlot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  background: #1a1a30;
+}
+
+.ctrlSlotLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #666;
+  min-width: 14px;
+  text-align: center;
+}
+
+.ctrlSelect {
+  font-size: 10px;
+  background: #2a2a4a;
+  color: #c0c0e0;
+  border: 1px solid #3a3a5a;
+  border-radius: 3px;
+  padding: 2px 4px;
+}
