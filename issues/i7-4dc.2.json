@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:05:08Z",
+  "description": "Create lookup tables mapping instrument type ID to its parameter definitions. ~35 categories: Ac.Piano (lid, damper noise, string reso, key off reso), E.Piano (tremolo, amp sim), TW Organ (9 harmonic bars + 4 perc params), Ac.Guitar (body, string, picking), E.Guitar (pickup, amp), Brass (mute, growl), Wind (noise, growl, embouchure), Sax (growl, sub tone, noise), etc. Each category has 2-22 params. Source from docs/params/02-supernatural-acoustic.md.",
+  "id": "i7-4dc.2",
+  "labels": [],
+  "parent": "i7-4dc",
+  "priority": 2,
+  "status": "open",
+  "title": "Core: SN-A instrument parameter tables",
+  "type": "task",
+  "updated_at": "2026-04-09T19:05:08Z"
+}
