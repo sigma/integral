@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-18x.3"
+  ],
   "blocks": [],
   "created": "2026-04-09T12:18:38Z",
   "description": "In the mixer top bar or a settings panel, expose: Drum Comp+EQ Switch (on/off), Drum Comp+EQ Part (dropdown 1-16), and the 6 Output Assign dropdowns (PART/A/B/C/D/1-8). Only show when the assigned part has a drum kit tone.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Add Comp+EQ assign selector to Studio Set Common area",
   "type": "task",
-  "updated_at": "2026-04-09T12:18:38Z"
+  "updated_at": "2026-04-09T12:18:43Z"
 }
