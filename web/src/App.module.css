@@ -35,3 +35,40 @@
   text-transform: uppercase;
   letter-spacing: 1px;
 }
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #0c0c1a;
+}
+
+.tabBar {
+  display: flex;
+  gap: 0;
+  background: #0a0a18;
+  border-bottom: 1px solid #2a2a4a;
+  flex-shrink: 0;
+}
+
+.tab {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 20px;
+  background: transparent;
+  color: #888;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.tab:hover {
+  color: #c0c0e0;
+}
+
+.tabActive {
+  color: #e0e0e0;
+  border-bottom-color: #4a6cf7;
+}

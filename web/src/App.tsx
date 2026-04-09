@@ -19,7 +19,10 @@ import {
   MidiError,
 } from "./DeviceStatus";
 import { MixerPage } from "./MixerPage";
+import { SurroundPage } from "./SurroundPage";
 import css from "./App.module.css";
+
+type PageTab = "mixer" | "surround";
 
 type DeviceStatus =
   | { step: "idle" }
@@ -126,10 +129,30 @@ export function App() {
   }, [service]);
 
   const mixer = useMixer(service);
+  const [activeTab, setActiveTab] = useState<PageTab>("mixer");
 
-  // Show mixer when connected to an Integra-7
+  // Show connected UI when connected to an Integra-7
   if (service) {
-    return <MixerPage mixer={mixer} service={service} />;
+    return (
+      <div className={css.shell}>
+        <nav className={css.tabBar}>
+          <button
+            className={`${css.tab} ${activeTab === "mixer" ? css.tabActive : ""}`}
+            onClick={() => setActiveTab("mixer")}
+          >
+            Mixer
+          </button>
+          <button
+            className={`${css.tab} ${activeTab === "surround" ? css.tabActive : ""}`}
+            onClick={() => setActiveTab("surround")}
+          >
+            Surround
+          </button>
+        </nav>
+        {activeTab === "mixer" && <MixerPage mixer={mixer} service={service} />}
+        {activeTab === "surround" && <SurroundPage mixer={mixer} />}
+      </div>
+    );
   }
 
   return (
