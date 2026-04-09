@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:04:30Z",
+  "description": "WASM bindings for SN-S state read/write, parse, DeviceState setters for all common + per-partial params.",
+  "id": "i7-3og.3",
+  "labels": [],
+  "parent": "i7-3og",
+  "priority": 2,
+  "status": "open",
+  "title": "WASM: expose SN-S bindings",
+  "type": "task",
+  "updated_at": "2026-04-09T19:04:30Z"
+}
