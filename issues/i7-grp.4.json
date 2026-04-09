@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-grp.3"
+  ],
   "blocks": [],
   "created": "2026-04-09T19:07:06Z",
   "description": "Per-key WMT editor: 4 layer tabs, each with wave group/number selector, gain, panorama, velocity range (lower/upper), velocity fade (lower/upper), random switch. Show which layers are active.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Web: PCMD per-key WMT layer panel",
   "type": "task",
-  "updated_at": "2026-04-09T19:07:06Z"
+  "updated_at": "2026-04-09T19:07:16Z"
 }
