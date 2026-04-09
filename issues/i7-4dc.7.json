@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:05:08Z",
+  "description": "Custom UI for TW Organ (9 harmonic drawbar sliders + percussion section — unique enough to warrant special treatment). Custom UI for Ac.Piano (lid open/closed visual). These override the generic panel for specific instrument types.",
+  "id": "i7-4dc.7",
+  "labels": [],
+  "parent": "i7-4dc",
+  "priority": 2,
+  "status": "open",
+  "title": "Web: SN-A custom panels for complex instruments",
+  "type": "task",
+  "updated_at": "2026-04-09T19:05:08Z"
+}
