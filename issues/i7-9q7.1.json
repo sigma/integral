@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-9q7.2"
+  ],
   "created": "2026-04-09T19:06:26Z",
   "description": "Address constants for PCMS tone block: Common (tone level, structure type 0-9, portamento, legato, ~20 params), Common2 (phrase, matrix ctrl), per-partial (Wave/WMT, Pitch+Env, TVF+Env, TVA+Env, Output, LFO1/2, StepLFO, Ctrl). 4 partials × ~55 params each. 10 structure types define how partials combine. Add PcmSynthState, PcmPartialState structs.",
   "id": "i7-9q7.1",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Core: PCMS address map and state types",
   "type": "task",
-  "updated_at": "2026-04-09T19:06:26Z"
+  "updated_at": "2026-04-09T19:06:36Z"
 }
