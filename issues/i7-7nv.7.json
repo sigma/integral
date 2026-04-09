@@ -6,14 +6,15 @@
   "blocks": [
     "i7-7nv.8"
   ],
+  "closed_at": "2026-04-09T11:43:09Z",
   "created": "2026-04-09T11:28:26Z",
   "description": "",
   "id": "i7-7nv.7",
   "labels": [],
   "parent": "i7-7nv",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Add tone catalog cache to DeviceState",
   "type": "task",
-  "updated_at": "2026-04-09T11:41:59Z"
+  "updated_at": "2026-04-09T11:43:09Z"
 }
