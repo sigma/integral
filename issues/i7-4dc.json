@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:04:48Z",
+  "description": "Acoustic instrument modeling editor. ~13 common params + ~35 instrument-specific parameter sets + MFX. The hardest editor due to instrument-specific UI.",
+  "id": "i7-4dc",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Tone Editor: SuperNATURAL Acoustic (SN-A)",
+  "type": "task",
+  "updated_at": "2026-04-09T19:04:48Z"
+}
