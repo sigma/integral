@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:04:30Z",
+  "description": "LFO section: shape (TRI/SIN/SAW/SQR/S\u0026H/RND), rate, fade mode/time, delay, pitch/filter/amp depth + key follow. Mod LFO: similar but modwheel-controlled. Aftertouch: cutoff/amp depth. Misc: env loop mode/sync, portamento legato. These are secondary panels within each partial tab.",
+  "id": "i7-3og.6",
+  "labels": [],
+  "parent": "i7-3og",
+  "priority": 2,
+  "status": "open",
+  "title": "Web: SN-S LFO + Mod + Aftertouch panels",
+  "type": "task",
+  "updated_at": "2026-04-09T19:04:30Z"
+}
