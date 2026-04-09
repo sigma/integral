@@ -2,7 +2,9 @@
 //!
 //! These structs represent the runtime state of the mixer — parts, EQ, FX,
 //! master settings.  They are plain data with sensible defaults; parsing
-//! from SysEx dumps is provided by [`crate::state::parse`].
+//! from SysEx dumps is provided by [`parse`].
+
+pub mod parse;
 
 use std::collections::HashMap;
 
