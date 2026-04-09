@@ -83,6 +83,62 @@ export interface PartState {
   eq: EqState;
 }
 
+/** State of a single Comp+EQ unit. */
+export interface CompEqUnit {
+  compSwitch: boolean;
+  compAttack: number;
+  compRelease: number;
+  compThreshold: number;
+  compRatio: number;
+  compOutputGain: number;
+  eqSwitch: boolean;
+  eqLowFreq: number;
+  eqLowGain: number;
+  eqMidFreq: number;
+  eqMidGain: number;
+  eqMidQ: number;
+  eqHighFreq: number;
+  eqHighGain: number;
+}
+
+/** Drum Comp+EQ state (6 units + Studio Set common settings). */
+export interface DrumCompEqState {
+  enabled: boolean;
+  part: number;
+  outputAssigns: number[];
+  units: CompEqUnit[];
+}
+
+/** Default Comp+EQ unit. */
+export function defaultCompEqUnit(): CompEqUnit {
+  return {
+    compSwitch: false,
+    compAttack: 10,
+    compRelease: 10,
+    compThreshold: 127,
+    compRatio: 0,
+    compOutputGain: 0,
+    eqSwitch: false,
+    eqLowFreq: 1,
+    eqLowGain: 15,
+    eqMidFreq: 7,
+    eqMidGain: 15,
+    eqMidQ: 0,
+    eqHighFreq: 1,
+    eqHighGain: 15,
+  };
+}
+
+/** Default Drum Comp+EQ state. */
+export function defaultDrumCompEqState(): DrumCompEqState {
+  return {
+    enabled: false,
+    part: 9,
+    outputAssigns: [0, 0, 0, 0, 0, 0],
+    units: Array.from({ length: 6 }, () => defaultCompEqUnit()),
+  };
+}
+
 /** Full mixer state. */
 export interface MixerState {
   /** Studio Set name (up to 16 ASCII chars). */
@@ -105,6 +161,8 @@ export interface MixerState {
   extMuted: boolean;
   /** Master EQ settings. */
   masterEq: EqState;
+  /** Drum Comp+EQ (6 units, assigned to one part). */
+  drumCompEq: DrumCompEqState;
   /** Whether the EQ section is expanded in all strips. */
   eqExpanded: boolean;
   /** Whether initial state is still loading from the device. */
@@ -143,6 +201,7 @@ export function defaultMixerState(): MixerState {
     extLevel: 100,
     extMuted: false,
     masterEq: defaultEqState(),
+    drumCompEq: defaultDrumCompEqState(),
     eqExpanded: false,
     loading: true,
     studioSetNames: new Map(),

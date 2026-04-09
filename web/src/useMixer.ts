@@ -39,6 +39,10 @@ export interface UseMixerResult {
   toggleReverbSwitch: () => void;
   setExtLevel: (value: number) => void;
   toggleExtMute: () => void;
+  setDrumCompEqSwitch: (enabled: boolean) => void;
+  setDrumCompEqPart: (part: number) => void;
+  setDrumCompEqOutputAssign: (unit: number, value: number) => void;
+  setCompEqParam: (unit: number, paramOffset: number, value: number) => void;
   toggleEqExpanded: () => void;
   selectPart: (part: number) => void;
   switchStudioSet: (pc: number) => void;
@@ -70,6 +74,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
       extLevel: rs.extLevel ?? 100,
       extMuted: rs.extMuted ?? false,
       masterEq: rs.masterEq ?? prev.masterEq,
+      drumCompEq: rs.drumCompEq ?? prev.drumCompEq,
       // UI-only fields preserved from React state.
       selectedPart: prev.selectedPart,
       eqExpanded: prev.eqExpanded,
@@ -417,6 +422,40 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     syncFromRust();
   }, [service, syncFromRust]);
 
+  // --- Drum Comp+EQ ---
+
+  const setDrumCompEqSwitch = useCallback(
+    (enabled: boolean) => {
+      service?.device.setDrumCompEqSwitch(enabled);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
+  const setDrumCompEqPart = useCallback(
+    (part: number) => {
+      service?.device.setDrumCompEqPart(part);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
+  const setDrumCompEqOutputAssign = useCallback(
+    (unit: number, value: number) => {
+      service?.device.setDrumCompEqOutputAssign(unit, value);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
+  const setCompEqParam = useCallback(
+    (unit: number, paramOffset: number, value: number) => {
+      service?.device.setCompEqParam(unit, paramOffset, value);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
   // --- UI-only state ---
 
   const toggleEqExpanded = useCallback(() => {
@@ -457,6 +496,10 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     toggleReverbSwitch,
     setExtLevel,
     toggleExtMute,
+    setDrumCompEqSwitch,
+    setDrumCompEqPart,
+    setDrumCompEqOutputAssign,
+    setCompEqParam,
     toggleEqExpanded,
     selectPart,
     switchStudioSet,

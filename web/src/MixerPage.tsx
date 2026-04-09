@@ -2,7 +2,7 @@ import { TopBar } from "./TopBar";
 import { PartSelector } from "./PartSelector";
 import { ChannelStrip } from "./ChannelStrip";
 import { FxStrip } from "./FxStrip";
-// ExStrip and MasterStrip are now ChannelStrip variants.
+// CompEqPanel replaced by ChannelStrip variant="comp-eq"
 import {
   CHORUS_PARAMS,
   CHORUS_TYPE_NAMES,
@@ -72,6 +72,15 @@ export function MixerPage({ mixer, service }: Props) {
                 partIndex={i}
                 part={part}
                 eqExpanded={state.eqExpanded}
+                compEqAssigned={state.drumCompEq.enabled && state.drumCompEq.part === i}
+                onCompEqToggle={() => {
+                  if (state.drumCompEq.enabled && state.drumCompEq.part === i) {
+                    mixer.setDrumCompEqSwitch(false);
+                  } else {
+                    mixer.setDrumCompEqPart(i);
+                    mixer.setDrumCompEqSwitch(true);
+                  }
+                }}
                 onLevelChange={(v) => mixer.setPartLevel(i, v)}
                 onPanChange={(v) => mixer.setPartPan(i, v)}
                 onMuteToggle={() => mixer.togglePartMute(i)}
@@ -92,6 +101,18 @@ export function MixerPage({ mixer, service }: Props) {
             onLevelChange={mixer.setExtLevel}
             onMuteToggle={mixer.toggleExtMute}
           />
+          {state.drumCompEq.enabled && state.eqExpanded && state.drumCompEq.units.map((unit, i) => (
+            <ChannelStrip
+              key={`ceq-${i}`}
+              variant="comp-eq"
+              label={`C+E${i + 1}`}
+              eqExpanded={state.eqExpanded}
+              compEqUnit={unit}
+              compEqOutputAssign={state.drumCompEq.outputAssigns[i]}
+              onCompEqParam={(offset, v) => mixer.setCompEqParam(i, offset, v)}
+              onCompEqOutputAssign={(v) => mixer.setDrumCompEqOutputAssign(i, v)}
+            />
+          ))}
           <FxStrip
             label="FX1"
             fx={state.chorus}
