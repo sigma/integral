@@ -4,7 +4,8 @@
     "i7-grp.2"
   ],
   "blocks": [
-    "i7-grp.4"
+    "i7-grp.4",
+    "i7-grp.5"
   ],
   "created": "2026-04-09T19:07:06Z",
   "description": "WASM bindings for PCMD state read/write, per-key param setters, WMT layer selection.",
