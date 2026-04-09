@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:06:26Z",
+  "description": "Per-partial amplifier: level, velocity curve, pan, key follow. TVA Envelope: ADSR with time/level for each stage, velocity sensitivity. Reuse ADSR editor from TVF.",
+  "id": "i7-9q7.7",
+  "labels": [],
+  "parent": "i7-9q7",
+  "priority": 2,
+  "status": "open",
+  "title": "Web: PCMS TVA (amp) panel with envelope",
+  "type": "task",
+  "updated_at": "2026-04-09T19:06:26Z"
+}
