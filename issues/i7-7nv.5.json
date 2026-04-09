@@ -6,7 +6,9 @@
     "i7-7nv.3",
     "i7-7nv.4"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-7nv.6"
+  ],
   "created": "2026-04-09T11:28:26Z",
   "description": "",
   "id": "i7-7nv.5",
