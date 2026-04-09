@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:06:26Z",
+  "description": "Per-partial pitch: coarse tune, fine tune, random pitch depth, pitch key follow. Pitch envelope: time 1-4, level 1-4, velocity/time key follow.",
+  "id": "i7-9q7.8",
+  "labels": [],
+  "parent": "i7-9q7",
+  "priority": 2,
+  "status": "open",
+  "title": "Web: PCMS Pitch + Pitch Envelope panel",
+  "type": "task",
+  "updated_at": "2026-04-09T19:06:26Z"
+}
