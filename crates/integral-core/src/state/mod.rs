@@ -18,6 +18,7 @@ pub const NUM_PARTS: usize = 16;
 /// 3-band parametric EQ state.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct EqState {
     /// EQ on/off.
     pub enabled: bool,
@@ -59,10 +60,12 @@ impl Default for EqState {
 /// Chorus or Reverb FX block state.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct FxState {
     /// Effect on/off.
     pub enabled: bool,
     /// Effect type index (Chorus: 0–3, Reverb: 0–6).
+    #[cfg_attr(feature = "serde", serde(rename = "type"))]
     pub fx_type: u8,
     /// Effect level (0–127).
     pub level: u8,
@@ -91,6 +94,7 @@ impl Default for FxState {
 /// State of a single Part in the mixer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct PartState {
     /// Part level / volume (0–127).
     pub level: u8,
@@ -103,6 +107,7 @@ pub struct PartState {
     /// Tone bank LSB.
     pub tone_bank_lsb: u8,
     /// Tone program number.
+    #[cfg_attr(feature = "serde", serde(rename = "tonePC"))]
     pub tone_pc: u8,
     /// MIDI receive channel (0–15).
     pub receive_channel: u8,
@@ -141,10 +146,12 @@ impl Default for PartState {
 /// Full mixer state.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct MixerState {
     /// Studio Set name (up to 16 ASCII chars).
     pub studio_set_name: String,
     /// Current Studio Set PC (0–63).
+    #[cfg_attr(feature = "serde", serde(rename = "studioSetPC"))]
     pub studio_set_pc: u8,
     /// System master level (0–127).
     pub master_level: u8,
