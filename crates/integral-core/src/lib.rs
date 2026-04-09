@@ -12,3 +12,4 @@ pub mod params;
 pub mod state;
 pub mod sysex;
 pub mod tone_banks;
+pub mod tone_catalog;
