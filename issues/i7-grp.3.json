@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-grp.2"
+  ],
   "blocks": [],
   "created": "2026-04-09T19:07:06Z",
   "description": "WASM bindings for PCMD state read/write, per-key param setters, WMT layer selection.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "WASM: expose PCMD bindings",
   "type": "task",
-  "updated_at": "2026-04-09T19:07:06Z"
+  "updated_at": "2026-04-09T19:07:16Z"
 }

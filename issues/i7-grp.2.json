@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-grp.1"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-grp.3"
+  ],
   "created": "2026-04-09T19:07:06Z",
   "description": "Parse PCMD common + per-partial dumps. 88 partials, each with multiple sub-blocks. Efficient bulk reading strategy needed (read per-key on demand, not all 88 at once).",
   "id": "i7-grp.2",
