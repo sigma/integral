@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:04:30Z",
+  "description": "Parse SN-S common dump + 3 partial dumps into SnSynthState. Each partial has ~55 parameters. Common has ~14 parameters. Total read is split across multiple RQ1 blocks per the address map.",
+  "id": "i7-3og.2",
+  "labels": [],
+  "parent": "i7-3og",
+  "priority": 2,
+  "status": "open",
+  "title": "Core: SN-S parse functions",
+  "type": "task",
+  "updated_at": "2026-04-09T19:04:30Z"
+}
