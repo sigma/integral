@@ -1,3 +1,7 @@
+/* ================================================================
+   SN-S Synth Editor — single-page grid layout
+   ================================================================ */
+
 .editor {
   display: flex;
   flex-direction: column;
@@ -5,6 +9,7 @@
   padding: 12px;
   overflow-y: auto;
   flex: 1;
+  background: #0c0c1a;
 }
 
 .loading {
@@ -24,88 +29,441 @@
   letter-spacing: 0.5px;
 }
 
-.tabBar {
+/* ----------------------------------------------------------------
+   Common Controls Strip
+   ---------------------------------------------------------------- */
+
+.commonStrip {
   display: flex;
-  gap: 0;
-  border-bottom: 1px solid #2a2a4a;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #161628;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+
+.commonGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.groupLabel {
+  font-size: 9px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.groupRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.commonDivider {
+  width: 1px;
+  height: 40px;
+  background: #2a2a4a;
   flex-shrink: 0;
 }
 
-.tab {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 6px 14px;
-  background: transparent;
-  color: #888;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+/* ----------------------------------------------------------------
+   Main Grid: 3 partial rows x (SW + 5 sections + MFX)
+   ---------------------------------------------------------------- */
+
+.mainGrid {
+  display: grid;
+  grid-template-columns: auto repeat(5, minmax(180px, 1fr)) auto;
+  grid-template-rows: auto auto auto;
+  gap: 6px;
+  align-items: start;
 }
 
-.tab:hover {
-  color: #c0c0e0;
+/* Partial switch column */
+.partialSwitch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
 }
 
-.tabActive {
-  color: #e0e0e0;
-  border-bottom-color: #4a6cf7;
-}
-
-.paramSection {
+.partialSwitchBtn {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 4px 0;
-}
-
-.sectionLabel {
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  border: 1px solid #3a3a5a;
+  border-radius: 6px;
+  background: #222240;
+  color: #888;
+  cursor: pointer;
   font-size: 11px;
   font-weight: 700;
-  color: #888;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  padding: 4px 0 0;
-  border-top: 1px solid #1e1e3a;
-  margin-top: 4px;
+  letter-spacing: 0.5px;
+  transition: background 0.15s, color 0.15s;
+  min-height: 50px;
+  justify-content: center;
 }
 
-.paramGrid {
+.partialSwitchBtn:hover {
+  border-color: #5a5a7a;
+}
+
+.partialSwitchBtnOn {
+  background: #2a4a2a;
+  color: #6fe87a;
+  border-color: #3a6a3a;
+}
+
+.partialNum {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.partialSwLabel {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Dimmed row when partial is OFF */
+.partialRowDimmed {
+  opacity: 0.4;
+}
+
+/* MFX column spans all 3 rows */
+.mfxCell {
+  grid-column: 7;
+  grid-row: 1 / 4;
+  display: flex;
+  align-items: center;
+}
+
+/* ----------------------------------------------------------------
+   Panel boxes (section boxes)
+   ---------------------------------------------------------------- */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  background: #161628;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.panelHeader {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #c0c0e0;
+  padding: 4px 8px;
+  background: #111122;
+  border-top: 2px solid #555;
+}
+
+/* Accent colors per panel type */
+.panelOsc .panelHeader {
+  border-top-color: #e8943a;
+}
+
+.panelFilter .panelHeader {
+  border-top-color: #4a9cf7;
+}
+
+.panelAmp .panelHeader {
+  border-top-color: #4cdf6c;
+}
+
+.panelLfo .panelHeader {
+  border-top-color: #b06cf7;
+}
+
+.panelMfx .panelHeader {
+  border-top-color: #4ce0e0;
+}
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  flex: 1;
+}
+
+.panelRow {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 6px;
-  background: #161628;
-  border: 1px solid #2a2a4a;
-  border-radius: 6px;
+  align-items: flex-start;
 }
 
-.switchRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 6px;
-  background: #161628;
-  border: 1px solid #2a2a4a;
-  border-radius: 6px;
+/* ----------------------------------------------------------------
+   Envelope / fader sections
+   ---------------------------------------------------------------- */
+
+.envSection {
+  border-top: 1px solid #222240;
+  margin-top: 2px;
+  padding-top: 4px;
 }
+
+.envLabel {
+  font-size: 8px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.faderGroup {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.fader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 28px;
+}
+
+.faderLabel {
+  font-size: 8px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+}
+
+.faderInput {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  appearance: slider-vertical;
+  width: 18px;
+  height: 80px;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Style the slider track */
+.faderInput::-webkit-slider-runnable-track {
+  width: 4px;
+  background: #2a2a4a;
+  border-radius: 2px;
+}
+
+.faderInput::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 8px;
+  background: #c0c0e0;
+  border: 1px solid #888;
+  border-radius: 2px;
+  cursor: pointer;
+  margin-left: -5px;
+}
+
+.faderInput::-moz-range-track {
+  width: 4px;
+  background: #2a2a4a;
+  border-radius: 2px;
+}
+
+.faderInput::-moz-range-thumb {
+  width: 14px;
+  height: 8px;
+  background: #c0c0e0;
+  border: 1px solid #888;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.faderValue {
+  font-size: 8px;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----------------------------------------------------------------
+   Toggle button
+   ---------------------------------------------------------------- */
+
+.toggleBtn {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  background: #222240;
+  color: #888;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.toggleBtn:hover {
+  border-color: #5a5a7a;
+}
+
+.toggleOn {
+  background: #2a4a2a;
+  color: #6fe87a;
+  border-color: #3a6a3a;
+}
+
+/* ----------------------------------------------------------------
+   Select dropdown
+   ---------------------------------------------------------------- */
 
 .selectLabel {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: #999;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  min-width: 70px;
+  gap: 2px;
+  min-width: 60px;
 }
 
 .select {
+  font-size: 10px;
+  background: #2a2a4a;
+  color: #c0c0e0;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+/* ----------------------------------------------------------------
+   MFX Panel
+   ---------------------------------------------------------------- */
+
+.mfxPanel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  background: #161628;
+  overflow: hidden;
+  width: 280px;
+  max-height: 100%;
+}
+
+.mfxTypeRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mfxTypeLabel {
   font-size: 11px;
+  font-weight: 700;
+  color: #b0b0d0;
+}
+
+.mfxTypeSelect {
+  font-size: 10px;
   background: #2a2a4a;
   color: #c0c0e0;
   border: 1px solid #3a3a5a;
   border-radius: 4px;
   padding: 3px 6px;
+  max-width: 220px;
+  flex: 1;
+}
+
+.mfxParamGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.mfxSendRow {
+  display: flex;
+  gap: 6px;
+}
+
+.mfxCtrlSection {
+  border-top: 1px solid #222240;
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.mfxCtrlTitle {
+  font-size: 9px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.mfxCtrlSlots {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mfxCtrlSlot {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  background: #1a1a30;
+}
+
+.mfxCtrlSlotLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: #666;
+  min-width: 12px;
+  text-align: center;
+}
+
+.mfxCtrlSelect {
+  font-size: 9px;
+  background: #2a2a4a;
+  color: #c0c0e0;
+  border: 1px solid #3a3a5a;
+  border-radius: 3px;
+  padding: 2px 3px;
+  max-width: 90px;
+}
+
+/* ----------------------------------------------------------------
+   Aftertouch strip (integrated into LFO column)
+   ---------------------------------------------------------------- */
+
+.aftertouchRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-top: 1px solid #222240;
+  margin-top: 2px;
+  padding-top: 4px;
+}
+
+.aftertouchLabel {
+  font-size: 8px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
