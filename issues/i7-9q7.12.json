@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-9q7.4"
+  ],
   "blocks": [],
   "created": "2026-04-09T19:06:27Z",
   "description": "Container: partial tab selector (1/2/3/4), common panel, per-partial sub-tabs (Wave, Pitch, TVF, TVA, LFO, Output), matrix control, MFX tab. Structure type diagram. Load PCMS state on entry.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Web: PCMS tone editor page shell",
   "type": "task",
-  "updated_at": "2026-04-09T19:06:27Z"
+  "updated_at": "2026-04-09T19:06:37Z"
 }
