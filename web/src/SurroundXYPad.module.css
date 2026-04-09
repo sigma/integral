@@ -1,0 +1,92 @@
+.container {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  aspect-ratio: 1;
+}
+
+.labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.labelTop, .labelBottom, .labelLeft, .labelRight {
+  position: absolute;
+  font-size: 10px;
+  font-weight: 700;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.labelTop { top: -16px; left: 50%; transform: translateX(-50%); }
+.labelBottom { bottom: -16px; left: 50%; transform: translateX(-50%); }
+.labelLeft { left: -18px; top: 50%; transform: translateY(-50%); }
+.labelRight { right: -18px; top: 50%; transform: translateY(-50%); }
+
+.pad {
+  position: absolute;
+  inset: 0;
+  background: #111122;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.gridH, .gridV {
+  position: absolute;
+  background: #1a1a30;
+}
+
+.gridH {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+}
+
+.gridV {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+.dot {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin-left: -10px;
+  margin-top: -10px;
+  border-radius: 50%;
+  background: rgba(74, 108, 247, 0.6);
+  border: 2px solid #4a6cf7;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  z-index: 1;
+}
+
+.dot:hover {
+  background: rgba(74, 108, 247, 0.8);
+  z-index: 2;
+}
+
+.dotSelected {
+  background: rgba(255, 170, 68, 0.7);
+  border-color: #ffaa44;
+  z-index: 3;
+}
+
+.dotLabel {
+  font-size: 8px;
+  font-weight: 700;
+  color: #fff;
+  pointer-events: none;
+  user-select: none;
+}
