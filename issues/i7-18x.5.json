@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-18x.3"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-18x.6"
+  ],
   "created": "2026-04-09T12:18:38Z",
   "description": "Create a CompEqStrip component showing all 6 units in a tabbed or stacked layout. Each unit shows: Comp section (switch, attack, release, threshold, ratio, output gain) and EQ section (switch, 3-band parametric identical to part EQ). Visible when the assigned drum part is selected and Comp+EQ is enabled.",
   "id": "i7-18x.5",
