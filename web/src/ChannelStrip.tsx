@@ -234,7 +234,6 @@ export function ChannelStrip({
         </>
       ) : (
         <>
-          <span className={css.muteLabel} style={hideIf(showMute)}>MUTE</span>
           <button
             className={`${css.muteButton} ${isMuted ? css.muted : ""}`}
             onClick={onMuteToggle ?? noop}
