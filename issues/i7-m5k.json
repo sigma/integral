@@ -2,13 +2,14 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-09T19:28:28Z",
   "created": "2026-04-09T19:03:29Z",
   "description": "Build the MFX editor component shared by all 5 tone types. 68 effect types with dynamic per-type parameter grids.",
   "id": "i7-m5k",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Tone Editor: MFX (shared multi-effect editor)",
   "type": "task",
-  "updated_at": "2026-04-09T19:03:29Z"
+  "updated_at": "2026-04-09T19:28:28Z"
 }
