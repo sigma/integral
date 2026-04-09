@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [],
   "blocks": [
     "i7-18x.2"
@@ -10,8 +10,8 @@
   "labels": [],
   "parent": "i7-18x",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Add Comp+EQ address constants and state types to core",
   "type": "task",
-  "updated_at": "2026-04-09T12:18:43Z"
+  "updated_at": "2026-04-09T16:02:00Z"
 }
