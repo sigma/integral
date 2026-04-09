@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-grp.3"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-grp.8"
+  ],
   "created": "2026-04-09T19:07:06Z",
   "description": "Per-key WMT editor: 4 layer tabs, each with wave group/number selector, gain, panorama, velocity range (lower/upper), velocity fade (lower/upper), random switch. Show which layers are active.",
   "id": "i7-grp.4",

@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-grp.4"
+  ],
   "blocks": [],
   "created": "2026-04-09T19:07:06Z",
   "description": "Container: key selector (88 keys, reuse from SN-D), WMT layer tabs, per-key sub-tabs (WMT, TVF, TVA, Pitch, Output), common panel, Comp+EQ, MFX tab. On-demand loading: only read the selected key's data.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Web: PCMD tone editor page shell",
   "type": "task",
-  "updated_at": "2026-04-09T19:07:06Z"
+  "updated_at": "2026-04-09T19:07:16Z"
 }
