@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-m5k.4"
+  ],
   "created": "2026-04-09T19:03:49Z",
   "description": "Create a static lookup table mapping MFX type ID to its parameter definitions (name, min, max, unit/format). Use FxParamDef-like struct. Source from docs/params/07-mfx-types.md. Include both standalone (0-44) and combo effects (45-67).",
   "id": "i7-m5k.2",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Core: MFX parameter table (68 types)",
   "type": "task",
-  "updated_at": "2026-04-09T19:03:49Z"
+  "updated_at": "2026-04-09T19:03:56Z"
 }
