@@ -25,7 +25,11 @@ interface Props {
   onNibParam: (paramIndex: number, value: number) => void;
 }
 
-const TYPE_NAMES = mfx_type_names();
+let _typeNamesCache: string[] | null = null;
+function getTypeNames(): string[] {
+  if (!_typeNamesCache) _typeNamesCache = mfx_type_names();
+  return _typeNamesCache;
+}
 
 const CTRL_SOURCE_NAMES: string[] = (() => {
   const names = ["OFF"];
@@ -74,7 +78,7 @@ export function MfxEditor({
         <label className={css.typeLabel}>
           MFX
           <select className={css.typeSelect} value={mfxType} onChange={handleTypeChange}>
-            {TYPE_NAMES.map((name, i) => (
+            {getTypeNames().map((name, i) => (
               <option key={i} value={i}>{i}: {name}</option>
             ))}
           </select>

@@ -20,9 +20,10 @@ import {
 } from "./DeviceStatus";
 import { MixerPage } from "./MixerPage";
 import { SurroundPage } from "./SurroundPage";
+import { ToneEditorPage } from "./ToneEditorPage";
 import css from "./App.module.css";
 
-type PageTab = "mixer" | "surround";
+type PageTab = "mixer" | "surround" | "toneEdit";
 
 type DeviceStatus =
   | { step: "idle" }
@@ -148,9 +149,18 @@ export function App() {
           >
             Surround
           </button>
+          <button
+            className={`${css.tab} ${activeTab === "toneEdit" ? css.tabActive : ""}`}
+            onClick={() => setActiveTab("toneEdit")}
+          >
+            Tone Edit
+          </button>
         </nav>
         {activeTab === "mixer" && <MixerPage mixer={mixer} service={service} />}
         {activeTab === "surround" && <SurroundPage mixer={mixer} />}
+        {activeTab === "toneEdit" && (
+          <ToneEditorPage mixer={mixer} service={service} onBack={() => setActiveTab("mixer")} />
+        )}
       </div>
     );
   }

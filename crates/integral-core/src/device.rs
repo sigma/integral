@@ -22,6 +22,7 @@
 use std::collections::HashMap;
 
 use crate::address::Address;
+use crate::sn_synth;
 use crate::state::MixerState;
 use crate::sysex;
 use crate::{params, params::part};
@@ -437,6 +438,34 @@ impl DeviceState {
     pub fn build_mfx_request(&self, part: u8) -> Vec<u8> {
         let addr = crate::mfx::mfx_block_address(part);
         sysex::build_rq1(self.device_id, &addr, &crate::mfx::MFX_BLOCK_SIZE)
+    }
+
+    // -----------------------------------------------------------------------
+    // SN-S Tone Edit
+    // -----------------------------------------------------------------------
+
+    /// Set a single SN-S Common parameter for a part.
+    pub fn set_sns_common_param(&mut self, part: u8, offset: u8, value: u8) {
+        let addr = sn_synth::sns_common_param_address(part, offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Set a single SN-S Partial parameter for a part.
+    pub fn set_sns_partial_param(&mut self, part: u8, partial: u8, offset: u8, value: u8) {
+        let addr = sn_synth::sns_partial_param_address(part, partial, offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Build an RQ1 to read the full SN-S Common block for a part.
+    pub fn build_sns_common_request(&self, part: u8) -> Vec<u8> {
+        let addr = sn_synth::sns_common_address(part);
+        sysex::build_rq1(self.device_id, &addr, &sn_synth::SNS_COMMON_BLOCK_SIZE)
+    }
+
+    /// Build an RQ1 to read an SN-S Partial block for a part.
+    pub fn build_sns_partial_request(&self, part: u8, partial: u8) -> Vec<u8> {
+        let addr = sn_synth::sns_partial_address(part, partial);
+        sysex::build_rq1(self.device_id, &addr, &sn_synth::SNS_PARTIAL_BLOCK_SIZE)
     }
 
     // -----------------------------------------------------------------------

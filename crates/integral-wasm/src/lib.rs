@@ -1224,6 +1224,47 @@ impl WasmDeviceState {
         self.inner.build_surround_common_request()
     }
 
+    // -- SN-S Tone Edit ----------------------------------------------------
+
+    /// Set a single SN-S Common parameter.
+    #[wasm_bindgen(js_name = setSnsCommonParam)]
+    pub fn set_sns_common_param(&mut self, part: u8, offset: u8, value: u8) {
+        self.inner.set_sns_common_param(part, offset, value);
+    }
+
+    /// Set a single SN-S Partial parameter.
+    #[wasm_bindgen(js_name = setSnsPartialParam)]
+    pub fn set_sns_partial_param(&mut self, part: u8, partial: u8, offset: u8, value: u8) {
+        self.inner
+            .set_sns_partial_param(part, partial, offset, value);
+    }
+
+    /// Parse an SN-S Common dump and return as a JS object.
+    #[wasm_bindgen(js_name = applySnsCommon)]
+    pub fn apply_sns_common(&mut self, data: &[u8]) -> JsValue {
+        let parsed = integral_core::sn_synth::parse_sns_common(data);
+        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    }
+
+    /// Parse an SN-S Partial dump and return as a JS object.
+    #[wasm_bindgen(js_name = applySnsPartial)]
+    pub fn apply_sns_partial(&mut self, data: &[u8]) -> JsValue {
+        let parsed = integral_core::sn_synth::parse_sns_partial(data);
+        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    }
+
+    /// Build an RQ1 to read the SN-S Common block for a part.
+    #[wasm_bindgen(js_name = buildSnsCommonRequest)]
+    pub fn build_sns_common_request(&self, part: u8) -> Vec<u8> {
+        self.inner.build_sns_common_request(part)
+    }
+
+    /// Build an RQ1 to read an SN-S Partial block for a part.
+    #[wasm_bindgen(js_name = buildSnsPartialRequest)]
+    pub fn build_sns_partial_request(&self, part: u8, partial: u8) -> Vec<u8> {
+        self.inner.build_sns_partial_request(part, partial)
+    }
+
     // -- MFX ---------------------------------------------------------------
 
     #[wasm_bindgen(js_name = setMfxParam)]

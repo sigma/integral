@@ -1,0 +1,60 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #0e0e1e;
+  border-bottom: 1px solid #2a2a4a;
+  flex-shrink: 0;
+}
+
+.backButton {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  background: #2a2a4a;
+  color: #c0c0e0;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.backButton:hover {
+  background: #3a3a5a;
+}
+
+.partLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: #b0b0d0;
+}
+
+.toneType {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.toneLabel {
+  font-size: 13px;
+  color: #e0e0e0;
+  margin-left: auto;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #666;
+  font-size: 14px;
+}
