@@ -4,7 +4,8 @@
     "i7-4dc.4"
   ],
   "blocks": [
-    "i7-4dc.7"
+    "i7-4dc.7",
+    "i7-4dc.8"
   ],
   "created": "2026-04-09T19:05:08Z",
   "description": "Dynamic knob grid that reads the instrument parameter table for the current instrument type and renders appropriate controls. Labels/ranges/units adapt per instrument. This covers all 35 categories with one component. Show instrument name and category.",
