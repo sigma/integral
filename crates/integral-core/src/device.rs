@@ -399,6 +399,63 @@ impl DeviceState {
     }
 
     // -----------------------------------------------------------------------
+    // Drum Comp+EQ
+    // -----------------------------------------------------------------------
+
+    /// Set the Drum Comp+EQ global switch.
+    pub fn set_drum_comp_eq_switch(&mut self, enabled: bool) {
+        self.state.drum_comp_eq.enabled = enabled;
+        self.send_dt1(&params::DRUM_COMP_EQ_SWITCH, &[u8::from(enabled)]);
+    }
+
+    /// Set the Drum Comp+EQ assigned part (0–15).
+    pub fn set_drum_comp_eq_part(&mut self, part: u8) {
+        self.state.drum_comp_eq.part = part;
+        self.send_dt1(&params::DRUM_COMP_EQ_PART, &[part]);
+    }
+
+    /// Set a Comp+EQ unit output assign (0–12).
+    pub fn set_drum_comp_eq_output_assign(&mut self, unit: u8, value: u8) {
+        self.state.drum_comp_eq.output_assigns[unit as usize] = value;
+        let addr = params::drum_comp_eq_output_assign(unit);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Set a parameter within a Comp+EQ unit.
+    ///
+    /// `unit` is 0–5, `param_offset` is a `comp::` or `comp_eq::` constant.
+    pub fn set_comp_eq_param(&mut self, unit: u8, param_offset: u8, value: u8) {
+        let u = &mut self.state.drum_comp_eq.units[unit as usize];
+        match param_offset {
+            0x00 => u.comp_switch = value == 1,
+            0x01 => u.comp_attack = value,
+            0x02 => u.comp_release = value,
+            0x03 => u.comp_threshold = value,
+            0x04 => u.comp_ratio = value,
+            0x05 => u.comp_output_gain = value,
+            0x06 => u.eq_switch = value == 1,
+            0x07 => u.eq_low_freq = value,
+            0x08 => u.eq_low_gain = value,
+            0x09 => u.eq_mid_freq = value,
+            0x0A => u.eq_mid_gain = value,
+            0x0B => u.eq_mid_q = value,
+            0x0C => u.eq_high_freq = value,
+            0x0D => u.eq_high_gain = value,
+            _ => return,
+        }
+        let part = self.state.drum_comp_eq.part;
+        let addr = params::comp_eq_param_address(part, unit, param_offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Build an RQ1 to read all 6 Comp+EQ units (84 bytes).
+    pub fn build_comp_eq_block_request(&self) -> Vec<u8> {
+        let part = self.state.drum_comp_eq.part;
+        let addr = params::comp_eq_block_address(part);
+        sysex::build_rq1(self.device_id, &addr, &params::COMP_EQ_BLOCK_SIZE)
+    }
+
+    // -----------------------------------------------------------------------
     // RQ1 request builders
     // -----------------------------------------------------------------------
 

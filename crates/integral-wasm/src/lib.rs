@@ -1104,4 +1104,49 @@ impl WasmDeviceState {
     pub fn apply_ext_muted(&mut self, muted: bool) {
         self.inner.state_mut().ext_muted = muted;
     }
+
+    // -- Drum Comp+EQ --------------------------------------------------
+
+    #[wasm_bindgen(js_name = setDrumCompEqSwitch)]
+    pub fn set_drum_comp_eq_switch(&mut self, enabled: bool) {
+        self.inner.set_drum_comp_eq_switch(enabled);
+    }
+
+    #[wasm_bindgen(js_name = setDrumCompEqPart)]
+    pub fn set_drum_comp_eq_part(&mut self, part: u8) {
+        self.inner.set_drum_comp_eq_part(part);
+    }
+
+    #[wasm_bindgen(js_name = setDrumCompEqOutputAssign)]
+    pub fn set_drum_comp_eq_output_assign(&mut self, unit: u8, value: u8) {
+        self.inner.set_drum_comp_eq_output_assign(unit, value);
+    }
+
+    #[wasm_bindgen(js_name = setCompEqParam)]
+    pub fn set_comp_eq_param(&mut self, unit: u8, param_offset: u8, value: u8) {
+        self.inner.set_comp_eq_param(unit, param_offset, value);
+    }
+
+    #[wasm_bindgen(js_name = buildCompEqBlockRequest)]
+    pub fn build_comp_eq_block_request(&self) -> Vec<u8> {
+        self.inner.build_comp_eq_block_request()
+    }
+
+    /// Apply a parsed 84-byte Comp+EQ block dump to the state.
+    #[wasm_bindgen(js_name = applyCompEqBlock)]
+    pub fn apply_comp_eq_block(&mut self, data: &[u8]) {
+        let units = state_parse::parse_comp_eq_block(data);
+        self.inner.state_mut().drum_comp_eq.units = units;
+    }
+
+    /// Apply Studio Set common Comp+EQ settings.
+    #[wasm_bindgen(js_name = applyDrumCompEqCommon)]
+    pub fn apply_drum_comp_eq_common(&mut self, enabled: bool, part: u8, output_assigns: &[u8]) {
+        let dce = &mut self.inner.state_mut().drum_comp_eq;
+        dce.enabled = enabled;
+        dce.part = part;
+        for (i, &v) in output_assigns.iter().take(6).enumerate() {
+            dce.output_assigns[i] = v;
+        }
+    }
 }
