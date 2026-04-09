@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-svb.4"
+  ],
   "created": "2026-04-09T19:05:41Z",
   "description": "Static lookup table of all SN-D instruments: INT bank (168 instruments) and ExSN6 bank (126 SFX). Include type, name, whether stereo width and ambience apply, variation availability. Source from docs/params/04-supernatural-drum.md.",
   "id": "i7-svb.2",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Core: SN-D instrument list table",
   "type": "task",
-  "updated_at": "2026-04-09T19:05:41Z"
+  "updated_at": "2026-04-09T19:05:50Z"
 }
