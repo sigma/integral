@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-4dc.4"
+  ],
   "blocks": [],
   "created": "2026-04-09T19:05:08Z",
   "description": "Dynamic knob grid that reads the instrument parameter table for the current instrument type and renders appropriate controls. Labels/ranges/units adapt per instrument. This covers all 35 categories with one component. Show instrument name and category.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Web: SN-A generic instrument panel",
   "type": "task",
-  "updated_at": "2026-04-09T19:05:08Z"
+  "updated_at": "2026-04-09T19:05:15Z"
 }

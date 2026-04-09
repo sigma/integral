@@ -5,7 +5,8 @@
     "i7-4dc.3"
   ],
   "blocks": [
-    "i7-4dc.5"
+    "i7-4dc.5",
+    "i7-4dc.6"
   ],
   "created": "2026-04-09T19:05:08Z",
   "description": "WASM bindings for SN-A state read/write, instrument param table lookup by type, DeviceState setters.",
