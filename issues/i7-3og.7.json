@@ -6,7 +6,9 @@
     "i7-3og.6",
     "i7-m5k.5"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-3og.8"
+  ],
   "created": "2026-04-09T19:04:30Z",
   "description": "Container page: partial tab selector (1/2/3), common panel, per-partial panels, MFX tab. Load SN-S state on entry (detect tone type from bank MSB). Wire all setters. Navigate from mixer part click.",
   "id": "i7-3og.7",
