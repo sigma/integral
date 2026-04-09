@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-09T19:05:08Z",
+  "description": "UI for common params: Tone Level, Mono/Poly, Octave Shift, Cutoff/Resonance/Attack/Release offsets, Portamento Time, Vibrato Rate/Depth/Delay. Note: some params don't apply to TW Organ.",
+  "id": "i7-4dc.5",
+  "labels": [],
+  "parent": "i7-4dc",
+  "priority": 2,
+  "status": "open",
+  "title": "Web: SN-A Common panel",
+  "type": "task",
+  "updated_at": "2026-04-09T19:05:08Z"
+}
