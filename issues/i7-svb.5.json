@@ -7,14 +7,15 @@
     "i7-grp.7",
     "i7-svb.8"
   ],
+  "closed_at": "2026-04-10T14:42:20Z",
   "created": "2026-04-09T19:05:42Z",
   "description": "Shared component for SN-D and PCMD: grid or mini-keyboard showing notes 21-82 (SN-D) or 21-108 (PCMD). Highlight selected key. Show instrument name per key. Click to select. MIDI note input to select. Reusable across both drum kit editors.",
   "id": "i7-svb.5",
   "labels": [],
   "parent": "i7-svb",
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Web: drum key selector component",
   "type": "task",
-  "updated_at": "2026-04-09T19:07:17Z"
+  "updated_at": "2026-04-10T14:42:20Z"
 }
