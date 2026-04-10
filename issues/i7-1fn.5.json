@@ -7,14 +7,15 @@
   "blocks": [
     "i7-1fn.9"
   ],
+  "closed_at": "2026-04-10T06:24:48Z",
   "created": "2026-04-10T06:20:55Z",
   "description": "Two SynthFaders (A, D) plus optional Depth fader, grouped with a small ADSR curve diagram above showing the envelope shape. The diagram updates reactively as fader values change. Used for OSC Pitch Envelope in SN-S.",
   "id": "i7-1fn.5",
   "labels": [],
   "parent": "i7-1fn",
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "ADEnvelope: attack-decay composite control",
   "type": "task",
-  "updated_at": "2026-04-10T06:21:05Z"
+  "updated_at": "2026-04-10T06:24:48Z"
 }
