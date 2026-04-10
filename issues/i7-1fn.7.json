@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-10T06:20:56Z",
+  "description": "Composite: SynthSelect (shape with waveform name/icon), SynthKnob (rate), SynthSwitch (tempo sync), conditional SynthSelect (sync note value), plus depth SynthFaders (pitch, filter, amp, pan). Shared between LFO and Mod LFO sections.",
+  "id": "i7-1fn.7",
+  "labels": [],
+  "parent": "i7-1fn",
+  "priority": 2,
+  "status": "open",
+  "title": "LfoControls: LFO parameter group composite",
+  "type": "task",
+  "updated_at": "2026-04-10T06:20:56Z"
+}
