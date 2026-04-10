@@ -1,0 +1,203 @@
+/* ----------------------------------------------------------------
+   MFX Panel — shared component styles
+   ---------------------------------------------------------------- */
+
+.mfxPanel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  background: #161628;
+  overflow: hidden;
+}
+
+.panelHeader {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #c0c0e0;
+  padding: 4px 8px;
+  background: #111122;
+  border-top: 2px solid #4ce0e0;
+}
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  flex: 1;
+}
+
+.mfxTypeRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mfxTypeLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #b0b0d0;
+}
+
+.mfxTypeSelect {
+  font-size: 10px;
+  background: #2a2a4a;
+  color: #c0c0e0;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  padding: 3px 6px;
+  max-width: 220px;
+  flex: 1;
+}
+
+.mfxParamGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+  gap: 4px;
+  justify-items: center;
+}
+
+.mfxOutput {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px solid #222240;
+  margin-top: 4px;
+  padding-top: 6px;
+}
+
+.mfxSends {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.mfxLevelFader {
+  display: flex;
+  justify-content: center;
+}
+
+/* Macros section */
+.macroSection {
+  border-top: 1px solid #222240;
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.macroHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.macroTitle {
+  font-size: 10px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.macroColLabel {
+  font-size: 8px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.macroColLabel:last-of-type {
+  margin-left: auto;
+}
+
+.macroSlot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+
+.macroSlot > *:last-child {
+  margin-left: auto;
+}
+
+.macroNum {
+  font-size: 10px;
+  font-weight: 700;
+  color: #555;
+  min-width: 12px;
+  text-align: center;
+}
+
+.macroSelectors {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.macroSelect {
+  font-size: 9px;
+  background: #2a2a4a;
+  color: #c0c0e0;
+  border: 1px solid #3a3a5a;
+  border-radius: 3px;
+  padding: 2px 3px;
+  width: 85px;
+}
+
+/* ----------------------------------------------------------------
+   Custom layout: Equalizer
+   ---------------------------------------------------------------- */
+
+/* EQ bands — one row per band */
+.eqBands {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eqBandRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.eqBandTag {
+  font-size: 8px;
+  font-weight: 900;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+
+.eqKnobs {
+  display: flex;
+  gap: 2px;
+}
+
+/* ----------------------------------------------------------------
+   Custom layout: Compressor
+   ---------------------------------------------------------------- */
+
+/* Shared custom panel layout (used by Compressor, Chorus, etc.) */
+.customLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.customRow {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  justify-content: center;
+}
+

@@ -1,8 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
-  mfx_type_names,
-  mfx_type_param_count,
-  mfx_param_def,
   sna_inst_params_by_category,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
@@ -14,6 +11,8 @@ import {
   FaderGroup,
   FaderGroupSep,
 } from "./synth-ui";
+import { MfxPanel } from "./MfxPanel";
+import type { MfxState } from "./MfxPanel";
 import css from "./SnAcousticEditor.module.css";
 
 // ---------------------------------------------------------------------------
@@ -40,14 +39,6 @@ interface SnAcousticCommon {
   instVariation: number;
   instNumber: number;
   modifyParams: number[];
-}
-
-interface MfxState {
-  mfxType: number;
-  chorusSend: number;
-  reverbSend: number;
-  controls: { source: number; sens: number; assign: number }[];
-  params: number[];
 }
 
 /** A single instrument parameter definition from the Rust table. */
@@ -129,21 +120,6 @@ const MONO_POLY_OPTIONS = [{ value: 0, label: "MONO" }, { value: 1, label: "POLY
 function signedFmt(raw: number, center: number): string {
   const v = raw - center;
   return v > 0 ? `+${v}` : String(v);
-}
-
-// MFX control source names (same as SN-S editor)
-const CTRL_SOURCE_NAMES: string[] = (() => {
-  const names = ["OFF"];
-  for (let i = 1; i <= 31; i++) names.push(`CC${String(i).padStart(2, "0")}`);
-  for (let i = 33; i <= 95; i++) names.push(`CC${String(i).padStart(2, "0")}`);
-  names.push("BEND", "AFT", "SYS1", "SYS2", "SYS3", "SYS4");
-  return names;
-})();
-
-let _typeNamesCache: string[] | null = null;
-function getMfxTypeNames(): string[] {
-  if (!_typeNamesCache) _typeNamesCache = mfx_type_names();
-  return _typeNamesCache;
 }
 
 /** Parse the raw tuple array from WASM into structured InstParamDef[]. */
@@ -598,146 +574,5 @@ function AcPianoPanel({
         })}
       </div>
     </SectionPanel>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// MFX Panel (same pattern as SN-S editor)
-// ---------------------------------------------------------------------------
-
-function MfxPanel({
-  mfx,
-  onTypeChange,
-  onHeaderParam,
-  onNibParam,
-}: {
-  mfx: MfxState;
-  onTypeChange: (type_: number) => void;
-  onHeaderParam: (offset: number, value: number) => void;
-  onNibParam: (paramIndex: number, value: number) => void;
-}) {
-  const paramDefs = useMemo(() => {
-    const count = mfx_type_param_count(mfx.mfxType);
-    const defs = [];
-    for (let i = 0; i < count; i++) {
-      const d = mfx_param_def(mfx.mfxType, i);
-      if (d) {
-        defs.push({ index: d.index, name: d.name, min: d.min, max: d.max, defaultValue: d.defaultValue });
-        d.free();
-      }
-    }
-    return defs;
-  }, [mfx.mfxType]);
-
-  return (
-    <div className={css.mfxPanel}>
-      <div className={css.panelHeader}>MFX</div>
-      <div className={css.panelBody}>
-        {/* Type selector */}
-        <div className={css.mfxTypeRow}>
-          <span className={css.mfxTypeLabel}>Type</span>
-          <select
-            className={css.mfxTypeSelect}
-            value={mfx.mfxType}
-            onChange={(e) => onTypeChange(Number(e.target.value))}
-          >
-            {getMfxTypeNames().map((name, i) => (
-              <option key={i} value={i}>{i}: {name}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Chorus / Reverb sends */}
-        <div className={css.mfxSendRow}>
-          <SynthKnob label="Cho Send" value={mfx.chorusSend} min={0} max={127} defaultValue={0}
-            onChange={(v) => onHeaderParam(0x02, v)} formatValue={(v) => String(v)} color="#668" />
-          <SynthKnob label="Rev Send" value={mfx.reverbSend} min={0} max={127} defaultValue={0}
-            onChange={(v) => onHeaderParam(0x03, v)} formatValue={(v) => String(v)} color="#686" />
-        </div>
-
-        {/* Dynamic parameters */}
-        {paramDefs.length > 0 && (
-          <div className={css.mfxParamGrid}>
-            {paramDefs.map((def, i) => {
-              const val = mfx.params[i] ?? def.defaultValue;
-              const range = def.max - def.min;
-              if (range <= 1) {
-                return (
-                  <SynthSwitch
-                    key={`${mfx.mfxType}-${def.index}`}
-                    label={def.name}
-                    value={val}
-                    options={[
-                      { value: def.min, label: "OFF" },
-                      { value: def.max, label: "ON" },
-                    ]}
-                    onChange={(v) => onNibParam(i, v)}
-                  />
-                );
-              }
-              return (
-                <SynthKnob
-                  key={`${mfx.mfxType}-${def.index}`}
-                  label={def.name}
-                  value={val}
-                  min={def.min}
-                  max={def.max}
-                  defaultValue={def.defaultValue}
-                  onChange={(v) => onNibParam(i, v)}
-                  formatValue={(v) => String(v)}
-                  color="#c8a"
-                />
-              );
-            })}
-          </div>
-        )}
-
-        {/* MFX Control (4 slots) */}
-        <div className={css.mfxCtrlSection}>
-          <span className={css.mfxCtrlTitle}>MFX Control</span>
-          <div className={css.mfxCtrlSlots}>
-            {[0, 1, 2, 3].map((slot) => {
-              const ctrl = mfx.controls[slot] ?? { source: 0, sens: 64, assign: 0 };
-              return (
-                <div key={slot} className={css.mfxCtrlSlot}>
-                  <span className={css.mfxCtrlSlotLabel}>{slot + 1}</span>
-                  <select
-                    className={css.mfxCtrlSelect}
-                    value={ctrl.source}
-                    onChange={(e) => onHeaderParam(0x05 + slot * 2, Number(e.target.value))}
-                    title={`Source ${slot + 1}`}
-                  >
-                    {CTRL_SOURCE_NAMES.map((name, i) => (
-                      <option key={i} value={i}>{name}</option>
-                    ))}
-                  </select>
-                  <SynthKnob
-                    label="Depth"
-                    value={ctrl.sens}
-                    min={1}
-                    max={127}
-                    defaultValue={64}
-                    onChange={(v) => onHeaderParam(0x06 + slot * 2, v)}
-                    formatValue={(v) => String(v - 64)}
-                    color="#8ac"
-                  />
-                  <select
-                    className={css.mfxCtrlSelect}
-                    value={ctrl.assign}
-                    onChange={(e) => onHeaderParam(0x0D + slot, Number(e.target.value))}
-                    title={`Assign ${slot + 1}`}
-                  >
-                    <option value={0}>OFF</option>
-                    {paramDefs.map((def) => (
-                      <option key={def.index} value={def.index}>{def.name}</option>
-                    ))}
-                  </select>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }

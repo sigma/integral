@@ -185,7 +185,7 @@ export function ChannelStrip({
           eq={eqState}
           onToggleSwitch={isCompEq ? compEqOnEqToggle : (onEqToggle ?? noop)}
           onParam={isCompEq ? compEqOnEqParam : (onEqParam ?? noop)}
-          {...(variant === "master" ? { paramBase: 0 } : { paramBase: 0 })}
+          {...(variant === "master" ? { paramBase: 0 } : {})}
           style={hideIf(showEq)}
         />
       )}

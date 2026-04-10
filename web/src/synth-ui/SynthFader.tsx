@@ -11,6 +11,8 @@ interface Props {
   formatValue?: (v: number) => string;
   /** Compact fader track height (~70px) vs standard (~100px). */
   compact?: boolean;
+  /** Custom track height in pixels. Overrides compact. */
+  trackHeight?: number;
   /** Hide the label zone (used when an envelope curve replaces it). */
   hideLabel?: boolean;
   /** Full name for tooltip. Defaults to label. */
@@ -32,10 +34,11 @@ export function SynthFader({
   onChange,
   formatValue,
   compact,
+  trackHeight,
   hideLabel,
   title,
 }: Props) {
-  const trackH = compact ? TRACK_HEIGHT_COMPACT : TRACK_HEIGHT;
+  const trackH = trackHeight ?? (compact ? TRACK_HEIGHT_COMPACT : TRACK_HEIGHT);
   const dragging = useRef(false);
   const startY = useRef(0);
   const startVal = useRef(0);

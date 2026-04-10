@@ -142,7 +142,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
         setState((prev) => ({
           ...prev,
           loading: false,
-          studioSetNames: new Map([[studioSetPC, name]]),
+          studioSetNames: new Map([...prev.studioSetNames, [studioSetPC, name]]),
         }));
         syncFromRust();
 
