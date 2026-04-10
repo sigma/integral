@@ -5,11 +5,12 @@ interface Props {
   options: { value: number; label: string }[];
   onChange: (value: number) => void;
   label?: string;
+  title?: string;
 }
 
-export function SynthSelect({ value, options, onChange, label }: Props) {
+export function SynthSelect({ value, options, onChange, label, title }: Props) {
   return (
-    <label className={css.wrapper}>
+    <label className={css.wrapper} title={title}>
       {label && <span className={css.label}>{label}</span>}
       <select
         className={css.select}

@@ -10,6 +10,8 @@ interface FaderDef {
   defaultValue: number;
   onChange: (v: number) => void;
   formatValue?: (v: number) => string;
+  /** Render as invisible (preserves layout space). */
+  hidden?: boolean;
 }
 
 interface Props {
@@ -19,6 +21,9 @@ interface Props {
   sustain?: FaderDef;
   release?: FaderDef;
   extra?: FaderDef;
+  /** Optional envelope level faders (3–5 breakpoints). Rendered below time faders.
+   *  Use hidden: true for implicit levels that should preserve layout space. */
+  levels?: FaderDef[];
   compact?: boolean;
 }
 
@@ -38,6 +43,7 @@ export function ADSREnvelope({
   sustain,
   release,
   extra,
+  levels,
   compact,
 }: Props) {
   const aNorm = normalize(attack.value, attack.min, attack.max);
@@ -69,7 +75,25 @@ export function ADSREnvelope({
       const aX = pad + aNorm * usable * 0.5;
       const dX = aX + dNorm * usable * 0.4;
       curvePath = `M ${pad} ${curveH - pad} L ${aX} ${pad} L ${dX} ${curveH - pad}`;
+    } else if (levels && levels.length >= 3) {
+      // Multi-point envelope: use actual level values for Y positions
+      const lNorms = levels.map((l) => normalize(l.value, l.min, l.max));
+      const usable = w - pad * 2;
+      const seg = usable / 4;
+      const yRange = curveH - pad * 2;
+      const yFor = (n: number) => pad + (1 - n) * yRange;
+      const x0 = pad;
+      const x1 = x0 + aNorm * seg;
+      const x2 = x1 + dNorm * seg;
+      const x3 = x2 + sNorm * seg;
+      const x4 = x3 + rNorm * seg;
+      curvePath = `M ${x0} ${yFor(lNorms[0]!)}`
+        + ` L ${x1} ${yFor(lNorms[1]!)}`
+        + ` L ${x2} ${yFor(lNorms[2]!)}`
+        + (lNorms[3] !== undefined ? ` L ${x3} ${yFor(lNorms[3])}` : "")
+        + (lNorms[4] !== undefined ? ` L ${x4} ${yFor(lNorms[4])}` : "");
     } else {
+      // Standard ADSR: sustain time fader as sustain level (legacy)
       const usable = w - pad * 2;
       const seg = usable / 4;
       const aX = pad + aNorm * seg;
@@ -91,7 +115,7 @@ export function ADSREnvelope({
           </svg>
         )}
       </div>
-      {/* Fader row */}
+      {/* Time fader row */}
       <div className={css.faders}>
         {/* Envelope faders — measured by ref */}
         <div className={css.envFaders} ref={envRef}>
@@ -108,6 +132,20 @@ export function ADSREnvelope({
           </>
         )}
       </div>
+      {/* Level faders — optional, rendered below time faders */}
+      {levels && levels.length > 0 && (
+        <div className={css.levelFaders}>
+          {levels.map((l, i) => {
+            const { hidden, ...faderProps } = l;
+            const style = hidden ? { visibility: "hidden" as const, pointerEvents: "none" as const } : undefined;
+            return (
+              <div key={i} style={style}>
+                <SynthFader {...faderProps} compact={compact} />
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { SnSynthEditor } from "./SnSynthEditor";
 import { SnAcousticEditor } from "./SnAcousticEditor";
 import { SnDrumEditor } from "./SnDrumEditor";
+import { PcmSynthEditor } from "./PcmSynthEditor";
 import { useMidiKeyboard } from "./useMidiKeyboard";
 import type { IntegraService } from "./integra";
 import type { UseMixerResult } from "./useMixer";
@@ -28,6 +29,7 @@ export function ToneEditorPage({ mixer, service, onBack }: Props) {
   const part = mixer.state.parts[partIndex]!;
   const bankMsb = part.toneBankMsb;
   const toneType = TONE_TYPE_LABELS[bankMsb] ?? `Unknown (MSB ${bankMsb})`;
+  const isPcms = bankMsb === 87;
   const isSns = bankMsb === 95;
   const isSna = bankMsb === 89;
   const isSnd = bankMsb === 88;
@@ -55,7 +57,9 @@ export function ToneEditorPage({ mixer, service, onBack }: Props) {
           <button className={css.octaveBtn} onClick={() => setOctave((o) => Math.min(9, o + 1))}>+</button>
         </span>
       </div>
-      {isSns ? (
+      {isPcms ? (
+        <PcmSynthEditor partIndex={partIndex} service={service} />
+      ) : isSns ? (
         <SnSynthEditor partIndex={partIndex} service={service} />
       ) : isSna ? (
         <SnAcousticEditor partIndex={partIndex} service={service} />

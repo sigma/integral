@@ -30,11 +30,11 @@ pub const PCMS_PMT_BLOCK_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x29);
 /// PCM Synth PMT parse size in bytes.
 pub const PCMS_PMT_SIZE: usize = 0x29;
 
-/// PCM Synth Partial block size (282 bytes).
+/// PCM Synth Partial block size (154 bytes; 7-bit size `01 1A` = 128 + 26).
 pub const PCMS_PARTIAL_BLOCK_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x01, 0x1A);
 
-/// PCM Synth Partial parse size in bytes.
-pub const PCMS_PARTIAL_SIZE: usize = 0x011A;
+/// PCM Synth Partial parse size in bytes (154 = 128 + 26).
+pub const PCMS_PARTIAL_SIZE: usize = 154;
 
 /// Partial block offsets (relative to PCMS base), indexed 0-3.
 const PCMS_PARTIAL_OFFSETS: [[u8; 4]; 4] = [
