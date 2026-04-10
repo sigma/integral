@@ -1,5 +1,6 @@
 /* ================================================================
-   SN-S Synth Editor — single-page grid layout
+   SN-S Synth Editor — layout styles only
+   (Component styles are in synth-ui modules)
    ================================================================ */
 
 .editor {
@@ -145,58 +146,8 @@
 }
 
 /* ----------------------------------------------------------------
-   Panel boxes (section boxes)
+   Panel row layout (used inside SectionPanel bodies)
    ---------------------------------------------------------------- */
-
-.panel {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid #2a2a4a;
-  border-radius: 6px;
-  background: #161628;
-  overflow: hidden;
-  min-width: 0;
-}
-
-.panelHeader {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: #c0c0e0;
-  padding: 4px 8px;
-  background: #111122;
-  border-top: 2px solid #555;
-}
-
-/* Accent colors per panel type */
-.panelOsc .panelHeader {
-  border-top-color: #e8943a;
-}
-
-.panelFilter .panelHeader {
-  border-top-color: #4a9cf7;
-}
-
-.panelAmp .panelHeader {
-  border-top-color: #4cdf6c;
-}
-
-.panelLfo .panelHeader {
-  border-top-color: #b06cf7;
-}
-
-.panelMfx .panelHeader {
-  border-top-color: #4ce0e0;
-}
-
-.panelBody {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 6px;
-  flex: 1;
-}
 
 .panelRow {
   display: flex;
@@ -206,16 +157,16 @@
 }
 
 /* ----------------------------------------------------------------
-   Envelope / fader sections
+   Depth fader sections (Mod LFO / LFO)
    ---------------------------------------------------------------- */
 
-.envSection {
+.depthSection {
   border-top: 1px solid #222240;
   margin-top: 2px;
   padding-top: 4px;
 }
 
-.envLabel {
+.depthLabel {
   font-size: 8px;
   font-weight: 700;
   color: #666;
@@ -225,107 +176,14 @@
   margin-bottom: 2px;
 }
 
-.faderGroup {
+.depthFaders {
   display: flex;
   gap: 6px;
   justify-content: center;
 }
 
-.fader {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  width: 28px;
-}
-
-.faderLabel {
-  font-size: 8px;
-  font-weight: 600;
-  color: #999;
-  text-transform: uppercase;
-}
-
-.faderInput {
-  writing-mode: vertical-lr;
-  direction: rtl;
-  appearance: slider-vertical;
-  width: 18px;
-  height: 80px;
-  background: transparent;
-  cursor: pointer;
-}
-
-/* Style the slider track */
-.faderInput::-webkit-slider-runnable-track {
-  width: 4px;
-  background: #2a2a4a;
-  border-radius: 2px;
-}
-
-.faderInput::-webkit-slider-thumb {
-  appearance: none;
-  width: 14px;
-  height: 8px;
-  background: #c0c0e0;
-  border: 1px solid #888;
-  border-radius: 2px;
-  cursor: pointer;
-  margin-left: -5px;
-}
-
-.faderInput::-moz-range-track {
-  width: 4px;
-  background: #2a2a4a;
-  border-radius: 2px;
-}
-
-.faderInput::-moz-range-thumb {
-  width: 14px;
-  height: 8px;
-  background: #c0c0e0;
-  border: 1px solid #888;
-  border-radius: 2px;
-  cursor: pointer;
-}
-
-.faderValue {
-  font-size: 8px;
-  color: #888;
-  font-variant-numeric: tabular-nums;
-}
-
 /* ----------------------------------------------------------------
-   Toggle button
-   ---------------------------------------------------------------- */
-
-.toggleBtn {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 4px 8px;
-  border: 1px solid #3a3a5a;
-  border-radius: 4px;
-  background: #222240;
-  color: #888;
-  cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  transition: background 0.15s, color 0.15s;
-  white-space: nowrap;
-}
-
-.toggleBtn:hover {
-  border-color: #5a5a7a;
-}
-
-.toggleOn {
-  background: #2a4a2a;
-  color: #6fe87a;
-  border-color: #3a6a3a;
-}
-
-/* ----------------------------------------------------------------
-   Select dropdown
+   PCM wave number input (OSC panel)
    ---------------------------------------------------------------- */
 
 .selectLabel {
@@ -336,15 +194,6 @@
   flex-direction: column;
   gap: 2px;
   min-width: 60px;
-}
-
-.select {
-  font-size: 10px;
-  background: #2a2a4a;
-  color: #c0c0e0;
-  border: 1px solid #3a3a5a;
-  border-radius: 4px;
-  padding: 2px 4px;
 }
 
 .waveNumberInput {
@@ -372,6 +221,29 @@
   overflow: hidden;
   width: 280px;
   max-height: 100%;
+}
+
+.panelMfx .panelHeader {
+  border-top-color: #4ce0e0;
+}
+
+.panelHeader {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #c0c0e0;
+  padding: 4px 8px;
+  background: #111122;
+  border-top: 2px solid #555;
+}
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  flex: 1;
 }
 
 .mfxTypeRow {

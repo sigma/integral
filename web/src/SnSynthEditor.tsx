@@ -1,11 +1,19 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { EqKnob } from "./EqKnob";
 import {
   mfx_type_names,
   mfx_type_param_count,
   mfx_param_def,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
+import {
+  SynthKnob,
+  SynthFader,
+  SynthSwitch,
+  SynthSelect,
+  SectionPanel,
+  ADSREnvelope,
+  ADEnvelope,
+} from "./synth-ui";
 import css from "./SnSynthEditor.module.css";
 
 // ---------------------------------------------------------------------------
@@ -151,6 +159,8 @@ const TEMPO_SYNC_NOTE_NAMES = [
   "16", "12", "8", "4", "2", "1", "3/4", "2/3", "1/2", "3/8",
   "1/3", "1/4", "3/16", "1/6", "1/8", "3/32", "1/12", "1/16", "1/24", "1/32",
 ];
+
+const ON_OFF_OPTIONS = [{ value: 0, label: "OFF" }, { value: 1, label: "ON" }];
 
 function signedFmt(raw: number, center: number): string {
   const v = raw - center;
@@ -553,9 +563,9 @@ function CommonStrip({
       <div className={css.commonGroup}>
         <span className={css.groupLabel}>UNISON</span>
         <div className={css.groupRow}>
-          <ToggleButton label="SW" value={common.unisonSwitch !== 0}
-            onToggle={() => onChange(0x2E, common.unisonSwitch !== 0 ? 0 : 1)} />
-          <EqKnob label="Size" value={common.unisonSize} min={0} max={3} defaultValue={0}
+          <SynthSwitch label="SW" value={common.unisonSwitch} options={ON_OFF_OPTIONS}
+            onChange={(v) => onChange(0x2E, v)} />
+          <SynthKnob label="Size" value={common.unisonSize} min={0} max={3} defaultValue={0}
             onChange={(v) => onChange(0x3C, v)} formatValue={(v) => UNISON_SIZE_NAMES[v] ?? String(v)} color="#8cf" />
         </div>
       </div>
@@ -564,8 +574,8 @@ function CommonStrip({
 
       {/* Mono */}
       <div className={css.commonGroup}>
-        <ToggleButton label="MONO" value={common.monoSwitch !== 0}
-          onToggle={() => onChange(0x14, common.monoSwitch !== 0 ? 0 : 1)} />
+        <SynthSwitch label="MONO" value={common.monoSwitch} options={ON_OFF_OPTIONS}
+          onChange={(v) => onChange(0x14, v)} />
       </div>
 
       <div className={css.commonDivider} />
@@ -574,12 +584,12 @@ function CommonStrip({
       <div className={css.commonGroup}>
         <span className={css.groupLabel}>PORTAMENTO</span>
         <div className={css.groupRow}>
-          <ToggleButton label="SW" value={common.portamentoSwitch !== 0}
-            onToggle={() => onChange(0x12, common.portamentoSwitch !== 0 ? 0 : 1)} />
-          <EqKnob label="Time" value={common.portamentoTime} min={0} max={127} defaultValue={0}
+          <SynthSwitch label="SW" value={common.portamentoSwitch} options={ON_OFF_OPTIONS}
+            onChange={(v) => onChange(0x12, v)} />
+          <SynthKnob label="Time" value={common.portamentoTime} min={0} max={127} defaultValue={0}
             onChange={(v) => onChange(0x13, v)} formatValue={(v) => String(v)} color="#8cf" />
-          <SelectParam label="Mode" value={common.portamentoMode}
-            options={[{ v: 0, l: "NORMAL" }, { v: 1, l: "LEGATO" }]}
+          <SynthSelect label="Mode" value={common.portamentoMode}
+            options={[{ value: 0, label: "NORMAL" }, { value: 1, label: "LEGATO" }]}
             onChange={(v) => onChange(0x31, v)} />
         </div>
       </div>
@@ -590,9 +600,9 @@ function CommonStrip({
       <div className={css.commonGroup}>
         <span className={css.groupLabel}>BEND RANGE</span>
         <div className={css.groupRow}>
-          <EqKnob label="Down" value={common.pitchBendRangeDown} min={0} max={24} defaultValue={2}
+          <SynthKnob label="Down" value={common.pitchBendRangeDown} min={0} max={24} defaultValue={2}
             onChange={(v) => onChange(0x17, v)} formatValue={(v) => String(v)} color="#8cf" />
-          <EqKnob label="Up" value={common.pitchBendRangeUp} min={0} max={24} defaultValue={2}
+          <SynthKnob label="Up" value={common.pitchBendRangeUp} min={0} max={24} defaultValue={2}
             onChange={(v) => onChange(0x16, v)} formatValue={(v) => String(v)} color="#8cf" />
         </div>
       </div>
@@ -600,58 +610,20 @@ function CommonStrip({
       <div className={css.commonDivider} />
 
       {/* Standalone params */}
-      <EqKnob label="Wave Shape" value={common.waveShape} min={0} max={127} defaultValue={0}
+      <SynthKnob label="Wave Shape" value={common.waveShape} min={0} max={127} defaultValue={0}
         onChange={(v) => onChange(0x35, v)} formatValue={(v) => String(v)} color="#8cf" />
-      <EqKnob label="Tone Level" value={common.toneLevel} min={0} max={127} defaultValue={127}
+      <SynthKnob label="Tone Level" value={common.toneLevel} min={0} max={127} defaultValue={127}
         onChange={(v) => onChange(0x0C, v)} formatValue={(v) => String(v)} color="#8cf" />
-      <EqKnob label="Analog Feel" value={common.analogFeel} min={0} max={127} defaultValue={0}
+      <SynthKnob label="Analog Feel" value={common.analogFeel} min={0} max={127} defaultValue={0}
         onChange={(v) => onChange(0x34, v)} formatValue={(v) => String(v)} color="#8cf" />
 
       <div className={css.commonDivider} />
 
-      <ToggleButton label="LEGATO" value={common.legatoSwitch !== 0}
-        onToggle={() => onChange(0x32, common.legatoSwitch !== 0 ? 0 : 1)} />
+      <SynthSwitch label="LEGATO" value={common.legatoSwitch} options={ON_OFF_OPTIONS}
+        onChange={(v) => onChange(0x32, v)} />
 
-      <EqKnob label="Oct Shift" value={common.octaveShift} min={61} max={67} defaultValue={64}
+      <SynthKnob label="Oct Shift" value={common.octaveShift} min={61} max={67} defaultValue={64}
         onChange={(v) => onChange(0x15, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cf" />
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Vertical Fader
-// ---------------------------------------------------------------------------
-
-function VFader({
-  label,
-  value,
-  min,
-  max,
-  defaultValue,
-  onChange,
-  formatValue,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  defaultValue: number;
-  onChange: (v: number) => void;
-  formatValue: (v: number) => string;
-}) {
-  return (
-    <div className={css.fader}>
-      <span className={css.faderLabel}>{label}</span>
-      <input
-        className={css.faderInput}
-        type="range"
-        min={min}
-        max={max}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        onDoubleClick={() => onChange(defaultValue)}
-      />
-      <span className={css.faderValue}>{formatValue(value)}</span>
     </div>
   );
 }
@@ -673,64 +645,65 @@ function OscPanel({
   const isPcm = partial.oscWave === 7;
 
   return (
-    <div className={`${css.panel} ${css.panelOsc}`}>
-      <div className={css.panelHeader}>OSC</div>
-      <div className={css.panelBody}>
-        <div className={css.panelRow}>
-          <SelectParam label="Wave" value={partial.oscWave}
-            options={OSC_WAVE_NAMES.map((l, i) => ({ v: i, l }))}
-            onChange={(v) => onChange(0x00, v)} />
-          {hasVariation && (
-            <SelectParam label="Var" value={partial.oscWaveVariation}
-              options={OSC_VARIATION_NAMES.map((l, i) => ({ v: i, l }))}
-              onChange={(v) => onChange(0x01, v)} />
-          )}
-          {isPcm && (
-            <label className={css.selectLabel}>
-              PCM #
-              <input
-                type="number"
-                className={css.waveNumberInput}
-                value={partial.waveNumber}
-                min={0}
-                max={16384}
-                onChange={(e) => {
-                  const v = Math.max(0, Math.min(16384, Number(e.target.value)));
-                  onNibChange(0x35, v);
-                }}
-              />
-            </label>
-          )}
-        </div>
-        <div className={css.panelRow}>
-          <EqKnob label="Pitch" value={partial.oscPitch} min={40} max={88} defaultValue={64}
-            onChange={(v) => onChange(0x03, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8" />
-          <EqKnob label="Detune" value={partial.oscDetune} min={14} max={114} defaultValue={64}
-            onChange={(v) => onChange(0x04, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8" />
-        </div>
-        <div className={css.panelRow}>
-          <EqKnob label="PWM" value={partial.oscPwModDepth} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(0x05, v)} formatValue={(v) => String(v)} color="#fc8" />
-          <EqKnob label="PW" value={partial.oscPulseWidth} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(0x06, v)} formatValue={(v) => String(v)} color="#fc8" />
-          <EqKnob label="S-Saw" value={partial.superSawDetune} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(0x3A, v)} formatValue={(v) => String(v)} color="#fc8" />
-          <EqKnob label="HPF" value={partial.hpfCutoff} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(0x39, v)} formatValue={(v) => String(v)} color="#fc8" />
-        </div>
-        <div className={css.envSection}>
-          <span className={css.envLabel}>PITCH ENV</span>
-          <div className={css.faderGroup}>
-            <VFader label="A" value={partial.oscPitchEnvAttack} min={0} max={127} defaultValue={0}
-              onChange={(v) => onChange(0x07, v)} formatValue={(v) => String(v)} />
-            <VFader label="D" value={partial.oscPitchEnvDecay} min={0} max={127} defaultValue={0}
-              onChange={(v) => onChange(0x08, v)} formatValue={(v) => String(v)} />
-            <VFader label="Dep" value={partial.oscPitchEnvDepth} min={1} max={127} defaultValue={64}
-              onChange={(v) => onChange(0x09, v)} formatValue={(v) => signedFmt(v, 64)} />
-          </div>
-        </div>
+    <SectionPanel label="OSC" accentColor="#fc8">
+      <div className={css.panelRow}>
+        <SynthSelect label="Wave" value={partial.oscWave}
+          options={OSC_WAVE_NAMES.map((l, i) => ({ value: i, label: l }))}
+          onChange={(v) => onChange(0x00, v)} />
+        {hasVariation && (
+          <SynthSelect label="Var" value={partial.oscWaveVariation}
+            options={OSC_VARIATION_NAMES.map((l, i) => ({ value: i, label: l }))}
+            onChange={(v) => onChange(0x01, v)} />
+        )}
+        {isPcm && (
+          <label className={css.selectLabel}>
+            PCM #
+            <input
+              type="number"
+              className={css.waveNumberInput}
+              value={partial.waveNumber}
+              min={0}
+              max={16384}
+              onChange={(e) => {
+                const v = Math.max(0, Math.min(16384, Number(e.target.value)));
+                onNibChange(0x35, v);
+              }}
+            />
+          </label>
+        )}
       </div>
-    </div>
+      <div className={css.panelRow}>
+        <SynthKnob label="Pitch" value={partial.oscPitch} min={40} max={88} defaultValue={64}
+          onChange={(v) => onChange(0x03, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8" />
+        <SynthKnob label="Detune" value={partial.oscDetune} min={14} max={114} defaultValue={64}
+          onChange={(v) => onChange(0x04, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8" />
+      </div>
+      <div className={css.panelRow}>
+        <SynthKnob label="PWM" value={partial.oscPwModDepth} min={0} max={127} defaultValue={0}
+          onChange={(v) => onChange(0x05, v)} formatValue={(v) => String(v)} color="#fc8" />
+        <SynthKnob label="PW" value={partial.oscPulseWidth} min={0} max={127} defaultValue={0}
+          onChange={(v) => onChange(0x06, v)} formatValue={(v) => String(v)} color="#fc8" />
+        <SynthKnob label="S-Saw" value={partial.superSawDetune} min={0} max={127} defaultValue={0}
+          onChange={(v) => onChange(0x3A, v)} formatValue={(v) => String(v)} color="#fc8" />
+        <SynthKnob label="HPF" value={partial.hpfCutoff} min={0} max={127} defaultValue={0}
+          onChange={(v) => onChange(0x39, v)} formatValue={(v) => String(v)} color="#fc8" />
+      </div>
+      <ADEnvelope
+        compact
+        attack={{
+          label: "A", value: partial.oscPitchEnvAttack, min: 0, max: 127, defaultValue: 0,
+          onChange: (v) => onChange(0x07, v),
+        }}
+        decay={{
+          label: "D", value: partial.oscPitchEnvDecay, min: 0, max: 127, defaultValue: 0,
+          onChange: (v) => onChange(0x08, v),
+        }}
+        extra={{
+          label: "Dep", value: partial.oscPitchEnvDepth, min: 1, max: 127, defaultValue: 64,
+          onChange: (v) => onChange(0x09, v), formatValue: (v) => signedFmt(v, 64),
+        }}
+      />
+    </SectionPanel>
   );
 }
 
@@ -746,46 +719,51 @@ function FilterPanel({
   onChange: (offset: number, value: number) => void;
 }) {
   return (
-    <div className={`${css.panel} ${css.panelFilter}`}>
-      <div className={css.panelHeader}>FILTER</div>
-      <div className={css.panelBody}>
-        <div className={css.panelRow}>
-          <SelectParam label="Mode" value={partial.filterMode}
-            options={FILTER_MODE_NAMES.map((l, i) => ({ v: i, l }))}
-            onChange={(v) => onChange(0x0A, v)} />
-          <SelectParam label="Slope" value={partial.filterSlope}
-            options={FILTER_SLOPE_NAMES.map((l, i) => ({ v: i, l }))}
-            onChange={(v) => onChange(0x0B, v)} />
-        </div>
-        <div className={css.panelRow}>
-          <EqKnob label="Cutoff" value={partial.filterCutoff} min={0} max={127} defaultValue={127}
-            onChange={(v) => onChange(0x0C, v)} formatValue={(v) => String(v)} color="#8fc" />
-          <EqKnob label="Reso" value={partial.filterResonance} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(0x0F, v)} formatValue={(v) => String(v)} color="#8fc" />
-        </div>
-        <div className={css.panelRow}>
-          <EqKnob label="KeyF" value={partial.filterKeyfollow} min={54} max={74} defaultValue={64}
-            onChange={(v) => onChange(0x0D, v)} formatValue={(v) => signedFmt(v, 64)} color="#8fc" />
-          <EqKnob label="Vel Sns" value={partial.filterEnvVelSens} min={1} max={127} defaultValue={64}
-            onChange={(v) => onChange(0x0E, v)} formatValue={(v) => signedFmt(v, 64)} color="#8fc" />
-        </div>
-        <div className={css.envSection}>
-          <span className={css.envLabel}>FILTER ENV</span>
-          <div className={css.faderGroup}>
-            <VFader label="A" value={partial.filterEnvAttack} min={0} max={127} defaultValue={0}
-              onChange={(v) => onChange(0x10, v)} formatValue={(v) => String(v)} />
-            <VFader label="D" value={partial.filterEnvDecay} min={0} max={127} defaultValue={0}
-              onChange={(v) => onChange(0x11, v)} formatValue={(v) => String(v)} />
-            <VFader label="S" value={partial.filterEnvSustain} min={0} max={127} defaultValue={0}
-              onChange={(v) => onChange(0x12, v)} formatValue={(v) => String(v)} />
-            <VFader label="R" value={partial.filterEnvRelease} min={0} max={127} defaultValue={0}
-              onChange={(v) => onChange(0x13, v)} formatValue={(v) => String(v)} />
-            <VFader label="Dep" value={partial.filterEnvDepth} min={1} max={127} defaultValue={64}
-              onChange={(v) => onChange(0x14, v)} formatValue={(v) => signedFmt(v, 64)} />
-          </div>
-        </div>
+    <SectionPanel label="FILTER" accentColor="#68c">
+      <div className={css.panelRow}>
+        <SynthSwitch label="Mode" value={partial.filterMode} vertical
+          options={FILTER_MODE_NAMES.map((l, i) => ({ value: i, label: l }))}
+          onChange={(v) => onChange(0x0A, v)} />
+        <SynthSwitch label="Slope" value={partial.filterSlope}
+          options={FILTER_SLOPE_NAMES.map((l, i) => ({ value: i, label: l }))}
+          onChange={(v) => onChange(0x0B, v)} />
       </div>
-    </div>
+      <div className={css.panelRow}>
+        <SynthKnob label="Cutoff" value={partial.filterCutoff} min={0} max={127} defaultValue={127}
+          onChange={(v) => onChange(0x0C, v)} formatValue={(v) => String(v)} color="#68c" size="lg" />
+        <SynthKnob label="Reso" value={partial.filterResonance} min={0} max={127} defaultValue={0}
+          onChange={(v) => onChange(0x0F, v)} formatValue={(v) => String(v)} color="#68c" size="lg" />
+      </div>
+      <div className={css.panelRow}>
+        <SynthKnob label="KeyF" value={partial.filterKeyfollow} min={54} max={74} defaultValue={64}
+          onChange={(v) => onChange(0x0D, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c" />
+        <SynthKnob label="Vel Sns" value={partial.filterEnvVelSens} min={1} max={127} defaultValue={64}
+          onChange={(v) => onChange(0x0E, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c" />
+      </div>
+      <ADSREnvelope
+        compact
+        attack={{
+          label: "A", value: partial.filterEnvAttack, min: 0, max: 127, defaultValue: 0,
+          onChange: (v) => onChange(0x10, v),
+        }}
+        decay={{
+          label: "D", value: partial.filterEnvDecay, min: 0, max: 127, defaultValue: 0,
+          onChange: (v) => onChange(0x11, v),
+        }}
+        sustain={{
+          label: "S", value: partial.filterEnvSustain, min: 0, max: 127, defaultValue: 0,
+          onChange: (v) => onChange(0x12, v),
+        }}
+        release={{
+          label: "R", value: partial.filterEnvRelease, min: 0, max: 127, defaultValue: 0,
+          onChange: (v) => onChange(0x13, v),
+        }}
+        extra={{
+          label: "Dep", value: partial.filterEnvDepth, min: 1, max: 127, defaultValue: 64,
+          onChange: (v) => onChange(0x14, v), formatValue: (v) => signedFmt(v, 64),
+        }}
+      />
+    </SectionPanel>
   );
 }
 
@@ -801,41 +779,44 @@ function AmpPanel({
   onChange: (offset: number, value: number) => void;
 }) {
   return (
-    <div className={`${css.panel} ${css.panelAmp}`}>
-      <div className={css.panelHeader}>AMP</div>
-      <div className={css.panelBody}>
-        <div className={css.panelRow}>
-          <EqKnob label="Level" value={partial.ampLevel} min={0} max={127} defaultValue={127}
-            onChange={(v) => onChange(0x15, v)} formatValue={(v) => String(v)} color="#f8c" />
-          <EqKnob label="Pan" value={partial.ampPan} min={0} max={127} defaultValue={64}
-            onChange={(v) => onChange(0x1B, v)} formatValue={panFmt} color="#f8c" />
-        </div>
-        <div className={css.panelRow}>
-          <EqKnob label="Vel Sns" value={partial.ampVelSens} min={1} max={127} defaultValue={64}
-            onChange={(v) => onChange(0x16, v)} formatValue={(v) => signedFmt(v, 64)} color="#f8c" />
-          <EqKnob label="KeyF" value={partial.ampLevelKeyfollow} min={54} max={74} defaultValue={64}
-            onChange={(v) => onChange(0x3C, v)} formatValue={(v) => signedFmt(v, 64)} color="#f8c" />
-        </div>
-        <div className={css.panelRow}>
-          <SelectParam label="Gain" value={partial.waveGain}
-            options={WAVE_GAIN_NAMES.map((l, i) => ({ v: i, l }))}
-            onChange={(v) => onChange(0x34, v)} />
-        </div>
-        <div className={css.envSection}>
-          <span className={css.envLabel}>AMP ENV</span>
-          <div className={css.faderGroup}>
-            <VFader label="A" value={partial.ampEnvAttack} min={0} max={127} defaultValue={0}
-              onChange={(v) => onChange(0x17, v)} formatValue={(v) => String(v)} />
-            <VFader label="D" value={partial.ampEnvDecay} min={0} max={127} defaultValue={0}
-              onChange={(v) => onChange(0x18, v)} formatValue={(v) => String(v)} />
-            <VFader label="S" value={partial.ampEnvSustain} min={0} max={127} defaultValue={127}
-              onChange={(v) => onChange(0x19, v)} formatValue={(v) => String(v)} />
-            <VFader label="R" value={partial.ampEnvRelease} min={0} max={127} defaultValue={0}
-              onChange={(v) => onChange(0x1A, v)} formatValue={(v) => String(v)} />
-          </div>
-        </div>
+    <SectionPanel label="AMP" accentColor="#6c8">
+      <div className={css.panelRow}>
+        <SynthKnob label="Level" value={partial.ampLevel} min={0} max={127} defaultValue={127}
+          onChange={(v) => onChange(0x15, v)} formatValue={(v) => String(v)} color="#6c8" />
+        <SynthKnob label="Pan" value={partial.ampPan} min={0} max={127} defaultValue={64}
+          onChange={(v) => onChange(0x1B, v)} formatValue={panFmt} color="#6c8" />
       </div>
-    </div>
+      <div className={css.panelRow}>
+        <SynthKnob label="Vel Sns" value={partial.ampVelSens} min={1} max={127} defaultValue={64}
+          onChange={(v) => onChange(0x16, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8" />
+        <SynthKnob label="KeyF" value={partial.ampLevelKeyfollow} min={54} max={74} defaultValue={64}
+          onChange={(v) => onChange(0x3C, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8" />
+      </div>
+      <div className={css.panelRow}>
+        <SynthSelect label="Gain" value={partial.waveGain}
+          options={WAVE_GAIN_NAMES.map((l, i) => ({ value: i, label: l }))}
+          onChange={(v) => onChange(0x34, v)} />
+      </div>
+      <ADSREnvelope
+        compact
+        attack={{
+          label: "A", value: partial.ampEnvAttack, min: 0, max: 127, defaultValue: 0,
+          onChange: (v) => onChange(0x17, v),
+        }}
+        decay={{
+          label: "D", value: partial.ampEnvDecay, min: 0, max: 127, defaultValue: 0,
+          onChange: (v) => onChange(0x18, v),
+        }}
+        sustain={{
+          label: "S", value: partial.ampEnvSustain, min: 0, max: 127, defaultValue: 127,
+          onChange: (v) => onChange(0x19, v),
+        }}
+        release={{
+          label: "R", value: partial.ampEnvRelease, min: 0, max: 127, defaultValue: 0,
+          onChange: (v) => onChange(0x1A, v),
+        }}
+      />
+    </SectionPanel>
   );
 }
 
@@ -851,46 +832,43 @@ function ModLfoPanel({
   onChange: (offset: number, value: number) => void;
 }) {
   return (
-    <div className={`${css.panel} ${css.panelLfo}`}>
-      <div className={css.panelHeader}>MOD LFO</div>
-      <div className={css.panelBody}>
-        <div className={css.panelRow}>
-          <SelectParam label="Shape" value={partial.modLfoShape}
-            options={LFO_SHAPE_NAMES.map((l, i) => ({ v: i, l }))}
-            onChange={(v) => onChange(0x26, v)} />
-          <EqKnob label="Rate" value={partial.modLfoRate} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(0x27, v)} formatValue={(v) => String(v)} color="#ca8" />
-        </div>
-        <div className={css.panelRow}>
-          <ToggleButton label="T.Sync" value={partial.modLfoTempoSync !== 0}
-            onToggle={() => onChange(0x28, partial.modLfoTempoSync !== 0 ? 0 : 1)} />
-          {partial.modLfoTempoSync !== 0 && (
-            <SelectParam label="Note" value={partial.modLfoTempoSyncNote}
-              options={TEMPO_SYNC_NOTE_NAMES.map((l, i) => ({ v: i, l }))}
-              onChange={(v) => onChange(0x29, v)} />
-          )}
-        </div>
-        <div className={css.panelRow}>
-          <EqKnob label="PW Shft" value={partial.pwShift} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(0x2A, v)} formatValue={(v) => String(v)} color="#ca8" />
-          <EqKnob label="Rate Ctrl" value={partial.modLfoRateControl} min={1} max={127} defaultValue={64}
-            onChange={(v) => onChange(0x3B, v)} formatValue={(v) => signedFmt(v, 64)} color="#ca8" />
-        </div>
-        <div className={css.envSection}>
-          <span className={css.envLabel}>DEPTH</span>
-          <div className={css.faderGroup}>
-            <VFader label="Pit" value={partial.modLfoPitchDepth} min={1} max={127} defaultValue={64}
-              onChange={(v) => onChange(0x2C, v)} formatValue={(v) => signedFmt(v, 64)} />
-            <VFader label="Flt" value={partial.modLfoFilterDepth} min={1} max={127} defaultValue={64}
-              onChange={(v) => onChange(0x2D, v)} formatValue={(v) => signedFmt(v, 64)} />
-            <VFader label="Amp" value={partial.modLfoAmpDepth} min={1} max={127} defaultValue={64}
-              onChange={(v) => onChange(0x2E, v)} formatValue={(v) => signedFmt(v, 64)} />
-            <VFader label="Pan" value={partial.modLfoPanDepth} min={1} max={127} defaultValue={64}
-              onChange={(v) => onChange(0x2F, v)} formatValue={(v) => signedFmt(v, 64)} />
-          </div>
+    <SectionPanel label="MOD LFO" accentColor="#a6f">
+      <div className={css.panelRow}>
+        <SynthSelect label="Shape" value={partial.modLfoShape}
+          options={LFO_SHAPE_NAMES.map((l, i) => ({ value: i, label: l }))}
+          onChange={(v) => onChange(0x26, v)} />
+        <SynthKnob label="Rate" value={partial.modLfoRate} min={0} max={127} defaultValue={0}
+          onChange={(v) => onChange(0x27, v)} formatValue={(v) => String(v)} color="#a6f" size="lg" />
+      </div>
+      <div className={css.panelRow}>
+        <SynthSwitch label="T.Sync" value={partial.modLfoTempoSync} options={ON_OFF_OPTIONS}
+          onChange={(v) => onChange(0x28, v)} />
+        {partial.modLfoTempoSync !== 0 && (
+          <SynthSelect label="Note" value={partial.modLfoTempoSyncNote}
+            options={TEMPO_SYNC_NOTE_NAMES.map((l, i) => ({ value: i, label: l }))}
+            onChange={(v) => onChange(0x29, v)} />
+        )}
+      </div>
+      <div className={css.panelRow}>
+        <SynthKnob label="PW Shft" value={partial.pwShift} min={0} max={127} defaultValue={0}
+          onChange={(v) => onChange(0x2A, v)} formatValue={(v) => String(v)} color="#a6f" />
+        <SynthKnob label="Rate Ctrl" value={partial.modLfoRateControl} min={1} max={127} defaultValue={64}
+          onChange={(v) => onChange(0x3B, v)} formatValue={(v) => signedFmt(v, 64)} color="#a6f" />
+      </div>
+      <div className={css.depthSection}>
+        <span className={css.depthLabel}>DEPTH</span>
+        <div className={css.depthFaders}>
+          <SynthFader label="Pit" value={partial.modLfoPitchDepth} min={1} max={127} defaultValue={64}
+            onChange={(v) => onChange(0x2C, v)} formatValue={(v) => signedFmt(v, 64)} compact />
+          <SynthFader label="Flt" value={partial.modLfoFilterDepth} min={1} max={127} defaultValue={64}
+            onChange={(v) => onChange(0x2D, v)} formatValue={(v) => signedFmt(v, 64)} compact />
+          <SynthFader label="Amp" value={partial.modLfoAmpDepth} min={1} max={127} defaultValue={64}
+            onChange={(v) => onChange(0x2E, v)} formatValue={(v) => signedFmt(v, 64)} compact />
+          <SynthFader label="Pan" value={partial.modLfoPanDepth} min={1} max={127} defaultValue={64}
+            onChange={(v) => onChange(0x2F, v)} formatValue={(v) => signedFmt(v, 64)} compact />
         </div>
       </div>
-    </div>
+    </SectionPanel>
   );
 }
 
@@ -906,59 +884,56 @@ function LfoPanel({
   onChange: (offset: number, value: number) => void;
 }) {
   return (
-    <div className={`${css.panel} ${css.panelLfo}`}>
-      <div className={css.panelHeader}>LFO</div>
-      <div className={css.panelBody}>
-        <div className={css.panelRow}>
-          <SelectParam label="Shape" value={partial.lfoShape}
-            options={LFO_SHAPE_NAMES.map((l, i) => ({ v: i, l }))}
-            onChange={(v) => onChange(0x1C, v)} />
-          <EqKnob label="Rate" value={partial.lfoRate} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(0x1D, v)} formatValue={(v) => String(v)} color="#c8f" />
-        </div>
-        <div className={css.panelRow}>
-          <ToggleButton label="T.Sync" value={partial.lfoTempoSync !== 0}
-            onToggle={() => onChange(0x1E, partial.lfoTempoSync !== 0 ? 0 : 1)} />
-          {partial.lfoTempoSync !== 0 && (
-            <SelectParam label="Note" value={partial.lfoTempoSyncNote}
-              options={TEMPO_SYNC_NOTE_NAMES.map((l, i) => ({ v: i, l }))}
-              onChange={(v) => onChange(0x1F, v)} />
-          )}
-        </div>
-        <div className={css.panelRow}>
-          <EqKnob label="Fade" value={partial.lfoFadeTime} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(0x20, v)} formatValue={(v) => String(v)} color="#c8f" />
-          <ToggleButton label="KeyTrig" value={partial.lfoKeyTrigger !== 0}
-            onToggle={() => onChange(0x21, partial.lfoKeyTrigger !== 0 ? 0 : 1)} />
-        </div>
-        <div className={css.envSection}>
-          <span className={css.envLabel}>DEPTH</span>
-          <div className={css.faderGroup}>
-            <VFader label="Pit" value={partial.lfoPitchDepth} min={1} max={127} defaultValue={64}
-              onChange={(v) => onChange(0x22, v)} formatValue={(v) => signedFmt(v, 64)} />
-            <VFader label="Flt" value={partial.lfoFilterDepth} min={1} max={127} defaultValue={64}
-              onChange={(v) => onChange(0x23, v)} formatValue={(v) => signedFmt(v, 64)} />
-            <VFader label="Amp" value={partial.lfoAmpDepth} min={1} max={127} defaultValue={64}
-              onChange={(v) => onChange(0x24, v)} formatValue={(v) => signedFmt(v, 64)} />
-            <VFader label="Pan" value={partial.lfoPanDepth} min={1} max={127} defaultValue={64}
-              onChange={(v) => onChange(0x25, v)} formatValue={(v) => signedFmt(v, 64)} />
-          </div>
-        </div>
-        {/* Aftertouch integrated at bottom of LFO column */}
-        <div className={css.aftertouchRow}>
-          <span className={css.aftertouchLabel}>AFT</span>
-          <EqKnob label="Cutoff" value={partial.aftertouchCutoff} min={1} max={127} defaultValue={64}
-            onChange={(v) => onChange(0x30, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cc" />
-          <EqKnob label="Level" value={partial.aftertouchLevel} min={1} max={127} defaultValue={64}
-            onChange={(v) => onChange(0x31, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cc" />
+    <SectionPanel label="LFO" accentColor="#a6f">
+      <div className={css.panelRow}>
+        <SynthSelect label="Shape" value={partial.lfoShape}
+          options={LFO_SHAPE_NAMES.map((l, i) => ({ value: i, label: l }))}
+          onChange={(v) => onChange(0x1C, v)} />
+        <SynthKnob label="Rate" value={partial.lfoRate} min={0} max={127} defaultValue={0}
+          onChange={(v) => onChange(0x1D, v)} formatValue={(v) => String(v)} color="#a6f" size="lg" />
+      </div>
+      <div className={css.panelRow}>
+        <SynthSwitch label="T.Sync" value={partial.lfoTempoSync} options={ON_OFF_OPTIONS}
+          onChange={(v) => onChange(0x1E, v)} />
+        {partial.lfoTempoSync !== 0 && (
+          <SynthSelect label="Note" value={partial.lfoTempoSyncNote}
+            options={TEMPO_SYNC_NOTE_NAMES.map((l, i) => ({ value: i, label: l }))}
+            onChange={(v) => onChange(0x1F, v)} />
+        )}
+      </div>
+      <div className={css.panelRow}>
+        <SynthKnob label="Fade" value={partial.lfoFadeTime} min={0} max={127} defaultValue={0}
+          onChange={(v) => onChange(0x20, v)} formatValue={(v) => String(v)} color="#a6f" />
+        <SynthSwitch label="KeyTrig" value={partial.lfoKeyTrigger} options={ON_OFF_OPTIONS}
+          onChange={(v) => onChange(0x21, v)} />
+      </div>
+      <div className={css.depthSection}>
+        <span className={css.depthLabel}>DEPTH</span>
+        <div className={css.depthFaders}>
+          <SynthFader label="Pit" value={partial.lfoPitchDepth} min={1} max={127} defaultValue={64}
+            onChange={(v) => onChange(0x22, v)} formatValue={(v) => signedFmt(v, 64)} compact />
+          <SynthFader label="Flt" value={partial.lfoFilterDepth} min={1} max={127} defaultValue={64}
+            onChange={(v) => onChange(0x23, v)} formatValue={(v) => signedFmt(v, 64)} compact />
+          <SynthFader label="Amp" value={partial.lfoAmpDepth} min={1} max={127} defaultValue={64}
+            onChange={(v) => onChange(0x24, v)} formatValue={(v) => signedFmt(v, 64)} compact />
+          <SynthFader label="Pan" value={partial.lfoPanDepth} min={1} max={127} defaultValue={64}
+            onChange={(v) => onChange(0x25, v)} formatValue={(v) => signedFmt(v, 64)} compact />
         </div>
       </div>
-    </div>
+      {/* Aftertouch integrated at bottom of LFO column */}
+      <div className={css.aftertouchRow}>
+        <span className={css.aftertouchLabel}>AFT</span>
+        <SynthKnob label="Cutoff" value={partial.aftertouchCutoff} min={1} max={127} defaultValue={64}
+          onChange={(v) => onChange(0x30, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cc" />
+        <SynthKnob label="Level" value={partial.aftertouchLevel} min={1} max={127} defaultValue={64}
+          onChange={(v) => onChange(0x31, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cc" />
+      </div>
+    </SectionPanel>
   );
 }
 
 // ---------------------------------------------------------------------------
-// MFX Panel (inlined, no MfxEditor import)
+// MFX Panel (unchanged — uses its own controls)
 // ---------------------------------------------------------------------------
 
 function MfxPanel({
@@ -1005,9 +980,9 @@ function MfxPanel({
 
         {/* Chorus / Reverb sends */}
         <div className={css.mfxSendRow}>
-          <EqKnob label="Cho Send" value={mfx.chorusSend} min={0} max={127} defaultValue={0}
+          <SynthKnob label="Cho Send" value={mfx.chorusSend} min={0} max={127} defaultValue={0}
             onChange={(v) => onHeaderParam(0x02, v)} formatValue={(v) => String(v)} color="#668" />
-          <EqKnob label="Rev Send" value={mfx.reverbSend} min={0} max={127} defaultValue={0}
+          <SynthKnob label="Rev Send" value={mfx.reverbSend} min={0} max={127} defaultValue={0}
             onChange={(v) => onHeaderParam(0x03, v)} formatValue={(v) => String(v)} color="#686" />
         </div>
 
@@ -1015,7 +990,7 @@ function MfxPanel({
         {paramDefs.length > 0 && (
           <div className={css.mfxParamGrid}>
             {paramDefs.map((def, i) => (
-              <EqKnob
+              <SynthKnob
                 key={`${mfx.mfxType}-${def.index}`}
                 label={def.name}
                 value={mfx.params[i] ?? def.defaultValue}
@@ -1049,7 +1024,7 @@ function MfxPanel({
                       <option key={i} value={i}>{name}</option>
                     ))}
                   </select>
-                  <EqKnob
+                  <SynthKnob
                     label="Sns"
                     value={ctrl.sens}
                     min={1}
@@ -1077,56 +1052,5 @@ function MfxPanel({
         </div>
       </div>
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Toggle Button
-// ---------------------------------------------------------------------------
-
-function ToggleButton({
-  label,
-  value,
-  onToggle,
-}: {
-  label: string;
-  value: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      className={`${css.toggleBtn} ${value ? css.toggleOn : ""}`}
-      onClick={onToggle}
-    >
-      {label}
-    </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Select dropdown helper
-// ---------------------------------------------------------------------------
-
-function SelectParam({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  options: { v: number; l: string }[];
-  onChange: (v: number) => void;
-}) {
-  return (
-    <label className={css.selectLabel}>
-      {label}
-      <select className={css.select} value={value}
-        onChange={(e) => onChange(Number(e.target.value))}>
-        {options.map((o) => (
-          <option key={o.v} value={o.v}>{o.l}</option>
-        ))}
-      </select>
-    </label>
   );
 }
