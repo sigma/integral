@@ -3,7 +3,8 @@
   "blocked_by": [
     "i7-1fn.5",
     "i7-1fn.6",
-    "i7-1fn.7"
+    "i7-1fn.7",
+    "i7-1fn.8"
   ],
   "blocks": [],
   "created": "2026-04-10T06:20:56Z",
@@ -15,5 +16,5 @@
   "status": "open",
   "title": "Refactor SN-S editor to use new component library",
   "type": "task",
-  "updated_at": "2026-04-10T06:21:05Z"
+  "updated_at": "2026-04-10T06:21:06Z"
 }

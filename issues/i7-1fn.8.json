@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-1fn.9"
+  ],
   "created": "2026-04-10T06:20:56Z",
   "description": "Reusable container: colored top border accent (configurable), dark header strip with section label, body content area with consistent padding. Props: label, accentColor, children. Used by all synth editor section panels.",
   "id": "i7-1fn.8",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "SectionPanel: bordered panel container with accent header",
   "type": "task",
-  "updated_at": "2026-04-10T06:20:56Z"
+  "updated_at": "2026-04-10T06:21:06Z"
 }
