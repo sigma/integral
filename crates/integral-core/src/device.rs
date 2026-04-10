@@ -557,6 +557,117 @@ impl DeviceState {
     }
 
     // -----------------------------------------------------------------------
+    // PCM Synth Tone Edit
+    // -----------------------------------------------------------------------
+
+    /// Set a single PCM Synth Common parameter for a part.
+    pub fn set_pcms_common_param(&mut self, part: u8, offset: u8, value: u8) {
+        let addr = crate::pcm_synth::pcms_common_param_address(part, offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Set a nibblized PCM Synth Common parameter (4 bytes).
+    pub fn set_pcms_common_nib_param(&mut self, part: u8, offset: u8, value: u16) {
+        let addr = crate::pcm_synth::pcms_common_param_address(part, offset);
+        let bytes = [
+            ((value >> 12) & 0x0F) as u8,
+            ((value >> 8) & 0x0F) as u8,
+            ((value >> 4) & 0x0F) as u8,
+            (value & 0x0F) as u8,
+        ];
+        self.send_dt1(&addr, &bytes);
+    }
+
+    /// Set a single PCM Synth PMT parameter for a part.
+    pub fn set_pcms_pmt_param(&mut self, part: u8, offset: u8, value: u8) {
+        let addr = crate::pcm_synth::pcms_pmt_param_address(part, offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Set a single PCM Synth Partial parameter for a part.
+    pub fn set_pcms_partial_param(&mut self, part: u8, partial: u8, offset: u16, value: u8) {
+        let addr = crate::pcm_synth::pcms_partial_param_address(part, partial, offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Set a nibblized PCM Synth Partial parameter (4 bytes, e.g. wave number).
+    pub fn set_pcms_partial_nib_param(&mut self, part: u8, partial: u8, offset: u16, value: u16) {
+        let addr = crate::pcm_synth::pcms_partial_param_address(part, partial, offset);
+        let bytes = [
+            ((value >> 12) & 0x0F) as u8,
+            ((value >> 8) & 0x0F) as u8,
+            ((value >> 4) & 0x0F) as u8,
+            (value & 0x0F) as u8,
+        ];
+        self.send_dt1(&addr, &bytes);
+    }
+
+    /// Set a nibblized PCM Synth Partial parameter (2 bytes, e.g. delay time, LFO rate).
+    pub fn set_pcms_partial_nib2_param(&mut self, part: u8, partial: u8, offset: u16, value: u8) {
+        let addr = crate::pcm_synth::pcms_partial_param_address(part, partial, offset);
+        let bytes = [((value >> 4) & 0x0F), value & 0x0F];
+        self.send_dt1(&addr, &bytes);
+    }
+
+    /// Set a single PCM Synth Common2 parameter for a part.
+    pub fn set_pcms_common2_param(&mut self, part: u8, offset: u8, value: u8) {
+        let addr = crate::pcm_synth::pcms_common2_param_address(part, offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Set a nibblized PCM Synth Common2 parameter (4 bytes, e.g. phrase number).
+    pub fn set_pcms_common2_nib_param(&mut self, part: u8, offset: u8, value: u16) {
+        let addr = crate::pcm_synth::pcms_common2_param_address(part, offset);
+        let bytes = [
+            ((value >> 12) & 0x0F) as u8,
+            ((value >> 8) & 0x0F) as u8,
+            ((value >> 4) & 0x0F) as u8,
+            (value & 0x0F) as u8,
+        ];
+        self.send_dt1(&addr, &bytes);
+    }
+
+    /// Build an RQ1 to read the PCM Synth Common block for a part.
+    pub fn build_pcms_common_request(&self, part: u8) -> Vec<u8> {
+        let addr = crate::pcm_synth::pcms_common_address(part);
+        sysex::build_rq1(
+            self.device_id,
+            &addr,
+            &crate::pcm_synth::PCMS_COMMON_BLOCK_SIZE,
+        )
+    }
+
+    /// Build an RQ1 to read the PCM Synth PMT block for a part.
+    pub fn build_pcms_pmt_request(&self, part: u8) -> Vec<u8> {
+        let addr = crate::pcm_synth::pcms_pmt_address(part);
+        sysex::build_rq1(
+            self.device_id,
+            &addr,
+            &crate::pcm_synth::PCMS_PMT_BLOCK_SIZE,
+        )
+    }
+
+    /// Build an RQ1 to read a PCM Synth Partial block for a part.
+    pub fn build_pcms_partial_request(&self, part: u8, partial: u8) -> Vec<u8> {
+        let addr = crate::pcm_synth::pcms_partial_address(part, partial);
+        sysex::build_rq1(
+            self.device_id,
+            &addr,
+            &crate::pcm_synth::PCMS_PARTIAL_BLOCK_SIZE,
+        )
+    }
+
+    /// Build an RQ1 to read the PCM Synth Common2 block for a part.
+    pub fn build_pcms_common2_request(&self, part: u8) -> Vec<u8> {
+        let addr = crate::pcm_synth::pcms_common2_address(part);
+        sysex::build_rq1(
+            self.device_id,
+            &addr,
+            &crate::pcm_synth::PCMS_COMMON2_BLOCK_SIZE,
+        )
+    }
+
+    // -----------------------------------------------------------------------
     // Motional Surround
     // -----------------------------------------------------------------------
 

@@ -1345,6 +1345,111 @@ impl WasmDeviceState {
         self.inner.build_snd_note_request(part, key)
     }
 
+    // -- PCM Synth Tone Edit -----------------------------------------------
+
+    /// Set a single PCM Synth Common parameter.
+    #[wasm_bindgen(js_name = setPcmsCommonParam)]
+    pub fn set_pcms_common_param(&mut self, part: u8, offset: u8, value: u8) {
+        self.inner.set_pcms_common_param(part, offset, value);
+    }
+
+    /// Set a nibblized PCM Synth Common parameter (4 bytes).
+    #[wasm_bindgen(js_name = setPcmsCommonNibParam)]
+    pub fn set_pcms_common_nib_param(&mut self, part: u8, offset: u8, value: u16) {
+        self.inner.set_pcms_common_nib_param(part, offset, value);
+    }
+
+    /// Set a single PCM Synth PMT parameter.
+    #[wasm_bindgen(js_name = setPcmsPmtParam)]
+    pub fn set_pcms_pmt_param(&mut self, part: u8, offset: u8, value: u8) {
+        self.inner.set_pcms_pmt_param(part, offset, value);
+    }
+
+    /// Set a single PCM Synth Partial parameter.
+    #[wasm_bindgen(js_name = setPcmsPartialParam)]
+    pub fn set_pcms_partial_param(&mut self, part: u8, partial: u8, offset: u16, value: u8) {
+        self.inner
+            .set_pcms_partial_param(part, partial, offset, value);
+    }
+
+    /// Set a nibblized PCM Synth Partial parameter (4 bytes, e.g. wave number).
+    #[wasm_bindgen(js_name = setPcmsPartialNibParam)]
+    pub fn set_pcms_partial_nib_param(&mut self, part: u8, partial: u8, offset: u16, value: u16) {
+        self.inner
+            .set_pcms_partial_nib_param(part, partial, offset, value);
+    }
+
+    /// Set a nibblized PCM Synth Partial parameter (2 bytes, e.g. delay time).
+    #[wasm_bindgen(js_name = setPcmsPartialNib2Param)]
+    pub fn set_pcms_partial_nib2_param(&mut self, part: u8, partial: u8, offset: u16, value: u8) {
+        self.inner
+            .set_pcms_partial_nib2_param(part, partial, offset, value);
+    }
+
+    /// Set a single PCM Synth Common2 parameter.
+    #[wasm_bindgen(js_name = setPcmsCommon2Param)]
+    pub fn set_pcms_common2_param(&mut self, part: u8, offset: u8, value: u8) {
+        self.inner.set_pcms_common2_param(part, offset, value);
+    }
+
+    /// Set a nibblized PCM Synth Common2 parameter (4 bytes).
+    #[wasm_bindgen(js_name = setPcmsCommon2NibParam)]
+    pub fn set_pcms_common2_nib_param(&mut self, part: u8, offset: u8, value: u16) {
+        self.inner.set_pcms_common2_nib_param(part, offset, value);
+    }
+
+    /// Parse a PCM Synth Common dump and return as a JS object.
+    #[wasm_bindgen(js_name = applyPcmsCommon)]
+    pub fn apply_pcms_common(&mut self, data: &[u8]) -> JsValue {
+        let parsed = integral_core::pcm_synth::parse_pcms_common(data);
+        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    }
+
+    /// Parse a PCM Synth PMT dump and return as a JS object.
+    #[wasm_bindgen(js_name = applyPcmsPmt)]
+    pub fn apply_pcms_pmt(&mut self, data: &[u8]) -> JsValue {
+        let parsed = integral_core::pcm_synth::parse_pcms_pmt(data);
+        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    }
+
+    /// Parse a PCM Synth Partial dump and return as a JS object.
+    #[wasm_bindgen(js_name = applyPcmsPartial)]
+    pub fn apply_pcms_partial(&mut self, data: &[u8]) -> JsValue {
+        let parsed = integral_core::pcm_synth::parse_pcms_partial(data);
+        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    }
+
+    /// Parse a PCM Synth Common2 dump and return as a JS object.
+    #[wasm_bindgen(js_name = applyPcmsCommon2)]
+    pub fn apply_pcms_common2(&mut self, data: &[u8]) -> JsValue {
+        let parsed = integral_core::pcm_synth::parse_pcms_common2(data);
+        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    }
+
+    /// Build an RQ1 to read the PCM Synth Common block for a part.
+    #[wasm_bindgen(js_name = buildPcmsCommonRequest)]
+    pub fn build_pcms_common_request(&self, part: u8) -> Vec<u8> {
+        self.inner.build_pcms_common_request(part)
+    }
+
+    /// Build an RQ1 to read the PCM Synth PMT block for a part.
+    #[wasm_bindgen(js_name = buildPcmsPmtRequest)]
+    pub fn build_pcms_pmt_request(&self, part: u8) -> Vec<u8> {
+        self.inner.build_pcms_pmt_request(part)
+    }
+
+    /// Build an RQ1 to read a PCM Synth Partial block for a part.
+    #[wasm_bindgen(js_name = buildPcmsPartialRequest)]
+    pub fn build_pcms_partial_request(&self, part: u8, partial: u8) -> Vec<u8> {
+        self.inner.build_pcms_partial_request(part, partial)
+    }
+
+    /// Build an RQ1 to read the PCM Synth Common2 block for a part.
+    #[wasm_bindgen(js_name = buildPcmsCommon2Request)]
+    pub fn build_pcms_common2_request(&self, part: u8) -> Vec<u8> {
+        self.inner.build_pcms_common2_request(part)
+    }
+
     // -- MFX ---------------------------------------------------------------
 
     #[wasm_bindgen(js_name = setMfxParam)]
