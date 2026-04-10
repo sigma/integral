@@ -430,6 +430,19 @@ export function SnSynthEditor({ partIndex, service }: Props) {
           const partial = partials[idx] ?? null;
           const isOn = (partialSwitches[idx] ?? 0) !== 0;
           const setP = (offset: number, value: number) => setPartialParam(idx, offset, value);
+          const setNibP = (offset: number, value: number) => {
+            service.device.setSnsPartialNibParam(partIndex, idx, offset, value);
+            // Update local state
+            setPartials((prev) => {
+              const next = [...prev];
+              const p = next[idx];
+              if (!p) return prev;
+              const u = { ...p };
+              if (offset === 0x35) u.waveNumber = value;
+              next[idx] = u;
+              return next;
+            });
+          };
 
           return (
             <PartialRow
@@ -439,6 +452,7 @@ export function SnSynthEditor({ partIndex, service }: Props) {
               isOn={isOn}
               onToggle={() => togglePartialSwitch(idx)}
               setP={setP}
+              setNibP={setNibP}
             />
           );
         })}
@@ -469,12 +483,14 @@ function PartialRow({
   isOn,
   onToggle,
   setP,
+  setNibP,
 }: {
   idx: number;
   partial: SnSynthPartial | null;
   isOn: boolean;
   onToggle: () => void;
   setP: (offset: number, value: number) => void;
+  setNibP: (offset: number, value: number) => void;
 }) {
   const dimClass = isOn ? "" : css.partialRowDimmed;
   const row = idx + 1; // CSS grid rows are 1-indexed
@@ -494,7 +510,7 @@ function PartialRow({
 
       {/* OSC */}
       <div className={dimClass} style={{ gridColumn: 2, gridRow: row }}>
-        {partial && <OscPanel partial={partial} onChange={setP} />}
+        {partial && <OscPanel partial={partial} onChange={setP} onNibChange={setNibP} />}
       </div>
 
       {/* Filter */}
@@ -647,10 +663,15 @@ function VFader({
 function OscPanel({
   partial,
   onChange,
+  onNibChange,
 }: {
   partial: SnSynthPartial;
   onChange: (offset: number, value: number) => void;
+  onNibChange: (offset: number, value: number) => void;
 }) {
+  const hasVariation = partial.oscWave <= 5; // SAW..NOISE
+  const isPcm = partial.oscWave === 7;
+
   return (
     <div className={`${css.panel} ${css.panelOsc}`}>
       <div className={css.panelHeader}>OSC</div>
@@ -659,11 +680,26 @@ function OscPanel({
           <SelectParam label="Wave" value={partial.oscWave}
             options={OSC_WAVE_NAMES.map((l, i) => ({ v: i, l }))}
             onChange={(v) => onChange(0x00, v)} />
-          <SelectParam label="Var" value={partial.oscWaveVariation}
-            options={OSC_VARIATION_NAMES.map((l, i) => ({ v: i, l }))}
-            onChange={(v) => onChange(0x01, v)} />
-          {partial.oscWave === 7 && (
-            <span className={css.waveNumber}>PCM #{partial.waveNumber}</span>
+          {hasVariation && (
+            <SelectParam label="Var" value={partial.oscWaveVariation}
+              options={OSC_VARIATION_NAMES.map((l, i) => ({ v: i, l }))}
+              onChange={(v) => onChange(0x01, v)} />
+          )}
+          {isPcm && (
+            <label className={css.selectLabel}>
+              PCM #
+              <input
+                type="number"
+                className={css.waveNumberInput}
+                value={partial.waveNumber}
+                min={0}
+                max={16384}
+                onChange={(e) => {
+                  const v = Math.max(0, Math.min(16384, Number(e.target.value)));
+                  onNibChange(0x35, v);
+                }}
+              />
+            </label>
           )}
         </div>
         <div className={css.panelRow}>

@@ -347,15 +347,16 @@
   padding: 2px 4px;
 }
 
-.waveNumber {
+.waveNumberInput {
   font-size: 11px;
   font-weight: 700;
   color: #4dff4d;
   background: #1a2a1a;
   border: 1px solid #2a4a2a;
   border-radius: 3px;
-  padding: 2px 8px;
-  align-self: center;
+  padding: 2px 6px;
+  width: 60px;
+  text-align: center;
 }
 
 /* ----------------------------------------------------------------
