@@ -2,13 +2,14 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-10T14:42:24Z",
   "created": "2026-04-09T19:05:22Z",
   "description": "62-key drum kit editor with per-instrument controls, Comp+EQ (already done), and MFX.",
   "id": "i7-svb",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Tone Editor: SuperNATURAL Drum Kit (SN-D)",
   "type": "task",
-  "updated_at": "2026-04-09T19:05:22Z"
+  "updated_at": "2026-04-10T14:42:24Z"
 }
