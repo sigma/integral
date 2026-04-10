@@ -1450,6 +1450,72 @@ impl WasmDeviceState {
         self.inner.build_pcms_common2_request(part)
     }
 
+    // -- PCM Drum Kit ------------------------------------------------------
+
+    /// Set a single PCM Drum Kit Common parameter.
+    #[wasm_bindgen(js_name = setPcmdCommonParam)]
+    pub fn set_pcmd_common_param(&mut self, part: u8, offset: u8, value: u8) {
+        self.inner.set_pcmd_common_param(part, offset, value);
+    }
+
+    /// Set a single PCM Drum Kit Partial parameter.
+    #[wasm_bindgen(js_name = setPcmdPartialParam)]
+    pub fn set_pcmd_partial_param(&mut self, part: u8, key: u8, offset: u16, value: u8) {
+        self.inner.set_pcmd_partial_param(part, key, offset, value);
+    }
+
+    /// Set a nibblized PCM Drum Kit Partial parameter (4 bytes, e.g. wave number).
+    #[wasm_bindgen(js_name = setPcmdPartialNibParam)]
+    pub fn set_pcmd_partial_nib_param(&mut self, part: u8, key: u8, offset: u16, value: u16) {
+        self.inner
+            .set_pcmd_partial_nib_param(part, key, offset, value);
+    }
+
+    /// Set a single PCM Drum Kit Common2 parameter.
+    #[wasm_bindgen(js_name = setPcmdCommon2Param)]
+    pub fn set_pcmd_common2_param(&mut self, part: u8, offset: u8, value: u8) {
+        self.inner.set_pcmd_common2_param(part, offset, value);
+    }
+
+    /// Parse a PCM Drum Kit Common dump and return as a JS object.
+    #[wasm_bindgen(js_name = applyPcmdCommon)]
+    pub fn apply_pcmd_common(&mut self, data: &[u8]) -> JsValue {
+        let parsed = integral_core::pcm_drum::parse_pcmd_common(data);
+        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    }
+
+    /// Parse a PCM Drum Kit Partial dump and return as a JS object.
+    #[wasm_bindgen(js_name = applyPcmdPartial)]
+    pub fn apply_pcmd_partial(&mut self, data: &[u8]) -> JsValue {
+        let parsed = integral_core::pcm_drum::parse_pcmd_partial(data);
+        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    }
+
+    /// Parse a PCM Drum Kit Common2 dump and return as a JS object.
+    #[wasm_bindgen(js_name = applyPcmdCommon2)]
+    pub fn apply_pcmd_common2(&mut self, data: &[u8]) -> JsValue {
+        let parsed = integral_core::pcm_drum::parse_pcmd_common2(data);
+        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    }
+
+    /// Build an RQ1 to read the PCM Drum Kit Common block for a part.
+    #[wasm_bindgen(js_name = buildPcmdCommonRequest)]
+    pub fn build_pcmd_common_request(&self, part: u8) -> Vec<u8> {
+        self.inner.build_pcmd_common_request(part)
+    }
+
+    /// Build an RQ1 to read a PCM Drum Kit Partial block for a part and key.
+    #[wasm_bindgen(js_name = buildPcmdPartialRequest)]
+    pub fn build_pcmd_partial_request(&self, part: u8, key: u8) -> Vec<u8> {
+        self.inner.build_pcmd_partial_request(part, key)
+    }
+
+    /// Build an RQ1 to read the PCM Drum Kit Common2 block for a part.
+    #[wasm_bindgen(js_name = buildPcmdCommon2Request)]
+    pub fn build_pcmd_common2_request(&self, part: u8) -> Vec<u8> {
+        self.inner.build_pcmd_common2_request(part)
+    }
+
     // -- MFX ---------------------------------------------------------------
 
     #[wasm_bindgen(js_name = setMfxParam)]

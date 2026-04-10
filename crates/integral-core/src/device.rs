@@ -668,6 +668,70 @@ impl DeviceState {
     }
 
     // -----------------------------------------------------------------------
+    // PCM Drum Kit Edit
+    // -----------------------------------------------------------------------
+
+    /// Set a single PCM Drum Kit Common parameter for a part.
+    pub fn set_pcmd_common_param(&mut self, part: u8, offset: u8, value: u8) {
+        let addr = crate::pcm_drum::pcmd_common_param_address(part, offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Set a single PCM Drum Kit Partial parameter for a part and key.
+    pub fn set_pcmd_partial_param(&mut self, part: u8, key: u8, offset: u16, value: u8) {
+        let addr = crate::pcm_drum::pcmd_partial_param_address(part, key, offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Set a nibblized PCM Drum Kit Partial parameter (4 bytes, e.g. wave number).
+    pub fn set_pcmd_partial_nib_param(&mut self, part: u8, key: u8, offset: u16, value: u16) {
+        let addr = crate::pcm_drum::pcmd_partial_param_address(part, key, offset);
+        let bytes = [
+            ((value >> 12) & 0x0F) as u8,
+            ((value >> 8) & 0x0F) as u8,
+            ((value >> 4) & 0x0F) as u8,
+            (value & 0x0F) as u8,
+        ];
+        self.send_dt1(&addr, &bytes);
+    }
+
+    /// Set a single PCM Drum Kit Common2 parameter for a part.
+    pub fn set_pcmd_common2_param(&mut self, part: u8, offset: u8, value: u8) {
+        let addr = crate::pcm_drum::pcmd_common2_param_address(part, offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Build an RQ1 to read the PCM Drum Kit Common block for a part.
+    pub fn build_pcmd_common_request(&self, part: u8) -> Vec<u8> {
+        let addr = crate::pcm_drum::pcmd_common_address(part);
+        sysex::build_rq1(
+            self.device_id,
+            &addr,
+            &crate::pcm_drum::PCMD_COMMON_BLOCK_SIZE,
+        )
+    }
+
+    /// Build an RQ1 to read a PCM Drum Kit Partial block for a part and key.
+    pub fn build_pcmd_partial_request(&self, part: u8, key: u8) -> Vec<u8> {
+        let addr = crate::pcm_drum::pcmd_partial_address(part, key);
+        sysex::build_rq1(
+            self.device_id,
+            &addr,
+            &crate::pcm_drum::PCMD_PARTIAL_BLOCK_SIZE,
+        )
+    }
+
+    /// Build an RQ1 to read the PCM Drum Kit Common2 block for a part.
+    pub fn build_pcmd_common2_request(&self, part: u8) -> Vec<u8> {
+        let addr = crate::pcm_drum::pcmd_common2_address(part);
+        sysex::build_rq1(
+            self.device_id,
+            &addr,
+            &crate::pcm_drum::PCMD_COMMON2_BLOCK_SIZE,
+        )
+    }
+
+    // -----------------------------------------------------------------------
     // Motional Surround
     // -----------------------------------------------------------------------
 

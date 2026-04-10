@@ -11,6 +11,7 @@ pub mod fx_params;
 pub mod mfx;
 pub mod mfx_params;
 pub mod params;
+pub mod pcm_drum;
 pub mod pcm_synth;
 pub mod sn_acoustic;
 pub mod sn_drum;
