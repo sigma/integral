@@ -513,6 +513,50 @@ impl DeviceState {
     }
 
     // -----------------------------------------------------------------------
+    // SN-D Tone Edit
+    // -----------------------------------------------------------------------
+
+    /// Set a single SN-D Common parameter for a part.
+    pub fn set_snd_common_param(&mut self, part: u8, offset: u8, value: u8) {
+        let addr = crate::sn_drum::snd_common_param_address(part, offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Set a single SN-D Note parameter for a part and key.
+    pub fn set_snd_note_param(&mut self, part: u8, key: u8, offset: u8, value: u8) {
+        let addr = crate::sn_drum::snd_note_param_address(part, key, offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Set a nibblized SN-D Note parameter (4 bytes, e.g. inst number or tune).
+    pub fn set_snd_note_nib_param(&mut self, part: u8, key: u8, offset: u8, value: u16) {
+        let addr = crate::sn_drum::snd_note_param_address(part, key, offset);
+        let bytes = [
+            ((value >> 12) & 0x0F) as u8,
+            ((value >> 8) & 0x0F) as u8,
+            ((value >> 4) & 0x0F) as u8,
+            (value & 0x0F) as u8,
+        ];
+        self.send_dt1(&addr, &bytes);
+    }
+
+    /// Build an RQ1 to read the full SN-D Common block for a part.
+    pub fn build_snd_common_request(&self, part: u8) -> Vec<u8> {
+        let addr = crate::sn_drum::snd_common_address(part);
+        sysex::build_rq1(
+            self.device_id,
+            &addr,
+            &crate::sn_drum::SND_COMMON_BLOCK_SIZE,
+        )
+    }
+
+    /// Build an RQ1 to read an SN-D Note block for a part and key.
+    pub fn build_snd_note_request(&self, part: u8, key: u8) -> Vec<u8> {
+        let addr = crate::sn_drum::snd_note_address(part, key);
+        sysex::build_rq1(self.device_id, &addr, &crate::sn_drum::SND_NOTE_BLOCK_SIZE)
+    }
+
+    // -----------------------------------------------------------------------
     // Motional Surround
     // -----------------------------------------------------------------------
 

@@ -8,6 +8,7 @@ import {
   SynthKnob,
   SynthFader,
   SynthSwitch,
+  OutputStrip,
 } from "./synth-ui";
 import css from "./MfxPanel.module.css";
 
@@ -511,22 +512,14 @@ export function MfxPanel({
 
         {/* Output section — sends + level, like a mixer channel strip */}
         <div className={css.mfxOutput}>
-          <div className={css.mfxSends}>
-            <SynthKnob label="FX1" value={mfx.chorusSend} min={0} max={127} defaultValue={0}
-              onChange={(v) => onHeaderParam(0x02, v)} formatValue={(v) => String(v)} color="#668"
-              title="Chorus Send Level" />
-            <SynthKnob label="FX2" value={mfx.reverbSend} min={0} max={127} defaultValue={0}
-              onChange={(v) => onHeaderParam(0x03, v)} formatValue={(v) => String(v)} color="#686"
-              title="Reverb Send Level" />
-          </div>
-          {levelParamIndex >= 0 && (
-            <div className={css.mfxLevelFader}>
-              <SynthFader label="Level" value={mfx.params[levelParamIndex] ?? 127}
-                min={0} max={127} defaultValue={127}
-                onChange={(v) => onNibParam(levelParamIndex, v)}
-                formatValue={(v) => String(v)} trackHeight={250} />
-            </div>
-          )}
+          <OutputStrip
+            fx1={mfx.chorusSend} fx2={mfx.reverbSend}
+            level={levelParamIndex >= 0 ? (mfx.params[levelParamIndex] ?? 127) : 127}
+            onFx1Change={(v) => onHeaderParam(0x02, v)}
+            onFx2Change={(v) => onHeaderParam(0x03, v)}
+            onLevelChange={levelParamIndex >= 0 ? (v) => onNibParam(levelParamIndex, v) : () => {}}
+            trackHeight={250}
+          />
         </div>
 
         {/* Macros — CC-to-parameter mappings */}

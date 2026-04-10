@@ -1299,6 +1299,52 @@ impl WasmDeviceState {
         self.inner.build_sna_common_request(part)
     }
 
+    // -- SN-D Tone Edit ----------------------------------------------------
+
+    /// Set a single SN-D Common parameter.
+    #[wasm_bindgen(js_name = setSndCommonParam)]
+    pub fn set_snd_common_param(&mut self, part: u8, offset: u8, value: u8) {
+        self.inner.set_snd_common_param(part, offset, value);
+    }
+
+    /// Set a single SN-D Note parameter.
+    #[wasm_bindgen(js_name = setSndNoteParam)]
+    pub fn set_snd_note_param(&mut self, part: u8, key: u8, offset: u8, value: u8) {
+        self.inner.set_snd_note_param(part, key, offset, value);
+    }
+
+    /// Set a nibblized SN-D Note parameter (4 bytes).
+    #[wasm_bindgen(js_name = setSndNoteNibParam)]
+    pub fn set_snd_note_nib_param(&mut self, part: u8, key: u8, offset: u8, value: u16) {
+        self.inner.set_snd_note_nib_param(part, key, offset, value);
+    }
+
+    /// Parse an SN-D Common dump and return as a JS object.
+    #[wasm_bindgen(js_name = applySndCommon)]
+    pub fn apply_snd_common(&mut self, data: &[u8]) -> JsValue {
+        let parsed = integral_core::sn_drum::parse_snd_common(data);
+        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    }
+
+    /// Parse an SN-D Note dump and return as a JS object.
+    #[wasm_bindgen(js_name = applySndNote)]
+    pub fn apply_snd_note(&mut self, data: &[u8]) -> JsValue {
+        let parsed = integral_core::sn_drum::parse_snd_note(data);
+        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    }
+
+    /// Build an RQ1 to read the SN-D Common block for a part.
+    #[wasm_bindgen(js_name = buildSndCommonRequest)]
+    pub fn build_snd_common_request(&self, part: u8) -> Vec<u8> {
+        self.inner.build_snd_common_request(part)
+    }
+
+    /// Build an RQ1 to read an SN-D Note block for a part and key.
+    #[wasm_bindgen(js_name = buildSndNoteRequest)]
+    pub fn build_snd_note_request(&self, part: u8, key: u8) -> Vec<u8> {
+        self.inner.build_snd_note_request(part, key)
+    }
+
     // -- MFX ---------------------------------------------------------------
 
     #[wasm_bindgen(js_name = setMfxParam)]

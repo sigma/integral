@@ -1,0 +1,19 @@
+/* OutputStrip — sends knobs + level fader, channel-strip style */
+
+.strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.sends {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.fader {
+  display: flex;
+  justify-content: center;
+}
