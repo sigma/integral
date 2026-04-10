@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-3og.9"
+  ],
   "blocks": [],
   "created": "2026-04-10T06:03:16Z",
   "description": "The Wave Variation (A/B/C) selector only applies to wave types 0-5 (SAW, SQR, PW-SQR, TRI, SINE, NOISE). For SP-SAW (6) and PCM (7), the variation selector should be hidden. For PCM, the wave number selector should be shown in its place (depends on i7-3og.9 for nibblized write support).",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "SN-S OSC: hide Variation selector for SP-SAW and PCM waves, show PCM number editor",
   "type": "task",
-  "updated_at": "2026-04-10T06:03:16Z"
+  "updated_at": "2026-04-10T06:03:23Z"
 }
