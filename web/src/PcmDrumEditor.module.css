@@ -1,0 +1,218 @@
+/* ================================================================
+   PCM Drum Kit Editor — reuses SN-D layout patterns
+   ================================================================ */
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  flex: 1;
+  background: #0c0c1a;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #888;
+  font-size: 14px;
+}
+
+.kitName {
+  font-size: 15px;
+  font-weight: 700;
+  color: #e0e0e0;
+  padding: 4px 0;
+  letter-spacing: 0.5px;
+}
+
+/* ----------------------------------------------------------------
+   Main Area: three columns
+   ---------------------------------------------------------------- */
+
+.mainArea {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* ----------------------------------------------------------------
+   Key grid
+   ---------------------------------------------------------------- */
+
+.keyEditorArea {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.keyGrid {
+  display: grid;
+  grid-template-columns: repeat(12, 32px);
+  gap: 2px;
+}
+
+.keyCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #333;
+  border-radius: 3px;
+  background: #181828;
+  cursor: pointer;
+  font-size: 9px;
+  color: #999;
+  line-height: 1.1;
+  user-select: none;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.keyCell:hover {
+  background: #252540;
+  border-color: #555;
+}
+
+.keyCellSelected {
+  composes: keyCell;
+  background: #2a2a50;
+  border-color: #88f;
+  color: #ddf;
+}
+
+.keyCellBlack {
+  background: #101020;
+}
+
+.keyCellSelected.keyCellBlack {
+  background: #2a2a50;
+}
+
+.keyNoteName {
+  font-weight: 600;
+  font-size: 9px;
+}
+
+.keyNumber {
+  font-size: 7px;
+  color: #666;
+}
+
+/* ----------------------------------------------------------------
+   Per-key controls
+   ---------------------------------------------------------------- */
+
+.noteControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.knobRow {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.noteSelects {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 4px;
+}
+
+.noteLoadingPlaceholder {
+  color: #666;
+  font-size: 13px;
+  padding: 12px 0;
+}
+
+.keyHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.keyLabel {
+  font-size: 12px;
+  color: #aaa;
+}
+
+.partialName {
+  font-size: 12px;
+  color: #ccc;
+  font-weight: 600;
+}
+
+/* ----------------------------------------------------------------
+   WMT layer tabs + compact layout
+   ---------------------------------------------------------------- */
+
+.wmtTabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.wmtTab {
+  padding: 2px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #333;
+  border-radius: 3px 3px 0 0;
+  background: #181828;
+  color: #888;
+  user-select: none;
+}
+
+.wmtTab:hover {
+  background: #252540;
+}
+
+.wmtTabActive {
+  composes: wmtTab;
+  background: #2a2a50;
+  border-color: #88f;
+  color: #ddf;
+}
+
+.wmtTabOff {
+  composes: wmtTab;
+  opacity: 0.4;
+}
+
+.wmtLayer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+/* ----------------------------------------------------------------
+   Misc controls row
+   ---------------------------------------------------------------- */
+
+.miscRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.panelRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
