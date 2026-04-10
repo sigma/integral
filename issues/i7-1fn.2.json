@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-10T06:20:55Z",
+  "description": "SVG-based rotary knob. Features: ring of LED-style dots around the knob body (like Jupiter/Integra iPad app), orange/colored indicator line from min to current value, 3D gradient knob body, label above, value below. Props: value, min, max, defaultValue, label, onChange, formatValue, color, size (sm/lg). Replace current EqKnob. Large variant for prominent params (Cutoff, Resonance).",
+  "id": "i7-1fn.2",
+  "labels": [],
+  "parent": "i7-1fn",
+  "priority": 2,
+  "status": "open",
+  "title": "SynthKnob: rotary knob with LED arc indicator",
+  "type": "task",
+  "updated_at": "2026-04-10T06:20:55Z"
+}
