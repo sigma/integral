@@ -13,14 +13,15 @@
     "i7-9q7.8",
     "i7-9q7.9"
   ],
+  "closed_at": "2026-04-10T16:47:34Z",
   "created": "2026-04-09T19:06:26Z",
   "description": "WASM bindings for PCMS state read/write, per-partial param setters, structure type, matrix control slots.",
   "id": "i7-9q7.3",
   "labels": [],
   "parent": "i7-9q7",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "WASM: expose PCMS bindings",
   "type": "task",
-  "updated_at": "2026-04-10T16:45:20Z"
+  "updated_at": "2026-04-10T16:47:34Z"
 }
