@@ -1239,6 +1239,19 @@ impl WasmDeviceState {
             .set_sns_partial_param(part, partial, offset, value);
     }
 
+    /// Set a nibblized SN-S Partial parameter (4 bytes, e.g. wave number).
+    #[wasm_bindgen(js_name = setSnsPartialNibParam)]
+    pub fn set_sns_partial_nib_param(&mut self, part: u8, partial: u8, offset: u8, value: u16) {
+        self.inner
+            .set_sns_partial_nib_param(part, partial, offset, value);
+    }
+
+    /// Set a nibblized SN-S Common parameter (4 bytes, e.g. phrase number).
+    #[wasm_bindgen(js_name = setSnsCommonNibParam)]
+    pub fn set_sns_common_nib_param(&mut self, part: u8, offset: u8, value: u16) {
+        self.inner.set_sns_common_nib_param(part, offset, value);
+    }
+
     /// Parse an SN-S Common dump and return as a JS object.
     #[wasm_bindgen(js_name = applySnsCommon)]
     pub fn apply_sns_common(&mut self, data: &[u8]) -> JsValue {

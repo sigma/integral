@@ -456,6 +456,30 @@ impl DeviceState {
         self.send_dt1(&addr, &[value]);
     }
 
+    /// Set a nibblized SN-S Partial parameter (4 bytes, e.g. wave number).
+    pub fn set_sns_partial_nib_param(&mut self, part: u8, partial: u8, offset: u8, value: u16) {
+        let addr = sn_synth::sns_partial_param_address(part, partial, offset);
+        let bytes = [
+            ((value >> 12) & 0x0F) as u8,
+            ((value >> 8) & 0x0F) as u8,
+            ((value >> 4) & 0x0F) as u8,
+            (value & 0x0F) as u8,
+        ];
+        self.send_dt1(&addr, &bytes);
+    }
+
+    /// Set a nibblized SN-S Common parameter (4 bytes, e.g. phrase number).
+    pub fn set_sns_common_nib_param(&mut self, part: u8, offset: u8, value: u16) {
+        let addr = sn_synth::sns_common_param_address(part, offset);
+        let bytes = [
+            ((value >> 12) & 0x0F) as u8,
+            ((value >> 8) & 0x0F) as u8,
+            ((value >> 4) & 0x0F) as u8,
+            (value & 0x0F) as u8,
+        ];
+        self.send_dt1(&addr, &bytes);
+    }
+
     /// Build an RQ1 to read the full SN-S Common block for a part.
     pub fn build_sns_common_request(&self, part: u8) -> Vec<u8> {
         let addr = sn_synth::sns_common_address(part);
