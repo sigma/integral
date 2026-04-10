@@ -2,7 +2,8 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [
-    "i7-1fn.5"
+    "i7-1fn.5",
+    "i7-1fn.6"
   ],
   "created": "2026-04-10T06:20:55Z",
   "description": "Vertical slider rendered as SVG or CSS. Features: notched track with tick marks at regular intervals, styled thumb, RED indicator line/fill when value differs from default position, label above, value below. Props: value, min, max, defaultValue, label, onChange, formatValue, bipolar (bool). Sizes: standard (~100px) and compact (~70px). Replace current VFader in SnSynthEditor.",
