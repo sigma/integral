@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-04-10T08:51:18Z",
@@ -8,8 +8,8 @@
   "labels": [],
   "parent": "i7-m5k",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Custom MFX panel layouts per effect type",
   "type": "task",
-  "updated_at": "2026-04-10T08:51:18Z"
+  "updated_at": "2026-04-10T08:51:43Z"
 }
