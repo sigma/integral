@@ -1,0 +1,99 @@
+.fader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 36px;
+  user-select: none;
+}
+
+.label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.trackArea {
+  position: relative;
+  width: 28px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.ruler {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+}
+
+.tick {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 1px;
+  background: #333;
+  transform: translateY(-0.5px);
+}
+
+.tickMajor {
+  left: 0;
+  right: 0;
+  background: #555;
+}
+
+.track {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  margin-left: -2px;
+  background: #222;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: #c44;
+  border-radius: 2px;
+}
+
+.thumb {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 8px;
+  margin-top: -4px;
+  background: linear-gradient(to bottom, #bbb, #888);
+  border-radius: 2px;
+  border: 1px solid #555;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.thumbActive {
+  background: linear-gradient(to bottom, #ddd, #aaa);
+  border-color: #c44;
+  box-shadow: 0 0 4px rgba(204, 68, 68, 0.4);
+}
+
+.value {
+  font-size: 9px;
+  font-weight: 600;
+  color: #aaa;
+  text-align: center;
+  min-width: 24px;
+}
+
+.compact .trackArea {
+  height: 70px;
+}

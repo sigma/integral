@@ -1,0 +1,37 @@
+.knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  user-select: none;
+}
+
+.label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.svg {
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.value {
+  font-size: 9px;
+  font-weight: 600;
+  color: #aaa;
+  text-align: center;
+}
+
+.lg .label {
+  font-size: 10px;
+}
+
+.lg .value {
+  font-size: 10px;
+}

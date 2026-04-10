@@ -1,0 +1,16 @@
+.envelope {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.diagram {
+  opacity: 0.8;
+}
+
+.faders {
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+}

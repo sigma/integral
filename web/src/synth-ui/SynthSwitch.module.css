@@ -1,0 +1,88 @@
+.toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.toggleBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 8px;
+  background: #222238;
+  color: #666;
+  border: 1px solid #3a3a5a;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.toggleBtn:hover {
+  border-color: #666;
+}
+
+.toggleOn {
+  background: #1a2a1a;
+  color: #c0e0c0;
+  border-color: #3a5a3a;
+}
+
+.led {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #333;
+  flex-shrink: 0;
+}
+
+/* Multi-state vertical list */
+.multiSwitch {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.optionList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 1px solid #2a2a4a;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 8px;
+  font-weight: 600;
+  padding: 2px 6px;
+  background: #1a1a2e;
+  color: #666;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.option:hover {
+  background: #222240;
+}
+
+.optionActive {
+  background: #2a3a5a;
+  color: #c0d0ff;
+}
