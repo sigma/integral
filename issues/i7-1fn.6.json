@@ -4,7 +4,9 @@
     "i7-1fn.1",
     "i7-1fn.2"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-1fn.9"
+  ],
   "created": "2026-04-10T06:20:56Z",
   "description": "Four SynthFaders (A, D, S, R) plus optional Depth fader, with reactive envelope curve diagram above. The curve shows attack ramp, decay to sustain, sustain level, release ramp — updating live. Used for Filter and Amp envelopes. Shared label strip below faders.",
   "id": "i7-1fn.6",
