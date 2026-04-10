@@ -2,13 +2,14 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-10T16:59:29Z",
   "created": "2026-04-09T19:05:58Z",
   "description": "4-partial sample-based synth editor. WMT wave selection, TVF/TVA with full ADSR envelopes, dual LFOs, step LFO, 4-slot matrix control.",
   "id": "i7-9q7",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Tone Editor: PCM Synth Tone (PCMS)",
   "type": "task",
-  "updated_at": "2026-04-09T19:05:58Z"
+  "updated_at": "2026-04-10T16:59:29Z"
 }
