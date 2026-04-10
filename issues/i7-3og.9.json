@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-10T05:54:22Z",
+  "description": "Currently setSnsPartialParam sends a single byte. Wave Number (offset 0x35, 4 nibble bytes) and Phrase Number (offset 0x37, 4 nibble bytes) need a nibblized write method. Add DeviceState::set_sns_partial_nib_param and corresponding WASM binding. Wire into the OSC panel so PCM wave number is editable.",
+  "id": "i7-3og.9",
+  "labels": [],
+  "parent": "i7-3og",
+  "priority": 2,
+  "status": "open",
+  "title": "Support nibblized multi-byte param writes for SN-S wave number and phrase number",
+  "type": "task",
+  "updated_at": "2026-04-10T05:54:22Z"
+}
