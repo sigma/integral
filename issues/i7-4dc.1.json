@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [],
   "blocks": [
     "i7-4dc.3"
@@ -10,8 +10,8 @@
   "labels": [],
   "parent": "i7-4dc",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Core: SN-A address map and state types",
   "type": "task",
-  "updated_at": "2026-04-09T19:05:15Z"
+  "updated_at": "2026-04-10T08:10:44Z"
 }
