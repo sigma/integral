@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-10T06:20:56Z",
+  "description": "Replace all current ad-hoc controls in SnSynthEditor with the new library components: SynthKnob replaces EqKnob, SynthFader replaces VFader, SynthSwitch replaces ToggleButton, SynthSelect replaces SelectParam, ADEnvelope/ADSREnvelope replace manual fader groups, SectionPanel wraps each section. Also refactor mixer ChannelStrip/FxStrip to use SynthKnob where appropriate.",
+  "id": "i7-1fn.9",
+  "labels": [],
+  "parent": "i7-1fn",
+  "priority": 2,
+  "status": "open",
+  "title": "Refactor SN-S editor to use new component library",
+  "type": "task",
+  "updated_at": "2026-04-10T06:20:56Z"
+}
