@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-10T06:20:56Z",
+  "description": "Four SynthFaders (A, D, S, R) plus optional Depth fader, with reactive envelope curve diagram above. The curve shows attack ramp, decay to sustain, sustain level, release ramp — updating live. Used for Filter and Amp envelopes. Shared label strip below faders.",
+  "id": "i7-1fn.6",
+  "labels": [],
+  "parent": "i7-1fn",
+  "priority": 2,
+  "status": "open",
+  "title": "ADSREnvelope: full envelope composite control",
+  "type": "task",
+  "updated_at": "2026-04-10T06:20:56Z"
+}
