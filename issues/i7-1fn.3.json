@@ -4,14 +4,15 @@
   "blocks": [
     "i7-1fn.7"
   ],
+  "closed_at": "2026-04-10T06:24:48Z",
   "created": "2026-04-10T06:20:55Z",
   "description": "Two variants: (1) ON/OFF toggle button with green LED dot when on. (2) Multi-state vertical selector (like filter MODE in iPad UI) where clicking an item selects it, active item highlighted with colored background. Props: value, options (label+value pairs), onChange, led (bool). Replace current ToggleButton.",
   "id": "i7-1fn.3",
   "labels": [],
   "parent": "i7-1fn",
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "SynthSwitch: multi-state toggle with LED indicator",
   "type": "task",
-  "updated_at": "2026-04-10T06:21:05Z"
+  "updated_at": "2026-04-10T06:24:48Z"
 }
