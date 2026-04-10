@@ -6,14 +6,15 @@
   "blocks": [
     "i7-9q7.3"
   ],
+  "closed_at": "2026-04-10T16:45:15Z",
   "created": "2026-04-09T19:06:26Z",
   "description": "Parse PCMS common + 4 partial dumps. Large read: each partial block is ~120+ bytes. Multiple RQ1s needed. Parse envelopes (ADSR with velocity sensitivity), LFO shapes, wave numbers.",
   "id": "i7-9q7.2",
   "labels": [],
   "parent": "i7-9q7",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Core: PCMS parse functions",
   "type": "task",
-  "updated_at": "2026-04-10T16:41:14Z"
+  "updated_at": "2026-04-10T16:45:15Z"
 }
