@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [],
   "blocks": [
     "i7-grp.2"
@@ -10,8 +10,8 @@
   "labels": [],
   "parent": "i7-grp",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Core: PCMD address map and state types",
   "type": "task",
-  "updated_at": "2026-04-09T19:07:16Z"
+  "updated_at": "2026-04-10T18:14:31Z"
 }
