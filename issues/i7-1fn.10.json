@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-10T09:10:15Z",
+  "description": "Extract the staggered EQ layout from EqSection.tsx into a synth-ui/ParametricEq component that accepts a variable number of bands. Each band: freq (knob or selector), gain (knob), optional Q (knob). Staggered layout with diagonal divider lines and band labels. Replace both EqSection (3-band mixer) and MFX Equalizer panel (4-band) with this component.",
+  "id": "i7-1fn.10",
+  "labels": [],
+  "parent": "i7-1fn",
+  "priority": 2,
+  "status": "open",
+  "title": "Generalize EqSection into a reusable ParametricEq component supporting 2-4 bands",
+  "type": "task",
+  "updated_at": "2026-04-10T09:10:15Z"
+}
