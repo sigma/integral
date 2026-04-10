@@ -8,14 +8,15 @@
     "i7-m5k.5"
   ],
   "blocks": [],
+  "closed_at": "2026-04-10T18:30:04Z",
   "created": "2026-04-09T19:07:06Z",
   "description": "Container: key selector (88 keys, reuse from SN-D), WMT layer tabs, per-key sub-tabs (WMT, TVF, TVA, Pitch, Output), common panel, Comp+EQ, MFX tab. On-demand loading: only read the selected key's data.",
   "id": "i7-grp.8",
   "labels": [],
   "parent": "i7-grp",
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Web: PCMD tone editor page shell",
   "type": "task",
-  "updated_at": "2026-04-09T19:07:17Z"
+  "updated_at": "2026-04-10T18:30:04Z"
 }
