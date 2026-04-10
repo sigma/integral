@@ -9,14 +9,15 @@
     "i7-grp.6",
     "i7-grp.7"
   ],
+  "closed_at": "2026-04-10T18:21:38Z",
   "created": "2026-04-09T19:07:06Z",
   "description": "WASM bindings for PCMD state read/write, per-key param setters, WMT layer selection.",
   "id": "i7-grp.3",
   "labels": [],
   "parent": "i7-grp",
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "WASM: expose PCMD bindings",
   "type": "task",
-  "updated_at": "2026-04-09T19:07:16Z"
+  "updated_at": "2026-04-10T18:21:38Z"
 }
