@@ -8,14 +8,15 @@
   "blocks": [
     "i7-1fn.9"
   ],
+  "closed_at": "2026-04-10T06:30:43Z",
   "created": "2026-04-10T06:20:56Z",
   "description": "Composite: SynthSelect (shape with waveform name/icon), SynthKnob (rate), SynthSwitch (tempo sync), conditional SynthSelect (sync note value), plus depth SynthFaders (pitch, filter, amp, pan). Shared between LFO and Mod LFO sections.",
   "id": "i7-1fn.7",
   "labels": [],
   "parent": "i7-1fn",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "LfoControls: LFO parameter group composite",
   "type": "task",
-  "updated_at": "2026-04-10T06:24:59Z"
+  "updated_at": "2026-04-10T06:30:43Z"
 }
