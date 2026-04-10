@@ -7,14 +7,15 @@
   "blocks": [
     "i7-grp.8"
   ],
+  "closed_at": "2026-04-10T18:30:04Z",
   "created": "2026-04-09T19:07:06Z",
   "description": "Per-key filter and amplifier with ADSR envelopes. Reuse ADSR editor component from PCMS. Filter type, cutoff, resonance, velocity sensitivity. Amp level, pan, velocity curve.",
   "id": "i7-grp.5",
   "labels": [],
   "parent": "i7-grp",
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Web: PCMD per-key TVF + TVA panels",
   "type": "task",
-  "updated_at": "2026-04-09T19:07:17Z"
+  "updated_at": "2026-04-10T18:30:04Z"
 }
