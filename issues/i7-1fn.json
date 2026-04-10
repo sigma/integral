@@ -2,13 +2,14 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-10T06:30:43Z",
   "created": "2026-04-10T06:20:30Z",
   "description": "Build a hierarchy of reusable synth-style UI components: atomic controls (knob, fader, switch, select), composite controls (AD/ADSR envelope, LFO group, knob/fader groups), and section panels. Jupiter-inspired dark theme with LED indicators, ruler marks, and red non-default highlights.",
   "id": "i7-1fn",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "UI Component Library: synth-style controls",
   "type": "task",
-  "updated_at": "2026-04-10T06:20:30Z"
+  "updated_at": "2026-04-10T06:30:43Z"
 }
