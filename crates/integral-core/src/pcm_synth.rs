@@ -203,14 +203,14 @@ impl Default for PcmSynthCommon {
         Self {
             tone_name: String::new(),
             tone_level: 127,
-            tone_pan: 64,       // center
-            tone_priority: 0,   // LAST
-            coarse_tune: 64,    // 0
-            fine_tune: 64,      // 0
-            octave_shift: 64,   // 0
+            tone_pan: 64,     // center
+            tone_priority: 0, // LAST
+            coarse_tune: 64,  // 0
+            fine_tune: 64,    // 0
+            octave_shift: 64, // 0
             stretch_tune_depth: 0,
             analog_feel: 0,
-            mono_poly: 1,       // POLY
+            mono_poly: 1, // POLY
             legato_switch: 0,
             legato_retrigger: 0,
             portamento_switch: 0,
@@ -218,11 +218,11 @@ impl Default for PcmSynthCommon {
             portamento_type: 0,
             portamento_start: 0,
             portamento_time: 0,
-            cutoff_offset: 64,          // 0
-            resonance_offset: 64,       // 0
-            attack_time_offset: 64,     // 0
-            release_time_offset: 64,    // 0
-            velocity_sens_offset: 64,   // 0
+            cutoff_offset: 64,        // 0
+            resonance_offset: 64,     // 0
+            attack_time_offset: 64,   // 0
+            release_time_offset: 64,  // 0
+            velocity_sens_offset: 64, // 0
             pmt_control_switch: 0,
             pitch_bend_range_up: 2,
             pitch_bend_range_down: 2,
@@ -298,6 +298,7 @@ pub struct PcmSynthPmt {
 }
 
 impl Default for PcmSynthPmt {
+    #[allow(clippy::derivable_impls)]
     fn default() -> Self {
         Self {
             structure_type_12: 0,
@@ -321,7 +322,6 @@ impl Default for PcmSynthPmt {
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct PcmSynthPartial {
     // -- General --
-
     /// Level (0-127).
     pub level: u8,
     /// Coarse Tune (16-112, display -48 to +48).
@@ -346,7 +346,6 @@ pub struct PcmSynthPartial {
     pub delay_time: u16,
 
     // -- Output --
-
     /// Output Level (0-127).
     pub output_level: u8,
     /// Chorus Send Level (0-127).
@@ -355,7 +354,6 @@ pub struct PcmSynthPartial {
     pub reverb_send: u8,
 
     // -- Receive switches --
-
     /// Receive Bender (0=OFF, 1=ON).
     pub receive_bender: u8,
     /// Receive Expression (0=OFF, 1=ON).
@@ -366,7 +364,6 @@ pub struct PcmSynthPartial {
     pub redamper_switch: u8,
 
     // -- Partial control switches --
-
     /// Control 1 switches (4 values, each 0-2: OFF, ON, REVERSE).
     pub control1_switches: [u8; 4],
     /// Control 2 switches (4 values, each 0-2: OFF, ON, REVERSE).
@@ -377,7 +374,6 @@ pub struct PcmSynthPartial {
     pub control4_switches: [u8; 4],
 
     // -- Wave --
-
     /// Wave Group Type (0-3: INT, SRX).
     pub wave_group_type: u8,
     /// Wave Group ID (0-16384, nibblized 4 bytes).
@@ -403,7 +399,6 @@ pub struct PcmSynthPartial {
     pub wave_pitch_keyfollow: u8,
 
     // -- Pitch Envelope --
-
     /// Pitch Env Depth (52-76, display -12 to +12).
     pub pitch_env_depth: u8,
     /// Pitch Env Velocity Sens (1-127, display -63 to +63).
@@ -420,7 +415,6 @@ pub struct PcmSynthPartial {
     pub pitch_env_level: [u8; 5],
 
     // -- TVF (Filter) --
-
     /// TVF Filter Type (0-6: OFF, LPF, BPF, HPF, PKG, LPF2, LPF3).
     #[cfg_attr(feature = "serde", serde(rename = "tvfFilterType"))]
     pub tvf_filter_type: u8,
@@ -468,7 +462,6 @@ pub struct PcmSynthPartial {
     pub tvf_env_level: [u8; 5],
 
     // -- TVA (Amplifier) --
-
     /// TVA Bias Level (54-74, display -100 to +100).
     #[cfg_attr(feature = "serde", serde(rename = "tvaBiasLevel"))]
     pub tva_bias_level: u8,
@@ -501,7 +494,6 @@ pub struct PcmSynthPartial {
     pub tva_env_level: [u8; 3],
 
     // -- LFO1 --
-
     /// LFO1 Waveform (0-12).
     #[cfg_attr(feature = "serde", serde(rename = "lfo1Waveform"))]
     pub lfo1_waveform: u8,
@@ -543,7 +535,6 @@ pub struct PcmSynthPartial {
     pub lfo1_pan_depth: u8,
 
     // -- LFO2 --
-
     /// LFO2 Waveform (0-12).
     #[cfg_attr(feature = "serde", serde(rename = "lfo2Waveform"))]
     pub lfo2_waveform: u8,
@@ -585,7 +576,6 @@ pub struct PcmSynthPartial {
     pub lfo2_pan_depth: u8,
 
     // -- LFO Step Sequencer --
-
     /// LFO Step Type (0-1).
     #[cfg_attr(feature = "serde", serde(rename = "lfoStepType"))]
     pub lfo_step_type: u8,
@@ -599,11 +589,11 @@ impl Default for PcmSynthPartial {
         Self {
             // General
             level: 127,
-            coarse_tune: 64,        // 0
-            fine_tune: 64,           // 0
+            coarse_tune: 64, // 0
+            fine_tune: 64,   // 0
             random_pitch_depth: 0,
-            pan: 64,                 // center
-            pan_keyfollow: 64,       // 0
+            pan: 64,           // center
+            pan_keyfollow: 64, // 0
             random_pan_depth: 0,
             alternate_pan_depth: 64, // 0
             env_mode: 1,             // SUSTAIN
@@ -640,16 +630,16 @@ impl Default for PcmSynthPartial {
             wave_pitch_keyfollow: 64, // 0
 
             // Pitch Envelope
-            pitch_env_depth: 64,              // 0
-            pitch_env_velocity_sens: 64,      // 0
-            pitch_env_t1_velocity_sens: 64,   // 0
-            pitch_env_t4_velocity_sens: 64,   // 0
-            pitch_env_time_keyfollow: 64,     // 0
+            pitch_env_depth: 64,            // 0
+            pitch_env_velocity_sens: 64,    // 0
+            pitch_env_t1_velocity_sens: 64, // 0
+            pitch_env_t4_velocity_sens: 64, // 0
+            pitch_env_time_keyfollow: 64,   // 0
             pitch_env_time: [0; 4],
-            pitch_env_level: [64; 5],         // all center
+            pitch_env_level: [64; 5], // all center
 
             // TVF
-            tvf_filter_type: 1,       // LPF
+            tvf_filter_type: 1, // LPF
             tvf_cutoff_frequency: 127,
             tvf_cutoff_keyfollow: 64, // 0
             tvf_cutoff_velocity_curve: 0,
@@ -759,6 +749,286 @@ pub struct PcmSynthState {
     pub common2: PcmSynthCommon2,
     /// MFX parameters.
     pub mfx: MfxState,
+}
+
+// ---------------------------------------------------------------------------
+// Parse functions
+// ---------------------------------------------------------------------------
+
+/// Helper: decode a nibblized 2-byte value from a data slice.
+///
+/// The two consecutive bytes each carry 4 bits of the result.
+fn nibble2(data: &[u8], offset: usize) -> u16 {
+    ((data[offset] as u16 & 0x0F) << 4) | (data[offset + 1] as u16 & 0x0F)
+}
+
+/// Helper: decode a nibblized 4-byte value from a data slice.
+///
+/// The four consecutive bytes each carry 4 bits of the result.
+fn nibble4(data: &[u8], offset: usize) -> u16 {
+    ((data[offset] as u16 & 0x0F) << 12)
+        | ((data[offset + 1] as u16 & 0x0F) << 8)
+        | ((data[offset + 2] as u16 & 0x0F) << 4)
+        | (data[offset + 3] as u16 & 0x0F)
+}
+
+/// Helper: parse a tone name from 12 ASCII bytes, trimming trailing spaces.
+fn parse_tone_name(data: &[u8]) -> String {
+    data[0x00..0x0C]
+        .iter()
+        .map(|&b| {
+            if (32..=127).contains(&b) {
+                b as char
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>()
+        .trim_end()
+        .to_string()
+}
+
+/// Parse a PCM Synth Tone Common dump (0x50 = 80 bytes).
+///
+/// Offsets follow the MIDI implementation doc (`docs/midi/06-pcm-synth-tone.md`).
+pub fn parse_pcms_common(data: &[u8]) -> PcmSynthCommon {
+    let mut c = PcmSynthCommon::default();
+    if data.len() < PCMS_COMMON_SIZE {
+        return c;
+    }
+
+    c.tone_name = parse_tone_name(data);
+    // 0x0C–0x0D: reserved
+    c.tone_level = data[0x0E];
+    c.tone_pan = data[0x0F];
+    c.tone_priority = data[0x10];
+    c.coarse_tune = data[0x11];
+    c.fine_tune = data[0x12];
+    c.octave_shift = data[0x13];
+    c.stretch_tune_depth = data[0x14];
+    c.analog_feel = data[0x15];
+    c.mono_poly = data[0x16];
+    c.legato_switch = data[0x17];
+    c.legato_retrigger = data[0x18];
+    c.portamento_switch = data[0x19];
+    c.portamento_mode = data[0x1A];
+    c.portamento_type = data[0x1B];
+    c.portamento_start = data[0x1C];
+    c.portamento_time = data[0x1D];
+    // 0x1E–0x21: reserved
+    c.cutoff_offset = data[0x22];
+    c.resonance_offset = data[0x23];
+    c.attack_time_offset = data[0x24];
+    c.release_time_offset = data[0x25];
+    c.velocity_sens_offset = data[0x26];
+    // 0x27: reserved
+    c.pmt_control_switch = data[0x28];
+    c.pitch_bend_range_up = data[0x29];
+    c.pitch_bend_range_down = data[0x2A];
+
+    // Matrix Controls 1-4: each 9 bytes starting at 0x2B, stride 9
+    for i in 0..4 {
+        let base = 0x2B + i * 9;
+        let mc = &mut c.matrix_controls[i];
+        mc.source = data[base];
+        mc.destinations[0] = data[base + 1];
+        mc.sensitivities[0] = data[base + 2];
+        mc.destinations[1] = data[base + 3];
+        mc.sensitivities[1] = data[base + 4];
+        mc.destinations[2] = data[base + 5];
+        mc.sensitivities[2] = data[base + 6];
+        mc.destinations[3] = data[base + 7];
+        mc.sensitivities[3] = data[base + 8];
+    }
+
+    c
+}
+
+/// Parse a PCM Synth Tone PMT dump (0x29 = 41 bytes).
+///
+/// Offsets follow the MIDI implementation doc.
+pub fn parse_pcms_pmt(data: &[u8]) -> PcmSynthPmt {
+    let mut pmt = PcmSynthPmt::default();
+    if data.len() < PCMS_PMT_SIZE {
+        return pmt;
+    }
+
+    pmt.structure_type_12 = data[0x00];
+    pmt.booster_12 = data[0x01];
+    pmt.structure_type_34 = data[0x02];
+    pmt.booster_34 = data[0x03];
+    pmt.pmt_velocity_control = data[0x04];
+
+    // 4 PMT partial entries at offsets 0x05, 0x0E, 0x17, 0x20 (each 9 bytes)
+    let entry_offsets = [0x05, 0x0E, 0x17, 0x20];
+    for (i, &off) in entry_offsets.iter().enumerate() {
+        let e = &mut pmt.partial_entries[i];
+        e.partial_switch = data[off];
+        e.key_range_lower = data[off + 1];
+        e.key_range_upper = data[off + 2];
+        e.key_fade_lower = data[off + 3];
+        e.key_fade_upper = data[off + 4];
+        e.velocity_range_lower = data[off + 5];
+        e.velocity_range_upper = data[off + 6];
+        e.velocity_fade_lower = data[off + 7];
+        e.velocity_fade_upper = data[off + 8];
+    }
+
+    pmt
+}
+
+/// Parse a PCM Synth Tone Partial dump (0x011A = 282 bytes).
+///
+/// The data array is a contiguous byte stream from the DT1 response.
+/// Linear indices map directly to the SysEx offsets:
+/// indices 0-127 = offsets `00 00`-`00 7F`, index 128 = offset `01 00`, etc.
+pub fn parse_pcms_partial(data: &[u8]) -> PcmSynthPartial {
+    let mut p = PcmSynthPartial::default();
+    if data.len() < PCMS_PARTIAL_SIZE {
+        return p;
+    }
+
+    // -- General --
+    p.level = data[0x00];
+    p.coarse_tune = data[0x01];
+    p.fine_tune = data[0x02];
+    p.random_pitch_depth = data[0x03];
+    p.pan = data[0x04];
+    p.pan_keyfollow = data[0x05];
+    p.random_pan_depth = data[0x06];
+    p.alternate_pan_depth = data[0x07];
+    p.env_mode = data[0x08];
+    p.delay_mode = data[0x09];
+    p.delay_time = nibble2(data, 0x0A);
+
+    // -- Output --
+    p.output_level = data[0x0C];
+    // 0x0D-0x0E: reserved
+    p.chorus_send = data[0x0F];
+    p.reverb_send = data[0x10];
+    // 0x11: reserved
+
+    // -- Receive switches --
+    p.receive_bender = data[0x12];
+    p.receive_expression = data[0x13];
+    p.receive_hold1 = data[0x14];
+    // 0x15: reserved
+    p.redamper_switch = data[0x16];
+
+    // -- Partial control switches --
+    p.control1_switches.copy_from_slice(&data[0x17..0x1B]);
+    p.control2_switches.copy_from_slice(&data[0x1B..0x1F]);
+    p.control3_switches.copy_from_slice(&data[0x1F..0x23]);
+    p.control4_switches.copy_from_slice(&data[0x23..0x27]);
+
+    // -- Wave --
+    p.wave_group_type = data[0x27];
+    p.wave_group_id = nibble4(data, 0x28);
+    p.wave_number_l = nibble4(data, 0x2C);
+    p.wave_number_r = nibble4(data, 0x30);
+    p.wave_gain = data[0x34];
+    p.wave_fxm_switch = data[0x35];
+    p.wave_fxm_color = data[0x36];
+    p.wave_fxm_depth = data[0x37];
+    p.wave_tempo_sync = data[0x38];
+    p.wave_pitch_keyfollow = data[0x39];
+
+    // -- Pitch Envelope --
+    p.pitch_env_depth = data[0x3A];
+    p.pitch_env_velocity_sens = data[0x3B];
+    p.pitch_env_t1_velocity_sens = data[0x3C];
+    p.pitch_env_t4_velocity_sens = data[0x3D];
+    p.pitch_env_time_keyfollow = data[0x3E];
+    p.pitch_env_time.copy_from_slice(&data[0x3F..0x43]);
+    p.pitch_env_level.copy_from_slice(&data[0x43..0x48]);
+
+    // -- TVF (Filter) --
+    p.tvf_filter_type = data[0x48];
+    p.tvf_cutoff_frequency = data[0x49];
+    p.tvf_cutoff_keyfollow = data[0x4A];
+    p.tvf_cutoff_velocity_curve = data[0x4B];
+    p.tvf_cutoff_velocity_sens = data[0x4C];
+    p.tvf_resonance = data[0x4D];
+    p.tvf_resonance_velocity_sens = data[0x4E];
+    p.tvf_env_depth = data[0x4F];
+    p.tvf_env_velocity_curve = data[0x50];
+    p.tvf_env_velocity_sens = data[0x51];
+    p.tvf_env_t1_velocity_sens = data[0x52];
+    p.tvf_env_t4_velocity_sens = data[0x53];
+    p.tvf_env_time_keyfollow = data[0x54];
+    p.tvf_env_time.copy_from_slice(&data[0x55..0x59]);
+    p.tvf_env_level.copy_from_slice(&data[0x59..0x5E]);
+
+    // -- TVA (Amplifier) --
+    p.tva_bias_level = data[0x5E];
+    p.tva_bias_position = data[0x5F];
+    p.tva_bias_direction = data[0x60];
+    p.tva_level_velocity_curve = data[0x61];
+    p.tva_level_velocity_sens = data[0x62];
+    p.tva_env_t1_velocity_sens = data[0x63];
+    p.tva_env_t4_velocity_sens = data[0x64];
+    p.tva_env_time_keyfollow = data[0x65];
+    p.tva_env_time.copy_from_slice(&data[0x66..0x6A]);
+    p.tva_env_level.copy_from_slice(&data[0x6A..0x6D]);
+
+    // -- LFO1 --
+    p.lfo1_waveform = data[0x6D];
+    p.lfo1_rate = nibble2(data, 0x6E);
+    p.lfo1_offset = data[0x70];
+    p.lfo1_rate_detune = data[0x71];
+    p.lfo1_delay_time = data[0x72];
+    p.lfo1_delay_time_keyfollow = data[0x73];
+    p.lfo1_fade_mode = data[0x74];
+    p.lfo1_fade_time = data[0x75];
+    p.lfo1_key_trigger = data[0x76];
+    p.lfo1_pitch_depth = data[0x77];
+    p.lfo1_tvf_depth = data[0x78];
+    p.lfo1_tva_depth = data[0x79];
+    p.lfo1_pan_depth = data[0x7A];
+
+    // -- LFO2 --
+    // LFO2 starts at offset 0x7B in the linear data array
+    p.lfo2_waveform = data[0x7B];
+    p.lfo2_rate = nibble2(data, 0x7C);
+    p.lfo2_offset = data[0x7E];
+    p.lfo2_rate_detune = data[0x7F];
+    // Bytes beyond 0x7F: linear data index continues at 0x80 (= SysEx offset 01 00)
+    p.lfo2_delay_time = data[0x80];
+    p.lfo2_delay_time_keyfollow = data[0x81];
+    p.lfo2_fade_mode = data[0x82];
+    p.lfo2_fade_time = data[0x83];
+    p.lfo2_key_trigger = data[0x84];
+    p.lfo2_pitch_depth = data[0x85];
+    p.lfo2_tvf_depth = data[0x86];
+    p.lfo2_tva_depth = data[0x87];
+    p.lfo2_pan_depth = data[0x88];
+
+    // -- LFO Step Sequencer --
+    p.lfo_step_type = data[0x89];
+    p.lfo_step_values.copy_from_slice(&data[0x8A..0x9A]);
+
+    p
+}
+
+/// Parse a PCM Synth Tone Common2 dump (0x3C = 60 bytes).
+///
+/// Offsets follow the MIDI implementation doc.
+pub fn parse_pcms_common2(data: &[u8]) -> PcmSynthCommon2 {
+    let mut c2 = PcmSynthCommon2::default();
+    if data.len() < PCMS_COMMON2_SIZE {
+        return c2;
+    }
+
+    // 0x00–0x0F: reserved
+    c2.tone_category = data[0x10];
+    c2.tone_number = nibble2(data, 0x11);
+    c2.phrase_octave_shift = data[0x13];
+    // 0x14–0x32: reserved
+    c2.tfx_switch = data[0x33];
+    // 0x34–0x37: reserved
+    c2.phrase_number = nibble4(data, 0x38);
+
+    c2
 }
 
 #[cfg(test)]
@@ -873,5 +1143,251 @@ mod tests {
     fn default_pmt_partial_entries_count() {
         let pmt = PcmSynthPmt::default();
         assert_eq!(pmt.partial_entries.len(), 4);
+    }
+
+    // -- Parse function tests --
+
+    #[test]
+    fn parse_common_basic() {
+        let mut data = [0u8; PCMS_COMMON_SIZE];
+        // Tone name "BrightPad   "
+        let name = b"BrightPad   ";
+        data[0x00..0x0C].copy_from_slice(name);
+        data[0x0E] = 100; // tone level
+        data[0x0F] = 32; // tone pan (L32)
+        data[0x10] = 1; // priority = LOUDEST
+        data[0x11] = 76; // coarse tune = +12
+        data[0x12] = 78; // fine tune = +14
+        data[0x13] = 65; // octave shift = +1
+        data[0x14] = 2; // stretch tune depth
+        data[0x15] = 50; // analog feel
+        data[0x16] = 1; // POLY
+        data[0x17] = 1; // legato on
+        data[0x18] = 1; // legato retrigger on
+        data[0x19] = 1; // portamento on
+        data[0x1A] = 1; // portamento mode = LEGATO
+        data[0x1B] = 1; // portamento type = TIME
+        data[0x1C] = 1; // portamento start = NOTE
+        data[0x1D] = 64; // portamento time
+        data[0x22] = 70; // cutoff offset
+        data[0x23] = 80; // resonance offset
+        data[0x24] = 90; // attack time offset
+        data[0x25] = 40; // release time offset
+        data[0x26] = 50; // velocity sens offset
+        data[0x28] = 1; // PMT control on
+        data[0x29] = 12; // pitch bend up
+        data[0x2A] = 24; // pitch bend down
+        // Matrix Control 1: source=5, dest1=2, sens1=70
+        data[0x2B] = 5;
+        data[0x2C] = 2;
+        data[0x2D] = 70;
+
+        let c = parse_pcms_common(&data);
+        assert_eq!(c.tone_name, "BrightPad");
+        assert_eq!(c.tone_level, 100);
+        assert_eq!(c.tone_pan, 32);
+        assert_eq!(c.tone_priority, 1);
+        assert_eq!(c.coarse_tune, 76);
+        assert_eq!(c.fine_tune, 78);
+        assert_eq!(c.octave_shift, 65);
+        assert_eq!(c.stretch_tune_depth, 2);
+        assert_eq!(c.analog_feel, 50);
+        assert_eq!(c.mono_poly, 1);
+        assert_eq!(c.legato_switch, 1);
+        assert_eq!(c.legato_retrigger, 1);
+        assert_eq!(c.portamento_switch, 1);
+        assert_eq!(c.portamento_mode, 1);
+        assert_eq!(c.portamento_type, 1);
+        assert_eq!(c.portamento_start, 1);
+        assert_eq!(c.portamento_time, 64);
+        assert_eq!(c.cutoff_offset, 70);
+        assert_eq!(c.resonance_offset, 80);
+        assert_eq!(c.attack_time_offset, 90);
+        assert_eq!(c.release_time_offset, 40);
+        assert_eq!(c.velocity_sens_offset, 50);
+        assert_eq!(c.pmt_control_switch, 1);
+        assert_eq!(c.pitch_bend_range_up, 12);
+        assert_eq!(c.pitch_bend_range_down, 24);
+        assert_eq!(c.matrix_controls[0].source, 5);
+        assert_eq!(c.matrix_controls[0].destinations[0], 2);
+        assert_eq!(c.matrix_controls[0].sensitivities[0], 70);
+    }
+
+    #[test]
+    fn parse_common_short_returns_default() {
+        let data = [0u8; 10]; // way too short
+        let c = parse_pcms_common(&data);
+        assert_eq!(c, PcmSynthCommon::default());
+    }
+
+    #[test]
+    fn parse_pmt_basic() {
+        let mut data = [0u8; PCMS_PMT_SIZE];
+        data[0x00] = 3; // structure_type_12
+        data[0x01] = 2; // booster_12
+        data[0x02] = 5; // structure_type_34
+        data[0x03] = 1; // booster_34
+        data[0x04] = 2; // pmt_velocity_control = RANDOM
+        // Partial 1 entry at offset 0x05
+        data[0x05] = 1; // switch ON
+        data[0x06] = 24; // key range lower
+        data[0x07] = 96; // key range upper
+        data[0x08] = 10; // key fade lower
+        data[0x09] = 15; // key fade upper
+        data[0x0A] = 20; // velocity range lower
+        data[0x0B] = 110; // velocity range upper
+        data[0x0C] = 5; // velocity fade lower
+        data[0x0D] = 8; // velocity fade upper
+        // Partial 2 entry at offset 0x0E
+        data[0x0E] = 0; // switch OFF
+
+        let pmt = parse_pcms_pmt(&data);
+        assert_eq!(pmt.structure_type_12, 3);
+        assert_eq!(pmt.booster_12, 2);
+        assert_eq!(pmt.structure_type_34, 5);
+        assert_eq!(pmt.booster_34, 1);
+        assert_eq!(pmt.pmt_velocity_control, 2);
+        assert_eq!(pmt.partial_entries[0].partial_switch, 1);
+        assert_eq!(pmt.partial_entries[0].key_range_lower, 24);
+        assert_eq!(pmt.partial_entries[0].key_range_upper, 96);
+        assert_eq!(pmt.partial_entries[0].key_fade_lower, 10);
+        assert_eq!(pmt.partial_entries[0].key_fade_upper, 15);
+        assert_eq!(pmt.partial_entries[0].velocity_range_lower, 20);
+        assert_eq!(pmt.partial_entries[0].velocity_range_upper, 110);
+        assert_eq!(pmt.partial_entries[0].velocity_fade_lower, 5);
+        assert_eq!(pmt.partial_entries[0].velocity_fade_upper, 8);
+        assert_eq!(pmt.partial_entries[1].partial_switch, 0);
+    }
+
+    #[test]
+    fn parse_partial_basic() {
+        let mut data = [0u8; PCMS_PARTIAL_SIZE];
+        data[0x00] = 100; // level
+        data[0x01] = 76; // coarse tune
+        data[0x02] = 78; // fine tune
+        data[0x04] = 64; // pan center
+        data[0x0C] = 120; // output level
+
+        // Wave Number L = 0x1234 via nibblized 4 bytes
+        data[0x2C] = 0x01;
+        data[0x2D] = 0x02;
+        data[0x2E] = 0x03;
+        data[0x2F] = 0x04;
+        // Wave Number R = 0x5678
+        data[0x30] = 0x05;
+        data[0x31] = 0x06;
+        data[0x32] = 0x07;
+        data[0x33] = 0x08;
+
+        // TVF envelope times
+        data[0x55] = 10;
+        data[0x56] = 20;
+        data[0x57] = 30;
+        data[0x58] = 40;
+        // TVF envelope levels
+        data[0x59] = 50;
+        data[0x5A] = 60;
+        data[0x5B] = 70;
+        data[0x5C] = 80;
+        data[0x5D] = 90;
+
+        // TVA envelope times
+        data[0x66] = 11;
+        data[0x67] = 22;
+        data[0x68] = 33;
+        data[0x69] = 44;
+        // TVA envelope levels (L1-L3)
+        data[0x6A] = 100;
+        data[0x6B] = 110;
+        data[0x6C] = 120;
+
+        // LFO1 rate (nibblized 2 bytes): 0x09 0x05 = 0x95 = 149
+        data[0x6E] = 0x09;
+        data[0x6F] = 0x05;
+
+        let p = parse_pcms_partial(&data);
+        assert_eq!(p.level, 100);
+        assert_eq!(p.coarse_tune, 76);
+        assert_eq!(p.fine_tune, 78);
+        assert_eq!(p.pan, 64);
+        assert_eq!(p.output_level, 120);
+        assert_eq!(p.wave_number_l, 0x1234);
+        assert_eq!(p.wave_number_r, 0x5678);
+        assert_eq!(p.tvf_env_time, [10, 20, 30, 40]);
+        assert_eq!(p.tvf_env_level, [50, 60, 70, 80, 90]);
+        assert_eq!(p.tva_env_time, [11, 22, 33, 44]);
+        assert_eq!(p.tva_env_level, [100, 110, 120]);
+        assert_eq!(p.lfo1_rate, 149);
+    }
+
+    #[test]
+    fn parse_partial_lfo2_and_step() {
+        let mut data = [0u8; PCMS_PARTIAL_SIZE];
+
+        // LFO2 waveform at 0x7B
+        data[0x7B] = 5;
+        // LFO2 rate (nibblized): 0x08 0x03 = 0x83 = 131
+        data[0x7C] = 0x08;
+        data[0x7D] = 0x03;
+        data[0x7E] = 2; // lfo2 offset
+        data[0x7F] = 42; // lfo2 rate detune
+
+        // Past the 0x7F boundary — linear index 0x80+
+        data[0x80] = 99; // lfo2 delay time
+        data[0x81] = 60; // lfo2 delay time keyfollow
+        data[0x82] = 3; // lfo2 fade mode
+        data[0x83] = 77; // lfo2 fade time
+        data[0x84] = 1; // lfo2 key trigger
+        data[0x85] = 30; // lfo2 pitch depth
+        data[0x86] = 40; // lfo2 tvf depth
+        data[0x87] = 50; // lfo2 tva depth
+        data[0x88] = 60; // lfo2 pan depth
+
+        // LFO Step Sequencer
+        data[0x89] = 1; // lfo step type
+        for i in 0..16u8 {
+            data[0x8A + i as usize] = 28 + i * 4; // distinct values
+        }
+
+        let p = parse_pcms_partial(&data);
+        assert_eq!(p.lfo2_waveform, 5);
+        assert_eq!(p.lfo2_rate, 131);
+        assert_eq!(p.lfo2_offset, 2);
+        assert_eq!(p.lfo2_rate_detune, 42);
+        assert_eq!(p.lfo2_delay_time, 99);
+        assert_eq!(p.lfo2_delay_time_keyfollow, 60);
+        assert_eq!(p.lfo2_fade_mode, 3);
+        assert_eq!(p.lfo2_fade_time, 77);
+        assert_eq!(p.lfo2_key_trigger, 1);
+        assert_eq!(p.lfo2_pitch_depth, 30);
+        assert_eq!(p.lfo2_tvf_depth, 40);
+        assert_eq!(p.lfo2_tva_depth, 50);
+        assert_eq!(p.lfo2_pan_depth, 60);
+        assert_eq!(p.lfo_step_type, 1);
+        assert_eq!(p.lfo_step_values[0], 28);
+        assert_eq!(p.lfo_step_values[15], 28 + 15 * 4);
+    }
+
+    #[test]
+    fn parse_common2_basic() {
+        let mut data = [0u8; PCMS_COMMON2_SIZE];
+        data[0x10] = 42; // tone category
+        // Tone number = 0xAB via nibblized 2 bytes: 0x0A 0x0B
+        data[0x11] = 0x0A;
+        data[0x12] = 0x0B;
+        data[0x13] = 63; // phrase octave shift = -1
+        data[0x33] = 1; // TFX switch ON
+        // Phrase number = 0x1234 via nibblized 4 bytes
+        data[0x38] = 0x01;
+        data[0x39] = 0x02;
+        data[0x3A] = 0x03;
+        data[0x3B] = 0x04;
+
+        let c2 = parse_pcms_common2(&data);
+        assert_eq!(c2.tone_category, 42);
+        assert_eq!(c2.tone_number, 0xAB);
+        assert_eq!(c2.phrase_octave_shift, 63);
+        assert_eq!(c2.tfx_switch, 1);
+        assert_eq!(c2.phrase_number, 0x1234);
     }
 }
