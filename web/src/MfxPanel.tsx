@@ -355,42 +355,93 @@ function DelayPanel({ params, paramDefs, onParam }: CustomPanelProps) {
 // Generic fallback (grid of knobs/switches)
 // ---------------------------------------------------------------------------
 
+/** Names that are always grouped into the "tone EQ" row. */
+const TONE_EQ_NAMES = new Set(["Low Gain", "High Gain"]);
+/** Names handled by the shared output section. */
+const OUTPUT_NAMES = new Set(["Level"]);
+/** Names rendered near the output (balance/mix). */
+const BALANCE_NAMES = new Set(["Balance", "Mix"]);
+
 function GenericPanel({ params, paramDefs, onParam }: CustomPanelProps) {
+  // Partition params into: main, switches, toneEq, balance
+  const main: { def: ParamDef; i: number }[] = [];
+  const switches: { def: ParamDef; i: number }[] = [];
+  const toneEq: { def: ParamDef; i: number }[] = [];
+  const balance: { def: ParamDef; i: number }[] = [];
+
+  for (let i = 0; i < paramDefs.length; i++) {
+    const def = paramDefs[i]!;
+    if (OUTPUT_NAMES.has(def.name)) continue;
+    if (TONE_EQ_NAMES.has(def.name)) { toneEq.push({ def, i }); continue; }
+    if (BALANCE_NAMES.has(def.name)) { balance.push({ def, i }); continue; }
+    const range = def.max - def.min;
+    if (range <= 1) { switches.push({ def, i }); continue; }
+    main.push({ def, i });
+  }
+
+  // Render main knobs in rows of 2
+  const mainRows: { def: ParamDef; i: number }[][] = [];
+  for (let j = 0; j < main.length; j += 2) {
+    mainRows.push(main.slice(j, j + 2));
+  }
+
+  const renderKnob = (item: { def: ParamDef; i: number }, color: string) => {
+    const val = params[item.i] ?? item.def.defaultValue;
+    return (
+      <SynthKnob
+        key={item.def.index}
+        label={item.def.name}
+        value={val}
+        min={item.def.min}
+        max={item.def.max}
+        defaultValue={item.def.defaultValue}
+        onChange={(v) => onParam(item.i, v)}
+        formatValue={(v) => String(v)}
+        color={color}
+      />
+    );
+  };
+
   return (
-    <div className={css.mfxParamGrid}>
-      {paramDefs.map((def, i) => {
-        // Level is rendered in the shared output section
-        if (def.name === "Level") return null;
-        const val = params[i] ?? def.defaultValue;
-        const range = def.max - def.min;
-        if (range <= 1) {
-          return (
-            <SynthSwitch
-              key={`${def.index}`}
-              label={def.name}
-              value={val}
-              options={[
-                { value: def.min, label: "OFF" },
-                { value: def.max, label: "ON" },
-              ]}
-              onChange={(v) => onParam(i, v)}
-            />
-          );
-        }
-        return (
-          <SynthKnob
-            key={`${def.index}`}
-            label={def.name}
-            value={val}
-            min={def.min}
-            max={def.max}
-            defaultValue={def.defaultValue}
-            onChange={(v) => onParam(i, v)}
-            formatValue={(v) => String(v)}
-            color="#c8a"
-          />
-        );
-      })}
+    <div className={css.customLayout}>
+      {/* Switches row */}
+      {switches.length > 0 && (
+        <div className={css.customRow}>
+          {switches.map((item) => {
+            const val = params[item.i] ?? item.def.defaultValue;
+            return (
+              <SynthSwitch
+                key={item.def.index}
+                label={item.def.name}
+                value={val}
+                options={[
+                  { value: item.def.min, label: "OFF" },
+                  { value: item.def.max, label: "ON" },
+                ]}
+                onChange={(v) => onParam(item.i, v)}
+              />
+            );
+          })}
+        </div>
+      )}
+      {/* Main knobs in rows of 2 */}
+      {mainRows.map((row, ri) => (
+        <div key={ri} className={css.customRow}>
+          {row.map((item) => renderKnob(item, "#c8a"))}
+        </div>
+      ))}
+      {/* Balance/Mix */}
+      {balance.length > 0 && (
+        <div className={css.customRow}>
+          {balance.map((item) => renderKnob(item, "#c8a"))}
+        </div>
+      )}
+      {/* Tone EQ row (Lo Gain / Hi Gain) */}
+      {toneEq.length > 0 && (
+        <div className={css.customRow}>
+          {toneEq.map((item) => renderKnob(item, "#6ae"))}
+        </div>
+      )}
     </div>
   );
 }
