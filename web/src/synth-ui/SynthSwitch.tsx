@@ -11,6 +11,8 @@ interface Props {
   ledColor?: string;
   /** Render as horizontal toggle (2 states) or vertical list. */
   vertical?: boolean;
+  /** Full name for tooltip. Defaults to label. */
+  title?: string;
 }
 
 export function SynthSwitch({
@@ -21,12 +23,13 @@ export function SynthSwitch({
   led = true,
   ledColor = "#4dff4d",
   vertical = false,
+  title,
 }: Props) {
   if (options.length === 2 && !vertical) {
     // Two-state toggle button
     const isOn = value === options[1]!.value;
     return (
-      <div className={css.toggle}>
+      <div className={css.toggle} title={title ?? label}>
         {label && <span className={css.label}>{label}</span>}
         <button
           className={`${css.toggleBtn} ${isOn ? css.toggleOn : ""}`}
@@ -41,7 +44,7 @@ export function SynthSwitch({
 
   // Multi-state vertical list
   return (
-    <div className={css.multiSwitch}>
+    <div className={css.multiSwitch} title={title ?? label}>
       {label && <span className={css.label}>{label}</span>}
       <div className={css.optionList}>
         {options.map((opt) => {

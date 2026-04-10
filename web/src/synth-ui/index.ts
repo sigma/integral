@@ -4,3 +4,4 @@ export { SynthSwitch } from "./SynthSwitch";
 export { SynthSelect } from "./SynthSelect";
 export { SectionPanel } from "./SectionPanel";
 export { ADSREnvelope, ADEnvelope } from "./ADSREnvelope";
+export { FaderGroup, FaderGroupSep } from "./FaderGroup";

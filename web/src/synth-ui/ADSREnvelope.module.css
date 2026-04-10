@@ -1,16 +1,36 @@
 .envelope {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
 }
 
-.diagram {
+/* Curve sits above the faders, exact width of the env faders */
+.curveRow {
+  overflow: hidden;
+}
+
+.curve {
+  display: block;
   opacity: 0.8;
 }
 
+/* Fader row: env faders + optional separator + extra fader */
 .faders {
+  display: flex;
+  gap: 0;
+  align-items: flex-start;
+}
+
+/* The envelope faders sub-group — measured by ref for the curve width */
+.envFaders {
   display: flex;
   gap: 4px;
   align-items: flex-start;
+}
+
+/* Separator between env faders and extra (Depth) fader */
+.groupSep {
+  width: 1px;
+  background: #2a2a4a;
+  align-self: stretch;
+  margin: 0 6px;
 }

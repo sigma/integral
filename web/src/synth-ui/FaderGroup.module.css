@@ -1,0 +1,12 @@
+.group {
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.sep {
+  width: 1px;
+  background: #2a2a4a;
+  align-self: stretch;
+  margin: 0 4px;
+}

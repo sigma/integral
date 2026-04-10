@@ -13,6 +13,8 @@ interface Props {
   color?: string;
   /** "sm" = 44px, "lg" = 64px. Default: "sm". */
   size?: "sm" | "lg";
+  /** Full name for tooltip. Defaults to label. */
+  title?: string;
 }
 
 const ANGLE_MIN = -135;
@@ -34,6 +36,7 @@ export function SynthKnob({
   formatValue,
   color = "#fc8",
   size = "sm",
+  title,
 }: Props) {
   const dragging = useRef(false);
   const lastY = useRef(0);
@@ -107,7 +110,7 @@ export function SynthKnob({
   const display = formatValue ? formatValue(value) : String(value);
 
   return (
-    <div className={`${css.knob} ${size === "lg" ? css.lg : ""}`}>
+    <div className={`${css.knob} ${size === "lg" ? css.lg : ""}`} title={title ?? label}>
       <span className={css.label}>{label}</span>
       <svg
         className={css.svg}
