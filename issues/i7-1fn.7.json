@@ -5,7 +5,9 @@
     "i7-1fn.3",
     "i7-1fn.4"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-1fn.9"
+  ],
   "created": "2026-04-10T06:20:56Z",
   "description": "Composite: SynthSelect (shape with waveform name/icon), SynthKnob (rate), SynthSwitch (tempo sync), conditional SynthSelect (sync note value), plus depth SynthFaders (pitch, filter, amp, pan). Shared between LFO and Mod LFO sections.",
   "id": "i7-1fn.7",
