@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-10T08:51:18Z",
+  "description": "Refactor MfxPanel to dispatch to custom layouts by MFX type ID, with generic knob grid as fallback. Priority custom panels: Equalizer (4-band EQ), Compressor, Delay, Chorus, Overdrive/Distortion.",
+  "id": "i7-m5k.8",
+  "labels": [],
+  "parent": "i7-m5k",
+  "priority": 2,
+  "status": "open",
+  "title": "Custom MFX panel layouts per effect type",
+  "type": "task",
+  "updated_at": "2026-04-10T08:51:18Z"
+}
