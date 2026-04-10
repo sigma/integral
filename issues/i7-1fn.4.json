@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-10T06:20:55Z",
+  "description": "Dark-themed select dropdown matching the synth aesthetic. For short option lists (\u003c6 items), optionally render as a vertical button strip with active highlighting (like filter MODE). Props: value, options, onChange, vertical (bool). Replace current SelectParam.",
+  "id": "i7-1fn.4",
+  "labels": [],
+  "parent": "i7-1fn",
+  "priority": 2,
+  "status": "open",
+  "title": "SynthSelect: styled dropdown",
+  "type": "task",
+  "updated_at": "2026-04-10T06:20:55Z"
+}
