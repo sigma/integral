@@ -7,14 +7,14 @@
 }
 
 .label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   color: #999;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   text-align: center;
   white-space: nowrap;
-  max-width: 48px;
+  max-width: 58px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -25,7 +25,7 @@
 }
 
 .value {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   color: #aaa;
   text-align: center;

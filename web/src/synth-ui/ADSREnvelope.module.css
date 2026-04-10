@@ -23,7 +23,7 @@
 /* The envelope faders sub-group — measured by ref for the curve width */
 .envFaders {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   align-items: flex-start;
 }
 

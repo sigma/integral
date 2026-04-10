@@ -1,0 +1,180 @@
+/* ================================================================
+   SN-A Acoustic Editor
+   ================================================================ */
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  flex: 1;
+  background: #0c0c1a;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #888;
+  font-size: 14px;
+}
+
+.toneName {
+  font-size: 15px;
+  font-weight: 700;
+  color: #e0e0e0;
+  padding: 4px 0;
+  letter-spacing: 0.5px;
+}
+
+/* ----------------------------------------------------------------
+   Main Area: three boxes side by side
+   ---------------------------------------------------------------- */
+
+.mainArea {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.panelRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* ----------------------------------------------------------------
+   Instrument parameter grid (generic fallback)
+   ---------------------------------------------------------------- */
+
+.instParamGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 4px;
+  justify-items: center;
+  padding-top: 4px;
+}
+
+/* ----------------------------------------------------------------
+   MFX Panel
+   ---------------------------------------------------------------- */
+
+.mfxPanel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  background: #161628;
+  overflow: hidden;
+  width: 280px;
+  max-height: 100%;
+}
+
+.panelHeader {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #c0c0e0;
+  padding: 4px 8px;
+  background: #111122;
+  border-top: 2px solid #4ce0e0;
+}
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  flex: 1;
+}
+
+.mfxTypeRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mfxTypeLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #b0b0d0;
+}
+
+.mfxTypeSelect {
+  font-size: 10px;
+  background: #2a2a4a;
+  color: #c0c0e0;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  padding: 3px 6px;
+  max-width: 220px;
+  flex: 1;
+}
+
+.mfxParamGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+  gap: 4px;
+  justify-items: center;
+}
+
+.mfxSendRow {
+  display: flex;
+  gap: 6px;
+}
+
+.mfxCtrlSection {
+  border-top: 1px solid #222240;
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.mfxCtrlTitle {
+  font-size: 9px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.mfxCtrlSlots {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mfxCtrlSlot {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  background: #1a1a30;
+}
+
+.mfxCtrlSlotLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: #666;
+  min-width: 12px;
+  text-align: center;
+}
+
+.mfxCtrlSelect {
+  font-size: 9px;
+  background: #2a2a4a;
+  color: #c0c0e0;
+  border: 1px solid #3a3a5a;
+  border-radius: 3px;
+  padding: 2px 3px;
+  width: 80px;
+  flex-shrink: 0;
+}

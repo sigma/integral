@@ -493,6 +493,26 @@ impl DeviceState {
     }
 
     // -----------------------------------------------------------------------
+    // SN-A Tone Edit
+    // -----------------------------------------------------------------------
+
+    /// Set a single SN-A Common parameter for a part.
+    pub fn set_sna_common_param(&mut self, part: u8, offset: u8, value: u8) {
+        let addr = crate::sn_acoustic::sna_common_param_address(part, offset);
+        self.send_dt1(&addr, &[value]);
+    }
+
+    /// Build an RQ1 to read the full SN-A Common block for a part.
+    pub fn build_sna_common_request(&self, part: u8) -> Vec<u8> {
+        let addr = crate::sn_acoustic::sna_common_address(part);
+        sysex::build_rq1(
+            self.device_id,
+            &addr,
+            &crate::sn_acoustic::SNA_COMMON_BLOCK_SIZE,
+        )
+    }
+
+    // -----------------------------------------------------------------------
     // Motional Surround
     // -----------------------------------------------------------------------
 

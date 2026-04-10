@@ -1278,6 +1278,27 @@ impl WasmDeviceState {
         self.inner.build_sns_partial_request(part, partial)
     }
 
+    // -- SN-A Tone Edit ----------------------------------------------------
+
+    /// Set a single SN-A Common parameter.
+    #[wasm_bindgen(js_name = setSnaCommonParam)]
+    pub fn set_sna_common_param(&mut self, part: u8, offset: u8, value: u8) {
+        self.inner.set_sna_common_param(part, offset, value);
+    }
+
+    /// Parse an SN-A Common dump and return as a JS object.
+    #[wasm_bindgen(js_name = applySnaCommon)]
+    pub fn apply_sna_common(&mut self, data: &[u8]) -> JsValue {
+        let parsed = integral_core::sn_acoustic::parse_sna_common(data);
+        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    }
+
+    /// Build an RQ1 to read the SN-A Common block for a part.
+    #[wasm_bindgen(js_name = buildSnaCommonRequest)]
+    pub fn build_sna_common_request(&self, part: u8) -> Vec<u8> {
+        self.inner.build_sna_common_request(part)
+    }
+
     // -- MFX ---------------------------------------------------------------
 
     #[wasm_bindgen(js_name = setMfxParam)]
@@ -1301,6 +1322,38 @@ impl WasmDeviceState {
         let state = mfx::parse_mfx_block(data);
         serde_wasm_bindgen::to_value(&state).unwrap_or(JsValue::NULL)
     }
+}
+
+// ---------------------------------------------------------------------------
+// SN-A instrument parameter table (standalone functions)
+// ---------------------------------------------------------------------------
+
+/// Get the instrument-specific parameter definitions for an SN-A category.
+///
+/// Returns a JS array of tuples `[index, name, min, max, default]`, or null
+/// if the category name is not recognized.
+#[wasm_bindgen]
+pub fn sna_inst_params_by_category(category: &str) -> JsValue {
+    match integral_core::sna_inst_params::sna_inst_type_by_category(category) {
+        Some(def) => {
+            let params: Vec<(u8, &str, u8, u8, u8)> = def
+                .params
+                .iter()
+                .map(|p| (p.index, p.name, p.min, p.max, p.default_value))
+                .collect();
+            serde_wasm_bindgen::to_value(&params).unwrap_or(JsValue::NULL)
+        }
+        None => JsValue::NULL,
+    }
+}
+
+/// Get all known SN-A instrument type names.
+#[wasm_bindgen]
+pub fn sna_all_inst_type_names() -> Vec<String> {
+    integral_core::sna_inst_params::sna_all_inst_types()
+        .iter()
+        .map(|t| t.name.to_string())
+        .collect()
 }
 
 // ---------------------------------------------------------------------------

@@ -94,9 +94,14 @@
   align-items: stretch;
 }
 
-/* Each section wrapper must stretch to fill the row height */
+/* Each section wrapper must stretch to fill the row height.
+   The inner SectionPanel needs flex:1 to fill the wrapper. */
 .partialRow > div {
   display: flex;
+}
+
+.partialRow > div > * {
+  flex: 1;
 }
 
 /* The dimmed overlay wrapper also needs to stretch */
@@ -127,7 +132,7 @@
 .oscKnobGrid {
   display: grid;
   grid-template-columns: auto auto;
-  gap: 2px;
+  gap: 6px;
   margin-left: auto;
 }
 
@@ -194,7 +199,7 @@
 .panelRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 8px;
   align-items: flex-start;
 }
 

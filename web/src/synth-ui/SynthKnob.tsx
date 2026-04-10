@@ -40,11 +40,11 @@ export function SynthKnob({
 }: Props) {
   const dragging = useRef(false);
   const lastY = useRef(0);
-  const svgSize = size === "lg" ? 64 : 44;
+  const svgSize = size === "lg" ? 72 : 52;
   const cx = svgSize / 2;
   const cy = svgSize / 2;
-  const knobR = size === "lg" ? 20 : 14;
-  const ledR = size === "lg" ? 28 : 19;
+  const knobR = size === "lg" ? 24 : 17;
+  const ledR = size === "lg" ? 32 : 23;
   const range = max - min || 1;
 
   const angle = valueToAngle(value, min, max);
