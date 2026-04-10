@@ -2,13 +2,14 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-10T18:30:05Z",
   "created": "2026-04-09T19:06:46Z",
   "description": "88-key PCM drum kit editor. Each key has 4 WMT wave layers plus TVF/TVA/pitch envelope. Comp+EQ (already done). Most parameter-dense tone type.",
   "id": "i7-grp",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Tone Editor: PCM Drum Kit (PCMD)",
   "type": "task",
-  "updated_at": "2026-04-09T19:06:46Z"
+  "updated_at": "2026-04-10T18:30:05Z"
 }
