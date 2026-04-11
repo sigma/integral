@@ -7,14 +7,15 @@
     "i7-2y8.8",
     "i7-2y8.9"
   ],
+  "closed_at": "2026-04-11T16:41:25Z",
   "created": "2026-04-11T16:30:25Z",
   "description": "Create svd.rs with SvdFile/SvdChunk/ChunkType types. Parse SVD header, chunk directory, zone headers, and extract entries. Write valid SVD files with correct offsets and sizes. Container-level only, no parameter interpretation. Test against Synth Legends SVD file.",
   "id": "i7-2y8.3",
   "labels": [],
   "parent": "i7-2y8",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "SVD container parser/writer",
   "type": "task",
-  "updated_at": "2026-04-11T16:37:33Z"
+  "updated_at": "2026-04-11T16:41:25Z"
 }
