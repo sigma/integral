@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-11T18:09:47Z",
+  "description": "Move the output assign dropdown from the buried TONE/MISC section to a prominent position in the drum kit per-key controls. Both SN-D (SnDrumEditor.tsx, offset 0x12) and PCM-D (PcmDrumEditor.tsx, offset 0x1B). Infrastructure already exists — purely a UI rearrangement. Replaces i7-18x.6.",
+  "id": "i7-1se.2",
+  "labels": [],
+  "parent": "i7-1se",
+  "priority": 2,
+  "status": "open",
+  "title": "Per-instrument output assign in drum kit editors",
+  "type": "task",
+  "updated_at": "2026-04-11T18:09:47Z"
+}
