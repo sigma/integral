@@ -4,6 +4,7 @@
     "i7-18x.5"
   ],
   "blocks": [],
+  "closed_at": "2026-04-11T18:09:55Z",
   "created": "2026-04-09T12:18:38Z",
   "defer_until": "2026-05-01",
   "description": "When editing a drum kit part, show each instrument's Output Assign (PART / COMP+EQ 1-6). This is part of future drum kit editing but the output assign is needed to make Comp+EQ useful. Could be a minimal column in the instrument list.",
@@ -17,7 +18,7 @@
     }
   ],
   "priority": 2,
-  "status": "deferred",
+  "status": "closed",
   "title": "Add per-instrument output assign to drum kit view",
   "type": "task",
   "updated_at": "2026-04-11T18:09:55Z"
