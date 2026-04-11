@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-2y8.13"
+  ],
   "created": "2026-04-11T17:57:26Z",
   "description": "Write a known PCM Drum Kit to the device via DT1 SysEx with identifiable values on a few keys. User exports to SVD. The entry becomes the test fixture for i7-2y8.13.",
   "id": "i7-2y8.16",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Create PCM Drum Kit test tone via MIDI for SVD validation",
   "type": "task",
-  "updated_at": "2026-04-11T17:57:26Z"
+  "updated_at": "2026-04-11T17:57:27Z"
 }
