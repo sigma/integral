@@ -20,6 +20,7 @@ pub mod sn_synth;
 pub mod sna_inst_params;
 pub mod state;
 pub mod svd;
+pub mod svd_convert;
 pub mod svd_specs;
 pub mod sysex;
 pub mod tone_banks;

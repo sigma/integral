@@ -45,6 +45,10 @@ impl ParamBits {
 pub struct SvdSection {
     /// Parameter specifications, in SysEx address order.
     pub params: &'static [ParamBits],
+    /// Exact number of bytes this section occupies in the SVD entry.
+    /// This may be larger than `padded_bytes()` due to additional
+    /// zero padding beyond byte alignment.
+    pub svd_bytes: usize,
 }
 
 impl SvdSection {
@@ -75,10 +79,10 @@ pub struct SvdToneSpec {
 }
 
 impl SvdToneSpec {
-    /// Sum of all sections' padded byte sizes (data portion only,
+    /// Sum of all sections' SVD byte sizes (data portion only,
     /// excluding end marker and tail padding).
     pub fn data_bytes(&self) -> usize {
-        self.sections.iter().map(|s| s.padded_bytes()).sum()
+        self.sections.iter().map(|s| s.svd_bytes).sum()
     }
 }
 
@@ -439,17 +443,22 @@ static SNS_PARTIAL_PARAMS: &[ParamBits] = &[
 // SN Synth Tone — Assembled Sections
 // ---------------------------------------------------------------------------
 
-/// SN Synth Common section.
+/// SN Synth Common section (for bit-count queries only; not used in SVD directly).
 pub static SNS_COMMON_SECTION: SvdSection = SvdSection {
     params: SNS_COMMON_PARAMS,
+    svd_bytes: 0, // Common is always packed with MFX
 };
 
-/// SN Synth MFX section. Shared across all tone types.
-pub static MFX_SECTION: SvdSection = SvdSection { params: MFX_PARAMS };
+/// SN Synth MFX section (for bit-count queries only).
+pub static MFX_SECTION: SvdSection = SvdSection {
+    params: MFX_PARAMS,
+    svd_bytes: 0, // MFX is always packed with Common
+};
 
 /// SN Synth Partial section (used for each of the 3 partials).
 pub static SNS_PARTIAL_SECTION: SvdSection = SvdSection {
     params: SNS_PARTIAL_PARAMS,
+    svd_bytes: 46,
 };
 
 /// SN Synth section layout in SVD packing order.
@@ -479,15 +488,19 @@ const SNS_COMMON_MFX_COMBINED: [ParamBits; SNS_COMMON_COUNT + MFX_COUNT] = {
 static SNS_SECTIONS: [SvdSection; 4] = [
     SvdSection {
         params: &SNS_COMMON_MFX_COMBINED,
+        svd_bytes: 108,
     },
     SvdSection {
         params: SNS_PARTIAL_PARAMS,
+        svd_bytes: 46,
     },
     SvdSection {
         params: SNS_PARTIAL_PARAMS,
+        svd_bytes: 46,
     },
     SvdSection {
         params: SNS_PARTIAL_PARAMS,
+        svd_bytes: 46,
     },
 ];
 
