@@ -4,6 +4,7 @@
     "i7-2y8.1"
   ],
   "blocks": [
+    "i7-2y8.10",
     "i7-2y8.4"
   ],
   "created": "2026-04-11T16:30:25Z",
@@ -15,5 +16,5 @@
   "status": "open",
   "title": "SVD parameter spec tables for SN-S",
   "type": "task",
-  "updated_at": "2026-04-11T16:30:39Z"
+  "updated_at": "2026-04-11T16:30:41Z"
 }
