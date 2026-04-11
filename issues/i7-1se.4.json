@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-11T18:09:48Z",
+  "description": "New panel showing the full signal chain: which parts/keys route to which outputs. Could be a matrix (sources × destinations) or a simplified signal flow. Reads Part Output Assign, Comp+EQ Output Assign, Chorus/Reverb Output Assign from the Studio Set.",
+  "id": "i7-1se.4",
+  "labels": [],
+  "parent": "i7-1se",
+  "priority": 2,
+  "status": "open",
+  "title": "Output routing summary panel",
+  "type": "task",
+  "updated_at": "2026-04-11T18:09:48Z"
+}
