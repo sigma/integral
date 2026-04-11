@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-2y8.1"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-2y8.4"
+  ],
   "created": "2026-04-11T16:30:25Z",
   "description": "Create svd_specs.rs with ParamBits/SvdSection/SvdToneSpec types and static spec tables for SN Synth Common (228 bits), MFX (618 bits), and Partial (350 bits). Derive from docs/midi/08-supernatural-synth-tone.md. Include compile-time or test-time assertions that bit sums match expected values.",
   "id": "i7-2y8.2",
