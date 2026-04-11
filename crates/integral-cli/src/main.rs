@@ -829,33 +829,26 @@ fn svd_list(path: &std::path::Path) -> Result<()> {
             continue;
         }
 
-        let spec = match chunk.chunk_type {
-            ChunkType::SnSynthTone => Some(&SNS_TONE_SPEC),
-            _ => None,
+        // Decode names directly from bitstream (7-bit ASCII at start of entry).
+        let name_len = match chunk.chunk_type {
+            ChunkType::StudioSet => 16,
+            _ => 12,
         };
-
-        if let Some(spec) = spec {
-            for (i, entry) in chunk.entries.iter().enumerate() {
-                if let Ok(sections) = svd_to_sysex(entry, spec) {
-                    let name_len = match chunk.chunk_type {
-                        ChunkType::StudioSet => 16,
-                        _ => 12,
-                    };
-                    let name: String = sections[0][..name_len]
-                        .iter()
-                        .map(|&b| {
-                            if (32..=127).contains(&b) {
-                                b as char
-                            } else {
-                                ' '
-                            }
-                        })
-                        .collect::<String>()
-                        .trim_end()
-                        .to_string();
-                    println!("  {:>3}: {}", i + 1, name);
+        for (i, entry) in chunk.entries.iter().enumerate() {
+            let mut reader = integral_core::bitstream::BitReader::new(entry);
+            let mut name = String::new();
+            for _ in 0..name_len {
+                if let Ok(ch) = reader.read_bits(7) {
+                    let ch = ch as u8;
+                    name.push(if (32..=127).contains(&ch) {
+                        ch as char
+                    } else {
+                        ' '
+                    });
                 }
             }
+            let name = name.trim_end();
+            println!("  {:>3}: {}", i + 1, name);
         }
         println!();
     }

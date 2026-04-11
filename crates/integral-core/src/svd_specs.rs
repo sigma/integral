@@ -63,7 +63,7 @@ impl ParamBits {
 }
 
 /// A section of parameters that is independently byte-aligned in SVD.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct SvdSection {
     /// Parameter specifications, in SysEx address order.
     pub params: &'static [ParamBits],
@@ -96,8 +96,12 @@ pub struct SvdToneSpec {
     /// Sections in SVD packing order. Each section is independently
     /// byte-aligned in the SVD entry.
     pub sections: &'static [SvdSection],
-    /// Total SVD entry size in bytes (including end marker + padding).
+    /// Total SVD entry size in bytes (including end marker + padding
+    /// for tone types, or just data for Studio Sets).
     pub entry_size: usize,
+    /// Whether the entry ends with a `0x0E` marker byte followed by
+    /// zero padding. Tone types have this; Studio Sets do not.
+    pub has_end_marker: bool,
 }
 
 impl SvdToneSpec {
@@ -514,6 +518,7 @@ static SNS_SECTIONS: [SvdSection; 5] = [
 pub static SNS_TONE_SPEC: SvdToneSpec = SvdToneSpec {
     sections: &SNS_SECTIONS,
     entry_size: 280,
+    has_end_marker: true,
 };
 
 // ---------------------------------------------------------------------------
@@ -636,6 +641,286 @@ static SNA_SECTIONS: [SvdSection; 2] = [
 pub static SNA_TONE_SPEC: SvdToneSpec = SvdToneSpec {
     sections: &SNA_SECTIONS,
     entry_size: 138,
+    has_end_marker: true,
+};
+
+// ---------------------------------------------------------------------------
+// Studio Set (PRFb) — 1068 bytes, no end marker
+// ---------------------------------------------------------------------------
+
+/// Studio Set Common parameters.
+///
+/// Source: `docs/midi/05-studio-set.md` — offsets `00 00`–`00 53`.
+/// Total SysEx size: 0x54 = 84 bytes.
+#[rustfmt::skip]
+static SS_COMMON_PARAMS: &[ParamBits] = &[
+    // 0x00–0x0F: Name (16 × 7-bit ASCII)
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    // 0x10–0x17: reserves (8 × 7-bit, assumed)
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    // 0x18–0x27: Voice Reserve 1-16 (16 × 7-bit)
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    // 0x28–0x38: reserves (17 × 7-bit, assumed)
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7),
+    // 0x39–0x3C: Tone Control Sources (4 × 7-bit)
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    // 0x3D–0x3E: Tempo (nibblized, 2 bytes)
+    ParamBits::nibblized(2),
+    // 0x3F: Solo Part
+    ParamBits::normal(5),
+    // 0x40–0x43: Switches (Reverb, Chorus, Master EQ, Drum Comp)
+    ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1),
+    // 0x44: Drum Comp/EQ Part
+    ParamBits::normal(4),
+    // 0x45–0x4A: Drum Comp/EQ Output Assigns 1-6
+    ParamBits::normal(4), ParamBits::normal(4), ParamBits::normal(4),
+    ParamBits::normal(4), ParamBits::normal(4), ParamBits::normal(4),
+    // 0x4B: reserve (assumed 7-bit)
+    ParamBits::normal(7),
+    // 0x4C–0x4E: Ext Part Level, Chorus Send, Reverb Send
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    // 0x4F: Ext Part Mute
+    ParamBits::normal(1),
+    // 0x50–0x53: reserves (4 × 7-bit, assumed)
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+];
+
+/// Studio Set Chorus parameters.
+///
+/// Source: `docs/midi/05-studio-set.md` — section 2.
+#[rustfmt::skip]
+static SS_CHORUS_PARAMS: &[ParamBits] = &[
+    ParamBits::normal(4),  // 0x00: Chorus Type
+    ParamBits::normal(7),  // 0x01: Chorus Level
+    ParamBits::normal(7),  // 0x02: reserve
+    ParamBits::normal(2),  // 0x03: Chorus Output Select
+    // 0x04–0x53: 20 nibblized Chorus Parameters (20 × 4 nibbles)
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+];
+
+/// Studio Set Reverb parameters.
+///
+/// Source: `docs/midi/05-studio-set.md` — section 3.
+#[rustfmt::skip]
+static SS_REVERB_PARAMS: &[ParamBits] = &[
+    ParamBits::normal(4),  // 0x00: Reverb Type
+    ParamBits::normal(7),  // 0x01: Reverb Level
+    ParamBits::normal(2),  // 0x02: Reverb Output Assign
+    // 0x03–0x62: 24 nibblized Reverb Parameters (24 × 4 nibbles)
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+];
+
+/// Studio Set Motional Surround parameters.
+///
+/// Source: `docs/midi/05-studio-set.md` — section 4.
+#[rustfmt::skip]
+static SS_MOTIONAL_SURROUND_PARAMS: &[ParamBits] = &[
+    ParamBits::normal(1),  // 0x00: Switch
+    ParamBits::normal(2),  // 0x01: Room Type
+    ParamBits::normal(7),  // 0x02: Ambience Level
+    ParamBits::normal(7),  // 0x03: Room Size
+    ParamBits::normal(7),  // 0x04: Ambience Time
+    ParamBits::normal(7),  // 0x05: Ambience Density
+    ParamBits::normal(7),  // 0x06: Ambience HF Damp
+    ParamBits::normal(7),  // 0x07: Ext Part L-R
+    ParamBits::normal(7),  // 0x08: Ext Part F-B
+    ParamBits::normal(6),  // 0x09: Ext Part Width
+    ParamBits::normal(7),  // 0x0A: Ext Part Ambience Send Level
+    ParamBits::normal(5),  // 0x0B: Ext Part Control Channel
+    ParamBits::normal(7),  // 0x0C: Depth
+    // 0x0D–0x0F: reserves
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+];
+
+/// Studio Set Master EQ parameters.
+///
+/// Source: `docs/midi/05-studio-set.md` — section 5.
+static SS_MASTER_EQ_PARAMS: &[ParamBits] = &[
+    ParamBits::normal(1), // 0x00: Low Freq
+    ParamBits::normal(5), // 0x01: Low Gain
+    ParamBits::normal(5), // 0x02: Mid Freq
+    ParamBits::normal(5), // 0x03: Mid Gain
+    ParamBits::normal(3), // 0x04: Mid Q
+    ParamBits::normal(2), // 0x05: High Freq
+    ParamBits::normal(5), // 0x06: High Gain
+];
+
+/// Studio Set MIDI Channel (Phase Lock).
+///
+/// Source: `docs/midi/05-studio-set.md` — section 6.
+/// One per channel, 16 channels.
+static SS_MIDI_CHANNEL_PARAMS: &[ParamBits] = &[
+    ParamBits::normal(1), // 0x00: Phase Lock
+];
+
+/// Studio Set Part parameters (per part).
+///
+/// Source: `docs/midi/05-studio-set.md` — section 7.
+/// Total SysEx size: 0x4D = 77 bytes per part.
+#[rustfmt::skip]
+static SS_PART_PARAMS: &[ParamBits] = &[
+    ParamBits::normal(4),  // 0x00: Receive Channel
+    ParamBits::normal(1),  // 0x01: Receive Switch
+    // 0x02–0x05: reserves
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    // 0x06–0x08: Bank MSB, LSB, PC
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    // 0x09–0x0A: Level, Pan
+    ParamBits::normal(7), ParamBits::normal(7),
+    // 0x0B–0x0C: Coarse Tune, Fine Tune
+    ParamBits::normal(7), ParamBits::normal(7),
+    // 0x0D: Mono/Poly
+    ParamBits::normal(2),
+    // 0x0E: Legato Switch
+    ParamBits::normal(2),
+    // 0x0F: Pitch Bend Range
+    ParamBits::normal(5),
+    // 0x10: Portamento Switch
+    ParamBits::normal(2),
+    // 0x11–0x12: Portamento Time (nibblized, 2 bytes)
+    ParamBits::nibblized(2),
+    // 0x13–0x1A: Cutoff/Res/Attack/Decay/Release/VibratoRate/Depth/Delay offsets
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    // 0x1B: Octave Shift (range 61-67, signed)
+    ParamBits::signed(3),
+    // 0x1C–0x24: Velocity Sens, Key Range Lower/Upper, Fade Lower/Upper, Vel Range Lower/Upper, Vel Fade Lower/Upper
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7),
+    // 0x25: Mute Switch
+    ParamBits::normal(1),
+    // 0x26: reserve
+    ParamBits::normal(7),
+    // 0x27–0x28: Chorus Send, Reverb Send
+    ParamBits::normal(7), ParamBits::normal(7),
+    // 0x29: Output Assign
+    ParamBits::normal(4),
+    // 0x2A: reserve
+    ParamBits::normal(7),
+    // 0x2B–0x2C: Scale Tune Type, Key
+    ParamBits::normal(7), ParamBits::normal(7),
+    // 0x2D–0x38: Scale Tune for C through B (12 notes)
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    // 0x39–0x42: Receive switches (10 × 1-bit)
+    ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1),
+    ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1),
+    ParamBits::normal(1), ParamBits::normal(1),
+    // 0x43: Velocity Curve Type
+    ParamBits::normal(3),
+    // 0x44: Motional Surround L-R
+    ParamBits::normal(7),
+    // 0x45: reserve
+    ParamBits::normal(7),
+    // 0x46: Motional Surround F-B
+    ParamBits::normal(7),
+    // 0x47: reserve
+    ParamBits::normal(7),
+    // 0x48: Motional Surround Width
+    ParamBits::normal(6),
+    // 0x49: Motional Surround Ambience Send Level
+    ParamBits::normal(7),
+    // 0x4A–0x4C: reserves
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+];
+
+/// Studio Set Part EQ parameters (per part).
+///
+/// Source: `docs/midi/05-studio-set.md` — section 8.
+static SS_PART_EQ_PARAMS: &[ParamBits] = &[
+    ParamBits::normal(1), // 0x00: EQ Switch
+    ParamBits::normal(1), // 0x01: Low Freq
+    ParamBits::normal(5), // 0x02: Low Gain
+    ParamBits::normal(5), // 0x03: Mid Freq
+    ParamBits::normal(5), // 0x04: Mid Gain
+    ParamBits::normal(3), // 0x05: Mid Q
+    ParamBits::normal(2), // 0x06: High Freq
+    ParamBits::normal(5), // 0x07: High Gain
+];
+
+// ---------------------------------------------------------------------------
+// Studio Set — Assembled Spec
+// ---------------------------------------------------------------------------
+
+/// Studio Set section layout.
+///
+/// NOTE: Section `svd_bytes` values use mathematical ceil (padded_bytes).
+/// These need device validation to determine the actual SVD sizes — Studio
+/// Set sections may have additional padding like tone types do.
+static SS_SECTIONS: [SvdSection; 53] = {
+    let common = SvdSection {
+        params: SS_COMMON_PARAMS,
+        svd_bytes: 67,
+    };
+    let chorus = SvdSection {
+        params: SS_CHORUS_PARAMS,
+        svd_bytes: 43,
+    };
+    let reverb = SvdSection {
+        params: SS_REVERB_PARAMS,
+        svd_bytes: 50,
+    };
+    let ms = SvdSection {
+        params: SS_MOTIONAL_SURROUND_PARAMS,
+        svd_bytes: 13,
+    };
+    let meq = SvdSection {
+        params: SS_MASTER_EQ_PARAMS,
+        svd_bytes: 4,
+    };
+    let midi = SvdSection {
+        params: SS_MIDI_CHANNEL_PARAMS,
+        svd_bytes: 1,
+    };
+    let part = SvdSection {
+        params: SS_PART_PARAMS,
+        svd_bytes: 52,
+    };
+    let peq = SvdSection {
+        params: SS_PART_EQ_PARAMS,
+        svd_bytes: 4,
+    };
+    [
+        common, chorus, reverb, ms, meq, // 16 MIDI channels
+        midi, midi, midi, midi, midi, midi, midi, midi, midi, midi, midi, midi, midi, midi, midi,
+        midi, // 16 Parts
+        part, part, part, part, part, part, part, part, part, part, part, part, part, part, part,
+        part, // 16 Part EQs
+        peq, peq, peq, peq, peq, peq, peq, peq, peq, peq, peq, peq, peq, peq, peq, peq,
+    ]
+};
+
+/// Complete Studio Set SVD specification.
+///
+/// NOTE: Section byte sizes are predicted (mathematical ceil) and not yet
+/// validated against the device. The total data_bytes may not exactly
+/// equal 1068 until reserve bit widths are tuned via device validation.
+pub static SS_TONE_SPEC: SvdToneSpec = SvdToneSpec {
+    sections: &SS_SECTIONS,
+    entry_size: 1068,
+    has_end_marker: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -722,5 +1007,48 @@ mod tests {
     fn sna_section_count() {
         assert_eq!(SNA_TONE_SPEC.sections.len(), 2);
         assert_eq!(SNA_TONE_SPEC.entry_size, 138);
+    }
+
+    #[test]
+    fn ss_section_count() {
+        assert_eq!(SS_TONE_SPEC.sections.len(), 53);
+        assert_eq!(SS_TONE_SPEC.entry_size, 1068);
+        assert!(!SS_TONE_SPEC.has_end_marker);
+    }
+
+    #[test]
+    fn ss_common_sysex_size() {
+        assert_eq!(
+            SvdSection {
+                params: SS_COMMON_PARAMS,
+                svd_bytes: 0
+            }
+            .sysex_size(),
+            84
+        );
+    }
+
+    #[test]
+    fn ss_part_sysex_size() {
+        assert_eq!(
+            SvdSection {
+                params: SS_PART_PARAMS,
+                svd_bytes: 0
+            }
+            .sysex_size(),
+            77
+        );
+    }
+
+    #[test]
+    fn ss_part_eq_sysex_size() {
+        assert_eq!(
+            SvdSection {
+                params: SS_PART_EQ_PARAMS,
+                svd_bytes: 0
+            }
+            .sysex_size(),
+            8
+        );
     }
 }

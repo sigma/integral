@@ -160,8 +160,10 @@ pub fn sysex_to_svd(sections: &[Vec<u8>], spec: &SvdToneSpec) -> Vec<u8> {
         result.extend_from_slice(&section_bytes);
     }
 
-    // Append end marker.
-    result.push(0x0E);
+    if spec.has_end_marker {
+        // Append end marker.
+        result.push(0x0E);
+    }
 
     // Pad to entry size.
     result.resize(spec.entry_size, 0x00);
