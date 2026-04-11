@@ -3,25 +3,27 @@
 Chunk type: `SHPa` | Entry size: **280 bytes** | Model: `MI69`
 
 This mapping has been validated against the Synth Legends expansion pack
-(128 SN-S patches). Patch names decode correctly and structural markers
-(section boundaries, end marker, padding) align precisely.
+and the physical INTEGRA-7 device via SysEx RQ1 reads.
 
 ## Entry Layout
 
-| Byte Range | Section          | Bits Used | Padded Bits | Padded Bytes |
-|------------|------------------|-----------|-------------|--------------|
-| 0–107      | Common + MFX     | 846       | 864         | 108          |
-| 108–153    | Partial 1        | 350       | 368         | 46           |
-| 154–199    | Partial 2        | 350       | 368         | 46           |
-| 200–245    | Partial 3        | 350       | 368         | 46           |
-| 246        | End marker       | —         | —           | 1 (`0x0E`)   |
-| 247–279    | Zero padding     | —         | —           | 33           |
-| **Total**  |                  |           |             | **280**      |
+| Byte Range | Section          | Bits Used | Padded Bytes |
+|------------|------------------|-----------|--------------|
+| 0–29       | Common           | 228       | 30           |
+| 30–107     | MFX              | 618       | 78           |
+| 108–153    | Partial 1        | 350       | 46           |
+| 154–199    | Partial 2        | 350       | 46           |
+| 200–245    | Partial 3        | 350       | 46           |
+| 246        | End marker       | —         | 1 (`0x0E`)   |
+| 247–279    | Zero padding     | —         | 33           |
+| **Total**  |                  |           | **280**      |
 
-## Section 1: Common + MFX (846 bits → 108 bytes)
+**Note:** Common and MFX are **separate** sections, each independently
+byte-aligned. This was confirmed by device validation — the MFX Type byte
+aligns correctly at byte offset 30, not at the bit position implied by
+concatenating Common + MFX bits.
 
-Common and MFX parameters are packed together in a single section without
-an alignment boundary between them.
+## Section 1: Common (228 bits → 30 bytes)
 
 ### Common Parameters (228 bits)
 
@@ -90,7 +92,9 @@ Source: `docs/midi/08-supernatural-synth-tone.md` — SN Synth Tone Common
 | `00 3E`      | 7    | (reserve)                |
 | `00 3F`      | 7    | (reserve)                |
 
-**Total Common: 228 bits**
+**Total Common: 228 bits → 30 bytes (padded)**
+
+## Section 2: MFX (618 bits → 78 bytes)
 
 ### MFX Parameters (618 bits)
 
@@ -149,11 +153,9 @@ Source: `docs/midi/08-supernatural-synth-tone.md` — SN Synth Tone MFX
 | `01 09`      | 4×4  | MFX Parameter 31         |
 | `01 0D`      | 4×4  | MFX Parameter 32         |
 
-**Total MFX: 618 bits** (7×4 + 2 + 7×8 + 5×4 + 16×32 = 28 + 2 + 56 + 20 + 512)
+**Total MFX: 618 bits → 78 bytes (padded)**
 
-**Combined Common + MFX: 228 + 618 = 846 bits → 106 bytes + 2 bits → padded to 108 bytes (864 bits)**
-
-## Sections 2–4: Partials (350 bits → 46 bytes each)
+## Sections 3–5: Partials (350 bits → 46 bytes each)
 
 Source: `docs/midi/08-supernatural-synth-tone.md` — SN Synth Tone Partial
 (offsets `00 20 00`, `00 21 00`, `00 22 00`; size `00 00 00 3D` each).
@@ -228,12 +230,13 @@ Three identical partial blocks, each independently byte-aligned.
 1. **Patch names**: All 128 Synth Legends patches decode correctly as 7-bit
    ASCII from the first 84 bits of each entry (e.g., "SL-JP8 1",
    "SL-TB Saw 1", "SL-D50 1")
-2. **OSC Wave field**: Bit position verified — SAW (000) vs SQR (001)
-   difference between TB-303 Saw and Sqr patches falls at the exact expected
-   bit offset in the Partial section
-3. **Section boundaries**: All three partial blocks are equally spaced at
-   46-byte (368-bit) intervals
-4. **Padding bits**: All inter-section alignment bits are zero
+2. **Device comparison**: `svd-validate` reads each SysEx block from the
+   physical device and compares byte-by-byte with the SVD decode.
+   MFX (145 bytes) and all unsigned params match exactly.
+3. **Section boundaries**: Common (30B) + MFX (78B) + 3 Partials (46B each)
+   confirmed by MFX Type byte appearing at offset 30
+4. **Signed param bias**: 11 bytes (out of 336 total) differ due to the
+   bias encoding for params with non-zero range minimums.
+   Formula: `sysex = svd + 64 - 2^(bits-1)`
 5. **End marker**: Every entry has `0x0E` at byte 246
-6. **Total size**: 108 + 46 + 46 + 46 + 1 + 33 = 280 bytes matches the
-   zone header's entry_size field
+6. **Total size**: 30 + 78 + 46×3 + 1 + 33 = 280 bytes

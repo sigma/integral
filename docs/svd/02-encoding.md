@@ -51,27 +51,44 @@ Common nibblized parameters:
 ## Section Alignment
 
 Parameters are grouped into **sections** that correspond to SysEx address
-blocks (e.g., Tone Common, MFX, Partial 1, Partial 2). After packing all
-parameters in a section, the bitstream is **zero-padded to the next byte
-boundary**.
+blocks (Common, MFX, Partial 1, Partial 2, etc.). Each section is
+independently byte-aligned with **fixed byte sizes** that may include
+extra zero-padding beyond the mathematical byte ceiling.
 
 ```
-Section N:  [param bits...] [0-padding to byte boundary]
-Section N+1: [param bits...] [0-padding to byte boundary]
+Section N:  [param bits...] [0-padding to fixed section size]
+Section N+1: [param bits...] [0-padding to fixed section size]
 ```
 
-This means each section starts at a byte-aligned offset within the entry,
-making it possible to compute section boundaries without unpacking all
-preceding bits — just sum the padded byte sizes.
+Each section starts at a byte-aligned offset within the entry.  The
+section byte sizes are fixed per tone type and do NOT necessarily equal
+`ceil(total_bits / 8)` — there may be extra padding bytes.
 
-## Section Grouping
+**Important:** Common and MFX are **separate** sections (validated against
+the device). Earlier analysis incorrectly assumed they were packed together
+into a single section.
 
-Some SysEx address blocks that are logically separate share a single SVD
-section (i.e., they are packed consecutively without an alignment boundary
-between them). The known groupings are:
+## Signed Parameter Bias
 
-- **SN Synth**: Common (`00 00 00`) + MFX (`00 02 00`) form one section
-- Other tone types: TBD (to be validated)
+Parameters with ranges centered at 64 in SysEx (e.g., Octave Shift 61–67,
+OSC Pitch 40–88, Keyfollow 54–74) use a **bias encoding** in the SVD:
+
+```
+svd_value = sysex_value - 64 + 2^(bits-1)
+sysex_value = svd_value + 64 - 2^(bits-1)
+```
+
+For 7-bit parameters, the bias is zero (64 - 64 = 0), so no adjustment is
+needed. For smaller bit widths, the SVD re-centers the value at the midpoint
+of the N-bit range instead of 64.
+
+Examples (device validation):
+- Octave Shift (3 bits, SysEx 64 = center): SVD stores 4 (= 64 - 64 + 4)
+- OSC Pitch (6 bits, SysEx 64 = center): SVD stores 32 (= 64 - 64 + 32)
+- Keyfollow (6 bits, SysEx 67): SVD stores 35 (= 67 - 64 + 32)
+
+Parameters with ranges starting at 0 (Level, switches, enums) store the
+raw value directly — no bias adjustment.
 
 ## End Marker
 
