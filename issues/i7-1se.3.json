@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-11T18:09:47Z",
+  "description": "Add color-coded indicators in the drum key grid showing which Comp+EQ unit each key routes to. Helps users see routing at a glance without clicking each key.",
+  "id": "i7-1se.3",
+  "labels": [],
+  "parent": "i7-1se",
+  "priority": 2,
+  "status": "open",
+  "title": "Visual key-to-CompEQ mapping in drum grid",
+  "type": "task",
+  "updated_at": "2026-04-11T18:09:47Z"
+}
