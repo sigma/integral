@@ -337,6 +337,34 @@ mod tests {
     }
 
     #[test]
+    fn sysex_to_svd_to_sysex_round_trip() {
+        let svd = load_test_fixture();
+        let sns_chunk = svd
+            .chunks
+            .iter()
+            .find(|c| c.chunk_type == crate::svd::ChunkType::SnSynthTone)
+            .unwrap();
+
+        for (i, entry) in sns_chunk.entries.iter().enumerate() {
+            // SVD → SysEx
+            let sysex_sections = svd_to_sysex(entry, &SNS_TONE_SPEC).unwrap();
+            // SysEx → SVD
+            let svd_entry = sysex_to_svd(&sysex_sections, &SNS_TONE_SPEC);
+            // SVD → SysEx again
+            let sysex_sections2 = svd_to_sysex(&svd_entry, &SNS_TONE_SPEC).unwrap();
+
+            // SysEx bytes must match exactly.
+            for (s, (a, b)) in sysex_sections
+                .iter()
+                .zip(sysex_sections2.iter())
+                .enumerate()
+            {
+                assert_eq!(a, b, "Entry {i} section {s} SysEx mismatch");
+            }
+        }
+    }
+
+    #[test]
     fn split_common_mfx_sizes() {
         let combined = vec![0u8; 209]; // 64 + 145
         let (common, mfx) = split_common_mfx(
