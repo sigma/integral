@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-11T16:30:27Z",
+  "description": "Add spec tables for SuperNATURAL Drum Kit (1006 bytes/entry). Derive from docs/midi/10-supernatural-drum-kit.md. Common + MFX + 62 note blocks.",
+  "id": "i7-2y8.11",
+  "labels": [],
+  "parent": "i7-2y8",
+  "priority": 2,
+  "status": "open",
+  "title": "SVD spec tables for SN Drum Kit (SDKa)",
+  "type": "task",
+  "updated_at": "2026-04-11T16:30:27Z"
+}
