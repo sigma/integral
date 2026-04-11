@@ -1,6 +1,7 @@
 {
   "assignee": "",
   "blocked_by": [
+    "i7-2y8.15",
     "i7-2y8.2"
   ],
   "blocks": [],
@@ -13,5 +14,5 @@
   "status": "open",
   "title": "SVD spec tables for PCM Synth Tone (RFPa)",
   "type": "task",
-  "updated_at": "2026-04-11T16:30:41Z"
+  "updated_at": "2026-04-11T17:57:27Z"
 }

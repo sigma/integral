@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-2y8.12"
+  ],
   "created": "2026-04-11T17:57:26Z",
   "description": "Write a known PCM Synth tone to the device via DT1 SysEx (e.g. set specific values for Common, MFX, PMT, and a couple of partials). User then exports to SVD via USB. The SVD entry becomes the test fixture for i7-2y8.12. CLI command: write preset values → user exports → extract fixture.",
   "id": "i7-2y8.15",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Create PCM Synth test tone via MIDI for SVD validation",
   "type": "task",
-  "updated_at": "2026-04-11T17:57:26Z"
+  "updated_at": "2026-04-11T17:57:27Z"
 }
