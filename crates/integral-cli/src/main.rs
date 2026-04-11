@@ -8,7 +8,8 @@ use integral_core::address::{Address, DataSize};
 use integral_core::mfx;
 use integral_core::params;
 use integral_core::sn_synth;
-use integral_core::svd::{ChunkType, SvdFile};
+use integral_core::svd::{ChunkType, SvdChunk, SvdFile};
+use integral_core::svd_convert::sysex_to_svd;
 use integral_core::svd_convert::{sns_to_dt1s, svd_to_sysex};
 use integral_core::svd_specs::SNS_TONE_SPEC;
 use integral_core::sysex;
@@ -123,6 +124,18 @@ enum Cli {
         /// 1-based index of the SVD entry to validate.
         #[arg(long)]
         index: usize,
+    },
+    /// Export an SN-S tone from the device to an SVD file.
+    SvdExport {
+        #[arg(long, default_value = "Integra")]
+        port: String,
+        #[arg(long, default_value_t = 2.0)]
+        timeout: f64,
+        /// Output .SVD file path.
+        file: PathBuf,
+        /// Part number to read from (1-16).
+        #[arg(long, default_value_t = 1)]
+        part: u8,
     },
     /// Import patches from an SVD file to the device.
     SvdImport {
@@ -769,6 +782,12 @@ fn main() -> Result<()> {
             part,
             index,
         } => svd_validate(&port, Duration::from_secs_f64(timeout), &file, part, index),
+        Cli::SvdExport {
+            port,
+            timeout,
+            file,
+            part,
+        } => svd_export(&port, Duration::from_secs_f64(timeout), &file, part),
         Cli::SvdImport {
             port,
             file,
@@ -1113,4 +1132,135 @@ fn compare_sysex(label: &str, svd: &[u8], device: &[u8], mismatches: &mut usize)
         }
     }
     ok
+}
+
+fn svd_export(
+    port_pattern: &str,
+    timeout: Duration,
+    path: &std::path::Path,
+    part: u8,
+) -> Result<()> {
+    if !(1..=16).contains(&part) {
+        bail!("part must be 1-16, got {part}");
+    }
+    let part_index = part - 1;
+
+    let (_conn_in, mut conn_out, rx) = open_midi(port_pattern)?;
+
+    // Read SN-S Common.
+    let common_addr = sn_synth::sns_common_address(part_index);
+    let common_size = sn_synth::SNS_COMMON_BLOCK_SIZE;
+    println!("Reading SN-S Common from Part {} ...", part);
+    let common = request_data(&mut conn_out, &rx, &common_addr, &common_size, timeout)
+        .context("failed to read Common")?;
+
+    let name: String = common[..12]
+        .iter()
+        .map(|&b| {
+            if (32..=127).contains(&b) {
+                b as char
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>()
+        .trim_end()
+        .to_string();
+    println!("Tone: \"{name}\"");
+
+    // Read MFX (header + params).
+    let mfx_base = sn_synth::sns_common_address(part_index).offset([0x00, 0x00, 0x02, 0x00]);
+    println!("Reading MFX ...");
+    let mut mfx_data = request_data(
+        &mut conn_out,
+        &rx,
+        &mfx_base,
+        &mfx::MFX_HEADER_SIZE,
+        timeout,
+    )
+    .context("failed to read MFX header")?;
+    let mfx_params_addr = mfx_base.offset([0x00, 0x00, 0x00, 0x11]);
+    let mfx_params_size = DataSize::new(0x00, 0x00, 0x01, 0x00);
+    let mfx_params = request_data(
+        &mut conn_out,
+        &rx,
+        &mfx_params_addr,
+        &mfx_params_size,
+        timeout,
+    )
+    .context("failed to read MFX params")?;
+    mfx_data.extend_from_slice(&mfx_params);
+
+    // Read Partials 1-3.
+    let mut partials = Vec::new();
+    for pi in 0..3u8 {
+        let addr = sn_synth::sns_partial_address(part_index, pi);
+        println!("Reading Partial {} ...", pi + 1);
+        let data = request_data(
+            &mut conn_out,
+            &rx,
+            &addr,
+            &sn_synth::SNS_PARTIAL_BLOCK_SIZE,
+            timeout,
+        )
+        .context(format!("failed to read Partial {}", pi + 1))?;
+        partials.push(data);
+    }
+
+    // Pack into SVD entry.
+    let sections = vec![
+        common,
+        mfx_data,
+        partials[0].clone(),
+        partials[1].clone(),
+        partials[2].clone(),
+    ];
+    let entry = sysex_to_svd(&sections, &SNS_TONE_SPEC);
+
+    // Build SVD file with a single SN-S entry.
+    let svd = SvdFile {
+        chunks: vec![
+            SvdChunk {
+                chunk_type: ChunkType::StudioSet,
+                entry_size: 1068,
+                entries: vec![],
+            },
+            SvdChunk {
+                chunk_type: ChunkType::PcmSynthTone,
+                entry_size: 590,
+                entries: vec![],
+            },
+            SvdChunk {
+                chunk_type: ChunkType::PcmDrumKit,
+                entry_size: 10890,
+                entries: vec![],
+            },
+            SvdChunk {
+                chunk_type: ChunkType::SnSynthTone,
+                entry_size: 280,
+                entries: vec![entry],
+            },
+            SvdChunk {
+                chunk_type: ChunkType::SnAcousticTone,
+                entry_size: 138,
+                entries: vec![],
+            },
+            SvdChunk {
+                chunk_type: ChunkType::SnDrumKit,
+                entry_size: 1006,
+                entries: vec![],
+            },
+        ],
+    };
+
+    let data = svd.write();
+    std::fs::write(path, &data).with_context(|| format!("failed to write {}", path.display()))?;
+
+    println!(
+        "Exported \"{}\" to {} ({} bytes)",
+        name,
+        path.display(),
+        data.len()
+    );
+    Ok(())
 }
