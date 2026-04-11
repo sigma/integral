@@ -3,7 +3,8 @@
   "blocked_by": [],
   "blocks": [
     "i7-2y8.2",
-    "i7-2y8.4"
+    "i7-2y8.4",
+    "i7-2y8.8"
   ],
   "created": "2026-04-11T16:30:25Z",
   "description": "Create bitstream.rs in integral-core with BitReader and BitWriter types. Support read_bits(n), write_bits(value, n), read_nibbles(count), write_nibbles(value, count), align_to_byte(). Must be no_std-compatible for WASM. Include round-trip unit tests for various bit widths, byte alignment, nibble packing.",
