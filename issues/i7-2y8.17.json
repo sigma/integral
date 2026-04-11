@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-2y8.11"
+  ],
   "created": "2026-04-11T17:57:26Z",
   "description": "Write a known SN Drum Kit to the device via DT1 SysEx with identifiable values on a few keys. User exports to SVD. The entry becomes the test fixture for i7-2y8.11.",
   "id": "i7-2y8.17",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Create SN Drum Kit test tone via MIDI for SVD validation",
   "type": "task",
-  "updated_at": "2026-04-11T17:57:26Z"
+  "updated_at": "2026-04-11T17:57:27Z"
 }
