@@ -511,6 +511,136 @@ pub static SNS_TONE_SPEC: SvdToneSpec = SvdToneSpec {
 };
 
 // ---------------------------------------------------------------------------
+// SN Acoustic Tone — Common (464 bits)
+// ---------------------------------------------------------------------------
+
+/// SN Acoustic Tone Common parameters.
+///
+/// Source: `docs/midi/09-supernatural-acoustic-tone.md` — offsets `00 00`–`00 45`.
+static SNA_COMMON_PARAMS: &[ParamBits] = &[
+    // 0x00–0x0F: Tone Name (12 chars) + 4 reserve chars (16 × 7 bits)
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    // 0x10: Tone Level
+    ParamBits::normal(7),
+    // 0x11: Mono/Poly
+    ParamBits::normal(1),
+    // 0x12–0x19: Portamento Time, Cutoff, Resonance, Attack, Release, Vibrato ×3
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    // 0x1A: Octave Shift
+    ParamBits::normal(3),
+    // 0x1B: Category
+    ParamBits::normal(7),
+    // 0x1C–0x1D: Phrase Number (nibblized, 2 bytes)
+    ParamBits::nibblized(2),
+    // 0x1E: Phrase Octave Shift
+    ParamBits::normal(3),
+    // 0x1F: TFX Switch
+    ParamBits::normal(1),
+    // 0x20–0x41: Inst Variation, Inst Number, Modify 1–32 (34 × 7 bits)
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    // 0x42–0x45: reserves (4 × 7 bits)
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+    ParamBits::normal(7),
+];
+
+// ---------------------------------------------------------------------------
+// SN Acoustic Tone — Assembled Spec
+// ---------------------------------------------------------------------------
+
+/// SN Acoustic Common section (for bit-count queries).
+pub static SNA_COMMON_SECTION: SvdSection = SvdSection {
+    params: SNA_COMMON_PARAMS,
+    svd_bytes: 0,
+};
+
+const SNA_COMMON_COUNT: usize = 69;
+const SNA_COMMON_MFX_COMBINED: [ParamBits; SNA_COMMON_COUNT + MFX_COUNT] = {
+    let mut combined = [ParamBits::normal(0); SNA_COMMON_COUNT + MFX_COUNT];
+    let mut i = 0;
+    while i < SNA_COMMON_COUNT {
+        combined[i] = SNA_COMMON_PARAMS[i];
+        i += 1;
+    }
+    while i < SNA_COMMON_COUNT + MFX_COUNT {
+        combined[i] = MFX_PARAMS[i - SNA_COMMON_COUNT];
+        i += 1;
+    }
+    combined
+};
+
+/// SN Acoustic section layout: one combined Common+MFX section, no partials.
+///
+/// NOTE: `svd_bytes` is predicted (138 - 1 marker = 137) but not yet
+/// validated against a real SVD containing SN-A entries.
+static SNA_SECTIONS: [SvdSection; 1] = [SvdSection {
+    params: &SNA_COMMON_MFX_COMBINED,
+    svd_bytes: 137,
+}];
+
+/// Complete SN Acoustic Tone SVD specification.
+pub static SNA_TONE_SPEC: SvdToneSpec = SvdToneSpec {
+    sections: &SNA_SECTIONS,
+    entry_size: 138,
+};
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -578,5 +708,28 @@ mod tests {
         // 350 bits → ceil(350/8) = 44 bytes
         // Actual SVD uses 46 bytes per partial section.
         assert_eq!(SNS_PARTIAL_SECTION.padded_bytes(), 44);
+    }
+
+    #[test]
+    fn sna_common_bit_count() {
+        assert_eq!(SNA_COMMON_SECTION.total_bits(), 464);
+    }
+
+    #[test]
+    fn sna_common_sysex_size() {
+        // 0x00–0x45 = 70 SysEx bytes (68 normal + 1 nibblized(2) = 70)
+        assert_eq!(SNA_COMMON_SECTION.sysex_size(), 70);
+    }
+
+    #[test]
+    fn sna_combined_bit_count() {
+        assert_eq!(SNA_SECTIONS[0].total_bits(), 464 + 618);
+        assert_eq!(SNA_SECTIONS[0].total_bits(), 1082);
+    }
+
+    #[test]
+    fn sna_tone_spec() {
+        assert_eq!(SNA_TONE_SPEC.sections.len(), 1);
+        assert_eq!(SNA_TONE_SPEC.entry_size, 138);
     }
 }
