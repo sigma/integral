@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-2y8.4"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-2y8.8"
+  ],
   "created": "2026-04-11T16:30:26Z",
   "description": "Integration test: parse Synth Legends SVD entry 0, decode to SysEx bytes. Read the same patch from device via RQ1 (SN-S user tone 1). Compare bytes. This validates the entire SVD→SysEx pipeline.",
   "id": "i7-2y8.7",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "Validate SN-S SVD decode against device",
   "type": "task",
-  "updated_at": "2026-04-11T16:30:40Z"
+  "updated_at": "2026-04-11T16:30:41Z"
 }
