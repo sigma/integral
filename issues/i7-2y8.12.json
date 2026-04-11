@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-2y8.2"
+  ],
   "blocks": [],
   "created": "2026-04-11T16:30:27Z",
   "description": "Add spec tables for PCM Synth Tone (590 bytes/entry). Derive from docs/midi/06-pcm-synth-tone.md. Common + MFX + PMT + 4 Partials + Common2. Validate against Euro Attack Synth SVD.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "SVD spec tables for PCM Synth Tone (RFPa)",
   "type": "task",
-  "updated_at": "2026-04-11T16:30:27Z"
+  "updated_at": "2026-04-11T16:30:41Z"
 }
