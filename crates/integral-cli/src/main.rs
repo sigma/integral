@@ -7,7 +7,7 @@ use clap::Parser;
 use integral_core::address::{Address, DataSize};
 use integral_core::params;
 use integral_core::svd::{ChunkType, SvdFile};
-use integral_core::svd_convert::svd_to_sysex;
+use integral_core::svd_convert::{sns_to_dt1s, svd_to_sysex};
 use integral_core::svd_specs::SNS_TONE_SPEC;
 use integral_core::sysex;
 use midir::{MidiInput, MidiOutput};
@@ -106,6 +106,22 @@ enum Cli {
     SvdList {
         /// Path to the .SVD file.
         file: PathBuf,
+    },
+    /// Import patches from an SVD file to the device.
+    SvdImport {
+        #[arg(long, default_value = "Integra")]
+        port: String,
+        /// Path to the .SVD file.
+        file: PathBuf,
+        /// Part number to write to (1-16, default 1).
+        #[arg(long, default_value_t = 1)]
+        part: u8,
+        /// Patch index to import (1-based). Omit to import all.
+        #[arg(long)]
+        index: Option<usize>,
+        /// Only show what would be sent (don't actually send).
+        #[arg(long)]
+        dry_run: bool,
     },
 }
 
@@ -729,6 +745,13 @@ fn main() -> Result<()> {
         } => raw_send(&port, Duration::from_secs_f64(timeout), &addr, &data),
         Cli::Monitor { port } => monitor(&port),
         Cli::SvdList { file } => svd_list(&file),
+        Cli::SvdImport {
+            port,
+            file,
+            part,
+            index,
+            dry_run,
+        } => svd_import(&port, &file, part, index, dry_run),
     }
 }
 
@@ -793,5 +816,111 @@ fn svd_list(path: &std::path::Path) -> Result<()> {
         }
         println!();
     }
+    Ok(())
+}
+
+fn svd_import(
+    port_pattern: &str,
+    path: &std::path::Path,
+    part: u8,
+    index: Option<usize>,
+    dry_run: bool,
+) -> Result<()> {
+    if !(1..=16).contains(&part) {
+        bail!("part must be 1-16, got {part}");
+    }
+    let part_index = part - 1;
+
+    let data = std::fs::read(path).with_context(|| format!("failed to read {}", path.display()))?;
+    let svd =
+        SvdFile::parse(&data).with_context(|| format!("failed to parse {}", path.display()))?;
+
+    // Find the SN Synth chunk (only supported type for now).
+    let sns_chunk = svd
+        .chunks
+        .iter()
+        .find(|c| c.chunk_type == ChunkType::SnSynthTone)
+        .with_context(|| "no SN Synth Tone (SHPa) chunk in this SVD file")?;
+
+    if sns_chunk.entries.is_empty() {
+        println!("No SN Synth patches to import.");
+        return Ok(());
+    }
+
+    // Determine which entries to import.
+    let entries: Vec<(usize, &Vec<u8>)> = match index {
+        Some(i) => {
+            if i < 1 || i > sns_chunk.entries.len() {
+                bail!("index {} out of range (1-{})", i, sns_chunk.entries.len());
+            }
+            vec![(i - 1, &sns_chunk.entries[i - 1])]
+        }
+        None => sns_chunk.entries.iter().enumerate().collect(),
+    };
+
+    println!(
+        "Importing {} SN-S patch(es) to Part {} temporary area{}",
+        entries.len(),
+        part,
+        if dry_run { " (dry run)" } else { "" }
+    );
+
+    // Open MIDI only if not dry-run.
+    let mut conn = if dry_run {
+        None
+    } else {
+        let (_conn_in, conn_out, _rx) = open_midi(port_pattern)?;
+        Some((_conn_in, conn_out, _rx))
+    };
+
+    for (i, entry) in &entries {
+        let sections = svd_to_sysex(entry, &SNS_TONE_SPEC)
+            .with_context(|| format!("failed to decode entry {}", i + 1))?;
+
+        // Extract tone name for display.
+        let name: String = sections[0][..12]
+            .iter()
+            .map(|&b| {
+                if (32..=127).contains(&b) {
+                    b as char
+                } else {
+                    ' '
+                }
+            })
+            .collect::<String>()
+            .trim_end()
+            .to_string();
+
+        let dt1s = sns_to_dt1s(DEVICE_ID, part_index, &sections);
+
+        if dry_run {
+            println!(
+                "  {:>3}: {} ({} DT1 messages, {} bytes total)",
+                i + 1,
+                name,
+                dt1s.len(),
+                dt1s.iter().map(|m| m.len()).sum::<usize>()
+            );
+        } else {
+            print!("  {:>3}: {} ... ", i + 1, name);
+            let conn_out = &mut conn.as_mut().unwrap().1;
+            for dt1 in &dt1s {
+                conn_out.send(dt1).context("failed to send DT1")?;
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            println!("OK");
+
+            // Small extra delay between patches.
+            if entries.len() > 1 {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+        }
+    }
+
+    if !dry_run {
+        println!("Done. Patch is now in Part {}'s temporary area.", part);
+        println!("Use the device to save it to user memory if desired.");
+    }
+
     Ok(())
 }

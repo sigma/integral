@@ -7,6 +7,7 @@
 
 use crate::bitstream::{BitReader, BitReaderError, BitWriter};
 use crate::svd_specs::{ParamBits, SvdSection, SvdToneSpec};
+use crate::sysex;
 use thiserror::Error;
 
 // ---------------------------------------------------------------------------
@@ -152,6 +153,55 @@ pub fn sysex_to_svd(sections: &[Vec<u8>], spec: &SvdToneSpec) -> Vec<u8> {
     result.resize(spec.entry_size, 0x00);
 
     result
+}
+
+// ---------------------------------------------------------------------------
+// DT1 message generation
+// ---------------------------------------------------------------------------
+
+/// SysEx address offsets for each SN-S section within a temporary tone block.
+///
+/// These are relative to the SN-S base (tone type offset `01 00 00`).
+const SNS_SECTION_OFFSETS: [[u8; 4]; 5] = [
+    [0x00, 0x00, 0x00, 0x00], // Common
+    [0x00, 0x02, 0x00, 0x00], // MFX
+    [0x00, 0x00, 0x20, 0x00], // Partial 1
+    [0x00, 0x00, 0x21, 0x00], // Partial 2
+    [0x00, 0x00, 0x22, 0x00], // Partial 3
+];
+
+/// Build DT1 messages to write an SN-S tone to a part's temporary area.
+///
+/// Takes the decoded SysEx sections from [`svd_to_sysex`] (which has 4
+/// sections: combined Common+MFX, Partial1, Partial2, Partial3) and splits
+/// the Common+MFX section, then generates one DT1 message per SysEx block.
+///
+/// Each DT1 message is at most 256 data bytes (the SysEx protocol limit).
+/// All SN-S blocks fit within this limit.
+pub fn sns_to_dt1s(device_id: u8, part_index: u8, sections: &[Vec<u8>]) -> Vec<Vec<u8>> {
+    use crate::params;
+    use crate::svd_specs::{MFX_PARAMS, SNS_COMMON_SECTION};
+
+    let sns_base = params::temporary_tone_base(part_index).offset([0x00, 0x01, 0x00, 0x00]);
+
+    // Split combined Common+MFX into separate blocks.
+    let (common, mfx) = split_common_mfx(&sections[0], SNS_COMMON_SECTION.params, MFX_PARAMS);
+
+    // Build the 5 SysEx blocks: Common, MFX, Partial1, Partial2, Partial3.
+    let blocks: Vec<(&[u8], [u8; 4])> = vec![
+        (&common, SNS_SECTION_OFFSETS[0]),
+        (&mfx, SNS_SECTION_OFFSETS[1]),
+        (&sections[1], SNS_SECTION_OFFSETS[2]),
+        (&sections[2], SNS_SECTION_OFFSETS[3]),
+        (&sections[3], SNS_SECTION_OFFSETS[4]),
+    ];
+
+    let mut dt1s = Vec::new();
+    for (data, offset) in blocks {
+        let addr = sns_base.offset(offset);
+        dt1s.push(sysex::build_dt1(device_id, &addr, data));
+    }
+    dt1s
 }
 
 // ---------------------------------------------------------------------------
