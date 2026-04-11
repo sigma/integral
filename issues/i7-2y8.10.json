@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-11T16:30:26Z",
+  "description": "Add spec tables for SuperNATURAL Acoustic tones (138 bytes/entry). Derive from docs/midi/09-supernatural-acoustic-tone.md. Common + MFX, no partials.",
+  "id": "i7-2y8.10",
+  "labels": [],
+  "parent": "i7-2y8",
+  "priority": 2,
+  "status": "open",
+  "title": "SVD spec tables for SN Acoustic (SNTa)",
+  "type": "task",
+  "updated_at": "2026-04-11T16:30:26Z"
+}
