@@ -9,14 +9,15 @@
     "i7-2y8.6",
     "i7-2y8.7"
   ],
+  "closed_at": "2026-04-11T16:50:33Z",
   "created": "2026-04-11T16:30:26Z",
   "description": "Create svd_convert.rs with svd_to_sysex() that unpacks an SVD entry into per-section SysEx byte vectors using BitReader and spec tables. Include tone_to_dt1s() that builds DT1 messages for writing to user memory slots. Unit test with known SVD data.",
   "id": "i7-2y8.4",
   "labels": [],
   "parent": "i7-2y8",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "SVD-to-SysEx conversion for SN-S",
   "type": "task",
-  "updated_at": "2026-04-11T16:47:56Z"
+  "updated_at": "2026-04-11T16:50:33Z"
 }
