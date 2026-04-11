@@ -164,7 +164,7 @@ pub fn sysex_to_svd(sections: &[Vec<u8>], spec: &SvdToneSpec) -> Vec<u8> {
 /// These are relative to the SN-S base (tone type offset `01 00 00`).
 const SNS_SECTION_OFFSETS: [[u8; 4]; 5] = [
     [0x00, 0x00, 0x00, 0x00], // Common
-    [0x00, 0x02, 0x00, 0x00], // MFX
+    [0x00, 0x00, 0x02, 0x00], // MFX
     [0x00, 0x00, 0x20, 0x00], // Partial 1
     [0x00, 0x00, 0x21, 0x00], // Partial 2
     [0x00, 0x00, 0x22, 0x00], // Partial 3
@@ -172,28 +172,24 @@ const SNS_SECTION_OFFSETS: [[u8; 4]; 5] = [
 
 /// Build DT1 messages to write an SN-S tone to a part's temporary area.
 ///
-/// Takes the decoded SysEx sections from [`svd_to_sysex`] (which has 4
-/// sections: combined Common+MFX, Partial1, Partial2, Partial3) and splits
-/// the Common+MFX section, then generates one DT1 message per SysEx block.
+/// Takes the decoded SysEx sections from [`svd_to_sysex`] (which has 5
+/// sections: Common, MFX, Partial1, Partial2, Partial3) and generates
+/// one DT1 message per SysEx block.
 ///
 /// Each DT1 message is at most 256 data bytes (the SysEx protocol limit).
 /// All SN-S blocks fit within this limit.
 pub fn sns_to_dt1s(device_id: u8, part_index: u8, sections: &[Vec<u8>]) -> Vec<Vec<u8>> {
     use crate::params;
-    use crate::svd_specs::{MFX_PARAMS, SNS_COMMON_SECTION};
 
     let sns_base = params::temporary_tone_base(part_index).offset([0x00, 0x01, 0x00, 0x00]);
 
-    // Split combined Common+MFX into separate blocks.
-    let (common, mfx) = split_common_mfx(&sections[0], SNS_COMMON_SECTION.params, MFX_PARAMS);
-
     // Build the 5 SysEx blocks: Common, MFX, Partial1, Partial2, Partial3.
     let blocks: Vec<(&[u8], [u8; 4])> = vec![
-        (&common, SNS_SECTION_OFFSETS[0]),
-        (&mfx, SNS_SECTION_OFFSETS[1]),
-        (&sections[1], SNS_SECTION_OFFSETS[2]),
-        (&sections[2], SNS_SECTION_OFFSETS[3]),
-        (&sections[3], SNS_SECTION_OFFSETS[4]),
+        (&sections[0], SNS_SECTION_OFFSETS[0]),
+        (&sections[1], SNS_SECTION_OFFSETS[1]),
+        (&sections[2], SNS_SECTION_OFFSETS[2]),
+        (&sections[3], SNS_SECTION_OFFSETS[3]),
+        (&sections[4], SNS_SECTION_OFFSETS[4]),
     ];
 
     let mut dt1s = Vec::new();
@@ -261,12 +257,15 @@ mod tests {
     #[test]
     fn section_sysex_sizes() {
         let sections = svd_to_sysex(&[0u8; 280], &SNS_TONE_SPEC).unwrap();
-        // Section 0: Common (64) + MFX (145) = 209
-        assert_eq!(sections[0].len(), 64 + 145);
-        // Sections 1-3: Partial (61 each)
-        assert_eq!(sections[1].len(), 61);
+        assert_eq!(sections.len(), 5);
+        // Section 0: Common (64 SysEx bytes)
+        assert_eq!(sections[0].len(), 64);
+        // Section 1: MFX (145 SysEx bytes)
+        assert_eq!(sections[1].len(), 145);
+        // Sections 2-4: Partial (61 each)
         assert_eq!(sections[2].len(), 61);
         assert_eq!(sections[3].len(), 61);
+        assert_eq!(sections[4].len(), 61);
     }
 
     #[test]

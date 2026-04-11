@@ -463,32 +463,16 @@ pub static SNS_PARTIAL_SECTION: SvdSection = SvdSection {
 
 /// SN Synth section layout in SVD packing order.
 ///
-/// Section 0: Common + MFX (packed together, one alignment boundary)
-/// Section 1–3: Partial 1, 2, 3 (each independently aligned)
-///
-/// Note: Common and MFX are logically separate SysEx blocks but share a
-/// single SVD section (no alignment boundary between them). To represent
-/// this, we use a combined section with a compile-time concatenated array.
-const SNS_COMMON_COUNT: usize = 59;
-const MFX_COUNT: usize = 49;
-const SNS_COMMON_MFX_COMBINED: [ParamBits; SNS_COMMON_COUNT + MFX_COUNT] = {
-    let mut combined = [ParamBits::normal(0); SNS_COMMON_COUNT + MFX_COUNT];
-    let mut i = 0;
-    while i < SNS_COMMON_COUNT {
-        combined[i] = SNS_COMMON_PARAMS[i];
-        i += 1;
-    }
-    while i < SNS_COMMON_COUNT + MFX_COUNT {
-        combined[i] = MFX_PARAMS[i - SNS_COMMON_COUNT];
-        i += 1;
-    }
-    combined
-};
-
-static SNS_SECTIONS: [SvdSection; 4] = [
+/// Validated against device: Common and MFX are SEPARATE sections, each
+/// independently byte-aligned. Common = 30 bytes, MFX = 78 bytes.
+static SNS_SECTIONS: [SvdSection; 5] = [
     SvdSection {
-        params: &SNS_COMMON_MFX_COMBINED,
-        svd_bytes: 108,
+        params: SNS_COMMON_PARAMS,
+        svd_bytes: 30,
+    },
+    SvdSection {
+        params: MFX_PARAMS,
+        svd_bytes: 78,
     },
     SvdSection {
         params: SNS_PARTIAL_PARAMS,
@@ -610,29 +594,21 @@ pub static SNA_COMMON_SECTION: SvdSection = SvdSection {
     svd_bytes: 0,
 };
 
-const SNA_COMMON_COUNT: usize = 69;
-const SNA_COMMON_MFX_COMBINED: [ParamBits; SNA_COMMON_COUNT + MFX_COUNT] = {
-    let mut combined = [ParamBits::normal(0); SNA_COMMON_COUNT + MFX_COUNT];
-    let mut i = 0;
-    while i < SNA_COMMON_COUNT {
-        combined[i] = SNA_COMMON_PARAMS[i];
-        i += 1;
-    }
-    while i < SNA_COMMON_COUNT + MFX_COUNT {
-        combined[i] = MFX_PARAMS[i - SNA_COMMON_COUNT];
-        i += 1;
-    }
-    combined
-};
-
-/// SN Acoustic section layout: one combined Common+MFX section, no partials.
+/// SN Acoustic section layout: separate Common and MFX sections, no partials.
 ///
-/// NOTE: `svd_bytes` is predicted (138 - 1 marker = 137) but not yet
-/// validated against a real SVD containing SN-A entries.
-static SNA_SECTIONS: [SvdSection; 1] = [SvdSection {
-    params: &SNA_COMMON_MFX_COMBINED,
-    svd_bytes: 137,
-}];
+/// NOTE: `svd_bytes` are predicted but not yet validated against a real SVD.
+/// Common (464 bits) and MFX (618 bits) likely follow the same separate-section
+/// pattern as SN-S. Entry size 138 = Common + MFX + marker + padding.
+static SNA_SECTIONS: [SvdSection; 2] = [
+    SvdSection {
+        params: SNA_COMMON_PARAMS,
+        svd_bytes: 59, // predicted: ceil(464/8) = 58, +1 padding
+    },
+    SvdSection {
+        params: MFX_PARAMS,
+        svd_bytes: 78, // same as SN-S MFX
+    },
+];
 
 /// Complete SN Acoustic Tone SVD specification.
 pub static SNA_TONE_SPEC: SvdToneSpec = SvdToneSpec {
@@ -683,24 +659,23 @@ mod tests {
     }
 
     #[test]
-    fn sns_combined_common_mfx_bit_count() {
-        assert_eq!(SNS_SECTIONS[0].total_bits(), 228 + 618);
-        assert_eq!(SNS_SECTIONS[0].total_bits(), 846);
+    fn sns_common_section_bytes() {
+        // 228 bits → 30 bytes in SVD (validated against device)
+        assert_eq!(SNS_SECTIONS[0].svd_bytes, 30);
     }
 
     #[test]
-    fn sns_combined_common_mfx_padded_bytes() {
-        // 846 bits → ceil(846/8) = 106 bytes
-        // But the actual SVD uses 108 bytes (864 bits) for this section.
-        // The extra 2 bytes come from the entry-level padding scheme.
-        // At the section level, padded_bytes() gives the mathematical ceil.
-        assert_eq!(SNS_SECTIONS[0].padded_bytes(), 106);
+    fn sns_mfx_section_bytes() {
+        // 618 bits → 78 bytes in SVD (validated against device)
+        assert_eq!(SNS_SECTIONS[1].svd_bytes, 78);
     }
 
     #[test]
     fn sns_tone_spec_sections() {
-        assert_eq!(SNS_TONE_SPEC.sections.len(), 4);
+        assert_eq!(SNS_TONE_SPEC.sections.len(), 5);
         assert_eq!(SNS_TONE_SPEC.entry_size, 280);
+        // Total data bytes: 30 + 78 + 46 + 46 + 46 = 246
+        assert_eq!(SNS_TONE_SPEC.data_bytes(), 246);
     }
 
     #[test]
@@ -722,14 +697,8 @@ mod tests {
     }
 
     #[test]
-    fn sna_combined_bit_count() {
-        assert_eq!(SNA_SECTIONS[0].total_bits(), 464 + 618);
-        assert_eq!(SNA_SECTIONS[0].total_bits(), 1082);
-    }
-
-    #[test]
-    fn sna_tone_spec() {
-        assert_eq!(SNA_TONE_SPEC.sections.len(), 1);
+    fn sna_section_count() {
+        assert_eq!(SNA_TONE_SPEC.sections.len(), 2);
         assert_eq!(SNA_TONE_SPEC.entry_size, 138);
     }
 }
