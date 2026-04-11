@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-11T16:30:26Z",
+  "description": "Add svd-list subcommand to integral-cli that parses an SVD file and displays chunk types, entry counts, and decoded patch names (extracted from the bitstream as 7-bit ASCII).",
+  "id": "i7-2y8.5",
+  "labels": [],
+  "parent": "i7-2y8",
+  "priority": 2,
+  "status": "open",
+  "title": "CLI svd-list command",
+  "type": "task",
+  "updated_at": "2026-04-11T16:30:26Z"
+}
