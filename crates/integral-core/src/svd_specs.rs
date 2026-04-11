@@ -19,14 +19,35 @@ pub struct ParamBits {
     /// Number of SysEx bytes this parameter spans.
     /// Normal params: 1. Nibblized (`#`-marked) params: the nibble count.
     pub sysex_bytes: u8,
+    /// Whether this parameter uses signed/centered encoding.
+    ///
+    /// Signed params have SysEx values centered at 64 (e.g., range 61–67
+    /// where 64 = center). The SVD re-centers these at `2^(bits-1)`.
+    /// Conversion: `sysex = svd + 64 - 2^(bits-1)`.
+    ///
+    /// Only relevant for params with `bits < 7` and non-zero range minimums.
+    pub signed: bool,
 }
 
 impl ParamBits {
-    /// A normal (non-nibblized) parameter with the given bit width.
+    /// A normal (non-nibblized) unsigned parameter with the given bit width.
     const fn normal(bits: u8) -> Self {
         Self {
             bits,
             sysex_bytes: 1,
+            signed: false,
+        }
+    }
+
+    /// A normal parameter with signed/centered encoding.
+    ///
+    /// Use for params whose SysEx range is centered at 64 and whose bit
+    /// width is less than 7 (e.g., Octave Shift, Pitch, Keyfollow).
+    const fn signed(bits: u8) -> Self {
+        Self {
+            bits,
+            sysex_bytes: 1,
+            signed: true,
         }
     }
 
@@ -36,6 +57,7 @@ impl ParamBits {
         Self {
             bits: count * 4,
             sysex_bytes: count,
+            signed: false,
         }
     }
 }
@@ -121,8 +143,8 @@ static SNS_COMMON_PARAMS: &[ParamBits] = &[
     ParamBits::normal(7),
     // 0x14: Mono Switch
     ParamBits::normal(2),
-    // 0x15: Octave Shift
-    ParamBits::normal(3),
+    // 0x15: Octave Shift (range 61-67, centered at 64)
+    ParamBits::signed(3),
     // 0x16: Pitch Bend Range Up
     ParamBits::normal(5),
     // 0x17: Pitch Bend Range Down
@@ -191,8 +213,8 @@ static SNS_COMMON_PARAMS: &[ParamBits] = &[
     ParamBits::normal(7),
     // 0x37–0x3A: Phrase Number (nibblized, 4 bytes)
     ParamBits::nibblized(4),
-    // 0x3B: Phrase Octave Shift
-    ParamBits::normal(3),
+    // 0x3B: Phrase Octave Shift (range 61-67, centered at 64)
+    ParamBits::signed(3),
     // 0x3C: Unison Size
     ParamBits::normal(2),
     // 0x3D: reserve
@@ -327,8 +349,8 @@ static SNS_PARTIAL_PARAMS: &[ParamBits] = &[
     ParamBits::normal(6),
     // 0x02: reserve
     ParamBits::normal(2),
-    // 0x03: OSC Pitch
-    ParamBits::normal(6),
+    // 0x03: OSC Pitch (range 40-88, centered at 64)
+    ParamBits::signed(6),
     // 0x04: OSC Detune
     ParamBits::normal(7),
     // 0x05: OSC Pulse Width Mod Depth
@@ -347,8 +369,8 @@ static SNS_PARTIAL_PARAMS: &[ParamBits] = &[
     ParamBits::normal(1),
     // 0x0C: FILTER Cutoff
     ParamBits::normal(7),
-    // 0x0D: FILTER Cutoff Keyfollow
-    ParamBits::normal(6),
+    // 0x0D: FILTER Cutoff Keyfollow (range 54-74, centered at 64)
+    ParamBits::signed(6),
     // 0x0E: FILTER Env Velocity Sens
     ParamBits::normal(7),
     // 0x0F: FILTER Resonance
@@ -435,8 +457,8 @@ static SNS_PARTIAL_PARAMS: &[ParamBits] = &[
     ParamBits::normal(7),
     // 0x3B: Mod LFO Rate Control
     ParamBits::normal(7),
-    // 0x3C: AMP Level Keyfollow
-    ParamBits::normal(5),
+    // 0x3C: AMP Level Keyfollow (range 54-74, centered at 64)
+    ParamBits::signed(5),
 ];
 
 // ---------------------------------------------------------------------------
@@ -532,14 +554,14 @@ static SNA_COMMON_PARAMS: &[ParamBits] = &[
     ParamBits::normal(7),
     ParamBits::normal(7),
     ParamBits::normal(7),
-    // 0x1A: Octave Shift
-    ParamBits::normal(3),
+    // 0x1A: Octave Shift (range 61-67, centered at 64)
+    ParamBits::signed(3),
     // 0x1B: Category
     ParamBits::normal(7),
     // 0x1C–0x1D: Phrase Number (nibblized, 2 bytes)
     ParamBits::nibblized(2),
-    // 0x1E: Phrase Octave Shift
-    ParamBits::normal(3),
+    // 0x1E: Phrase Octave Shift (range 61-67, centered at 64)
+    ParamBits::signed(3),
     // 0x1F: TFX Switch
     ParamBits::normal(1),
     // 0x20–0x41: Inst Variation, Inst Number, Modify 1–32 (34 × 7 bits)
