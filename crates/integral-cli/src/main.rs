@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -5,6 +6,9 @@ use anyhow::{Context, Result, bail};
 use clap::Parser;
 use integral_core::address::{Address, DataSize};
 use integral_core::params;
+use integral_core::svd::{ChunkType, SvdFile};
+use integral_core::svd_convert::svd_to_sysex;
+use integral_core::svd_specs::SNS_TONE_SPEC;
 use integral_core::sysex;
 use midir::{MidiInput, MidiOutput};
 
@@ -97,6 +101,11 @@ enum Cli {
     Monitor {
         #[arg(long, default_value = "Integra")]
         port: String,
+    },
+    /// List the contents of an SVD backup file.
+    SvdList {
+        /// Path to the .SVD file.
+        file: PathBuf,
     },
 }
 
@@ -719,5 +728,70 @@ fn main() -> Result<()> {
             data,
         } => raw_send(&port, Duration::from_secs_f64(timeout), &addr, &data),
         Cli::Monitor { port } => monitor(&port),
+        Cli::SvdList { file } => svd_list(&file),
     }
+}
+
+fn svd_list(path: &std::path::Path) -> Result<()> {
+    let data = std::fs::read(path).with_context(|| format!("failed to read {}", path.display()))?;
+    let svd =
+        SvdFile::parse(&data).with_context(|| format!("failed to parse {}", path.display()))?;
+
+    println!("SVD file: {}", path.display());
+    println!("Chunks: {}", svd.chunks.len());
+    println!();
+
+    for chunk in &svd.chunks {
+        let type_name = match chunk.chunk_type {
+            ChunkType::StudioSet => "Studio Set (PRFb)",
+            ChunkType::PcmSynthTone => "PCM Synth Tone (RFPa)",
+            ChunkType::PcmDrumKit => "PCM Drum Kit (RFRa)",
+            ChunkType::SnSynthTone => "SN Synth Tone (SHPa)",
+            ChunkType::SnAcousticTone => "SN Acoustic Tone (SNTa)",
+            ChunkType::SnDrumKit => "SN Drum Kit (SDKa)",
+        };
+
+        println!(
+            "{}: {} entries ({} bytes/entry)",
+            type_name,
+            chunk.entries.len(),
+            chunk.entry_size
+        );
+
+        // Decode and print patch names for supported types.
+        if chunk.entries.is_empty() {
+            continue;
+        }
+
+        let spec = match chunk.chunk_type {
+            ChunkType::SnSynthTone => Some(&SNS_TONE_SPEC),
+            _ => None,
+        };
+
+        if let Some(spec) = spec {
+            for (i, entry) in chunk.entries.iter().enumerate() {
+                if let Ok(sections) = svd_to_sysex(entry, spec) {
+                    let name_len = match chunk.chunk_type {
+                        ChunkType::StudioSet => 16,
+                        _ => 12,
+                    };
+                    let name: String = sections[0][..name_len]
+                        .iter()
+                        .map(|&b| {
+                            if (32..=127).contains(&b) {
+                                b as char
+                            } else {
+                                ' '
+                            }
+                        })
+                        .collect::<String>()
+                        .trim_end()
+                        .to_string();
+                    println!("  {:>3}: {}", i + 1, name);
+                }
+            }
+        }
+        println!();
+    }
+    Ok(())
 }
