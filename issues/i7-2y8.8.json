@@ -1,7 +1,8 @@
 {
   "assignee": "",
   "blocked_by": [
-    "i7-2y8.1"
+    "i7-2y8.1",
+    "i7-2y8.3"
   ],
   "blocks": [],
   "created": "2026-04-11T16:30:26Z",
@@ -13,5 +14,5 @@
   "status": "open",
   "title": "SysEx-to-SVD conversion for SN-S",
   "type": "task",
-  "updated_at": "2026-04-11T16:30:39Z"
+  "updated_at": "2026-04-11T16:30:40Z"
 }
