@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [],
   "blocks": [
     "i7-2y8.2",
@@ -12,8 +12,8 @@
   "labels": [],
   "parent": "i7-2y8",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Bitstream bit reader/writer engine",
   "type": "task",
-  "updated_at": "2026-04-11T16:30:39Z"
+  "updated_at": "2026-04-11T16:34:48Z"
 }
