@@ -10,9 +10,15 @@
   "id": "i7-18x.6",
   "labels": [],
   "parent": "i7-18x",
+  "comments": [
+    {
+      "text": "Superseded by i7-1se.2 under the new output routing epic i7-1se",
+      "timestamp": "2026-04-11T18:09:55Z"
+    }
+  ],
   "priority": 2,
   "status": "deferred",
   "title": "Add per-instrument output assign to drum kit view",
   "type": "task",
-  "updated_at": "2026-04-09T16:10:00Z"
+  "updated_at": "2026-04-11T18:09:55Z"
 }
