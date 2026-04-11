@@ -8,14 +8,15 @@
   "blocks": [
     "i7-2y8.9"
   ],
+  "closed_at": "2026-04-11T17:37:08Z",
   "created": "2026-04-11T16:30:26Z",
   "description": "Add sysex_to_svd() to svd_convert.rs that packs SysEx byte sections into an SVD entry using BitWriter and spec tables. Unit test round-trip: svd_to_sysex(sysex_to_svd(data)) == data.",
   "id": "i7-2y8.8",
   "labels": [],
   "parent": "i7-2y8",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "SysEx-to-SVD conversion for SN-S",
   "type": "task",
-  "updated_at": "2026-04-11T17:36:02Z"
+  "updated_at": "2026-04-11T17:37:08Z"
 }
