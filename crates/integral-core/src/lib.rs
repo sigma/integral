@@ -5,6 +5,7 @@
 //! checksum calculation, message construction, and state management.
 
 pub mod address;
+pub mod bitstream;
 pub mod catalog;
 pub mod device;
 pub mod fx_params;
