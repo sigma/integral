@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-2y8.1"
+  ],
   "blocks": [],
   "created": "2026-04-11T16:30:26Z",
   "description": "Create svd_convert.rs with svd_to_sysex() that unpacks an SVD entry into per-section SysEx byte vectors using BitReader and spec tables. Include tone_to_dt1s() that builds DT1 messages for writing to user memory slots. Unit test with known SVD data.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "SVD-to-SysEx conversion for SN-S",
   "type": "task",
-  "updated_at": "2026-04-11T16:30:26Z"
+  "updated_at": "2026-04-11T16:30:39Z"
 }
