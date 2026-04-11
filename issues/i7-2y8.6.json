@@ -4,14 +4,15 @@
     "i7-2y8.4"
   ],
   "blocks": [],
+  "closed_at": "2026-04-11T16:57:36Z",
   "created": "2026-04-11T16:30:26Z",
   "description": "Add svd-import subcommand to integral-cli that parses an SVD file, converts entries to DT1 SysEx messages, and sends them to the device with 20ms throttling. Support --dry-run for preview and --filter for tone type selection.",
   "id": "i7-2y8.6",
   "labels": [],
   "parent": "i7-2y8",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "CLI svd-import command",
   "type": "task",
-  "updated_at": "2026-04-11T16:54:44Z"
+  "updated_at": "2026-04-11T16:57:36Z"
 }
