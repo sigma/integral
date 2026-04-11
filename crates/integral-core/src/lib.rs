@@ -18,6 +18,7 @@ pub mod sn_drum;
 pub mod sn_synth;
 pub mod sna_inst_params;
 pub mod state;
+pub mod svd;
 pub mod sysex;
 pub mod tone_banks;
 pub mod tone_catalog;
