@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-11T16:29:55Z",
+  "description": "Parse Roland SVD backup files, convert to/from SysEx DT1 messages for remote patch import/export on the INTEGRA-7. See docs/svd/ for the reverse-engineered format spec.",
+  "id": "i7-2y8",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "SVD ↔ SysEx two-way converter",
+  "type": "epic",
+  "updated_at": "2026-04-11T16:29:55Z"
+}
