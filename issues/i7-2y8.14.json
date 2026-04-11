@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-11T16:30:27Z",
+  "description": "Add spec tables for Studio Set (1068 bytes/entry). Derive from docs/midi/05-studio-set.md. Common + Chorus + Reverb + Surround + Master EQ + Drum Comp/EQ + 16 Parts + 16 Part EQs. Validate against Synth Legends SVD.",
+  "id": "i7-2y8.14",
+  "labels": [],
+  "parent": "i7-2y8",
+  "priority": 2,
+  "status": "open",
+  "title": "SVD spec tables for Studio Set (PRFb)",
+  "type": "task",
+  "updated_at": "2026-04-11T16:30:27Z"
+}
