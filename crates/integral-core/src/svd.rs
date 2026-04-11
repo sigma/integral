@@ -337,79 +337,38 @@ mod tests {
         assert_eq!(ChunkType::SnDrumKit.default_entry_size(), 1006);
     }
 
+    /// Path to the test SVD fixture (3 SN-S patches from Synth Legends).
+    fn fixture_path() -> std::path::PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/test_sns.svd")
+    }
+
     #[test]
-    fn parse_synth_legends() {
-        let path = Path::new("/Users/yann/Downloads/INTEGRA-7_Synth_Legends/ROLAND/SOUND/I7SL.SVD");
-        if !path.exists() {
-            eprintln!("skipping: SVD file not found at {}", path.display());
-            return;
-        }
-        let data = std::fs::read(path).expect("failed to read SVD file");
+    fn parse_test_fixture() {
+        let data = std::fs::read(fixture_path()).expect("failed to read fixture");
         let svd = SvdFile::parse(&data).expect("failed to parse SVD");
 
         assert_eq!(svd.chunks.len(), 6);
 
-        // PRFb: 32 entries, 1068 B each
+        // PRFb: 0 entries
         assert_eq!(svd.chunks[0].chunk_type, ChunkType::StudioSet);
-        assert_eq!(svd.chunks[0].entries.len(), 32);
+        assert_eq!(svd.chunks[0].entries.len(), 0);
         assert_eq!(svd.chunks[0].entry_size, 1068);
 
-        // RFPa: 0 entries, 590 B
-        assert_eq!(svd.chunks[1].chunk_type, ChunkType::PcmSynthTone);
-        assert_eq!(svd.chunks[1].entries.len(), 0);
-        assert_eq!(svd.chunks[1].entry_size, 590);
-
-        // RFRa: 0 entries, 10890 B
-        assert_eq!(svd.chunks[2].chunk_type, ChunkType::PcmDrumKit);
-        assert_eq!(svd.chunks[2].entries.len(), 0);
-        assert_eq!(svd.chunks[2].entry_size, 10890);
-
-        // SHPa: 128 entries, 280 B
+        // SHPa: 3 entries, 280 B each
         assert_eq!(svd.chunks[3].chunk_type, ChunkType::SnSynthTone);
-        assert_eq!(svd.chunks[3].entries.len(), 128);
+        assert_eq!(svd.chunks[3].entries.len(), 3);
         assert_eq!(svd.chunks[3].entry_size, 280);
 
-        // SNTa: 0 entries, 138 B
-        assert_eq!(svd.chunks[4].chunk_type, ChunkType::SnAcousticTone);
-        assert_eq!(svd.chunks[4].entries.len(), 0);
-        assert_eq!(svd.chunks[4].entry_size, 138);
-
-        // SDKa: 0 entries, 1006 B
-        assert_eq!(svd.chunks[5].chunk_type, ChunkType::SnDrumKit);
-        assert_eq!(svd.chunks[5].entries.len(), 0);
-        assert_eq!(svd.chunks[5].entry_size, 1006);
+        // All chunk types present with correct entry sizes
+        assert_eq!(svd.chunks[1].entry_size, 590); // RFPa
+        assert_eq!(svd.chunks[2].entry_size, 10890); // RFRa
+        assert_eq!(svd.chunks[4].entry_size, 138); // SNTa
+        assert_eq!(svd.chunks[5].entry_size, 1006); // SDKa
     }
 
     #[test]
-    fn parse_euro_attack_synth() {
-        let path = Path::new(
-            "/Users/yann/Downloads/INTEGRA-7_Euro_Attack_Synth/ROLAND/SOUND/I7_EAS_E.SVD",
-        );
-        if !path.exists() {
-            eprintln!("skipping: SVD file not found at {}", path.display());
-            return;
-        }
-        let data = std::fs::read(path).expect("failed to read SVD file");
-        let svd = SvdFile::parse(&data).expect("failed to parse SVD");
-
-        // SHPa should have 146 entries at 280 B each
-        let shpa = svd
-            .chunks
-            .iter()
-            .find(|c| c.chunk_type == ChunkType::SnSynthTone)
-            .expect("missing SHPa chunk");
-        assert_eq!(shpa.entries.len(), 146);
-        assert_eq!(shpa.entry_size, 280);
-    }
-
-    #[test]
-    fn roundtrip_synth_legends() {
-        let path = Path::new("/Users/yann/Downloads/INTEGRA-7_Synth_Legends/ROLAND/SOUND/I7SL.SVD");
-        if !path.exists() {
-            eprintln!("skipping: SVD file not found at {}", path.display());
-            return;
-        }
-        let original = std::fs::read(path).expect("failed to read SVD file");
+    fn roundtrip_test_fixture() {
+        let original = std::fs::read(fixture_path()).expect("failed to read fixture");
         let svd = SvdFile::parse(&original).expect("failed to parse SVD");
         let written = svd.write();
         let reparsed = SvdFile::parse(&written).expect("failed to re-parse SVD");

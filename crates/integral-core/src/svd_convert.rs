@@ -185,12 +185,13 @@ mod tests {
     use super::*;
     use crate::svd::SvdFile;
     use crate::svd_specs::{MFX_PARAMS, SNS_TONE_SPEC};
+    use std::path::Path;
 
-    /// Helper: load Synth Legends SVD if available.
-    fn load_synth_legends() -> Option<SvdFile> {
-        let path = "/Users/yann/Downloads/INTEGRA-7_Synth_Legends/ROLAND/SOUND/I7SL.SVD";
-        let data = std::fs::read(path).ok()?;
-        SvdFile::parse(&data).ok()
+    /// Load the test SVD fixture (3 SN-S patches).
+    fn load_test_fixture() -> SvdFile {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/test_sns.svd");
+        let data = std::fs::read(path).expect("failed to read test fixture");
+        SvdFile::parse(&data).expect("failed to parse test fixture")
     }
 
     #[test]
@@ -219,14 +220,8 @@ mod tests {
     }
 
     #[test]
-    fn decode_tone_name_from_synth_legends() {
-        let svd = match load_synth_legends() {
-            Some(s) => s,
-            None => {
-                eprintln!("Synth Legends SVD not found, skipping");
-                return;
-            }
-        };
+    fn decode_tone_name_from_fixture() {
+        let svd = load_test_fixture();
 
         let sns_chunk = svd
             .chunks
@@ -251,22 +246,12 @@ mod tests {
             .trim_end()
             .to_string();
 
-        // First patch in Synth Legends should start with "SL-".
-        assert!(
-            name.starts_with("SL-"),
-            "Expected name starting with 'SL-', got '{name}'"
-        );
+        assert_eq!(name, "SL-JP8 1");
     }
 
     #[test]
-    fn round_trip_real_entry() {
-        let svd = match load_synth_legends() {
-            Some(s) => s,
-            None => {
-                eprintln!("Synth Legends SVD not found, skipping");
-                return;
-            }
-        };
+    fn round_trip_real_entries() {
+        let svd = load_test_fixture();
 
         let sns_chunk = svd
             .chunks
