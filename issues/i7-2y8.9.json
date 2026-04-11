@@ -5,14 +5,15 @@
     "i7-2y8.8"
   ],
   "blocks": [],
+  "closed_at": "2026-04-11T17:39:11Z",
   "created": "2026-04-11T16:30:26Z",
   "description": "Add svd-export subcommand to integral-cli that reads user tones from the device via RQ1, packs them into SVD entries, and writes a valid SVD file.",
   "id": "i7-2y8.9",
   "labels": [],
   "parent": "i7-2y8",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "CLI svd-export command",
   "type": "task",
-  "updated_at": "2026-04-11T17:37:14Z"
+  "updated_at": "2026-04-11T17:39:11Z"
 }
