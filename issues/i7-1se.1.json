@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-1se.3"
+  ],
   "created": "2026-04-11T18:09:47Z",
   "description": "Design the UX for a unified output routing view. Consider: matrix view (rows=sources, columns=destinations), flow diagram, or augmented mixer. Must show: drum key→Comp+EQ mapping, Comp+EQ→output, part→output, chorus/reverb output. Produce a mockup or Mermaid diagram.",
   "id": "i7-1se.1",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Design output routing view",
   "type": "task",
-  "updated_at": "2026-04-11T18:09:47Z"
+  "updated_at": "2026-04-11T18:09:48Z"
 }
