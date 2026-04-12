@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:12:21Z",
+  "description": "crates/integral-core/src/device.rs has zero test coverage despite being the\ncritical state machine that handles:\n- Incoming DT1 message routing\n- Echo suppression timing\n- Throttled outgoing message queuing\n- Mixer state updates for all 16 parts\n\nFix: Add tests for:\n- State transitions on DT1 receipt\n- Echo suppression window (messages within 150ms ignored)\n- Throttle enforcement (40ms between sends)\n- Out-of-range part index handling\n- Concurrent access patterns",
+  "id": "i7-q47.11",
+  "labels": [],
+  "parent": "i7-q47",
+  "priority": 2,
+  "status": "open",
+  "title": "Add device.rs unit tests",
+  "type": "task",
+  "updated_at": "2026-04-12T09:12:21Z"
+}
