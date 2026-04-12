@@ -1,0 +1,2050 @@
+[
+  {
+    "number": 1,
+    "name": "Full Grand 1",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 1,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 2,
+    "name": "Full Grand 2",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 2,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 3,
+    "name": "Full Grand 3",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 3,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 4,
+    "name": "Deep Grand",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 4,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 5,
+    "name": "BrightGrand",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 5,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 6,
+    "name": "UprightPiano",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 6,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 7,
+    "name": "Mono Grand",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 7,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 8,
+    "name": "Rock Grand",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 8,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 9,
+    "name": "HonkyTonk Pf",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 9,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 10,
+    "name": "‘76 Pure",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 10,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 11,
+    "name": "‘73 Pure",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 11,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 12,
+    "name": "‘76 Stage",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 12,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 13,
+    "name": "‘73 Stage",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 13,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 14,
+    "name": "‘76 Tine",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 14,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 15,
+    "name": "‘73 Tine",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 15,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 16,
+    "name": "‘81 Tine",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 16,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 17,
+    "name": "Felt Tine",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 17,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 18,
+    "name": "Dyno Tine",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 18,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 19,
+    "name": "Tea Time",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 19,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 20,
+    "name": "Small Space",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 20,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 21,
+    "name": "Phaser Dyno",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 21,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 22,
+    "name": "90 Shift EP",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 22,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 23,
+    "name": "SlowSpin EP",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 23,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 24,
+    "name": "Phaser Tine",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 24,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 25,
+    "name": "TcDlyEP CC18",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 25,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 26,
+    "name": "Flanger Tine",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 26,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 27,
+    "name": "Chorus Tine",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 27,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 28,
+    "name": "JC ChorusEP",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 28,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 29,
+    "name": "Dirty Tine",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 29,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 30,
+    "name": "Pure Reed",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 30,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 31,
+    "name": "‘68 Reed",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 31,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 32,
+    "name": "Vibrato Reed",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 32,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 33,
+    "name": "Dirty Reed",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 33,
+    "category": "Ac.Piano"
+  },
+  {
+    "number": 34,
+    "name": "Super Clav",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 34,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 35,
+    "name": "Pure ClavCA1",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 35,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 36,
+    "name": "Pure ClavCA2",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 36,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 37,
+    "name": "Pure ClavCB1",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 37,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 38,
+    "name": "Pure ClavCB2",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 38,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 39,
+    "name": "Deep Clav",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 39,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 40,
+    "name": "Drive Clav",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 40,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 41,
+    "name": "Dist Clav",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 41,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 42,
+    "name": "Phaser Clav1",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 42,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 43,
+    "name": "Phaser Clav2",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 43,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 44,
+    "name": "Spacy Clav",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 44,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 45,
+    "name": "SoftSpinClav",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 45,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 46,
+    "name": "Twah Clav",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 46,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 47,
+    "name": "Awah Clav",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 47,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 48,
+    "name": "PwahClv1CC18",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 48,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 49,
+    "name": "PwahClv2CC18",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 49,
+    "category": "Other Keyboards"
+  },
+  {
+    "number": 50,
+    "name": "B3 Jazz 1",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 50,
+    "category": "Organ"
+  },
+  {
+    "number": 51,
+    "name": "B3 Jazz 2",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 51,
+    "category": "Organ"
+  },
+  {
+    "number": 52,
+    "name": "B3 Jazz 3",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 52,
+    "category": "Organ"
+  },
+  {
+    "number": 53,
+    "name": "B3 Jazz 4",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 53,
+    "category": "Organ"
+  },
+  {
+    "number": 54,
+    "name": "B3 Jazz 5",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 54,
+    "category": "Organ"
+  },
+  {
+    "number": 55,
+    "name": "B3 Jazz 6",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 55,
+    "category": "Organ"
+  },
+  {
+    "number": 56,
+    "name": "B3 Jazz 7",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 56,
+    "category": "Organ"
+  },
+  {
+    "number": 57,
+    "name": "B3 Full D",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 57,
+    "category": "Organ"
+  },
+  {
+    "number": 58,
+    "name": "B3 Bossa",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 58,
+    "category": "Organ"
+  },
+  {
+    "number": 59,
+    "name": "C3 Rock 1",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 59,
+    "category": "Organ"
+  },
+  {
+    "number": 60,
+    "name": "C3 Rock 2",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 60,
+    "category": "Organ"
+  },
+  {
+    "number": 61,
+    "name": "C3 Rock 3",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 61,
+    "category": "Organ"
+  },
+  {
+    "number": 62,
+    "name": "C3 Rock 4",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 62,
+    "category": "Organ"
+  },
+  {
+    "number": 63,
+    "name": "C3 Rock 5",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 63,
+    "category": "Organ"
+  },
+  {
+    "number": 64,
+    "name": "C3 Rock 6",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 64,
+    "category": "Organ"
+  },
+  {
+    "number": 65,
+    "name": "Pure Wheel 1",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 65,
+    "category": "Organ"
+  },
+  {
+    "number": 66,
+    "name": "Pure Wheel 2",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 66,
+    "category": "Organ"
+  },
+  {
+    "number": 67,
+    "name": "Pure Wheel 3",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 67,
+    "category": "Organ"
+  },
+  {
+    "number": 68,
+    "name": "Nostalgie 1",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 68,
+    "category": "Organ"
+  },
+  {
+    "number": 69,
+    "name": "Nostalgie 2",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 69,
+    "category": "Organ"
+  },
+  {
+    "number": 70,
+    "name": "Nostalgie 3",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 70,
+    "category": "Organ"
+  },
+  {
+    "number": 71,
+    "name": "Nostalgie 4",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 71,
+    "category": "Organ"
+  },
+  {
+    "number": 72,
+    "name": "Clean Cutter",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 72,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 73,
+    "name": "Flanger Cut",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 73,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 74,
+    "name": "Funk Cutting",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 74,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 75,
+    "name": "PhaseCutting",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 75,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 76,
+    "name": "Retro Phaser",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 76,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 77,
+    "name": "Twah Cutting",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 77,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 78,
+    "name": "PwahCut CC18",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 78,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 79,
+    "name": "AutoWah Back",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 79,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 80,
+    "name": "FunkMeister",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 80,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 81,
+    "name": "CleanTheater",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 81,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 82,
+    "name": "Warm Clean",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 82,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 83,
+    "name": "DelayedTwin",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 83,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 84,
+    "name": "Crunch Phase",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 84,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 85,
+    "name": "Clean Twin",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 85,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 86,
+    "name": "Clean Spirit",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 86,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 87,
+    "name": "Flange Clean",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 87,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 88,
+    "name": "Heart Break",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 88,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 89,
+    "name": "T-Bird Surf",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 89,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 90,
+    "name": "ClassicClean",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 90,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 91,
+    "name": "Groove Clean",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 91,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 92,
+    "name": "JC-Chorus",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 92,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 93,
+    "name": "Sweet Home",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 93,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 94,
+    "name": "Transistor",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 94,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 95,
+    "name": "Smooth Clean",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 95,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 96,
+    "name": "NY Clean",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 96,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 97,
+    "name": "Clean Dirty",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 97,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 98,
+    "name": "60s BritRock",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 98,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 99,
+    "name": "StandardJazz",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 99,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 100,
+    "name": "FingeredJazz",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 100,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 101,
+    "name": "Modern Jazz",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 101,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 102,
+    "name": "Mr.Octave",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 102,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 103,
+    "name": "Bright Live",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 103,
+    "category": "E.Guitar"
+  },
+  {
+    "number": 104,
+    "name": "Stack Lead",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 104,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 105,
+    "name": "USA Legend",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 105,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 106,
+    "name": "Lead Legend",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 106,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 107,
+    "name": "Rotary Riff",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 107,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 108,
+    "name": "Big Wing",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 108,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 109,
+    "name": "Crunch Chord",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 109,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 110,
+    "name": "60s Fuzz",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 110,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 111,
+    "name": "Cream Crunch",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 111,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 112,
+    "name": "Bunch Crunch",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 112,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 113,
+    "name": "Pwah OD CC18",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 113,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 114,
+    "name": "60s RockRiff",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 114,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 115,
+    "name": "70s RockRiff",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 115,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 116,
+    "name": "Texas Tusher",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 116,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 117,
+    "name": "Blues Master",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 117,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 118,
+    "name": "House Blues",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 118,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 119,
+    "name": "Apartment",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 119,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 120,
+    "name": "TWah Lead",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 120,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 121,
+    "name": "Warm Drive",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 121,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 122,
+    "name": "Hi-Gain Rock",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 122,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 123,
+    "name": "Metal Stack",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 123,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 124,
+    "name": "Purple Stack",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 124,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 125,
+    "name": "Lead Stack",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 125,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 126,
+    "name": "Cah Solo",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 126,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 127,
+    "name": "FeelGood Doc",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 127,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 128,
+    "name": "BullsOnRage",
+    "msb": 89,
+    "lsb": 64,
+    "pc": 128,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 129,
+    "name": "Big Riff",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 1,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 130,
+    "name": "Hi-GainMetal",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 2,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 131,
+    "name": "Nice Touch",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 3,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 132,
+    "name": "Mild Solo",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 4,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 133,
+    "name": "Chorale",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 5,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 134,
+    "name": "PwahDst CC18",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 6,
+    "category": "Dist.Guitar"
+  },
+  {
+    "number": 135,
+    "name": "Ac Bass 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 7,
+    "category": "Ac.Bass"
+  },
+  {
+    "number": 136,
+    "name": "Ac Bass 2",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 8,
+    "category": "Ac.Bass"
+  },
+  {
+    "number": 137,
+    "name": "Fing Bass 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 9,
+    "category": "E.Bass"
+  },
+  {
+    "number": 138,
+    "name": "Fing Bass 2",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 10,
+    "category": "E.Bass"
+  },
+  {
+    "number": 139,
+    "name": "Comp FingBs",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 11,
+    "category": "E.Bass"
+  },
+  {
+    "number": 140,
+    "name": "Phaser Fing1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 12,
+    "category": "E.Bass"
+  },
+  {
+    "number": 141,
+    "name": "Phaser Fing2",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 13,
+    "category": "E.Bass"
+  },
+  {
+    "number": 142,
+    "name": "Slap Bass",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 14,
+    "category": "E.Bass"
+  },
+  {
+    "number": 143,
+    "name": "Pick Bass",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 15,
+    "category": "E.Bass"
+  },
+  {
+    "number": 144,
+    "name": "Muted Bass",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 16,
+    "category": "E.Bass"
+  },
+  {
+    "number": 145,
+    "name": "LowBoostPick",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 17,
+    "category": "E.Bass"
+  },
+  {
+    "number": 146,
+    "name": "OD Pick Bass",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 18,
+    "category": "E.Bass"
+  },
+  {
+    "number": 147,
+    "name": "Fretless 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 19,
+    "category": "E.Bass"
+  },
+  {
+    "number": 148,
+    "name": "Fretless 2",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 20,
+    "category": "E.Bass"
+  },
+  {
+    "number": 149,
+    "name": "CompFretless",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 21,
+    "category": "E.Bass"
+  },
+  {
+    "number": 150,
+    "name": "Mr.Fretless",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 22,
+    "category": "E.Bass"
+  },
+  {
+    "number": 151,
+    "name": "Classic Gtr",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 23,
+    "category": "Ac.Guitar"
+  },
+  {
+    "number": 152,
+    "name": "Solid GutGt",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 24,
+    "category": "Ac.Guitar"
+  },
+  {
+    "number": 153,
+    "name": "Gut Guitar",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 25,
+    "category": "Ac.Guitar"
+  },
+  {
+    "number": 154,
+    "name": "Flamenco Gtr",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 26,
+    "category": "Ac.Guitar"
+  },
+  {
+    "number": 155,
+    "name": "Rasgueado",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 27,
+    "category": "Ac.Guitar"
+  },
+  {
+    "number": 156,
+    "name": "Warm Spanish",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 28,
+    "category": "Ac.Guitar"
+  },
+  {
+    "number": 157,
+    "name": "ArpegSteelGt",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 29,
+    "category": "Ac.Guitar"
+  },
+  {
+    "number": 158,
+    "name": "StrumSteelGt",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 30,
+    "category": "Ac.Guitar"
+  },
+  {
+    "number": 159,
+    "name": "French Accrd",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 31,
+    "category": "Accordion/Harmonica"
+  },
+  {
+    "number": 160,
+    "name": "ItalianAccrd",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 32,
+    "category": "Accordion/Harmonica"
+  },
+  {
+    "number": 161,
+    "name": "Bandoneon 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 33,
+    "category": "Accordion/Harmonica"
+  },
+  {
+    "number": 162,
+    "name": "Bandoneon 2",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 34,
+    "category": "Accordion/Harmonica"
+  },
+  {
+    "number": 163,
+    "name": "Harmonica",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 35,
+    "category": "Accordion/Harmonica"
+  },
+  {
+    "number": 164,
+    "name": "Southern",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 36,
+    "category": "Accordion/Harmonica"
+  },
+  {
+    "number": 165,
+    "name": "Blues Reed",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 37,
+    "category": "Accordion/Harmonica"
+  },
+  {
+    "number": 166,
+    "name": "Vibraphone",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 38,
+    "category": "Bell/Mallet"
+  },
+  {
+    "number": 167,
+    "name": "Vibes Hard",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 39,
+    "category": "Bell/Mallet"
+  },
+  {
+    "number": 168,
+    "name": "Vibes Trem",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 40,
+    "category": "Bell/Mallet"
+  },
+  {
+    "number": 169,
+    "name": "Vibes Soft",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 41,
+    "category": "Bell/Mallet"
+  },
+  {
+    "number": 170,
+    "name": "Marimba",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 42,
+    "category": "Bell/Mallet"
+  },
+  {
+    "number": 171,
+    "name": "Marimba Soft",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 43,
+    "category": "Bell/Mallet"
+  },
+  {
+    "number": 172,
+    "name": "Marimba Hard",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 44,
+    "category": "Bell/Mallet"
+  },
+  {
+    "number": 173,
+    "name": "Glocken Hard",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 45,
+    "category": "Bell/Mallet"
+  },
+  {
+    "number": 174,
+    "name": "Glocken Soft",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 46,
+    "category": "Bell/Mallet"
+  },
+  {
+    "number": 175,
+    "name": "Glocken Cho",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 47,
+    "category": "Bell/Mallet"
+  },
+  {
+    "number": 176,
+    "name": "Xylophone",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 48,
+    "category": "Bell/Mallet"
+  },
+  {
+    "number": 177,
+    "name": "Hard Xylo",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 49,
+    "category": "Bell/Mallet"
+  },
+  {
+    "number": 178,
+    "name": "TubulrBells1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 50,
+    "category": "Bell/Mallet"
+  },
+  {
+    "number": 179,
+    "name": "TubulrBells2",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 51,
+    "category": "Bell/Mallet"
+  },
+  {
+    "number": 180,
+    "name": "Steel Drums",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 52,
+    "category": "Percussion"
+  },
+  {
+    "number": 181,
+    "name": "Timpani",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 53,
+    "category": "Percussion"
+  },
+  {
+    "number": 182,
+    "name": "Timpani Roll",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 54,
+    "category": "Percussion"
+  },
+  {
+    "number": 183,
+    "name": "Harp",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 55,
+    "category": "Plucked/Stroke"
+  },
+  {
+    "number": 184,
+    "name": "Gliss Dim",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 56,
+    "category": "Plucked/Stroke"
+  },
+  {
+    "number": 185,
+    "name": "Gliss C Mixo",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 57,
+    "category": "Plucked/Stroke"
+  },
+  {
+    "number": 186,
+    "name": "Gliss C HMin",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 58,
+    "category": "Plucked/Stroke"
+  },
+  {
+    "number": 187,
+    "name": "Gliss C Dori",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 59,
+    "category": "Plucked/Stroke"
+  },
+  {
+    "number": 188,
+    "name": "Harp Nail",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 60,
+    "category": "Plucked/Stroke"
+  },
+  {
+    "number": 189,
+    "name": "Violin 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 61,
+    "category": "Strings"
+  },
+  {
+    "number": 190,
+    "name": "Violin 2",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 62,
+    "category": "Strings"
+  },
+  {
+    "number": 191,
+    "name": "Viola",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 63,
+    "category": "Strings"
+  },
+  {
+    "number": 192,
+    "name": "Cello 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 64,
+    "category": "Strings"
+  },
+  {
+    "number": 193,
+    "name": "Cello 2",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 65,
+    "category": "Strings"
+  },
+  {
+    "number": 194,
+    "name": "Contrabass",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 66,
+    "category": "Strings"
+  },
+  {
+    "number": 195,
+    "name": "Violin1 Pizz",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 67,
+    "category": "Strings"
+  },
+  {
+    "number": 196,
+    "name": "Violin2 Pizz",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 68,
+    "category": "Strings"
+  },
+  {
+    "number": 197,
+    "name": "Violin1 Stac",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 69,
+    "category": "Strings"
+  },
+  {
+    "number": 198,
+    "name": "Viola Pizz",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 70,
+    "category": "Strings"
+  },
+  {
+    "number": 199,
+    "name": "Cello1 Pizz",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 71,
+    "category": "Strings"
+  },
+  {
+    "number": 200,
+    "name": "Cello2 Pizz",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 72,
+    "category": "Strings"
+  },
+  {
+    "number": 201,
+    "name": "Cello1 Stac",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 73,
+    "category": "Strings"
+  },
+  {
+    "number": 202,
+    "name": "ContrabassPz",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 74,
+    "category": "Strings"
+  },
+  {
+    "number": 203,
+    "name": "StringsSect1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 75,
+    "category": "Strings"
+  },
+  {
+    "number": 204,
+    "name": "StringsSect2",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 76,
+    "category": "Strings"
+  },
+  {
+    "number": 205,
+    "name": "5th Down Str",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 77,
+    "category": "Strings"
+  },
+  {
+    "number": 206,
+    "name": "Slow Strings",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 78,
+    "category": "Strings"
+  },
+  {
+    "number": 207,
+    "name": "Tape Strings",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 79,
+    "category": "Strings"
+  },
+  {
+    "number": 208,
+    "name": "Marcato Str",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 80,
+    "category": "Strings"
+  },
+  {
+    "number": 209,
+    "name": "MarcatoWarm",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 81,
+    "category": "Strings"
+  },
+  {
+    "number": 210,
+    "name": "Strings Stac",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 82,
+    "category": "Strings"
+  },
+  {
+    "number": 211,
+    "name": "Strings Pizz",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 83,
+    "category": "Strings"
+  },
+  {
+    "number": 212,
+    "name": "Strings Trem",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 84,
+    "category": "Strings"
+  },
+  {
+    "number": 213,
+    "name": "LargeChoirAh",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 85,
+    "category": "Vox/Choir"
+  },
+  {
+    "number": 214,
+    "name": "LargeChoirOo",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 86,
+    "category": "Vox/Choir"
+  },
+  {
+    "number": 215,
+    "name": "BoysChoir Ah",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 87,
+    "category": "Vox/Choir"
+  },
+  {
+    "number": 216,
+    "name": "BoysChoir Oo",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 88,
+    "category": "Vox/Choir"
+  },
+  {
+    "number": 217,
+    "name": "Choir Pad",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 89,
+    "category": "Vox/Choir"
+  },
+  {
+    "number": 218,
+    "name": "Trumpet 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 90,
+    "category": "Brass"
+  },
+  {
+    "number": 219,
+    "name": "Light Tp",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 91,
+    "category": "Brass"
+  },
+  {
+    "number": 220,
+    "name": "Mellow Tp",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 92,
+    "category": "Brass"
+  },
+  {
+    "number": 221,
+    "name": "MutedTrumpet",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 93,
+    "category": "Brass"
+  },
+  {
+    "number": 222,
+    "name": "Bold MuteTp",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 94,
+    "category": "Brass"
+  },
+  {
+    "number": 223,
+    "name": "DooBapMuteTp",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 95,
+    "category": "Brass"
+  },
+  {
+    "number": 224,
+    "name": "Wah Trumpet",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 96,
+    "category": "Brass"
+  },
+  {
+    "number": 225,
+    "name": "Trombone 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 97,
+    "category": "Brass"
+  },
+  {
+    "number": 226,
+    "name": "Breathy Tb",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 98,
+    "category": "Brass"
+  },
+  {
+    "number": 227,
+    "name": "Tb Staccato",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 99,
+    "category": "Brass"
+  },
+  {
+    "number": 228,
+    "name": "Muted Tb",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 100,
+    "category": "Brass"
+  },
+  {
+    "number": 229,
+    "name": "Bold MuteTb",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 101,
+    "category": "Brass"
+  },
+  {
+    "number": 230,
+    "name": "French Horn",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 102,
+    "category": "Brass"
+  },
+  {
+    "number": 231,
+    "name": "Sop Sax 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 103,
+    "category": "Sax"
+  },
+  {
+    "number": 232,
+    "name": "SopSax1 Soft",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 104,
+    "category": "Sax"
+  },
+  {
+    "number": 233,
+    "name": "Alto Sax 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 105,
+    "category": "Sax"
+  },
+  {
+    "number": 234,
+    "name": "A.Sax 1 Soft",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 106,
+    "category": "Sax"
+  },
+  {
+    "number": 235,
+    "name": "TenorSax 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 107,
+    "category": "Sax"
+  },
+  {
+    "number": 236,
+    "name": "T.Sax 1 Soft",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 108,
+    "category": "Sax"
+  },
+  {
+    "number": 237,
+    "name": "T.Sax Growl",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 109,
+    "category": "Sax"
+  },
+  {
+    "number": 238,
+    "name": "Bari Sax 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 110,
+    "category": "Sax"
+  },
+  {
+    "number": 239,
+    "name": "B.Sax 1 Soft",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 111,
+    "category": "Sax"
+  },
+  {
+    "number": 240,
+    "name": "Oboe 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 112,
+    "category": "Wind"
+  },
+  {
+    "number": 241,
+    "name": "Oboe 2",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 113,
+    "category": "Wind"
+  },
+  {
+    "number": 242,
+    "name": "Bassoon",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 114,
+    "category": "Wind"
+  },
+  {
+    "number": 243,
+    "name": "Clarinet 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 115,
+    "category": "Wind"
+  },
+  {
+    "number": 244,
+    "name": "Clarinet 2",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 116,
+    "category": "Wind"
+  },
+  {
+    "number": 245,
+    "name": "ClassicFlute",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 117,
+    "category": "Flute"
+  },
+  {
+    "number": 246,
+    "name": "Jazz Flute",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 118,
+    "category": "Flute"
+  },
+  {
+    "number": 247,
+    "name": "Piccolo Fl",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 119,
+    "category": "Flute"
+  },
+  {
+    "number": 248,
+    "name": "Pan Flute",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 120,
+    "category": "Flute"
+  },
+  {
+    "number": 249,
+    "name": "Sitar 1",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 121,
+    "category": "Plucked/Stroke"
+  },
+  {
+    "number": 250,
+    "name": "Sitar 2",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 122,
+    "category": "Plucked/Stroke"
+  },
+  {
+    "number": 251,
+    "name": "Elec Sitar",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 123,
+    "category": "Plucked/Stroke"
+  },
+  {
+    "number": 252,
+    "name": "Shakuhachi",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 124,
+    "category": "Flute"
+  },
+  {
+    "number": 253,
+    "name": "UilleanPipes",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 125,
+    "category": "Wind"
+  },
+  {
+    "number": 254,
+    "name": "Bag Pipes",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 126,
+    "category": "Wind"
+  },
+  {
+    "number": 255,
+    "name": "Erhu",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 127,
+    "category": "Strings"
+  },
+  {
+    "number": 256,
+    "name": "AirFromChina",
+    "msb": 89,
+    "lsb": 65,
+    "pc": 128,
+    "category": "Strings"
+  }
+]

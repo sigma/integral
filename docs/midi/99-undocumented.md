@@ -219,6 +219,52 @@ via user storage addresses. They are only available via:
 
 ---
 
+## 3. Preview Trigger
+
+### Purpose
+
+Trigger the built-in phrase preview for any of the 16 parts, equivalent to
+pressing the hardware VOLUME knob. The device plays the phrase associated
+with the tone's Phrase Number parameter.
+
+### Command Format (DT1)
+
+```
+F0 41 <dev> 00 00 64 12 0F 00 20 00 <part> <checksum> F7
+```
+
+| Byte    | Value      | Description |
+|---------|------------|-------------|
+| `<part>` | `00`      | Preview OFF |
+|          | `01`–`10` | Preview parts 1–16 |
+
+### Usage Notes
+
+- **Must send OFF between parts.** Sending a new part preview without
+  stopping the current one does not work properly.
+- The preview mode (SINGLE/CHORD/PHRASE) follows the device's System
+  settings.
+- No response is returned (fire-and-forget DT1).
+
+### Examples
+
+**Preview part 1 (device ID 10H):**
+```
+F0 41 10 00 00 64 12 0F 00 20 00 01 50 F7
+```
+
+**Stop preview:**
+```
+F0 41 10 00 00 64 12 0F 00 20 00 00 51 F7
+```
+
+### Discovery
+
+Discovered by user "Wonderer" on Roland Clan Forums via systematic address
+scanning. Verified working on our device 2026-04-12.
+
+---
+
 ## Future Investigation
 
 - **Expansion board tone catalogs**: SRX, ExSN, ExPCM tones at `0F 00 04 02`

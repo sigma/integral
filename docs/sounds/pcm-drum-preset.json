@@ -1,0 +1,114 @@
+[
+  {
+    "number": 1,
+    "name": "Pop DrumSet 1",
+    "msb": 86,
+    "lsb": 64,
+    "pc": 1,
+    "category": "Drum"
+  },
+  {
+    "number": 2,
+    "name": "Pop DrumSet 2",
+    "msb": 86,
+    "lsb": 64,
+    "pc": 2,
+    "category": "Drum"
+  },
+  {
+    "number": 3,
+    "name": "Power DrumSet",
+    "msb": 86,
+    "lsb": 64,
+    "pc": 3,
+    "category": "Drum"
+  },
+  {
+    "number": 4,
+    "name": "RaveDrumSet",
+    "msb": 86,
+    "lsb": 64,
+    "pc": 4,
+    "category": "Drum"
+  },
+  {
+    "number": 5,
+    "name": "JazzDrumSet2",
+    "msb": 86,
+    "lsb": 64,
+    "pc": 5,
+    "category": "Drum"
+  },
+  {
+    "number": 6,
+    "name": "OrchDrumSet",
+    "msb": 86,
+    "lsb": 64,
+    "pc": 6,
+    "category": "Drum"
+  },
+  {
+    "number": 7,
+    "name": "PowerDrmSet2",
+    "msb": 86,
+    "lsb": 64,
+    "pc": 7,
+    "category": "Drum"
+  },
+  {
+    "number": 8,
+    "name": "PowerRaveSet",
+    "msb": 86,
+    "lsb": 64,
+    "pc": 8,
+    "category": "Drum"
+  },
+  {
+    "number": 9,
+    "name": "XV Pop Kit",
+    "msb": 86,
+    "lsb": 64,
+    "pc": 9,
+    "category": "Drum"
+  },
+  {
+    "number": 10,
+    "name": "XV Rock Kit",
+    "msb": 86,
+    "lsb": 64,
+    "pc": 10,
+    "category": "Drum"
+  },
+  {
+    "number": 11,
+    "name": "XV Jazz Kit",
+    "msb": 86,
+    "lsb": 64,
+    "pc": 11,
+    "category": "Drum"
+  },
+  {
+    "number": 12,
+    "name": "XV Rust Kit",
+    "msb": 86,
+    "lsb": 64,
+    "pc": 12,
+    "category": "Drum"
+  },
+  {
+    "number": 13,
+    "name": "XV WayHipKit",
+    "msb": 86,
+    "lsb": 64,
+    "pc": 13,
+    "category": "Drum"
+  },
+  {
+    "number": 14,
+    "name": "XV Bully Kit",
+    "msb": 86,
+    "lsb": 64,
+    "pc": 14,
+    "category": "Drum"
+  }
+]

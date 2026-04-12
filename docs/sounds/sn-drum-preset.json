@@ -1,0 +1,210 @@
+[
+  {
+    "number": 1,
+    "name": "Session Kit",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 1,
+    "category": "Drum"
+  },
+  {
+    "number": 2,
+    "name": "Studio Kit",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 2,
+    "category": "Drum"
+  },
+  {
+    "number": 3,
+    "name": "Tight Kit",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 3,
+    "category": "Drum"
+  },
+  {
+    "number": 4,
+    "name": "Regular Kit",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 4,
+    "category": "Drum"
+  },
+  {
+    "number": 5,
+    "name": "Dry Funk Kit",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 5,
+    "category": "Drum"
+  },
+  {
+    "number": 6,
+    "name": "Loud Gig",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 6,
+    "category": "Drum"
+  },
+  {
+    "number": 7,
+    "name": "Jazz Kit",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 7,
+    "category": "Drum"
+  },
+  {
+    "number": 8,
+    "name": "Dry Jazz Kit",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 8,
+    "category": "Drum"
+  },
+  {
+    "number": 9,
+    "name": "Jazz Brushes",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 9,
+    "category": "Drum"
+  },
+  {
+    "number": 10,
+    "name": "LA Studio",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 10,
+    "category": "Drum"
+  },
+  {
+    "number": 11,
+    "name": "Medium Room",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 11,
+    "category": "Drum"
+  },
+  {
+    "number": 12,
+    "name": "Vintage Rock",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 12,
+    "category": "Drum"
+  },
+  {
+    "number": 13,
+    "name": "MuffledMaple",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 13,
+    "category": "Drum"
+  },
+  {
+    "number": 14,
+    "name": "Solid Kit",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 14,
+    "category": "Drum"
+  },
+  {
+    "number": 15,
+    "name": "Alternative",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 15,
+    "category": "Drum"
+  },
+  {
+    "number": 16,
+    "name": "80’s Live",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 16,
+    "category": "Drum"
+  },
+  {
+    "number": 17,
+    "name": "Fat Kit",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 17,
+    "category": "Drum"
+  },
+  {
+    "number": 18,
+    "name": "Big Garage",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 18,
+    "category": "Drum"
+  },
+  {
+    "number": 19,
+    "name": "Bit Crash",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 19,
+    "category": "Drum"
+  },
+  {
+    "number": 20,
+    "name": "Lo-Fi Kit",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 20,
+    "category": "Drum"
+  },
+  {
+    "number": 21,
+    "name": "Orchestra",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 21,
+    "category": "Drum"
+  },
+  {
+    "number": 22,
+    "name": "Snare Menu",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 22,
+    "category": "Drum"
+  },
+  {
+    "number": 23,
+    "name": "BD/T/HH Menu",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 23,
+    "category": "Drum"
+  },
+  {
+    "number": 24,
+    "name": "Cymbal Menu",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 24,
+    "category": "Drum"
+  },
+  {
+    "number": 25,
+    "name": "Perc Menu 1",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 25,
+    "category": "Drum"
+  },
+  {
+    "number": 26,
+    "name": "Perc Menu 2",
+    "msb": 88,
+    "lsb": 64,
+    "pc": 26,
+    "category": "Drum"
+  }
+]

@@ -6,6 +6,7 @@
 //!
 //! Reference: `docs/svd/01-container.md`, `docs/svd/04-chunk-types.md`
 
+use std::fmt;
 use thiserror::Error;
 
 // ---------------------------------------------------------------------------
@@ -104,6 +105,30 @@ impl ChunkType {
         }
     }
 
+    /// Kebab-case identifier for CLI filtering.
+    pub fn cli_name(&self) -> &'static str {
+        match self {
+            Self::StudioSet => "studio-set",
+            Self::PcmSynthTone => "pcm-synth",
+            Self::PcmDrumKit => "pcm-drum",
+            Self::SnSynthTone => "sn-synth",
+            Self::SnAcousticTone => "sn-acoustic",
+            Self::SnDrumKit => "sn-drum",
+        }
+    }
+
+    /// Human-readable label.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::StudioSet => "Studio Set",
+            Self::PcmSynthTone => "PCM Synth Tone",
+            Self::PcmDrumKit => "PCM Drum Kit",
+            Self::SnSynthTone => "SN Synth Tone",
+            Self::SnAcousticTone => "SN Acoustic Tone",
+            Self::SnDrumKit => "SN Drum Kit",
+        }
+    }
+
     /// Return the default entry size in bytes for this chunk type.
     pub fn default_entry_size(&self) -> usize {
         match self {
@@ -114,6 +139,66 @@ impl ChunkType {
             Self::SnAcousticTone => 138,
             Self::SnDrumKit => 1006,
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tone Category
+// ---------------------------------------------------------------------------
+
+/// Human-readable names for the Integra-7 tone category values (0–35).
+///
+/// Source: INTEGRA-7 Owner's Manual — Tone Category parameter.
+/// Values 36–127 are undocumented and display as the raw number.
+const TONE_CATEGORY_NAMES: [&str; 36] = [
+    "No assign",           // 0
+    "Ac.Piano",            // 1
+    "E.Piano",             // 2
+    "Organ",               // 3
+    "Other Keyboards",     // 4
+    "Accordion/Harmonica", // 5
+    "Bell/Mallet",         // 6
+    "Ac.Guitar",           // 7
+    "E.Guitar",            // 8
+    "Dist.Guitar",         // 9
+    "Ac.Bass",             // 10
+    "E.Bass",              // 11
+    "Synth Bass",          // 12
+    "Plucked/Stroke",      // 13
+    "Strings",             // 14
+    "Brass",               // 15
+    "Wind",                // 16
+    "Flute",               // 17
+    "Sax",                 // 18
+    "Recorder",            // 19
+    "Vox/Choir",           // 20
+    "Synth Lead",          // 21
+    "Synth Brass",         // 22
+    "Synth Pad/Strings",   // 23
+    "Synth Bellpad",       // 24
+    "Synth PolyKey",       // 25
+    "FX",                  // 26
+    "Synth Seq/Pop",       // 27
+    "Phrase",              // 28
+    "Pulsating",           // 29
+    "Beat&Groove",         // 30
+    "Hit",                 // 31
+    "Sound FX",            // 32
+    "Drums",               // 33
+    "Percussion",          // 34
+    "Combination",         // 35
+];
+
+/// Return the human-readable name for a tone category value.
+///
+/// Returns the name for values 0–35, or `None` for undocumented values.
+pub fn tone_category_name(value: u8) -> Option<&'static str> {
+    TONE_CATEGORY_NAMES.get(value as usize).copied()
+}
+
+impl fmt::Display for ChunkType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.label())
     }
 }
 

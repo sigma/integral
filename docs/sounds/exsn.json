@@ -1,0 +1,1037 @@
+[
+  {
+    "number": 1,
+    "name": "SFX 1",
+    "msb": 88,
+    "lsb": 101,
+    "pc": 1,
+    "category": "Drum",
+    "bank": "ExSN6: SFX"
+  },
+  {
+    "number": 2,
+    "name": "SFX 2",
+    "msb": 88,
+    "lsb": 101,
+    "pc": 2,
+    "category": "Drum",
+    "bank": "ExSN6: SFX"
+  },
+  {
+    "number": 3,
+    "name": "SFX 1 Mono",
+    "msb": 88,
+    "lsb": 101,
+    "pc": 3,
+    "category": "Drum",
+    "bank": "ExSN6: SFX"
+  },
+  {
+    "number": 4,
+    "name": "SFX 2 Mono",
+    "msb": 88,
+    "lsb": 101,
+    "pc": 4,
+    "category": "Drum",
+    "bank": "ExSN6: SFX"
+  },
+  {
+    "number": 5,
+    "name": "SFX Menu 1",
+    "msb": 88,
+    "lsb": 101,
+    "pc": 5,
+    "category": "Drum",
+    "bank": "ExSN6: SFX"
+  },
+  {
+    "number": 6,
+    "name": "SFX Menu 2",
+    "msb": 88,
+    "lsb": 101,
+    "pc": 6,
+    "category": "Drum",
+    "bank": "ExSN6: SFX"
+  },
+  {
+    "number": 7,
+    "name": "SFX Menu 3",
+    "msb": 88,
+    "lsb": 101,
+    "pc": 7,
+    "category": "Drum",
+    "bank": "ExSN6: SFX"
+  },
+  {
+    "number": 1,
+    "name": "YangChin 1",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 1,
+    "category": "Bell/Mallet",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 2,
+    "name": "YangChin 2",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 2,
+    "category": "Bell/Mallet",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 3,
+    "name": "YangChin 3",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 3,
+    "category": "Bell/Mallet",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 4,
+    "name": "Santoor 1",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 4,
+    "category": "Bell/Mallet",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 5,
+    "name": "Santoor 2",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 5,
+    "category": "Bell/Mallet",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 6,
+    "name": "Sarangi",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 6,
+    "category": "Strings",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 7,
+    "name": "Ryuteki",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 7,
+    "category": "Flute",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 8,
+    "name": "Kalimba",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 8,
+    "category": "Plucked/Stroke",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 9,
+    "name": "Kalimba Buzz",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 9,
+    "category": "Plucked/Stroke",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 10,
+    "name": "Tsugaru",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 10,
+    "category": "Plucked/Stroke",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 11,
+    "name": "TsugaruUpPck",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 11,
+    "category": "Plucked/Stroke",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 12,
+    "name": "Sanshin",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 12,
+    "category": "Plucked/Stroke",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 13,
+    "name": "SanshinUpPck",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 13,
+    "category": "Plucked/Stroke",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 14,
+    "name": "Koto",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 14,
+    "category": "Plucked/Stroke",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 15,
+    "name": "Koto Gliss",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 15,
+    "category": "Plucked/Stroke",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 16,
+    "name": "Taisho Koto",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 16,
+    "category": "Plucked/Stroke",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 17,
+    "name": "Tin Whistle",
+    "msb": 89,
+    "lsb": 96,
+    "pc": 17,
+    "category": "Flute",
+    "bank": "ExSN1: Ethnic"
+  },
+  {
+    "number": 1,
+    "name": "Sop Sax 2",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 1,
+    "category": "Sax",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 2,
+    "name": "Alto Sax 2",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 2,
+    "category": "Sax",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 3,
+    "name": "A.Sax Fuzz",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 3,
+    "category": "Sax",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 4,
+    "name": "Tenor Sax 2",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 4,
+    "category": "Sax",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 5,
+    "name": "T.Sax Blow",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 5,
+    "category": "Sax",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 6,
+    "name": "Bari Sax 2",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 6,
+    "category": "Sax",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 7,
+    "name": "Flute 2",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 7,
+    "category": "Flute",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 8,
+    "name": "Bass Cl",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 8,
+    "category": "Wind",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 9,
+    "name": "English Horn",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 9,
+    "category": "Wind",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 10,
+    "name": "Sop Ocarina1",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 10,
+    "category": "Recorder",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 11,
+    "name": "Sop Ocarina2",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 11,
+    "category": "Recorder",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 12,
+    "name": "Alto Ocarina",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 12,
+    "category": "Recorder",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 13,
+    "name": "Bass Ocarina",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 13,
+    "category": "Recorder",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 14,
+    "name": "Sop Recorder",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 14,
+    "category": "Recorder",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 15,
+    "name": "AltoRecorder",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 15,
+    "category": "Recorder",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 16,
+    "name": "TenrRecorder",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 16,
+    "category": "Recorder",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 17,
+    "name": "BassRecorder",
+    "msb": 89,
+    "lsb": 97,
+    "pc": 17,
+    "category": "Recorder",
+    "bank": "ExSN2: Wood Winds"
+  },
+  {
+    "number": 1,
+    "name": "Warm Cutting",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 1,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 2,
+    "name": "LP Clean",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 2,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 3,
+    "name": "LP Chorus",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 3,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 4,
+    "name": "Old Clean",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 4,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 5,
+    "name": "J.B. Goode",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 5,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 6,
+    "name": "60s Surfing",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 6,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 7,
+    "name": "Long Train",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 7,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 8,
+    "name": "Aero Dream",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 8,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 9,
+    "name": "Modern Blues",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 9,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 10,
+    "name": "Contemporary",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 10,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 11,
+    "name": "Progressive",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 11,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 12,
+    "name": "The Fingers",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 12,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 13,
+    "name": "Thumb Octave",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 13,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 14,
+    "name": "Jazz Clean",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 14,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 15,
+    "name": "Smooth Lead",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 15,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 16,
+    "name": "Early Blues",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 16,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 17,
+    "name": "BluesSession",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 17,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 18,
+    "name": "Hecka-Caster",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 18,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 19,
+    "name": "CountryShred",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 19,
+    "category": "E.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 20,
+    "name": "Chorus Lead",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 20,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 21,
+    "name": "Bontique OD",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 21,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 22,
+    "name": "On The HWY",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 22,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 23,
+    "name": "Nu-Punk",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 23,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 24,
+    "name": "Driven Rock",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 24,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 25,
+    "name": "80s RockRiff",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 25,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 26,
+    "name": "The Erupting",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 26,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 27,
+    "name": "Texas Riff",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 27,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 28,
+    "name": "FX Lead",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 28,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 29,
+    "name": "R-Fier Lead",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 29,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 30,
+    "name": "Lead Flanger",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 30,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 31,
+    "name": "Bottom Line",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 31,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 32,
+    "name": "Soakin’Metal",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 32,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 33,
+    "name": "Walking Way",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 33,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 34,
+    "name": "Tone Journey",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 34,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 35,
+    "name": "Phatt Rock",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 35,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 36,
+    "name": "Jungle Guns",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 36,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 37,
+    "name": "Sweet Baby",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 37,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 38,
+    "name": "Baby DS CC18",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 38,
+    "category": "Dist.Guitar",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 39,
+    "name": "Upright Bs",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 39,
+    "category": "Ac.Bass",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 40,
+    "name": "Rockabilly",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 40,
+    "category": "Ac.Bass",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 41,
+    "name": "Jazz Bass 1",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 41,
+    "category": "E.Bass",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 42,
+    "name": "Jazz Bass 2",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 42,
+    "category": "E.Bass",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 43,
+    "name": "Comp JazzBs",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 43,
+    "category": "E.Bass",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 44,
+    "name": "Phaser Jazz1",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 44,
+    "category": "E.Bass",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 45,
+    "name": "Phaser Jazz2",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 45,
+    "category": "E.Bass",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 46,
+    "name": "Slap Jazz",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 46,
+    "category": "E.Bass",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 47,
+    "name": "Rock Bass",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 47,
+    "category": "E.Bass",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 48,
+    "name": "Muted Rock",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 48,
+    "category": "E.Bass",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 49,
+    "name": "Boost Rock",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 49,
+    "category": "E.Bass",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 50,
+    "name": "Drive Bass",
+    "msb": 89,
+    "lsb": 98,
+    "pc": 50,
+    "category": "E.Bass",
+    "bank": "ExSN3: Session"
+  },
+  {
+    "number": 1,
+    "name": "12StringsGtr",
+    "msb": 89,
+    "lsb": 99,
+    "pc": 1,
+    "category": "Ac.Guitar",
+    "bank": "ExSN4: A.Guitar"
+  },
+  {
+    "number": 2,
+    "name": "Deturned12Gt",
+    "msb": 89,
+    "lsb": 99,
+    "pc": 2,
+    "category": "Ac.Guitar",
+    "bank": "ExSN4: A.Guitar"
+  },
+  {
+    "number": 3,
+    "name": "Ukulele",
+    "msb": 89,
+    "lsb": 99,
+    "pc": 3,
+    "category": "Ac.Guitar",
+    "bank": "ExSN4: A.Guitar"
+  },
+  {
+    "number": 4,
+    "name": "UkuleleStrum",
+    "msb": 89,
+    "lsb": 99,
+    "pc": 4,
+    "category": "Ac.Guitar",
+    "bank": "ExSN4: A.Guitar"
+  },
+  {
+    "number": 5,
+    "name": "FingSteelGtr",
+    "msb": 89,
+    "lsb": 99,
+    "pc": 5,
+    "category": "Ac.Guitar",
+    "bank": "ExSN4: A.Guitar"
+  },
+  {
+    "number": 6,
+    "name": "FingStlStrum",
+    "msb": 89,
+    "lsb": 99,
+    "pc": 6,
+    "category": "Ac.Guitar",
+    "bank": "ExSN4: A.Guitar"
+  },
+  {
+    "number": 7,
+    "name": "SoftPckStlGt",
+    "msb": 89,
+    "lsb": 99,
+    "pc": 7,
+    "category": "Ac.Guitar",
+    "bank": "ExSN4: A.Guitar"
+  },
+  {
+    "number": 8,
+    "name": "SftPkStlStrm",
+    "msb": 89,
+    "lsb": 99,
+    "pc": 8,
+    "category": "Ac.Guitar",
+    "bank": "ExSN4: A.Guitar"
+  },
+  {
+    "number": 9,
+    "name": "NylonGt2",
+    "msb": 89,
+    "lsb": 99,
+    "pc": 9,
+    "category": "Ac.Guitar",
+    "bank": "ExSN4: A.Guitar"
+  },
+  {
+    "number": 10,
+    "name": "NylonGt2Strm",
+    "msb": 89,
+    "lsb": 99,
+    "pc": 10,
+    "category": "Ac.Guitar",
+    "bank": "ExSN4: A.Guitar"
+  },
+  {
+    "number": 11,
+    "name": "MandolinGt",
+    "msb": 89,
+    "lsb": 99,
+    "pc": 11,
+    "category": "Ac.Guitar",
+    "bank": "ExSN4: A.Guitar"
+  },
+  {
+    "number": 12,
+    "name": "MandolinStum",
+    "msb": 89,
+    "lsb": 99,
+    "pc": 12,
+    "category": "Ac.Guitar",
+    "bank": "ExSN4: A.Guitar"
+  },
+  {
+    "number": 1,
+    "name": "Flugel Horn",
+    "msb": 89,
+    "lsb": 100,
+    "pc": 1,
+    "category": "Brass",
+    "bank": "ExSN5: Brass"
+  },
+  {
+    "number": 2,
+    "name": "Trumpet 2",
+    "msb": 89,
+    "lsb": 100,
+    "pc": 2,
+    "category": "Brass",
+    "bank": "ExSN5: Brass"
+  },
+  {
+    "number": 3,
+    "name": "Mariachi Tp",
+    "msb": 89,
+    "lsb": 100,
+    "pc": 3,
+    "category": "Brass",
+    "bank": "ExSN5: Brass"
+  },
+  {
+    "number": 4,
+    "name": "Classic Tp",
+    "msb": 89,
+    "lsb": 100,
+    "pc": 4,
+    "category": "Brass",
+    "bank": "ExSN5: Brass"
+  },
+  {
+    "number": 5,
+    "name": "CupMute Tp",
+    "msb": 89,
+    "lsb": 100,
+    "pc": 5,
+    "category": "Brass",
+    "bank": "ExSN5: Brass"
+  },
+  {
+    "number": 6,
+    "name": "StraightMtTp",
+    "msb": 89,
+    "lsb": 100,
+    "pc": 6,
+    "category": "Brass",
+    "bank": "ExSN5: Brass"
+  },
+  {
+    "number": 7,
+    "name": "FrenchHorn2",
+    "msb": 89,
+    "lsb": 100,
+    "pc": 7,
+    "category": "Brass",
+    "bank": "ExSN5: Brass"
+  },
+  {
+    "number": 8,
+    "name": "FHorn2 Stc",
+    "msb": 89,
+    "lsb": 100,
+    "pc": 8,
+    "category": "Brass",
+    "bank": "ExSN5: Brass"
+  },
+  {
+    "number": 9,
+    "name": "Trombone 2",
+    "msb": 89,
+    "lsb": 100,
+    "pc": 9,
+    "category": "Brass",
+    "bank": "ExSN5: Brass"
+  },
+  {
+    "number": 10,
+    "name": "Bass Tb",
+    "msb": 89,
+    "lsb": 100,
+    "pc": 10,
+    "category": "Brass",
+    "bank": "ExSN5: Brass"
+  },
+  {
+    "number": 11,
+    "name": "Tuba",
+    "msb": 89,
+    "lsb": 100,
+    "pc": 11,
+    "category": "Brass",
+    "bank": "ExSN5: Brass"
+  },
+  {
+    "number": 12,
+    "name": "TubaStaccato",
+    "msb": 89,
+    "lsb": 100,
+    "pc": 12,
+    "category": "Brass",
+    "bank": "ExSN5: Brass"
+  }
+]

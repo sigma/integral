@@ -8,10 +8,10 @@ use integral_core::address::{Address, DataSize};
 use integral_core::mfx;
 use integral_core::params;
 use integral_core::sn_synth;
-use integral_core::svd::{ChunkType, SvdChunk, SvdFile};
+use integral_core::svd::{ChunkType, SvdChunk, SvdFile, tone_category_name};
 use integral_core::svd_convert::sysex_to_svd;
 use integral_core::svd_convert::{sns_to_dt1s, svd_to_sysex};
-use integral_core::svd_specs::SNS_TONE_SPEC;
+use integral_core::svd_specs::{SNA_TONE_SPEC, SNS_TONE_SPEC};
 use integral_core::sysex;
 use midir::{MidiInput, MidiOutput};
 
@@ -109,6 +109,18 @@ enum Cli {
     SvdList {
         /// Path to the .SVD file.
         file: PathBuf,
+        /// Filter by chunk type (e.g. "sn-synth", "pcm-drum").
+        #[arg(long, short = 't')]
+        r#type: Option<String>,
+        /// Filter by category number.
+        #[arg(long, short = 'c')]
+        category: Option<u8>,
+        /// Filter by name pattern (case-insensitive substring match).
+        #[arg(long, short = 'n')]
+        name: Option<String>,
+        /// Output format: text (default), json, markdown.
+        #[arg(long, short = 'f', default_value = "text")]
+        format: String,
     },
     /// Validate SVD decode against the device by comparing SysEx reads.
     SvdValidate {
@@ -774,7 +786,13 @@ fn main() -> Result<()> {
             data,
         } => raw_send(&port, Duration::from_secs_f64(timeout), &addr, &data),
         Cli::Monitor { port } => monitor(&port),
-        Cli::SvdList { file } => svd_list(&file),
+        Cli::SvdList {
+            file,
+            r#type,
+            category,
+            name,
+            format,
+        } => svd_list(&file, r#type.as_deref(), category, name.as_deref(), &format),
         Cli::SvdValidate {
             port,
             timeout,
@@ -798,61 +816,198 @@ fn main() -> Result<()> {
     }
 }
 
-fn svd_list(path: &std::path::Path) -> Result<()> {
+#[derive(serde::Serialize)]
+struct SvdEntry {
+    #[serde(rename = "type")]
+    chunk_type: String,
+    index: usize,
+    name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    category: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    category_name: Option<String>,
+}
+
+impl SvdEntry {
+    /// Format the category for display: name if known, raw number otherwise, "—" if absent.
+    fn category_display(&self) -> String {
+        match (self.category, &self.category_name) {
+            (_, Some(name)) => name.clone(),
+            (Some(id), None) => format!("?{id}"),
+            (None, None) => "—".to_string(),
+        }
+    }
+}
+
+/// Extract the patch name from an SVD entry's bitstream.
+fn extract_name(entry: &[u8], name_len: usize) -> String {
+    let mut reader = integral_core::bitstream::BitReader::new(entry);
+    let mut name = String::with_capacity(name_len);
+    for _ in 0..name_len {
+        if let Ok(ch) = reader.read_bits(7) {
+            let ch = ch as u8;
+            name.push(if (32..=127).contains(&ch) {
+                ch as char
+            } else {
+                ' '
+            });
+        }
+    }
+    name.trim_end().to_string()
+}
+
+/// Extract the tone category from an SVD entry, if a spec table is available.
+fn extract_category(entry: &[u8], chunk_type: ChunkType) -> Option<u8> {
+    match chunk_type {
+        ChunkType::SnSynthTone => {
+            let sections = svd_to_sysex(entry, &SNS_TONE_SPEC).ok()?;
+            Some(sections[0][0x36])
+        }
+        ChunkType::SnAcousticTone => {
+            let sections = svd_to_sysex(entry, &SNA_TONE_SPEC).ok()?;
+            Some(sections[0][0x1B])
+        }
+        _ => None,
+    }
+}
+
+fn svd_list(
+    path: &std::path::Path,
+    type_filter: Option<&str>,
+    category_filter: Option<u8>,
+    name_filter: Option<&str>,
+    format: &str,
+) -> Result<()> {
     let data = std::fs::read(path).with_context(|| format!("failed to read {}", path.display()))?;
     let svd =
         SvdFile::parse(&data).with_context(|| format!("failed to parse {}", path.display()))?;
 
+    // Collect entries with metadata.
+    let mut entries: Vec<SvdEntry> = Vec::new();
+
+    for chunk in &svd.chunks {
+        if let Some(tf) = type_filter
+            && chunk.chunk_type.cli_name() != tf
+        {
+            continue;
+        }
+
+        let name_len = match chunk.chunk_type {
+            ChunkType::StudioSet => 16,
+            _ => 12,
+        };
+
+        for (i, raw) in chunk.entries.iter().enumerate() {
+            let name = extract_name(raw, name_len);
+            let category = extract_category(raw, chunk.chunk_type);
+
+            if let Some(cf) = category_filter
+                && category != Some(cf)
+            {
+                continue;
+            }
+            if let Some(nf) = name_filter
+                && !name.to_lowercase().contains(&nf.to_lowercase())
+            {
+                continue;
+            }
+
+            let category_name = category.and_then(tone_category_name).map(str::to_string);
+            entries.push(SvdEntry {
+                chunk_type: chunk.chunk_type.cli_name().to_string(),
+                index: i + 1,
+                name,
+                category,
+                category_name,
+            });
+        }
+    }
+
+    match format {
+        "json" => {
+            println!("{}", serde_json::to_string_pretty(&entries)?);
+        }
+        "markdown" => {
+            print_markdown(&svd, &entries);
+        }
+        _ => {
+            print_text(path, &svd, &entries, type_filter);
+        }
+    }
+
+    Ok(())
+}
+
+fn print_text(
+    path: &std::path::Path,
+    svd: &SvdFile,
+    entries: &[SvdEntry],
+    type_filter: Option<&str>,
+) {
     println!("SVD file: {}", path.display());
     println!("Chunks: {}", svd.chunks.len());
     println!();
 
     for chunk in &svd.chunks {
-        let type_name = match chunk.chunk_type {
-            ChunkType::StudioSet => "Studio Set (PRFb)",
-            ChunkType::PcmSynthTone => "PCM Synth Tone (RFPa)",
-            ChunkType::PcmDrumKit => "PCM Drum Kit (RFRa)",
-            ChunkType::SnSynthTone => "SN Synth Tone (SHPa)",
-            ChunkType::SnAcousticTone => "SN Acoustic Tone (SNTa)",
-            ChunkType::SnDrumKit => "SN Drum Kit (SDKa)",
-        };
-
-        println!(
-            "{}: {} entries ({} bytes/entry)",
-            type_name,
-            chunk.entries.len(),
-            chunk.entry_size
-        );
-
-        // Decode and print patch names for supported types.
-        if chunk.entries.is_empty() {
+        if let Some(tf) = type_filter
+            && chunk.chunk_type.cli_name() != tf
+        {
             continue;
         }
 
-        // Decode names directly from bitstream (7-bit ASCII at start of entry).
-        let name_len = match chunk.chunk_type {
-            ChunkType::StudioSet => 16,
-            _ => 12,
-        };
-        for (i, entry) in chunk.entries.iter().enumerate() {
-            let mut reader = integral_core::bitstream::BitReader::new(entry);
-            let mut name = String::new();
-            for _ in 0..name_len {
-                if let Ok(ch) = reader.read_bits(7) {
-                    let ch = ch as u8;
-                    name.push(if (32..=127).contains(&ch) {
-                        ch as char
-                    } else {
-                        ' '
-                    });
-                }
+        let chunk_entries: Vec<&SvdEntry> = entries
+            .iter()
+            .filter(|e| e.chunk_type == chunk.chunk_type.cli_name())
+            .collect();
+
+        println!(
+            "{} ({}): {} entries ({} bytes/entry)",
+            chunk.chunk_type,
+            std::str::from_utf8(&chunk.chunk_type.to_code()).unwrap_or("????"),
+            chunk.entries.len(),
+            chunk.entry_size,
+        );
+
+        for entry in &chunk_entries {
+            if entry.category.is_some() {
+                println!(
+                    "  {:>3}: {}  [{}]",
+                    entry.index,
+                    entry.name,
+                    entry.category_display()
+                );
+            } else {
+                println!("  {:>3}: {}", entry.index, entry.name);
             }
-            let name = name.trim_end();
-            println!("  {:>3}: {}", i + 1, name);
         }
         println!();
     }
-    Ok(())
+}
+
+fn print_markdown(svd: &SvdFile, entries: &[SvdEntry]) {
+    for chunk in &svd.chunks {
+        let chunk_entries: Vec<&SvdEntry> = entries
+            .iter()
+            .filter(|e| e.chunk_type == chunk.chunk_type.cli_name())
+            .collect();
+
+        if chunk_entries.is_empty() {
+            continue;
+        }
+
+        println!("## {}\n", chunk.chunk_type);
+        println!("| # | Name | Category |");
+        println!("|---|------|----------|");
+        for entry in &chunk_entries {
+            println!(
+                "| {} | {} | {} |",
+                entry.index,
+                entry.name,
+                entry.category_display()
+            );
+        }
+        println!();
+    }
 }
 
 fn svd_import(
