@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:12:40Z",
+  "description": "The midir crate requires alsa-sys on Linux, but flake.nix doesn't provide\nALSA headers. The CLI and any native MIDI functionality will fail to compile\non Linux.\n\nFix: Add pkgs.alsa-lib (or alsa-lib.dev) to devShells conditionally for\nLinux systems. Verify with nix develop on a Linux host.",
+  "id": "i7-q47.15",
+  "labels": [],
+  "parent": "i7-q47",
+  "priority": 2,
+  "status": "open",
+  "title": "Add Linux ALSA dependencies to Nix flake",
+  "type": "task",
+  "updated_at": "2026-04-12T09:12:40Z"
+}
