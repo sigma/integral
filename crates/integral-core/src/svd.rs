@@ -146,53 +146,7 @@ impl ChunkType {
 // Tone Category
 // ---------------------------------------------------------------------------
 
-/// Return the human-readable name for a tone category value.
-///
-/// The mapping is sparse (not sequential 0–N). Values were determined by
-/// reading the Tone Category SysEx parameter from the device for known
-/// factory presets. 31 of 36 categories are verified; 4 are inferred from
-/// gap positions (marked with `*`).
-pub fn tone_category_name(value: u8) -> Option<&'static str> {
-    match value {
-        0 => Some("No assign"), // * inferred
-        1 => Some("Ac.Piano"),
-        5 => Some("E.Piano"),
-        6 => Some("Organ"),
-        10 => Some("Other Keyboards"),
-        12 => Some("Accordion/Harmonica"),
-        14 => Some("Bell/Mallet"),
-        16 => Some("Ac.Guitar"),
-        17 => Some("E.Guitar"),
-        18 => Some("Dist.Guitar"),
-        19 => Some("Ac.Bass"),
-        20 => Some("E.Bass"),
-        21 => Some("Synth Bass"),
-        22 => Some("Plucked/Stroke"),
-        24 => Some("Strings"),
-        26 => Some("Brass"),
-        28 => Some("Wind"),
-        29 => Some("Flute"),
-        30 => Some("Sax"),
-        31 => Some("Recorder"), // * inferred (gap between Sax=30, Vox=32)
-        32 => Some("Vox/Choir"),
-        34 => Some("Synth Lead"),
-        35 => Some("Synth Brass"),
-        36 => Some("Synth Pad/Strings"),
-        37 => Some("Synth Bellpad"),
-        38 => Some("Synth PolyKey"),
-        39 => Some("FX"),
-        40 => Some("Synth Seq/Pop"),
-        41 => Some("Phrase"), // * inferred (gap between Seq=40, Pulsating=42)
-        42 => Some("Pulsating"),
-        43 => Some("Beat&Groove"),
-        44 => Some("Hit"),
-        45 => Some("Sound FX"),
-        46 => Some("Drums"),
-        47 => Some("Percussion"),
-        48 => Some("Combination"), // * inferred (next after Percussion=47)
-        _ => None,
-    }
-}
+include!(concat!(env!("OUT_DIR"), "/tone_category_data.rs"));
 
 impl fmt::Display for ChunkType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

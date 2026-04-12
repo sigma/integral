@@ -686,6 +686,53 @@ pub fn find_tone_bank(msb: u8, lsb: u8) -> Option<WasmToneBank> {
 }
 
 // ---------------------------------------------------------------------------
+// Factory catalog
+// ---------------------------------------------------------------------------
+
+/// Return factory preset tones for a bank as a JSON string.
+///
+/// Returns a JSON array of `{msb, lsb, pc, name, category}` objects,
+/// or `"[]"` for unknown banks. The `pc` values are 0-indexed.
+#[wasm_bindgen(js_name = factoryTonesJson)]
+pub fn factory_tones_json(msb: u8, lsb: u8) -> String {
+    use integral_core::factory_catalog::factory_tones;
+
+    let tones = factory_tones(msb, lsb);
+    if tones.is_empty() {
+        return "[]".to_string();
+    }
+
+    // Manual JSON serialization to avoid serde dependency in the main crate.
+    let mut json = String::from("[");
+    for (i, t) in tones.iter().enumerate() {
+        if i > 0 {
+            json.push(',');
+        }
+        let name = t.name.replace('\\', "\\\\").replace('"', "\\\"");
+        json.push_str(&format!(
+            r#"{{"msb":{},"lsb":{},"pc":{},"name":"{}","category":{}}}"#,
+            t.msb, t.lsb, t.pc, name, t.category
+        ));
+    }
+    json.push(']');
+    json
+}
+
+/// Look up a single factory tone name by bank and PC.
+///
+/// Returns the tone name, or an empty string if not found.
+#[wasm_bindgen(js_name = factoryToneName)]
+pub fn factory_tone_name(msb: u8, lsb: u8, pc: u8) -> String {
+    use integral_core::factory_catalog::factory_tones;
+
+    factory_tones(msb, lsb)
+        .iter()
+        .find(|t| t.pc == pc)
+        .map(|t| t.name.to_string())
+        .unwrap_or_default()
+}
+
+// ---------------------------------------------------------------------------
 // FX parameter definitions
 // ---------------------------------------------------------------------------
 
