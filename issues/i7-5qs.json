@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T05:42:20Z",
+  "description": "Extract all data from ~/Downloads/INTEGRA-7_Sound_List_je01_W.pdf. Use it to pre-populate tone/preset catalogs in the app, reducing dynamic SysEx fetching and improving startup latency.",
+  "id": "i7-5qs",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Extract factory sounds list and pre-populate catalogs",
+  "type": "epic",
+  "updated_at": "2026-04-12T05:42:20Z"
+}
