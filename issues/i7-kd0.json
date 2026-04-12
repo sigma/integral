@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T05:42:15Z",
+  "description": "Replace single-note preview with phrase-based preview (like the iPad app). Research the MIDI mechanism, implement in core, and expose in the web UI.",
+  "id": "i7-kd0",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Preview phrases in webapp",
+  "type": "epic",
+  "updated_at": "2026-04-12T05:42:15Z"
+}
