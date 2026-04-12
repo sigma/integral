@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T05:42:31Z",
+  "description": "Identify gaps or additional context from the owner's manual that supplements the existing docs/midi/ reference. Update docs as needed.",
+  "id": "i7-e3e.2",
+  "labels": [],
+  "parent": "i7-e3e",
+  "priority": 2,
+  "status": "open",
+  "title": "Cross-reference manual with existing MIDI docs",
+  "type": "task",
+  "updated_at": "2026-04-12T05:42:31Z"
+}
