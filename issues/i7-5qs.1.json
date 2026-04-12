@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T05:42:36Z",
+  "description": "Parse ~/Downloads/INTEGRA-7_Sound_List_je01_W.pdf and extract all preset/expansion tone names, categories, bank select values, and program numbers into structured data.",
+  "id": "i7-5qs.1",
+  "labels": [],
+  "parent": "i7-5qs",
+  "priority": 2,
+  "status": "open",
+  "title": "Extract factory sounds list from PDF",
+  "type": "task",
+  "updated_at": "2026-04-12T05:42:36Z"
+}
