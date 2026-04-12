@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:12:54Z",
+  "description": "Hard-coded hex offsets appear throughout without semantic names:\n\nRust:\n- crates/integral-cli/src/main.rs lines 380-388: data.get(0x06), data.get(0x25), etc.\n- crates/integral-core/src/device.rs: THROTTLE_MS=40.0, ECHO_SUPPRESS_MS=150.0 (no source attribution)\n- crates/integral-core/src/sn_drum.rs: SND_FIRST_KEY=27, SND_LAST_KEY=88\n\nWeb:\n- Multiple components use 0x43, 0x44, 0x08, 0x09 without explanation\n\nFix: Define named constants (e.g., PART_RECEIVE_CHANNEL_OFFSET = 0x00,\nPART_MUTE_OFFSET = 0x25) in a shared constants module. Reference Roland\nMIDI Implementation doc section in comments.",
+  "id": "i7-q47.17",
+  "labels": [],
+  "parent": "i7-q47",
+  "priority": 3,
+  "status": "open",
+  "title": "Replace magic numbers with named constants in CLI and web",
+  "type": "task",
+  "updated_at": "2026-04-12T09:12:54Z"
+}
