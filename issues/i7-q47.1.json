@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-q47.18"
+  ],
   "created": "2026-04-12T09:11:30Z",
   "description": "All public methods accepting part indices (u8) in device.rs, wasm/lib.rs, and\nintegra.ts lack bounds checking. A part \u003e= 16 causes array-index panics.\n\nAffected locations:\n- crates/integral-core/src/device.rs: set_part_level(), set_part_pan(), set_part_mute(), etc. (lines 201-246)\n- crates/integral-wasm/src/lib.rs: direct array indexing at lines 1076, 1092, 1132, 1288\n\nFix: Create a PartIndex newtype in integral-core that validates 0..16 at\nconstruction. Propagate through WASM bindings and return JsError for invalid\nindices instead of panicking.",
   "id": "i7-q47.1",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Add PartIndex newtype with bounds validation",
   "type": "task",
-  "updated_at": "2026-04-12T09:11:30Z"
+  "updated_at": "2026-04-12T09:13:03Z"
 }

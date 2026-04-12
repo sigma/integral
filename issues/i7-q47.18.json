@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-q47.1"
+  ],
   "blocks": [],
   "created": "2026-04-12T09:12:58Z",
   "description": "Several WASM entry points accept unvalidated input from JavaScript:\n- handle_dt1() (lib.rs line 879): now_ms could be NaN, negative, or Infinity\n- Multiple methods accept \u0026[u8] without size validation beyond minimal checks\n- No validation that fx data slices match expected sizes (lines 1140-1142)\n\nFix: Add validation at the WASM boundary for:\n- Timestamps: reject NaN/Infinity/negative values\n- Byte slices: validate exact expected sizes, return descriptive JsError\n- Parameter values: validate MIDI 0-127 range where applicable",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Validate WASM boundary inputs (timestamps, byte slices)",
   "type": "task",
-  "updated_at": "2026-04-12T09:12:58Z"
+  "updated_at": "2026-04-12T09:13:03Z"
 }
