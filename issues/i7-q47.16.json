@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:12:45Z",
+  "description": "The tone modules (pcm_synth.rs, pcm_drum.rs, sn_synth.rs, sn_acoustic.rs,\nsn_drum.rs) follow identical patterns:\n- parse_*_common() functions with repetitive field extraction\n- Address builder functions (sna_common_address, sns_common_address, etc.)\n  are boilerplate with only base address differing\n- Parameter offset tables could use a declarative macro\n\nFix: Extract shared parsing helpers. Consider a macro for address builder\ngeneration. Consolidate common parameter extraction patterns.",
+  "id": "i7-q47.16",
+  "labels": [],
+  "parent": "i7-q47",
+  "priority": 3,
+  "status": "open",
+  "title": "Reduce code duplication in tone parsing modules",
+  "type": "task",
+  "updated_at": "2026-04-12T09:12:45Z"
+}
