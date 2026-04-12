@@ -83,6 +83,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
       masterEq: rs.masterEq ?? prev.masterEq,
       surround: rs.surround ?? prev.surround,
       drumCompEq: rs.drumCompEq ?? prev.drumCompEq,
+      previewPart: rs.previewPart ?? 0,
       // UI-only fields preserved from React state.
       selectedPart: prev.selectedPart,
       eqExpanded: prev.eqExpanded,
@@ -352,8 +353,12 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   );
 
   const selectPart = useCallback((part: number) => {
+    if (service && service.device.previewPart() > 0) {
+      service.device.previewStart(part + 1);
+      syncFromRust();
+    }
     setState((prev) => ({ ...prev, selectedPart: part }));
-  }, []);
+  }, [service, syncFromRust]);
 
   const switchStudioSet = useCallback(
     (pc: number) => {
@@ -540,14 +545,10 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   const preview = useCallback(() => {
     if (!service) return;
     const current = stateRef.current;
-    const part = current.parts[current.selectedPart];
-    if (!part) return;
-    const ch = part.receiveChannel;
-    service.sendNoteOn(ch, 60, 100);
-    setTimeout(() => {
-      service.sendNoteOff(ch, 60);
-    }, 500);
-  }, [service]);
+    // Toggle phrase preview for the selected part (1-indexed).
+    service.device.previewToggle(current.selectedPart + 1);
+    syncFromRust();
+  }, [service, syncFromRust]);
 
   return {
     state,

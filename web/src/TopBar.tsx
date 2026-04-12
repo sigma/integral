@@ -7,6 +7,7 @@ interface Props {
   studioSetNames: Map<number, string>;
   selectedPart: PartState;
   selectedPartIndex: number;
+  previewActive: boolean;
   onStudioSetChange: (pc: number) => void;
   onLoadNames: () => void;
   onPreview: () => void;
@@ -50,6 +51,7 @@ export function TopBar({
   onLoadNames,
   onPreview,
   onToneClick,
+  previewActive,
 }: Props) {
   return (
     <div className={css.bar}>
@@ -62,7 +64,10 @@ export function TopBar({
       <span className={css.toneInfo} onClick={onToneClick} style={{ cursor: "pointer" }}>
         Part {selectedPartIndex + 1} : {toneDisplay(selectedPart)}
       </span>
-      <button className={css.previewButton} onClick={onPreview}>
+      <button
+        className={`${css.previewButton} ${previewActive ? css.previewActive : ""}`}
+        onClick={onPreview}
+      >
         PREVIEW
       </button>
     </div>

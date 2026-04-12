@@ -35,3 +35,10 @@
 .previewButton:active {
   background: #4a6a4a;
 }
+
+.previewActive {
+  background: #3a6a3a;
+  color: #90ff90;
+  border-color: #5a9a5a;
+  box-shadow: 0 0 6px rgba(100, 255, 100, 0.3);
+}

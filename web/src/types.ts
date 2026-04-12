@@ -210,6 +210,8 @@ export interface MixerState {
   surround: SurroundState;
   /** Drum Comp+EQ (6 units, assigned to one part). */
   drumCompEq: DrumCompEqState;
+  /** Preview part (0 = off, 1–16 = part being previewed). */
+  previewPart: number;
   /** Whether the EQ section is expanded in all strips. */
   eqExpanded: boolean;
   /** Whether initial state is still loading from the device. */
@@ -251,6 +253,7 @@ export function defaultMixerState(): MixerState {
     masterEq: defaultEqState(),
     surround: defaultSurroundState(),
     drumCompEq: defaultDrumCompEqState(),
+    previewPart: 0,
     eqExpanded: false,
     loading: true,
     studioSetNames: new Map(),
