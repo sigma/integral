@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:12:06Z",
+  "description": "Interactive SVG controls lack accessibility support:\n- EqKnob.tsx: no role='slider', no aria-valuenow, no keyboard support\n- SynthKnob.tsx: same issues\n- PanKnob.tsx: same issues\n- VolumeFader.tsx: pointer-only interaction, no keyboard arrow keys\n- SurroundXYPad.tsx: mouse/touch only, no keyboard navigation\n- No \u003clabel\u003e elements associated with form controls (only \u003cspan\u003e text)\n\nFix: Add role='slider', aria-valuenow, aria-valuemin, aria-valuemax to all knob/fader\nSVGs. Implement keyboard arrow key handling. Associate labels with controls.",
+  "id": "i7-q47.8",
+  "labels": [],
+  "parent": "i7-q47",
+  "priority": 2,
+  "status": "open",
+  "title": "Add accessibility: ARIA labels, keyboard navigation for controls",
+  "type": "task",
+  "updated_at": "2026-04-12T09:12:06Z"
+}
