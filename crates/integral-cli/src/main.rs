@@ -208,11 +208,11 @@ fn open_midi(
             },
             (),
         )
-        .context("failed to connect MIDI input")?;
+        .map_err(|e| anyhow::anyhow!("failed to connect MIDI input: {e}"))?;
 
     let conn_out = midi_out
         .connect(&out_port, "integral-out")
-        .context("failed to connect MIDI output")?;
+        .map_err(|e| anyhow::anyhow!("failed to connect MIDI output: {e}"))?;
 
     Ok((conn_in, conn_out, rx))
 }
@@ -429,7 +429,7 @@ fn write_param(port_pattern: &str, what: &str, part: u8, value: u8) -> Result<()
         .with_context(|| format!("no MIDI output port matching '{port_pattern}'"))?;
     let mut conn_out = midi_out
         .connect(&out_port, "integral-out")
-        .context("failed to connect MIDI output")?;
+        .map_err(|e| anyhow::anyhow!("failed to connect MIDI output: {e}"))?;
 
     let p = part - 1;
     let (addr, display) = match what {
