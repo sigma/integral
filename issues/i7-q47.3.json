@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-q47.2"
+  ],
   "blocks": [],
   "created": "2026-04-12T09:11:40Z",
   "description": "12+ WASM functions use .unwrap_or(JsValue::NULL) for serde_wasm_bindgen::to_value()\nfailures. JS callers cannot distinguish parse-success-with-null from parse-failure.\n\nAffected: crates/integral-wasm/src/lib.rs lines 1332, 1339, 1366, 1399, 1406,\n1478, 1485, 1492, 1499, 1557, 1564, 1571, 1613, 1634.\n\nFix: Change all parse_* WASM exports to return Result\u003cJsValue, JsError\u003e.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Unify WASM error handling: replace unwrap_or(NULL) with Result\u003cT, JsError\u003e",
   "type": "task",
-  "updated_at": "2026-04-12T09:11:40Z"
+  "updated_at": "2026-04-12T09:13:03Z"
 }
