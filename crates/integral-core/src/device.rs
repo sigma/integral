@@ -866,6 +866,51 @@ impl DeviceState {
         )
     }
 
+    // -----------------------------------------------------------------------
+    // Preview
+    // -----------------------------------------------------------------------
+
+    /// Start phrase preview on the given part (1–16).
+    ///
+    /// Sends the undocumented DT1 at `0F 00 20 00` that simulates pressing
+    /// the hardware VOLUME knob. If preview is already active on another
+    /// part, sends OFF first.
+    pub fn preview_start(&mut self, part: u8) {
+        assert!((1..=16).contains(&part), "part must be 1–16");
+        if self.state.preview_part != 0 {
+            self.preview_stop();
+        }
+        self.state.preview_part = part;
+        let addr = Address::new(0x0F, 0x00, 0x20, 0x00);
+        let bytes = sysex::build_dt1(self.device_id, &addr, &[part]);
+        // Use send_raw with a unique key to avoid coalescing with stop.
+        self.send_raw("preview:start", bytes);
+    }
+
+    /// Stop any active phrase preview.
+    pub fn preview_stop(&mut self) {
+        self.state.preview_part = 0;
+        let addr = Address::new(0x0F, 0x00, 0x20, 0x00);
+        let bytes = sysex::build_dt1(self.device_id, &addr, &[0x00]);
+        self.send_raw("preview:stop", bytes);
+    }
+
+    /// Toggle phrase preview for the given part (1–16).
+    ///
+    /// If the same part is already previewing, stops it. Otherwise starts
+    /// preview on the new part.
+    pub fn preview_toggle(&mut self, part: u8) {
+        if self.state.preview_part == part {
+            self.preview_stop();
+        } else {
+            self.preview_start(part);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Requests
+    // -----------------------------------------------------------------------
+
     /// Build an RQ1 to read the studio set PC.
     pub fn build_studio_set_pc_request(&self) -> Vec<u8> {
         sysex::build_rq1(
@@ -947,5 +992,27 @@ mod tests {
         let addr = params::part_address(3, part::PAN);
         assert!(dev.handle_dt1(&addr, &[100], 0.0));
         assert_eq!(dev.state().parts[3].pan, 100);
+    }
+
+    #[test]
+    fn preview_toggle() {
+        let mut dev = DeviceState::new(0x10);
+        assert_eq!(dev.state().preview_part, 0);
+
+        // Start preview on part 1.
+        dev.preview_toggle(1);
+        assert_eq!(dev.state().preview_part, 1);
+        assert_eq!(dev.queue.len(), 1);
+
+        // Toggle same part → stops.
+        dev.preview_toggle(1);
+        assert_eq!(dev.state().preview_part, 0);
+
+        // Toggle different part while another is active.
+        dev.queue.clear();
+        dev.preview_start(3);
+        assert_eq!(dev.state().preview_part, 3);
+        dev.preview_toggle(5);
+        assert_eq!(dev.state().preview_part, 5);
     }
 }

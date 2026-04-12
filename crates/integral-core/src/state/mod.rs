@@ -338,6 +338,8 @@ pub struct MixerState {
     pub drum_comp_eq: DrumCompEqState,
     /// All 64 Studio Set names (indexed 0–63).  Populated via catalog query.
     pub studio_set_names: HashMap<u8, String>,
+    /// Preview part (0 = off, 1–16 = part being previewed).
+    pub preview_part: u8,
 }
 
 impl Default for MixerState {
@@ -356,6 +358,7 @@ impl Default for MixerState {
             surround: SurroundState::default(),
             drum_comp_eq: DrumCompEqState::default(),
             studio_set_names: HashMap::new(),
+            preview_part: 0,
         }
     }
 }
