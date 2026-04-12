@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:11:56Z",
+  "description": "No React Error Boundary wraps the application. Component errors crash the entire\nUI. Additionally, 10+ async operations in useMixer.ts (lines 156-244) silently\nswallow errors with .catch(() =\u003e {}).\n\nFix:\n1. Add Error Boundary components around major UI sections (Mixer, ToneEditor, Surround)\n2. Add a toast/notification system for surfacing MIDI and WASM errors\n3. Replace silent .catch(() =\u003e {}) with proper error logging and user notification",
+  "id": "i7-q47.6",
+  "labels": [],
+  "parent": "i7-q47",
+  "priority": 2,
+  "status": "open",
+  "title": "Add React error boundaries and user-facing error feedback",
+  "type": "task",
+  "updated_at": "2026-04-12T09:11:56Z"
+}
