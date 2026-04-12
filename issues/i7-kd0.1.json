@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-kd0.2"
+  ],
   "created": "2026-04-12T05:42:27Z",
   "description": "Capture MIDI traffic from the iPad app's preview button to identify the SysEx/messages used to trigger phrase playback. Determine which phrases are available and how they're selected.",
   "id": "i7-kd0.1",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Research: reverse-engineer phrase preview MIDI messages",
   "type": "task",
-  "updated_at": "2026-04-12T05:42:27Z"
+  "updated_at": "2026-04-12T05:42:42Z"
 }

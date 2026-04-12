@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-kd0.1"
+  ],
   "blocks": [],
   "created": "2026-04-12T05:42:27Z",
   "description": "Add phrase preview support to the core library based on research findings. Include phrase selection and playback trigger.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Implement phrase preview in integral-core",
   "type": "task",
-  "updated_at": "2026-04-12T05:42:27Z"
+  "updated_at": "2026-04-12T05:42:42Z"
 }
