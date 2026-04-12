@@ -9,6 +9,7 @@
 
 import type { IntegraService } from "./integra";
 import type { ToneBank } from "./toneBanks";
+import { factoryTonesJson } from "../pkg/integral_wasm.js";
 
 export interface ToneEntry {
   msb: number;
@@ -70,15 +71,46 @@ export class ToneCatalog {
   /**
    * Ensure all pages for a bank are fetched. Idempotent — calling
    * again for a complete or in-progress bank is a no-op.
+   *
+   * For preset banks with factory data, pre-populates instantly and
+   * skips the MIDI fetch. For user banks, fetches dynamically.
    */
   fetch(bank: ToneBank): void {
     const key = bankKey(bank);
     if (this.complete.has(key) || this.fetching.has(key)) return;
+
+    // Pre-populate from factory data.
+    const factoryCount = this.populateFactory(bank, key);
+    if (factoryCount > 0) {
+      this.notify(key);
+    }
+
+    // If factory data fully covers this bank, skip MIDI fetch.
+    const expectedCount = bank.lsbs.length * 128;
+    if (factoryCount >= expectedCount) {
+      this.complete.add(key);
+      return;
+    }
+
+    // Otherwise, fetch dynamically (user banks, partial coverage).
     this.fetching.add(key);
     this.fetchPages(bank, key);
   }
 
   // -----------------------------------------------------------------------
+
+  /** Pre-fill cache from compiled-in factory data. Returns count added. */
+  private populateFactory(bank: ToneBank, key: string): number {
+    let count = 0;
+    for (const lsb of bank.lsbs) {
+      const json = factoryTonesJson(bank.msb, lsb);
+      const entries: ToneEntry[] = JSON.parse(json);
+      for (const e of entries) {
+        if (this.addEntry(key, e)) count++;
+      }
+    }
+    return count;
+  }
 
   private async fetchPages(bank: ToneBank, key: string): Promise<void> {
     const lsbSet = new Set(bank.lsbs);

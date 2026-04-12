@@ -11,6 +11,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { IntegraService } from "./integra";
+import { factoryToneName } from "../pkg/integral_wasm.js";
 import {
   defaultMixerState,
   type MixerState,
@@ -313,6 +314,13 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
           if (toneName) {
             service.device.setPartToneName(part, toneName);
             syncFromRust();
+            // Verify against factory catalog.
+            const expected = factoryToneName(msb, lsb, pc);
+            if (expected && expected !== toneName) {
+              console.warn(
+                `[catalog] Part ${part + 1} tone name mismatch: device="${toneName}" factory="${expected}" (MSB=${msb} LSB=${lsb} PC=${pc})`,
+              );
+            }
           }
         });
       }, 300);
