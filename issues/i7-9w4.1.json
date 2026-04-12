@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-2y8.12"
+  ],
   "blocks": [],
   "created": "2026-04-12T06:13:06Z",
   "description": "Once SVD spec tables exist for these chunk types, update svd-list to extract category from them (currently shows null/—).",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "svd-list: add category extraction for PCM Synth, PCM Drum Kit, SN Drum Kit",
   "type": "task",
-  "updated_at": "2026-04-12T06:13:06Z"
+  "updated_at": "2026-04-12T06:13:10Z"
 }
