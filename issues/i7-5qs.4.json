@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T05:42:36Z",
+  "description": "Update the webapp to use pre-populated catalogs by default, falling back to dynamic SysEx queries only for user/expansion content not in the static data.",
+  "id": "i7-5qs.4",
+  "labels": [],
+  "parent": "i7-5qs",
+  "priority": 2,
+  "status": "open",
+  "title": "Fall back to static catalogs in webapp",
+  "type": "task",
+  "updated_at": "2026-04-12T05:42:36Z"
+}
