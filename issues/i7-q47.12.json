@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:12:26Z",
+  "description": "Performance issues in the mixer view:\n1. All 16 ChannelStrip components re-render on any mixer state change because\n   parent doesn't use React.memo (web/src/MixerPage.tsx lines 70-99)\n2. useMixer calls syncFromRust() after every setter (lines 277, 285, 294, 302),\n   causing immediate full state re-read and re-render even for local changes\n3. useMidiKeyboard dependency array includes noteForKey which changes every\n   render due to octave dependency (line 114)\n\nFix: React.memo for ChannelStrip. Debounce syncFromRust(). Stabilize hook deps.",
+  "id": "i7-q47.12",
+  "labels": [],
+  "parent": "i7-q47",
+  "priority": 3,
+  "status": "open",
+  "title": "Optimize MixerPage rendering: memoize ChannelStrip and debounce syncFromRust",
+  "type": "task",
+  "updated_at": "2026-04-12T09:12:26Z"
+}
