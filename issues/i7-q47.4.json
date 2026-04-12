@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-q47.9"
+  ],
   "created": "2026-04-12T09:11:47Z",
   "description": "WASM-generated .d.ts files provide only basic interface declarations. Web\ncomponents resort to 'as any' casts (9+ occurrences) to call WASM methods.\n\nAffected locations:\n- web/src/PcmSynthEditor.tsx lines 302, 342, 367, 410, 455, 464, 473\n- web/src/useMixer.ts lines 72, 154\n\nFix: Ensure wasm-bindgen generates complete TypeScript definitions for all\nexported Rust structs and methods. Create a shared types.ts that mirrors the\nRust serde output. Eliminate all 'as any' casts.",
   "id": "i7-q47.4",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Generate TypeScript types from WASM bindings",
   "type": "task",
-  "updated_at": "2026-04-12T09:11:47Z"
+  "updated_at": "2026-04-12T09:13:03Z"
 }
