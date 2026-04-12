@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-e3e.2"
+  ],
   "created": "2026-04-12T05:42:30Z",
   "description": "Read the PDF and extract key information (parameter explanations, signal flow, effects details, operational guidance) into structured markdown docs.",
   "id": "i7-e3e.1",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Extract and structure owner's manual content",
   "type": "task",
-  "updated_at": "2026-04-12T05:42:30Z"
+  "updated_at": "2026-04-12T05:42:42Z"
 }
