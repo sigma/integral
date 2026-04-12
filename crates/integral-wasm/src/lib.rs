@@ -972,6 +972,32 @@ impl WasmDeviceState {
         self.inner.set_solo_part(value);
     }
 
+    // -- Preview -------------------------------------------------------------
+
+    /// Start phrase preview on the given part (1–16).
+    #[wasm_bindgen(js_name = previewStart)]
+    pub fn preview_start(&mut self, part: u8) {
+        self.inner.preview_start(part);
+    }
+
+    /// Stop any active phrase preview.
+    #[wasm_bindgen(js_name = previewStop)]
+    pub fn preview_stop(&mut self) {
+        self.inner.preview_stop();
+    }
+
+    /// Toggle phrase preview for the given part (1–16).
+    #[wasm_bindgen(js_name = previewToggle)]
+    pub fn preview_toggle(&mut self, part: u8) {
+        self.inner.preview_toggle(part);
+    }
+
+    /// Returns the currently previewing part (0 = off, 1–16 = part).
+    #[wasm_bindgen(js_name = previewPart)]
+    pub fn preview_part(&self) -> u8 {
+        self.inner.state().preview_part
+    }
+
     // -- RQ1 builders (return bytes to send) -------------------------------
 
     #[wasm_bindgen(js_name = buildPartMixerRequest)]
