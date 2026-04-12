@@ -16,7 +16,34 @@ import {
   defaultMixerState,
   type MixerState,
   type PartState,
+  type EqState,
+  type FxState,
+  type SurroundState,
+  type DrumCompEqState,
 } from "./types";
+
+/**
+ * Shape returned by WasmDeviceState.readState() — the Rust MixerState
+ * serialized via serde with camelCase field names.
+ *
+ * This mirrors the Rust `state::MixerState` struct and lets us avoid
+ * `as any` when reading the Rust state snapshot.
+ */
+interface RustMixerState {
+  studioSetName: string;
+  studioSetPC: number;
+  masterLevel: number;
+  soloPart: number;
+  parts: PartState[];
+  chorus: FxState;
+  reverb: FxState;
+  extLevel: number;
+  extMuted: boolean;
+  masterEq: EqState;
+  surround: SurroundState;
+  drumCompEq: DrumCompEqState;
+  previewPart: number;
+}
 
 export interface UseMixerResult {
   state: MixerState;
@@ -69,8 +96,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     if (!service) return;
     // readState() returns a plain JS object matching the Rust MixerState
     // shape (camelCase fields via serde rename).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rs = service.device.readState() as any;
+    const rs = service.device.readState() as RustMixerState;
     setState((prev) => ({
       studioSetName: rs.studioSetName ?? "",
       studioSetPC: rs.studioSetPC ?? 0,
@@ -150,8 +176,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
 
         // Non-blocking loads: tone names
         for (let i = 0; i < 16; i++) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const msb = (dev.readState() as any).parts?.[i]?.toneBankMsb;
+          const msb = (dev.readState() as RustMixerState).parts?.[i]?.toneBankMsb;
           if (msb === undefined) continue;
           svc.requestToneName(i, msb).then((toneName) => {
             if (!isCurrent() || !toneName) return;

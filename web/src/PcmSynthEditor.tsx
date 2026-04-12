@@ -298,9 +298,7 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
           [0x00, 0x00, 0x00, 0x50],
         );
         if (cancelled) return;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const dev = service.device as any;
-        const c = dev.applyPcmsCommon(commonData) as PcmSynthCommon | null;
+        const c = service.device.applyPcmsCommon(commonData) as PcmSynthCommon | null;
         if (c) setCommon(c);
 
         // PMT (0x29 bytes)
@@ -309,7 +307,7 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
           [0x00, 0x00, 0x00, 0x29],
         );
         if (cancelled) return;
-        const p = dev.applyPcmsPmt(pmtData) as PcmSynthPmt | null;
+        const p = service.device.applyPcmsPmt(pmtData) as PcmSynthPmt | null;
         if (p) setPmt(p);
 
         // Common2 (0x3C bytes)
@@ -318,7 +316,7 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
           [0x00, 0x00, 0x00, 0x3C],
         );
         if (cancelled) return;
-        const c2 = dev.applyPcmsCommon2(c2Data) as PcmSynthCommon2 | null;
+        const c2 = service.device.applyPcmsCommon2(c2Data) as PcmSynthCommon2 | null;
         if (c2) setCommon2(c2);
 
         // MFX (0x111 bytes)
@@ -338,8 +336,7 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
             [0x00, 0x00, 0x01, 0x1A],
           );
           if (cancelled) return;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const parsed = (service.device as any).applyPcmsPartial(pData) as PcmSynthPartial | null;
+          const parsed = service.device.applyPcmsPartial(pData) as PcmSynthPartial | null;
           if (parsed) {
             setPartials((prev) => {
               const next = [...prev];
@@ -363,8 +360,7 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
   // ---------------------------------------------------------------------------
   const setCommonParam = useCallback(
     (offset: number, value: number) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (service.device as any).setPcmsCommonParam(partIndex, offset, value);
+      service.device.setPcmsCommonParam(partIndex, offset, value);
       setCommon((prev) => {
         if (!prev) return prev;
         const next = { ...prev };
@@ -406,8 +402,7 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
   // ---------------------------------------------------------------------------
   const setPmtParam = useCallback(
     (offset: number, value: number) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (service.device as any).setPcmsPmtParam(partIndex, offset, value);
+      service.device.setPcmsPmtParam(partIndex, offset, value);
       setPmt((prev) => {
         if (!prev) return prev;
         const next = { ...prev, partialEntries: prev.partialEntries.map((p) => ({ ...p })) };
@@ -451,8 +446,7 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
   // ---------------------------------------------------------------------------
   const setPartialParam = useCallback(
     (partial: number, offset: number, value: number) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (service.device as any).setPcmsPartialParam(partIndex, partial, offset, value);
+      service.device.setPcmsPartialParam(partIndex, partial, offset, value);
       updatePartialField(partial, offset, value);
     },
     [partIndex, service],
@@ -460,8 +454,7 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
 
   const setPartialNib2Param = useCallback(
     (partial: number, offset: number, value: number) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (service.device as any).setPcmsPartialNib2Param(partIndex, partial, offset, value);
+      service.device.setPcmsPartialNib2Param(partIndex, partial, offset, value);
       updatePartialField(partial, offset, value);
     },
     [partIndex, service],
@@ -469,8 +462,7 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
 
   const setPartialNibParam = useCallback(
     (partial: number, offset: number, value: number) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (service.device as any).setPcmsPartialNibParam(partIndex, partial, offset, value);
+      service.device.setPcmsPartialNibParam(partIndex, partial, offset, value);
       updatePartialField(partial, offset, value);
     },
     [partIndex, service],
