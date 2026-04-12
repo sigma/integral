@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:12:33Z",
+  "description": "crates/integral-wasm/src/lib.rs lines 701-718: Manual JSON string building\nwith hand-rolled escaping (only handles backslash and double-quote). Missing\ncontrol character escaping could produce invalid JSON.\n\nFix: Use serde_json::to_string() or serde_wasm_bindgen::to_value() instead\nof manual string concatenation.",
+  "id": "i7-q47.13",
+  "labels": [],
+  "parent": "i7-q47",
+  "priority": 3,
+  "status": "open",
+  "title": "Replace manual JSON construction in WASM with serde_json",
+  "type": "task",
+  "updated_at": "2026-04-12T09:12:33Z"
+}
