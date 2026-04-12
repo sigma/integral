@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T05:42:17Z",
+  "description": "Extract all useful information from ~/Downloads/INTEGRA-7_eng04_W.pdf into structured docs for future reference (parameters, features, operational details not covered by MIDI implementation).",
+  "id": "i7-e3e",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Extract owner's manual reference data",
+  "type": "epic",
+  "updated_at": "2026-04-12T05:42:17Z"
+}
