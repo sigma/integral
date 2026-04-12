@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T05:42:13Z",
+  "description": "Add a subcommand to integral-cli that reads a .svd file and prints its contents in a human-readable format (studio set name, tones, parameters, etc.)",
+  "id": "i7-9w4",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "CLI: svd-list subcommand to display SVD file contents",
+  "type": "task",
+  "updated_at": "2026-04-12T05:42:13Z"
+}
