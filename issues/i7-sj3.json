@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T06:24:27Z",
+  "description": "The owner's manual documents tone categories 0-35. SVD files from expansion packs (e.g. Synth Legends) use values 36-38 which currently display as '?N'. Investigate via iPad app MIDI capture or owner's manual extraction to complete the mapping in tone_category_name().",
+  "id": "i7-sj3",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Identify undocumented tone category values 36+",
+  "type": "task",
+  "updated_at": "2026-04-12T06:24:27Z"
+}
