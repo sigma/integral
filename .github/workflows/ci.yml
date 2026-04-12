@@ -37,6 +37,9 @@ jobs:
       - name: Pack WASM
         run: nix develop -c just pack-wasm
 
+      - name: Install web dependencies
+        run: nix develop -c bash -c "cd web && npm ci"
+
       - name: TypeScript check
         run: nix develop -c just lint-web
 
