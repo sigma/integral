@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:11:16Z",
+  "description": "Global code review findings covering architecture, implementation correctness,\nerror handling, type safety, accessibility, performance, and build infrastructure.\n\nAreas covered:\n- integral-core: validation, error handling, code duplication\n- integral-wasm: boundary safety, error propagation, memory efficiency\n- web frontend: type safety, MIDI robustness, accessibility, performance\n- build infra: CI/CD, cross-platform, Nix pinning",
+  "id": "i7-q47",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Code review: reliability, consistency, and maintainability improvements",
+  "type": "epic",
+  "updated_at": "2026-04-12T09:11:16Z"
+}
