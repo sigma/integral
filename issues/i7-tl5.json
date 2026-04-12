@@ -2,6 +2,7 @@
   "assignee": "unknown",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-12T08:31:47Z",
   "created": "2026-04-12T08:19:08Z",
   "description": "Four tone category values were inferred by gap position, not verified on the device:\n- 0 = No assign (assumed, no factory tone uses this)\n- 31 = Recorder (gap between Sax=30 and Vox/Choir=32)\n- 41 = Phrase (gap between Synth Seq/Pop=40 and Pulsating=42)\n- 48 = Combination (next after Percussion=47)\n\nApproach: create user tones on the device with each of these categories set explicitly, then read back the Tone Category SysEx parameter to confirm the device stores the expected value. The category can be set via DT1 to the temporary tone's Common block (e.g. SN Synth at offset 00 36, SN Acoustic at 00 1B, PCM Synth Common2 at 00 10).\n\nCode to update if values differ: tone_category_name() match arms in crates/integral-core/src/svd.rs (~line 155).",
   "id": "i7-tl5",
@@ -13,7 +14,7 @@
     }
   ],
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Verify inferred tone category values (0, 31, 41, 48)",
   "type": "task",
   "updated_at": "2026-04-12T08:31:47Z"
