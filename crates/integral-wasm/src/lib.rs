@@ -10,6 +10,20 @@ use integral_core::{
 };
 use wasm_bindgen::prelude::*;
 
+/// Maximum valid part index (0–15 for 16 parts).
+const MAX_PART: u8 = 15;
+
+/// Validate a part index, returning a JsError if out of range.
+fn check_part(part: u8) -> Result<(), JsError> {
+    if part > MAX_PART {
+        Err(JsError::new(&format!(
+            "part index {part} out of range (0–{MAX_PART})"
+        )))
+    } else {
+        Ok(())
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Identity
 // ---------------------------------------------------------------------------
@@ -897,43 +911,59 @@ impl WasmDeviceState {
     // -- Part setters ------------------------------------------------------
 
     #[wasm_bindgen(js_name = setPartLevel)]
-    pub fn set_part_level(&mut self, part: u8, value: u8) {
+    pub fn set_part_level(&mut self, part: u8, value: u8) -> Result<(), JsError> {
+        check_part(part)?;
         self.inner.set_part_level(part, value);
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = setPartPan)]
-    pub fn set_part_pan(&mut self, part: u8, value: u8) {
+    pub fn set_part_pan(&mut self, part: u8, value: u8) -> Result<(), JsError> {
+        check_part(part)?;
         self.inner.set_part_pan(part, value);
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = setPartMute)]
-    pub fn set_part_mute(&mut self, part: u8, muted: bool) {
+    pub fn set_part_mute(&mut self, part: u8, muted: bool) -> Result<(), JsError> {
+        check_part(part)?;
         self.inner.set_part_mute(part, muted);
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = togglePartMute)]
-    pub fn toggle_part_mute(&mut self, part: u8) {
+    pub fn toggle_part_mute(&mut self, part: u8) -> Result<(), JsError> {
+        check_part(part)?;
         self.inner.toggle_part_mute(part);
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = setPartChorusSend)]
-    pub fn set_part_chorus_send(&mut self, part: u8, value: u8) {
+    pub fn set_part_chorus_send(&mut self, part: u8, value: u8) -> Result<(), JsError> {
+        check_part(part)?;
         self.inner.set_part_chorus_send(part, value);
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = setPartReverbSend)]
-    pub fn set_part_reverb_send(&mut self, part: u8, value: u8) {
+    pub fn set_part_reverb_send(&mut self, part: u8, value: u8) -> Result<(), JsError> {
+        check_part(part)?;
         self.inner.set_part_reverb_send(part, value);
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = setPartReceiveChannel)]
-    pub fn set_part_receive_channel(&mut self, part: u8, channel: u8) {
+    pub fn set_part_receive_channel(&mut self, part: u8, channel: u8) -> Result<(), JsError> {
+        check_part(part)?;
         self.inner.set_part_receive_channel(part, channel);
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = changePartTone)]
-    pub fn change_part_tone(&mut self, part: u8, msb: u8, lsb: u8, pc: u8) {
+    pub fn change_part_tone(&mut self, part: u8, msb: u8, lsb: u8, pc: u8) -> Result<(), JsError> {
+        check_part(part)?;
         self.inner.change_part_tone(part, msb, lsb, pc);
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = setMasterLevel)]
@@ -944,8 +974,15 @@ impl WasmDeviceState {
     // -- EQ setters --------------------------------------------------------
 
     #[wasm_bindgen(js_name = setPartEqParam)]
-    pub fn set_part_eq_param(&mut self, part: u8, param_offset: u8, value: u8) {
+    pub fn set_part_eq_param(
+        &mut self,
+        part: u8,
+        param_offset: u8,
+        value: u8,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
         self.inner.set_part_eq_param(part, param_offset, value);
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = setMasterEqParam)]
@@ -1071,7 +1108,8 @@ impl WasmDeviceState {
 
     /// Patch the mixer state with a parsed part dump.
     #[wasm_bindgen(js_name = applyPartDump)]
-    pub fn apply_part_dump(&mut self, part: u8, data: &[u8]) {
+    pub fn apply_part_dump(&mut self, part: u8, data: &[u8]) -> Result<(), JsError> {
+        check_part(part)?;
         let parsed = state_parse::parse_part_dump(data);
         let p = &mut self.inner.state_mut().parts[part as usize];
         p.receive_channel = parsed.receive_channel;
@@ -1083,13 +1121,16 @@ impl WasmDeviceState {
         p.muted = parsed.muted;
         p.chorus_send = parsed.chorus_send;
         p.reverb_send = parsed.reverb_send;
+        Ok(())
     }
 
     /// Patch the part EQ with a parsed dump.
     #[wasm_bindgen(js_name = applyPartEqDump)]
-    pub fn apply_part_eq_dump(&mut self, part: u8, data: &[u8]) {
+    pub fn apply_part_eq_dump(&mut self, part: u8, data: &[u8]) -> Result<(), JsError> {
+        check_part(part)?;
         let eq = state_parse::parse_part_eq_dump(data);
         self.inner.state_mut().parts[part as usize].eq = eq;
+        Ok(())
     }
 
     /// Patch the master EQ with a parsed dump.
@@ -1128,8 +1169,10 @@ impl WasmDeviceState {
 
     /// Set a part's tone name.
     #[wasm_bindgen(js_name = setPartToneName)]
-    pub fn set_part_tone_name(&mut self, part: u8, name: &str) {
+    pub fn set_part_tone_name(&mut self, part: u8, name: &str) -> Result<(), JsError> {
+        check_part(part)?;
         self.inner.state_mut().parts[part as usize].tone_name = name.to_string();
+        Ok(())
     }
 
     /// Set chorus state from core bytes.
@@ -1243,33 +1286,41 @@ impl WasmDeviceState {
     }
 
     #[wasm_bindgen(js_name = setPartSurroundLr)]
-    pub fn set_part_surround_lr(&mut self, part: u8, value: u8) {
+    pub fn set_part_surround_lr(&mut self, part: u8, value: u8) -> Result<(), JsError> {
+        check_part(part)?;
         self.inner
             .set_part_surround_param(part, integral_core::params::part_surround::LR, value);
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = setPartSurroundFb)]
-    pub fn set_part_surround_fb(&mut self, part: u8, value: u8) {
+    pub fn set_part_surround_fb(&mut self, part: u8, value: u8) -> Result<(), JsError> {
+        check_part(part)?;
         self.inner
             .set_part_surround_param(part, integral_core::params::part_surround::FB, value);
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = setPartSurroundWidth)]
-    pub fn set_part_surround_width(&mut self, part: u8, value: u8) {
+    pub fn set_part_surround_width(&mut self, part: u8, value: u8) -> Result<(), JsError> {
+        check_part(part)?;
         self.inner.set_part_surround_param(
             part,
             integral_core::params::part_surround::WIDTH,
             value,
         );
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = setPartSurroundAmbienceSend)]
-    pub fn set_part_surround_ambience_send(&mut self, part: u8, value: u8) {
+    pub fn set_part_surround_ambience_send(&mut self, part: u8, value: u8) -> Result<(), JsError> {
+        check_part(part)?;
         self.inner.set_part_surround_param(
             part,
             integral_core::params::part_surround::AMBIENCE_SEND,
             value,
         );
+        Ok(())
     }
 
     /// Apply a parsed 13-byte Motional Surround common dump.
@@ -1284,12 +1335,21 @@ impl WasmDeviceState {
 
     /// Set per-part surround positioning directly.
     #[wasm_bindgen(js_name = applyPartSurround)]
-    pub fn apply_part_surround(&mut self, part: u8, lr: u8, fb: u8, width: u8, ambience_send: u8) {
+    pub fn apply_part_surround(
+        &mut self,
+        part: u8,
+        lr: u8,
+        fb: u8,
+        width: u8,
+        ambience_send: u8,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
         let ps = &mut self.inner.state_mut().surround.parts[part as usize];
         ps.lr = lr;
         ps.fb = fb;
         ps.width = width;
         ps.ambience_send = ambience_send;
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = buildSurroundCommonRequest)]

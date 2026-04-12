@@ -197,49 +197,80 @@ impl DeviceState {
     // Convenience setters (mutate state + queue DT1)
     // -----------------------------------------------------------------------
 
+    /// Number of parts on the INTEGRA-7.
+    pub const NUM_PARTS: u8 = 16;
+
     /// Set a part's level (0–127).
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < 16.
     pub fn set_part_level(&mut self, part: u8, value: u8) {
+        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         self.state.parts[part as usize].level = value;
         let addr = params::part_address(part, part::LEVEL);
         self.send_dt1(&addr, &[value]);
     }
 
     /// Set a part's pan (0–127, 64=centre).
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < 16.
     pub fn set_part_pan(&mut self, part: u8, value: u8) {
+        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         self.state.parts[part as usize].pan = value;
         let addr = params::part_address(part, part::PAN);
         self.send_dt1(&addr, &[value]);
     }
 
     /// Set a part's mute state.
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < 16.
     pub fn set_part_mute(&mut self, part: u8, muted: bool) {
+        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         self.state.parts[part as usize].muted = muted;
         let addr = params::part_address(part, part::MUTE);
         self.send_dt1(&addr, &[u8::from(muted)]);
     }
 
     /// Toggle a part's mute state.
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < 16.
     pub fn toggle_part_mute(&mut self, part: u8) {
+        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         let muted = !self.state.parts[part as usize].muted;
         self.set_part_mute(part, muted);
     }
 
     /// Set a part's chorus send level (0–127).
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < 16.
     pub fn set_part_chorus_send(&mut self, part: u8, value: u8) {
+        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         self.state.parts[part as usize].chorus_send = value;
         let addr = params::part_address(part, part::CHORUS_SEND);
         self.send_dt1(&addr, &[value]);
     }
 
     /// Set a part's reverb send level (0–127).
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < 16.
     pub fn set_part_reverb_send(&mut self, part: u8, value: u8) {
+        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         self.state.parts[part as usize].reverb_send = value;
         let addr = params::part_address(part, part::REVERB_SEND);
         self.send_dt1(&addr, &[value]);
     }
 
     /// Set a part's receive channel (0–15).
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < 16.
     pub fn set_part_receive_channel(&mut self, part: u8, channel: u8) {
+        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         self.state.parts[part as usize].receive_channel = channel;
         let addr = params::part_address(part, part::RECEIVE_CHANNEL);
         self.send_dt1(&addr, &[channel]);
@@ -248,7 +279,11 @@ impl DeviceState {
     /// Change a part's tone (bank select MSB + LSB + PC).
     ///
     /// This enqueues 3 DT1 messages for the tone bank MSB, LSB, and PC.
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < 16.
     pub fn change_part_tone(&mut self, part: u8, msb: u8, lsb: u8, pc: u8) {
+        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         let p = &mut self.state.parts[part as usize];
         p.tone_bank_msb = msb;
         p.tone_bank_lsb = lsb;
@@ -270,7 +305,11 @@ impl DeviceState {
     }
 
     /// Set a Part EQ parameter.
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < 16.
     pub fn set_part_eq_param(&mut self, part: u8, param_offset: u8, value: u8) {
+        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         let eq = &mut self.state.parts[part as usize].eq;
         match param_offset {
             0 => eq.enabled = value == 1,
@@ -759,7 +798,14 @@ impl DeviceState {
     }
 
     /// Set a per-part surround parameter.
+    ///
+    /// # Panics
+    /// Debug-asserts that `part_idx` < 16.
     pub fn set_part_surround_param(&mut self, part_idx: u8, param: [u8; 3], value: u8) {
+        debug_assert!(
+            part_idx < Self::NUM_PARTS,
+            "part index {part_idx} out of range"
+        );
         let ps = &mut self.state.surround.parts[part_idx as usize];
         match param {
             params::part_surround::LR => ps.lr = value,
