@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:12:01Z",
+  "description": "No CI/CD pipeline exists. The project relies entirely on developers running\n'just check' locally.\n\nFix: Add .github/workflows/ci.yml with:\n- Rust fmt-check + clippy + test (native)\n- WASM build verification (wasm32-unknown-unknown)\n- TypeScript type checking (tsc --noEmit)\n- Web build verification (vite build)\n- Nix flake check",
+  "id": "i7-q47.7",
+  "labels": [],
+  "parent": "i7-q47",
+  "priority": 1,
+  "status": "open",
+  "title": "Add CI/CD pipeline",
+  "type": "task",
+  "updated_at": "2026-04-12T09:12:01Z"
+}
