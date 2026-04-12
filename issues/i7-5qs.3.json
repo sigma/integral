@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-5qs.2"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-5qs.4"
+  ],
   "created": "2026-04-12T05:42:36Z",
   "description": "Embed the extracted factory sounds data into the core library so the app can display tone lists without dynamic SysEx fetching.",
   "id": "i7-5qs.3",
