@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:11:35Z",
+  "description": "All tone parse functions (parse_pcms_common, parse_pcmd_common, parse_sns_common,\nparse_sna_common, parse_snd_common) return struct defaults when data is too short\nor malformed. Callers cannot distinguish \"missing data\" from \"actual zero value.\"\n\nAffected files:\n- crates/integral-core/src/pcm_synth.rs, pcm_drum.rs, sn_synth.rs, sn_acoustic.rs, sn_drum.rs\n\nFix: Return Result\u003cT, ParseError\u003e instead of bare T. Update WASM bindings\n(lib.rs lines 1332-1634) to propagate errors as JsError instead of\nunwrap_or(JsValue::NULL).",
+  "id": "i7-q47.2",
+  "labels": [],
+  "parent": "i7-q47",
+  "priority": 2,
+  "status": "open",
+  "title": "Propagate errors from tone parse functions instead of silent defaults",
+  "type": "task",
+  "updated_at": "2026-04-12T09:11:35Z"
+}
