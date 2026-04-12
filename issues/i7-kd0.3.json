@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-kd0.2"
+  ],
   "blocks": [],
   "created": "2026-04-12T05:42:27Z",
   "description": "Expose phrase preview in the React frontend — preview button with phrase selection, replacing or augmenting single-note preview.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Add phrase preview UI to webapp",
   "type": "task",
-  "updated_at": "2026-04-12T05:42:27Z"
+  "updated_at": "2026-04-12T05:42:42Z"
 }
