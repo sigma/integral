@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:12:36Z",
+  "description": "flake.nix uses rust-overlay's stable.latest, meaning the dev environment\ndrifts with each flake update. This can cause silent breakage when a new\nRust version changes behavior.\n\nFix: Pin to a specific version (e.g., rust-bin.stable.'1.94.1'.default)\nto ensure reproducible builds. Update deliberately via PR.",
+  "id": "i7-q47.14",
+  "labels": [],
+  "parent": "i7-q47",
+  "priority": 2,
+  "status": "open",
+  "title": "Pin Rust toolchain version in flake.nix",
+  "type": "task",
+  "updated_at": "2026-04-12T09:12:36Z"
+}
