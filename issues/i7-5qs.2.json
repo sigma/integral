@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [
     "i7-5qs.1"
   ],
@@ -12,8 +12,8 @@
   "labels": [],
   "parent": "i7-5qs",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Design static catalog data format",
   "type": "task",
-  "updated_at": "2026-04-12T05:42:43Z"
+  "updated_at": "2026-04-12T08:38:56Z"
 }
