@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:12:10Z",
+  "description": "Several editor components exceed reasonable single-file size:\n- PcmSynthEditor.tsx: 1474 lines\n- PcmDrumEditor.tsx: 1226 lines\n- SnSynthEditor.tsx: 913 lines\n\nThese monolithic files mix parameter layout, MIDI communication, and UI rendering.\n\nFix: Extract logical sections (Common, MFX, Partial1-4) into separate sub-components.\nEach section should own its parameter reads/writes. The parent editor orchestrates\nlayout and part selection only.",
+  "id": "i7-q47.9",
+  "labels": [],
+  "parent": "i7-q47",
+  "priority": 2,
+  "status": "open",
+  "title": "Break up oversized editor components",
+  "type": "task",
+  "updated_at": "2026-04-12T09:12:10Z"
+}
