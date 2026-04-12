@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:12:17Z",
+  "description": "Knob drag logic is duplicated across 3+ components with slight variations:\n- web/src/EqKnob.tsx lines 38-61\n- web/src/synth-ui/SynthKnob.tsx lines 53-74\n- web/src/PanKnob.tsx\n\nFader drag logic duplicated between:\n- web/src/VolumeFader.tsx lines 44-59\n- web/src/synth-ui/SynthFader.tsx\n\nFix: Extract a shared useDragControl(min, max, sensitivity, onChange) hook.\nAll knob/fader components should consume this hook.",
+  "id": "i7-q47.10",
+  "labels": [],
+  "parent": "i7-q47",
+  "priority": 3,
+  "status": "open",
+  "title": "Extract reusable drag-control hook from duplicated knob/fader logic",
+  "type": "task",
+  "updated_at": "2026-04-12T09:12:17Z"
+}
