@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T05:42:36Z",
+  "description": "Define the format for embedding factory sound catalogs in integral-core (e.g. const arrays, build-time generated code, or embedded JSON).",
+  "id": "i7-5qs.2",
+  "labels": [],
+  "parent": "i7-5qs",
+  "priority": 2,
+  "status": "open",
+  "title": "Design static catalog data format",
+  "type": "task",
+  "updated_at": "2026-04-12T05:42:36Z"
+}
