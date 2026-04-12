@@ -43,6 +43,10 @@
             pkgs.cargo-watch
             pkgs.just
             pkgs.nixfmt
+            pkgs.pkg-config
+          ]
+          ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+            pkgs.alsa-lib
           ];
 
           shellHook = ''
