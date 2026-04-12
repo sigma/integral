@@ -3,12 +3,12 @@
   "blocked_by": [],
   "blocks": [],
   "created": "2026-04-12T06:24:27Z",
-  "description": "The owner's manual documents tone categories 0-35. SVD files from expansion packs (e.g. Synth Legends) use values 36-38 which currently display as '?N'. Investigate via iPad app MIDI capture or owner's manual extraction to complete the mapping in tone_category_name().",
+  "description": "The owner's manual documents tone categories 0-35 in the TONE_CATEGORY_NAMES array at crates/integral-core/src/svd.rs (tone_category_name() function, ~line 155). SVD files from expansion packs (e.g. Synth Legends I7SL.SVD) use values 36-38 which currently display as '?N' in the CLI (see SvdEntry::category_display() in crates/integral-cli/src/main.rs ~line 833).\n\nApproach options:\n- Capture MIDI traffic from the iPad app's category browser to see if it sends/receives category labels\n- Extract from the owner's manual PDF (i7-e3e) — may have a more complete list\n- Empirically map by examining factory presets with known instrument types\n\nOnce identified, extend TONE_CATEGORY_NAMES in svd.rs to cover the full range.",
   "id": "i7-sj3",
   "labels": [],
   "priority": 2,
   "status": "open",
   "title": "Identify undocumented tone category values 36+",
   "type": "task",
-  "updated_at": "2026-04-12T06:24:27Z"
+  "updated_at": "2026-04-12T06:26:20Z"
 }
