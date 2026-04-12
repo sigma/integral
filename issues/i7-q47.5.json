@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-12T09:11:51Z",
+  "description": "The MIDI layer (web/src/midi.ts, web/src/integra.ts) has no:\n- Connection state monitoring (port.closed not watched)\n- Reconnection logic on disconnect\n- Heartbeat/keep-alive detection\n- User-visible error feedback on connection loss\n\nDevice can disconnect silently leaving the UI in a stale state.\n\nFix: Monitor MIDIPort onstatechange events. Implement reconnection with\nexponential backoff. Surface connection state in the UI (DeviceStatus component).",
+  "id": "i7-q47.5",
+  "labels": [],
+  "parent": "i7-q47",
+  "priority": 1,
+  "status": "open",
+  "title": "Add MIDI connection monitoring and reconnection",
+  "type": "task",
+  "updated_at": "2026-04-12T09:11:51Z"
+}
