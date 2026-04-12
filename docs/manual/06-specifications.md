@@ -126,7 +126,10 @@
 
 ## MIDI Implementation Chart Summary
 
-Key points from the MIDI Implementation Chart (full details in `docs/midi/`):
+Key points from the MIDI Implementation Chart (full details in
+[docs/midi/](../midi/README.md) -- specifically
+[channel messages](../midi/02-channel-messages.md) and
+[SysEx protocol](../midi/01-protocol.md)):
 
 - **Mode:** Receives Mode 3 (Omni Off, Poly) and Mode 4 (Omni Off, Mono, M=1)
 - **Note range:** 0-127
@@ -137,6 +140,9 @@ Key points from the MIDI Implementation Chart (full details in `docs/midi/`):
 
 ### Notable CC assignments
 
+See [Channel Messages](../midi/02-channel-messages.md) for full details on
+each CC, including receive conditions and which SysEx parameters they affect.
+
 | CC | Function | Notes |
 |----|----------|-------|
 | 12 | Part L-R position | Motional Surround |
@@ -146,6 +152,12 @@ Key points from the MIDI Implementation Chart (full details in `docs/midi/`):
 | 28 | Ext Part L-R | Motional Surround |
 | 29 | Ext Part F-B | Motional Surround |
 | 30 | Ext Part Ambience Send | Motional Surround |
+| 71 | Resonance | Maps to Part Resonance Offset |
+| 72 | Release Time | Maps to Part Release Offset |
+| 73 | Attack Time | Maps to Part Attack Offset |
+| 74 | Cutoff | Maps to Part Cutoff Offset |
+| 75 | Decay Time | Maps to Part Decay Offset |
+| 76-78 | Vibrato Rate/Depth/Delay | Maps to Part Vibrato offsets |
 | 80-83 | Tone Variation 1-4 | SN-A variation sounds |
-| 91 | Reverb send | |
-| 93 | Chorus send | |
+| 91 | Reverb send | Maps to Part Rev Send Level |
+| 93 | Chorus send | Maps to Part Cho Send Level |

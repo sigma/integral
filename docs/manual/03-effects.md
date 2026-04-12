@@ -1,5 +1,11 @@
 # Effects Routing and Behavior
 
+> **See also:**
+> - [MFX type list and per-type parameters](../params/07-mfx-types.md) — all 67 MFX types
+> - [Chorus/Reverb FX parameter mappings](../midi/11-fx-parameters.md) — type-dependent parameter tables
+> - [Studio Set effects switches](../midi/05-studio-set.md#1-studio-set-common) — Reverb/Chorus/MasterEQ/DrumCompEQ switch addresses
+> - [Part EQ SysEx parameters](../midi/05-studio-set.md#8-studio-set-part-eq-per-part) — per-part EQ address map
+
 ## Effects Overview
 
 The INTEGRA-7 has six categories of effects, each at a different level of the
@@ -76,15 +82,17 @@ flowchart TD
 ## Chorus
 
 - Adds depth and spaciousness to the sound
-- 3 types available
-- Controlled per-part via **Cho Send Level** (set to 0 to bypass)
+- 3 types available: Chorus, Delay, GM2 Chorus (see [Chorus FX parameters](../midi/11-fx-parameters.md#chorus-fx1))
+- Controlled per-part via **Cho Send Level** (set to 0 to bypass) — CC# 93 ([CC reference](../midi/02-channel-messages.md))
+- SysEx base address: `18 00 04 00` ([Studio Set Chorus](../midi/05-studio-set.md#2-studio-set-common-chorus))
 - **Not available when Motional Surround is ON**
 
 ## Reverb
 
 - Simulates concert hall reverberation
-- 6 types available
-- Controlled per-part via **Rev Send Level** (set to 0 to bypass)
+- 6 types available: Room 1, Room 2, Hall 1, Hall 2, Plate, GM2 Reverb (see [Reverb FX parameters](../midi/11-fx-parameters.md#reverb-fx2))
+- Controlled per-part via **Rev Send Level** (set to 0 to bypass) — CC# 91 ([CC reference](../midi/02-channel-messages.md))
+- SysEx base address: `18 00 06 00` ([Studio Set Reverb](../midi/05-studio-set.md#3-studio-set-common-reverb))
 - **Not available when Motional Surround is ON**
 
 ## Master EQ
@@ -93,6 +101,7 @@ flowchart TD
 - 3-band: Low, Mid, High
 - Final stage of the audio chain before output
 - Does not affect B/C/D or INDIVIDUAL 3-8 outputs
+- SysEx base address: `18 00 09 00` ([Studio Set Master EQ](../midi/05-studio-set.md#5-studio-set-master-eq))
 
 ## Motional Surround Interaction
 

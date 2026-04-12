@@ -11,6 +11,11 @@ A Studio Set is the top-level organizational unit. It contains:
 Switching studio sets changes all sounds and settings at once, making them
 ideal for song presets or performance configurations.
 
+> **See also:**
+> - [Studio Set SysEx address map](../midi/05-studio-set.md) — complete parameter addresses (base `18 00 00 00`)
+> - [Studio Set parameter descriptions](../params/01-studio-set.md) — musical meaning of every parameter
+> - [Bank Select for Studio Sets](../midi/03-bank-select-tables.md#studio-sets) — MSB `85`, LSB `0`, PC `1-64`
+
 ## Studio Set Common Settings
 
 ### GENERAL tab
@@ -84,7 +89,8 @@ Per-part 3-band equalizer:
 
 ### KBD tab (Keyboard)
 
-Keyboard split/layer configuration per part:
+Keyboard split/layer configuration per part
+([SysEx offsets `00 1D`-`00 24`](../midi/05-studio-set.md#7-studio-set-part-per-part)):
 
 | Parameter | Description |
 |-----------|-------------|
@@ -109,7 +115,9 @@ layers.
 
 ### MIDI tab
 
-Per-part MIDI receive filters:
+Per-part MIDI receive filters
+([SysEx offsets `00 39`-`00 43`](../midi/05-studio-set.md#7-studio-set-part-per-part),
+see also [Channel Messages reference](../midi/02-channel-messages.md)):
 
 | Parameter | Receives |
 |-----------|----------|
@@ -136,6 +144,13 @@ determines how many voices are guaranteed for each part.
 - Total voice reserve across all parts should not exceed 128
 - Notes beyond the total 128 limit will steal from parts with lower
   voice reserve
+
+> **Implementation note:** Voice Reserve parameters are at SysEx offsets
+> `00 18` through `00 27` in
+> [Studio Set Common](../midi/05-studio-set.md#1-studio-set-common).
+> Range is 0-64, where 64 = FULL. The [params guide](../params/01-studio-set.md)
+> notes that the total across all 16 parts cannot exceed 64 (not 128 as the
+> max polyphony might suggest -- the SysEx range caps at 64 per part).
 
 ## External Part (Ext Part)
 

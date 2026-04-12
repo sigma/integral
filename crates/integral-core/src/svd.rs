@@ -146,54 +146,52 @@ impl ChunkType {
 // Tone Category
 // ---------------------------------------------------------------------------
 
-/// Human-readable names for the Integra-7 tone category values (0–35).
-///
-/// Source: INTEGRA-7 Owner's Manual — Tone Category parameter.
-/// Values 36–127 are undocumented and display as the raw number.
-const TONE_CATEGORY_NAMES: [&str; 36] = [
-    "No assign",           // 0
-    "Ac.Piano",            // 1
-    "E.Piano",             // 2
-    "Organ",               // 3
-    "Other Keyboards",     // 4
-    "Accordion/Harmonica", // 5
-    "Bell/Mallet",         // 6
-    "Ac.Guitar",           // 7
-    "E.Guitar",            // 8
-    "Dist.Guitar",         // 9
-    "Ac.Bass",             // 10
-    "E.Bass",              // 11
-    "Synth Bass",          // 12
-    "Plucked/Stroke",      // 13
-    "Strings",             // 14
-    "Brass",               // 15
-    "Wind",                // 16
-    "Flute",               // 17
-    "Sax",                 // 18
-    "Recorder",            // 19
-    "Vox/Choir",           // 20
-    "Synth Lead",          // 21
-    "Synth Brass",         // 22
-    "Synth Pad/Strings",   // 23
-    "Synth Bellpad",       // 24
-    "Synth PolyKey",       // 25
-    "FX",                  // 26
-    "Synth Seq/Pop",       // 27
-    "Phrase",              // 28
-    "Pulsating",           // 29
-    "Beat&Groove",         // 30
-    "Hit",                 // 31
-    "Sound FX",            // 32
-    "Drums",               // 33
-    "Percussion",          // 34
-    "Combination",         // 35
-];
-
 /// Return the human-readable name for a tone category value.
 ///
-/// Returns the name for values 0–35, or `None` for undocumented values.
+/// The mapping is sparse (not sequential 0–N). Values were determined by
+/// reading the Tone Category SysEx parameter from the device for known
+/// factory presets. 31 of 36 categories are verified; 4 are inferred from
+/// gap positions (marked with `*`).
 pub fn tone_category_name(value: u8) -> Option<&'static str> {
-    TONE_CATEGORY_NAMES.get(value as usize).copied()
+    match value {
+        0 => Some("No assign"), // * inferred
+        1 => Some("Ac.Piano"),
+        5 => Some("E.Piano"),
+        6 => Some("Organ"),
+        10 => Some("Other Keyboards"),
+        12 => Some("Accordion/Harmonica"),
+        14 => Some("Bell/Mallet"),
+        16 => Some("Ac.Guitar"),
+        17 => Some("E.Guitar"),
+        18 => Some("Dist.Guitar"),
+        19 => Some("Ac.Bass"),
+        20 => Some("E.Bass"),
+        21 => Some("Synth Bass"),
+        22 => Some("Plucked/Stroke"),
+        24 => Some("Strings"),
+        26 => Some("Brass"),
+        28 => Some("Wind"),
+        29 => Some("Flute"),
+        30 => Some("Sax"),
+        31 => Some("Recorder"), // * inferred (gap between Sax=30, Vox=32)
+        32 => Some("Vox/Choir"),
+        34 => Some("Synth Lead"),
+        35 => Some("Synth Brass"),
+        36 => Some("Synth Pad/Strings"),
+        37 => Some("Synth Bellpad"),
+        38 => Some("Synth PolyKey"),
+        39 => Some("FX"),
+        40 => Some("Synth Seq/Pop"),
+        41 => Some("Phrase"), // * inferred (gap between Seq=40, Pulsating=42)
+        42 => Some("Pulsating"),
+        43 => Some("Beat&Groove"),
+        44 => Some("Hit"),
+        45 => Some("Sound FX"),
+        46 => Some("Drums"),
+        47 => Some("Percussion"),
+        48 => Some("Combination"), // * inferred (next after Percussion=47)
+        _ => None,
+    }
 }
 
 impl fmt::Display for ChunkType {

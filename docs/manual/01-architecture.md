@@ -12,6 +12,11 @@ Studio Set (top level)
   +-- Ext Part (external audio input or USB audio)
 ```
 
+> **See also:**
+> - [Studio Set SysEx parameters](../midi/05-studio-set.md) — address map for all studio set, part, and EQ parameters
+> - [Studio Set parameter descriptions](../params/01-studio-set.md) — musical meaning of each parameter
+> - [Tone types in detail](02-tone-types.md) — per-type architecture and edit structure
+
 ## Signal Flow
 
 The following diagram shows the complete audio signal path from tone
@@ -70,6 +75,11 @@ flowchart LR
 When Motional Surround is ON, Chorus and Reverb are disabled. The signal
 bypasses the send effects and routes directly through the surround processor.
 
+> **See also:**
+> - [Motional Surround SysEx parameters](../midi/05-studio-set.md#4-studio-set-common-motional-surround) — address `18 00 08 00`
+> - [Effects routing details](03-effects.md) — full effects chain documentation
+> - [Chorus/Reverb FX parameter mappings](../midi/11-fx-parameters.md) — type-dependent parameter tables
+
 ## Memory Model
 
 ```mermaid
@@ -101,6 +111,14 @@ flowchart TD
 | Expansion Virtual Slots | Loaded expansion sound data (SRX, ExSN, ExPCM) | Volatile, reloaded on startup |
 | USB Memory | Backup files, exported sound data (.SVD files) | External storage |
 
+> **SysEx address mapping:**
+> - Temporary Studio Set: `18 00 00 00` ([address map](../midi/04-address-map.md))
+> - Temporary Tone (Part 1-16): `19 00 00 00` through `1C 60 00 00`
+> - System Common: `02 00 00 00`
+> - Setup: `01 00 00 00`
+> - User Studio Set storage (undocumented): `10 00 00 00` / `20 NN 00 00` ([undocumented](../midi/99-undocumented.md))
+> - Preset/User name catalog (undocumented): `0F 00 03 02` ([undocumented](../midi/99-undocumented.md))
+
 ### Important behavior
 
 - Editing always happens in the Temporary Area. You never edit preset or user
@@ -115,8 +133,9 @@ flowchart TD
 
 ### When Motional Surround is OFF
 
-Each part has an **Output Assign** parameter that routes its direct sound to
-one of the output groups:
+Each part has an **Output Assign** parameter (SysEx offset `00 29` within
+[Studio Set Part](../midi/05-studio-set.md#7-studio-set-part-per-part))
+that routes its direct sound to one of the output groups:
 
 | Output | Jacks | Volume knob controls? |
 |--------|-------|----------------------|

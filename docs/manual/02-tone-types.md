@@ -3,7 +3,16 @@
 The INTEGRA-7 has five tone types organized into two families: SuperNATURAL
 and PCM. Each tone includes its own MFX (multi-effect) settings.
 
+> **See also:**
+> - [Bank Select tables](../midi/03-bank-select-tables.md) — MSB/LSB/PC values for selecting each tone type
+> - [MFX type list and parameters](../params/07-mfx-types.md) — all 67 MFX types with per-type parameters
+
 ## SuperNATURAL Acoustic Tone (SN-A)
+
+> **Reference docs:**
+> - [SN-A SysEx address map](../midi/09-supernatural-acoustic-tone.md) — tone offset `02 00 00` within each part
+> - [SN-A parameter descriptions](../params/02-supernatural-acoustic.md) — full instrument list, per-instrument parameters, performance variations
+> - Bank Select: MSB `89`, LSB `0-1` (User), `64-65` (Preset), `96-100` (ExSN1-5) — see [bank tables](../midi/03-bank-select-tables.md)
 
 ```mermaid
 flowchart LR
@@ -35,6 +44,11 @@ flowchart LR
 | MFX CTRL | MIDI control assignments for MFX |
 
 ## SuperNATURAL Synth Tone (SN-S)
+
+> **Reference docs:**
+> - [SN-S SysEx address map](../midi/08-supernatural-synth-tone.md) — tone offset `01 00 00` within each part
+> - [SN-S parameter descriptions](../params/03-supernatural-synth.md) — OSC waveforms, filter modes, LFO, ring mod
+> - Bank Select: MSB `95`, LSB `0-3` (User), `64-72` (Preset) — see [bank tables](../midi/03-bank-select-tables.md)
 
 ```mermaid
 flowchart LR
@@ -74,6 +88,11 @@ flowchart LR
 
 ## SuperNATURAL Drum Kit (SN-D)
 
+> **Reference docs:**
+> - [SN-D SysEx address map](../midi/10-supernatural-drum-kit.md) — tone offset `03 00 00` within each part
+> - [SN-D parameter descriptions](../params/04-supernatural-drum.md) — per-key instruments, COMP+EQ, drum inst list
+> - Bank Select: MSB `88`, LSB `0` (User), `64` (Preset), `101` (ExSN6) — see [bank tables](../midi/03-bank-select-tables.md)
+
 ```mermaid
 flowchart LR
     subgraph "62 Partials"
@@ -109,6 +128,11 @@ flowchart LR
 | MFX / MFX CTRL | Multi-effect and MIDI control |
 
 ## PCM Synth Tone (PCMS)
+
+> **Reference docs:**
+> - [PCMS SysEx address map](../midi/06-pcm-synth-tone.md) — tone offset `00 00 00` within each part
+> - [PCMS parameter descriptions](../params/05-pcm-synth-tone.md) — wave, PMT, TVF/TVA envelopes, matrix control
+> - Bank Select: MSB `87`, LSB `0-1` (User), `64-70` (Preset); MSB `93` (SRX); MSB `97` (ExPCM); MSB `121` (GM2) — see [bank tables](../midi/03-bank-select-tables.md)
 
 ```mermaid
 flowchart LR
@@ -151,6 +175,11 @@ flowchart LR
 | MFX / MFX CTRL | Multi-effect and MIDI control |
 
 ## PCM Drum Kit (PCMD)
+
+> **Reference docs:**
+> - [PCMD SysEx address map](../midi/07-pcm-drum-kit.md) — tone offset `10 00 00` within each part
+> - [PCMD parameter descriptions](../params/06-pcm-drum-kit.md) — per-key waves, WMT layers, COMP+EQ
+> - Bank Select: MSB `86`, LSB `0` (User), `64` (Preset); MSB `92` (SRX); MSB `96` (ExPCM); MSB `120` (GM2) — see [bank tables](../midi/03-bank-select-tables.md)
 
 ```mermaid
 flowchart LR

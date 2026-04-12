@@ -2,7 +2,10 @@
 
 ## Tone Preview
 
-The [VOLUME] knob doubles as a preview trigger when pressed:
+The [VOLUME] knob doubles as a preview trigger when pressed.
+The preview can also be triggered via SysEx -- see
+[undocumented preview trigger](../midi/99-undocumented.md#3-preview-trigger)
+(DT1 at address `0F 00 20 00`).
 
 ### Preview modes
 
@@ -102,6 +105,10 @@ The driver setting requires a System Write and power cycle to take effect.
 
 ## MIDI Signal Flow
 
+> **See also:** [SysEx Protocol Reference](../midi/01-protocol.md) and
+> [Channel Messages Reference](../midi/02-channel-messages.md) for complete
+> MIDI message documentation.
+
 ### USB-MIDI Thru modes
 
 ```mermaid
@@ -140,6 +147,11 @@ and tone settings) as SysEx data to an external MIDI device. Use cases:
 - Cloning settings to another INTEGRA-7
 - Saving settings to a DAW/sequencer as a precaution
 
+> **Protocol:** Bulk dump uses standard DT1 messages with the Temporary
+> Area addresses (`18 00 00 00` for Studio Set, `19 00 00 00`+ for tones).
+> See [SysEx protocol](../midi/01-protocol.md) for packet limits (256 bytes)
+> and inter-packet interval (20 ms).
+
 ## Synchronization
 
 | Parameter | Options | Description |
@@ -149,10 +161,20 @@ and tone settings) as SysEx data to an external MIDI device. Use cases:
 | System Tempo | 20-250 BPM | Ignored in SLAVE mode |
 | Tempo Assign Source | SYSTEM, STUDIO SET | Whether tempo follows system or per-studio-set value |
 
+> **SysEx:** System Clock Source at `00 25`, System Tempo at `00 26`-`00 27`
+> (nibblized), Tempo Assign Source at `00 28` in
+> [System Common](../midi/04-address-map.md). Studio Set Tempo at
+> offset `00 3D` (nibblized) in
+> [Studio Set Common](../midi/05-studio-set.md#1-studio-set-common).
+
 ## Studio Set Control Channel
 
 A dedicated MIDI channel (1-16 or OFF) for switching studio sets via
 Program Change and Bank Select from an external device.
+
+> **SysEx:** System Common offset `00 11` ([address map](../midi/04-address-map.md)).
+> Studio Set bank select uses MSB `85`, LSB `0`, PC `1-64`
+> ([bank tables](../midi/03-bank-select-tables.md#studio-sets)).
 
 ## System Control
 
@@ -161,6 +183,13 @@ volume, tone, etc. across all parts. Options: CC01-95, Pitch Bend, Aftertouch.
 
 Control Source Select determines whether system-level or studio-set-level
 tone controls are used.
+
+> **SysEx:** System Control 1-4 Source at offsets `00 20`-`00 23`, Control
+> Source at `00 24` in [System Common](../midi/04-address-map.md).
+> Studio Set Tone Control 1-4 Source at offsets `00 39`-`00 3C` in
+> [Studio Set Common](../midi/05-studio-set.md#1-studio-set-common).
+> See also [CC messages reference](../midi/02-channel-messages.md) for how
+> MFX Control Source and Matrix Control interact with these settings.
 
 ## GM2 Mode
 
