@@ -14,6 +14,7 @@ import { DeviceSelector } from "./DeviceSelector";
 import {
   Identifying,
   Connected,
+  Disconnected,
   Failed,
   NoDevices,
   MidiError,
@@ -29,7 +30,8 @@ type DeviceStatus =
   | { step: "idle" }
   | { step: "identifying" }
   | { step: "connected"; identity: DeviceIdentity }
-  | { step: "failed"; reason: string };
+  | { step: "failed"; reason: string }
+  | { step: "disconnected" };
 
 export function App() {
   const [midiError, setMidiError] = useState<string | null>(null);
@@ -37,6 +39,7 @@ export function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [status, setStatus] = useState<DeviceStatus>({ step: "idle" });
   const identifyGenRef = useRef(0);
+  const midiAccessRef = useRef<MIDIAccess | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,16 +62,28 @@ export function App() {
       }
       if (cancelled) return;
 
+      midiAccessRef.current = access;
+
       const pairs = getPairedPorts(access);
       setPorts(pairs);
 
       const integra = findIntegraPort(pairs);
       setSelectedId(integra?.id ?? pairs[0]?.id ?? null);
+
+      // Monitor port connect/disconnect events.
+      access.onstatechange = () => {
+        if (cancelled) return;
+        const updatedPairs = getPairedPorts(access);
+        setPorts(updatedPairs);
+      };
     }
 
     init();
     return () => {
       cancelled = true;
+      if (midiAccessRef.current) {
+        midiAccessRef.current.onstatechange = null;
+      }
     };
   }, []);
 
@@ -107,6 +122,21 @@ export function App() {
     const port = ports.find((p) => p.id === selectedId);
     if (port) identify(port);
   }, [ports, selectedId, identify]);
+
+  // Detect port disconnect/reconnect.
+  useEffect(() => {
+    if (!selectedId) return;
+    const portPresent = ports.some((p) => p.id === selectedId);
+
+    if (!portPresent && (status.step === "connected" || status.step === "identifying")) {
+      // Port disappeared while connected — mark disconnected.
+      setStatus({ step: "disconnected" });
+    } else if (portPresent && status.step === "disconnected") {
+      // Port reappeared — auto-reconnect.
+      const port = ports.find((p) => p.id === selectedId);
+      if (port) identify(port);
+    }
+  }, [ports, selectedId, status.step, identify]);
 
   const selectedPort = ports.find((p) => p.id === selectedId);
 
@@ -205,6 +235,8 @@ export function App() {
                 onRetry={handleIdentify}
               />
             )}
+
+            {status.step === "disconnected" && <Disconnected />}
           </>
         )}
       </div>

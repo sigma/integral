@@ -57,6 +57,14 @@ export function Connected({ portName, identity }: ConnectedProps) {
   );
 }
 
+export function Disconnected() {
+  return (
+    <p className={css.warning}>
+      Device disconnected. Waiting for reconnection...
+    </p>
+  );
+}
+
 interface FailedProps {
   portName: string;
   reason: string;
