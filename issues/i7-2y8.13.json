@@ -4,7 +4,9 @@
     "i7-2y8.16",
     "i7-2y8.2"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-9w4.1"
+  ],
   "created": "2026-04-11T16:30:27Z",
   "description": "Add spec tables for PCM Drum Kit (10890 bytes/entry). Derive from docs/midi/07-pcm-drum-kit.md. Common + MFX + 88 key blocks + Common2.",
   "id": "i7-2y8.13",
@@ -14,5 +16,5 @@
   "status": "open",
   "title": "SVD spec tables for PCM Drum Kit (RFRa)",
   "type": "task",
-  "updated_at": "2026-04-11T17:57:27Z"
+  "updated_at": "2026-04-12T06:13:10Z"
 }
