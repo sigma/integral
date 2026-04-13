@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { VolumeFader } from "./VolumeFader";
 import { PanKnob } from "./PanKnob";
 import { EqKnob } from "./EqKnob";
@@ -83,7 +84,7 @@ function compEqToEqState(u: CompEqUnit): EqState {
   };
 }
 
-export function ChannelStrip({
+function ChannelStripInner({
   variant = "part",
   label,
   part,
@@ -318,3 +319,5 @@ export function ChannelStrip({
     </div>
   );
 }
+
+export const ChannelStrip = memo(ChannelStripInner);

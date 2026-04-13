@@ -89,34 +89,40 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   const stateRef = useRef(state);
   stateRef.current = state;
   const loadGenRef = useRef(0);
+  const rafId = useRef(0);
 
   // Sync Rust DeviceState → React state.
   // Preserves UI-only fields (selectedPart, eqExpanded, loading, studioSetNames).
+  // Debounced via requestAnimationFrame so multiple rapid calls within one
+  // frame coalesce into a single state read.
   const syncFromRust = useCallback(() => {
     if (!service) return;
-    // readState() returns a plain JS object matching the Rust MixerState
-    // shape (camelCase fields via serde rename).
-    const rs = service.device.readState() as RustMixerState;
-    setState((prev) => ({
-      studioSetName: rs.studioSetName ?? "",
-      studioSetPC: rs.studioSetPC ?? 0,
-      masterLevel: rs.masterLevel ?? 100,
-      soloPart: rs.soloPart ?? 0,
-      parts: (rs.parts ?? []).map((p: PartState) => p),
-      chorus: rs.chorus ?? prev.chorus,
-      reverb: rs.reverb ?? prev.reverb,
-      extLevel: rs.extLevel ?? 100,
-      extMuted: rs.extMuted ?? false,
-      masterEq: rs.masterEq ?? prev.masterEq,
-      surround: rs.surround ?? prev.surround,
-      drumCompEq: rs.drumCompEq ?? prev.drumCompEq,
-      previewPart: rs.previewPart ?? 0,
-      // UI-only fields preserved from React state.
-      selectedPart: prev.selectedPart,
-      eqExpanded: prev.eqExpanded,
-      loading: prev.loading,
-      studioSetNames: prev.studioSetNames,
-    }));
+    cancelAnimationFrame(rafId.current);
+    rafId.current = requestAnimationFrame(() => {
+      // readState() returns a plain JS object matching the Rust MixerState
+      // shape (camelCase fields via serde rename).
+      const rs = service.device.readState() as RustMixerState;
+      setState((prev) => ({
+        studioSetName: rs.studioSetName ?? "",
+        studioSetPC: rs.studioSetPC ?? 0,
+        masterLevel: rs.masterLevel ?? 100,
+        soloPart: rs.soloPart ?? 0,
+        parts: (rs.parts ?? []).map((p: PartState) => p),
+        chorus: rs.chorus ?? prev.chorus,
+        reverb: rs.reverb ?? prev.reverb,
+        extLevel: rs.extLevel ?? 100,
+        extMuted: rs.extMuted ?? false,
+        masterEq: rs.masterEq ?? prev.masterEq,
+        surround: rs.surround ?? prev.surround,
+        drumCompEq: rs.drumCompEq ?? prev.drumCompEq,
+        previewPart: rs.previewPart ?? 0,
+        // UI-only fields preserved from React state.
+        selectedPart: prev.selectedPart,
+        eqExpanded: prev.eqExpanded,
+        loading: prev.loading,
+        studioSetNames: prev.studioSetNames,
+      }));
+    });
   }, [service]);
 
   // Listen for incoming DT1 — Rust handles echo suppression and state update.
@@ -126,7 +132,10 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     const unsub = service.onDt1(() => {
       syncFromRust();
     });
-    return unsub;
+    return () => {
+      unsub();
+      cancelAnimationFrame(rafId.current);
+    };
   }, [service, syncFromRust]);
 
   // -----------------------------------------------------------------------

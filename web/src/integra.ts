@@ -42,6 +42,25 @@ import {
 } from "../pkg/integral_wasm.js";
 import type { MidiPortPair } from "./midi";
 
+// ---------------------------------------------------------------------------
+// MIDI protocol constants
+// ---------------------------------------------------------------------------
+
+/** SysEx start byte (0xF0). */
+const SYSEX_START = 0xf0;
+
+/** Note On status nibble (0x90). */
+const NOTE_ON = 0x90;
+
+/** Note Off status nibble (0x80). */
+const NOTE_OFF = 0x80;
+
+/** Mask to extract MIDI channel from a status byte. */
+const CHANNEL_MASK = 0x0f;
+
+/** Mask for 7-bit MIDI data values. */
+const DATA_MASK = 0x7f;
+
 /** Timeout for RQ1 responses after the message is actually sent (ms). */
 const REQUEST_TIMEOUT_MS = 2000;
 
@@ -155,7 +174,7 @@ export class IntegraService {
   private handleMidiMessage(event: MIDIMessageEvent): void {
     const raw = event.data;
     if (!raw || raw.length < 14) return;
-    if (raw[0] !== 0xf0) return;
+    if (raw[0] !== SYSEX_START) return;
 
     let parsed;
     try {
@@ -522,7 +541,7 @@ export class IntegraService {
 
       const handler = (event: MIDIMessageEvent) => {
         const raw = event.data;
-        if (!raw || raw.length < 14 || raw[0] !== 0xf0) return;
+        if (!raw || raw.length < 14 || raw[0] !== SYSEX_START) return;
 
         let parsed;
         try {
@@ -591,7 +610,7 @@ export class IntegraService {
 
       const handler = (event: MIDIMessageEvent) => {
         const raw = event.data;
-        if (!raw || raw.length < 14 || raw[0] !== 0xf0) return;
+        if (!raw || raw.length < 14 || raw[0] !== SYSEX_START) return;
 
         let parsed;
         try {
@@ -650,13 +669,13 @@ export class IntegraService {
 
   sendNoteOn(channel: number, note: number, velocity: number): void {
     this.port.output.send(
-      new Uint8Array([0x90 | (channel & 0x0f), note & 0x7f, velocity & 0x7f]),
+      new Uint8Array([NOTE_ON | (channel & CHANNEL_MASK), note & DATA_MASK, velocity & DATA_MASK]),
     );
   }
 
   sendNoteOff(channel: number, note: number): void {
     this.port.output.send(
-      new Uint8Array([0x80 | (channel & 0x0f), note & 0x7f, 0]),
+      new Uint8Array([NOTE_OFF | (channel & CHANNEL_MASK), note & DATA_MASK, 0]),
     );
   }
 }
