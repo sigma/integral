@@ -6,6 +6,7 @@
 use crate::address::{Address, DataSize};
 use crate::mfx::MfxState;
 use crate::params;
+use crate::parse_helpers::{nibble2, parse_ascii_name};
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -156,18 +157,7 @@ pub fn parse_sna_common(data: &[u8]) -> Result<SnAcousticCommon, crate::TonePars
     let mut c = SnAcousticCommon::default();
 
     // Tone Name: bytes 0x00–0x0B
-    c.tone_name = data[0x00..0x0C]
-        .iter()
-        .map(|&b| {
-            if (32..=127).contains(&b) {
-                b as char
-            } else {
-                ' '
-            }
-        })
-        .collect::<String>()
-        .trim_end()
-        .to_string();
+    c.tone_name = parse_ascii_name(data);
 
     // 0x0C–0x0F: reserve
     c.tone_level = data[0x10];
@@ -184,7 +174,7 @@ pub fn parse_sna_common(data: &[u8]) -> Result<SnAcousticCommon, crate::TonePars
     c.category = data[0x1B];
 
     // Phrase Number: nibblized 2 bytes at 0x1C–0x1D
-    c.phrase_number = ((data[0x1C] as u16 & 0x0F) << 4) | (data[0x1D] as u16 & 0x0F);
+    c.phrase_number = nibble2(data, 0x1C);
 
     c.phrase_octave_shift = data[0x1E];
     c.tfx_switch = data[0x1F];

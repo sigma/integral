@@ -7,6 +7,7 @@
 use crate::address::{Address, DataSize};
 use crate::mfx::MfxState;
 use crate::params;
+use crate::parse_helpers::{nibble2, nibble4, parse_ascii_name};
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -755,39 +756,6 @@ pub struct PcmSynthState {
 // Parse functions
 // ---------------------------------------------------------------------------
 
-/// Helper: decode a nibblized 2-byte value from a data slice.
-///
-/// The two consecutive bytes each carry 4 bits of the result.
-fn nibble2(data: &[u8], offset: usize) -> u16 {
-    ((data[offset] as u16 & 0x0F) << 4) | (data[offset + 1] as u16 & 0x0F)
-}
-
-/// Helper: decode a nibblized 4-byte value from a data slice.
-///
-/// The four consecutive bytes each carry 4 bits of the result.
-fn nibble4(data: &[u8], offset: usize) -> u16 {
-    ((data[offset] as u16 & 0x0F) << 12)
-        | ((data[offset + 1] as u16 & 0x0F) << 8)
-        | ((data[offset + 2] as u16 & 0x0F) << 4)
-        | (data[offset + 3] as u16 & 0x0F)
-}
-
-/// Helper: parse a tone name from 12 ASCII bytes, trimming trailing spaces.
-fn parse_tone_name(data: &[u8]) -> String {
-    data[0x00..0x0C]
-        .iter()
-        .map(|&b| {
-            if (32..=127).contains(&b) {
-                b as char
-            } else {
-                ' '
-            }
-        })
-        .collect::<String>()
-        .trim_end()
-        .to_string()
-}
-
 /// Parse a PCM Synth Tone Common dump (0x50 = 80 bytes).
 ///
 /// Offsets follow the MIDI implementation doc (`docs/midi/06-pcm-synth-tone.md`).
@@ -801,7 +769,7 @@ pub fn parse_pcms_common(data: &[u8]) -> Result<PcmSynthCommon, crate::ToneParse
     }
     let mut c = PcmSynthCommon::default();
 
-    c.tone_name = parse_tone_name(data);
+    c.tone_name = parse_ascii_name(data);
     // 0x0C–0x0D: reserved
     c.tone_level = data[0x0E];
     c.tone_pan = data[0x0F];

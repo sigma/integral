@@ -7,6 +7,7 @@
 use crate::address::{Address, DataSize};
 use crate::mfx::MfxState;
 use crate::params;
+use crate::parse_helpers::{nibble2, nibble4, parse_ascii_name};
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -438,35 +439,6 @@ pub struct PcmDrumKitState {
 // Parse helpers
 // ---------------------------------------------------------------------------
 
-/// Helper: decode a nibblized 2-byte value from a data slice.
-fn nibble2(data: &[u8], offset: usize) -> u16 {
-    ((data[offset] as u16 & 0x0F) << 4) | (data[offset + 1] as u16 & 0x0F)
-}
-
-/// Helper: decode a nibblized 4-byte value from a data slice.
-fn nibble4(data: &[u8], offset: usize) -> u16 {
-    ((data[offset] as u16 & 0x0F) << 12)
-        | ((data[offset + 1] as u16 & 0x0F) << 8)
-        | ((data[offset + 2] as u16 & 0x0F) << 4)
-        | (data[offset + 3] as u16 & 0x0F)
-}
-
-/// Helper: parse a name from 12 ASCII bytes, trimming trailing spaces.
-fn parse_name(data: &[u8]) -> String {
-    data[..12]
-        .iter()
-        .map(|&b| {
-            if (32..=127).contains(&b) {
-                b as char
-            } else {
-                ' '
-            }
-        })
-        .collect::<String>()
-        .trim_end()
-        .to_string()
-}
-
 /// Parse a single WMT layer from 29 contiguous bytes.
 fn parse_pcmd_wmt(data: &[u8]) -> PcmDrumWmt {
     let mut w = PcmDrumWmt::default();
@@ -515,7 +487,7 @@ pub fn parse_pcmd_common(data: &[u8]) -> Result<PcmDrumCommon, crate::ToneParseE
         });
     }
     let mut c = PcmDrumCommon::default();
-    c.kit_name = parse_name(data);
+    c.kit_name = parse_ascii_name(data);
     c.kit_level = data[0x0C];
     Ok(c)
 }
@@ -536,7 +508,7 @@ pub fn parse_pcmd_partial(data: &[u8]) -> Result<PcmDrumPartial, crate::TonePars
     let mut p = PcmDrumPartial::default();
 
     // -- Common per-key (linear indices 0-30) --
-    p.partial_name = parse_name(data);
+    p.partial_name = parse_ascii_name(data);
     p.assign_type = data[0x0C];
     p.mute_group = data[0x0D];
     p.level = data[0x0E];

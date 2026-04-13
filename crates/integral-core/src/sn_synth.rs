@@ -7,6 +7,7 @@
 use crate::address::{Address, DataSize};
 use crate::mfx::MfxState;
 use crate::params;
+use crate::parse_helpers::{nibble4, parse_ascii_name};
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -368,18 +369,7 @@ pub fn parse_sns_common(data: &[u8]) -> Result<SnSynthCommon, crate::ToneParseEr
     let mut c = SnSynthCommon::default();
 
     // Tone Name: bytes 0x00–0x0B
-    c.tone_name = data[0x00..0x0C]
-        .iter()
-        .map(|&b| {
-            if (32..=127).contains(&b) {
-                b as char
-            } else {
-                ' '
-            }
-        })
-        .collect::<String>()
-        .trim_end()
-        .to_string();
+    c.tone_name = parse_ascii_name(data);
 
     c.tone_level = data[0x0C];
     // 0x0D–0x0F: reserve (nibblized, 3 bytes) — skip
@@ -410,10 +400,7 @@ pub fn parse_sns_common(data: &[u8]) -> Result<SnSynthCommon, crate::ToneParseEr
     c.tone_category = data[0x36];
 
     // Phrase Number: nibblized 4 bytes at 0x37–0x3A
-    c.phrase_number = ((data[0x37] as u16 & 0x0F) << 12)
-        | ((data[0x38] as u16 & 0x0F) << 8)
-        | ((data[0x39] as u16 & 0x0F) << 4)
-        | (data[0x3A] as u16 & 0x0F);
+    c.phrase_number = nibble4(data, 0x37);
 
     c.phrase_octave_shift = data[0x3B];
     c.unison_size = data[0x3C];
@@ -489,10 +476,7 @@ pub fn parse_sns_partial(data: &[u8]) -> Result<SnSynthPartial, crate::ToneParse
     p.wave_gain = data[0x34];
 
     // Wave Number: nibblized 4 bytes at 0x35–0x38
-    p.wave_number = ((data[0x35] as u16 & 0x0F) << 12)
-        | ((data[0x36] as u16 & 0x0F) << 8)
-        | ((data[0x37] as u16 & 0x0F) << 4)
-        | (data[0x38] as u16 & 0x0F);
+    p.wave_number = nibble4(data, 0x35);
 
     p.hpf_cutoff = data[0x39];
     p.super_saw_detune = data[0x3A];

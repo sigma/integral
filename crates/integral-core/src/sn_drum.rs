@@ -7,6 +7,7 @@
 use crate::address::{Address, DataSize};
 use crate::mfx::MfxState;
 use crate::params;
+use crate::parse_helpers::{nibble4, parse_ascii_name};
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -190,18 +191,7 @@ pub fn parse_snd_common(data: &[u8]) -> Result<SnDrumCommon, crate::ToneParseErr
     let mut c = SnDrumCommon::default();
 
     // Kit Name: bytes 0x00–0x0B
-    c.kit_name = data[0x00..0x0C]
-        .iter()
-        .map(|&b| {
-            if (32..=127).contains(&b) {
-                b as char
-            } else {
-                ' '
-            }
-        })
-        .collect::<String>()
-        .trim_end()
-        .to_string();
+    c.kit_name = parse_ascii_name(data);
 
     c.kit_level = data[0x10];
     c.ambience_level = data[0x11];
@@ -238,10 +228,7 @@ pub fn parse_snd_note(data: &[u8]) -> Result<SnDrumNote, crate::ToneParseError> 
     let mut n = SnDrumNote::default();
 
     // Inst Number: nibblized 4 bytes at 0x00–0x03
-    n.inst_number = ((data[0x00] as u16 & 0x0F) << 12)
-        | ((data[0x01] as u16 & 0x0F) << 8)
-        | ((data[0x02] as u16 & 0x0F) << 4)
-        | (data[0x03] as u16 & 0x0F);
+    n.inst_number = nibble4(data, 0x00);
 
     n.level = data[0x04];
     n.pan = data[0x05];
@@ -249,10 +236,7 @@ pub fn parse_snd_note(data: &[u8]) -> Result<SnDrumNote, crate::ToneParseError> 
     n.reverb_send = data[0x07];
 
     // Tune: nibblized 4 bytes at 0x08–0x0B
-    n.tune = ((data[0x08] as u16 & 0x0F) << 12)
-        | ((data[0x09] as u16 & 0x0F) << 8)
-        | ((data[0x0A] as u16 & 0x0F) << 4)
-        | (data[0x0B] as u16 & 0x0F);
+    n.tune = nibble4(data, 0x08);
 
     n.attack = data[0x0C];
     n.decay = data[0x0D];
