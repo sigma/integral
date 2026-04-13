@@ -77,6 +77,8 @@ export interface PartState {
   chorusSend: number;
   /** Reverb send level (0–127). */
   reverbSend: number;
+  /** Output assign (0=A, 1=B, 2=C, 3=D, 4–11=1–8). */
+  outputAssign: number;
   /** Tone name read from the device. */
   toneName: string;
   /** Per-part EQ settings. */
@@ -231,6 +233,7 @@ export function defaultPartState(): PartState {
     tonePC: 0,
     chorusSend: 0,
     reverbSend: 0,
+    outputAssign: 0,
     receiveChannel: 0,
     toneName: "",
     eq: defaultEqState(),

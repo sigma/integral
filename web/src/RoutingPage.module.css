@@ -1,0 +1,244 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  color: #c0c0e0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Surround override banner */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #2a2010;
+  border-bottom: 1px solid #5a4a20;
+  color: #ffcc44;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* Section wrapper */
+.section {
+  padding: 10px 12px;
+  border-bottom: 1px solid #2a2a4a;
+  flex-shrink: 0;
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #888;
+  margin: 0 0 8px 0;
+}
+
+/* Part routing grid — horizontal scroll */
+.partGrid {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.partCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 80px;
+  max-width: 80px;
+  padding: 6px 4px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.partCol:hover {
+  border-color: #3a3a6a;
+}
+
+.partNum {
+  font-size: 13px;
+  font-weight: 700;
+  color: #888;
+}
+
+.toneType {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #2a2a4a;
+  color: #8888bb;
+  white-space: nowrap;
+}
+
+.toneName {
+  font-size: 10px;
+  color: #4dff4d;
+  opacity: 0.7;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.partSelect {
+  font-size: 12px;
+  width: 56px;
+  background: #2a2a4a;
+  color: #c0c0e0;
+  border: 1px solid #3a3a5a;
+  border-radius: 3px;
+  padding: 2px 2px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.partSelect:focus {
+  border-color: #4a6cf7;
+  outline: none;
+}
+
+/* Send level bars */
+.sendRow {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  padding: 0 2px;
+}
+
+.sendLabel {
+  font-size: 9px;
+  color: #666;
+  width: 22px;
+  flex-shrink: 0;
+}
+
+.sendBarBg {
+  flex: 1;
+  height: 4px;
+  background: #222238;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.sendBarFill {
+  height: 100%;
+  border-radius: 2px;
+}
+
+.sendBarChorus {
+  background: #4a6cf7;
+}
+
+.sendBarReverb {
+  background: #a66ff7;
+}
+
+/* Effects routing bar */
+.fxBar {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.fxCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.fxLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #888;
+  width: 56px;
+  flex-shrink: 0;
+}
+
+.fxType {
+  font-size: 13px;
+  color: #c0c0e0;
+}
+
+.fxOut {
+  font-size: 12px;
+  color: #999;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fxOutValue {
+  color: #4a6cf7;
+  font-weight: 600;
+}
+
+/* Drum Comp+EQ section */
+.compEqGrid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.compEqUnit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+}
+
+.compEqLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #888;
+}
+
+.compEqSelect {
+  font-size: 12px;
+  width: 64px;
+  background: #2a2a4a;
+  color: #c0c0e0;
+  border: 1px solid #3a3a5a;
+  border-radius: 3px;
+  padding: 2px 2px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.compEqSelect:focus {
+  border-color: #4a6cf7;
+  outline: none;
+}
+
+.compEqPart {
+  font-size: 13px;
+  color: #c0c0e0;
+  margin-bottom: 4px;
+}
+
+.dimmed {
+  opacity: 0.4;
+  pointer-events: none;
+}

@@ -141,6 +141,8 @@ pub mod part {
     pub const CHORUS_SEND: [u8; 3] = [0x00, 0x00, 0x27];
     /// Reverb Send Level / CC#91 (0–127).
     pub const REVERB_SEND: [u8; 3] = [0x00, 0x00, 0x28];
+    /// Output Assign (0=A, 1=B, 2=C, 3=D, 4–11=1–8).
+    pub const OUTPUT_ASSIGN: [u8; 3] = [0x00, 0x00, 0x29];
 }
 
 /// Compute the absolute address for a Studio Set Part parameter.
@@ -432,9 +434,9 @@ pub const TONE_SELECTION_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x03);
 
 /// Size for reading the core mixer parameters of a part in one request.
 ///
-/// From offset 00 00 (Receive Channel) through 00 28 (Reverb Send) = 0x29 bytes.
+/// From offset 00 00 (Receive Channel) through 00 29 (Output Assign) = 0x2A bytes.
 /// This allows fetching all mixer-relevant parameters in a single RQ1.
-pub const PART_MIXER_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x29);
+pub const PART_MIXER_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x2A);
 
 #[cfg(test)]
 mod tests {

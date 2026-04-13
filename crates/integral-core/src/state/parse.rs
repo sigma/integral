@@ -2,8 +2,8 @@
 
 use super::{EqState, PartState};
 
-/// Part mixer dump size (0x29 = 41 bytes).
-pub const PART_DUMP_SIZE: usize = 0x29;
+/// Part mixer dump size (0x2A = 42 bytes, through Output Assign at 0x29).
+pub const PART_DUMP_SIZE: usize = 0x2A;
 
 /// Part EQ dump size (8 bytes: switch + 7 band params).
 pub const PART_EQ_DUMP_SIZE: usize = 8;
@@ -29,6 +29,7 @@ pub fn parse_part_dump(data: &[u8]) -> PartState {
     part.muted = data[0x25] == 1;
     part.chorus_send = data[0x27];
     part.reverb_send = data[0x28];
+    part.output_assign = data[0x29];
     part
 }
 
@@ -213,6 +214,7 @@ mod tests {
         data[0x25] = 1; // muted
         data[0x27] = 42; // chorus_send
         data[0x28] = 55; // reverb_send
+        data[0x29] = 3; // output_assign (D)
 
         let part = parse_part_dump(&data);
         assert_eq!(part.receive_channel, 3);
@@ -224,6 +226,7 @@ mod tests {
         assert!(part.muted);
         assert_eq!(part.chorus_send, 42);
         assert_eq!(part.reverb_send, 55);
+        assert_eq!(part.output_assign, 3);
     }
 
     #[test]

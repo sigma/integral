@@ -188,6 +188,11 @@ impl DeviceState {
                 self.state.parts[part_idx as usize].muted = value == 1;
                 return true;
             }
+            let oa_addr = params::part_address(part_idx, part::OUTPUT_ASSIGN);
+            if *address == oa_addr {
+                self.state.parts[part_idx as usize].output_assign = value;
+                return true;
+            }
         }
 
         false
@@ -274,6 +279,17 @@ impl DeviceState {
         self.state.parts[part as usize].receive_channel = channel;
         let addr = params::part_address(part, part::RECEIVE_CHANNEL);
         self.send_dt1(&addr, &[channel]);
+    }
+
+    /// Set a part's output assign (0=A, 1=B, 2=C, 3=D, 4–11=1–8).
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < 16.
+    pub fn set_part_output_assign(&mut self, part: u8, value: u8) {
+        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
+        self.state.parts[part as usize].output_assign = value;
+        let addr = params::part_address(part, part::OUTPUT_ASSIGN);
+        self.send_dt1(&addr, &[value]);
     }
 
     /// Change a part's tone (bank select MSB + LSB + PC).

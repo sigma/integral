@@ -115,6 +115,8 @@ pub struct PartState {
     pub chorus_send: u8,
     /// Reverb send level (0–127).
     pub reverb_send: u8,
+    /// Output assign (0=A, 1=B, 2=C, 3=D, 4–11=Individual 1–8).
+    pub output_assign: u8,
     /// Tone name read from the device.
     pub tone_name: String,
     /// Per-part EQ settings.
@@ -133,6 +135,7 @@ impl Default for PartState {
             receive_channel: 0,
             chorus_send: 0,
             reverb_send: 0,
+            output_assign: 0,
             tone_name: String::new(),
             eq: EqState::default(),
         }

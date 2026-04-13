@@ -992,6 +992,14 @@ impl WasmDeviceState {
         Ok(())
     }
 
+    /// Set a part's output assign (0=A, 1=B, 2=C, 3=D, 4–11=1–8).
+    #[wasm_bindgen(js_name = setPartOutputAssign)]
+    pub fn set_part_output_assign(&mut self, part: u8, value: u8) -> Result<(), JsError> {
+        check_part(part)?;
+        self.inner.set_part_output_assign(part, value);
+        Ok(())
+    }
+
     #[wasm_bindgen(js_name = changePartTone)]
     pub fn change_part_tone(&mut self, part: u8, msb: u8, lsb: u8, pc: u8) -> Result<(), JsError> {
         check_part(part)?;

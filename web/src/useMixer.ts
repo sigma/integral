@@ -53,6 +53,7 @@ export interface UseMixerResult {
   toggleSolo: (part: number) => void;
   changePartTone: (part: number, msb: number, lsb: number, pc: number) => void;
   setPartReceiveChannel: (part: number, channel: number) => void;
+  setPartOutputAssign: (part: number, value: number) => void;
   setPartChorusSend: (part: number, value: number) => void;
   setPartReverbSend: (part: number, value: number) => void;
   setMasterLevel: (value: number) => void;
@@ -383,6 +384,14 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     [service, syncFromRust],
   );
 
+  const setPartOutputAssign = useCallback(
+    (part: number, value: number) => {
+      service?.device.setPartOutputAssign(part, value);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
   const setPartChorusSend = useCallback(
     (part: number, value: number) => {
       service?.device.setPartChorusSend(part, value);
@@ -613,6 +622,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     toggleSolo,
     changePartTone,
     setPartReceiveChannel,
+    setPartOutputAssign,
     setPartChorusSend,
     setPartReverbSend,
     setMasterLevel,

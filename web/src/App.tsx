@@ -22,10 +22,11 @@ import {
 import { MixerPage } from "./MixerPage";
 import { SurroundPage } from "./SurroundPage";
 import { ToneEditorPage } from "./ToneEditorPage";
+import { RoutingPage } from "./RoutingPage";
 import { ErrorBoundary } from "./ErrorBoundary";
 import css from "./App.module.css";
 
-type PageTab = "mixer" | "surround" | "toneEdit";
+type PageTab = "mixer" | "surround" | "routing" | "toneEdit";
 
 type DeviceStatus =
   | { step: "idle" }
@@ -181,6 +182,12 @@ export function App() {
             Surround
           </button>
           <button
+            className={`${css.tab} ${activeTab === "routing" ? css.tabActive : ""}`}
+            onClick={() => setActiveTab("routing")}
+          >
+            Routing
+          </button>
+          <button
             className={`${css.tab} ${activeTab === "toneEdit" ? css.tabActive : ""}`}
             onClick={() => setActiveTab("toneEdit")}
           >
@@ -201,6 +208,11 @@ export function App() {
         {activeTab === "surround" && (
           <ErrorBoundary section="Surround">
             <SurroundPage mixer={mixer} />
+          </ErrorBoundary>
+        )}
+        {activeTab === "routing" && (
+          <ErrorBoundary section="Routing">
+            <RoutingPage mixer={mixer} />
           </ErrorBoundary>
         )}
         {activeTab === "toneEdit" && (
