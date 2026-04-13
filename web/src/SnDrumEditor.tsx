@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import type { IntegraService } from "./integra";
 import {
   SynthKnob,
@@ -353,6 +353,15 @@ export function SnDrumEditor({ partIndex, service }: Props) {
   // Render
   // ---------------------------------------------------------------------------
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const keyOutputAssigns = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const [k, n] of noteCache.current) {
+      m.set(k, n.outputAssign);
+    }
+    return m;
+  }, [noteData, selectedKey]);
+
   if (loading) {
     return <div className={css.loading}>Loading SN-D drum kit data...</div>;
   }
@@ -373,6 +382,7 @@ export function SnDrumEditor({ partIndex, service }: Props) {
             <KeyGrid
               selectedKey={selectedKey}
               onSelect={handleKeySelect}
+              keyOutputAssigns={keyOutputAssigns}
             />
             {noteLoading ? (
               <div className={css.noteLoadingPlaceholder}>Loading note data...</div>
@@ -432,12 +442,25 @@ function CommonPanel({
 // Key selector grid
 // ---------------------------------------------------------------------------
 
+/** Colors for Comp+EQ unit routing indicators (1-6). Index 0 = PART (no color). */
+const CEQ_COLORS = [
+  "",        // 0 = PART
+  "#e74c3c", // C+EQ1
+  "#f39c12", // C+EQ2
+  "#2ecc71", // C+EQ3
+  "#3498db", // C+EQ4
+  "#9b59b6", // C+EQ5
+  "#1abc9c", // C+EQ6
+];
+
 function KeyGrid({
   selectedKey,
   onSelect,
+  keyOutputAssigns,
 }: {
   selectedKey: number;
   onSelect: (key: number) => void;
+  keyOutputAssigns?: Map<number, number>;
 }) {
   const keys: number[] = [];
   for (let k = 27; k <= 88; k++) {
@@ -449,6 +472,8 @@ function KeyGrid({
       {keys.map((k) => {
         const selected = k === selectedKey;
         const black = isBlackKey(k);
+        const oa = keyOutputAssigns?.get(k) ?? 0;
+        const routeColor = CEQ_COLORS[oa] ?? "";
         const className = [
           selected ? css.keyCellSelected : css.keyCell,
           black ? css.keyCellBlack : "",
@@ -458,6 +483,8 @@ function KeyGrid({
             key={k}
             className={className}
             onClick={() => onSelect(k)}
+            style={routeColor ? { borderLeftColor: routeColor, borderLeftWidth: 3 } : undefined}
+            title={oa > 0 ? `→ C+EQ${oa}` : undefined}
           >
             <span className={css.keyNoteName}>{noteName(k)}</span>
             <span className={css.keyNumber}>{k}</span>

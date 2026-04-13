@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import type { IntegraService } from "./integra";
 import {
   SectionPanel,
@@ -278,6 +278,16 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
   // Render
   // ---------------------------------------------------------------------------
 
+  // Build key→outputAssign map from cached notes for key grid color coding.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const keyOutputAssigns = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const [k, n] of noteCache.current) {
+      m.set(k, n.outputAssign);
+    }
+    return m;
+  }, [noteData, selectedKey]);
+
   if (loading) {
     return <div className={css.loading}>Loading PCM drum kit data...</div>;
   }
@@ -298,6 +308,7 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
             <KeyGrid
               selectedKey={selectedKey}
               onSelect={handleKeySelect}
+              keyOutputAssigns={keyOutputAssigns}
             />
             {noteLoading ? (
               <div className={css.noteLoadingPlaceholder}>Loading key data...</div>
