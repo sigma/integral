@@ -185,6 +185,12 @@ export function App() {
           >
             Tone Edit
           </button>
+          <button
+            className={`${css.previewButton} ${mixer.state.previewPart > 0 ? css.previewActive : ""}`}
+            onClick={mixer.preview}
+          >
+            PREVIEW
+          </button>
         </nav>
         {activeTab === "mixer" && <MixerPage mixer={mixer} service={service} />}
         {activeTab === "surround" && <SurroundPage mixer={mixer} />}

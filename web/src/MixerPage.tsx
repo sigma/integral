@@ -46,8 +46,6 @@ export function MixerPage({ mixer, service }: Props) {
         selectedPartIndex={state.selectedPart}
         onStudioSetChange={mixer.switchStudioSet}
         onLoadNames={mixer.loadStudioSetNames}
-        onPreview={mixer.preview}
-        previewActive={state.previewPart > 0}
         onToneClick={() => setToneSelectorOpen(true)}
       />
       <div className={css.controls}>
