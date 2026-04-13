@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useDragControl } from "./useDragControl";
 import css from "./PanKnob.module.css";
 
 interface Props {
@@ -19,34 +19,7 @@ function formatPan(value: number): string {
 }
 
 export function PanKnob({ value, onChange, label = "PAN", style }: Props) {
-  const dragging = useRef(false);
-  const lastY = useRef(0);
-
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    dragging.current = true;
-    lastY.current = e.clientY;
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }, []);
-
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!dragging.current) return;
-      const dy = lastY.current - e.clientY;
-      lastY.current = e.clientY;
-      const newValue = Math.max(0, Math.min(127, Math.round(value + dy)));
-      onChange(newValue);
-    },
-    [value, onChange],
-  );
-
-  const handlePointerUp = useCallback(() => {
-    dragging.current = false;
-  }, []);
-
-  const handleDoubleClick = useCallback(() => {
-    onChange(64); // center
-  }, [onChange]);
-
+  const drag = useDragControl({ value, min: 0, max: 127, defaultValue: 64, onChange });
   const angle = valueToAngle(value);
 
   return (
@@ -61,29 +34,13 @@ export function PanKnob({ value, onChange, label = "PAN", style }: Props) {
         aria-valuemin={0}
         aria-valuemax={127}
         aria-label={label}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onDoubleClick={handleDoubleClick}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowUp" || e.key === "ArrowRight") {
-            e.preventDefault();
-            onChange(Math.min(127, value + (e.shiftKey ? 10 : 1)));
-          } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
-            e.preventDefault();
-            onChange(Math.max(0, value - (e.shiftKey ? 10 : 1)));
-          } else if (e.key === "Home") {
-            e.preventDefault();
-            onChange(0);
-          } else if (e.key === "End") {
-            e.preventDefault();
-            onChange(127);
-          }
-        }}
+        onPointerDown={drag.onPointerDown}
+        onPointerMove={drag.onPointerMove}
+        onPointerUp={drag.onPointerUp}
+        onDoubleClick={drag.onDoubleClick}
+        onKeyDown={drag.onKeyDown}
       >
-        {/* Outer ring */}
         <circle cx="22" cy="22" r="19" fill="none" stroke="#3a3a5a" strokeWidth="1" />
-        {/* Knob body — gradient to look 3D */}
         <defs>
           <radialGradient id="knobGrad" cx="40%" cy="35%">
             <stop offset="0%" stopColor="#888" />
@@ -91,7 +48,6 @@ export function PanKnob({ value, onChange, label = "PAN", style }: Props) {
           </radialGradient>
         </defs>
         <circle cx="22" cy="22" r="16" fill="url(#knobGrad)" />
-        {/* Indicator line */}
         <line
           x1="22"
           y1="22"

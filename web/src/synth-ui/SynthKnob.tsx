@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useDragControl } from "../useDragControl";
 import css from "./SynthKnob.module.css";
 
 interface Props {
@@ -38,8 +38,6 @@ export function SynthKnob({
   size = "sm",
   title,
 }: Props) {
-  const dragging = useRef(false);
-  const lastY = useRef(0);
   const svgSize = size === "lg" ? 72 : 52;
   const cx = svgSize / 2;
   const cy = svgSize / 2;
@@ -50,36 +48,7 @@ export function SynthKnob({
   const angle = valueToAngle(value, min, max);
   const norm = (value - min) / range;
 
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      dragging.current = true;
-      lastY.current = e.clientY;
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    },
-    [],
-  );
-
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!dragging.current) return;
-      const dy = lastY.current - e.clientY;
-      lastY.current = e.clientY;
-      const sensitivity = e.shiftKey ? 0.2 : 1;
-      const newVal = Math.round(
-        Math.max(min, Math.min(max, value + dy * sensitivity)),
-      );
-      onChange(newVal);
-    },
-    [value, min, max, onChange],
-  );
-
-  const handlePointerUp = useCallback(() => {
-    dragging.current = false;
-  }, []);
-
-  const handleDoubleClick = useCallback(() => {
-    onChange(defaultValue);
-  }, [defaultValue, onChange]);
+  const drag = useDragControl({ value, min, max, defaultValue, onChange });
 
   // LED dots
   const leds = [];
@@ -123,25 +92,11 @@ export function SynthKnob({
         aria-valuemin={min}
         aria-valuemax={max}
         aria-label={label}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onDoubleClick={handleDoubleClick}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowUp" || e.key === "ArrowRight") {
-            e.preventDefault();
-            onChange(Math.min(max, value + (e.shiftKey ? 10 : 1)));
-          } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
-            e.preventDefault();
-            onChange(Math.max(min, value - (e.shiftKey ? 10 : 1)));
-          } else if (e.key === "Home") {
-            e.preventDefault();
-            onChange(min);
-          } else if (e.key === "End") {
-            e.preventDefault();
-            onChange(max);
-          }
-        }}
+        onPointerDown={drag.onPointerDown}
+        onPointerMove={drag.onPointerMove}
+        onPointerUp={drag.onPointerUp}
+        onDoubleClick={drag.onDoubleClick}
+        onKeyDown={drag.onKeyDown}
       >
         {/* LED arc */}
         {leds}

@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useDragControl } from "./useDragControl";
 import css from "./EqKnob.module.css";
 
 interface Props {
@@ -28,46 +28,10 @@ export function EqKnob({
   color = "#888",
   label,
 }: Props) {
-  const dragging = useRef(false);
-  const lastY = useRef(0);
-  const accumulator = useRef(0);
   const range = max - min;
-  // Pixels per step: scale so small ranges are still usable
   const pxPerStep = range > 0 ? Math.max(3, Math.min(8, 100 / range)) : 5;
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    dragging.current = true;
-    lastY.current = e.clientY;
-    accumulator.current = 0;
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }, []);
-
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!dragging.current) return;
-      const dy = lastY.current - e.clientY;
-      lastY.current = e.clientY;
-      accumulator.current += dy;
-
-      // Convert accumulated pixels to integer steps
-      const steps = Math.trunc(accumulator.current / pxPerStep);
-      if (steps !== 0) {
-        accumulator.current -= steps * pxPerStep;
-        const newValue = Math.max(min, Math.min(max, value + steps));
-        onChange(newValue);
-      }
-    },
-    [value, onChange, min, max, pxPerStep],
-  );
-
-  const handlePointerUp = useCallback(() => {
-    dragging.current = false;
-  }, []);
-
-  const handleDoubleClick = useCallback(() => {
-    onChange(defaultValue);
-  }, [onChange, defaultValue]);
-
+  const drag = useDragControl({ value, min, max, defaultValue, onChange, pxPerStep });
   const angle = valueToAngle(value, min, max);
 
   return (
@@ -82,25 +46,11 @@ export function EqKnob({
         aria-valuemin={min}
         aria-valuemax={max}
         aria-label={label ?? "knob"}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onDoubleClick={handleDoubleClick}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowUp" || e.key === "ArrowRight") {
-            e.preventDefault();
-            onChange(Math.min(max, value + (e.shiftKey ? 10 : 1)));
-          } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
-            e.preventDefault();
-            onChange(Math.max(min, value - (e.shiftKey ? 10 : 1)));
-          } else if (e.key === "Home") {
-            e.preventDefault();
-            onChange(min);
-          } else if (e.key === "End") {
-            e.preventDefault();
-            onChange(max);
-          }
-        }}
+        onPointerDown={drag.onPointerDown}
+        onPointerMove={drag.onPointerMove}
+        onPointerUp={drag.onPointerUp}
+        onDoubleClick={drag.onDoubleClick}
+        onKeyDown={drag.onKeyDown}
       >
         <circle cx="22" cy="22" r="19" fill="none" stroke="#3a3a5a" strokeWidth="1" />
         <defs>
