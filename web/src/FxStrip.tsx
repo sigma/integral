@@ -2,6 +2,7 @@ import { VolumeFader } from "./VolumeFader";
 import { EqKnob } from "./EqKnob";
 import type { FxState } from "./types";
 import type { FxParamDef } from "./fxParams";
+import { stripIcon } from "./categoryIcons";
 import css from "./ChannelStrip.module.css";
 import fxCss from "./FxStrip.module.css";
 
@@ -90,6 +91,15 @@ export function FxStrip({
 
       <div className={css.faderArea}>
         <VolumeFader value={fx.level} onChange={(v) => onParam(1, v)} />
+      </div>
+
+      {/* Role icon for alignment with part strips */}
+      <div className={css.categoryArea}>
+        <div
+          className={css.categoryIcon}
+          dangerouslySetInnerHTML={{ __html: stripIcon(label === "FX1" ? "fx1" : "fx2") }}
+        />
+        <span className={css.categoryLabel}>{label === "FX1" ? "Chorus" : "Reverb"}</span>
       </div>
     </div>
   );

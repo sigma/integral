@@ -93,3 +93,31 @@ const ICON_MAP: Record<number, string> = {
 export function categoryIcon(categoryId: number): string {
   return ICON_MAP[categoryId] ?? "";
 }
+
+// ---------------------------------------------------------------------------
+// Strip-role icons (for non-part strips: EX, Master, FX1, FX2)
+// ---------------------------------------------------------------------------
+
+/** External input — line-in jack. */
+const ICON_EXT = `<svg ${S}><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="2" fill="currentColor"/><line x1="12" y1="5" x2="12" y2="2"/></svg>`;
+
+/** Master output — speaker. */
+const ICON_MASTER = `<svg ${S}><polygon points="4,9 4,15 8,15 13,19 13,5 8,9"/><path d="M16 9.5 Q19 12 16 14.5" /><path d="M18 7.5 Q22 12 18 16.5" /></svg>`;
+
+/** Chorus — doubled wave. */
+const ICON_CHORUS = `<svg ${S}><path d="M3 12 Q6 6 9 12 Q12 18 15 12 Q18 6 21 12"/><path d="M3 14 Q6 8 9 14 Q12 20 15 14 Q18 8 21 14" opacity="0.4"/></svg>`;
+
+/** Reverb — room reflections. */
+const ICON_REVERB = `<svg ${S}><path d="M4 16 Q4 4 12 4 Q20 4 20 16"/><path d="M7 16 Q7 8 12 8 Q17 8 17 16" opacity="0.5"/><path d="M10 16 Q10 12 12 12 Q14 12 14 16" opacity="0.3"/></svg>`;
+
+const STRIP_ICONS: Record<string, string> = {
+  ext: ICON_EXT,
+  master: ICON_MASTER,
+  fx1: ICON_CHORUS,
+  fx2: ICON_REVERB,
+};
+
+/** Returns an SVG string (24x24) for a strip role, or empty string. */
+export function stripIcon(role: string): string {
+  return STRIP_ICONS[role] ?? "";
+}
