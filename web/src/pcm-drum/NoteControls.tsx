@@ -52,6 +52,9 @@ export function NoteControls({
         {note.partialName && (
           <span className={css.partialName}>{note.partialName}</span>
         )}
+        <SynthSelect label="Out" value={note.outputAssign}
+          options={OUTPUT_ASSIGN_OPTIONS}
+          onChange={(v) => onParam(0x1B, v)} />
       </div>
 
       <div className={css.noteControls}>

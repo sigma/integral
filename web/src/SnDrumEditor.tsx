@@ -520,6 +520,9 @@ function NoteControls({
             onKeyDown={(e) => { if (e.key === "Enter") commitInstNumber(); }}
           />
         </label>
+        <SynthSelect label="Out" value={note.outputAssign}
+          options={OUTPUT_ASSIGN_OPTIONS}
+          onChange={(v) => onChange(0x12, v)} />
       </div>
       <div className={css.noteControls}>
         {/* Strip: Pan + Sends + Level — reuses the shared OutputStrip */}
