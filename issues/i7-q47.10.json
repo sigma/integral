@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-04-12T09:12:17Z",
@@ -8,8 +8,8 @@
   "labels": [],
   "parent": "i7-q47",
   "priority": 3,
-  "status": "open",
+  "status": "in_progress",
   "title": "Extract reusable drag-control hook from duplicated knob/fader logic",
   "type": "task",
-  "updated_at": "2026-04-12T09:12:17Z"
+  "updated_at": "2026-04-13T17:31:41Z"
 }
