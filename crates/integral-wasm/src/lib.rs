@@ -742,25 +742,27 @@ pub fn find_tone_bank(msb: u8, lsb: u8) -> Option<WasmToneBank> {
 pub fn factory_tones_json(msb: u8, lsb: u8) -> String {
     use integral_core::factory_catalog::factory_tones;
 
-    let tones = factory_tones(msb, lsb);
-    if tones.is_empty() {
-        return "[]".to_string();
+    #[derive(serde::Serialize)]
+    struct Entry<'a> {
+        msb: u8,
+        lsb: u8,
+        pc: u8,
+        name: &'a str,
+        category: u8,
     }
 
-    // Manual JSON serialization to avoid serde dependency in the main crate.
-    let mut json = String::from("[");
-    for (i, t) in tones.iter().enumerate() {
-        if i > 0 {
-            json.push(',');
-        }
-        let name = t.name.replace('\\', "\\\\").replace('"', "\\\"");
-        json.push_str(&format!(
-            r#"{{"msb":{},"lsb":{},"pc":{},"name":"{}","category":{}}}"#,
-            t.msb, t.lsb, t.pc, name, t.category
-        ));
-    }
-    json.push(']');
-    json
+    let tones = factory_tones(msb, lsb);
+    let entries: Vec<Entry<'_>> = tones
+        .iter()
+        .map(|t| Entry {
+            msb: t.msb,
+            lsb: t.lsb,
+            pc: t.pc,
+            name: t.name,
+            category: t.category,
+        })
+        .collect();
+    serde_json::to_string(&entries).unwrap_or_else(|_| "[]".to_string())
 }
 
 /// Look up a single factory tone name by bank and PC.
