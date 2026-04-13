@@ -76,10 +76,31 @@ export function EqKnob({
       <svg
         className={css.knob}
         viewBox="0 0 44 44"
+        tabIndex={0}
+        role="slider"
+        aria-valuenow={value}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-label={label ?? "knob"}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onDoubleClick={handleDoubleClick}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+            e.preventDefault();
+            onChange(Math.min(max, value + (e.shiftKey ? 10 : 1)));
+          } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+            e.preventDefault();
+            onChange(Math.max(min, value - (e.shiftKey ? 10 : 1)));
+          } else if (e.key === "Home") {
+            e.preventDefault();
+            onChange(min);
+          } else if (e.key === "End") {
+            e.preventDefault();
+            onChange(max);
+          }
+        }}
       >
         <circle cx="22" cy="22" r="19" fill="none" stroke="#3a3a5a" strokeWidth="1" />
         <defs>

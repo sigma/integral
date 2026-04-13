@@ -73,10 +73,32 @@ export function VolumeFader({ value, onChange, defaultValue = 100 }: Props) {
       <div
         className={css.track}
         ref={trackRef}
+        tabIndex={0}
+        role="slider"
+        aria-valuenow={value}
+        aria-valuemin={0}
+        aria-valuemax={127}
+        aria-label="Volume"
+        aria-orientation="vertical"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onDoubleClick={handleDoubleClick}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+            e.preventDefault();
+            onChange(Math.min(127, value + (e.shiftKey ? 10 : 1)));
+          } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+            e.preventDefault();
+            onChange(Math.max(0, value - (e.shiftKey ? 10 : 1)));
+          } else if (e.key === "Home") {
+            e.preventDefault();
+            onChange(127);
+          } else if (e.key === "End") {
+            e.preventDefault();
+            onChange(0);
+          }
+        }}
       >
         {/* Ruler marks */}
         {RULER_MARKS.map((midi) => {

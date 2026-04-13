@@ -117,10 +117,31 @@ export function SynthKnob({
         viewBox={`0 0 ${svgSize} ${svgSize}`}
         width={svgSize}
         height={svgSize}
+        tabIndex={0}
+        role="slider"
+        aria-valuenow={value}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-label={label}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onDoubleClick={handleDoubleClick}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+            e.preventDefault();
+            onChange(Math.min(max, value + (e.shiftKey ? 10 : 1)));
+          } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+            e.preventDefault();
+            onChange(Math.max(min, value - (e.shiftKey ? 10 : 1)));
+          } else if (e.key === "Home") {
+            e.preventDefault();
+            onChange(min);
+          } else if (e.key === "End") {
+            e.preventDefault();
+            onChange(max);
+          }
+        }}
       >
         {/* LED arc */}
         {leds}

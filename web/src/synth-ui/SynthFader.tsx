@@ -104,10 +104,32 @@ export function SynthFader({
       <div
         className={css.trackArea}
         style={{ height: trackH }}
+        tabIndex={0}
+        role="slider"
+        aria-valuenow={value}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-label={label}
+        aria-orientation="vertical"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onDoubleClick={handleDoubleClick}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+            e.preventDefault();
+            onChange(Math.min(max, value + (e.shiftKey ? 10 : 1)));
+          } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+            e.preventDefault();
+            onChange(Math.max(min, value - (e.shiftKey ? 10 : 1)));
+          } else if (e.key === "Home") {
+            e.preventDefault();
+            onChange(max);
+          } else if (e.key === "End") {
+            e.preventDefault();
+            onChange(min);
+          }
+        }}
       >
         <div className={css.ruler}>{ticks}</div>
         <div className={css.track}>
