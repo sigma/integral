@@ -183,9 +183,22 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
         }));
         syncFromRust();
 
-        // Non-blocking loads: tone names
+        // Tone names: set factory names instantly, then request device names.
+        const rs0 = dev.readState() as RustMixerState;
         for (let i = 0; i < 16; i++) {
-          const msb = (dev.readState() as RustMixerState).parts?.[i]?.toneBankMsb;
+          const p = rs0.parts?.[i];
+          if (!p) continue;
+          // Instant factory lookup — avoids blank names while MIDI loads.
+          const fName = factoryToneName(p.toneBankMsb, p.toneBankLsb, p.tonePC);
+          if (fName) {
+            dev.setPartToneName(i, fName);
+          }
+        }
+        syncFromRust();
+
+        // Non-blocking: request actual device names (may differ for user tones).
+        for (let i = 0; i < 16; i++) {
+          const msb = rs0.parts?.[i]?.toneBankMsb;
           if (msb === undefined) continue;
           svc.requestToneName(i, msb).then((toneName) => {
             if (!isCurrent() || !toneName) return;
@@ -341,20 +354,20 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     (part: number, msb: number, lsb: number, pc: number) => {
       if (!service) return;
       service.device.changePartTone(part, msb, lsb, pc);
+
+      // Set factory name instantly for responsive UI.
+      const fName = factoryToneName(msb, lsb, pc);
+      if (fName) {
+        service.device.setPartToneName(part, fName);
+      }
       syncFromRust();
-      // Re-read tone name after device loads the new tone.
+
+      // Re-read actual device name (may differ for user tones).
       setTimeout(() => {
         service.requestToneName(part, msb).then((toneName) => {
           if (toneName) {
             service.device.setPartToneName(part, toneName);
             syncFromRust();
-            // Verify against factory catalog.
-            const expected = factoryToneName(msb, lsb, pc);
-            if (expected && expected !== toneName) {
-              console.warn(
-                `[catalog] Part ${part + 1} tone name mismatch: device="${toneName}" factory="${expected}" (MSB=${msb} LSB=${lsb} PC=${pc})`,
-              );
-            }
           }
         });
       }, 300);
