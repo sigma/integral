@@ -92,3 +92,34 @@ const ABBREVS: Record<number, string> = {
 export function categoryAbbrev(id: number): string {
   return ABBREVS[id] ?? "---";
 }
+
+// ---------------------------------------------------------------------------
+// Factory tone category lookup (lazy cache)
+// ---------------------------------------------------------------------------
+
+import { factoryTonesJson } from "../pkg/integral_wasm.js";
+import { TONE_BANK_GROUPS } from "./toneBanks";
+
+let categoryCache: Map<string, number> | null = null;
+
+function buildCategoryCache(): Map<string, number> {
+  const cache = new Map<string, number>();
+  for (const group of TONE_BANK_GROUPS) {
+    for (const bank of group.banks) {
+      for (const lsb of bank.lsbs) {
+        const json = factoryTonesJson(bank.msb, lsb);
+        const entries: { msb: number; lsb: number; pc: number; category: number }[] = JSON.parse(json);
+        for (const e of entries) {
+          cache.set(`${e.msb}:${e.lsb}:${e.pc}`, e.category);
+        }
+      }
+    }
+  }
+  return cache;
+}
+
+/** Look up the category ID for a factory tone. Returns 0 for unknown tones. */
+export function lookupToneCategory(msb: number, lsb: number, pc: number): number {
+  if (!categoryCache) categoryCache = buildCategoryCache();
+  return categoryCache.get(`${msb}:${lsb}:${pc}`) ?? 0;
+}

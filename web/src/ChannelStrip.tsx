@@ -3,6 +3,8 @@ import { PanKnob } from "./PanKnob";
 import { EqKnob } from "./EqKnob";
 import { EqSection } from "./EqSection";
 import { defaultPartState, type PartState, type EqState, type CompEqUnit } from "./types";
+import { CATEGORIES, lookupToneCategory } from "./categories";
+import { categoryIcon } from "./categoryIcons";
 import css from "./ChannelStrip.module.css";
 
 const noop = () => {};
@@ -294,6 +296,25 @@ export function ChannelStrip({
           <VolumeFader value={0} onChange={noop} />
         </div>
       )}
+
+      {/* Category icon + label */}
+      {isPart && (() => {
+        const catId = lookupToneCategory(p.toneBankMsb, p.toneBankLsb, p.tonePC);
+        const icon = categoryIcon(catId);
+        const name = CATEGORIES[catId];
+        if (!name || catId === 0) return null;
+        return (
+          <div className={css.categoryArea}>
+            {icon && (
+              <div
+                className={css.categoryIcon}
+                dangerouslySetInnerHTML={{ __html: icon }}
+              />
+            )}
+            <span className={css.categoryLabel}>{name}</span>
+          </div>
+        );
+      })()}
     </div>
   );
 }
