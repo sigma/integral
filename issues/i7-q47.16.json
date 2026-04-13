@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-04-12T09:12:45Z",
@@ -8,8 +8,8 @@
   "labels": [],
   "parent": "i7-q47",
   "priority": 3,
-  "status": "open",
+  "status": "in_progress",
   "title": "Reduce code duplication in tone parsing modules",
   "type": "task",
-  "updated_at": "2026-04-12T09:12:45Z"
+  "updated_at": "2026-04-13T17:25:11Z"
 }
