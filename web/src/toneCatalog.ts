@@ -9,6 +9,7 @@
 
 import type { IntegraService } from "./integra";
 import type { ToneBank } from "./toneBanks";
+import { TONE_BANK_GROUPS } from "./toneBanks";
 import { factoryTonesJson } from "../pkg/integral_wasm.js";
 
 export interface ToneEntry {
@@ -16,6 +17,7 @@ export interface ToneEntry {
   lsb: number;
   pc: number;
   name: string;
+  category: number;
 }
 
 type Listener = (entries: ToneEntry[]) => void;
@@ -33,6 +35,10 @@ export class ToneCatalog {
   private complete = new Set<string>();
   /** Banks currently being fetched. */
   private fetching = new Set<string>();
+  /** Secondary index: category ID → entries across all banks. */
+  private categoryIndex = new Map<number, ToneEntry[]>();
+  /** Whether all factory banks have been loaded into the category index. */
+  private allFactoryLoaded = false;
 
   constructor(private service: IntegraService) {}
 
@@ -97,6 +103,33 @@ export class ToneCatalog {
     this.fetchPages(bank, key);
   }
 
+  /**
+   * Load all factory preset banks into the cache. This is needed for
+   * category-centric browsing which spans all banks. Idempotent.
+   */
+  ensureAllFactoryLoaded(): void {
+    if (this.allFactoryLoaded) return;
+    this.allFactoryLoaded = true;
+    for (const group of TONE_BANK_GROUPS) {
+      for (const bank of group.banks) {
+        const key = bankKey(bank);
+        if (this.cache.has(key)) continue;
+        const count = this.populateFactory(bank, key);
+        if (count > 0) {
+          const expectedCount = bank.lsbs.length * 128;
+          if (count >= expectedCount) {
+            this.complete.add(key);
+          }
+        }
+      }
+    }
+  }
+
+  /** Get all tones matching a category ID, across all loaded banks. */
+  getByCategory(categoryId: number): ToneEntry[] {
+    return this.categoryIndex.get(categoryId) ?? [];
+  }
+
   // -----------------------------------------------------------------------
 
   /** Pre-fill cache from compiled-in factory data. Returns count added. */
@@ -142,7 +175,7 @@ export class ToneCatalog {
   /** Insert an entry into the bank's bucket. Returns true if new. */
   private addEntry(
     key: string,
-    e: { msb: number; lsb: number; pc: number; name: string },
+    e: { msb: number; lsb: number; pc: number; name: string; category?: number },
   ): boolean {
     let bucket = this.cache.get(key);
     if (!bucket) {
@@ -151,7 +184,21 @@ export class ToneCatalog {
     }
     const ek = `${e.lsb}:${e.pc}`;
     if (bucket.has(ek)) return false;
-    bucket.set(ek, { msb: e.msb, lsb: e.lsb, pc: e.pc, name: e.name });
+    const entry: ToneEntry = {
+      msb: e.msb, lsb: e.lsb, pc: e.pc, name: e.name,
+      category: e.category ?? 0,
+    };
+    bucket.set(ek, entry);
+
+    // Update category index.
+    const catId = entry.category;
+    let catBucket = this.categoryIndex.get(catId);
+    if (!catBucket) {
+      catBucket = [];
+      this.categoryIndex.set(catId, catBucket);
+    }
+    catBucket.push(entry);
+
     return true;
   }
 
