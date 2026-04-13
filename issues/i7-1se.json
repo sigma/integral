@@ -2,13 +2,14 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-13T21:52:00Z",
   "created": "2026-04-11T18:09:47Z",
   "description": "Unified view of the Integra-7 signal routing: per-instrument output assign (drum keys → Comp+EQ units), Comp+EQ unit output assign, part output assign (A/B/C/D/1-8), chorus/reverb output assign. Currently scattered across mixer, drum editors, CompEqPanel, and FX panels. Goal: a coherent routing view showing the full signal flow in one place.",
   "id": "i7-1se",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Output routing management",
   "type": "epic",
-  "updated_at": "2026-04-11T18:09:47Z"
+  "updated_at": "2026-04-13T21:52:00Z"
 }
