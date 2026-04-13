@@ -12,7 +12,7 @@
   background: #1a1a2e;
   border: 1px solid #2a2a4a;
   border-radius: 12px;
-  width: 700px;
+  width: 800px;
   max-width: 90vw;
   max-height: 80vh;
   display: flex;
@@ -53,6 +53,8 @@
   overflow: hidden;
 }
 
+/* Bank list (bank mode left panel) */
+
 .bankList {
   width: 200px;
   border-right: 1px solid #2a2a4a;
@@ -91,6 +93,48 @@
   font-weight: 600;
 }
 
+/* Category grid (category mode left panel) */
+
+.categoryGrid {
+  width: 240px;
+  border-right: 1px solid #2a2a4a;
+  overflow-y: auto;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 8px;
+  align-content: start;
+}
+
+.categoryTile {
+  padding: 6px 4px;
+  font-size: 11px;
+  color: #c0c0e0;
+  background: #1e1e3a;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.categoryTile:hover {
+  background: #223355;
+  border-color: #3a5a8a;
+}
+
+.categoryTileActive {
+  background: #2a4a6a;
+  border-color: #4ae0e0;
+  color: #4ae0e0;
+  font-weight: 600;
+}
+
+/* Tone list (right panel, shared by both modes) */
+
 .toneList {
   flex: 1;
   overflow-y: auto;
@@ -127,6 +171,25 @@
   min-width: 36px;
 }
 
+.toneCategory {
+  color: #7a7aaa;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  min-width: 32px;
+  text-align: center;
+}
+
+.toneBadge {
+  color: #7aaaca;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 44px;
+  text-align: center;
+  background: #1a2a3a;
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
 .toneName {
   flex: 1;
 }
@@ -136,4 +199,35 @@
   color: #888;
   font-size: 13px;
   text-align: center;
+}
+
+/* Mode toggle bar (bottom of modal) */
+
+.modeBar {
+  display: flex;
+  border-top: 1px solid #2a2a4a;
+  flex-shrink: 0;
+}
+
+.modeButton {
+  flex: 1;
+  padding: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.modeButton:hover {
+  color: #c0c0e0;
+  background: #1e1e3a;
+}
+
+.modeActive {
+  color: #4ae0e0;
+  background: #1e2e3e;
 }
