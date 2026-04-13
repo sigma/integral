@@ -2,13 +2,14 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-13T20:44:51Z",
   "created": "2026-04-09T12:18:17Z",
   "description": "Add the 6 Comp+EQ units to the mixer UI, with Studio Set assignment, per-unit comp/EQ controls, per-instrument output routing, and output assign",
   "id": "i7-18x",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Integrate Drum Comp+EQ into mixer view",
   "type": "task",
-  "updated_at": "2026-04-09T12:18:17Z"
+  "updated_at": "2026-04-13T20:44:51Z"
 }
