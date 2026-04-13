@@ -22,6 +22,7 @@ import {
 import { MixerPage } from "./MixerPage";
 import { SurroundPage } from "./SurroundPage";
 import { ToneEditorPage } from "./ToneEditorPage";
+import { ErrorBoundary } from "./ErrorBoundary";
 import css from "./App.module.css";
 
 type PageTab = "mixer" | "surround" | "toneEdit";
@@ -192,10 +193,20 @@ export function App() {
             PREVIEW
           </button>
         </nav>
-        {activeTab === "mixer" && <MixerPage mixer={mixer} service={service} />}
-        {activeTab === "surround" && <SurroundPage mixer={mixer} />}
+        {activeTab === "mixer" && (
+          <ErrorBoundary section="Mixer">
+            <MixerPage mixer={mixer} service={service} />
+          </ErrorBoundary>
+        )}
+        {activeTab === "surround" && (
+          <ErrorBoundary section="Surround">
+            <SurroundPage mixer={mixer} />
+          </ErrorBoundary>
+        )}
         {activeTab === "toneEdit" && (
-          <ToneEditorPage mixer={mixer} service={service} onBack={() => setActiveTab("mixer")} />
+          <ErrorBoundary section="Tone Editor">
+            <ToneEditorPage mixer={mixer} service={service} onBack={() => setActiveTab("mixer")} />
+          </ErrorBoundary>
         )}
       </div>
     );

@@ -191,7 +191,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
             if (!isCurrent()) return;
             dev.applyPartEqDump(i, eqData);
             syncFromRust();
-          }).catch(() => {});
+          }).catch((e: unknown) => console.warn("[mixer] load error:", e));
         }
 
         // Master EQ
@@ -202,7 +202,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
             dev.setMasterEqEnabled(enabled);
             syncFromRust();
           },
-        ).catch(() => {});
+        ).catch((e: unknown) => console.warn("[mixer] load error:", e));
 
         // Ext Part
         Promise.all([svc.requestExtPartLevel(), svc.requestExtPartMute()]).then(
@@ -212,7 +212,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
             dev.applyExtMuted(muted);
             syncFromRust();
           },
-        ).catch(() => {});
+        ).catch((e: unknown) => console.warn("[mixer] load error:", e));
 
         // Chorus
         Promise.all([
@@ -225,7 +225,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
           dev.setChorusEnabled(enabled);
           dev.applyChorusParams(Int32Array.from(params));
           syncFromRust();
-        }).catch(() => {});
+        }).catch((e: unknown) => console.warn("[mixer] load error:", e));
 
         // Reverb
         Promise.all([
@@ -238,7 +238,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
           dev.setReverbEnabled(enabled);
           dev.applyReverbParams(Int32Array.from(params));
           syncFromRust();
-        }).catch(() => {});
+        }).catch((e: unknown) => console.warn("[mixer] load error:", e));
 
         // Motional Surround
         svc.requestSurroundCommon().then((data) => {
@@ -250,10 +250,10 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
               if (!isCurrent()) return;
               dev.applyPartSurround(i, lr, fb, width, ambienceSend);
               syncFromRust();
-            }).catch(() => {});
+            }).catch((e: unknown) => console.warn("[mixer] load error:", e));
           }
           syncFromRust();
-        }).catch(() => {});
+        }).catch((e: unknown) => console.warn("[mixer] load error:", e));
 
         // Drum Comp+EQ
         svc.requestDrumCompEqCommon().then(({ enabled, part, outputAssigns }) => {
@@ -264,9 +264,9 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
             if (!isCurrent()) return;
             dev.applyCompEqBlock(blockData);
             syncFromRust();
-          }).catch(() => {});
+          }).catch((e: unknown) => console.warn("[mixer] load error:", e));
           syncFromRust();
-        }).catch(() => {});
+        }).catch((e: unknown) => console.warn("[mixer] load error:", e));
 
       } catch {
         setState((prev) => ({ ...prev, loading: false }));

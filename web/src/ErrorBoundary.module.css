@@ -1,0 +1,55 @@
+.fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  flex: 1;
+  color: #c0c0e0;
+}
+
+.icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #3a1a1a;
+  color: #ff6666;
+  font-size: 24px;
+  font-weight: 800;
+  border: 2px solid #5a2a2a;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: #e0e0e0;
+}
+
+.message {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+  max-width: 400px;
+  text-align: center;
+  word-break: break-word;
+}
+
+.retryButton {
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #2a2a4a;
+  color: #c0c0e0;
+  border: 1px solid #3a3a5a;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.retryButton:hover {
+  background: #3a3a5a;
+}
