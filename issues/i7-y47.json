@@ -2,13 +2,14 @@
   "assignee": "unknown",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-13T20:39:57Z",
   "created": "2026-04-13T20:38:05Z",
   "description": "",
   "id": "i7-y47",
   "labels": [],
   "priority": 1,
-  "status": "in_progress",
+  "status": "closed",
   "title": "fix(web): align EX, Master, and FX fader strips with part strips by adding graphics placeholders",
   "type": "task",
-  "updated_at": "2026-04-13T20:38:10Z"
+  "updated_at": "2026-04-13T20:39:57Z"
 }
