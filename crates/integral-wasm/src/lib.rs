@@ -24,6 +24,37 @@ fn check_part(part: u8) -> Result<(), JsError> {
     }
 }
 
+/// Validate a partial index (0–2 for SN-S, 0–3 for PCMS).
+fn check_partial(partial: u8, max: u8) -> Result<(), JsError> {
+    if partial > max {
+        Err(JsError::new(&format!(
+            "partial index {partial} out of range (0–{max})"
+        )))
+    } else {
+        Ok(())
+    }
+}
+
+/// Validate a MIDI key number (0–127).
+fn check_key(key: u8) -> Result<(), JsError> {
+    if key > 127 {
+        Err(JsError::new(&format!("key {key} out of range (0–127)")))
+    } else {
+        Ok(())
+    }
+}
+
+/// Validate a Comp+EQ unit index (0–5).
+fn check_comp_eq_unit(unit: u8) -> Result<(), JsError> {
+    if unit > 5 {
+        Err(JsError::new(&format!(
+            "comp+eq unit {unit} out of range (0–5)"
+        )))
+    } else {
+        Ok(())
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Identity
 // ---------------------------------------------------------------------------
@@ -1246,13 +1277,22 @@ impl WasmDeviceState {
     }
 
     #[wasm_bindgen(js_name = setDrumCompEqOutputAssign)]
-    pub fn set_drum_comp_eq_output_assign(&mut self, unit: u8, value: u8) {
+    pub fn set_drum_comp_eq_output_assign(&mut self, unit: u8, value: u8) -> Result<(), JsError> {
+        check_comp_eq_unit(unit)?;
         self.inner.set_drum_comp_eq_output_assign(unit, value);
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = setCompEqParam)]
-    pub fn set_comp_eq_param(&mut self, unit: u8, param_offset: u8, value: u8) {
+    pub fn set_comp_eq_param(
+        &mut self,
+        unit: u8,
+        param_offset: u8,
+        value: u8,
+    ) -> Result<(), JsError> {
+        check_comp_eq_unit(unit)?;
         self.inner.set_comp_eq_param(unit, param_offset, value);
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = buildCompEqBlockRequest)]
@@ -1367,16 +1407,34 @@ impl WasmDeviceState {
 
     /// Set a single SN-S Partial parameter.
     #[wasm_bindgen(js_name = setSnsPartialParam)]
-    pub fn set_sns_partial_param(&mut self, part: u8, partial: u8, offset: u8, value: u8) {
+    pub fn set_sns_partial_param(
+        &mut self,
+        part: u8,
+        partial: u8,
+        offset: u8,
+        value: u8,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        check_partial(partial, 2)?;
         self.inner
             .set_sns_partial_param(part, partial, offset, value);
+        Ok(())
     }
 
     /// Set a nibblized SN-S Partial parameter (4 bytes, e.g. wave number).
     #[wasm_bindgen(js_name = setSnsPartialNibParam)]
-    pub fn set_sns_partial_nib_param(&mut self, part: u8, partial: u8, offset: u8, value: u16) {
+    pub fn set_sns_partial_nib_param(
+        &mut self,
+        part: u8,
+        partial: u8,
+        offset: u8,
+        value: u16,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        check_partial(partial, 2)?;
         self.inner
             .set_sns_partial_nib_param(part, partial, offset, value);
+        Ok(())
     }
 
     /// Set a nibblized SN-S Common parameter (4 bytes, e.g. phrase number).
@@ -1448,14 +1506,32 @@ impl WasmDeviceState {
 
     /// Set a single SN-D Note parameter.
     #[wasm_bindgen(js_name = setSndNoteParam)]
-    pub fn set_snd_note_param(&mut self, part: u8, key: u8, offset: u8, value: u8) {
+    pub fn set_snd_note_param(
+        &mut self,
+        part: u8,
+        key: u8,
+        offset: u8,
+        value: u8,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        check_key(key)?;
         self.inner.set_snd_note_param(part, key, offset, value);
+        Ok(())
     }
 
     /// Set a nibblized SN-D Note parameter (4 bytes).
     #[wasm_bindgen(js_name = setSndNoteNibParam)]
-    pub fn set_snd_note_nib_param(&mut self, part: u8, key: u8, offset: u8, value: u16) {
+    pub fn set_snd_note_nib_param(
+        &mut self,
+        part: u8,
+        key: u8,
+        offset: u8,
+        value: u16,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        check_key(key)?;
         self.inner.set_snd_note_nib_param(part, key, offset, value);
+        Ok(())
     }
 
     /// Parse an SN-D Common dump and return as a JS object.
@@ -1510,23 +1586,50 @@ impl WasmDeviceState {
 
     /// Set a single PCM Synth Partial parameter.
     #[wasm_bindgen(js_name = setPcmsPartialParam)]
-    pub fn set_pcms_partial_param(&mut self, part: u8, partial: u8, offset: u16, value: u8) {
+    pub fn set_pcms_partial_param(
+        &mut self,
+        part: u8,
+        partial: u8,
+        offset: u16,
+        value: u8,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        check_partial(partial, 3)?;
         self.inner
             .set_pcms_partial_param(part, partial, offset, value);
+        Ok(())
     }
 
     /// Set a nibblized PCM Synth Partial parameter (4 bytes, e.g. wave number).
     #[wasm_bindgen(js_name = setPcmsPartialNibParam)]
-    pub fn set_pcms_partial_nib_param(&mut self, part: u8, partial: u8, offset: u16, value: u16) {
+    pub fn set_pcms_partial_nib_param(
+        &mut self,
+        part: u8,
+        partial: u8,
+        offset: u16,
+        value: u16,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        check_partial(partial, 3)?;
         self.inner
             .set_pcms_partial_nib_param(part, partial, offset, value);
+        Ok(())
     }
 
     /// Set a nibblized PCM Synth Partial parameter (2 bytes, e.g. delay time).
     #[wasm_bindgen(js_name = setPcmsPartialNib2Param)]
-    pub fn set_pcms_partial_nib2_param(&mut self, part: u8, partial: u8, offset: u16, value: u8) {
+    pub fn set_pcms_partial_nib2_param(
+        &mut self,
+        part: u8,
+        partial: u8,
+        offset: u16,
+        value: u8,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        check_partial(partial, 3)?;
         self.inner
             .set_pcms_partial_nib2_param(part, partial, offset, value);
+        Ok(())
     }
 
     /// Set a single PCM Synth Common2 parameter.
@@ -1611,15 +1714,33 @@ impl WasmDeviceState {
 
     /// Set a single PCM Drum Kit Partial parameter.
     #[wasm_bindgen(js_name = setPcmdPartialParam)]
-    pub fn set_pcmd_partial_param(&mut self, part: u8, key: u8, offset: u16, value: u8) {
+    pub fn set_pcmd_partial_param(
+        &mut self,
+        part: u8,
+        key: u8,
+        offset: u16,
+        value: u8,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        check_key(key)?;
         self.inner.set_pcmd_partial_param(part, key, offset, value);
+        Ok(())
     }
 
     /// Set a nibblized PCM Drum Kit Partial parameter (4 bytes, e.g. wave number).
     #[wasm_bindgen(js_name = setPcmdPartialNibParam)]
-    pub fn set_pcmd_partial_nib_param(&mut self, part: u8, key: u8, offset: u16, value: u16) {
+    pub fn set_pcmd_partial_nib_param(
+        &mut self,
+        part: u8,
+        key: u8,
+        offset: u16,
+        value: u16,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        check_key(key)?;
         self.inner
             .set_pcmd_partial_nib_param(part, key, offset, value);
+        Ok(())
     }
 
     /// Set a single PCM Drum Kit Common2 parameter.
