@@ -145,11 +145,15 @@ pub struct SnAcousticState {
 /// - `00 21`: Inst Number
 /// - `00 22`–`00 41`: Modify Parameters 1–32
 /// - `00 42`–`00 45`: reserve
-pub fn parse_sna_common(data: &[u8]) -> SnAcousticCommon {
-    let mut c = SnAcousticCommon::default();
+#[allow(clippy::field_reassign_with_default)]
+pub fn parse_sna_common(data: &[u8]) -> Result<SnAcousticCommon, crate::ToneParseError> {
     if data.len() < SNA_COMMON_SIZE {
-        return c;
+        return Err(crate::ToneParseError {
+            expected: SNA_COMMON_SIZE,
+            got: data.len(),
+        });
     }
+    let mut c = SnAcousticCommon::default();
 
     // Tone Name: bytes 0x00–0x0B
     c.tone_name = data[0x00..0x0C]
@@ -190,7 +194,7 @@ pub fn parse_sna_common(data: &[u8]) -> SnAcousticCommon {
     // Modify Parameters 1–32: bytes 0x22–0x41
     c.modify_params.copy_from_slice(&data[0x22..0x22 + 32]);
 
-    c
+    Ok(c)
 }
 
 #[cfg(test)]
@@ -240,7 +244,7 @@ mod tests {
         // Modify param 32 = 50
         data[0x41] = 50;
 
-        let c = parse_sna_common(&data);
+        let c = parse_sna_common(&data).unwrap();
         assert_eq!(c.tone_name, "Grand Piano");
         assert_eq!(c.tone_level, 100);
         assert_eq!(c.mono_poly, 1);
@@ -257,9 +261,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_common_short_data_returns_default() {
-        let data = [0u8; 10];
-        let c = parse_sna_common(&data);
-        assert_eq!(c, SnAcousticCommon::default());
+    fn parse_common_short_data_returns_err() {
+        assert!(parse_sna_common(&[0u8; 10]).is_err());
     }
 }

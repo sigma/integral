@@ -506,14 +506,18 @@ fn parse_pcmd_wmt(data: &[u8]) -> PcmDrumWmt {
 /// - `00 00`-`00 0B`: Kit Name (12 ASCII chars)
 /// - `00 0C`: Kit Level
 /// - `00 0D`-`00 11`: reserved
-pub fn parse_pcmd_common(data: &[u8]) -> PcmDrumCommon {
-    let mut c = PcmDrumCommon::default();
+#[allow(clippy::field_reassign_with_default)]
+pub fn parse_pcmd_common(data: &[u8]) -> Result<PcmDrumCommon, crate::ToneParseError> {
     if data.len() < PCMD_COMMON_SIZE {
-        return c;
+        return Err(crate::ToneParseError {
+            expected: PCMD_COMMON_SIZE,
+            got: data.len(),
+        });
     }
+    let mut c = PcmDrumCommon::default();
     c.kit_name = parse_name(data);
     c.kit_level = data[0x0C];
-    c
+    Ok(c)
 }
 
 /// Parse a PCM Drum Kit per-key Partial dump (195 bytes).
@@ -521,11 +525,15 @@ pub fn parse_pcmd_common(data: &[u8]) -> PcmDrumCommon {
 /// The data array is a contiguous byte stream from the DT1 response.
 /// Linear indices map to SysEx offsets: indices 0-127 = offsets `00 00`-`00 7F`,
 /// index 128 = offset `01 00`, etc.
-pub fn parse_pcmd_partial(data: &[u8]) -> PcmDrumPartial {
-    let mut p = PcmDrumPartial::default();
+#[allow(clippy::field_reassign_with_default)]
+pub fn parse_pcmd_partial(data: &[u8]) -> Result<PcmDrumPartial, crate::ToneParseError> {
     if data.len() < PCMD_PARTIAL_SIZE {
-        return p;
+        return Err(crate::ToneParseError {
+            expected: PCMD_PARTIAL_SIZE,
+            got: data.len(),
+        });
     }
+    let mut p = PcmDrumPartial::default();
 
     // -- Common per-key (linear indices 0-30) --
     p.partial_name = parse_name(data);
@@ -595,7 +603,7 @@ pub fn parse_pcmd_partial(data: &[u8]) -> PcmDrumPartial {
     p.one_shot_mode = data[193];
     // data[194] = reserved
 
-    p
+    Ok(p)
 }
 
 /// Parse a PCM Drum Kit Common2 dump (50 bytes).
@@ -605,14 +613,18 @@ pub fn parse_pcmd_partial(data: &[u8]) -> PcmDrumPartial {
 /// - `00 10`-`00 11`: Phrase Number (nibblized 2 bytes)
 /// - `00 12`-`00 30`: reserved
 /// - `00 31`: TFX Switch
-pub fn parse_pcmd_common2(data: &[u8]) -> PcmDrumCommon2 {
-    let mut c2 = PcmDrumCommon2::default();
+#[allow(clippy::field_reassign_with_default)]
+pub fn parse_pcmd_common2(data: &[u8]) -> Result<PcmDrumCommon2, crate::ToneParseError> {
     if data.len() < PCMD_COMMON2_SIZE {
-        return c2;
+        return Err(crate::ToneParseError {
+            expected: PCMD_COMMON2_SIZE,
+            got: data.len(),
+        });
     }
+    let mut c2 = PcmDrumCommon2::default();
     c2.phrase_number = nibble2(data, 0x10);
     c2.tfx_switch = data[0x31];
-    c2
+    Ok(c2)
 }
 
 #[cfg(test)]
@@ -704,16 +716,14 @@ mod tests {
         data[0x00..0x0C].copy_from_slice(&name[..12]);
         data[0x0C] = 100;
 
-        let c = parse_pcmd_common(&data);
+        let c = parse_pcmd_common(&data).unwrap();
         assert_eq!(c.kit_name, "Rock Kit");
         assert_eq!(c.kit_level, 100);
     }
 
     #[test]
-    fn parse_common_short_data_returns_default() {
-        let data = [0u8; 10];
-        let c = parse_pcmd_common(&data);
-        assert_eq!(c, PcmDrumCommon::default());
+    fn parse_common_short_data_returns_err() {
+        assert!(parse_pcmd_common(&[0u8; 10]).is_err());
     }
 
     #[test]
@@ -757,7 +767,7 @@ mod tests {
         // One Shot Mode at linear 193
         data[193] = 1;
 
-        let p = parse_pcmd_partial(&data);
+        let p = parse_pcmd_partial(&data).unwrap();
         assert_eq!(p.partial_name, "Kick 1");
         assert_eq!(p.assign_type, 1);
         assert_eq!(p.mute_group, 5);
@@ -770,10 +780,8 @@ mod tests {
     }
 
     #[test]
-    fn parse_partial_short_data_returns_default() {
-        let data = [0u8; 50];
-        let p = parse_pcmd_partial(&data);
-        assert_eq!(p, PcmDrumPartial::default());
+    fn parse_partial_short_data_returns_err() {
+        assert!(parse_pcmd_partial(&[0u8; 50]).is_err());
     }
 
     #[test]
@@ -784,16 +792,14 @@ mod tests {
         data[0x11] = 0x0A;
         data[0x31] = 1; // TFX on
 
-        let c2 = parse_pcmd_common2(&data);
+        let c2 = parse_pcmd_common2(&data).unwrap();
         assert_eq!(c2.phrase_number, 42);
         assert_eq!(c2.tfx_switch, 1);
     }
 
     #[test]
-    fn parse_common2_short_data_returns_default() {
-        let data = [0u8; 10];
-        let c2 = parse_pcmd_common2(&data);
-        assert_eq!(c2, PcmDrumCommon2::default());
+    fn parse_common2_short_data_returns_err() {
+        assert!(parse_pcmd_common2(&[0u8; 10]).is_err());
     }
 
     #[test]
@@ -810,7 +816,7 @@ mod tests {
         data[128] = 0x0E;
         data[129] = 0x08;
 
-        let p = parse_pcmd_partial(&data);
+        let p = parse_pcmd_partial(&data).unwrap();
         assert_eq!(p.wmt[3].switch, 1);
         assert_eq!(p.wmt[3].wave_number_l, 1000);
     }

@@ -1387,16 +1387,20 @@ impl WasmDeviceState {
 
     /// Parse an SN-S Common dump and return as a JS object.
     #[wasm_bindgen(js_name = applySnsCommon)]
-    pub fn apply_sns_common(&mut self, data: &[u8]) -> JsValue {
-        let parsed = integral_core::sn_synth::parse_sns_common(data);
-        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    pub fn apply_sns_common(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
+        let parsed = integral_core::sn_synth::parse_sns_common(data)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        serde_wasm_bindgen::to_value(&parsed)
+            .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
     /// Parse an SN-S Partial dump and return as a JS object.
     #[wasm_bindgen(js_name = applySnsPartial)]
-    pub fn apply_sns_partial(&mut self, data: &[u8]) -> JsValue {
-        let parsed = integral_core::sn_synth::parse_sns_partial(data);
-        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    pub fn apply_sns_partial(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
+        let parsed = integral_core::sn_synth::parse_sns_partial(data)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        serde_wasm_bindgen::to_value(&parsed)
+            .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
     /// Build an RQ1 to read the SN-S Common block for a part.
@@ -1421,9 +1425,11 @@ impl WasmDeviceState {
 
     /// Parse an SN-A Common dump and return as a JS object.
     #[wasm_bindgen(js_name = applySnaCommon)]
-    pub fn apply_sna_common(&mut self, data: &[u8]) -> JsValue {
-        let parsed = integral_core::sn_acoustic::parse_sna_common(data);
-        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    pub fn apply_sna_common(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
+        let parsed = integral_core::sn_acoustic::parse_sna_common(data)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        serde_wasm_bindgen::to_value(&parsed)
+            .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
     /// Build an RQ1 to read the SN-A Common block for a part.
@@ -1454,16 +1460,20 @@ impl WasmDeviceState {
 
     /// Parse an SN-D Common dump and return as a JS object.
     #[wasm_bindgen(js_name = applySndCommon)]
-    pub fn apply_snd_common(&mut self, data: &[u8]) -> JsValue {
-        let parsed = integral_core::sn_drum::parse_snd_common(data);
-        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    pub fn apply_snd_common(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
+        let parsed = integral_core::sn_drum::parse_snd_common(data)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        serde_wasm_bindgen::to_value(&parsed)
+            .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
     /// Parse an SN-D Note dump and return as a JS object.
     #[wasm_bindgen(js_name = applySndNote)]
-    pub fn apply_snd_note(&mut self, data: &[u8]) -> JsValue {
-        let parsed = integral_core::sn_drum::parse_snd_note(data);
-        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    pub fn apply_snd_note(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
+        let parsed = integral_core::sn_drum::parse_snd_note(data)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        serde_wasm_bindgen::to_value(&parsed)
+            .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
     /// Build an RQ1 to read the SN-D Common block for a part.
@@ -1533,30 +1543,38 @@ impl WasmDeviceState {
 
     /// Parse a PCM Synth Common dump and return as a JS object.
     #[wasm_bindgen(js_name = applyPcmsCommon)]
-    pub fn apply_pcms_common(&mut self, data: &[u8]) -> JsValue {
-        let parsed = integral_core::pcm_synth::parse_pcms_common(data);
-        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    pub fn apply_pcms_common(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
+        let parsed = integral_core::pcm_synth::parse_pcms_common(data)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        serde_wasm_bindgen::to_value(&parsed)
+            .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
     /// Parse a PCM Synth PMT dump and return as a JS object.
     #[wasm_bindgen(js_name = applyPcmsPmt)]
-    pub fn apply_pcms_pmt(&mut self, data: &[u8]) -> JsValue {
-        let parsed = integral_core::pcm_synth::parse_pcms_pmt(data);
-        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    pub fn apply_pcms_pmt(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
+        let parsed = integral_core::pcm_synth::parse_pcms_pmt(data)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        serde_wasm_bindgen::to_value(&parsed)
+            .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
     /// Parse a PCM Synth Partial dump and return as a JS object.
     #[wasm_bindgen(js_name = applyPcmsPartial)]
-    pub fn apply_pcms_partial(&mut self, data: &[u8]) -> JsValue {
-        let parsed = integral_core::pcm_synth::parse_pcms_partial(data);
-        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    pub fn apply_pcms_partial(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
+        let parsed = integral_core::pcm_synth::parse_pcms_partial(data)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        serde_wasm_bindgen::to_value(&parsed)
+            .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
     /// Parse a PCM Synth Common2 dump and return as a JS object.
     #[wasm_bindgen(js_name = applyPcmsCommon2)]
-    pub fn apply_pcms_common2(&mut self, data: &[u8]) -> JsValue {
-        let parsed = integral_core::pcm_synth::parse_pcms_common2(data);
-        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    pub fn apply_pcms_common2(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
+        let parsed = integral_core::pcm_synth::parse_pcms_common2(data)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        serde_wasm_bindgen::to_value(&parsed)
+            .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
     /// Build an RQ1 to read the PCM Synth Common block for a part.
@@ -1612,23 +1630,29 @@ impl WasmDeviceState {
 
     /// Parse a PCM Drum Kit Common dump and return as a JS object.
     #[wasm_bindgen(js_name = applyPcmdCommon)]
-    pub fn apply_pcmd_common(&mut self, data: &[u8]) -> JsValue {
-        let parsed = integral_core::pcm_drum::parse_pcmd_common(data);
-        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    pub fn apply_pcmd_common(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
+        let parsed = integral_core::pcm_drum::parse_pcmd_common(data)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        serde_wasm_bindgen::to_value(&parsed)
+            .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
     /// Parse a PCM Drum Kit Partial dump and return as a JS object.
     #[wasm_bindgen(js_name = applyPcmdPartial)]
-    pub fn apply_pcmd_partial(&mut self, data: &[u8]) -> JsValue {
-        let parsed = integral_core::pcm_drum::parse_pcmd_partial(data);
-        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    pub fn apply_pcmd_partial(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
+        let parsed = integral_core::pcm_drum::parse_pcmd_partial(data)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        serde_wasm_bindgen::to_value(&parsed)
+            .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
     /// Parse a PCM Drum Kit Common2 dump and return as a JS object.
     #[wasm_bindgen(js_name = applyPcmdCommon2)]
-    pub fn apply_pcmd_common2(&mut self, data: &[u8]) -> JsValue {
-        let parsed = integral_core::pcm_drum::parse_pcmd_common2(data);
-        serde_wasm_bindgen::to_value(&parsed).unwrap_or(JsValue::NULL)
+    pub fn apply_pcmd_common2(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
+        let parsed = integral_core::pcm_drum::parse_pcmd_common2(data)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        serde_wasm_bindgen::to_value(&parsed)
+            .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
     /// Build an RQ1 to read the PCM Drum Kit Common block for a part.

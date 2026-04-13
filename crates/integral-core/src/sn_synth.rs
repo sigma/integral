@@ -357,11 +357,15 @@ pub struct SnSynthState {
 /// - `00 10`–`00 11`: (reserve)
 /// - `00 12`: Portamento Switch
 /// - ...through `00 3F`.
-pub fn parse_sns_common(data: &[u8]) -> SnSynthCommon {
-    let mut c = SnSynthCommon::default();
+#[allow(clippy::field_reassign_with_default)]
+pub fn parse_sns_common(data: &[u8]) -> Result<SnSynthCommon, crate::ToneParseError> {
     if data.len() < SNS_COMMON_SIZE {
-        return c;
+        return Err(crate::ToneParseError {
+            expected: SNS_COMMON_SIZE,
+            got: data.len(),
+        });
     }
+    let mut c = SnSynthCommon::default();
 
     // Tone Name: bytes 0x00–0x0B
     c.tone_name = data[0x00..0x0C]
@@ -415,17 +419,21 @@ pub fn parse_sns_common(data: &[u8]) -> SnSynthCommon {
     c.unison_size = data[0x3C];
     // 0x3D–0x3F: reserve — skip
 
-    c
+    Ok(c)
 }
 
 /// Parse an SN Synth Tone Partial dump (0x3D bytes).
 ///
 /// Offsets follow the MIDI implementation doc for each partial block.
-pub fn parse_sns_partial(data: &[u8]) -> SnSynthPartial {
-    let mut p = SnSynthPartial::default();
+#[allow(clippy::field_reassign_with_default)]
+pub fn parse_sns_partial(data: &[u8]) -> Result<SnSynthPartial, crate::ToneParseError> {
     if data.len() < SNS_PARTIAL_SIZE {
-        return p;
+        return Err(crate::ToneParseError {
+            expected: SNS_PARTIAL_SIZE,
+            got: data.len(),
+        });
     }
+    let mut p = SnSynthPartial::default();
 
     p.osc_wave = data[0x00];
     p.osc_wave_variation = data[0x01];
@@ -491,7 +499,7 @@ pub fn parse_sns_partial(data: &[u8]) -> SnSynthPartial {
     p.mod_lfo_rate_control = data[0x3B];
     p.amp_level_keyfollow = data[0x3C];
 
-    p
+    Ok(p)
 }
 
 #[cfg(test)]
@@ -554,7 +562,7 @@ mod tests {
         data[0x3A] = 0x02;
         data[0x3C] = 2; // unison size = 6
 
-        let c = parse_sns_common(&data);
+        let c = parse_sns_common(&data).unwrap();
         assert_eq!(c.tone_name, "Test");
         assert_eq!(c.tone_level, 100);
         assert_eq!(c.portamento_switch, 1);
@@ -583,7 +591,7 @@ mod tests {
         data[0x37] = 0x00;
         data[0x38] = 0x00;
 
-        let p = parse_sns_partial(&data);
+        let p = parse_sns_partial(&data).unwrap();
         assert_eq!(p.osc_wave, 6);
         assert_eq!(p.osc_wave_variation, 1);
         assert_eq!(p.osc_pitch, 64);

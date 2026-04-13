@@ -4,6 +4,18 @@
 //! the Roland INTEGRA-7 via SysEx messages, including address mapping,
 //! checksum calculation, message construction, and state management.
 
+use thiserror::Error;
+
+/// Error returned when a tone data dump is too short to parse.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[error("tone data too short: expected at least {expected} bytes, got {got}")]
+pub struct ToneParseError {
+    /// Minimum required size.
+    pub expected: usize,
+    /// Actual size received.
+    pub got: usize,
+}
+
 pub mod address;
 pub mod bitstream;
 pub mod catalog;

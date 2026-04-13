@@ -791,11 +791,15 @@ fn parse_tone_name(data: &[u8]) -> String {
 /// Parse a PCM Synth Tone Common dump (0x50 = 80 bytes).
 ///
 /// Offsets follow the MIDI implementation doc (`docs/midi/06-pcm-synth-tone.md`).
-pub fn parse_pcms_common(data: &[u8]) -> PcmSynthCommon {
-    let mut c = PcmSynthCommon::default();
+#[allow(clippy::field_reassign_with_default)]
+pub fn parse_pcms_common(data: &[u8]) -> Result<PcmSynthCommon, crate::ToneParseError> {
     if data.len() < PCMS_COMMON_SIZE {
-        return c;
+        return Err(crate::ToneParseError {
+            expected: PCMS_COMMON_SIZE,
+            got: data.len(),
+        });
     }
+    let mut c = PcmSynthCommon::default();
 
     c.tone_name = parse_tone_name(data);
     // 0x0C–0x0D: reserved
@@ -841,17 +845,21 @@ pub fn parse_pcms_common(data: &[u8]) -> PcmSynthCommon {
         mc.sensitivities[3] = data[base + 8];
     }
 
-    c
+    Ok(c)
 }
 
 /// Parse a PCM Synth Tone PMT dump (0x29 = 41 bytes).
 ///
 /// Offsets follow the MIDI implementation doc.
-pub fn parse_pcms_pmt(data: &[u8]) -> PcmSynthPmt {
-    let mut pmt = PcmSynthPmt::default();
+#[allow(clippy::field_reassign_with_default)]
+pub fn parse_pcms_pmt(data: &[u8]) -> Result<PcmSynthPmt, crate::ToneParseError> {
     if data.len() < PCMS_PMT_SIZE {
-        return pmt;
+        return Err(crate::ToneParseError {
+            expected: PCMS_PMT_SIZE,
+            got: data.len(),
+        });
     }
+    let mut pmt = PcmSynthPmt::default();
 
     pmt.structure_type_12 = data[0x00];
     pmt.booster_12 = data[0x01];
@@ -874,7 +882,7 @@ pub fn parse_pcms_pmt(data: &[u8]) -> PcmSynthPmt {
         e.velocity_fade_upper = data[off + 8];
     }
 
-    pmt
+    Ok(pmt)
 }
 
 /// Parse a PCM Synth Tone Partial dump (0x011A = 282 bytes).
@@ -882,11 +890,15 @@ pub fn parse_pcms_pmt(data: &[u8]) -> PcmSynthPmt {
 /// The data array is a contiguous byte stream from the DT1 response.
 /// Linear indices map directly to the SysEx offsets:
 /// indices 0-127 = offsets `00 00`-`00 7F`, index 128 = offset `01 00`, etc.
-pub fn parse_pcms_partial(data: &[u8]) -> PcmSynthPartial {
-    let mut p = PcmSynthPartial::default();
+#[allow(clippy::field_reassign_with_default)]
+pub fn parse_pcms_partial(data: &[u8]) -> Result<PcmSynthPartial, crate::ToneParseError> {
     if data.len() < PCMS_PARTIAL_SIZE {
-        return p;
+        return Err(crate::ToneParseError {
+            expected: PCMS_PARTIAL_SIZE,
+            got: data.len(),
+        });
     }
+    let mut p = PcmSynthPartial::default();
 
     // -- General --
     p.level = data[0x00];
@@ -1007,17 +1019,21 @@ pub fn parse_pcms_partial(data: &[u8]) -> PcmSynthPartial {
     p.lfo_step_type = data[0x89];
     p.lfo_step_values.copy_from_slice(&data[0x8A..0x9A]);
 
-    p
+    Ok(p)
 }
 
 /// Parse a PCM Synth Tone Common2 dump (0x3C = 60 bytes).
 ///
 /// Offsets follow the MIDI implementation doc.
-pub fn parse_pcms_common2(data: &[u8]) -> PcmSynthCommon2 {
-    let mut c2 = PcmSynthCommon2::default();
+#[allow(clippy::field_reassign_with_default)]
+pub fn parse_pcms_common2(data: &[u8]) -> Result<PcmSynthCommon2, crate::ToneParseError> {
     if data.len() < PCMS_COMMON2_SIZE {
-        return c2;
+        return Err(crate::ToneParseError {
+            expected: PCMS_COMMON2_SIZE,
+            got: data.len(),
+        });
     }
+    let mut c2 = PcmSynthCommon2::default();
 
     // 0x00–0x0F: reserved
     c2.tone_category = data[0x10];
@@ -1028,7 +1044,7 @@ pub fn parse_pcms_common2(data: &[u8]) -> PcmSynthCommon2 {
     // 0x34–0x37: reserved
     c2.phrase_number = nibble4(data, 0x38);
 
-    c2
+    Ok(c2)
 }
 
 #[cfg(test)]
@@ -1182,7 +1198,7 @@ mod tests {
         data[0x2C] = 2;
         data[0x2D] = 70;
 
-        let c = parse_pcms_common(&data);
+        let c = parse_pcms_common(&data).unwrap();
         assert_eq!(c.tone_name, "BrightPad");
         assert_eq!(c.tone_level, 100);
         assert_eq!(c.tone_pan, 32);
@@ -1214,10 +1230,8 @@ mod tests {
     }
 
     #[test]
-    fn parse_common_short_returns_default() {
-        let data = [0u8; 10]; // way too short
-        let c = parse_pcms_common(&data);
-        assert_eq!(c, PcmSynthCommon::default());
+    fn parse_common_short_returns_err() {
+        assert!(parse_pcms_common(&[0u8; 10]).is_err());
     }
 
     #[test]
@@ -1241,7 +1255,7 @@ mod tests {
         // Partial 2 entry at offset 0x0E
         data[0x0E] = 0; // switch OFF
 
-        let pmt = parse_pcms_pmt(&data);
+        let pmt = parse_pcms_pmt(&data).unwrap();
         assert_eq!(pmt.structure_type_12, 3);
         assert_eq!(pmt.booster_12, 2);
         assert_eq!(pmt.structure_type_34, 5);
@@ -1305,7 +1319,7 @@ mod tests {
         data[0x6E] = 0x09;
         data[0x6F] = 0x05;
 
-        let p = parse_pcms_partial(&data);
+        let p = parse_pcms_partial(&data).unwrap();
         assert_eq!(p.level, 100);
         assert_eq!(p.coarse_tune, 76);
         assert_eq!(p.fine_tune, 78);
@@ -1349,7 +1363,7 @@ mod tests {
             data[0x8A + i as usize] = 28 + i * 4; // distinct values
         }
 
-        let p = parse_pcms_partial(&data);
+        let p = parse_pcms_partial(&data).unwrap();
         assert_eq!(p.lfo2_waveform, 5);
         assert_eq!(p.lfo2_rate, 131);
         assert_eq!(p.lfo2_offset, 2);
@@ -1383,7 +1397,7 @@ mod tests {
         data[0x3A] = 0x03;
         data[0x3B] = 0x04;
 
-        let c2 = parse_pcms_common2(&data);
+        let c2 = parse_pcms_common2(&data).unwrap();
         assert_eq!(c2.tone_category, 42);
         assert_eq!(c2.tone_number, 0xAB);
         assert_eq!(c2.phrase_octave_shift, 63);

@@ -179,11 +179,15 @@ pub struct SnDrumKitState {
 /// - `00 11`: Ambience Level
 /// - `00 12`: Phrase Number
 /// - `00 13`: TFX Switch
-pub fn parse_snd_common(data: &[u8]) -> SnDrumCommon {
-    let mut c = SnDrumCommon::default();
+#[allow(clippy::field_reassign_with_default)]
+pub fn parse_snd_common(data: &[u8]) -> Result<SnDrumCommon, crate::ToneParseError> {
     if data.len() < SND_COMMON_SIZE {
-        return c;
+        return Err(crate::ToneParseError {
+            expected: SND_COMMON_SIZE,
+            got: data.len(),
+        });
     }
+    let mut c = SnDrumCommon::default();
 
     // Kit Name: bytes 0x00–0x0B
     c.kit_name = data[0x00..0x0C]
@@ -204,7 +208,7 @@ pub fn parse_snd_common(data: &[u8]) -> SnDrumCommon {
     c.phrase_number = data[0x12];
     c.tfx_switch = data[0x13];
 
-    c
+    Ok(c)
 }
 
 /// Parse an SN Drum Kit Note dump (0x13 = 19 bytes).
@@ -223,11 +227,15 @@ pub fn parse_snd_common(data: &[u8]) -> SnDrumCommon {
 /// - `00 10`: Dynamic Range
 /// - `00 11`: Stereo Width
 /// - `00 12`: Output Assign
-pub fn parse_snd_note(data: &[u8]) -> SnDrumNote {
-    let mut n = SnDrumNote::default();
+#[allow(clippy::field_reassign_with_default)]
+pub fn parse_snd_note(data: &[u8]) -> Result<SnDrumNote, crate::ToneParseError> {
     if data.len() < SND_NOTE_SIZE {
-        return n;
+        return Err(crate::ToneParseError {
+            expected: SND_NOTE_SIZE,
+            got: data.len(),
+        });
     }
+    let mut n = SnDrumNote::default();
 
     // Inst Number: nibblized 4 bytes at 0x00–0x03
     n.inst_number = ((data[0x00] as u16 & 0x0F) << 12)
@@ -254,7 +262,7 @@ pub fn parse_snd_note(data: &[u8]) -> SnDrumNote {
     n.stereo_width = data[0x11];
     n.output_assign = data[0x12];
 
-    n
+    Ok(n)
 }
 
 #[cfg(test)]
@@ -311,7 +319,7 @@ mod tests {
         data[0x12] = 5; // phrase number
         data[0x13] = 1; // TFX on
 
-        let c = parse_snd_common(&data);
+        let c = parse_snd_common(&data).unwrap();
         assert_eq!(c.kit_name, "Jazz Kit");
         assert_eq!(c.kit_level, 100);
         assert_eq!(c.ambience_level, 80);
@@ -320,10 +328,8 @@ mod tests {
     }
 
     #[test]
-    fn parse_common_short_data_returns_default() {
-        let data = [0u8; 10];
-        let c = parse_snd_common(&data);
-        assert_eq!(c, SnDrumCommon::default());
+    fn parse_common_short_data_returns_err() {
+        assert!(parse_snd_common(&[0u8; 10]).is_err());
     }
 
     #[test]
@@ -351,7 +357,7 @@ mod tests {
         data[0x11] = 100; // stereo width
         data[0x12] = 2; // output assign = COMP+EQ2
 
-        let n = parse_snd_note(&data);
+        let n = parse_snd_note(&data).unwrap();
         assert_eq!(n.inst_number, 42);
         assert_eq!(n.level, 100);
         assert_eq!(n.pan, 64);
@@ -368,9 +374,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_note_short_data_returns_default() {
-        let data = [0u8; 5];
-        let n = parse_snd_note(&data);
-        assert_eq!(n, SnDrumNote::default());
+    fn parse_note_short_data_returns_err() {
+        assert!(parse_snd_note(&[0u8; 5]).is_err());
     }
 }
