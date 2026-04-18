@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-18T09:48:32Z",
+  "description": "",
+  "id": "i7-49c",
+  "labels": [],
+  "priority": 1,
+  "status": "open",
+  "title": "feat: VST3 plugin with Vizia UI and shared parameter registry",
+  "type": "task",
+  "updated_at": "2026-04-18T09:48:32Z"
+}
