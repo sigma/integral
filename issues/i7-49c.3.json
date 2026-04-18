@@ -4,6 +4,7 @@
   "blocks": [
     "i7-49c.5"
   ],
+  "closed_at": "2026-04-18T10:03:32Z",
   "created": "2026-04-18T09:49:24Z",
   "description": "",
   "id": "i7-49c.3",
@@ -16,8 +17,8 @@
     }
   ],
   "priority": 1,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Core: extract IntegraService trait for platform-agnostic MIDI bridge",
   "type": "task",
-  "updated_at": "2026-04-18T09:59:21Z"
+  "updated_at": "2026-04-18T10:03:32Z"
 }
