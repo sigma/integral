@@ -15,6 +15,9 @@ pub(crate) type MidiCallback = Option<Box<dyn Fn(&mut EventContext, u8)>>;
 /// Type alias for a boxed value-change callback taking a `usize` (index).
 pub(crate) type IndexCallback = Option<Box<dyn Fn(&mut EventContext, usize)>>;
 
+mod channel_strip;
+mod envelope;
+mod eq_section;
 mod pan_knob;
 mod section_panel;
 mod synth_fader;
@@ -23,6 +26,9 @@ mod synth_select;
 mod synth_switch;
 mod volume_fader;
 
+pub use channel_strip::*;
+pub use envelope::*;
+pub use eq_section::*;
 pub use pan_knob::*;
 pub use section_panel::*;
 pub use synth_fader::*;

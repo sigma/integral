@@ -389,3 +389,129 @@ pan-knob {
     color: #aaaaaa;
     font-size: 10;
 }
+
+/* ---------- EqSection ---------- */
+
+eq-section {
+    display: flex;
+    layout-type: column;
+    width: auto;
+    height: auto;
+}
+
+.eq-section__knob-row {
+    col-between: 6px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+}
+
+.eq-section__knob {
+    width: auto;
+    height: auto;
+}
+
+/* ---------- Envelope ---------- */
+
+adsr-envelope {
+    display: flex;
+    layout-type: column;
+    width: auto;
+    height: auto;
+}
+
+ad-envelope {
+    display: flex;
+    layout-type: column;
+    width: auto;
+    height: auto;
+}
+
+.envelope__fader-row {
+    col-between: 4px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+}
+
+/* ---------- ChannelStrip ---------- */
+
+channel-strip {
+    display: flex;
+    layout-type: column;
+    width: 100px;
+    background-color: #141428;
+    border-width: 1px;
+    border-color: #2a2a4a;
+    border-radius: 4px;
+    child-left: 4px;
+    child-right: 4px;
+    child-top: 6px;
+    child-bottom: 6px;
+    row-between: 6px;
+}
+
+.channel-strip__label {
+    color: #bbbbbb;
+    font-size: 11;
+    width: auto;
+    height: auto;
+    child-space: 0px;
+}
+
+.channel-strip__sends-row {
+    col-between: 4px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+}
+
+.channel-strip__send-knob {
+    width: auto;
+    height: auto;
+}
+
+.channel-strip__mute-row {
+    col-between: 4px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+}
+
+/* ---------- Mute / Solo Buttons ---------- */
+
+.mute-btn {
+    width: 28px;
+    height: 20px;
+    background-color: #222238;
+    color: #888888;
+    font-size: 10;
+    border-width: 1px;
+    border-color: #3a3a5a;
+    border-radius: 3px;
+    child-space: 1s;
+}
+
+.mute-btn--active {
+    background-color: #6b1a1a;
+    color: #ff4444;
+    border-color: #883333;
+}
+
+.solo-btn {
+    width: 28px;
+    height: 20px;
+    background-color: #222238;
+    color: #888888;
+    font-size: 10;
+    border-width: 1px;
+    border-color: #3a3a5a;
+    border-radius: 3px;
+    child-space: 1s;
+}
+
+.solo-btn--active {
+    background-color: #4a4a1a;
+    color: #dddd44;
+    border-color: #888833;
+}

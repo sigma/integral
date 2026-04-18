@@ -10,6 +10,7 @@ use crate::SharedState;
 /// Editor data exposed to Vizia views via the Lens system.
 #[derive(Lens)]
 pub(crate) struct EditorData {
+    #[allow(dead_code)]
     pub shared: Arc<SharedState>,
 }
 
