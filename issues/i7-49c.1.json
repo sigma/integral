@@ -7,9 +7,15 @@
   "id": "i7-49c.1",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Create a ParamRegistry module in crates/integral-core/src/param_registry.rs that provides structured metadata for every editable parameter in the INTEGRA-7 mixer/routing state.\n\nPURPOSE: Both the React web app and the future Vizia VST UI need to know: parameter name, min/max/default, display format, logical group, and SysEx address. Currently this is duplicated in TypeScript components (SynthKnob label, min, max) and Rust address constants. The registry centralizes it.\n\nDATA MODEL:\n- ParamDef struct with: id (e.g. part.1.level), name, group, min, max, default, format (Raw / SignedCenter / Named / Custom), address builder function\n- ParamFormat enum for display formatting\n\nSCOPE (Phase 1 — mixer params only):\n- Per-part (x16): level, pan, mute, chorus_send, reverb_send, output_assign, receive_channel\n- Master: level\n- Ext: level, mute\n- Chorus: enabled, type, level, output_select\n- Reverb: enabled, type, level, output_assign\n- Solo part\n\nIMPLEMENTATION:\n- New file: crates/integral-core/src/param_registry.rs\n- Add pub mod param_registry to lib.rs\n- Provide pub fn mixer_params() -\u003e \u0026'static [ParamDef]\n- Unit tests verifying total count, specific param lookups, format output\n- Run just check to verify\n\nREFERENCE FILES:\n- crates/integral-core/src/params.rs (address constants)\n- crates/integral-core/src/state/mod.rs (PartState, MixerState defaults)\n- web/src/types.ts (TypeScript PartState interface)\n- web/src/ChannelStrip.tsx (hardcoded min/max/default examples)",
+      "timestamp": "2026-04-18T09:49:08Z"
+    }
+  ],
   "priority": 1,
   "status": "open",
   "title": "Core: add ParamRegistry with metadata for all mixer parameters",
   "type": "task",
-  "updated_at": "2026-04-18T09:48:37Z"
+  "updated_at": "2026-04-18T09:49:08Z"
 }
