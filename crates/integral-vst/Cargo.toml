@@ -1,9 +1,13 @@
 [package]
 name = "integral-vst"
-description = "VST3 wrapper for the Integral Integra-7 control surface"
+description = "VST3 plugin for the Integral Integra-7 control surface"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
 integral-core = { path = "../integral-core" }
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["assert_process_allocs"] }
