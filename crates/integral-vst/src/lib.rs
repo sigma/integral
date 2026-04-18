@@ -8,7 +8,10 @@
 use integral_core::device::DeviceState;
 use integral_core::sysex;
 use nih_plug::prelude::*;
+use nih_plug_vizia::ViziaState;
 use std::sync::{Arc, Mutex};
+
+mod editor;
 
 /// Default SysEx device ID for the Integra-7 (0x10 = device 17).
 const DEFAULT_DEVICE_ID: u8 = 0x10;
@@ -71,12 +74,18 @@ struct Integral {
 
 /// Plugin parameters (currently empty — Integral uses SysEx, not DAW automation).
 #[derive(Params)]
-struct IntegralParams {}
+struct IntegralParams {
+    /// Persisted editor window state (size, position).
+    #[persist = "editor-state"]
+    editor_state: Arc<ViziaState>,
+}
 
 impl Default for Integral {
     fn default() -> Self {
         Self {
-            params: Arc::new(IntegralParams {}),
+            params: Arc::new(IntegralParams {
+                editor_state: editor::default_state(),
+            }),
             shared: Arc::new(SharedState {
                 device: Mutex::new(DeviceState::new(DEFAULT_DEVICE_ID)),
             }),
@@ -99,6 +108,10 @@ impl Plugin for Integral {
 
     fn params(&self) -> Arc<dyn Params> {
         self.params.clone()
+    }
+
+    fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
+        editor::create(self.shared.clone(), self.params.editor_state.clone())
     }
 
     fn process(
