@@ -4,6 +4,7 @@
   "blocks": [
     "i7-49c.5"
   ],
+  "closed_at": "2026-04-18T10:04:40Z",
   "created": "2026-04-18T09:49:24Z",
   "description": "",
   "id": "i7-49c.4",
@@ -16,8 +17,8 @@
     }
   ],
   "priority": 1,
-  "status": "in_progress",
+  "status": "closed",
   "title": "VST: add nih-plug skeleton with MIDI SysEx I/O",
   "type": "task",
-  "updated_at": "2026-04-18T09:59:21Z"
+  "updated_at": "2026-04-18T10:04:40Z"
 }
