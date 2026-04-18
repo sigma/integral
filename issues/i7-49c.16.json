@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-49c.13"
+  ],
   "blocks": [],
   "created": "2026-04-18T09:49:26Z",
   "description": "",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "VST/Vizia: implement RoutingPage with part output assign grid",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:26Z"
+  "updated_at": "2026-04-18T09:49:42Z"
 }
