@@ -4,6 +4,7 @@
     "i7-49c.13"
   ],
   "blocks": [],
+  "closed_at": "2026-04-18T14:17:25Z",
   "created": "2026-04-18T09:49:26Z",
   "description": "",
   "id": "i7-49c.16",
@@ -16,8 +17,8 @@
     }
   ],
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "VST/Vizia: implement RoutingPage with part output assign grid",
   "type": "task",
-  "updated_at": "2026-04-18T14:05:21Z"
+  "updated_at": "2026-04-18T14:17:25Z"
 }
