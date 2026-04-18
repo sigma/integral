@@ -9,6 +9,7 @@ use integral_core::device::DeviceState;
 use integral_core::sysex;
 use nih_plug::prelude::*;
 use nih_plug_vizia::ViziaState;
+use std::num::NonZeroU32;
 use std::sync::{Arc, Mutex};
 
 mod editor;
@@ -99,7 +100,13 @@ impl Plugin for Integral {
     const URL: &'static str = "https://github.com/sigma/integral";
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-    const AUDIO_IO_LAYOUTS: &'static [AudioIOLayout] = &[];
+    // A minimal stereo layout is needed for the standalone backend to initialize
+    // correctly on macOS. The plugin doesn't process audio — it just passes through.
+    const AUDIO_IO_LAYOUTS: &'static [AudioIOLayout] = &[AudioIOLayout {
+        main_input_channels: NonZeroU32::new(2),
+        main_output_channels: NonZeroU32::new(2),
+        ..AudioIOLayout::const_default()
+    }];
     const MIDI_INPUT: MidiConfig = MidiConfig::Basic;
     const MIDI_OUTPUT: MidiConfig = MidiConfig::Basic;
     const SAMPLE_ACCURATE_AUTOMATION: bool = false;
