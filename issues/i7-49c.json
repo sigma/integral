@@ -6,9 +6,15 @@
   "description": "",
   "id": "i7-49c",
   "labels": [],
+  "comments": [
+    {
+      "text": "STRATEGY: Staged approach — dual UI with shared core, converging later.\n\nPhase 1 (Core Infrastructure):\n- i7-49c.1: ParamRegistry for mixer params (centralizes parameter metadata)\n- i7-49c.3: MidiBridge trait (platform-agnostic MIDI abstraction)\n- i7-49c.4: nih-plug skeleton (VST3 plugin with SysEx I/O)\n- i7-49c.5: Wire DeviceState into nih-plug\n- i7-49c.6: Vizia editor window\n\nPhase 2 (Vizia Component Library):\n- i7-49c.7-11: Port synth-ui controls (knobs, faders, switches, envelopes, EQ)\n\nPhase 3 (Mixer — MVP):\n- i7-49c.12-15: ChannelStrip, MixerPage, TopBar, ToneSelector\n\nPhase 4 (Additional Pages):\n- i7-49c.16-18: Routing, Surround, Tone Editors\n\nPhase 5 (Web Migration):\n- i7-49c.19-20: Migrate web app to consume ParamRegistry\n\nRATIONALE: Vizia chosen for VST UI because it has first-party nih-plug support, CSS-like styling (closest to React mental model), and nascent WASM support for potential future convergence. The Integra-7 parameter set is frozen (discontinued hardware), bounding long-term maintenance of two UIs.\n\nCRITICAL PATH: i7-49c.1 → i7-49c.4 → i7-49c.5 → i7-49c.6 → i7-49c.7/8/9 → i7-49c.12 → i7-49c.13 (working mixer in VST)",
+      "timestamp": "2026-04-18T09:52:23Z"
+    }
+  ],
   "priority": 1,
   "status": "open",
   "title": "feat: VST3 plugin with Vizia UI and shared parameter registry",
   "type": "task",
-  "updated_at": "2026-04-18T09:48:32Z"
+  "updated_at": "2026-04-18T09:52:23Z"
 }
