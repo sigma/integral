@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-49c.6"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-49c.12"
+  ],
   "created": "2026-04-18T09:49:25Z",
   "description": "",
   "id": "i7-49c.9",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "VST/Vizia: implement VolumeFader and PanKnob for mixer strips",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:40Z"
+  "updated_at": "2026-04-18T09:49:41Z"
 }

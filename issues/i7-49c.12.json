@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-49c.9"
+  ],
   "blocks": [],
   "created": "2026-04-18T09:49:25Z",
   "description": "",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "VST/Vizia: implement ChannelStrip with level, pan, mute, solo, sends",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:25Z"
+  "updated_at": "2026-04-18T09:49:41Z"
 }
