@@ -5,7 +5,7 @@ use nih_plug_vizia::vizia::prelude::*;
 use nih_plug_vizia::{create_vizia_editor, ViziaState, ViziaTheming};
 use std::sync::Arc;
 
-use crate::views::{MixerPage, RoutingPage, SurroundPage};
+use crate::views::{MixerPage, RoutingPage, SurroundPage, ToneEditorPage};
 use crate::SharedState;
 
 // ---------------------------------------------------------------------------
@@ -111,6 +111,7 @@ pub(crate) fn create(
             let shared_mixer = shared.clone();
             let shared_surround = shared.clone();
             let shared_routing = shared.clone();
+            let shared_tone = shared.clone();
 
             Binding::new(cx, EditorData::active_tab, move |cx, tab_lens| {
                 let tab = tab_lens.get(cx);
@@ -127,12 +128,8 @@ pub(crate) fn create(
                             .class("page-content");
                     }
                     PageTab::ToneEdit => {
-                        // Placeholder for future tone edit page.
-                        VStack::new(cx, |cx| {
-                            Label::new(cx, "Tone Edit (coming soon)")
-                                .class("placeholder-label");
-                        })
-                        .class("page-content");
+                        ToneEditorPage::new(cx, shared_tone.clone())
+                            .class("page-content");
                     }
                 }
             });

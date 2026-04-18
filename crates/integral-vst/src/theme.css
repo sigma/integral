@@ -868,6 +868,119 @@ tone-selector {
     background-color: #2a3a5a;
 }
 
+/* ---------- ToneEditorPage ---------- */
+
+tone-editor {
+    display: flex;
+    layout-type: column;
+    width: 100%;
+    height: 100%;
+    row-between: 0px;
+}
+
+.tone-editor__header {
+    width: 100%;
+    height: 40px;
+    background-color: #0e0e1c;
+    border-width: 0px 0px 1px 0px;
+    border-color: #2a2a4a;
+    child-left: 10px;
+    child-right: 10px;
+    col-between: 16px;
+}
+
+.tone-editor__back-btn {
+    color: #8888cc;
+    font-size: 11;
+    width: auto;
+    height: auto;
+    child-top: 1s;
+    child-bottom: 1s;
+    background-color: #1a1a30;
+    border-width: 1px;
+    border-color: #3a3a5a;
+    border-radius: 4px;
+    child-left: 8px;
+    child-right: 8px;
+}
+
+.tone-editor__back-btn:hover {
+    background-color: #222240;
+    color: #aaaaee;
+    border-color: #5577cc;
+}
+
+.tone-editor__part-info {
+    color: #cccccc;
+    font-size: 13;
+    width: auto;
+    height: auto;
+    child-top: 1s;
+    child-bottom: 1s;
+}
+
+.tone-editor__stub {
+    width: 100%;
+    height: 1s;
+    child-left: 1s;
+    child-right: 1s;
+    child-top: 60px;
+}
+
+.tone-editor__stub-label {
+    color: #666666;
+    font-size: 13;
+    width: auto;
+    height: auto;
+}
+
+.tone-editor__scroll {
+    width: 100%;
+    height: 1s;
+}
+
+.tone-editor__sns-body {
+    width: 100%;
+    height: auto;
+    row-between: 6px;
+    child-left: 8px;
+    child-right: 8px;
+    child-top: 8px;
+    child-bottom: 8px;
+}
+
+.tone-editor__tone-name {
+    color: #c0d0ff;
+    font-size: 12;
+    width: auto;
+    height: auto;
+    child-bottom: 4px;
+}
+
+.tone-editor__knob-row {
+    col-between: 6px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+}
+
+.tone-editor__switch-row {
+    col-between: 8px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+    child-top: 4px;
+    child-bottom: 4px;
+}
+
+.tone-editor__switch-label {
+    color: #999999;
+    font-size: 9;
+    width: auto;
+    height: auto;
+    child-bottom: 2px;
+}
+
 /* ---------- Root & Tabs ---------- */
 
 .root {
