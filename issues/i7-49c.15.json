@@ -9,9 +9,15 @@
   "id": "i7-49c.15",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Implement ToneSelector modal Vizia view with dual-mode browsing (bank + category).\n\nDEPENDS ON: i7-49c.13 (MixerPage)\n\nTWO BROWSING MODES (toggle at bottom):\n1. By Tone \u0026 Bank: left panel shows bank groups (SN Acoustic/Synth/Drum, PCM Synth/Drum, GM2, Expansion), right panel shows tone list for selected bank\n2. By Category: left panel shows category grid (37 categories), right panel shows all tones in selected category across all banks\n\nTONE LIST: Scrollable list with tone number, category abbreviation (bank mode) or bank badge (category mode), and tone name. Active tone highlighted. Click selects tone and calls changePartTone().\n\nDATA SOURCE: Uses factoryTonesJson() from integral-core for preset banks (instant, no MIDI needed). User banks would need MIDI catalog queries.\n\nREFERENCE:\n- web/src/ToneSelector.tsx: full dual-mode implementation\n- web/src/ToneSelector.module.css: modal styling\n- web/src/toneCatalog.ts: ToneCatalog service with category index\n- web/src/categories.ts: category names, IDs, abbreviations\n- web/src/toneBanks.ts: bank definitions (MSB/LSBs per bank)",
+      "timestamp": "2026-04-18T09:52:04Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "VST/Vizia: implement ToneSelector modal with bank and category modes",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:42Z"
+  "updated_at": "2026-04-18T09:52:04Z"
 }
