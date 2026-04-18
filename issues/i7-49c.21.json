@@ -9,9 +9,15 @@
   "id": "i7-49c.21",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Create a standalone native application that reuses the Vizia UI and integral-core logic, but runs outside a DAW with direct MIDI port access.\n\nPURPOSE: Users who don't use a DAW (or want a dedicated control surface app) should be able to run Integral as a native app on macOS/Linux/Windows. This replaces the web app for users who prefer a native experience.\n\nDEPENDS ON: i7-49c.13 (MixerPage — the Vizia UI must exist first)\n\nAPPROACH — nih-plug standalone:\nnih-plug has a built-in standalone backend (nih_plug::wrapper::standalone). It opens a native window with the plugin's Vizia editor and provides audio/MIDI I/O via JACK or CoreAudio/CoreMIDI. This is the path of least resistance — no new code for windowing or UI hosting.\n\nIMPLEMENTATION:\n1. Add the standalone wrapper feature to integral-vst/Cargo.toml:\n   nih_plug = { version = \"...\", features = [\"standalone\"] }\n2. Add a binary target in integral-vst/Cargo.toml or a new crate (e.g. integral-standalone/):\n   [[bin]]\n   name = \"integral\"\n   path = \"src/standalone.rs\"\n3. The standalone binary is minimal — it calls nih_plug::wrapper::standalone::nih_export_standalone() which handles window creation, audio/MIDI backend, and the Vizia editor lifecycle\n4. Add MIDI port selection: nih-plug standalone supports --midi-input and --midi-output CLI args, or the JACK port connection UI. For CoreMIDI (macOS), enumerate ports and connect to Integra-7 automatically (reuse the port detection logic from integral-cli)\n5. Add to flake.nix: a standalone build target and a nix run command\n6. Add to justfile: just run-standalone target\n\nMIDI I/O DIFFERENCES FROM VST:\n- In VST mode: MIDI comes from the DAW host via NoteEvent\n- In standalone mode: MIDI comes from CoreMIDI/ALSA/JACK directly\n- The integral-core DeviceState doesn't care — it just receives bytes and produces bytes\n- The standalone wrapper needs to handle MIDI port enumeration and connection (similar to what integral-cli does with midir)\n\nOPTIONAL ENHANCEMENTS (can be separate tasks):\n- Auto-detect Integra-7 port by name (like the web app's findIntegraPort)\n- System tray icon for background operation\n- Remember last-used MIDI port\n\nREFERENCE:\n- nih-plug standalone docs: https://nih-plug.robbertvanderhelm.nl/nih_plug/wrapper/standalone/\n- crates/integral-cli/src/main.rs: MIDI port enumeration with midir\n- web/src/midi.ts: findIntegraPort() logic for auto-detection\n\nTESTING: cargo run -p integral-vst --bin integral (or equivalent) should open a native window with the mixer UI, enumerate MIDI ports, and connect to the Integra-7.",
+      "timestamp": "2026-04-18T09:58:02Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Standalone: wrap VST plugin as a native macOS/Linux/Windows app with MIDI port selection",
   "type": "task",
-  "updated_at": "2026-04-18T09:57:38Z"
+  "updated_at": "2026-04-18T09:58:02Z"
 }
