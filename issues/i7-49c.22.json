@@ -2,6 +2,7 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-18T16:14:04Z",
   "created": "2026-04-18T14:00:25Z",
   "description": "",
   "id": "i7-49c.22",
@@ -18,8 +19,8 @@
     }
   ],
   "priority": 3,
-  "status": "open",
+  "status": "closed",
   "title": "fix(vst): investigate baseview null pointer crash in standalone mode on macOS",
   "type": "task",
-  "updated_at": "2026-04-18T16:07:33Z"
+  "updated_at": "2026-04-18T16:14:04Z"
 }
