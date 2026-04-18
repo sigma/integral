@@ -2,6 +2,7 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-18T16:14:20Z",
   "created": "2026-04-18T09:48:32Z",
   "description": "",
   "id": "i7-49c",
@@ -13,8 +14,8 @@
     }
   ],
   "priority": 1,
-  "status": "open",
+  "status": "closed",
   "title": "feat: VST3 plugin with Vizia UI and shared parameter registry",
   "type": "task",
-  "updated_at": "2026-04-18T09:52:23Z"
+  "updated_at": "2026-04-18T16:14:20Z"
 }
