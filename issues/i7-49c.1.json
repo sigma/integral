@@ -6,6 +6,7 @@
     "i7-49c.19",
     "i7-49c.2"
   ],
+  "closed_at": "2026-04-18T10:02:19Z",
   "created": "2026-04-18T09:48:37Z",
   "description": "",
   "id": "i7-49c.1",
@@ -18,8 +19,8 @@
     }
   ],
   "priority": 1,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Core: add ParamRegistry with metadata for all mixer parameters",
   "type": "task",
-  "updated_at": "2026-04-18T09:59:20Z"
+  "updated_at": "2026-04-18T10:02:19Z"
 }
