@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-49c.13"
+  ],
   "blocks": [],
   "created": "2026-04-18T09:57:34Z",
   "description": "",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Standalone: wrap VST plugin as a native macOS/Linux/Windows app with MIDI port selection",
   "type": "task",
-  "updated_at": "2026-04-18T09:57:34Z"
+  "updated_at": "2026-04-18T09:57:38Z"
 }
