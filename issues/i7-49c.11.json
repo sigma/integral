@@ -11,9 +11,15 @@
   "id": "i7-49c.11",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Implement ADSREnvelope and ADEnvelope composite Vizia views.\n\nDEPENDS ON: i7-49c.7 (SynthKnob/SynthFader)\n\nADSR_ENVELOPE: Shows 4 faders (A/D/S/R) with an SVG-like envelope curve visualization above them. Optional extra fader (e.g. Depth). The curve is drawn using Canvas, connecting: origin → attack peak → decay → sustain level → release to zero.\n\nAD_ENVELOPE: Simplified 2-fader version (Attack/Decay) with optional extra, and a simpler A/D curve.\n\nBoth support compact mode (shorter faders).\n\nREFERENCE:\n- web/src/synth-ui/ADSREnvelope.tsx: full implementation with SVG curve path generation\n- web/src/synth-ui/ADEnvelope.tsx: simplified version\n\nPlace in crates/integral-vst/src/views/.",
+      "timestamp": "2026-04-18T09:52:04Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "VST/Vizia: implement ADSREnvelope and ADEnvelope visualizations",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:42Z"
+  "updated_at": "2026-04-18T09:52:04Z"
 }
