@@ -16,9 +16,15 @@
   "id": "i7-49c.13",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Implement MixerPage Vizia view: the main mixer surface with all 16 part strips, master, ext, FX, and comp+EQ.\n\nDEPENDS ON: i7-49c.1 (ParamRegistry), i7-49c.12 (ChannelStrip)\n\nLAYOUT (horizontal scrollable):\n- 16 ChannelStrip (part variant) side by side\n- 1 ChannelStrip (ext variant) \n- 2 FxStrip (Chorus + Reverb) — need to implement FxStrip too\n- 6 ChannelStrip (comp-eq variant, conditional on drumCompEq.enabled + eqExpanded)\n- 1 ChannelStrip (master variant)\n\nCONTROLS ABOVE MIXER:\n- TopBar with studio set selector + tone info (can be stub initially)\n- PartSelector (16 numbered buttons to select active part)\n- Details toggle button (expand/collapse EQ sections)\n\nSTATE BINDING:\n- Read MixerState from shared DeviceState\n- Call DeviceState setters on user interaction\n- Consume ParamRegistry for parameter metadata\n\nREFERENCE:\n- web/src/MixerPage.tsx: full React implementation\n- web/src/FxStrip.tsx: FX strip with type selector, output routing, parameter knobs\n\nPlace in crates/integral-vst/src/views/.",
+      "timestamp": "2026-04-18T09:52:04Z"
+    }
+  ],
   "priority": 1,
   "status": "open",
   "title": "VST/Vizia: implement MixerPage with 16 parts, master, ext, FX strips",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:42Z"
+  "updated_at": "2026-04-18T09:52:04Z"
 }
