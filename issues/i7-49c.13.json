@@ -12,6 +12,7 @@
     "i7-49c.18",
     "i7-49c.21"
   ],
+  "closed_at": "2026-04-18T13:37:45Z",
   "created": "2026-04-18T09:49:25Z",
   "description": "",
   "id": "i7-49c.13",
@@ -24,8 +25,8 @@
     }
   ],
   "priority": 1,
-  "status": "in_progress",
+  "status": "closed",
   "title": "VST/Vizia: implement MixerPage with 16 parts, master, ext, FX strips",
   "type": "task",
-  "updated_at": "2026-04-18T13:31:33Z"
+  "updated_at": "2026-04-18T13:37:45Z"
 }
