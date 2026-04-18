@@ -5,7 +5,8 @@
     "i7-49c.12"
   ],
   "blocks": [
-    "i7-49c.14"
+    "i7-49c.14",
+    "i7-49c.15"
   ],
   "created": "2026-04-18T09:49:25Z",
   "description": "",
@@ -16,5 +17,5 @@
   "status": "open",
   "title": "VST/Vizia: implement MixerPage with 16 parts, master, ext, FX strips",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:41Z"
+  "updated_at": "2026-04-18T09:49:42Z"
 }
