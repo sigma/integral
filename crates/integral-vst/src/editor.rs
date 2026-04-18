@@ -5,6 +5,7 @@ use nih_plug_vizia::vizia::prelude::*;
 use nih_plug_vizia::{create_vizia_editor, ViziaState, ViziaTheming};
 use std::sync::Arc;
 
+use crate::views::MixerPage;
 use crate::SharedState;
 
 /// Editor data exposed to Vizia views via the Lens system.
@@ -54,14 +55,9 @@ pub(crate) fn create(
             })
             .class("tab-bar");
 
-            // Page content placeholder.
-            VStack::new(cx, |cx| {
-                Label::new(cx, "Integral — Integra-7 Control Surface")
-                    .class("placeholder-title");
-                Label::new(cx, "VST editor connected. Mixer UI coming soon.")
-                    .class("placeholder-subtitle");
-            })
-            .class("page-content");
+            // Page content — Mixer page.
+            MixerPage::new(cx, shared.clone())
+                .class("page-content");
         })
         .class("root");
     })

@@ -515,3 +515,128 @@ channel-strip {
     color: #dddd44;
     border-color: #888833;
 }
+
+/* ---------- MixerPage ---------- */
+
+mixer-page {
+    display: flex;
+    layout-type: column;
+    width: 100%;
+    height: 100%;
+    row-between: 6px;
+}
+
+.mixer-header {
+    col-between: 8px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+    child-left: 8px;
+    child-top: 6px;
+}
+
+.mixer-part-info {
+    color: #cccccc;
+    font-size: 12;
+    width: auto;
+    height: auto;
+    child-left: 12px;
+    child-top: 4px;
+    child-bottom: 4px;
+}
+
+.part-selector {
+    col-between: 2px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+}
+
+.part-selector__btn {
+    width: 28px;
+    height: 22px;
+    background-color: #1a1a30;
+    color: #888888;
+    font-size: 10;
+    border-width: 1px;
+    border-color: #2a2a4a;
+    border-radius: 3px;
+    child-space: 1s;
+}
+
+.part-selector__btn--active {
+    background-color: #2a3a5a;
+    color: #ffffff;
+    border-color: #5577cc;
+}
+
+.mixer-scroll {
+    width: 100%;
+    height: 1s;
+}
+
+.mixer-strips {
+    col-between: 2px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+    child-left: 4px;
+    child-top: 4px;
+    child-bottom: 4px;
+}
+
+/* ---------- FxStrip ---------- */
+
+fx-strip {
+    display: flex;
+    layout-type: column;
+    width: 80px;
+    background-color: #141428;
+    border-width: 1px;
+    border-color: #2a2a4a;
+    border-radius: 4px;
+    child-left: 4px;
+    child-right: 4px;
+    child-top: 6px;
+    child-bottom: 6px;
+    row-between: 6px;
+}
+
+.fx-strip__label {
+    color: #bbbbbb;
+    font-size: 11;
+    width: auto;
+    height: auto;
+}
+
+.fx-strip__switch {
+    width: 36px;
+    height: 18px;
+    background-color: #222238;
+    color: #888888;
+    font-size: 9;
+    border-width: 1px;
+    border-color: #3a3a5a;
+    border-radius: 3px;
+    child-space: 1s;
+}
+
+.fx-strip__switch--on {
+    background-color: #1a2a1a;
+    color: #4dff4d;
+    border-color: #3a5a3a;
+}
+
+.fx-strip__type {
+    color: #999999;
+    font-size: 9;
+    width: auto;
+    height: auto;
+}
+
+.fx-strip__level {
+    color: #aaaaaa;
+    font-size: 10;
+    width: auto;
+    height: auto;
+}
