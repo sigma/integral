@@ -7,9 +7,15 @@
   "id": "i7-49c.22",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "The standalone binary crashes on macOS with a null pointer dereference in baseview::macos::view::become_first_responder (view.rs:248). This happens during NSView initialization when viewWillMoveToWindow is called.\n\nStack trace: baseview::macos::view::become_first_responder → view_will_move_to_window → NSWindow.setContentView → Window::open_blocking → standalone wrapper.\n\nAdditionally, CoreAudio sends more samples than the configured buffer size (558 vs 512, 1115 vs 1024) causing a panic in cpal.rs:832. This may be a sample rate mismatch issue (44100 vs 48000).\n\nBoth issues are in upstream dependencies (baseview 579130e, nih-plug 28b149ec). Options:\n1. Report upstream to nih-plug/baseview\n2. Try a different nih-plug/baseview revision\n3. Use the JACK backend instead of CoreAudio (requires JACK installed)\n4. Build a custom standalone wrapper using winit/baseview directly instead of nih-plug standalone\n\nmacOS version: Darwin 25.4.0",
+      "timestamp": "2026-04-18T14:00:36Z"
+    }
+  ],
   "priority": 1,
   "status": "open",
   "title": "fix(vst): investigate baseview null pointer crash in standalone mode on macOS",
   "type": "task",
-  "updated_at": "2026-04-18T14:00:25Z"
+  "updated_at": "2026-04-18T14:00:36Z"
 }
