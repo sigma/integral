@@ -12,9 +12,15 @@
   "id": "i7-49c.5",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Wire integral-core's DeviceState into the nih-plug plugin's process loop.\n\nDEPENDS ON: i7-49c.3 (MidiBridge trait), i7-49c.4 (nih-plug skeleton)\n\nIMPLEMENTATION:\n1. Create a VstMidiBridge struct implementing the MidiBridge trait from i7-49c.3\n2. In the plugin's process() callback:\n   - Feed incoming SysEx to DeviceState.handle_dt1()\n   - Call DeviceState.drain() on each process block, send outgoing SysEx via NoteEvent\n   - Use the block's timestamp for throttle timing\n3. Store DeviceState in an Arc\u003cMutex\u003c\u003e\u003e shared between the process thread and the editor\n4. Implement initial state loading: on plugin load, queue RQ1 requests for all mixer parameters (same sequence as web/src/useMixer.ts loadState())\n\nARCHITECTURE:\n- process() runs on the audio thread — keep it lock-free where possible\n- The editor (Vizia) reads state from a shared reference\n- Parameter changes from the editor queue DT1 messages via DeviceState\n- The process() callback drains and sends them\n\nREFERENCE:\n- web/src/useMixer.ts lines 145-275: loadState() sequence (what to request on init)\n- web/src/integra.ts: drain loop timing, request/response pairing",
+      "timestamp": "2026-04-18T09:52:03Z"
+    }
+  ],
   "priority": 1,
   "status": "open",
   "title": "VST: wire integral-core DeviceState into nih-plug processing",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:40Z"
+  "updated_at": "2026-04-18T09:52:03Z"
 }
