@@ -11,9 +11,15 @@
   "id": "i7-49c.8",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Implement SynthSwitch, SynthSelect, and SectionPanel Vizia views.\n\nDEPENDS ON: i7-49c.6 (Vizia editor)\n\nSYNTHSWITCH: Multi-state toggle with LED indicator\n- 2-state: horizontal toggle button with LED dot\n- N-state: vertical list of options with LED dots\n- Properties: value, options (value+label pairs), led flag, led color\n\nSYNTHSELECT: Styled dropdown\n- Properties: value, options (value+label pairs), label\n- Visual: dark themed dropdown matching the web app style\n\nSECTIONPANEL: Bordered panel container with accent-colored header\n- Properties: label text, accent color\n- Visual: rounded border, colored top bar, dark background\n\nREFERENCE:\n- web/src/synth-ui/SynthSwitch.tsx + .module.css\n- web/src/synth-ui/SynthSelect.tsx + .module.css\n- web/src/synth-ui/SectionPanel.tsx + .module.css\n\nPlace in crates/integral-vst/src/views/.",
+      "timestamp": "2026-04-18T09:52:03Z"
+    }
+  ],
   "priority": 1,
   "status": "open",
   "title": "VST/Vizia: implement SynthSwitch, SynthSelect, and SectionPanel",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:41Z"
+  "updated_at": "2026-04-18T09:52:03Z"
 }
