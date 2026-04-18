@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-49c.6"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-49c.10"
+  ],
   "created": "2026-04-18T09:49:25Z",
   "description": "",
   "id": "i7-49c.7",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "VST/Vizia: implement SynthKnob and SynthFader controls",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:40Z"
+  "updated_at": "2026-04-18T09:49:41Z"
 }
