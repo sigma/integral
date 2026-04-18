@@ -9,9 +9,15 @@
   "id": "i7-49c.14",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Implement TopBar Vizia view with studio set selector and selected part tone info.\n\nDEPENDS ON: i7-49c.13 (MixerPage)\n\nELEMENTS:\n- Studio set selector: dropdown (0-63) showing current studio set name, with Load Names button to fetch all 64 names via catalog query\n- Tone info: clickable text showing 'Part N : ToneType : PC : ToneName' for the selected part\n- Clicking tone info opens the ToneSelector (i7-49c.15)\n\nREFERENCE:\n- web/src/TopBar.tsx: complete React implementation\n- web/src/StudioSetSelector.tsx: studio set dropdown with lazy name loading",
+      "timestamp": "2026-04-18T09:52:04Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "VST/Vizia: implement TopBar with studio set selector and tone info",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:41Z"
+  "updated_at": "2026-04-18T09:52:04Z"
 }
