@@ -9,9 +9,15 @@
   "id": "i7-49c.16",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Implement RoutingPage Vizia view showing part output assignments, FX routing, and Comp+EQ routing.\n\nDEPENDS ON: i7-49c.13 (MixerPage — reuses strip styling)\n\nTHREE SECTIONS:\n1. Part Routing Grid: 16 columns showing part number, tone type badge, tone name, output assign dropdown (A/B/C/D/1-8), FX send indicators\n2. Effects Routing: Chorus type + output select, Reverb type + output assign (read-only display)\n3. Drum Comp+EQ Routing: 6 unit output assign dropdowns (conditional on drumCompEq.enabled)\n- Surround override banner when surround is active\n\nREFERENCE:\n- web/src/RoutingPage.tsx: complete React implementation\n- web/src/RoutingPage.module.css: styling\n- docs/design/output-routing.md: design document with signal flow diagram",
+      "timestamp": "2026-04-18T09:52:04Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "VST/Vizia: implement RoutingPage with part output assign grid",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:42Z"
+  "updated_at": "2026-04-18T09:52:04Z"
 }
