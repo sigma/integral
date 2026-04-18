@@ -889,15 +889,24 @@ impl DeviceState {
             _ => return,
         }
         let part = self.state.drum_comp_eq.part;
-        let addr = params::comp_eq_param_address(part, unit, param_offset);
+        let tone_type = self.comp_eq_tone_type();
+        let addr = params::comp_eq_param_address(part, tone_type, unit, param_offset);
         self.send_dt1(&addr, &[value]);
     }
 
     /// Build an RQ1 to read all 6 Comp+EQ units (84 bytes).
     pub fn build_comp_eq_block_request(&self) -> Vec<u8> {
         let part = self.state.drum_comp_eq.part;
-        let addr = params::comp_eq_block_address(part);
+        let tone_type = self.comp_eq_tone_type();
+        let addr = params::comp_eq_block_address(part, tone_type);
         sysex::build_rq1(self.device_id, &addr, &params::COMP_EQ_BLOCK_SIZE)
+    }
+
+    /// Determine the tone type offset for the Comp+EQ assigned part.
+    fn comp_eq_tone_type(&self) -> [u8; 3] {
+        let part = self.state.drum_comp_eq.part;
+        let msb = self.state.parts[part as usize].tone_bank_msb;
+        params::tone_type_from_bank_msb(msb).unwrap_or(params::tone_type::PCM_DRUM)
     }
 
     // -----------------------------------------------------------------------
