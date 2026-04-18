@@ -11,9 +11,15 @@
   "id": "i7-49c.18",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Implement tone editor shell in Vizia with sub-editors for all 5 tone types.\n\nDEPENDS ON: i7-49c.10 (EqSection), i7-49c.11 (ADSR), i7-49c.13 (MixerPage — for navigation)\n\nThis is the largest single task. Build incrementally: start with the SN-S editor (simplest, 3 partials), then SN-A, SN-D, PCM-S, PCM-D.\n\nEDITOR SHELL:\n- Detects tone type from the selected part's bank MSB (87=PCM-S, 89=SN-A, 95=SN-S, 86=PCM-D, 88=SN-D)\n- Loads tone data via RQ1 requests to the appropriate tone block addresses\n- Displays the correct sub-editor\n\nSN-S EDITOR (reference: web/src/SnSynthEditor.tsx + web/src/sn-synth/*.tsx):\n- Common strip: unison, mono, portamento, bend range, wave shape, tone level, analog feel, legato, octave shift\n- 3 partial rows, each with: OSC panel, Filter panel, Amp panel, Mod LFO panel, LFO panel\n- MFX sidebar\n\nSN-A EDITOR (reference: web/src/SnAcousticEditor.tsx):\n- Common strip, instrument-specific parameter panel, MFX\n\nSN-D EDITOR (reference: web/src/SnDrumEditor.tsx):\n- Key grid, per-key: instrument selector, level/pan/send strip, note params, MFX\n\nPCM-S EDITOR (reference: web/src/PcmSynthEditor.tsx + web/src/pcm-synth/*.tsx):\n- Common strip, PMT strip, 4 partial rows (Wave, Pitch, TVF, TVA, LFO1, LFO2, Step LFO, Output), MFX\n\nPCM-D EDITOR (reference: web/src/PcmDrumEditor.tsx + web/src/pcm-drum/*.tsx):\n- Common panel, key grid, per-key: WMT (4 layers), pitch env, TVF, TVA, misc, MFX",
+      "timestamp": "2026-04-18T09:52:05Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "VST/Vizia: implement tone editor shell with SN-S, SN-A, SN-D, PCM-S, PCM-D editors",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:42Z"
+  "updated_at": "2026-04-18T09:52:05Z"
 }
