@@ -4,6 +4,7 @@ import { PanKnob } from "./PanKnob";
 import { EqKnob } from "./EqKnob";
 import { EqSection } from "./EqSection";
 import { defaultPartState, type PartState, type EqState, type CompEqUnit } from "./types";
+import { paramMeta } from "./paramDefaults";
 import { CATEGORIES, lookupToneCategory } from "./categories";
 import { categoryIcon, stripIcon } from "./categoryIcons";
 import css from "./ChannelStrip.module.css";
@@ -227,10 +228,14 @@ function ChannelStripInner({
               onChange={onAmbienceSendChange ?? noop} formatValue={(v) => String(v)} color="#a6f" />
           ) : (
             <>
-              <EqKnob label="FX1" value={p.chorusSend} min={0} max={127} defaultValue={0}
+              {(() => { const m = paramMeta(`part.${partIndex}.chorus_send`); return (
+              <EqKnob label={m.name} value={p.chorusSend} min={m.min} max={m.max} defaultValue={m.defaultValue}
                 onChange={onChorusSendChange ?? noop} formatValue={(v) => String(v)} color="#668" />
-              <EqKnob label="FX2" value={p.reverbSend} min={0} max={127} defaultValue={0}
+              ); })()}
+              {(() => { const m = paramMeta(`part.${partIndex}.reverb_send`); return (
+              <EqKnob label={m.name} value={p.reverbSend} min={m.min} max={m.max} defaultValue={m.defaultValue}
                 onChange={onReverbSendChange ?? noop} formatValue={(v) => String(v)} color="#686" />
+              ); })()}
             </>
           )}
         </div>
