@@ -11,9 +11,15 @@
   "id": "i7-49c.9",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Implement VolumeFader and PanKnob Vizia views for the mixer channel strips.\n\nDEPENDS ON: i7-49c.6 (Vizia editor)\n\nVOLUMEFADER: Tall vertical fader (588px track) with ruler marks\n- Properties: value (0-127), on_change callback, default (100)\n- Visual: narrow groove, wide cap/thumb, right-side ruler with marks at 127/100/80/60/40/20/0, '0dB' label at 100\n- Interaction: click-anywhere-on-track to set, drag cap, double-click to reset to default, arrow keys\n\nPANKNOB: Small circular knob for stereo position\n- Properties: value (0-127, 64=center), on_change callback\n- Visual: circular body with indicator line, display format: L64..C..R63\n- Interaction: vertical drag, double-click resets to 64\n\nREFERENCE:\n- web/src/VolumeFader.tsx + .module.css (track geometry, ruler mark positions)\n- web/src/PanKnob.tsx + .module.css (knob rendering, pan format function)\n\nPlace in crates/integral-vst/src/views/.",
+      "timestamp": "2026-04-18T09:52:04Z"
+    }
+  ],
   "priority": 1,
   "status": "open",
   "title": "VST/Vizia: implement VolumeFader and PanKnob for mixer strips",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:41Z"
+  "updated_at": "2026-04-18T09:52:04Z"
 }
