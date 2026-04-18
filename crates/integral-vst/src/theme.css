@@ -1,69 +1,391 @@
-/* Integral VST — dark theme matching the web app */
+/* =============================================================================
+   Integral VST — Synth Control Theme
+   Dark-themed CSS for Vizia views matching the web frontend aesthetic.
+   Colors derived from the React synth-ui components.
+   ============================================================================= */
 
-.root {
-    background-color: #0c0c1a;
-    color: #c0c0e0;
-    width: 1s;
-    height: 1s;
+/* ---------- SynthKnob ---------- */
+
+synth-knob {
+    display: flex;
+    child-space: 0px;
+    col-between: 2px;
+    layout-type: column;
+    width: auto;
+    height: auto;
 }
 
-/* Tab bar */
-.tab-bar {
+.synth-knob__label {
+    color: #999999;
+    font-size: 10;
+    width: auto;
+    height: auto;
+    child-space: 0px;
+}
+
+.synth-knob__body {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background-color: #444444;
+    border-width: 1px;
+    border-color: #555555;
+}
+
+synth-knob.lg .synth-knob__body {
+    width: 72px;
+    height: 72px;
+}
+
+.synth-knob__value {
+    color: #aaaaaa;
+    font-size: 10;
+    width: auto;
+    height: auto;
+}
+
+/* ---------- SynthFader ---------- */
+
+synth-fader {
+    display: flex;
+    child-space: 0px;
+    layout-type: column;
+    width: 42px;
+    height: auto;
+}
+
+.synth-fader__label {
+    color: #999999;
+    font-size: 10;
+    width: auto;
+    height: 28px;
+}
+
+.synth-fader__track-area {
+    width: 28px;
+    height: 100px;
+    left: 7px;
+}
+
+synth-fader.synth-fader--compact .synth-fader__track-area {
+    height: 70px;
+}
+
+.synth-fader__tick {
+    width: 100%;
+    height: 1px;
+    background-color: #333333;
+}
+
+.synth-fader__tick--major {
+    background-color: #555555;
+}
+
+.synth-fader__track {
+    position-type: self-directed;
+    left: 12px;
+    top: 0px;
+    bottom: 0px;
+    width: 4px;
+    background-color: #222222;
+    border-radius: 2px;
+}
+
+.synth-fader__fill {
+    position-type: self-directed;
+    left: 12px;
+    width: 4px;
+    background-color: #cc4444;
+    border-radius: 2px;
+}
+
+.synth-fader__thumb {
+    position-type: self-directed;
+    left: 2px;
+    right: 2px;
+    width: 24px;
+    height: 8px;
+    background-color: #bbbbbb;
+    border-radius: 2px;
+    border-width: 1px;
+    border-color: #555555;
+}
+
+.synth-fader__value {
+    color: #aaaaaa;
+    font-size: 10;
+    width: auto;
+    height: auto;
+}
+
+/* ---------- SynthSwitch ---------- */
+
+synth-switch {
+    display: flex;
+    child-space: 0px;
+    col-between: 3px;
+    layout-type: column;
+    width: auto;
+    height: auto;
+}
+
+.synth-switch__led {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #333333;
+}
+
+.synth-switch__led--on {
+    background-color: #4dff4d;
+}
+
+.synth-switch__toggle-btn {
+    col-between: 4px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+    background-color: #222238;
+    color: #666666;
+    border-width: 1px;
+    border-color: #3a3a5a;
+    border-radius: 3px;
+    child-left: 8px;
+    child-right: 8px;
+    child-top: 3px;
+    child-bottom: 3px;
+    font-size: 9;
+}
+
+.synth-switch__toggle-btn--on {
+    background-color: #1a2a1a;
+    color: #c0e0c0;
+    border-color: #3a5a3a;
+}
+
+.synth-switch__option-list {
+    border-width: 1px;
+    border-color: #2a2a4a;
+    border-radius: 3px;
+    row-between: 1px;
+}
+
+.synth-switch__option {
+    col-between: 4px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+    background-color: #1a1a2e;
+    color: #666666;
+    child-left: 6px;
+    child-right: 6px;
+    child-top: 2px;
+    child-bottom: 2px;
+    font-size: 8;
+}
+
+.synth-switch__option--active {
+    background-color: #2a3a5a;
+    color: #c0d0ff;
+}
+
+/* ---------- SynthSelect ---------- */
+
+synth-select {
+    display: flex;
+    child-space: 0px;
+    col-between: 2px;
+    layout-type: column;
+    width: auto;
+    height: auto;
+}
+
+.synth-select__button {
+    col-between: 4px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+    background-color: #1e1e34;
+    border-width: 1px;
+    border-color: #3a3a5a;
+    border-radius: 4px;
+    child-left: 6px;
+    child-right: 16px;
+    child-top: 3px;
+    child-bottom: 3px;
+}
+
+.synth-select__text {
+    color: #c0c0e0;
+    font-size: 10;
+}
+
+.synth-select__arrow {
+    color: #888888;
+    font-size: 8;
+}
+
+.synth-select__dropdown {
+    position-type: self-directed;
+    background-color: #1e1e34;
+    border-width: 1px;
+    border-color: #3a3a5a;
+    border-radius: 4px;
+    row-between: 0px;
+    top: 100%;
+    left: 0px;
+    width: 100%;
+}
+
+.synth-select__option {
+    color: #c0c0e0;
+    font-size: 10;
+    background-color: #1e1e34;
+    child-left: 6px;
+    child-right: 6px;
+    child-top: 3px;
+    child-bottom: 3px;
+    width: 100%;
+}
+
+.synth-select__option:hover {
+    background-color: #2a2a4a;
+}
+
+/* ---------- SectionPanel ---------- */
+
+section-panel {
+    display: flex;
+    layout-type: column;
+    background-color: #161628;
+    border-width: 1px;
+    border-color: #2a2a4a;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.section-panel__header {
+    color: #dddddd;
+    font-size: 10;
+    background-color: #1a1a30;
+    border-color: #2a2a4a;
+    border-width: 0px 0px 1px 0px;
+    child-left: 8px;
+    child-right: 8px;
+    child-top: 4px;
+    child-bottom: 4px;
+    width: 100%;
+}
+
+.section-panel__body {
+    child-left: 8px;
+    child-right: 8px;
+    child-top: 8px;
+    child-bottom: 8px;
+    row-between: 8px;
+}
+
+/* ---------- VolumeFader ---------- */
+
+volume-fader {
+    display: flex;
+    layout-type: column;
+    child-space: 0px;
+    width: auto;
+    height: auto;
+}
+
+.volume-fader__track {
+    width: 60px;
+    height: 588px;
+}
+
+.volume-fader__groove {
+    position-type: self-directed;
+    width: 4px;
+    left: 18px;
+    top: 8px;
+    bottom: 8px;
     background-color: #0a0a18;
-    border-bottom: 1px solid #2a2a4a;
-    height: 36px;
-    col-between: 0px;
-    child-left: 0px;
-    child-top: 0px;
-    child-bottom: 0px;
+    border-width: 1px;
+    border-color: #2a2a4a;
+    border-radius: 2px;
 }
 
-.logo {
-    font-size: 13;
-    font-weight: bold;
-    color: #4ae0e0;
-    left: 16px;
-    right: 16px;
-    top: 1s;
-    bottom: 1s;
+.volume-fader__cap {
+    position-type: self-directed;
+    width: 34px;
+    height: 18px;
+    left: 3px;
+    background-color: #cccccc;
+    border-width: 1px;
+    border-color: #555555;
+    border-radius: 3px;
 }
 
-.tab {
-    font-size: 12;
-    font-weight: 600;
+.volume-fader__ruler-mark {
+    position-type: self-directed;
+    right: 0px;
+    col-between: 2px;
+    height: auto;
+    width: auto;
+}
+
+.volume-fader__ruler-tick {
+    width: 6px;
+    height: 1px;
+    background-color: #444444;
+}
+
+.volume-fader__ruler-tick--zero {
+    width: 10px;
+    height: 2px;
+    background-color: #888888;
+}
+
+.volume-fader__ruler-label {
+    color: #555555;
+    font-size: 8;
+}
+
+.volume-fader__ruler-label--zero {
+    color: #aaaaaa;
+    font-size: 8;
+}
+
+.volume-fader__value {
     color: #888888;
-    left: 10px;
-    right: 10px;
-    top: 1s;
-    bottom: 1s;
-    cursor: hand;
+    font-size: 10;
+    width: auto;
+    height: auto;
 }
 
-.tab:hover {
-    color: #c0c0e0;
+/* ---------- PanKnob ---------- */
+
+pan-knob {
+    display: flex;
+    child-space: 0px;
+    col-between: 2px;
+    layout-type: column;
+    width: auto;
+    height: auto;
 }
 
-.tab-active {
-    color: #e0e0e0;
-    border-bottom: 2px solid #4a6cf7;
-}
-
-/* Page content */
-.page-content {
-    top: 1s;
-    bottom: 1s;
-    left: 1s;
-    right: 1s;
-    child-space: 1s;
-}
-
-.placeholder-title {
-    font-size: 24;
-    font-weight: bold;
-    color: #e0e0e0;
-}
-
-.placeholder-subtitle {
-    font-size: 14;
+.pan-knob__label {
     color: #888888;
+    font-size: 9;
+}
+
+.pan-knob__body {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: #444444;
+    border-width: 1px;
+    border-color: #3a3a5a;
+}
+
+.pan-knob__value {
+    color: #aaaaaa;
+    font-size: 10;
 }

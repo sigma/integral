@@ -12,6 +12,7 @@ use nih_plug_vizia::ViziaState;
 use std::sync::{Arc, Mutex};
 
 mod editor;
+pub mod views;
 
 /// Default SysEx device ID for the Integra-7 (0x10 = device 17).
 const DEFAULT_DEVICE_ID: u8 = 0x10;
@@ -33,7 +34,6 @@ impl SysExMessage for RawSysEx {
     type Buffer = [u8; MAX_SYSEX_SIZE];
 
     fn from_buffer(buffer: &[u8]) -> Option<Self> {
-        // Accept any SysEx message (F0 ... F7).
         if buffer.len() >= 2 && buffer[0] == 0xF0 && buffer[buffer.len() - 1] == 0xF7 {
             Some(RawSysEx {
                 data: buffer.to_vec(),
@@ -120,22 +120,18 @@ impl Plugin for Integral {
         _aux: &mut AuxiliaryBuffers,
         context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
-        // Use a monotonic-ish timestamp for throttle/echo suppression.
-        // In a real host this comes from the transport; we use sample position.
         let now_ms = context.transport().pos_seconds().unwrap_or(0.0) * 1000.0;
 
         // Process incoming MIDI events.
         while let Some(event) = context.next_event() {
             match event {
                 NoteEvent::MidiSysEx { timing: _, message } => {
-                    // Parse as DT1 and feed to DeviceState.
                     if let Ok(dt1) = sysex::parse_dt1(&message.data) {
                         let mut dev = self.shared.device.lock().unwrap();
                         dev.handle_dt1(&dt1.address, &dt1.data, now_ms);
                     }
                 }
                 other => {
-                    // Pass through non-SysEx MIDI events.
                     context.send_event(other);
                 }
             }
