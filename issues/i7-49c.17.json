@@ -9,9 +9,15 @@
   "id": "i7-49c.17",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Implement SurroundPage Vizia view with XY positioning pad and per-part controls.\n\nDEPENDS ON: i7-49c.13 (MixerPage)\n\nLAYOUT:\n- Header: surround on/off switch, room type/size selects, global knobs (depth, ambience level/time/density/HF damp)\n- Part strip: 16 part boxes + EXT, each with width and AMB send knobs, click to select\n- XY Pad: large 2D pad showing all parts as draggable circles, selected part highlighted, drag to reposition (L-R on X axis, F-B on Y axis)\n\nREFERENCE:\n- web/src/SurroundPage.tsx: complete React implementation\n- web/src/SurroundPage.module.css: styling\n- web/src/SurroundXYPad.tsx: the 2D positioning pad with multi-part rendering",
+      "timestamp": "2026-04-18T09:52:04Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "VST/Vizia: implement SurroundPage with XY pad",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:42Z"
+  "updated_at": "2026-04-18T09:52:04Z"
 }
