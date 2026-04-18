@@ -64,6 +64,9 @@ const DATA_MASK = 0x7f;
 /** Timeout for RQ1 responses after the message is actually sent (ms). */
 const REQUEST_TIMEOUT_MS = 2000;
 
+/** Maximum number of automatic retries for timed-out RQ1 requests. */
+const MAX_RETRIES = 2;
+
 /** Drain loop interval (ms). */
 const DRAIN_INTERVAL_MS = 5;
 
@@ -130,7 +133,23 @@ export class IntegraService {
   // RQ1 request/response (stays in TS — async Promise pattern)
   // -----------------------------------------------------------------------
 
-  requestData(address: number[], size: number[]): Promise<Uint8Array> {
+  async requestData(address: number[], size: number[]): Promise<Uint8Array> {
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        return await this.requestDataOnce(address, size);
+      } catch (e) {
+        if (attempt < MAX_RETRIES) {
+          console.warn(`[midi] retry ${attempt + 1}/${MAX_RETRIES} for ${addressKey(address)}`);
+        } else {
+          throw e;
+        }
+      }
+    }
+    // Unreachable, but TypeScript needs it.
+    throw new Error("unreachable");
+  }
+
+  private requestDataOnce(address: number[], size: number[]): Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
       const bytes = new Uint8Array(
         build_rq1(
@@ -409,14 +428,20 @@ export class IntegraService {
     };
   }
 
-  /** Read the full 84-byte Comp+EQ block for the given part index. */
-  async requestCompEqBlock(partIndex: number): Promise<Uint8Array> {
-    // Address: temporary_tone_base(partIndex) + 00 08 00 00
+  /** Read the full 84-byte Comp+EQ block for the given part index and bank MSB. */
+  async requestCompEqBlock(partIndex: number, bankMsb: number): Promise<Uint8Array> {
+    // Comp+EQ lives at tone_type_offset + 00 08 00 within the temporary tone.
+    // Tone type offset is in byte1: PCM Drum → 0x10, SN Drum → 0x03.
+    // Comp+EQ sub-block offset is in byte2: 0x08.
+    const toneTypeByte1 = (bankMsb === 86 || bankMsb === 96 || bankMsb === 120) ? 0x10 : 0x03;
     const total = partIndex * 0x20;
     const byte0 = 0x19 + Math.floor(total / 128);
-    const byte1 = total % 128;
+    const rawByte1 = (total % 128) + toneTypeByte1;
+    // Handle 7-bit carry from byte1 to byte0.
+    const byte1 = rawByte1 % 128;
+    const byte0Final = byte0 + Math.floor(rawByte1 / 128);
     return this.requestData(
-      [byte0, byte1, 0x08, 0x00],
+      [byte0Final, byte1, 0x08, 0x00],
       [0x00, 0x00, 0x00, 0x54],
     );
   }

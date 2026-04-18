@@ -184,112 +184,105 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
         }));
         syncFromRust();
 
-        // Tone names: set factory names instantly, then request device names.
+        // Set factory tone names instantly (no MIDI needed).
         const rs0 = dev.readState() as RustMixerState;
         for (let i = 0; i < 16; i++) {
           const p = rs0.parts?.[i];
           if (!p) continue;
-          // Instant factory lookup — avoids blank names while MIDI loads.
           const fName = factoryToneName(p.toneBankMsb, p.toneBankLsb, p.tonePC);
-          if (fName) {
-            dev.setPartToneName(i, fName);
-          }
+          if (fName) dev.setPartToneName(i, fName);
         }
         syncFromRust();
 
-        // Non-blocking: request actual device names (may differ for user tones).
+        // Secondary loads — serialized to avoid overwhelming the device.
+        // Each request waits for the previous one to complete before sending.
+        const seq = async (label: string, fn: () => Promise<void>) => {
+          if (!isCurrent()) return;
+          try { await fn(); } catch (e) { console.warn(`[mixer] ${label}:`, e); }
+          if (isCurrent()) syncFromRust();
+        };
+
+        // Tone names from device (may differ for user tones).
         for (let i = 0; i < 16; i++) {
           const msb = rs0.parts?.[i]?.toneBankMsb;
           if (msb === undefined) continue;
-          svc.requestToneName(i, msb).then((toneName) => {
-            if (!isCurrent() || !toneName) return;
-            dev.setPartToneName(i, toneName);
-            syncFromRust();
+          await seq(`tone name ${i + 1}`, async () => {
+            const toneName = await svc.requestToneName(i, msb);
+            if (toneName) dev.setPartToneName(i, toneName);
           });
         }
 
         // Part EQ
         for (let i = 0; i < 16; i++) {
-          svc.requestPartEq(i).then((eqData) => {
-            if (!isCurrent()) return;
+          await seq(`part ${i + 1} EQ`, async () => {
+            const eqData = await svc.requestPartEq(i);
             dev.applyPartEqDump(i, eqData);
-            syncFromRust();
-          }).catch((e: unknown) => console.warn("[mixer] load error:", e));
+          });
         }
 
         // Master EQ
-        Promise.all([svc.requestMasterEq(), svc.requestMasterEqSwitch()]).then(
-          ([eqData, enabled]) => {
-            if (!isCurrent()) return;
-            dev.applyMasterEqDump(eqData);
-            dev.setMasterEqEnabled(enabled);
-            syncFromRust();
-          },
-        ).catch((e: unknown) => console.warn("[mixer] load error:", e));
+        await seq("master EQ", async () => {
+          const [eqData, enabled] = await Promise.all([
+            svc.requestMasterEq(), svc.requestMasterEqSwitch(),
+          ]);
+          dev.applyMasterEqDump(eqData);
+          dev.setMasterEqEnabled(enabled);
+        });
 
         // Ext Part
-        Promise.all([svc.requestExtPartLevel(), svc.requestExtPartMute()]).then(
-          ([level, muted]) => {
-            if (!isCurrent()) return;
-            dev.applyExtLevel(level);
-            dev.applyExtMuted(muted);
-            syncFromRust();
-          },
-        ).catch((e: unknown) => console.warn("[mixer] load error:", e));
+        await seq("ext part", async () => {
+          const [level, muted] = await Promise.all([
+            svc.requestExtPartLevel(), svc.requestExtPartMute(),
+          ]);
+          dev.applyExtLevel(level);
+          dev.applyExtMuted(muted);
+        });
 
         // Chorus
-        Promise.all([
-          svc.requestChorusCore(),
-          svc.requestChorusSwitch(),
-          svc.requestChorusParams(),
-        ]).then(([core, enabled, params]) => {
-          if (!isCurrent()) return;
+        await seq("chorus", async () => {
+          const [core, enabled, params] = await Promise.all([
+            svc.requestChorusCore(), svc.requestChorusSwitch(), svc.requestChorusParams(),
+          ]);
           dev.applyChorusCore(core);
           dev.setChorusEnabled(enabled);
           dev.applyChorusParams(Int32Array.from(params));
-          syncFromRust();
-        }).catch((e: unknown) => console.warn("[mixer] load error:", e));
+        });
 
         // Reverb
-        Promise.all([
-          svc.requestReverbCore(),
-          svc.requestReverbSwitch(),
-          svc.requestReverbParams(),
-        ]).then(([core, enabled, params]) => {
-          if (!isCurrent()) return;
+        await seq("reverb", async () => {
+          const [core, enabled, params] = await Promise.all([
+            svc.requestReverbCore(), svc.requestReverbSwitch(), svc.requestReverbParams(),
+          ]);
           dev.applyReverbCore(core);
           dev.setReverbEnabled(enabled);
           dev.applyReverbParams(Int32Array.from(params));
-          syncFromRust();
-        }).catch((e: unknown) => console.warn("[mixer] load error:", e));
+        });
 
         // Motional Surround
-        svc.requestSurroundCommon().then((data) => {
-          if (!isCurrent()) return;
+        await seq("surround common", async () => {
+          const data = await svc.requestSurroundCommon();
           dev.applySurroundCommon(data);
-          // Load per-part surround positioning.
-          for (let i = 0; i < 16; i++) {
-            svc.requestPartSurround(i).then(({ lr, fb, width, ambienceSend }) => {
-              if (!isCurrent()) return;
-              dev.applyPartSurround(i, lr, fb, width, ambienceSend);
-              syncFromRust();
-            }).catch((e: unknown) => console.warn("[mixer] load error:", e));
-          }
-          syncFromRust();
-        }).catch((e: unknown) => console.warn("[mixer] load error:", e));
+        });
+        for (let i = 0; i < 16; i++) {
+          await seq(`surround part ${i + 1}`, async () => {
+            const { lr, fb, width, ambienceSend } = await svc.requestPartSurround(i);
+            dev.applyPartSurround(i, lr, fb, width, ambienceSend);
+          });
+        }
 
         // Drum Comp+EQ
-        svc.requestDrumCompEqCommon().then(({ enabled, part, outputAssigns }) => {
-          if (!isCurrent()) return;
+        await seq("drum comp+eq", async () => {
+          const { enabled, part, outputAssigns } = await svc.requestDrumCompEqCommon();
           dev.applyDrumCompEqCommon(enabled, part, new Uint8Array(outputAssigns));
-          // Read the 6 units from the assigned part's tone block.
-          svc.requestCompEqBlock(part).then((blockData) => {
-            if (!isCurrent()) return;
-            dev.applyCompEqBlock(blockData);
-            syncFromRust();
-          }).catch((e: unknown) => console.warn("[mixer] load error:", e));
-          syncFromRust();
-        }).catch((e: unknown) => console.warn("[mixer] load error:", e));
+          // The Comp+EQ block only exists in drum tone types (MSB 86/96/120=PCM-D, 88=SN-D).
+          if (enabled) {
+            const partMsb = (dev.readState() as RustMixerState).parts?.[part]?.toneBankMsb;
+            if (partMsb === 86 || partMsb === 88 || partMsb === 96 || partMsb === 120) {
+              const blockData = await svc.requestCompEqBlock(part, partMsb);
+              dev.applyCompEqBlock(blockData);
+            }
+          }
+        });
 
       } catch {
         setState((prev) => ({ ...prev, loading: false }));
