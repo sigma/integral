@@ -25,6 +25,8 @@ mod synth_fader;
 mod synth_knob;
 mod synth_select;
 mod synth_switch;
+pub(crate) mod tone_selector;
+pub(crate) mod top_bar;
 mod volume_fader;
 
 pub use channel_strip::*;
@@ -37,4 +39,6 @@ pub use synth_fader::*;
 pub use synth_knob::*;
 pub use synth_select::*;
 pub use synth_switch::*;
+pub use tone_selector::ToneSelector;
+pub use top_bar::TopBar;
 pub use volume_fader::*;

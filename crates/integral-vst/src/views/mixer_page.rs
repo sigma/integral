@@ -11,7 +11,9 @@ use nih_plug_vizia::vizia::prelude::*;
 
 use crate::SharedState;
 
-use super::{ChannelStrip, ChannelStripData, StripVariant};
+use super::top_bar::TopBarEvent;
+use super::tone_selector::ToneSelectorEvent;
+use super::{ChannelStrip, ChannelStripData, StripVariant, ToneSelector, TopBar};
 
 /// Number of mixer parts.
 const NUM_PARTS: usize = 16;
@@ -102,6 +104,18 @@ pub struct MixerData {
     pub ext_strip: ChannelStripData,
     /// Master strip data.
     pub master_strip: ChannelStripData,
+    /// Studio set name from the device.
+    pub studio_set_name: String,
+    /// Whether preview mode is active.
+    pub preview_active: bool,
+    /// Whether the tone selector modal is open.
+    pub tone_selector_open: bool,
+    /// Tone bank MSB of the selected part.
+    pub selected_tone_msb: u8,
+    /// Tone bank LSB of the selected part.
+    pub selected_tone_lsb: u8,
+    /// Tone program change of the selected part.
+    pub selected_tone_pc: u8,
     /// Shared state handle for reading/writing device state.
     #[lens(ignore)]
     shared: Arc<SharedState>,
@@ -130,6 +144,28 @@ impl Model for MixerData {
                     self.selected_part = *idx;
                     self.update_selected_part_info();
                 }
+            }
+        });
+
+        event.map(|e, _| match e {
+            TopBarEvent::TogglePreview => {
+                self.preview_active = !self.preview_active;
+            }
+            TopBarEvent::OpenToneSelector => {
+                self.tone_selector_open = true;
+            }
+        });
+
+        event.map(|e, _| match e {
+            ToneSelectorEvent::SelectTone { msb, lsb, pc } => {
+                self.selected_tone_msb = *msb;
+                self.selected_tone_lsb = *lsb;
+                self.selected_tone_pc = *pc;
+                self.tone_selector_open = false;
+                // TODO: Send SysEx tone change to device.
+            }
+            ToneSelectorEvent::Close => {
+                self.tone_selector_open = false;
             }
         });
     }
@@ -166,6 +202,12 @@ impl MixerData {
                 label: "Master".to_string(),
                 ..default_strip
             },
+            studio_set_name: String::new(),
+            preview_active: false,
+            tone_selector_open: false,
+            selected_tone_msb: 0,
+            selected_tone_lsb: 0,
+            selected_tone_pc: 0,
             shared,
         };
         data.refresh_from_device();
@@ -183,6 +225,7 @@ impl MixerData {
         self.ext_level = mixer.ext_level;
         self.ext_muted = mixer.ext_muted;
         self.solo_part = mixer.solo_part;
+        self.studio_set_name = mixer.studio_set_name.clone();
 
         self.chorus = FxViewData {
             enabled: mixer.chorus.enabled,
@@ -219,19 +262,42 @@ impl MixerData {
         self.update_selected_part_info();
     }
 
-    /// Update the selected part info text from current state.
+    /// Update the selected part info text and tone bank data from current state.
     fn update_selected_part_info(&mut self) {
         let Ok(dev) = self.shared.device.lock() else {
             return;
         };
         let mixer = dev.state();
         let idx = self.selected_part;
-        let tone = &mixer.parts[idx].tone_name;
+        let part = &mixer.parts[idx];
+        let tone = &part.tone_name;
+        let type_label = tone_type_label(part.tone_bank_msb);
         self.selected_part_info = if tone.is_empty() {
             format!("Part {}", idx + 1)
         } else {
-            format!("Part {} : {}", idx + 1, tone)
+            format!("Part {} : {} : {}", idx + 1, type_label, tone)
         };
+        self.selected_tone_msb = part.tone_bank_msb;
+        self.selected_tone_lsb = part.tone_bank_lsb;
+        self.selected_tone_pc = part.tone_pc;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/// Return a human-readable tone type from the bank MSB.
+fn tone_type_label(bank_msb: u8) -> &'static str {
+    match bank_msb {
+        87 => "PCM Synth",
+        89 => "SN Acoustic",
+        95 => "SN Synth",
+        86 => "PCM Drum",
+        88 => "SN Drum",
+        93 => "Expansion PCM",
+        121 => "GM2",
+        _ => "Unknown",
     }
 }
 
@@ -265,6 +331,42 @@ impl MixerPage {
                 },
             );
             cx.start_timer(timer);
+
+            // --- Top bar ---
+            TopBar::new(cx);
+
+            // --- Tone selector modal (shown when open) ---
+            Binding::new(cx, MixerData::tone_selector_open, |cx, open_lens| {
+                if open_lens.get(cx) {
+                    Binding::new(cx, MixerData::selected_part, |cx, part_lens| {
+                        let part_idx = part_lens.get(cx);
+                        Binding::new(
+                            cx,
+                            MixerData::selected_tone_msb,
+                            move |cx, msb_lens| {
+                                let msb = msb_lens.get(cx);
+                                Binding::new(
+                                    cx,
+                                    MixerData::selected_tone_lsb,
+                                    move |cx, lsb_lens| {
+                                        let lsb = lsb_lens.get(cx);
+                                        Binding::new(
+                                            cx,
+                                            MixerData::selected_tone_pc,
+                                            move |cx, pc_lens| {
+                                                let pc = pc_lens.get(cx);
+                                                ToneSelector::new(
+                                                    cx, part_idx, msb, lsb, pc,
+                                                );
+                                            },
+                                        );
+                                    },
+                                );
+                            },
+                        );
+                    });
+                }
+            });
 
             // --- Part selector row ---
             HStack::new(cx, |cx| {
