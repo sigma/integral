@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-49c.1"
+  ],
   "blocks": [],
   "created": "2026-04-18T09:49:24Z",
   "description": "",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Core: add ParamRegistry entries for tone editor parameters",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:24Z"
+  "updated_at": "2026-04-18T09:49:40Z"
 }

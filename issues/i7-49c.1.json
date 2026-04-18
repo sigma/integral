@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-49c.2"
+  ],
   "created": "2026-04-18T09:48:37Z",
   "description": "",
   "id": "i7-49c.1",
@@ -17,5 +19,5 @@
   "status": "open",
   "title": "Core: add ParamRegistry with metadata for all mixer parameters",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:08Z"
+  "updated_at": "2026-04-18T09:49:40Z"
 }
