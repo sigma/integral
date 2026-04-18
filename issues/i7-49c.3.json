@@ -9,9 +9,15 @@
   "id": "i7-49c.3",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Extract the MIDI bridge abstraction from the current web-only IntegraService into a platform-agnostic Rust trait in integral-core.\n\nPURPOSE: The VST plugin needs the same request/response, drain loop, and DT1 listener patterns as the web app, but using nih-plug's MIDI I/O instead of Web MIDI API. A shared trait lets both platforms implement the same interface.\n\nDESIGN:\nDefine a trait in crates/integral-core/src/midi_bridge.rs:\n\ntrait MidiBridge {\n    fn send_sysex(\u0026mut self, data: \u0026[u8]);\n    fn on_sysex_received(\u0026mut self, data: \u0026[u8]);\n}\n\nMove the drain-loop logic (currently in web/src/integra.ts drainRust() and the 5ms setInterval) into a Rust-side DrainController that works with any MidiBridge implementor.\n\nMove the RQ1 request/response pairing logic (currently IntegraService.requestData() with 2-second timeout matching by address key) into Rust. This is ~100 lines of TypeScript that should be platform-agnostic.\n\nEXISTING CODE:\n- web/src/integra.ts lines 400-530: requestData(), requestToneName(), requestPartMixerState() etc.\n- web/src/integra.ts lines 30-50: drainRust() loop\n- crates/integral-core/src/device.rs: DeviceState.drain(), DeviceState.send_raw()\n\nOUTPUT: A trait + default implementation in integral-core. The web app's integra.ts can be simplified to call the Rust-side request logic via WASM. The VST plugin implements the trait with nih-plug's SysEx send.",
+      "timestamp": "2026-04-18T09:52:03Z"
+    }
+  ],
   "priority": 1,
   "status": "open",
   "title": "Core: extract IntegraService trait for platform-agnostic MIDI bridge",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:40Z"
+  "updated_at": "2026-04-18T09:52:03Z"
 }
