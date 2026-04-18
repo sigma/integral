@@ -9,9 +9,15 @@
   "id": "i7-49c.4",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Create the nih-plug VST3 plugin skeleton in crates/integral-vst/.\n\nIMPLEMENTATION:\n1. Add dependencies to Cargo.toml: nih_plug, nih_plug_vizia (with feature flags), integral-core\n2. Implement the nih_plug::Plugin trait:\n   - name: 'Integral'\n   - vendor: 'sigma'\n   - type: MIDI Effect (passes through audio, processes MIDI)\n   - No audio parameters (this is a control surface, not an effect)\n3. Implement process() to:\n   - Receive incoming MIDI/SysEx events from the DAW\n   - Forward outgoing SysEx via the NoteEvent::MidiSysEx output\n4. Implement NoteEvent::MidiSysEx handling for SysEx I/O\n5. Use nih_plug::nih_export_vst3!() macro\n6. Verify the plugin loads in a DAW (or at least compiles as cdylib)\n\nREFERENCE:\n- nih-plug examples: https://github.com/robbert-vdh/nih-plug/tree/master/plugins\n- The plugin does NOT process audio — it's a MIDI utility plugin\n- SysEx handling: use NoteEvent::MidiSysEx for both input and output\n\nTESTING: cargo build -p integral-vst --release should produce a .vst3 bundle",
+      "timestamp": "2026-04-18T09:52:03Z"
+    }
+  ],
   "priority": 1,
   "status": "open",
   "title": "VST: add nih-plug skeleton with MIDI SysEx I/O",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:40Z"
+  "updated_at": "2026-04-18T09:52:03Z"
 }
