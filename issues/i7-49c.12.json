@@ -13,9 +13,15 @@
   "id": "i7-49c.12",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Implement ChannelStrip Vizia view combining volume fader, pan, mute/solo, sends, EQ, and category icon.\n\nDEPENDS ON: i7-49c.7 (SynthKnob for sends), i7-49c.8 (SynthSwitch for mute), i7-49c.9 (VolumeFader, PanKnob)\n\nVARIANTS: part (full controls), ext (level+mute only), master (level+EQ), comp-eq (compressor+EQ)\n\nFOR PART VARIANT:\n- Channel select dropdown (receive channel 1-16)\n- EQ section (collapsible)\n- Pan knob\n- FX1/FX2 send knobs (or AMB knob when surround enabled)\n- Mute (M) and Solo (S) buttons with colored active states\n- C+EQ assign button\n- Volume fader with vertical tone name\n- Category icon + label below fader\n\nThe part variant reads from the shared DeviceState and calls setters on user interaction.\n\nREFERENCE:\n- web/src/ChannelStrip.tsx: full React implementation (322 lines)\n- web/src/ChannelStrip.module.css: visual styling\n- web/src/categoryIcons.ts: SVG icons for tone categories and strip roles\n\nPlace in crates/integral-vst/src/views/.",
+      "timestamp": "2026-04-18T09:52:04Z"
+    }
+  ],
   "priority": 1,
   "status": "open",
   "title": "VST/Vizia: implement ChannelStrip with level, pan, mute, solo, sends",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:41Z"
+  "updated_at": "2026-04-18T09:52:04Z"
 }
