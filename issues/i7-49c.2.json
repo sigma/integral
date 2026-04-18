@@ -4,6 +4,7 @@
     "i7-49c.1"
   ],
   "blocks": [],
+  "closed_at": "2026-04-18T16:05:17Z",
   "created": "2026-04-18T09:49:24Z",
   "description": "",
   "id": "i7-49c.2",
@@ -16,8 +17,8 @@
     }
   ],
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Core: add ParamRegistry entries for tone editor parameters",
   "type": "task",
-  "updated_at": "2026-04-18T16:01:02Z"
+  "updated_at": "2026-04-18T16:05:17Z"
 }
