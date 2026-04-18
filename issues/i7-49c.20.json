@@ -9,9 +9,15 @@
   "id": "i7-49c.20",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Migrate ChannelStrip and synth-ui components to consume ParamRegistry for labels, ranges, and defaults.\n\nDEPENDS ON: i7-49c.19 (useMixer migration)\n\nCURRENT STATE: Every SynthKnob/SynthFader in the web UI hardcodes label, min, max, defaultValue props. Example from ChannelStrip.tsx:\n  \u003cEqKnob label='FX1' value={p.chorusSend} min={0} max={127} defaultValue={0} .../\u003e\n\nCHANGES: Use the ParamRegistry to look up these values by param ID. Components receive a paramId string instead of individual label/min/max/default props.\n\nThis is low priority — the web app works fine with hardcoded values. The main benefit is proving the registry is usable and catching any gaps before the VST UI depends on it.\n\nSCOPE: Start with ChannelStrip only (mixer knobs). Do not migrate tone editors in this task.",
+      "timestamp": "2026-04-18T09:52:05Z"
+    }
+  ],
   "priority": 3,
   "status": "open",
   "title": "Web: migrate ChannelStrip to use ParamRegistry for labels/ranges",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:42Z"
+  "updated_at": "2026-04-18T09:52:05Z"
 }
