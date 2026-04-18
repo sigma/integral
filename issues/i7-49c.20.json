@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [
     "i7-49c.19"
   ],
@@ -16,8 +16,8 @@
     }
   ],
   "priority": 3,
-  "status": "open",
+  "status": "in_progress",
   "title": "Web: migrate ChannelStrip to use ParamRegistry for labels/ranges",
   "type": "task",
-  "updated_at": "2026-04-18T09:52:05Z"
+  "updated_at": "2026-04-18T16:05:22Z"
 }
