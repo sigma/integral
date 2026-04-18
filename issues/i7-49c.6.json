@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-49c.5"
+  ],
   "blocks": [],
   "created": "2026-04-18T09:49:25Z",
   "description": "",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "VST: add Vizia editor window with nih_plug_vizia",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:25Z"
+  "updated_at": "2026-04-18T09:49:40Z"
 }
