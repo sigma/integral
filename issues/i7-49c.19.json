@@ -11,9 +11,15 @@
   "id": "i7-49c.19",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Migrate the web app's useMixer hook to consume parameter metadata from the ParamRegistry via WASM.\n\nDEPENDS ON: i7-49c.1 (ParamRegistry)\n\nCURRENT STATE: web/src/useMixer.ts has hardcoded parameter details scattered across ~30 setter callbacks. web/src/ChannelStrip.tsx and synth-ui components hardcode min/max/default/label for each knob.\n\nCHANGES:\n1. Expose ParamRegistry via WASM: add a function like mixerParamsJson() that returns the registry as JSON\n2. In the web app, create a useParamRegistry() hook that loads the registry once and provides lookup by param ID\n3. Update useMixer setter callbacks to reference registry entries instead of hardcoding\n4. This is a refactor — no behavioral changes, just centralizing metadata\n\nREFERENCE:\n- crates/integral-core/src/param_registry.rs (from i7-49c.1)\n- web/src/useMixer.ts: current hardcoded setters\n- web/src/types.ts: PartState default values",
+      "timestamp": "2026-04-18T09:52:05Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Web: migrate useMixer to consume ParamRegistry from WASM",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:42Z"
+  "updated_at": "2026-04-18T09:52:05Z"
 }
