@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [
     "i7-49c.3",
     "i7-49c.4"
@@ -19,8 +19,8 @@
     }
   ],
   "priority": 1,
-  "status": "open",
+  "status": "in_progress",
   "title": "VST: wire integral-core DeviceState into nih-plug processing",
   "type": "task",
-  "updated_at": "2026-04-18T09:52:03Z"
+  "updated_at": "2026-04-18T10:04:48Z"
 }
