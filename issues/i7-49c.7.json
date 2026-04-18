@@ -13,9 +13,15 @@
   "id": "i7-49c.7",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Implement the SynthKnob and SynthFader Vizia views, matching the React equivalents.\n\nDEPENDS ON: i7-49c.6 (Vizia editor)\n\nSYNTHKNOB: Rotary knob with LED arc indicator\n- Properties: value, min, max, default, label, color, size (sm/lg)\n- Visual: circular knob body with radial gradient, 21 LED dots forming an arc, indicator line from center\n- Interaction: vertical pointer drag changes value, shift-drag for fine control, double-click resets to default\n- Accessibility: focus ring, arrow key control\n\nSYNTHFADER: Vertical fader with tick marks\n- Properties: value, min, max, default, label, compact flag, track height\n- Visual: vertical track with groove, draggable thumb, tick marks, non-default highlight fill\n- Interaction: vertical pointer drag, double-click reset\n\nREFERENCE:\n- web/src/synth-ui/SynthKnob.tsx: complete React implementation with LED arc geometry\n- web/src/synth-ui/SynthKnob.module.css: visual styling\n- web/src/synth-ui/SynthFader.tsx: complete React implementation\n- web/src/synth-ui/SynthFader.module.css: visual styling\n- web/src/useDragControl.ts: shared drag/keyboard handling hook\n\nPlace in crates/integral-vst/src/views/ directory. Use Vizia's Canvas/DrawContext for custom rendering.",
+      "timestamp": "2026-04-18T09:52:03Z"
+    }
+  ],
   "priority": 1,
   "status": "open",
   "title": "VST/Vizia: implement SynthKnob and SynthFader controls",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:41Z"
+  "updated_at": "2026-04-18T09:52:03Z"
 }
