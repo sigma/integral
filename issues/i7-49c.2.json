@@ -9,9 +9,15 @@
   "id": "i7-49c.2",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Extend the ParamRegistry (from i7-49c.1) with entries for all tone editor parameters.\n\nSCOPE:\n- SN-S: Common params (tone level, portamento, mono, octave shift, pitch bend, unison, legato, analog feel, wave shape) + per-partial params (OSC wave/pitch/detune/PW, filter mode/cutoff/reso/env, amp level/vel/pan/env, LFO shape/rate/depth x4, mod LFO x4, aftertouch)\n- SN-A: Common params (tone level, portamento, mono, legato, octave shift, cutoff/reso offsets, per-instrument params)\n- SN-D: Common params (kit level, EQ switch) + per-note params (inst number, level, pan, tune, chorus/reverb send, output assign)\n- PCM-S: Common params + PMT (structure, booster, partial switches) + per-partial (wave/WMT, pitch env, TVF, TVA, LFO1/2, step LFO, output) + Common2 (tone category, phrase number)\n- PCM-D: Common params (kit name, kit level) + per-key (WMT x4, pitch env, TVF, TVA, misc, output assign) + Common2 (phrase number, TFX switch)\n\nREFERENCE: See web/src/sn-synth/types.ts, web/src/pcm-synth/types.ts, web/src/pcm-drum/types.ts for the complete field lists with offset addresses and value ranges used in the React UI.",
+      "timestamp": "2026-04-18T09:52:03Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Core: add ParamRegistry entries for tone editor parameters",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:40Z"
+  "updated_at": "2026-04-18T09:52:03Z"
 }
