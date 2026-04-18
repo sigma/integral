@@ -4,6 +4,7 @@
     "i7-49c.13"
   ],
   "blocks": [],
+  "closed_at": "2026-04-18T13:39:45Z",
   "created": "2026-04-18T09:57:34Z",
   "description": "",
   "id": "i7-49c.21",
@@ -16,8 +17,8 @@
     }
   ],
   "priority": 1,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Standalone: wrap VST plugin as a native macOS/Linux/Windows app with MIDI port selection",
   "type": "task",
-  "updated_at": "2026-04-18T13:37:56Z"
+  "updated_at": "2026-04-18T13:39:45Z"
 }
