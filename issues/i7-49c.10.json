@@ -11,9 +11,15 @@
   "id": "i7-49c.10",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Implement EqSection Vizia view with 3-band parametric EQ controls.\n\nDEPENDS ON: i7-49c.7 (SynthKnob)\n\nVisual: Compact panel with EQ on/off switch + 7 knobs (Low Freq, Low Gain, Mid Freq, Mid Gain, Mid Q, High Freq, High Gain). Matches the collapsible EQ in web mixer channel strips.\n\nREFERENCE:\n- web/src/EqSection.tsx: complete React implementation\n- web/src/EqKnob.tsx: the smaller knob variant used in EQ/sends\n\nPlace in crates/integral-vst/src/views/.",
+      "timestamp": "2026-04-18T09:52:04Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "VST/Vizia: implement EqSection with 3-band parametric controls",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:42Z"
+  "updated_at": "2026-04-18T09:52:04Z"
 }
