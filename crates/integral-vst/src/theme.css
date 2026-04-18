@@ -867,3 +867,424 @@ tone-selector {
 .tone-selector__tone-item--active:hover {
     background-color: #2a3a5a;
 }
+
+/* ---------- Root & Tabs ---------- */
+
+.root {
+    width: 100%;
+    height: 100%;
+    background-color: #0c0c1a;
+}
+
+.tab-bar {
+    width: 100%;
+    height: 36px;
+    background-color: #0a0a16;
+    border-width: 0px 0px 1px 0px;
+    border-color: #2a2a4a;
+    col-between: 8px;
+    child-left: 10px;
+}
+
+.logo {
+    color: #5577cc;
+    font-size: 14;
+    width: auto;
+    height: auto;
+    child-top: 1s;
+    child-bottom: 1s;
+}
+
+.tab {
+    color: #666666;
+    font-size: 11;
+    width: auto;
+    height: auto;
+    child-top: 1s;
+    child-bottom: 1s;
+    child-left: 8px;
+    child-right: 8px;
+    border-width: 0px 0px 2px 0px;
+    border-color: transparent;
+}
+
+.tab:hover {
+    color: #aaaaaa;
+}
+
+.tab-active {
+    color: #dddddd;
+    border-color: #5577cc;
+}
+
+.page-content {
+    width: 100%;
+    height: 1s;
+}
+
+.placeholder-label {
+    color: #666666;
+    font-size: 14;
+    width: auto;
+    height: auto;
+    child-left: 1s;
+    child-right: 1s;
+    child-top: 40px;
+}
+
+/* ---------- RoutingPage ---------- */
+
+routing-page {
+    display: flex;
+    layout-type: column;
+    width: 100%;
+    height: 100%;
+    row-between: 8px;
+    child-left: 8px;
+    child-right: 8px;
+    child-top: 8px;
+}
+
+.routing-surround-banner {
+    color: #ffaa44;
+    font-size: 11;
+    width: 100%;
+    height: auto;
+    background-color: #2a2200;
+    border-width: 1px;
+    border-color: #554400;
+    border-radius: 4px;
+    child-left: 12px;
+    child-right: 12px;
+    child-top: 6px;
+    child-bottom: 6px;
+}
+
+.routing-section {
+    width: 100%;
+    height: auto;
+    row-between: 4px;
+}
+
+.routing-section-title {
+    color: #aaaaaa;
+    font-size: 11;
+    width: auto;
+    height: auto;
+    child-bottom: 4px;
+}
+
+.routing-grid-scroll {
+    width: 100%;
+    height: auto;
+}
+
+.routing-grid {
+    col-between: 2px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+}
+
+routing-part-column {
+    display: flex;
+    layout-type: column;
+    width: 72px;
+    background-color: #141428;
+    border-width: 1px;
+    border-color: #2a2a4a;
+    border-radius: 4px;
+    child-left: 4px;
+    child-right: 4px;
+    child-top: 6px;
+    child-bottom: 6px;
+    row-between: 3px;
+}
+
+.routing-part-num {
+    color: #bbbbbb;
+    font-size: 11;
+    width: auto;
+    height: auto;
+}
+
+.routing-part-tone-type {
+    color: #888888;
+    font-size: 8;
+    width: auto;
+    height: auto;
+}
+
+.routing-part-tone-name {
+    color: #999999;
+    font-size: 8;
+    width: 60px;
+    height: auto;
+    overflow: hidden;
+}
+
+.routing-part-output {
+    color: #c0d0ff;
+    font-size: 10;
+    width: auto;
+    height: 20px;
+    background-color: #1e1e34;
+    border-width: 1px;
+    border-color: #3a3a5a;
+    border-radius: 3px;
+    child-space: 1s;
+}
+
+.routing-send-row {
+    col-between: 2px;
+    child-space: 0px;
+    height: 10px;
+    width: 100%;
+}
+
+.routing-send-label {
+    color: #666666;
+    font-size: 7;
+    width: 18px;
+    height: auto;
+}
+
+.routing-send-bar-container {
+    width: 1s;
+    height: 6px;
+}
+
+.routing-send-bar-bg {
+    position-type: self-directed;
+    width: 100%;
+    height: 100%;
+    background-color: #1a1a30;
+    border-radius: 2px;
+}
+
+.routing-send-bar-fill {
+    position-type: self-directed;
+    height: 100%;
+    border-radius: 2px;
+}
+
+.routing-send-bar-chorus {
+    background-color: #4488cc;
+}
+
+.routing-send-bar-reverb {
+    background-color: #88cc44;
+}
+
+/* ---------- FX Routing Bar ---------- */
+
+.fx-routing-bar {
+    col-between: 8px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+}
+
+.fx-routing-card {
+    width: 180px;
+    height: auto;
+    background-color: #141428;
+    border-width: 1px;
+    border-color: #2a2a4a;
+    border-radius: 4px;
+    child-left: 8px;
+    child-right: 8px;
+    child-top: 6px;
+    child-bottom: 6px;
+    row-between: 2px;
+}
+
+.fx-routing-label {
+    color: #bbbbbb;
+    font-size: 11;
+    width: auto;
+    height: auto;
+}
+
+.fx-routing-type {
+    color: #999999;
+    font-size: 10;
+    width: auto;
+    height: auto;
+}
+
+.fx-routing-output {
+    color: #c0d0ff;
+    font-size: 10;
+    width: auto;
+    height: auto;
+}
+
+/* ---------- Comp+EQ Routing ---------- */
+
+.comp-eq-grid {
+    col-between: 4px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+}
+
+.comp-eq-unit {
+    width: 64px;
+    height: auto;
+    background-color: #141428;
+    border-width: 1px;
+    border-color: #2a2a4a;
+    border-radius: 4px;
+    child-left: 4px;
+    child-right: 4px;
+    child-top: 4px;
+    child-bottom: 4px;
+    row-between: 2px;
+}
+
+.comp-eq-label {
+    color: #888888;
+    font-size: 9;
+    width: auto;
+    height: auto;
+}
+
+.comp-eq-value {
+    color: #c0d0ff;
+    font-size: 10;
+    width: auto;
+    height: auto;
+}
+
+/* ---------- SurroundPage ---------- */
+
+surround-page {
+    display: flex;
+    layout-type: column;
+    width: 100%;
+    height: 100%;
+    row-between: 6px;
+}
+
+.surround-header {
+    width: 100%;
+    height: 48px;
+    background-color: #0e0e1c;
+    border-width: 0px 0px 1px 0px;
+    border-color: #2a2a4a;
+    child-left: 10px;
+    child-right: 10px;
+    col-between: 12px;
+}
+
+.surround-switch {
+    width: 40px;
+    height: 24px;
+    background-color: #222238;
+    color: #888888;
+    font-size: 10;
+    border-width: 1px;
+    border-color: #3a3a5a;
+    border-radius: 3px;
+    child-space: 1s;
+    child-top: 1s;
+    child-bottom: 1s;
+}
+
+.surround-switch--on {
+    background-color: #1a2a1a;
+    color: #4dff4d;
+    border-color: #3a5a3a;
+}
+
+.surround-param {
+    width: auto;
+    height: auto;
+    child-top: 1s;
+    child-bottom: 1s;
+    row-between: 1px;
+}
+
+.surround-param-label {
+    color: #888888;
+    font-size: 8;
+    width: auto;
+    height: auto;
+}
+
+.surround-param-value {
+    color: #c0c0e0;
+    font-size: 10;
+    width: auto;
+    height: auto;
+}
+
+/* ---------- Surround Part Strip ---------- */
+
+.surround-part-strip {
+    width: 100%;
+    height: auto;
+    min-height: 80px;
+}
+
+.surround-part-strip-inner {
+    col-between: 2px;
+    child-space: 0px;
+    height: auto;
+    width: auto;
+    child-left: 4px;
+}
+
+.surround-part-box {
+    width: 64px;
+    height: auto;
+    background-color: #141428;
+    border-width: 1px;
+    border-color: #2a2a4a;
+    border-radius: 4px;
+    child-left: 4px;
+    child-right: 4px;
+    child-top: 4px;
+    child-bottom: 4px;
+    row-between: 2px;
+}
+
+.surround-part-box--selected {
+    border-color: #5577cc;
+    background-color: #1a1a3a;
+}
+
+.surround-part-label {
+    color: #bbbbbb;
+    font-size: 10;
+    width: auto;
+    height: auto;
+}
+
+.surround-part-tone {
+    color: #888888;
+    font-size: 7;
+    width: 56px;
+    height: auto;
+    overflow: hidden;
+}
+
+.surround-part-knob-val {
+    color: #aaaaaa;
+    font-size: 8;
+    width: auto;
+    height: auto;
+}
+
+/* ---------- XY Pad ---------- */
+
+xy-pad {
+    width: 1s;
+    height: 1s;
+    min-width: 200px;
+    min-height: 200px;
+    child-left: 8px;
+    child-right: 8px;
+    child-bottom: 8px;
+}
