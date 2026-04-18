@@ -17,9 +17,9 @@
       "timestamp": "2026-04-18T16:07:26Z"
     }
   ],
-  "priority": 1,
+  "priority": 3,
   "status": "open",
   "title": "fix(vst): investigate baseview null pointer crash in standalone mode on macOS",
   "type": "task",
-  "updated_at": "2026-04-18T16:07:26Z"
+  "updated_at": "2026-04-18T16:07:33Z"
 }
