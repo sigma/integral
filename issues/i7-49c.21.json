@@ -15,9 +15,9 @@
       "timestamp": "2026-04-18T09:58:02Z"
     }
   ],
-  "priority": 2,
+  "priority": 1,
   "status": "open",
   "title": "Standalone: wrap VST plugin as a native macOS/Linux/Windows app with MIDI port selection",
   "type": "task",
-  "updated_at": "2026-04-18T09:58:02Z"
+  "updated_at": "2026-04-18T09:58:55Z"
 }
