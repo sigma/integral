@@ -3,7 +3,9 @@
   "blocked_by": [
     "i7-49c.7"
   ],
-  "blocks": [],
+  "blocks": [
+    "i7-49c.18"
+  ],
   "created": "2026-04-18T09:49:25Z",
   "description": "",
   "id": "i7-49c.11",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "VST/Vizia: implement ADSREnvelope and ADEnvelope visualizations",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:41Z"
+  "updated_at": "2026-04-18T09:49:42Z"
 }
