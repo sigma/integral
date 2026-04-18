@@ -4,6 +4,7 @@
     "i7-49c.19"
   ],
   "blocks": [],
+  "closed_at": "2026-04-18T16:07:11Z",
   "created": "2026-04-18T09:49:26Z",
   "description": "",
   "id": "i7-49c.20",
@@ -16,8 +17,8 @@
     }
   ],
   "priority": 3,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Web: migrate ChannelStrip to use ParamRegistry for labels/ranges",
   "type": "task",
-  "updated_at": "2026-04-18T16:05:22Z"
+  "updated_at": "2026-04-18T16:07:11Z"
 }
