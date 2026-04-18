@@ -66,7 +66,7 @@ pub struct SharedState {
 // ---------------------------------------------------------------------------
 
 /// The main plugin struct for the Integral control surface.
-struct Integral {
+pub struct Integral {
     params: Arc<IntegralParams>,
     /// Shared between process() and the editor GUI.
     shared: Arc<SharedState>,
