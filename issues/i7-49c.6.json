@@ -13,9 +13,15 @@
   "id": "i7-49c.6",
   "labels": [],
   "parent": "i7-49c",
+  "comments": [
+    {
+      "text": "Add a Vizia-based editor window to the nih-plug plugin using nih_plug_vizia.\n\nDEPENDS ON: i7-49c.5 (DeviceState wiring)\n\nIMPLEMENTATION:\n1. Add nih_plug_vizia to Cargo.toml\n2. Implement nih_plug::Editor trait using nih_plug_vizia::create_vizia_editor()\n3. Create a root Vizia view that:\n   - Receives the shared DeviceState (Arc\u003cMutex\u003c\u003e\u003e)\n   - Sets up a dark theme matching the web app colors (#0c0c1a background, #c0c0e0 text, #2a2a4a borders)\n   - Creates a tab bar (Mixer / Surround / Routing / Tone Edit)\n   - Shows a placeholder 'Hello from Integral' message initially\n4. Verify the editor opens in a DAW with the correct size and dark background\n5. Set initial window size to 1200x800\n\nREFERENCE:\n- nih_plug_vizia examples in nih-plug repo\n- web/src/App.module.css for the dark theme colors\n- Vizia docs: https://docs.vizia.dev/",
+      "timestamp": "2026-04-18T09:52:03Z"
+    }
+  ],
   "priority": 1,
   "status": "open",
   "title": "VST: add Vizia editor window with nih_plug_vizia",
   "type": "task",
-  "updated_at": "2026-04-18T09:49:40Z"
+  "updated_at": "2026-04-18T09:52:03Z"
 }
