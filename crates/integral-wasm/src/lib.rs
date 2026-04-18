@@ -6,7 +6,7 @@ use integral_core::device::DeviceState;
 use integral_core::state::parse as state_parse;
 use integral_core::sysex;
 use integral_core::{
-    fx_params, mfx, mfx_params, params, params::part, params::part_eq, tone_banks,
+    fx_params, mfx, mfx_params, param_registry, params, params::part, params::part_eq, tone_banks,
 };
 use wasm_bindgen::prelude::*;
 
@@ -1916,4 +1916,26 @@ pub fn mfx_param_def(mfx_type: u8, param_idx: u32) -> Option<WasmMfxParamDef> {
         default_value: p.default_value,
         name: p.name.to_string(),
     })
+}
+
+// ---------------------------------------------------------------------------
+// Parameter registry JSON
+// ---------------------------------------------------------------------------
+
+/// Return all mixer parameter definitions as a JSON string.
+///
+/// Returns a JSON array of `ParamDef` objects.
+#[wasm_bindgen(js_name = mixerParamsJson)]
+pub fn mixer_params_json() -> String {
+    let params = param_registry::mixer_params();
+    serde_json::to_string(&params).unwrap_or_else(|_| "[]".to_string())
+}
+
+/// Return all SuperNATURAL Synth Tone parameter definitions as a JSON string.
+///
+/// Returns a JSON array of `ParamDef` objects.
+#[wasm_bindgen(js_name = snSynthParamsJson)]
+pub fn sn_synth_params_json() -> String {
+    let params = param_registry::sn_synth_params();
+    serde_json::to_string(&params).unwrap_or_else(|_| "[]".to_string())
 }

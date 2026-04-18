@@ -1,10 +1,11 @@
-//! Mixer parameter registry — definitions, formatting, and lookup for all
-//! mixer-visible parameters on the Integra-7.
+//! Parameter registry — definitions, formatting, and lookup for all
+//! controllable parameters on the Integra-7.
 
 use std::fmt::Write;
 
 /// How a parameter value should be displayed.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum ParamFormat {
     /// Display value as-is.
     Raw,
@@ -18,6 +19,7 @@ pub enum ParamFormat {
 
 /// Logical grouping for a parameter.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum ParamGroup {
     /// Per-part parameter (part index 0-15).
     Part(u8),
@@ -31,10 +33,15 @@ pub enum ParamGroup {
     Reverb,
     /// Global / top-level.
     Global,
+    /// Tone-level common parameters.
+    ToneCommon,
+    /// Tone-level per-partial parameters (partial index 0-based).
+    TonePartial(u8),
 }
 
 /// A single parameter definition.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ParamDef {
     /// Dot-separated identifier, e.g. `"part.0.level"`.
     pub id: &'static str,
@@ -47,6 +54,7 @@ pub struct ParamDef {
     /// Maximum raw value (inclusive).
     pub max: i32,
     /// Default raw value.
+    #[cfg_attr(feature = "serde", serde(rename = "default_value"))]
     pub default: i32,
     /// Display format.
     pub format: ParamFormat,
@@ -336,6 +344,235 @@ pub fn mixer_params() -> Vec<ParamDef> {
     params
 }
 
+/// Generate all SuperNATURAL Synth Tone parameter definitions.
+///
+/// This includes 13 common parameters and 3 partials x 8 parameters each = 37 total.
+pub fn sn_synth_params() -> Vec<ParamDef> {
+    let mut params = Vec::with_capacity(37);
+
+    static OSC_WAVE_NAMES: &[&str] = &["SAW", "SQR", "PW-SQR", "TRI", "SINE", "NOISE", "SP-SAW", "PCM"];
+    static FILTER_MODE_NAMES: &[&str] = &["BYP", "LPF", "HPF", "BPF", "PKG", "LPF2", "LPF3", "LPF4"];
+    static RING_NAMES: &[&str] = &["OFF", "ON1", "ON2"];
+    static UNISON_SIZE_NAMES: &[&str] = &["2", "4", "6", "8"];
+
+    // Common parameters
+    params.push(ParamDef {
+        id: "sns.common.tone_level",
+        name: "Level",
+        group: ParamGroup::ToneCommon,
+        min: 0,
+        max: 127,
+        default: 127,
+        format: ParamFormat::Raw,
+    });
+    params.push(ParamDef {
+        id: "sns.common.portamento_switch",
+        name: "Porta",
+        group: ParamGroup::ToneCommon,
+        min: 0,
+        max: 1,
+        default: 0,
+        format: ParamFormat::OnOff,
+    });
+    params.push(ParamDef {
+        id: "sns.common.portamento_time",
+        name: "Porta Time",
+        group: ParamGroup::ToneCommon,
+        min: 0,
+        max: 127,
+        default: 0,
+        format: ParamFormat::Raw,
+    });
+    params.push(ParamDef {
+        id: "sns.common.mono_switch",
+        name: "Mono",
+        group: ParamGroup::ToneCommon,
+        min: 0,
+        max: 1,
+        default: 0,
+        format: ParamFormat::OnOff,
+    });
+    params.push(ParamDef {
+        id: "sns.common.octave_shift",
+        name: "Oct Shift",
+        group: ParamGroup::ToneCommon,
+        min: 61,
+        max: 67,
+        default: 64,
+        format: ParamFormat::SignedCenter(64),
+    });
+    params.push(ParamDef {
+        id: "sns.common.pitch_bend_range_up",
+        name: "Bend Up",
+        group: ParamGroup::ToneCommon,
+        min: 0,
+        max: 24,
+        default: 2,
+        format: ParamFormat::Raw,
+    });
+    params.push(ParamDef {
+        id: "sns.common.pitch_bend_range_down",
+        name: "Bend Down",
+        group: ParamGroup::ToneCommon,
+        min: 0,
+        max: 24,
+        default: 2,
+        format: ParamFormat::Raw,
+    });
+    params.push(ParamDef {
+        id: "sns.common.unison_switch",
+        name: "Unison",
+        group: ParamGroup::ToneCommon,
+        min: 0,
+        max: 1,
+        default: 0,
+        format: ParamFormat::OnOff,
+    });
+    params.push(ParamDef {
+        id: "sns.common.unison_size",
+        name: "Uni Size",
+        group: ParamGroup::ToneCommon,
+        min: 0,
+        max: 3,
+        default: 0,
+        format: ParamFormat::Named(UNISON_SIZE_NAMES),
+    });
+    params.push(ParamDef {
+        id: "sns.common.legato_switch",
+        name: "Legato",
+        group: ParamGroup::ToneCommon,
+        min: 0,
+        max: 1,
+        default: 0,
+        format: ParamFormat::OnOff,
+    });
+    params.push(ParamDef {
+        id: "sns.common.analog_feel",
+        name: "Analog",
+        group: ParamGroup::ToneCommon,
+        min: 0,
+        max: 127,
+        default: 0,
+        format: ParamFormat::Raw,
+    });
+    params.push(ParamDef {
+        id: "sns.common.wave_shape",
+        name: "Wave Shape",
+        group: ParamGroup::ToneCommon,
+        min: 0,
+        max: 127,
+        default: 0,
+        format: ParamFormat::Raw,
+    });
+    params.push(ParamDef {
+        id: "sns.common.ring_switch",
+        name: "Ring",
+        group: ParamGroup::ToneCommon,
+        min: 0,
+        max: 2,
+        default: 0,
+        format: ParamFormat::Named(RING_NAMES),
+    });
+
+    // Per-partial parameters (3 partials)
+    macro_rules! partial_ids {
+        ($suffix:expr) => {
+            [
+                concat!("sns.partial.0.", $suffix),
+                concat!("sns.partial.1.", $suffix),
+                concat!("sns.partial.2.", $suffix),
+            ]
+        };
+    }
+
+    static OSC_WAVE_IDS: [&str; 3] = partial_ids!("osc_wave");
+    static OSC_PITCH_IDS: [&str; 3] = partial_ids!("osc_pitch");
+    static OSC_DETUNE_IDS: [&str; 3] = partial_ids!("osc_detune");
+    static FILTER_MODE_IDS: [&str; 3] = partial_ids!("filter_mode");
+    static FILTER_CUTOFF_IDS: [&str; 3] = partial_ids!("filter_cutoff");
+    static FILTER_RESONANCE_IDS: [&str; 3] = partial_ids!("filter_resonance");
+    static AMP_LEVEL_IDS: [&str; 3] = partial_ids!("amp_level");
+    static AMP_PAN_IDS: [&str; 3] = partial_ids!("amp_pan");
+
+    for n in 0u8..3 {
+        let idx = n as usize;
+        params.push(ParamDef {
+            id: OSC_WAVE_IDS[idx],
+            name: "Wave",
+            group: ParamGroup::TonePartial(n),
+            min: 0,
+            max: 7,
+            default: 0,
+            format: ParamFormat::Named(OSC_WAVE_NAMES),
+        });
+        params.push(ParamDef {
+            id: OSC_PITCH_IDS[idx],
+            name: "Pitch",
+            group: ParamGroup::TonePartial(n),
+            min: 40,
+            max: 88,
+            default: 64,
+            format: ParamFormat::SignedCenter(64),
+        });
+        params.push(ParamDef {
+            id: OSC_DETUNE_IDS[idx],
+            name: "Detune",
+            group: ParamGroup::TonePartial(n),
+            min: 14,
+            max: 114,
+            default: 64,
+            format: ParamFormat::SignedCenter(64),
+        });
+        params.push(ParamDef {
+            id: FILTER_MODE_IDS[idx],
+            name: "Flt Mode",
+            group: ParamGroup::TonePartial(n),
+            min: 0,
+            max: 7,
+            default: 0,
+            format: ParamFormat::Named(FILTER_MODE_NAMES),
+        });
+        params.push(ParamDef {
+            id: FILTER_CUTOFF_IDS[idx],
+            name: "Cutoff",
+            group: ParamGroup::TonePartial(n),
+            min: 0,
+            max: 127,
+            default: 127,
+            format: ParamFormat::Raw,
+        });
+        params.push(ParamDef {
+            id: FILTER_RESONANCE_IDS[idx],
+            name: "Reso",
+            group: ParamGroup::TonePartial(n),
+            min: 0,
+            max: 127,
+            default: 0,
+            format: ParamFormat::Raw,
+        });
+        params.push(ParamDef {
+            id: AMP_LEVEL_IDS[idx],
+            name: "Level",
+            group: ParamGroup::TonePartial(n),
+            min: 0,
+            max: 127,
+            default: 127,
+            format: ParamFormat::Raw,
+        });
+        params.push(ParamDef {
+            id: AMP_PAN_IDS[idx],
+            name: "Pan",
+            group: ParamGroup::TonePartial(n),
+            min: 0,
+            max: 127,
+            default: 64,
+            format: ParamFormat::SignedCenter(64),
+        });
+    }
+
+    params
+}
+
 /// Look up a parameter definition by its string id.
 pub fn lookup<'a>(params: &'a [ParamDef], id: &str) -> Option<&'a ParamDef> {
     params.iter().find(|p| p.id == id)
@@ -375,6 +612,13 @@ mod tests {
         let def = lookup(&params, "part.0.mute").unwrap();
         assert_eq!(format_value(def, 0), "OFF");
         assert_eq!(format_value(def, 1), "ON");
+    }
+
+    #[test]
+    fn sn_synth_param_count() {
+        let params = sn_synth_params();
+        // 13 common + 3 partials * 8 params = 37
+        assert_eq!(params.len(), 37);
     }
 
     #[test]
