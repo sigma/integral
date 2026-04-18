@@ -173,7 +173,7 @@ pub fn mixer_params() -> Vec<ParamDef> {
         });
         params.push(ParamDef {
             id: CHORUS_SEND_IDS[idx],
-            name: "Chorus Send",
+            name: "FX1",
             group: ParamGroup::Part(i),
             min: 0,
             max: 127,
@@ -182,7 +182,7 @@ pub fn mixer_params() -> Vec<ParamDef> {
         });
         params.push(ParamDef {
             id: REVERB_SEND_IDS[idx],
-            name: "Reverb Send",
+            name: "FX2",
             group: ParamGroup::Part(i),
             min: 0,
             max: 127,
