@@ -6,6 +6,7 @@
   "blocks": [
     "i7-49c.20"
   ],
+  "closed_at": "2026-04-18T16:05:17Z",
   "created": "2026-04-18T09:49:26Z",
   "description": "",
   "id": "i7-49c.19",
@@ -18,8 +19,8 @@
     }
   ],
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Web: migrate useMixer to consume ParamRegistry from WASM",
   "type": "task",
-  "updated_at": "2026-04-18T16:01:02Z"
+  "updated_at": "2026-04-18T16:05:17Z"
 }
