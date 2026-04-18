@@ -7,6 +7,7 @@
   "blocks": [
     "i7-49c.6"
   ],
+  "closed_at": "2026-04-18T10:06:41Z",
   "created": "2026-04-18T09:49:25Z",
   "description": "",
   "id": "i7-49c.5",
@@ -19,8 +20,8 @@
     }
   ],
   "priority": 1,
-  "status": "in_progress",
+  "status": "closed",
   "title": "VST: wire integral-core DeviceState into nih-plug processing",
   "type": "task",
-  "updated_at": "2026-04-18T10:04:48Z"
+  "updated_at": "2026-04-18T10:06:41Z"
 }
