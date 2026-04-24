@@ -7,6 +7,7 @@
     "i7-j5o.4",
     "i7-j5o.5"
   ],
+  "closed_at": "2026-04-24T18:19:38Z",
   "created": "2026-04-24T18:09:02Z",
   "description": "",
   "id": "i7-j5o.1",
@@ -19,8 +20,8 @@
     }
   ],
   "priority": 1,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Core: create DeviceSpec with output names, FX types, room types, part count",
   "type": "task",
-  "updated_at": "2026-04-24T18:13:10Z"
+  "updated_at": "2026-04-24T18:19:38Z"
 }
