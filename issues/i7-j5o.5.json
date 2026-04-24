@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-j5o.1"
+  ],
   "blocks": [],
   "created": "2026-04-24T18:09:03Z",
   "description": "",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Web: migrate hardcoded device constants to consume DeviceSpec via WASM",
   "type": "task",
-  "updated_at": "2026-04-24T18:09:03Z"
+  "updated_at": "2026-04-24T18:09:53Z"
 }
