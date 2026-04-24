@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "i7-j5o.2"
+  ],
   "created": "2026-04-24T18:09:02Z",
   "description": "",
   "id": "i7-j5o.1",
@@ -17,5 +19,5 @@
   "status": "open",
   "title": "Core: create DeviceSpec with output names, FX types, room types, part count",
   "type": "task",
-  "updated_at": "2026-04-24T18:09:44Z"
+  "updated_at": "2026-04-24T18:09:53Z"
 }
