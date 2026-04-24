@@ -5,6 +5,7 @@
     "i7-tf8",
     "i7-wcb"
   ],
+  "closed_at": "2026-04-24T18:29:38Z",
   "created": "2026-04-24T18:09:11Z",
   "description": "",
   "id": "i7-2rp",
@@ -16,8 +17,8 @@
     }
   ],
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "refactor(cli): split main.rs into command modules and shared helpers",
   "type": "task",
-  "updated_at": "2026-04-24T18:13:11Z"
+  "updated_at": "2026-04-24T18:29:38Z"
 }
