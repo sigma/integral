@@ -6,9 +6,15 @@
   "description": "",
   "id": "i7-j5o",
   "labels": [],
+  "comments": [
+    {
+      "text": "GOAL: Views and commands should be parameterized by device capabilities, not hardcode them. This makes the codebase more maintainable and theoretically portable to other Roland SysEx devices.\n\nIdentified in global audit: routing_page.rs, surround_page.rs, tone_editor.rs, tone_selector.rs all embed INTEGRA-7-specific constants (output names, FX types, room types, tone banks, part structure) directly in view code.",
+      "timestamp": "2026-04-24T18:09:44Z"
+    }
+  ],
   "priority": 1,
   "status": "open",
   "title": "refactor: extract device specification layer from hardcoded view/CLI data",
   "type": "task",
-  "updated_at": "2026-04-24T18:08:47Z"
+  "updated_at": "2026-04-24T18:09:44Z"
 }
