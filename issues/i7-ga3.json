@@ -2,13 +2,14 @@
   "assignee": "unknown",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-04-24T18:14:22Z",
   "created": "2026-04-24T18:09:12Z",
   "description": "",
   "id": "i7-ga3",
   "labels": [],
   "priority": 3,
-  "status": "in_progress",
+  "status": "closed",
   "title": "chore: move patches/baseview under crates/patches/ for consistency",
   "type": "task",
-  "updated_at": "2026-04-24T18:13:11Z"
+  "updated_at": "2026-04-24T18:14:22Z"
 }
