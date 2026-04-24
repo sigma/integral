@@ -48,6 +48,54 @@ body when applicable.
 - One ticket per worktree. `bw start <id>` → work → commit → `bw close <id>` → `bw sync`.
 - Reference ticket IDs in commit messages.
 
+## Architecture Principles
+
+### Device specification, not hardcoded data
+
+Device-specific constants (output names, FX types, room types, tone banks,
+part count, parameter ranges) must **not** be hardcoded in UI views or CLI
+commands. They belong in a declarative **device specification layer** in
+`integral-core` (e.g. `param_registry`, tone bank definitions, device
+capabilities). Views and commands consume the spec; they don't define it.
+
+When adding a new UI panel or CLI command, ask: *"Would this break if the
+device had different outputs/parts/FX types?"* If yes, the data needs to
+come from the spec layer.
+
+### Protocol abstraction
+
+Callers should never construct raw SysEx bytes or manipulate address offsets
+directly. Use the typed helpers in `integral-core`:
+
+- `DeviceState` for state management and queued sends
+- `params::` module for address computation
+- `sysex::` module for message construction
+- High-level accessors (e.g. `set_part_level`, `change_part_tone`) over
+  raw `send_dt1`
+
+The device ID (`0x10` default) must be **discoverable** from the SysEx
+Identity Reply, not assumed. Any new code that references a device ID
+should accept it as a parameter, not hardcode it.
+
+### Module boundaries
+
+- **One concern per module.** A crate's `main.rs` should contain only
+  command definitions and dispatch. Helpers, parsers, and protocol logic
+  belong in separate modules or crates.
+- **SVD file operations** belong in `integral-core` (or a dedicated crate),
+  not in the CLI.
+- **Parse/format helpers** (hex parsing, byte formatting) should be
+  consolidated into shared utility modules, not duplicated.
+- **Remove scaffolding code.** Trial-and-error constructs from
+  reverse-engineering (e.g. scan/brute-force commands) should be removed
+  or moved to a `dev-tools` module once their purpose is served.
+
+### Consistent project structure
+
+- All Rust crates live under `crates/`. External patches (e.g. baseview)
+  also belong under `crates/patches/` for consistency.
+- Third-party vendored code should be clearly separated from project code.
+
 ## Rust Conventions
 
 - Edition: 2024.
@@ -112,6 +160,8 @@ The `justfile` provides standard targets. Run `just` to list them.
 | `just check` | Full pre-commit: fmt-check + lint + build + build-wasm + test |
 | `just clean` | Remove build artifacts |
 | `just ping` | Ping the INTEGRA-7 device |
+| `just run` | Run standalone VST binary (native app) |
+| `just dev-web` | Start web dev server (pack WASM + Vite) |
 
 ## Agent Behavior
 
