@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-24T18:08:47Z",
+  "description": "",
+  "id": "i7-j5o",
+  "labels": [],
+  "priority": 1,
+  "status": "open",
+  "title": "refactor: extract device specification layer from hardcoded view/CLI data",
+  "type": "task",
+  "updated_at": "2026-04-24T18:08:47Z"
+}
