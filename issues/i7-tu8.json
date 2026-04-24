@@ -6,9 +6,15 @@
   "description": "",
   "id": "i7-tu8",
   "labels": [],
+  "comments": [
+    {
+      "text": "main.rs contains a 'scan' or brute-force command (~line 643) that was used during reverse-engineering. Now that the protocol is understood, this should be removed or moved to a dev-tools module.\n\nAUDIT: 'what is this for? It looks like a trial-and-error construct'",
+      "timestamp": "2026-04-24T18:09:45Z"
+    }
+  ],
   "priority": 3,
   "status": "open",
   "title": "chore(cli): remove scan/brute-force scaffolding commands",
   "type": "task",
-  "updated_at": "2026-04-24T18:09:12Z"
+  "updated_at": "2026-04-24T18:09:45Z"
 }
