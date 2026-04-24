@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "i7-2rp"
+  ],
   "blocks": [],
   "created": "2026-04-24T18:09:12Z",
   "description": "",
@@ -16,5 +18,5 @@
   "status": "open",
   "title": "refactor(cli): add high-level device interface abstracting raw SysEx operations",
   "type": "task",
-  "updated_at": "2026-04-24T18:09:45Z"
+  "updated_at": "2026-04-24T18:09:53Z"
 }
