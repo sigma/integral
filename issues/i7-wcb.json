@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "unknown",
   "blocked_by": [
     "i7-2rp"
   ],
@@ -15,8 +15,8 @@
     }
   ],
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "refactor(cli): add high-level device interface abstracting raw SysEx operations",
   "type": "task",
-  "updated_at": "2026-04-24T18:09:53Z"
+  "updated_at": "2026-04-24T18:29:56Z"
 }
