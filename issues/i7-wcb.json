@@ -4,6 +4,7 @@
     "i7-2rp"
   ],
   "blocks": [],
+  "closed_at": "2026-04-24T18:35:03Z",
   "created": "2026-04-24T18:09:12Z",
   "description": "",
   "id": "i7-wcb",
@@ -15,8 +16,8 @@
     }
   ],
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "refactor(cli): add high-level device interface abstracting raw SysEx operations",
   "type": "task",
-  "updated_at": "2026-04-24T18:29:56Z"
+  "updated_at": "2026-04-24T18:35:03Z"
 }
