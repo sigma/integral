@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-24T18:09:12Z",
+  "description": "",
+  "id": "i7-ga3",
+  "labels": [],
+  "priority": 3,
+  "status": "open",
+  "title": "chore: move patches/baseview under crates/patches/ for consistency",
+  "type": "task",
+  "updated_at": "2026-04-24T18:09:12Z"
+}
