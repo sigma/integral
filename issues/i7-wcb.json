@@ -6,9 +6,15 @@
   "description": "",
   "id": "i7-wcb",
   "labels": [],
+  "comments": [
+    {
+      "text": "Create a high-level IntegraDevice trait/struct in integral-core that abstracts:\n- Connection (MIDI port pair)\n- Identity handshake (discover device ID)\n- Part operations (read_part_mixer, set_part_level, etc.)\n- Tone operations (read_tone_common, change_tone, etc.)\n- Studio Set operations\n\nThis replaces the raw byte manipulation in CLI's dump_state() and similar functions.\n\nAUDIT: 'I suspect we should have an Integra device interface that abstracts those operations'",
+      "timestamp": "2026-04-24T18:09:45Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "refactor(cli): add high-level device interface abstracting raw SysEx operations",
   "type": "task",
-  "updated_at": "2026-04-24T18:09:12Z"
+  "updated_at": "2026-04-24T18:09:45Z"
 }
