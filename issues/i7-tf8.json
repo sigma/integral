@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-24T18:09:12Z",
+  "description": "",
+  "id": "i7-tf8",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "refactor(cli): extract SVD operations into integral-core or dedicated crate",
+  "type": "task",
+  "updated_at": "2026-04-24T18:09:12Z"
+}
