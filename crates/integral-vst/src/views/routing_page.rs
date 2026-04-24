@@ -9,33 +9,18 @@ use std::time::Duration;
 
 use nih_plug_vizia::vizia::prelude::*;
 
+use integral_core::device_spec::INTEGRA7;
+
 use crate::SharedState;
 
-/// Number of mixer parts.
-const NUM_PARTS: usize = 16;
+/// Number of mixer parts (from device spec).
+const NUM_PARTS: usize = INTEGRA7.part_count as usize;
+
+/// Number of Drum Comp+EQ units (from device spec).
+const NUM_COMP_EQ_UNITS: usize = INTEGRA7.comp_eq_unit_count as usize;
 
 /// Refresh interval for reading device state (milliseconds).
 const REFRESH_INTERVAL_MS: u64 = 100;
-
-/// Output assign labels for parts.
-const OUTPUT_ASSIGN_NAMES: &[&str] = &["A", "B", "C", "D", "1", "2", "3", "4", "5", "6", "7", "8"];
-
-/// Output assign labels for Comp+EQ units.
-const COMP_EQ_OUTPUT_NAMES: &[&str] = &[
-    "PART", "A", "B", "C", "D", "1", "2", "3", "4", "5", "6", "7", "8",
-];
-
-/// Chorus type names.
-const CHORUS_TYPE_NAMES: &[&str] = &["OFF", "Chorus", "Delay", "GM2 Cho"];
-
-/// Reverb type names.
-const REVERB_TYPE_NAMES: &[&str] = &["OFF", "Room 1", "Room 2", "Hall 1", "Hall 2", "Plate", "GM2 Rev"];
-
-/// Chorus output names.
-const CHORUS_OUTPUT_NAMES: &[&str] = &["MAIN", "REV", "MAIN+REV"];
-
-/// Reverb output names.
-const REVERB_OUTPUT_NAMES: &[&str] = &["A", "B", "C", "D"];
 
 // ---------------------------------------------------------------------------
 // Tone type label helper
@@ -122,7 +107,7 @@ impl Default for DrumCompEqViewData {
         Self {
             enabled: false,
             part: 9,
-            output_assigns: vec![0; 6],
+            output_assigns: vec![0; NUM_COMP_EQ_UNITS],
         }
     }
 }
@@ -304,7 +289,7 @@ impl RoutingPage {
                             RoutingData::chorus.map(|c| c.fx_type),
                             |cx, type_lens| {
                                 let t = type_lens.get(cx);
-                                Label::new(cx, lookup_name(CHORUS_TYPE_NAMES, t))
+                                Label::new(cx, lookup_name(INTEGRA7.chorus_type_names, t))
                                     .class("fx-routing-type");
                             },
                         );
@@ -313,7 +298,7 @@ impl RoutingPage {
                             RoutingData::chorus.map(|c| c.output),
                             |cx, out_lens| {
                                 let o = out_lens.get(cx);
-                                let text = format!("Out: {}", lookup_name(CHORUS_OUTPUT_NAMES, o));
+                                let text = format!("Out: {}", lookup_name(INTEGRA7.chorus_output_names, o));
                                 Label::new(cx, &text).class("fx-routing-output");
                             },
                         );
@@ -328,7 +313,7 @@ impl RoutingPage {
                             RoutingData::reverb.map(|r| r.fx_type),
                             |cx, type_lens| {
                                 let t = type_lens.get(cx);
-                                Label::new(cx, lookup_name(REVERB_TYPE_NAMES, t))
+                                Label::new(cx, lookup_name(INTEGRA7.reverb_type_names, t))
                                     .class("fx-routing-type");
                             },
                         );
@@ -337,7 +322,7 @@ impl RoutingPage {
                             RoutingData::reverb.map(|r| r.output),
                             |cx, out_lens| {
                                 let o = out_lens.get(cx);
-                                let text = format!("Out: {}", lookup_name(REVERB_OUTPUT_NAMES, o));
+                                let text = format!("Out: {}", lookup_name(INTEGRA7.reverb_output_names, o));
                                 Label::new(cx, &text).class("fx-routing-output");
                             },
                         );
@@ -366,7 +351,7 @@ impl RoutingPage {
                             );
 
                             HStack::new(cx, |cx| {
-                                for unit in 0..6 {
+                                for unit in 0..NUM_COMP_EQ_UNITS {
                                     let assign_lens = RoutingData::drum_comp_eq.map(
                                         move |d| {
                                             d.output_assigns
@@ -380,7 +365,7 @@ impl RoutingPage {
                                         Label::new(cx, &label).class("comp-eq-label");
                                         Binding::new(cx, assign_lens, |cx, val_lens| {
                                             let val = val_lens.get(cx);
-                                            let name = lookup_name(COMP_EQ_OUTPUT_NAMES, val);
+                                            let name = lookup_name(INTEGRA7.comp_eq_output_assigns, val);
                                             Label::new(cx, name).class("comp-eq-value");
                                         });
                                     })
@@ -447,7 +432,7 @@ impl RoutingPartColumn {
                 data_lens.map(|d| d.output_assign),
                 |cx, assign_lens| {
                     let a = assign_lens.get(cx);
-                    let name = lookup_name(OUTPUT_ASSIGN_NAMES, a);
+                    let name = lookup_name(INTEGRA7.output_assigns, a);
                     Label::new(cx, name).class("routing-part-output");
                 },
             );

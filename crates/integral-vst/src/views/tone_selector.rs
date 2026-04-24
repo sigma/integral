@@ -24,6 +24,10 @@ struct ToneBankGroup {
 }
 
 /// All tone bank groups, matching the web frontend definitions.
+///
+/// TODO: migrate to `DeviceSpec` once bank group metadata (MSB/LSB arrays) is
+/// added there. For now these remain inline because the data structure is
+/// more complex than simple string slices.
 static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
     ToneBankGroup {
         label: "SN Acoustic",

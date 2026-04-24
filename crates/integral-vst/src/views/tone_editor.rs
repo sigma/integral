@@ -23,6 +23,17 @@ const REFRESH_INTERVAL_MS: u64 = 100;
 const NUM_SNS_PARTIALS: usize = 3;
 
 // ---------------------------------------------------------------------------
+// SN-S parameter display names
+// ---------------------------------------------------------------------------
+// TODO: migrate these to `DeviceSpec` once tone editor param metadata is added.
+
+/// SN-S oscillator wave type names (indexed by OSC Wave value 0-7).
+const SNS_OSC_WAVE_NAMES: &[&str] = &["SAW", "SQR", "PWSQ", "TRI", "SIN", "NSE", "SSAW", "PCM"];
+
+/// SN-S filter mode names (indexed by Filter Mode value 0-7).
+const SNS_FILTER_MODE_NAMES: &[&str] = &["BYP", "LPF", "HPF", "BPF", "PKG", "LP2", "LP3", "LP4"];
+
+// ---------------------------------------------------------------------------
 // Tone type constants (bank MSB values)
 // ---------------------------------------------------------------------------
 
@@ -752,7 +763,7 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 SynthSwitch::new(
                     cx,
                     wave_lens,
-                    &["SAW", "SQR", "PWSQ", "TRI", "SIN", "NSE", "SSAW", "PCM"],
+                    SNS_OSC_WAVE_NAMES,
                     move |cx, idx| {
                         cx.emit(ToneEditorEvent::SetSnsPartial(
                             partial_idx_u8,
@@ -772,7 +783,7 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 SynthSwitch::new(
                     cx,
                     fmode_lens,
-                    &["BYP", "LPF", "HPF", "BPF", "PKG", "LP2", "LP3", "LP4"],
+                    SNS_FILTER_MODE_NAMES,
                     move |cx, idx| {
                         cx.emit(ToneEditorEvent::SetSnsPartial(
                             partial_idx_u8,

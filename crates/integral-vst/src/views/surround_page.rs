@@ -10,22 +10,18 @@ use std::time::Duration;
 use nih_plug_vizia::vizia::prelude::*;
 use nih_plug_vizia::vizia::vg;
 
+use integral_core::device_spec::INTEGRA7;
+
 use crate::SharedState;
 
-/// Number of mixer parts.
-const NUM_PARTS: usize = 16;
+/// Number of mixer parts (from device spec).
+const NUM_PARTS: usize = INTEGRA7.part_count as usize;
 
-/// Total entries in the part strip (16 parts + EXT).
-const NUM_ENTRIES: usize = 17;
+/// Total entries in the part strip (parts + EXT).
+const NUM_ENTRIES: usize = NUM_PARTS + 1;
 
 /// Refresh interval for reading device state (milliseconds).
 const REFRESH_INTERVAL_MS: u64 = 100;
-
-/// Room type names.
-const ROOM_TYPES: &[&str] = &["Room 1", "Room 2", "Hall 1", "Hall 2"];
-
-/// Room size names.
-const ROOM_SIZES: &[&str] = &["Small", "Medium", "Large"];
 
 // ---------------------------------------------------------------------------
 // Per-part surround snapshot
@@ -260,7 +256,7 @@ impl SurroundPage {
                     Label::new(cx, "Room").class("surround-param-label");
                     Binding::new(cx, SurroundData::room_type, |cx, rt_lens| {
                         let rt = rt_lens.get(cx);
-                        let name = ROOM_TYPES.get(rt as usize).copied().unwrap_or("---");
+                        let name = INTEGRA7.surround_room_types.get(rt as usize).copied().unwrap_or("---");
                         Label::new(cx, name).class("surround-param-value");
                     });
                 })
@@ -271,7 +267,7 @@ impl SurroundPage {
                     Label::new(cx, "Size").class("surround-param-label");
                     Binding::new(cx, SurroundData::room_size, |cx, rs_lens| {
                         let rs = rs_lens.get(cx);
-                        let name = ROOM_SIZES.get(rs as usize).copied().unwrap_or("---");
+                        let name = INTEGRA7.surround_room_sizes.get(rs as usize).copied().unwrap_or("---");
                         Label::new(cx, name).class("surround-param-value");
                     });
                 })
