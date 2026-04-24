@@ -61,7 +61,8 @@ export const CHORUS_PARAMS: Record<number, FxParamDef[]> = {
   3: CHORUS_GM2,
 };
 
-export const CHORUS_TYPE_NAMES = ["OFF", "Chorus", "Delay", "GM2 Cho"];
+// Chorus/reverb type and output names are now served from DeviceSpec via WASM.
+// See deviceSpec.ts for the canonical source of these labels.
 
 // ---------------------------------------------------------------------------
 // Reverb type parameter maps
@@ -93,7 +94,3 @@ export const REVERB_PARAMS: Record<number, FxParamDef[]> = {
   6: REVERB_GM2,
 };
 
-export const REVERB_TYPE_NAMES = ["OFF", "Room 1", "Room 2", "Hall 1", "Hall 2", "Plate", "GM2 Rev"];
-
-export const CHORUS_OUTPUT_NAMES = ["MAIN", "REV", "MAIN+REV"];
-export const REVERB_OUTPUT_NAMES = ["A", "B", "C", "D"];

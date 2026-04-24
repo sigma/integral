@@ -2,10 +2,8 @@ import { useState, useCallback } from "react";
 import { EqKnob } from "./EqKnob";
 import { SurroundXYPad } from "./SurroundXYPad";
 import type { UseMixerResult } from "./useMixer";
+import { deviceSpec } from "./deviceSpec";
 import css from "./SurroundPage.module.css";
-
-const ROOM_TYPES = ["Room 1", "Room 2", "Hall 1", "Hall 2"];
-const ROOM_SIZES = ["Small", "Medium", "Large"];
 
 interface Props {
   mixer: UseMixerResult;
@@ -13,6 +11,7 @@ interface Props {
 
 export function SurroundPage({ mixer }: Props) {
   const { surround } = mixer.state;
+  const spec = deviceSpec();
   const [selectedPart, setSelectedPart] = useState<number>(0);
 
   const parts = surround.parts.map((s, i) => ({
@@ -49,14 +48,14 @@ export function SurroundPage({ mixer }: Props) {
           Room
           <select className={css.select} value={surround.roomType}
             onChange={(e) => mixer.setSurroundParam(0x01, Number(e.target.value))}>
-            {ROOM_TYPES.map((n, i) => <option key={i} value={i}>{n}</option>)}
+            {spec.surround_room_types.map((n, i) => <option key={i} value={i}>{n}</option>)}
           </select>
         </label>
         <label className={css.selectLabel}>
           Size
           <select className={css.select} value={surround.roomSize}
             onChange={(e) => mixer.setSurroundParam(0x03, Number(e.target.value))}>
-            {ROOM_SIZES.map((n, i) => <option key={i} value={i}>{n}</option>)}
+            {spec.surround_room_sizes.map((n, i) => <option key={i} value={i}>{n}</option>)}
           </select>
         </label>
         <EqKnob label="Depth" value={surround.depth} min={0} max={100} defaultValue={50}

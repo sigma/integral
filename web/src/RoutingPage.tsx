@@ -1,21 +1,6 @@
 import type { UseMixerResult } from "./useMixer";
-import {
-  CHORUS_TYPE_NAMES,
-  REVERB_TYPE_NAMES,
-  CHORUS_OUTPUT_NAMES,
-  REVERB_OUTPUT_NAMES,
-} from "./fxParams";
+import { deviceSpec } from "./deviceSpec";
 import css from "./RoutingPage.module.css";
-
-const OUTPUT_ASSIGN_NAMES = [
-  "A", "B", "C", "D",
-  "1", "2", "3", "4", "5", "6", "7", "8",
-];
-
-const COMP_EQ_OUTPUT_NAMES = [
-  "PART", "A", "B", "C", "D",
-  "1", "2", "3", "4", "5", "6", "7", "8",
-];
 
 const TONE_TYPE_LABELS: Record<number, string> = {
   87: "PCM-S",
@@ -34,6 +19,7 @@ interface Props {
 export function RoutingPage({ mixer }: Props) {
   const { state } = mixer;
   const surroundActive = state.surround.enabled;
+  const spec = deviceSpec();
 
   return (
     <div className={css.page}>
@@ -66,7 +52,7 @@ export function RoutingPage({ mixer }: Props) {
                     mixer.setPartOutputAssign(i, Number(e.target.value))
                   }
                 >
-                  {OUTPUT_ASSIGN_NAMES.map((name, v) => (
+                  {spec.output_assigns.map((name, v) => (
                     <option key={v} value={v}>
                       {name}
                     </option>
@@ -103,24 +89,24 @@ export function RoutingPage({ mixer }: Props) {
           <div className={css.fxCard}>
             <span className={css.fxLabel}>Chorus</span>
             <span className={css.fxType}>
-              {CHORUS_TYPE_NAMES[state.chorus.type] ?? "---"}
+              {spec.chorus_type_names[state.chorus.type] ?? "---"}
             </span>
             <span className={css.fxOut}>
               Out:{" "}
               <span className={css.fxOutValue}>
-                {CHORUS_OUTPUT_NAMES[state.chorus.output] ?? "---"}
+                {spec.chorus_output_names[state.chorus.output] ?? "---"}
               </span>
             </span>
           </div>
           <div className={css.fxCard}>
             <span className={css.fxLabel}>Reverb</span>
             <span className={css.fxType}>
-              {REVERB_TYPE_NAMES[state.reverb.type] ?? "---"}
+              {spec.reverb_type_names[state.reverb.type] ?? "---"}
             </span>
             <span className={css.fxOut}>
               Out:{" "}
               <span className={css.fxOutValue}>
-                {REVERB_OUTPUT_NAMES[state.reverb.output] ?? "---"}
+                {spec.reverb_output_names[state.reverb.output] ?? "---"}
               </span>
             </span>
           </div>
@@ -147,7 +133,7 @@ export function RoutingPage({ mixer }: Props) {
                     )
                   }
                 >
-                  {COMP_EQ_OUTPUT_NAMES.map((name, v) => (
+                  {spec.comp_eq_output_assigns.map((name, v) => (
                     <option key={v} value={v}>
                       {name}
                     </option>

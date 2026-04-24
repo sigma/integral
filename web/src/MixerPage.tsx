@@ -5,12 +5,9 @@ import { FxStrip } from "./FxStrip";
 // CompEqPanel replaced by ChannelStrip variant="comp-eq"
 import {
   CHORUS_PARAMS,
-  CHORUS_TYPE_NAMES,
-  CHORUS_OUTPUT_NAMES,
   REVERB_PARAMS,
-  REVERB_TYPE_NAMES,
-  REVERB_OUTPUT_NAMES,
 } from "./fxParams";
+import { deviceSpec } from "./deviceSpec";
 import { ToneSelector } from "./ToneSelector";
 import { ToneCatalog } from "./toneCatalog";
 import type { IntegraService } from "./integra";
@@ -25,6 +22,7 @@ interface Props {
 
 export function MixerPage({ mixer, service }: Props) {
   const { state } = mixer;
+  const spec = deviceSpec();
   const selectedPart = state.parts[state.selectedPart]!;
   const [toneSelectorOpen, setToneSelectorOpen] = useState(false);
   const catalog = useMemo(() => new ToneCatalog(service), [service]);
@@ -121,8 +119,8 @@ export function MixerPage({ mixer, service }: Props) {
             label="FX1"
             fx={state.chorus}
             eqExpanded={state.eqExpanded}
-            typeNames={CHORUS_TYPE_NAMES}
-            outputNames={CHORUS_OUTPUT_NAMES}
+            typeNames={spec.chorus_type_names}
+            outputNames={spec.chorus_output_names}
             paramDefs={CHORUS_PARAMS}
             onToggleSwitch={mixer.toggleChorusSwitch}
             onParam={mixer.setChorusParam}
@@ -132,8 +130,8 @@ export function MixerPage({ mixer, service }: Props) {
             label="FX2"
             fx={state.reverb}
             eqExpanded={state.eqExpanded}
-            typeNames={REVERB_TYPE_NAMES}
-            outputNames={REVERB_OUTPUT_NAMES}
+            typeNames={spec.reverb_type_names}
+            outputNames={spec.reverb_output_names}
             paramDefs={REVERB_PARAMS}
             onToggleSwitch={mixer.toggleReverbSwitch}
             onParam={mixer.setReverbParam}
