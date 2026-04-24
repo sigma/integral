@@ -7,9 +7,15 @@
   "id": "i7-j5o.1",
   "labels": [],
   "parent": "i7-j5o",
+  "comments": [
+    {
+      "text": "Create a DeviceSpec struct in integral-core that declaratively describes the INTEGRA-7's capabilities. This replaces hardcoded constants scattered across views and CLI.\n\nCONTENTS:\n- Output names: [A, B, C, D, 1, 2, 3, 4, 5, 6, 7, 8]\n- Comp+EQ output names: [PART, A, B, C, D, 1, 2, 3, 4, 5, 6, 7, 8]\n- Chorus output names: [MAIN, REV, MAIN+REV]\n- Reverb output names: [A, B, C, D]\n- Chorus type names, Reverb type names\n- Room types, Room sizes (for surround)\n- Part count (16), Comp+EQ unit count (6)\n- Tone bank groups (currently in web/src/toneBanks.ts and duplicated in VST tone_selector.rs)\n- Tone category names (currently in web/src/categories.ts)\n\nThis extends ParamRegistry (which covers individual parameter metadata) with device-level structural data.\n\nAUDIT CONTEXT: routing_page.rs, surround_page.rs, tone_editor.rs, and tone_selector.rs all hardcode device constants that should come from this spec.",
+      "timestamp": "2026-04-24T18:09:44Z"
+    }
+  ],
   "priority": 1,
   "status": "open",
   "title": "Core: create DeviceSpec with output names, FX types, room types, part count",
   "type": "task",
-  "updated_at": "2026-04-24T18:09:02Z"
+  "updated_at": "2026-04-24T18:09:44Z"
 }
