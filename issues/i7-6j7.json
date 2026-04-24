@@ -6,9 +6,15 @@
   "description": "",
   "id": "i7-6j7",
   "labels": [],
+  "comments": [
+    {
+      "text": "Device ID 0x10 is hardcoded in CLI and VST. The SysEx Identity Reply contains the actual device ID. After handshake/ping, extract and use the discovered ID for all subsequent communication.\n\nAUDIT: 'I'm guessing the device ID can actually be different between synths. Is there a way to automatically discover it?'",
+      "timestamp": "2026-04-24T18:09:45Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "refactor(cli): make device ID discoverable from Identity Reply",
   "type": "task",
-  "updated_at": "2026-04-24T18:09:12Z"
+  "updated_at": "2026-04-24T18:09:45Z"
 }
