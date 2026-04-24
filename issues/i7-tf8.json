@@ -6,9 +6,15 @@
   "description": "",
   "id": "i7-tf8",
   "labels": [],
+  "comments": [
+    {
+      "text": "SVD file parsing, listing, import, and export logic (~300 lines) lives in integral-cli/src/main.rs but has no CLI-specific dependencies. Move to integral-core (or a new integral-svd crate) with a clean API:\n- SvdCatalog struct: load from file, list entries, read/write entries\n- CLI becomes a thin wrapper calling the catalog API\n\nAUDIT: 'All that SVD file support logic should be in a separate crate'",
+      "timestamp": "2026-04-24T18:09:45Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "refactor(cli): extract SVD operations into integral-core or dedicated crate",
   "type": "task",
-  "updated_at": "2026-04-24T18:09:12Z"
+  "updated_at": "2026-04-24T18:09:45Z"
 }
