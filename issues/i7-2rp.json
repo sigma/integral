@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-24T18:09:11Z",
+  "description": "",
+  "id": "i7-2rp",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "refactor(cli): split main.rs into command modules and shared helpers",
+  "type": "task",
+  "updated_at": "2026-04-24T18:09:11Z"
+}
