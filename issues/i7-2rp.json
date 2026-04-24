@@ -6,9 +6,15 @@
   "description": "",
   "id": "i7-2rp",
   "labels": [],
+  "comments": [
+    {
+      "text": "CLI main.rs is ~900 lines mixing command dispatch, MIDI helpers, hex parsers, and SVD operations. Split into:\n- main.rs: clap command definitions and dispatch only\n- commands/: one module per command (ping, monitor, dump, svd_list, svd_import, svd_export)\n- helpers.rs: shared MIDI connection helpers, hex parsing\n- Remove parse_hex_address/parse_hex_size duplication via a generic helper\n\nAUDIT: 'we should split that file, and keep only the high-level command definitions here'",
+      "timestamp": "2026-04-24T18:09:44Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "refactor(cli): split main.rs into command modules and shared helpers",
   "type": "task",
-  "updated_at": "2026-04-24T18:09:11Z"
+  "updated_at": "2026-04-24T18:09:44Z"
 }
