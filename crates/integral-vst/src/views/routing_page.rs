@@ -265,8 +265,7 @@ impl RoutingPage {
                 ScrollView::new(cx, 0.0, 0.0, true, false, |cx| {
                     HStack::new(cx, |cx| {
                         for i in 0..NUM_PARTS {
-                            let part_lens =
-                                RoutingData::parts.map(move |parts| parts[i].clone());
+                            let part_lens = RoutingData::parts.map(move |parts| parts[i].clone());
                             RoutingPartColumn::new(cx, i, part_lens);
                         }
                     })
@@ -293,15 +292,12 @@ impl RoutingPage {
                                     .class("fx-routing-type");
                             },
                         );
-                        Binding::new(
-                            cx,
-                            RoutingData::chorus.map(|c| c.output),
-                            |cx, out_lens| {
-                                let o = out_lens.get(cx);
-                                let text = format!("Out: {}", lookup_name(INTEGRA7.chorus_output_names, o));
-                                Label::new(cx, &text).class("fx-routing-output");
-                            },
-                        );
+                        Binding::new(cx, RoutingData::chorus.map(|c| c.output), |cx, out_lens| {
+                            let o = out_lens.get(cx);
+                            let text =
+                                format!("Out: {}", lookup_name(INTEGRA7.chorus_output_names, o));
+                            Label::new(cx, &text).class("fx-routing-output");
+                        });
                     })
                     .class("fx-routing-card");
 
@@ -317,15 +313,12 @@ impl RoutingPage {
                                     .class("fx-routing-type");
                             },
                         );
-                        Binding::new(
-                            cx,
-                            RoutingData::reverb.map(|r| r.output),
-                            |cx, out_lens| {
-                                let o = out_lens.get(cx);
-                                let text = format!("Out: {}", lookup_name(INTEGRA7.reverb_output_names, o));
-                                Label::new(cx, &text).class("fx-routing-output");
-                            },
-                        );
+                        Binding::new(cx, RoutingData::reverb.map(|r| r.output), |cx, out_lens| {
+                            let o = out_lens.get(cx);
+                            let text =
+                                format!("Out: {}", lookup_name(INTEGRA7.reverb_output_names, o));
+                            Label::new(cx, &text).class("fx-routing-output");
+                        });
                     })
                     .class("fx-routing-card");
                 })
@@ -352,20 +345,16 @@ impl RoutingPage {
 
                             HStack::new(cx, |cx| {
                                 for unit in 0..NUM_COMP_EQ_UNITS {
-                                    let assign_lens = RoutingData::drum_comp_eq.map(
-                                        move |d| {
-                                            d.output_assigns
-                                                .get(unit)
-                                                .copied()
-                                                .unwrap_or(0)
-                                        },
-                                    );
+                                    let assign_lens = RoutingData::drum_comp_eq.map(move |d| {
+                                        d.output_assigns.get(unit).copied().unwrap_or(0)
+                                    });
                                     VStack::new(cx, |cx| {
                                         let label = format!("C+EQ{}", unit + 1);
                                         Label::new(cx, &label).class("comp-eq-label");
                                         Binding::new(cx, assign_lens, |cx, val_lens| {
                                             let val = val_lens.get(cx);
-                                            let name = lookup_name(INTEGRA7.comp_eq_output_assigns, val);
+                                            let name =
+                                                lookup_name(INTEGRA7.comp_eq_output_assigns, val);
                                             Label::new(cx, name).class("comp-eq-value");
                                         });
                                     })
@@ -427,59 +416,47 @@ impl RoutingPartColumn {
             );
 
             // Output assign label (read-only display)
-            Binding::new(
-                cx,
-                data_lens.map(|d| d.output_assign),
-                |cx, assign_lens| {
-                    let a = assign_lens.get(cx);
-                    let name = lookup_name(INTEGRA7.output_assigns, a);
-                    Label::new(cx, name).class("routing-part-output");
-                },
-            );
+            Binding::new(cx, data_lens.map(|d| d.output_assign), |cx, assign_lens| {
+                let a = assign_lens.get(cx);
+                let name = lookup_name(INTEGRA7.output_assigns, a);
+                Label::new(cx, name).class("routing-part-output");
+            });
 
             // FX1 send bar
-            Binding::new(
-                cx,
-                data_lens.map(|d| d.chorus_send),
-                |cx, send_lens| {
-                    let send = send_lens.get(cx);
-                    let pct = send as f32 / 127.0;
-                    HStack::new(cx, |cx| {
-                        Label::new(cx, "FX1").class("routing-send-label");
-                        ZStack::new(cx, |cx| {
-                            Element::new(cx).class("routing-send-bar-bg");
-                            Element::new(cx)
-                                .class("routing-send-bar-fill")
-                                .class("routing-send-bar-chorus")
-                                .width(Percentage(pct * 100.0));
-                        })
-                        .class("routing-send-bar-container");
+            Binding::new(cx, data_lens.map(|d| d.chorus_send), |cx, send_lens| {
+                let send = send_lens.get(cx);
+                let pct = send as f32 / 127.0;
+                HStack::new(cx, |cx| {
+                    Label::new(cx, "FX1").class("routing-send-label");
+                    ZStack::new(cx, |cx| {
+                        Element::new(cx).class("routing-send-bar-bg");
+                        Element::new(cx)
+                            .class("routing-send-bar-fill")
+                            .class("routing-send-bar-chorus")
+                            .width(Percentage(pct * 100.0));
                     })
-                    .class("routing-send-row");
-                },
-            );
+                    .class("routing-send-bar-container");
+                })
+                .class("routing-send-row");
+            });
 
             // FX2 send bar
-            Binding::new(
-                cx,
-                data_lens.map(|d| d.reverb_send),
-                |cx, send_lens| {
-                    let send = send_lens.get(cx);
-                    let pct = send as f32 / 127.0;
-                    HStack::new(cx, |cx| {
-                        Label::new(cx, "FX2").class("routing-send-label");
-                        ZStack::new(cx, |cx| {
-                            Element::new(cx).class("routing-send-bar-bg");
-                            Element::new(cx)
-                                .class("routing-send-bar-fill")
-                                .class("routing-send-bar-reverb")
-                                .width(Percentage(pct * 100.0));
-                        })
-                        .class("routing-send-bar-container");
+            Binding::new(cx, data_lens.map(|d| d.reverb_send), |cx, send_lens| {
+                let send = send_lens.get(cx);
+                let pct = send as f32 / 127.0;
+                HStack::new(cx, |cx| {
+                    Label::new(cx, "FX2").class("routing-send-label");
+                    ZStack::new(cx, |cx| {
+                        Element::new(cx).class("routing-send-bar-bg");
+                        Element::new(cx)
+                            .class("routing-send-bar-fill")
+                            .class("routing-send-bar-reverb")
+                            .width(Percentage(pct * 100.0));
                     })
-                    .class("routing-send-row");
-                },
-            );
+                    .class("routing-send-bar-container");
+                })
+                .class("routing-send-row");
+            });
         })
     }
 }

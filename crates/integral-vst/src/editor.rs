@@ -2,11 +2,11 @@
 
 use nih_plug::prelude::Editor;
 use nih_plug_vizia::vizia::prelude::*;
-use nih_plug_vizia::{create_vizia_editor, ViziaState, ViziaTheming};
+use nih_plug_vizia::{ViziaState, ViziaTheming, create_vizia_editor};
 use std::sync::Arc;
 
-use crate::views::{MixerPage, RoutingPage, SurroundPage, ToneEditorPage};
 use crate::SharedState;
+use crate::views::{MixerPage, RoutingPage, SurroundPage, ToneEditorPage};
 
 // ---------------------------------------------------------------------------
 // Tab state
@@ -120,16 +120,13 @@ pub(crate) fn create(
                         MixerPage::new(cx, shared_mixer.clone()).class("page-content");
                     }
                     PageTab::Surround => {
-                        SurroundPage::new(cx, shared_surround.clone())
-                            .class("page-content");
+                        SurroundPage::new(cx, shared_surround.clone()).class("page-content");
                     }
                     PageTab::Routing => {
-                        RoutingPage::new(cx, shared_routing.clone())
-                            .class("page-content");
+                        RoutingPage::new(cx, shared_routing.clone()).class("page-content");
                     }
                     PageTab::ToneEdit => {
-                        ToneEditorPage::new(cx, shared_tone.clone())
-                            .class("page-content");
+                        ToneEditorPage::new(cx, shared_tone.clone()).class("page-content");
                     }
                 }
             });

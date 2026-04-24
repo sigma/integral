@@ -9,7 +9,7 @@ license.workspace = true
 crate-type = ["cdylib", "lib"]
 
 [[bin]]
-name = "integral"
+name = "integral-app"
 path = "src/standalone.rs"
 
 [dependencies]

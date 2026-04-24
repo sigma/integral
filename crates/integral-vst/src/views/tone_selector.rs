@@ -327,15 +327,11 @@ impl ToneSelector {
             VStack::new(cx, |cx| {
                 // Header.
                 HStack::new(cx, |cx| {
-                    Binding::new(
-                        cx,
-                        ToneSelectorData::part_index,
-                        |cx, part_lens| {
-                            let pi = part_lens.get(cx);
-                            let title = format!("Tone Select — Part {}", pi + 1);
-                            Label::new(cx, &title).class("tone-selector__title");
-                        },
-                    );
+                    Binding::new(cx, ToneSelectorData::part_index, |cx, part_lens| {
+                        let pi = part_lens.get(cx);
+                        let title = format!("Tone Select — Part {}", pi + 1);
+                        Label::new(cx, &title).class("tone-selector__title");
+                    });
 
                     Element::new(cx).class("tone-selector__header-spacer");
 
@@ -383,8 +379,7 @@ impl View for ToneSelector {
 /// Build the bank list panel (left side).
 fn build_bank_list(cx: &mut Context) {
     // Combine group + bank selection into a single lens via map.
-    let sel_lens =
-        ToneSelectorData::selected_group.map(|g| *g);
+    let sel_lens = ToneSelectorData::selected_group.map(|g| *g);
 
     ScrollView::new(cx, 0.0, 0.0, false, true, move |cx| {
         VStack::new(cx, |cx| {
@@ -392,32 +387,24 @@ fn build_bank_list(cx: &mut Context) {
             // We bind on selected_group and nest on selected_bank.
             Binding::new(cx, sel_lens, |cx, group_lens| {
                 let sel_group = group_lens.get(cx);
-                Binding::new(
-                    cx,
-                    ToneSelectorData::selected_bank,
-                    move |cx, bank_lens| {
-                        let sel_bank = bank_lens.get(cx);
-                        VStack::new(cx, |cx| {
-                            for (gi, group) in TONE_BANK_GROUPS.iter().enumerate() {
-                                Label::new(cx, group.label)
-                                    .class("tone-selector__group-label");
-                                for (bi, bank) in group.banks.iter().enumerate() {
-                                    let is_active = gi == sel_group && bi == sel_bank;
-                                    Label::new(cx, bank.label)
-                                        .class("tone-selector__bank-btn")
-                                        .toggle_class(
-                                            "tone-selector__bank-btn--active",
-                                            is_active,
-                                        )
-                                        .cursor(CursorIcon::Hand)
-                                        .on_press(move |cx| {
-                                            cx.emit(ToneSelectorInternal::SelectBank(gi, bi));
-                                        });
-                                }
+                Binding::new(cx, ToneSelectorData::selected_bank, move |cx, bank_lens| {
+                    let sel_bank = bank_lens.get(cx);
+                    VStack::new(cx, |cx| {
+                        for (gi, group) in TONE_BANK_GROUPS.iter().enumerate() {
+                            Label::new(cx, group.label).class("tone-selector__group-label");
+                            for (bi, bank) in group.banks.iter().enumerate() {
+                                let is_active = gi == sel_group && bi == sel_bank;
+                                Label::new(cx, bank.label)
+                                    .class("tone-selector__bank-btn")
+                                    .toggle_class("tone-selector__bank-btn--active", is_active)
+                                    .cursor(CursorIcon::Hand)
+                                    .on_press(move |cx| {
+                                        cx.emit(ToneSelectorInternal::SelectBank(gi, bi));
+                                    });
                             }
-                        });
-                    },
-                );
+                        }
+                    });
+                });
             });
         });
     })
@@ -431,63 +418,46 @@ fn build_tone_list(cx: &mut Context) {
             let tones = tones_lens.get(cx);
             VStack::new(cx, |cx| {
                 if tones.is_empty() {
-                    Label::new(cx, "No tones in this bank")
-                        .class("tone-selector__empty");
+                    Label::new(cx, "No tones in this bank").class("tone-selector__empty");
                 } else {
                     // Read current tone for highlighting via nested Bindings.
-                    Binding::new(
-                        cx,
-                        ToneSelectorData::current_msb,
-                        move |cx, msb_lens| {
-                            let cur_msb = msb_lens.get(cx);
+                    Binding::new(cx, ToneSelectorData::current_msb, move |cx, msb_lens| {
+                        let cur_msb = msb_lens.get(cx);
+                        let tones = tones.clone();
+                        Binding::new(cx, ToneSelectorData::current_lsb, move |cx, lsb_lens| {
+                            let cur_lsb = lsb_lens.get(cx);
                             let tones = tones.clone();
-                            Binding::new(
-                                cx,
-                                ToneSelectorData::current_lsb,
-                                move |cx, lsb_lens| {
-                                    let cur_lsb = lsb_lens.get(cx);
-                                    let tones = tones.clone();
-                                    Binding::new(
-                                        cx,
-                                        ToneSelectorData::current_pc,
-                                        move |cx, pc_lens| {
-                                            let cur_pc = pc_lens.get(cx);
-                                            VStack::new(cx, |cx| {
-                                                for entry in &tones {
-                                                    let is_active = entry.msb == cur_msb
-                                                        && entry.lsb == cur_lsb
-                                                        && entry.pc == cur_pc;
-                                                    let msb = entry.msb;
-                                                    let lsb = entry.lsb;
-                                                    let pc = entry.pc;
-                                                    let display = format!(
-                                                        "{:04}  {}",
-                                                        entry.number, entry.name
-                                                    );
-                                                    Label::new(cx, &display)
-                                                        .class("tone-selector__tone-item")
-                                                        .toggle_class(
-                                                            "tone-selector__tone-item--active",
-                                                            is_active,
-                                                        )
-                                                        .cursor(CursorIcon::Hand)
-                                                        .on_press(move |cx| {
-                                                            cx.emit(
-                                                                ToneSelectorEvent::SelectTone {
-                                                                    msb,
-                                                                    lsb,
-                                                                    pc,
-                                                                },
-                                                            );
-                                                        });
-                                                }
+                            Binding::new(cx, ToneSelectorData::current_pc, move |cx, pc_lens| {
+                                let cur_pc = pc_lens.get(cx);
+                                VStack::new(cx, |cx| {
+                                    for entry in &tones {
+                                        let is_active = entry.msb == cur_msb
+                                            && entry.lsb == cur_lsb
+                                            && entry.pc == cur_pc;
+                                        let msb = entry.msb;
+                                        let lsb = entry.lsb;
+                                        let pc = entry.pc;
+                                        let display =
+                                            format!("{:04}  {}", entry.number, entry.name);
+                                        Label::new(cx, &display)
+                                            .class("tone-selector__tone-item")
+                                            .toggle_class(
+                                                "tone-selector__tone-item--active",
+                                                is_active,
+                                            )
+                                            .cursor(CursorIcon::Hand)
+                                            .on_press(move |cx| {
+                                                cx.emit(ToneSelectorEvent::SelectTone {
+                                                    msb,
+                                                    lsb,
+                                                    pc,
+                                                });
                                             });
-                                        },
-                                    );
-                                },
-                            );
-                        },
-                    );
+                                    }
+                                });
+                            });
+                        });
+                    });
                 }
             });
         });

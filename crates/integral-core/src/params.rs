@@ -294,7 +294,12 @@ pub mod comp_eq {
 /// `tone_type_offset` should be [`tone_type::PCM_DRUM`] or [`tone_type::SN_DRUM`].
 pub const fn comp_eq_block_address(part_index: u8, tone_type_offset: [u8; 3]) -> Address {
     temporary_tone_base(part_index)
-        .offset([0x00, tone_type_offset[0], tone_type_offset[1], tone_type_offset[2]])
+        .offset([
+            0x00,
+            tone_type_offset[0],
+            tone_type_offset[1],
+            tone_type_offset[2],
+        ])
         .offset([0x00, 0x00, 0x08, 0x00])
 }
 
@@ -310,8 +315,7 @@ pub const fn comp_eq_param_address(
     param_offset: u8,
 ) -> Address {
     let unit_byte_offset = unit * COMP_EQ_UNIT_SIZE + param_offset;
-    comp_eq_block_address(part_index, tone_type_offset)
-        .offset([0x00, 0x00, 0x00, unit_byte_offset])
+    comp_eq_block_address(part_index, tone_type_offset).offset([0x00, 0x00, 0x00, unit_byte_offset])
 }
 
 // ---------------------------------------------------------------------------

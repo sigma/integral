@@ -65,21 +65,15 @@ impl ChannelStrip {
     ///
     /// The `variant` determines which controls are rendered.
     /// `data_lens` must resolve to a [`ChannelStripData`] model.
-    pub fn new<'a, L>(
-        cx: &'a mut Context,
-        variant: StripVariant,
-        data_lens: L,
-    ) -> Handle<'a, Self>
+    pub fn new<'a, L>(cx: &'a mut Context, variant: StripVariant, data_lens: L) -> Handle<'a, Self>
     where
         L: Lens<Target = ChannelStripData>,
     {
-        Self.build(cx, move |cx| {
-            match variant {
-                StripVariant::Part => Self::build_part(cx, data_lens),
-                StripVariant::Ext => Self::build_ext(cx, data_lens),
-                StripVariant::Master => Self::build_master(cx, data_lens),
-                StripVariant::CompEq => Self::build_comp_eq(cx),
-            }
+        Self.build(cx, move |cx| match variant {
+            StripVariant::Part => Self::build_part(cx, data_lens),
+            StripVariant::Ext => Self::build_ext(cx, data_lens),
+            StripVariant::Master => Self::build_master(cx, data_lens),
+            StripVariant::CompEq => Self::build_comp_eq(cx),
         })
     }
 

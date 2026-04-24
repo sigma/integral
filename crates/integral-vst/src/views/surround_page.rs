@@ -256,7 +256,11 @@ impl SurroundPage {
                     Label::new(cx, "Room").class("surround-param-label");
                     Binding::new(cx, SurroundData::room_type, |cx, rt_lens| {
                         let rt = rt_lens.get(cx);
-                        let name = INTEGRA7.surround_room_types.get(rt as usize).copied().unwrap_or("---");
+                        let name = INTEGRA7
+                            .surround_room_types
+                            .get(rt as usize)
+                            .copied()
+                            .unwrap_or("---");
                         Label::new(cx, name).class("surround-param-value");
                     });
                 })
@@ -267,7 +271,11 @@ impl SurroundPage {
                     Label::new(cx, "Size").class("surround-param-label");
                     Binding::new(cx, SurroundData::room_size, |cx, rs_lens| {
                         let rs = rs_lens.get(cx);
-                        let name = INTEGRA7.surround_room_sizes.get(rs as usize).copied().unwrap_or("---");
+                        let name = INTEGRA7
+                            .surround_room_sizes
+                            .get(rs as usize)
+                            .copied()
+                            .unwrap_or("---");
                         Label::new(cx, name).class("surround-param-value");
                     });
                 })
@@ -329,10 +337,8 @@ impl SurroundPage {
             ScrollView::new(cx, 0.0, 0.0, true, false, |cx| {
                 HStack::new(cx, |cx| {
                     for i in 0..NUM_ENTRIES {
-                        let part_lens =
-                            SurroundData::parts.map(move |parts| parts[i].clone());
-                        let selected_lens =
-                            SurroundData::selected_part.map(move |sel| *sel == i);
+                        let part_lens = SurroundData::parts.map(move |parts| parts[i].clone());
+                        let selected_lens = SurroundData::selected_part.map(move |sel| *sel == i);
 
                         VStack::new(cx, |cx| {
                             // Label
@@ -356,32 +362,21 @@ impl SurroundPage {
                             );
 
                             // Width value
-                            Binding::new(
-                                cx,
-                                part_lens.map(|p| p.width),
-                                |cx, w_lens| {
-                                    let w = w_lens.get(cx);
-                                    let text = format!("W:{}", w);
-                                    Label::new(cx, &text).class("surround-part-knob-val");
-                                },
-                            );
+                            Binding::new(cx, part_lens.map(|p| p.width), |cx, w_lens| {
+                                let w = w_lens.get(cx);
+                                let text = format!("W:{}", w);
+                                Label::new(cx, &text).class("surround-part-knob-val");
+                            });
 
                             // AMB send value
-                            Binding::new(
-                                cx,
-                                part_lens.map(|p| p.ambience_send),
-                                |cx, a_lens| {
-                                    let a = a_lens.get(cx);
-                                    let text = format!("AMB:{}", a);
-                                    Label::new(cx, &text).class("surround-part-knob-val");
-                                },
-                            );
+                            Binding::new(cx, part_lens.map(|p| p.ambience_send), |cx, a_lens| {
+                                let a = a_lens.get(cx);
+                                let text = format!("AMB:{}", a);
+                                Label::new(cx, &text).class("surround-part-knob-val");
+                            });
                         })
                         .class("surround-part-box")
-                        .toggle_class(
-                            "surround-part-box--selected",
-                            selected_lens,
-                        )
+                        .toggle_class("surround-part-box--selected", selected_lens)
                         .cursor(CursorIcon::Hand)
                         .on_press(move |cx| {
                             cx.emit(SurroundEvent::SelectPart(i));
@@ -445,11 +440,7 @@ impl View for SurroundXYPad {
                 // Get the selected part from the model.
                 {
                     let sel = SurroundData::selected_part.get(cx);
-                    cx.emit(SurroundEvent::MovePart {
-                        index: sel,
-                        lr,
-                        fb,
-                    });
+                    cx.emit(SurroundEvent::MovePart { index: sel, lr, fb });
                 }
                 self.dragging = true;
                 cx.capture();
@@ -466,11 +457,7 @@ impl View for SurroundXYPad {
                 if self.dragging {
                     let (lr, fb) = self.pointer_to_lr_fb(cx, x, y);
                     let sel = SurroundData::selected_part.get(cx);
-                    cx.emit(SurroundEvent::MovePart {
-                        index: sel,
-                        lr,
-                        fb,
-                    });
+                    cx.emit(SurroundEvent::MovePart { index: sel, lr, fb });
                 }
             }
             _ => {}

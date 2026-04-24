@@ -44,7 +44,9 @@ pub const INTEGRA7: DeviceSpec = DeviceSpec {
     ],
     chorus_type_names: &["OFF", "Chorus", "Delay", "GM2 Cho"],
     chorus_output_names: &["MAIN", "REV", "MAIN+REV"],
-    reverb_type_names: &["OFF", "Room 1", "Room 2", "Hall 1", "Hall 2", "Plate", "GM2 Rev"],
+    reverb_type_names: &[
+        "OFF", "Room 1", "Room 2", "Hall 1", "Hall 2", "Plate", "GM2 Rev",
+    ],
     reverb_output_names: &["A", "B", "C", "D"],
     surround_room_types: &["Room 1", "Room 2", "Hall 1", "Hall 2"],
     surround_room_sizes: &["Small", "Medium", "Large"],

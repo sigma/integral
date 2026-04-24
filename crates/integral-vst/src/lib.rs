@@ -164,8 +164,7 @@ impl ClapPlugin for Integral {
     const CLAP_DESCRIPTION: Option<&'static str> = Some("Integra-7 Control Surface");
     const CLAP_MANUAL_URL: Option<&'static str> = None;
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
-    const CLAP_FEATURES: &'static [ClapFeature] =
-        &[ClapFeature::Utility, ClapFeature::NoteEffect];
+    const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::Utility, ClapFeature::NoteEffect];
 }
 
 impl Vst3Plugin for Integral {

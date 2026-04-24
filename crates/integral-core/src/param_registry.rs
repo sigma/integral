@@ -350,8 +350,11 @@ pub fn mixer_params() -> Vec<ParamDef> {
 pub fn sn_synth_params() -> Vec<ParamDef> {
     let mut params = Vec::with_capacity(37);
 
-    static OSC_WAVE_NAMES: &[&str] = &["SAW", "SQR", "PW-SQR", "TRI", "SINE", "NOISE", "SP-SAW", "PCM"];
-    static FILTER_MODE_NAMES: &[&str] = &["BYP", "LPF", "HPF", "BPF", "PKG", "LPF2", "LPF3", "LPF4"];
+    static OSC_WAVE_NAMES: &[&str] = &[
+        "SAW", "SQR", "PW-SQR", "TRI", "SINE", "NOISE", "SP-SAW", "PCM",
+    ];
+    static FILTER_MODE_NAMES: &[&str] =
+        &["BYP", "LPF", "HPF", "BPF", "PKG", "LPF2", "LPF3", "LPF4"];
     static RING_NAMES: &[&str] = &["OFF", "ON1", "ON2"];
     static UNISON_SIZE_NAMES: &[&str] = &["2", "4", "6", "8"];
 

@@ -7,10 +7,12 @@ use anyhow::{Context, Result, bail};
 use integral_core::address::DataSize;
 use integral_core::mfx;
 use integral_core::sn_synth;
-use integral_core::svd::{ChunkType, SvdChunk, SvdFile, tone_category_name};
+use integral_core::svd::{
+    ChunkType, SvdChunk, SvdFile, extract_entry_category, extract_entry_name, tone_category_name,
+};
 use integral_core::svd_convert::sysex_to_svd;
 use integral_core::svd_convert::{sns_to_dt1s, svd_to_sysex};
-use integral_core::svd_specs::{SNA_TONE_SPEC, SNS_TONE_SPEC};
+use integral_core::svd_specs::SNS_TONE_SPEC;
 
 use crate::midi;
 
@@ -38,37 +40,8 @@ impl SvdEntry {
     }
 }
 
-/// Extract the patch name from an SVD entry's bitstream.
-fn extract_name(entry: &[u8], name_len: usize) -> String {
-    let mut reader = integral_core::bitstream::BitReader::new(entry);
-    let mut name = String::with_capacity(name_len);
-    for _ in 0..name_len {
-        if let Ok(ch) = reader.read_bits(7) {
-            let ch = ch as u8;
-            name.push(if (32..=127).contains(&ch) {
-                ch as char
-            } else {
-                ' '
-            });
-        }
-    }
-    name.trim_end().to_string()
-}
-
-/// Extract the tone category from an SVD entry, if a spec table is available.
-fn extract_category(entry: &[u8], chunk_type: ChunkType) -> Option<u8> {
-    match chunk_type {
-        ChunkType::SnSynthTone => {
-            let sections = svd_to_sysex(entry, &SNS_TONE_SPEC).ok()?;
-            Some(sections[0][0x36])
-        }
-        ChunkType::SnAcousticTone => {
-            let sections = svd_to_sysex(entry, &SNA_TONE_SPEC).ok()?;
-            Some(sections[0][0x1B])
-        }
-        _ => None,
-    }
-}
+// Name extraction and category extraction are delegated to
+// `integral_core::svd::{extract_entry_name, extract_entry_category}`.
 
 /// List the contents of an SVD backup file.
 pub fn svd_list(
@@ -92,14 +65,11 @@ pub fn svd_list(
             continue;
         }
 
-        let name_len = match chunk.chunk_type {
-            ChunkType::StudioSet => 16,
-            _ => 12,
-        };
+        let name_len = chunk.chunk_type.name_length();
 
         for (i, raw) in chunk.entries.iter().enumerate() {
-            let name = extract_name(raw, name_len);
-            let category = extract_category(raw, chunk.chunk_type);
+            let name = extract_entry_name(raw, name_len);
+            let category = extract_entry_category(raw, chunk.chunk_type);
 
             if let Some(cf) = category_filter
                 && category != Some(cf)
@@ -371,9 +341,15 @@ pub fn svd_validate(
     let common_addr = sn_synth::sns_common_address(part_index);
     let common_size = sn_synth::SNS_COMMON_BLOCK_SIZE;
     println!("Reading SN-S Common from Part {} ...", part);
-    let dev_common =
-        midi::request_data(&mut conn_out, &rx, device_id, &common_addr, &common_size, timeout)
-            .context("failed to read Common")?;
+    let dev_common = midi::request_data(
+        &mut conn_out,
+        &rx,
+        device_id,
+        &common_addr,
+        &common_size,
+        timeout,
+    )
+    .context("failed to read Common")?;
 
     let dev_name: String = dev_common[..12]
         .iter()
@@ -406,9 +382,15 @@ pub fn svd_validate(
     let mfx_base = sn_synth::sns_common_address(part_index).offset([0x00, 0x00, 0x02, 0x00]);
     let mfx_hdr_size = mfx::MFX_HEADER_SIZE;
     println!("Reading MFX header ...");
-    let mut dev_mfx =
-        midi::request_data(&mut conn_out, &rx, device_id, &mfx_base, &mfx_hdr_size, timeout)
-            .context("failed to read MFX header")?;
+    let mut dev_mfx = midi::request_data(
+        &mut conn_out,
+        &rx,
+        device_id,
+        &mfx_base,
+        &mfx_hdr_size,
+        timeout,
+    )
+    .context("failed to read MFX header")?;
     // Read params: 32 x 4 bytes starting at offset 0x11
     let mfx_params_addr = mfx_base.offset([0x00, 0x00, 0x00, 0x11]);
     let mfx_params_size = DataSize::new(0x00, 0x00, 0x01, 0x00);
@@ -480,9 +462,15 @@ pub fn svd_export(
     let common_addr = sn_synth::sns_common_address(part_index);
     let common_size = sn_synth::SNS_COMMON_BLOCK_SIZE;
     println!("Reading SN-S Common from Part {} ...", part);
-    let common =
-        midi::request_data(&mut conn_out, &rx, device_id, &common_addr, &common_size, timeout)
-            .context("failed to read Common")?;
+    let common = midi::request_data(
+        &mut conn_out,
+        &rx,
+        device_id,
+        &common_addr,
+        &common_size,
+        timeout,
+    )
+    .context("failed to read Common")?;
 
     let name: String = common[..12]
         .iter()

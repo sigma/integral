@@ -1,4 +1,8 @@
 //! Dump-state commands: read and write parameters from/to the device.
+//!
+//! High-level reads (studio-set-name, master-level, part-mixer) go through
+//! [`IntegraDevice`](crate::device::IntegraDevice). Lower-level or
+//! multi-step reads (tone-name) still use raw MIDI helpers directly.
 
 use std::time::Duration;
 
@@ -7,6 +11,7 @@ use integral_core::params;
 use integral_core::sysex;
 use midir::MidiOutput;
 
+use crate::device::IntegraDevice;
 use crate::midi;
 
 /// Read a named parameter from the device via RQ1.
@@ -17,75 +22,48 @@ pub fn read_param(
     what: &str,
     part: Option<u8>,
 ) -> Result<()> {
-    let (_conn_in, mut conn_out, rx) = midi::open_midi(port_pattern)?;
-
     match what {
         "studio-set-name" => {
-            let data = midi::request_data(
-                &mut conn_out,
-                &rx,
-                device_id,
-                &params::STUDIO_SET_NAME,
-                &params::STUDIO_SET_NAME_SIZE,
-                timeout,
-            )?;
-            let name = String::from_utf8_lossy(&data);
+            let mut dev = IntegraDevice::connect(port_pattern, device_id, timeout)?;
+            let name = dev.read_studio_set_name()?;
             println!("Studio Set Name: \"{name}\"");
         }
         "master-level" => {
-            let data = midi::request_data(
-                &mut conn_out,
-                &rx,
-                device_id,
-                &params::SYSTEM_MASTER_LEVEL,
-                &params::SINGLE_BYTE_SIZE,
-                timeout,
-            )?;
-            println!("Master Level: {}", data[0]);
+            let mut dev = IntegraDevice::connect(port_pattern, device_id, timeout)?;
+            let level = dev.read_master_level()?;
+            println!("Master Level: {level}");
         }
         "part-mixer" => {
             let p = part.context("--part is required for part-mixer")? - 1;
-            let addr = params::part_address(p, params::part::RECEIVE_CHANNEL);
-            let data =
-                midi::request_data(&mut conn_out, &rx, device_id, &addr, &params::PART_MIXER_SIZE, timeout)?;
+            let mut dev = IntegraDevice::connect(port_pattern, device_id, timeout)?;
+            let state = dev.read_part_mixer(p)?;
             println!("Part {} mixer state:", p + 1);
-            println!("  Receive Channel: {}", data.first().unwrap_or(&0) + 1);
-            println!("  Tone Bank MSB:   {}", data.get(0x06).unwrap_or(&0));
-            println!("  Tone Bank LSB:   {}", data.get(0x07).unwrap_or(&0));
-            println!("  Tone PC:         {}", data.get(0x08).unwrap_or(&0));
-            println!("  Level:           {}", data.get(0x09).unwrap_or(&0));
-            println!("  Pan:             {}", data.get(0x0A).unwrap_or(&0));
-            println!("  Mute:            {}", data.get(0x25).unwrap_or(&0));
-            println!("  Chorus Send:     {}", data.get(0x27).unwrap_or(&0));
-            println!("  Reverb Send:     {}", data.get(0x28).unwrap_or(&0));
+            println!("  Receive Channel: {}", state.receive_channel + 1);
+            println!("  Tone Bank MSB:   {}", state.tone_bank_msb);
+            println!("  Tone Bank LSB:   {}", state.tone_bank_lsb);
+            println!("  Tone PC:         {}", state.tone_pc);
+            println!("  Level:           {}", state.level);
+            println!("  Pan:             {}", state.pan);
+            println!("  Mute:            {}", u8::from(state.muted));
+            println!("  Chorus Send:     {}", state.chorus_send);
+            println!("  Reverb Send:     {}", state.reverb_send);
         }
         "tone-name" => {
+            // tone-name requires a multi-step read (bank MSB -> tone type ->
+            // name address), so we use the raw helpers via IntegraDevice's
+            // request_data method.
             let p = part.context("--part is required for tone-name")? - 1;
+            let mut dev = IntegraDevice::connect(port_pattern, device_id, timeout)?;
 
-            // First read the bank MSB to determine tone type
             let bank_addr = params::part_address(p, params::part::TONE_BANK_MSB);
-            let bank_data = midi::request_data(
-                &mut conn_out,
-                &rx,
-                device_id,
-                &bank_addr,
-                &params::SINGLE_BYTE_SIZE,
-                timeout,
-            )?;
+            let bank_data = dev.request_data(&bank_addr, &params::SINGLE_BYTE_SIZE)?;
             let msb = bank_data[0];
             eprintln!("Part {} Bank MSB: {}", p + 1, msb);
 
             let tt = params::tone_type_from_bank_msb(msb)
                 .with_context(|| format!("unknown tone type for bank MSB {msb}"))?;
             let name_addr = params::tone_name_address(p, tt);
-            let data = midi::request_data(
-                &mut conn_out,
-                &rx,
-                device_id,
-                &name_addr,
-                &params::TONE_NAME_SIZE,
-                timeout,
-            )?;
+            let data = dev.request_data(&name_addr, &params::TONE_NAME_SIZE)?;
             let name = String::from_utf8_lossy(&data);
             println!("Part {} Tone Name: \"{name}\"", p + 1);
         }

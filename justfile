@@ -63,7 +63,7 @@ monitor *ARGS:
 
 # run the standalone VST binary (native app with MIDI)
 run *ARGS:
-    cargo run -p integral-vst --bin integral --release -- {{ARGS}}
+    cargo run -p integral-vst --bin integral-app --release -- {{ARGS}}
 
 # start the web dev server
 dev-web: pack-wasm

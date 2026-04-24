@@ -5,6 +5,7 @@ use anyhow::Result;
 use clap::Parser;
 
 mod commands;
+mod device;
 mod hex;
 mod midi;
 
@@ -249,13 +250,7 @@ fn main() -> Result<()> {
             device_id,
         } => {
             let did = resolve_device_id(&port, device_id)?;
-            commands::raw::raw_rq1_multi(
-                &port,
-                Duration::from_secs_f64(timeout),
-                did,
-                &addr,
-                &size,
-            )
+            commands::raw::raw_rq1_multi(&port, Duration::from_secs_f64(timeout), did, &addr, &size)
         }
         Cli::RawSend {
             port,

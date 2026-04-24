@@ -9,6 +9,10 @@
 use std::fmt;
 use thiserror::Error;
 
+use crate::bitstream::BitReader;
+use crate::svd_convert::svd_to_sysex;
+use crate::svd_specs::{SNA_TONE_SPEC, SNS_TONE_SPEC};
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -148,9 +152,65 @@ impl ChunkType {
 
 include!(concat!(env!("OUT_DIR"), "/tone_category_data.rs"));
 
+impl ChunkType {
+    /// Return the length (in characters) of patch names for this chunk type.
+    ///
+    /// Studio Sets use 16-character names; all tone/drum types use 12.
+    pub fn name_length(&self) -> usize {
+        match self {
+            Self::StudioSet => 16,
+            _ => 12,
+        }
+    }
+}
+
 impl fmt::Display for ChunkType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.label())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Entry extraction helpers
+// ---------------------------------------------------------------------------
+
+/// Extract the patch name from a raw SVD entry's bitstream.
+///
+/// The name is stored as 7-bit ASCII characters at the start of the entry.
+/// `name_len` specifies how many characters to read (use
+/// [`ChunkType::name_length`] for the correct value).
+pub fn extract_entry_name(entry: &[u8], name_len: usize) -> String {
+    let mut reader = BitReader::new(entry);
+    let mut name = String::with_capacity(name_len);
+    for _ in 0..name_len {
+        if let Ok(ch) = reader.read_bits(7) {
+            let ch = ch as u8;
+            name.push(if (32..=127).contains(&ch) {
+                ch as char
+            } else {
+                ' '
+            });
+        }
+    }
+    name.trim_end().to_string()
+}
+
+/// Extract the tone category byte from a raw SVD entry, if the chunk type
+/// has a known spec table.
+///
+/// Returns `None` for chunk types without category information (e.g.
+/// `StudioSet`, `PcmDrumKit`).
+pub fn extract_entry_category(entry: &[u8], chunk_type: ChunkType) -> Option<u8> {
+    match chunk_type {
+        ChunkType::SnSynthTone => {
+            let sections = svd_to_sysex(entry, &SNS_TONE_SPEC).ok()?;
+            Some(sections[0][0x36])
+        }
+        ChunkType::SnAcousticTone => {
+            let sections = svd_to_sysex(entry, &SNA_TONE_SPEC).ok()?;
+            Some(sections[0][0x1B])
+        }
+        _ => None,
     }
 }
 

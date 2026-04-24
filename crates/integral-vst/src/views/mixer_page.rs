@@ -11,8 +11,8 @@ use nih_plug_vizia::vizia::prelude::*;
 
 use crate::SharedState;
 
-use super::top_bar::TopBarEvent;
 use super::tone_selector::ToneSelectorEvent;
+use super::top_bar::TopBarEvent;
 use super::{ChannelStrip, ChannelStripData, StripVariant, ToneSelector, TopBar};
 
 /// Number of mixer parts.
@@ -340,30 +340,20 @@ impl MixerPage {
                 if open_lens.get(cx) {
                     Binding::new(cx, MixerData::selected_part, |cx, part_lens| {
                         let part_idx = part_lens.get(cx);
-                        Binding::new(
-                            cx,
-                            MixerData::selected_tone_msb,
-                            move |cx, msb_lens| {
-                                let msb = msb_lens.get(cx);
+                        Binding::new(cx, MixerData::selected_tone_msb, move |cx, msb_lens| {
+                            let msb = msb_lens.get(cx);
+                            Binding::new(cx, MixerData::selected_tone_lsb, move |cx, lsb_lens| {
+                                let lsb = lsb_lens.get(cx);
                                 Binding::new(
                                     cx,
-                                    MixerData::selected_tone_lsb,
-                                    move |cx, lsb_lens| {
-                                        let lsb = lsb_lens.get(cx);
-                                        Binding::new(
-                                            cx,
-                                            MixerData::selected_tone_pc,
-                                            move |cx, pc_lens| {
-                                                let pc = pc_lens.get(cx);
-                                                ToneSelector::new(
-                                                    cx, part_idx, msb, lsb, pc,
-                                                );
-                                            },
-                                        );
+                                    MixerData::selected_tone_pc,
+                                    move |cx, pc_lens| {
+                                        let pc = pc_lens.get(cx);
+                                        ToneSelector::new(cx, part_idx, msb, lsb, pc);
                                     },
                                 );
-                            },
-                        );
+                            });
+                        });
                     });
                 }
             });
@@ -401,8 +391,7 @@ impl MixerPage {
                 HStack::new(cx, |cx| {
                     // 16 part strips.
                     for i in 0..NUM_PARTS {
-                        let strip_lens =
-                            MixerData::strips.map(move |strips| strips[i].clone());
+                        let strip_lens = MixerData::strips.map(move |strips| strips[i].clone());
                         ChannelStrip::new(cx, StripVariant::Part, strip_lens);
                     }
 
