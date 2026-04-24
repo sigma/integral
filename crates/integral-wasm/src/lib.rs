@@ -59,6 +59,16 @@ fn check_comp_eq_unit(unit: u8) -> Result<(), JsError> {
 // Identity
 // ---------------------------------------------------------------------------
 
+/// Returns the INTEGRA-7 device specification as a JSON string.
+///
+/// Contains all static device constants (part count, output names,
+/// FX type labels, surround options, etc.).
+#[wasm_bindgen(js_name = "deviceSpecJson")]
+pub fn device_spec_json() -> Result<String, JsError> {
+    serde_json::to_string(&integral_core::device_spec::INTEGRA7)
+        .map_err(|e| JsError::new(&e.to_string()))
+}
+
 /// Returns the SysEx Identity Request message bytes.
 ///
 /// Send these bytes to a MIDI output to request device identification.

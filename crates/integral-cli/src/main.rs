@@ -84,11 +84,6 @@ enum Cli {
         /// Raw hex string (e.g. "F04110000064110F000302550017F7")
         hex: String,
     },
-    /// Probe undocumented command IDs to find catalog request format.
-    Probe {
-        #[arg(long, default_value = "Integra")]
-        port: String,
-    },
     /// Send a raw DT1 message and capture responses. E.g.: raw-send 0F000302 5500
     RawSend {
         #[arg(long, default_value = "Integra")]
@@ -640,56 +635,6 @@ fn send_raw_hex(port_pattern: &str, timeout: Duration, hex: &str) -> Result<()> 
     Ok(())
 }
 
-fn probe_catalog(port_pattern: &str) -> Result<()> {
-    let (_conn_in, mut conn_out, rx) = open_midi(port_pattern)?;
-
-    let addr: [u8; 4] = [0x0F, 0x00, 0x03, 0x02];
-    let data: [u8; 2] = [0x55, 0x00];
-
-    // Try different command IDs
-    for cmd_id in [0x0Bu8, 0x0C, 0x0D, 0x0E, 0x0F, 0x11, 0x12, 0x13, 0x14, 0x15] {
-        // Build raw SysEx: F0 41 10 00 00 64 CMD addr data chk F7
-        let mut chk_data = Vec::new();
-        chk_data.extend_from_slice(&addr);
-        chk_data.extend_from_slice(&data);
-        let chk = sysex::checksum(&chk_data);
-
-        let mut msg = vec![0xF0, 0x41, DEVICE_ID, 0x00, 0x00, 0x64, cmd_id];
-        msg.extend_from_slice(&addr);
-        msg.extend_from_slice(&data);
-        msg.push(chk);
-        msg.push(0xF7);
-
-        eprint!("cmd={:#04X}: ", cmd_id);
-        conn_out.send(&msg).context("send failed")?;
-
-        std::thread::sleep(Duration::from_millis(200));
-
-        let mut count = 0;
-        while let Ok(response) = rx.try_recv() {
-            count += 1;
-            if count <= 3
-                && let Ok(dt1) = sysex::parse_dt1(&response)
-            {
-                let ascii: String = dt1
-                    .data
-                    .iter()
-                    .map(|&b| {
-                        if (0x20..=0x7E).contains(&b) {
-                            b as char
-                        } else {
-                            '.'
-                        }
-                    })
-                    .collect();
-                eprint!("[{}] ", ascii);
-            }
-        }
-        eprintln!("{count} response(s)");
-    }
-    Ok(())
-}
-
 fn raw_send(port_pattern: &str, timeout: Duration, addr_hex: &str, data_hex: &str) -> Result<()> {
     let addr = parse_hex_addr(addr_hex)?;
     let data = parse_hex_bytes(data_hex)?;
@@ -772,7 +717,6 @@ fn main() -> Result<()> {
         Cli::RawHex { port, timeout, hex } => {
             send_raw_hex(&port, Duration::from_secs_f64(timeout), &hex)
         }
-        Cli::Probe { port } => probe_catalog(&port),
         Cli::RawRq1 {
             port,
             timeout,
