@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-04-24T18:09:12Z",
+  "description": "",
+  "id": "i7-wcb",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "refactor(cli): add high-level device interface abstracting raw SysEx operations",
+  "type": "task",
+  "updated_at": "2026-04-24T18:09:12Z"
+}
