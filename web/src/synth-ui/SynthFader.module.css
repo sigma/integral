@@ -92,7 +92,7 @@
 .thumbActive {
   background: linear-gradient(to bottom, #ddd, #aaa);
   border-color: #c44;
-  box-shadow: 0 0 4px rgba(204, 68, 68, 0.4);
+  box-shadow: 0 0 4px rgb(204 68 68 / 40%);
 }
 
 .value {

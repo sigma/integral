@@ -17,7 +17,7 @@
   justify-content: center;
   border-radius: 50%;
   background: #3a1a1a;
-  color: #ff6666;
+  color: #f66;
   font-size: 24px;
   font-weight: 800;
   border: 2px solid #5a2a2a;
@@ -36,7 +36,7 @@
   margin: 0;
   max-width: 400px;
   text-align: center;
-  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .retryButton {

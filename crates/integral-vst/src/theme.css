@@ -8,7 +8,7 @@
 
 synth-knob {
     display: flex;
-    child-space: 0px;
+    child-space: 0;
     col-between: 2px;
     layout-type: column;
     width: auto;
@@ -16,20 +16,20 @@ synth-knob {
 }
 
 .synth-knob__label {
-    color: #999999;
+    color: #999;
     font-size: 10;
     width: auto;
     height: auto;
-    child-space: 0px;
+    child-space: 0;
 }
 
 .synth-knob__body {
     width: 52px;
     height: 52px;
     border-radius: 50%;
-    background-color: #444444;
+    background-color: #444;
     border-width: 1px;
-    border-color: #555555;
+    border-color: #555;
 }
 
 synth-knob.lg .synth-knob__body {
@@ -38,7 +38,7 @@ synth-knob.lg .synth-knob__body {
 }
 
 .synth-knob__value {
-    color: #aaaaaa;
+    color: #aaa;
     font-size: 10;
     width: auto;
     height: auto;
@@ -48,14 +48,14 @@ synth-knob.lg .synth-knob__body {
 
 synth-fader {
     display: flex;
-    child-space: 0px;
+    child-space: 0;
     layout-type: column;
     width: 42px;
     height: auto;
 }
 
 .synth-fader__label {
-    color: #999999;
+    color: #999;
     font-size: 10;
     width: auto;
     height: 28px;
@@ -74,20 +74,20 @@ synth-fader.synth-fader--compact .synth-fader__track-area {
 .synth-fader__tick {
     width: 100%;
     height: 1px;
-    background-color: #333333;
+    background-color: #333;
 }
 
 .synth-fader__tick--major {
-    background-color: #555555;
+    background-color: #555;
 }
 
 .synth-fader__track {
     position-type: self-directed;
     left: 12px;
-    top: 0px;
-    bottom: 0px;
+    top: 0;
+    bottom: 0;
     width: 4px;
-    background-color: #222222;
+    background-color: #222;
     border-radius: 2px;
 }
 
@@ -95,7 +95,7 @@ synth-fader.synth-fader--compact .synth-fader__track-area {
     position-type: self-directed;
     left: 12px;
     width: 4px;
-    background-color: #cc4444;
+    background-color: #c44;
     border-radius: 2px;
 }
 
@@ -105,14 +105,14 @@ synth-fader.synth-fader--compact .synth-fader__track-area {
     right: 2px;
     width: 24px;
     height: 8px;
-    background-color: #bbbbbb;
+    background-color: #bbb;
     border-radius: 2px;
     border-width: 1px;
-    border-color: #555555;
+    border-color: #555;
 }
 
 .synth-fader__value {
-    color: #aaaaaa;
+    color: #aaa;
     font-size: 10;
     width: auto;
     height: auto;
@@ -122,7 +122,7 @@ synth-fader.synth-fader--compact .synth-fader__track-area {
 
 synth-switch {
     display: flex;
-    child-space: 0px;
+    child-space: 0;
     col-between: 3px;
     layout-type: column;
     width: auto;
@@ -133,7 +133,7 @@ synth-switch {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background-color: #333333;
+    background-color: #333;
 }
 
 .synth-switch__led--on {
@@ -142,11 +142,11 @@ synth-switch {
 
 .synth-switch__toggle-btn {
     col-between: 4px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
     background-color: #222238;
-    color: #666666;
+    color: #666;
     border-width: 1px;
     border-color: #3a3a5a;
     border-radius: 3px;
@@ -172,11 +172,11 @@ synth-switch {
 
 .synth-switch__option {
     col-between: 4px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
     background-color: #1a1a2e;
-    color: #666666;
+    color: #666;
     child-left: 6px;
     child-right: 6px;
     child-top: 2px;
@@ -193,7 +193,7 @@ synth-switch {
 
 synth-select {
     display: flex;
-    child-space: 0px;
+    child-space: 0;
     col-between: 2px;
     layout-type: column;
     width: auto;
@@ -202,7 +202,7 @@ synth-select {
 
 .synth-select__button {
     col-between: 4px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
     background-color: #1e1e34;
@@ -221,7 +221,7 @@ synth-select {
 }
 
 .synth-select__arrow {
-    color: #888888;
+    color: #888;
     font-size: 8;
 }
 
@@ -231,9 +231,9 @@ synth-select {
     border-width: 1px;
     border-color: #3a3a5a;
     border-radius: 4px;
-    row-between: 0px;
+    row-between: 0;
     top: 100%;
-    left: 0px;
+    left: 0;
     width: 100%;
 }
 
@@ -265,11 +265,11 @@ section-panel {
 }
 
 .section-panel__header {
-    color: #dddddd;
+    color: #ddd;
     font-size: 10;
     background-color: #1a1a30;
     border-color: #2a2a4a;
-    border-width: 0px 0px 1px 0px;
+    border-width: 0 0 1px;
     child-left: 8px;
     child-right: 8px;
     child-top: 4px;
@@ -290,7 +290,7 @@ section-panel {
 volume-fader {
     display: flex;
     layout-type: column;
-    child-space: 0px;
+    child-space: 0;
     width: auto;
     height: auto;
 }
@@ -317,15 +317,15 @@ volume-fader {
     width: 34px;
     height: 18px;
     left: 3px;
-    background-color: #cccccc;
+    background-color: #ccc;
     border-width: 1px;
-    border-color: #555555;
+    border-color: #555;
     border-radius: 3px;
 }
 
 .volume-fader__ruler-mark {
     position-type: self-directed;
-    right: 0px;
+    right: 0;
     col-between: 2px;
     height: auto;
     width: auto;
@@ -334,27 +334,27 @@ volume-fader {
 .volume-fader__ruler-tick {
     width: 6px;
     height: 1px;
-    background-color: #444444;
+    background-color: #444;
 }
 
 .volume-fader__ruler-tick--zero {
     width: 10px;
     height: 2px;
-    background-color: #888888;
+    background-color: #888;
 }
 
 .volume-fader__ruler-label {
-    color: #555555;
+    color: #555;
     font-size: 8;
 }
 
 .volume-fader__ruler-label--zero {
-    color: #aaaaaa;
+    color: #aaa;
     font-size: 8;
 }
 
 .volume-fader__value {
-    color: #888888;
+    color: #888;
     font-size: 10;
     width: auto;
     height: auto;
@@ -364,7 +364,7 @@ volume-fader {
 
 pan-knob {
     display: flex;
-    child-space: 0px;
+    child-space: 0;
     col-between: 2px;
     layout-type: column;
     width: auto;
@@ -372,7 +372,7 @@ pan-knob {
 }
 
 .pan-knob__label {
-    color: #888888;
+    color: #888;
     font-size: 9;
 }
 
@@ -380,13 +380,13 @@ pan-knob {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background-color: #444444;
+    background-color: #444;
     border-width: 1px;
     border-color: #3a3a5a;
 }
 
 .pan-knob__value {
-    color: #aaaaaa;
+    color: #aaa;
     font-size: 10;
 }
 
@@ -401,7 +401,7 @@ eq-section {
 
 .eq-section__knob-row {
     col-between: 6px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
 }
@@ -429,7 +429,7 @@ ad-envelope {
 
 .envelope__fader-row {
     col-between: 4px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
 }
@@ -452,16 +452,16 @@ channel-strip {
 }
 
 .channel-strip__label {
-    color: #bbbbbb;
+    color: #bbb;
     font-size: 11;
     width: auto;
     height: auto;
-    child-space: 0px;
+    child-space: 0;
 }
 
 .channel-strip__sends-row {
     col-between: 4px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
 }
@@ -473,7 +473,7 @@ channel-strip {
 
 .channel-strip__mute-row {
     col-between: 4px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
 }
@@ -484,7 +484,7 @@ channel-strip {
     width: 28px;
     height: 20px;
     background-color: #222238;
-    color: #888888;
+    color: #888;
     font-size: 10;
     border-width: 1px;
     border-color: #3a3a5a;
@@ -494,15 +494,15 @@ channel-strip {
 
 .mute-btn--active {
     background-color: #6b1a1a;
-    color: #ff4444;
-    border-color: #883333;
+    color: #f44;
+    border-color: #833;
 }
 
 .solo-btn {
     width: 28px;
     height: 20px;
     background-color: #222238;
-    color: #888888;
+    color: #888;
     font-size: 10;
     border-width: 1px;
     border-color: #3a3a5a;
@@ -512,8 +512,8 @@ channel-strip {
 
 .solo-btn--active {
     background-color: #4a4a1a;
-    color: #dddd44;
-    border-color: #888833;
+    color: #dd4;
+    border-color: #883;
 }
 
 /* ---------- MixerPage ---------- */
@@ -528,7 +528,7 @@ mixer-page {
 
 .mixer-header {
     col-between: 8px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
     child-left: 8px;
@@ -536,7 +536,7 @@ mixer-page {
 }
 
 .mixer-part-info {
-    color: #cccccc;
+    color: #ccc;
     font-size: 12;
     width: auto;
     height: auto;
@@ -547,7 +547,7 @@ mixer-page {
 
 .part-selector {
     col-between: 2px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
 }
@@ -556,7 +556,7 @@ mixer-page {
     width: 28px;
     height: 22px;
     background-color: #1a1a30;
-    color: #888888;
+    color: #888;
     font-size: 10;
     border-width: 1px;
     border-color: #2a2a4a;
@@ -566,8 +566,8 @@ mixer-page {
 
 .part-selector__btn--active {
     background-color: #2a3a5a;
-    color: #ffffff;
-    border-color: #5577cc;
+    color: #fff;
+    border-color: #57c;
 }
 
 .mixer-scroll {
@@ -577,7 +577,7 @@ mixer-page {
 
 .mixer-strips {
     col-between: 2px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
     child-left: 4px;
@@ -603,7 +603,7 @@ fx-strip {
 }
 
 .fx-strip__label {
-    color: #bbbbbb;
+    color: #bbb;
     font-size: 11;
     width: auto;
     height: auto;
@@ -613,7 +613,7 @@ fx-strip {
     width: 36px;
     height: 18px;
     background-color: #222238;
-    color: #888888;
+    color: #888;
     font-size: 9;
     border-width: 1px;
     border-color: #3a3a5a;
@@ -628,14 +628,14 @@ fx-strip {
 }
 
 .fx-strip__type {
-    color: #999999;
+    color: #999;
     font-size: 9;
     width: auto;
     height: auto;
 }
 
 .fx-strip__level {
-    color: #aaaaaa;
+    color: #aaa;
     font-size: 10;
     width: auto;
     height: auto;
@@ -649,7 +649,7 @@ top-bar {
     width: 100%;
     height: 36px;
     background-color: #0e0e1c;
-    border-width: 0px 0px 1px 0px;
+    border-width: 0 0 1px;
     border-color: #2a2a4a;
     child-left: 10px;
     child-right: 10px;
@@ -657,7 +657,7 @@ top-bar {
 }
 
 .top-bar__studio-set {
-    color: #888888;
+    color: #888;
     font-size: 11;
     width: auto;
     height: auto;
@@ -682,7 +682,7 @@ top-bar {
 
 .top-bar__tone-info:hover {
     background-color: #222240;
-    border-color: #5577cc;
+    border-color: #57c;
 }
 
 .top-bar__spacer {
@@ -694,7 +694,7 @@ top-bar {
     width: auto;
     height: 24px;
     background-color: #222238;
-    color: #666666;
+    color: #666;
     font-size: 10;
     border-width: 1px;
     border-color: #3a3a5a;
@@ -723,19 +723,16 @@ top-bar {
 
 tone-selector {
     position-type: self-directed;
-    left: 0px;
-    top: 0px;
+    left: 0;
+    top: 0;
     width: 100%;
     height: 100%;
-    background-color: #00000088;
+    background-color: #0008;
 }
 
 .tone-selector__modal {
     position-type: self-directed;
-    left: 80px;
-    top: 40px;
-    right: 80px;
-    bottom: 40px;
+    inset: 40px 80px;
     background-color: #121224;
     border-width: 1px;
     border-color: #3a3a5a;
@@ -747,7 +744,7 @@ tone-selector {
     width: 100%;
     height: 36px;
     background-color: #1a1a30;
-    border-width: 0px 0px 1px 0px;
+    border-width: 0 0 1px;
     border-color: #2a2a4a;
     child-left: 12px;
     child-right: 8px;
@@ -755,7 +752,7 @@ tone-selector {
 }
 
 .tone-selector__title {
-    color: #dddddd;
+    color: #ddd;
     font-size: 12;
     width: auto;
     height: auto;
@@ -769,7 +766,7 @@ tone-selector {
 }
 
 .tone-selector__close-btn {
-    color: #888888;
+    color: #888;
     font-size: 14;
     width: 28px;
     height: 28px;
@@ -779,25 +776,25 @@ tone-selector {
 }
 
 .tone-selector__close-btn:hover {
-    color: #ffffff;
+    color: #fff;
 }
 
 .tone-selector__body {
     width: 100%;
     height: 1s;
-    col-between: 0px;
+    col-between: 0;
 }
 
 .tone-selector__bank-list {
     width: 200px;
     height: 100%;
     background-color: #0e0e1c;
-    border-width: 0px 1px 0px 0px;
+    border-width: 0 1px 0 0;
     border-color: #2a2a4a;
 }
 
 .tone-selector__group-label {
-    color: #666666;
+    color: #666;
     font-size: 9;
     width: 100%;
     height: auto;
@@ -807,7 +804,7 @@ tone-selector {
 }
 
 .tone-selector__bank-btn {
-    color: #aaaaaa;
+    color: #aaa;
     font-size: 10;
     width: 100%;
     height: auto;
@@ -823,7 +820,7 @@ tone-selector {
 
 .tone-selector__bank-btn--active {
     background-color: #2a3a5a;
-    color: #ffffff;
+    color: #fff;
 }
 
 .tone-selector__bank-btn--active:hover {
@@ -836,7 +833,7 @@ tone-selector {
 }
 
 .tone-selector__empty {
-    color: #666666;
+    color: #666;
     font-size: 11;
     width: auto;
     height: auto;
@@ -845,7 +842,7 @@ tone-selector {
 }
 
 .tone-selector__tone-item {
-    color: #bbbbbb;
+    color: #bbb;
     font-size: 10;
     width: 100%;
     height: auto;
@@ -861,7 +858,7 @@ tone-selector {
 
 .tone-selector__tone-item--active {
     background-color: #2a3a5a;
-    color: #ffffff;
+    color: #fff;
 }
 
 .tone-selector__tone-item--active:hover {
@@ -875,14 +872,14 @@ tone-editor {
     layout-type: column;
     width: 100%;
     height: 100%;
-    row-between: 0px;
+    row-between: 0;
 }
 
 .tone-editor__header {
     width: 100%;
     height: 40px;
     background-color: #0e0e1c;
-    border-width: 0px 0px 1px 0px;
+    border-width: 0 0 1px;
     border-color: #2a2a4a;
     child-left: 10px;
     child-right: 10px;
@@ -890,7 +887,7 @@ tone-editor {
 }
 
 .tone-editor__back-btn {
-    color: #8888cc;
+    color: #88c;
     font-size: 11;
     width: auto;
     height: auto;
@@ -906,12 +903,12 @@ tone-editor {
 
 .tone-editor__back-btn:hover {
     background-color: #222240;
-    color: #aaaaee;
-    border-color: #5577cc;
+    color: #aae;
+    border-color: #57c;
 }
 
 .tone-editor__part-info {
-    color: #cccccc;
+    color: #ccc;
     font-size: 13;
     width: auto;
     height: auto;
@@ -928,7 +925,7 @@ tone-editor {
 }
 
 .tone-editor__stub-label {
-    color: #666666;
+    color: #666;
     font-size: 13;
     width: auto;
     height: auto;
@@ -959,14 +956,14 @@ tone-editor {
 
 .tone-editor__knob-row {
     col-between: 6px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
 }
 
 .tone-editor__switch-row {
     col-between: 8px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
     child-top: 4px;
@@ -974,7 +971,7 @@ tone-editor {
 }
 
 .tone-editor__switch-label {
-    color: #999999;
+    color: #999;
     font-size: 9;
     width: auto;
     height: auto;
@@ -993,14 +990,14 @@ tone-editor {
     width: 100%;
     height: 36px;
     background-color: #0a0a16;
-    border-width: 0px 0px 1px 0px;
+    border-width: 0 0 1px;
     border-color: #2a2a4a;
     col-between: 8px;
     child-left: 10px;
 }
 
 .logo {
-    color: #5577cc;
+    color: #57c;
     font-size: 14;
     width: auto;
     height: auto;
@@ -1009,7 +1006,7 @@ tone-editor {
 }
 
 .tab {
-    color: #666666;
+    color: #666;
     font-size: 11;
     width: auto;
     height: auto;
@@ -1017,17 +1014,17 @@ tone-editor {
     child-bottom: 1s;
     child-left: 8px;
     child-right: 8px;
-    border-width: 0px 0px 2px 0px;
+    border-width: 0 0 2px;
     border-color: transparent;
 }
 
 .tab:hover {
-    color: #aaaaaa;
+    color: #aaa;
 }
 
 .tab-active {
-    color: #dddddd;
-    border-color: #5577cc;
+    color: #ddd;
+    border-color: #57c;
 }
 
 .page-content {
@@ -1036,7 +1033,7 @@ tone-editor {
 }
 
 .placeholder-label {
-    color: #666666;
+    color: #666;
     font-size: 14;
     width: auto;
     height: auto;
@@ -1059,13 +1056,13 @@ routing-page {
 }
 
 .routing-surround-banner {
-    color: #ffaa44;
+    color: #fa4;
     font-size: 11;
     width: 100%;
     height: auto;
     background-color: #2a2200;
     border-width: 1px;
-    border-color: #554400;
+    border-color: #540;
     border-radius: 4px;
     child-left: 12px;
     child-right: 12px;
@@ -1080,7 +1077,7 @@ routing-page {
 }
 
 .routing-section-title {
-    color: #aaaaaa;
+    color: #aaa;
     font-size: 11;
     width: auto;
     height: auto;
@@ -1094,7 +1091,7 @@ routing-page {
 
 .routing-grid {
     col-between: 2px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
 }
@@ -1115,21 +1112,21 @@ routing-part-column {
 }
 
 .routing-part-num {
-    color: #bbbbbb;
+    color: #bbb;
     font-size: 11;
     width: auto;
     height: auto;
 }
 
 .routing-part-tone-type {
-    color: #888888;
+    color: #888;
     font-size: 8;
     width: auto;
     height: auto;
 }
 
 .routing-part-tone-name {
-    color: #999999;
+    color: #999;
     font-size: 8;
     width: 60px;
     height: auto;
@@ -1150,13 +1147,13 @@ routing-part-column {
 
 .routing-send-row {
     col-between: 2px;
-    child-space: 0px;
+    child-space: 0;
     height: 10px;
     width: 100%;
 }
 
 .routing-send-label {
-    color: #666666;
+    color: #666;
     font-size: 7;
     width: 18px;
     height: auto;
@@ -1182,18 +1179,18 @@ routing-part-column {
 }
 
 .routing-send-bar-chorus {
-    background-color: #4488cc;
+    background-color: #48c;
 }
 
 .routing-send-bar-reverb {
-    background-color: #88cc44;
+    background-color: #8c4;
 }
 
 /* ---------- FX Routing Bar ---------- */
 
 .fx-routing-bar {
     col-between: 8px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
 }
@@ -1213,14 +1210,14 @@ routing-part-column {
 }
 
 .fx-routing-label {
-    color: #bbbbbb;
+    color: #bbb;
     font-size: 11;
     width: auto;
     height: auto;
 }
 
 .fx-routing-type {
-    color: #999999;
+    color: #999;
     font-size: 10;
     width: auto;
     height: auto;
@@ -1237,7 +1234,7 @@ routing-part-column {
 
 .comp-eq-grid {
     col-between: 4px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
 }
@@ -1257,7 +1254,7 @@ routing-part-column {
 }
 
 .comp-eq-label {
-    color: #888888;
+    color: #888;
     font-size: 9;
     width: auto;
     height: auto;
@@ -1284,7 +1281,7 @@ surround-page {
     width: 100%;
     height: 48px;
     background-color: #0e0e1c;
-    border-width: 0px 0px 1px 0px;
+    border-width: 0 0 1px;
     border-color: #2a2a4a;
     child-left: 10px;
     child-right: 10px;
@@ -1295,7 +1292,7 @@ surround-page {
     width: 40px;
     height: 24px;
     background-color: #222238;
-    color: #888888;
+    color: #888;
     font-size: 10;
     border-width: 1px;
     border-color: #3a3a5a;
@@ -1320,7 +1317,7 @@ surround-page {
 }
 
 .surround-param-label {
-    color: #888888;
+    color: #888;
     font-size: 8;
     width: auto;
     height: auto;
@@ -1343,7 +1340,7 @@ surround-page {
 
 .surround-part-strip-inner {
     col-between: 2px;
-    child-space: 0px;
+    child-space: 0;
     height: auto;
     width: auto;
     child-left: 4px;
@@ -1364,19 +1361,19 @@ surround-page {
 }
 
 .surround-part-box--selected {
-    border-color: #5577cc;
+    border-color: #57c;
     background-color: #1a1a3a;
 }
 
 .surround-part-label {
-    color: #bbbbbb;
+    color: #bbb;
     font-size: 10;
     width: auto;
     height: auto;
 }
 
 .surround-part-tone {
-    color: #888888;
+    color: #888;
     font-size: 7;
     width: 56px;
     height: auto;
@@ -1384,7 +1381,7 @@ surround-page {
 }
 
 .surround-part-knob-val {
-    color: #aaaaaa;
+    color: #aaa;
     font-size: 8;
     width: auto;
     height: auto;

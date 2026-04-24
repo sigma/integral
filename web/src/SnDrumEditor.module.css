@@ -87,7 +87,7 @@
 }
 
 .keyCellSelected {
-  composes: keyCell;
+  composes: keycell;
   background: #2a2a50;
   border-color: #88f;
   color: #ddf;

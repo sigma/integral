@@ -25,6 +25,11 @@ lint:
 lint-web:
     cd web && npx tsc -b
 
+# lint CSS (web + VST Vizia theme)
+lint-css:
+    cd web && npx stylelint "src/**/*.css"
+    cd web && npx stylelint --config ../crates/integral-vst/.stylelintrc.json "../crates/integral-vst/src/**/*.css"
+
 # build all crates (native)
 build:
     cargo build --workspace
@@ -46,7 +51,7 @@ build-web: pack-wasm
     cd web && npx vite build
 
 # format, lint, build, and test — the full pre-commit check
-check: fmt-check lint lint-web build build-wasm test
+check: fmt-check lint lint-web lint-css build build-wasm test
 
 # clean build artifacts
 clean:

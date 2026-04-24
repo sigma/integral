@@ -80,7 +80,7 @@
 }
 
 .partBoxSelected {
-  border-color: #ffaa44;
+  border-color: #fa4;
   background: #1a1810;
 }
 
@@ -91,7 +91,7 @@
 }
 
 .partBoxSelected .partLabel {
-  color: #ffaa44;
+  color: #fa4;
 }
 
 .partTone {

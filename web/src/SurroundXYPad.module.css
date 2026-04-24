@@ -26,7 +26,7 @@
 .pad {
   position: absolute;
   inset: 0;
-  background: #111122;
+  background: #112;
   border: 1px solid #2a2a4a;
   border-radius: 6px;
   overflow: hidden;
@@ -60,7 +60,7 @@
   margin-left: -12px;
   margin-top: -12px;
   border-radius: 50%;
-  background: rgba(74, 108, 247, 0.5);
+  background: rgb(74 108 247 / 50%);
   border: 2px solid #4a6cf7;
   cursor: grab;
   display: flex;
@@ -72,13 +72,13 @@
 }
 
 .dot:hover {
-  background: rgba(74, 108, 247, 0.8);
+  background: rgb(74 108 247 / 80%);
   z-index: 2;
 }
 
 .dotSelected {
-  background: rgba(255, 170, 68, 0.7);
-  border-color: #ffaa44;
+  background: rgb(255 170 68 / 70%);
+  border-color: #fa4;
   z-index: 3;
   width: 30px;
   height: 30px;

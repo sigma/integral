@@ -1,0 +1,10 @@
+{
+  "extends": "stylelint-config-standard",
+  "rules": {
+    "selector-class-pattern": null,
+    "custom-property-pattern": null,
+    "no-descending-specificity": null,
+    "property-no-unknown": [true, { "ignoreProperties": ["composes"] }],
+    "declaration-block-single-line-max-declarations": null
+  }
+}

@@ -1,7 +1,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgb(0 0 0 / 70%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -84,7 +84,7 @@
 }
 
 .bankButton:hover {
-  background: #223355;
+  background: #235;
 }
 
 .bankActive {
@@ -122,7 +122,7 @@
 }
 
 .categoryTile:hover {
-  background: #223355;
+  background: #235;
   border-color: #3a5a8a;
 }
 
@@ -156,7 +156,7 @@
 }
 
 .toneItem:hover {
-  background: #223355;
+  background: #235;
 }
 
 .toneActive {

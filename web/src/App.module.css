@@ -10,7 +10,7 @@
   font-size: 32px;
   font-weight: 700;
   margin: 0;
-  color: #ffffff;
+  color: #fff;
 }
 
 .subtitle {
@@ -30,7 +30,7 @@
 .cardTitle {
   font-size: 16px;
   font-weight: 600;
-  margin: 0 0 16px 0;
+  margin: 0 0 16px;
   color: #b0b0d0;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -98,5 +98,5 @@
   background: #3a6a3a;
   color: #90ff90;
   border-color: #5a9a5a;
-  box-shadow: 0 0 6px rgba(100, 255, 100, 0.3);
+  box-shadow: 0 0 6px rgb(100 255 100 / 30%);
 }
