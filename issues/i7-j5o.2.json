@@ -4,14 +4,15 @@
     "i7-j5o.1"
   ],
   "blocks": [],
+  "closed_at": "2026-04-24T18:23:39Z",
   "created": "2026-04-24T18:09:02Z",
   "description": "",
   "id": "i7-j5o.2",
   "labels": [],
   "parent": "i7-j5o",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "VST: parameterize RoutingPage and SurroundPage views with DeviceSpec",
   "type": "task",
-  "updated_at": "2026-04-24T18:20:01Z"
+  "updated_at": "2026-04-24T18:23:39Z"
 }
