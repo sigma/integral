@@ -5,6 +5,7 @@
     "custom-property-pattern": null,
     "no-descending-specificity": null,
     "property-no-unknown": [true, { "ignoreProperties": ["composes"] }],
+    "value-keyword-case": ["lower", { "ignoreProperties": ["composes"] }],
     "declaration-block-single-line-max-declarations": null
   }
 }

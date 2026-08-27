@@ -82,7 +82,7 @@
 }
 
 .keyCellSelected {
-  composes: keycell;
+  composes: keyCell;
   background: #2a2a50;
   border-color: #88f;
   color: #ddf;
@@ -181,14 +181,14 @@
 }
 
 .wmtTabActive {
-  composes: wmttab;
+  composes: wmtTab;
   background: #2a2a50;
   border-color: #88f;
   color: #ddf;
 }
 
 .wmtTabOff {
-  composes: wmttab;
+  composes: wmtTab;
   opacity: 0.4;
 }
 
