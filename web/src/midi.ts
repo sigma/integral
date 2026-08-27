@@ -75,15 +75,29 @@ export function findIntegraPort(pairs: MidiPortPair[]): MidiPortPair | undefined
 }
 
 /**
+ * Open both halves of a port pair.
+ *
+ * The Web MIDI API only opens a port implicitly when the `onmidimessage`
+ * attribute is set; `addEventListener` does not. Since every listener here is
+ * registered with `addEventListener`, inputs must be opened explicitly or they
+ * silently deliver nothing. `open()` is idempotent and resolves immediately for
+ * a port that is already open.
+ */
+export async function openPortPair(pair: MidiPortPair): Promise<void> {
+  await Promise.all([pair.input.open(), pair.output.open()]);
+}
+
+/**
  * Send an Identity Request to the given port pair and wait for a reply.
  *
  * Uses integral-wasm for message construction and reply parsing.
  * Returns the parsed DeviceIdentity on success, null on timeout.
  */
-export function identifyDevice(
+export async function identifyDevice(
   pair: MidiPortPair,
   timeoutMs = 2000,
 ): Promise<DeviceIdentity | null> {
+  await openPortPair(pair);
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       pair.input.removeEventListener("midimessage", handler as EventListener);
@@ -95,7 +109,9 @@ export function identifyDevice(
       if (!data || data.length < 15) return;
 
       try {
-        const identity = parse_identity_reply(new Uint8Array(data.buffer));
+        const identity = parse_identity_reply(
+          new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
+        );
         clearTimeout(timer);
         pair.input.removeEventListener("midimessage", handler as EventListener);
         resolve(identity);

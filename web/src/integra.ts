@@ -95,6 +95,9 @@ export class IntegraService {
     this.deviceId = deviceId;
     this.device = new WasmDeviceState(deviceId);
     this.boundHandler = this.handleMidiMessage.bind(this);
+    // addEventListener does not open a MIDIPort; only setting onmidimessage
+    // does. Identification opens the pair first, but do not depend on it.
+    void this.port.input.open();
     this.port.input.addEventListener(
       "midimessage",
       this.boundHandler as EventListener,
