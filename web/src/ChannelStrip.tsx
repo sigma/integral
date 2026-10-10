@@ -128,7 +128,14 @@ function ChannelStripInner({
   const isPart = variant === "part";
   const showEq = variant !== "ext";
   const showMute = variant !== "master" && !isCompEq;
-  const showToneName = isPart;
+  const roleLabel = variant === "ext" ? "Ext In" : variant === "master" ? "Master" : `C+E${compEqUnitNumber}`;
+  const faderLabel = isPart
+    ? toneLabel(p)
+    : isCompEq
+      ? `Compressor ${compEqUnitNumber} Gain`
+      : variant === "ext"
+        ? "External Input"
+        : roleLabel;
 
   const eqState = isCompEq && compEqUnit ? compEqToEqState(compEqUnit) : (eq ?? p.eq);
   const faderValue = level ?? p.level;
@@ -297,7 +304,7 @@ function ChannelStripInner({
 
       {/* Fader area: level, or makeup gain for Comp+EQ */}
       <div className={`${css.faderArea} ${isCompEq && !compEqUnit?.compSwitch ? box.off : ""}`}>
-        {showToneName && <span className={css.toneName}>{toneLabel(p)}</span>}
+        <span className={css.faderLabel}>{faderLabel}</span>
         {isCompEq ? (
           <VolumeFader value={compEqUnit?.compOutputGain ?? 0} onChange={(v) => onCompEqParam?.(0x05, v)}
             min={0} max={24} defaultValue={0} formatValue={(v) => `+${v}dB`} label="Gain" />
@@ -327,7 +334,6 @@ function ChannelStripInner({
         }
         // Non-part strips: show role icon for alignment.
         const icon = stripIcon(variant);
-        const roleLabel = variant === "ext" ? "Ext In" : variant === "master" ? "Master" : `C+E${compEqUnitNumber}`;
         return (
           <div className={css.categoryArea}>
             {icon && (
@@ -336,7 +342,7 @@ function ChannelStripInner({
                 dangerouslySetInnerHTML={{ __html: icon }}
               />
             )}
-            {roleLabel && <span className={css.categoryLabel}>{roleLabel}</span>}
+            <span className={css.categoryLabel}>{roleLabel}</span>
           </div>
         );
       })()}

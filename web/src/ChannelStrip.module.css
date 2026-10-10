@@ -168,7 +168,7 @@
   box-shadow: 0 0 6px rgb(255 170 68 / 30%);
 }
 
-.toneName {
+.faderLabel {
   position: absolute;
   left: 4px;
   top: 8px;

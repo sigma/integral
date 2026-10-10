@@ -93,6 +93,7 @@ export function FxStrip({
       </div>
 
       <div className={css.faderArea}>
+        <span className={css.faderLabel}>{typeNames[fx.type]}</span>
         <VolumeFader value={fx.level} onChange={(v) => onParam(1, v)} />
       </div>
 
