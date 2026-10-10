@@ -66,6 +66,8 @@ interface Props {
   onMuteToggle?: () => void;
   /** Part is the one selected for editing. */
   selected?: boolean;
+  /** Pointer pressed anywhere on the strip, including on its controls. */
+  onSelect?: () => void;
   soloed?: boolean;
   onSoloToggle?: () => void;
   onChorusSendChange?: (value: number) => void;
@@ -116,6 +118,7 @@ function ChannelStripInner({
   onPanChange,
   onMuteToggle,
   selected,
+  onSelect,
   soloed,
   onSoloToggle,
   onChorusSendChange,
@@ -171,7 +174,7 @@ function ChannelStripInner({
   };
 
   return (
-    <div className={stripClass}>
+    <div className={stripClass} onPointerDown={onSelect}>
       {/* Header */}
       {isPart ? (
         <select

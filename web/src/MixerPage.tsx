@@ -39,6 +39,7 @@ export function MixerPage({ mixer }: Props) {
                 onPanChange={(v) => mixer.setPartPan(i, v)}
                 onMuteToggle={() => mixer.togglePartMute(i)}
                 selected={state.selectedPart === i}
+                onSelect={() => mixer.selectPart(i)}
                 soloed={state.soloPart === i + 1}
                 onSoloToggle={() => mixer.toggleSolo(i)}
                 onChorusSendChange={(v) => mixer.setPartChorusSend(i, v)}
