@@ -6,7 +6,7 @@ use nih_plug_vizia::{ViziaState, ViziaTheming, create_vizia_editor};
 use std::sync::Arc;
 
 use crate::SharedState;
-use crate::views::{MixerPage, RoutingPage, SurroundPage, ToneEditorPage};
+use crate::views::{MixerPage, SurroundPage, ToneEditorPage};
 
 // ---------------------------------------------------------------------------
 // Tab state
@@ -19,8 +19,6 @@ pub(crate) enum PageTab {
     Mixer,
     /// Surround page.
     Surround,
-    /// Routing page.
-    Routing,
     /// Tone Edit page (placeholder).
     ToneEdit,
 }
@@ -92,12 +90,6 @@ pub(crate) fn create(
                         .cursor(CursorIcon::Hand)
                         .on_press(|cx| cx.emit(EditorEvent::SetTab(PageTab::Surround)));
 
-                    Label::new(cx, "Routing")
-                        .class("tab")
-                        .toggle_class("tab-active", active == PageTab::Routing)
-                        .cursor(CursorIcon::Hand)
-                        .on_press(|cx| cx.emit(EditorEvent::SetTab(PageTab::Routing)));
-
                     Label::new(cx, "Tone Edit")
                         .class("tab")
                         .toggle_class("tab-active", active == PageTab::ToneEdit)
@@ -110,7 +102,6 @@ pub(crate) fn create(
             // Page content — switched based on active tab.
             let shared_mixer = shared.clone();
             let shared_surround = shared.clone();
-            let shared_routing = shared.clone();
             let shared_tone = shared.clone();
 
             Binding::new(cx, EditorData::active_tab, move |cx, tab_lens| {
@@ -121,9 +112,6 @@ pub(crate) fn create(
                     }
                     PageTab::Surround => {
                         SurroundPage::new(cx, shared_surround.clone()).class("page-content");
-                    }
-                    PageTab::Routing => {
-                        RoutingPage::new(cx, shared_routing.clone()).class("page-content");
                     }
                     PageTab::ToneEdit => {
                         ToneEditorPage::new(cx, shared_tone.clone()).class("page-content");

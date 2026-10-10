@@ -18,7 +18,7 @@ pub enum StripVariant {
     Ext,
     /// Master output: label, fader only.
     Master,
-    /// Compressor + EQ strip (stub).
+    /// Compressor + EQ unit strip: label and route chip.
     CompEq,
 }
 
@@ -39,6 +39,10 @@ pub struct ChannelStripData {
     pub muted: bool,
     /// Whether the channel is soloed.
     pub soloed: bool,
+    /// Route chip text (e.g. "→ A"); empty for strips without an output.
+    pub route: String,
+    /// Whether the output is overridden by Motional Surround.
+    pub route_overridden: bool,
 }
 
 impl Model for ChannelStripData {}
@@ -49,7 +53,7 @@ impl Model for ChannelStripData {}
 /// - **Part**: channel label, pan knob, FX1/FX2 send knobs, mute/solo buttons, volume fader
 /// - **Ext**: label, volume fader, mute button
 /// - **Master**: label, volume fader
-/// - **CompEq**: stub (empty)
+/// - **CompEq**: label, route chip
 ///
 /// # Usage
 ///
@@ -73,7 +77,7 @@ impl ChannelStrip {
             StripVariant::Part => Self::build_part(cx, data_lens),
             StripVariant::Ext => Self::build_ext(cx, data_lens),
             StripVariant::Master => Self::build_master(cx, data_lens),
-            StripVariant::CompEq => Self::build_comp_eq(cx),
+            StripVariant::CompEq => Self::build_comp_eq(cx, data_lens),
         })
     }
 
@@ -101,6 +105,12 @@ impl ChannelStrip {
                 .class("channel-strip__send-knob");
         })
         .class("channel-strip__sends-row");
+
+        route_chip(
+            cx,
+            data_lens.map(|d| d.route.clone()),
+            data_lens.map(|d| d.route_overridden),
+        );
 
         // Mute / Solo row
         HStack::new(cx, move |cx| {
@@ -168,10 +178,46 @@ impl ChannelStrip {
         VolumeFader::new(cx, data_lens.map(|d| d.volume), |_cx, _val| {});
     }
 
-    /// Build the CompEq variant stub.
-    fn build_comp_eq(_cx: &mut Context) {
-        // Stub — will be implemented when Comp+EQ controls are added.
+    /// Build the CompEq variant strip.
+    fn build_comp_eq<L>(cx: &mut Context, data_lens: L)
+    where
+        L: Lens<Target = ChannelStripData>,
+    {
+        Binding::new(cx, data_lens.map(|d| d.label.clone()), |cx, label| {
+            let text = label.get(cx);
+            Label::new(cx, &text)
+                .class("channel-strip__label")
+                .hoverable(false);
+        });
+
+        route_chip(
+            cx,
+            data_lens.map(|d| d.route.clone()),
+            data_lens.map(|d| d.route_overridden),
+        );
     }
+}
+
+/// Route chip text for output index `idx` in `names`, or `→ SURR` when
+/// Motional Surround overrides the output.
+pub fn route_label(names: &[&str], idx: u8, overridden: bool) -> String {
+    let name = if overridden {
+        "SURR"
+    } else {
+        names.get(idx as usize).copied().unwrap_or("---")
+    };
+    format!("\u{2192} {name}")
+}
+
+/// Read-only output route chip shared by part, Comp+EQ and FX strips.
+pub fn route_chip(
+    cx: &mut Context,
+    text: impl Lens<Target = String>,
+    overridden: impl Lens<Target = bool>,
+) {
+    Label::new(cx, text)
+        .class("route-chip")
+        .toggle_class("route-chip--overridden", overridden);
 }
 
 /// Extension trait for configuring [`ChannelStrip`] callbacks.
@@ -220,5 +266,18 @@ impl ChannelStripExt for Handle<'_, ChannelStrip> {
 impl View for ChannelStrip {
     fn element(&self) -> Option<&'static str> {
         Some("channel-strip")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::route_label;
+
+    #[test]
+    fn route_label_names_output_or_surround() {
+        let names = ["A", "B"];
+        assert_eq!(route_label(&names, 1, false), "\u{2192} B");
+        assert_eq!(route_label(&names, 1, true), "\u{2192} SURR");
+        assert_eq!(route_label(&names, 9, false), "\u{2192} ---");
     }
 }

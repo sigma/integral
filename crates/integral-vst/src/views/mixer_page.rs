@@ -9,14 +9,21 @@ use std::time::Duration;
 
 use nih_plug_vizia::vizia::prelude::*;
 
+use integral_core::device_spec::INTEGRA7;
+
 use crate::SharedState;
 
 use super::tone_selector::ToneSelectorEvent;
 use super::top_bar::TopBarEvent;
-use super::{ChannelStrip, ChannelStripData, StripVariant, ToneSelector, TopBar};
+use super::{
+    ChannelStrip, ChannelStripData, StripVariant, ToneSelector, TopBar, route_chip, route_label,
+};
 
 /// Number of mixer parts.
 const NUM_PARTS: usize = 16;
+
+/// Number of Drum Comp+EQ units (from device spec).
+const NUM_COMP_EQ_UNITS: usize = INTEGRA7.comp_eq_unit_count as usize;
 
 /// Refresh interval for reading device state (milliseconds).
 const REFRESH_INTERVAL_MS: u64 = 100;
@@ -67,6 +74,8 @@ pub struct FxViewData {
     pub fx_type: u8,
     /// Effect level (0-127).
     pub level: u8,
+    /// Output routing index.
+    pub output: u8,
 }
 
 impl Default for FxViewData {
@@ -75,6 +84,7 @@ impl Default for FxViewData {
             enabled: true,
             fx_type: 0,
             level: 0,
+            output: 0,
         }
     }
 }
@@ -104,6 +114,10 @@ pub struct MixerData {
     pub ext_strip: ChannelStripData,
     /// Master strip data.
     pub master_strip: ChannelStripData,
+    /// Whether Drum Comp+EQ is on (shows the Comp+EQ strips).
+    pub comp_eq_enabled: bool,
+    /// Comp+EQ unit strips.
+    pub comp_eq_strips: Vec<ChannelStripData>,
     /// Studio set name from the device.
     pub studio_set_name: String,
     /// Whether preview mode is active.
@@ -182,6 +196,8 @@ impl MixerData {
             fx2_send: 0.0,
             muted: false,
             soloed: false,
+            route: String::new(),
+            route_overridden: false,
         };
 
         let mut data = Self {
@@ -200,8 +216,15 @@ impl MixerData {
             },
             master_strip: ChannelStripData {
                 label: "Master".to_string(),
-                ..default_strip
+                ..default_strip.clone()
             },
+            comp_eq_enabled: false,
+            comp_eq_strips: (0..NUM_COMP_EQ_UNITS)
+                .map(|i| ChannelStripData {
+                    label: format!("C+E{}", i + 1),
+                    ..default_strip.clone()
+                })
+                .collect(),
             studio_set_name: String::new(),
             preview_active: false,
             tone_selector_open: false,
@@ -231,11 +254,13 @@ impl MixerData {
             enabled: mixer.chorus.enabled,
             fx_type: mixer.chorus.fx_type,
             level: mixer.chorus.level,
+            output: mixer.chorus.output,
         };
         self.reverb = FxViewData {
             enabled: mixer.reverb.enabled,
             fx_type: mixer.reverb.fx_type,
             level: mixer.reverb.level,
+            output: mixer.reverb.output,
         };
 
         self.ext_strip.volume = mixer.ext_level;
@@ -243,6 +268,7 @@ impl MixerData {
 
         self.master_strip.volume = mixer.master_level;
 
+        let surround = mixer.surround.enabled;
         for (i, part) in mixer.parts.iter().enumerate() {
             if i < self.strips.len() {
                 self.strips[i] = ChannelStripData {
@@ -253,8 +279,20 @@ impl MixerData {
                     fx2_send: part.reverb_send as f32 / 127.0,
                     muted: part.muted,
                     soloed: mixer.solo_part == (i as u8 + 1),
+                    route: route_label(INTEGRA7.output_assigns, part.output_assign, surround),
+                    route_overridden: surround,
                 };
             }
+        }
+
+        self.comp_eq_enabled = mixer.drum_comp_eq.enabled;
+        for (strip, &assign) in self
+            .comp_eq_strips
+            .iter_mut()
+            .zip(&mixer.drum_comp_eq.output_assigns)
+        {
+            strip.route = route_label(INTEGRA7.comp_eq_output_assigns, assign, surround);
+            strip.route_overridden = surround;
         }
 
         // Drop the lock before calling update.
@@ -398,11 +436,22 @@ impl MixerPage {
                     // Ext strip.
                     ChannelStrip::new(cx, StripVariant::Ext, MixerData::ext_strip);
 
+                    // Comp+EQ unit strips, shown while Drum Comp+EQ is on.
+                    Binding::new(cx, MixerData::comp_eq_enabled, |cx, enabled| {
+                        if enabled.get(cx) {
+                            for i in 0..NUM_COMP_EQ_UNITS {
+                                let strip_lens =
+                                    MixerData::comp_eq_strips.map(move |s| s[i].clone());
+                                ChannelStrip::new(cx, StripVariant::CompEq, strip_lens);
+                            }
+                        }
+                    });
+
                     // FX1 (Chorus) strip.
-                    FxStrip::new(cx, "FX1", MixerData::chorus);
+                    FxStrip::new(cx, "FX1", INTEGRA7.chorus_output_names, MixerData::chorus);
 
                     // FX2 (Reverb) strip.
-                    FxStrip::new(cx, "FX2", MixerData::reverb);
+                    FxStrip::new(cx, "FX2", INTEGRA7.reverb_output_names, MixerData::reverb);
 
                     // Master strip.
                     ChannelStrip::new(cx, StripVariant::Master, MixerData::master_strip);
@@ -424,15 +473,21 @@ impl View for MixerPage {
 // FxStrip — lightweight FX block view
 // ---------------------------------------------------------------------------
 
-/// A simplified FX strip showing label, on/off state, type, and level.
+/// A simplified FX strip showing label, on/off state, type, level, and route chip.
 pub struct FxStrip;
 
 impl FxStrip {
     /// Creates a new [`FxStrip`] view.
     ///
-    /// `label` is the display name (e.g. "FX1", "FX2").
+    /// `label` is the display name (e.g. "FX1", "FX2"), `output_names` the
+    /// device-spec names for its output routing.
     /// `data_lens` must resolve to an [`FxViewData`].
-    pub fn new<'a, L>(cx: &'a mut Context, label: &str, data_lens: L) -> Handle<'a, Self>
+    pub fn new<'a, L>(
+        cx: &'a mut Context,
+        label: &str,
+        output_names: &'static [&'static str],
+        data_lens: L,
+    ) -> Handle<'a, Self>
     where
         L: Lens<Target = FxViewData>,
     {
@@ -463,6 +518,13 @@ impl FxStrip {
                 let text = format!("{}", lvl);
                 Label::new(cx, &text).class("fx-strip__level");
             });
+
+            // FX outputs are never overridden by Motional Surround.
+            route_chip(
+                cx,
+                data_lens.map(move |d| route_label(output_names, d.output, false)),
+                data_lens.map(|_| false),
+            );
         })
     }
 }
