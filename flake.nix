@@ -47,6 +47,12 @@
           ]
           ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
             pkgs.alsa-lib
+            # baseview (via the Vizia editor): x11, xcb and xcb-util crates
+            pkgs.libGL
+            pkgs.libx11
+            pkgs.libxcursor
+            pkgs.libxcb
+            pkgs.libxcb-wm
           ];
 
           shellHook = ''
