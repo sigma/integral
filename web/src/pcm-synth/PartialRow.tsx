@@ -110,7 +110,7 @@ function WaveSection({
       <SynthSwitch label="Gain" value={partial.waveGain}
         options={WAVE_GAIN_NAMES.map((l, i) => ({ value: i, label: l }))}
         onChange={(v) => setP(0x34, v)} title="Wave output gain" />
-      <SynthKnob label="Key Trk" value={partial.wavePitchKeyfollow} min={44} max={84} defaultValue={64}
+      <SynthKnob label="Key Trk" value={partial.wavePitchKeyfollow} min={44} max={84} defaultValue={64} center={64}
         onChange={(v) => setP(0x39, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
         title="Pitch keyboard tracking" />
       <SynthSwitch label="Tempo" value={partial.waveTempoSync} options={ON_OFF_OPTIONS}
@@ -141,10 +141,10 @@ function PitchSection({
   return (
     <SectionPanel label="PITCH ENV" accentColor="#fc8">
       <div className={css.panelRow}>
-        <SynthKnob label="Coarse" value={partial.coarseTune} min={16} max={112} defaultValue={64}
+        <SynthKnob label="Coarse" value={partial.coarseTune} min={16} max={112} defaultValue={64} center={64}
           onChange={(v) => setP(0x01, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Coarse tuning (semitones)" />
-        <SynthKnob label="Fine" value={partial.fineTune} min={14} max={114} defaultValue={64}
+        <SynthKnob label="Fine" value={partial.fineTune} min={14} max={114} defaultValue={64} center={64}
           onChange={(v) => setP(0x02, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Fine tuning (cents)" />
         <SynthKnob label="Random" value={partial.randomPitchDepth} min={0} max={127} defaultValue={0}
@@ -152,13 +152,13 @@ function PitchSection({
           title="Random pitch variation on each note" />
       </div>
       <div className={css.panelRow}>
-        <SynthKnob label="Depth" value={partial.pitchEnvDepth} min={1} max={127} defaultValue={64}
+        <SynthKnob label="Depth" value={partial.pitchEnvDepth} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => setP(0x3A, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Pitch envelope depth — how much the envelope affects pitch" />
-        <SynthKnob label="Vel Sns" value={partial.pitchEnvVelocitySens} min={1} max={127} defaultValue={64}
+        <SynthKnob label="Vel Sns" value={partial.pitchEnvVelocitySens} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => setP(0x3B, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Velocity sensitivity — how key velocity affects envelope depth" />
-        <SynthKnob label="Key Trk" value={partial.pitchEnvTimeKeyfollow} min={54} max={74} defaultValue={64}
+        <SynthKnob label="Key Trk" value={partial.pitchEnvTimeKeyfollow} min={54} max={74} defaultValue={64} center={64}
           onChange={(v) => setP(0x3E, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Envelope time key tracking — higher keys = faster envelope" />
       </div>
@@ -221,22 +221,22 @@ function TvfSection({
           <SynthKnob label="Reso" value={partial.tvfResonance} min={0} max={127} defaultValue={0}
             onChange={(v) => setP(0x4D, v)} formatValue={(v) => String(v)} color="#68c"
             title="Filter resonance — emphasis at the cutoff frequency" />
-          <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} min={44} max={84} defaultValue={64}
+          <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} min={44} max={84} defaultValue={64} center={64}
             onChange={(v) => setP(0x4A, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
             title="Cutoff key tracking — higher keys = higher cutoff" />
-          <SynthKnob label="Vel Sns" value={partial.tvfCutoffVelocitySens} min={1} max={127} defaultValue={64}
+          <SynthKnob label="Vel Sns" value={partial.tvfCutoffVelocitySens} min={1} max={127} defaultValue={64} center={64}
             onChange={(v) => setP(0x4C, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
             title="Cutoff velocity sensitivity — harder keys = higher cutoff" />
         </div>
       </div>
       <div className={css.panelRow}>
-        <SynthKnob label="Depth" value={partial.tvfEnvDepth} min={1} max={127} defaultValue={64}
+        <SynthKnob label="Depth" value={partial.tvfEnvDepth} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => setP(0x4F, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Filter envelope depth — how much the envelope sweeps the cutoff" />
-        <SynthKnob label="Vel Sns" value={partial.tvfEnvVelocitySens} min={1} max={127} defaultValue={64}
+        <SynthKnob label="Vel Sns" value={partial.tvfEnvVelocitySens} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => setP(0x51, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Envelope velocity sensitivity — harder keys = deeper sweep" />
-        <SynthKnob label="Key Trk" value={partial.tvfEnvTimeKeyfollow} min={54} max={74} defaultValue={64}
+        <SynthKnob label="Key Trk" value={partial.tvfEnvTimeKeyfollow} min={54} max={74} defaultValue={64} center={64}
           onChange={(v) => setP(0x54, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Envelope time key tracking — higher keys = faster envelope" />
         <SynthSelect label="Vel Curve" value={partial.tvfCutoffVelocityCurve}
@@ -296,13 +296,13 @@ function TvaSection({
           <SynthKnob label="Level" value={partial.level} min={0} max={127} defaultValue={127}
             onChange={(v) => setP(0x00, v)} formatValue={(v) => String(v)} color="#6c8"
             title="Partial volume level" />
-          <SynthKnob label="Pan" value={partial.pan} min={0} max={127} defaultValue={64}
+          <SynthKnob label="Pan" value={partial.pan} min={0} max={127} defaultValue={64} center={64}
             onChange={(v) => setP(0x04, v)} formatValue={panFmt} color="#6c8"
             title="Partial stereo panning" />
-          <SynthKnob label="Vel Sns" value={partial.tvaLevelVelocitySens} min={1} max={127} defaultValue={64}
+          <SynthKnob label="Vel Sns" value={partial.tvaLevelVelocitySens} min={1} max={127} defaultValue={64} center={64}
             onChange={(v) => setP(0x62, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
             title="Volume velocity sensitivity — harder keys = louder" />
-          <SynthKnob label="Key Trk" value={partial.tvaEnvTimeKeyfollow} min={54} max={74} defaultValue={64}
+          <SynthKnob label="Key Trk" value={partial.tvaEnvTimeKeyfollow} min={54} max={74} defaultValue={64} center={64}
             onChange={(v) => setP(0x65, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
             title="Envelope time key tracking — higher keys = faster envelope" />
         </div>

@@ -133,11 +133,11 @@ function OscPanel({
           )}
         </div>
         <div className={css.oscKnobGrid}>
-          <SynthKnob label="Pitch" value={partial.oscPitch} min={40} max={88} defaultValue={64}
+          <SynthKnob label="Pitch" value={partial.oscPitch} min={40} max={88} defaultValue={64} center={64}
             onChange={(v) => onChange(0x03, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8" />
           <SynthKnob label="HPF" value={partial.hpfCutoff} min={0} max={127} defaultValue={0}
             onChange={(v) => onChange(0x39, v)} formatValue={(v) => String(v)} color="#fc8" />
-          <SynthKnob label="Detune" value={partial.oscDetune} min={14} max={114} defaultValue={64}
+          <SynthKnob label="Detune" value={partial.oscDetune} min={14} max={114} defaultValue={64} center={64}
             onChange={(v) => onChange(0x04, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8" />
           {isSuperSaw && (
             <SynthKnob label="S-Saw" value={partial.superSawDetune} min={0} max={127} defaultValue={0}
@@ -200,9 +200,9 @@ function FilterPanel({
             onChange={(v) => onChange(0x0C, v)} formatValue={(v) => String(v)} color="#68c" />
           <SynthKnob label="Reso" value={partial.filterResonance} min={0} max={127} defaultValue={0}
             onChange={(v) => onChange(0x0F, v)} formatValue={(v) => String(v)} color="#68c" />
-          <SynthKnob label="KeyF" value={partial.filterKeyfollow} min={54} max={74} defaultValue={64}
+          <SynthKnob label="KeyF" value={partial.filterKeyfollow} min={54} max={74} defaultValue={64} center={64}
             onChange={(v) => onChange(0x0D, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c" />
-          <SynthKnob label="Vel Sns" value={partial.filterEnvVelSens} min={1} max={127} defaultValue={64}
+          <SynthKnob label="Vel Sns" value={partial.filterEnvVelSens} min={1} max={127} defaultValue={64} center={64}
             onChange={(v) => onChange(0x0E, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c" />
         </div>
       </div>
@@ -253,11 +253,11 @@ function AmpPanel({
         <div className={`${css.oscKnobGrid} ${css.knobsRight}`}>
           <SynthKnob label="Level" value={partial.ampLevel} min={0} max={127} defaultValue={127}
             onChange={(v) => onChange(0x15, v)} formatValue={(v) => String(v)} color="#6c8" />
-          <SynthKnob label="Pan" value={partial.ampPan} min={0} max={127} defaultValue={64}
+          <SynthKnob label="Pan" value={partial.ampPan} min={0} max={127} defaultValue={64} center={64}
             onChange={(v) => onChange(0x1B, v)} formatValue={panFmt} color="#6c8" />
-          <SynthKnob label="Vel Sns" value={partial.ampVelSens} min={1} max={127} defaultValue={64}
+          <SynthKnob label="Vel Sns" value={partial.ampVelSens} min={1} max={127} defaultValue={64} center={64}
             onChange={(v) => onChange(0x16, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8" />
-          <SynthKnob label="KeyF" value={partial.ampLevelKeyfollow} min={54} max={74} defaultValue={64}
+          <SynthKnob label="KeyF" value={partial.ampLevelKeyfollow} min={54} max={74} defaultValue={64} center={64}
             onChange={(v) => onChange(0x3C, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8" />
         </div>
       </div>
@@ -315,7 +315,7 @@ function ModLfoPanel({
             onChange={(v) => onChange(0x27, v)} formatValue={(v) => String(v)} color="#a6f" />
           <SynthKnob label="PW Shft" value={partial.pwShift} min={0} max={127} defaultValue={0}
             onChange={(v) => onChange(0x2A, v)} formatValue={(v) => String(v)} color="#a6f" />
-          <SynthKnob label="Rate Ctrl" value={partial.modLfoRateControl} min={1} max={127} defaultValue={64}
+          <SynthKnob label="Rate Ctrl" value={partial.modLfoRateControl} min={1} max={127} defaultValue={64} center={64}
             onChange={(v) => onChange(0x3B, v)} formatValue={(v) => signedFmt(v, 64)} color="#a6f" />
         </div>
       </div>
@@ -366,9 +366,9 @@ function LfoPanel({
             onChange={(v) => onChange(0x1D, v)} formatValue={(v) => String(v)} color="#a6f" />
           <SynthKnob label="Fade" value={partial.lfoFadeTime} min={0} max={127} defaultValue={0}
             onChange={(v) => onChange(0x20, v)} formatValue={(v) => String(v)} color="#a6f" />
-          <SynthKnob label="Aft Cut" value={partial.aftertouchCutoff} min={1} max={127} defaultValue={64}
+          <SynthKnob label="Aft Cut" value={partial.aftertouchCutoff} min={1} max={127} defaultValue={64} center={64}
             onChange={(v) => onChange(0x30, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cc" />
-          <SynthKnob label="Aft Lvl" value={partial.aftertouchLevel} min={1} max={127} defaultValue={64}
+          <SynthKnob label="Aft Lvl" value={partial.aftertouchLevel} min={1} max={127} defaultValue={64} center={64}
             onChange={(v) => onChange(0x31, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cc" />
         </div>
       </div>

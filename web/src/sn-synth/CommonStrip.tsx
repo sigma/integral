@@ -79,7 +79,7 @@ export function CommonStrip({
       <SynthSwitch label="LEGATO" value={common.legatoSwitch} options={ON_OFF_OPTIONS}
         onChange={(v) => onChange(0x32, v)} />
 
-      <SynthKnob label="Oct Shift" value={common.octaveShift} min={61} max={67} defaultValue={64}
+      <SynthKnob label="Oct Shift" value={common.octaveShift} min={61} max={67} defaultValue={64} center={64}
         onChange={(v) => onChange(0x15, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cf" />
     </div>
   );

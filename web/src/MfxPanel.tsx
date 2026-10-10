@@ -563,6 +563,7 @@ export function MfxPanel({
                   min={1}
                   max={127}
                   defaultValue={64}
+                  center={64}
                   onChange={(v) => onHeaderParam(0x06 + slot * 2, v)}
                   formatValue={(v) => String(v - 64)}
                   color="#8ac"

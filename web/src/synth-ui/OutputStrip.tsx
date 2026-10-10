@@ -35,7 +35,7 @@ export function OutputStrip({
   return (
     <div className={css.strip}>
       {pan !== undefined && onPanChange && (
-        <SynthKnob label="Pan" value={pan} min={0} max={127} defaultValue={64}
+        <SynthKnob label="Pan" value={pan} min={0} max={127} defaultValue={64} center={64}
           onChange={onPanChange} formatValue={panFormat ?? ((v) => String(v))} color="#8cf" />
       )}
       <div className={css.sends}>

@@ -572,7 +572,7 @@ function NoteControls({
               onChange={(v) => onChange(0x0C, v)} formatValue={(v) => `${v}%`} color="#fc8" />
             <SynthKnob label="Decay" value={note.decay} min={1} max={64} defaultValue={64}
               onChange={(v) => onChange(0x0D, v)} formatValue={decayFmt} color="#fc8" />
-            <SynthKnob label="Brill" value={note.brilliance} min={49} max={76} defaultValue={64}
+            <SynthKnob label="Brill" value={note.brilliance} min={49} max={76} defaultValue={64} center={64}
               onChange={(v) => onChange(0x0E, v)} formatValue={brillianceFmt} color="#fc8"
               title="Brilliance" />
           </div>

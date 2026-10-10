@@ -328,27 +328,27 @@ function CommonPanel({
       <div className={css.panelRow}>
         <SynthSwitch label="Mono/Poly" value={common.monoPoly} options={MONO_POLY_OPTIONS}
           onChange={(v) => onChange(0x11, v)} />
-        <SynthKnob label="Oct" value={common.octaveShift} min={61} max={67} defaultValue={64}
+        <SynthKnob label="Oct" value={common.octaveShift} min={61} max={67} defaultValue={64} center={64}
           onChange={(v) => onChange(0x1A, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cf"
           title="Octave Shift" />
-        <SynthKnob label="Cutoff" value={common.cutoffOffset} min={0} max={127} defaultValue={64}
+        <SynthKnob label="Cutoff" value={common.cutoffOffset} min={0} max={127} defaultValue={64} center={64}
           onChange={(v) => onChange(0x13, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Cutoff Offset" />
-        <SynthKnob label="Reso" value={common.resonanceOffset} min={0} max={127} defaultValue={64}
+        <SynthKnob label="Reso" value={common.resonanceOffset} min={0} max={127} defaultValue={64} center={64}
           onChange={(v) => onChange(0x14, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Resonance Offset" />
       </div>
       <div className={css.panelRow}>
-        <SynthKnob label="Port" value={common.portamentoTimeOffset} min={0} max={127} defaultValue={64}
+        <SynthKnob label="Port" value={common.portamentoTimeOffset} min={0} max={127} defaultValue={64} center={64}
           onChange={(v) => onChange(0x12, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cf"
           title="Portamento Time Offset" />
-        <SynthKnob label="Vib Rt" value={common.vibratoRate} min={0} max={127} defaultValue={64}
+        <SynthKnob label="Vib Rt" value={common.vibratoRate} min={0} max={127} defaultValue={64} center={64}
           onChange={(v) => onChange(0x17, v)} formatValue={(v) => signedFmt(v, 64)} color="#a6f"
           title="Vibrato Rate" />
-        <SynthKnob label="Vib Dp" value={common.vibratoDepth} min={0} max={127} defaultValue={64}
+        <SynthKnob label="Vib Dp" value={common.vibratoDepth} min={0} max={127} defaultValue={64} center={64}
           onChange={(v) => onChange(0x18, v)} formatValue={(v) => signedFmt(v, 64)} color="#a6f"
           title="Vibrato Depth" />
-        <SynthKnob label="Vib Dl" value={common.vibratoDelay} min={0} max={127} defaultValue={64}
+        <SynthKnob label="Vib Dl" value={common.vibratoDelay} min={0} max={127} defaultValue={64} center={64}
           onChange={(v) => onChange(0x19, v)} formatValue={(v) => signedFmt(v, 64)} color="#a6f"
           title="Vibrato Delay" />
       </div>

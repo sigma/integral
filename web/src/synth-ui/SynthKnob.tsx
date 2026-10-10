@@ -15,6 +15,8 @@ interface Props {
   size?: "sm" | "lg";
   /** Full name for tooltip. Defaults to label. */
   title?: string;
+  /** Value the LED arc grows from, for relative controls. Default: 0 for signed ranges, else min. */
+  center?: number;
 }
 
 const ANGLE_MIN = -135;
@@ -37,6 +39,7 @@ export function SynthKnob({
   color = "#fc8",
   size = "sm",
   title,
+  center,
 }: Props) {
   const svgSize = size === "lg" ? 72 : 52;
   const cx = svgSize / 2;
@@ -50,7 +53,9 @@ export function SynthKnob({
 
   const drag = useDragControl({ value, min, max, defaultValue, onChange });
 
-  // LED dots
+  // LED dots: lit from the center LED (nearest to `center`) to the value
+  const from = Math.round((((center ?? (min < 0 && max > 0 ? 0 : min)) - min) / range) * (LED_COUNT - 1));
+  const to = norm * (LED_COUNT - 1);
   const leds = [];
   for (let i = 0; i < LED_COUNT; i++) {
     const ledNorm = i / (LED_COUNT - 1);
@@ -58,7 +63,7 @@ export function SynthKnob({
     const rad = (ledAngle - 90) * (Math.PI / 180);
     const lx = cx + ledR * Math.cos(rad);
     const ly = cy + ledR * Math.sin(rad);
-    const isLit = ledNorm <= norm;
+    const isLit = i >= Math.min(from, to) && i <= Math.max(from, to);
     leds.push(
       <circle
         key={i}

@@ -183,15 +183,15 @@ function WmtSection({
       </div>
 
       <div className={css.wmtLayer}>
-        <SynthKnob label="Coarse" value={wmt.coarseTune} min={16} max={112} defaultValue={64}
+        <SynthKnob label="Coarse" value={wmt.coarseTune} min={16} max={112} defaultValue={64} center={64}
           onChange={(v) => onParam(layerOffset(19), v)}
           formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Coarse Tune (-48 to +48)" />
-        <SynthKnob label="Fine" value={wmt.fineTune} min={14} max={114} defaultValue={64}
+        <SynthKnob label="Fine" value={wmt.fineTune} min={14} max={114} defaultValue={64} center={64}
           onChange={(v) => onParam(layerOffset(20), v)}
           formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Fine Tune (-50 to +50)" />
-        <SynthKnob label="Pan" value={wmt.pan} min={0} max={127} defaultValue={64}
+        <SynthKnob label="Pan" value={wmt.pan} min={0} max={127} defaultValue={64} center={64}
           onChange={(v) => onParam(layerOffset(21), v)}
           formatValue={panFmt} color="#8cf"
           title="Wave Pan" />
@@ -254,10 +254,10 @@ function PitchEnvSection({
   return (
     <SectionPanel label="PITCH ENV" accentColor="#fc8">
       <div className={css.knobRow}>
-        <SynthKnob label="Depth" value={note.pitchEnvDepth} min={52} max={76} defaultValue={64}
+        <SynthKnob label="Depth" value={note.pitchEnvDepth} min={52} max={76} defaultValue={64} center={64}
           onChange={(v) => onParam(off(0), v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Pitch envelope depth (-12 to +12)" />
-        <SynthKnob label="Vel Sns" value={note.pitchEnvVelocitySens} min={1} max={127} defaultValue={64}
+        <SynthKnob label="Vel Sns" value={note.pitchEnvVelocitySens} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => onParam(off(1), v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Pitch envelope velocity sensitivity" />
       </div>
@@ -324,21 +324,21 @@ function TvfSection({
           title="Filter resonance" />
       </div>
       <div className={css.knobRow}>
-        <SynthKnob label="Vel Sns" value={note.tvfCutoffVelocitySens} min={1} max={127} defaultValue={64}
+        <SynthKnob label="Vel Sns" value={note.tvfCutoffVelocitySens} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => onParam(off(3), v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Cutoff velocity sensitivity" />
         <SynthSelect label="Vel Crv" value={note.tvfCutoffVelocityCurve}
           options={VELOCITY_CURVE_OPTIONS}
           onChange={(v) => onParam(off(2), v)} />
-        <SynthKnob label="Res Vel" value={note.tvfResonanceVelocitySens} min={1} max={127} defaultValue={64}
+        <SynthKnob label="Res Vel" value={note.tvfResonanceVelocitySens} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => onParam(off(5), v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Resonance velocity sensitivity" />
       </div>
       <div className={css.knobRow}>
-        <SynthKnob label="Depth" value={note.tvfEnvDepth} min={1} max={127} defaultValue={64}
+        <SynthKnob label="Depth" value={note.tvfEnvDepth} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => onParam(off(6), v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Filter envelope depth" />
-        <SynthKnob label="Env Vel" value={note.tvfEnvVelocitySens} min={1} max={127} defaultValue={64}
+        <SynthKnob label="Env Vel" value={note.tvfEnvVelocitySens} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => onParam(off(8), v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Envelope velocity sensitivity" />
         <SynthSelect label="Env Crv" value={note.tvfEnvVelocityCurve}
@@ -400,7 +400,7 @@ function TvaSection({
         <SynthSelect label="Vel Crv" value={note.tvaLevelVelocityCurve}
           options={VELOCITY_CURVE_OPTIONS}
           onChange={(v) => onParam(off(0), v)} />
-        <SynthKnob label="Vel Sns" value={note.tvaLevelVelocitySens} min={1} max={127} defaultValue={64}
+        <SynthKnob label="Vel Sns" value={note.tvaLevelVelocitySens} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => onParam(off(1), v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
           title="Amplitude velocity sensitivity" />
       </div>
@@ -485,7 +485,7 @@ function MiscSection({
         <SynthKnob label="Coarse" value={note.coarseTune} min={0} max={127} defaultValue={64}
           onChange={(v) => onParam(0x0F, v)} formatValue={(v) => noteName(v)} color="#fc8"
           title="Partial Coarse Tune (C-1 to G9)" />
-        <SynthKnob label="Fine" value={note.fineTune} min={14} max={114} defaultValue={64}
+        <SynthKnob label="Fine" value={note.fineTune} min={14} max={114} defaultValue={64} center={64}
           onChange={(v) => onParam(0x10, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Partial Fine Tune (-50 to +50)" />
         <SynthKnob label="Rnd Pit" value={note.randomPitchDepth} min={0} max={30} defaultValue={0}
