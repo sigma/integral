@@ -359,6 +359,15 @@ pub fn tone_name_address(part_index: u8, bank_msb: u8) -> Vec<u8> {
     }
 }
 
+/// Returns the address of the Tone Category byte for a part's current tone,
+/// or an empty vec for drum kits and unknown banks (no category byte).
+#[wasm_bindgen]
+pub fn tone_category_address(part_index: u8, bank_msb: u8) -> Vec<u8> {
+    params::tone_category_address(part_index, bank_msb)
+        .map(addr_to_vec)
+        .unwrap_or_default()
+}
+
 /// Whether a bank MSB selects a drum kit, the only tone type that can feed
 /// the Drum Comp+EQ units.
 #[wasm_bindgen]
@@ -1259,6 +1268,13 @@ impl WasmDeviceState {
     }
 
     /// Set a part's tone name.
+    #[wasm_bindgen(js_name = setPartToneCategory)]
+    pub fn set_part_tone_category(&mut self, part: u8, category: u8) -> Result<(), JsError> {
+        check_part(part)?;
+        self.inner.state_mut().parts[part as usize].tone_category = category;
+        Ok(())
+    }
+
     #[wasm_bindgen(js_name = setPartToneName)]
     pub fn set_part_tone_name(&mut self, part: u8, name: &str) -> Result<(), JsError> {
         check_part(part)?;

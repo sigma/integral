@@ -119,6 +119,8 @@ pub struct PartState {
     pub output_assign: u8,
     /// Tone name read from the device.
     pub tone_name: String,
+    /// Tone category read from the tone itself (0 = unknown or not read yet).
+    pub tone_category: u8,
     /// Per-part EQ settings.
     pub eq: EqState,
 }
@@ -137,6 +139,7 @@ impl Default for PartState {
             reverb_send: 0,
             output_assign: 0,
             tone_name: String::new(),
+            tone_category: 0,
             eq: EqState::default(),
         }
     }

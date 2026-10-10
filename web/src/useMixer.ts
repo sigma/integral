@@ -200,13 +200,14 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
           if (isCurrent()) syncFromRust();
         };
 
-        // Tone names from device (may differ for user tones).
+        // Tone names and categories from device (user tones aren't in the factory tables).
         for (let i = 0; i < 16; i++) {
           const msb = rs0.parts?.[i]?.toneBankMsb;
           if (msb === undefined) continue;
           await seq(`tone name ${i + 1}`, async () => {
             const toneName = await svc.requestToneName(i, msb);
             if (toneName) dev.setPartToneName(i, toneName);
+            dev.setPartToneCategory(i, await svc.requestToneCategory(i, msb));
           });
         }
 
@@ -346,6 +347,8 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     (part: number, msb: number, lsb: number, pc: number) => {
       if (!service) return;
       service.device.changePartTone(part, msb, lsb, pc);
+      // Drop the old tone's category until the new one is read back.
+      service.device.setPartToneCategory(part, 0);
 
       // Set factory name instantly for responsive UI.
       const fName = factoryToneName(msb, lsb, pc);
@@ -356,12 +359,12 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
 
       // Re-read actual device name (may differ for user tones).
       setTimeout(() => {
-        service.requestToneName(part, msb).then((toneName) => {
-          if (toneName) {
-            service.device.setPartToneName(part, toneName);
-            syncFromRust();
-          }
-        });
+        void (async () => {
+          const toneName = await service.requestToneName(part, msb);
+          if (toneName) service.device.setPartToneName(part, toneName);
+          service.device.setPartToneCategory(part, await service.requestToneCategory(part, msb));
+          syncFromRust();
+        })();
       }, 300);
     },
     [service, syncFromRust],

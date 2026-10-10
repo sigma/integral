@@ -81,6 +81,8 @@ export interface PartState {
   outputAssign: number;
   /** Tone name read from the device. */
   toneName: string;
+  /** Tone category read from the tone itself (0 = unknown or not read yet). */
+  toneCategory: number;
   /** Per-part EQ settings. */
   eq: EqState;
 }
@@ -234,6 +236,7 @@ export function defaultPartState(): PartState {
     outputAssign: 0,
     receiveChannel: 0,
     toneName: "",
+    toneCategory: 0,
     eq: defaultEqState(),
   };
 }

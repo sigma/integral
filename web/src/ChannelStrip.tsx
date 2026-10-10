@@ -321,7 +321,8 @@ function ChannelStripInner({
       {/* Category / role icon + label */}
       {(() => {
         if (isPart) {
-          const catId = lookupToneCategory(p.toneBankMsb, p.toneBankLsb, p.tonePC);
+          // The tone's own category covers user tones; the factory table fills in until it's read.
+          const catId = p.toneCategory || lookupToneCategory(p.toneBankMsb, p.toneBankLsb, p.tonePC);
           const icon = categoryIcon(catId);
           const name = CATEGORIES[catId];
           if (!name || catId === 0) return <div className={css.categoryArea} />;

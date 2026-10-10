@@ -32,6 +32,8 @@ import {
   single_byte_size,
   tone_name_address,
   tone_name_size,
+  tone_category_address,
+  is_drum_kit_bank,
   part_mixer_size,
   part_receive_channel_address,
   build_studio_set_catalog_request,
@@ -41,6 +43,7 @@ import {
   WasmDeviceState,
 } from "../pkg/integral_wasm.js";
 import type { MidiPortPair } from "./midi";
+import { DRUMS_CATEGORY } from "./categories";
 
 // ---------------------------------------------------------------------------
 // MIDI protocol constants
@@ -525,6 +528,19 @@ export class IntegraService {
       Array.from(single_byte_size()),
     );
     return data[0]!;
+  }
+
+  /** Read the Tone Category stored in the part's current tone (0 if unknown). */
+  async requestToneCategory(part: number, bankMsb: number): Promise<number> {
+    if (is_drum_kit_bank(bankMsb)) return DRUMS_CATEGORY;
+    const addr = tone_category_address(part, bankMsb);
+    if (addr.length === 0) return 0;
+    try {
+      const data = await this.requestData(Array.from(addr), Array.from(single_byte_size()));
+      return data[0] ?? 0;
+    } catch {
+      return 0;
+    }
   }
 
   async requestToneName(part: number, bankMsb: number): Promise<string> {

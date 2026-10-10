@@ -436,6 +436,27 @@ pub fn is_drum_kit_bank(msb: u8) -> bool {
     )
 }
 
+/// Address of the Tone Category byte for a part's current tone.
+///
+/// The byte sits in the tone's Common block: SN-S `00 36`, SN-A `00 1B`,
+/// PCM Synth Common 2 (`00 30 00`) `00 10`. Drum kits have no category byte,
+/// and unknown banks have no tone type, so both return `None`.
+pub fn tone_category_address(part_index: u8, msb: u8) -> Option<Address> {
+    let tt = tone_type_from_bank_msb(msb)?;
+    let offset: [u8; 2] = match tt {
+        tone_type::SN_SYNTH => [0x00, 0x36],
+        tone_type::SN_ACOUSTIC => [0x00, 0x1B],
+        tone_type::PCM_SYNTH => [0x30, 0x10],
+        _ => return None,
+    };
+    Some(temporary_tone_base(part_index).offset([
+        0x00,
+        tt[0],
+        tt[1] + offset[0],
+        tt[2] + offset[1],
+    ]))
+}
+
 /// Compute the address of the tone name for a given part and tone type.
 ///
 /// Tone names are 12 ASCII bytes at offset `00 00`–`00 0B` in the tone's Common block.
@@ -591,6 +612,24 @@ mod tests {
         assert_eq!(tone_type_from_bank_msb(86), Some(tone_type::PCM_DRUM));
         assert_eq!(tone_type_from_bank_msb(88), Some(tone_type::SN_DRUM));
         assert_eq!(tone_type_from_bank_msb(0), None);
+    }
+
+    #[test]
+    fn tone_category_addresses() {
+        assert_eq!(
+            tone_category_address(0, 95),
+            Some(Address::new(0x19, 0x01, 0x00, 0x36))
+        );
+        assert_eq!(
+            tone_category_address(1, 89),
+            Some(Address::new(0x19, 0x22, 0x00, 0x1B))
+        );
+        assert_eq!(
+            tone_category_address(0, 87),
+            Some(Address::new(0x19, 0x00, 0x30, 0x10))
+        );
+        assert_eq!(tone_category_address(0, 88), None);
+        assert_eq!(tone_category_address(0, 0), None);
     }
 
     #[test]
