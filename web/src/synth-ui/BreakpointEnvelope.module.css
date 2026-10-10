@@ -1,0 +1,42 @@
+/* Rows: shape preview, levels, sequence line, times. 10 half-fader columns. */
+.envelope {
+  display: inline-grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: auto auto 16px auto;
+}
+
+.curve {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  width: 100%;
+  opacity: 0.8;
+}
+
+.level {
+  grid-row: 2;
+  display: flex;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+.link {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  width: 100%;
+  height: 100%;
+}
+
+.time {
+  grid-row: 4;
+  display: flex;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+.fixedLevel {
+  align-self: center;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #666;
+  text-align: center;
+}

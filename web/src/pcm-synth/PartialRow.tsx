@@ -4,7 +4,7 @@ import {
   SynthSwitch,
   SynthSelect,
   SectionPanel,
-  ADSREnvelope,
+  BreakpointEnvelope,
   FaderGroup,
   OutputStrip,
 } from "../synth-ui";
@@ -168,24 +168,21 @@ function PitchSection({
           onChange={(v) => setP(0x3D, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Pitch envelope Time 4 velocity sensitivity — release velocity changes the release time" />
       </div>
-      <ADSREnvelope
+      <BreakpointEnvelope
         compact
-        attack={{
+        times={[{
           label: "T1", value: partial.pitchEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x3F, v),
-        }}
-        decay={{
+        }, {
           label: "T2", value: partial.pitchEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x40, v),
-        }}
-        sustain={{
+        }, {
           label: "T3", value: partial.pitchEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x41, v),
-        }}
-        release={{
+        }, {
           label: "T4", value: partial.pitchEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x42, v),
-        }}
+        }]}
         levels={[
           { label: "L0", value: partial.pitchEnvLevel[0] ?? 64, min: 1, max: 127, defaultValue: 64,
             onChange: (v) => setP(0x43, v), formatValue: (v) => signedFmt(v, 64) },
@@ -255,24 +252,21 @@ function TvfSection({
           options={VELOCITY_CURVE_NAMES.map((l, i) => ({ value: i, label: l }))}
           onChange={(v) => setP(0x4B, v)} title="Velocity response curve shape" />
       </div>
-      <ADSREnvelope
+      <BreakpointEnvelope
         compact
-        attack={{
+        times={[{
           label: "T1", value: partial.tvfEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x55, v),
-        }}
-        decay={{
+        }, {
           label: "T2", value: partial.tvfEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x56, v),
-        }}
-        sustain={{
+        }, {
           label: "T3", value: partial.tvfEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x57, v),
-        }}
-        release={{
+        }, {
           label: "T4", value: partial.tvfEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x58, v),
-        }}
+        }]}
         levels={[
           { label: "L0", value: partial.tvfEnvLevel[0] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => setP(0x59, v) },
@@ -340,33 +334,30 @@ function TvaSection({
           onChange={(v) => setP(0x60, v)} led={false}
           title="Bias direction — which side of the center key is attenuated" />
       </div>
-      <ADSREnvelope
+      <BreakpointEnvelope
         compact
-        attack={{
+        times={[{
           label: "T1", value: partial.tvaEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x66, v),
-        }}
-        decay={{
+        }, {
           label: "T2", value: partial.tvaEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x67, v),
-        }}
-        sustain={{
+        }, {
           label: "T3", value: partial.tvaEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x68, v),
-        }}
-        release={{
+        }, {
           label: "T4", value: partial.tvaEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x69, v),
-        }}
+        }]}
         levels={[
-          { label: "", value: 127, min: 0, max: 127, defaultValue: 127, onChange: () => {}, hidden: true },
+          null,
           { label: "L1", value: partial.tvaEnvLevel[0] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => setP(0x6A, v) },
           { label: "L2", value: partial.tvaEnvLevel[1] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => setP(0x6B, v) },
           { label: "L3", value: partial.tvaEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => setP(0x6C, v) },
-          { label: "", value: 0, min: 0, max: 127, defaultValue: 0, onChange: () => {}, hidden: true },
+          null,
         ]}
       />
     </SectionPanel>

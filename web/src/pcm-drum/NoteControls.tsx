@@ -4,7 +4,7 @@ import {
   SynthSwitch,
   SynthSelect,
   SectionPanel,
-  ADSREnvelope,
+  BreakpointEnvelope,
   OutputStrip,
 } from "../synth-ui";
 import type { PcmDrumPartial } from "./types";
@@ -267,24 +267,21 @@ function PitchEnvSection({
           onChange={(v) => onParam(off(3), v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Pitch envelope Time 4 velocity sensitivity" />
       </div>
-      <ADSREnvelope
+      <BreakpointEnvelope
         compact
-        attack={{
+        times={[{
           label: "T1", value: note.pitchEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(4), v),
-        }}
-        decay={{
+        }, {
           label: "T2", value: note.pitchEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(5), v),
-        }}
-        sustain={{
+        }, {
           label: "T3", value: note.pitchEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(6), v),
-        }}
-        release={{
+        }, {
           label: "T4", value: note.pitchEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(7), v),
-        }}
+        }]}
         levels={[
           { label: "L0", value: note.pitchEnvLevel[0] ?? 64, min: 1, max: 127, defaultValue: 64,
             onChange: (v) => onParam(off(8), v), formatValue: (v) => signedFmt(v, 64) },
@@ -357,24 +354,21 @@ function TvfSection({
           onChange={(v) => onParam(off(10), v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Filter envelope Time 4 velocity sensitivity" />
       </div>
-      <ADSREnvelope
+      <BreakpointEnvelope
         compact
-        attack={{
+        times={[{
           label: "T1", value: note.tvfEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(11), v),
-        }}
-        decay={{
+        }, {
           label: "T2", value: note.tvfEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(12), v),
-        }}
-        sustain={{
+        }, {
           label: "T3", value: note.tvfEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(13), v),
-        }}
-        release={{
+        }, {
           label: "T4", value: note.tvfEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(14), v),
-        }}
+        }]}
         levels={[
           { label: "L0", value: note.tvfEnvLevel[0] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => onParam(off(15), v) },
@@ -422,33 +416,30 @@ function TvaSection({
           onChange={(v) => onParam(off(3), v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
           title="Amp envelope Time 4 velocity sensitivity" />
       </div>
-      <ADSREnvelope
+      <BreakpointEnvelope
         compact
-        attack={{
+        times={[{
           label: "T1", value: note.tvaEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(4), v),
-        }}
-        decay={{
+        }, {
           label: "T2", value: note.tvaEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(5), v),
-        }}
-        sustain={{
+        }, {
           label: "T3", value: note.tvaEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(6), v),
-        }}
-        release={{
+        }, {
           label: "T4", value: note.tvaEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(7), v),
-        }}
+        }]}
         levels={[
-          { label: "", value: 127, min: 0, max: 127, defaultValue: 127, onChange: () => {}, hidden: true },
+          null,
           { label: "L1", value: note.tvaEnvLevel[0] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => onParam(off(8), v) },
           { label: "L2", value: note.tvaEnvLevel[1] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => onParam(off(9), v) },
           { label: "L3", value: note.tvaEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => onParam(off(10), v) },
-          { label: "", value: 0, min: 0, max: 127, defaultValue: 0, onChange: () => {}, hidden: true },
+          null,
         ]}
       />
     </SectionPanel>
