@@ -16,6 +16,7 @@ import type {
 import { FIRST_KEY, LAST_KEY, linearToSysex, WMT_STARTS } from "./pcm-drum/types";
 import { CommonPanel } from "./pcm-drum/CommonPanel";
 import { DrumKeyGrid } from "./DrumKeyGrid";
+import { useKeyPrefetch } from "./useKeyPrefetch";
 import { NoteControls } from "./pcm-drum/NoteControls";
 
 // ---------------------------------------------------------------------------
@@ -80,7 +81,6 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
   const [noteData, setNoteData] = useState<PcmDrumPartial | null>(null);
   const [noteLoading, setNoteLoading] = useState(false);
   const noteCache = useRef<Map<number, PcmDrumPartial>>(new Map());
-  const [cacheVersion, setCacheVersion] = useState(0);
 
   // Load common + common2 + MFX on mount / part change
   useEffect(() => {
@@ -163,33 +163,14 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
   }, [selectedKey, partIndex, service]);
 
   // Prefetch every key so the grid shows routing and switched-off keys up front
-  useEffect(() => {
-    if (loading) return;
-    let cancelled = false;
-
-    async function prefetch() {
-      for (let k = FIRST_KEY; k <= LAST_KEY && !cancelled; k++) {
-        if (noteCache.current.has(k)) continue;
-        try {
-          const data = await service.requestData(
-            pcmdPartialAddress(partIndex, k),
-            [0x00, 0x00, 0x01, 0x43],
-          );
-          if (cancelled) return;
-          const n = service.device.applyPcmdPartial(data) as PcmDrumPartial | null;
-          if (n && !noteCache.current.has(k)) {
-            noteCache.current.set(k, n);
-            setCacheVersion((v) => v + 1);
-          }
-        } catch {
-          // Timeout -- key stays unknown until selected
-        }
-      }
-    }
-
-    prefetch();
-    return () => { cancelled = true; };
-  }, [loading, partIndex, service]);
+  const fetchPartial = useCallback(
+    async (k: number) =>
+      service.device.applyPcmdPartial(
+        await service.requestData(pcmdPartialAddress(partIndex, k), [0x00, 0x00, 0x01, 0x43]),
+      ) as PcmDrumPartial | null,
+    [partIndex, service],
+  );
+  const cacheVersion = useKeyPrefetch(!loading, FIRST_KEY, LAST_KEY, noteCache, fetchPartial);
 
   // ---------------------------------------------------------------------------
   // Key selection with note preview
