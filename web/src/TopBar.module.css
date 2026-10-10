@@ -1,11 +1,26 @@
 .toneInfo {
+  composes: container from "./StudioSetSelector.module.css";
   max-width: 40vw;
-  font-size: 13px;
-  color: #c0c0e0;
-  cursor: pointer;
+  min-width: 0;
+}
+
+.toneLabel {
+  composes: label from "./StudioSetSelector.module.css";
+}
+
+.toneButton {
+  composes: button from "./StudioSetSelector.module.css";
+  min-width: 0;
+}
+
+.toneName {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.toneArrow {
+  composes: arrow from "./StudioSetSelector.module.css";
 }
 
 .selectors {

@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { SnSynthEditor } from "./SnSynthEditor";
 import { SnAcousticEditor } from "./SnAcousticEditor";
 import { SnDrumEditor } from "./SnDrumEditor";
@@ -49,26 +50,39 @@ export function ToneEditorPage({ mixer, service, onBack }: Props) {
           Back to Mixer
         </button>
         <span className={css.octaveControl}>
-          <button className={css.octaveBtn} onClick={() => setOctave((o) => Math.max(0, o - 1))}>-</button>
+          <button
+            className={css.octaveBtn}
+            onClick={() => setOctave((o) => Math.max(0, o - 1))}
+          >
+            -
+          </button>
           <span className={css.octaveLabel}>Oct {octave}</span>
-          <button className={css.octaveBtn} onClick={() => setOctave((o) => Math.min(9, o + 1))}>+</button>
+          <button
+            className={css.octaveBtn}
+            onClick={() => setOctave((o) => Math.min(9, o + 1))}
+          >
+            +
+          </button>
         </span>
       </div>
-      {isPcmd ? (
-        <PcmDrumEditor partIndex={partIndex} service={service} />
-      ) : isPcms ? (
-        <PcmSynthEditor partIndex={partIndex} service={service} />
-      ) : isSns ? (
-        <SnSynthEditor partIndex={partIndex} service={service} />
-      ) : isSna ? (
-        <SnAcousticEditor partIndex={partIndex} service={service} />
-      ) : isSnd ? (
-        <SnDrumEditor partIndex={partIndex} service={service} />
-      ) : (
-        <div className={css.placeholder}>
-          Tone editor for {toneType} is not yet implemented.
-        </div>
-      )}
+      {/* Keyed on tone identity so a new tone pick remounts and re-reads the editor. */}
+      <Fragment key={`${part.toneBankMsb}-${part.toneBankLsb}-${part.tonePC}`}>
+        {isPcmd ? (
+          <PcmDrumEditor partIndex={partIndex} service={service} />
+        ) : isPcms ? (
+          <PcmSynthEditor partIndex={partIndex} service={service} />
+        ) : isSns ? (
+          <SnSynthEditor partIndex={partIndex} service={service} />
+        ) : isSna ? (
+          <SnAcousticEditor partIndex={partIndex} service={service} />
+        ) : isSnd ? (
+          <SnDrumEditor partIndex={partIndex} service={service} />
+        ) : (
+          <div className={css.placeholder}>
+            Tone editor for {toneType} is not yet implemented.
+          </div>
+        )}
+      </Fragment>
     </div>
   );
 }
