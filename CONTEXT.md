@@ -24,8 +24,14 @@ All Tracks together, each up to 64 Steps long with its own length.
 _Avoid_: Sequence, song, clip
 
 **Step input**:
-Writing notes into the Step under the cursor by playing them on the Keyboard.
+Writing notes into the Step under the Cursor by playing them on the Keyboard
+while the Sequencer is armed.
 _Avoid_: Step recording
+
+**Cursor**:
+The Step where Step input writes next. Its Track is always the selected Part's
+Track.
+_Avoid_: Playhead (that is where playback is)
 
 **Live play**:
 Playing the Keyboard to sound the selected Part without writing to the
