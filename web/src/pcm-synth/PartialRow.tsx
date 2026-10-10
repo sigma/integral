@@ -165,31 +165,31 @@ function PitchSection({
       <ADSREnvelope
         compact
         attack={{
-          label: "Atk", value: partial.pitchEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T1", value: partial.pitchEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x3F, v),
         }}
         decay={{
-          label: "Dec", value: partial.pitchEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T2", value: partial.pitchEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x40, v),
         }}
         sustain={{
-          label: "Sus", value: partial.pitchEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T3", value: partial.pitchEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x41, v),
         }}
         release={{
-          label: "Rel", value: partial.pitchEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T4", value: partial.pitchEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x42, v),
         }}
         levels={[
-          { label: "Start", value: partial.pitchEnvLevel[0] ?? 64, min: 1, max: 127, defaultValue: 64,
+          { label: "L0", value: partial.pitchEnvLevel[0] ?? 64, min: 1, max: 127, defaultValue: 64,
             onChange: (v) => setP(0x43, v), formatValue: (v) => signedFmt(v, 64) },
-          { label: "Atk", value: partial.pitchEnvLevel[1] ?? 64, min: 1, max: 127, defaultValue: 64,
+          { label: "L1", value: partial.pitchEnvLevel[1] ?? 64, min: 1, max: 127, defaultValue: 64,
             onChange: (v) => setP(0x44, v), formatValue: (v) => signedFmt(v, 64) },
-          { label: "Dec", value: partial.pitchEnvLevel[2] ?? 64, min: 1, max: 127, defaultValue: 64,
+          { label: "L2", value: partial.pitchEnvLevel[2] ?? 64, min: 1, max: 127, defaultValue: 64,
             onChange: (v) => setP(0x45, v), formatValue: (v) => signedFmt(v, 64) },
-          { label: "Sus", value: partial.pitchEnvLevel[3] ?? 64, min: 1, max: 127, defaultValue: 64,
+          { label: "L3", value: partial.pitchEnvLevel[3] ?? 64, min: 1, max: 127, defaultValue: 64,
             onChange: (v) => setP(0x46, v), formatValue: (v) => signedFmt(v, 64) },
-          { label: "End", value: partial.pitchEnvLevel[4] ?? 64, min: 1, max: 127, defaultValue: 64,
+          { label: "L4", value: partial.pitchEnvLevel[4] ?? 64, min: 1, max: 127, defaultValue: 64,
             onChange: (v) => setP(0x47, v), formatValue: (v) => signedFmt(v, 64) },
         ]}
       />
@@ -246,31 +246,31 @@ function TvfSection({
       <ADSREnvelope
         compact
         attack={{
-          label: "Atk", value: partial.tvfEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T1", value: partial.tvfEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x55, v),
         }}
         decay={{
-          label: "Dec", value: partial.tvfEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T2", value: partial.tvfEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x56, v),
         }}
         sustain={{
-          label: "Sus", value: partial.tvfEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T3", value: partial.tvfEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x57, v),
         }}
         release={{
-          label: "Rel", value: partial.tvfEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T4", value: partial.tvfEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x58, v),
         }}
         levels={[
-          { label: "Start", value: partial.tvfEnvLevel[0] ?? 0, min: 0, max: 127, defaultValue: 0,
+          { label: "L0", value: partial.tvfEnvLevel[0] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => setP(0x59, v) },
-          { label: "Atk", value: partial.tvfEnvLevel[1] ?? 127, min: 0, max: 127, defaultValue: 127,
+          { label: "L1", value: partial.tvfEnvLevel[1] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => setP(0x5A, v) },
-          { label: "Dec", value: partial.tvfEnvLevel[2] ?? 127, min: 0, max: 127, defaultValue: 127,
+          { label: "L2", value: partial.tvfEnvLevel[2] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => setP(0x5B, v) },
-          { label: "Sus", value: partial.tvfEnvLevel[3] ?? 127, min: 0, max: 127, defaultValue: 127,
+          { label: "L3", value: partial.tvfEnvLevel[3] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => setP(0x5C, v) },
-          { label: "End", value: partial.tvfEnvLevel[4] ?? 0, min: 0, max: 127, defaultValue: 0,
+          { label: "L4", value: partial.tvfEnvLevel[4] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => setP(0x5D, v) },
         ]}
       />
@@ -325,28 +325,28 @@ function TvaSection({
       <ADSREnvelope
         compact
         attack={{
-          label: "Atk", value: partial.tvaEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T1", value: partial.tvaEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x66, v),
         }}
         decay={{
-          label: "Dec", value: partial.tvaEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T2", value: partial.tvaEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x67, v),
         }}
         sustain={{
-          label: "Sus", value: partial.tvaEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T3", value: partial.tvaEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x68, v),
         }}
         release={{
-          label: "Rel", value: partial.tvaEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T4", value: partial.tvaEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => setP(0x69, v),
         }}
         levels={[
           { label: "", value: 127, min: 0, max: 127, defaultValue: 127, onChange: () => {}, hidden: true },
-          { label: "Atk", value: partial.tvaEnvLevel[0] ?? 127, min: 0, max: 127, defaultValue: 127,
+          { label: "L1", value: partial.tvaEnvLevel[0] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => setP(0x6A, v) },
-          { label: "Dec", value: partial.tvaEnvLevel[1] ?? 127, min: 0, max: 127, defaultValue: 127,
+          { label: "L2", value: partial.tvaEnvLevel[1] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => setP(0x6B, v) },
-          { label: "Sus", value: partial.tvaEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
+          { label: "L3", value: partial.tvaEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => setP(0x6C, v) },
           { label: "", value: 0, min: 0, max: 127, defaultValue: 0, onChange: () => {}, hidden: true },
         ]}
