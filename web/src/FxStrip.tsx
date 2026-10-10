@@ -8,6 +8,7 @@ import css from "./ChannelStrip.module.css";
 import fxCss from "./FxStrip.module.css";
 import box from "./PanelBox.module.css";
 import { RouteChip } from "./RouteChip";
+import { SynthSwitch } from "./synth-ui";
 
 interface Props {
   label: string;
@@ -110,21 +111,12 @@ export function FxStrip({
         </div>
       </div>
 
-      {/* Type/Out: a separate box pinned to the fader. */}
-      <div className={css.bottom}>
-        <div className={box.box}>
-          <div className={fxCss.row}>
-            <span className={fxCss.label}>Type</span>
-            <select
-              className={fxCss.select}
-              value={fx.type}
-              onChange={(e) => onParam(0, Number(e.target.value))}
-            >
-              {typeNames.map((name, i) => (
-                <option key={i} value={i}>{name}</option>
-              ))}
-            </select>
-          </div>
+      {/* Type: a separate box pinned to the fader. */}
+      <div className={`${css.bottom} ${fxCss.fill}`}>
+        <div className={`${box.box} ${fxCss.typeList}`}>
+          <SynthSwitch label="Type" vertical led={false} value={fx.type}
+            options={typeNames.map((name, i) => ({ value: i, label: name }))}
+            onChange={(v) => onParam(0, v)} />
         </div>
         {/* Route chip shares the slot above M/S with part and Comp+EQ strips; the hidden M/S row aligns it. */}
         <div className={css.toggles}>

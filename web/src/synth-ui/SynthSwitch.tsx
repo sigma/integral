@@ -46,12 +46,14 @@ export function SynthSwitch({
   return (
     <div className={css.multiSwitch} title={title ?? label}>
       {label && <span className={css.label}>{label}</span>}
-      <div className={css.optionList}>
+      <div className={css.optionList} role="radiogroup" aria-label={title ?? label}>
         {options.map((opt) => {
           const isActive = opt.value === value;
           return (
             <button
               key={opt.value}
+              role="radio"
+              aria-checked={isActive}
               className={`${css.option} ${isActive ? css.optionActive : ""}`}
               onClick={() => onChange(opt.value)}
             >
