@@ -60,3 +60,8 @@ One numbered place in the device's user memory for a tone of one type or a
 Studio Set. A range of User slots is a way to pick what goes into a Pack, not
 a thing of its own.
 _Avoid_: Patch, program
+
+**Free slot**:
+A User slot whose name is its type's INIT name. An import fills free slots
+first and never overwrites another slot without the user choosing it.
+_Avoid_: Empty slot (a slot always holds something)
