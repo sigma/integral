@@ -1,7 +1,6 @@
 .container {
   display: flex;
   gap: 2px;
-  padding: 8px 12px;
 }
 
 .tab {

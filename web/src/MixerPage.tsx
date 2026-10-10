@@ -1,54 +1,21 @@
-import { TopBar } from "./TopBar";
-import { PartSelector } from "./PartSelector";
 import { ChannelStrip } from "./ChannelStrip";
 import { FxStrip } from "./FxStrip";
 // CompEqPanel replaced by ChannelStrip variant="comp-eq"
 import { chorus_params, reverb_params } from "../pkg/integral_wasm.js";
 import { deviceSpec } from "./deviceSpec";
-import { ToneSelector } from "./ToneSelector";
-import { ToneCatalog } from "./toneCatalog";
-import type { IntegraService } from "./integra";
 import type { UseMixerResult } from "./useMixer";
-import { useState, useCallback, useMemo } from "react";
 import css from "./MixerPage.module.css";
 
 interface Props {
   mixer: UseMixerResult;
-  service: IntegraService;
 }
 
-export function MixerPage({ mixer, service }: Props) {
+export function MixerPage({ mixer }: Props) {
   const { state } = mixer;
   const spec = deviceSpec();
-  const selectedPart = state.parts[state.selectedPart]!;
-  const [toneSelectorOpen, setToneSelectorOpen] = useState(false);
-  const catalog = useMemo(() => new ToneCatalog(service), [service]);
-
-  const handleToneSelect = useCallback(
-    (msb: number, lsb: number, pc: number) => {
-      mixer.changePartTone(state.selectedPart, msb, lsb, pc);
-      setToneSelectorOpen(false);
-    },
-    [mixer, state.selectedPart],
-  );
 
   return (
     <div className={css.page}>
-      <TopBar
-        studioSetPC={state.studioSetPC}
-        studioSetNames={state.studioSetNames}
-        selectedPart={selectedPart}
-        selectedPartIndex={state.selectedPart}
-        onStudioSetChange={mixer.switchStudioSet}
-        onLoadNames={mixer.loadStudioSetNames}
-        onToneClick={() => setToneSelectorOpen(true)}
-      />
-      <div className={css.controls}>
-        <PartSelector
-          selectedPart={state.selectedPart}
-          onSelect={mixer.selectPart}
-        />
-      </div>
       {state.loading ? (
         <div className={css.loading}>Loading mixer state from device...</div>
       ) : (
@@ -134,17 +101,6 @@ export function MixerPage({ mixer, service }: Props) {
             onEqParam={mixer.setMasterEqParam}
           />
         </div>
-      )}
-      {toneSelectorOpen && (
-        <ToneSelector
-          partIndex={state.selectedPart}
-          currentMsb={selectedPart.toneBankMsb}
-          currentLsb={selectedPart.toneBankLsb}
-          currentPC={selectedPart.tonePC}
-          catalog={catalog}
-          onSelect={handleToneSelect}
-          onClose={() => setToneSelectorOpen(false)}
-        />
       )}
     </div>
   );

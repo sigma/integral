@@ -1,18 +1,19 @@
 .bar {
   display: flex;
+  flex: 1;
+  min-width: 0;
   align-items: center;
-  gap: 16px;
-  padding: 10px 16px;
-  background: #0f0f1a;
-  border-bottom: 1px solid #2a2a4a;
+  gap: 12px;
+  padding: 4px 12px;
 }
 
 .toneInfo {
   flex: 1;
+  min-width: 0;
   font-size: 13px;
   color: #c0c0e0;
+  cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-

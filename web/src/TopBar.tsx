@@ -1,15 +1,16 @@
+import { useState, useCallback, useMemo } from "react";
 import { StudioSetSelector } from "./StudioSetSelector";
+import { PartSelector } from "./PartSelector";
+import { ToneSelector } from "./ToneSelector";
+import { ToneCatalog } from "./toneCatalog";
+import type { IntegraService } from "./integra";
+import type { UseMixerResult } from "./useMixer";
 import type { PartState } from "./types";
 import css from "./TopBar.module.css";
 
 interface Props {
-  studioSetPC: number;
-  studioSetNames: Map<number, string>;
-  selectedPart: PartState;
-  selectedPartIndex: number;
-  onStudioSetChange: (pc: number) => void;
-  onLoadNames: () => void;
-  onToneClick: () => void;
+  mixer: UseMixerResult;
+  service: IntegraService;
 }
 
 function toneDisplay(part: PartState): string {
@@ -40,26 +41,43 @@ function toneTypeLabel(bankMsb: number): string {
   }
 }
 
-export function TopBar({
-  studioSetPC,
-  studioSetNames,
-  selectedPart,
-  selectedPartIndex,
-  onStudioSetChange,
-  onLoadNames,
-  onToneClick,
-}: Props) {
+export function TopBar({ mixer, service }: Props) {
+  const { state } = mixer;
+  const selectedPart = state.parts[state.selectedPart]!;
+  const [toneSelectorOpen, setToneSelectorOpen] = useState(false);
+  const catalog = useMemo(() => new ToneCatalog(service), [service]);
+
+  const handleToneSelect = useCallback(
+    (msb: number, lsb: number, pc: number) => {
+      mixer.changePartTone(state.selectedPart, msb, lsb, pc);
+      setToneSelectorOpen(false);
+    },
+    [mixer, state.selectedPart],
+  );
+
   return (
     <div className={css.bar}>
       <StudioSetSelector
-        currentPC={studioSetPC}
-        names={studioSetNames}
-        onSelect={onStudioSetChange}
-        onLoadNames={onLoadNames}
+        currentPC={state.studioSetPC}
+        names={state.studioSetNames}
+        onSelect={mixer.switchStudioSet}
+        onLoadNames={mixer.loadStudioSetNames}
       />
-      <span className={css.toneInfo} onClick={onToneClick} style={{ cursor: "pointer" }}>
-        Part {selectedPartIndex + 1} : {toneDisplay(selectedPart)}
+      <PartSelector selectedPart={state.selectedPart} onSelect={mixer.selectPart} />
+      <span className={css.toneInfo} onClick={() => setToneSelectorOpen(true)}>
+        {toneDisplay(selectedPart)}
       </span>
+      {toneSelectorOpen && (
+        <ToneSelector
+          partIndex={state.selectedPart}
+          currentMsb={selectedPart.toneBankMsb}
+          currentLsb={selectedPart.toneBankLsb}
+          currentPC={selectedPart.tonePC}
+          catalog={catalog}
+          onSelect={handleToneSelect}
+          onClose={() => setToneSelectorOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -19,6 +19,7 @@ import {
   NoDevices,
   MidiError,
 } from "./DeviceStatus";
+import { TopBar } from "./TopBar";
 import { MixerPage } from "./MixerPage";
 import { SurroundPage } from "./SurroundPage";
 import { ToneEditorPage } from "./ToneEditorPage";
@@ -193,6 +194,7 @@ export function App() {
           >
             Tone Edit
           </button>
+          <TopBar mixer={mixer} service={service} />
           <button
             className={`${css.previewButton} ${mixer.state.previewPart > 0 ? css.previewActive : ""}`}
             onClick={mixer.preview}
@@ -202,7 +204,7 @@ export function App() {
         </nav>
         {activeTab === "mixer" && (
           <ErrorBoundary section="Mixer">
-            <MixerPage mixer={mixer} service={service} />
+            <MixerPage mixer={mixer} />
           </ErrorBoundary>
         )}
         {activeTab === "surround" && (

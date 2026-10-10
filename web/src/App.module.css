@@ -74,7 +74,9 @@
 }
 
 .previewButton {
+  align-self: center;
   margin-left: auto;
+  margin-right: 12px;
   padding: 4px 14px;
   font-size: 12px;
   font-weight: 600;
