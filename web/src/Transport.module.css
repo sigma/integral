@@ -43,3 +43,8 @@
   border-radius: 4px;
   padding: 3px 4px;
 }
+
+.armed {
+  color: #f05a5a;
+  border-color: #f05a5a;
+}

@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useRef, type CSSProperties } from "react";
 import { MAX_OCTAVE, MIN_OCTAVE, noteName, type Keyboard } from "./useKeyboard";
 import css from "./Piano.module.css";
 
@@ -11,9 +11,10 @@ interface Props {
   keyboard: Keyboard;
 }
 
-/** On-screen piano. Click plays a note on the selected Part. */
+/** On-screen piano. Click plays a note; shift-click adds it to the pending Step input chord. */
 export function Piano({ keyboard }: Props) {
   const { octave, shiftOctave, heldNotes, press, release } = keyboard;
+  const shift = useRef(false);
   const first = octave * 12;
   const notes = Array.from({ length: OCTAVES * 12 + 1 }, (_, i) => first + i).filter((n) => n <= 127);
   const whites = notes.filter((n) => !BLACK.has(n % 12));
@@ -41,10 +42,11 @@ export function Piano({ keyboard }: Props) {
               title={noteName(note)}
               onPointerDown={(e) => {
                 e.currentTarget.releasePointerCapture(e.pointerId);
+                shift.current = e.shiftKey;
                 press(POINTER, note);
               }}
-              onPointerUp={() => release(POINTER)}
-              onPointerLeave={() => release(POINTER)}
+              onPointerUp={() => release(POINTER, shift.current)}
+              onPointerLeave={() => release(POINTER, shift.current)}
             />
           );
         })}

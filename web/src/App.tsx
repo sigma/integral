@@ -176,7 +176,10 @@ export function App() {
 
   const mixer = useMixer(service);
   const selectedChannel = mixer.state.parts[mixer.state.selectedPart]?.receiveChannel ?? 0;
-  const keyboard = useKeyboard(service, selectedChannel);
+  const keyboard = useKeyboard(service, selectedChannel, sequencer);
+  useEffect(() => {
+    sequencer?.setTrack(mixer.state.selectedPart);
+  }, [sequencer, mixer.state.selectedPart]);
   const [activeTab, setActiveTab] = useState<PageTab>("mixer");
 
   // Show connected UI when connected to an Integra-7

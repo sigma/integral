@@ -6,7 +6,7 @@
 //! to each call.
 
 use integral_core::device_spec::INTEGRA7;
-use integral_core::sequencer::{MAX_STEPS, Pattern, Sequencer, TimedMidi};
+use integral_core::sequencer::{MAX_STEPS, Note, Pattern, Sequencer, TimedMidi};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
@@ -163,6 +163,19 @@ impl WasmSequencer {
     pub fn set_track_length(&mut self, track: usize, length: u8) {
         if let Some(t) = self.inner.pattern_mut().track_mut(track) {
             t.set_length(length);
+        }
+    }
+
+    /// Replace the chord starting on `step` with `pitches`, all at `velocity`
+    /// and `length` Steps. No pitches clears the Step.
+    #[wasm_bindgen(js_name = setStep)]
+    pub fn set_step(&mut self, track: usize, step: u8, pitches: &[u8], velocity: u8, length: u8) {
+        if let Some(t) = self.inner.pattern_mut().track_mut(track) {
+            let notes = pitches
+                .iter()
+                .map(|&p| Note::new(p, velocity, length))
+                .collect();
+            t.set_step(step, notes);
         }
     }
 

@@ -5,7 +5,7 @@
  * Keys: a w s e d f t g y h u j k
  * Maps: C C# D D# E F F# G G# A A# B C
  *
- * z / x shift the octave. Each held note remembers the service and channel it
+ * z / x shift the octave. Notes and transport keys also feed Step input. Each held note remembers the service and channel it
  * started on, so its Note Off goes there even if the selected Part changes.
  */
 
@@ -43,10 +43,24 @@ const VELOCITY = 100;
 /** Focus targets whose keystrokes are never notes. */
 const TEXT_ENTRY = 'input, select, textarea, [contenteditable]:not([contenteditable="false"]), [role="slider"]';
 
+/** Whether a key event belongs to the Keyboard rather than to text entry or a shortcut. */
+function isNoteKey(e: KeyboardEvent): boolean {
+  if (e.metaKey || e.ctrlKey || e.altKey) return false;
+  return !(e.target instanceof Element && e.target.closest(TEXT_ENTRY));
+}
+
 interface Held {
   note: number;
   channel: number;
   service: IntegraService;
+}
+
+/** Receives Keyboard notes and keys for Step input (the Sequencer engine). */
+export interface StepInput {
+  noteDown: (note: number) => void;
+  noteUp: (note: number, hold?: boolean) => void;
+  /** Returns true if the key was consumed. */
+  handleKey: (key: string, repeat: boolean) => boolean;
 }
 
 export interface Keyboard {
@@ -56,17 +70,21 @@ export interface Keyboard {
   heldNotes: ReadonlySet<number>;
   /** Start `note` for `source` (one note per source). */
   press: (source: string, note: number) => void;
-  /** Release whatever `source` holds. */
-  release: (source: string) => void;
+  /** Release whatever `source` holds; `hold` keeps it in the pending chord. */
+  release: (source: string, hold?: boolean) => void;
 }
 
-/** Live play on `channel` (the selected Part's receive channel). */
-export function useKeyboard(service: IntegraService | null, channel: number): Keyboard {
+/** Live play on `channel` (the selected Part's receive channel), plus Step input. */
+export function useKeyboard(
+  service: IntegraService | null,
+  channel: number,
+  stepInput: StepInput | null,
+): Keyboard {
   const [octave, setOctave] = useState(DEFAULT_OCTAVE);
   const [heldNotes, setHeldNotes] = useState<ReadonlySet<number>>(new Set());
   const held = useRef(new Map<string, Held>());
-  const latest = useRef({ service, channel, octave });
-  latest.current = { service, channel, octave };
+  const latest = useRef({ service, channel, octave, stepInput });
+  latest.current = { service, channel, octave, stepInput };
 
   const sync = () => setHeldNotes(new Set([...held.current.values()].map((h) => h.note)));
 
@@ -75,14 +93,16 @@ export function useKeyboard(service: IntegraService | null, channel: number): Ke
     if (!service || held.current.has(source) || note < 0 || note > 127) return;
     held.current.set(source, { note, channel, service });
     service.sendNoteOn(channel, note, VELOCITY);
+    latest.current.stepInput?.noteDown(note);
     sync();
   }, []);
 
-  const release = useCallback((source: string) => {
+  const release = useCallback((source: string, hold = false) => {
     const h = held.current.get(source);
     if (!h) return;
     held.current.delete(source);
     h.service.sendNoteOff(h.channel, h.note);
+    latest.current.stepInput?.noteUp(h.note, hold);
     sync();
   }, []);
 
@@ -92,12 +112,16 @@ export function useKeyboard(service: IntegraService | null, channel: number): Ke
 
   useEffect(() => {
     const releaseAll = () => {
-      for (const source of [...held.current.keys()]) release(source);
+      // Losing focus is not a deliberate release: keep the chord pending.
+      for (const source of [...held.current.keys()]) release(source, true);
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.target instanceof Element && e.target.closest(TEXT_ENTRY)) return;
+      if (!isNoteKey(e)) return;
+      if (latest.current.stepInput?.handleKey(e.key, e.repeat)) {
+        e.preventDefault();
+        return;
+      }
       const key = e.key.toLowerCase();
       if (key === "z") return shiftOctave(-1);
       if (key === "x") return shiftOctave(1);
@@ -106,7 +130,11 @@ export function useKeyboard(service: IntegraService | null, channel: number): Ke
       press(`key:${key}`, latest.current.octave * 12 + offset);
     };
 
-    const handleKeyUp = (e: KeyboardEvent) => release(`key:${e.key.toLowerCase()}`);
+    const handleKeyUp = (e: KeyboardEvent) => {
+      // Space toggles the transport on keydown; don't let it also click a focused button.
+      if (e.key === " " && isNoteKey(e)) e.preventDefault();
+      release(`key:${e.key.toLowerCase()}`);
+    };
 
     document.addEventListener("keydown", handleKeyDown);
     document.addEventListener("keyup", handleKeyUp);

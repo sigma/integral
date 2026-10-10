@@ -17,6 +17,7 @@ const TICK_MS = 25;
 const HORIZON_MS = 100;
 const STORAGE_KEY = "integral.pattern";
 const LOCK_NAME = "integral-sequencer";
+const DEFAULT_VELOCITY = 100;
 
 /** Worker that posts a tick every TICK_MS while started (`true`), silent when `false`. */
 const TICK_WORKER = `let id;
@@ -52,6 +53,10 @@ export interface SequencerView {
   bpm: number;
   /** Cursor Step; its Track is the selected Part's Track. */
   cursor: number;
+  /** Step input is armed: played notes are written at the Cursor. */
+  armed: boolean;
+  /** Velocity written by Step input. */
+  defaultVelocity: number;
   tracks: TrackView[];
 }
 
@@ -70,6 +75,13 @@ export class SequencerEngine {
   private releaseLock: (() => void) | null = null;
   private listeners = new Set<() => void>();
   private cursor = 0;
+  private track = 0;
+  private armed = false;
+  private defaultVelocity = DEFAULT_VELOCITY;
+  /** Notes held for Step input, and the chord they will write. */
+  private held = new Set<number>();
+  private pending = new Set<number>();
+  private pendingLength = 1;
   private snapshot: SequencerView;
 
   constructor() {
@@ -107,6 +119,84 @@ export class SequencerEngine {
 
   setCursor(step: number): void {
     this.cursor = step;
+    this.changed();
+  }
+
+  /** The selected Part's Track, where Step input writes. */
+  setTrack(track: number): void {
+    this.track = track;
+  }
+
+  setArmed(armed: boolean): void {
+    this.armed = armed;
+    this.held.clear();
+    this.pending.clear();
+    this.changed();
+  }
+
+  setDefaultVelocity(velocity: number): void {
+    this.defaultVelocity = velocity;
+    this.changed();
+  }
+
+  /** A Keyboard note went down. While armed it joins the pending chord. */
+  noteDown(note: number): void {
+    if (!this.armed) return;
+    if (this.pending.size === 0) this.pendingLength = 1;
+    this.held.add(note);
+    this.pending.add(note);
+  }
+
+  /**
+   * A Keyboard note went up. Releasing the last held note writes the pending
+   * chord at the Cursor, unless `hold` (piano shift-click) keeps it pending.
+   */
+  noteUp(note: number, hold = false): void {
+    if (!this.armed) return;
+    this.held.delete(note);
+    if (hold || this.held.size > 0 || this.pending.size === 0) return;
+    const pitches = Uint8Array.from(this.pending);
+    const length = this.pendingLength;
+    this.pending.clear();
+    this.edit((seq) => seq.setStep(this.track, this.cursor, pitches, this.defaultVelocity, length));
+    this.moveCursor(length);
+  }
+
+  /** Transport and Step input keys. Returns true if the key was consumed. */
+  handleKey(key: string, repeat: boolean): boolean {
+    if (key === " ") {
+      if (!repeat) this.togglePlay();
+      return true;
+    }
+    if (!this.armed) return false;
+    const holding = this.held.size > 0;
+    if (key === "ArrowRight") {
+      if (holding) this.pendingLength = Math.min(WasmSequencer.maxSteps(), this.pendingLength + 1);
+      else this.moveCursor(1);
+      return true;
+    }
+    if (holding) return false;
+    if (key === "ArrowLeft") {
+      this.moveCursor(-1);
+      return true;
+    }
+    if (key === "Backspace") {
+      this.edit((seq) => seq.setStep(this.track, this.cursor, new Uint8Array(), 0, 1));
+      this.moveCursor(-1);
+      return true;
+    }
+    return false;
+  }
+
+  togglePlay(): void {
+    if (this.seq.isPlaying()) this.stop();
+    else this.play();
+  }
+
+  /** Move the Cursor, wrapping within the Track's length. */
+  private moveCursor(delta: number): void {
+    const length = this.snapshot.tracks[this.track]?.length ?? 1;
+    this.cursor = (((this.cursor + delta) % length) + length) % length;
     this.changed();
   }
 
@@ -185,6 +275,8 @@ export class SequencerEngine {
       playing: this.seq.isPlaying(),
       bpm: this.seq.bpm(),
       cursor: this.cursor,
+      armed: this.armed,
+      defaultVelocity: this.defaultVelocity,
       tracks: this.seq.tracks() as TrackView[],
     };
   }

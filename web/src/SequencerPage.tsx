@@ -48,7 +48,7 @@ function chords(track: TrackView) {
 
 /** Sequencer tab: the Track × Step grid, the selected Track's controls and the piano. */
 export function SequencerPage({ engine, mixer, keyboard }: Props) {
-  const { playing, cursor, tracks } = useSequencer(engine);
+  const { playing, cursor, armed, tracks } = useSequencer(engine);
   const playStep = usePlayStep(engine, playing);
   const selected = mixer.state.selectedPart;
   const selectedTrack = tracks[selected];
@@ -72,7 +72,7 @@ export function SequencerPage({ engine, mixer, keyboard }: Props) {
                 const classes = [css.cell];
                 if (step >= track.length) classes.push(css.beyond);
                 else if (playStep !== undefined && step === playStep % track.length) classes.push(css.playhead);
-                if (i === selected && step === cursor) classes.push(css.cursor);
+                if (i === selected && step === cursor) classes.push(armed ? css.cursorArmed : css.cursor);
                 return (
                   <div
                     key={step}

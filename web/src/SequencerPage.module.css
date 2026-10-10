@@ -88,6 +88,11 @@
   outline-offset: -2px;
 }
 
+.cursorArmed {
+  composes: cursor;
+  outline-color: #f05a5a;
+}
+
 /* A chord: starts at its Step, spans its note length, opacity follows velocity. */
 .block {
   position: absolute;
