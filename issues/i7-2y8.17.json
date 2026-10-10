@@ -4,6 +4,8 @@
   "blocks": [
     "i7-2y8.11"
   ],
+  "closed_at": "2026-10-10T06:56:29Z",
+  "close_reason": "migrated to https://github.com/sigma/integral/issues/8",
   "created": "2026-04-11T17:57:26Z",
   "description": "Write a known SN Drum Kit to the device via DT1 SysEx with identifiable values on a few keys. User exports to SVD. The entry becomes the test fixture for i7-2y8.11.",
   "id": "i7-2y8.17",
@@ -16,7 +18,7 @@
     }
   ],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Create SN Drum Kit test tone via MIDI for SVD validation",
   "type": "task",
   "updated_at": "2026-10-10T06:56:29Z"
