@@ -3,10 +3,7 @@ import { PartSelector } from "./PartSelector";
 import { ChannelStrip } from "./ChannelStrip";
 import { FxStrip } from "./FxStrip";
 // CompEqPanel replaced by ChannelStrip variant="comp-eq"
-import {
-  CHORUS_PARAMS,
-  REVERB_PARAMS,
-} from "./fxParams";
+import { chorus_params, reverb_params } from "../pkg/integral_wasm.js";
 import { deviceSpec } from "./deviceSpec";
 import { ToneSelector } from "./ToneSelector";
 import { ToneCatalog } from "./toneCatalog";
@@ -112,7 +109,7 @@ export function MixerPage({ mixer, service }: Props) {
             fx={state.chorus}
             typeNames={spec.chorus_type_names}
             outputNames={spec.chorus_output_names}
-            paramDefs={CHORUS_PARAMS}
+            paramDefs={chorus_params}
             onToggleSwitch={mixer.toggleChorusSwitch}
             onParam={mixer.setChorusParam}
             onNibParam={mixer.setChorusNibParam}
@@ -122,7 +119,7 @@ export function MixerPage({ mixer, service }: Props) {
             fx={state.reverb}
             typeNames={spec.reverb_type_names}
             outputNames={spec.reverb_output_names}
-            paramDefs={REVERB_PARAMS}
+            paramDefs={reverb_params}
             onToggleSwitch={mixer.toggleReverbSwitch}
             onParam={mixer.setReverbParam}
             onNibParam={mixer.setReverbNibParam}

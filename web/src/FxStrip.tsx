@@ -1,7 +1,8 @@
 import { VolumeFader } from "./VolumeFader";
 import { EqKnob } from "./EqKnob";
 import type { FxState } from "./types";
-import type { FxParamDef } from "./fxParams";
+import { useMemo } from "react";
+import type { WasmFxParamDef } from "../pkg/integral_wasm.js";
 import { stripIcon } from "./categoryIcons";
 import css from "./ChannelStrip.module.css";
 import fxCss from "./FxStrip.module.css";
@@ -12,7 +13,8 @@ interface Props {
   fx: FxState;
   typeNames: string[];
   outputNames: string[];
-  paramDefs: Record<number, FxParamDef[]>;
+  /** Visible parameter definitions for a type (from the core, via WASM). */
+  paramDefs: (type: number) => WasmFxParamDef[];
   onToggleSwitch: () => void;
   onParam: (offset: number, value: number) => void;
   onNibParam: (paramIndex: number, value: number) => void;
@@ -28,9 +30,15 @@ export function FxStrip({
   onParam,
   onNibParam,
 }: Props) {
-  const currentParamDefs = paramDefs[fx.type] ?? [];
+  // Per type: each visible param, paired with its note-mode view when it has one.
+  const defsByType = useMemo(
+    () => typeNames.map((_, t) => paramDefs(t).map((def) => ({ def, note: def.noteParam() }))),
+    [paramDefs, typeNames],
+  );
+  const currentParamDefs = defsByType[fx.type] ?? [];
+  const slots = Int32Array.from(fx.params);
   // Reserve rows for the type with the most params, so the box keeps its height when the type changes.
-  const maxRows = Math.max(0, ...Object.values(paramDefs).map((defs) => defs.length));
+  const maxRows = Math.max(0, ...defsByType.map((defs) => defs.length));
 
   return (
     <div className={`${css.strip} ${fxCss.override}`}>
@@ -45,19 +53,23 @@ export function FxStrip({
         </button>
 
         <div className={fxCss.knobs} style={{ gridTemplateRows: `repeat(${maxRows}, var(--knob-pitch))` }}>
-          {currentParamDefs.map((def, i) => (
-            <div key={def.index} style={{ gridRow: i + 1 }}>
-              <EqKnob
-                label={def.name}
-                value={fx.params[def.index] ?? def.defaultValue}
-                min={def.min}
-                max={def.max}
-                defaultValue={def.defaultValue}
-                onChange={(v) => onNibParam(def.index, v)}
-                formatValue={def.format}
-              />
-            </div>
-          ))}
+          {currentParamDefs.map(({ def, note }, i) => {
+            // A msec/Hz-vs-note param edits whichever slot its switch selects.
+            const active = note && def.noteMode(slots) ? note : def;
+            return (
+              <div key={def.index} style={{ gridRow: i + 1 }}>
+                <EqKnob
+                  label={def.name}
+                  value={fx.params[active.index] ?? active.defaultValue}
+                  min={active.min}
+                  max={active.max}
+                  defaultValue={active.defaultValue}
+                  onChange={(v) => onNibParam(active.index, v)}
+                  formatValue={(v) => active.formatValue(v)}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
 

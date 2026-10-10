@@ -803,42 +803,75 @@ pub fn factory_tone_name(msb: u8, lsb: u8, pc: u8) -> String {
 /// A single FX parameter definition exposed to JS.
 #[wasm_bindgen]
 pub struct WasmFxParamDef {
+    /// Nibblized slot index this knob reads and writes.
     #[wasm_bindgen(readonly)]
     pub index: u8,
+    /// Minimum stored value.
     #[wasm_bindgen(readonly)]
     pub min: i32,
+    /// Maximum stored value.
     #[wasm_bindgen(readonly)]
     pub max: i32,
+    /// Default stored value.
     #[wasm_bindgen(readonly, js_name = defaultValue)]
     pub default_value: i32,
-    inner: &'static fx_params::FxParamDef,
+    inner: fx_params::FxParamDef,
 }
 
 #[wasm_bindgen]
 impl WasmFxParamDef {
+    /// Display name.
     #[wasm_bindgen(getter)]
     pub fn name(&self) -> String {
         self.inner.name.to_string()
     }
 
-    /// Format a raw value for display.
+    /// Format a stored value for display.
     #[wasm_bindgen(js_name = formatValue)]
     pub fn format_value(&self, value: i32) -> String {
         self.inner.format_value(value)
     }
+
+    /// Slot of the msec/Hz-vs-note switch, if this parameter has one.
+    #[wasm_bindgen(getter, js_name = syncIndex)]
+    pub fn sync_index(&self) -> Option<u8> {
+        self.inner.sync.map(|s| s.switch_index)
+    }
+
+    /// Switch position labels (`[own slot, note]`); empty without a switch.
+    #[wasm_bindgen(getter, js_name = syncLabels)]
+    pub fn sync_labels(&self) -> Vec<String> {
+        self.inner
+            .sync
+            .map(|s| s.labels.iter().map(|l| l.to_string()).collect())
+            .unwrap_or_default()
+    }
+
+    /// Whether the block's stored `slots` put this parameter in note mode.
+    #[wasm_bindgen(js_name = noteMode)]
+    pub fn note_mode(&self, slots: &[i32]) -> bool {
+        self.inner.note_mode(slots)
+    }
+
+    /// The note-mode view of this parameter (edits the note slot).
+    #[wasm_bindgen(js_name = noteParam)]
+    pub fn note_param(&self) -> Option<WasmFxParamDef> {
+        self.inner.note_param().map(wrap_fx_param)
+    }
 }
 
-fn wrap_fx_params(params: &'static [fx_params::FxParamDef]) -> Vec<WasmFxParamDef> {
-    params
-        .iter()
-        .map(|p| WasmFxParamDef {
-            index: p.index,
-            min: p.min,
-            max: p.max,
-            default_value: p.default_value,
-            inner: p,
-        })
-        .collect()
+fn wrap_fx_param(p: fx_params::FxParamDef) -> WasmFxParamDef {
+    WasmFxParamDef {
+        index: p.index,
+        min: p.min,
+        max: p.max,
+        default_value: p.default_value,
+        inner: p,
+    }
+}
+
+fn wrap_fx_params(params: &[fx_params::FxParamDef]) -> Vec<WasmFxParamDef> {
+    params.iter().cloned().map(wrap_fx_param).collect()
 }
 
 /// Returns chorus parameter definitions for the given type index.
