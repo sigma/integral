@@ -4,6 +4,8 @@
 //! FX type labels, surround options, etc.) so that views and commands
 //! consume a single spec rather than hardcoding device constants.
 
+use crate::params;
+
 /// Static specification of the INTEGRA-7's capabilities.
 ///
 /// Views and commands consume this spec rather than hardcoding device constants.
@@ -31,6 +33,10 @@ pub struct DeviceSpec {
     pub surround_room_types: &'static [&'static str],
     /// Motional Surround room size names.
     pub surround_room_sizes: &'static [&'static str],
+    /// Maximum characters in a tone name.
+    pub tone_name_length: u32,
+    /// Maximum characters in a Studio Set name.
+    pub studio_set_name_length: u32,
 }
 
 /// The INTEGRA-7 device specification with all factory constants.
@@ -50,6 +56,8 @@ pub const INTEGRA7: DeviceSpec = DeviceSpec {
     reverb_output_names: &["A", "B", "C", "D"],
     surround_room_types: &["Room 1", "Room 2", "Hall 1", "Hall 2"],
     surround_room_sizes: &["Small", "Medium", "Large"],
+    tone_name_length: params::TONE_NAME_SIZE.value(),
+    studio_set_name_length: params::STUDIO_SET_NAME_SIZE.value(),
 };
 
 #[cfg(test)]

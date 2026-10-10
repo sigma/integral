@@ -22,6 +22,7 @@
 use std::collections::HashMap;
 
 use crate::address::Address;
+use crate::parse_helpers::encode_ascii_name;
 use crate::sn_synth;
 use crate::state::MixerState;
 use crate::sysex;
@@ -312,6 +313,34 @@ impl DeviceState {
         self.send_dt1(&lsb_addr, &[lsb]);
         let pc_addr = params::part_address(part, part::TONE_PC);
         self.send_dt1(&pc_addr, &[pc]);
+    }
+
+    /// Set a part's Temporary tone name (ASCII, truncated or space-padded
+    /// to the device's 12 characters), e.g. before saving it to a user slot.
+    ///
+    /// Returns `false` and sends nothing if the part's bank MSB doesn't map
+    /// to a known tone type.
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < 16.
+    pub fn rename_tone(&mut self, part: u8, name: &str) -> bool {
+        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
+        let p = &mut self.state.parts[part as usize];
+        let Some(tone_type) = params::tone_type_from_bank_msb(p.tone_bank_msb) else {
+            return false;
+        };
+        let data = encode_ascii_name(name, params::TONE_NAME_SIZE.value() as usize);
+        p.tone_name = stored_name(&data);
+        self.send_dt1(&params::tone_name_address(part, tone_type), &data);
+        true
+    }
+
+    /// Set the Temporary Studio Set name (ASCII, truncated or space-padded
+    /// to the device's 16 characters).
+    pub fn rename_studio_set(&mut self, name: &str) {
+        let data = encode_ascii_name(name, params::STUDIO_SET_NAME_SIZE.value() as usize);
+        self.state.studio_set_name = stored_name(&data);
+        self.send_dt1(&params::STUDIO_SET_NAME, &data);
     }
 
     /// Set the system master level (0–127).
@@ -992,6 +1021,12 @@ impl DeviceState {
     }
 }
 
+/// The name as the device will report it: the encoded bytes, trailing
+/// padding trimmed.
+fn stored_name(encoded: &[u8]) -> String {
+    String::from_utf8_lossy(encoded).trim_end().to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1045,6 +1080,40 @@ mod tests {
         assert_eq!(dev.state().parts[0].tone_bank_msb, 89);
         assert_eq!(dev.state().parts[0].tone_bank_lsb, 64);
         assert_eq!(dev.state().parts[0].tone_pc, 12);
+    }
+
+    #[test]
+    fn rename_tone_writes_padded_name_for_tone_type() {
+        let mut dev = DeviceState::new(0x10);
+        dev.change_part_tone(1, 95, 0, 0); // SN Synth
+        let _ = (dev.drain(0.0), dev.drain(100.0), dev.drain(200.0));
+        assert!(dev.rename_tone(1, "My Pad"));
+        assert_eq!(dev.state().parts[1].tone_name, "My Pad");
+        let addr = params::tone_name_address(1, params::tone_type::SN_SYNTH);
+        assert_eq!(
+            dev.drain(300.0).unwrap(),
+            sysex::build_dt1(0x10, &addr, b"My Pad      ")
+        );
+    }
+
+    #[test]
+    fn rename_tone_unknown_bank_sends_nothing() {
+        let mut dev = DeviceState::new(0x10);
+        dev.change_part_tone(0, 0, 0, 0);
+        let _ = (dev.drain(0.0), dev.drain(100.0), dev.drain(200.0));
+        assert!(!dev.rename_tone(0, "X"));
+        assert!(dev.drain(300.0).is_none());
+    }
+
+    #[test]
+    fn rename_studio_set_writes_sixteen_chars() {
+        let mut dev = DeviceState::new(0x10);
+        dev.rename_studio_set("A Much Too Long Studio Set Name");
+        assert_eq!(dev.state().studio_set_name, "A Much Too Long");
+        assert_eq!(
+            dev.drain(0.0).unwrap(),
+            sysex::build_dt1(0x10, &params::STUDIO_SET_NAME, b"A Much Too Long ")
+        );
     }
 
     #[test]

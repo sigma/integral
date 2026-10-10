@@ -96,6 +96,14 @@ impl DataSize {
     }
 }
 
+impl DataSize {
+    /// The size as a number (each byte carries 7 bits).
+    pub const fn value(&self) -> u32 {
+        let [a, b, c, d] = self.0;
+        (a as u32) << 21 | (b as u32) << 14 | (c as u32) << 7 | d as u32
+    }
+}
+
 impl fmt::Debug for DataSize {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -151,6 +159,13 @@ pub const fn studio_set_common(param_offset: [u8; 2]) -> Address {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn data_size_value_is_seven_bit() {
+        assert_eq!(DataSize::new(0x00, 0x00, 0x00, 0x0C).value(), 12);
+        assert_eq!(DataSize::new(0x00, 0x00, 0x01, 0x00).value(), 128);
+        assert_eq!(DataSize::new(0x00, 0x00, 0x7F, 0x7F).value(), 16383);
+    }
 
     #[test]
     fn basic_offset() {
