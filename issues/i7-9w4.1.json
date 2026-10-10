@@ -6,6 +6,8 @@
     "i7-2y8.13"
   ],
   "blocks": [],
+  "closed_at": "2026-10-10T06:56:30Z",
+  "close_reason": "migrated to https://github.com/sigma/integral/issues/9",
   "created": "2026-04-12T06:13:06Z",
   "description": "Once SVD spec tables exist for these chunk types, update svd-list to extract category from them (currently shows null/—).",
   "id": "i7-9w4.1",
@@ -18,8 +20,8 @@
     }
   ],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "svd-list: add category extraction for PCM Synth, PCM Drum Kit, SN Drum Kit",
   "type": "task",
-  "updated_at": "2026-10-10T06:56:29Z"
+  "updated_at": "2026-10-10T06:56:30Z"
 }
