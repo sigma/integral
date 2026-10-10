@@ -30,10 +30,9 @@ lint-css:
     cd web && npx stylelint "src/**/*.css"
     cd web && npx stylelint --config ../crates/integral-vst/.stylelintrc.json "../crates/integral-vst/src/**/*.css"
 
-# build all crates (native); integral-app refuses macOS debug builds (#10)
+# build all crates (native)
 build:
-    cargo build --workspace --exclude integral-vst
-    cargo build -p integral-vst --lib
+    cargo build --workspace
 
 # build WASM targets (check only)
 build-wasm:

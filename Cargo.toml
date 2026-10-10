@@ -11,3 +11,8 @@ members = [
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+
+# Upstream null-window fix (RustAudio/baseview#204) for the macOS standalone
+# crash (#10). The www host makes Cargo treat this as a different source.
+[patch."https://github.com/RustAudio/baseview.git"]
+baseview = { git = "https://www.github.com/RustAudio/baseview", rev = "3e12973" }
