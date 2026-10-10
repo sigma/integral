@@ -2,6 +2,7 @@ import { useRef, useLayoutEffect, useState, useCallback } from "react";
 import { EqKnob } from "./EqKnob";
 import type { EqState } from "./types";
 import css from "./EqSection.module.css";
+import box from "./PanelBox.module.css";
 
 const LOW_FREQ_VALUES = ["200", "400"];
 const MID_FREQ_VALUES = [
@@ -121,10 +122,10 @@ export function EqSection({ eq, onToggleSwitch, onParam, showSwitch = true, para
   }, [measure]);
 
   return (
-    <div className={css.section} style={style}>
+    <div className={box.box} style={style}>
       {showSwitch && (
         <button
-          className={`${css.switchButton} ${eq.enabled ? css.switchOn : css.switchOff}`}
+          className={`${box.switchButton} ${eq.enabled ? box.switchOn : box.switchOff}`}
           onClick={onToggleSwitch}
         >
           {eq.enabled ? "EQ ON" : "EQ OFF"}

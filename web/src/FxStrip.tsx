@@ -5,6 +5,7 @@ import type { FxParamDef } from "./fxParams";
 import { stripIcon } from "./categoryIcons";
 import css from "./ChannelStrip.module.css";
 import fxCss from "./FxStrip.module.css";
+import box from "./PanelBox.module.css";
 
 interface Props {
   label: string;
@@ -33,15 +34,32 @@ export function FxStrip({
     <div className={`${css.strip} ${fxCss.override}`}>
       <div className={css.partNumber}>{label}</div>
 
-      <div className={fxCss.controls}>
+      <div className={`${box.box} ${fxCss.fill}`}>
         <button
-          className={`${fxCss.switchButton} ${fx.enabled ? fxCss.switchOn : fxCss.switchOff}`}
+          className={`${box.switchButton} ${fx.enabled ? box.switchOn : box.switchOff}`}
           onClick={onToggleSwitch}
         >
-          {fx.enabled ? "ON" : "OFF"}
+          {fx.enabled ? "FX ON" : "FX OFF"}
         </button>
 
-        <div className={fxCss.row}>
+        {currentParamDefs.length > 0 && (
+          <div className={fxCss.knobs}>
+            {currentParamDefs.map((def) => (
+              <EqKnob
+                key={def.index}
+                label={def.name}
+                value={fx.params[def.index] ?? def.defaultValue}
+                min={def.min}
+                max={def.max}
+                defaultValue={def.defaultValue}
+                onChange={(v) => onNibParam(def.index, v)}
+                formatValue={def.format}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className={`${fxCss.row} ${fxCss.pinned}`}>
           <span className={fxCss.label}>Type</span>
           <select
             className={fxCss.select}
@@ -66,23 +84,6 @@ export function FxStrip({
             ))}
           </select>
         </div>
-
-        {currentParamDefs.length > 0 && (
-          <div className={fxCss.paramsArea}>
-            {currentParamDefs.map((def) => (
-              <EqKnob
-                key={def.index}
-                label={def.name}
-                value={fx.params[def.index] ?? def.defaultValue}
-                min={def.min}
-                max={def.max}
-                defaultValue={def.defaultValue}
-                onChange={(v) => onNibParam(def.index, v)}
-                formatValue={def.format}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
       <div className={css.faderArea}>
