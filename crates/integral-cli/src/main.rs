@@ -110,6 +110,10 @@ enum Cli {
     Monitor {
         #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
         port: String,
+        /// Also forward traffic both ways between `--port` and this port,
+        /// logging each direction (to sniff another app talking to the device).
+        #[arg(long)]
+        bridge: Option<String>,
     },
     /// List the contents of an SVD backup file.
     SvdList {
@@ -262,7 +266,7 @@ fn main() -> Result<()> {
             let did = resolve_device_id(&port, device_id)?;
             commands::raw::raw_send(&port, Duration::from_secs_f64(timeout), did, &addr, &data)
         }
-        Cli::Monitor { port } => commands::monitor::monitor(&port),
+        Cli::Monitor { port, bridge } => commands::monitor::monitor(&port, bridge.as_deref()),
         Cli::SvdList {
             file,
             r#type,
