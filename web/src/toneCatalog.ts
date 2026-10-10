@@ -35,6 +35,8 @@ export class ToneCatalog {
   private complete = new Set<string>();
   /** Banks currently being fetched. */
   private fetching = new Set<string>();
+  /** Banks to fetch again once their in-progress fetch completes. */
+  private staleWhileFetching = new Set<string>();
   /** Secondary index: category ID → entries across all banks. */
   private categoryIndex = new Map<number, ToneEntry[]>();
   /** Whether all factory banks have been loaded into the category index. */
@@ -104,6 +106,25 @@ export class ToneCatalog {
   }
 
   /**
+   * Drop a bank's cached entries and fetch it again, e.g. after saving
+   * into a user slot. If a fetch is in progress, refetch when it ends.
+   */
+  refresh(bank: ToneBank): void {
+    const key = bankKey(bank);
+    if (this.fetching.has(key)) {
+      this.staleWhileFetching.add(key);
+      return;
+    }
+    const stale = new Set(this.cache.get(key)?.values());
+    for (const [id, entries] of this.categoryIndex) {
+      this.categoryIndex.set(id, entries.filter((e) => !stale.has(e)));
+    }
+    this.cache.delete(key);
+    this.complete.delete(key);
+    this.fetch(bank);
+  }
+
+  /**
    * Load all factory preset banks into the cache. This is needed for
    * category-centric browsing which spans all banks. Idempotent.
    */
@@ -170,6 +191,7 @@ export class ToneCatalog {
     this.fetching.delete(key);
     this.complete.add(key);
     this.notify(key);
+    if (this.staleWhileFetching.delete(key)) this.refresh(bank);
   }
 
   /** Insert an entry into the bank's bucket. Returns true if new. */

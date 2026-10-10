@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { TONE_BANK_GROUPS, type ToneBank } from "./toneBanks";
 import type { ToneCatalog, ToneEntry } from "./toneCatalog";
 import { CATEGORIES, CATEGORY_IDS, categoryAbbrev } from "./categories";
+import { useBankEntries } from "./useBankEntries";
 import css from "./ToneSelector.module.css";
 
 type BrowseMode = "bank" | "category";
@@ -52,49 +53,31 @@ export function ToneSelector({
     initialBank,
   );
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const [tones, setTones] = useState<DisplayEntry[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  // Subscribe to catalog updates for the selected bank (bank mode).
-  useEffect(() => {
-    if (mode !== "bank" || !selectedBank) return;
-
-    const updateFromCatalog = (entries: ToneEntry[]) => {
-      setTones(entries.map((e, i) => ({ ...e, globalIndex: i + 1 })));
-    };
-
-    // Initialize from cache.
-    const cached = catalog.get(selectedBank);
-    if (cached.length > 0) {
-      updateFromCatalog(cached);
-    }
-
-    setLoading(!catalog.isComplete(selectedBank));
-
-    // Subscribe to future updates.
-    const unsub = catalog.subscribe(selectedBank, (entries) => {
-      updateFromCatalog(entries);
-      setLoading(!catalog.isComplete(selectedBank));
-    });
-
-    // Trigger fetch (no-op if already complete or in progress).
-    catalog.fetch(selectedBank);
-
-    return unsub;
-  }, [mode, selectedBank, catalog]);
+  const bankTones = useBankEntries(
+    catalog,
+    mode === "bank" ? selectedBank : null,
+  );
+  const [categoryTones, setCategoryTones] = useState<ToneEntry[]>([]);
 
   // Load category tones when category is selected.
   useEffect(() => {
     if (mode !== "category" || selectedCategory === null) {
-      if (mode === "category") setTones([]);
+      setCategoryTones([]);
       return;
     }
-
     catalog.ensureAllFactoryLoaded();
-    const entries = catalog.getByCategory(selectedCategory);
-    setTones(entries.map((e, i) => ({ ...e, globalIndex: i + 1 })));
-    setLoading(false);
+    setCategoryTones(catalog.getByCategory(selectedCategory));
   }, [mode, selectedCategory, catalog]);
+
+  const loading = mode === "bank" && bankTones.loading;
+  const tones: DisplayEntry[] = useMemo(
+    () =>
+      (mode === "bank" ? bankTones.entries : categoryTones).map((e, i) => ({
+        ...e,
+        globalIndex: i + 1,
+      })),
+    [mode, bankTones.entries, categoryTones],
+  );
 
   // Scroll to active tone when list loads
   const toneListRef = useRef<HTMLDivElement>(null);
@@ -125,7 +108,6 @@ export function ToneSelector({
 
   const handleModeSwitch = useCallback((newMode: BrowseMode) => {
     setMode(newMode);
-    setTones([]);
     if (newMode === "category") {
       setSelectedCategory(null);
     }

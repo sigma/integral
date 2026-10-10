@@ -58,3 +58,13 @@
   border-color: #5a9a5a;
   box-shadow: 0 0 6px rgb(100 255 100 / 30%);
 }
+
+.saveButton {
+  composes: previewButton;
+  margin-left: 6px;
+}
+
+.saveButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

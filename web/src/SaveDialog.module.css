@@ -1,0 +1,71 @@
+.overlay {
+  composes: overlay from "./ToneSelector.module.css";
+}
+
+.modal {
+  composes: modal from "./ToneSelector.module.css";
+  width: 420px;
+}
+
+.header {
+  composes: header from "./ToneSelector.module.css";
+}
+
+.title {
+  composes: title from "./ToneSelector.module.css";
+}
+
+.closeButton {
+  composes: closeButton from "./ToneSelector.module.css";
+}
+
+.slotList {
+  composes: toneList from "./ToneSelector.module.css";
+}
+
+.slot {
+  composes: toneItem from "./ToneSelector.module.css";
+}
+
+.slotActive {
+  composes: toneActive from "./ToneSelector.module.css";
+}
+
+.slotNumber {
+  composes: toneNumber from "./ToneSelector.module.css";
+}
+
+.slotName {
+  composes: toneName from "./ToneSelector.module.css";
+}
+
+.loading {
+  composes: loading from "./ToneSelector.module.css";
+}
+
+.footer {
+  composes: modeBar from "./ToneSelector.module.css";
+  align-items: center;
+  padding-left: 12px;
+}
+
+.status {
+  flex: 1;
+  font-size: 12px;
+  color: #c0c0e0;
+}
+
+.error {
+  color: #e06c6c;
+}
+
+.footerButton {
+  composes: modeButton from "./ToneSelector.module.css";
+  flex: 0 0 auto;
+  padding: 10px 16px;
+}
+
+.footerButton:disabled {
+  color: #555;
+  cursor: default;
+}

@@ -8,6 +8,11 @@
  * Reference: docs/midi/03-bank-select-tables.md
  */
 
+import { user_tone_bank } from "../pkg/integral_wasm.js";
+
+/** Program numbers per LSB (MIDI Program Change range). */
+const TONES_PER_LSB = 128;
+
 export interface ToneBank {
   label: string;
   msb: number;
@@ -77,3 +82,21 @@ export const TONE_BANK_GROUPS: ToneBankGroup[] = [
     ],
   },
 ];
+
+/** Slot number as shown on the device (e.g. "0129") for a tone in `bank`. */
+export function toneSlotNumber(bank: ToneBank, lsb: number, pc: number): string {
+  const index = bank.lsbs.indexOf(lsb) * TONES_PER_LSB + pc;
+  return String(index + 1).padStart(4, "0");
+}
+
+/**
+ * The user bank a tone selected by `msb` saves into (from the core device
+ * spec), or null for unknown banks.
+ */
+export function userToneBank(msb: number): ToneBank | null {
+  const bank = user_tone_bank(msb);
+  if (!bank) return null;
+  const result = { label: bank.label, msb: bank.msb, lsbs: Array.from(bank.lsbs) };
+  bank.free();
+  return result;
+}

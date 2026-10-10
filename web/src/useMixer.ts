@@ -80,7 +80,12 @@ export interface UseMixerResult {
   setCompEqParam: (unit: number, paramOffset: number, value: number) => void;
   selectPart: (part: number) => void;
   switchStudioSet: (pc: number) => void;
-  loadStudioSetNames: () => void;
+  /**
+   * Load Studio Set names once; `force` re-reads them (e.g. after a save).
+   * A load that returns nothing keeps the previous names and is retried
+   * on the next call.
+   */
+  loadStudioSetNames: (force?: boolean) => Promise<void>;
   preview: () => void;
 }
 
@@ -300,10 +305,14 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   // -----------------------------------------------------------------------
 
   const catalogLoaded = useRef(false);
-  const loadStudioSetNames = useCallback(async () => {
-    if (!service || catalogLoaded.current) return;
+  const loadStudioSetNames = useCallback(async (force = false) => {
+    if (!service || (catalogLoaded.current && !force)) return;
     catalogLoaded.current = true;
     const names = await service.requestStudioSetNames();
+    if (names.size === 0) {
+      catalogLoaded.current = false;
+      return;
+    }
     setState((prev) => ({ ...prev, studioSetNames: names }));
   }, [service]);
 

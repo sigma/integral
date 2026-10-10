@@ -39,8 +39,12 @@ import {
   build_studio_set_catalog_request,
   build_tone_catalog_request,
   parse_catalog_entry,
+  build_tone_write_request,
+  build_studio_set_write_request,
+  parse_write_reply,
   decode_nib_params,
   WasmDeviceState,
+  type WriteReply,
 } from "../pkg/integral_wasm.js";
 import type { MidiPortPair } from "./midi";
 import { DRUMS_CATEGORY } from "./categories";
@@ -51,6 +55,9 @@ import { DRUMS_CATEGORY } from "./categories";
 
 /** SysEx start byte (0xF0). */
 const SYSEX_START = 0xf0;
+
+/** How long to wait for the "write finished" reply (device takes 2–3 s). */
+const WRITE_TIMEOUT_MS = 10000;
 
 /** Note On status nibble (0x90). */
 const NOTE_ON = 0x90;
@@ -89,6 +96,8 @@ export class IntegraService {
   /** Rust-side state machine (queue, echo suppression, state). */
   readonly device: WasmDeviceState;
   private dt1Listeners: Set<Dt1Callback> = new Set();
+  /** Whether a user-memory write is awaiting its "finished" reply. */
+  private writing = false;
   private pendingRequests: PendingRequest[] = [];
   private boundHandler: (event: MIDIMessageEvent) => void;
   private drainTimer: ReturnType<typeof setInterval>;
@@ -705,6 +714,60 @@ export class IntegraService {
     const page1 = await this.requestToneCatalogPage(msb, lsb, 0, 64);
     const page2 = await this.requestToneCatalogPage(msb, lsb, 64, 64);
     return [...page1, ...page2];
+  }
+
+  // -----------------------------------------------------------------------
+  // User-memory writes (undocumented — docs/midi/99-undocumented.md §4)
+  // -----------------------------------------------------------------------
+
+  /** Save a part's Temporary tone into the user slot (msb, lsb, pc). */
+  saveToneToUser(part: number, msb: number, lsb: number, pc: number): Promise<void> {
+    return this.writeToUser(
+      new Uint8Array(build_tone_write_request(this.deviceId, part, msb, lsb, pc)),
+      (r) => r.part === part && r.msb === msb && r.lsb === lsb && r.pc === pc,
+    );
+  }
+
+  /** Save the Temporary Studio Set into user slot `pc` (0-indexed). */
+  saveStudioSetToUser(pc: number): Promise<void> {
+    return this.writeToUser(
+      new Uint8Array(build_studio_set_write_request(this.deviceId, pc)),
+      (r) => r.part === undefined && r.pc === pc,
+    );
+  }
+
+  /**
+   * Send a write request and resolve once the device reports the write
+   * `matches` describes finished (2–3 s). Rejects if another write is
+   * still in flight: the device handles one at a time.
+   */
+  private writeToUser(
+    msg: Uint8Array,
+    matches: (reply: WriteReply) => boolean,
+  ): Promise<void> {
+    if (this.writing) {
+      return Promise.reject(new Error("Another save is still in progress"));
+    }
+    this.writing = true;
+    return new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        unsubscribe();
+        reject(new Error("No reply from the INTEGRA-7 while saving"));
+      }, WRITE_TIMEOUT_MS);
+      const unsubscribe = this.onDt1((addr, data) => {
+        const reply = parse_write_reply(addr, data);
+        if (!reply) return;
+        const done = reply.finished && matches(reply);
+        reply.free();
+        if (!done) return;
+        clearTimeout(timer);
+        unsubscribe();
+        resolve();
+      });
+      this.device.sendRaw("write", msg);
+    }).finally(() => {
+      this.writing = false;
+    });
   }
 
   // -----------------------------------------------------------------------
