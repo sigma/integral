@@ -238,33 +238,100 @@ User Studio Sets (indices 16–63) default to "INIT STUDIO".
 
 ---
 
-## 2. User Storage Address Space
+## 2. User Memory Address Space
 
 ### Purpose
 
-Direct read/write access to user-stored Studio Set data, independent of the
-Temporary area.
+Direct read access to every User slot, without loading it into a Temporary
+area. Probed on a device on 2026-10-10.
 
 ### Address Map
 
-| Base Address   | Description                            |
-|----------------|----------------------------------------|
-| `10 00 00 00`  | User Studio Set 1 (full structure)     |
-| `20 NN 00 00`  | User Studio Set by index (NN = 0–63)  |
+Each User slot holds exactly the layout of the matching Temporary block
+(`docs/midi/04-address-map.md`), rebased at the slot address. Addresses are
+7-bit (`aa bb cc dd`).
 
-The address `20 NN 00 00` (byte 1 = set index 0–63) provides access to
-user-stored Studio Set data. On a factory-default device, all 64 slots
-return "INIT LIVE" as the name — this is the user storage default, distinct
-from the factory preset names returned by the catalog query.
+| Base address | Slot index | Contents | Slots |
+|---|---|---|---|
+| `2F NN 00 00` | NN = 0–63 | User Studio Set NN+1 | 64 |
+| `(30+B) NN 00 00` | B = 0–1, NN = 0–127 | User PCM Synth Tone B·128+NN+1 | 256 |
+| `(40+B) (k·10h) 00 00` | B = 0–3, k = 0–7 | User PCM Drum Kit B·8+k+1 | 32 |
+| `(50+B) NN 00 00` | B = 0–3, NN = 0–127 | User SN Synth Tone B·128+NN+1 | 512 |
+| `(60+B) NN 00 00` | B = 0–1, NN = 0–127 | User SN Acoustic Tone B·128+NN+1 | 256 |
+| `6E NN 00 00` | NN = 0–63 | User SN Drum Kit NN+1 | 64 |
 
-The address `10 00 00 00` contains the full Studio Set structure for user
-slot 0, mirroring the Temporary Studio Set layout (Common at `00 00`,
-Chorus at `00 04 00`, Parts at `00 20 00`–`00 2F 00`, etc.).
+The first byte adds `B` to the type's base: e.g. User SN Synth Tone 130 is at
+`51 01 00 00`. For PCM Synth, SN Synth and SN Acoustic tones, B is the User
+bank's Bank Select LSB. PCM Drum Kits use LSB 0 only, so their B is not the LSB.
 
-**Note:** Factory preset names ("Integra Preview", etc.) are NOT accessible
-via user storage addresses. They are only available via:
-1. The catalog query at `0F 00 03 02` (Section 1 above)
-2. Reading the Temporary Studio Set at `18 00 00 00` after loading the preset
+A PCM Drum Kit spans two address units (`00 00 00`–`02 00 00`, Common 2 at
+`02 00 00`), so kits sit 16 units apart.
+
+Reads past the last slot of a block (e.g. `2F 40 00 00`) get no reply.
+
+### Evidence
+
+- **Names.** User Studio Set names at `2F NN 00 00` match the catalog query
+  for slots 1–64 (`Integra Preview`, `Full Orch Set`, …). User SN Synth Tone
+  names at `50 NN 00 00` match the sound list of the pack loaded on the device
+  (*INTEGRA-7 Synth Legends*), 40 of 40.
+- **Studio Set.** Every block of User Studio Set 5 (Common, Chorus, Reverb,
+  Motional Surround, Master EQ, MIDI, Parts, Part EQ) is byte-identical to the
+  Temporary Studio Set when that set is loaded. The only difference was an
+  unsaved tone change on Part 1.
+- **SN Synth Tone.** User slots 1, 2 and 17 are byte-identical, block by block
+  (Common, MFX, Partials 1–3), to the SVD entries of the same tones decoded with
+  the SN-S packing table (`docs/svd/03-sn-synth.md`).
+- **Sub-blocks.** Every other type answers at the offsets of its Temporary
+  layout: PCM Synth Common, MFX, PMT, Partials 1–4 and Common 2; SN Acoustic
+  Common and MFX; SN Drum Common, MFX, Comp/EQ and Notes 27–88; PCM Drum
+  Common, MFX, Comp/EQ, Partials 21–108 and Common 2.
+
+### Read Notes
+
+- An RQ1 cannot start or end inside a multi-byte (nibblized) parameter: a
+  1-byte read at an SN Drum Note (whose first parameter is 4 nibbles) gets
+  no reply.
+- A large read comes back as **several DT1 packets**, split at parameter
+  boundaries (a 64-byte read of SN Synth MFX returns 61 bytes, then the rest).
+  Readers must concatenate packets by address.
+- The SysEx size field is 7-bit: SN Synth MFX is `00 00 01 11` (145 bytes).
+
+### Not User Memory
+
+These answer but hold INIT data, whatever the slot index:
+
+| Address | Reads as |
+|---|---|
+| `10 00 00 00` | `INIT LIVE` (a Studio Set) |
+| `11 00 00 00` | `INIT TONE` |
+| `20`–`27 NN 00 00` | `INIT LIVE` for every NN |
+
+An earlier version of this section took `20 NN 00 00` for user Studio Set
+storage. That was wrong: it reads `INIT LIVE` for all 128 values of NN, while
+the catalog shows real User Studio Set names.
+
+### Writes Do Not Persist
+
+A DT1 to a User slot address **does** change what that address reads back,
+and the catalog query (Section 1) lists the new name. But the change lives only
+in RAM: after a power cycle the slot reads back its stored content.
+
+Tested on the last User slot of every type, renaming each one by DT1: User
+Studio Set 64 and the last User slot of each tone and kit type.
+
+So:
+
+- To **store** into a User slot, load the data into a Temporary area and send
+  the write request (Section 4).
+- Until the next power cycle, a direct read (and the catalog) can return data
+  that was never stored.
+
+### Open
+
+- What the `10`, `11` and `20`–`27` areas are.
+- Whether anything other than the write request (Section 4) commits a direct
+  RAM change to storage.
 
 ---
 
