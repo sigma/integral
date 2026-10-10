@@ -6,7 +6,7 @@
 //! to each call.
 
 use integral_core::device_spec::INTEGRA7;
-use integral_core::sequencer::{Pattern, Sequencer, TimedMidi};
+use integral_core::sequencer::{MAX_STEPS, Pattern, Sequencer, TimedMidi};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
@@ -29,6 +29,28 @@ fn to_js(events: Vec<TimedMidi>) -> Result<JsValue, JsError> {
         })
         .collect();
     serde_wasm_bindgen::to_value(&events).map_err(|e| JsError::new(&e.to_string()))
+}
+
+/// One note, as `{ pitch, velocity, length }`.
+#[derive(Serialize)]
+struct NoteJs {
+    pitch: u8,
+    velocity: u8,
+    length: u8,
+}
+
+/// The notes starting on one Step.
+#[derive(Serialize)]
+struct StepJs {
+    step: u8,
+    notes: Vec<NoteJs>,
+}
+
+/// One Track: its length and its non-empty Steps.
+#[derive(Serialize)]
+struct TrackJs {
+    length: u8,
+    steps: Vec<StepJs>,
 }
 
 /// The app-level Sequencer: the Pattern plus its transport.
@@ -79,6 +101,12 @@ impl WasmSequencer {
         serde_wasm_bindgen::to_value(&Sequencer::panic()).map_err(|e| JsError::new(&e.to_string()))
     }
 
+    /// Maximum Steps in a Track.
+    #[wasm_bindgen(js_name = maxSteps)]
+    pub fn max_steps() -> u8 {
+        MAX_STEPS
+    }
+
     /// Whether the transport is playing.
     #[wasm_bindgen(js_name = isPlaying)]
     pub fn is_playing(&self) -> bool {
@@ -94,6 +122,56 @@ impl WasmSequencer {
     #[wasm_bindgen(js_name = setBpm)]
     pub fn set_bpm(&mut self, bpm: u16) {
         self.inner.set_bpm(bpm);
+    }
+
+    /// The Pattern as `{ length, steps: { step, notes }[] }[]`, one per Track.
+    pub fn tracks(&self) -> Result<JsValue, JsError> {
+        let tracks: Vec<TrackJs> = self
+            .inner
+            .pattern()
+            .tracks()
+            .iter()
+            .map(|t| TrackJs {
+                length: t.length(),
+                steps: t
+                    .steps()
+                    .map(|(step, notes)| StepJs {
+                        step,
+                        notes: notes
+                            .iter()
+                            .map(|n| NoteJs {
+                                pitch: n.pitch,
+                                velocity: n.velocity,
+                                length: n.length,
+                            })
+                            .collect(),
+                    })
+                    .collect(),
+            })
+            .collect();
+        serde_wasm_bindgen::to_value(&tracks).map_err(|e| JsError::new(&e.to_string()))
+    }
+
+    /// The global Step sounding at `now_ms`, or `undefined` when stopped.
+    #[wasm_bindgen(js_name = stepAt)]
+    pub fn step_at(&self, now_ms: f64) -> Option<f64> {
+        self.inner.step_at(now_ms).map(|s| s as f64)
+    }
+
+    /// Set a Track's length in Steps (clamped to 1–64).
+    #[wasm_bindgen(js_name = setTrackLength)]
+    pub fn set_track_length(&mut self, track: usize, length: u8) {
+        if let Some(t) = self.inner.pattern_mut().track_mut(track) {
+            t.set_length(length);
+        }
+    }
+
+    /// Set the velocity of every note in the chord starting on `step`.
+    #[wasm_bindgen(js_name = setChordVelocity)]
+    pub fn set_chord_velocity(&mut self, track: usize, step: u8, velocity: u8) {
+        if let Some(t) = self.inner.pattern_mut().track_mut(track) {
+            t.set_velocity(step, velocity);
+        }
     }
 
     /// The Pattern as Standard MIDI File bytes.

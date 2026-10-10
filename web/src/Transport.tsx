@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useTransport, type SequencerEngine } from "./sequencer";
+import { NumberInput } from "./NumberInput";
+import { useSequencer, type SequencerEngine } from "./sequencer";
 import css from "./Transport.module.css";
 
 const MIN_BPM = 20;
@@ -11,18 +11,7 @@ interface Props {
 
 /** Sequencer transport for the tab bar: Play/Stop, tempo and Panic. */
 export function Transport({ engine }: Props) {
-  const { playing, bpm } = useTransport(engine);
-  // Local text so typing "1" on the way to "120" doesn't clamp mid-edit.
-  const [draft, setDraft] = useState<string | null>(null);
-
-  const commit = () => {
-    if (draft === null) return;
-    const value = Number.parseInt(draft, 10);
-    if (Number.isFinite(value)) {
-      engine.setBpm(Math.min(MAX_BPM, Math.max(MIN_BPM, value)));
-    }
-    setDraft(null);
-  };
+  const { playing, bpm } = useSequencer(engine);
 
   return (
     <div className={css.transport}>
@@ -33,17 +22,8 @@ export function Transport({ engine }: Props) {
       >
         {playing ? "■" : "▶"}
       </button>
-      <label className={css.bpm}>
-        <input
-          className={css.bpmInput}
-          type="number"
-          min={MIN_BPM}
-          max={MAX_BPM}
-          value={draft ?? bpm}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => e.key === "Enter" && commit()}
-        />
+      <label className={css.field}>
+        <NumberInput className={css.number} value={bpm} min={MIN_BPM} max={MAX_BPM} onCommit={(v) => engine.setBpm(v)} />
         BPM
       </label>
       <button className={css.button} onClick={() => engine.panic()} title="All notes off on every channel">

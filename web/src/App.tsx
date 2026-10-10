@@ -26,11 +26,12 @@ import { ToneEditorPage } from "./ToneEditorPage";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { Transport } from "./Transport";
 import { KeyboardDrawer } from "./KeyboardDrawer";
+import { SequencerPage } from "./SequencerPage";
 import { useKeyboard } from "./useKeyboard";
 import { sequencerEngine, type SequencerEngine } from "./sequencer";
 import css from "./App.module.css";
 
-type PageTab = "mixer" | "surround" | "toneEdit";
+type PageTab = "mixer" | "surround" | "toneEdit" | "sequencer";
 
 type DeviceStatus =
   | { step: "idle" }
@@ -202,6 +203,14 @@ export function App() {
             >
               Tone Edit
             </button>
+            {sequencer && (
+              <button
+                className={`${css.tab} ${activeTab === "sequencer" ? css.tabActive : ""}`}
+                onClick={() => setActiveTab("sequencer")}
+              >
+                Sequencer
+              </button>
+            )}
             {sequencer && <Transport engine={sequencer} />}
           </div>
           <TopBar mixer={mixer} service={service} />
@@ -221,7 +230,13 @@ export function App() {
             <ToneEditorPage mixer={mixer} service={service} onBack={() => setActiveTab("mixer")} />
           </ErrorBoundary>
         )}
-        <KeyboardDrawer keyboard={keyboard} />
+        {activeTab === "sequencer" && sequencer ? (
+          <ErrorBoundary section="Sequencer">
+            <SequencerPage engine={sequencer} mixer={mixer} keyboard={keyboard} />
+          </ErrorBoundary>
+        ) : (
+          <KeyboardDrawer keyboard={keyboard} />
+        )}
       </div>
     );
   }

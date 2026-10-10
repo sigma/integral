@@ -28,6 +28,13 @@ const KEY_MAP: Record<string, number> = {
   k: 12, // C (next octave)
 };
 
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+/** Display name of a MIDI note, e.g. 60 → "C4". */
+export function noteName(note: number): string {
+  return `${NOTE_NAMES[note % 12]}${Math.floor(note / 12) - 1}`;
+}
+
 export const MIN_OCTAVE = 0;
 export const MAX_OCTAVE = 9;
 const DEFAULT_OCTAVE = 4;

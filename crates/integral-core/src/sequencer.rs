@@ -99,6 +99,13 @@ impl Track {
         }
     }
 
+    /// Set the velocity of every note starting on `step`, clamped to 1–127.
+    pub fn set_velocity(&mut self, step: u8, velocity: u8) {
+        for note in self.steps.get_mut(&step).into_iter().flatten() {
+            note.velocity = velocity.clamp(1, 127);
+        }
+    }
+
     /// Every non-empty Step with its notes, in Step order.
     pub fn steps(&self) -> impl Iterator<Item = (u8, &[Note])> {
         self.steps.iter().map(|(s, n)| (*s, n.as_slice()))
@@ -225,6 +232,17 @@ impl Sequencer {
                 next_step: 0,
             });
         }
+    }
+
+    /// The global Step sounding at `now_ms`, or `None` when stopped or
+    /// before Step 0. Track N is at this Step modulo its length.
+    pub fn step_at(&self, now_ms: f64) -> Option<u64> {
+        let clock = self.clock?;
+        let offset = ((now_ms - clock.anchor_ms) / self.pattern.step_ms()).floor();
+        if offset < 0.0 && clock.anchor_step == 0 {
+            return None;
+        }
+        Some((clock.anchor_step as f64 + offset).max(0.0) as u64)
     }
 
     /// Change the tempo. While playing, Steps already emitted keep their
@@ -556,5 +574,7 @@ mod tests {
         seq.set_bpm(60);
         let on = ons(&seq.due(&st, STEP, 2.0 * 250.0));
         assert_eq!(on, vec![(2.0 * STEP, 0, 60), (2.0 * STEP + 250.0, 0, 60)]);
+        assert_eq!(seq.step_at(2.0 * STEP - 1.0), Some(1));
+        assert_eq!(seq.step_at(2.0 * STEP + 251.0), Some(3));
     }
 }

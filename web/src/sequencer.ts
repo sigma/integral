@@ -30,10 +30,29 @@ interface TimedMidi {
   bytes: number[];
 }
 
-/** Transport state rendered by the UI. */
-export interface TransportState {
+export interface NoteView {
+  pitch: number;
+  velocity: number;
+  length: number;
+}
+
+export interface StepView {
+  step: number;
+  notes: NoteView[];
+}
+
+export interface TrackView {
+  length: number;
+  steps: StepView[];
+}
+
+/** Everything the UI renders, read from Rust after each change. */
+export interface SequencerView {
   playing: boolean;
   bpm: number;
+  /** Cursor Step; its Track is the selected Part's Track. */
+  cursor: number;
+  tracks: TrackView[];
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -50,7 +69,8 @@ export class SequencerEngine {
   private worker: Worker;
   private releaseLock: (() => void) | null = null;
   private listeners = new Set<() => void>();
-  private snapshot: TransportState;
+  private cursor = 0;
+  private snapshot: SequencerView;
 
   constructor() {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -61,7 +81,7 @@ export class SequencerEngine {
         console.warn("[sequencer] ignoring saved pattern:", e);
       }
     }
-    this.snapshot = this.readTransport();
+    this.snapshot = this.read();
     const url = URL.createObjectURL(new Blob([TICK_WORKER], { type: "text/javascript" }));
     this.worker = new Worker(url);
     this.worker.onmessage = () => this.tick();
@@ -78,7 +98,24 @@ export class SequencerEngine {
     return () => this.listeners.delete(listener);
   };
 
-  getSnapshot = (): TransportState => this.snapshot;
+  getSnapshot = (): SequencerView => this.snapshot;
+
+  /** The global Step sounding now, or undefined when stopped. */
+  playStep(): number | undefined {
+    return this.seq.stepAt(performance.now());
+  }
+
+  setCursor(step: number): void {
+    this.cursor = step;
+    this.changed();
+  }
+
+  /** Apply a Pattern edit, persist it and re-render. */
+  edit(apply: (seq: WasmSequencer) => void): void {
+    apply(this.seq);
+    this.save();
+    this.changed();
+  }
 
   play(): void {
     if (this.seq.isPlaying()) return;
@@ -113,13 +150,10 @@ export class SequencerEngine {
   }
 
   setBpm(bpm: number): void {
-    this.seq.setBpm(bpm);
-    this.save();
-    this.changed();
+    this.edit((seq) => seq.setBpm(bpm));
   }
 
-  /** Persist the Pattern to `localStorage`. Call after every edit. */
-  save(): void {
+  private save(): void {
     if (!this.service) return;
     localStorage.setItem(STORAGE_KEY, bytesToBase64(this.seq.toSmf(this.service.device)));
   }
@@ -136,12 +170,17 @@ export class SequencerEngine {
     }
   }
 
-  private readTransport(): TransportState {
-    return { playing: this.seq.isPlaying(), bpm: this.seq.bpm() };
+  private read(): SequencerView {
+    return {
+      playing: this.seq.isPlaying(),
+      bpm: this.seq.bpm(),
+      cursor: this.cursor,
+      tracks: this.seq.tracks() as TrackView[],
+    };
   }
 
   private changed(): void {
-    this.snapshot = this.readTransport();
+    this.snapshot = this.read();
     for (const l of this.listeners) l();
   }
 }
@@ -154,7 +193,7 @@ export function sequencerEngine(): SequencerEngine {
   return engine;
 }
 
-/** Subscribe a component to the transport state. */
-export function useTransport(engine: SequencerEngine): TransportState {
+/** Subscribe a component to the Sequencer's state. */
+export function useSequencer(engine: SequencerEngine): SequencerView {
   return useSyncExternalStore(engine.subscribe, engine.getSnapshot);
 }

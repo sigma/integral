@@ -25,7 +25,7 @@
   border-color: #4ae0e0;
 }
 
-.bpm {
+.field {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -34,7 +34,7 @@
   letter-spacing: 1px;
 }
 
-.bpmInput {
+.number {
   width: 48px;
   font-size: 12px;
   color: #e0e0e0;

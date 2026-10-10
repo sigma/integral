@@ -1,0 +1,151 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: #0c0c1a;
+}
+
+/* Fits the window down to a minimum cell width, then scrolls horizontally. */
+.scroller {
+  --label-width: 140px;
+  --min-cell: 14px;
+
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: var(--label-width) 1fr;
+  min-width: calc(var(--label-width) + var(--steps) * var(--min-cell));
+  height: 26px;
+  border-bottom: 1px solid #1c1c30;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  font-size: 11px;
+  color: #b0b0d0;
+  background: transparent;
+  border: none;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.label:hover {
+  color: #fff;
+}
+
+.labelSelected {
+  color: #fff;
+  background: #1e2350;
+}
+
+.partNumber {
+  min-width: 16px;
+  color: #888;
+  font-weight: 600;
+}
+
+.steps {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--steps), 1fr);
+}
+
+.cell {
+  border-left: 1px solid #181828;
+  cursor: pointer;
+}
+
+.cell:nth-child(4n + 1) {
+  border-left-color: #333;
+}
+
+.cell:nth-child(16n + 1) {
+  border-left-color: #555;
+}
+
+.beyond {
+  background: #050510;
+}
+
+.playhead {
+  background: #203020;
+}
+
+.cursor {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+}
+
+/* A chord: starts at its Step, spans its note length, opacity follows velocity. */
+.block {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: calc(100% / var(--steps) * var(--start));
+  width: calc(100% / var(--steps) * var(--span));
+  padding-left: 2px;
+  font-size: 9px;
+  line-height: 20px;
+  color: #fff;
+  background: #4a6cf7;
+  border-radius: 3px;
+  opacity: calc(0.4 + 0.6 * var(--vel));
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.lane {
+  height: 60px;
+  margin-top: 8px;
+  border-top: 1px solid #2a2a4a;
+  border-bottom: none;
+}
+
+.lane .steps {
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.lenControl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  font-size: 9px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.number {
+  width: 48px;
+  font-size: 12px;
+  color: #e0e0e0;
+  background: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  padding: 3px 4px;
+}
+
+.bar {
+  position: absolute;
+  bottom: 0;
+  left: calc(100% / var(--steps) * (var(--start) + 0.15));
+  width: calc(100% / var(--steps) * 0.7);
+  height: calc(100% * var(--vel));
+  background: #4a6cf7;
+  pointer-events: none;
+}

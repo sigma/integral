@@ -1,11 +1,10 @@
 import type { CSSProperties } from "react";
-import { MAX_OCTAVE, MIN_OCTAVE, type Keyboard } from "./useKeyboard";
+import { MAX_OCTAVE, MIN_OCTAVE, noteName, type Keyboard } from "./useKeyboard";
 import css from "./Piano.module.css";
 
 /** Octaves shown, starting at the Keyboard's octave. */
 const OCTAVES = 3;
 const BLACK = new Set([1, 3, 6, 8, 10]);
-const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const POINTER = "pointer";
 
 interface Props {
@@ -39,7 +38,7 @@ export function Piano({ keyboard }: Props) {
               key={note}
               className={`${black ? css.black : css.white} ${heldNotes.has(note) ? css.held : ""}`}
               style={{ "--pos": whiteIndex } as CSSProperties}
-              title={`${NOTE_NAMES[note % 12]}${Math.floor(note / 12) - 1}`}
+              title={noteName(note)}
               onPointerDown={(e) => {
                 e.currentTarget.releasePointerCapture(e.pointerId);
                 press(POINTER, note);
