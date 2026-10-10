@@ -127,8 +127,6 @@ function ChannelStripInner({
   const isCompEq = variant === "comp-eq";
   const isPart = variant === "part";
   const showEq = variant !== "ext";
-  const showPan = isPart;
-  const showSends = isPart;
   const showMute = variant !== "master" && !isCompEq;
   const showToneName = isPart;
 
@@ -235,54 +233,63 @@ function ChannelStripInner({
         </div>
       ) : (
         <>
-          <PanKnob
-            value={p.pan}
-            onChange={onPanChange ?? noop}
-            style={hideIf(showPan)}
-          />
-          <div className={css.sends} style={hideIf(showSends)}>
-            {surroundEnabled ? (
-              <EqKnob label="AMB" value={ambienceSend ?? 0} min={0} max={127} defaultValue={0}
-                onChange={onAmbienceSendChange ?? noop} formatValue={(v) => String(v)} color="#a6f" />
-            ) : (
-              <>
-                {(() => { const m = paramMeta(`part.${partIndex}.chorus_send`); return (
-                <EqKnob label={m.name} value={p.chorusSend} min={m.min} max={m.max} defaultValue={m.defaultValue}
-                  onChange={onChorusSendChange ?? noop} formatValue={(v) => String(v)} color="#668" />
-                ); })()}
-                {(() => { const m = paramMeta(`part.${partIndex}.reverb_send`); return (
-                <EqKnob label={m.name} value={p.reverbSend} min={m.min} max={m.max} defaultValue={m.defaultValue}
-                  onChange={onReverbSendChange ?? noop} formatValue={(v) => String(v)} color="#686" />
-                ); })()}
-              </>
-            )}
-          </div>
-          <div className={css.muteRow} style={hideIf(showMute)}>
-            <button
-              className={`${css.muteButton} ${isMuted ? css.muted : ""}`}
-              onClick={onMuteToggle ?? noop}
-            >
-              M
-            </button>
-            {isPart && (
-              <button
-                className={`${css.muteButton} ${soloed ? css.soloed : ""}`}
-                onClick={onSoloToggle ?? noop}
-              >
-                S
-              </button>
-            )}
-          </div>
-          {isPart ? (
-            <button
-              className={`${css.compEqButton} ${compEqAssigned ? css.compOn : ""}`}
-              onClick={onCompEqToggle ?? noop}
-              title="Assign Drum Comp+EQ to this part"
-            >
-              C+EQ
-            </button>
-          ) : (
-            <div className={css.compEqButton} style={hide} />
+          {isPart && (
+            // Pan and sends boxes: same box as the EQ, at natural height.
+            <>
+              <div className={box.box}>
+                <PanKnob value={p.pan} onChange={onPanChange ?? noop} />
+              </div>
+              <div className={box.box}>
+                <div className={css.sends}>
+                  {surroundEnabled ? (
+                    <EqKnob label="AMB" value={ambienceSend ?? 0} min={0} max={127} defaultValue={0}
+                      onChange={onAmbienceSendChange ?? noop} formatValue={(v) => String(v)} color="#a6f" />
+                  ) : (
+                    <>
+                      {(() => { const m = paramMeta(`part.${partIndex}.chorus_send`); return (
+                      <EqKnob label={m.name} value={p.chorusSend} min={m.min} max={m.max} defaultValue={m.defaultValue}
+                        onChange={onChorusSendChange ?? noop} formatValue={(v) => String(v)} color="#668" />
+                      ); })()}
+                      {(() => { const m = paramMeta(`part.${partIndex}.reverb_send`); return (
+                      <EqKnob label={m.name} value={p.reverbSend} min={m.min} max={m.max} defaultValue={m.defaultValue}
+                        onChange={onReverbSendChange ?? noop} formatValue={(v) => String(v)} color="#686" />
+                      ); })()}
+                    </>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Toggles sit directly above the fader; M/S is the bottom row on every strip. */}
+          {showMute && (
+            <div className={css.toggles}>
+              {isPart && (
+                <button
+                  className={`${css.compEqButton} ${compEqAssigned ? css.compOn : ""}`}
+                  onClick={onCompEqToggle ?? noop}
+                  title="Assign Drum Comp+EQ to this part"
+                >
+                  C+EQ
+                </button>
+              )}
+              <div className={css.muteRow}>
+                <button
+                  className={`${css.muteButton} ${isMuted ? css.muted : ""}`}
+                  onClick={onMuteToggle ?? noop}
+                >
+                  M
+                </button>
+                {isPart && (
+                  <button
+                    className={`${css.muteButton} ${soloed ? css.soloed : ""}`}
+                    onClick={onSoloToggle ?? noop}
+                  >
+                    S
+                  </button>
+                )}
+              </div>
+            </div>
           )}
         </>
       )}
