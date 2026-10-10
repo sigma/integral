@@ -161,6 +161,12 @@ function PitchSection({
         <SynthKnob label="Key Trk" value={partial.pitchEnvTimeKeyfollow} min={54} max={74} defaultValue={64} center={64}
           onChange={(v) => setP(0x3E, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Envelope time key tracking — higher keys = faster envelope" />
+        <SynthKnob label="T1 Vel" value={partial.pitchEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
+          onChange={(v) => setP(0x3C, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
+          title="Pitch envelope Time 1 velocity sensitivity — harder keys change the first stage time" />
+        <SynthKnob label="T4 Vel" value={partial.pitchEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
+          onChange={(v) => setP(0x3D, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
+          title="Pitch envelope Time 4 velocity sensitivity — release velocity changes the release time" />
       </div>
       <ADSREnvelope
         compact
@@ -239,6 +245,12 @@ function TvfSection({
         <SynthKnob label="Key Trk" value={partial.tvfEnvTimeKeyfollow} min={54} max={74} defaultValue={64} center={64}
           onChange={(v) => setP(0x54, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Envelope time key tracking — higher keys = faster envelope" />
+        <SynthKnob label="T1 Vel" value={partial.tvfEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
+          onChange={(v) => setP(0x52, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+          title="Filter envelope Time 1 velocity sensitivity — harder keys change the first stage time" />
+        <SynthKnob label="T4 Vel" value={partial.tvfEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
+          onChange={(v) => setP(0x53, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+          title="Filter envelope Time 4 velocity sensitivity — release velocity changes the release time" />
         <SynthSelect label="Vel Curve" value={partial.tvfCutoffVelocityCurve}
           options={VELOCITY_CURVE_NAMES.map((l, i) => ({ value: i, label: l }))}
           onChange={(v) => setP(0x4B, v)} title="Velocity response curve shape" />
@@ -305,6 +317,12 @@ function TvaSection({
           <SynthKnob label="Key Trk" value={partial.tvaEnvTimeKeyfollow} min={54} max={74} defaultValue={64} center={64}
             onChange={(v) => setP(0x65, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
             title="Envelope time key tracking — higher keys = faster envelope" />
+          <SynthKnob label="T1 Vel" value={partial.tvaEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
+            onChange={(v) => setP(0x63, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
+            title="Amp envelope Time 1 velocity sensitivity — harder keys change the first stage time" />
+          <SynthKnob label="T4 Vel" value={partial.tvaEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
+            onChange={(v) => setP(0x64, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
+            title="Amp envelope Time 4 velocity sensitivity — release velocity changes the release time" />
         </div>
       </div>
       <div className={css.panelRow}>
