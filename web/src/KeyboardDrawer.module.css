@@ -1,0 +1,24 @@
+.drawer {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-top: 1px solid #2a2a4a;
+  background: #0a0a18;
+}
+
+.handle {
+  align-self: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #888;
+  background: transparent;
+  border: none;
+  padding: 4px 12px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.handle:hover {
+  color: #c0c0e0;
+}

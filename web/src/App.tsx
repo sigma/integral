@@ -25,6 +25,8 @@ import { SurroundPage } from "./SurroundPage";
 import { ToneEditorPage } from "./ToneEditorPage";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { Transport } from "./Transport";
+import { KeyboardDrawer } from "./KeyboardDrawer";
+import { useKeyboard } from "./useKeyboard";
 import { sequencerEngine, type SequencerEngine } from "./sequencer";
 import css from "./App.module.css";
 
@@ -172,6 +174,8 @@ export function App() {
   }, [sequencer, service]);
 
   const mixer = useMixer(service);
+  const selectedChannel = mixer.state.parts[mixer.state.selectedPart]?.receiveChannel ?? 0;
+  const keyboard = useKeyboard(service, selectedChannel);
   const [activeTab, setActiveTab] = useState<PageTab>("mixer");
 
   // Show connected UI when connected to an Integra-7
@@ -217,6 +221,7 @@ export function App() {
             <ToneEditorPage mixer={mixer} service={service} onBack={() => setActiveTab("mixer")} />
           </ErrorBoundary>
         )}
+        <KeyboardDrawer keyboard={keyboard} />
       </div>
     );
   }

@@ -4,7 +4,6 @@ import { SnAcousticEditor } from "./SnAcousticEditor";
 import { SnDrumEditor } from "./SnDrumEditor";
 import { PcmSynthEditor } from "./PcmSynthEditor";
 import { PcmDrumEditor } from "./PcmDrumEditor";
-import { useMidiKeyboard } from "./useMidiKeyboard";
 import type { IntegraService } from "./integra";
 import type { UseMixerResult } from "./useMixer";
 import css from "./ToneEditorPage.module.css";
@@ -37,33 +36,12 @@ export function ToneEditorPage({ mixer, service, onBack }: Props) {
   const isSna = bankMsb === 89;
   const isSnd = bankMsb === 88;
 
-  const { octave, setOctave } = useMidiKeyboard({
-    service,
-    channel: part.receiveChannel,
-    enabled: true,
-  });
-
   return (
     <div className={css.page}>
       <div className={css.header}>
         <button className={css.backButton} onClick={onBack}>
           Back to Mixer
         </button>
-        <span className={css.octaveControl}>
-          <button
-            className={css.octaveBtn}
-            onClick={() => setOctave((o) => Math.max(0, o - 1))}
-          >
-            -
-          </button>
-          <span className={css.octaveLabel}>Oct {octave}</span>
-          <button
-            className={css.octaveBtn}
-            onClick={() => setOctave((o) => Math.min(9, o + 1))}
-          >
-            +
-          </button>
-        </span>
       </div>
       {/* Keyed on tone identity so a new tone pick remounts and re-reads the editor. */}
       <Fragment key={`${part.toneBankMsb}-${part.toneBankLsb}-${part.tonePC}`}>
