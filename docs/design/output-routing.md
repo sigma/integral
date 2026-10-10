@@ -1,5 +1,10 @@
 # Output Routing View — Design
 
+> **Superseded.** The Routing page was retired into the mixer: each strip now
+> carries its own route chip. See
+> [Retire the Routing page into the mixer](https://github.com/sigma/integral/issues/33).
+> The rest of this document is kept for history.
+
 ## Problem
 
 The INTEGRA-7 has a complex multi-layer output routing system. Currently,

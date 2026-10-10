@@ -12,6 +12,8 @@ import { CATEGORIES, lookupToneCategory } from "./categories";
 import { categoryIcon, stripIcon } from "./categoryIcons";
 import { is_drum_kit_bank } from "../pkg/integral_wasm.js";
 import css from "./ChannelStrip.module.css";
+import { deviceSpec } from "./deviceSpec";
+import { RouteChip } from "./RouteChip";
 
 const noop = () => {};
 const hide: React.CSSProperties = { visibility: "hidden", pointerEvents: "none" };
@@ -39,7 +41,6 @@ function ratioOf(i: number): number {
   const r = parseFloat(RATIO_VALUES[i] ?? "1");
   return Number.isNaN(r) ? Infinity : r;
 }
-const OUTPUT_ASSIGN_NAMES = ["PART", "A", "B", "C", "D", "1", "2", "3", "4", "5", "6", "7", "8"];
 
 interface Props {
   variant?: Variant;
@@ -79,6 +80,7 @@ interface Props {
   onAmbienceSendChange?: (value: number) => void;
   onEqToggle?: () => void;
   onEqParam?: (paramOffset: number, value: number) => void;
+  onOutputAssignChange?: (value: number) => void;
 }
 
 function toneLabel(part: PartState): string {
@@ -129,6 +131,7 @@ function ChannelStripInner({
   onAmbienceSendChange,
   onEqToggle,
   onEqParam,
+  onOutputAssignChange,
 }: Props) {
   const p = part ?? defaultPartState();
   const isCompEq = variant === "comp-eq";
@@ -187,17 +190,6 @@ function ChannelStripInner({
             <option key={i} value={i}>
               Ch {i + 1}
             </option>
-          ))}
-        </select>
-      ) : isCompEq ? (
-        <select
-          className={css.channelSelect}
-          value={compEqOutputAssign ?? 0}
-          onChange={(e) => onCompEqOutputAssign?.(Number(e.target.value))}
-          title={`${label} Output`}
-        >
-          {OUTPUT_ASSIGN_NAMES.map((name, v) => (
-            <option key={v} value={v}>Out: {name}</option>
           ))}
         </select>
       ) : (
@@ -277,22 +269,36 @@ function ChannelStripInner({
           )}
 
           {/* Toggles sit directly above the fader; M/S is the bottom row on every strip. */}
-          {showMute && (
+          {(showMute || isCompEq) && (
             <div className={css.toggles}>
-              {isPart && (
-                <button
-                  className={`${css.compEqButton} ${compEqAssigned ? css.compOn : ""}`}
-                  onClick={onCompEqToggle ?? noop}
-                  // Only drum kits route keys to the Comp+EQ units; keep it enabled while assigned so it can be turned off.
-                  disabled={!compEqAssigned && !is_drum_kit_bank(p.toneBankMsb)}
-                  title={compEqAssigned || is_drum_kit_bank(p.toneBankMsb)
-                    ? "Assign Drum Comp+EQ to this part"
-                    : "Drum Comp+EQ only works on drum kit parts"}
-                >
-                  C+EQ
-                </button>
+              {(isPart || isCompEq) && (
+                <div className={css.muteRow}>
+                  {isPart && (
+                    <button
+                      className={`${css.compEqButton} ${compEqAssigned ? css.compOn : ""}`}
+                      onClick={onCompEqToggle ?? noop}
+                      // Only drum kits route keys to the Comp+EQ units; keep it enabled while assigned so it can be turned off.
+                      disabled={!compEqAssigned && !is_drum_kit_bank(p.toneBankMsb)}
+                      title={compEqAssigned || is_drum_kit_bank(p.toneBankMsb)
+                        ? "Assign Drum Comp+EQ to this part"
+                        : "Drum Comp+EQ only works on drum kit parts"}
+                    >
+                      C+EQ
+                    </button>
+                  )}
+                  {isPart ? (
+                    <RouteChip value={p.outputAssign} names={deviceSpec().output_assigns}
+                      onChange={onOutputAssignChange ?? noop} overridden={surroundEnabled}
+                      title={`Part ${partIndex + 1} Output`} />
+                  ) : (
+                    <RouteChip value={compEqOutputAssign ?? 0} names={deviceSpec().comp_eq_output_assigns}
+                      onChange={onCompEqOutputAssign ?? noop} overridden={surroundEnabled}
+                      title={`${label} Output`} />
+                  )}
+                </div>
               )}
-              <div className={css.muteRow}>
+              {/* M/S is the bottom row on every strip; Comp+EQ keeps an invisible one so its chip lines up. */}
+              <div className={css.muteRow} style={isCompEq ? hide : undefined}>
                 <button
                   className={`${css.muteButton} ${isMuted ? css.muted : ""}`}
                   onClick={onMuteToggle ?? noop}
