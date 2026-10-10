@@ -2,6 +2,8 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-10-10T06:56:28Z",
+  "close_reason": "migrated to https://github.com/sigma/integral/issues/2",
   "created": "2026-04-11T16:29:55Z",
   "description": "Parse Roland SVD backup files, convert to/from SysEx DT1 messages for remote patch import/export on the INTEGRA-7. See docs/svd/ for the reverse-engineered format spec.",
   "id": "i7-2y8",
@@ -13,8 +15,8 @@
     }
   ],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "SVD ↔ SysEx two-way converter",
   "type": "epic",
-  "updated_at": "2026-10-10T06:56:27Z"
+  "updated_at": "2026-10-10T06:56:28Z"
 }
