@@ -25,8 +25,9 @@ import { SurroundPage } from "./SurroundPage";
 import { ToneEditorPage } from "./ToneEditorPage";
 import { ErrorBoundary } from "./ErrorBoundary";
 import css from "./App.module.css";
+import { useProtoSeq, protoVariant, SequencerPrototype, VariantBPage } from "./prototype/SequencerPrototype";
 
-type PageTab = "mixer" | "surround" | "toneEdit";
+type PageTab = "mixer" | "surround" | "toneEdit" | "seq";
 
 type DeviceStatus =
   | { step: "idle" }
@@ -163,6 +164,8 @@ export function App() {
 
   const mixer = useMixer(service);
   const [activeTab, setActiveTab] = useState<PageTab>("mixer");
+  const proto = protoVariant();
+  const seq = useProtoSeq(service, mixer);
 
   // Show connected UI when connected to an Integra-7
   if (service) {
@@ -188,6 +191,14 @@ export function App() {
             >
               Tone Edit
             </button>
+            {proto === "B" && (
+              <button
+                className={`${css.tab} ${activeTab === "seq" ? css.tabActive : ""}`}
+                onClick={() => setActiveTab("seq")}
+              >
+                Sequencer
+              </button>
+            )}
           </div>
           <TopBar mixer={mixer} service={service} />
         </nav>
@@ -206,6 +217,8 @@ export function App() {
             <ToneEditorPage mixer={mixer} service={service} onBack={() => setActiveTab("mixer")} />
           </ErrorBoundary>
         )}
+        {proto === "B" && activeTab === "seq" && <VariantBPage s={seq} />}
+        {proto && <SequencerPrototype s={seq} variant={proto} onSeqTab={activeTab === "seq"} />}
       </div>
     );
   }
