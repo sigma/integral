@@ -79,33 +79,33 @@ export function EqSection({ eq, onToggleSwitch, onParam, showSwitch = true, para
     const h = area.offsetHeight;
     if (w === 0 || h === 0) return;
 
-    // Top divider: horizontal from left edge → midpoint(HI Gain, MID Gain),
-    //              diagonal to midpoint(HI Freq, MID Freq),
+    // Top divider: horizontal from left edge → midpoint(HI Freq, MID Freq),
+    //              diagonal to midpoint(HI Gain, MID Gain),
     //              horizontal to right edge
-    const tLx = cx("hiGain");
-    const tLy = (cy("hiGain") + cy("midGain")) / 2;
-    const tRx = cx("hiFreq");
-    const tRy = (cy("hiFreq") + cy("midFreq")) / 2;
+    const tLx = cx("hiFreq");
+    const tLy = (cy("hiFreq") + cy("midFreq")) / 2;
+    const tRx = cx("hiGain");
+    const tRy = (cy("hiGain") + cy("midGain")) / 2;
     const topPath = `M 0 ${tLy} L ${tLx} ${tLy} L ${tRx} ${tRy} L ${w} ${tRy}`;
 
     // Bottom divider: same pattern
     const bLx = cx("midQ");
-    const bLy = (cy("midQ") + cy("loGain")) / 2;
-    const bRx = cx("loFreq");
-    const bRy = (cy("midFreq") + cy("loFreq")) / 2;
+    const bLy = (cy("midQ") + cy("loFreq")) / 2;
+    const bRx = cx("loGain");
+    const bRy = (cy("midGain") + cy("loGain")) / 2;
     const botPath = `M 0 ${bLy} L ${bLx} ${bLy} L ${bRx} ${bRy} L ${w} ${bRy}`;
 
-    // Labels: HI right of HI Gain, MID left of MID Freq, LO right of LO Gain
-    const rightColX = cx("hiFreq");
-    const leftColX = cx("hiGain");
+    // Labels: HI right of HI Freq, MID left of MID Gain, LO right of LO Freq
+    const rightColX = cx("hiGain");
+    const leftColX = cx("hiFreq");
 
     setLines({
       w, h,
       topPath,
       botPath,
-      hiLabel: { x: rightColX, y: cy("hiGain") },
-      midLabel: { x: leftColX, y: cy("midFreq") },
-      loLabel: { x: rightColX, y: cy("loGain") },
+      hiLabel: { x: rightColX, y: cy("hiFreq") },
+      midLabel: { x: leftColX, y: cy("midGain") },
+      loLabel: { x: rightColX, y: cy("loFreq") },
     });
   }, []);
 
@@ -144,26 +144,26 @@ export function EqSection({ eq, onToggleSwitch, onParam, showSwitch = true, para
         )}
 
         <div className={css.knobs}>
-          <div className={css.r1} ref={setKnobRef("hiGain")}>
+          <div className={css.r2} ref={setKnobRef("hiGain")}>
             <EqKnob
               label="Gain" value={eq.highGain} min={0} max={30} defaultValue={15}
               onChange={(v) => onParam(paramBase + 6, v)} formatValue={formatGain} color="#c66"
             />
           </div>
-          <div className={css.r2} ref={setKnobRef("hiFreq")}>
+          <div className={css.r1} ref={setKnobRef("hiFreq")}>
             <EqKnob
               label="Freq" value={eq.highFreq} min={0} max={2} defaultValue={1}
               onChange={(v) => onParam(paramBase + 5, v)}
               formatValue={(v) => formatFreq(v, HIGH_FREQ_VALUES)} color="#c66"
             />
           </div>
-          <div className={css.r3} ref={setKnobRef("midGain")}>
+          <div className={css.r4} ref={setKnobRef("midGain")}>
             <EqKnob
               label="Gain" value={eq.midGain} min={0} max={30} defaultValue={15}
               onChange={(v) => onParam(paramBase + 3, v)} formatValue={formatGain} color="#6c6"
             />
           </div>
-          <div className={css.r4} ref={setKnobRef("midFreq")}>
+          <div className={css.r3} ref={setKnobRef("midFreq")}>
             <EqKnob
               label="Freq" value={eq.midFreq} min={0} max={16} defaultValue={7}
               onChange={(v) => onParam(paramBase + 2, v)}
@@ -176,14 +176,14 @@ export function EqSection({ eq, onToggleSwitch, onParam, showSwitch = true, para
               onChange={(v) => onParam(paramBase + 4, v)} formatValue={formatQ} color="#6c6"
             />
           </div>
-          <div className={css.r6} ref={setKnobRef("loFreq")}>
+          <div className={css.r7} ref={setKnobRef("loFreq")}>
             <EqKnob
               label="Freq" value={eq.lowFreq} min={0} max={1} defaultValue={1}
               onChange={(v) => onParam(paramBase + 0, v)}
               formatValue={(v) => formatFreq(v, LOW_FREQ_VALUES)} color="#66c"
             />
           </div>
-          <div className={css.r7} ref={setKnobRef("loGain")}>
+          <div className={css.r6} ref={setKnobRef("loGain")}>
             <EqKnob
               label="Gain" value={eq.lowGain} min={0} max={30} defaultValue={15}
               onChange={(v) => onParam(paramBase + 1, v)} formatValue={formatGain} color="#66c"
