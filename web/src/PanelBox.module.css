@@ -40,14 +40,19 @@
 }
 
 /*
- * Knob rows: one EqKnob per grid row and no row gap, so the row pitch is the
- * knob's own height. EqSection and FxStrip both build on this, which keeps
- * FX row N level with EQ row N.
+ * Knob rows: one EqKnob per row at a fixed pitch shorter than the knob (64px).
+ * Knobs zig-zag between the columns, so each overlaps its neighbours' rows
+ * without touching them; the padding holds the first and last knob's overhang.
+ * EqSection and FxStrip both build on this, which keeps FX row N level with
+ * EQ row N.
  */
 .knobRows {
+  --knob-pitch: 48px;
+
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-auto-rows: var(--knob-pitch);
   place-items: center center;
   width: 100%;
-  padding: 2px 0;
+  padding: 10px 0;
 }

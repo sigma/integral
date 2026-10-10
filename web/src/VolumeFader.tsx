@@ -15,19 +15,18 @@ interface Props {
   label?: string;
 }
 
-/** Must match .track height in CSS. */
-const TRACK_HEIGHT = 588;
+/** The track's height flexes with the window, so positions are fractions of its travel. */
 const CAP_HEIGHT = 18;
 const PAD = 8;
-const MIN_TOP = PAD;
-const MAX_TOP = TRACK_HEIGHT - PAD - CAP_HEIGHT;
 
-function valueToTop(value: number, min: number, max: number): number {
-  return MIN_TOP + (MAX_TOP - MIN_TOP) * (1 - (value - min) / (max - min));
+/** CSS `top` for a point `offset` px below the cap's top edge at `value`. */
+function valueToTop(value: number, min: number, max: number, offset = 0): string {
+  const frac = 1 - (value - min) / (max - min);
+  return `calc(${PAD + offset}px + (100% - ${2 * PAD + CAP_HEIGHT}px) * ${frac})`;
 }
 
-function topToValue(top: number, min: number, max: number): number {
-  const ratio = 1 - (top - MIN_TOP) / (MAX_TOP - MIN_TOP);
+function topToValue(top: number, height: number, min: number, max: number): number {
+  const ratio = 1 - (top - PAD) / (height - 2 * PAD - CAP_HEIGHT);
   return Math.round(Math.max(min, Math.min(max, min + ratio * (max - min))));
 }
 
@@ -57,8 +56,7 @@ export function VolumeFader({
       const track = trackRef.current;
       if (!track) return value;
       const rect = track.getBoundingClientRect();
-      const top = clientY - rect.top;
-      return topToValue(top, min, max);
+      return topToValue(clientY - rect.top, rect.height, min, max);
     },
     [value, min, max],
   );
@@ -124,7 +122,7 @@ export function VolumeFader({
       >
         {/* Ruler marks */}
         {rulerMarks(min, max).map((midi) => {
-          const top = valueToTop(midi, min, max) + CAP_HEIGHT / 2;
+          const top = valueToTop(midi, min, max, CAP_HEIGHT / 2);
           const isZeroDb = midi === defaultValue;
           return (
             <div

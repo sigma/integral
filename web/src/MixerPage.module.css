@@ -15,15 +15,27 @@
   padding-right: 12px;
 }
 
+/*
+ * Every strip is a subgrid column sharing these rows, so the boxes, the
+ * bottom group and the faders line up across strips:
+ *   header / EQ or FX box / comp box / free space / bottom group / fader / label.
+ * The FX boxes reserve room for their largest type, so the top part doesn't
+ * move when the type changes. The free space goes first, then the fader row
+ * shrinks; below that the mixer scrolls.
+ */
 .mixerArea {
-  display: flex;
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto minmax(200px, 588px) auto;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  row-gap: 6px;
   flex: 1;
-  overflow: auto hidden;
+  min-height: 0;
+  overflow: auto;
 }
 
 .channels {
-  display: flex;
-  flex-shrink: 0;
+  display: contents;
 }
 
 .loading {

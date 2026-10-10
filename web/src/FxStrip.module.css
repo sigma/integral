@@ -4,6 +4,10 @@
 }
 
 /* One knob per row, zig-zagging like EqSection, so row N meets EQ row N. */
+.box {
+  align-self: stretch;
+}
+
 .knobs {
   composes: knobRows from "./PanelBox.module.css";
 }

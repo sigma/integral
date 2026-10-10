@@ -1,8 +1,8 @@
 .strip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  display: grid;
+  grid-row: 1 / -1;
+  grid-template-rows: subgrid;
+  place-items: start center;
   padding: 10px 6px 8px;
   min-width: 100px;
   width: 100px;
@@ -107,18 +107,20 @@
   box-shadow: 0 0 6px rgb(255 221 68 / 30%);
 }
 
-/* Boxes and toggles between the EQ box and the fader, pinned to the fader. */
+/* Comp+EQ strips: the comp box sits right under the EQ box. */
+.compBox {
+  grid-row: 3;
+}
+
+/* Pan/Sends and the toggles, sitting on the fader. */
 .bottom {
+  grid-row: 5;
+  align-self: end;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
   width: 100%;
-  margin-top: auto;
-}
-
-.bottom + .faderArea {
-  margin-top: 0;
 }
 
 /* C+EQ and M/S, the bottom of .bottom, so M/S lines up across strips. */
@@ -136,6 +138,8 @@
 }
 
 .faderArea {
+  grid-row: 6;
+  align-self: stretch;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -145,7 +149,7 @@
   border-radius: 4px;
   border: 1px solid #1a1a30;
   padding: 4px 0;
-  margin-top: auto;
+  min-height: 0;
 }
 
 .extOverride {
@@ -187,6 +191,7 @@
 }
 
 .categoryArea {
+  grid-row: 7;
   display: flex;
   flex-direction: column;
   align-items: center;

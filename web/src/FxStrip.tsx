@@ -29,12 +29,14 @@ export function FxStrip({
   onNibParam,
 }: Props) {
   const currentParamDefs = paramDefs[fx.type] ?? [];
+  // Reserve rows for the type with the most params, so the box keeps its height when the type changes.
+  const maxRows = Math.max(0, ...Object.values(paramDefs).map((defs) => defs.length));
 
   return (
     <div className={`${css.strip} ${fxCss.override}`}>
       <div className={css.partNumber}>{label}</div>
 
-      <div className={`${box.box} ${fx.enabled ? "" : box.off}`}>
+      <div className={`${box.box} ${fxCss.box} ${fx.enabled ? "" : box.off}`}>
         <button
           className={`${box.switchButton} ${fx.enabled ? box.switchOn : box.switchOff}`}
           onClick={onToggleSwitch}
@@ -42,23 +44,21 @@ export function FxStrip({
           {fx.enabled ? "FX ON" : "FX OFF"}
         </button>
 
-        {currentParamDefs.length > 0 && (
-          <div className={fxCss.knobs}>
-            {currentParamDefs.map((def, i) => (
-              <div key={def.index} style={{ gridRow: i + 1 }}>
-                <EqKnob
-                  label={def.name}
-                  value={fx.params[def.index] ?? def.defaultValue}
-                  min={def.min}
-                  max={def.max}
-                  defaultValue={def.defaultValue}
-                  onChange={(v) => onNibParam(def.index, v)}
-                  formatValue={def.format}
-                />
-              </div>
-            ))}
-          </div>
-        )}
+        <div className={fxCss.knobs} style={{ gridTemplateRows: `repeat(${maxRows}, var(--knob-pitch))` }}>
+          {currentParamDefs.map((def, i) => (
+            <div key={def.index} style={{ gridRow: i + 1 }}>
+              <EqKnob
+                label={def.name}
+                value={fx.params[def.index] ?? def.defaultValue}
+                min={def.min}
+                max={def.max}
+                defaultValue={def.defaultValue}
+                onChange={(v) => onNibParam(def.index, v)}
+                formatValue={def.format}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Type/Out: a separate box pinned to the fader. */}
