@@ -20,6 +20,32 @@ interface Props {
   onNibParam: (paramIndex: number, value: number) => void;
 }
 
+/** Two-way msec/Hz-vs-note switch; `labels` come from the core. */
+function SyncToggle({
+  labels,
+  noteMode,
+  onChange,
+}: {
+  labels: string[];
+  noteMode: boolean;
+  onChange: (noteMode: boolean) => void;
+}) {
+  return (
+    <span className={fxCss.sync}>
+      {labels.map((l, i) => (
+        <button
+          key={l}
+          className={(i === 1) === noteMode ? fxCss.syncOn : undefined}
+          aria-pressed={(i === 1) === noteMode}
+          onClick={() => onChange(i === 1)}
+        >
+          {l}
+        </button>
+      ))}
+    </span>
+  );
+}
+
 export function FxStrip({
   label,
   fx,
@@ -56,6 +82,7 @@ export function FxStrip({
           {currentParamDefs.map(({ def, note }, i) => {
             // A msec/Hz-vs-note param edits whichever slot its switch selects.
             const active = note && def.noteMode(slots) ? note : def;
+            const sync = def.syncIndex;
             return (
               <div key={def.index} style={{ gridRow: i + 1 }}>
                 <EqKnob
@@ -66,6 +93,15 @@ export function FxStrip({
                   defaultValue={active.defaultValue}
                   onChange={(v) => onNibParam(active.index, v)}
                   formatValue={(v) => active.formatValue(v)}
+                  addon={
+                    note && sync !== undefined && (
+                      <SyncToggle
+                        labels={def.syncLabels}
+                        noteMode={active === note}
+                        onChange={(on) => onNibParam(sync, on ? 1 : 0)}
+                      />
+                    )
+                  }
                 />
               </div>
             );

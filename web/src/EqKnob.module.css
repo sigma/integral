@@ -1,4 +1,5 @@
 .container {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -31,4 +32,11 @@
   color: #aaa;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* Hangs below the value without taking layout space, so knob rows stay aligned. */
+.addon {
+  position: absolute;
+  top: 100%;
+  margin-top: 1px;
 }

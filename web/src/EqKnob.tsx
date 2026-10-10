@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useDragControl } from "./useDragControl";
 import css from "./EqKnob.module.css";
 
@@ -10,6 +11,8 @@ interface Props {
   formatValue: (value: number) => string;
   color?: string;
   label?: string;
+  /** Extra control below the value, out of the layout flow (e.g. a mode toggle). */
+  addon?: ReactNode;
 }
 
 /** Ranges with at most this many values get one tick per value; wider ones read as continuous. */
@@ -30,6 +33,7 @@ export function EqKnob({
   formatValue,
   color = "#888",
   label,
+  addon,
 }: Props) {
   const range = max - min;
   const pxPerStep = range > 0 ? Math.max(3, Math.min(8, 100 / range)) : 5;
@@ -88,6 +92,7 @@ export function EqKnob({
         />
       </svg>
       <span className={css.value}>{formatValue(value)}</span>
+      {addon && <div className={css.addon}>{addon}</div>}
     </div>
   );
 }
