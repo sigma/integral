@@ -1,7 +1,6 @@
-/* Rows: shape preview, levels, sequence line, times. 10 half-fader columns. */
+/* Rows: shape preview, levels, sequence line, times; half-fader columns are set inline. */
 .envelope {
   display: inline-grid;
-  grid-template-columns: repeat(10, 1fr);
   grid-template-rows: auto auto 16px auto;
 }
 

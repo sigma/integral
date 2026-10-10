@@ -432,14 +432,14 @@ function TvaSection({
           onChange: (v) => onParam(off(7), v),
         }]}
         levels={[
-          null,
+          { at: 0, text: "0" },
           { label: "L1", value: note.tvaEnvLevel[0] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => onParam(off(8), v) },
           { label: "L2", value: note.tvaEnvLevel[1] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => onParam(off(9), v) },
           { label: "L3", value: note.tvaEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => onParam(off(10), v) },
-          null,
+          { at: 0, text: "0" },
         ]}
       />
     </SectionPanel>

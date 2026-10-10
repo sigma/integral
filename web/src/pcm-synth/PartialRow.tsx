@@ -350,14 +350,14 @@ function TvaSection({
           onChange: (v) => setP(0x69, v),
         }]}
         levels={[
-          null,
+          { at: 0, text: "0" },
           { label: "L1", value: partial.tvaEnvLevel[0] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => setP(0x6A, v) },
           { label: "L2", value: partial.tvaEnvLevel[1] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => setP(0x6B, v) },
           { label: "L3", value: partial.tvaEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => setP(0x6C, v) },
-          null,
+          { at: 0, text: "0" },
         ]}
       />
     </SectionPanel>
