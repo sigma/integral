@@ -38,15 +38,13 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `perf`,
 `build`, `style`. Lowercase, imperative mood, no trailing period.
 
-Include the beadwork ticket ID (e.g. `i7-xyz`) on a separate line in the
-body when applicable.
+Reference the GitHub issue on a separate line in the body when applicable:
+`Fixes #N` when the commit resolves it, `#N` otherwise.
 
-## Task Tracking (beadwork)
+## Task Tracking (GitHub Issues)
 
-- Run `bw prime` at the start of every session.
-- Create tickets before starting non-trivial work.
-- One ticket per worktree. `bw start <id>` → work → commit → `bw close <id>` → `bw sync`.
-- Reference ticket IDs in commit messages.
+- Create an issue before starting non-trivial work (see `docs/agents/issue-tracker.md`).
+- One issue per worktree. Assign yourself → work → commit with `Fixes #N`.
 
 ## Architecture Principles
 
@@ -176,3 +174,17 @@ The `justfile` provides standard targets. Run `just` to list them.
   `just ping` (which runs `cargo run -p integral-cli -- ping`) to verify
   the Integra-7 is reachable. Fail fast if the device is offline.
 - **Keep CLAUDE.md current.** Update this file when conventions change.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues on `sigma/integral` (via `gh`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
