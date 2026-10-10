@@ -7,6 +7,8 @@
   "blocks": [
     "i7-9w4.1"
   ],
+  "closed_at": "2026-10-10T06:56:29Z",
+  "close_reason": "migrated to https://github.com/sigma/integral/issues/5",
   "created": "2026-04-11T16:30:27Z",
   "description": "Add spec tables for PCM Drum Kit (10890 bytes/entry). Derive from docs/midi/07-pcm-drum-kit.md. Common + MFX + 88 key blocks + Common2.",
   "id": "i7-2y8.13",
@@ -19,8 +21,8 @@
     }
   ],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "SVD spec tables for PCM Drum Kit (RFRa)",
   "type": "task",
-  "updated_at": "2026-10-10T06:56:28Z"
+  "updated_at": "2026-10-10T06:56:29Z"
 }
