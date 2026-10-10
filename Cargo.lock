@@ -1803,6 +1803,7 @@ dependencies = [
 name = "integral-core"
 version = "0.1.0"
 dependencies = [
+ "midly",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2193,6 +2194,12 @@ dependencies = [
  "web-sys",
  "windows 0.56.0",
 ]
+
+[[package]]
+name = "midly"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "207d755f4cb882d20c4da58d707ca9130a0c9bc5061f657a4f299b8e36362b7a"
 
 [[package]]
 name = "minimal-lexical"
@@ -3445,7 +3452,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "230a1b821ccbd75b185820a1f1ff7b14d21da1e442e22c0863ea5f08771a8874"
 dependencies = [
  "rustix 1.1.4",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

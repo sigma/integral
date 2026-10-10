@@ -9,6 +9,9 @@ use std::collections::BTreeMap;
 
 use crate::device::DeviceState;
 
+mod smf;
+pub use smf::SmfError;
+
 /// Maximum number of Steps in a Track.
 pub const MAX_STEPS: u8 = 64;
 
