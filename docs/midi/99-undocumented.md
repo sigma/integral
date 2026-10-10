@@ -265,6 +265,119 @@ scanning. Verified working on our device 2026-04-12.
 
 ---
 
+## 4. Write (Save) to User Memory
+
+### Purpose
+
+Store the Temporary tone of a part, or the Temporary Studio Set, into a user
+slot. This is what the front-panel WRITE button does; the MIDI Implementation
+documents no equivalent.
+
+### Request Format
+
+An RQ1 whose 4-byte size field carries the destination instead of a size,
+with a standard Roland checksum:
+
+```
+F0 41 <dev> 00 00 64 11 0F 00 10 00 <MSB> <LSB> <PC> <part> <checksum> F7
+```
+
+| Byte(s)  | Description                                                  |
+|----------|--------------------------------------------------------------|
+| `MSB`    | Bank Select MSB of the destination user bank (see below)     |
+| `LSB`    | Bank Select LSB of the destination user bank                 |
+| `PC`     | Program number within the LSB, 0-indexed                     |
+| `part`   | Source part, 0-indexed (`00` = part 1); `7F` for a Studio Set |
+| checksum | Roland checksum over `0F 00 10 00 MSB LSB PC part`           |
+
+The destination is the user slot's Bank Select triple from
+[`03-bank-select-tables.md`](03-bank-select-tables.md). Slot *n* (1-based, as
+shown on the device) maps to `LSB = (n - 1) / 128`, `PC = (n - 1) % 128`:
+
+| Type            | MSB  | LSB        | Slots     |
+|-----------------|------|------------|-----------|
+| SN Acoustic     | `59` | `00`–`01`  | 0001–0256 |
+| SN Synth        | `5F` | `00`–`03`  | 0001–0512 |
+| SN Drum Kit     | `58` | `00`       | 0001–0064 |
+| PCM Synth       | `57` | `00`–`01`  | 0001–0256 |
+| PCM Drum Kit    | `56` | `00`       | 0001–0032 |
+| Studio Set      | `55` | `00`       | 01–64     |
+
+The stored name is the Temporary tone's or Studio Set's current name. The
+iPad editor offers no rename at save time and sends no separate rename
+message; to rename, change the name parameters in the Temporary area before
+saving.
+
+### Response
+
+The device answers with two DT1s that echo the request payload behind three
+`00` bytes:
+
+```
+F0 41 <dev> 00 00 64 12 0F 00 10 01 00 00 00 <MSB> <LSB> <PC> <part> <checksum> F7   (write started)
+F0 41 <dev> 00 00 64 12 0F 00 10 02 00 00 00 <MSB> <LSB> <PC> <part> <checksum> F7   (write finished)
+```
+
+The first arrives within ~10 ms; the second 2.3–3.0 s later, once the slot
+is written. Wait for `0F 00 10 02` before sending further requests.
+
+```mermaid
+sequenceDiagram
+    participant E as Editor
+    participant I as INTEGRA-7
+    E->>I: RQ1 0F 00 10 00 [MSB LSB PC part]
+    I-->>E: DT1 0F 00 10 01 [00 00 00 MSB LSB PC part]
+    Note over I: writes user memory (~3 s)
+    I-->>E: DT1 0F 00 10 02 [00 00 00 MSB LSB PC part]
+    E->>I: RQ1 0F 00 04 10 (category counts, see below)
+```
+
+### Captured Examples (device ID 10H)
+
+| Saved                                   | Request payload | Request                                              |
+|-----------------------------------------|-----------------|------------------------------------------------------|
+| SN Synth "Vintage 9", part 1 → 0129     | `5F 01 00 00`   | `F0 41 10 00 00 64 11 0F 00 10 00 5F 01 00 00 01 F7` |
+| SN Acoustic "StringsSect1", part 2 → 0129 | `59 01 00 01` | `F0 41 10 00 00 64 11 0F 00 10 00 59 01 00 01 06 F7` |
+| PCM Synth "Pulse Key", part 5 → 0001    | `57 00 00 04`   | `F0 41 10 00 00 64 11 0F 00 10 00 57 00 00 04 06 F7` |
+| PCM Drum "XV Bully Kit", part 5 → 0001  | `56 00 00 04`   | `F0 41 10 00 00 64 11 0F 00 10 00 56 00 00 04 07 F7` |
+| SN Drum "Lo-Fi Kit", part 5 → 0001      | `58 00 00 04`   | `F0 41 10 00 00 64 11 0F 00 10 00 58 00 00 04 05 F7` |
+| Studio Set "Integra Preview" → 64       | `55 00 3F 7F`   | `F0 41 10 00 00 64 11 0F 00 10 00 55 00 3F 7F 4E F7` |
+
+Each save was verified by reading the slot name back through the catalog
+query (Section 1).
+
+### Follow-up: Category Count Query (inferred)
+
+After every save the editor sends one or two RQ1s at `0F 00 04 10`:
+
+```
+F0 41 <dev> 00 00 64 11 0F 00 04 10 <category> 00 00 01 <checksum> F7
+```
+
+`category` is the 0-based Tone Category index (the list in
+[`../params/03-supernatural-synth.md`](../params/03-supernatural-synth.md),
+e.g. `0E` Strings, `17` Synth Pad/Strings, `19` Synth PolyKey, `21` Drums).
+The editor queries `00` (No assign) and the saved tone's category; after a
+Studio Set save it queried only `00`, after a drum kit only `21`. The reply is one DT1 at the same address:
+
+```
+F0 41 <dev> 00 00 64 12 0F 00 04 10 00 00 00 00 <n2> <n1> <n0> <checksum> F7
+```
+
+`n2 n1 n0` appear to be a nibblized count of tones in that category: the
+No assign count went `3 7 F` → `3 7 E` → `3 7 D` (895 → 894 → 893) as saves
+filled previously uninitialised slots. The editor presumably uses it to
+refresh its "By Category" lists. Not otherwise verified.
+
+### Discovery
+
+Captured 2026-10-10 with `integral monitor --port "iPad Tap" --bridge Integra`,
+which forwards and logs traffic between a macOS network MIDI session joined
+by the iPad and the INTEGRA-7. The editor's own Wi-Fi link was disabled (USB
+wireless adapter unplugged) so every message went through the bridge.
+
+---
+
 ## Future Investigation
 
 - **Expansion board tone catalogs**: SRX, ExSN, ExPCM tones at `0F 00 04 02`
