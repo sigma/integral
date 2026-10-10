@@ -10,6 +10,7 @@ import { defaultPartState, type PartState, type EqState, type CompEqUnit } from 
 import { paramMeta } from "./paramDefaults";
 import { CATEGORIES, lookupToneCategory } from "./categories";
 import { categoryIcon, stripIcon } from "./categoryIcons";
+import { is_drum_kit_bank } from "../pkg/integral_wasm.js";
 import css from "./ChannelStrip.module.css";
 
 const noop = () => {};
@@ -276,7 +277,11 @@ function ChannelStripInner({
                 <button
                   className={`${css.compEqButton} ${compEqAssigned ? css.compOn : ""}`}
                   onClick={onCompEqToggle ?? noop}
-                  title="Assign Drum Comp+EQ to this part"
+                  // Only drum kits route keys to the Comp+EQ units; keep it enabled while assigned so it can be turned off.
+                  disabled={!compEqAssigned && !is_drum_kit_bank(p.toneBankMsb)}
+                  title={compEqAssigned || is_drum_kit_bank(p.toneBankMsb)
+                    ? "Assign Drum Comp+EQ to this part"
+                    : "Drum Comp+EQ only works on drum kit parts"}
                 >
                   C+EQ
                 </button>

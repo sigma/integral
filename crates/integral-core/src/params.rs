@@ -425,6 +425,17 @@ pub fn tone_type_from_bank_msb(msb: u8) -> Option<[u8; 3]> {
     }
 }
 
+/// Whether a bank MSB selects a drum kit (SN-D or PCM-D).
+///
+/// Only drum kits can route keys to the Drum Comp+EQ units, so the Comp+EQ
+/// part should be one of these.
+pub fn is_drum_kit_bank(msb: u8) -> bool {
+    matches!(
+        tone_type_from_bank_msb(msb),
+        Some(tone_type::SN_DRUM | tone_type::PCM_DRUM)
+    )
+}
+
 /// Compute the address of the tone name for a given part and tone type.
 ///
 /// Tone names are 12 ASCII bytes at offset `00 00`–`00 0B` in the tone's Common block.
@@ -580,6 +591,14 @@ mod tests {
         assert_eq!(tone_type_from_bank_msb(86), Some(tone_type::PCM_DRUM));
         assert_eq!(tone_type_from_bank_msb(88), Some(tone_type::SN_DRUM));
         assert_eq!(tone_type_from_bank_msb(0), None);
+    }
+
+    #[test]
+    fn drum_kit_banks() {
+        assert!(is_drum_kit_bank(88));
+        assert!(is_drum_kit_bank(86));
+        assert!(!is_drum_kit_bank(95));
+        assert!(!is_drum_kit_bank(0));
     }
 
     #[test]

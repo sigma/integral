@@ -359,6 +359,13 @@ pub fn tone_name_address(part_index: u8, bank_msb: u8) -> Vec<u8> {
     }
 }
 
+/// Whether a bank MSB selects a drum kit, the only tone type that can feed
+/// the Drum Comp+EQ units.
+#[wasm_bindgen]
+pub fn is_drum_kit_bank(bank_msb: u8) -> bool {
+    params::is_drum_kit_bank(bank_msb)
+}
+
 /// Returns the RQ1 size for reading a tone name (12 bytes).
 #[wasm_bindgen]
 pub fn tone_name_size() -> Vec<u8> {

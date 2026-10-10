@@ -70,8 +70,13 @@
   letter-spacing: 0.5px;
 }
 
-.compEqButton:hover {
+.compEqButton:hover:not(:disabled) {
   border-color: #888;
+}
+
+.compEqButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .muteButton {
