@@ -181,6 +181,11 @@
   border-right: 1px solid #1a1a30;
 }
 
+/* Separate the Comp+EQ strips (shown only while enabled) from EX. */
+.extOverride + .compEqOverride {
+  border-left: 1px solid #2a4a2a;
+}
+
 .compOn {
   background: #3a2a0a;
   color: #fa4;

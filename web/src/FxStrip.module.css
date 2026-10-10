@@ -3,6 +3,11 @@
   border-left: 1px solid #2a3a4a;
 }
 
+/* FX1 and FX2 read as one group: no line between them. */
+.override + .override {
+  border-left: none;
+}
+
 /* One knob per row, zig-zagging like EqSection, so row N meets EQ row N. */
 .box {
   align-self: stretch;
