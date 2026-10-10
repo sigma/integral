@@ -102,7 +102,7 @@ export function FxStrip({
           className={css.categoryIcon}
           dangerouslySetInnerHTML={{ __html: stripIcon(label === "FX1" ? "fx1" : "fx2") }}
         />
-        <span className={css.categoryLabel}>{label === "FX1" ? "Chorus" : "Reverb"}</span>
+        <span className={css.categoryLabel}>{label === "FX1" ? "Chorus/Delay" : "Reverb"}</span>
       </div>
     </div>
   );
