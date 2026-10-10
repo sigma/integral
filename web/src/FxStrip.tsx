@@ -7,6 +7,7 @@ import { stripIcon } from "./categoryIcons";
 import css from "./ChannelStrip.module.css";
 import fxCss from "./FxStrip.module.css";
 import box from "./PanelBox.module.css";
+import { RouteChip } from "./RouteChip";
 
 interface Props {
   label: string;
@@ -124,18 +125,15 @@ export function FxStrip({
               ))}
             </select>
           </div>
-
-          <div className={fxCss.row}>
-            <span className={fxCss.label}>Out</span>
-            <select
-              className={fxCss.select}
-              value={fx.output}
-              onChange={(e) => onParam(label === "FX1" ? 3 : 2, Number(e.target.value))}
-            >
-              {outputNames.map((name, i) => (
-                <option key={i} value={i}>{name}</option>
-              ))}
-            </select>
+        </div>
+        {/* PROTOTYPE (#34): routing chip in the same slot as part/Comp+EQ strips. */}
+        <div className={css.toggles}>
+          <div className={css.muteRow}>
+            <RouteChip value={fx.output} names={outputNames}
+              onChange={(v) => onParam(label === "FX1" ? 3 : 2, v)} title={`${label} Output`} />
+          </div>
+          <div className={css.muteRow} style={{ visibility: "hidden" }}>
+            <button className={css.muteButton}>M</button>
           </div>
         </div>
       </div>

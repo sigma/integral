@@ -50,6 +50,7 @@ export function MixerPage({ mixer }: Props) {
                 onReceiveChannelChange={(ch) => mixer.setPartReceiveChannel(i, ch)}
                 onEqToggle={() => mixer.togglePartEqSwitch(i)}
                 onEqParam={(offset, v) => mixer.setPartEqParam(i, offset, v)}
+                onOutputAssignChange={(v) => mixer.setPartOutputAssign(i, v)}
               />
             ))}
           </div>
@@ -71,6 +72,7 @@ export function MixerPage({ mixer }: Props) {
               compEqOutputAssign={state.drumCompEq.outputAssigns[i]}
               onCompEqParam={(offset, v) => mixer.setCompEqParam(i, offset, v)}
               onCompEqOutputAssign={(v) => mixer.setDrumCompEqOutputAssign(i, v)}
+              surroundEnabled={state.surround.enabled}
             />
           ))}
           <FxStrip
