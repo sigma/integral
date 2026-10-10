@@ -107,17 +107,26 @@
   box-shadow: 0 0 6px rgb(255 221 68 / 30%);
 }
 
-/* C+EQ and M/S, pinned directly above the fader so M/S lines up across strips. */
+/* Boxes and toggles between the EQ box and the fader, pinned to the fader. */
+.bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: auto;
+}
+
+.bottom + .faderArea {
+  margin-top: 0;
+}
+
+/* C+EQ and M/S, the bottom of .bottom, so M/S lines up across strips. */
 .toggles {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  margin-top: auto;
-}
-
-.toggles + .faderArea {
-  margin-top: 0;
 }
 
 .muteRow {
