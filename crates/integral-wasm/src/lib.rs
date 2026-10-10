@@ -7,6 +7,7 @@ use integral_core::state::parse as state_parse;
 use integral_core::sysex;
 use integral_core::{
     fx_params, mfx, mfx_params, param_registry, params, params::part, params::part_eq, tone_banks,
+    user_write,
 };
 use wasm_bindgen::prelude::*;
 
@@ -443,6 +444,82 @@ pub fn parse_catalog_entry(data: &[u8]) -> Option<CatalogEntry> {
 }
 
 // ---------------------------------------------------------------------------
+// User-memory write (undocumented)
+// ---------------------------------------------------------------------------
+
+/// Build the request that saves a part's Temporary tone into a user slot.
+/// `part` is 0-indexed.
+#[wasm_bindgen]
+pub fn build_tone_write_request(
+    device_id: u8,
+    part: u8,
+    msb: u8,
+    lsb: u8,
+    pc: u8,
+) -> Result<Vec<u8>, JsError> {
+    check_part(part)?;
+    Ok(user_write::build_write_request(
+        device_id,
+        user_write::BankSelect { msb, lsb, pc },
+        user_write::WriteSource::Part(part),
+    ))
+}
+
+/// Build the request that saves the Temporary Studio Set into user slot `pc`
+/// (0-indexed).
+#[wasm_bindgen]
+pub fn build_studio_set_write_request(device_id: u8, pc: u8) -> Vec<u8> {
+    user_write::build_write_request(
+        device_id,
+        user_write::BankSelect {
+            msb: catalog::STUDIO_SET_MSB,
+            lsb: catalog::STUDIO_SET_LSB,
+            pc,
+        },
+        user_write::WriteSource::StudioSet,
+    )
+}
+
+/// A parsed write reply (see `parse_write_reply`).
+#[wasm_bindgen]
+pub struct WriteReply {
+    /// True for the "write finished" reply, false for "write started".
+    #[wasm_bindgen(readonly)]
+    pub finished: bool,
+    /// Destination Bank Select MSB.
+    #[wasm_bindgen(readonly)]
+    pub msb: u8,
+    /// Destination Bank Select LSB.
+    #[wasm_bindgen(readonly)]
+    pub lsb: u8,
+    /// Destination program number, 0-indexed.
+    #[wasm_bindgen(readonly)]
+    pub pc: u8,
+    /// Source part (0-indexed), or null when the Studio Set was saved.
+    #[wasm_bindgen(readonly)]
+    pub part: Option<u8>,
+}
+
+/// Parse a DT1 (address + data) as a write reply; null if it is not one.
+#[wasm_bindgen]
+pub fn parse_write_reply(addr: &[u8], data: &[u8]) -> Option<WriteReply> {
+    let [a, b, c, d] = *addr else {
+        return None;
+    };
+    let reply = user_write::parse_write_reply(&Address::new(a, b, c, d), data)?;
+    Some(WriteReply {
+        finished: reply.phase == user_write::WritePhase::Finished,
+        msb: reply.target.msb,
+        lsb: reply.target.lsb,
+        pc: reply.target.pc,
+        part: match reply.source {
+            user_write::WriteSource::Part(part) => Some(part),
+            user_write::WriteSource::StudioSet => None,
+        },
+    })
+}
+
+// ---------------------------------------------------------------------------
 // EQ addresses
 // ---------------------------------------------------------------------------
 
@@ -684,6 +761,16 @@ pub struct WasmToneBank {
     lsbs: Vec<u8>,
 }
 
+impl From<&tone_banks::ToneBank> for WasmToneBank {
+    fn from(b: &tone_banks::ToneBank) -> Self {
+        Self {
+            msb: b.msb,
+            label: b.label.to_string(),
+            lsbs: b.lsbs.to_vec(),
+        }
+    }
+}
+
 #[wasm_bindgen]
 impl WasmToneBank {
     #[wasm_bindgen(getter)]
@@ -735,15 +822,7 @@ pub fn tone_bank_groups() -> Vec<WasmToneBankGroup> {
         .iter()
         .map(|g| WasmToneBankGroup {
             label: g.label.to_string(),
-            banks: g
-                .banks
-                .iter()
-                .map(|b| WasmToneBank {
-                    msb: b.msb,
-                    label: b.label.to_string(),
-                    lsbs: b.lsbs.to_vec(),
-                })
-                .collect(),
+            banks: g.banks.iter().map(WasmToneBank::from).collect(),
         })
         .collect()
 }
@@ -752,11 +831,14 @@ pub fn tone_bank_groups() -> Vec<WasmToneBankGroup> {
 /// Returns null if not found.
 #[wasm_bindgen]
 pub fn find_tone_bank(msb: u8, lsb: u8) -> Option<WasmToneBank> {
-    tone_banks::find_bank(msb, lsb).map(|b| WasmToneBank {
-        msb: b.msb,
-        label: b.label.to_string(),
-        lsbs: b.lsbs.to_vec(),
-    })
+    tone_banks::find_bank(msb, lsb).map(WasmToneBank::from)
+}
+
+/// The user bank a tone selected by `msb` saves into (e.g. ExPCM and GM2
+/// tones save into the PCM Synth user bank). Returns null for unknown MSBs.
+#[wasm_bindgen]
+pub fn user_tone_bank(msb: u8) -> Option<WasmToneBank> {
+    tone_banks::user_bank_for(msb).map(WasmToneBank::from)
 }
 
 // ---------------------------------------------------------------------------
