@@ -80,6 +80,7 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
   const [noteData, setNoteData] = useState<PcmDrumPartial | null>(null);
   const [noteLoading, setNoteLoading] = useState(false);
   const noteCache = useRef<Map<number, PcmDrumPartial>>(new Map());
+  const [cacheVersion, setCacheVersion] = useState(0);
 
   // Load common + common2 + MFX on mount / part change
   useEffect(() => {
@@ -160,6 +161,35 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
     loadNote();
     return () => { cancelled = true; };
   }, [selectedKey, partIndex, service]);
+
+  // Prefetch every key so the grid shows routing and switched-off keys up front
+  useEffect(() => {
+    if (loading) return;
+    let cancelled = false;
+
+    async function prefetch() {
+      for (let k = FIRST_KEY; k <= LAST_KEY && !cancelled; k++) {
+        if (noteCache.current.has(k)) continue;
+        try {
+          const data = await service.requestData(
+            pcmdPartialAddress(partIndex, k),
+            [0x00, 0x00, 0x01, 0x43],
+          );
+          if (cancelled) return;
+          const n = service.device.applyPcmdPartial(data) as PcmDrumPartial | null;
+          if (n && !noteCache.current.has(k)) {
+            noteCache.current.set(k, n);
+            setCacheVersion((v) => v + 1);
+          }
+        } catch {
+          // Timeout -- key stays unknown until selected
+        }
+      }
+    }
+
+    prefetch();
+    return () => { cancelled = true; };
+  }, [loading, partIndex, service]);
 
   // ---------------------------------------------------------------------------
   // Key selection with note preview
@@ -278,15 +308,18 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
   // Render
   // ---------------------------------------------------------------------------
 
-  // Build key→outputAssign map from cached notes for key grid color coding.
+  // Build key→outputAssign map and the set of silent keys (every WMT layer
+  // switched off) from cached notes for key grid color coding.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const keyOutputAssigns = useMemo(() => {
+  const [keyOutputAssigns, offKeys] = useMemo(() => {
     const m = new Map<number, number>();
+    const off = new Set<number>();
     for (const [k, n] of noteCache.current) {
       m.set(k, n.outputAssign);
+      if (n.wmt.every((w) => w.wmtSwitch !== 1)) off.add(k);
     }
-    return m;
-  }, [noteData, selectedKey]);
+    return [m, off] as const;
+  }, [noteData, selectedKey, cacheVersion]);
 
   if (loading) {
     return <div className={css.loading}>Loading PCM drum kit data...</div>;
@@ -311,6 +344,7 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
               selectedKey={selectedKey}
               onSelect={handleKeySelect}
               keyOutputAssigns={keyOutputAssigns}
+              offKeys={offKeys}
             />
             {noteLoading ? (
               <div className={css.noteLoadingPlaceholder}>Loading key data...</div>

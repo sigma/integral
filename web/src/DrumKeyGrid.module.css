@@ -54,3 +54,7 @@
   font-size: 13px;
   color: #888;
 }
+
+.keyCellOff {
+  opacity: 0.3;
+}

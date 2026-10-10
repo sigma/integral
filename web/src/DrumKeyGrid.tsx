@@ -19,6 +19,7 @@ export function DrumKeyGrid({
   selectedKey,
   onSelect,
   keyOutputAssigns,
+  offKeys,
 }: {
   firstKey: number;
   lastKey: number;
@@ -26,6 +27,8 @@ export function DrumKeyGrid({
   onSelect: (key: number) => void;
   /** Map of key number → outputAssign value (0=PART, 1-6=C+EQ unit). */
   keyOutputAssigns?: Map<number, number>;
+  /** Keys that produce no sound; shown dimmed but still selectable. */
+  offKeys?: Set<number>;
 }) {
   const keys: number[] = [];
   for (let k = firstKey; k <= lastKey; k++) {
@@ -42,6 +45,7 @@ export function DrumKeyGrid({
         const className = [
           selected ? css.keyCellSelected : css.keyCell,
           black ? css.keyCellBlack : "",
+          offKeys?.has(k) ? css.keyCellOff : "",
         ].filter(Boolean).join(" ");
         return (
           <div key={k} className={className} onClick={() => onSelect(k)}
