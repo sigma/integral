@@ -6,6 +6,8 @@
 //!
 //! Reference: `docs/midi/03-bank-select-tables.md`
 
+use crate::params::tone_type_from_bank_msb;
+
 /// A single tone bank identified by its Bank Select MSB and one or more LSB
 /// values.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,6 +29,9 @@ pub struct ToneBankGroup {
     pub banks: &'static [ToneBank],
 }
 
+/// Label of the user-memory bank in each writable tone group.
+pub const USER_LABEL: &str = "User";
+
 /// All tone bank groups available on the INTEGRA-7.
 pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
     ToneBankGroup {
@@ -38,7 +43,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
                 lsbs: &[64, 65],
             },
             ToneBank {
-                label: "User",
+                label: USER_LABEL,
                 msb: 89,
                 lsbs: &[0, 1],
             },
@@ -53,7 +58,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
                 lsbs: &[64, 65, 66, 67, 68, 69, 70, 71, 72],
             },
             ToneBank {
-                label: "User",
+                label: USER_LABEL,
                 msb: 95,
                 lsbs: &[0, 1, 2, 3],
             },
@@ -68,7 +73,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
                 lsbs: &[64],
             },
             ToneBank {
-                label: "User",
+                label: USER_LABEL,
                 msb: 88,
                 lsbs: &[0],
             },
@@ -83,7 +88,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
                 lsbs: &[64, 65, 66, 67, 68, 69, 70],
             },
             ToneBank {
-                label: "User",
+                label: USER_LABEL,
                 msb: 87,
                 lsbs: &[0, 1],
             },
@@ -98,7 +103,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
                 lsbs: &[64],
             },
             ToneBank {
-                label: "User",
+                label: USER_LABEL,
                 msb: 86,
                 lsbs: &[0],
             },
@@ -178,9 +183,50 @@ pub fn find_bank(msb: u8, lsb: u8) -> Option<&'static ToneBank> {
     None
 }
 
+/// The user bank a tone selected by `msb` can be saved into.
+///
+/// Tones save into the user bank of their tone type, so e.g. an ExPCM or
+/// GM2 tone (PCM Synth type) saves into the PCM Synth user bank.
+pub fn user_bank_for(msb: u8) -> Option<&'static ToneBank> {
+    let tone_type = tone_type_from_bank_msb(msb)?;
+    TONE_BANK_GROUPS
+        .iter()
+        .flat_map(|group| group.banks)
+        .find(|bank| {
+            bank.label == USER_LABEL && tone_type_from_bank_msb(bank.msb) == Some(tone_type)
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn user_bank_for_native_types() {
+        for (msb, lsbs) in [
+            (89, &[0, 1][..]),
+            (95, &[0, 1, 2, 3][..]),
+            (88, &[0][..]),
+            (87, &[0, 1][..]),
+            (86, &[0][..]),
+        ] {
+            let bank = user_bank_for(msb).unwrap();
+            assert_eq!((bank.label, bank.msb, bank.lsbs), (USER_LABEL, msb, lsbs));
+        }
+    }
+
+    #[test]
+    fn user_bank_for_expansion_and_gm2() {
+        assert_eq!(user_bank_for(97).unwrap().msb, 87); // ExPCM Tone
+        assert_eq!(user_bank_for(121).unwrap().msb, 87); // GM2 Tone
+        assert_eq!(user_bank_for(96).unwrap().msb, 86); // ExPCM Drum
+        assert_eq!(user_bank_for(120).unwrap().msb, 86); // GM2 Drum
+    }
+
+    #[test]
+    fn user_bank_for_unknown_msb() {
+        assert!(user_bank_for(0).is_none());
+    }
 
     #[test]
     fn find_sn_acoustic_preset() {

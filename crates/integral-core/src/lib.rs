@@ -44,3 +44,4 @@ pub mod svd_specs;
 pub mod sysex;
 pub mod tone_banks;
 pub mod tone_catalog;
+pub mod user_write;
