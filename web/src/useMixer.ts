@@ -80,6 +80,10 @@ export interface UseMixerResult {
   setCompEqParam: (unit: number, paramOffset: number, value: number) => void;
   selectPart: (part: number) => void;
   switchStudioSet: (pc: number) => void;
+  /** Rename a part's Temporary tone on the device. */
+  renameTone: (part: number, name: string) => void;
+  /** Rename the Temporary Studio Set on the device. */
+  renameStudioSet: (name: string) => void;
   /**
    * Load Studio Set names once; `force` re-reads them (e.g. after a save).
    * A load that returns nothing keeps the previous names and is retried
@@ -323,6 +327,22 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   const setPartLevel = useCallback(
     (part: number, value: number) => {
       service?.device.setPartLevel(part, value);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
+  const renameTone = useCallback(
+    (part: number, name: string) => {
+      service?.device.renameTone(part, name);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
+  const renameStudioSet = useCallback(
+    (name: string) => {
+      service?.device.renameStudioSet(name);
       syncFromRust();
     },
     [service, syncFromRust],
@@ -648,6 +668,8 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     setCompEqParam,
     selectPart,
     switchStudioSet,
+    renameTone,
+    renameStudioSet,
     loadStudioSetNames,
     preview,
   };

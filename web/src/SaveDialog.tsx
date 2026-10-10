@@ -14,12 +14,17 @@ export interface SaveSlot {
 interface Props<T extends SaveSlot> {
   /** Dialog title, e.g. "Save Tone — Part 1". */
   title: string;
-  /** Name of what is being saved (shown in the confirmation). */
+  /** Current name of what is being saved; editable before saving. */
   sourceName: string;
+  /** Maximum name length the device stores. */
+  maxNameLength: number;
   slots: T[];
   loading: boolean;
-  /** Perform the save; resolves when the device reports it finished. */
-  onSave: (slot: T) => Promise<void>;
+  /**
+   * Perform the save under `name`; resolves when the device reports it
+   * finished.
+   */
+  onSave: (slot: T, name: string) => Promise<void>;
   onClose: () => void;
 }
 
@@ -33,6 +38,7 @@ type Phase =
 export function SaveDialog<T extends SaveSlot>({
   title,
   sourceName,
+  maxNameLength,
   slots,
   loading,
   onSave,
@@ -40,6 +46,7 @@ export function SaveDialog<T extends SaveSlot>({
 }: Props<T>) {
   const [selected, setSelected] = useState<T | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "pick" });
+  const [name, setName] = useState(sourceName.slice(0, maxNameLength));
   const saving = phase.kind === "saving";
 
   // Escape backs out of the confirmation, else closes (never mid-save).
@@ -57,7 +64,7 @@ export function SaveDialog<T extends SaveSlot>({
     if (!selected) return;
     setPhase({ kind: "saving" });
     try {
-      await onSave(selected);
+      await onSave(selected, name);
       onClose();
     } catch (e) {
       setPhase({
@@ -65,7 +72,7 @@ export function SaveDialog<T extends SaveSlot>({
         message: e instanceof Error ? e.message : String(e),
       });
     }
-  }, [selected, onSave, onClose]);
+  }, [selected, name, onSave, onClose]);
 
   return (
     <div className={css.overlay} onClick={saving ? undefined : onClose}>
@@ -80,6 +87,19 @@ export function SaveDialog<T extends SaveSlot>({
             ✕
           </button>
         </div>
+        <label className={css.nameRow}>
+          <span className={css.nameLabel}>Name</span>
+          <input
+            className={css.nameInput}
+            value={name}
+            maxLength={maxNameLength}
+            disabled={saving}
+            onChange={(e) =>
+              // The device stores printable ASCII only.
+              setName(e.target.value.replace(/[^\x20-\x7E]/g, ""))
+            }
+          />
+        </label>
         <div className={css.slotList}>
           {slots.length === 0 ? (
             <div className={css.loading}>
@@ -109,11 +129,11 @@ export function SaveDialog<T extends SaveSlot>({
           <span className={css.status}>
             {phase.kind === "pick" &&
               (selected
-                ? `Save "${sourceName}" to ${selected.number}`
+                ? `Save "${name}" to ${selected.number}`
                 : "Choose a user slot")}
             {phase.kind === "confirm" &&
               selected &&
-              `Overwrite ${selected.number} "${selected.name}" with "${sourceName}"?`}
+              `Overwrite ${selected.number} "${selected.name}" with "${name}"?`}
             {phase.kind === "saving" && "Saving..."}
             {phase.kind === "error" && (
               <span className={css.error}>{phase.message}</span>
@@ -135,7 +155,7 @@ export function SaveDialog<T extends SaveSlot>({
             <button
               className={css.footerButton}
               onClick={() => setPhase({ kind: "confirm" })}
-              disabled={!selected || saving}
+              disabled={!selected || saving || name.trim() === ""}
             >
               Save
             </button>

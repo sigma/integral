@@ -6,6 +6,7 @@ import { ToneCatalog } from "./toneCatalog";
 import { SaveDialog, type SaveSlot } from "./SaveDialog";
 import { toneSlotNumber, userToneBank, type ToneBank } from "./toneBanks";
 import { useBankEntries } from "./useBankEntries";
+import { deviceSpec } from "./deviceSpec";
 import type { IntegraService } from "./integra";
 import type { UseMixerResult } from "./useMixer";
 import type { PartState } from "./types";
@@ -60,6 +61,7 @@ interface ToneSaveDialogProps {
   bank: ToneBank;
   part: number;
   toneName: string;
+  onRename: (part: number, name: string) => void;
   onClose: () => void;
 }
 
@@ -70,6 +72,7 @@ function ToneSaveDialog({
   bank,
   part,
   toneName,
+  onRename,
   onClose,
 }: ToneSaveDialogProps) {
   const { entries, loading } = useBankEntries(catalog, bank);
@@ -86,16 +89,19 @@ function ToneSaveDialog({
     [entries, bank],
   );
   const handleSave = useCallback(
-    async (slot: ToneSlot) => {
+    async (slot: ToneSlot, name: string) => {
+      // Queued ahead of the save request, so the device stores the new name.
+      if (name !== toneName) onRename(part, name);
       await service.saveToneToUser(part, slot.msb, slot.lsb, slot.pc);
       catalog.refresh(bank);
     },
-    [service, catalog, bank, part],
+    [service, catalog, bank, part, toneName, onRename],
   );
   return (
     <SaveDialog
       title={`Save Tone — Part ${part + 1}`}
       sourceName={toneName}
+      maxNameLength={deviceSpec().tone_name_length}
       slots={slots}
       loading={loading}
       onSave={handleSave}
@@ -132,7 +138,7 @@ export function TopBar({ mixer, service }: Props) {
         .map(([pc, name]) => ({ key: String(pc), number: String(pc + 1), name, pc })),
     [state.studioSetNames],
   );
-  const { loadStudioSetNames } = mixer;
+  const { loadStudioSetNames, renameStudioSet } = mixer;
   const openStudioSetSave = useCallback(async () => {
     setStudioSetSave({ name: state.studioSetName });
     setStudioSetLoading(true);
@@ -140,11 +146,13 @@ export function TopBar({ mixer, service }: Props) {
     setStudioSetLoading(false);
   }, [loadStudioSetNames, state.studioSetName]);
   const handleStudioSetSave = useCallback(
-    async (slot: StudioSetSlot) => {
+    async (slot: StudioSetSlot, name: string) => {
+      // Queued ahead of the save request, so the device stores the new name.
+      if (name !== studioSetSave?.name) renameStudioSet(name);
       await service.saveStudioSetToUser(slot.pc);
       await loadStudioSetNames(true);
     },
-    [service, loadStudioSetNames],
+    [service, loadStudioSetNames, renameStudioSet, studioSetSave],
   );
 
   const handleToneSelect = useCallback(
@@ -226,6 +234,7 @@ export function TopBar({ mixer, service }: Props) {
           bank={toneSave.bank}
           part={toneSave.part}
           toneName={toneSave.toneName}
+          onRename={mixer.renameTone}
           onClose={() => setToneSave(null)}
         />
       )}
@@ -233,6 +242,7 @@ export function TopBar({ mixer, service }: Props) {
         <SaveDialog
           title="Save Studio Set"
           sourceName={studioSetSave.name}
+          maxNameLength={deviceSpec().studio_set_name_length}
           slots={studioSetSlots}
           loading={studioSetLoading}
           onSave={handleStudioSetSave}

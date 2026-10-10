@@ -12,6 +12,8 @@ interface DeviceSpec {
   reverb_output_names: string[];
   surround_room_types: string[];
   surround_room_sizes: string[];
+  tone_name_length: number;
+  studio_set_name_length: number;
 }
 
 let cached: DeviceSpec | null = null;

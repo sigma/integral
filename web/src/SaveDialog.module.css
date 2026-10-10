@@ -19,6 +19,30 @@
   composes: closeButton from "./ToneSelector.module.css";
 }
 
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+.nameLabel {
+  font-size: 12px;
+  color: #888;
+}
+
+.nameInput {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-family: monospace;
+  color: #e0e0e0;
+  background: #12121f;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+}
+
 .slotList {
   composes: toneList from "./ToneSelector.module.css";
 }
