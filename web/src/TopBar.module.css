@@ -1,6 +1,7 @@
 .toneInfo {
   composes: container from "./StudioSetSelector.module.css";
-  max-width: 40vw;
+  justify-self: center;
+  max-width: 100%;
   min-width: 0;
 }
 

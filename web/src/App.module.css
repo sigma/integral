@@ -43,10 +43,10 @@
   background: #0c0c1a;
 }
 
-/* tabs | selected tone, centered | selectors */
+/* tabs and transport | selected tone, in the remaining space | selectors */
 .tabBar {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   background: #0a0a18;
   border-bottom: 1px solid #2a2a4a;
@@ -69,6 +69,7 @@
   cursor: pointer;
   text-transform: uppercase;
   letter-spacing: 1px;
+  white-space: nowrap;
 }
 
 .tab:hover {
