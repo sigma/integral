@@ -5,6 +5,14 @@ interface Props {
   value: number;
   onChange: (value: number) => void;
   defaultValue?: number;
+  /** Range minimum. Default 0. */
+  min?: number;
+  /** Range maximum. Default 127. */
+  max?: number;
+  /** Formats the value readout and ruler labels. */
+  formatValue?: (v: number) => string;
+  /** Accessible name. Default "Volume". */
+  label?: string;
 }
 
 /** Must match .track height in CSS. */
@@ -14,19 +22,33 @@ const PAD = 8;
 const MIN_TOP = PAD;
 const MAX_TOP = TRACK_HEIGHT - PAD - CAP_HEIGHT;
 
-function valueToTop(value: number): number {
-  return MIN_TOP + (MAX_TOP - MIN_TOP) * (1 - value / 127);
+function valueToTop(value: number, min: number, max: number): number {
+  return MIN_TOP + (MAX_TOP - MIN_TOP) * (1 - (value - min) / (max - min));
 }
 
-function topToValue(top: number): number {
+function topToValue(top: number, min: number, max: number): number {
   const ratio = 1 - (top - MIN_TOP) / (MAX_TOP - MIN_TOP);
-  return Math.round(Math.max(0, Math.min(127, ratio * 127)));
+  return Math.round(Math.max(min, Math.min(max, min + ratio * (max - min))));
 }
 
-/** MIDI value ruler marks */
+/** MIDI value ruler marks for the default 0–127 range. */
 const RULER_MARKS = [127, 100, 80, 60, 40, 20, 0];
 
-export function VolumeFader({ value, onChange, defaultValue = 100 }: Props) {
+/** Ruler marks: the MIDI marks for 0–127, else quarters of the range. */
+function rulerMarks(min: number, max: number): number[] {
+  if (min === 0 && max === 127) return RULER_MARKS;
+  return [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(max - f * (max - min)));
+}
+
+export function VolumeFader({
+  value,
+  onChange,
+  defaultValue = 100,
+  min = 0,
+  max = 127,
+  formatValue,
+  label = "Volume",
+}: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
@@ -36,9 +58,9 @@ export function VolumeFader({ value, onChange, defaultValue = 100 }: Props) {
       if (!track) return value;
       const rect = track.getBoundingClientRect();
       const top = clientY - rect.top;
-      return topToValue(top);
+      return topToValue(top, min, max);
     },
-    [value],
+    [value, min, max],
   );
 
   const handlePointerDown = useCallback(
@@ -66,7 +88,7 @@ export function VolumeFader({ value, onChange, defaultValue = 100 }: Props) {
     onChange(defaultValue);
   }, [onChange, defaultValue]);
 
-  const capTop = valueToTop(value);
+  const capTop = valueToTop(value, min, max);
 
   return (
     <div className={css.container}>
@@ -76,9 +98,9 @@ export function VolumeFader({ value, onChange, defaultValue = 100 }: Props) {
         tabIndex={0}
         role="slider"
         aria-valuenow={value}
-        aria-valuemin={0}
-        aria-valuemax={127}
-        aria-label="Volume"
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-label={label}
         aria-orientation="vertical"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -87,23 +109,23 @@ export function VolumeFader({ value, onChange, defaultValue = 100 }: Props) {
         onKeyDown={(e) => {
           if (e.key === "ArrowUp" || e.key === "ArrowRight") {
             e.preventDefault();
-            onChange(Math.min(127, value + (e.shiftKey ? 10 : 1)));
+            onChange(Math.min(max, value + (e.shiftKey ? 10 : 1)));
           } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
             e.preventDefault();
-            onChange(Math.max(0, value - (e.shiftKey ? 10 : 1)));
+            onChange(Math.max(min, value - (e.shiftKey ? 10 : 1)));
           } else if (e.key === "Home") {
             e.preventDefault();
-            onChange(127);
+            onChange(max);
           } else if (e.key === "End") {
             e.preventDefault();
-            onChange(0);
+            onChange(min);
           }
         }}
       >
         {/* Ruler marks */}
-        {RULER_MARKS.map((midi) => {
-          const top = valueToTop(midi) + CAP_HEIGHT / 2;
-          const isZeroDb = midi === 100;
+        {rulerMarks(min, max).map((midi) => {
+          const top = valueToTop(midi, min, max) + CAP_HEIGHT / 2;
+          const isZeroDb = midi === defaultValue;
           return (
             <div
               key={midi}
@@ -111,7 +133,7 @@ export function VolumeFader({ value, onChange, defaultValue = 100 }: Props) {
               style={{ top }}
             >
               <span className={css.rulerLabel}>
-                {isZeroDb ? "0dB" : midi}
+                {formatValue ? formatValue(midi) : isZeroDb ? "0dB" : midi}
               </span>
             </div>
           );
@@ -119,7 +141,7 @@ export function VolumeFader({ value, onChange, defaultValue = 100 }: Props) {
         <div className={css.groove} />
         <div className={css.cap} style={{ top: capTop }} />
       </div>
-      <span className={css.value}>{value}</span>
+      <span className={css.value}>{formatValue ? formatValue(value) : value}</span>
     </div>
   );
 }
