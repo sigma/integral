@@ -7,6 +7,8 @@ license.workspace = true
 
 [features]
 serde = ["dep:serde"]
+# Step sequencer for the web UI. Off by default so it never ships in the VST.
+sequencer = []
 
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
