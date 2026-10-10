@@ -45,7 +45,7 @@ export function DrumKeyGrid({
         ].filter(Boolean).join(" ");
         return (
           <div key={k} className={className} onClick={() => onSelect(k)}
-            style={routeColor ? { borderLeftColor: routeColor, borderLeftWidth: 3 } : undefined}
+            style={routeColor ? { borderLeftColor: routeColor, borderLeftWidth: 5 } : undefined}
             title={oa > 0 ? `→ C+EQ${oa}` : undefined}
           >
             <span className={css.keyNoteName}>{noteName(k)}</span>

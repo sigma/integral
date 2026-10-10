@@ -2,8 +2,8 @@
 
 .keyGrid {
   display: grid;
-  grid-template-columns: repeat(12, 32px);
-  gap: 2px;
+  grid-template-columns: repeat(12, 64px);
+  gap: 4px;
 }
 
 .keyCell {
@@ -11,14 +11,14 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 64px;
+  height: 64px;
   padding: 0;
   border: 1px solid #333;
-  border-radius: 3px;
+  border-radius: 5px;
   background: #181828;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 18px;
   color: #999;
   line-height: 1.1;
   user-select: none;
@@ -47,10 +47,10 @@
 
 .keyNoteName {
   font-weight: 600;
-  font-size: 9px;
+  font-size: 18px;
 }
 
 .keyNumber {
-  font-size: 7px;
-  color: #666;
+  font-size: 13px;
+  color: #888;
 }
