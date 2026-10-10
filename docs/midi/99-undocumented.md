@@ -5,9 +5,55 @@ the Roland iPad Editor app's communication with the INTEGRA-7. These are NOT
 part of the official MIDI Implementation (v1.00) and may change with firmware
 updates.
 
-**Discovery method:** MIDI traffic capture using `integral monitor` while
-operating the iPad app, followed by systematic probing of address and payload
-variations via the CLI.
+**Discovery method:** MIDI traffic capture while operating the iPad app (see
+[Capturing the iPad Editor's Traffic](#capturing-the-ipad-editors-traffic)),
+followed by systematic probing of address and payload variations via the CLI.
+
+### Capturing the iPad Editor's Traffic
+
+`integral monitor --port <port>` only shows what the INTEGRA-7 sends; the
+editor's requests never reach that port. To see both sides, make the Mac a
+relay between the iPad and the device with `--bridge`, which forwards every
+message in both directions and logs each one with a timestamp and direction:
+
+```mermaid
+flowchart LR
+    E[iPad editor] <-->|network MIDI| T["Mac session<br/>iPad Tap"]
+    T <--> B["integral monitor<br/>--bridge"]
+    B <--> N["Network Integra"]
+    N <--> I[INTEGRA-7]
+```
+
+1. **Cut the editor's own link.** By default the editor talks over Wi-Fi to
+   the INTEGRA-7's USB wireless adapter, a link the Mac cannot see. Unplug
+   the adapter (or turn wireless off in the INTEGRA-7's SYSTEM menu) so the
+   bridge is the only path.
+2. **Join the iPad's network session.** With the editor open, iOS publishes
+   a network MIDI session named after the iPad. In macOS Audio MIDI Setup →
+   MIDI Studio → Network, add a session under *My Sessions* (e.g.
+   `iPad Tap`), enable it, select the iPad under *Directory* and click
+   *Connect*. Keep it separate from the session that reaches the INTEGRA-7.
+3. **Point the editor at it.** Set the editor's MIDI device to *Network*.
+4. **Start the bridge:**
+
+   ```
+   integral monitor --port "iPad Tap" --bridge Integra > capture.log
+   ```
+
+   Lines read `<ms> ms <from> -> <to>: [<n> bytes] <hex>`, with a DT1 decode
+   where one parses.
+
+Notes:
+
+- For the first few minutes after connecting, the editor may resend each
+  request after 3 s even though the reply was forwarded within ~10 ms;
+  this stops once the network session settles. Separately, the editor
+  paces its reads at about one per second.
+- The network session runs over link-local IPv6. To inspect it at the
+  packet level, filter on ports rather than the iPad's IPv4 address:
+  `sudo tcpdump -i <if> -n 'udp portrange 5004-5009'`.
+- Note the log line count before each action you want to isolate, and
+  do one action at a time.
 
 ---
 
@@ -374,10 +420,8 @@ refresh its "By Category" lists. Not otherwise verified.
 
 ### Discovery
 
-Captured 2026-10-10 with `integral monitor --port "iPad Tap" --bridge Integra`,
-which forwards and logs traffic between a macOS network MIDI session joined
-by the iPad and the INTEGRA-7. The editor's own Wi-Fi link was disabled (USB
-wireless adapter unplugged) so every message went through the bridge.
+Captured 2026-10-10 with the bridge setup described in
+[Capturing the iPad Editor's Traffic](#capturing-the-ipad-editors-traffic).
 
 ---
 
