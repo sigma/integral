@@ -56,6 +56,7 @@ export function SequencerPage({ engine, mixer, keyboard }: Props) {
 
   return (
     <div className={css.page}>
+      <PatternFile engine={engine} />
       <div className={css.scroller} style={gridVars}>
         {tracks.map((track, i) => (
           <div key={i} className={css.row}>
@@ -100,6 +101,53 @@ export function SequencerPage({ engine, mixer, keyboard }: Props) {
         )}
       </div>
       <Piano keyboard={keyboard} />
+    </div>
+  );
+}
+
+/** Download the Pattern as `pattern.mid`, or replace it with an uploaded `.mid`. */
+function PatternFile({ engine }: { engine: SequencerEngine }) {
+  const [error, setError] = useState<string | null>(null);
+
+  const download = () => {
+    const bytes = engine.toSmf();
+    if (!bytes) return;
+    const url = URL.createObjectURL(new Blob([bytes], { type: "audio/midi" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "pattern.mid";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      engine.loadSmf(new Uint8Array(await file.arrayBuffer()));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  return (
+    <div className={css.toolbar}>
+      <button className={css.toolButton} onClick={download}>
+        Download
+      </button>
+      <label className={css.toolButton}>
+        Upload
+        <input
+          className={css.fileInput}
+          type="file"
+          accept=".mid,.midi,audio/midi"
+          onChange={(e) => {
+            void upload(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
+      </label>
+      {error && <span className={css.error}>{error}</span>}
     </div>
   );
 }

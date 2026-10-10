@@ -149,13 +149,23 @@ export class SequencerEngine {
     }
   }
 
+  /** The Pattern as `.mid` bytes, or null without a device to read channels from. */
+  toSmf(): Uint8Array | null {
+    return this.service ? this.seq.toSmf(this.service.device) : null;
+  }
+
+  /** Replace the Pattern with a `.mid` file. Throws (Pattern unchanged) if it is rejected. */
+  loadSmf(bytes: Uint8Array): void {
+    this.edit((seq) => seq.loadSmf(bytes));
+  }
+
   setBpm(bpm: number): void {
     this.edit((seq) => seq.setBpm(bpm));
   }
 
   private save(): void {
-    if (!this.service) return;
-    localStorage.setItem(STORAGE_KEY, bytesToBase64(this.seq.toSmf(this.service.device)));
+    const bytes = this.toSmf();
+    if (bytes) localStorage.setItem(STORAGE_KEY, bytesToBase64(bytes));
   }
 
   private tick(): void {
