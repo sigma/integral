@@ -51,8 +51,13 @@ export function PartialRow({
         <button
           className={`${css.partialSwitchBtn} ${isOn ? css.partialSwitchBtnOn : ""}`}
           onClick={onToggle}
+          title={isOn ? "Power off" : "Power on"}
         >
-          Voice {idx + 1} {isOn ? "on" : "off"}
+          <svg className={css.powerIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2.5" strokeLinecap="round">
+            <path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0" />
+          </svg>
+          <span className={css.partialSwLabel}>Voice {idx + 1}</span>
         </button>
       </div>
 
