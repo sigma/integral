@@ -1,4 +1,4 @@
-/* Boxed control panel shared by EqSection and FxStrip. */
+/* Boxed control panel shared by the mixer strips (EQ, comp, FX, pan, sends). */
 .box {
   display: flex;
   flex-direction: column;
@@ -31,6 +31,12 @@
 .switchOff {
   background: #222238;
   color: #666;
+}
+
+/* Switch off: dim everything but the switch, which stays the way back on. Controls stay editable. */
+.off > :not(.switchButton) {
+  filter: grayscale(1);
+  opacity: 0.45;
 }
 
 /*

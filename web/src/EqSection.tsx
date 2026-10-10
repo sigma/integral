@@ -122,7 +122,7 @@ export function EqSection({ eq, onToggleSwitch, onParam, showSwitch = true, para
   }, [measure]);
 
   return (
-    <div className={box.box} style={style}>
+    <div className={`${box.box} ${showSwitch && !eq.enabled ? box.off : ""}`} style={style}>
       {showSwitch && (
         <button
           className={`${box.switchButton} ${eq.enabled ? box.switchOn : box.switchOff}`}

@@ -200,7 +200,7 @@ function ChannelStripInner({
 
       {isCompEq ? (
         // Compressor box: same box as the EQ, switch on top like EQ ON.
-        <div className={box.box}>
+        <div className={`${box.box} ${compEqUnit?.compSwitch ? "" : box.off}`}>
           <button
             className={`${box.switchButton} ${compEqUnit?.compSwitch ? box.switchOn : box.switchOff}`}
             onClick={() => onCompEqParam?.(0x00, compEqUnit?.compSwitch ? 0 : 1)}
@@ -220,7 +220,6 @@ function ChannelStripInner({
             threshold={compEqUnit?.compThreshold ?? 127}
             ratio={ratioOf(compEqUnit?.compRatio ?? 0)}
             max={127}
-            active={compEqUnit?.compSwitch}
           />
           <div className={css.sends}>
             <EqKnob label="Thr" value={compEqUnit?.compThreshold ?? 127} min={0} max={127} defaultValue={127}

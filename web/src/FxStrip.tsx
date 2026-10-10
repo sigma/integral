@@ -34,7 +34,7 @@ export function FxStrip({
     <div className={`${css.strip} ${fxCss.override}`}>
       <div className={css.partNumber}>{label}</div>
 
-      <div className={`${box.box} ${fxCss.fill}`}>
+      <div className={`${box.box} ${fxCss.fill} ${fx.enabled ? "" : box.off}`}>
         <button
           className={`${box.switchButton} ${fx.enabled ? box.switchOn : box.switchOff}`}
           onClick={onToggleSwitch}

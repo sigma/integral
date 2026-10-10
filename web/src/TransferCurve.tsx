@@ -6,13 +6,12 @@ interface Props {
   ratio: number;
   /** Full-scale input level. */
   max: number;
-  active?: boolean;
 }
 
 const W = 88;
 const H = 60;
 
-export function TransferCurve({ threshold, ratio, max, active = true }: Props) {
+export function TransferCurve({ threshold, ratio, max }: Props) {
   const x = (v: number) => (v / max) * W;
   const y = (v: number) => H - (v / max) * H;
   const out = threshold + (max - threshold) / ratio;
@@ -23,7 +22,7 @@ export function TransferCurve({ threshold, ratio, max, active = true }: Props) {
       <polyline
         points={`0,${H} ${x(threshold)},${y(threshold)} ${W},${y(out)}`}
         fill="none"
-        stroke={active ? "#fc8" : "#666"}
+        stroke="#fc8"
         strokeWidth={2}
       />
     </svg>
