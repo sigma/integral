@@ -198,43 +198,42 @@ function ChannelStripInner({
         style={hideIf(showEq)}
       />
 
-      {isCompEq && (
-        // Compressor box: its own row under the EQ/FX boxes, so it sits right below them.
-        <div className={`${box.box} ${css.compBox} ${compEqUnit?.compSwitch ? "" : box.off}`}>
-          <button
-            className={`${box.switchButton} ${compEqUnit?.compSwitch ? box.switchOn : box.switchOff}`}
-            onClick={() => onCompEqParam?.(0x00, compEqUnit?.compSwitch ? 0 : 1)}
-          >
-            {compEqUnit?.compSwitch ? "COMP ON" : "COMP OFF"}
-          </button>
-          {/* Curve plots table index, not ms: the tables are non-linear. */}
-          <ADSREnvelope
-            mode="AD"
-            compact
-            attack={{ label: "Atk", value: compEqUnit?.compAttack ?? 10, min: 0, max: 31, defaultValue: 10,
-              onChange: (v) => onCompEqParam?.(0x01, v), formatValue: (v) => ATTACK_VALUES[v] ?? String(v) }}
-            decay={{ label: "Rel", value: compEqUnit?.compRelease ?? 10, min: 0, max: 23, defaultValue: 10,
-              onChange: (v) => onCompEqParam?.(0x02, v), formatValue: (v) => RELEASE_VALUES[v] ?? String(v) }}
-          />
-          <TransferCurve
-            threshold={compEqUnit?.compThreshold ?? 127}
-            ratio={ratioOf(compEqUnit?.compRatio ?? 0)}
-            max={127}
-          />
-          <div className={css.sends}>
-            <EqKnob label="Thr" value={compEqUnit?.compThreshold ?? 127} min={0} max={127} defaultValue={127}
-              onChange={(v) => onCompEqParam?.(0x03, v)}
-              formatValue={(v) => String(v)} color="#c96" />
-            <EqKnob label="Ratio" value={compEqUnit?.compRatio ?? 0} min={0} max={19} defaultValue={0}
-              onChange={(v) => onCompEqParam?.(0x04, v)}
-              formatValue={(v) => RATIO_VALUES[v] ?? String(v)} color="#c96" />
-          </div>
-        </div>
-      )}
-
-      {/* Pan/Sends and the toggles sit on the fader; the free space opens above them. */}
-      {showMute && (
+      {/* Pan/Sends and the toggles (or the comp box) sit on the fader; the free space opens above them. */}
+      {(showMute || isCompEq) && (
         <div className={css.bottom}>
+          {isCompEq && (
+          // Compressor box: sits on its gain fader, which greys out with it.
+            <div className={`${box.box} ${compEqUnit?.compSwitch ? "" : box.off}`}>
+              <button
+                className={`${box.switchButton} ${compEqUnit?.compSwitch ? box.switchOn : box.switchOff}`}
+                onClick={() => onCompEqParam?.(0x00, compEqUnit?.compSwitch ? 0 : 1)}
+              >
+                {compEqUnit?.compSwitch ? "COMP ON" : "COMP OFF"}
+              </button>
+              {/* Curve plots table index, not ms: the tables are non-linear. */}
+              <ADSREnvelope
+                mode="AD"
+                compact
+                attack={{ label: "Atk", value: compEqUnit?.compAttack ?? 10, min: 0, max: 31, defaultValue: 10,
+                  onChange: (v) => onCompEqParam?.(0x01, v), formatValue: (v) => ATTACK_VALUES[v] ?? String(v) }}
+                decay={{ label: "Rel", value: compEqUnit?.compRelease ?? 10, min: 0, max: 23, defaultValue: 10,
+                  onChange: (v) => onCompEqParam?.(0x02, v), formatValue: (v) => RELEASE_VALUES[v] ?? String(v) }}
+              />
+              <TransferCurve
+                threshold={compEqUnit?.compThreshold ?? 127}
+                ratio={ratioOf(compEqUnit?.compRatio ?? 0)}
+                max={127}
+              />
+              <div className={css.sends}>
+                <EqKnob label="Thr" value={compEqUnit?.compThreshold ?? 127} min={0} max={127} defaultValue={127}
+                  onChange={(v) => onCompEqParam?.(0x03, v)}
+                  formatValue={(v) => String(v)} color="#c96" />
+                <EqKnob label="Ratio" value={compEqUnit?.compRatio ?? 0} min={0} max={19} defaultValue={0}
+                  onChange={(v) => onCompEqParam?.(0x04, v)}
+                  formatValue={(v) => RATIO_VALUES[v] ?? String(v)} color="#c96" />
+              </div>
+            </div>
+          )}
           {isPart && (
             // Pan and sends boxes: same box as the EQ, at natural height.
             <>
@@ -264,38 +263,40 @@ function ChannelStripInner({
           )}
 
           {/* Toggles sit directly above the fader; M/S is the bottom row on every strip. */}
-          <div className={css.toggles}>
-            {isPart && (
-              <button
-                className={`${css.compEqButton} ${compEqAssigned ? css.compOn : ""}`}
-                onClick={onCompEqToggle ?? noop}
-                title="Assign Drum Comp+EQ to this part"
-              >
-                C+EQ
-              </button>
-            )}
-            <div className={css.muteRow}>
-              <button
-                className={`${css.muteButton} ${isMuted ? css.muted : ""}`}
-                onClick={onMuteToggle ?? noop}
-              >
-                M
-              </button>
+          {showMute && (
+            <div className={css.toggles}>
               {isPart && (
                 <button
-                  className={`${css.muteButton} ${soloed ? css.soloed : ""}`}
-                  onClick={onSoloToggle ?? noop}
+                  className={`${css.compEqButton} ${compEqAssigned ? css.compOn : ""}`}
+                  onClick={onCompEqToggle ?? noop}
+                  title="Assign Drum Comp+EQ to this part"
                 >
-                  S
+                  C+EQ
                 </button>
               )}
+              <div className={css.muteRow}>
+                <button
+                  className={`${css.muteButton} ${isMuted ? css.muted : ""}`}
+                  onClick={onMuteToggle ?? noop}
+                >
+                  M
+                </button>
+                {isPart && (
+                  <button
+                    className={`${css.muteButton} ${soloed ? css.soloed : ""}`}
+                    onClick={onSoloToggle ?? noop}
+                  >
+                    S
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
       {/* Fader area: level, or makeup gain for Comp+EQ */}
-      <div className={css.faderArea}>
+      <div className={`${css.faderArea} ${isCompEq && !compEqUnit?.compSwitch ? box.off : ""}`}>
         {showToneName && <span className={css.toneName}>{toneLabel(p)}</span>}
         {isCompEq ? (
           <VolumeFader value={compEqUnit?.compOutputGain ?? 0} onChange={(v) => onCompEqParam?.(0x05, v)}
