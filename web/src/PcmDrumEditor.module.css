@@ -168,3 +168,11 @@
   gap: 4px;
   align-items: center;
 }
+
+/* Filter controls: two rows sharing columns, so each stack sits under its envelope knob */
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 8px;
+  place-items: start center;
+}

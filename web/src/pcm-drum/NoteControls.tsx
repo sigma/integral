@@ -315,7 +315,7 @@ function TvfSection({
 
   return (
     <SectionPanel label="FILTER" accentColor="#68c">
-      <div className={css.knobRow}>
+      <div className={css.filterGrid}>
         <SynthKnob label="Depth" value={note.tvfEnvDepth} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => onParam(off(6), v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Filter envelope depth" />
@@ -328,8 +328,6 @@ function TvfSection({
         <SynthKnob label="T4 Vel" value={note.tvfEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => onParam(off(10), v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Filter envelope Time 4 velocity sensitivity" />
-      </div>
-      <div className={css.panelRow}>
         <SynthSwitch label="Type" value={note.tvfFilterType} vertical
           options={FILTER_TYPE_OPTIONS}
           onChange={(v) => onParam(off(0), v)} title="Filter type" />

@@ -213,7 +213,7 @@ function TvfSection({
 }) {
   return (
     <SectionPanel label="FILTER" accentColor="#68c">
-      <div className={css.panelRow}>
+      <div className={css.filterGrid}>
         <SynthKnob label="Depth" value={partial.tvfEnvDepth} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => setP(0x4F, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Filter envelope depth — how much the envelope sweeps the cutoff" />
@@ -229,8 +229,6 @@ function TvfSection({
         <SynthKnob label="T4 Vel" value={partial.tvfEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => setP(0x53, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Filter envelope Time 4 velocity sensitivity — release velocity changes the release time" />
-      </div>
-      <div className={css.panelRow}>
         <SynthSwitch label="Type" value={partial.tvfFilterType} vertical
           options={FILTER_TYPE_NAMES.map((l, i) => ({ value: i, label: l }))}
           onChange={(v) => setP(0x48, v)} title="Filter type" />
@@ -242,6 +240,9 @@ function TvfSection({
             options={VELOCITY_CURVE_NAMES.map((l, i) => ({ value: i, label: l }))}
             onChange={(v) => setP(0x50, v)} title="Envelope velocity response curve shape" />
         </div>
+        <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} min={44} max={84} defaultValue={64} center={64}
+          onChange={(v) => setP(0x4A, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+          title="Cutoff key tracking — higher keys = higher cutoff" />
         <div className={css.stack}>
           <SynthKnob label="Cutoff" value={partial.tvfCutoffFrequency} min={0} max={127} defaultValue={127}
             onChange={(v) => setP(0x49, v)} formatValue={(v) => String(v)} color="#68c"
@@ -258,9 +259,6 @@ function TvfSection({
             onChange={(v) => setP(0x4E, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
             title="Resonance velocity sensitivity — harder keys = more resonance" />
         </div>
-        <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} min={44} max={84} defaultValue={64} center={64}
-          onChange={(v) => setP(0x4A, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
-          title="Cutoff key tracking — higher keys = higher cutoff" />
       </div>
       <BreakpointEnvelope
         compact
