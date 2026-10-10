@@ -46,3 +46,17 @@ _Avoid_: Piano, controller
 **Phrase preview**:
 The device's own built-in demo phrase for a Part, started by SysEx. Unrelated
 to the Sequencer.
+
+## Librarian
+
+**Pack**:
+One file holding any mix of Studio Sets and tones of any type. Exporting a
+single tone gives a Pack of one. Exporting a Studio Set also carries the User
+tones its Parts use.
+_Avoid_: Bank (that is Bank Select), tone set, library
+
+**User slot**:
+One numbered place in the device's user memory for a tone of one type or a
+Studio Set. A range of User slots is a way to pick what goes into a Pack, not
+a thing of its own.
+_Avoid_: Patch, program
