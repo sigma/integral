@@ -20,7 +20,6 @@ fmt-check:
 # run clippy on all targets
 lint:
     cargo clippy --workspace --all-targets -- -D warnings
-    cargo clippy -p integral-core --all-targets --features sequencer -- -D warnings
 
 # typecheck the web app
 lint-web:
@@ -38,7 +37,6 @@ build:
 # build WASM targets (check only)
 build-wasm:
     cargo build --target wasm32-unknown-unknown -p integral-core -p integral-wasm
-    cargo build --target wasm32-unknown-unknown -p integral-core --features sequencer
 
 # build WASM package for web consumption
 pack-wasm:
@@ -47,7 +45,6 @@ pack-wasm:
 # run all tests
 test:
     cargo test --workspace
-    cargo test -p integral-core --features sequencer
 
 # build the web app for production (includes WASM pack)
 build-web: pack-wasm

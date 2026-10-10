@@ -722,6 +722,11 @@ export class IntegraService {
       new Uint8Array([NOTE_OFF | (channel & CHANNEL_MASK), note & DATA_MASK, 0]),
     );
   }
+
+  /** Send a raw MIDI message at `timestamp` (`performance.now()` clock), or now if omitted. */
+  sendMidi(bytes: number[], timestamp?: number): void {
+    this.port.output.send(bytes, timestamp);
+  }
 }
 
 function addressKey(address: number[]): string {

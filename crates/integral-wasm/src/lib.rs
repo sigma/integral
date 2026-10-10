@@ -10,6 +10,9 @@ use integral_core::{
 };
 use wasm_bindgen::prelude::*;
 
+mod sequencer;
+pub use sequencer::WasmSequencer;
+
 /// Maximum valid part index (0–15 for 16 parts).
 const MAX_PART: u8 = 15;
 

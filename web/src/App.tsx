@@ -24,6 +24,8 @@ import { MixerPage } from "./MixerPage";
 import { SurroundPage } from "./SurroundPage";
 import { ToneEditorPage } from "./ToneEditorPage";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { Transport } from "./Transport";
+import { sequencerEngine, type SequencerEngine } from "./sequencer";
 import css from "./App.module.css";
 
 type PageTab = "mixer" | "surround" | "toneEdit";
@@ -42,6 +44,7 @@ export function App() {
   const [status, setStatus] = useState<DeviceStatus>({ step: "idle" });
   const identifyGenRef = useRef(0);
   const midiAccessRef = useRef<MIDIAccess | null>(null);
+  const [sequencer, setSequencer] = useState<SequencerEngine | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,6 +56,8 @@ export function App() {
         if (!cancelled) setMidiError("Failed to load WASM module.");
         return;
       }
+      // Load the Pattern before any device connects.
+      setSequencer(sequencerEngine());
 
       let access: MIDIAccess;
       try {
@@ -161,6 +166,11 @@ export function App() {
     };
   }, [service]);
 
+  // A reconnect only changes where Sequencer sends go.
+  useEffect(() => {
+    sequencer?.setService(service);
+  }, [sequencer, service]);
+
   const mixer = useMixer(service);
   const [activeTab, setActiveTab] = useState<PageTab>("mixer");
 
@@ -188,6 +198,7 @@ export function App() {
             >
               Tone Edit
             </button>
+            {sequencer && <Transport engine={sequencer} />}
           </div>
           <TopBar mixer={mixer} service={service} />
         </nav>
