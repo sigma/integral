@@ -50,6 +50,8 @@ interface Props {
   muted?: boolean;
   // -- comp-eq variant props --
   compEqUnit?: CompEqUnit;
+  /** 1-based Comp+EQ unit number, shown under the fader. */
+  compEqUnitNumber?: number;
   compEqOutputAssign?: number;
   /** Whether this part is the Comp+EQ assigned part (shows active indicator). */
   compEqAssigned?: boolean;
@@ -101,6 +103,7 @@ function ChannelStripInner({
   level,
   muted,
   compEqUnit,
+  compEqUnitNumber,
   compEqOutputAssign,
   compEqAssigned,
   onCompEqParam,
@@ -315,9 +318,8 @@ function ChannelStripInner({
           );
         }
         // Non-part strips: show role icon for alignment.
-        const role = variant === "ext" ? "ext" : variant === "master" ? "master" : "";
-        const icon = stripIcon(role);
-        const roleLabel = variant === "ext" ? "Ext In" : variant === "master" ? "Master" : "";
+        const icon = stripIcon(variant);
+        const roleLabel = variant === "ext" ? "Ext In" : variant === "master" ? "Master" : `C+E${compEqUnitNumber}`;
         return (
           <div className={css.categoryArea}>
             {icon && (

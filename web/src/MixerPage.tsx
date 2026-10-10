@@ -101,6 +101,7 @@ export function MixerPage({ mixer, service }: Props) {
               variant="comp-eq"
               label={`C+E${i + 1}`}
               compEqUnit={unit}
+              compEqUnitNumber={i + 1}
               compEqOutputAssign={state.drumCompEq.outputAssigns[i]}
               onCompEqParam={(offset, v) => mixer.setCompEqParam(i, offset, v)}
               onCompEqOutputAssign={(v) => mixer.setDrumCompEqOutputAssign(i, v)}

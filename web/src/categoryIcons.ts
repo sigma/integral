@@ -95,7 +95,7 @@ export function categoryIcon(categoryId: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Strip-role icons (for non-part strips: EX, Master, FX1, FX2)
+// Strip-role icons (for non-part strips: EX, Comp+EQ, Master, FX1, FX2)
 // ---------------------------------------------------------------------------
 
 /** External input — line-in jack. */
@@ -110,7 +110,11 @@ const ICON_CHORUS = `<svg ${S}><path d="M3 12 Q6 6 9 12 Q12 18 15 12 Q18 6 21 12
 /** Reverb — room reflections. */
 const ICON_REVERB = `<svg ${S}><path d="M4 16 Q4 4 12 4 Q20 4 20 16"/><path d="M7 16 Q7 8 12 8 Q17 8 17 16" opacity="0.5"/><path d="M10 16 Q10 12 12 12 Q14 12 14 16" opacity="0.3"/></svg>`;
 
+/** Comp+EQ — channel-strip sliders. */
+const ICON_COMP_EQ = `<svg ${S}><line x1="6" y1="4" x2="6" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/><rect x="4" y="13" width="4" height="2.5" rx="0.5" fill="currentColor"/><rect x="10" y="7" width="4" height="2.5" rx="0.5" fill="currentColor"/><rect x="16" y="11" width="4" height="2.5" rx="0.5" fill="currentColor"/></svg>`;
+
 const STRIP_ICONS: Record<string, string> = {
+  "comp-eq": ICON_COMP_EQ,
   ext: ICON_EXT,
   master: ICON_MASTER,
   fx1: ICON_CHORUS,
