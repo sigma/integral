@@ -160,3 +160,11 @@
   gap: 8px;
   align-items: flex-start;
 }
+
+/* Vertical pair of controls (e.g. a knob above its velocity sens) */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}

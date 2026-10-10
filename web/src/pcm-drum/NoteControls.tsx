@@ -333,26 +333,30 @@ function TvfSection({
         <SynthSwitch label="Type" value={note.tvfFilterType} vertical
           options={FILTER_TYPE_OPTIONS}
           onChange={(v) => onParam(off(0), v)} title="Filter type" />
-        <SynthKnob label="Cutoff" value={note.tvfCutoffFrequency} min={0} max={127} defaultValue={127}
-          onChange={(v) => onParam(off(1), v)} formatValue={(v) => String(v)} color="#68c"
-          title="Filter cutoff frequency" />
-        <SynthKnob label="Reso" value={note.tvfResonance} min={0} max={127} defaultValue={0}
-          onChange={(v) => onParam(off(4), v)} formatValue={(v) => String(v)} color="#68c"
-          title="Filter resonance" />
-      </div>
-      <div className={css.knobRow}>
-        <SynthKnob label="Cut Vel" value={note.tvfCutoffVelocitySens} min={1} max={127} defaultValue={64} center={64}
-          onChange={(v) => onParam(off(3), v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
-          title="Cutoff velocity sensitivity" />
-        <SynthSelect label="Vel Crv" value={note.tvfCutoffVelocityCurve}
-          options={VELOCITY_CURVE_OPTIONS}
-          onChange={(v) => onParam(off(2), v)} />
-        <SynthKnob label="Res Vel" value={note.tvfResonanceVelocitySens} min={1} max={127} defaultValue={64} center={64}
-          onChange={(v) => onParam(off(5), v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
-          title="Resonance velocity sensitivity" />
-        <SynthSelect label="Env Crv" value={note.tvfEnvVelocityCurve}
-          options={VELOCITY_CURVE_OPTIONS}
-          onChange={(v) => onParam(off(7), v)} />
+        <div className={css.stack}>
+          <SynthSelect label="Vel Crv" value={note.tvfCutoffVelocityCurve}
+            options={VELOCITY_CURVE_OPTIONS}
+            onChange={(v) => onParam(off(2), v)} />
+          <SynthSelect label="Env Crv" value={note.tvfEnvVelocityCurve}
+            options={VELOCITY_CURVE_OPTIONS}
+            onChange={(v) => onParam(off(7), v)} />
+        </div>
+        <div className={css.stack}>
+          <SynthKnob label="Cutoff" value={note.tvfCutoffFrequency} min={0} max={127} defaultValue={127}
+            onChange={(v) => onParam(off(1), v)} formatValue={(v) => String(v)} color="#68c"
+            title="Filter cutoff frequency" />
+          <SynthKnob label="Cut Vel" value={note.tvfCutoffVelocitySens} min={1} max={127} defaultValue={64} center={64}
+            onChange={(v) => onParam(off(3), v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+            title="Cutoff velocity sensitivity" />
+        </div>
+        <div className={css.stack}>
+          <SynthKnob label="Reso" value={note.tvfResonance} min={0} max={127} defaultValue={0}
+            onChange={(v) => onParam(off(4), v)} formatValue={(v) => String(v)} color="#68c"
+            title="Filter resonance" />
+          <SynthKnob label="Res Vel" value={note.tvfResonanceVelocitySens} min={1} max={127} defaultValue={64} center={64}
+            onChange={(v) => onParam(off(5), v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+            title="Resonance velocity sensitivity" />
+        </div>
       </div>
       <BreakpointEnvelope
         compact
