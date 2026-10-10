@@ -78,7 +78,6 @@ export interface UseMixerResult {
   setDrumCompEqPart: (part: number) => void;
   setDrumCompEqOutputAssign: (unit: number, value: number) => void;
   setCompEqParam: (unit: number, paramOffset: number, value: number) => void;
-  toggleEqExpanded: () => void;
   selectPart: (part: number) => void;
   switchStudioSet: (pc: number) => void;
   loadStudioSetNames: () => void;
@@ -93,7 +92,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   const rafId = useRef(0);
 
   // Sync Rust DeviceState → React state.
-  // Preserves UI-only fields (selectedPart, eqExpanded, loading, studioSetNames).
+  // Preserves UI-only fields (selectedPart, loading, studioSetNames).
   // Debounced via requestAnimationFrame so multiple rapid calls within one
   // frame coalesce into a single state read.
   const syncFromRust = useCallback(() => {
@@ -119,7 +118,6 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
         previewPart: rs.previewPart ?? 0,
         // UI-only fields preserved from React state.
         selectedPart: prev.selectedPart,
-        eqExpanded: prev.eqExpanded,
         loading: prev.loading,
         studioSetNames: prev.studioSetNames,
       }));
@@ -595,10 +593,6 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
 
   // --- UI-only state ---
 
-  const toggleEqExpanded = useCallback(() => {
-    setState((prev) => ({ ...prev, eqExpanded: !prev.eqExpanded }));
-  }, []);
-
   const preview = useCallback(() => {
     if (!service) return;
     const current = stateRef.current;
@@ -640,7 +634,6 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     setDrumCompEqPart,
     setDrumCompEqOutputAssign,
     setCompEqParam,
-    toggleEqExpanded,
     selectPart,
     switchStudioSet,
     loadStudioSetNames,

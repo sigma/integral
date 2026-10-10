@@ -214,8 +214,6 @@ export interface MixerState {
   drumCompEq: DrumCompEqState;
   /** Preview part (0 = off, 1–16 = part being previewed). */
   previewPart: number;
-  /** Whether the EQ section is expanded in all strips. */
-  eqExpanded: boolean;
   /** Whether initial state is still loading from the device. */
   loading: boolean;
   /** All 64 Studio Set names (indexed 0–63). Populated via catalog query. */
@@ -257,7 +255,6 @@ export function defaultMixerState(): MixerState {
     surround: defaultSurroundState(),
     drumCompEq: defaultDrumCompEqState(),
     previewPart: 0,
-    eqExpanded: false,
     loading: true,
     studioSetNames: new Map(),
   };

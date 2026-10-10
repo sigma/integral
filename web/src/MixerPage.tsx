@@ -51,12 +51,6 @@ export function MixerPage({ mixer, service }: Props) {
           selectedPart={state.selectedPart}
           onSelect={mixer.selectPart}
         />
-        <button
-          className={css.eqToggle}
-          onClick={mixer.toggleEqExpanded}
-        >
-          Details {state.eqExpanded ? "▲" : "▼"}
-        </button>
       </div>
       {state.loading ? (
         <div className={css.loading}>Loading mixer state from device...</div>
@@ -68,7 +62,6 @@ export function MixerPage({ mixer, service }: Props) {
                 key={i}
                 partIndex={i}
                 part={part}
-                eqExpanded={state.eqExpanded}
                 compEqAssigned={state.drumCompEq.enabled && state.drumCompEq.part === i}
                 onCompEqToggle={() => {
                   if (state.drumCompEq.enabled && state.drumCompEq.part === i) {
@@ -99,16 +92,14 @@ export function MixerPage({ mixer, service }: Props) {
             label="EX"
             level={state.extLevel}
             muted={state.extMuted}
-            eqExpanded={state.eqExpanded}
             onLevelChange={mixer.setExtLevel}
             onMuteToggle={mixer.toggleExtMute}
           />
-          {state.drumCompEq.enabled && state.eqExpanded && state.drumCompEq.units.map((unit, i) => (
+          {state.drumCompEq.enabled && state.drumCompEq.units.map((unit, i) => (
             <ChannelStrip
               key={`ceq-${i}`}
               variant="comp-eq"
               label={`C+E${i + 1}`}
-              eqExpanded={state.eqExpanded}
               compEqUnit={unit}
               compEqOutputAssign={state.drumCompEq.outputAssigns[i]}
               onCompEqParam={(offset, v) => mixer.setCompEqParam(i, offset, v)}
@@ -118,7 +109,6 @@ export function MixerPage({ mixer, service }: Props) {
           <FxStrip
             label="FX1"
             fx={state.chorus}
-            eqExpanded={state.eqExpanded}
             typeNames={spec.chorus_type_names}
             outputNames={spec.chorus_output_names}
             paramDefs={CHORUS_PARAMS}
@@ -129,7 +119,6 @@ export function MixerPage({ mixer, service }: Props) {
           <FxStrip
             label="FX2"
             fx={state.reverb}
-            eqExpanded={state.eqExpanded}
             typeNames={spec.reverb_type_names}
             outputNames={spec.reverb_output_names}
             paramDefs={REVERB_PARAMS}
@@ -142,7 +131,6 @@ export function MixerPage({ mixer, service }: Props) {
             label="Master"
             level={state.masterLevel}
             eq={state.masterEq}
-            eqExpanded={state.eqExpanded}
             onLevelChange={mixer.setMasterLevel}
             onEqToggle={mixer.toggleMasterEqSwitch}
             onEqParam={mixer.setMasterEqParam}

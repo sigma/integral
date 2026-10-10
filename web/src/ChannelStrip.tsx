@@ -37,7 +37,6 @@ interface Props {
   label?: string;
   part?: PartState;
   partIndex?: number;
-  eqExpanded: boolean;
   eq?: EqState;
   level?: number;
   muted?: boolean;
@@ -90,7 +89,6 @@ function ChannelStripInner({
   label,
   part,
   partIndex = 0,
-  eqExpanded,
   eq,
   level,
   muted,
@@ -184,15 +182,13 @@ function ChannelStripInner({
       )}
 
       {/* EQ section */}
-      {eqExpanded && (
-        <EqSection
-          eq={eqState}
-          onToggleSwitch={isCompEq ? compEqOnEqToggle : (onEqToggle ?? noop)}
-          onParam={isCompEq ? compEqOnEqParam : (onEqParam ?? noop)}
-          {...(variant === "master" || isCompEq ? { paramBase: 0 } : {})}
-          style={hideIf(showEq)}
-        />
-      )}
+      <EqSection
+        eq={eqState}
+        onToggleSwitch={isCompEq ? compEqOnEqToggle : (onEqToggle ?? noop)}
+        onParam={isCompEq ? compEqOnEqParam : (onEqParam ?? noop)}
+        {...(variant === "master" || isCompEq ? { paramBase: 0 } : {})}
+        style={hideIf(showEq)}
+      />
 
       {/* Pan knob — hidden for non-part variants */}
       {isCompEq ? (
