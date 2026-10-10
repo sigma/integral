@@ -113,7 +113,7 @@ export function FxStrip({
 
       {/* Type: a separate box pinned to the fader. */}
       <div className={`${css.bottom} ${fxCss.fill}`}>
-        <div className={`${box.box} ${fxCss.typeList}`}>
+        <div className={`${box.box} ${fxCss.typeList} ${fx.enabled ? "" : box.off}`}>
           <SynthSwitch label="Type" vertical led={false} value={fx.type}
             options={typeNames.map((name, i) => ({ value: i, label: name }))}
             onChange={(v) => onParam(0, v)} />
@@ -130,7 +130,7 @@ export function FxStrip({
         </div>
       </div>
 
-      <div className={css.faderArea}>
+      <div className={`${css.faderArea} ${fx.enabled ? "" : box.off}`}>
         <span className={css.faderLabel}>{typeNames[fx.type]}</span>
         <VolumeFader value={fx.level} onChange={(v) => onParam(1, v)} />
       </div>
