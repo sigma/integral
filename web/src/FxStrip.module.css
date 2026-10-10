@@ -12,14 +12,6 @@
   grid-column: 2;
 }
 
-/* Fill down to the fader; Type/Out stay put when the param count changes. */
-.fill {
-  flex: 1 1 auto;
-}
-
-.pinned {
-  margin-top: auto;
-}
 
 .row {
   display: flex;

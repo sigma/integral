@@ -34,7 +34,7 @@ export function FxStrip({
     <div className={`${css.strip} ${fxCss.override}`}>
       <div className={css.partNumber}>{label}</div>
 
-      <div className={`${box.box} ${fxCss.fill} ${fx.enabled ? "" : box.off}`}>
+      <div className={`${box.box} ${fx.enabled ? "" : box.off}`}>
         <button
           className={`${box.switchButton} ${fx.enabled ? box.switchOn : box.switchOff}`}
           onClick={onToggleSwitch}
@@ -59,31 +59,36 @@ export function FxStrip({
             ))}
           </div>
         )}
+      </div>
 
-        <div className={`${fxCss.row} ${fxCss.pinned}`}>
-          <span className={fxCss.label}>Type</span>
-          <select
-            className={fxCss.select}
-            value={fx.type}
-            onChange={(e) => onParam(0, Number(e.target.value))}
-          >
-            {typeNames.map((name, i) => (
-              <option key={i} value={i}>{name}</option>
-            ))}
-          </select>
-        </div>
+      {/* Type/Out: a separate box pinned to the fader. */}
+      <div className={css.bottom}>
+        <div className={box.box}>
+          <div className={fxCss.row}>
+            <span className={fxCss.label}>Type</span>
+            <select
+              className={fxCss.select}
+              value={fx.type}
+              onChange={(e) => onParam(0, Number(e.target.value))}
+            >
+              {typeNames.map((name, i) => (
+                <option key={i} value={i}>{name}</option>
+              ))}
+            </select>
+          </div>
 
-        <div className={fxCss.row}>
-          <span className={fxCss.label}>Out</span>
-          <select
-            className={fxCss.select}
-            value={fx.output}
-            onChange={(e) => onParam(label === "FX1" ? 3 : 2, Number(e.target.value))}
-          >
-            {outputNames.map((name, i) => (
-              <option key={i} value={i}>{name}</option>
-            ))}
-          </select>
+          <div className={fxCss.row}>
+            <span className={fxCss.label}>Out</span>
+            <select
+              className={fxCss.select}
+              value={fx.output}
+              onChange={(e) => onParam(label === "FX1" ? 3 : 2, Number(e.target.value))}
+            >
+              {outputNames.map((name, i) => (
+                <option key={i} value={i}>{name}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
