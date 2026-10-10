@@ -1,5 +1,5 @@
-import { FIRST_KEY, LAST_KEY, noteName, isBlackKey } from "./types";
-import css from "../PcmDrumEditor.module.css";
+import { noteName, isBlackKey } from "./pcm-drum/types";
+import css from "./DrumKeyGrid.module.css";
 
 /** Colors for Comp+EQ unit routing indicators (1-6). Index 0 = PART (no color). */
 const CEQ_COLORS = [
@@ -12,18 +12,23 @@ const CEQ_COLORS = [
   "#1abc9c", // C+EQ6 — teal
 ];
 
-export function KeyGrid({
+/** Clickable grid of a drum kit's keys, one cell per note in `firstKey..=lastKey`. */
+export function DrumKeyGrid({
+  firstKey,
+  lastKey,
   selectedKey,
   onSelect,
   keyOutputAssigns,
 }: {
+  firstKey: number;
+  lastKey: number;
   selectedKey: number;
   onSelect: (key: number) => void;
   /** Map of key number → outputAssign value (0=PART, 1-6=C+EQ unit). */
   keyOutputAssigns?: Map<number, number>;
 }) {
   const keys: number[] = [];
-  for (let k = FIRST_KEY; k <= LAST_KEY; k++) {
+  for (let k = firstKey; k <= lastKey; k++) {
     keys.push(k);
   }
 

@@ -15,7 +15,7 @@ import type {
 } from "./pcm-drum/types";
 import { FIRST_KEY, LAST_KEY, linearToSysex, WMT_STARTS } from "./pcm-drum/types";
 import { CommonPanel } from "./pcm-drum/CommonPanel";
-import { KeyGrid } from "./pcm-drum/KeyGrid";
+import { DrumKeyGrid } from "./DrumKeyGrid";
 import { NoteControls } from "./pcm-drum/NoteControls";
 
 // ---------------------------------------------------------------------------
@@ -305,7 +305,9 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
 
         <div className={css.keyEditorArea}>
           <SectionPanel label="DRUM KEY" accentColor="#f93">
-            <KeyGrid
+            <DrumKeyGrid
+              firstKey={FIRST_KEY}
+              lastKey={LAST_KEY}
               selectedKey={selectedKey}
               onSelect={handleKeySelect}
               keyOutputAssigns={keyOutputAssigns}

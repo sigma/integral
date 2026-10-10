@@ -11,6 +11,8 @@ import {
 } from "./synth-ui";
 import { MfxPanel } from "./MfxPanel";
 import type { MfxState } from "./MfxPanel";
+import { DrumKeyGrid } from "./DrumKeyGrid";
+import { noteName } from "./pcm-drum/types";
 import css from "./SnDrumEditor.module.css";
 
 // ---------------------------------------------------------------------------
@@ -69,23 +71,6 @@ function sndNoteAddress(part: number, key: number): number[] {
   const [b0, b1] = sndBaseAddress(part);
   const noteOffset = 0x10 + (key - 27);
   return [b0, b1, noteOffset, 0x00];
-}
-
-// ---------------------------------------------------------------------------
-// Note name helpers
-// ---------------------------------------------------------------------------
-
-const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-
-function noteName(key: number): string {
-  const name = NOTE_NAMES[key % 12]!;
-  const octave = Math.floor(key / 12) - 1;
-  return `${name}${octave}`;
-}
-
-function isBlackKey(key: number): boolean {
-  const n = key % 12;
-  return n === 1 || n === 3 || n === 6 || n === 8 || n === 10;
 }
 
 // ---------------------------------------------------------------------------
@@ -379,7 +364,9 @@ export function SnDrumEditor({ partIndex, service }: Props) {
 
         <div className={css.keyEditorArea}>
           <SectionPanel label="DRUM INST" accentColor="#f93">
-            <KeyGrid
+            <DrumKeyGrid
+              firstKey={27}
+              lastKey={88}
               selectedKey={selectedKey}
               onSelect={handleKeySelect}
               keyOutputAssigns={keyOutputAssigns}
@@ -435,63 +422,6 @@ function CommonPanel({
           title="Ambience Level" />
       </FaderGroup>
     </SectionPanel>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Key selector grid
-// ---------------------------------------------------------------------------
-
-/** Colors for Comp+EQ unit routing indicators (1-6). Index 0 = PART (no color). */
-const CEQ_COLORS = [
-  "",        // 0 = PART
-  "#e74c3c", // C+EQ1
-  "#f39c12", // C+EQ2
-  "#2ecc71", // C+EQ3
-  "#3498db", // C+EQ4
-  "#9b59b6", // C+EQ5
-  "#1abc9c", // C+EQ6
-];
-
-function KeyGrid({
-  selectedKey,
-  onSelect,
-  keyOutputAssigns,
-}: {
-  selectedKey: number;
-  onSelect: (key: number) => void;
-  keyOutputAssigns?: Map<number, number>;
-}) {
-  const keys: number[] = [];
-  for (let k = 27; k <= 88; k++) {
-    keys.push(k);
-  }
-
-  return (
-    <div className={css.keyGrid}>
-      {keys.map((k) => {
-        const selected = k === selectedKey;
-        const black = isBlackKey(k);
-        const oa = keyOutputAssigns?.get(k) ?? 0;
-        const routeColor = CEQ_COLORS[oa] ?? "";
-        const className = [
-          selected ? css.keyCellSelected : css.keyCell,
-          black ? css.keyCellBlack : "",
-        ].filter(Boolean).join(" ");
-        return (
-          <div
-            key={k}
-            className={className}
-            onClick={() => onSelect(k)}
-            style={routeColor ? { borderLeftColor: routeColor, borderLeftWidth: 3 } : undefined}
-            title={oa > 0 ? `→ C+EQ${oa}` : undefined}
-          >
-            <span className={css.keyNoteName}>{noteName(k)}</span>
-            <span className={css.keyNumber}>{k}</span>
-          </div>
-        );
-      })}
-    </div>
   );
 }
 
