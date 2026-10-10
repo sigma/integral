@@ -260,35 +260,41 @@ function PitchEnvSection({
         <SynthKnob label="Vel Sns" value={note.pitchEnvVelocitySens} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => onParam(off(1), v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Pitch envelope velocity sensitivity" />
+        <SynthKnob label="T1 Vel" value={note.pitchEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
+          onChange={(v) => onParam(off(2), v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
+          title="Pitch envelope Time 1 velocity sensitivity" />
+        <SynthKnob label="T4 Vel" value={note.pitchEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
+          onChange={(v) => onParam(off(3), v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
+          title="Pitch envelope Time 4 velocity sensitivity" />
       </div>
       <ADSREnvelope
         compact
         attack={{
-          label: "Atk", value: note.pitchEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T1", value: note.pitchEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(4), v),
         }}
         decay={{
-          label: "Dec", value: note.pitchEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T2", value: note.pitchEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(5), v),
         }}
         sustain={{
-          label: "Sus", value: note.pitchEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T3", value: note.pitchEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(6), v),
         }}
         release={{
-          label: "Rel", value: note.pitchEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T4", value: note.pitchEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(7), v),
         }}
         levels={[
-          { label: "Start", value: note.pitchEnvLevel[0] ?? 64, min: 1, max: 127, defaultValue: 64,
+          { label: "L0", value: note.pitchEnvLevel[0] ?? 64, min: 1, max: 127, defaultValue: 64,
             onChange: (v) => onParam(off(8), v), formatValue: (v) => signedFmt(v, 64) },
-          { label: "Atk", value: note.pitchEnvLevel[1] ?? 64, min: 1, max: 127, defaultValue: 64,
+          { label: "L1", value: note.pitchEnvLevel[1] ?? 64, min: 1, max: 127, defaultValue: 64,
             onChange: (v) => onParam(off(9), v), formatValue: (v) => signedFmt(v, 64) },
-          { label: "Dec", value: note.pitchEnvLevel[2] ?? 64, min: 1, max: 127, defaultValue: 64,
+          { label: "L2", value: note.pitchEnvLevel[2] ?? 64, min: 1, max: 127, defaultValue: 64,
             onChange: (v) => onParam(off(10), v), formatValue: (v) => signedFmt(v, 64) },
-          { label: "Sus", value: note.pitchEnvLevel[3] ?? 64, min: 1, max: 127, defaultValue: 64,
+          { label: "L3", value: note.pitchEnvLevel[3] ?? 64, min: 1, max: 127, defaultValue: 64,
             onChange: (v) => onParam(off(11), v), formatValue: (v) => signedFmt(v, 64) },
-          { label: "End", value: note.pitchEnvLevel[4] ?? 64, min: 1, max: 127, defaultValue: 64,
+          { label: "L4", value: note.pitchEnvLevel[4] ?? 64, min: 1, max: 127, defaultValue: 64,
             onChange: (v) => onParam(off(12), v), formatValue: (v) => signedFmt(v, 64) },
         ]}
       />
@@ -344,35 +350,41 @@ function TvfSection({
         <SynthSelect label="Env Crv" value={note.tvfEnvVelocityCurve}
           options={VELOCITY_CURVE_OPTIONS}
           onChange={(v) => onParam(off(7), v)} />
+        <SynthKnob label="T1 Vel" value={note.tvfEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
+          onChange={(v) => onParam(off(9), v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+          title="Filter envelope Time 1 velocity sensitivity" />
+        <SynthKnob label="T4 Vel" value={note.tvfEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
+          onChange={(v) => onParam(off(10), v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+          title="Filter envelope Time 4 velocity sensitivity" />
       </div>
       <ADSREnvelope
         compact
         attack={{
-          label: "Atk", value: note.tvfEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T1", value: note.tvfEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(11), v),
         }}
         decay={{
-          label: "Dec", value: note.tvfEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T2", value: note.tvfEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(12), v),
         }}
         sustain={{
-          label: "Sus", value: note.tvfEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T3", value: note.tvfEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(13), v),
         }}
         release={{
-          label: "Rel", value: note.tvfEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T4", value: note.tvfEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(14), v),
         }}
         levels={[
-          { label: "Start", value: note.tvfEnvLevel[0] ?? 0, min: 0, max: 127, defaultValue: 0,
+          { label: "L0", value: note.tvfEnvLevel[0] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => onParam(off(15), v) },
-          { label: "Atk", value: note.tvfEnvLevel[1] ?? 0, min: 0, max: 127, defaultValue: 0,
+          { label: "L1", value: note.tvfEnvLevel[1] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => onParam(off(16), v) },
-          { label: "Dec", value: note.tvfEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
+          { label: "L2", value: note.tvfEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => onParam(off(17), v) },
-          { label: "Sus", value: note.tvfEnvLevel[3] ?? 0, min: 0, max: 127, defaultValue: 0,
+          { label: "L3", value: note.tvfEnvLevel[3] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => onParam(off(18), v) },
-          { label: "End", value: note.tvfEnvLevel[4] ?? 0, min: 0, max: 127, defaultValue: 0,
+          { label: "L4", value: note.tvfEnvLevel[4] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => onParam(off(19), v) },
         ]}
       />
@@ -403,32 +415,38 @@ function TvaSection({
         <SynthKnob label="Vel Sns" value={note.tvaLevelVelocitySens} min={1} max={127} defaultValue={64} center={64}
           onChange={(v) => onParam(off(1), v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
           title="Amplitude velocity sensitivity" />
+        <SynthKnob label="T1 Vel" value={note.tvaEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
+          onChange={(v) => onParam(off(2), v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
+          title="Amp envelope Time 1 velocity sensitivity" />
+        <SynthKnob label="T4 Vel" value={note.tvaEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
+          onChange={(v) => onParam(off(3), v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
+          title="Amp envelope Time 4 velocity sensitivity" />
       </div>
       <ADSREnvelope
         compact
         attack={{
-          label: "Atk", value: note.tvaEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T1", value: note.tvaEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(4), v),
         }}
         decay={{
-          label: "Dec", value: note.tvaEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T2", value: note.tvaEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(5), v),
         }}
         sustain={{
-          label: "Sus", value: note.tvaEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T3", value: note.tvaEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(6), v),
         }}
         release={{
-          label: "Rel", value: note.tvaEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
+          label: "T4", value: note.tvaEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
           onChange: (v) => onParam(off(7), v),
         }}
         levels={[
           { label: "", value: 127, min: 0, max: 127, defaultValue: 127, onChange: () => {}, hidden: true },
-          { label: "Atk", value: note.tvaEnvLevel[0] ?? 127, min: 0, max: 127, defaultValue: 127,
+          { label: "L1", value: note.tvaEnvLevel[0] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => onParam(off(8), v) },
-          { label: "Dec", value: note.tvaEnvLevel[1] ?? 127, min: 0, max: 127, defaultValue: 127,
+          { label: "L2", value: note.tvaEnvLevel[1] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: (v) => onParam(off(9), v) },
-          { label: "Sus", value: note.tvaEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
+          { label: "L3", value: note.tvaEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: (v) => onParam(off(10), v) },
           { label: "", value: 0, min: 0, max: 127, defaultValue: 0, onChange: () => {}, hidden: true },
         ]}
