@@ -12,6 +12,7 @@ import {
 import { MfxPanel } from "./MfxPanel";
 import type { MfxState } from "./MfxPanel";
 import { DrumKeyGrid } from "./DrumKeyGrid";
+import { useKeyPrefetch } from "./useKeyPrefetch";
 import { noteName } from "./pcm-drum/types";
 import css from "./SnDrumEditor.module.css";
 
@@ -67,9 +68,13 @@ function sndMfxAddress(part: number): number[] {
   return [b0, b1, 0x02, 0x00];
 }
 
+/** SN-D kit key range (MIDI notes). */
+const FIRST_KEY = 27;
+const LAST_KEY = 88;
+
 function sndNoteAddress(part: number, key: number): number[] {
   const [b0, b1] = sndBaseAddress(part);
-  const noteOffset = 0x10 + (key - 27);
+  const noteOffset = 0x10 + (key - FIRST_KEY);
   return [b0, b1, noteOffset, 0x00];
 }
 
@@ -168,9 +173,19 @@ export function SnDrumEditor({ partIndex, service }: Props) {
     return () => { cancelled = true; };
   }, [partIndex, service]);
 
+  // Prefetch every key so the grid shows routing up front
+  const fetchNote = useCallback(
+    async (k: number) =>
+      service.device.applySndNote(
+        await service.requestData(sndNoteAddress(partIndex, k), [0x00, 0x00, 0x00, 0x13]),
+      ) as SnDrumNote | null,
+    [partIndex, service],
+  );
+  const cacheVersion = useKeyPrefetch(!loading, FIRST_KEY, LAST_KEY, noteCache, fetchNote);
+
   // Load note data on key selection change
   useEffect(() => {
-    if (selectedKey < 27 || selectedKey > 88) return;
+    if (selectedKey < FIRST_KEY || selectedKey > LAST_KEY) return;
 
     const cached = noteCache.current.get(selectedKey);
     if (cached) {
@@ -345,7 +360,7 @@ export function SnDrumEditor({ partIndex, service }: Props) {
       m.set(k, n.outputAssign);
     }
     return m;
-  }, [noteData, selectedKey]);
+  }, [noteData, selectedKey, cacheVersion]);
 
   if (loading) {
     return <div className={css.loading}>Loading SN-D drum kit data...</div>;
@@ -365,8 +380,8 @@ export function SnDrumEditor({ partIndex, service }: Props) {
         <div className={css.keyEditorArea}>
           <SectionPanel label="DRUM INST" accentColor="#f93">
             <DrumKeyGrid
-              firstKey={27}
-              lastKey={88}
+              firstKey={FIRST_KEY}
+              lastKey={LAST_KEY}
               selectedKey={selectedKey}
               onSelect={handleKeySelect}
               keyOutputAssigns={keyOutputAssigns}
