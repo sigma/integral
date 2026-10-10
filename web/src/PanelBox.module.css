@@ -32,3 +32,16 @@
   background: #222238;
   color: #666;
 }
+
+/*
+ * Knob rows: one EqKnob per grid row and no row gap, so the row pitch is the
+ * knob's own height. EqSection and FxStrip both build on this, which keeps
+ * FX row N level with EQ row N.
+ */
+.knobRows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  place-items: center center;
+  width: 100%;
+  padding: 2px 0;
+}

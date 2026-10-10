@@ -18,17 +18,12 @@
  * Grid: 7 rows (one per knob), 2 columns.
  * Left: Gain knobs at rows 1, 3, 5, 7
  * Right: Freq knobs at rows 2, 4, 6
- * Tight spacing via small row height.
  */
 .knobs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  composes: knobRows from "./PanelBox.module.css";
   grid-template-rows: repeat(7, auto);
-  width: 100%;
-  place-items: center center;
   position: relative;
   z-index: 2;
-  padding: 2px 0;
 }
 
 .r1 { grid-column: 1; grid-row: 1; }

@@ -3,14 +3,13 @@
   border-left: 1px solid #2a3a4a;
 }
 
-/* Two columns like EqSection; 9 params max (Chorus Delay) = 5 rows < EQ's 7. */
+/* One knob per row, zig-zagging like EqSection, so row N meets EQ row N. */
 .knobs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  place-items: center center;
-  row-gap: 4px;
-  width: 100%;
-  padding: 2px 0;
+  composes: knobRows from "./PanelBox.module.css";
+}
+
+.knobs > :nth-child(even) {
+  grid-column: 2;
 }
 
 /* Fill down to the fader; Type/Out stay put when the param count changes. */

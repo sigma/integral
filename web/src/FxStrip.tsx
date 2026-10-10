@@ -44,17 +44,18 @@ export function FxStrip({
 
         {currentParamDefs.length > 0 && (
           <div className={fxCss.knobs}>
-            {currentParamDefs.map((def) => (
-              <EqKnob
-                key={def.index}
-                label={def.name}
-                value={fx.params[def.index] ?? def.defaultValue}
-                min={def.min}
-                max={def.max}
-                defaultValue={def.defaultValue}
-                onChange={(v) => onNibParam(def.index, v)}
-                formatValue={def.format}
-              />
+            {currentParamDefs.map((def, i) => (
+              <div key={def.index} style={{ gridRow: i + 1 }}>
+                <EqKnob
+                  label={def.name}
+                  value={fx.params[def.index] ?? def.defaultValue}
+                  min={def.min}
+                  max={def.max}
+                  defaultValue={def.defaultValue}
+                  onChange={(v) => onNibParam(def.index, v)}
+                  formatValue={def.format}
+                />
+              </div>
             ))}
           </div>
         )}
