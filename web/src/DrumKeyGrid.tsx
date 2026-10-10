@@ -36,27 +36,38 @@ export function DrumKeyGrid({
   }
 
   return (
-    <div className={css.keyGrid}>
-      {keys.map((k) => {
-        const selected = k === selectedKey;
-        const black = isBlackKey(k);
-        const oa = keyOutputAssigns?.get(k) ?? 0;
-        const routeColor = CEQ_COLORS[oa] ?? "";
-        const className = [
-          selected ? css.keyCellSelected : css.keyCell,
-          black ? css.keyCellBlack : "",
-          offKeys?.has(k) ? css.keyCellOff : "",
-        ].filter(Boolean).join(" ");
-        return (
-          <div key={k} className={className} onClick={() => onSelect(k)}
-            style={routeColor ? { borderLeftColor: routeColor, borderLeftWidth: 5 } : undefined}
-            title={oa > 0 ? `→ C+EQ${oa}` : undefined}
-          >
-            <span className={css.keyNoteName}>{noteName(k)}</span>
-            <span className={css.keyNumber}>{k}</span>
-          </div>
-        );
-      })}
-    </div>
+    <>
+      <div className={css.keyGrid}>
+        {keys.map((k) => {
+          const selected = k === selectedKey;
+          const black = isBlackKey(k);
+          const oa = keyOutputAssigns?.get(k) ?? 0;
+          const routeColor = CEQ_COLORS[oa] ?? "";
+          const className = [
+            selected ? css.keyCellSelected : css.keyCell,
+            black ? css.keyCellBlack : "",
+            offKeys?.has(k) ? css.keyCellOff : "",
+          ].filter(Boolean).join(" ");
+          return (
+            <div key={k} className={className} onClick={() => onSelect(k)}
+              style={routeColor ? { borderLeftColor: routeColor, borderLeftWidth: 5 } : undefined}
+              title={oa > 0 ? `→ C+EQ${oa}` : undefined}
+            >
+              <span className={css.keyNoteName}>{noteName(k)}</span>
+              <span className={css.keyNumber}>{k}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className={css.legend}>
+        <span>Output:</span>
+        <span className={css.legendItem}><span className={css.swatch} />PART</span>
+        {CEQ_COLORS.slice(1).map((c, i) => (
+          <span key={c} className={css.legendItem}>
+            <span className={css.swatch} style={{ background: c, borderColor: c }} />C+EQ{i + 1}
+          </span>
+        ))}
+      </div>
+    </>
   );
 }
