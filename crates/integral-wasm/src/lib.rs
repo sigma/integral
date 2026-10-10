@@ -1144,6 +1144,20 @@ impl WasmDeviceState {
         Ok(())
     }
 
+    /// Set a part's Temporary tone name (12 ASCII chars) on the device.
+    /// Returns false if the part's bank doesn't map to a known tone type.
+    #[wasm_bindgen(js_name = renameTone)]
+    pub fn rename_tone(&mut self, part: u8, name: &str) -> Result<bool, JsError> {
+        check_part(part)?;
+        Ok(self.inner.rename_tone(part, name))
+    }
+
+    /// Set the Temporary Studio Set name (16 ASCII chars) on the device.
+    #[wasm_bindgen(js_name = renameStudioSet)]
+    pub fn rename_studio_set(&mut self, name: &str) {
+        self.inner.rename_studio_set(name);
+    }
+
     #[wasm_bindgen(js_name = changePartTone)]
     pub fn change_part_tone(&mut self, part: u8, msb: u8, lsb: u8, pc: u8) -> Result<(), JsError> {
         check_part(part)?;
