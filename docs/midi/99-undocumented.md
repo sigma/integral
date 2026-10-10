@@ -21,10 +21,10 @@ populates the Studio Set selector dropdown.
 
 ### Request Format
 
-A short-form RQ1 with **no checksum**:
+An RQ1 whose 4-byte size field carries the query instead of a size:
 
 ```
-F0 41 <dev> 00 00 64 11 <addr[4]> <MSB> <LSB> <start> <count> F7
+F0 41 <dev> 00 00 64 11 <addr[4]> <MSB> <LSB> <start> <count> [<checksum>] F7
 ```
 
 | Byte(s)       | Value          | Description                                |
@@ -39,10 +39,13 @@ F0 41 <dev> 00 00 64 11 <addr[4]> <MSB> <LSB> <start> <count> F7
 | `LSB`         | e.g. `00`      | Bank Select LSB                            |
 | `start`       | `00`–`7F`     | Starting index within this LSB (0-indexed) |
 | `count`       | `01`–`7F`     | Number of entries to return (max 127)      |
+| `checksum`    | optional       | Roland checksum over `addr` + 4 payload bytes |
 | `F7`          | `F7`           | SysEx end                                  |
 
-**Important:** This command does NOT use a Roland checksum. All bytes
-between the address and `F7` are payload.
+**Checksum:** The iPad editor sends a standard Roland checksum, e.g.
+`F0 41 10 00 00 64 11 0F 00 03 02 55 00 00 10 07 F7`. The device also
+answers when it is omitted, which is what `integral-core`'s
+`catalog::build_*_catalog_request` do.
 
 **Catalog addresses:**
 
