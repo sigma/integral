@@ -9,6 +9,14 @@
 //!
 //! Use `--help` for all options (provided by nih-plug's standalone wrapper).
 
+// baseview crashes on a null window in debug builds on macOS; the patch was
+// dropped until it can be sourced properly.
+#[cfg(all(target_os = "macos", debug_assertions, not(clippy), not(test)))]
+compile_error!(
+    "integral-app crashes in macOS debug builds (baseview null window): \
+     build with --release (`just run`). See https://github.com/sigma/integral/issues/10"
+);
+
 use integral_vst::Integral;
 
 /// Query the default audio output device's sample rate via cpal.
