@@ -1,0 +1,16 @@
+.envelope {
+  display: flex;
+  flex-direction: column;
+}
+
+.curve {
+  display: block;
+  width: 100%;
+  opacity: 0.8;
+}
+
+.faders {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
