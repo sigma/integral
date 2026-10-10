@@ -64,6 +64,21 @@ Each section starts at a byte-aligned offset within the entry.  The
 section byte sizes are fixed per tone type and do NOT necessarily equal
 `ceil(total_bits / 8)` — there may be extra padding bytes.
 
+Observed sizes show why the sizes have to be tabulated rather than derived.
+Every stored size is even, but it isn't simply `ceil(bits / 16) × 2` either:
+SN Synth Partial would then be 44 bytes, not 46.
+
+| Type | Section          | Bits | ceil(bits/8) | Stored bytes |
+|------|------------------|------|--------------|--------------|
+| SHPa | Common           | 228  | 29           | 30           |
+| SHPa | Partial (× 3)    | 350  | 44           | 46           |
+| SNTa | Common           | 464  | 58           | 60           |
+| RFPa | PMT              | 242  | 31           | 32           |
+| SDKa | Common           | 134  | 17           | 18           |
+| SDKa | Comp/EQ          | 330  | 42           | 42           |
+| SDKa | Note (× 62)      | 102  | 13           | 14           |
+| all  | MFX              | 618  | 78           | 78           |
+
 **Important:** Common and MFX are **separate** sections (validated against
 the device). Earlier analysis incorrectly assumed they were packed together
 into a single section.
@@ -90,11 +105,21 @@ Examples (device validation):
 Parameters with ranges starting at 0 (Level, switches, enums) store the
 raw value directly — no bias adjustment.
 
+A rule that predicts which parameters are biased: a single-byte parameter is
+biased when it has fewer than 7 bits and its range's upper bound does not fit
+in those bits (`bits < 7` and `range.hi >= 2^bits`). It holds for every biased
+field found so far in SHPa, SNTa, PRFb, RFPa, RFRa, SDKa (Brilliance) and SYSa
+(Master Key Shift).
+
 ## End Marker
 
-After the last section, a single `0x0E` byte marks the end of meaningful
-data. The remaining bytes in the entry are zero-padded to reach the fixed
-entry size.
+Only **SHPa** (SN Synth) entries have an end marker: a single `0x0E` byte
+after the last section, at byte 246. SNTa, SDKa and PRFb sections fill their
+entries exactly, and RFPa and RFRa end in plain zero padding. See
+[Entry Structure](01-container.md#entry-structure).
+
+The SHPa bytes after the marker are not always zero. See
+[SN Synth, Bytes After the End Marker](03-sn-synth.md#bytes-after-the-end-marker).
 
 ## Reserve Parameters
 
@@ -102,3 +127,12 @@ Reserve parameters (marked `<*>` in the MIDI Implementation) are included
 in the bitstream at their specified bit widths. They typically carry zero
 values but **must** be preserved for round-trip fidelity. Omitting them
 would cause bit-position drift for all subsequent parameters.
+
+Two caveats from the pack data:
+
+- Reserves often carry **non-zero** values. MFX `00 01` is always 127, PCM
+  Synth Common `00 27` is always 13, and some reserves hold undocumented data
+  such as the PCM long name. Each chunk page lists them.
+- Reserve widths in the SVD do not always match the SysEx bit mask. In PRFb,
+  Part reserves `00 02`–`00 05` take 1 bit each, and Common `00 10`–`00 38` take
+  257 bits rather than 287. See [Studio Set](05-studio-set.md).

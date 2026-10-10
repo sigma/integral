@@ -2,8 +2,11 @@
 
 Chunk type: `SHPa` | Entry size: **280 bytes** | Model: `MI69`
 
-This mapping has been validated against the Synth Legends expansion pack
-and the physical INTEGRA-7 device via SysEx RQ1 reads.
+**Confidence: verified on a device and on real data.** This mapping has been
+validated against the Synth Legends expansion pack and the physical INTEGRA-7
+device via SysEx RQ1 reads. It also decodes all 10,044 SHPa entries in the 18
+official Roland packs (18 BACKUP files × 512, plus 828 entries in SOUND files)
+with 0 range violations.
 
 ## Entry Layout
 
@@ -15,7 +18,7 @@ and the physical INTEGRA-7 device via SysEx RQ1 reads.
 | 154–199    | Partial 2        | 350       | 46           |
 | 200–245    | Partial 3        | 350       | 46           |
 | 246        | End marker       | —         | 1 (`0x0E`)   |
-| 247–279    | Zero padding     | —         | 33           |
+| 247–279    | Trailing bytes   | —         | 33 (see [below](#bytes-after-the-end-marker)) |
 | **Total**  |                  |           | **280**      |
 
 **Note:** Common and MFX are **separate** sections, each independently
@@ -238,5 +241,49 @@ Three identical partial blocks, each independently byte-aligned.
 4. **Signed param bias**: 11 bytes (out of 336 total) differ due to the
    bias encoding for params with non-zero range minimums.
    Formula: `sysex = svd + 64 - 2^(bits-1)`
-5. **End marker**: Every entry has `0x0E` at byte 246
+5. **End marker**: Every entry has `0x0E` at byte 246 (10,044 of 10,044
+   in the packs)
 6. **Total size**: 30 + 78 + 46×3 + 1 + 33 = 280 bytes
+7. **Pack corpus**: 10,044 entries decode with 0 range violations, with the
+   bias applied to Octave Shift, Phrase Octave Shift, OSC Pitch, Cutoff
+   Keyfollow and AMP Level Keyfollow. No pad bit is ever set.
+8. **Names**: of 847 slots listed in the packs' "Tone List(USER)", 839 match
+   exactly. The 8 mismatches are all slot 512, listed as `INIT SYNTH` but stored
+   as `INIT TONE`, which is a sound-list error.
+9. **Category** (`00 36`): every sound-list label maps to exactly one stored
+   value, matching `docs/sounds/categories.json`: `---`=0, `EP2`=5, `E.ORG`=6,
+   `CLAV`=10, `CELE`=11, `BELL`=14, `MLT`=15, `DGT`=18, `Syn.BS`=21,
+   `PLK/STK`=22, `VOX`=32, `Syn.LD`=34, `Syn.BRS`=35, `Syn.PAD`=36,
+   `BELLPAD`=37, `POLYKEY`=38, `FX`=39, `Syn.SEQ`=40, `PLS`=42, `HIT`=44,
+   `SFX`=45, `DRM`=46. The one exception, Synth Legends Pure slot 113
+   `SLP-SH101 7` (listed Syn.BS, stored 34), is a different patch from its
+   namesake in SH-101 Collection Pure (stored 21, about 100 parameters differ).
+   That is a content or list error, not a layout error.
+
+## Bytes After the End Marker
+
+Bytes 247–279 are **not** always zero. 4,894 of the 10,044 pack entries
+(48.7%) have non-zero bytes at 247–251. Counts are entry instances, so a tone
+that appears in both a SOUND and a BACKUP file counts twice.
+
+| Bytes 246–251        | Count | Where |
+|----------------------|-------|-------|
+| `0E 00 00 00 00 00`  | 5,150 | All Synth Legends-family tones (2013–14), Children of Bodom, most of Euro Attack Synth, some Sounds of Summer 2014 and Super Super Saw tones |
+| `0E 00 00 00 02 C0`  | 4,886 | **Every** `INIT TONE` (4,782) plus 52 distinct pack tones: Euro Attack Synth 13, NYC Nightlife Remix 1, Sounds of Summer 2014 10, Super Super Saw 28 |
+| `0E 00 04 10`, `0E 00 02 40` | 2 each | Sounds of Summer 2014 "SS Wobble B2" / "SS Lead Lead" |
+| `0E 00 00 00 44 C0`, `0E 00 00 00 01 40` | 2 each | Super Super Saw "SAW WAH" / "SAW KEYS" |
+
+No documented parameter separates the tones with a tail from those without.
+Until the tail is understood, a writer must copy bytes 246–279 through from the
+source entry rather than regenerate them.
+
+> Current code diverges: see [#72](https://github.com/sigma/integral/issues/72). `sysex_to_svd()` in
+> `crates/integral-core/src/svd_convert.rs` writes `0x0E` and then zero-fills,
+> so it loses bytes 247–251. An SVD → SysEx → SVD round trip is not
+> byte-identical for these 4,894 entries.
+
+## Open Questions / Device Check
+
+| Unknown | Device check that settles it |
+|---------|------------------------------|
+| Meaning of bytes 247–251 | Load a tone with tail `02 C0` and one with `44 C0`, then RQ1 SN Synth Common, MFX and Partials, and probe Common past `00 3F`. Save to user memory, back up, and check whether the tail survives. |
