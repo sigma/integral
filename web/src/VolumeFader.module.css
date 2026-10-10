@@ -13,6 +13,9 @@
   position: relative;
   flex: 1;
   width: 60px;
+
+  /* The cap is centred at x=20 and the ruler hangs right: offset so the cap sits on the strip's centre line. */
+  margin-left: 20px;
   cursor: pointer;
 }
 

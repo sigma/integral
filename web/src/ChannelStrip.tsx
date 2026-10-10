@@ -273,6 +273,15 @@ function ChannelStripInner({
             <div className={css.toggles}>
               {(isPart || isCompEq) && (
                 <div className={css.muteRow}>
+                  {isPart ? (
+                    <RouteChip value={p.outputAssign} names={deviceSpec().output_assigns}
+                      onChange={onOutputAssignChange ?? noop} overridden={surroundEnabled}
+                      title={`Part ${partIndex + 1} Output`} />
+                  ) : (
+                    <RouteChip value={compEqOutputAssign ?? 0} names={deviceSpec().comp_eq_output_assigns}
+                      onChange={onCompEqOutputAssign ?? noop} overridden={surroundEnabled}
+                      title={`${label} Output`} />
+                  )}
                   {isPart && (
                     <button
                       className={`${css.compEqButton} ${compEqAssigned ? css.compOn : ""}`}
@@ -285,15 +294,6 @@ function ChannelStripInner({
                     >
                       C+EQ
                     </button>
-                  )}
-                  {isPart ? (
-                    <RouteChip value={p.outputAssign} names={deviceSpec().output_assigns}
-                      onChange={onOutputAssignChange ?? noop} overridden={surroundEnabled}
-                      title={`Part ${partIndex + 1} Output`} />
-                  ) : (
-                    <RouteChip value={compEqOutputAssign ?? 0} names={deviceSpec().comp_eq_output_assigns}
-                      onChange={onCompEqOutputAssign ?? noop} overridden={surroundEnabled}
-                      title={`${label} Output`} />
                   )}
                 </div>
               )}

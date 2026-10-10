@@ -58,10 +58,15 @@
   letter-spacing: 1px;
 }
 
+/* Route chip, C+EQ, M and S share one width so the toggle rows line up. */
 .compEqButton {
+  min-width: 42px;
   font-size: 9px;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 2px 4px;
+  text-align: center;
+  text-align-last: center;
+  appearance: none;
   background: #222238;
   color: #666;
   border: 1px solid #3a3a5a;
@@ -82,7 +87,7 @@
 .muteButton {
   font-size: 12px;
   font-weight: 800;
-  width: 36px;
+  width: 42px;
   height: 28px;
   display: flex;
   align-items: center;
