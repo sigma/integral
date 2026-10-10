@@ -141,20 +141,16 @@
   margin-left: auto;
 }
 
-/* Partial switch column */
+/* Partial switch column: full row height, text reading bottom to top */
 .partialSwitch {
   display: flex;
-  align-items: center;
-  justify-content: center;
   align-self: stretch;
 }
 
 .partialSwitchBtn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 6px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  padding: 6px 4px;
   border: 1px solid #3a3a5a;
   border-radius: 6px;
   background: #222240;
@@ -162,10 +158,10 @@
   cursor: pointer;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
   transition: background 0.15s, color 0.15s;
-  min-height: 50px;
-  justify-content: center;
 }
 
 .partialSwitchBtn:hover {
@@ -177,18 +173,6 @@
   color: #6fe87a;
   border-color: #3a6a3a;
 }
-
-.partialNum {
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.partialSwLabel {
-  font-size: 8px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
 
 /* MFX column spans all 3 rows */
 

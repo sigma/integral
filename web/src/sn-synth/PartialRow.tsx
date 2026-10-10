@@ -52,8 +52,7 @@ export function PartialRow({
           className={`${css.partialSwitchBtn} ${isOn ? css.partialSwitchBtnOn : ""}`}
           onClick={onToggle}
         >
-          <span className={css.partialNum}>{idx + 1}</span>
-          <span className={css.partialSwLabel}>{isOn ? "ON" : "OFF"}</span>
+          Voice {idx + 1} {isOn ? "on" : "off"}
         </button>
       </div>
 
