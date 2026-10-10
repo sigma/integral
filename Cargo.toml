@@ -11,6 +11,3 @@ members = [
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-
-[patch."https://github.com/RustAudio/baseview.git"]
-baseview = { path = "crates/patches/baseview" }
