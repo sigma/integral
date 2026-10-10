@@ -9,9 +9,15 @@
   "id": "i7-2y8.16",
   "labels": [],
   "parent": "i7-2y8",
+  "comments": [
+    {
+      "text": "Migrated to https://github.com/sigma/integral/issues/7",
+      "timestamp": "2026-10-10T06:56:29Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Create PCM Drum Kit test tone via MIDI for SVD validation",
   "type": "task",
-  "updated_at": "2026-04-11T17:57:27Z"
+  "updated_at": "2026-10-10T06:56:29Z"
 }
