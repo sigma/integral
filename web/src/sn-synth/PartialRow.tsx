@@ -4,8 +4,7 @@ import {
   SynthSwitch,
   SynthSelect,
   SectionPanel,
-  ADSREnvelope,
-  ADEnvelope,
+  BreakpointEnvelope,
   FaderGroup,
   FaderGroupSep,
 } from "../synth-ui";
@@ -155,20 +154,21 @@ function OscPanel({
             onChange={(v) => onChange(0x06, v)} compact />
         </div>
         <FaderGroupSep />
-        <ADEnvelope
+        <BreakpointEnvelope
           compact
-          attack={{
-            label: "A", value: partial.oscPitchEnvAttack, min: 0, max: 127, defaultValue: 0,
-            onChange: (v) => onChange(0x07, v),
-          }}
-          decay={{
-            label: "D", value: partial.oscPitchEnvDecay, min: 0, max: 127, defaultValue: 0,
-            onChange: (v) => onChange(0x08, v),
-          }}
-          extra={{
-            label: "Dep", value: partial.oscPitchEnvDepth, min: 1, max: 127, defaultValue: 64,
-            onChange: (v) => onChange(0x09, v), formatValue: (v) => signedFmt(v, 64),
-          }}
+          hold={false}
+          times={[
+            { label: "A", value: partial.oscPitchEnvAttack, min: 0, max: 127, defaultValue: 0,
+              onChange: (v) => onChange(0x07, v) },
+            { label: "D", value: partial.oscPitchEnvDecay, min: 0, max: 127, defaultValue: 0,
+              onChange: (v) => onChange(0x08, v) },
+          ]}
+          levels={[
+            { at: 0.5, text: "0" },
+            { label: "Dep", value: partial.oscPitchEnvDepth, min: 1, max: 127, defaultValue: 64,
+              onChange: (v) => onChange(0x09, v), formatValue: (v) => signedFmt(v, 64) },
+            { at: 0.5, text: "0" },
+          ]}
         />
       </FaderGroup>
     </SectionPanel>
@@ -204,30 +204,28 @@ function FilterPanel({
             onChange={(v) => onChange(0x0D, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c" />
           <SynthKnob label="Vel Sns" value={partial.filterEnvVelSens} min={1} max={127} defaultValue={64} center={64}
             onChange={(v) => onChange(0x0E, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c" />
+          <SynthKnob label="Env Dep" value={partial.filterEnvDepth} min={1} max={127} defaultValue={64} center={64}
+            onChange={(v) => onChange(0x14, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+            title="Filter envelope depth" />
         </div>
       </div>
-      <ADSREnvelope
+      <BreakpointEnvelope
         compact
-        attack={{
-          label: "A", value: partial.filterEnvAttack, min: 0, max: 127, defaultValue: 0,
-          onChange: (v) => onChange(0x10, v),
-        }}
-        decay={{
-          label: "D", value: partial.filterEnvDecay, min: 0, max: 127, defaultValue: 0,
-          onChange: (v) => onChange(0x11, v),
-        }}
-        sustain={{
-          label: "S", value: partial.filterEnvSustain, min: 0, max: 127, defaultValue: 0,
-          onChange: (v) => onChange(0x12, v),
-        }}
-        release={{
-          label: "R", value: partial.filterEnvRelease, min: 0, max: 127, defaultValue: 0,
-          onChange: (v) => onChange(0x13, v),
-        }}
-        extra={{
-          label: "Dep", value: partial.filterEnvDepth, min: 1, max: 127, defaultValue: 64,
-          onChange: (v) => onChange(0x14, v), formatValue: (v) => signedFmt(v, 64),
-        }}
+        times={[
+          { label: "A", value: partial.filterEnvAttack, min: 0, max: 127, defaultValue: 0,
+            onChange: (v) => onChange(0x10, v) },
+          { label: "D", value: partial.filterEnvDecay, min: 0, max: 127, defaultValue: 0,
+            onChange: (v) => onChange(0x11, v) },
+          { label: "R", value: partial.filterEnvRelease, min: 0, max: 127, defaultValue: 0,
+            onChange: (v) => onChange(0x13, v) },
+        ]}
+        levels={[
+          { at: 0, text: "0" },
+          { at: 1, text: "max" },
+          { label: "S", value: partial.filterEnvSustain, min: 0, max: 127, defaultValue: 0,
+            onChange: (v) => onChange(0x12, v) },
+          { at: 0, text: "0" },
+        ]}
       />
     </SectionPanel>
   );
@@ -261,24 +259,23 @@ function AmpPanel({
             onChange={(v) => onChange(0x3C, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8" />
         </div>
       </div>
-      <ADSREnvelope
+      <BreakpointEnvelope
         compact
-        attack={{
-          label: "A", value: partial.ampEnvAttack, min: 0, max: 127, defaultValue: 0,
-          onChange: (v) => onChange(0x17, v),
-        }}
-        decay={{
-          label: "D", value: partial.ampEnvDecay, min: 0, max: 127, defaultValue: 0,
-          onChange: (v) => onChange(0x18, v),
-        }}
-        sustain={{
-          label: "S", value: partial.ampEnvSustain, min: 0, max: 127, defaultValue: 127,
-          onChange: (v) => onChange(0x19, v),
-        }}
-        release={{
-          label: "R", value: partial.ampEnvRelease, min: 0, max: 127, defaultValue: 0,
-          onChange: (v) => onChange(0x1A, v),
-        }}
+        times={[
+          { label: "A", value: partial.ampEnvAttack, min: 0, max: 127, defaultValue: 0,
+            onChange: (v) => onChange(0x17, v) },
+          { label: "D", value: partial.ampEnvDecay, min: 0, max: 127, defaultValue: 0,
+            onChange: (v) => onChange(0x18, v) },
+          { label: "R", value: partial.ampEnvRelease, min: 0, max: 127, defaultValue: 0,
+            onChange: (v) => onChange(0x1A, v) },
+        ]}
+        levels={[
+          { at: 0, text: "0" },
+          { at: 1, text: "max" },
+          { label: "S", value: partial.ampEnvSustain, min: 0, max: 127, defaultValue: 127,
+            onChange: (v) => onChange(0x19, v) },
+          { at: 0, text: "0" },
+        ]}
       />
     </SectionPanel>
   );

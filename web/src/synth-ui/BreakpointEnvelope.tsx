@@ -15,6 +15,8 @@ interface Props {
   times: Stage[];
   /** Levels L0–Ln (one more than times). L(n-1) is held while the key is down. */
   levels: (Stage | FixedLevel)[];
+  /** Draw L(n-1) as a sustain plateau in the preview. Default: true. */
+  hold?: boolean;
   compact?: boolean;
 }
 
@@ -30,21 +32,21 @@ const CURVE_H = 28;
 const HOLD = 0.6;
 
 /**
- * Breakpoint envelope: L0 → T1 → L1 → … → L(n-1) (held) → Tn → Ln.
+ * Breakpoint envelope: L0 → T1 → L1 → … → L(n-1) (held if `hold`) → Tn → Ln.
  * Levels sit on top, times below between them, linked by a line in stage
  * order wherever both ends are faders.
  */
-export function BreakpointEnvelope({ times, levels, compact }: Props) {
+export function BreakpointEnvelope({ times, levels, hold = true, compact }: Props) {
   // Grid of half-fader columns: level i centered on column line 2i+1,
   // time i on 2i, so each time sits between the two levels it connects.
   const cols = 2 * levels.length;
   const ys = levels.map((l) => 1 - normalize(l));
-  const span = (cols - 2 - HOLD) / times.length;
+  const span = (cols - 2 - (hold ? HOLD : 0)) / times.length;
 
   let x = 1;
   let curve = `M ${x} ${ys[0]}`;
   times.forEach((t, i) => {
-    if (i === times.length - 1) {
+    if (hold && i === times.length - 1) {
       x += HOLD;
       curve += ` L ${x} ${ys[i]}`;
     }
