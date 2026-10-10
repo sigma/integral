@@ -12,9 +12,15 @@
   "id": "i7-2y8.12",
   "labels": [],
   "parent": "i7-2y8",
+  "comments": [
+    {
+      "text": "Migrated to https://github.com/sigma/integral/issues/4",
+      "timestamp": "2026-10-10T06:56:28Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "SVD spec tables for PCM Synth Tone (RFPa)",
   "type": "task",
-  "updated_at": "2026-04-12T06:13:10Z"
+  "updated_at": "2026-10-10T06:56:28Z"
 }
