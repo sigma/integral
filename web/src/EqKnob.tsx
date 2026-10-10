@@ -12,6 +12,9 @@ interface Props {
   label?: string;
 }
 
+/** Ranges with at most this many values get one tick per value; wider ones read as continuous. */
+const MAX_TICKS = 24;
+
 function valueToAngle(value: number, min: number, max: number): number {
   const range = max - min;
   if (range === 0) return 0;
@@ -33,6 +36,7 @@ export function EqKnob({
 
   const drag = useDragControl({ value, min, max, defaultValue, onChange, pxPerStep });
   const angle = valueToAngle(value, min, max);
+  const ticks = range > 0 && range < MAX_TICKS ? Array.from({ length: range + 1 }, (_, i) => min + i) : [];
 
   return (
     <div className={css.container}>
@@ -59,6 +63,18 @@ export function EqKnob({
             <stop offset="100%" stopColor="#222" />
           </radialGradient>
         </defs>
+        {ticks.map((v) => (
+          <line
+            key={v}
+            x1="22"
+            y1="1"
+            x2="22"
+            y2="5"
+            stroke={v === value ? color : "#556"}
+            strokeWidth={v === value ? 1.5 : 1}
+            transform={`rotate(${valueToAngle(v, min, max)} 22 22)`}
+          />
+        ))}
         <circle cx="22" cy="22" r="16" fill={`url(#eqKnobGrad-${color})`} />
         <line
           x1="22"
