@@ -7,9 +7,15 @@
   "id": "i7-1fn.10",
   "labels": [],
   "parent": "i7-1fn",
+  "comments": [
+    {
+      "text": "Migrated to https://github.com/sigma/integral/issues/1",
+      "timestamp": "2026-10-10T06:56:27Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Generalize EqSection into a reusable ParametricEq component supporting 2-4 bands",
   "type": "task",
-  "updated_at": "2026-04-10T09:10:15Z"
+  "updated_at": "2026-10-10T06:56:27Z"
 }
