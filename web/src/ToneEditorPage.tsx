@@ -48,11 +48,6 @@ export function ToneEditorPage({ mixer, service, onBack }: Props) {
         <button className={css.backButton} onClick={onBack}>
           Back to Mixer
         </button>
-        <span className={css.partLabel}>Part {partIndex + 1}</span>
-        <span className={css.toneType}>{toneType}</span>
-        <span className={css.toneLabel}>
-          {part.toneName || `${bankMsb}-${part.toneBankLsb}-${part.tonePC + 1}`}
-        </span>
         <span className={css.octaveControl}>
           <button className={css.octaveBtn} onClick={() => setOctave((o) => Math.max(0, o - 1))}>-</button>
           <span className={css.octaveLabel}>Oct {octave}</span>

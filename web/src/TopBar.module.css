@@ -1,19 +1,44 @@
-.bar {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  align-items: center;
-  gap: 12px;
-  padding: 4px 12px;
-}
-
 .toneInfo {
-  flex: 1;
-  min-width: 0;
+  max-width: 40vw;
   font-size: 13px;
   color: #c0c0e0;
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.selectors {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 12px;
+}
+
+.previewButton {
+  padding: 4px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #2a3e2a;
+  color: #6ddb6d;
+  border: 1px solid #3a5a3a;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.previewButton:hover {
+  background: #3a4e3a;
+}
+
+.previewButton:active {
+  background: #4a6a4a;
+}
+
+.previewActive {
+  background: #3a6a3a;
+  color: #90ff90;
+  border-color: #5a9a5a;
+  box-shadow: 0 0 6px rgb(100 255 100 / 30%);
 }

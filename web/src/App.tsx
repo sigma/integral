@@ -170,37 +170,33 @@ export function App() {
     return (
       <div className={css.shell}>
         <nav className={css.tabBar}>
-          <button
-            className={`${css.tab} ${activeTab === "mixer" ? css.tabActive : ""}`}
-            onClick={() => setActiveTab("mixer")}
-          >
-            Mixer
-          </button>
-          <button
-            className={`${css.tab} ${activeTab === "surround" ? css.tabActive : ""}`}
-            onClick={() => setActiveTab("surround")}
-          >
-            Surround
-          </button>
-          <button
-            className={`${css.tab} ${activeTab === "routing" ? css.tabActive : ""}`}
-            onClick={() => setActiveTab("routing")}
-          >
-            Routing
-          </button>
-          <button
-            className={`${css.tab} ${activeTab === "toneEdit" ? css.tabActive : ""}`}
-            onClick={() => setActiveTab("toneEdit")}
-          >
-            Tone Edit
-          </button>
+          <div className={css.tabs}>
+            <button
+              className={`${css.tab} ${activeTab === "mixer" ? css.tabActive : ""}`}
+              onClick={() => setActiveTab("mixer")}
+            >
+              Mixer
+            </button>
+            <button
+              className={`${css.tab} ${activeTab === "surround" ? css.tabActive : ""}`}
+              onClick={() => setActiveTab("surround")}
+            >
+              Surround
+            </button>
+            <button
+              className={`${css.tab} ${activeTab === "routing" ? css.tabActive : ""}`}
+              onClick={() => setActiveTab("routing")}
+            >
+              Routing
+            </button>
+            <button
+              className={`${css.tab} ${activeTab === "toneEdit" ? css.tabActive : ""}`}
+              onClick={() => setActiveTab("toneEdit")}
+            >
+              Tone Edit
+            </button>
+          </div>
           <TopBar mixer={mixer} service={service} />
-          <button
-            className={`${css.previewButton} ${mixer.state.previewPart > 0 ? css.previewActive : ""}`}
-            onClick={mixer.preview}
-          >
-            PREVIEW
-          </button>
         </nav>
         {activeTab === "mixer" && (
           <ErrorBoundary section="Mixer">

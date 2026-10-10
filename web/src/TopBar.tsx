@@ -56,17 +56,25 @@ export function TopBar({ mixer, service }: Props) {
   );
 
   return (
-    <div className={css.bar}>
-      <StudioSetSelector
-        currentPC={state.studioSetPC}
-        names={state.studioSetNames}
-        onSelect={mixer.switchStudioSet}
-        onLoadNames={mixer.loadStudioSetNames}
-      />
-      <PartSelector selectedPart={state.selectedPart} onSelect={mixer.selectPart} />
+    <>
       <span className={css.toneInfo} onClick={() => setToneSelectorOpen(true)}>
         {toneDisplay(selectedPart)}
       </span>
+      <div className={css.selectors}>
+        <StudioSetSelector
+          currentPC={state.studioSetPC}
+          names={state.studioSetNames}
+          onSelect={mixer.switchStudioSet}
+          onLoadNames={mixer.loadStudioSetNames}
+        />
+        <PartSelector selectedPart={state.selectedPart} onSelect={mixer.selectPart} />
+        <button
+          className={`${css.previewButton} ${state.previewPart > 0 ? css.previewActive : ""}`}
+          onClick={mixer.preview}
+        >
+          PREVIEW
+        </button>
+      </div>
       {toneSelectorOpen && (
         <ToneSelector
           partIndex={state.selectedPart}
@@ -78,6 +86,6 @@ export function TopBar({ mixer, service }: Props) {
           onClose={() => setToneSelectorOpen(false)}
         />
       )}
-    </div>
+    </>
   );
 }

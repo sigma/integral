@@ -152,6 +152,16 @@
   min-height: 0;
 }
 
+.selected {
+  background: linear-gradient(to bottom, #262a4e, #1a1c38);
+}
+
+/* Matches the active part tab in the header. */
+.selected .partNumber {
+  color: #fff;
+  background: #4a6cf7;
+}
+
 .extOverride {
   border-right: none;
   border-left: 1px solid #2a4a2a;

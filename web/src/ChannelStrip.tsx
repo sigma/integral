@@ -64,6 +64,8 @@ interface Props {
   onLevelChange?: (value: number) => void;
   onPanChange?: (value: number) => void;
   onMuteToggle?: () => void;
+  /** Part is the one selected for editing. */
+  selected?: boolean;
   soloed?: boolean;
   onSoloToggle?: () => void;
   onChorusSendChange?: (value: number) => void;
@@ -113,6 +115,7 @@ function ChannelStripInner({
   onLevelChange,
   onPanChange,
   onMuteToggle,
+  selected,
   soloed,
   onSoloToggle,
   onChorusSendChange,
@@ -146,6 +149,7 @@ function ChannelStripInner({
 
   const stripClass = [
     css.strip,
+    selected ? css.selected : "",
     variant === "ext" ? css.extOverride : "",
     variant === "master" ? css.masterOverride : "",
     isCompEq ? css.compEqOverride : "",
