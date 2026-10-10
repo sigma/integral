@@ -93,7 +93,7 @@ export interface SnSynthPartial {
 
 export const OSC_WAVE_NAMES = ["SAW", "SQR", "PW-SQR", "TRI", "SINE", "NOISE", "SP-SAW", "PCM"];
 export const OSC_VARIATION_NAMES = ["A", "B", "C"];
-export const FILTER_MODE_NAMES = ["BYPASS", "LPF", "HPF", "BPF", "PKG", "LPF2", "LPF3", "LPF4"];
+export const FILTER_MODE_NAMES = ["BYP", "LPF", "HPF", "BPF", "PKG", "LPF2", "LPF3", "LPF4"];
 export const FILTER_SLOPE_NAMES = ["-12dB", "-24dB"];
 export const LFO_SHAPE_NAMES = ["TRI", "SIN", "SAW", "SQR", "S&H", "RND"];
 export const UNISON_SIZE_NAMES = ["2", "4", "6", "8"];

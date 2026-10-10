@@ -79,7 +79,7 @@
 .mainArea {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .partialRows {
@@ -196,11 +196,15 @@
    Panel row layout (used inside SectionPanel bodies)
    ---------------------------------------------------------------- */
 
+/* flex: 1 takes the panel's spare height, so the fader rows below sit at
+   the bottom and line up across the panels of a partial row. */
 .panelRow {
+  flex: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: flex-start;
+  align-content: flex-start;
 }
 
 /* ----------------------------------------------------------------

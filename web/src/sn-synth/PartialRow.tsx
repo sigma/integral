@@ -200,22 +200,26 @@ function FilterPanel({
             onChange={(v) => onChange(0x0D, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c" />
           <SynthKnob label="Vel Sns" value={partial.filterEnvVelSens} min={1} max={127} defaultValue={64} center={64}
             onChange={(v) => onChange(0x0E, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c" />
-          <SynthKnob label="Env Dep" value={partial.filterEnvDepth} min={1} max={127} defaultValue={64} center={64}
-            onChange={(v) => onChange(0x14, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
-            title="Filter envelope depth" />
         </div>
       </div>
-      <ADSREnvelope
-        compact
-        attack={{ label: "A", value: partial.filterEnvAttack, min: 0, max: 127, defaultValue: 0,
-          onChange: (v) => onChange(0x10, v) }}
-        decay={{ label: "D", value: partial.filterEnvDecay, min: 0, max: 127, defaultValue: 0,
-          onChange: (v) => onChange(0x11, v) }}
-        sustain={{ label: "S", value: partial.filterEnvSustain, min: 0, max: 127, defaultValue: 0,
-          onChange: (v) => onChange(0x12, v) }}
-        release={{ label: "R", value: partial.filterEnvRelease, min: 0, max: 127, defaultValue: 0,
-          onChange: (v) => onChange(0x13, v) }}
-      />
+      <FaderGroup>
+        <ADSREnvelope
+          compact
+          attack={{ label: "A", value: partial.filterEnvAttack, min: 0, max: 127, defaultValue: 0,
+            onChange: (v) => onChange(0x10, v) }}
+          decay={{ label: "D", value: partial.filterEnvDecay, min: 0, max: 127, defaultValue: 0,
+            onChange: (v) => onChange(0x11, v) }}
+          sustain={{ label: "S", value: partial.filterEnvSustain, min: 0, max: 127, defaultValue: 0,
+            onChange: (v) => onChange(0x12, v) }}
+          release={{ label: "R", value: partial.filterEnvRelease, min: 0, max: 127, defaultValue: 0,
+            onChange: (v) => onChange(0x13, v) }}
+        />
+        <FaderGroupSep />
+        <div className={css.faderWithCurveSpace}>
+          <SynthFader label="Dep" value={partial.filterEnvDepth} min={1} max={127} defaultValue={64}
+            onChange={(v) => onChange(0x14, v)} formatValue={(v) => signedFmt(v, 64)} compact />
+        </div>
+      </FaderGroup>
     </SectionPanel>
   );
 }
