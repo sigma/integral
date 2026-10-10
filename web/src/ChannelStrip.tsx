@@ -5,7 +5,7 @@ import { EqKnob } from "./EqKnob";
 import { EqSection } from "./EqSection";
 import box from "./PanelBox.module.css";
 import { TransferCurve } from "./TransferCurve";
-import { ADEnvelope } from "./synth-ui";
+import { ADSREnvelope } from "./synth-ui";
 import { defaultPartState, type PartState, type EqState, type CompEqUnit } from "./types";
 import { paramMeta } from "./paramDefaults";
 import { CATEGORIES, lookupToneCategory } from "./categories";
@@ -226,7 +226,7 @@ function ChannelStripInner({
                 {compEqUnit?.compSwitch ? "COMP ON" : "COMP OFF"}
               </button>
               {/* Curve plots table index, not ms: the tables are non-linear. */}
-              <ADEnvelope
+              <ADSREnvelope
                 compact
                 attack={{ label: "Atk", value: compEqUnit?.compAttack ?? 10, min: 0, max: 31, defaultValue: 10,
                   onChange: (v) => onCompEqParam?.(0x01, v), formatValue: (v) => ATTACK_VALUES[v] ?? String(v) }}

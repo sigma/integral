@@ -6,7 +6,7 @@ interface Props {
 }
 
 /**
- * A horizontal row of fader-based components (SynthFader, ADEnvelope, etc.)
+ * A horizontal row of fader-based components (SynthFader, ADSREnvelope, etc.)
  * with consistent alignment. Children are separated by vertical lines when
  * wrapped in FaderGroupItem.
  */
