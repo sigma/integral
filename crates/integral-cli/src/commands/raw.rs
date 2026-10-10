@@ -6,7 +6,7 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use integral_core::sysex;
 
-use crate::hex::{parse_hex_addr, parse_hex_bytes, parse_hex_size};
+use crate::hex::{format_hex, parse_hex_addr, parse_hex_bytes, parse_hex_size};
 use crate::midi;
 
 /// Read raw bytes from a SysEx address.
@@ -24,8 +24,7 @@ pub fn raw_read(
     let data = midi::request_data(&mut conn_out, &rx, device_id, &addr, &size, timeout)?;
 
     // Print as hex
-    let hex: Vec<String> = data.iter().map(|b| format!("{:02X}", b)).collect();
-    println!("Hex:   {}", hex.join(" "));
+    println!("Hex:   {}", format_hex(&data, " "));
 
     // Print as ASCII (printable chars only)
     let ascii: String = data
@@ -89,8 +88,12 @@ pub fn raw_rq1_multi(
                         ascii
                     );
                 } else {
-                    let hex: Vec<String> = msg.iter().map(|b| format!("{:02X}", b)).collect();
-                    println!("[{}] raw ({} bytes): {}", count, msg.len(), hex.join(" "));
+                    println!(
+                        "[{}] raw ({} bytes): {}",
+                        count,
+                        msg.len(),
+                        format_hex(&msg, " ")
+                    );
                 }
             }
             Err(mpsc::RecvTimeoutError::Timeout) => break,
@@ -106,8 +109,7 @@ pub fn send_raw_hex(port_pattern: &str, timeout: Duration, hex: &str) -> Result<
     let bytes = parse_hex_bytes(hex)?;
     let (_conn_in, mut conn_out, rx) = midi::open_midi(port_pattern)?;
 
-    let hex_display: Vec<String> = bytes.iter().map(|b| format!("{:02X}", b)).collect();
-    eprintln!("Sending raw: {}", hex_display.join(" "));
+    eprintln!("Sending raw: {}", format_hex(&bytes, " "));
     conn_out.send(&bytes).context("send failed")?;
 
     let deadline = std::time::Instant::now() + timeout;
@@ -140,8 +142,7 @@ pub fn send_raw_hex(port_pattern: &str, timeout: Duration, hex: &str) -> Result<
                         ascii
                     );
                 } else {
-                    let hex_out: Vec<String> = msg.iter().map(|b| format!("{:02X}", b)).collect();
-                    println!("[{}] raw: {}", count, hex_out.join(" "));
+                    println!("[{}] raw: {}", count, format_hex(&msg, " "));
                 }
             }
             Err(mpsc::RecvTimeoutError::Timeout) => break,
@@ -199,8 +200,12 @@ pub fn raw_send(
                         ascii
                     );
                 } else {
-                    let hex: Vec<String> = msg.iter().map(|b| format!("{:02X}", b)).collect();
-                    println!("[{}] raw ({} bytes): {}", count, msg.len(), hex.join(" "));
+                    println!(
+                        "[{}] raw ({} bytes): {}",
+                        count,
+                        msg.len(),
+                        format_hex(&msg, " ")
+                    );
                 }
             }
             Err(mpsc::RecvTimeoutError::Timeout) => break,

@@ -1,4 +1,4 @@
-//! Hex parsing utilities for CLI address/size/data arguments.
+//! Hex parsing and formatting utilities for CLI arguments and output.
 
 use anyhow::{Context, Result};
 use integral_core::address::{Address, DataSize};
@@ -51,4 +51,22 @@ pub fn parse_hex_bytes(s: &str) -> Result<Vec<u8>> {
 /// Parse a hex string into a u32 value.
 fn parse_hex_u32(s: &str) -> Result<u32> {
     Ok(u32::from_str_radix(s, 16)?)
+}
+
+/// Format bytes as uppercase two-digit hex, joined by `sep`.
+pub fn format_hex(bytes: &[u8], sep: &str) -> String {
+    let hex: Vec<String> = bytes.iter().map(|b| format!("{b:02X}")).collect();
+    hex.join(sep)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn formats_hex_with_separator() {
+        assert_eq!(format_hex(&[0xF0, 0x0A, 0x7F], " "), "F0 0A 7F");
+        assert_eq!(format_hex(&[0x5F, 0x01], ", "), "5F, 01");
+        assert_eq!(format_hex(&[], " "), "");
+    }
 }

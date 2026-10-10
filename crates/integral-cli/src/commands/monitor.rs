@@ -8,6 +8,7 @@ use anyhow::{Context, Result, bail};
 use integral_core::sysex;
 use midir::MidiOutputConnection;
 
+use crate::hex::format_hex;
 use crate::midi;
 
 /// Monitor all incoming MIDI messages (blocks until Ctrl+C).
@@ -59,11 +60,13 @@ fn relay(
 
 /// Format a MIDI message as hex, with a DT1 decode when it parses as one.
 fn describe(data: &[u8]) -> String {
-    let hex: Vec<String> = data.iter().map(|b| format!("{b:02X}")).collect();
-    let mut s = format!("[{} bytes] {}", data.len(), hex.join(" "));
+    let mut s = format!("[{} bytes] {}", data.len(), format_hex(data, " "));
     if let Ok(dt1) = sysex::parse_dt1(data) {
-        let bytes: Vec<String> = dt1.data.iter().map(|b| format!("{b:02X}")).collect();
-        s += &format!("  → DT1 addr={} data=[{}]", dt1.address, bytes.join(", "));
+        s += &format!(
+            "  → DT1 addr={} data=[{}]",
+            dt1.address,
+            format_hex(&dt1.data, ", ")
+        );
     }
     s
 }

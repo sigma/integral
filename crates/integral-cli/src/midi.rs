@@ -8,6 +8,8 @@ use integral_core::address::{Address, DataSize};
 use integral_core::sysex;
 use midir::{MidiInput, MidiOutput};
 
+use crate::hex::format_hex;
+
 /// Default MIDI port name pattern for the INTEGRA-7.
 pub const DEFAULT_PORT_PATTERN: &str = "Integra";
 
@@ -76,13 +78,7 @@ pub fn request_data(
 ) -> Result<Vec<u8>> {
     let rq1 = sysex::build_rq1(device_id, address, size);
     eprintln!("Sending RQ1: addr={}, size={}", address, size);
-    eprintln!(
-        "  Raw: {}",
-        rq1.iter()
-            .map(|b| format!("{:02X}", b))
-            .collect::<Vec<_>>()
-            .join(" ")
-    );
+    eprintln!("  Raw: {}", format_hex(&rq1, " "));
     conn_out.send(&rq1).context("failed to send RQ1")?;
 
     let deadline = std::time::Instant::now() + timeout;
@@ -97,11 +93,7 @@ pub fn request_data(
                 eprintln!(
                     "  Received ({} bytes): {}",
                     data.len(),
-                    data.iter()
-                        .take(20)
-                        .map(|b| format!("{:02X}", b))
-                        .collect::<Vec<_>>()
-                        .join(" ")
+                    format_hex(&data[..data.len().min(20)], " ")
                 );
 
                 match sysex::parse_dt1(&data) {
