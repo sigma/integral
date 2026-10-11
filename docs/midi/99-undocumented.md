@@ -511,7 +511,7 @@ Exp Slot A–D" settings reload titles at power-on (Owner's Manual pp. 14–15).
 | `13`      | ExPCM            |
 
 ExPCM fills all four slots: load it as `13 13 13 13`. It reads back as
-`13 14 15 16` (Integra7AuralAlchemist measurement; not yet verified here).
+`13 14 15 16` (verified 2026-10-11).
 
 ### Read (RQ1)
 
@@ -551,8 +551,21 @@ values for A–D. The device answers with two DT1s, both with data
   MIDI; re-read the slots to see the change.
 - Unloaded banks play silence (Owner's Manual p. 30).
 
-Reported elsewhere, not verified here: some titles take ~13 s and ExPCM
-~19–23 s; a load sent during another load is dropped.
+Device checks, 2026-10-11 (times from request to the `0F 00 30 02` reply):
+
+| Load | Time |
+|------|------|
+| One SRX title | 4.9 s |
+| Three SRX titles | 13.4 s |
+| Four SRX titles | 17.6–17.7 s |
+| ExPCM | 17.6 s |
+
+- **A load sent during another load is dropped.** A second request sent 2 s
+  into a four-title load got no reply of its own: one `30 01`/`30 02` pair
+  came back, and the slots ended as the first request asked.
+- **The same Expansion in two slots is accepted.** Requesting `03 03 05 07`
+  loaded and read back `03 03 05 07`. Integral never sends this, but must
+  read it.
 
 ### Examples (device ID 10H)
 
@@ -570,8 +583,10 @@ F0 41 10 00 00 64 11 0F 00 30 00 03 05 07 01 31 F7
 
 Roland's Editor names these reserved bytes "Expansion Slot 1–4 RomID". In the
 preset Studio Set "Integra Preview" they read `00 00 00 00` while SRX-03/05/07/08
-were loaded, so they do not mirror the loaded slots. Whether a saved Studio Set
-records its expected slots there is untested.
+were loaded, so they do not mirror the loaded slots. Saving does not record
+them either (2026-10-11): with SRX-03/05/07/08 loaded, a Studio Set saved to
+User 64 and recalled read `00 00 00 00`. A Studio Set carries no record of the
+Expansions it needs.
 
 ### Discovery
 
