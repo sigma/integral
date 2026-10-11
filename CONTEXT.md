@@ -85,3 +85,26 @@ Said of an Expansion that sits in an Expansion slot. Loading puts it there
 and unloads whatever it replaces. Tones of an Expansion that is not loaded
 play silence.
 _Avoid_: Installed, enabled, active (every Expansion is always installed)
+
+## Waves
+
+**Wave**:
+One PCM sample stored in the device, picked by number by a PCM Synth
+partial, a PCM Drum Kit WMT, or an SN Synth OSC in PCM mode.
+_Avoid_: Sample, waveform, multisample
+
+**Wave Group**:
+The numbered set a Wave belongs to: INT (built in), one SRX Expansion, or SN
+Synth (the waves an SN Synth OSC picks from). A PCM partial or WMT picks from
+INT or an SRX Wave Group; an SN Synth OSC only from SN Synth. An SRX Wave
+Group plays only while its Expansion is loaded.
+_Avoid_: SRX on its own, bank (a bank holds Tones)
+
+**Wave Number**:
+A Wave's position within its Wave Group, from 1. Wave Number 0 means no Wave
+(OFF).
+
+**Stereo pair**:
+Two adjacent Waves of one Wave Group whose names differ only by L and R. A
+naming convention read from the names, not something the device stores: L and
+R are picked as two separate Wave Numbers.
