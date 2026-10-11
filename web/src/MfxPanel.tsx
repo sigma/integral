@@ -1,10 +1,13 @@
 import { useMemo } from "react";
 import {
+  ControlSourceKind,
   MfxHeaderField,
+  control_source_choices,
   mfx_type_names,
   mfx_type_param_count,
   mfx_param_def,
 } from "../pkg/integral_wasm.js";
+import type { WasmControlSource } from "../pkg/integral_wasm.js";
 import {
   SynthKnob,
   SynthFader,
@@ -50,16 +53,14 @@ function getMfxTypeNames(): string[] {
 }
 
 // ---------------------------------------------------------------------------
-// MFX control source names
+// Cached MFX control sources
 // ---------------------------------------------------------------------------
 
-const CTRL_SOURCE_NAMES: string[] = (() => {
-  const names = ["OFF"];
-  for (let i = 1; i <= 31; i++) names.push(`CC${String(i).padStart(2, "0")}`);
-  for (let i = 33; i <= 95; i++) names.push(`CC${String(i).padStart(2, "0")}`);
-  names.push("BEND", "AFT", "SYS1", "SYS2", "SYS3", "SYS4");
-  return names;
-})();
+let _ctrlSourcesCache: WasmControlSource[] | null = null;
+function getMfxControlSources(): WasmControlSource[] {
+  if (!_ctrlSourcesCache) _ctrlSourcesCache = control_source_choices(ControlSourceKind.Mfx);
+  return _ctrlSourcesCache;
+}
 
 // ---------------------------------------------------------------------------
 // Param definition helper
@@ -503,8 +504,8 @@ export function MfxPanel({
                     onChange={(e) => onHeaderParam(MfxHeaderField.ControlSource, slot, Number(e.target.value))}
                     title="Source"
                   >
-                    {CTRL_SOURCE_NAMES.map((name, i) => (
-                      <option key={i} value={i}>{name}</option>
+                    {getMfxControlSources().map(({ value, name }) => (
+                      <option key={value} value={value}>{name}</option>
                     ))}
                   </select>
                   <select

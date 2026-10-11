@@ -147,6 +147,11 @@ Offset: `00 00 00` | Total size: `00 00 00 50`
 | `00 4E` | `0aaa aaaa` | Matrix Control 4 Sens 4 | 1 - 127 | -63 - +63 |
 | `00 4F` | `0000 000a` | (reserve) \<\*> | -- | -- |
 
+> **Note:** Matrix Control Source values are CC numbers, so value 32 is unused
+> (CC32 is not offered): 0 = OFF, 1–31 = CC01–CC31, 33–95 = CC33–CC95,
+> 96 = BEND, 97 = AFT, 98–101 = CTRL1–CTRL4, 102–109 = VELOCITY–TVA-ENV.
+> See [Controller routing](../research/jv-xv-roland-pairs.md#b-controller-routing).
+
 > **Note:** Some reserves carry data in saved files: `00 0C` holds what looks
 > like a legacy category (inferred), `00 1F` an 8-bit value (0, 100 and 120
 > observed), and `00 27` is always 13. See
@@ -183,6 +188,10 @@ Offset: `00 02 00` | Total size: `00 00 01 11`
 | `00 0A` | `0aaa aaaa` | MFX Control 3 Sens | 1 - 127 | -63 - +63 |
 | `00 0B` | `0aaa aaaa` | MFX Control 4 Source | 0 - 101 | OFF, CC01 - CC31, CC33 - CC95, BEND, AFT, SYS1 - SYS4 |
 | `00 0C` | `0aaa aaaa` | MFX Control 4 Sens | 1 - 127 | -63 - +63 |
+
+> **Note:** MFX Control Source values are CC numbers, so value 32 is unused
+> (CC32 is not offered): 0 = OFF, 1–31 = CC01–CC31, 33–95 = CC33–CC95,
+> 96 = BEND, 97 = AFT, 98–101 = SYS1–SYS4. See [Controller routing](../research/jv-xv-roland-pairs.md#b-controller-routing).
 
 ### MFX Control Assigns
 

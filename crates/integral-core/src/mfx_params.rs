@@ -6795,9 +6795,129 @@ pub fn mfx_type_def(mfx_type: u8) -> Option<&'static MfxTypeDef> {
     MFX_TYPE_DEFS.get(mfx_type as usize)
 }
 
+// ---------------------------------------------------------------------------
+// Control Sources
+// ---------------------------------------------------------------------------
+
+/// Which Control Source list a value is read against.
+///
+/// Both lists index sources by CC number: 32 is a hole (CC32 is not offered),
+/// which is why the documented ranges are one longer than their name lists.
+/// See `docs/research/jv-xv-roland-pairs.md`, "(b) Controller routing".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ControlSourceKind {
+    /// MFX Control Source (0–101), with SYS1–SYS4 at 98–101.
+    Mfx,
+    /// PCM Synth Matrix Control Source (0–109), with CTRL1–CTRL4 at 98–101.
+    Matrix,
+}
+
+/// Sources shared by both kinds (0–97), indexed by value; `None` is unused.
+#[rustfmt::skip]
+static SHARED_CONTROL_SOURCES: [Option<&str>; 98] = [
+    Some("OFF"), Some("CC01"), Some("CC02"), Some("CC03"), Some("CC04"), Some("CC05"), Some("CC06"), Some("CC07"),
+    Some("CC08"), Some("CC09"), Some("CC10"), Some("CC11"), Some("CC12"), Some("CC13"), Some("CC14"), Some("CC15"),
+    Some("CC16"), Some("CC17"), Some("CC18"), Some("CC19"), Some("CC20"), Some("CC21"), Some("CC22"), Some("CC23"),
+    Some("CC24"), Some("CC25"), Some("CC26"), Some("CC27"), Some("CC28"), Some("CC29"), Some("CC30"), Some("CC31"),
+    None, Some("CC33"), Some("CC34"), Some("CC35"), Some("CC36"), Some("CC37"), Some("CC38"), Some("CC39"),
+    Some("CC40"), Some("CC41"), Some("CC42"), Some("CC43"), Some("CC44"), Some("CC45"), Some("CC46"), Some("CC47"),
+    Some("CC48"), Some("CC49"), Some("CC50"), Some("CC51"), Some("CC52"), Some("CC53"), Some("CC54"), Some("CC55"),
+    Some("CC56"), Some("CC57"), Some("CC58"), Some("CC59"), Some("CC60"), Some("CC61"), Some("CC62"), Some("CC63"),
+    Some("CC64"), Some("CC65"), Some("CC66"), Some("CC67"), Some("CC68"), Some("CC69"), Some("CC70"), Some("CC71"),
+    Some("CC72"), Some("CC73"), Some("CC74"), Some("CC75"), Some("CC76"), Some("CC77"), Some("CC78"), Some("CC79"),
+    Some("CC80"), Some("CC81"), Some("CC82"), Some("CC83"), Some("CC84"), Some("CC85"), Some("CC86"), Some("CC87"),
+    Some("CC88"), Some("CC89"), Some("CC90"), Some("CC91"), Some("CC92"), Some("CC93"), Some("CC94"), Some("CC95"),
+    Some("BEND"), Some("AFT"),
+];
+
+/// MFX-only sources, from value 98.
+static MFX_CONTROL_SOURCE_TAIL: &[&str] = &["SYS1", "SYS2", "SYS3", "SYS4"];
+
+/// Matrix-only sources, from value 98.
+static MATRIX_CONTROL_SOURCE_TAIL: &[&str] = &[
+    "CTRL1",
+    "CTRL2",
+    "CTRL3",
+    "CTRL4",
+    "VELOCITY",
+    "KEYFOLLOW",
+    "TEMPO",
+    "LFO1",
+    "LFO2",
+    "PIT-ENV",
+    "TVF-ENV",
+    "TVA-ENV",
+];
+
+impl ControlSourceKind {
+    fn tail(self) -> &'static [&'static str] {
+        match self {
+            Self::Mfx => MFX_CONTROL_SOURCE_TAIL,
+            Self::Matrix => MATRIX_CONTROL_SOURCE_TAIL,
+        }
+    }
+
+    /// Highest valid source value.
+    pub fn max(self) -> u8 {
+        (SHARED_CONTROL_SOURCES.len() + self.tail().len() - 1) as u8
+    }
+}
+
+/// Display name of Control Source `value`, or `None` if the value is unused
+/// (32) or out of range for `kind`.
+pub fn control_source_name(kind: ControlSourceKind, value: u8) -> Option<&'static str> {
+    let i = value as usize;
+    match SHARED_CONTROL_SOURCES.get(i) {
+        Some(name) => *name,
+        None => kind.tail().get(i - SHARED_CONTROL_SOURCES.len()).copied(),
+    }
+}
+
+/// Every source a picker may offer for `kind`, as `(value, name)` in value
+/// order. Skips the unused value 32.
+pub fn control_source_choices(kind: ControlSourceKind) -> impl Iterator<Item = (u8, &'static str)> {
+    (0..=kind.max()).filter_map(move |v| control_source_name(kind, v).map(|n| (v, n)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn control_source_names_follow_cc_numbers() {
+        use ControlSourceKind::{Matrix, Mfx};
+        for (v, name) in [
+            (0, "OFF"),
+            (31, "CC31"),
+            (33, "CC33"),
+            (95, "CC95"),
+            (96, "BEND"),
+            (97, "AFT"),
+            (98, "SYS1"),
+            (101, "SYS4"),
+        ] {
+            assert_eq!(control_source_name(Mfx, v), Some(name), "MFX {v}");
+        }
+        assert_eq!(control_source_name(Mfx, 32), None);
+        assert_eq!(control_source_name(Mfx, 102), None);
+        assert_eq!(control_source_name(Matrix, 32), None);
+        assert_eq!(control_source_name(Matrix, 98), Some("CTRL1"));
+        assert_eq!(control_source_name(Matrix, 102), Some("VELOCITY"));
+        assert_eq!(control_source_name(Matrix, 109), Some("TVA-ENV"));
+        assert_eq!(control_source_name(Matrix, 110), None);
+    }
+
+    #[test]
+    fn control_source_choices_skip_32() {
+        use ControlSourceKind::{Matrix, Mfx};
+        let mfx: Vec<_> = control_source_choices(Mfx).collect();
+        assert_eq!(mfx.len(), 101);
+        assert_eq!(mfx.last(), Some(&(101, "SYS4")));
+        assert!(mfx.iter().all(|&(v, _)| v != 32));
+        let matrix: Vec<_> = control_source_choices(Matrix).collect();
+        assert_eq!(matrix.len(), 109);
+        assert_eq!(matrix.last(), Some(&(109, "TVA-ENV")));
+    }
 
     #[test]
     fn all_68_types_present() {

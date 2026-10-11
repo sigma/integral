@@ -2296,6 +2296,40 @@ pub fn mfx_type_names() -> Vec<String> {
         .collect()
 }
 
+/// Which Control Source list a value is read against (mirrors
+/// [`mfx_params::ControlSourceKind`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ControlSourceKind {
+    /// See [`mfx_params::ControlSourceKind::Mfx`].
+    Mfx,
+    /// See [`mfx_params::ControlSourceKind::Matrix`].
+    Matrix,
+}
+
+mirror_core_enum!(ControlSourceKind <=> mfx_params::ControlSourceKind { Mfx, Matrix });
+
+/// One Control Source a picker may offer.
+#[wasm_bindgen(getter_with_clone)]
+pub struct WasmControlSource {
+    /// Device value written to the Control Source parameter.
+    pub value: u8,
+    /// Display name (e.g. "CC33", "BEND").
+    pub name: String,
+}
+
+/// Every Control Source a picker may offer for `kind`, in value order.
+/// The unused value 32 is skipped.
+#[wasm_bindgen]
+pub fn control_source_choices(kind: ControlSourceKind) -> Vec<WasmControlSource> {
+    mfx_params::control_source_choices(kind.into())
+        .map(|(value, name)| WasmControlSource {
+            value,
+            name: name.to_string(),
+        })
+        .collect()
+}
+
 /// Get the number of parameters for a given MFX type.
 #[wasm_bindgen]
 pub fn mfx_type_param_count(mfx_type: u8) -> u32 {

@@ -190,6 +190,10 @@ Total size: `00 00 01 11`.
 |         | `0000 cccc` |                        |                |                                                  |
 |         | `0000 dddd` |                        |                |                                                  |
 
+> **Note:** MFX Control Source values are CC numbers, so value 32 is unused
+> (CC32 is not offered): 0 = OFF, 1–31 = CC01–CC31, 33–95 = CC33–CC95,
+> 96 = BEND, 97 = AFT, 98–101 = SYS1–SYS4. See [Controller routing](../research/jv-xv-roland-pairs.md#b-controller-routing).
+
 > **Note:** Reserve `00 01` is always 127 in saved files. See
 > [SVD: Reserve Parameters](../svd/02-encoding.md#reserve-parameters).
 
