@@ -10,6 +10,8 @@ import {
 } from "../synth-ui";
 import css from "../PcmSynthEditor.module.css";
 import type { PcmSynthPartial } from "./types";
+import { WavePicker, type ExpansionMarking } from "../WavePicker";
+import { waveSourceOf } from "../waveCatalog";
 import {
   ON_OFF_OPTIONS,
   WAVE_GAIN_NAMES,
@@ -35,6 +37,7 @@ export function PartialRow({
   setNibP,
   setNib2P,
   setPmtParam,
+  marking,
 }: {
   idx: number;
   partial: PcmSynthPartial | null;
@@ -43,6 +46,8 @@ export function PartialRow({
   setNibP: (offset: number, value: number) => void;
   setNib2P: (offset: number, value: number) => void;
   setPmtParam: (offset: number, value: number) => void;
+  /** Loaded state of the Expansions behind SRX Wave Groups. */
+  marking?: ExpansionMarking;
 }) {
   const dimClass = isOn ? "" : css.partialDimmed;
   const pmtSwOffset = 0x05 + idx * 9;
@@ -60,7 +65,7 @@ export function PartialRow({
       </div>
       {partial ? (
         <>
-          <WaveSection partial={partial} partialIdx={idx} setP={setP} setNibP={setNibP} />
+          <WaveSection partial={partial} setP={setP} setNibP={setNibP} marking={marking} />
           <PitchSection partial={partial} setP={setP} />
           <TvfSection partial={partial} setP={setP} />
           <TvaSection partial={partial} setP={setP} />
@@ -83,30 +88,18 @@ export function PartialRow({
 
 function WaveSection({
   partial,
-  partialIdx: _partialIdx,
   setP,
   setNibP,
+  marking,
 }: {
   partial: PcmSynthPartial;
-  partialIdx: number;
   setP: (offset: number, value: number) => void;
   setNibP: (offset: number, value: number) => void;
+  marking?: ExpansionMarking;
 }) {
   return (
     <SectionPanel label="WAVE" accentColor="#fc8">
-      <SynthSwitch label="Source" value={partial.waveGroupType}
-        options={[{ value: 0, label: "INT" }, { value: 1, label: "SRX" }]}
-        onChange={(v) => setP(0x27, v)} title="Wave source: Internal or SRX expansion" />
-      <label className={css.selectLabel} title="Left (mono) waveform number">
-        Wave L <input type="number" className={css.waveNumberInput}
-          value={partial.waveNumberL} min={0} max={16384}
-          onChange={(e) => setNibP(0x2C, Math.max(0, Math.min(16384, Number(e.target.value))))} />
-      </label>
-      <label className={css.selectLabel} title="Right waveform number (stereo pairs)">
-        Wave R <input type="number" className={css.waveNumberInput}
-          value={partial.waveNumberR} min={0} max={16384}
-          onChange={(e) => setNibP(0x30, Math.max(0, Math.min(16384, Number(e.target.value))))} />
-      </label>
+      <PartialWave partial={partial} setP={setP} setNibP={setNibP} marking={marking} />
       <SynthSwitch label="Gain" value={partial.waveGain}
         options={WAVE_GAIN_NAMES.map((l, i) => ({ value: i, label: l }))}
         onChange={(v) => setP(0x34, v)} title="Wave output gain" />
@@ -124,6 +117,40 @@ function WaveSection({
         onChange={(v) => setP(0x37, v)} formatValue={(v) => String(v)} color="#fc8"
         title="FXM Depth — intensity" />
     </SectionPanel>
+  );
+}
+
+/** A partial's Wave Group and L/R Wave Numbers, picked by name. */
+export function PartialWave({
+  partial,
+  setP,
+  setNibP,
+  marking,
+}: {
+  partial: Pick<
+    PcmSynthPartial,
+    "waveGroupType" | "waveGroupId" | "waveNumberL" | "waveNumberR"
+  >;
+  setP: (offset: number, value: number) => void;
+  setNibP: (offset: number, value: number) => void;
+  marking?: ExpansionMarking;
+}) {
+  return (
+    <WavePicker
+      source={waveSourceOf(partial.waveGroupType, partial.waveGroupId)}
+      unknownGroupLabel={`Type ${partial.waveGroupType} ID ${partial.waveGroupId}`}
+      stereo
+      l={partial.waveNumberL}
+      r={partial.waveNumberR}
+      onChange={(side, n) => setNibP(side === "l" ? 0x2C : 0x30, n)}
+      onGroupChange={(source) => {
+        if (!source.params) return;
+        const [type, id] = source.params;
+        setP(0x27, type);
+        setNibP(0x28, id);
+      }}
+      marking={marking}
+    />
   );
 }
 

@@ -16,3 +16,21 @@
   background: #1a3a1a;
   border-color: #2a5a2a;
 }
+
+/* Load action of an unloaded Expansion: stages it on the Expansions page */
+.loadButton {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #c0c0e0;
+  background: #22223a;
+  border: 1px solid #3a3a5a;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.loadButton:hover {
+  color: #e0e0e0;
+  border-color: #4a6cf7;
+}

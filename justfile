@@ -29,6 +29,10 @@ web-deps:
 lint-web: pack-wasm web-deps
     cd web && npx tsc -b
 
+# run the web component tests (against the packed WASM)
+test-web: pack-wasm web-deps
+    cd web && npx vitest run
+
 # lint CSS (web + VST Vizia theme)
 lint-css: web-deps
     cd web && npx stylelint "src/**/*.css"
@@ -55,7 +59,7 @@ build-web: pack-wasm
     cd web && npx vite build
 
 # format, lint, build, and test — the full pre-commit check
-check: fmt-check lint lint-web lint-css build build-wasm test
+check: fmt-check lint lint-web lint-css build build-wasm test test-web
 
 # clean build artifacts
 clean:

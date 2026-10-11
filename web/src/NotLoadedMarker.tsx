@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
+import type { Expansion } from "./expansionCatalog";
 import css from "./NotLoadedMarker.module.css";
 
 interface Props {
@@ -27,4 +28,25 @@ export function LoadedMarker({
   children?: ReactNode;
 }) {
   return <span className={css.loaded}>{children}</span>;
+}
+
+/** The Load action of an unloaded Expansion: stages it on the Expansions
+ *  page (nothing loads yet). */
+export function LoadExpansionButton({
+  expansion,
+  onLoad,
+}: {
+  expansion: Expansion;
+  onLoad: (expansion: Expansion, event: MouseEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={css.loadButton}
+      onClick={(e) => onLoad(expansion, e)}
+      title={`Stage ${expansion.name} on the Expansions page`}
+    >
+      Load
+    </button>
+  );
 }

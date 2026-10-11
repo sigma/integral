@@ -11,7 +11,11 @@ import { CATEGORIES, CATEGORY_IDS, categoryAbbrev } from "./categories";
 import { useBankEntries } from "./useBankEntries";
 import type { UseExpansionsResult } from "./useExpansions";
 import type { Expansion } from "./expansionCatalog";
-import { LoadedMarker, NotLoadedMarker } from "./NotLoadedMarker";
+import {
+  LoadedMarker,
+  LoadExpansionButton,
+  NotLoadedMarker,
+} from "./NotLoadedMarker";
 import css from "./ToneSelector.module.css";
 
 type BrowseMode = "bank" | "category";
@@ -188,17 +192,14 @@ export function ToneSelector({
                           {expansions.isUnloaded(entry.expansion) && (
                             <>
                               <NotLoadedMarker expansion={entry.expansion.name} />
-                              <button
-                                className={css.loadButton}
-                                onClick={(e) => {
+                              <LoadExpansionButton
+                                expansion={entry.expansion}
+                                onLoad={(expansion, e) => {
                                   // Don't also toggle the enclosing <details>.
                                   e.preventDefault();
-                                  onLoadExpansion(entry.expansion);
+                                  onLoadExpansion(expansion);
                                 }}
-                                title={`Stage ${entry.expansion.name} on the Expansions page`}
-                              >
-                                Load
-                              </button>
+                              />
                             </>
                           )}
                         </summary>

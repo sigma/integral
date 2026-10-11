@@ -13,6 +13,7 @@ import {
   ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
+import type { ExpansionMarking } from "./WavePicker";
 import { deviceSpec } from "./deviceSpec";
 import { MfxPanel } from "./MfxPanel";
 import { useMfxHandlers } from "./useMfxHandlers";
@@ -36,9 +37,11 @@ import { PartialRow } from "./pcm-synth/PartialRow";
 interface Props {
   partIndex: number;
   service: IntegraService;
+  /** Loaded state of the Expansions behind SRX Wave Groups. */
+  marking?: ExpansionMarking;
 }
 
-export function PcmSynthEditor({ partIndex, service }: Props) {
+export function PcmSynthEditor({ partIndex, service, marking }: Props) {
   const [common, setCommon] = useState<PcmSynthCommon | null>(null);
   const [pmt, setPmt] = useState<PcmSynthPmt | null>(null);
   const [_common2, setCommon2] = useState<PcmSynthCommon2 | null>(null);
@@ -400,6 +403,7 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
                 setNibP={(o, v) => setPartialNibParam(idx, o, v)}
                 setNib2P={(o, v) => setPartialNib2Param(idx, o, v)}
                 setPmtParam={setPmtParam}
+                marking={marking}
               />
             );
           })}

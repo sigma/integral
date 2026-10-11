@@ -37,6 +37,7 @@ import { useLibraryExport } from "./useLibraryExport";
 import { useLibraryImport } from "./useLibraryImport";
 import { ExpansionLoadBanner } from "./ExpansionLoadBanner";
 import { useKeyboard } from "./useKeyboard";
+import type { ExpansionMarking } from "./WavePicker";
 import { sequencerEngine, type SequencerEngine } from "./sequencer";
 import css from "./App.module.css";
 
@@ -223,6 +224,12 @@ export function App() {
     },
     [stageInPreselectedSlot],
   );
+  // The Wave pickers' not-loaded markers and Load action.
+  const { isUnloaded } = expansions;
+  const waveMarking = useMemo<ExpansionMarking>(
+    () => ({ isUnloaded, onLoad: loadExpansion }),
+    [isUnloaded, loadExpansion],
+  );
 
   // Show connected UI when connected to an Integra-7
   if (service && catalog) {
@@ -303,7 +310,12 @@ export function App() {
             )}
             {activeTab === "toneEdit" && (
               <ErrorBoundary section="Tone Editor">
-                <ToneEditorPage mixer={mixer} service={service} onBack={() => setActiveTab("mixer")} />
+                <ToneEditorPage
+                  mixer={mixer}
+                  service={service}
+                  marking={waveMarking}
+                  onBack={() => setActiveTab("mixer")}
+                />
               </ErrorBoundary>
             )}
             {activeTab === "expansions" && (

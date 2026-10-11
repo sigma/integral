@@ -6,6 +6,7 @@ import { PcmSynthEditor } from "./PcmSynthEditor";
 import { PcmDrumEditor } from "./PcmDrumEditor";
 import type { IntegraService } from "./integra";
 import type { UseMixerResult } from "./useMixer";
+import type { ExpansionMarking } from "./WavePicker";
 import css from "./ToneEditorPage.module.css";
 
 // Bank MSB to tone type mapping
@@ -22,10 +23,12 @@ const TONE_TYPE_LABELS: Record<number, string> = {
 interface Props {
   mixer: UseMixerResult;
   service: IntegraService;
+  /** Loaded state of the Expansions behind SRX Wave Groups. */
+  marking: ExpansionMarking;
   onBack: () => void;
 }
 
-export function ToneEditorPage({ mixer, service, onBack }: Props) {
+export function ToneEditorPage({ mixer, service, marking, onBack }: Props) {
   const partIndex = mixer.state.selectedPart;
   const part = mixer.state.parts[partIndex]!;
   const bankMsb = part.toneBankMsb;
@@ -48,7 +51,7 @@ export function ToneEditorPage({ mixer, service, onBack }: Props) {
         {isPcmd ? (
           <PcmDrumEditor partIndex={partIndex} service={service} />
         ) : isPcms ? (
-          <PcmSynthEditor partIndex={partIndex} service={service} />
+          <PcmSynthEditor partIndex={partIndex} service={service} marking={marking} />
         ) : isSns ? (
           <SnSynthEditor partIndex={partIndex} service={service} />
         ) : isSna ? (

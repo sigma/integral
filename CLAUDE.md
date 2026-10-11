@@ -155,8 +155,9 @@ The `justfile` provides standard targets. Run `just` to list them.
 | `just build` | Build all crates (native) |
 | `just build-wasm` | Build WASM targets |
 | `just test` | Run all tests |
+| `just test-web` | Web component tests (Vitest + jsdom, against the packed WASM) |
 | `just lint-css` | Stylelint for CSS modules |
-| `just check` | Full pre-commit: fmt-check + lint + lint-web + lint-css + build + build-wasm + test |
+| `just check` | Full pre-commit: fmt-check + lint + lint-web + lint-css + build + build-wasm + test + test-web |
 | `just clean` | Remove build artifacts |
 | `just ping` | Ping the INTEGRA-7 device |
 | `just run` | Run standalone VST binary (native app) |
