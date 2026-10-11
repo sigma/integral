@@ -87,6 +87,12 @@ export interface SnSynthPartial {
   ampLevelKeyfollow: number;
 }
 
+/** A part's SN Synth Tone as cached in core (its MFX is read apart). */
+export interface SnSynthTone {
+  common: SnSynthCommon;
+  partials: SnSynthPartial[];
+}
+
 // ---------------------------------------------------------------------------
 // Display helpers
 // ---------------------------------------------------------------------------

@@ -675,30 +675,6 @@ pub fn pcms_mfx_address(part_index: u8) -> Vec<u8> {
     ))
 }
 
-/// Returns the address of part `part_index`'s SN Synth Common block.
-#[wasm_bindgen]
-pub fn sns_common_address(part_index: u8) -> Vec<u8> {
-    addr_to_vec(sn_synth::sns_common_address(part_index))
-}
-
-/// Returns the RQ1 size for reading an SN Synth Common block.
-#[wasm_bindgen]
-pub fn sns_common_size() -> Vec<u8> {
-    sn_synth::SNS_COMMON_BLOCK_SIZE.as_bytes().to_vec()
-}
-
-/// Returns the address of part `part_index`'s SN Synth Partial `partial` (0–2).
-#[wasm_bindgen]
-pub fn sns_partial_address(part_index: u8, partial: u8) -> Vec<u8> {
-    addr_to_vec(sn_synth::sns_partial_address(part_index, partial))
-}
-
-/// Returns the RQ1 size for reading an SN Synth Partial block.
-#[wasm_bindgen]
-pub fn sns_partial_size() -> Vec<u8> {
-    sn_synth::SNS_PARTIAL_BLOCK_SIZE.as_bytes().to_vec()
-}
-
 /// Returns the address of part `part_index`'s SN Synth MFX block.
 #[wasm_bindgen]
 pub fn sns_mfx_address(part_index: u8) -> Vec<u8> {
@@ -1965,21 +1941,25 @@ impl WasmDeviceState {
         Ok(())
     }
 
-    /// Parse an SN-S Common dump and return as a JS object.
-    #[wasm_bindgen(js_name = applySnsCommon)]
-    pub fn apply_sns_common(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
-        let parsed = integral_core::sn_synth::parse_sns_common(data)
-            .map_err(|e| JsError::new(&e.to_string()))?;
-        serde_wasm_bindgen::to_value(&parsed)
-            .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
+    /// Start reading a part's SN-S tone into the core cache, unless it is
+    /// already read or being read for the part's current tone. Returns
+    /// whether a new read started. Lost replies are requested again by
+    /// `drain`.
+    #[wasm_bindgen(js_name = loadSnsTone)]
+    pub fn load_sns_tone(&mut self, part: u8) -> Result<bool, JsError> {
+        check_part(part)?;
+        Ok(self.inner.load_sns_tone(part))
     }
 
-    /// Parse an SN-S Partial dump and return as a JS object.
-    #[wasm_bindgen(js_name = applySnsPartial)]
-    pub fn apply_sns_partial(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
-        let parsed = integral_core::sn_synth::parse_sns_partial(data)
-            .map_err(|e| JsError::new(&e.to_string()))?;
-        serde_wasm_bindgen::to_value(&parsed)
+    /// A part's cached SN-S tone (`{ common, partials }`), or `null` until
+    /// every block of it has arrived.
+    #[wasm_bindgen(js_name = snsTone)]
+    pub fn sns_tone(&self, part: u8) -> Result<JsValue, JsError> {
+        check_part(part)?;
+        let Some(tone) = self.inner.sns_tone(part) else {
+            return Ok(JsValue::NULL);
+        };
+        serde_wasm_bindgen::to_value(&tone)
             .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
