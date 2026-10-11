@@ -18,23 +18,13 @@ use crate::address;
 use crate::device_spec::{INTEGRA7, USER_MEMORY, UserMemorySpec};
 use crate::params::{self, part};
 use crate::parse_helpers::parse_ascii_name_len;
-use crate::svd::{ChunkType, SvdChunk, SvdError, SvdFile, blocks_category};
+use crate::svd::{ChunkType, SOUND_CHUNKS, SvdError, SvdFile, blocks_category};
 use crate::svd_convert::{ConvertError, svd_to_sysex, sysex_to_svd};
 use crate::svd_specs::{
     PCMD_TONE_SPEC, PCMS_TONE_SPEC, SNA_TONE_SPEC, SND_TONE_SPEC, SNS_TONE_SPEC, SS_TONE_SPEC,
     SvdToneSpec,
 };
 use crate::user_write::BankSelect;
-
-/// Chunks of a sound-export file, in directory order.
-const SOUND_CHUNKS: [ChunkType; 6] = [
-    ChunkType::StudioSet,
-    ChunkType::PcmSynthTone,
-    ChunkType::PcmDrumKit,
-    ChunkType::SnSynthTone,
-    ChunkType::SnAcousticTone,
-    ChunkType::SnDrumKit,
-];
 
 /// Errors reading, building or writing a [`Pack`].
 #[derive(Debug, Error)]
@@ -285,20 +275,12 @@ impl Pack {
 
     /// Write the sound-export shape: all six chunks, empty ones included.
     pub fn to_svd(&self) -> Result<Vec<u8>, PackError> {
-        let chunks = SOUND_CHUNKS
-            .into_iter()
-            .map(|kind| {
-                Ok(SvdChunk {
-                    chunk_type: kind,
-                    entry_size: kind.default_entry_size(),
-                    entries: self
-                        .of_kind(kind)
-                        .map(PackEntry::to_svd)
-                        .collect::<Result<_, PackError>>()?,
-                })
-            })
-            .collect::<Result<_, PackError>>()?;
-        Ok(SvdFile { chunks }.write())
+        let entries = self
+            .entries
+            .iter()
+            .map(|e| Ok((e.kind, e.to_svd()?)))
+            .collect::<Result<Vec<_>, PackError>>()?;
+        Ok(SvdFile::sound(entries).write())
     }
 
     /// Entries of type `kind`, in Pack position order.
@@ -337,6 +319,7 @@ fn tone_memories() -> impl Iterator<Item = (ChunkType, &'static UserMemorySpec)>
 mod tests {
     use super::*;
     use crate::parse_helpers::encode_ascii_name;
+    use crate::svd::SvdChunk;
 
     const SNS: ChunkType = ChunkType::SnSynthTone;
 

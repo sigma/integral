@@ -168,6 +168,17 @@ const CHUNK_TYPES: [ChunkTypeSpec; 7] = [
     },
 ];
 
+/// Chunks of a SOUND export file, in directory order. A BACKUP adds
+/// [`ChunkType::SystemSettings`] after them.
+pub const SOUND_CHUNKS: [ChunkType; 6] = [
+    ChunkType::StudioSet,
+    ChunkType::PcmSynthTone,
+    ChunkType::PcmDrumKit,
+    ChunkType::SnSynthTone,
+    ChunkType::SnAcousticTone,
+    ChunkType::SnDrumKit,
+];
+
 // `ChunkType::spec` indexes the table by discriminant.
 const _: () = {
     let mut i = 0;
@@ -438,12 +449,32 @@ impl SvdFile {
         Ok(SvdFile { chunks })
     }
 
+    /// A SOUND export file: all of [`SOUND_CHUNKS`] in order, each with its
+    /// type's entry size, holding the `entries` of its type in input order.
+    /// Types with no entries get an empty chunk; entries of types outside
+    /// the SOUND shape are ignored.
+    pub fn sound(entries: impl IntoIterator<Item = (ChunkType, Vec<u8>)>) -> Self {
+        let mut chunks = SOUND_CHUNKS.map(|kind| SvdChunk {
+            chunk_type: kind,
+            entry_size: kind.default_entry_size(),
+            entries: Vec::new(),
+        });
+        for (kind, entry) in entries {
+            if let Some(chunk) = chunks.iter_mut().find(|c| c.chunk_type == kind) {
+                chunk.entries.push(entry);
+            }
+        }
+        Self {
+            chunks: chunks.into(),
+        }
+    }
+
     /// Serialize this SVD file to raw bytes.
     ///
     /// Writes the header, chunk directory, and all zone headers with their
     /// entries, in `chunks` order. Empty chunks still get a zone header with
-    /// count=0 and the correct entry size. A SOUND file needs all 6 tone and
-    /// studio set chunks; a BACKUP adds `SYSa` as the seventh.
+    /// count=0 and the correct entry size. Build a SOUND file with
+    /// [`SvdFile::sound`]; a BACKUP adds `SYSa` as the seventh chunk.
     pub fn write(&self) -> Vec<u8> {
         let num_chunks = self.chunks.len();
         let data_start = HEADER_SIZE + num_chunks * DIR_ENTRY_SIZE;
@@ -591,6 +622,32 @@ mod tests {
         assert_eq!(&data[0x70..0x78], b"SYSaMI69");
         // First chunk starts right after the seventh directory entry.
         assert_eq!(read_u32_be(&data[0x18..0x1C]), 0x80);
+    }
+
+    #[test]
+    fn sound_fills_in_the_six_chunks() {
+        let entry = vec![0x2A; ChunkType::SnSynthTone.default_entry_size()];
+        let data = SvdFile::sound([(ChunkType::SnSynthTone, entry.clone())]).write();
+        assert_eq!(&data[..6], b"\x00\x6ESVD1");
+        // First chunk starts right after the sixth directory entry.
+        assert_eq!(read_u32_be(&data[0x18..0x1C]), 0x70);
+        let chunks: Vec<_> = SvdFile::parse(&data)
+            .unwrap()
+            .chunks
+            .into_iter()
+            .map(|c| (c.chunk_type, c.entry_size, c.entries))
+            .collect();
+        let expected: Vec<_> = SOUND_CHUNKS
+            .into_iter()
+            .map(|k| {
+                let entries = match k {
+                    ChunkType::SnSynthTone => vec![entry.clone()],
+                    _ => vec![],
+                };
+                (k, k.default_entry_size(), entries)
+            })
+            .collect();
+        assert_eq!(chunks, expected);
     }
 
     #[test]
