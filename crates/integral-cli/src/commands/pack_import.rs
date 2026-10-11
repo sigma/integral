@@ -130,8 +130,15 @@ fn plan(
             .iter()
             .map(|id| entry_index(pack, id))
             .collect::<Result<Vec<_>>>()?;
-        for i in (0..pack.entries.len()).filter(|i| !only.contains(i)) {
-            plan.exclude(i)?;
+        // Leave everything out, then take the kept entries back, so they get
+        // the lowest free slots.
+        if (0..pack.entries.len()).any(|i| !only.contains(&i)) {
+            for i in 0..pack.entries.len() {
+                plan.exclude(i)?;
+            }
+            for i in (0..pack.entries.len()).filter(|i| only.contains(i)) {
+                plan.include(i)?;
+            }
         }
     }
     for (id, slot) in &opts.to {
@@ -276,8 +283,14 @@ impl Report<'_> {
             self.file.display(),
             self.pack.entries.len()
         );
+        let mut excluded = 0;
         for (i, e) in self.pack.entries.iter().enumerate() {
-            let dest = destination(e.kind(), self.plan.placements()[i], self.part);
+            let placement = self.plan.placements()[i];
+            if placement == Placement::Excluded {
+                excluded += 1;
+                continue;
+            }
+            let dest = destination(e.kind(), placement, self.part);
             let line = format!(
                 "  {:<16} {:<16} -> {dest}",
                 entry_id(self.pack, i),
@@ -287,6 +300,9 @@ impl Report<'_> {
                 Some(name) => format!("{line} (overwrites \"{name}\")\n"),
                 None => line + "\n",
             };
+        }
+        if excluded > 0 {
+            out += &format!("  ({excluded} left out)\n");
         }
         for w in self.warnings() {
             out += &format!("Warning: {w}\n");
@@ -704,7 +720,7 @@ mod tests {
         let only = plan_with(&["--only", "sn-synth:2"]).unwrap();
         assert_eq!(
             only.placements(),
-            [Placement::Excluded, Placement::User(1), Placement::Excluded]
+            [Placement::Excluded, Placement::User(0), Placement::Excluded]
         );
 
         let to = plan_with(&["--to", "pcm-drum:1=5"]).unwrap();
