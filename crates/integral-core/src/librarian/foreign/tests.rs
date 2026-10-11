@@ -542,6 +542,7 @@ mod xv_patches {
             b[2][..2].copy_from_slice(&[2, 0]); // DELAY at level 0: silent
             b[3][..2].copy_from_slice(&[1, 90]); // REVERB, level 90
             b[5][0x15] = 1; // Receive Pan Mode KEY-ON
+            b[5][0x38] = 1; // Wave Tempo Sync
         });
         let (entry, report) = converted(&bytes);
         assert_eq!(entry.blocks()[0][0x27], 13);
@@ -555,6 +556,41 @@ mod xv_patches {
                 "Reverb REVERB, level 90 not applied; set it in the Studio Set",
                 "Partial 1: Receive Pan Mode dropped",
             ]
+        );
+    }
+
+    #[test]
+    fn reports_the_tempo_only_when_a_tone_syncs_to_it() {
+        let tempo = |edit: fn(&mut [Vec<u8>])| {
+            let (_, report) = converted(&patch([0x30, 0x00], |b| {
+                b[0][0x1F..0x21].copy_from_slice(&[0x06, 0x0E]); // Tempo 110, PATCH
+                edit(b);
+            }));
+            report.iter().map(ToString::to_string).collect::<Vec<_>>()
+        };
+        assert!(tempo(|_| {}).is_empty());
+        // Tone 2 syncs, but is off.
+        assert!(tempo(|b| b[6][0x38] = 1).is_empty());
+        let reported = ["Tempo 110 not applied; set it in the Studio Set"];
+        assert_eq!(
+            tempo(|b| b[5][0x6E..0x70].copy_from_slice(&[0x08, 0x02])),
+            reported
+        ); // LFO1 Rate 1/16
+        assert_eq!(
+            tempo(|b| b[5][0x7C..0x7E].copy_from_slice(&[0x08, 0x02])),
+            reported
+        ); // LFO2 Rate
+        assert_eq!(
+            tempo(|b| b[5][0x0A..0x0C].copy_from_slice(&[0x08, 0x02])),
+            reported
+        ); // Delay Time
+        // Clock Source SYSTEM: the Patch Tempo is unused.
+        assert!(
+            tempo(|b| {
+                b[5][0x38] = 1;
+                b[0][0x1E] = 1;
+            })
+            .is_empty()
         );
     }
 
@@ -856,6 +892,7 @@ mod jv_patches {
     fn tells_the_model_from_the_common_length() {
         let edit = |b: &mut [Vec<u8>]| {
             b[0][0x2C..0x2E].copy_from_slice(&[0x06, 0x04]); // Tempo 100
+            b[1][0x34] = 1; // LFO1 External Sync CLOCK
             b[1][0x09] = 2; // KEY-INTERVAL / PLAYMATE
         };
         let model = |bytes: &[u8]| read(bytes).sources;
@@ -875,8 +912,8 @@ mod jv_patches {
         assert_eq!(
             texts(&report),
             [
-                "Tempo 100 not applied; set it in the Studio Set",
                 "Partial 1: Delay Mode KEY-INTERVAL dropped",
+                "Tempo 100 not applied; set it in the Studio Set",
             ]
         );
         // XP: Clock Source SEQUENCER, so the Patch Tempo is unused.
@@ -902,6 +939,23 @@ mod jv_patches {
         let short = read(&patch([0x11, 0x01], 0x47, |_| {}));
         assert!(short.pack.entries.is_empty());
         assert_eq!(short.file_report, [skipped(Skipped::Incomplete, 1)]);
+    }
+
+    #[test]
+    fn reports_the_tempo_only_when_a_tone_syncs_to_it() {
+        let tempo = |edit: fn(&mut [Vec<u8>])| {
+            let (_, report) = converted(&patch([0x11, 0x00], 0x48, |b| {
+                b[0][0x2C..0x2E].copy_from_slice(&[0x06, 0x04]); // Tempo 100
+                edit(b);
+            }));
+            texts(&report)
+        };
+        assert!(tempo(|_| {}).is_empty());
+        // Tone 2 syncs, but is off.
+        assert!(tempo(|b| b[2][0x3C] = 2).is_empty());
+        let reported = ["Tempo 100 not applied; set it in the Studio Set"];
+        assert_eq!(tempo(|b| b[1][0x3C] = 2), reported); // LFO2 External Sync TAP
+        assert_eq!(tempo(|b| b[1][0x09] = 3), reported); // Delay Mode CLOCK-SYNC
     }
 
     #[test]
@@ -1509,7 +1563,8 @@ mod xv_rhythms {
 
     #[test]
     fn reports_effects_and_settings_that_live_in_the_studio_set() {
-        let bytes = kit(USER_2, [36], |commons, _| {
+        let bytes = kit(USER_2, [36], |commons, tones| {
+            tones[0].1[pcmd_wmt_byte(0, W::WaveTempoSync)] = 1;
             commons[0][0x0E..0x10].copy_from_slice(&[0x05, 0x0B]); // Tempo 91
             commons[0][0x11] = 1; // Output Assign A
             commons[1][0x00] = 7; // MFX Type
@@ -1534,6 +1589,20 @@ mod xv_rhythms {
                 "Reverb SRV HALL, level 100 not applied; set it in the Studio Set",
             ]
         );
+    }
+
+    #[test]
+    fn reports_the_tempo_only_when_a_switched_on_wmt_syncs_to_it() {
+        let tempo = |sync_wmt: usize| {
+            let bytes = kit(USER_2, [36], |commons, tones| {
+                tones[0].1[pcmd_wmt_byte(sync_wmt, W::WaveTempoSync)] = 1;
+                commons[0][0x0E..0x10].copy_from_slice(&[0x05, 0x0B]); // Tempo 91
+            });
+            texts(&converted(&bytes).1)
+        };
+        assert_eq!(tempo(0), ["Tempo 91 not applied; set it in the Studio Set"]);
+        // WMT2 is off.
+        assert!(tempo(1).is_empty());
     }
 
     #[test]

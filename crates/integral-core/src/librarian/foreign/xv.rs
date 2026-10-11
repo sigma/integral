@@ -292,14 +292,16 @@ fn patch_tempo(p: &mut Patch<'_>) {
     tempo(
         common[CLOCK_SOURCE],
         nibble2(common, PATCH_TEMPO),
+        p.tone.syncs_to_tempo(),
         &mut p.report,
     );
 }
 
 /// A Patch or Rhythm Tempo, read when its Clock Source is the Patch or
-/// Rhythm (0): it lives in the Studio Set on the INTEGRA-7.
-pub(super) fn tempo(clock_source: u8, tempo: u16, report: &mut ConversionReport) {
-    if clock_source == CLOCK_PATCH && tempo != DEFAULT_TEMPO {
+/// Rhythm (0) and the tone is `synced` to it: it lives in the Studio Set on
+/// the INTEGRA-7.
+pub(super) fn tempo(clock_source: u8, tempo: u16, synced: bool, report: &mut ConversionReport) {
+    if synced && clock_source == CLOCK_PATCH && tempo != DEFAULT_TEMPO {
         report.push(ConversionItem::NotApplied {
             what: format!("Tempo {tempo}"),
         });

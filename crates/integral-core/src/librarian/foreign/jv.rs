@@ -534,7 +534,7 @@ const TONE_ROWS: [Row<To>; 68] = [
 
 /// The named code rows, in order: what needs more than one JV byte, writes
 /// more than one field, or reports.
-const CODE_ROWS: [fn(&mut Patch<'_>); 13] = [
+const CODE_ROWS: [fn(&mut Patch<'_>); 14] = [
     mfx,
     studio_set,
     hold_peak,
@@ -543,6 +543,7 @@ const CODE_ROWS: [fn(&mut Patch<'_>); 13] = [
     matrix_controls,
     delay,
     lfo_rates,
+    tempo,
     volume_control,
     pan_control,
     sends,
@@ -696,8 +697,8 @@ pub(super) fn named(names: &[&str], value: u8) -> String {
         .map_or_else(|| value.to_string(), |n| (*n).to_string())
 }
 
-/// Patch Chorus, Reverb, Tempo and EFX Output Assign: they live in the
-/// Studio Set on the INTEGRA-7. Reported when they differ from the JV INIT.
+/// Patch Chorus, Reverb and EFX Output Assign: they live in the Studio Set
+/// on the INTEGRA-7. Reported when they differ from the JV INIT.
 fn studio_set(p: &mut Patch<'_>) {
     let c = p.common;
     if c[CHORUS] != *init(CHORUS) {
@@ -716,11 +717,6 @@ fn studio_set(p: &mut Patch<'_>) {
             named(&REVERB_TYPES, kind),
             FxUnit::Freq.format(damp.into())
         ));
-    }
-    let tempo = nibble2(c, PATCH_TEMPO);
-    let clock_patch = p.model == Model::Jv1080 || c[CLOCK_SOURCE] == CLOCK_PATCH;
-    if clock_patch && tempo != INIT_TEMPO {
-        p.not_applied(format!("Tempo {tempo}"));
     }
     let output = c[EFX_OUTPUT_ASSIGN];
     if output != 0 {
@@ -936,6 +932,16 @@ fn lfo_rates(p: &mut Patch<'_>) {
             };
             p.tone.partial(i)[to..to + 2].copy_from_slice(&encode_nibble2(rate));
         }
+    }
+}
+
+/// Patch Tempo: it lives in the Studio Set on the INTEGRA-7. Reported when
+/// the Patch uses it, once its synced Delay and LFO Rates are note values.
+fn tempo(p: &mut Patch<'_>) {
+    let tempo = nibble2(p.common, PATCH_TEMPO);
+    let clock_patch = p.model == Model::Jv1080 || p.common[CLOCK_SOURCE] == CLOCK_PATCH;
+    if clock_patch && tempo != INIT_TEMPO && p.tone.syncs_to_tempo() {
+        p.not_applied(format!("Tempo {tempo}"));
     }
 }
 

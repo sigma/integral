@@ -10,8 +10,9 @@ use super::wave_map::ForeignWaveGroup;
 use crate::librarian::pack::PackEntry;
 use crate::parse_helpers::{encode_ascii_name, encode_nibble4};
 use crate::pcm_drum::{
-    PCMD_FIRST_KEY, PCMD_KEY_COUNT, PcmDrumKitState, PcmDrumPartial, PcmDrumWmt, PcmdWmtField,
-    encode_pcmd_common, encode_pcmd_common2, encode_pcmd_partial, encode_pcmd_wmt, pcmd_wmt_byte,
+    PCMD_FIRST_KEY, PCMD_KEY_COUNT, PCMD_WMT_COUNT, PcmDrumKitState, PcmDrumPartial, PcmDrumWmt,
+    PcmdWmtField, encode_pcmd_common, encode_pcmd_common2, encode_pcmd_partial, encode_pcmd_wmt,
+    pcmd_wmt_byte,
 };
 use crate::state::DrumCompEqState;
 use crate::state::parse::encode_comp_eq_block;
@@ -76,6 +77,16 @@ impl PcmKit {
     pub(super) fn reset_wmt(&mut self, key: u8, wmt: usize) {
         let at = pcmd_wmt_byte(wmt, PcmdWmtField::Switch);
         encode_pcmd_wmt(&PcmDrumWmt::default(), &mut self.key(key)[at..]);
+    }
+
+    /// Whether a switched-on WMT follows the tempo: Wave Tempo Sync on.
+    pub(super) fn syncs_to_tempo(&self) -> bool {
+        self.blocks[FIRST_PARTIAL..COMMON2].iter().any(|partial| {
+            (0..PCMD_WMT_COUNT).any(|w| {
+                let on = |f| partial[pcmd_wmt_byte(w, f)] != 0;
+                on(PcmdWmtField::Switch) && on(PcmdWmtField::WaveTempoSync)
+            })
+        })
     }
 
     /// Write INTEGRA-7 Waves into WMT `wmt` (0-indexed) of `key`: Wave Group

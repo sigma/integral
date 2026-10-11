@@ -136,6 +136,7 @@ fn tempo(r: &mut Rhythm<'_>) {
     xv::tempo(
         r.common[CLOCK_SOURCE],
         nibble2(r.common, TEMPO),
+        r.kit.syncs_to_tempo(),
         &mut r.report,
     );
 }

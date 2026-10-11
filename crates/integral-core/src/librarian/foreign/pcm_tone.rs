@@ -12,10 +12,10 @@ use crate::librarian::pack::{PackEntry, user_memory};
 use crate::mfx::{MfxState, encode_mfx_block};
 #[cfg(test)]
 use crate::parse_helpers::nibble4;
-use crate::parse_helpers::{encode_ascii_name, encode_nibble4};
+use crate::parse_helpers::{encode_ascii_name, encode_nibble4, nibble2};
 use crate::pcm_synth::{
     PCMS_COMMON2_SIZE, PCMS_PARTIAL_COUNT, PcmSynthCommon2, PcmSynthPartial, PcmSynthState,
-    encode_pcms_common, encode_pcms_partial, encode_pcms_pmt,
+    PcmsPartialField as F, encode_pcms_common, encode_pcms_partial, encode_pcms_pmt,
 };
 use crate::svd::ChunkType;
 use crate::waves::WaveGroup;
@@ -73,6 +73,9 @@ pub(super) const FULL_LEVEL: u8 = 127;
 pub(super) struct PcmTone {
     blocks: Vec<Vec<u8>>,
 }
+
+/// The first note value of an LFO Rate or Delay Time (128–149).
+const FIRST_NOTE: u16 = 128;
 
 /// Index of the MFX block.
 const MFX: usize = 1;
@@ -161,6 +164,22 @@ impl PcmTone {
     /// Whether partial `index` (0-indexed) is switched on in the PMT.
     pub(super) fn is_on(&self, index: usize) -> bool {
         self.blocks[PMT][PMT_SWITCH + PMT_STRIDE * index] != 0
+    }
+
+    /// Whether a switched-on partial follows the tempo: Wave Tempo Sync on,
+    /// or an LFO Rate or the Delay Time at a note value.
+    // ponytail: the MFX is not read, as every converted MFX is THRU (#213).
+    // Once it converts, a note-valued MFX delay or rate syncs too.
+    pub(super) fn syncs_to_tempo(&self) -> bool {
+        (0..PCMS_PARTIAL_COUNT)
+            .filter(|&i| self.is_on(i))
+            .map(|i| &self.blocks[PARTIAL_1 + i])
+            .any(|partial| {
+                partial[F::WaveTempoSync as usize] != 0
+                    || [F::Lfo1Rate, F::Lfo2Rate, F::DelayTime]
+                        .into_iter()
+                        .any(|f| nibble2(partial, f as usize) >= FIRST_NOTE)
+            })
     }
 
     /// Switch partial `index` (0-indexed) off in the PMT.
