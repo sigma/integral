@@ -72,6 +72,18 @@
   align-self: stretch;
 }
 
+/* Too narrow for one row: tabs and transport on top, tone and selectors
+   below. Keep the breakpoint in step with PartSelector.module.css. */
+@media (width <= 1900px) {
+  .tabBar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .tabs {
+    grid-column: 1 / -1;
+  }
+}
+
 .tab {
   font-size: 12px;
   font-weight: 600;
