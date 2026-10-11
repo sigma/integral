@@ -7,7 +7,13 @@
 ///
 /// Non-printable bytes (outside 32–127) are replaced with spaces.
 pub fn parse_ascii_name(data: &[u8]) -> String {
-    data[..12]
+    parse_ascii_name_len(data, 12)
+}
+
+/// Parse an ASCII name from the first `len` bytes of `data`, as
+/// [`parse_ascii_name`] does for 12.
+pub fn parse_ascii_name_len(data: &[u8], len: usize) -> String {
+    data[..len]
         .iter()
         .map(|&b| {
             if (32..=127).contains(&b) {
