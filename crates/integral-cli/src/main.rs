@@ -148,6 +148,28 @@ enum Cli {
         #[command(subcommand)]
         command: ExpansionCommand,
     },
+    /// Browse the Wave catalog (offline).
+    Wave {
+        #[command(subcommand)]
+        command: WaveCommand,
+    },
+}
+
+/// `wave` subcommands.
+#[derive(Subcommand)]
+enum WaveCommand {
+    /// List the Wave Groups, one group's Waves, or every Wave.
+    ///
+    /// Exit status: 0 success; 1 unknown Wave Group.
+    List {
+        /// Wave Group id: INT, SRX-01..SRX-12 or SN-Synth (case-insensitive).
+        group: Option<String>,
+        /// Print `<group> <number> <name>` for every Wave of every group.
+        #[arg(long, conflicts_with = "group")]
+        all: bool,
+        #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+        format: OutputFormat,
+    },
 }
 
 /// `expansion` subcommands.
@@ -444,5 +466,8 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
+        Cli::Wave {
+            command: WaveCommand::List { group, all, format },
+        } => commands::wave::list(group.as_deref(), all, format),
     }
 }
