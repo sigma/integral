@@ -46,9 +46,15 @@ fn unpack_section(
     let mut sysex = Vec::with_capacity(section.sysex_size());
 
     for param in section.params {
-        if param.sysex_bytes == 1 {
-            // Normal parameter: read `bits` significant bits.
-            let svd_value = reader.read_bits(param.bits)?;
+        if param.sysex_bytes == 0 {
+            // Padding: no SysEx byte.
+            reader.read_bits(param.bits)?;
+        } else if param.sysex_bytes == 1 {
+            // Normal parameter: read `bits` significant bits (0 = not stored).
+            let svd_value = match param.bits {
+                0 => 0,
+                bits => reader.read_bits(bits)?,
+            };
             // Apply signed bias correction if needed.
             let sysex_value = if param.signed {
                 // SVD centers at 2^(bits-1), SysEx centers at 64.
@@ -120,7 +126,12 @@ pub fn svd_to_sysex(entry: &[u8], spec: &SvdToneSpec) -> Result<Vec<Vec<u8>>, Co
 fn pack_section(writer: &mut BitWriter, sysex: &[u8], section: &SvdSection) {
     let mut idx = 0;
     for param in section.params {
-        if param.sysex_bytes == 1 {
+        if param.sysex_bytes == 0 {
+            writer.write_bits(0, param.bits);
+        } else if param.bits == 0 {
+            // Not stored in the SVD.
+            idx += 1;
+        } else if param.sysex_bytes == 1 {
             // Apply inverse signed bias correction if needed.
             let svd_value = if param.signed {
                 // SysEx centers at 64, SVD centers at 2^(bits-1).
@@ -246,7 +257,7 @@ pub fn split_common_mfx(
 mod tests {
     use super::*;
     use crate::svd::SvdFile;
-    use crate::svd_specs::{MFX_PARAMS, SNA_TONE_SPEC, SNS_TONE_SPEC};
+    use crate::svd_specs::{MFX_PARAMS, SNA_TONE_SPEC, SNS_TONE_SPEC, SS_TONE_SPEC};
     use std::ops::RangeInclusive;
     use std::path::Path;
 
@@ -275,7 +286,7 @@ mod tests {
         let mut values = Vec::new();
         for (sysex, section) in sections.iter().zip(spec.sections) {
             let mut bytes = sysex.iter();
-            for param in section.params {
+            for param in section.params.iter().filter(|p| p.sysex_bytes > 0) {
                 // A single byte folds to itself; nibbles combine MSB first.
                 let value = bytes
                     .by_ref()
@@ -461,6 +472,125 @@ mod tests {
         assert_eq!(sections[0][0x1B], 9, "Category");
         assert_eq!(sections[0][0x41], 127, "Modify Parameter 32");
         assert_eq!(sysex_to_svd(&sections, &SNA_TONE_SPEC), entry);
+    }
+
+    /// Documented ranges of every PRFb parameter in spec order
+    /// (`docs/svd/05-studio-set.md`). Reserves get the full 7-bit range.
+    fn ss_ranges() -> Vec<RangeInclusive<u32>> {
+        let any = 0..=127;
+        let fx = 12768..=52768;
+        // Common
+        let mut r = rep(16, 32..=127);
+        r.extend(rep(41, any.clone()));
+        r.extend(rep(4, 0..=97));
+        r.extend([20..=250, 0..=16]);
+        r.extend(rep(4, 0..=1));
+        r.push(0..=15);
+        r.extend(rep(6, 0..=12));
+        r.extend(rep(4, any.clone()));
+        r.push(0..=1);
+        r.extend(rep(4, any.clone()));
+        // Chorus
+        r.extend([0..=3, 0..=127, any.clone(), 0..=2]);
+        r.extend(rep(20, fx.clone()));
+        // Reverb
+        r.extend([0..=6, 0..=127, 0..=3]);
+        r.extend(rep(24, fx));
+        // Motional Surround
+        r.extend([0..=1, 0..=3, 0..=127, 0..=2, 0..=100, 0..=100, 0..=100]);
+        r.extend([0..=127, 0..=127, 0..=32, 0..=127, 0..=16, 0..=100]);
+        r.extend(rep(3, any.clone()));
+        // Master EQ
+        r.extend([0..=1, 0..=30, 0..=16, 0..=30, 0..=4, 0..=2, 0..=30]);
+        // MIDI
+        r.extend(rep(16, 0..=1));
+        // Parts
+        for _ in 0..16 {
+            r.extend([0..=15, 0..=1]);
+            r.extend(rep(4, any.clone()));
+            r.extend(rep(5, 0..=127)); // MSB, LSB, PC, Level, Pan
+            r.extend([16..=112, 14..=114, 0..=2, 0..=2, 0..=25, 0..=2, 0..=128]);
+            r.extend(rep(8, 0..=127));
+            r.extend([61..=67, 1..=127]);
+            r.extend(rep(4, 0..=127)); // Key Range, Key Fade
+            r.extend([1..=127, 0..=127, 0..=127, 0..=127, 0..=1, any.clone()]);
+            r.extend([0..=127, 0..=127, 0..=11, any.clone(), 0..=8, 0..=11]);
+            r.extend(rep(12, 0..=127));
+            r.extend(rep(10, 0..=1));
+            r.extend([
+                0..=4,
+                0..=127,
+                any.clone(),
+                0..=127,
+                any.clone(),
+                0..=32,
+                0..=127,
+            ]);
+            r.extend(rep(3, any.clone()));
+        }
+        // Part EQs
+        for _ in 0..16 {
+            r.extend([0..=1, 0..=1, 0..=30, 0..=16, 0..=30, 0..=4, 0..=2, 0..=30]);
+        }
+        r
+    }
+
+    #[test]
+    fn ss_entry_decodes_in_range_and_round_trips() {
+        // Synthetic PRFb entry laid out per docs/svd/05-studio-set.md, using
+        // the documented entry bit of each field.
+        let mut entry = vec![0u8; 1068];
+        for (i, c) in "Integral Test 01".bytes().enumerate() {
+            put(&mut entry, 7 * i, 7, c.into());
+        }
+        put(&mut entry, 112, 32, 0xFE82_0878); // undocumented, always set
+        for (bit, value) in [(369, 1), (376, 97), (383, 2), (390, 4)] {
+            put(&mut entry, bit, 7, value); // Tone Control 1-4 Source
+        }
+        put(&mut entry, 397, 8, 120); // Tempo
+        put(&mut entry, 410, 1, 1); // Reverb Switch
+        put(&mut entry, 443, 7, 100); // Ext Part Level
+        put(&mut entry, 495, 4, 3); // Chorus Type
+        put(&mut entry, 506, 2, 2); // Chorus Output Select
+        for n in 0..20 {
+            put(&mut entry, 511 + 16 * n, 16, 32768); // Chorus Parameter
+        }
+        put(&mut entry, 832, 4, 6); // Reverb Type
+        for n in 0..24 {
+            put(&mut entry, 845 + 16 * n, 16, 32768); // Reverb Parameter
+        }
+        put(&mut entry, 1302, 7, 100); // Motional Surround Depth
+        put(&mut entry, 1365, 5, 30); // Master EQ High Gain
+        put(&mut entry, 1376 + 8 * 15, 1, 1); // MIDI 16 Phase Lock
+        for n in 0..16 {
+            let part = 1504 + 408 * n;
+            put(&mut entry, part, 4, n as u32); // Receive Channel
+            put(&mut entry, part + 5, 4, 0b1111); // reserves, always 1
+            put(&mut entry, part + 23, 7, 127 - n as u32); // PC
+            put(&mut entry, part + 44, 7, 64); // Coarse Tune
+            put(&mut entry, part + 51, 7, 64); // Fine Tune
+            put(&mut entry, part + 133, 3, 4); // Octave Shift (bias: 64)
+            put(&mut entry, part + 136, 7, 64); // Velocity Sens Offset
+            put(&mut entry, part + 171, 7, 1); // Velocity Range Lower
+            put(&mut entry, part + 366, 6, 32); // Motional Surround Width
+            put(&mut entry, 8032 + 32 * n + 22, 5, 30); // Part EQ High Gain
+        }
+
+        assert_in_range(&entry, &SS_TONE_SPEC, &ss_ranges());
+
+        let sections = svd_to_sysex(&entry, &SS_TONE_SPEC).unwrap();
+        assert_eq!(&sections[0][..16], b"Integral Test 01");
+        assert_eq!(sections[0][0x3F], 0, "Solo Part");
+        assert_eq!(sections[1][0x00], 3, "Chorus Type");
+        assert_eq!(sections[1][0x03], 2, "Chorus Output Select");
+        assert_eq!(sections[20][0], 1, "MIDI 16 Phase Lock");
+        let part16 = &sections[21 + 15];
+        assert_eq!(part16[0x00], 15, "Part 16 Receive Channel");
+        assert_eq!(part16[0x08], 112, "Part 16 PC");
+        assert_eq!(part16[0x1B], 64, "Part 16 Octave Shift");
+        assert_eq!(part16[0x48], 32, "Part 16 Motional Surround Width");
+        assert_eq!(sections[37 + 15][0x07], 30, "Part EQ 16 High Gain");
+        assert_eq!(sysex_to_svd(&sections, &SS_TONE_SPEC), entry);
     }
 
     #[test]

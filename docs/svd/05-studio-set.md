@@ -35,11 +35,6 @@ bits outside the mapped fields are 0, except Common bits 112–143 (see below).
 Entry bit of Part n = `1504 + 408(n−1)`. Entry bit of Part EQ n =
 `8032 + 32(n−1)`.
 
-> Current code diverges: see [#71](https://github.com/sigma/integral/issues/71). `SS_TONE_SPEC` in
-> `crates/integral-core/src/svd_specs.rs` uses Common 67 B, Motional Surround
-> 13 B and Part 52 B, and lays fields out at their SysEx widths. Its sections sum
-> to 1089 B, more than the 1068 B entry, so it cannot decode any real entry.
-
 ### Where the SVD differs from SysEx order and widths
 
 - **Common `00 10`–`00 38`** (41 reserve and Voice Reserve parameters, 287 bits at

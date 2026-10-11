@@ -18,6 +18,7 @@ pub struct ParamBits {
     pub bits: u8,
     /// Number of SysEx bytes this parameter spans.
     /// Normal params: 1. Nibblized (`#`-marked) params: the nibble count.
+    /// Padding ([`ParamBits::pad`]): 0.
     pub sysex_bytes: u8,
     /// Whether this parameter uses signed/centered encoding.
     ///
@@ -57,6 +58,15 @@ impl ParamBits {
         Self {
             bits: count * 4,
             sysex_bytes: count,
+            signed: false,
+        }
+    }
+
+    /// `bits` zero bits in the SVD that map to no SysEx byte.
+    const fn pad(bits: u8) -> Self {
+        Self {
+            bits,
+            sysex_bytes: 0,
             signed: false,
         }
     }
@@ -658,20 +668,20 @@ static SS_COMMON_PARAMS: &[ParamBits] = &[
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    // 0x10–0x17: reserves (8 × 7-bit, assumed)
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    // 0x18–0x27: Voice Reserve 1-16 (16 × 7-bit)
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    // 0x28–0x38: reserves (17 × 7-bit, assumed)
+    // 0x10–0x38: reserves and Voice Reserve 1-16 (41 params). The SVD packs
+    // them into 257 bits, not 287; the split is unknown, so assume 36 × 7 +
+    // 5 × 1. Bits 112–143 are always `FE 82 08 78`, the rest always 0.
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1),
+    ParamBits::normal(1),
     // 0x39–0x3C: Tone Control Sources (4 × 7-bit)
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
     // 0x3D–0x3E: Tempo (nibblized, 2 bytes)
@@ -685,25 +695,29 @@ static SS_COMMON_PARAMS: &[ParamBits] = &[
     // 0x45–0x4A: Drum Comp/EQ Output Assigns 1-6
     ParamBits::normal(4), ParamBits::normal(4), ParamBits::normal(4),
     ParamBits::normal(4), ParamBits::normal(4), ParamBits::normal(4),
-    // 0x4B: reserve (assumed 7-bit)
-    ParamBits::normal(7),
+    // 0x4B: reserve
+    ParamBits::normal(1),
     // 0x4C–0x4E: Ext Part Level, Chorus Send, Reverb Send
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
     // 0x4F: Ext Part Mute
     ParamBits::normal(1),
-    // 0x50–0x53: reserves (4 × 7-bit, assumed)
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    // 0x50–0x53: reserves, 23 bits in total (split assumed)
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(2),
 ];
 
 /// Studio Set Chorus parameters.
 ///
-/// Source: `docs/midi/05-studio-set.md` — section 2.
+/// Source: `docs/midi/05-studio-set.md` — section 2. The SVD header is
+/// `[7 zero bits][Type][Level][Output][3 zero bits]`; reserve `0x02` takes
+/// no bits.
 #[rustfmt::skip]
 static SS_CHORUS_PARAMS: &[ParamBits] = &[
+    ParamBits::pad(7),
     ParamBits::normal(4),  // 0x00: Chorus Type
     ParamBits::normal(7),  // 0x01: Chorus Level
-    ParamBits::normal(7),  // 0x02: reserve
+    ParamBits::normal(0),  // 0x02: reserve (not stored)
     ParamBits::normal(2),  // 0x03: Chorus Output Select
+    ParamBits::pad(3),
     // 0x04–0x53: 20 nibblized Chorus Parameters (20 × 4 nibbles)
     ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
     ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
@@ -780,9 +794,9 @@ static SS_MIDI_CHANNEL_PARAMS: &[ParamBits] = &[
 static SS_PART_PARAMS: &[ParamBits] = &[
     ParamBits::normal(4),  // 0x00: Receive Channel
     ParamBits::normal(1),  // 0x01: Receive Switch
-    // 0x02–0x05: reserves
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    // 0x06–0x08: Bank MSB, LSB, PC
+    // 0x02–0x05: reserves (1 bit each, always 1)
+    ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1),
+    // 0x06–0x08: Bank MSB, LSB, PC (0-based)
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
     // 0x09–0x0A: Level, Pan
     ParamBits::normal(7), ParamBits::normal(7),
@@ -815,8 +829,8 @@ static SS_PART_PARAMS: &[ParamBits] = &[
     ParamBits::normal(7), ParamBits::normal(7),
     // 0x29: Output Assign
     ParamBits::normal(4),
-    // 0x2A: reserve
-    ParamBits::normal(7),
+    // 0x2A: reserve (Output Assign + this take 6 bits; split assumed)
+    ParamBits::normal(2),
     // 0x2B–0x2C: Scale Tune Type, Key
     ParamBits::normal(7), ParamBits::normal(7),
     // 0x2D–0x38: Scale Tune for C through B (12 notes)
@@ -865,13 +879,11 @@ static SS_PART_EQ_PARAMS: &[ParamBits] = &[
 
 /// Studio Set section layout.
 ///
-/// NOTE: Section `svd_bytes` values use mathematical ceil (padded_bytes).
-/// These need device validation to determine the actual SVD sizes — Studio
-/// Set sections may have additional padding like tone types do.
+/// Measured on pack data; reference `docs/svd/05-studio-set.md`.
 static SS_SECTIONS: [SvdSection; 53] = {
     let common = SvdSection {
         params: SS_COMMON_PARAMS,
-        svd_bytes: 67,
+        svd_bytes: 61,
     };
     let chorus = SvdSection {
         params: SS_CHORUS_PARAMS,
@@ -883,7 +895,7 @@ static SS_SECTIONS: [SvdSection; 53] = {
     };
     let ms = SvdSection {
         params: SS_MOTIONAL_SURROUND_PARAMS,
-        svd_bytes: 13,
+        svd_bytes: 14,
     };
     let meq = SvdSection {
         params: SS_MASTER_EQ_PARAMS,
@@ -895,7 +907,7 @@ static SS_SECTIONS: [SvdSection; 53] = {
     };
     let part = SvdSection {
         params: SS_PART_PARAMS,
-        svd_bytes: 52,
+        svd_bytes: 51,
     };
     let peq = SvdSection {
         params: SS_PART_EQ_PARAMS,
@@ -912,10 +924,6 @@ static SS_SECTIONS: [SvdSection; 53] = {
 };
 
 /// Complete Studio Set SVD specification.
-///
-/// NOTE: Section byte sizes are predicted (mathematical ceil) and not yet
-/// validated against the device. The total data_bytes may not exactly
-/// equal 1068 until reserve bit widths are tuned via device validation.
 pub static SS_TONE_SPEC: SvdToneSpec = SvdToneSpec {
     sections: &SS_SECTIONS,
     entry_size: 1068,
@@ -1014,6 +1022,10 @@ mod tests {
     fn ss_section_count() {
         assert_eq!(SS_TONE_SPEC.sections.len(), 53);
         assert_eq!(SS_TONE_SPEC.entry_size, 1068);
+        assert_eq!(SS_TONE_SPEC.data_bytes(), 1068);
+        for s in SS_TONE_SPEC.sections {
+            assert!(s.padded_bytes() <= s.svd_bytes, "{s:?}");
+        }
         assert!(!SS_TONE_SPEC.has_end_marker);
     }
 
