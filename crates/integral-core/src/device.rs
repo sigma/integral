@@ -782,13 +782,7 @@ impl DeviceState {
         value: u16,
     ) -> Result<(), KeyOutOfRange> {
         let addr = crate::sn_drum::snd_note_param_address(part, key, offset)?;
-        let bytes = [
-            ((value >> 12) & 0x0F) as u8,
-            ((value >> 8) & 0x0F) as u8,
-            ((value >> 4) & 0x0F) as u8,
-            (value & 0x0F) as u8,
-        ];
-        self.send_dt1(&addr, &bytes);
+        self.send_dt1(&addr, &crate::parse_helpers::encode_nibble4(value));
         Ok(())
     }
 
@@ -825,13 +819,7 @@ impl DeviceState {
     /// Set a nibblized PCM Synth Common parameter (4 bytes).
     pub fn set_pcms_common_nib_param(&mut self, part: u8, offset: u8, value: u16) {
         let addr = crate::pcm_synth::pcms_common_param_address(part, offset);
-        let bytes = [
-            ((value >> 12) & 0x0F) as u8,
-            ((value >> 8) & 0x0F) as u8,
-            ((value >> 4) & 0x0F) as u8,
-            (value & 0x0F) as u8,
-        ];
-        self.send_dt1(&addr, &bytes);
+        self.send_dt1(&addr, &crate::parse_helpers::encode_nibble4(value));
     }
 
     /// Set a single PCM Synth PMT parameter for a part.
@@ -849,13 +837,7 @@ impl DeviceState {
     /// Set a nibblized PCM Synth Partial parameter (4 bytes, e.g. wave number).
     pub fn set_pcms_partial_nib_param(&mut self, part: u8, partial: u8, offset: u16, value: u16) {
         let addr = crate::pcm_synth::pcms_partial_param_address(part, partial, offset);
-        let bytes = [
-            ((value >> 12) & 0x0F) as u8,
-            ((value >> 8) & 0x0F) as u8,
-            ((value >> 4) & 0x0F) as u8,
-            (value & 0x0F) as u8,
-        ];
-        self.send_dt1(&addr, &bytes);
+        self.send_dt1(&addr, &crate::parse_helpers::encode_nibble4(value));
     }
 
     /// Set a nibblized PCM Synth Partial parameter (2 bytes, e.g. delay time, LFO rate).
@@ -874,13 +856,7 @@ impl DeviceState {
     /// Set a nibblized PCM Synth Common2 parameter (4 bytes, e.g. phrase number).
     pub fn set_pcms_common2_nib_param(&mut self, part: u8, offset: u8, value: u16) {
         let addr = crate::pcm_synth::pcms_common2_param_address(part, offset);
-        let bytes = [
-            ((value >> 12) & 0x0F) as u8,
-            ((value >> 8) & 0x0F) as u8,
-            ((value >> 4) & 0x0F) as u8,
-            (value & 0x0F) as u8,
-        ];
-        self.send_dt1(&addr, &bytes);
+        self.send_dt1(&addr, &crate::parse_helpers::encode_nibble4(value));
     }
 
     /// Build an RQ1 to read the PCM Synth Common block for a part.
@@ -955,13 +931,7 @@ impl DeviceState {
         value: u16,
     ) -> Result<(), KeyOutOfRange> {
         let addr = crate::pcm_drum::pcmd_partial_param_address(part, key, offset)?;
-        let bytes = [
-            ((value >> 12) & 0x0F) as u8,
-            ((value >> 8) & 0x0F) as u8,
-            ((value >> 4) & 0x0F) as u8,
-            (value & 0x0F) as u8,
-        ];
-        self.send_dt1(&addr, &bytes);
+        self.send_dt1(&addr, &crate::parse_helpers::encode_nibble4(value));
         Ok(())
     }
 
