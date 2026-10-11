@@ -11,6 +11,7 @@
 //! Sound List banks (`docs/sounds/`).
 
 use crate::tone_banks::{self, ToneBank};
+use crate::waves::{self, Wave, WaveGroup};
 
 /// Family an Expansion belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -60,6 +61,12 @@ impl Expansion {
             .iter()
             .flat_map(|group| group.banks)
             .filter(move |bank| bank.expansion.is_some_and(|e| std::ptr::eq(e, self)))
+    }
+
+    /// The Waves this Expansion provides (SRX only; empty otherwise).
+    pub fn waves(&self) -> &'static [Wave] {
+        self.wave_group
+            .map_or(&[], |n| waves::waves(WaveGroup::Srx(n)))
     }
 }
 
