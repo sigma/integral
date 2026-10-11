@@ -347,6 +347,12 @@ pub fn studio_set_name_size() -> Vec<u8> {
     params::STUDIO_SET_NAME_SIZE.as_bytes().to_vec()
 }
 
+/// Returns the address of the Solo Part param.
+#[wasm_bindgen]
+pub fn solo_part_address() -> Vec<u8> {
+    addr_to_vec(params::SOLO_PART)
+}
+
 /// Returns the RQ1 size for a single byte parameter.
 #[wasm_bindgen]
 pub fn single_byte_size() -> Vec<u8> {
@@ -532,20 +538,38 @@ pub fn parse_write_reply(addr: &[u8], data: &[u8]) -> Option<WriteReply> {
 // EQ addresses
 // ---------------------------------------------------------------------------
 
-/// Returns the address for a Part EQ parameter.
-/// `part_index` is 0-indexed, `param_offset` is a part_eq constant (0-7).
+/// Returns the address of part `part_index`'s EQ params (the switch, first).
 #[wasm_bindgen]
-pub fn part_eq_address(part_index: u8, param_offset: u8) -> Vec<u8> {
-    addr_to_vec(params::part_eq_address(part_index, param_offset))
+pub fn part_eq_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(params::part_eq_address(part_index, params::part_eq::SWITCH))
 }
 
 // ---------------------------------------------------------------------------
 // Chorus / Reverb addresses
 // ---------------------------------------------------------------------------
 
+/// Returns the address of the Chorus core params (the type, first).
 #[wasm_bindgen]
-pub fn chorus_address(param_offset: u8) -> Vec<u8> {
-    addr_to_vec(params::chorus_address(param_offset))
+pub fn chorus_core_address() -> Vec<u8> {
+    addr_to_vec(params::chorus_address(params::chorus::TYPE))
+}
+
+/// Returns the address of the first nibblized Chorus parameter.
+#[wasm_bindgen]
+pub fn chorus_params_address() -> Vec<u8> {
+    addr_to_vec(params::chorus_address(params::chorus::PARAM_BASE))
+}
+
+/// Returns the RQ1 size for reading all nibblized Chorus parameters.
+#[wasm_bindgen]
+pub fn chorus_params_size() -> Vec<u8> {
+    params::CHORUS_PARAMS_SIZE.as_bytes().to_vec()
+}
+
+/// Decodes the nibblized Chorus parameters read at [`chorus_params_address`].
+#[wasm_bindgen]
+pub fn decode_chorus_params(data: &[u8]) -> Vec<i32> {
+    state_parse::decode_nib_params(data, params::CHORUS_PARAM_COUNT)
 }
 
 #[wasm_bindgen]
@@ -558,9 +582,28 @@ pub fn chorus_core_size() -> Vec<u8> {
     params::CHORUS_CORE_SIZE.as_bytes().to_vec()
 }
 
+/// Returns the address of the Reverb core params (the type, first).
 #[wasm_bindgen]
-pub fn reverb_address(param_offset: u8) -> Vec<u8> {
-    addr_to_vec(params::reverb_address(param_offset))
+pub fn reverb_core_address() -> Vec<u8> {
+    addr_to_vec(params::reverb_address(params::reverb::TYPE))
+}
+
+/// Returns the address of the first nibblized Reverb parameter.
+#[wasm_bindgen]
+pub fn reverb_params_address() -> Vec<u8> {
+    addr_to_vec(params::reverb_address(params::reverb::PARAM_BASE))
+}
+
+/// Returns the RQ1 size for reading all nibblized Reverb parameters.
+#[wasm_bindgen]
+pub fn reverb_params_size() -> Vec<u8> {
+    params::REVERB_PARAMS_SIZE.as_bytes().to_vec()
+}
+
+/// Decodes the nibblized Reverb parameters read at [`reverb_params_address`].
+#[wasm_bindgen]
+pub fn decode_reverb_params(data: &[u8]) -> Vec<i32> {
+    state_parse::decode_nib_params(data, params::REVERB_PARAM_COUNT)
 }
 
 #[wasm_bindgen]
@@ -648,11 +691,10 @@ pub fn part_eq_size() -> Vec<u8> {
     params::PART_EQ_SIZE.as_bytes().to_vec()
 }
 
-/// Returns the address for a Master EQ parameter.
-/// `param_offset` is a master_eq constant (0-6).
+/// Returns the address of the Master EQ params (Low Freq, first).
 #[wasm_bindgen]
-pub fn master_eq_address(param_offset: u8) -> Vec<u8> {
-    addr_to_vec(params::master_eq_address(param_offset))
+pub fn master_eq_address() -> Vec<u8> {
+    addr_to_vec(params::master_eq_address(params::master_eq::LOW_FREQ))
 }
 
 /// Returns the RQ1 size for reading all Master EQ parameters (7 bytes).
@@ -797,14 +839,6 @@ pub fn parse_master_eq_dump(data: &[u8]) -> WasmEqState {
 // ---------------------------------------------------------------------------
 // Nibble codec
 // ---------------------------------------------------------------------------
-
-/// Decode nibblized FX parameters from raw SysEx data.
-///
-/// Each param is 4 nibble bytes → signed display value.
-#[wasm_bindgen]
-pub fn decode_nib_params(data: &[u8], count: usize) -> Vec<i32> {
-    state_parse::decode_nib_params(data, count)
-}
 
 /// Encode a signed display value into 4 nibble bytes for SysEx DT1.
 #[wasm_bindgen]

@@ -19,10 +19,16 @@ import {
   master_eq_address,
   master_eq_size,
   master_eq_switch_address,
-  chorus_address,
+  chorus_core_address,
+  chorus_params_address,
+  chorus_params_size,
+  decode_chorus_params,
   chorus_switch_address,
   chorus_core_size,
-  reverb_address,
+  reverb_core_address,
+  reverb_params_address,
+  reverb_params_size,
+  decode_reverb_params,
   reverb_switch_address,
   reverb_core_size,
   ext_part_level_address,
@@ -40,6 +46,7 @@ import {
   studio_set_name_size,
   master_level_address,
   single_byte_size,
+  solo_part_address,
   tone_name_address,
   tone_name_size,
   tone_category_address,
@@ -53,7 +60,6 @@ import {
   build_studio_set_write_request,
   parse_write_reply,
   write_timeout_ms,
-  decode_nib_params,
   expansionSlotsAddress,
   LoadActionKind,
   LoadOutcomeKind,
@@ -411,7 +417,7 @@ export class IntegraService {
 
   async requestPartEq(part: number): Promise<Uint8Array> {
     return this.requestData(
-      Array.from(part_eq_address(part, 0)),
+      Array.from(part_eq_address(part)),
       Array.from(part_eq_size()),
     );
   }
@@ -422,7 +428,7 @@ export class IntegraService {
 
   async requestMasterEq(): Promise<Uint8Array> {
     return this.requestData(
-      Array.from(master_eq_address(0)),
+      Array.from(master_eq_address()),
       Array.from(master_eq_size()),
     );
   }
@@ -449,7 +455,7 @@ export class IntegraService {
 
   async requestChorusCore(): Promise<Uint8Array> {
     return this.requestData(
-      Array.from(chorus_address(0)),
+      Array.from(chorus_core_address()),
       Array.from(chorus_core_size()),
     );
   }
@@ -476,10 +482,10 @@ export class IntegraService {
 
   async requestChorusParams(): Promise<number[]> {
     const data = await this.requestData(
-      Array.from(chorus_address(0x04)),
-      [0x00, 0x00, 0x00, 0x50],
+      Array.from(chorus_params_address()),
+      Array.from(chorus_params_size()),
     );
-    return Array.from(decode_nib_params(data, 20));
+    return Array.from(decode_chorus_params(data));
   }
 
   // -----------------------------------------------------------------------
@@ -488,7 +494,7 @@ export class IntegraService {
 
   async requestReverbCore(): Promise<Uint8Array> {
     return this.requestData(
-      Array.from(reverb_address(0)),
+      Array.from(reverb_core_address()),
       Array.from(reverb_core_size()),
     );
   }
@@ -515,10 +521,10 @@ export class IntegraService {
 
   async requestReverbParams(): Promise<number[]> {
     const data = await this.requestData(
-      Array.from(reverb_address(0x03)),
-      [0x00, 0x00, 0x00, 0x60],
+      Array.from(reverb_params_address()),
+      Array.from(reverb_params_size()),
     );
-    return Array.from(decode_nib_params(data, 24));
+    return Array.from(decode_reverb_params(data));
   }
 
   // -----------------------------------------------------------------------
@@ -617,8 +623,8 @@ export class IntegraService {
 
   async requestSoloPart(): Promise<number> {
     const data = await this.requestData(
-      [0x18, 0x00, 0x00, 0x3F],
-      [0x00, 0x00, 0x00, 0x01],
+      Array.from(solo_part_address()),
+      Array.from(single_byte_size()),
     );
     return data[0]!;
   }

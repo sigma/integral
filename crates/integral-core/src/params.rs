@@ -83,6 +83,14 @@ pub const fn chorus_address(param_offset: u8) -> Address {
 /// Size for reading Chorus core params (type + level + reserved + output = 4 bytes).
 pub const CHORUS_CORE_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x04);
 
+/// Number of nibblized Chorus parameters (Param 1–20).
+pub const CHORUS_PARAM_COUNT: usize = 20;
+
+/// Size for reading all nibblized Chorus parameters from
+/// [`chorus::PARAM_BASE`] (4 bytes each).
+pub const CHORUS_PARAMS_SIZE: DataSize =
+    DataSize::new(0x00, 0x00, 0x00, (CHORUS_PARAM_COUNT * 4) as u8);
+
 // ---------------------------------------------------------------------------
 // Studio Set Common: Reverb (offset 00 06 00)
 // ---------------------------------------------------------------------------
@@ -112,6 +120,14 @@ pub const fn reverb_address(param_offset: u8) -> Address {
 
 /// Size for reading Reverb core params (type + level + output = 3 bytes).
 pub const REVERB_CORE_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x03);
+
+/// Number of nibblized Reverb parameters (Param 1–24).
+pub const REVERB_PARAM_COUNT: usize = 24;
+
+/// Size for reading all nibblized Reverb parameters from
+/// [`reverb::PARAM_BASE`] (4 bytes each).
+pub const REVERB_PARAMS_SIZE: DataSize =
+    DataSize::new(0x00, 0x00, 0x00, (REVERB_PARAM_COUNT * 4) as u8);
 
 // ---------------------------------------------------------------------------
 // Studio Set Part offsets (within a Part block)
@@ -504,6 +520,12 @@ pub const PART_MIXER_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x2A);
 mod tests {
     use super::*;
     use crate::address::Address;
+
+    #[test]
+    fn fx_params_sizes_cover_all_params() {
+        assert_eq!(CHORUS_PARAMS_SIZE, DataSize::new(0x00, 0x00, 0x00, 0x50));
+        assert_eq!(REVERB_PARAMS_SIZE, DataSize::new(0x00, 0x00, 0x00, 0x60));
+    }
 
     #[test]
     fn comp_eq_block_address_follows_drum_kit_type() {
