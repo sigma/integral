@@ -1,0 +1,218 @@
+source,source_block,source_offset,source_parameter,source_range,integra_block,integra_offset,integra_parameter,integra_range,status,note
+JV,Rhythm Common,00 00-00 0B,Rhythm Name 1-12,32-127,Common,00 00-00 0B,Kit Name 1-12,32-127,identical,Also space-pad into Common 2 00 00-00 0F (long name)
+JV,Rhythm Note,00 00,Tone Switch,0-1,Partial,00 21,WMT1 Wave Switch,0-1,identical,Becomes WMT1 Wave Switch; a key with the switch OFF gets all four WMTs OFF
+JV,Rhythm Note,00 01,"Wave Group (INT, PCM, EXP)",0-2,Partial,00 22,WMT1 Wave Group Type,0-3,table,Via jv-wave-map.json (#195): INT and SR-JV80 EXP land on INT or SRX (Integra 0 or 1); PCM card has no target
+JV,Rhythm Note,00 02,Wave Group ID,0-127,Partial,00 23,WMT1 Wave Group ID,0-16384,table,INT-A/INT-B (1/2) -> INT; EXP n -> SRX board from jv-wave-map.json
+JV,Rhythm Note,00 03,"Wave Number (#, 2 nibbles)",0-254 (1-255),Partial,00 27,WMT1 Wave Number L (Mono),0-16384,table,JV raw v is Wave v+1; WMT1 Wave Number R (00 2B) = 0
+JV,Rhythm Note,00 05,Wave Gain,0-3,Partial,00 2F,WMT1 Wave Gain,0-3,identical,WMT1 Wave Gain
+JV,Rhythm Note,00 06,Bender Range,0-12,Partial,00 1C,Partial Pitch Bend Range,0-48,identical,Integra range 0-48
+JV,Rhythm Note,00 07,Mute Group,0-31,Partial,00 0D,Mute Group,0-31,identical,
+JV,Rhythm Note,00 08,Envelope Mode,0-1,Partial,00 15,Partial Env Mode,0-1,identical,"NO-SUS, SUSTAIN"
+JV,Rhythm Note,00 09,Volume Control Switch,0-1,Partial,00 1D,Partial Receive Expression,0-1,identical,Approximate: JV CC7 switch -> Integra Receive Expression (CC11). Roland made the same choice in its SR-JV80-16 -> XV conversion
+JV,Rhythm Note,00 0A,Hold-1 Control Switch,0-1,Partial,00 1E,Partial Receive Hold-1,0-1,identical,
+JV,Rhythm Note,00 0B,"Pan Control Switch (OFF, CONTINUOUS, KEY-ON)",0-2,Partial,00 1F,(reserve) <*>,--,none,Integra reserve (= XV Tone Receive Pan Mode). Report when not CONTINUOUS
+JV,Rhythm Note,00 0C,Source Key,0-127,Partial,00 0F,Partial Coarse Tune,0-127,identical,"Partial Coarse Tune, C-1 - G9"
+JV,Rhythm Note,00 0D,Fine Tune,0-100,Partial,00 10,Partial Fine Tune,14-114,offset,i = v + 14
+JV,Rhythm Note,00 0E,Random Pitch Depth,0-30,Partial,00 11,Partial Random Pitch Depth,0-30,identical,
+JV,Rhythm Note,00 0F,P-ENV Depth,0-24,Partial,01 15,Pitch Env Depth,52-76,offset,i = v + 52
+JV,Rhythm Note,00 10,P-ENV Velocity Sens,0-125 (-100..+150 %),Partial,01 16,Pitch Env Velocity Sens,1-127,rescale,Roland's table (see md); raw 50 = 0 % -> 64
+JV,Rhythm Note,00 11,P-ENV Velocity Time Sens (T14),0-14,Partial,01 17,Pitch Env Time 1 Velocity Sens,1-127,rescale,"Same value into Time 1 (01 17) and Time 4 (01 18) Velocity Sens, as Roland did"
+JV,Rhythm Note,00 12,P-ENV Time 1,0-127,Partial,01 19,Pitch Env Time 1,0-127,identical,
+JV,Rhythm Note,00 13,P-ENV Time 2,0-127,Partial,01 1A,Pitch Env Time 2,0-127,identical,
+JV,Rhythm Note,00 14,P-ENV Time 3,0-127,Partial,01 1B,Pitch Env Time 3,0-127,identical,
+JV,Rhythm Note,00 15,P-ENV Time 4,0-127,Partial,01 1C,Pitch Env Time 4,0-127,identical,
+JV,Rhythm Note,00 16,P-ENV Level 1,0-126,Partial,01 1E,Pitch Env Level 1,1-127,offset,i = v + 1; Level 0 (01 1D) = 64
+JV,Rhythm Note,00 17,P-ENV Level 2,0-126,Partial,01 1F,Pitch Env Level 2,1-127,offset,i = v + 1; Level 0 (01 1D) = 64
+JV,Rhythm Note,00 18,P-ENV Level 3,0-126,Partial,01 20,Pitch Env Level 3,1-127,offset,i = v + 1; Level 0 (01 1D) = 64
+JV,Rhythm Note,00 19,P-ENV Level 4,0-126,Partial,01 21,Pitch Env Level 4,1-127,offset,i = v + 1; Level 0 (01 1D) = 64
+JV,Rhythm Note,00 1A,Filter Type,0-4,Partial,01 22,TVF Filter Type,0-6,identical,"OFF, LPF, BPF, HPF, PKG"
+JV,Rhythm Note,00 1B,Cutoff Frequency,0-127,Partial,01 23,TVF Cutoff Frequency,0-127,identical,
+JV,Rhythm Note,00 1C,Resonance,0-127,Partial,01 26,TVF Resonance,0-127,identical,
+JV,Rhythm Note,00 1D,Resonance Velocity Sens,0-125,Partial,01 27,TVF Resonance Velocity Sens,1-127,rescale,Roland's table
+JV,Rhythm Note,00 1E,F-ENV Depth,0-126,Partial,01 28,TVF Env Depth,1-127,offset,i = v + 1
+JV,Rhythm Note,00 1F,F-ENV Velocity Sens,0-125,Partial,01 2A,TVF Env Velocity Sens,1-127,rescale,Roland's table; F-Env Velocity Curve (01 29) = 1
+JV,Rhythm Note,00 20,F-ENV Velocity Time Sens (T14),0-14,Partial,01 2B,TVF Env Time 1 Velocity Sens,1-127,rescale,Same value into 01 2B and 01 2C
+JV,Rhythm Note,00 21,F-ENV Time 1,0-127,Partial,01 2D,TVF Env Time 1,0-127,identical,
+JV,Rhythm Note,00 22,F-ENV Time 2,0-127,Partial,01 2E,TVF Env Time 2,0-127,identical,
+JV,Rhythm Note,00 23,F-ENV Time 3,0-127,Partial,01 2F,TVF Env Time 3,0-127,identical,
+JV,Rhythm Note,00 24,F-ENV Time 4,0-127,Partial,01 30,TVF Env Time 4,0-127,identical,
+JV,Rhythm Note,00 25,F-ENV Level 1,0-127,Partial,01 32,TVF Env Level 1,0-127,identical,Level 0 (01 31) = 0
+JV,Rhythm Note,00 26,F-ENV Level 2,0-127,Partial,01 33,TVF Env Level 2,0-127,identical,Level 0 (01 31) = 0
+JV,Rhythm Note,00 27,F-ENV Level 3,0-127,Partial,01 34,TVF Env Level 3,0-127,identical,Level 0 (01 31) = 0
+JV,Rhythm Note,00 28,F-ENV Level 4,0-127,Partial,01 35,TVF Env Level 4,0-127,identical,Level 0 (01 31) = 0
+JV,Rhythm Note,00 29,Tone Level,0-127,Partial,00 0E,Partial Level,0-127,identical,Partial Level; WMT1 Wave Level = 127
+JV,Rhythm Note,00 2A,A-ENV Velocity Sens,0-125,Partial,01 37,TVA Level Velocity Sens,1-127,rescale,Roland's table; TVA Level Velocity Curve (01 36) = 1
+JV,Rhythm Note,00 2B,A-ENV Velocity Time Sens (T14),0-14,Partial,01 38,TVA Env Time 1 Velocity Sens,1-127,rescale,Same value into 01 38 and 01 39
+JV,Rhythm Note,00 2C,A-ENV Time 1,0-127,Partial,01 3A,TVA Env Time 1,0-127,identical,
+JV,Rhythm Note,00 2D,A-ENV Time 2,0-127,Partial,01 3B,TVA Env Time 2,0-127,identical,
+JV,Rhythm Note,00 2E,A-ENV Time 3,0-127,Partial,01 3C,TVA Env Time 3,0-127,identical,
+JV,Rhythm Note,00 2F,A-ENV Time 4,0-127,Partial,01 3D,TVA Env Time 4,0-127,identical,
+JV,Rhythm Note,00 30,A-ENV Level 1,0-127,Partial,01 3E,TVA Env Level 1,0-127,identical,
+JV,Rhythm Note,00 31,A-ENV Level 2,0-127,Partial,01 3F,TVA Env Level 2,0-127,identical,
+JV,Rhythm Note,00 32,A-ENV Level 3,0-127,Partial,01 40,TVA Env Level 3,0-127,identical,
+JV,Rhythm Note,00 33,Tone Pan,0-127,Partial,00 12,Partial Pan,0-127,identical,
+JV,Rhythm Note,00 34,Random Pan Depth,0-63,Partial,00 13,Partial Random Pan Depth,0-63,identical,
+JV,Rhythm Note,00 35,Alternate Pan Depth,1-127,Partial,00 14,Partial Alternate Pan Depth,1-127,identical,
+JV,Rhythm Note,00 36,"Output Assign (MIX, EFX, OUTPUT1/2)",0-3,Partial,00 1B,Partial Output Assign,0-6,none,Write 0 (PART). The Rhythm Setup has no EFX of its own; EFX routing is Performance-level
+JV,Rhythm Note,00 37,Mix/EFX Send Level,0-127,Partial,00 16,Partial Output Level,0-127,identical,Partial Output Level (XV Tone Dry Send Level)
+JV,Rhythm Note,00 38,Chorus Send Level,0-127,Partial,00 19,Partial Chorus Send Level,0-127,identical,
+JV,Rhythm Note,00 39,Reverb Send Level,0-127,Partial,00 1A,Partial Reverb Send Level,0-127,identical,
+XV,Rhythm Tone,00 00,Tone Name 1,32-127,Partial,00 00,Partial Name 1,32-127,identical,
+XV,Rhythm Tone,00 01,Tone Name 2,32-127,Partial,00 01,Partial Name 2,32-127,identical,
+XV,Rhythm Tone,00 02,Tone Name 3,32-127,Partial,00 02,Partial Name 3,32-127,identical,
+XV,Rhythm Tone,00 03,Tone Name 4,32-127,Partial,00 03,Partial Name 4,32-127,identical,
+XV,Rhythm Tone,00 04,Tone Name 5,32-127,Partial,00 04,Partial Name 5,32-127,identical,
+XV,Rhythm Tone,00 05,Tone Name 6,32-127,Partial,00 05,Partial Name 6,32-127,identical,
+XV,Rhythm Tone,00 06,Tone Name 7,32-127,Partial,00 06,Partial Name 7,32-127,identical,
+XV,Rhythm Tone,00 07,Tone Name 8,32-127,Partial,00 07,Partial Name 8,32-127,identical,
+XV,Rhythm Tone,00 08,Tone Name 9,32-127,Partial,00 08,Partial Name 9,32-127,identical,
+XV,Rhythm Tone,00 09,Tone Name 10,32-127,Partial,00 09,Partial Name 10,32-127,identical,
+XV,Rhythm Tone,00 0A,Tone Name 11,32-127,Partial,00 0A,Partial Name 11,32-127,identical,
+XV,Rhythm Tone,00 0B,Tone Name 12,32-127,Partial,00 0B,Partial Name 12,32-127,identical,
+XV,Rhythm Tone,00 0C,Assign Type,0-1,Partial,00 0C,Assign Type,0-1,identical,
+XV,Rhythm Tone,00 0D,Mute Group,0-31,Partial,00 0D,Mute Group,0-31,identical,
+XV,Rhythm Tone,00 0E,Tone Level,0-127,Partial,00 0E,Partial Level,0-127,identical,
+XV,Rhythm Tone,00 0F,Tone Coarse Tune,0-127,Partial,00 0F,Partial Coarse Tune,0-127,identical,
+XV,Rhythm Tone,00 10,Tone Fine Tune,14-114,Partial,00 10,Partial Fine Tune,14-114,identical,
+XV,Rhythm Tone,00 11,Tone Random Pitch Depth,0-30,Partial,00 11,Partial Random Pitch Depth,0-30,identical,
+XV,Rhythm Tone,00 12,Tone Pan,0-127,Partial,00 12,Partial Pan,0-127,identical,
+XV,Rhythm Tone,00 13,Tone Random Pan Depth,0-63,Partial,00 13,Partial Random Pan Depth,0-63,identical,
+XV,Rhythm Tone,00 14,Tone Alternate Pan Depth,1-127,Partial,00 14,Partial Alternate Pan Depth,1-127,identical,
+XV,Rhythm Tone,00 15,Tone Env Mode,0-1,Partial,00 15,Partial Env Mode,0-1,identical,
+XV,Rhythm Tone,00 16,Tone Dry Send Level,0-127,Partial,00 16,Partial Output Level,0-127,identical,XV Tone Dry Send Level at the Integra Partial Output Level offset
+XV,Rhythm Tone,00 17,Tone Chorus Send Level,0-127,Partial,00 17,(reserve) <*>,--,none,"XV Tone Chorus Send Level (MFX path) -> Integra reserve; copy verbatim. If Tone Output Assign = MFX, write it into 00 19 instead"
+XV,Rhythm Tone,00 18,Tone Reverb Send Level,0-127,Partial,00 18,(reserve) <*>,--,none,"XV Tone Reverb Send Level (MFX path) -> Integra reserve; copy verbatim. If Tone Output Assign = MFX, write it into 00 1A instead"
+XV,Rhythm Tone,00 19,Tone Chorus Send Level (non MFX),0-127,Partial,00 19,Partial Chorus Send Level,0-127,identical,"Non-MFX send, used when Tone Output Assign = A-D/1-8 (98.6 % of corpus tones)"
+XV,Rhythm Tone,00 1A,Tone Reverb Send Level (non MFX),0-127,Partial,00 1A,Partial Reverb Send Level,0-127,identical,As 00 19
+XV,Rhythm Tone,00 1B,Tone Output Assign,0-12,Partial,00 1B,Partial Output Assign,0-6,table,"XV MFX, A-D, 1-8 (0-12) vs Integra PART, COMP+EQ1-6 (0-6): write 0 (PART). A byte copy would send XV ""A"" (1) to COMP+EQ1"
+XV,Rhythm Tone,00 1C,Tone Pitch Bend Range,0-48,Partial,00 1C,Partial Pitch Bend Range,0-48,identical,
+XV,Rhythm Tone,00 1D,Tone Receive Expression,0-1,Partial,00 1D,Partial Receive Expression,0-1,identical,
+XV,Rhythm Tone,00 1E,Tone Receive Hold-1,0-1,Partial,00 1E,Partial Receive Hold-1,0-1,identical,
+XV,Rhythm Tone,00 1F,Tone Receive Pan Mode,0-1,Partial,00 1F,(reserve) <*>,--,none,"XV Tone Receive Pan Mode -> Integra reserve; copy verbatim, report KEY-ON"
+XV,Rhythm Tone,00 20,WMT Velocity Control,0-2,Partial,00 20,WMT Velocity Control,0-2,identical,
+XV,Rhythm Tone,00 21,WMT1 Wave Switch,0-1,Partial,00 21,WMT1 Wave Switch,0-1,identical,
+XV,Rhythm Tone,00 22,WMT1 Wave Group Type,0-3,Partial,00 22,WMT1 Wave Group Type,0-3,table,INT-WAVE 0 -> 0; SRX-EXP 2 -> 1; SRJV80-EXP 1 -> jv-wave-map.json; SAMPLE 3 -> OFF
+XV,Rhythm Tone,00 23,WMT1 Wave Group ID,0-16384,Partial,00 23,WMT1 Wave Group ID,0-16384,identical,"Copy: XV INT = 1, SRX = board number (corpus); SR-JV80 via jv-wave-map.json"
+XV,Rhythm Tone,00 27,WMT1 Wave Number L (Mono),0-16384,Partial,00 27,WMT1 Wave Number L (Mono),0-16384,identical,Copy for INT/SRX; SR-JV80 via jv-wave-map.json
+XV,Rhythm Tone,00 2B,WMT1 Wave Number R,0-16384,Partial,00 2B,WMT1 Wave Number R,0-16384,identical,Copy for INT/SRX; SR-JV80 via jv-wave-map.json
+XV,Rhythm Tone,00 2F,WMT1 Wave Gain,0-3,Partial,00 2F,WMT1 Wave Gain,0-3,identical,
+XV,Rhythm Tone,00 30,WMT1 Wave FXM Switch,0-1,Partial,00 30,WMT1 Wave FXM Switch,0-1,identical,
+XV,Rhythm Tone,00 31,WMT1 Wave FXM Color,0-3,Partial,00 31,WMT1 Wave FXM Color,0-3,identical,
+XV,Rhythm Tone,00 32,WMT1 Wave FXM Depth,0-16,Partial,00 32,WMT1 Wave FXM Depth,0-16,identical,
+XV,Rhythm Tone,00 33,WMT1 Wave Tempo Sync,0-1,Partial,00 33,WMT1 Wave Tempo Sync,0-1,identical,
+XV,Rhythm Tone,00 34,WMT1 Wave Coarse Tune,16-112,Partial,00 34,WMT1 Wave Coarse Tune,16-112,identical,
+XV,Rhythm Tone,00 35,WMT1 Wave Fine Tune,14-114,Partial,00 35,WMT1 Wave Fine Tune,14-114,identical,
+XV,Rhythm Tone,00 36,WMT1 Wave Pan,0-127,Partial,00 36,WMT1 Wave Pan,0-127,identical,
+XV,Rhythm Tone,00 37,WMT1 Wave Random Pan Switch,0-1,Partial,00 37,WMT1 Wave Random Pan Switch,0-1,identical,
+XV,Rhythm Tone,00 38,WMT1 Wave Alternate Pan Switch,0-2,Partial,00 38,WMT1 Wave Alternate Pan Switch,0-2,identical,
+XV,Rhythm Tone,00 39,WMT1 Wave Level,0-127,Partial,00 39,WMT1 Wave Level,0-127,identical,
+XV,Rhythm Tone,00 3A,WMT1 Velocity Range Lower,1-127,Partial,00 3A,WMT1 Velocity Range Lower,1-127,identical,
+XV,Rhythm Tone,00 3B,WMT1 Velocity Range Upper,1-127,Partial,00 3B,WMT1 Velocity Range Upper,1-127,identical,
+XV,Rhythm Tone,00 3C,WMT1 Velocity Fade Width Lower,0-127,Partial,00 3C,WMT1 Velocity Fade Width Lower,0-127,identical,
+XV,Rhythm Tone,00 3D,WMT1 Velocity Fade Width Upper,0-127,Partial,00 3D,WMT1 Velocity Fade Width Upper,0-127,identical,
+XV,Rhythm Tone,00 3E,WMT2 Wave Switch,0-1,Partial,00 3E,WMT2 Wave Switch,0-1,identical,
+XV,Rhythm Tone,00 3F,WMT2 Wave Group Type,0-3,Partial,00 3F,WMT2 Wave Group Type,0-3,table,INT-WAVE 0 -> 0; SRX-EXP 2 -> 1; SRJV80-EXP 1 -> jv-wave-map.json; SAMPLE 3 -> OFF
+XV,Rhythm Tone,00 40,WMT2 Wave Group ID,0-16384,Partial,00 40,WMT2 Wave Group ID,0-16384,identical,"Copy: XV INT = 1, SRX = board number (corpus); SR-JV80 via jv-wave-map.json"
+XV,Rhythm Tone,00 44,WMT2 Wave Number L (Mono),0-16384,Partial,00 44,WMT2 Wave Number L (Mono),0-16384,identical,Copy for INT/SRX; SR-JV80 via jv-wave-map.json
+XV,Rhythm Tone,00 48,WMT2 Wave Number R,0-16384,Partial,00 48,WMT2 Wave Number R,0-16384,identical,Copy for INT/SRX; SR-JV80 via jv-wave-map.json
+XV,Rhythm Tone,00 4C,WMT2 Wave Gain,0-3,Partial,00 4C,WMT2 Wave Gain,0-3,identical,
+XV,Rhythm Tone,00 4D,WMT2 Wave FXM Switch,0-1,Partial,00 4D,WMT2 Wave FXM Switch,0-1,identical,
+XV,Rhythm Tone,00 4E,WMT2 Wave FXM Color,0-3,Partial,00 4E,WMT2 Wave FXM Color,0-3,identical,
+XV,Rhythm Tone,00 4F,WMT2 Wave FXM Depth,0-16,Partial,00 4F,WMT2 Wave FXM Depth,0-16,identical,
+XV,Rhythm Tone,00 50,WMT2 Wave Tempo Sync,0-1,Partial,00 50,WMT2 Wave Tempo Sync,0-1,identical,
+XV,Rhythm Tone,00 51,WMT2 Wave Coarse Tune,16-112,Partial,00 51,WMT2 Wave Coarse Tune,16-112,identical,
+XV,Rhythm Tone,00 52,WMT2 Wave Fine Tune,14-114,Partial,00 52,WMT2 Wave Fine Tune,14-114,identical,
+XV,Rhythm Tone,00 53,WMT2 Wave Pan,0-127,Partial,00 53,WMT2 Wave Pan,0-127,identical,
+XV,Rhythm Tone,00 54,WMT2 Wave Random Pan Switch,0-1,Partial,00 54,WMT2 Wave Random Pan Switch,0-1,identical,
+XV,Rhythm Tone,00 55,WMT2 Wave Alternate Pan Switch,0-2,Partial,00 55,WMT2 Wave Alternate Pan Switch,0-2,identical,
+XV,Rhythm Tone,00 56,WMT2 Wave Level,0-127,Partial,00 56,WMT2 Wave Level,0-127,identical,
+XV,Rhythm Tone,00 57,WMT2 Velocity Range Lower,1-127,Partial,00 57,WMT2 Velocity Range Lower,1-127,identical,
+XV,Rhythm Tone,00 58,WMT2 Velocity Range Upper,1-127,Partial,00 58,WMT2 Velocity Range Upper,1-127,identical,
+XV,Rhythm Tone,00 59,WMT2 Velocity Fade Width Lower,0-127,Partial,00 59,WMT2 Velocity Fade Width Lower,0-127,identical,
+XV,Rhythm Tone,00 5A,WMT2 Velocity Fade Width Upper,0-127,Partial,00 5A,WMT2 Velocity Fade Width Upper,0-127,identical,
+XV,Rhythm Tone,00 5B,WMT3 Wave Switch,0-1,Partial,00 5B,WMT3 Wave Switch,0-1,identical,
+XV,Rhythm Tone,00 5C,WMT3 Wave Group Type,0-3,Partial,00 5C,WMT3 Wave Group Type,0-3,table,INT-WAVE 0 -> 0; SRX-EXP 2 -> 1; SRJV80-EXP 1 -> jv-wave-map.json; SAMPLE 3 -> OFF
+XV,Rhythm Tone,00 5D,WMT3 Wave Group ID,0-16384,Partial,00 5D,WMT3 Wave Group ID,0-16384,identical,"Copy: XV INT = 1, SRX = board number (corpus); SR-JV80 via jv-wave-map.json"
+XV,Rhythm Tone,00 61,WMT3 Wave Number L (Mono),0-16384,Partial,00 61,WMT3 Wave Number L (Mono),0-16384,identical,Copy for INT/SRX; SR-JV80 via jv-wave-map.json
+XV,Rhythm Tone,00 65,WMT3 Wave Number R,0-16384,Partial,00 65,WMT3 Wave Number R,0-16384,identical,Copy for INT/SRX; SR-JV80 via jv-wave-map.json
+XV,Rhythm Tone,00 69,WMT3 Wave Gain,0-3,Partial,00 69,WMT3 Wave Gain,0-3,identical,
+XV,Rhythm Tone,00 6A,WMT3 Wave FXM Switch,0-1,Partial,00 6A,WMT3 Wave FXM Switch,0-1,identical,
+XV,Rhythm Tone,00 6B,WMT3 Wave FXM Color,0-3,Partial,00 6B,WMT3 Wave FXM Color,0-3,identical,
+XV,Rhythm Tone,00 6C,WMT3 Wave FXM Depth,0-16,Partial,00 6C,WMT3 Wave FXM Depth,0-16,identical,
+XV,Rhythm Tone,00 6D,WMT3 Wave Tempo Sync,0-1,Partial,00 6D,WMT3 Wave Tempo Sync,0-1,identical,
+XV,Rhythm Tone,00 6E,WMT3 Wave Coarse Tune,16-112,Partial,00 6E,WMT3 Wave Coarse Tune,16-112,identical,
+XV,Rhythm Tone,00 6F,WMT3 Wave Fine Tune,14-114,Partial,00 6F,WMT3 Wave Fine Tune,14-114,identical,
+XV,Rhythm Tone,00 70,WMT3 Wave Pan,0-127,Partial,00 70,WMT3 Wave Pan,0-127,identical,
+XV,Rhythm Tone,00 71,WMT3 Wave Random Pan Switch,0-1,Partial,00 71,WMT3 Wave Random Pan Switch,0-1,identical,
+XV,Rhythm Tone,00 72,WMT3 Wave Alternate Pan Switch,0-2,Partial,00 72,WMT3 Wave Alternate Pan Switch,0-2,identical,
+XV,Rhythm Tone,00 73,WMT3 Wave Level,0-127,Partial,00 73,WMT3 Wave Level,0-127,identical,
+XV,Rhythm Tone,00 74,WMT3 Velocity Range Lower,1-127,Partial,00 74,WMT3 Velocity Range Lower,1-127,identical,
+XV,Rhythm Tone,00 75,WMT3 Velocity Range Upper,1-127,Partial,00 75,WMT3 Velocity Range Upper,1-127,identical,
+XV,Rhythm Tone,00 76,WMT3 Velocity Fade Width Lower,0-127,Partial,00 76,WMT3 Velocity Fade Width Lower,0-127,identical,
+XV,Rhythm Tone,00 77,WMT3 Velocity Fade Width Upper,0-127,Partial,00 77,WMT3 Velocity Fade Width Upper,0-127,identical,
+XV,Rhythm Tone,00 78,WMT4 Wave Switch,0-1,Partial,00 78,WMT4 Wave Switch,0-1,identical,
+XV,Rhythm Tone,00 79,WMT4 Wave Group Type,0-3,Partial,00 79,WMT4 Wave Group Type,0-3,table,INT-WAVE 0 -> 0; SRX-EXP 2 -> 1; SRJV80-EXP 1 -> jv-wave-map.json; SAMPLE 3 -> OFF
+XV,Rhythm Tone,00 7A,WMT4 Wave Group ID,0-16384,Partial,00 7A,WMT4 Wave Group ID,0-16384,identical,"Copy: XV INT = 1, SRX = board number (corpus); SR-JV80 via jv-wave-map.json"
+XV,Rhythm Tone,00 7E,WMT4 Wave Number L (Mono),0-16384,Partial,00 7E,WMT4 Wave Number L (Mono),0-16384,identical,Copy for INT/SRX; SR-JV80 via jv-wave-map.json
+XV,Rhythm Tone,01 02,WMT4 Wave Number R,0-16384,Partial,01 02,WMT4 Wave Number R,0-16384,identical,Copy for INT/SRX; SR-JV80 via jv-wave-map.json
+XV,Rhythm Tone,01 06,WMT4 Wave Gain,0-3,Partial,01 06,WMT4 Wave Gain,0-3,identical,
+XV,Rhythm Tone,01 07,WMT4 Wave FXM Switch,0-1,Partial,01 07,WMT4 Wave FXM Switch,0-1,identical,
+XV,Rhythm Tone,01 08,WMT4 Wave FXM Color,0-3,Partial,01 08,WMT4 Wave FXM Color,0-3,identical,
+XV,Rhythm Tone,01 09,WMT4 Wave FXM Depth,0-16,Partial,01 09,WMT4 Wave FXM Depth,0-16,identical,
+XV,Rhythm Tone,01 0A,WMT4 Wave Tempo Sync,0-1,Partial,01 0A,WMT4 Wave Tempo Sync,0-1,identical,
+XV,Rhythm Tone,01 0B,WMT4 Wave Coarse Tune,16-112,Partial,01 0B,WMT4 Wave Coarse Tune,16-112,identical,
+XV,Rhythm Tone,01 0C,WMT4 Wave Fine Tune,14-114,Partial,01 0C,WMT4 Wave Fine Tune,14-114,identical,
+XV,Rhythm Tone,01 0D,WMT4 Wave Pan,0-127,Partial,01 0D,WMT4 Wave Pan,0-127,identical,
+XV,Rhythm Tone,01 0E,WMT4 Wave Random Pan Switch,0-1,Partial,01 0E,WMT4 Wave Random Pan Switch,0-1,identical,
+XV,Rhythm Tone,01 0F,WMT4 Wave Alternate Pan Switch,0-2,Partial,01 0F,WMT4 Wave Alternate Pan Switch,0-2,identical,
+XV,Rhythm Tone,01 10,WMT4 Wave Level,0-127,Partial,01 10,WMT4 Wave Level,0-127,identical,
+XV,Rhythm Tone,01 11,WMT4 Velocity Range Lower,1-127,Partial,01 11,WMT4 Velocity Range Lower,1-127,identical,
+XV,Rhythm Tone,01 12,WMT4 Velocity Range Upper,1-127,Partial,01 12,WMT4 Velocity Range Upper,1-127,identical,
+XV,Rhythm Tone,01 13,WMT4 Velocity Fade Width Lower,0-127,Partial,01 13,WMT4 Velocity Fade Width Lower,0-127,identical,
+XV,Rhythm Tone,01 14,WMT4 Velocity Fade Width Upper,0-127,Partial,01 14,WMT4 Velocity Fade Width Upper,0-127,identical,
+XV,Rhythm Tone,01 15,Pitch Env Depth,52-76,Partial,01 15,Pitch Env Depth,52-76,identical,
+XV,Rhythm Tone,01 16,Pitch Env Velocity Sens,1-127,Partial,01 16,Pitch Env Velocity Sens,1-127,identical,
+XV,Rhythm Tone,01 17,Pitch Env Time 1 Velocity Sens,1-127,Partial,01 17,Pitch Env Time 1 Velocity Sens,1-127,identical,
+XV,Rhythm Tone,01 18,Pitch Env Time 4 Velocity Sens,1-127,Partial,01 18,Pitch Env Time 4 Velocity Sens,1-127,identical,
+XV,Rhythm Tone,01 19,Pitch Env Time 1,0-127,Partial,01 19,Pitch Env Time 1,0-127,identical,
+XV,Rhythm Tone,01 1A,Pitch Env Time 2,0-127,Partial,01 1A,Pitch Env Time 2,0-127,identical,
+XV,Rhythm Tone,01 1B,Pitch Env Time 3,0-127,Partial,01 1B,Pitch Env Time 3,0-127,identical,
+XV,Rhythm Tone,01 1C,Pitch Env Time 4,0-127,Partial,01 1C,Pitch Env Time 4,0-127,identical,
+XV,Rhythm Tone,01 1D,Pitch Env Level 0,1-127,Partial,01 1D,Pitch Env Level 0,1-127,identical,
+XV,Rhythm Tone,01 1E,Pitch Env Level 1,1-127,Partial,01 1E,Pitch Env Level 1,1-127,identical,
+XV,Rhythm Tone,01 1F,Pitch Env Level 2,1-127,Partial,01 1F,Pitch Env Level 2,1-127,identical,
+XV,Rhythm Tone,01 20,Pitch Env Level 3,1-127,Partial,01 20,Pitch Env Level 3,1-127,identical,
+XV,Rhythm Tone,01 21,Pitch Env Level 4,1-127,Partial,01 21,Pitch Env Level 4,1-127,identical,
+XV,Rhythm Tone,01 22,TVF Filter Type,0-6,Partial,01 22,TVF Filter Type,0-6,identical,
+XV,Rhythm Tone,01 23,TVF Cutoff Frequency,0-127,Partial,01 23,TVF Cutoff Frequency,0-127,identical,
+XV,Rhythm Tone,01 24,TVF Cutoff Velocity Curve,0-7,Partial,01 24,TVF Cutoff Velocity Curve,0-7,identical,
+XV,Rhythm Tone,01 25,TVF Cutoff Velocity Sens,1-127,Partial,01 25,TVF Cutoff Velocity Sens,1-127,identical,
+XV,Rhythm Tone,01 26,TVF Resonance,0-127,Partial,01 26,TVF Resonance,0-127,identical,
+XV,Rhythm Tone,01 27,TVF Resonance Velocity Sens,1-127,Partial,01 27,TVF Resonance Velocity Sens,1-127,identical,
+XV,Rhythm Tone,01 28,TVF Env Depth,1-127,Partial,01 28,TVF Env Depth,1-127,identical,
+XV,Rhythm Tone,01 29,TVF Env Velocity Curve Type,0-7,Partial,01 29,TVF Env Velocity Curve Type,0-7,identical,
+XV,Rhythm Tone,01 2A,TVF Env Velocity Sens,1-127,Partial,01 2A,TVF Env Velocity Sens,1-127,identical,
+XV,Rhythm Tone,01 2B,TVF Env Time 1 Velocity Sens,1-127,Partial,01 2B,TVF Env Time 1 Velocity Sens,1-127,identical,
+XV,Rhythm Tone,01 2C,TVF Env Time 4 Velocity Sens,1-127,Partial,01 2C,TVF Env Time 4 Velocity Sens,1-127,identical,
+XV,Rhythm Tone,01 2D,TVF Env Time 1,0-127,Partial,01 2D,TVF Env Time 1,0-127,identical,
+XV,Rhythm Tone,01 2E,TVF Env Time 2,0-127,Partial,01 2E,TVF Env Time 2,0-127,identical,
+XV,Rhythm Tone,01 2F,TVF Env Time 3,0-127,Partial,01 2F,TVF Env Time 3,0-127,identical,
+XV,Rhythm Tone,01 30,TVF Env Time 4,0-127,Partial,01 30,TVF Env Time 4,0-127,identical,
+XV,Rhythm Tone,01 31,TVF Env Level 0,0-127,Partial,01 31,TVF Env Level 0,0-127,identical,
+XV,Rhythm Tone,01 32,TVF Env Level 1,0-127,Partial,01 32,TVF Env Level 1,0-127,identical,
+XV,Rhythm Tone,01 33,TVF Env Level 2,0-127,Partial,01 33,TVF Env Level 2,0-127,identical,
+XV,Rhythm Tone,01 34,TVF Env Level 3,0-127,Partial,01 34,TVF Env Level 3,0-127,identical,
+XV,Rhythm Tone,01 35,TVF Env Level 4,0-127,Partial,01 35,TVF Env Level 4,0-127,identical,
+XV,Rhythm Tone,01 36,TVA Level Velocity Curve,0-7,Partial,01 36,TVA Level Velocity Curve,0-7,identical,
+XV,Rhythm Tone,01 37,TVA Level Velocity Sens,1-127,Partial,01 37,TVA Level Velocity Sens,1-127,identical,
+XV,Rhythm Tone,01 38,TVA Env Time 1 Velocity Sens,1-127,Partial,01 38,TVA Env Time 1 Velocity Sens,1-127,identical,
+XV,Rhythm Tone,01 39,TVA Env Time 4 Velocity Sens,1-127,Partial,01 39,TVA Env Time 4 Velocity Sens,1-127,identical,
+XV,Rhythm Tone,01 3A,TVA Env Time 1,0-127,Partial,01 3A,TVA Env Time 1,0-127,identical,
+XV,Rhythm Tone,01 3B,TVA Env Time 2,0-127,Partial,01 3B,TVA Env Time 2,0-127,identical,
+XV,Rhythm Tone,01 3C,TVA Env Time 3,0-127,Partial,01 3C,TVA Env Time 3,0-127,identical,
+XV,Rhythm Tone,01 3D,TVA Env Time 4,0-127,Partial,01 3D,TVA Env Time 4,0-127,identical,
+XV,Rhythm Tone,01 3E,TVA Env Level 1,0-127,Partial,01 3E,TVA Env Level 1,0-127,identical,
+XV,Rhythm Tone,01 3F,TVA Env Level 2,0-127,Partial,01 3F,TVA Env Level 2,0-127,identical,
+XV,Rhythm Tone,01 40,TVA Env Level 3,0-127,Partial,01 40,TVA Env Level 3,0-127,identical,
+XV,—,—,—,—,Partial,01 41,One Shot Mode,0-1,table,"Filled from XV Rhythm Common 00 10 One Shot Mode (per kit on the XV, per key on the Integra)"
+XV,—,—,—,—,Partial,01 42,(reserve),64,none,Integra-only: fill 64
