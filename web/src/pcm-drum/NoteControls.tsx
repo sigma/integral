@@ -7,13 +7,12 @@ import {
   BreakpointEnvelope,
   OutputStrip,
 } from "../synth-ui";
-import type { PcmDrumPartial } from "./types";
+import { PcmdWmtField } from "../../pkg/integral_wasm.js";
+import type { PcmDrumPartial, PcmDrumWmt, WmtParamHandler } from "./types";
 import {
   noteName,
   panFmt,
   signedFmt,
-  linearToSysex,
-  wmtFieldOffset,
   WAVE_GAIN_OPTIONS,
   WAVE_GROUP_OPTIONS,
   FILTER_TYPE_OPTIONS,
@@ -35,12 +34,12 @@ export function NoteControls({
   keyNumber,
   note,
   onParam,
-  onNibParam,
+  onWmtParam,
 }: {
   keyNumber: number;
   note: PcmDrumPartial;
   onParam: (offset: number, value: number) => void;
-  onNibParam: (offset: number, value: number) => void;
+  onWmtParam: WmtParamHandler;
 }) {
   const [wmtTab, setWmtTab] = useState(0);
 
@@ -65,7 +64,7 @@ export function NoteControls({
           wmtTab={wmtTab}
           onWmtTab={setWmtTab}
           onParam={onParam}
-          onNibParam={onNibParam}
+          onWmtParam={onWmtParam}
         />
 
         {/* PITCH ENV */}
@@ -106,16 +105,17 @@ function WmtSection({
   wmtTab,
   onWmtTab,
   onParam,
-  onNibParam,
+  onWmtParam,
 }: {
   note: PcmDrumPartial;
   wmtTab: number;
   onWmtTab: (tab: number) => void;
   onParam: (offset: number, value: number) => void;
-  onNibParam: (offset: number, value: number) => void;
+  onWmtParam: WmtParamHandler;
 }) {
   const wmt = note.wmt[wmtTab]!;
-  const layerOffset = (fieldPos: number) => wmtFieldOffset(wmtTab, fieldPos);
+  const set = (field: PcmdWmtField, key: keyof PcmDrumWmt) =>
+    (v: number) => onWmtParam(wmtTab, field, key, v);
 
   return (
     <SectionPanel label="WAVE (WMT)" accentColor="#fc8">
@@ -147,23 +147,23 @@ function WmtSection({
       <div className={css.wmtLayer}>
         <SynthSwitch label="Switch" value={wmt.wmtSwitch}
           options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
-          onChange={(v) => onParam(layerOffset(0), v)}
+          onChange={set(PcmdWmtField.Switch, "wmtSwitch")}
           title="Wave layer switch" />
         <SynthSelect label="Group" value={wmt.waveGroupType}
           options={WAVE_GROUP_OPTIONS}
-          onChange={(v) => onParam(layerOffset(1), v)} />
+          onChange={set(PcmdWmtField.WaveGroupType, "waveGroupType")} />
         <SynthSelect label="Gain" value={wmt.waveGain}
           options={WAVE_GAIN_OPTIONS}
-          onChange={(v) => onParam(layerOffset(14), v)} />
+          onChange={set(PcmdWmtField.WaveGain, "waveGain")} />
       </div>
 
       <div className={css.wmtLayer}>
         <SynthKnob label="Wave L" value={wmt.waveNumberL} min={0} max={16384} defaultValue={0}
-          onChange={(v) => onNibParam(layerOffset(6), v)}
+          onChange={set(PcmdWmtField.WaveNumberL, "waveNumberL")}
           formatValue={(v) => String(v)} color="#fc8"
           title="Wave Number L / Mono" />
         <SynthKnob label="Wave R" value={wmt.waveNumberR} min={0} max={16384} defaultValue={0}
-          onChange={(v) => onNibParam(layerOffset(10), v)}
+          onChange={set(PcmdWmtField.WaveNumberR, "waveNumberR")}
           formatValue={(v) => String(v)} color="#fc8"
           title="Wave Number R" />
       </div>
@@ -171,33 +171,33 @@ function WmtSection({
       <div className={css.wmtLayer}>
         <SynthSwitch label="FXM" value={wmt.waveFxmSwitch}
           options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
-          onChange={(v) => onParam(layerOffset(15), v)}
+          onChange={set(PcmdWmtField.WaveFxmSwitch, "waveFxmSwitch")}
           title="FXM Switch" />
         <SynthKnob label="Color" value={wmt.waveFxmColor} min={0} max={3} defaultValue={0}
-          onChange={(v) => onParam(layerOffset(16), v)}
+          onChange={set(PcmdWmtField.WaveFxmColor, "waveFxmColor")}
           formatValue={(v) => String(v + 1)} color="#ea6"
           title="FXM Color (1-4)" />
         <SynthKnob label="Depth" value={wmt.waveFxmDepth} min={0} max={16} defaultValue={0}
-          onChange={(v) => onParam(layerOffset(17), v)}
+          onChange={set(PcmdWmtField.WaveFxmDepth, "waveFxmDepth")}
           formatValue={(v) => String(v)} color="#ea6"
           title="FXM Depth" />
       </div>
 
       <div className={css.wmtLayer}>
         <SynthKnob label="Coarse" value={wmt.coarseTune} min={16} max={112} defaultValue={64} center={64}
-          onChange={(v) => onParam(layerOffset(19), v)}
+          onChange={set(PcmdWmtField.CoarseTune, "coarseTune")}
           formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Coarse Tune (-48 to +48)" />
         <SynthKnob label="Fine" value={wmt.fineTune} min={14} max={114} defaultValue={64} center={64}
-          onChange={(v) => onParam(layerOffset(20), v)}
+          onChange={set(PcmdWmtField.FineTune, "fineTune")}
           formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Fine Tune (-50 to +50)" />
         <SynthKnob label="Pan" value={wmt.pan} min={0} max={127} defaultValue={64} center={64}
-          onChange={(v) => onParam(layerOffset(21), v)}
+          onChange={set(PcmdWmtField.Pan, "pan")}
           formatValue={panFmt} color="#8cf"
           title="Wave Pan" />
         <SynthKnob label="Level" value={wmt.level} min={0} max={127} defaultValue={127}
-          onChange={(v) => onParam(layerOffset(24), v)}
+          onChange={set(PcmdWmtField.Level, "level")}
           formatValue={(v) => String(v)} color="#8cf"
           title="Wave Level" />
       </div>
@@ -205,32 +205,32 @@ function WmtSection({
       <div className={css.wmtLayer}>
         <SynthSwitch label="Rnd Pan" value={wmt.randomPanSwitch}
           options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
-          onChange={(v) => onParam(layerOffset(22), v)}
+          onChange={set(PcmdWmtField.RandomPanSwitch, "randomPanSwitch")}
           title="Random Pan Switch" />
         <SynthSelect label="Alt Pan" value={wmt.alternatePanSwitch}
           options={ALT_PAN_OPTIONS}
-          onChange={(v) => onParam(layerOffset(23), v)} />
+          onChange={set(PcmdWmtField.AlternatePanSwitch, "alternatePanSwitch")} />
         <SynthSwitch label="T.Sync" value={wmt.waveTempoSync}
           options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
-          onChange={(v) => onParam(layerOffset(18), v)}
+          onChange={set(PcmdWmtField.WaveTempoSync, "waveTempoSync")}
           title="Tempo Sync" />
       </div>
 
       <div className={css.wmtLayer}>
         <SynthKnob label="Vel Lo" value={wmt.velocityRangeLower} min={1} max={127} defaultValue={1}
-          onChange={(v) => onParam(layerOffset(25), v)}
+          onChange={set(PcmdWmtField.VelocityRangeLower, "velocityRangeLower")}
           formatValue={(v) => String(v)} color="#a6f"
           title="Velocity Range Lower" />
         <SynthKnob label="Vel Hi" value={wmt.velocityRangeUpper} min={1} max={127} defaultValue={127}
-          onChange={(v) => onParam(layerOffset(26), v)}
+          onChange={set(PcmdWmtField.VelocityRangeUpper, "velocityRangeUpper")}
           formatValue={(v) => String(v)} color="#a6f"
           title="Velocity Range Upper" />
         <SynthKnob label="Fade Lo" value={wmt.velocityFadeLower} min={0} max={127} defaultValue={0}
-          onChange={(v) => onParam(layerOffset(27), v)}
+          onChange={set(PcmdWmtField.VelocityFadeLower, "velocityFadeLower")}
           formatValue={(v) => String(v)} color="#a6f"
           title="Velocity Fade Width Lower" />
         <SynthKnob label="Fade Hi" value={wmt.velocityFadeUpper} min={0} max={127} defaultValue={0}
-          onChange={(v) => onParam(layerOffset(28), v)}
+          onChange={set(PcmdWmtField.VelocityFadeUpper, "velocityFadeUpper")}
           formatValue={(v) => String(v)} color="#a6f"
           title="Velocity Fade Width Upper" />
       </div>
@@ -249,7 +249,7 @@ function PitchEnvSection({
   note: PcmDrumPartial;
   onParam: (offset: number, value: number) => void;
 }) {
-  const base = linearToSysex(149); // 0x0115
+  const base = 0x0115; // Pitch Env Depth
   const off = (rel: number) => base + rel;
 
   return (
@@ -311,7 +311,7 @@ function TvfSection({
   note: PcmDrumPartial;
   onParam: (offset: number, value: number) => void;
 }) {
-  const base = linearToSysex(162); // 0x0122
+  const base = 0x0122; // TVF Filter Type
   const off = (rel: number) => base + rel;
 
   return (
@@ -400,7 +400,7 @@ function TvaSection({
   note: PcmDrumPartial;
   onParam: (offset: number, value: number) => void;
 }) {
-  const base = linearToSysex(182); // 0x0136
+  const base = 0x0136; // TVA Level Velocity Curve
   const off = (rel: number) => base + rel;
 
   return (
@@ -482,7 +482,7 @@ function MiscSection({
           onChange={(v) => onParam(0x1B, v)} />
         <SynthSwitch label="1-Shot" value={note.oneShotMode}
           options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
-          onChange={(v) => onParam(linearToSysex(193), v)}
+          onChange={(v) => onParam(0x0141, v)}
           title="One Shot Mode" />
       </div>
       <div className={css.knobRow}>

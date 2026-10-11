@@ -16,6 +16,7 @@ import {
   SectionPanel,
 } from "./synth-ui";
 import { MfxPanel } from "./MfxPanel";
+import { useMfxHandlers } from "./useMfxHandlers";
 import type { MfxState } from "./MfxPanel";
 import css from "./PcmDrumEditor.module.css";
 
@@ -23,9 +24,8 @@ import type {
   PcmDrumCommon,
   PcmDrumCommon2,
   PcmDrumPartial,
-  PcmDrumWmt,
+  WmtParamHandler,
 } from "./pcm-drum/types";
-import { linearToSysex, WMT_STARTS } from "./pcm-drum/types";
 import { CommonPanel } from "./pcm-drum/CommonPanel";
 import { DrumKeyGrid } from "./DrumKeyGrid";
 import { useKeyPrefetch } from "./useKeyPrefetch";
@@ -194,15 +194,16 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
   );
 
   // ---------------------------------------------------------------------------
-  // Per-key partial nibblized param setter (multi-byte)
+  // Per-key WMT param setter
   // ---------------------------------------------------------------------------
-  const setPartialNibParam = useCallback(
-    (offset: number, value: number) => {
-      service.device.setPcmdPartialNibParam(partIndex, selectedKey, offset, value);
+  const setWmtParam = useCallback<WmtParamHandler>(
+    (wmt, field, key, value) => {
+      service.device.setPcmdWmtParam(partIndex, selectedKey, wmt, field, value);
       setNoteData((prev) => {
         if (!prev) return prev;
-        const next = { ...prev };
-        applyPartialNibField(next, offset, value);
+        const layers = [...prev.wmt];
+        layers[wmt] = { ...layers[wmt]!, [key]: value };
+        const next = { ...prev, wmt: layers };
         noteCache.current.set(selectedKey, next);
         return next;
       });
@@ -210,52 +211,7 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
     [partIndex, selectedKey, service],
   );
 
-  // ---------------------------------------------------------------------------
-  // MFX callbacks (identical to SN-D)
-  // ---------------------------------------------------------------------------
-  const handleMfxTypeChange = useCallback(
-    (type_: number) => {
-      service.device.setMfxParam(partIndex, ToneType.PcmDrum, 0x00, type_);
-      setMfx((prev) => prev ? { ...prev, mfxType: type_, params: [] } : prev);
-    },
-    [partIndex, service],
-  );
-
-  const handleMfxHeaderParam = useCallback(
-    (offset: number, value: number) => {
-      service.device.setMfxParam(partIndex, ToneType.PcmDrum, offset, value);
-      setMfx((prev) => {
-        if (!prev) return prev;
-        const next = { ...prev, controls: [...prev.controls] };
-        if (offset === 0x02) next.chorusSend = value;
-        else if (offset === 0x03) next.reverbSend = value;
-        for (let s = 0; s < deviceSpec().mfx_control_count; s++) {
-          if (offset === 0x05 + s * 2) {
-            next.controls[s] = { ...next.controls[s]!, source: value };
-          } else if (offset === 0x06 + s * 2) {
-            next.controls[s] = { ...next.controls[s]!, sens: value };
-          } else if (offset === 0x0D + s) {
-            next.controls[s] = { ...next.controls[s]!, assign: value };
-          }
-        }
-        return next;
-      });
-    },
-    [partIndex, service],
-  );
-
-  const handleMfxNibParam = useCallback(
-    (paramIndex: number, value: number) => {
-      service.device.setMfxNibParam(partIndex, ToneType.PcmDrum, paramIndex, value);
-      setMfx((prev) => {
-        if (!prev) return prev;
-        const params = [...prev.params];
-        params[paramIndex] = value;
-        return { ...prev, params };
-      });
-    },
-    [partIndex, service],
-  );
+  const mfxHandlers = useMfxHandlers(service, partIndex, ToneType.PcmDrum, setMfx);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -306,7 +262,7 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
                 keyNumber={selectedKey}
                 note={noteData}
                 onParam={setPartialParam}
-                onNibParam={setPartialNibParam}
+                onWmtParam={setWmtParam}
               />
             ) : (
               <div className={css.noteLoadingPlaceholder}>Select a key to edit</div>
@@ -317,9 +273,7 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
         {mfx && (
           <MfxPanel
             mfx={mfx}
-            onTypeChange={handleMfxTypeChange}
-            onHeaderParam={handleMfxHeaderParam}
-            onNibParam={handleMfxNibParam}
+            {...mfxHandlers}
           />
         )}
       </div>
@@ -352,11 +306,6 @@ function applyPartialField(p: PcmDrumPartial, offset: number, value: number): vo
     case 0x1E: p.receiveHold1 = value; break;
     case 0x20: p.wmtVelocityControl = value; break;
     default:
-      // WMT layer single-byte fields
-      for (let i = 0; i < deviceSpec().pcm_drum_wmt_count; i++) {
-        const base = WMT_STARTS[i]!;
-        applyWmtField(p.wmt[i]!, offset, base, value);
-      }
       // Pitch env
       applyPitchEnvField(p, offset, value);
       // TVF
@@ -364,72 +313,15 @@ function applyPartialField(p: PcmDrumPartial, offset: number, value: number): vo
       // TVA
       applyTvaField(p, offset, value);
       // One-shot
-      if (offset === linearToSysex(193)) p.oneShotMode = value;
+      if (offset === 0x0141) p.oneShotMode = value;
       break;
   }
 }
 
-function applyWmtField(w: PcmDrumWmt, offset: number, base: number, value: number): void {
-  const sBase = linearToSysex(base);
-  // Single-byte fields within a WMT layer
-  const rel = offset - sBase;
-  // Handle 7-bit boundary crossing for WMT4
-  if (rel < 0) return;
-  // The WMT layer occupies 29 contiguous linear bytes starting at `base`.
-  // For sysex offsets, bytes that cross the 0x80 boundary jump to 0x01xx.
-  // Check each field by linear position.
-  const linearOff = base + fieldForSysex(sBase, offset);
-  if (linearOff < base || linearOff >= base + 29) return;
-  const pos = linearOff - base;
-  switch (pos) {
-    case 0: w.wmtSwitch = value; break;
-    case 1: w.waveGroupType = value; break;
-    case 14: w.waveGain = value; break;
-    case 15: w.waveFxmSwitch = value; break;
-    case 16: w.waveFxmColor = value; break;
-    case 17: w.waveFxmDepth = value; break;
-    case 18: w.waveTempoSync = value; break;
-    case 19: w.coarseTune = value; break;
-    case 20: w.fineTune = value; break;
-    case 21: w.pan = value; break;
-    case 22: w.randomPanSwitch = value; break;
-    case 23: w.alternatePanSwitch = value; break;
-    case 24: w.level = value; break;
-    case 25: w.velocityRangeLower = value; break;
-    case 26: w.velocityRangeUpper = value; break;
-    case 27: w.velocityFadeLower = value; break;
-    case 28: w.velocityFadeUpper = value; break;
-  }
-}
-
-/** Convert a sysex offset back to a linear position relative to a known base. */
-function fieldForSysex(sysexBase: number, sysexOffset: number): number {
-  // Sysex offset high byte = linear / 128, low byte = linear % 128
-  const baseLinear = (sysexBase >> 8) * 128 + (sysexBase & 0xFF);
-  const offLinear = (sysexOffset >> 8) * 128 + (sysexOffset & 0xFF);
-  return offLinear - baseLinear;
-}
-
-function applyPartialNibField(p: PcmDrumPartial, offset: number, value: number): void {
-  // Nibblized fields in WMT layers
-  for (let i = 0; i < deviceSpec().pcm_drum_wmt_count; i++) {
-    const base = WMT_STARTS[i]!;
-    const sBase = linearToSysex(base);
-    const lin = fieldForSysex(sBase, offset);
-    if (lin >= 0 && lin < 29) {
-      const w = p.wmt[i]!;
-      // Nibblized fields: waveGroupId(2-5), waveNumberL(6-9), waveNumberR(10-13)
-      if (lin === 2) w.waveGroupId = value;
-      else if (lin === 6) w.waveNumberL = value;
-      else if (lin === 10) w.waveNumberR = value;
-    }
-  }
-}
-
 function applyPitchEnvField(p: PcmDrumPartial, offset: number, value: number): void {
-  // Pitch env fields at linear 149-161 → sysex 0x0115-0x0121
-  const pitchBase = linearToSysex(149); // 0x0115
-  const rel = fieldForSysex(pitchBase, offset);
+  // Pitch env fields at 0x0115-0x0121
+  const pitchBase = 0x0115; // Pitch Env Depth
+  const rel = offset - pitchBase;
   if (rel < 0 || rel > 12) return;
   switch (rel) {
     case 0: p.pitchEnvDepth = value; break;
@@ -444,9 +336,9 @@ function applyPitchEnvField(p: PcmDrumPartial, offset: number, value: number): v
 }
 
 function applyTvfField(p: PcmDrumPartial, offset: number, value: number): void {
-  // TVF fields at linear 162-181 → sysex 0x0122-0x0135
-  const tvfBase = linearToSysex(162); // 0x0122
-  const rel = fieldForSysex(tvfBase, offset);
+  // TVF fields at 0x0122-0x0135
+  const tvfBase = 0x0122; // TVF Filter Type
+  const rel = offset - tvfBase;
   if (rel < 0 || rel > 19) return;
   switch (rel) {
     case 0: p.tvfFilterType = value; break;
@@ -469,9 +361,9 @@ function applyTvfField(p: PcmDrumPartial, offset: number, value: number): void {
 }
 
 function applyTvaField(p: PcmDrumPartial, offset: number, value: number): void {
-  // TVA fields at linear 182-193 → sysex 0x0136-0x0141
-  const tvaBase = linearToSysex(182); // 0x0136
-  const rel = fieldForSysex(tvaBase, offset);
+  // TVA fields at 0x0136-0x0141
+  const tvaBase = 0x0136; // TVA Level Velocity Curve
+  const rel = offset - tvaBase;
   if (rel < 0 || rel > 11) return;
   switch (rel) {
     case 0: p.tvaLevelVelocityCurve = value; break;

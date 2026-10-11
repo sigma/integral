@@ -1,3 +1,5 @@
+import type { PcmdWmtField } from "../../pkg/integral_wasm.js";
+
 // ---------------------------------------------------------------------------
 // Types mirroring the Rust serde output (PcmDrumCommon, PcmDrumPartial, etc.)
 // ---------------------------------------------------------------------------
@@ -29,6 +31,15 @@ export interface PcmDrumWmt {
   velocityFadeLower: number;
   velocityFadeUpper: number;
 }
+
+/** Sets one field of WMT `wmt` (0-based): `field` addresses it on the
+ *  device, `key` names it in {@link PcmDrumWmt}. */
+export type WmtParamHandler = (
+  wmt: number,
+  field: PcmdWmtField,
+  key: keyof PcmDrumWmt,
+  value: number,
+) => void;
 
 export interface PcmDrumPartial {
   partialName: string;
@@ -182,21 +193,3 @@ export const ALT_PAN_OPTIONS = [
   { value: 1, label: "ON" },
   { value: 2, label: "REV" },
 ];
-
-// ---------------------------------------------------------------------------
-// SysEx offset helpers
-// ---------------------------------------------------------------------------
-
-/** Convert a linear byte index (0-194) to a 2-byte SysEx offset. */
-export function linearToSysex(linear: number): number {
-  return Math.floor(linear / 128) * 256 + (linear % 128);
-}
-
-/** WMT layer linear start indices. */
-export const WMT_STARTS = [0x21, 0x3E, 0x5B, 0x78];
-
-/** Compute the SysEx offset for a WMT field given the layer index and
- *  the field's byte position within the 29-byte layer. */
-export function wmtFieldOffset(layer: number, fieldPos: number): number {
-  return linearToSysex(WMT_STARTS[layer]! + fieldPos);
-}

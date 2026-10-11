@@ -973,6 +973,25 @@ impl DeviceState {
         Ok(())
     }
 
+    /// Set a field of WMT `wmt` (0-based) in the Partial for `key`, sent
+    /// nibblized when the field is.
+    pub fn set_pcmd_wmt_param(
+        &mut self,
+        part: u8,
+        key: u8,
+        wmt: u8,
+        field: crate::pcm_drum::PcmdWmtField,
+        value: u16,
+    ) -> Result<(), crate::pcm_drum::PcmdWmtError> {
+        let offset = crate::pcm_drum::pcmd_wmt_field_offset(wmt, field)?;
+        if field.is_nibblized() {
+            self.set_pcmd_partial_nib_param(part, key, offset, value)?;
+        } else {
+            self.set_pcmd_partial_param(part, key, offset, value as u8)?;
+        }
+        Ok(())
+    }
+
     /// Set a single PCM Drum Kit Common2 parameter for a part.
     pub fn set_pcmd_common2_param(&mut self, part: u8, offset: u8, value: u8) {
         let addr = crate::pcm_drum::pcmd_common2_param_address(part, offset);
@@ -1568,5 +1587,32 @@ mod tests {
                 .is_ok()
         );
         assert!(dev.has_pending());
+    }
+
+    #[test]
+    fn pcmd_wmt_param_sends_nibblized_fields_as_four_bytes() {
+        use crate::pcm_drum::PcmdWmtField;
+        let mut dev = DeviceState::new(0x10);
+        dev.set_pcmd_wmt_param(0, 21, 3, PcmdWmtField::WaveNumberR, 0x1234)
+            .unwrap();
+        dev.set_pcmd_wmt_param(0, 21, 0, PcmdWmtField::Level, 100)
+            .unwrap();
+        // Part 1, key 21: WMT4 Wave Number R at `01 02`, WMT1 Level at `00 39`.
+        assert_eq!(
+            dev.drain(0.0),
+            Some(sysex::build_dt1(
+                0x10,
+                &Address::new(0x19, 0x10, 0x11, 0x02),
+                &[1, 2, 3, 4]
+            ))
+        );
+        assert_eq!(
+            dev.drain(100.0),
+            Some(sysex::build_dt1(
+                0x10,
+                &Address::new(0x19, 0x10, 0x10, 0x39),
+                &[100]
+            ))
+        );
     }
 }

@@ -9,6 +9,7 @@ use crate::device_spec::{KeyOutOfRange, KeyRange};
 use crate::mfx::MfxState;
 use crate::params;
 use crate::parse_helpers::{nibble2, nibble4, parse_ascii_name};
+use thiserror::Error;
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -60,6 +61,74 @@ const WMT_STARTS: [usize; 4] = [0x21, 0x3E, 0x5B, 0x78];
 /// Number of WMT (Wave Mix Table) layers in a PCM Drum Kit partial.
 pub const PCMD_WMT_COUNT: usize = WMT_STARTS.len();
 
+/// A field of a PCM Drum Kit WMT layer. The discriminant is the field's byte
+/// position within the 29-byte layer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PcmdWmtField {
+    /// Wave Switch.
+    Switch = 0,
+    /// Wave Group Type.
+    WaveGroupType = 1,
+    /// Wave Group ID (nibblized, 4 bytes).
+    WaveGroupId = 2,
+    /// Wave Number L / Mono (nibblized, 4 bytes).
+    WaveNumberL = 6,
+    /// Wave Number R (nibblized, 4 bytes).
+    WaveNumberR = 10,
+    /// Wave Gain.
+    WaveGain = 14,
+    /// Wave FXM Switch.
+    WaveFxmSwitch = 15,
+    /// Wave FXM Color.
+    WaveFxmColor = 16,
+    /// Wave FXM Depth.
+    WaveFxmDepth = 17,
+    /// Wave Tempo Sync.
+    WaveTempoSync = 18,
+    /// Wave Coarse Tune.
+    CoarseTune = 19,
+    /// Wave Fine Tune.
+    FineTune = 20,
+    /// Wave Pan.
+    Pan = 21,
+    /// Wave Random Pan Switch.
+    RandomPanSwitch = 22,
+    /// Wave Alternate Pan Switch.
+    AlternatePanSwitch = 23,
+    /// Wave Level.
+    Level = 24,
+    /// Velocity Range Lower.
+    VelocityRangeLower = 25,
+    /// Velocity Range Upper.
+    VelocityRangeUpper = 26,
+    /// Velocity Fade Width Lower.
+    VelocityFadeLower = 27,
+    /// Velocity Fade Width Upper.
+    VelocityFadeUpper = 28,
+}
+
+impl PcmdWmtField {
+    /// Whether the field is nibblized across 4 bytes.
+    pub const fn is_nibblized(self) -> bool {
+        matches!(
+            self,
+            Self::WaveGroupId | Self::WaveNumberL | Self::WaveNumberR
+        )
+    }
+}
+
+/// Error returned for a WMT field address that doesn't exist.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum PcmdWmtError {
+    /// The key is outside the kit's range.
+    #[error(transparent)]
+    Key(#[from] KeyOutOfRange),
+    /// The WMT index is not below [`PCMD_WMT_COUNT`].
+    #[error("WMT index {0} out of range (0–{max})", max = PCMD_WMT_COUNT - 1)]
+    Wmt(u8),
+}
+
 // ---------------------------------------------------------------------------
 // Address functions
 // ---------------------------------------------------------------------------
@@ -108,6 +177,14 @@ pub fn pcmd_partial_param_address(
     let byte2 = (offset >> 8) as u8;
     let byte3 = (offset & 0xFF) as u8;
     Ok(pcmd_partial_address(part_index, key)?.offset([0x00, 0x00, byte2, byte3]))
+}
+
+/// Offset of `field` in WMT `wmt` (0-based) from the start of a Partial
+/// block, in the 2-byte form [`pcmd_partial_param_address`] takes.
+pub fn pcmd_wmt_field_offset(wmt: u8, field: PcmdWmtField) -> Result<u16, PcmdWmtError> {
+    let start = WMT_STARTS.get(wmt as usize).ok_or(PcmdWmtError::Wmt(wmt))?;
+    let linear = (start + field as usize) as u16;
+    Ok(((linear / 128) << 8) | (linear % 128))
 }
 
 /// Compute the absolute PCM Drum Kit Common2 block address for a part.
@@ -459,26 +536,28 @@ fn parse_pcmd_wmt(data: &[u8]) -> PcmDrumWmt {
     if data.len() < WMT_LAYER_SIZE {
         return w;
     }
-    w.switch = data[0];
-    w.wave_group_type = data[1];
-    w.wave_group_id = nibble4(data, 2);
-    w.wave_number_l = nibble4(data, 6);
-    w.wave_number_r = nibble4(data, 10);
-    w.wave_gain = data[14];
-    w.wave_fxm_switch = data[15];
-    w.wave_fxm_color = data[16];
-    w.wave_fxm_depth = data[17];
-    w.wave_tempo_sync = data[18];
-    w.coarse_tune = data[19];
-    w.fine_tune = data[20];
-    w.pan = data[21];
-    w.random_pan_switch = data[22];
-    w.alternate_pan_switch = data[23];
-    w.level = data[24];
-    w.velocity_range_lower = data[25];
-    w.velocity_range_upper = data[26];
-    w.velocity_fade_lower = data[27];
-    w.velocity_fade_upper = data[28];
+    use PcmdWmtField as F;
+    let byte = |f: F| data[f as usize];
+    w.switch = byte(F::Switch);
+    w.wave_group_type = byte(F::WaveGroupType);
+    w.wave_group_id = nibble4(data, F::WaveGroupId as usize);
+    w.wave_number_l = nibble4(data, F::WaveNumberL as usize);
+    w.wave_number_r = nibble4(data, F::WaveNumberR as usize);
+    w.wave_gain = byte(F::WaveGain);
+    w.wave_fxm_switch = byte(F::WaveFxmSwitch);
+    w.wave_fxm_color = byte(F::WaveFxmColor);
+    w.wave_fxm_depth = byte(F::WaveFxmDepth);
+    w.wave_tempo_sync = byte(F::WaveTempoSync);
+    w.coarse_tune = byte(F::CoarseTune);
+    w.fine_tune = byte(F::FineTune);
+    w.pan = byte(F::Pan);
+    w.random_pan_switch = byte(F::RandomPanSwitch);
+    w.alternate_pan_switch = byte(F::AlternatePanSwitch);
+    w.level = byte(F::Level);
+    w.velocity_range_lower = byte(F::VelocityRangeLower);
+    w.velocity_range_upper = byte(F::VelocityRangeUpper);
+    w.velocity_fade_lower = byte(F::VelocityFadeLower);
+    w.velocity_fade_upper = byte(F::VelocityFadeUpper);
     w
 }
 
@@ -677,6 +756,22 @@ mod tests {
     fn pcmd_partial_param_address_wmt1_switch() {
         let addr = pcmd_partial_param_address(0, 21, 0x0021);
         assert_eq!(addr, Ok(Address::new(0x19, 0x10, 0x10, 0x21)));
+    }
+
+    #[test]
+    fn pcmd_wmt_field_offsets_follow_the_midi_implementation() {
+        // WMT1 Wave Switch `00 21`, WMT4 Wave Number R `01 02`,
+        // WMT4 Wave Level `01 10`.
+        assert_eq!(pcmd_wmt_field_offset(0, PcmdWmtField::Switch), Ok(0x0021));
+        assert_eq!(
+            pcmd_wmt_field_offset(3, PcmdWmtField::WaveNumberR),
+            Ok(0x0102)
+        );
+        assert_eq!(pcmd_wmt_field_offset(3, PcmdWmtField::Level), Ok(0x0110));
+        assert_eq!(
+            pcmd_wmt_field_offset(4, PcmdWmtField::Switch),
+            Err(PcmdWmtError::Wmt(4))
+        );
     }
 
     #[test]

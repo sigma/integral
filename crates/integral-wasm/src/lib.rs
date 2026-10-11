@@ -473,6 +473,79 @@ impl ToneType {
     }
 }
 
+/// A field of a PCM Drum Kit WMT layer (mirrors [`pcm_drum::PcmdWmtField`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PcmdWmtField {
+    /// See [`pcm_drum::PcmdWmtField::Switch`].
+    Switch,
+    /// See [`pcm_drum::PcmdWmtField::WaveGroupType`].
+    WaveGroupType,
+    /// See [`pcm_drum::PcmdWmtField::WaveGroupId`].
+    WaveGroupId,
+    /// See [`pcm_drum::PcmdWmtField::WaveNumberL`].
+    WaveNumberL,
+    /// See [`pcm_drum::PcmdWmtField::WaveNumberR`].
+    WaveNumberR,
+    /// See [`pcm_drum::PcmdWmtField::WaveGain`].
+    WaveGain,
+    /// See [`pcm_drum::PcmdWmtField::WaveFxmSwitch`].
+    WaveFxmSwitch,
+    /// See [`pcm_drum::PcmdWmtField::WaveFxmColor`].
+    WaveFxmColor,
+    /// See [`pcm_drum::PcmdWmtField::WaveFxmDepth`].
+    WaveFxmDepth,
+    /// See [`pcm_drum::PcmdWmtField::WaveTempoSync`].
+    WaveTempoSync,
+    /// See [`pcm_drum::PcmdWmtField::CoarseTune`].
+    CoarseTune,
+    /// See [`pcm_drum::PcmdWmtField::FineTune`].
+    FineTune,
+    /// See [`pcm_drum::PcmdWmtField::Pan`].
+    Pan,
+    /// See [`pcm_drum::PcmdWmtField::RandomPanSwitch`].
+    RandomPanSwitch,
+    /// See [`pcm_drum::PcmdWmtField::AlternatePanSwitch`].
+    AlternatePanSwitch,
+    /// See [`pcm_drum::PcmdWmtField::Level`].
+    Level,
+    /// See [`pcm_drum::PcmdWmtField::VelocityRangeLower`].
+    VelocityRangeLower,
+    /// See [`pcm_drum::PcmdWmtField::VelocityRangeUpper`].
+    VelocityRangeUpper,
+    /// See [`pcm_drum::PcmdWmtField::VelocityFadeLower`].
+    VelocityFadeLower,
+    /// See [`pcm_drum::PcmdWmtField::VelocityFadeUpper`].
+    VelocityFadeUpper,
+}
+
+impl From<PcmdWmtField> for pcm_drum::PcmdWmtField {
+    fn from(field: PcmdWmtField) -> Self {
+        match field {
+            PcmdWmtField::Switch => Self::Switch,
+            PcmdWmtField::WaveGroupType => Self::WaveGroupType,
+            PcmdWmtField::WaveGroupId => Self::WaveGroupId,
+            PcmdWmtField::WaveNumberL => Self::WaveNumberL,
+            PcmdWmtField::WaveNumberR => Self::WaveNumberR,
+            PcmdWmtField::WaveGain => Self::WaveGain,
+            PcmdWmtField::WaveFxmSwitch => Self::WaveFxmSwitch,
+            PcmdWmtField::WaveFxmColor => Self::WaveFxmColor,
+            PcmdWmtField::WaveFxmDepth => Self::WaveFxmDepth,
+            PcmdWmtField::WaveTempoSync => Self::WaveTempoSync,
+            PcmdWmtField::CoarseTune => Self::CoarseTune,
+            PcmdWmtField::FineTune => Self::FineTune,
+            PcmdWmtField::Pan => Self::Pan,
+            PcmdWmtField::RandomPanSwitch => Self::RandomPanSwitch,
+            PcmdWmtField::AlternatePanSwitch => Self::AlternatePanSwitch,
+            PcmdWmtField::Level => Self::Level,
+            PcmdWmtField::VelocityRangeLower => Self::VelocityRangeLower,
+            PcmdWmtField::VelocityRangeUpper => Self::VelocityRangeUpper,
+            PcmdWmtField::VelocityFadeLower => Self::VelocityFadeLower,
+            PcmdWmtField::VelocityFadeUpper => Self::VelocityFadeUpper,
+        }
+    }
+}
+
 /// Returns the address of part `part_index`'s PCM Synth MFX block.
 #[wasm_bindgen]
 pub fn pcms_mfx_address(part_index: u8) -> Vec<u8> {
@@ -2250,6 +2323,22 @@ impl WasmDeviceState {
         Ok(self
             .inner
             .set_pcmd_partial_nib_param(part, key, offset, value)?)
+    }
+
+    /// Set a field of WMT `wmt` (0-based) in the PCM Drum Kit Partial for `key`.
+    #[wasm_bindgen(js_name = setPcmdWmtParam)]
+    pub fn set_pcmd_wmt_param(
+        &mut self,
+        part: u8,
+        key: u8,
+        wmt: u8,
+        field: PcmdWmtField,
+        value: u16,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        Ok(self
+            .inner
+            .set_pcmd_wmt_param(part, key, wmt, field.into(), value)?)
     }
 
     /// Set a single PCM Drum Kit Common2 parameter.

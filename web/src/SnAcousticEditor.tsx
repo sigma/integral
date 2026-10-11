@@ -8,7 +8,6 @@ import {
   ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
-import { deviceSpec } from "./deviceSpec";
 import {
   SynthKnob,
   SynthFader,
@@ -18,6 +17,7 @@ import {
   FaderGroupSep,
 } from "./synth-ui";
 import { MfxPanel } from "./MfxPanel";
+import { useMfxHandlers } from "./useMfxHandlers";
 import type { MfxState } from "./MfxPanel";
 import css from "./SnAcousticEditor.module.css";
 
@@ -208,52 +208,7 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
     return parseInstParams(raw);
   }, [categoryName]);
 
-  // ---------------------------------------------------------------------------
-  // MFX callbacks
-  // ---------------------------------------------------------------------------
-  const handleMfxTypeChange = useCallback(
-    (type_: number) => {
-      service.device.setMfxParam(partIndex, ToneType.SnAcoustic, 0x00, type_);
-      setMfx((prev) => prev ? { ...prev, mfxType: type_, params: [] } : prev);
-    },
-    [partIndex, service],
-  );
-
-  const handleMfxHeaderParam = useCallback(
-    (offset: number, value: number) => {
-      service.device.setMfxParam(partIndex, ToneType.SnAcoustic, offset, value);
-      setMfx((prev) => {
-        if (!prev) return prev;
-        const next = { ...prev, controls: [...prev.controls] };
-        if (offset === 0x02) next.chorusSend = value;
-        else if (offset === 0x03) next.reverbSend = value;
-        for (let s = 0; s < deviceSpec().mfx_control_count; s++) {
-          if (offset === 0x05 + s * 2) {
-            next.controls[s] = { ...next.controls[s]!, source: value };
-          } else if (offset === 0x06 + s * 2) {
-            next.controls[s] = { ...next.controls[s]!, sens: value };
-          } else if (offset === 0x0D + s) {
-            next.controls[s] = { ...next.controls[s]!, assign: value };
-          }
-        }
-        return next;
-      });
-    },
-    [partIndex, service],
-  );
-
-  const handleMfxNibParam = useCallback(
-    (paramIndex: number, value: number) => {
-      service.device.setMfxNibParam(partIndex, ToneType.SnAcoustic, paramIndex, value);
-      setMfx((prev) => {
-        if (!prev) return prev;
-        const params = [...prev.params];
-        params[paramIndex] = value;
-        return { ...prev, params };
-      });
-    },
-    [partIndex, service],
-  );
+  const mfxHandlers = useMfxHandlers(service, partIndex, ToneType.SnAcoustic, setMfx);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -284,9 +239,7 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
         {mfx && (
           <MfxPanel
             mfx={mfx}
-            onTypeChange={handleMfxTypeChange}
-            onHeaderParam={handleMfxHeaderParam}
-            onNibParam={handleMfxNibParam}
+            {...mfxHandlers}
           />
         )}
       </div>
