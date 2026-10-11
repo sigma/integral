@@ -107,6 +107,15 @@ impl DataSize {
     pub const fn value(&self) -> u32 {
         seven_bit(self.0)
     }
+
+    /// The size field for a byte count, or `None` past 28 bits.
+    pub fn from_value(n: u32) -> Option<Self> {
+        if n >> 28 != 0 {
+            return None;
+        }
+        let b = |shift: u32| ((n >> shift) & 0x7F) as u8;
+        Some(Self([b(21), b(14), b(7), b(0)]))
+    }
 }
 
 const fn seven_bit([a, b, c, d]: [u8; 4]) -> u32 {
@@ -174,6 +183,11 @@ mod tests {
         assert_eq!(DataSize::new(0x00, 0x00, 0x00, 0x0C).value(), 12);
         assert_eq!(DataSize::new(0x00, 0x00, 0x01, 0x00).value(), 128);
         assert_eq!(DataSize::new(0x00, 0x00, 0x7F, 0x7F).value(), 16383);
+        assert_eq!(
+            DataSize::from_value(145),
+            Some(DataSize::new(0, 0, 0x01, 0x11))
+        );
+        assert_eq!(DataSize::from_value(1 << 28), None);
         let mfx = Address::new(0x50, 0x00, 0x02, 0x00);
         assert_eq!(
             Address::new(0x50, 0x00, 0x02, 0x3D).value() - mfx.value(),

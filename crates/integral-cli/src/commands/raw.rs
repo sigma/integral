@@ -4,27 +4,62 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
+use integral_core::librarian::reader::{BlockData, BlockReader};
 use integral_core::sysex;
 
-use crate::hex::{format_hex, parse_hex_addr, parse_hex_bytes, parse_hex_size};
+use crate::hex::{format_hex, parse_hex_addr, parse_hex_bytes, parse_hex_size, parse_read_size};
 use crate::midi;
 
 /// Read raw bytes from a SysEx address.
+///
+/// Collects every DT1 packet of the reply within `timeout`, places each by
+/// its address, and fails if any byte is missing.
 pub fn raw_read(
     port_pattern: &str,
     timeout: Duration,
     device_id: u8,
     addr_hex: &str,
-    size_hex: &str,
+    size_arg: &str,
 ) -> Result<()> {
     let addr = parse_hex_addr(addr_hex)?;
-    let size = parse_hex_size(size_hex)?;
+    let size = parse_read_size(size_arg)?;
     let (_conn_in, mut conn_out, rx) = midi::open_midi(port_pattern)?;
 
-    let data = midi::request_data(&mut conn_out, &rx, device_id, &addr, &size, timeout)?;
+    let mut reader = BlockReader::new(device_id, [(addr, size)]);
+    let rq1 = reader.next_request().context("nothing to read")?;
+    eprintln!(
+        "Sending RQ1: addr={addr}, size={size} ({} bytes)",
+        size.value()
+    );
+    conn_out.send(&rq1).context("failed to send RQ1")?;
+
+    let deadline = std::time::Instant::now() + timeout;
+    while reader.is_waiting() {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        match rx.recv_timeout(remaining) {
+            Ok(msg) => {
+                if let Ok(dt1) = sysex::parse_dt1(&msg)
+                    && reader.on_dt1(&dt1.address, &dt1.data)
+                {
+                    eprintln!("  DT1 at {} ({} bytes)", dt1.address, dt1.data.len());
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => reader.on_timeout(),
+            Err(mpsc::RecvTimeoutError::Disconnected) => bail!("disconnected"),
+        }
+    }
+
+    let [read] = &reader.result()[..] else {
+        unreachable!("one block requested");
+    };
+    let (data, missing) = match &read.data {
+        BlockData::Complete(data) => (data, &[][..]),
+        BlockData::Gap { data, missing } => (data, &missing[..]),
+        BlockData::Timeout => bail!("no reply at {addr}"),
+    };
 
     // Print as hex
-    println!("Hex:   {}", format_hex(&data, " "));
+    println!("Hex:   {}", format_hex(data, " "));
 
     // Print as ASCII (printable chars only)
     let ascii: String = data
@@ -39,6 +74,16 @@ pub fn raw_read(
         .collect();
     println!("ASCII: {ascii}");
 
+    if !missing.is_empty() {
+        let gaps: Vec<String> = missing
+            .iter()
+            .map(|r| format!("{}..{}", r.start, r.end))
+            .collect();
+        bail!(
+            "incomplete reply: byte ranges {} missing (shown as 00)",
+            gaps.join(", ")
+        );
+    }
     Ok(())
 }
 

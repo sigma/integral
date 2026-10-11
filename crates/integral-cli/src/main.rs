@@ -78,7 +78,8 @@ enum Cli {
         timeout: f64,
         /// 4-byte hex address (e.g. 10000000)
         addr: String,
-        /// Hex size to read (e.g. 10 for 16 bytes)
+        /// Size to read: a decimal byte count (e.g. 145), or the 7-bit
+        /// SysEx size field as 8 hex digits (e.g. 00000111 = 145 bytes)
         size: String,
         /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
         #[arg(long, value_parser = parse_device_id)]

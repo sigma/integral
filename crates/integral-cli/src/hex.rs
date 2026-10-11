@@ -1,6 +1,6 @@
 //! Hex parsing and formatting utilities for CLI arguments and output.
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use integral_core::address::{Address, DataSize};
 
 /// Parse a hex string into a 4-byte SysEx address.
@@ -33,6 +33,24 @@ pub fn parse_hex_size(s: &str) -> Result<DataSize> {
         ((bytes >> 8) & 0xFF) as u8,
         (bytes & 0xFF) as u8,
     ))
+}
+
+/// Parse a read size: 8 hex digits are the 7-bit SysEx size field, written
+/// like an address (`00000111` = 145 bytes); anything else is a decimal byte
+/// count (`145`).
+pub fn parse_read_size(s: &str) -> Result<DataSize> {
+    if s.len() == 8 {
+        let size = parse_hex_size(s)?;
+        ensure!(
+            size.as_bytes().iter().all(|&b| b < 0x80),
+            "SysEx size bytes must be 00-7F"
+        );
+        return Ok(size);
+    }
+    let n = s
+        .parse()
+        .context("expected a decimal byte count or 8 hex digits")?;
+    DataSize::from_value(n).context("size too large")
 }
 
 /// Parse a hex string into a vector of bytes.
@@ -72,6 +90,16 @@ mod tests {
         assert_eq!(format_hex(&[0xF0, 0x0A, 0x7F], " "), "F0 0A 7F");
         assert_eq!(format_hex(&[0x5F, 0x01], ", "), "5F, 01");
         assert_eq!(format_hex(&[], " "), "");
+    }
+
+    #[test]
+    fn parses_read_sizes() {
+        let mfx = DataSize::new(0x00, 0x00, 0x01, 0x11);
+        assert_eq!(parse_read_size("145").unwrap(), mfx);
+        assert_eq!(parse_read_size("00000111").unwrap(), mfx);
+        assert_eq!(parse_read_size("111").unwrap().value(), 111);
+        assert!(parse_read_size("00000091").is_err());
+        assert!(parse_read_size("0x91").is_err());
     }
 
     #[test]
