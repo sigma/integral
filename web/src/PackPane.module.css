@@ -287,6 +287,14 @@
   border-radius: 8px;
 }
 
+/* The model a Foreign patch was made on */
+
+.source {
+  font-size: 10px;
+  color: #888;
+  white-space: nowrap;
+}
+
 /* A clean conversion that leaves settings to the Studio Set */
 
 .notes {

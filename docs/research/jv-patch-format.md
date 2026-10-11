@@ -165,7 +165,7 @@ same raw range and meaning.
 | `1E`, `20` | EFX Control Depth 1/2 (0–126 = ±63) | MFX `06`, `08` Control Sens | `i = v + 1` |
 | — | (EFX control destination is fixed per type) | MFX `0D`–`10` Control Assign | from the EFX type (#196) |
 | `21`–`26` | Chorus Level, Rate, Depth, Pre-Delay, Feedback, Output | — | **none** in a tone; Studio Set Chorus (#196) |
-| `27`–`2B` | Reverb Type, Level, Time, HF Damp (0–17: 200–8000 Hz, BYPASS, the `FREQ_BYPASS` list of [`fx-param-layout.md`](fx-param-layout.md)), Delay Feedback | — | **none** in a tone; Studio Set Reverb (#196) |
+| `27`–`2B` | Reverb Type, Level, Time, HF Damp (0–17: 200, 250, 315 … 6300, 8000 Hz, BYPASS, per P1's Patch Common table, PDF p. 151; the same list as `FREQ_BYPASS` in [`fx-param-layout.md`](fx-param-layout.md)), Delay Feedback | — | **none** in a tone; Studio Set Reverb (#196) |
 | `2C`–`2D`# | Patch Tempo (20–250) | — | **none** (tempo belongs to the Studio Set) |
 | `2E` | Patch Level | C `0E` Tone Level | identical |
 | `2F` | Patch Pan | C `0F` Tone Pan | identical |

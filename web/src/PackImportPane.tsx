@@ -165,6 +165,7 @@ export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onF
                         />
                       }
                     >
+                      {entry.source && <span className={css.source}>{entry.source}</span>}
                       {entry.report.length > 0 && (
                         <button
                           className={entry.lossy > 0 ? css.lossy : css.notes}

@@ -61,6 +61,16 @@ struct Counted<T> {
     count: usize,
 }
 
+/// The clean and lossy entries made on one source model.
+#[derive(Debug, Serialize)]
+struct ModelCount {
+    /// The model, or `None` when the bytes don't tell.
+    model: Option<SourceModel>,
+    entries: usize,
+    clean: usize,
+    lossy: usize,
+}
+
 /// The totals over every file read.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -76,6 +86,8 @@ struct Totals {
     rejected: usize,
     /// Clean entries out of all entries, or `None` without entries.
     clean_percent: Option<f64>,
+    /// Entries per source model, in model order, the unknown last.
+    models: Vec<ModelCount>,
     /// The top unmapped Waves, by the number of partials using them.
     unmapped_waves: Vec<Counted<ForeignWave>>,
     /// The top dropped effects, by the number of tones using them.
@@ -198,6 +210,29 @@ fn totals(files: &[FileCheck], skipped: &[PathError], unreadable: usize, top: us
     let mut waves = HashMap::new();
     let mut effects = HashMap::new();
     let mut kinds = HashMap::new();
+    let mut models: Vec<ModelCount> = Vec::new();
+    for tone in files.iter().flat_map(|f| &f.tones) {
+        let at = match models.iter().position(|m| m.model == tone.source) {
+            Some(at) => at,
+            None => {
+                models.push(ModelCount {
+                    model: tone.source,
+                    entries: 0,
+                    clean: 0,
+                    lossy: 0,
+                });
+                models.len() - 1
+            }
+        };
+        let m = &mut models[at];
+        m.entries += 1;
+        if lossy_count(&tone.report) == 0 {
+            m.clean += 1;
+        } else {
+            m.lossy += 1;
+        }
+    }
+    models.sort_by_key(|m| (m.model.is_none(), m.model));
     for item in files.iter().flat_map(|f| &f.tones).flat_map(|t| &t.report) {
         *kinds.entry(kind(item)).or_default() += 1;
         match item {
@@ -222,6 +257,7 @@ fn totals(files: &[FileCheck], skipped: &[PathError], unreadable: usize, top: us
         lossy: entries - clean,
         rejected: sum(|f| f.rejected),
         clean_percent: (entries > 0).then(|| 100.0 * clean as f64 / entries as f64),
+        models,
         unmapped_waves: ranked(waves, ToString::to_string, top),
         dropped_effects: ranked(effects, ToString::to_string, top),
         item_kinds: ranked(kinds, Clone::clone, usize::MAX),
@@ -313,6 +349,16 @@ fn render_text(check: &Check) -> String {
         "Entries: {}, clean {} ({percent}), lossy {}; rejected {}",
         t.entries, t.clean, t.lossy, t.rejected
     );
+    for m in &t.models {
+        let model = m
+            .model
+            .map_or_else(|| "unknown model".to_owned(), |m| m.to_string());
+        let _ = writeln!(
+            out,
+            "{:>7}  {model}: clean {}, lossy {}",
+            m.entries, m.clean, m.lossy
+        );
+    }
     render_ranked(
         &mut out,
         "Top unmapped Waves (partials)",

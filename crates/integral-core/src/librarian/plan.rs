@@ -26,7 +26,7 @@ use crate::expansion_slots::ExpansionSlots;
 use crate::expansions::{Expansion, expansion_of_bank};
 use crate::svd::ChunkType;
 
-use super::foreign::{ConversionItem, FileItem, PackRead};
+use super::foreign::{ConversionItem, FileItem, PackRead, SourceModel};
 use super::pack::{Pack, ToneRef, user_memory};
 
 /// What kind of file a [`Pack`] was read from.
@@ -200,6 +200,8 @@ pub struct ImportPlan {
     pack_refs: Vec<(Warning, usize)>,
     /// Each entry's Conversion report.
     reports: Vec<Vec<ConversionItem>>,
+    /// The model each entry was made on, when its bytes tell.
+    sources: Vec<Option<SourceModel>>,
     /// What the file held that is not in the Pack.
     file_report: Vec<FileItem>,
 }
@@ -298,6 +300,7 @@ pub fn plan_import(
         warnings,
         pack_refs,
         reports: vec![Vec::new(); pack.entries.len()],
+        sources: vec![None; pack.entries.len()],
         file_report: Vec::new(),
     };
     if single {
@@ -321,6 +324,8 @@ pub fn plan_read(
     let mut plan = plan_import(&read.pack, origin, slot_names, loaded);
     plan.reports.clone_from(&read.reports);
     plan.reports.resize(read.pack.entries.len(), Vec::new());
+    plan.sources.clone_from(&read.sources);
+    plan.sources.resize(read.pack.entries.len(), None);
     plan.file_report.clone_from(&read.file_report);
     plan
 }
@@ -375,6 +380,11 @@ impl ImportPlan {
     /// out of range.
     pub fn report(&self, entry: usize) -> &[ConversionItem] {
         self.reports.get(entry).map_or(&[], Vec::as_slice)
+    }
+
+    /// The model `entry` was made on, when its bytes tell.
+    pub fn source(&self, entry: usize) -> Option<SourceModel> {
+        self.sources.get(entry).copied().flatten()
     }
 
     /// What the file held that is not in the Pack.
@@ -801,6 +811,14 @@ mod tests {
         assert!(!plan.report(0).is_empty());
         assert_eq!(plan.report(1), []);
         assert_eq!(plan.file_report(), [FileItem::Unreadable]);
+        assert_eq!(plan.source(0), None);
+
+        read.sources[0] = Some(SourceModel::Xp);
+        let plan = plan_read(&read, Origin::Sound, &[], None);
+        assert_eq!(
+            (plan.source(0), plan.source(1)),
+            (Some(SourceModel::Xp), None)
+        );
 
         let plain = plan_import(&read.pack, Origin::Sound, &[], None);
         assert_eq!((plain.report(0), plain.file_report()), (&[][..], &[][..]));

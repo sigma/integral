@@ -76,6 +76,14 @@ fn totals_the_fixtures_and_skips_what_is_not_a_pack() {
             (json!(1), json!(1), json!(0))
         ]
     );
+    // Clean and lossy per source model, the unknown (XV) last.
+    assert_eq!(
+        totals["models"],
+        json!([
+            { "model": "jv1080", "entries": 4, "clean": 2, "lossy": 2 },
+            { "model": null, "entries": 1, "clean": 0, "lossy": 1 },
+        ])
+    );
     // A JV Patch tells its model; an XV one doesn't.
     assert_eq!(files[0]["tones"][0]["source"], "jv1080");
     let united = &files[1]["tones"][0];
@@ -104,6 +112,10 @@ fn prints_files_and_totals_as_text() {
         "{text}"
     );
     assert!(text.contains("      1  MFX type 6\n"), "{text}");
+    assert!(
+        text.contains("      1  unknown model: clean 0, lossy 1\n"),
+        "{text}"
+    );
 }
 
 #[test]

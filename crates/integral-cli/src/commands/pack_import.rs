@@ -288,6 +288,9 @@ impl Report<'_> {
             if let Some(name) = self.overwritten(i) {
                 line += &format!(" (overwrites \"{name}\")");
             }
+            if let Some(model) = self.plan.source(i) {
+                line += &format!(" ({model})");
+            }
             let report = self.plan.report(i);
             let lossy = lossy_count(report);
             if lossy > 0 {
@@ -347,6 +350,7 @@ impl Report<'_> {
                     "name": e.name(),
                     "destination": destination,
                     "overwrites": self.overwritten(i),
+                    "source": self.plan.source(i),
                     "status": self.statuses.as_ref().map(|s| status_name(s[i])),
                     "report": report_json(self.plan.report(i)),
                 })
@@ -622,6 +626,7 @@ pub fn import(
 #[cfg(test)]
 mod tests {
     use clap::Parser;
+    use integral_core::librarian::foreign::SourceModel;
     use integral_core::librarian::pack::PackEntry;
 
     use super::*;
@@ -830,6 +835,22 @@ mod tests {
              \x20     Reverb SRV HALL, level 127 not applied; set it in the Studio Set\n\
              Warning: 1 other message skipped\n"
         );
+    }
+
+    #[test]
+    fn text_plan_names_the_source_model() {
+        let mut read = Pack::read(UNITED).unwrap();
+        read.sources[0] = Some(SourceModel::Jv1080);
+        let plan = plan(&read, &[], None, &opts(&[]).unwrap()).unwrap();
+        let report = united_report(&read, &plan);
+        assert!(
+            report
+                .text_plan()
+                .contains("United !         -> Temporary Part 1 (JV-1080) [lossy · 1]\n"),
+            "{}",
+            report.text_plan()
+        );
+        assert_eq!(report.json("dry-run")["entries"][0]["source"], "jv1080");
     }
 
     /// A message no reader takes: a Universal Identity Request.

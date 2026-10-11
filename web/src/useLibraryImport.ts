@@ -48,6 +48,8 @@ export interface ImportEntry {
   report: string[];
   /** How many of its report items are lossy: 0 when clean. */
   lossy: number;
+  /** The model a Foreign patch was made on, when its bytes tell. */
+  source: string | null;
 }
 
 /** A non-free User slot the import will overwrite. */
@@ -122,6 +124,8 @@ interface Opened {
   reports: string[][];
   /** Lossy items per Conversion report, indexed like `entries`. */
   lossy: Uint32Array;
+  /** Source models, indexed like `entries`. */
+  sources: (string | null)[];
   fileReport: string[];
 }
 
@@ -246,6 +250,7 @@ export function useLibraryImport(
             label: pack.label,
             reports: plan.reports(),
             lossy: plan.lossyCounts(),
+            sources: plan.sources(),
             fileReport: plan.fileReport(),
           }),
         )
@@ -302,6 +307,7 @@ export function useLibraryImport(
               placement: view.placements[index] ?? "unplaced",
               report: opened.reports[index] ?? [],
               lossy: opened.lossy[index] ?? 0,
+              source: opened.sources[index] ?? null,
             };
           })
         : [],

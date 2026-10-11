@@ -31,7 +31,7 @@ const NOT_APPLIED = ["Tempo 90 not applied; set it in the Studio Set"];
  * one: all go to User slots. */
 function entries(): ImportEntry[] {
   const type = libraryType("pcm-synth");
-  const entry = (index: number, name: string, report: string[], lossy: number): ImportEntry => ({
+  const entry = (index: number, name: string, report: string[], lossy: number, source: string | null = null): ImportEntry => ({
     index,
     info: { kind: type.kind, index, name, toneRefs: [] },
     type,
@@ -39,8 +39,9 @@ function entries(): ImportEntry[] {
     placement: { user: index },
     report,
     lossy,
+    source,
   });
-  return [entry(0, "United !", REPORT, 1), entry(1, "Tempo", NOT_APPLIED, 0), entry(2, "Clean", [], 0)];
+  return [entry(0, "United !", REPORT, 1), entry(1, "Tempo", NOT_APPLIED, 0, "JV-1080"), entry(2, "Clean", [], 0)];
 }
 
 function noop(): void {}
@@ -117,6 +118,12 @@ describe("PackImportPane", () => {
     const { container } = render(<Opened warnings={[]} />);
     click(button(container, "notes · 1"));
     expect(reportItems(container)).toEqual(NOT_APPLIED);
+  });
+
+  it("names the model a Foreign patch was made on", () => {
+    const { container } = render(<Opened warnings={[]} />);
+    const sources = [...container.querySelectorAll("span")].filter((s) => s.className.includes("source"));
+    expect(sources.map((s) => s.textContent)).toEqual(["JV-1080"]);
   });
 
   it("keeps lossy entries included", () => {

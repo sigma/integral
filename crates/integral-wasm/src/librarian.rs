@@ -88,6 +88,9 @@ extern "C" {
     /// `string[][]`: messages per entry.
     #[wasm_bindgen(typescript_type = "string[][]")]
     pub type ConversionReports;
+    /// `(string | null)[]`: the source model per entry.
+    #[wasm_bindgen(typescript_type = "(string | null)[]")]
+    pub type SourceModels;
     /// `ImportWarning[]`.
     #[wasm_bindgen(typescript_type = "ImportWarning[]")]
     pub type ImportWarnings;
@@ -321,6 +324,15 @@ impl WasmImportPlan {
         (0..self.inner.placements().len())
             .map(|i| lossy_count(self.inner.report(i)) as u32)
             .collect()
+    }
+
+    /// The model each entry was made on, by name, indexed like the Pack's
+    /// entries: `null` when its bytes don't tell.
+    pub fn sources(&self) -> Result<SourceModels, JsError> {
+        let sources: Vec<Option<String>> = (0..self.inner.placements().len())
+            .map(|i| self.inner.source(i).map(|m| m.to_string()))
+            .collect();
+        to_js(&sources)
     }
 
     /// What the file held that is not in the Pack, one message per item.

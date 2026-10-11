@@ -178,7 +178,7 @@ impl fmt::Display for ForeignEffect {
 }
 
 /// The model a Foreign Patch was made on, when its bytes tell.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub enum SourceModel {
@@ -188,6 +188,16 @@ pub enum SourceModel {
     Xp,
     /// JV-2080, JV-1010 or XP-30.
     Jv2080,
+}
+
+impl fmt::Display for SourceModel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Jv1080 => "JV-1080",
+            Self::Xp => "XP-50/60/80",
+            Self::Jv2080 => "JV-2080/1010, XP-30",
+        })
+    }
 }
 
 /// The Conversion report of one Pack entry: always empty for a native
@@ -344,6 +354,13 @@ mod tests {
                 "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
             ]
         );
+    }
+
+    #[test]
+    fn source_models_read_as_their_names() {
+        let names =
+            [SourceModel::Jv1080, SourceModel::Xp, SourceModel::Jv2080].map(|m| m.to_string());
+        assert_eq!(names, ["JV-1080", "XP-50/60/80", "JV-2080/1010, XP-30"]);
     }
 
     #[test]
