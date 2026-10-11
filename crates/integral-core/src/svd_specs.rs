@@ -6,6 +6,8 @@
 //!
 //! Reference: `docs/svd/02-encoding.md`, `docs/svd/03-sn-synth.md`
 
+use crate::svd::ChunkType;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -103,6 +105,8 @@ impl SvdSection {
 /// Full tone type specification for SVD encoding.
 #[derive(Debug, Clone)]
 pub struct SvdToneSpec {
+    /// The chunk type whose entries this spec encodes.
+    pub kind: ChunkType,
     /// Sections in SVD packing order. Each section is independently
     /// byte-aligned in the SVD entry.
     pub sections: &'static [SvdSection],
@@ -525,6 +529,7 @@ static SNS_SECTIONS: [SvdSection; 5] = [
 
 /// Complete SN Synth Tone SVD specification.
 pub static SNS_TONE_SPEC: SvdToneSpec = SvdToneSpec {
+    kind: ChunkType::SnSynthTone,
     sections: &SNS_SECTIONS,
     entry_size: 280,
     // Bytes 246–251 of every INIT TONE (`docs/svd/03-sn-synth.md`).
@@ -648,6 +653,7 @@ static SNA_SECTIONS: [SvdSection; 2] = [
 
 /// Complete SN Acoustic Tone SVD specification.
 pub static SNA_TONE_SPEC: SvdToneSpec = SvdToneSpec {
+    kind: ChunkType::SnAcousticTone,
     sections: &SNA_SECTIONS,
     entry_size: 138,
     init_tail: &[],
@@ -928,6 +934,7 @@ static SS_SECTIONS: [SvdSection; 53] = {
 
 /// Complete Studio Set SVD specification.
 pub static SS_TONE_SPEC: SvdToneSpec = SvdToneSpec {
+    kind: ChunkType::StudioSet,
     sections: &SS_SECTIONS,
     entry_size: 1068,
     init_tail: &[],
@@ -1105,6 +1112,7 @@ static SND_SECTIONS: [SvdSection; 65] = {
 
 /// Complete SN Drum Kit SVD specification.
 pub static SND_TONE_SPEC: SvdToneSpec = SvdToneSpec {
+    kind: ChunkType::SnDrumKit,
     sections: &SND_SECTIONS,
     entry_size: 1006,
     init_tail: &[],
@@ -1463,6 +1471,7 @@ static PCMS_SECTIONS: [SvdSection; 8] = {
 
 /// Complete PCM Synth Tone SVD specification.
 pub static PCMS_TONE_SPEC: SvdToneSpec = SvdToneSpec {
+    kind: ChunkType::PcmSynthTone,
     sections: &PCMS_SECTIONS,
     entry_size: 590,
     init_tail: &[],
@@ -1716,6 +1725,7 @@ static PCMD_SECTIONS: [SvdSection; 92] = {
 
 /// Complete PCM Drum Kit SVD specification.
 pub static PCMD_TONE_SPEC: SvdToneSpec = SvdToneSpec {
+    kind: ChunkType::PcmDrumKit,
     sections: &PCMD_SECTIONS,
     entry_size: 10890,
     init_tail: &[],

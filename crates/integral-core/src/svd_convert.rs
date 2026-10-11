@@ -6,6 +6,7 @@
 //! Reference: `docs/svd/02-encoding.md`
 
 use crate::bitstream::{BitReader, BitReaderError, BitWriter};
+use crate::svd::ChunkType;
 use crate::svd_specs::{ParamBits, SvdSection, SvdToneSpec};
 use thiserror::Error;
 
@@ -23,6 +24,17 @@ pub enum ConvertError {
         expected: usize,
         /// Actual entry size.
         actual: usize,
+    },
+
+    /// The spec's sections take more bytes than its entry holds.
+    #[error("{kind} spec sections take {data} bytes, more than its {entry}-byte entry")]
+    SpecOverflow {
+        /// The chunk type of the spec.
+        kind: ChunkType,
+        /// Sum of the spec's section sizes.
+        data: usize,
+        /// Entry size of the spec.
+        entry: usize,
     },
 
     /// Bit reading failed.
@@ -101,6 +113,13 @@ pub fn svd_to_sysex(entry: &[u8], spec: &SvdToneSpec) -> Result<Vec<Vec<u8>>, Co
         return Err(ConvertError::EntryTooShort {
             expected: spec.entry_size,
             actual: entry.len(),
+        });
+    }
+    if spec.data_bytes() > spec.entry_size {
+        return Err(ConvertError::SpecOverflow {
+            kind: spec.kind,
+            data: spec.data_bytes(),
+            entry: spec.entry_size,
         });
     }
 
@@ -211,7 +230,7 @@ pub fn split_common_mfx(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::svd::SvdFile;
+    use crate::svd::{ChunkType, SvdFile};
     use crate::svd_specs::{
         MFX_PARAMS, PCMD_TONE_SPEC, PCMS_TONE_SPEC, SNA_TONE_SPEC, SND_TONE_SPEC, SNS_TONE_SPEC,
         SS_TONE_SPEC,
@@ -257,6 +276,22 @@ mod tests {
         for (i, (value, range)) in values.iter().zip(ranges).enumerate() {
             assert!(range.contains(value), "param {i}: {value} not in {range:?}");
         }
+    }
+
+    #[test]
+    fn spec_larger_than_entry_is_an_error() {
+        // SN-S sections (246 bytes) declared for a 138-byte SN-A entry.
+        let spec = SvdToneSpec {
+            kind: ChunkType::SnAcousticTone,
+            sections: SNS_TONE_SPEC.sections,
+            entry_size: 138,
+            init_tail: &[],
+        };
+        let err = svd_to_sysex(&[0; 138], &spec).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "SN Acoustic Tone spec sections take 246 bytes, more than its 138-byte entry"
+        );
     }
 
     /// Load the test SVD fixture (3 SN-S patches).
