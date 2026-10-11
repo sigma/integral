@@ -8,7 +8,7 @@ import {
   FaderGroup,
   FaderGroupSep,
 } from "../synth-ui";
-import { SnsPartialField } from "../../pkg/integral_wasm.js";
+import { SnsPartialField, sns_osc_wave_pcm } from "../../pkg/integral_wasm.js";
 import css from "../SnSynthEditor.module.css";
 import type { PartialParamHandler, SnSynthPartial } from "./types";
 import { WavePicker } from "../WavePicker";
@@ -120,7 +120,7 @@ function OscPanel({
   onChange: PartialParamHandler;
 }) {
   const hasVariation = partial.oscWave <= 5; // SAW..NOISE
-  const isPcm = partial.oscWave === 7;
+  const isPcm = partial.oscWave === sns_osc_wave_pcm();
   const isSuperSaw = partial.oscWave === 6;
 
   return (

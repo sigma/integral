@@ -1559,6 +1559,12 @@ pub fn sns_partial_switch_field(partial: u8) -> Result<SnsCommonField, JsError> 
     Ok(sn_synth::SnsCommonField::PARTIAL_SWITCHES[partial as usize].into())
 }
 
+/// The SN Synth Partial OSC Wave value that selects a PCM Wave.
+#[wasm_bindgen]
+pub fn sns_osc_wave_pcm() -> u8 {
+    sn_synth::OSC_WAVE_PCM
+}
+
 /// Returns the address of part `part_index`'s SN Synth MFX block.
 #[wasm_bindgen]
 pub fn sns_mfx_address(part_index: u8) -> Vec<u8> {

@@ -11,7 +11,9 @@ use std::time::Duration;
 use integral_core::device::DeviceState;
 use integral_core::device_spec::INTEGRA7;
 use integral_core::params::{ToneType, tone_type_from_bank_msb};
-use integral_core::sn_synth::{SnSynthCommon, SnSynthPartial, SnsCommonField, SnsPartialField};
+use integral_core::sn_synth::{
+    self, SnSynthCommon, SnSynthPartial, SnsCommonField, SnsPartialField,
+};
 use integral_core::tone_banks::{find_bank, group_of, user_bank_for};
 use integral_core::waves::WaveGroup;
 use nih_plug_vizia::vizia::prelude::*;
@@ -36,7 +38,7 @@ const NUM_SNS_PARTIALS: usize = INTEGRA7.sn_synth_partial_count as usize;
 const SNS_OSC_WAVE_NAMES: &[&str] = &["SAW", "SQR", "PWSQ", "TRI", "SIN", "NSE", "SSAW", "PCM"];
 
 /// OSC Wave value selecting a PCM Wave (index of "PCM" in [`SNS_OSC_WAVE_NAMES`]).
-const SNS_OSC_WAVE_PCM: usize = 7;
+const SNS_OSC_WAVE_PCM: usize = sn_synth::OSC_WAVE_PCM as usize;
 
 /// SN-S filter mode names (indexed by Filter Mode value 0-7).
 const SNS_FILTER_MODE_NAMES: &[&str] = &["BYP", "LPF", "HPF", "BPF", "PKG", "LP2", "LP3", "LP4"];
