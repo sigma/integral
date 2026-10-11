@@ -1,3 +1,4 @@
+import { deviceSpec } from "./deviceSpec";
 import css from "./PartSelector.module.css";
 
 interface Props {
@@ -8,7 +9,7 @@ interface Props {
 export function PartSelector({ selectedPart, onSelect }: Props) {
   return (
     <div className={css.container}>
-      {Array.from({ length: 16 }, (_, i) => (
+      {Array.from({ length: deviceSpec().part_count }, (_, i) => (
         <button
           key={i}
           className={`${css.tab} ${i === selectedPart ? css.active : ""}`}
