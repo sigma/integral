@@ -65,3 +65,23 @@ _Avoid_: Patch, program
 A User slot whose name is its type's INIT name. An import fills free slots
 first and never overwrites another slot without the user choosing it.
 _Avoid_: Empty slot (a slot always holds something)
+
+## Expansions
+
+**Expansion**:
+One of the sound libraries stored inside the device (SRX-01 to SRX-12, ExSN1
+to ExSN6, ExPCM). Its tones and waves play only while it is loaded.
+_Avoid_: Board, card, expansion pack (a Pack is a Librarian file), SRX as the
+generic word
+
+**Expansion slot**:
+One of the four places, A to D, that an Expansion is loaded into. Most
+Expansions take one Expansion slot; ExPCM takes all four. An Expansion is in
+at most one Expansion slot at a time.
+_Avoid_: Virtual slot, slot on its own (that reads as User slot)
+
+**Loaded**:
+Said of an Expansion that sits in an Expansion slot. Loading puts it there
+and unloads whatever it replaces. Tones of an Expansion that is not loaded
+play silence.
+_Avoid_: Installed, enabled, active (every Expansion is always installed)
