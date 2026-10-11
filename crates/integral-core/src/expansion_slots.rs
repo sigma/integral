@@ -154,6 +154,18 @@ mod tests {
         }
     }
 
+    /// The device accepts and reads back the same Expansion in two slots
+    /// (docs/midi/99-undocumented.md §5); staging it elsewhere clears both.
+    #[test]
+    fn parses_duplicate_read_back() {
+        let slots = ExpansionSlots::from_values(&[0x03, 0x03, 0x05, 0x07]).unwrap();
+        assert_eq!(names(slots), ["SRX-03", "SRX-03", "SRX-05", "SRX-07"]);
+        assert_eq!(
+            names(slots.with(3, expansions::by_name("SRX-03"))),
+            ["OFF", "OFF", "SRX-05", "SRX-03"]
+        );
+    }
+
     #[test]
     fn parses_off_slots() {
         let slots = ExpansionSlots::from_values(&[0x00, 0x0D, 0x00, 0x12]).unwrap();
