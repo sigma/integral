@@ -7,6 +7,7 @@
  * - RQ1 request/response pairing (async Promises)
  * - Catalog query handlers (event-driven with timeouts)
  * - The drain loop (polls Rust queue via setInterval)
+ * - Timers driving the Rust Expansion load machine
  */
 
 import {
@@ -43,6 +44,9 @@ import {
   build_studio_set_write_request,
   parse_write_reply,
   decode_nib_params,
+  expansionSlotsAddress,
+  LoadActionKind,
+  LoadOutcomeKind,
   WasmDeviceState,
   type WriteReply,
 } from "../pkg/integral_wasm.js";
@@ -77,10 +81,24 @@ const REQUEST_TIMEOUT_MS = 2000;
 /** Maximum number of automatic retries for timed-out RQ1 requests. */
 const MAX_RETRIES = 2;
 
+/**
+ * How long a sent slot read waits for its answer before the Expansion slots
+ * become unknown (ms). An idle device answers within ~100 ms; one busy
+ * loading answers nothing until done, which unknown state reflects.
+ */
+const SLOT_READ_TIMEOUT_MS = 2000;
+
 /** Drain loop interval (ms). */
 const DRAIN_INTERVAL_MS = 5;
 
 type Dt1Callback = (address: Uint8Array, data: Uint8Array) => void;
+
+/** How an Expansion load ended. */
+export interface ExpansionLoadResult {
+  outcome: LoadOutcomeKind;
+  /** Slot values A–D read back (`Loaded`, `Failed`), else null. */
+  slots: Uint8Array | null;
+}
 
 interface PendingRequest {
   addressKey: string;
@@ -98,6 +116,10 @@ export class IntegraService {
   private dt1Listeners: Set<Dt1Callback> = new Set();
   /** Whether a user-memory write is awaiting its "finished" reply. */
   private writing = false;
+  /** The slot read awaiting its answer, shared by concurrent callers. */
+  private slotRead: Promise<Uint8Array | null> | null = null;
+  /** The queued slot read request, and what to do once it is sent. */
+  private slotReadPending: { bytes: Uint8Array; onSent: () => void } | null = null;
   private pendingRequests: PendingRequest[] = [];
   private boundHandler: (event: MIDIMessageEvent) => void;
   private drainTimer: ReturnType<typeof setInterval>;
@@ -138,10 +160,18 @@ export class IntegraService {
   private drainRust(): void {
     const now = performance.now();
     const msg = this.device.drain(now);
-    if (msg) {
-      console.log(`[midi-out] ${Array.from(msg).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
-      this.port.output.send(msg);
+    if (!msg) return;
+    this.sendSysex(msg);
+    const pending = this.slotReadPending;
+    if (pending && sameBytes(msg, pending.bytes)) {
+      this.slotReadPending = null;
+      pending.onSent();
     }
+  }
+
+  private sendSysex(msg: Uint8Array): void {
+    console.log(`[midi-out] ${Array.from(msg).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+    this.port.output.send(msg);
   }
 
   // -----------------------------------------------------------------------
@@ -233,7 +263,10 @@ export class IntegraService {
     }
 
     // Feed to Rust state machine (handles echo suppression internally).
-    this.device.handleDt1(addr, data, performance.now());
+    const now = performance.now();
+    if (!this.device.handleExpansionDt1(addr, data, now)) {
+      this.device.handleDt1(addr, data, now);
+    }
 
     // Notify TS-side DT1 listeners (for catalog handlers etc.).
     for (const cb of this.dt1Listeners) {
@@ -748,6 +781,9 @@ export class IntegraService {
     if (this.writing) {
       return Promise.reject(new Error("Another save is still in progress"));
     }
+    if (this.device.expansionLoadTarget()) {
+      return Promise.reject(new Error("An Expansion load is in progress"));
+    }
     this.writing = true;
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -771,6 +807,105 @@ export class IntegraService {
   }
 
   // -----------------------------------------------------------------------
+  // Expansion slots (undocumented — docs/midi/99-undocumented.md §5)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Read the loaded Expansion slots into the device state and resolve
+   * with their slot values A–D, or null if unknown. No answer within
+   * SLOT_READ_TIMEOUT_MS makes them unknown. During a load, sends nothing
+   * (the device is deaf; the load reads the slots itself) and resolves
+   * with the slots known before it.
+   */
+  readExpansionSlots(): Promise<Uint8Array | null> {
+    if (this.device.expansionLoadTarget()) {
+      return Promise.resolve(this.device.expansionSlots() ?? null);
+    }
+    if (this.slotRead) return this.slotRead;
+    const replyKey = addressKey(Array.from(expansionSlotsAddress()));
+    this.slotRead = new Promise<Uint8Array | null>((resolve) => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const unsubscribe = this.onDt1((addr) => {
+        if (addressKey(Array.from(addr)) !== replyKey) return;
+        clearTimeout(timer);
+        this.slotReadPending = null;
+        unsubscribe();
+        resolve(this.device.expansionSlots() ?? null);
+      });
+      const bytes = this.device.buildExpansionSlotsRequest();
+      // The wait starts when the request leaves the queue, not when queued:
+      // a busy queue (e.g. the initial mixer load) must not time it out.
+      this.slotReadPending = {
+        bytes,
+        onSent: () => {
+          timer = setTimeout(() => {
+            unsubscribe();
+            // A load started meanwhile owns the slots until it completes.
+            if (!this.device.expansionLoadTarget()) {
+              this.device.expansionSlotsTimedOut();
+            }
+            resolve(this.device.expansionSlots() ?? null);
+          }, SLOT_READ_TIMEOUT_MS);
+        },
+      };
+      this.device.sendRaw("expansion-slots", bytes);
+    }).finally(() => {
+      this.slotRead = null;
+    });
+    return this.slotRead;
+  }
+
+  /**
+   * Load `target` (slot values A–D) into the Expansion slots and resolve
+   * with how the load ended; a failed or timed-out load resolves too.
+   * The send queue holds from request to completion; the machine's own
+   * sends bypass it, paced by its waits. Rejects at once if the slots are
+   * unknown, `target` is invalid, or a save or another load is running.
+   */
+  loadExpansions(target: ArrayLike<number>): Promise<ExpansionLoadResult> {
+    if (this.writing) {
+      return Promise.reject(new Error("A save is still in progress"));
+    }
+    try {
+      this.device.startExpansionLoad(Uint8Array.from(target));
+    } catch (e) {
+      return Promise.reject(e instanceof Error ? e : new Error(String(e)));
+    }
+    return new Promise<ExpansionLoadResult>((resolve, reject) => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const step = (): void => {
+        clearTimeout(timer);
+        let action = this.device.nextLoadAction(performance.now());
+        while (
+          action?.kind === LoadActionKind.Send ||
+          action?.kind === LoadActionKind.Poll
+        ) {
+          this.sendSysex(action.bytes);
+          action.free();
+          action = this.device.nextLoadAction(performance.now());
+        }
+        if (action?.kind === LoadActionKind.Wait) {
+          timer = setTimeout(step, action.waitMs);
+          action.free();
+          return;
+        }
+        unsubscribe();
+        if (!action || action.outcome === undefined) {
+          action?.free();
+          reject(new Error("The Expansion load stopped unexpectedly"));
+          return;
+        }
+        const result = { outcome: action.outcome, slots: action.slots ?? null };
+        action.free();
+        resolve(result);
+      };
+      // Every DT1 may advance the load (ack, done, poll answer).
+      const unsubscribe = this.onDt1(() => step());
+      step();
+    });
+  }
+
+  // -----------------------------------------------------------------------
   // Standard MIDI messages (bypass queue — no throttle needed)
   // -----------------------------------------------------------------------
 
@@ -790,6 +925,10 @@ export class IntegraService {
   sendMidi(bytes: number[], timestamp?: number): void {
     this.port.output.send(bytes, timestamp);
   }
+}
+
+function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
 }
 
 function addressKey(address: number[]): string {

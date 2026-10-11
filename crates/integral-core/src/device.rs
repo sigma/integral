@@ -24,7 +24,7 @@ use std::collections::HashMap;
 use crate::address::Address;
 use thiserror::Error;
 
-use crate::expansion_load::{LoadAction, LoadMachine, LoadOutcome};
+use crate::expansion_load::{self, LoadAction, LoadMachine, LoadOutcome, LoadPlan};
 use crate::expansion_slots::{self, ExpansionSlots};
 use crate::expansions::Expansion;
 use crate::parse_helpers::encode_ascii_name;
@@ -114,6 +114,11 @@ impl DeviceState {
         self.expansion_slots.as_ref()
     }
 
+    /// Build the RQ1 that reads the Expansion slots.
+    pub fn build_expansion_slots_request(&self) -> Vec<u8> {
+        expansion_slots::build_read_request(self.device_id)
+    }
+
     /// Record the slots a slot read answered.
     pub fn set_expansion_slots(&mut self, slots: ExpansionSlots) {
         self.expansion_slots = Some(slots);
@@ -157,6 +162,19 @@ impl DeviceState {
         Ok(())
     }
 
+    /// What loading `target` over the current slots would change, given the
+    /// Parts' current tone banks.
+    pub fn plan_expansion_load(&self, target: &ExpansionSlots) -> Result<LoadPlan, LoadError> {
+        let current = self.expansion_slots.ok_or(LoadError::SlotsUnknown)?;
+        let part_banks: Vec<(u8, u8)> = self
+            .state
+            .parts
+            .iter()
+            .map(|p| (p.tone_bank_msb, p.tone_bank_lsb))
+            .collect();
+        Ok(expansion_load::plan(&current, target, &part_banks))
+    }
+
     /// The running load's target, if a load is running.
     pub fn expansion_load_target(&self) -> Option<&ExpansionSlots> {
         self.load.as_ref().map(LoadMachine::target)
@@ -167,8 +185,22 @@ impl DeviceState {
     /// `Send` and `Poll` bytes go out at once, bypassing the held queue.
     /// On `Done` the slots are updated (unknown after a timeout) and the
     /// queue is released.
+    ///
+    /// A `Send` or `Poll` due within the SysEx throttle of the previous
+    /// send is deferred: a `Wait` until the throttle elapses comes back
+    /// instead.
     pub fn next_load_action(&mut self, now_ms: f64) -> Option<LoadAction> {
-        let action = self.load.as_mut()?.next_action(now_ms);
+        let load = self.load.as_mut()?;
+        let mut next = load.clone();
+        let action = next.next_action(now_ms);
+        if let LoadAction::Send(_) | LoadAction::Poll(_) = action {
+            let since_send = now_ms - self.last_send_time;
+            if since_send < THROTTLE_MS {
+                return Some(LoadAction::Wait(THROTTLE_MS - since_send));
+            }
+            self.last_send_time = now_ms;
+        }
+        *load = next;
         if let LoadAction::Done(outcome) = action {
             self.load = None;
             match outcome {
@@ -1151,6 +1183,10 @@ mod tests {
         dev.expansion_slots_timed_out();
         assert_eq!(dev.is_loaded(srx03), None);
 
+        assert_eq!(
+            dev.build_expansion_slots_request(),
+            expansion_slots::build_read_request(0x10)
+        );
         let read = expansion_slots::SLOT_READ_ADDR;
         assert!(dev.handle_expansion_dt1(&read, &[0x03, 0x05, 0x07, 0x08], 0.0));
         assert_eq!(dev.expansion_slots(), Some(&slots));
@@ -1193,6 +1229,42 @@ mod tests {
         assert_eq!(dev.expansion_slots(), Some(&target));
         assert_eq!(dev.next_load_action(5_000.0), None);
         assert!(dev.drain(5_000.0).is_some(), "queue released");
+    }
+
+    #[test]
+    fn expansion_load_sends_respect_the_throttle() {
+        let mut dev = DeviceState::new(0x10);
+        let current = ExpansionSlots::from_values(&[0x03, 0x05, 0x07, 0x08]).unwrap();
+        dev.set_expansion_slots(current);
+        dev.set_part_level(0, 100);
+        assert!(dev.drain(1_000.0).is_some());
+        dev.start_expansion_load(current.with(0, None)).unwrap();
+        assert_eq!(
+            dev.next_load_action(1_010.0),
+            Some(LoadAction::Wait(THROTTLE_MS - 10.0))
+        );
+        assert!(matches!(
+            dev.next_load_action(1_000.0 + THROTTLE_MS),
+            Some(LoadAction::Send(_))
+        ));
+    }
+
+    #[test]
+    fn plan_expansion_load_uses_part_banks() {
+        let mut dev = DeviceState::new(0x10);
+        let current = ExpansionSlots::from_values(&[0x03, 0x05, 0x07, 0x08]).unwrap();
+        let target = current.with(0, None);
+        assert_eq!(
+            dev.plan_expansion_load(&target),
+            Err(LoadError::SlotsUnknown)
+        );
+        dev.set_expansion_slots(current);
+        // Part 2 on SRX-03 (MSB 93, LSB 2), which the load unloads.
+        dev.state_mut().parts[1].tone_bank_msb = 93;
+        dev.state_mut().parts[1].tone_bank_lsb = 2;
+        let plan = dev.plan_expansion_load(&target).unwrap();
+        assert_eq!(plan.changes.len(), 1);
+        assert_eq!(plan.silenced_parts, [2]);
     }
 
     #[test]

@@ -6,12 +6,14 @@ use integral_core::device::DeviceState;
 use integral_core::state::parse as state_parse;
 use integral_core::sysex;
 use integral_core::{
-    expansions, fx_params, mfx, mfx_params, param_registry, params, params::part, params::part_eq,
-    tone_banks, user_write,
+    fx_params, mfx, mfx_params, param_registry, params, params::part, params::part_eq, tone_banks,
+    user_write,
 };
 use wasm_bindgen::prelude::*;
 
+mod expansion;
 mod sequencer;
+pub use expansion::WasmExpansion;
 pub use sequencer::WasmSequencer;
 
 /// Maximum valid part index (0–15 for 16 parts).
@@ -751,34 +753,6 @@ pub fn encode_nib_param(value: i32) -> Vec<u8> {
 // ---------------------------------------------------------------------------
 // Tone bank definitions
 // ---------------------------------------------------------------------------
-
-/// An Expansion exposed to JS.
-#[wasm_bindgen]
-#[derive(Clone)]
-pub struct WasmExpansion {
-    name: String,
-    /// Value selecting this Expansion in a slot read or load.
-    #[wasm_bindgen(readonly, js_name = loadValue)]
-    pub load_value: u8,
-}
-
-impl From<&expansions::Expansion> for WasmExpansion {
-    fn from(e: &expansions::Expansion) -> Self {
-        Self {
-            name: e.name.to_string(),
-            load_value: e.load_value,
-        }
-    }
-}
-
-#[wasm_bindgen]
-impl WasmExpansion {
-    /// Display name (e.g. "SRX-05", "ExSN1", "ExPCM").
-    #[wasm_bindgen(getter)]
-    pub fn name(&self) -> String {
-        self.name.clone()
-    }
-}
 
 /// A tone bank exposed to JS.
 #[wasm_bindgen]
