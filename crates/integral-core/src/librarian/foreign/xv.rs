@@ -1,10 +1,25 @@
-//! XV series (Model ID `00 10`): where a DT1 lands.
+//! XV series (Model ID `00 10`): where a DT1 lands, and how a Patch
+//! converts into a PCM Synth tone.
 //!
-//! Reference: `docs/research/xv-patch-format.md` ("User and Temporary
-//! areas") and `docs/research/foreign-rhythm-format.md` (XV Rhythm Set).
+//! Every XV Patch is read as an XV-5080's, which also covers the original
+//! Fantom. The PCM Synth tone is the XV Patch with a few fields turned into
+//! reserves, so a Patch converts by copying its blocks byte for byte, then
+//! applying one fix row per field that is not identical.
+//!
+//! Reference: `docs/research/xv-patch-format.md` and its per-field
+//! `xv-patch-format.csv`, and `docs/research/foreign-rhythm-format.md` (XV
+//! Rhythm Set).
 
+use super::frame::{self, Frame};
+use super::pcm_tone::{self, Output, PcmTone};
+use super::report::{ConversionItem, ConversionReport};
+use super::wave_map::ForeignWaveGroup;
 use super::{Placed, Unit};
+use crate::address::Address;
 use crate::librarian::foreign::report::Skipped;
+use crate::librarian::pack::PackEntry;
+use crate::parse_helpers::{nibble2, nibble4};
+use crate::waves::WaveGroup;
 
 /// XV Model ID.
 pub(super) const MODEL: &[u8] = &[0x00, 0x10];
@@ -63,6 +78,328 @@ pub(super) fn place(address: [u8; 4]) -> Option<Placed> {
         },
         common: (block, c, d) == (0, 0, 0),
     })
+}
+
+/// A Patch block: its offset (address bytes 2 and 3) and size in bytes.
+type Block = ([u8; 2], usize);
+
+/// The 9 blocks of a Patch dump: Common, MFX, Chorus, Reverb, TMT and Tones
+/// 1–4. Split Key blocks (Multi-Partial Patches only) are left out.
+const BLOCKS: [Block; 9] = [
+    ([0x00, 0x00], 79),  // Patch Common, `00 00 00 4F`
+    ([0x02, 0x00], 145), // Patch Common MFX, `00 00 01 11`
+    ([0x04, 0x00], 52),  // Patch Common Chorus, `00 00 00 34`
+    ([0x06, 0x00], 83),  // Patch Common Reverb, `00 00 00 53`
+    ([0x10, 0x00], 41),  // Patch TMT, `00 00 00 29`
+    ([0x20, 0x00], 137), // Patch Tone 1, `00 00 01 09`
+    ([0x22, 0x00], 137), // Patch Tone 2
+    ([0x24, 0x00], 137), // Patch Tone 3
+    ([0x26, 0x00], 137), // Patch Tone 4
+];
+/// Index in [`BLOCKS`] of Patch Common.
+const COMMON: usize = 0;
+/// Index of Patch Common MFX.
+const MFX: usize = 1;
+/// Index of Patch Common Chorus.
+const CHORUS: usize = 2;
+/// Index of Patch Common Reverb.
+const REVERB: usize = 3;
+/// Index of Patch TMT.
+const TMT: usize = 4;
+/// Index of Patch Tone 1.
+const TONE_1: usize = 5;
+
+/// Common: Patch Category.
+const PATCH_CATEGORY: usize = 0x0C;
+/// Common: Tone Type, 4TONES or MULTI-PARTIAL.
+const TONE_TYPE: usize = 0x0D;
+/// Tone Type MULTI-PARTIAL.
+const MULTI_PARTIAL: u8 = 1;
+/// Common: Patch Clock Source, PATCH or SYSTEM.
+const CLOCK_SOURCE: usize = 0x1E;
+/// Clock Source PATCH: the Patch Tempo is used.
+const CLOCK_PATCH: u8 = 0;
+/// Common: Patch Tempo (2 nibbles).
+const PATCH_TEMPO: usize = 0x1F;
+/// Common: One Shot Mode.
+const ONE_SHOT_MODE: usize = 0x21;
+/// Common: Patch Output Assign.
+const PATCH_OUTPUT_ASSIGN: usize = 0x27;
+/// MFX: MFX Type.
+const MFX_TYPE: usize = 0x00;
+/// MFX: MFX Dry Send Level.
+const MFX_DRY_SEND: usize = 0x01;
+/// MFX: MFX Output Assign.
+const MFX_OUTPUT_ASSIGN: usize = 0x04;
+/// Chorus and Reverb: Type, then Level.
+const EFFECT_TYPE: usize = 0x00;
+/// Chorus and Reverb: Level.
+const EFFECT_LEVEL: usize = 0x01;
+/// Tone: Chorus and Reverb Send Level (MFX).
+const MFX_SENDS: [usize; 2] = [0x0D, 0x0E];
+/// Tone: Chorus and Reverb Send Level (non MFX).
+const MIX_SENDS: [usize; 2] = [0x0F, 0x10];
+/// Tone: Tone Output Assign.
+const TONE_OUTPUT_ASSIGN: usize = 0x11;
+/// Tone: Tone Receive Pan Mode, CONTINUOUS or KEY-ON.
+const RECEIVE_PAN_MODE: usize = 0x15;
+/// Tone: Wave Group Type, ID and Wave Numbers L and R (nibblized).
+const WAVE_GROUP_TYPE: usize = 0x27;
+/// Tone: Wave Group ID (4 nibbles).
+const WAVE_GROUP_ID: usize = 0x28;
+/// Tone: Wave Number L and R (4 nibbles each).
+const WAVE_NUMBERS: [usize; 2] = [0x2C, 0x30];
+
+/// Wave Group Types: INT-WAVE, SRJV80-EXP, SRX-EXP, SAMPLE.
+const WAVE_INT: u8 = 0;
+/// Wave Group Type SRJV80-EXP.
+const WAVE_SR_JV80: u8 = 1;
+/// Wave Group Type SRX-EXP.
+const WAVE_SRX: u8 = 2;
+
+/// Output Assign MFX; Patch Output Assign also has 13, TONE.
+const OUTPUT_MFX: u8 = 0;
+/// Patch Output Assign TONE: each Tone's own.
+const OUTPUT_TONE: u8 = 13;
+/// Output Assign values, as the XV-5080 names them.
+const OUTPUTS: [&str; 14] = [
+    "MFX", "A", "B", "C", "D", "1", "2", "3", "4", "5", "6", "7", "8", "TONE",
+];
+/// Chorus Types (XV-5050 adds GM2 CHORUS).
+const CHORUS_TYPES: [&str; 4] = ["OFF", "CHORUS", "DELAY", "GM2 CHORUS"];
+/// Reverb Types (XV-5050 adds GM2 REVERB).
+const REVERB_TYPES: [&str; 6] = [
+    "OFF",
+    "REVERB",
+    "SRV ROOM",
+    "SRV HALL",
+    "SRV PLATE",
+    "GM2 REVERB",
+];
+
+/// The tempo a Patch that doesn't use one carries.
+const DEFAULT_TEMPO: u16 = 120;
+/// The MFX Dry Send Level of a Patch that doesn't change it.
+const FULL_LEVEL: u8 = 127;
+
+/// INTEGRA-7 Tone Category of each XV Patch Category, in the XV-5080's list
+/// order (0 = NO ASSIGN … 38 = CMB). From `xv-patch-format.md`, section 6.
+const CATEGORIES: [u8; 39] = [
+    0, 1, 5, 10, 14, 14, 6, 12, 12, 16, // —, PNO, EP, KEY, BEL, MLT, ORG, ACD, HRM, AGT
+    17, 18, 20, 21, 24, 24, 44, 28, 29, 26, // EGT, DGT, BS, SBS, STR, ORC, HIT, WND, FLT, BRS
+    35, 30, 34, 34, 40, 42, 39, 38, 36, 36, // SBR, SAX, HLD, SLD, TEK, PLS, FX, SYN, BPD, SPD
+    32, 22, 22, 22, 47, 45, 43, 46, 48, // VOX, PLK, ETH, FRT, PRC, SFX, BTS, DRM, CMB
+];
+
+/// Why a Patch doesn't convert.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Rejected {
+    /// A Multi-Partial Patch: it plays user samples.
+    MultiPartial,
+    /// A block is missing.
+    Incomplete,
+}
+
+impl From<Rejected> for Skipped {
+    fn from(rejected: Rejected) -> Self {
+        match rejected {
+            Rejected::MultiPartial => Skipped::MultiPartial,
+            Rejected::Incomplete => Skipped::Incomplete,
+        }
+    }
+}
+
+/// A Patch being converted.
+struct Patch<'a> {
+    /// The XV blocks, in [`BLOCKS`] order.
+    xv: &'a [Vec<u8>],
+    tone: PcmTone,
+    report: ConversionReport,
+}
+
+/// The fix rows, one per XV field that does not copy byte for byte, in
+/// `xv-patch-format.csv` order. Patch Category and Tone Type are read
+/// before them, and the Integra-only fields are filled by [`PcmTone`].
+const FIXES: [fn(&mut Patch<'_>); 10] = [
+    patch_tempo,
+    one_shot_mode,
+    patch_output_assign,
+    mfx,
+    mfx_dry_send,
+    chorus,
+    reverb,
+    tone_sends,
+    receive_pan_mode,
+    wave_group,
+];
+
+/// Convert the Patch whose frames share address bytes `key`.
+pub(super) fn convert(
+    key: [u8; 2],
+    frames: &[Frame<'_>],
+) -> Result<(PackEntry, ConversionReport), Rejected> {
+    let layout = BLOCKS.map(|([c, d], size)| (Address::new(key[0], key[1], c, d).value(), size));
+    let dt1s = || frames.iter().map(|f| (Address(f.address), f.data));
+    let common = frame::assemble(&layout[..1], dt1s()).ok_or(Rejected::Incomplete)?;
+    if common[0][TONE_TYPE] == MULTI_PARTIAL {
+        return Err(Rejected::MultiPartial);
+    }
+    let xv = frame::assemble(&layout, dt1s()).ok_or(Rejected::Incomplete)?;
+
+    let category = CATEGORIES
+        .get(usize::from(xv[COMMON][PATCH_CATEGORY]))
+        .copied()
+        .unwrap_or_default();
+    let tones = core::array::from_fn(|i| xv[TONE_1 + i].as_slice());
+    let mut patch = Patch {
+        tone: PcmTone::new(&xv[COMMON], &xv[MFX], &xv[TMT], tones, category),
+        xv: &xv,
+        report: ConversionReport::new(),
+    };
+    for fix in FIXES {
+        fix(&mut patch);
+    }
+    Ok((patch.tone.into_entry(), patch.report))
+}
+
+/// The name of `value` in `names`, or the raw value.
+fn named(names: &[&str], value: u8) -> String {
+    names
+        .get(usize::from(value))
+        .map_or_else(|| value.to_string(), |n| (*n).to_string())
+}
+
+/// Patch Tempo: the INTEGRA-7 takes the tempo from the Studio Set. The byte
+/// stays in its reserve.
+fn patch_tempo(p: &mut Patch<'_>) {
+    let common = &p.xv[COMMON];
+    let tempo = nibble2(common, PATCH_TEMPO);
+    if common[CLOCK_SOURCE] == CLOCK_PATCH && tempo != DEFAULT_TEMPO {
+        p.report.push(ConversionItem::NotApplied {
+            what: format!("Tempo {tempo}"),
+        });
+    }
+}
+
+/// One Shot Mode: no INTEGRA-7 equivalent. The byte stays in its reserve.
+fn one_shot_mode(p: &mut Patch<'_>) {
+    if p.xv[COMMON][ONE_SHOT_MODE] != 0 {
+        p.report.push(ConversionItem::ParamDropped {
+            partial: None,
+            param: "One Shot Mode",
+        });
+    }
+}
+
+/// Patch Output Assign: set in the Studio Set Part on the INTEGRA-7. The
+/// reserve gets TONE, which INTEGRA-7 tones always carry.
+fn patch_output_assign(p: &mut Patch<'_>) {
+    let output = p.xv[COMMON][PATCH_OUTPUT_ASSIGN];
+    if output != OUTPUT_TONE {
+        p.report.push(ConversionItem::NotApplied {
+            what: format!("Output Assign {}", named(&OUTPUTS, output)),
+        });
+    }
+    p.tone.common()[PATCH_OUTPUT_ASSIGN] = OUTPUT_TONE;
+}
+
+/// MFX Type: THRU until the effect types are mapped. MFX Output Assign
+/// names physical outputs and is dropped.
+fn mfx(p: &mut Patch<'_>) {
+    if p.xv[MFX][MFX_TYPE] != 0 {
+        p.report.push(ConversionItem::EffectDropped);
+    }
+    let mfx = p.tone.mfx();
+    mfx[MFX_TYPE] = 0;
+    mfx[MFX_OUTPUT_ASSIGN] = 0;
+}
+
+/// MFX Dry Send Level: no INTEGRA-7 equivalent. The reserve gets 127, as
+/// INTEGRA-7 tones carry.
+fn mfx_dry_send(p: &mut Patch<'_>) {
+    if p.xv[MFX][MFX_DRY_SEND] != FULL_LEVEL {
+        p.report.push(ConversionItem::ParamDropped {
+            partial: None,
+            param: "MFX Dry Send Level",
+        });
+    }
+    p.tone.mfx()[MFX_DRY_SEND] = FULL_LEVEL;
+}
+
+/// A Patch effect a tone has no place for: reported when it sounds.
+fn studio_set_effect(p: &mut Patch<'_>, block: usize, label: &str, types: &[&str]) {
+    let (kind, level) = (p.xv[block][EFFECT_TYPE], p.xv[block][EFFECT_LEVEL]);
+    if kind != 0 && level != 0 {
+        p.report.push(ConversionItem::NotApplied {
+            what: format!("{label} {}, level {level}", named(types, kind)),
+        });
+    }
+}
+
+/// Patch Chorus: lives in the Studio Set on the INTEGRA-7.
+fn chorus(p: &mut Patch<'_>) {
+    studio_set_effect(p, CHORUS, "Chorus", &CHORUS_TYPES);
+}
+
+/// Patch Reverb: lives in the Studio Set on the INTEGRA-7.
+fn reverb(p: &mut Patch<'_>) {
+    studio_set_effect(p, REVERB, "Reverb", &REVERB_TYPES);
+}
+
+/// Tone Chorus/Reverb Send Levels: an XV Tone holds a pair for when it goes
+/// through the MFX and a pair for when it doesn't, and its Output Assign
+/// picks one. The INTEGRA-7 reads one pair, so it gets the picked one.
+fn tone_sends(p: &mut Patch<'_>) {
+    for i in 0..4 {
+        let tone = &p.xv[TONE_1 + i];
+        let (output, [chorus, reverb]) = if tone[TONE_OUTPUT_ASSIGN] == OUTPUT_MFX {
+            (Output::Mfx, MFX_SENDS)
+        } else {
+            (Output::Mix, MIX_SENDS)
+        };
+        let (chorus, reverb) = (tone[chorus], tone[reverb]);
+        pcm_tone::write_sends(p.tone.partial(i), output, chorus, reverb);
+    }
+}
+
+/// Tone Receive Pan Mode: no INTEGRA-7 equivalent. The byte stays in its
+/// reserve.
+fn receive_pan_mode(p: &mut Patch<'_>) {
+    for i in 0..4 {
+        if p.tone.is_on(i) && p.xv[TONE_1 + i][RECEIVE_PAN_MODE] != 0 {
+            p.report.push(ConversionItem::ParamDropped {
+                partial: Some(i as u8 + 1),
+                param: "Receive Pan Mode",
+            });
+        }
+    }
+}
+
+/// Wave Group Type and ID: INT copies as is, SRX board n becomes INTEGRA-7
+/// SRX n, and SR-JV80 Waves go through the Wave map. SAMPLE Waves are user
+/// samples and don't map.
+fn wave_group(p: &mut Patch<'_>) {
+    for i in 0..4 {
+        let tone = &p.xv[TONE_1 + i];
+        let group_type = tone[WAVE_GROUP_TYPE];
+        let id = nibble4(tone, WAVE_GROUP_ID);
+        let numbers = WAVE_NUMBERS.map(|at| nibble4(tone, at));
+        let srx = u8::try_from(id)
+            .ok()
+            .map(WaveGroup::Srx)
+            .filter(|g| WaveGroup::ALL.contains(g));
+        let foreign = match (group_type, srx) {
+            (WAVE_INT, _) => continue,
+            (WAVE_SRX, Some(group)) => {
+                pcm_tone::write_waves(p.tone.partial(i), group, numbers);
+                continue;
+            }
+            (WAVE_SRX, None) => ForeignWaveGroup::Srx(id),
+            (WAVE_SR_JV80, _) => ForeignWaveGroup::SrJv80(id),
+            _ => ForeignWaveGroup::Sample,
+        };
+        pcm_tone::map_waves(&mut p.tone, i, foreign, numbers, &mut p.report);
+    }
 }
 
 #[cfg(test)]

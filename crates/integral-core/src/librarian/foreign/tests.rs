@@ -182,11 +182,12 @@ fn foreign(model: &[u8], address: [u8; 4], data: &[u8]) -> Vec<u8> {
 }
 
 #[test]
-fn skips_foreign_units_until_they_convert() {
+fn skips_foreign_units_with_no_converter() {
     let xv = xv::MODEL;
     let jv = jv::MODEL;
     let bytes = [
-        // Two XV Patches dumped to the same Temporary Patch: Common comes again.
+        // Two incomplete XV Patches dumped to the same Temporary Patch:
+        // Common comes again.
         foreign(xv, [0x1F, 0, 0, 0], &[0x20; 79]),
         foreign(xv, [0x1F, 0, 0x20, 0], &[0; 137]),
         foreign(xv, [0x1F, 0, 0, 0], &[0x20; 79]),
@@ -207,8 +208,9 @@ fn skips_foreign_units_until_they_convert() {
         read.file_report,
         [
             skipped(Skipped::Other, 1),
-            skipped(Skipped::Patch, 3),
+            skipped(Skipped::Incomplete, 2),
             skipped(Skipped::Rhythm, 1),
+            skipped(Skipped::Patch, 1),
             skipped(Skipped::Performance, 1),
         ]
     );
@@ -250,6 +252,231 @@ fn every_part_has_a_temporary_area() {
     for part in 0..INTEGRA7.part_count {
         let base = temporary(SNS, part);
         assert!(integra::area_of(&areas, base).is_some(), "Part {part}");
+    }
+}
+
+mod xv_patches {
+    use super::*;
+    use crate::librarian::foreign::wave_map::{ForeignWave, ForeignWaveGroup};
+    use crate::parse_helpers::nibble4;
+
+    /// User Patch 001 `United !` of Roland's `SRX03AP2.mid` (see the
+    /// fixture's `SOURCE.md`).
+    const UNITED: &[u8] = include_bytes!("../../../tests/fixtures/foreign/xv/srx03ap2-001.syx");
+
+    /// The data of each DT1 in `bytes`.
+    fn data(bytes: &[u8]) -> Vec<Vec<u8>> {
+        frame::split(bytes)
+            .messages
+            .into_iter()
+            .map(|m| frame::parse(m).unwrap().data.to_vec())
+            .collect()
+    }
+
+    /// An XV Patch of 9 DT1s at `key`: tone 1 on and playing INT Wave 1,
+    /// every other byte 0, then `edit`ed. Blocks are Common, MFX, Chorus,
+    /// Reverb, TMT and Tones 1–4.
+    fn patch(key: [u8; 2], edit: impl FnOnce(&mut [Vec<u8>])) -> Vec<u8> {
+        let mut blocks: Vec<Vec<u8>> = [79, 145, 52, 83, 41, 137, 137, 137, 137]
+            .into_iter()
+            .map(|n| vec![0; n])
+            .collect();
+        blocks[0][..12].copy_from_slice(b"Byte Built  ");
+        blocks[0][0x1F..0x21].copy_from_slice(&[0x07, 0x08]); // Tempo 120
+        blocks[0][0x27] = 13; // Patch Output Assign TONE
+        blocks[1][0x01] = 127; // MFX Dry Send Level
+        blocks[4][0x05] = 1; // TMT1 Tone Switch
+        blocks[5][0x2F] = 1; // Wave Number L 1
+        edit(&mut blocks);
+        let offsets = [0x00, 0x02, 0x04, 0x06, 0x10, 0x20, 0x22, 0x24, 0x26];
+        offsets
+            .into_iter()
+            .zip(&blocks)
+            .flat_map(|(c, data)| foreign(xv::MODEL, [key[0], key[1], c, 0], data))
+            .collect()
+    }
+
+    fn converted(bytes: &[u8]) -> (PackEntry, ConversionReport) {
+        let mut read = read(bytes);
+        assert_eq!(read.pack.entries.len(), 1, "{:?}", read.file_report);
+        assert!(read.file_report.is_empty(), "{:?}", read.file_report);
+        (read.pack.entries.remove(0), read.reports.remove(0))
+    }
+
+    #[test]
+    fn the_fixture_is_one_patch_of_9_dt1s() {
+        assert_eq!(UNITED.len(), 1056);
+        assert_eq!(frame::split(UNITED).messages.len(), 9);
+    }
+
+    #[test]
+    fn converts_the_fixture() {
+        let xv = data(UNITED);
+        let (entry, report) = converted(UNITED);
+
+        // The blocks copy byte for byte, then these fields change.
+        let mut common = xv[0].clone();
+        common.push(0); // Common `00 4F`, a reserve the XV doesn't have
+        let mut mfx = xv[1].clone();
+        mfx[0x00] = 0; // MFX Type 6 → THRU
+        mfx[0x04] = 0; // MFX Output Assign (a reserve) cleared
+        let pmt = xv[4].clone();
+        let partials: Vec<Vec<u8>> = (0..4)
+            .map(|i| {
+                let mut p = xv[5 + i].clone();
+                p.push(0); // LFO Step Type
+                p.extend([64; 16]); // LFO Steps 1–16
+                match i {
+                    // SRX-03 Waves through the MFX: Wave Group Type SRX, and
+                    // the "(MFX)" sends 0/30 become the sends.
+                    0 | 1 => {
+                        p[0x27] = 1;
+                        p[0x0D..=0x11].copy_from_slice(&[127, 127, 0, 30, 0]);
+                    }
+                    // INT Waves to output A: the "(non MFX)" sends stay,
+                    // and the unused pair already holds 127.
+                    2 => assert_eq!(p[0x0D..=0x11], [127, 127, 50, 80, 1]),
+                    _ => assert_eq!(p[0x0D..=0x11], [127, 127, 0, 80, 1]),
+                }
+                p
+            })
+            .collect();
+        let mut common2 = b"United !        ".to_vec();
+        common2.extend([1, 0, 0, 64]); // Ac.Piano, Tone Number 0, Phrase Oct 0
+        common2.resize(60, 0);
+        let expected = [vec![common, mfx, pmt], partials, vec![common2]].concat();
+
+        assert_eq!(entry.kind(), ChunkType::PcmSynthTone);
+        assert_eq!(entry.name(), "United !");
+        assert_eq!(entry.category(), Some(1));
+        assert_eq!(entry.blocks(), expected);
+        // Waves: SRX-03 1/2 and 7/8, INT 420/421 and 414/415.
+        let waves: Vec<_> = expected[3..7]
+            .iter()
+            .map(|p| {
+                (
+                    p[0x27],
+                    nibble4(p, 0x28),
+                    nibble4(p, 0x2C),
+                    nibble4(p, 0x30),
+                )
+            })
+            .collect();
+        assert_eq!(
+            waves,
+            [
+                (1, 3, 1, 2),
+                (1, 3, 7, 8),
+                (0, 1, 420, 421),
+                (0, 1, 414, 415)
+            ]
+        );
+        let texts: Vec<String> = report.iter().map(ToString::to_string).collect();
+        assert_eq!(
+            texts,
+            [
+                "effect dropped, MFX set to THRU",
+                "Chorus CHORUS, level 127 not applied; set it in the Studio Set",
+                "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
+            ]
+        );
+    }
+
+    #[test]
+    fn rejects_multi_partial_patches() {
+        let multi = patch([0x30, 0x05], |b| b[0][0x0D] = 1);
+        // A Split Key block, which sits where the INTEGRA-7 has Common 2.
+        let split_key = foreign(xv::MODEL, [0x30, 0x05, 0x30, 0], &[0; 12]);
+        let read = read(&[multi, split_key].concat());
+        assert!(read.pack.entries.is_empty());
+        assert_eq!(read.file_report, [skipped(Skipped::MultiPartial, 1)]);
+    }
+
+    #[test]
+    fn maps_sr_jv80_waves_onto_srx() {
+        // Part 5's Temporary Patch; tone 1 plays SR-JV80-02 Waves 1 and 2.
+        let bytes = patch([0x12, 0x00], |b| {
+            b[5][0x27] = 1;
+            b[5][0x28..0x34].copy_from_slice(&[0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 2]);
+        });
+        let (entry, report) = converted(&bytes);
+        let p = &entry.blocks()[3];
+        assert_eq!(
+            (
+                p[0x27],
+                nibble4(p, 0x28),
+                nibble4(p, 0x2C),
+                nibble4(p, 0x30)
+            ),
+            (1, 6, 29, 30)
+        );
+        assert!(report.is_empty(), "{report:?}");
+    }
+
+    #[test]
+    fn reports_waves_it_cannot_map_and_mutes_their_partial() {
+        // SR-JV80-01 Wave 1, with no match, and a SAMPLE Wave.
+        let bytes = patch([0x1F, 0x00], |b| {
+            b[5][0x27] = 1;
+            b[5][0x2B] = 1;
+            b[4][0x05 + 9] = 1;
+            b[6][0x27] = 3;
+            b[6][0x2F] = 4;
+        });
+        let (entry, report) = converted(&bytes);
+        let pmt = &entry.blocks()[2];
+        assert_eq!((pmt[0x05], pmt[0x05 + 9]), (0, 0));
+        assert_eq!(
+            report,
+            [
+                ConversionItem::WaveUnmapped {
+                    partial: 1,
+                    source: ForeignWave {
+                        group: ForeignWaveGroup::SrJv80(1),
+                        number: 1
+                    },
+                },
+                ConversionItem::WaveUnmapped {
+                    partial: 2,
+                    source: ForeignWave {
+                        group: ForeignWaveGroup::Sample,
+                        number: 4
+                    },
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_settings_that_live_in_the_studio_set() {
+        let bytes = patch([0x30, 0x00], |b| {
+            b[0][0x1F..0x21].copy_from_slice(&[0x06, 0x0E]); // Tempo 110, PATCH
+            b[0][0x27] = 1; // Patch Output Assign A
+            b[0][0x21] = 1; // One Shot Mode ON
+            b[2][..2].copy_from_slice(&[2, 0]); // DELAY at level 0: silent
+            b[3][..2].copy_from_slice(&[1, 90]); // REVERB, level 90
+            b[5][0x15] = 1; // Receive Pan Mode KEY-ON
+        });
+        let (entry, report) = converted(&bytes);
+        assert_eq!(entry.blocks()[0][0x27], 13);
+        let texts: Vec<String> = report.iter().map(ToString::to_string).collect();
+        assert_eq!(
+            texts,
+            [
+                "Tempo 110 not applied; set it in the Studio Set",
+                "One Shot Mode dropped",
+                "Output Assign A not applied; set it in the Studio Set",
+                "Reverb REVERB, level 90 not applied; set it in the Studio Set",
+                "Partial 1: Receive Pan Mode dropped",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_clean_patch_has_an_empty_report() {
+        let (entry, report) = converted(&patch([0x30, 0x7F], |_| {}));
+        assert_eq!(entry.name(), "Byte Built");
+        assert!(report.is_empty(), "{report:?}");
     }
 }
 

@@ -6,14 +6,16 @@
 //! cover a whole tone or Studio Set, in a Temporary area or a User slot,
 //! become Pack entries; the import then stores them through Temporary as
 //! usual. Foreign patch frames (JV/XP, XV) are grouped per source unit for
-//! the per-family converters; until a family has one, its units are
-//! skipped. Everything else goes in the file-level report.
+//! the per-family converters: XV Patches become PCM Synth tones, each with
+//! its Conversion report. Units with no converter yet are skipped.
+//! Everything else goes in the file-level report.
 //!
 //! Reference: `docs/research/xv-svd-format.md` (SVD routing).
 
 pub mod frame;
 mod integra;
 mod jv;
+mod pcm_tone;
 pub mod report;
 pub mod wave_map;
 mod xv;
@@ -226,19 +228,28 @@ fn read_sysex(bytes: &[u8], mut unreadable: bool) -> PackRead {
         groups[group].frames.push(frame);
     }
 
-    let mut pack = Pack::default();
+    let mut read = PackRead::default();
     let mut duplicates = 0;
     for Group { source, frames, .. } in groups {
-        match source {
+        let converted = match source {
             Source::Integra(i) => {
                 let frames = frames.iter().map(|f| (Address(f.address), f.data));
-                match integra::assemble(&areas[i], frames) {
-                    Some(entry) if pack.entries.contains(&entry) => duplicates += 1,
-                    Some(entry) => pack.entries.push(entry),
-                    None => skip(Skipped::Incomplete),
-                }
+                integra::assemble(&areas[i], frames)
+                    .map(|entry| (entry, ConversionReport::new()))
+                    .ok_or(Skipped::Incomplete)
             }
-            Source::Jv(unit) | Source::Xv(unit) => skip(unit.kind),
+            Source::Xv(unit) if unit.kind == Skipped::Patch => {
+                xv::convert(unit.key, &frames).map_err(Skipped::from)
+            }
+            Source::Jv(unit) | Source::Xv(unit) => Err(unit.kind),
+        };
+        match converted {
+            Ok((entry, _)) if read.pack.entries.contains(&entry) => duplicates += 1,
+            Ok((entry, report)) => {
+                read.pack.entries.push(entry);
+                read.reports.push(report);
+            }
+            Err(kind) => skip(kind),
         }
     }
 
@@ -259,7 +270,8 @@ fn read_sysex(bytes: &[u8], mut unreadable: bool) -> PackRead {
     if unreadable {
         file_report.push(FileItem::Unreadable);
     }
-    PackRead::native(pack, file_report)
+    read.file_report = file_report;
+    read
 }
 
 #[cfg(test)]
