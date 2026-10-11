@@ -52,7 +52,8 @@ to the Sequencer.
 **Pack**:
 One file holding any mix of Studio Sets and tones of any type. Exporting a
 single tone gives a Pack of one. Exporting a Studio Set also carries the User
-tones its Parts use.
+tones its Parts use. A `.syx` dump of one tone or one Studio Set reads as a
+Pack of one.
 _Avoid_: Bank (that is Bank Select), tone set, library
 
 **User slot**:
