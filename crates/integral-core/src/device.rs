@@ -712,12 +712,6 @@ impl DeviceState {
         self.send_dt1(&addr, &crate::parse_helpers::encode_nibble4(value));
     }
 
-    /// Set a nibblized SN-S Common parameter (4 bytes, e.g. phrase number).
-    pub fn set_sns_common_nib_param(&mut self, part: u8, offset: u8, value: u16) {
-        let addr = sn_synth::sns_common_param_address(part, offset);
-        self.send_dt1(&addr, &crate::parse_helpers::encode_nibble4(value));
-    }
-
     /// Build an RQ1 to read the full SN-S Common block for a part.
     pub fn build_sns_common_request(&self, part: u8) -> Vec<u8> {
         let addr = sn_synth::sns_common_address(part);
@@ -738,16 +732,6 @@ impl DeviceState {
     pub fn set_sna_common_param(&mut self, part: u8, offset: u8, value: u8) {
         let addr = crate::sn_acoustic::sna_common_param_address(part, offset);
         self.send_dt1(&addr, &[value]);
-    }
-
-    /// Build an RQ1 to read the full SN-A Common block for a part.
-    pub fn build_sna_common_request(&self, part: u8) -> Vec<u8> {
-        let addr = crate::sn_acoustic::sna_common_address(part);
-        sysex::build_rq1(
-            self.device_id,
-            &addr,
-            &crate::sn_acoustic::SNA_COMMON_BLOCK_SIZE,
-        )
     }
 
     // -----------------------------------------------------------------------
@@ -786,26 +770,6 @@ impl DeviceState {
         Ok(())
     }
 
-    /// Build an RQ1 to read the full SN-D Common block for a part.
-    pub fn build_snd_common_request(&self, part: u8) -> Vec<u8> {
-        let addr = crate::sn_drum::snd_common_address(part);
-        sysex::build_rq1(
-            self.device_id,
-            &addr,
-            &crate::sn_drum::SND_COMMON_BLOCK_SIZE,
-        )
-    }
-
-    /// Build an RQ1 to read an SN-D Note block for a part and key.
-    pub fn build_snd_note_request(&self, part: u8, key: u8) -> Result<Vec<u8>, KeyOutOfRange> {
-        let addr = crate::sn_drum::snd_note_address(part, key)?;
-        Ok(sysex::build_rq1(
-            self.device_id,
-            &addr,
-            &crate::sn_drum::SND_NOTE_BLOCK_SIZE,
-        ))
-    }
-
     // -----------------------------------------------------------------------
     // PCM Synth Tone Edit
     // -----------------------------------------------------------------------
@@ -814,12 +778,6 @@ impl DeviceState {
     pub fn set_pcms_common_param(&mut self, part: u8, offset: u8, value: u8) {
         let addr = crate::pcm_synth::pcms_common_param_address(part, offset);
         self.send_dt1(&addr, &[value]);
-    }
-
-    /// Set a nibblized PCM Synth Common parameter (4 bytes).
-    pub fn set_pcms_common_nib_param(&mut self, part: u8, offset: u8, value: u16) {
-        let addr = crate::pcm_synth::pcms_common_param_address(part, offset);
-        self.send_dt1(&addr, &crate::parse_helpers::encode_nibble4(value));
     }
 
     /// Set a single PCM Synth PMT parameter for a part.
@@ -845,58 +803,6 @@ impl DeviceState {
         let addr = crate::pcm_synth::pcms_partial_param_address(part, partial, offset);
         let bytes = [((value >> 4) & 0x0F), value & 0x0F];
         self.send_dt1(&addr, &bytes);
-    }
-
-    /// Set a single PCM Synth Common2 parameter for a part.
-    pub fn set_pcms_common2_param(&mut self, part: u8, offset: u8, value: u8) {
-        let addr = crate::pcm_synth::pcms_common2_param_address(part, offset);
-        self.send_dt1(&addr, &[value]);
-    }
-
-    /// Set a nibblized PCM Synth Common2 parameter (4 bytes, e.g. phrase number).
-    pub fn set_pcms_common2_nib_param(&mut self, part: u8, offset: u8, value: u16) {
-        let addr = crate::pcm_synth::pcms_common2_param_address(part, offset);
-        self.send_dt1(&addr, &crate::parse_helpers::encode_nibble4(value));
-    }
-
-    /// Build an RQ1 to read the PCM Synth Common block for a part.
-    pub fn build_pcms_common_request(&self, part: u8) -> Vec<u8> {
-        let addr = crate::pcm_synth::pcms_common_address(part);
-        sysex::build_rq1(
-            self.device_id,
-            &addr,
-            &crate::pcm_synth::PCMS_COMMON_BLOCK_SIZE,
-        )
-    }
-
-    /// Build an RQ1 to read the PCM Synth PMT block for a part.
-    pub fn build_pcms_pmt_request(&self, part: u8) -> Vec<u8> {
-        let addr = crate::pcm_synth::pcms_pmt_address(part);
-        sysex::build_rq1(
-            self.device_id,
-            &addr,
-            &crate::pcm_synth::PCMS_PMT_BLOCK_SIZE,
-        )
-    }
-
-    /// Build an RQ1 to read a PCM Synth Partial block for a part.
-    pub fn build_pcms_partial_request(&self, part: u8, partial: u8) -> Vec<u8> {
-        let addr = crate::pcm_synth::pcms_partial_address(part, partial);
-        sysex::build_rq1(
-            self.device_id,
-            &addr,
-            &crate::pcm_synth::PCMS_PARTIAL_BLOCK_SIZE,
-        )
-    }
-
-    /// Build an RQ1 to read the PCM Synth Common2 block for a part.
-    pub fn build_pcms_common2_request(&self, part: u8) -> Vec<u8> {
-        let addr = crate::pcm_synth::pcms_common2_address(part);
-        sysex::build_rq1(
-            self.device_id,
-            &addr,
-            &crate::pcm_synth::PCMS_COMMON2_BLOCK_SIZE,
-        )
     }
 
     // -----------------------------------------------------------------------
@@ -969,42 +875,6 @@ impl DeviceState {
         Ok(())
     }
 
-    /// Set a single PCM Drum Kit Common2 parameter for a part.
-    pub fn set_pcmd_common2_param(&mut self, part: u8, offset: u8, value: u8) {
-        let addr = crate::pcm_drum::pcmd_common2_param_address(part, offset);
-        self.send_dt1(&addr, &[value]);
-    }
-
-    /// Build an RQ1 to read the PCM Drum Kit Common block for a part.
-    pub fn build_pcmd_common_request(&self, part: u8) -> Vec<u8> {
-        let addr = crate::pcm_drum::pcmd_common_address(part);
-        sysex::build_rq1(
-            self.device_id,
-            &addr,
-            &crate::pcm_drum::PCMD_COMMON_BLOCK_SIZE,
-        )
-    }
-
-    /// Build an RQ1 to read a PCM Drum Kit Partial block for a part and key.
-    pub fn build_pcmd_partial_request(&self, part: u8, key: u8) -> Result<Vec<u8>, KeyOutOfRange> {
-        let addr = crate::pcm_drum::pcmd_partial_address(part, key)?;
-        Ok(sysex::build_rq1(
-            self.device_id,
-            &addr,
-            &crate::pcm_drum::PCMD_PARTIAL_BLOCK_SIZE,
-        ))
-    }
-
-    /// Build an RQ1 to read the PCM Drum Kit Common2 block for a part.
-    pub fn build_pcmd_common2_request(&self, part: u8) -> Vec<u8> {
-        let addr = crate::pcm_drum::pcmd_common2_address(part);
-        sysex::build_rq1(
-            self.device_id,
-            &addr,
-            &crate::pcm_drum::PCMD_COMMON2_BLOCK_SIZE,
-        )
-    }
-
     // -----------------------------------------------------------------------
     // Motional Surround
     // -----------------------------------------------------------------------
@@ -1051,15 +921,6 @@ impl DeviceState {
         }
         let addr = params::part_address(part_idx, param);
         self.send_dt1(&addr, &[value]);
-    }
-
-    /// Build an RQ1 to read the Motional Surround common block (13 bytes).
-    pub fn build_surround_common_request(&self) -> Vec<u8> {
-        sysex::build_rq1(
-            self.device_id,
-            &params::SURROUND_BASE,
-            &params::SURROUND_COMMON_SIZE,
-        )
     }
 
     // -----------------------------------------------------------------------
@@ -1113,47 +974,11 @@ impl DeviceState {
         self.send_dt1(&addr, &[value]);
     }
 
-    /// Build an RQ1 to read all 6 Comp+EQ units (84 bytes).
-    pub fn build_comp_eq_block_request(&self) -> Vec<u8> {
-        let part = self.state.drum_comp_eq.part;
-        let tone_type = self.comp_eq_tone_type();
-        let addr = params::comp_eq_block_address(part, tone_type);
-        sysex::build_rq1(self.device_id, &addr, &params::COMP_EQ_BLOCK_SIZE)
-    }
-
     /// Determine the tone type for the Comp+EQ assigned part.
     fn comp_eq_tone_type(&self) -> ToneType {
         let part = self.state.drum_comp_eq.part;
         let msb = self.state.parts[part as usize].tone_bank_msb;
         params::tone_type_from_bank_msb(msb).unwrap_or(ToneType::PcmDrum)
-    }
-
-    // -----------------------------------------------------------------------
-    // RQ1 request builders
-    // -----------------------------------------------------------------------
-
-    /// Build an RQ1 to read the part mixer state.
-    pub fn build_part_mixer_request(&self, part: u8) -> Vec<u8> {
-        let addr = params::part_address(part, part::RECEIVE_CHANNEL);
-        sysex::build_rq1(self.device_id, &addr, &params::PART_MIXER_SIZE)
-    }
-
-    /// Build an RQ1 to read the system master level.
-    pub fn build_master_level_request(&self) -> Vec<u8> {
-        sysex::build_rq1(
-            self.device_id,
-            &params::SYSTEM_MASTER_LEVEL,
-            &params::SINGLE_BYTE_SIZE,
-        )
-    }
-
-    /// Build an RQ1 to read the studio set name.
-    pub fn build_studio_set_name_request(&self) -> Vec<u8> {
-        sysex::build_rq1(
-            self.device_id,
-            &params::STUDIO_SET_NAME,
-            &params::STUDIO_SET_NAME_SIZE,
-        )
     }
 
     // -----------------------------------------------------------------------
@@ -1195,19 +1020,6 @@ impl DeviceState {
         } else {
             self.preview_start(part);
         }
-    }
-
-    // -----------------------------------------------------------------------
-    // Requests
-    // -----------------------------------------------------------------------
-
-    /// Build an RQ1 to read the studio set PC.
-    pub fn build_studio_set_pc_request(&self) -> Vec<u8> {
-        sysex::build_rq1(
-            self.device_id,
-            &params::SETUP_STUDIO_SET_PC,
-            &params::SINGLE_BYTE_SIZE,
-        )
     }
 }
 
@@ -1565,7 +1377,6 @@ mod tests {
         for key in [SND_FIRST_KEY - 1, SND_LAST_KEY + 1] {
             assert!(dev.set_snd_note_param(0, key, 0x04, 100).is_err());
             assert!(dev.set_snd_note_nib_param(0, key, 0x00, 1).is_err());
-            assert!(dev.build_snd_note_request(0, key).is_err());
         }
         assert!(!dev.has_pending());
         assert!(dev.set_snd_note_param(0, SND_LAST_KEY, 0x04, 100).is_ok());
@@ -1579,7 +1390,6 @@ mod tests {
         for key in [PCMD_FIRST_KEY - 1, PCMD_LAST_KEY + 1] {
             assert!(dev.set_pcmd_partial_param(0, key, 0x0021, 1).is_err());
             assert!(dev.set_pcmd_partial_nib_param(0, key, 0x0027, 1).is_err());
-            assert!(dev.build_pcmd_partial_request(0, key).is_err());
         }
         assert!(!dev.has_pending());
         assert!(
