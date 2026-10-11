@@ -6,8 +6,8 @@ use integral_core::device::DeviceState;
 use integral_core::state::parse as state_parse;
 use integral_core::sysex;
 use integral_core::{
-    fx_params, mfx, mfx_params, param_registry, params, params::part, params::part_eq, pcm_drum,
-    pcm_synth, sn_acoustic, sn_drum, sn_synth, tone_banks, user_write,
+    fx_params, mfx, mfx_params, param_registry, params, params::part, pcm_drum, pcm_synth,
+    sn_acoustic, sn_drum, sn_synth, tone_banks, user_write,
 };
 use wasm_bindgen::prelude::*;
 
@@ -82,24 +82,15 @@ pub fn identity_request() -> Vec<u8> {
 pub struct DeviceIdentity {
     #[wasm_bindgen(readonly)]
     pub device_id: u8,
-    #[wasm_bindgen(readonly)]
-    pub manufacturer_id: u8,
-    #[wasm_bindgen(readonly)]
-    pub family_code_0: u8,
-    #[wasm_bindgen(readonly)]
-    pub family_code_1: u8,
-    #[wasm_bindgen(readonly)]
-    pub family_number_0: u8,
-    #[wasm_bindgen(readonly)]
-    pub family_number_1: u8,
-    #[wasm_bindgen(readonly)]
-    pub revision_0: u8,
-    #[wasm_bindgen(readonly)]
-    pub revision_1: u8,
-    #[wasm_bindgen(readonly)]
-    pub revision_2: u8,
-    #[wasm_bindgen(readonly)]
-    pub revision_3: u8,
+    manufacturer_id: u8,
+    family_code_0: u8,
+    family_code_1: u8,
+    family_number_0: u8,
+    family_number_1: u8,
+    revision_0: u8,
+    revision_1: u8,
+    revision_2: u8,
+    revision_3: u8,
 }
 
 #[wasm_bindgen]
@@ -164,15 +155,6 @@ pub fn parse_identity_reply(data: &[u8]) -> Result<DeviceIdentity, JsError> {
 // DT1 / RQ1 builders
 // ---------------------------------------------------------------------------
 
-/// Build a DT1 (Data Set 1) SysEx message.
-///
-/// Address is passed as 4 individual bytes (wasm-bindgen ABI constraint).
-#[wasm_bindgen]
-pub fn build_dt1(device_id: u8, a0: u8, a1: u8, a2: u8, a3: u8, data: &[u8]) -> Vec<u8> {
-    let addr = Address::new(a0, a1, a2, a3);
-    sysex::build_dt1(device_id, &addr, data)
-}
-
 /// Build an RQ1 (Data Request 1) SysEx message.
 ///
 /// Address and size are passed as individual bytes.
@@ -203,14 +185,10 @@ pub fn build_rq1(
 pub struct Dt1Message {
     #[wasm_bindgen(readonly)]
     pub device_id: u8,
-    #[wasm_bindgen(readonly)]
-    pub addr_0: u8,
-    #[wasm_bindgen(readonly)]
-    pub addr_1: u8,
-    #[wasm_bindgen(readonly)]
-    pub addr_2: u8,
-    #[wasm_bindgen(readonly)]
-    pub addr_3: u8,
+    addr_0: u8,
+    addr_1: u8,
+    addr_2: u8,
+    addr_3: u8,
     data: Vec<u8>,
 }
 
@@ -278,53 +256,10 @@ pub fn setup_studio_set_pc_address() -> Vec<u8> {
     addr_to_vec(params::SETUP_STUDIO_SET_PC)
 }
 
-/// Returns the address for Setup Studio Set BS MSB.
-#[wasm_bindgen]
-pub fn setup_studio_set_bs_msb_address() -> Vec<u8> {
-    addr_to_vec(params::SETUP_STUDIO_SET_BS_MSB)
-}
-
-/// Returns the address for a part's Level parameter.
-/// `part` is 0-indexed (0 = Part 1).
-#[wasm_bindgen]
-pub fn part_level_address(part_index: u8) -> Vec<u8> {
-    addr_to_vec(params::part_address(part_index, part::LEVEL))
-}
-
-/// Returns the address for a part's Pan parameter.
-#[wasm_bindgen]
-pub fn part_pan_address(part_index: u8) -> Vec<u8> {
-    addr_to_vec(params::part_address(part_index, part::PAN))
-}
-
-/// Returns the address for a part's Mute Switch.
-#[wasm_bindgen]
-pub fn part_mute_address(part_index: u8) -> Vec<u8> {
-    addr_to_vec(params::part_address(part_index, part::MUTE))
-}
-
-/// Returns the address for a part's Tone Bank MSB.
-#[wasm_bindgen]
-pub fn part_tone_bank_address(part_index: u8) -> Vec<u8> {
-    addr_to_vec(params::part_address(part_index, part::TONE_BANK_MSB))
-}
-
 /// Returns the address for a part's Receive Channel.
 #[wasm_bindgen]
 pub fn part_receive_channel_address(part_index: u8) -> Vec<u8> {
     addr_to_vec(params::part_address(part_index, part::RECEIVE_CHANNEL))
-}
-
-/// Returns the address for a part's Chorus Send Level.
-#[wasm_bindgen]
-pub fn part_chorus_send_address(part_index: u8) -> Vec<u8> {
-    addr_to_vec(params::part_address(part_index, part::CHORUS_SEND))
-}
-
-/// Returns the address for a part's Reverb Send Level.
-#[wasm_bindgen]
-pub fn part_reverb_send_address(part_index: u8) -> Vec<u8> {
-    addr_to_vec(params::part_address(part_index, part::REVERB_SEND))
 }
 
 /// Returns the RQ1 size for reading all mixer-relevant part parameters in one request.
@@ -1190,143 +1125,6 @@ pub fn master_eq_switch_address() -> Vec<u8> {
     addr_to_vec(params::MASTER_EQ_SWITCH)
 }
 
-// Re-export EQ parameter offset constants for JS use.
-
-#[wasm_bindgen]
-pub fn eq_switch_offset() -> u8 {
-    part_eq::SWITCH
-}
-#[wasm_bindgen]
-pub fn eq_low_freq_offset() -> u8 {
-    part_eq::LOW_FREQ
-}
-#[wasm_bindgen]
-pub fn eq_low_gain_offset() -> u8 {
-    part_eq::LOW_GAIN
-}
-#[wasm_bindgen]
-pub fn eq_mid_freq_offset() -> u8 {
-    part_eq::MID_FREQ
-}
-#[wasm_bindgen]
-pub fn eq_mid_gain_offset() -> u8 {
-    part_eq::MID_GAIN
-}
-#[wasm_bindgen]
-pub fn eq_mid_q_offset() -> u8 {
-    part_eq::MID_Q
-}
-#[wasm_bindgen]
-pub fn eq_high_freq_offset() -> u8 {
-    part_eq::HIGH_FREQ
-}
-#[wasm_bindgen]
-pub fn eq_high_gain_offset() -> u8 {
-    part_eq::HIGH_GAIN
-}
-
-// ---------------------------------------------------------------------------
-// State parsing
-// ---------------------------------------------------------------------------
-
-/// Parsed part mixer state from a 0x29-byte dump.
-#[wasm_bindgen]
-pub struct WasmPartState {
-    #[wasm_bindgen(readonly, js_name = receiveChannel)]
-    pub receive_channel: u8,
-    #[wasm_bindgen(readonly, js_name = toneBankMsb)]
-    pub tone_bank_msb: u8,
-    #[wasm_bindgen(readonly, js_name = toneBankLsb)]
-    pub tone_bank_lsb: u8,
-    #[wasm_bindgen(readonly, js_name = tonePC)]
-    pub tone_pc: u8,
-    #[wasm_bindgen(readonly)]
-    pub level: u8,
-    #[wasm_bindgen(readonly)]
-    pub pan: u8,
-    #[wasm_bindgen(readonly)]
-    pub muted: bool,
-    #[wasm_bindgen(readonly, js_name = chorusSend)]
-    pub chorus_send: u8,
-    #[wasm_bindgen(readonly, js_name = reverbSend)]
-    pub reverb_send: u8,
-}
-
-/// Parse a 0x29-byte part mixer dump.
-#[wasm_bindgen]
-pub fn parse_part_dump(data: &[u8]) -> WasmPartState {
-    let p = state_parse::parse_part_dump(data);
-    WasmPartState {
-        receive_channel: p.receive_channel,
-        tone_bank_msb: p.tone_bank_msb,
-        tone_bank_lsb: p.tone_bank_lsb,
-        tone_pc: p.tone_pc,
-        level: p.level,
-        pan: p.pan,
-        muted: p.muted,
-        chorus_send: p.chorus_send,
-        reverb_send: p.reverb_send,
-    }
-}
-
-/// Parsed EQ state.
-#[wasm_bindgen]
-pub struct WasmEqState {
-    #[wasm_bindgen(readonly)]
-    pub enabled: bool,
-    #[wasm_bindgen(readonly, js_name = lowFreq)]
-    pub low_freq: u8,
-    #[wasm_bindgen(readonly, js_name = lowGain)]
-    pub low_gain: u8,
-    #[wasm_bindgen(readonly, js_name = midFreq)]
-    pub mid_freq: u8,
-    #[wasm_bindgen(readonly, js_name = midGain)]
-    pub mid_gain: u8,
-    #[wasm_bindgen(readonly, js_name = midQ)]
-    pub mid_q: u8,
-    #[wasm_bindgen(readonly, js_name = highFreq)]
-    pub high_freq: u8,
-    #[wasm_bindgen(readonly, js_name = highGain)]
-    pub high_gain: u8,
-}
-
-impl From<integral_core::state::EqState> for WasmEqState {
-    fn from(eq: integral_core::state::EqState) -> Self {
-        Self {
-            enabled: eq.enabled,
-            low_freq: eq.low_freq,
-            low_gain: eq.low_gain,
-            mid_freq: eq.mid_freq,
-            mid_gain: eq.mid_gain,
-            mid_q: eq.mid_q,
-            high_freq: eq.high_freq,
-            high_gain: eq.high_gain,
-        }
-    }
-}
-
-/// Parse an 8-byte Part EQ dump.
-#[wasm_bindgen]
-pub fn parse_part_eq_dump(data: &[u8]) -> WasmEqState {
-    state_parse::parse_part_eq_dump(data).into()
-}
-
-/// Parse a 7-byte Master EQ dump (no switch byte).
-#[wasm_bindgen]
-pub fn parse_master_eq_dump(data: &[u8]) -> WasmEqState {
-    state_parse::parse_master_eq_dump(data).into()
-}
-
-// ---------------------------------------------------------------------------
-// Nibble codec
-// ---------------------------------------------------------------------------
-
-/// Encode a signed display value into 4 nibble bytes for SysEx DT1.
-#[wasm_bindgen]
-pub fn encode_nib_param(value: i32) -> Vec<u8> {
-    state_parse::encode_nib_param(value).to_vec()
-}
-
 // ---------------------------------------------------------------------------
 // Tone bank definitions
 // ---------------------------------------------------------------------------
@@ -1431,13 +1229,6 @@ pub fn tone_bank_groups() -> Vec<WasmToneBankGroup> {
             banks: g.banks.iter().map(WasmToneBank::from).collect(),
         })
         .collect()
-}
-
-/// Find the bank containing a given (MSB, LSB) pair.
-/// Returns null if not found.
-#[wasm_bindgen]
-pub fn find_tone_bank(msb: u8, lsb: u8) -> Option<WasmToneBank> {
-    tone_banks::find_bank(msb, lsb).map(WasmToneBank::from)
 }
 
 /// The user bank a tone selected by `msb` saves into (e.g. ExPCM and GM2
@@ -1656,12 +1447,6 @@ impl WasmDeviceState {
         self.inner.drain(now_ms)
     }
 
-    /// Whether there are queued messages waiting to be sent.
-    #[wasm_bindgen(js_name = hasPending)]
-    pub fn has_pending(&self) -> bool {
-        self.inner.has_pending()
-    }
-
     /// Queue a raw SysEx message (for catalog requests etc.).
     #[wasm_bindgen(js_name = sendRaw)]
     pub fn send_raw(&mut self, key: &str, bytes: Vec<u8>) {
@@ -1869,12 +1654,6 @@ impl WasmDeviceState {
         self.inner.preview_start(part);
     }
 
-    /// Stop any active phrase preview.
-    #[wasm_bindgen(js_name = previewStop)]
-    pub fn preview_stop(&mut self) {
-        self.inner.preview_stop();
-    }
-
     /// Toggle phrase preview for the given part (1–16).
     #[wasm_bindgen(js_name = previewToggle)]
     pub fn preview_toggle(&mut self, part: u8) {
@@ -1885,28 +1664,6 @@ impl WasmDeviceState {
     #[wasm_bindgen(js_name = previewPart)]
     pub fn preview_part(&self) -> u8 {
         self.inner.state().preview_part
-    }
-
-    // -- RQ1 builders (return bytes to send) -------------------------------
-
-    #[wasm_bindgen(js_name = buildPartMixerRequest)]
-    pub fn build_part_mixer_request(&self, part: u8) -> Vec<u8> {
-        self.inner.build_part_mixer_request(part)
-    }
-
-    #[wasm_bindgen(js_name = buildMasterLevelRequest)]
-    pub fn build_master_level_request(&self) -> Vec<u8> {
-        self.inner.build_master_level_request()
-    }
-
-    #[wasm_bindgen(js_name = buildStudioSetNameRequest)]
-    pub fn build_studio_set_name_request(&self) -> Vec<u8> {
-        self.inner.build_studio_set_name_request()
-    }
-
-    #[wasm_bindgen(js_name = buildStudioSetPcRequest)]
-    pub fn build_studio_set_pc_request(&self) -> Vec<u8> {
-        self.inner.build_studio_set_pc_request()
     }
 
     // -- Direct state mutation (for load responses) ------------------------
@@ -2076,11 +1833,6 @@ impl WasmDeviceState {
         Ok(())
     }
 
-    #[wasm_bindgen(js_name = buildCompEqBlockRequest)]
-    pub fn build_comp_eq_block_request(&self) -> Vec<u8> {
-        self.inner.build_comp_eq_block_request()
-    }
-
     /// Apply a parsed 84-byte Comp+EQ block dump to the state.
     #[wasm_bindgen(js_name = applyCompEqBlock)]
     pub fn apply_comp_eq_block(&mut self, data: &[u8]) {
@@ -2173,11 +1925,6 @@ impl WasmDeviceState {
         Ok(())
     }
 
-    #[wasm_bindgen(js_name = buildSurroundCommonRequest)]
-    pub fn build_surround_common_request(&self) -> Vec<u8> {
-        self.inner.build_surround_common_request()
-    }
-
     // -- SN-S Tone Edit ----------------------------------------------------
 
     /// Set a single SN-S Common parameter.
@@ -2218,12 +1965,6 @@ impl WasmDeviceState {
         Ok(())
     }
 
-    /// Set a nibblized SN-S Common parameter (4 bytes, e.g. phrase number).
-    #[wasm_bindgen(js_name = setSnsCommonNibParam)]
-    pub fn set_sns_common_nib_param(&mut self, part: u8, offset: u8, value: u16) {
-        self.inner.set_sns_common_nib_param(part, offset, value);
-    }
-
     /// Parse an SN-S Common dump and return as a JS object.
     #[wasm_bindgen(js_name = applySnsCommon)]
     pub fn apply_sns_common(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
@@ -2242,18 +1983,6 @@ impl WasmDeviceState {
             .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
-    /// Build an RQ1 to read the SN-S Common block for a part.
-    #[wasm_bindgen(js_name = buildSnsCommonRequest)]
-    pub fn build_sns_common_request(&self, part: u8) -> Vec<u8> {
-        self.inner.build_sns_common_request(part)
-    }
-
-    /// Build an RQ1 to read an SN-S Partial block for a part.
-    #[wasm_bindgen(js_name = buildSnsPartialRequest)]
-    pub fn build_sns_partial_request(&self, part: u8, partial: u8) -> Vec<u8> {
-        self.inner.build_sns_partial_request(part, partial)
-    }
-
     // -- SN-A Tone Edit ----------------------------------------------------
 
     /// Set a single SN-A Common parameter.
@@ -2269,12 +1998,6 @@ impl WasmDeviceState {
             .map_err(|e| JsError::new(&e.to_string()))?;
         serde_wasm_bindgen::to_value(&parsed)
             .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
-    }
-
-    /// Build an RQ1 to read the SN-A Common block for a part.
-    #[wasm_bindgen(js_name = buildSnaCommonRequest)]
-    pub fn build_sna_common_request(&self, part: u8) -> Vec<u8> {
-        self.inner.build_sna_common_request(part)
     }
 
     // -- SN-D Tone Edit ----------------------------------------------------
@@ -2329,30 +2052,12 @@ impl WasmDeviceState {
             .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
-    /// Build an RQ1 to read the SN-D Common block for a part.
-    #[wasm_bindgen(js_name = buildSndCommonRequest)]
-    pub fn build_snd_common_request(&self, part: u8) -> Vec<u8> {
-        self.inner.build_snd_common_request(part)
-    }
-
-    /// Build an RQ1 to read an SN-D Note block for a part and key.
-    #[wasm_bindgen(js_name = buildSndNoteRequest)]
-    pub fn build_snd_note_request(&self, part: u8, key: u8) -> Result<Vec<u8>, JsError> {
-        Ok(self.inner.build_snd_note_request(part, key)?)
-    }
-
     // -- PCM Synth Tone Edit -----------------------------------------------
 
     /// Set a single PCM Synth Common parameter.
     #[wasm_bindgen(js_name = setPcmsCommonParam)]
     pub fn set_pcms_common_param(&mut self, part: u8, offset: u8, value: u8) {
         self.inner.set_pcms_common_param(part, offset, value);
-    }
-
-    /// Set a nibblized PCM Synth Common parameter (4 bytes).
-    #[wasm_bindgen(js_name = setPcmsCommonNibParam)]
-    pub fn set_pcms_common_nib_param(&mut self, part: u8, offset: u8, value: u16) {
-        self.inner.set_pcms_common_nib_param(part, offset, value);
     }
 
     /// Set a single PCM Synth PMT parameter.
@@ -2409,18 +2114,6 @@ impl WasmDeviceState {
         Ok(())
     }
 
-    /// Set a single PCM Synth Common2 parameter.
-    #[wasm_bindgen(js_name = setPcmsCommon2Param)]
-    pub fn set_pcms_common2_param(&mut self, part: u8, offset: u8, value: u8) {
-        self.inner.set_pcms_common2_param(part, offset, value);
-    }
-
-    /// Set a nibblized PCM Synth Common2 parameter (4 bytes).
-    #[wasm_bindgen(js_name = setPcmsCommon2NibParam)]
-    pub fn set_pcms_common2_nib_param(&mut self, part: u8, offset: u8, value: u16) {
-        self.inner.set_pcms_common2_nib_param(part, offset, value);
-    }
-
     /// Parse a PCM Synth Common dump and return as a JS object.
     #[wasm_bindgen(js_name = applyPcmsCommon)]
     pub fn apply_pcms_common(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
@@ -2457,36 +2150,14 @@ impl WasmDeviceState {
             .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
 
-    /// Build an RQ1 to read the PCM Synth Common block for a part.
-    #[wasm_bindgen(js_name = buildPcmsCommonRequest)]
-    pub fn build_pcms_common_request(&self, part: u8) -> Vec<u8> {
-        self.inner.build_pcms_common_request(part)
-    }
-
-    /// Build an RQ1 to read the PCM Synth PMT block for a part.
-    #[wasm_bindgen(js_name = buildPcmsPmtRequest)]
-    pub fn build_pcms_pmt_request(&self, part: u8) -> Vec<u8> {
-        self.inner.build_pcms_pmt_request(part)
-    }
-
-    /// Build an RQ1 to read a PCM Synth Partial block for a part.
-    #[wasm_bindgen(js_name = buildPcmsPartialRequest)]
-    pub fn build_pcms_partial_request(&self, part: u8, partial: u8) -> Vec<u8> {
-        self.inner.build_pcms_partial_request(part, partial)
-    }
-
-    /// Build an RQ1 to read the PCM Synth Common2 block for a part.
-    #[wasm_bindgen(js_name = buildPcmsCommon2Request)]
-    pub fn build_pcms_common2_request(&self, part: u8) -> Vec<u8> {
-        self.inner.build_pcms_common2_request(part)
-    }
-
     // -- PCM Drum Kit ------------------------------------------------------
 
-    /// Set a single PCM Drum Kit Common parameter.
-    #[wasm_bindgen(js_name = setPcmdCommonParam)]
-    pub fn set_pcmd_common_param(&mut self, part: u8, offset: u8, value: u8) {
-        self.inner.set_pcmd_common_param(part, offset, value);
+    /// Set a part's PCM Drum Kit Level (0–127).
+    #[wasm_bindgen(js_name = setPcmdKitLevel)]
+    pub fn set_pcmd_kit_level(&mut self, part: u8, value: u8) -> Result<(), JsError> {
+        check_part(part)?;
+        self.inner.set_pcmd_kit_level(part, value);
+        Ok(())
     }
 
     /// Set a field of WMT `wmt` (0-based) in the PCM Drum Kit Partial for `key`.
@@ -2522,12 +2193,6 @@ impl WasmDeviceState {
             .set_pcmd_partial_field(part, key, field.into(), index, value)?)
     }
 
-    /// Set a single PCM Drum Kit Common2 parameter.
-    #[wasm_bindgen(js_name = setPcmdCommon2Param)]
-    pub fn set_pcmd_common2_param(&mut self, part: u8, offset: u8, value: u8) {
-        self.inner.set_pcmd_common2_param(part, offset, value);
-    }
-
     /// Parse a PCM Drum Kit Common dump and return as a JS object.
     #[wasm_bindgen(js_name = applyPcmdCommon)]
     pub fn apply_pcmd_common(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
@@ -2552,24 +2217,6 @@ impl WasmDeviceState {
             pcm_drum::parse_pcmd_common2(data).map_err(|e| JsError::new(&e.to_string()))?;
         serde_wasm_bindgen::to_value(&parsed)
             .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
-    }
-
-    /// Build an RQ1 to read the PCM Drum Kit Common block for a part.
-    #[wasm_bindgen(js_name = buildPcmdCommonRequest)]
-    pub fn build_pcmd_common_request(&self, part: u8) -> Vec<u8> {
-        self.inner.build_pcmd_common_request(part)
-    }
-
-    /// Build an RQ1 to read a PCM Drum Kit Partial block for a part and key.
-    #[wasm_bindgen(js_name = buildPcmdPartialRequest)]
-    pub fn build_pcmd_partial_request(&self, part: u8, key: u8) -> Result<Vec<u8>, JsError> {
-        Ok(self.inner.build_pcmd_partial_request(part, key)?)
-    }
-
-    /// Build an RQ1 to read the PCM Drum Kit Common2 block for a part.
-    #[wasm_bindgen(js_name = buildPcmdCommon2Request)]
-    pub fn build_pcmd_common2_request(&self, part: u8) -> Vec<u8> {
-        self.inner.build_pcmd_common2_request(part)
     }
 
     // -- MFX ---------------------------------------------------------------
@@ -2634,15 +2281,6 @@ pub fn sna_inst_params_by_category(category: &str) -> JsValue {
         }
         None => JsValue::NULL,
     }
-}
-
-/// Get all known SN-A instrument type names.
-#[wasm_bindgen]
-pub fn sna_all_inst_type_names() -> Vec<String> {
-    integral_core::sna_inst_params::sna_all_inst_types()
-        .iter()
-        .map(|t| t.name.to_string())
-        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -2733,13 +2371,4 @@ pub fn format_mixer_param(id: &str, value: i32) -> String {
     param_registry::lookup(&PARAMS, id)
         .map(|def| param_registry::format_value(def, value))
         .unwrap_or_else(|| value.to_string())
-}
-
-/// Return all SuperNATURAL Synth Tone parameter definitions as a JSON string.
-///
-/// Returns a JSON array of `ParamDef` objects.
-#[wasm_bindgen(js_name = snSynthParamsJson)]
-pub fn sn_synth_params_json() -> String {
-    let params = param_registry::sn_synth_params();
-    serde_json::to_string(&params).unwrap_or_else(|_| "[]".to_string())
 }

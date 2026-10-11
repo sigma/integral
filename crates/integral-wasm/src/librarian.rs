@@ -314,11 +314,6 @@ impl WasmImportPlan {
         self.inner.assign(entry, slot).map_err(js_err)
     }
 
-    /// Clear `entry`'s destination.
-    pub fn unassign(&mut self, entry: usize) -> Result<(), JsError> {
-        self.inner.unassign(entry).map_err(js_err)
-    }
-
     /// Leave `entry` out of the import.
     pub fn exclude(&mut self, entry: usize) -> Result<(), JsError> {
         self.inner.exclude(entry).map_err(js_err)

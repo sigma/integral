@@ -165,17 +165,12 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
   );
 
   // ---------------------------------------------------------------------------
-  // Common param setter
+  // Kit Level setter
   // ---------------------------------------------------------------------------
-  const setCommonParam = useCallback(
-    (offset: number, value: number) => {
-      service.device.setPcmdCommonParam(partIndex, offset, value);
-      setCommon((prev) => {
-        if (!prev) return prev;
-        const next = { ...prev };
-        if (offset === 0x0C) next.kitLevel = value;
-        return next;
-      });
+  const setKitLevel = useCallback(
+    (value: number) => {
+      service.device.setPcmdKitLevel(partIndex, value);
+      setCommon((prev) => (prev ? { ...prev, kitLevel: value } : prev));
     },
     [partIndex, service],
   );
@@ -249,7 +244,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
 
       <div className={css.mainArea}>
         {common && (
-          <CommonPanel common={common} common2={common2} onChange={setCommonParam} />
+          <CommonPanel common={common} common2={common2} onKitLevelChange={setKitLevel} />
         )}
 
         <div className={css.keyEditorArea}>

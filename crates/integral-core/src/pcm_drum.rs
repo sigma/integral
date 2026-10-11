@@ -256,6 +256,9 @@ pub const fn pcmd_common_address(part_index: u8) -> Address {
     pcmd_base(part_index)
 }
 
+/// PCM Drum Kit Common offset of Kit Level (0–127).
+pub const KIT_LEVEL: u8 = 0x0C;
+
 /// Compute the absolute address for a single PCM Drum Kit Common parameter.
 pub const fn pcmd_common_param_address(part_index: u8, offset: u8) -> Address {
     pcmd_common_address(part_index).offset([0x00, 0x00, 0x00, offset])
@@ -712,7 +715,7 @@ pub fn parse_pcmd_common(data: &[u8]) -> Result<PcmDrumCommon, crate::ToneParseE
     }
     let mut c = PcmDrumCommon::default();
     c.kit_name = parse_ascii_name(data);
-    c.kit_level = data[0x0C];
+    c.kit_level = data[usize::from(KIT_LEVEL)];
     Ok(c)
 }
 
@@ -834,7 +837,7 @@ mod tests {
 
     #[test]
     fn pcmd_common_param_address_kit_level() {
-        let addr = pcmd_common_param_address(0, 0x0C);
+        let addr = pcmd_common_param_address(0, KIT_LEVEL);
         assert_eq!(addr, Address::new(0x19, 0x10, 0x00, 0x0C));
     }
 

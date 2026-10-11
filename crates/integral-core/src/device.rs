@@ -903,14 +903,14 @@ impl DeviceState {
     // PCM Drum Kit Edit
     // -----------------------------------------------------------------------
 
-    /// Set a single PCM Drum Kit Common parameter for a part.
-    pub fn set_pcmd_common_param(&mut self, part: u8, offset: u8, value: u8) {
-        let addr = crate::pcm_drum::pcmd_common_param_address(part, offset);
+    /// Set a part's PCM Drum Kit Level (0–127).
+    pub fn set_pcmd_kit_level(&mut self, part: u8, value: u8) {
+        let addr = crate::pcm_drum::pcmd_common_param_address(part, crate::pcm_drum::KIT_LEVEL);
         self.send_dt1(&addr, &[value]);
     }
 
     /// Set a single PCM Drum Kit Partial parameter for a part and key.
-    pub fn set_pcmd_partial_param(
+    fn set_pcmd_partial_param(
         &mut self,
         part: u8,
         key: u8,
@@ -923,7 +923,7 @@ impl DeviceState {
     }
 
     /// Set a nibblized PCM Drum Kit Partial parameter (4 bytes, e.g. wave number).
-    pub fn set_pcmd_partial_nib_param(
+    fn set_pcmd_partial_nib_param(
         &mut self,
         part: u8,
         key: u8,
@@ -1453,6 +1453,17 @@ mod tests {
         assert_eq!(
             dev.drain(100.0).unwrap(),
             sysex::build_dt1(0x10, &Address::new(0x19, 0x10, 0x02, 0x10), &[7])
+        );
+    }
+
+    #[test]
+    fn set_pcmd_kit_level_writes_the_kit_common() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_pcmd_kit_level(1, 100);
+        // Part 2: PCM Drum Kit Common at `19 30 00 00`, Kit Level at `00 0C`.
+        assert_eq!(
+            dev.drain(0.0).unwrap(),
+            sysex::build_dt1(0x10, &Address::new(0x19, 0x30, 0x00, 0x0C), &[100])
         );
     }
 
