@@ -2,4 +2,5 @@
 
 pub mod export;
 pub mod pack;
+pub mod plan;
 pub mod reader;

@@ -319,7 +319,7 @@ fn codec(kind: ChunkType) -> Result<&'static SvdToneSpec, PackError> {
 }
 
 /// The User memory spec of `kind`.
-fn user_memory(kind: ChunkType) -> Option<&'static UserMemorySpec> {
+pub(crate) fn user_memory(kind: ChunkType) -> Option<&'static UserMemorySpec> {
     USER_MEMORY.iter().find(|m| m.cli_name == kind.cli_name())
 }
 
