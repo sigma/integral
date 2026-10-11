@@ -259,7 +259,8 @@ mod tests {
     use super::*;
     use crate::svd::SvdFile;
     use crate::svd_specs::{
-        MFX_PARAMS, PCMS_TONE_SPEC, SNA_TONE_SPEC, SND_TONE_SPEC, SNS_TONE_SPEC, SS_TONE_SPEC,
+        MFX_PARAMS, PCMD_TONE_SPEC, PCMS_TONE_SPEC, SNA_TONE_SPEC, SND_TONE_SPEC, SNS_TONE_SPEC,
+        SS_TONE_SPEC,
     };
     use std::ops::RangeInclusive;
     use std::path::Path;
@@ -738,6 +739,19 @@ mod tests {
         layout.extend((0..4).map(|n| (166 + 99 * n, partial.clone())));
         layout.push((562, doc_fields(PCM_SYNTH_DOC, "## Common 2 (")));
         assert_doc_layout(&PCMS_TONE_SPEC, &layout);
+    }
+
+    #[test]
+    fn pcmd_entry_matches_documented_layout() {
+        let partial = doc_fields(PCM_DRUM_DOC, "## Partial (");
+        let mut layout = vec![
+            (0, doc_fields(PCM_DRUM_DOC, "## Common (")),
+            (14, doc_fields(PCM_SYNTH_DOC, "## Common MFX")),
+            (92, doc_fields(PCM_DRUM_DOC, "## Common Comp/EQ")),
+        ];
+        layout.extend((0..88).map(|n| (134 + 122 * n, partial.clone())));
+        layout.push((10870, doc_fields(PCM_DRUM_DOC, "## Common 2 (")));
+        assert_doc_layout(&PCMD_TONE_SPEC, &layout);
     }
 
     #[test]

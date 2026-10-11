@@ -1469,6 +1469,259 @@ pub static PCMS_TONE_SPEC: SvdToneSpec = SvdToneSpec {
 };
 
 // ---------------------------------------------------------------------------
+// PCM Drum Kit (RFRa) — 10890 bytes, no end marker
+// ---------------------------------------------------------------------------
+
+/// PCM Drum Kit Common parameters (105 bits), reserves included.
+///
+/// Source: `docs/svd/07-pcm-drum.md` — Common.
+#[rustfmt::skip]
+static PCMD_COMMON_PARAMS: &[ParamBits] = &[
+    ParamBits::normal(7), // 00 00: Kit Name 1 (32–127)
+    ParamBits::normal(7), // 00 01: Kit Name 2 (32–127)
+    ParamBits::normal(7), // 00 02: Kit Name 3 (32–127)
+    ParamBits::normal(7), // 00 03: Kit Name 4 (32–127)
+    ParamBits::normal(7), // 00 04: Kit Name 5 (32–127)
+    ParamBits::normal(7), // 00 05: Kit Name 6 (32–127)
+    ParamBits::normal(7), // 00 06: Kit Name 7 (32–127)
+    ParamBits::normal(7), // 00 07: Kit Name 8 (32–127)
+    ParamBits::normal(7), // 00 08: Kit Name 9 (32–127)
+    ParamBits::normal(7), // 00 09: Kit Name 10 (32–127)
+    ParamBits::normal(7), // 00 0A: Kit Name 11 (32–127)
+    ParamBits::normal(7), // 00 0B: Kit Name 12 (32–127)
+    ParamBits::normal(7), // 00 0C: Kit Level (0–127)
+    ParamBits::normal(1), // 00 0D: (unnamed)
+    ParamBits::nibblized(2), // 00 0E: (unnamed)
+    ParamBits::normal(1), // 00 10: (unnamed)
+    ParamBits::normal(4), // 00 11: (reserve)
+];
+
+/// PCM Drum Kit Partial parameters (969 bits), one section per key 21–108.
+///
+/// Source: `docs/svd/07-pcm-drum.md` — Partial.
+#[rustfmt::skip]
+static PCMD_PARTIAL_PARAMS: &[ParamBits] = &[
+    ParamBits::normal(7), // 00 00: Partial Name 1 (32–127)
+    ParamBits::normal(7), // 00 01: Partial Name 2 (32–127)
+    ParamBits::normal(7), // 00 02: Partial Name 3 (32–127)
+    ParamBits::normal(7), // 00 03: Partial Name 4 (32–127)
+    ParamBits::normal(7), // 00 04: Partial Name 5 (32–127)
+    ParamBits::normal(7), // 00 05: Partial Name 6 (32–127)
+    ParamBits::normal(7), // 00 06: Partial Name 7 (32–127)
+    ParamBits::normal(7), // 00 07: Partial Name 8 (32–127)
+    ParamBits::normal(7), // 00 08: Partial Name 9 (32–127)
+    ParamBits::normal(7), // 00 09: Partial Name 10 (32–127)
+    ParamBits::normal(7), // 00 0A: Partial Name 11 (32–127)
+    ParamBits::normal(7), // 00 0B: Partial Name 12 (32–127)
+    ParamBits::normal(1), // 00 0C: Assign Type (0–1)
+    ParamBits::normal(5), // 00 0D: Mute Group (0–31)
+    ParamBits::normal(7), // 00 0E: Partial Level (0–127)
+    ParamBits::normal(7), // 00 0F: Partial Coarse Tune (0–127)
+    ParamBits::normal(7), // 00 10: Partial Fine Tune (14–114)
+    ParamBits::normal(5), // 00 11: Partial Random Pitch Depth (0–30)
+    ParamBits::normal(7), // 00 12: Partial Pan (0–127)
+    ParamBits::normal(6), // 00 13: Partial Random Pan Depth (0–63)
+    ParamBits::normal(7), // 00 14: Partial Alternate Pan Depth (1–127)
+    ParamBits::normal(1), // 00 15: Partial Env Mode (0–1)
+    ParamBits::normal(7), // 00 16: Partial Output Level (0–127)
+    ParamBits::normal(7), // 00 17: (reserve)
+    ParamBits::normal(7), // 00 18: (reserve)
+    ParamBits::normal(7), // 00 19: Partial Chorus Send Level (0–127)
+    ParamBits::normal(7), // 00 1A: Partial Reverb Send Level (0–127)
+    ParamBits::normal(4), // 00 1B: Partial Output Assign (0–6)
+    ParamBits::normal(6), // 00 1C: Partial Pitch Bend Range (0–48)
+    ParamBits::normal(1), // 00 1D: Partial Receive Expression (0–1)
+    ParamBits::normal(1), // 00 1E: Partial Receive Hold-1 (0–1)
+    ParamBits::normal(1), // 00 1F: (reserve)
+    ParamBits::normal(2), // 00 20: WMT Velocity Control (0–2)
+    ParamBits::normal(1), // 00 21: WMT1 Wave Switch (0–1)
+    ParamBits::normal(2), // 00 22: WMT1 Wave Group Type (0–3)
+    ParamBits::nibblized(4), // 00 23: WMT1 Wave Group ID (0–16384)
+    ParamBits::nibblized(4), // 00 27: WMT1 Wave Number L (Mono) (0–16384)
+    ParamBits::nibblized(4), // 00 2B: WMT1 Wave Number R (0–16384)
+    ParamBits::normal(2), // 00 2F: WMT1 Wave Gain (0–3)
+    ParamBits::normal(1), // 00 30: WMT1 Wave FXM Switch (0–1)
+    ParamBits::normal(2), // 00 31: WMT1 Wave FXM Color (0–3)
+    ParamBits::normal(5), // 00 32: WMT1 Wave FXM Depth (0–16)
+    ParamBits::normal(1), // 00 33: WMT1 Wave Tempo Sync (0–1)
+    ParamBits::normal(7), // 00 34: WMT1 Wave Coarse Tune (16–112)
+    ParamBits::normal(7), // 00 35: WMT1 Wave Fine Tune (14–114)
+    ParamBits::normal(7), // 00 36: WMT1 Wave Pan (0–127)
+    ParamBits::normal(1), // 00 37: WMT1 Wave Random Pan Switch (0–1)
+    ParamBits::normal(2), // 00 38: WMT1 Wave Alternate Pan Switch (0–2)
+    ParamBits::normal(7), // 00 39: WMT1 Wave Level (0–127)
+    ParamBits::normal(7), // 00 3A: WMT1 Velocity Range Lower (1–127)
+    ParamBits::normal(7), // 00 3B: WMT1 Velocity Range Upper (1–127)
+    ParamBits::normal(7), // 00 3C: WMT1 Velocity Fade Width Lower (0–127)
+    ParamBits::normal(7), // 00 3D: WMT1 Velocity Fade Width Upper (0–127)
+    ParamBits::normal(1), // 00 3E: WMT2 Wave Switch (0–1)
+    ParamBits::normal(2), // 00 3F: WMT2 Wave Group Type (0–3)
+    ParamBits::nibblized(4), // 00 40: WMT2 Wave Group ID (0–16384)
+    ParamBits::nibblized(4), // 00 44: WMT2 Wave Number L (Mono) (0–16384)
+    ParamBits::nibblized(4), // 00 48: WMT2 Wave Number R (0–16384)
+    ParamBits::normal(2), // 00 4C: WMT2 Wave Gain (0–3)
+    ParamBits::normal(1), // 00 4D: WMT2 Wave FXM Switch (0–1)
+    ParamBits::normal(2), // 00 4E: WMT2 Wave FXM Color (0–3)
+    ParamBits::normal(5), // 00 4F: WMT2 Wave FXM Depth (0–16)
+    ParamBits::normal(1), // 00 50: WMT2 Wave Tempo Sync (0–1)
+    ParamBits::normal(7), // 00 51: WMT2 Wave Coarse Tune (16–112)
+    ParamBits::normal(7), // 00 52: WMT2 Wave Fine Tune (14–114)
+    ParamBits::normal(7), // 00 53: WMT2 Wave Pan (0–127)
+    ParamBits::normal(1), // 00 54: WMT2 Wave Random Pan Switch (0–1)
+    ParamBits::normal(2), // 00 55: WMT2 Wave Alternate Pan Switch (0–2)
+    ParamBits::normal(7), // 00 56: WMT2 Wave Level (0–127)
+    ParamBits::normal(7), // 00 57: WMT2 Velocity Range Lower (1–127)
+    ParamBits::normal(7), // 00 58: WMT2 Velocity Range Upper (1–127)
+    ParamBits::normal(7), // 00 59: WMT2 Velocity Fade Width Lower (0–127)
+    ParamBits::normal(7), // 00 5A: WMT2 Velocity Fade Width Upper (0–127)
+    ParamBits::normal(1), // 00 5B: WMT3 Wave Switch (0–1)
+    ParamBits::normal(2), // 00 5C: WMT3 Wave Group Type (0–3)
+    ParamBits::nibblized(4), // 00 5D: WMT3 Wave Group ID (0–16384)
+    ParamBits::nibblized(4), // 00 61: WMT3 Wave Number L (Mono) (0–16384)
+    ParamBits::nibblized(4), // 00 65: WMT3 Wave Number R (0–16384)
+    ParamBits::normal(2), // 00 69: WMT3 Wave Gain (0–3)
+    ParamBits::normal(1), // 00 6A: WMT3 Wave FXM Switch (0–1)
+    ParamBits::normal(2), // 00 6B: WMT3 Wave FXM Color (0–3)
+    ParamBits::normal(5), // 00 6C: WMT3 Wave FXM Depth (0–16)
+    ParamBits::normal(1), // 00 6D: WMT3 Wave Tempo Sync (0–1)
+    ParamBits::normal(7), // 00 6E: WMT3 Wave Coarse Tune (16–112)
+    ParamBits::normal(7), // 00 6F: WMT3 Wave Fine Tune (14–114)
+    ParamBits::normal(7), // 00 70: WMT3 Wave Pan (0–127)
+    ParamBits::normal(1), // 00 71: WMT3 Wave Random Pan Switch (0–1)
+    ParamBits::normal(2), // 00 72: WMT3 Wave Alternate Pan Switch (0–2)
+    ParamBits::normal(7), // 00 73: WMT3 Wave Level (0–127)
+    ParamBits::normal(7), // 00 74: WMT3 Velocity Range Lower (1–127)
+    ParamBits::normal(7), // 00 75: WMT3 Velocity Range Upper (1–127)
+    ParamBits::normal(7), // 00 76: WMT3 Velocity Fade Width Lower (0–127)
+    ParamBits::normal(7), // 00 77: WMT3 Velocity Fade Width Upper (0–127)
+    ParamBits::normal(1), // 00 78: WMT4 Wave Switch (0–1)
+    ParamBits::normal(2), // 00 79: WMT4 Wave Group Type (0–3)
+    ParamBits::nibblized(4), // 00 7A: WMT4 Wave Group ID (0–16384)
+    ParamBits::nibblized(4), // 00 7E: WMT4 Wave Number L (Mono) (0–16384)
+    ParamBits::nibblized(4), // 01 02: WMT4 Wave Number R (0–16384)
+    ParamBits::normal(2), // 01 06: WMT4 Wave Gain (0–3)
+    ParamBits::normal(1), // 01 07: WMT4 Wave FXM Switch (0–1)
+    ParamBits::normal(2), // 01 08: WMT4 Wave FXM Color (0–3)
+    ParamBits::normal(5), // 01 09: WMT4 Wave FXM Depth (0–16)
+    ParamBits::normal(1), // 01 0A: WMT4 Wave Tempo Sync (0–1)
+    ParamBits::normal(7), // 01 0B: WMT4 Wave Coarse Tune (16–112)
+    ParamBits::normal(7), // 01 0C: WMT4 Wave Fine Tune (14–114)
+    ParamBits::normal(7), // 01 0D: WMT4 Wave Pan (0–127)
+    ParamBits::normal(1), // 01 0E: WMT4 Wave Random Pan Switch (0–1)
+    ParamBits::normal(2), // 01 0F: WMT4 Wave Alternate Pan Switch (0–2)
+    ParamBits::normal(7), // 01 10: WMT4 Wave Level (0–127)
+    ParamBits::normal(7), // 01 11: WMT4 Velocity Range Lower (1–127)
+    ParamBits::normal(7), // 01 12: WMT4 Velocity Range Upper (1–127)
+    ParamBits::normal(7), // 01 13: WMT4 Velocity Fade Width Lower (0–127)
+    ParamBits::normal(7), // 01 14: WMT4 Velocity Fade Width Upper (0–127)
+    ParamBits::signed(5), // 01 15: Pitch Env Depth (52–76)
+    ParamBits::normal(7), // 01 16: Pitch Env Velocity Sens (1–127)
+    ParamBits::normal(7), // 01 17: Pitch Env Time 1 Velocity Sens (1–127)
+    ParamBits::normal(7), // 01 18: Pitch Env Time 4 Velocity Sens (1–127)
+    ParamBits::normal(7), // 01 19: Pitch Env Time 1 (0–127)
+    ParamBits::normal(7), // 01 1A: Pitch Env Time 2 (0–127)
+    ParamBits::normal(7), // 01 1B: Pitch Env Time 3 (0–127)
+    ParamBits::normal(7), // 01 1C: Pitch Env Time 4 (0–127)
+    ParamBits::normal(7), // 01 1D: Pitch Env Level 0 (1–127)
+    ParamBits::normal(7), // 01 1E: Pitch Env Level 1 (1–127)
+    ParamBits::normal(7), // 01 1F: Pitch Env Level 2 (1–127)
+    ParamBits::normal(7), // 01 20: Pitch Env Level 3 (1–127)
+    ParamBits::normal(7), // 01 21: Pitch Env Level 4 (1–127)
+    ParamBits::normal(3), // 01 22: TVF Filter Type (0–6)
+    ParamBits::normal(7), // 01 23: TVF Cutoff Frequency (0–127)
+    ParamBits::normal(3), // 01 24: TVF Cutoff Velocity Curve (0–7)
+    ParamBits::normal(7), // 01 25: TVF Cutoff Velocity Sens (1–127)
+    ParamBits::normal(7), // 01 26: TVF Resonance (0–127)
+    ParamBits::normal(7), // 01 27: TVF Resonance Velocity Sens (1–127)
+    ParamBits::normal(7), // 01 28: TVF Env Depth (1–127)
+    ParamBits::normal(3), // 01 29: TVF Env Velocity Curve Type (0–7)
+    ParamBits::normal(7), // 01 2A: TVF Env Velocity Sens (1–127)
+    ParamBits::normal(7), // 01 2B: TVF Env Time 1 Velocity Sens (1–127)
+    ParamBits::normal(7), // 01 2C: TVF Env Time 4 Velocity Sens (1–127)
+    ParamBits::normal(7), // 01 2D: TVF Env Time 1 (0–127)
+    ParamBits::normal(7), // 01 2E: TVF Env Time 2 (0–127)
+    ParamBits::normal(7), // 01 2F: TVF Env Time 3 (0–127)
+    ParamBits::normal(7), // 01 30: TVF Env Time 4 (0–127)
+    ParamBits::normal(7), // 01 31: TVF Env Level 0 (0–127)
+    ParamBits::normal(7), // 01 32: TVF Env Level 1 (0–127)
+    ParamBits::normal(7), // 01 33: TVF Env Level 2 (0–127)
+    ParamBits::normal(7), // 01 34: TVF Env Level 3 (0–127)
+    ParamBits::normal(7), // 01 35: TVF Env Level 4 (0–127)
+    ParamBits::normal(3), // 01 36: TVA Level Velocity Curve (0–7)
+    ParamBits::normal(7), // 01 37: TVA Level Velocity Sens (1–127)
+    ParamBits::normal(7), // 01 38: TVA Env Time 1 Velocity Sens (1–127)
+    ParamBits::normal(7), // 01 39: TVA Env Time 4 Velocity Sens (1–127)
+    ParamBits::normal(7), // 01 3A: TVA Env Time 1 (0–127)
+    ParamBits::normal(7), // 01 3B: TVA Env Time 2 (0–127)
+    ParamBits::normal(7), // 01 3C: TVA Env Time 3 (0–127)
+    ParamBits::normal(7), // 01 3D: TVA Env Time 4 (0–127)
+    ParamBits::normal(7), // 01 3E: TVA Env Level 1 (0–127)
+    ParamBits::normal(7), // 01 3F: TVA Env Level 2 (0–127)
+    ParamBits::normal(7), // 01 40: TVA Env Level 3 (0–127)
+    ParamBits::normal(1), // 01 41: One Shot Mode (0–1)
+    ParamBits::normal(7), // 01 42: (reserve)
+];
+
+/// PCM Drum Kit Common 2 parameters (152 bits).
+///
+/// Source: `docs/svd/07-pcm-drum.md` — Common 2.
+#[rustfmt::skip]
+static PCMD_COMMON2_PARAMS: &[ParamBits] = &[
+    // 00 00–00 0F: (reserve) holding the 16-character long name (7-bit ASCII)
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::nibblized(2), // 00 10: Phrase Number (0–255)
+    ParamBits::normal(1), // 00 12: (reserve)
+    // 00 13–00 2F: (reserve) × 29
+    ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1),
+    ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1),
+    ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1),
+    ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1),
+    ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1),
+    ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1),
+    ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1),
+    ParamBits::normal(1),
+    ParamBits::normal(1), // 00 30: (reserve)
+    ParamBits::normal(1), // 00 31: TFX Switch (0–1)
+];
+
+/// PCM Drum Kit section layout: Common 14 B, MFX 78 B, Comp/EQ 42 B, 88
+/// Partials of 122 B and Common 2 19 B, then 1 zero byte.
+static PCMD_SECTIONS: [SvdSection; 92] = {
+    let partial = SvdSection {
+        params: PCMD_PARTIAL_PARAMS,
+        svd_bytes: 122,
+    };
+    let mut sections = [partial; 92];
+    sections[0] = SvdSection {
+        params: PCMD_COMMON_PARAMS,
+        svd_bytes: 14,
+    };
+    sections[1] = SvdSection {
+        params: MFX_PARAMS,
+        svd_bytes: 78,
+    };
+    sections[2] = SvdSection {
+        params: COMP_EQ_PARAMS,
+        svd_bytes: 42,
+    };
+    sections[91] = SvdSection {
+        params: PCMD_COMMON2_PARAMS,
+        svd_bytes: 19,
+    };
+    sections
+};
+
+/// Complete PCM Drum Kit SVD specification.
+pub static PCMD_TONE_SPEC: SvdToneSpec = SvdToneSpec {
+    sections: &PCMD_SECTIONS,
+    entry_size: 10890,
+    init_tail: &[],
+};
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -1575,6 +1828,7 @@ mod tests {
             &SS_TONE_SPEC,
             &SND_TONE_SPEC,
             &PCMS_TONE_SPEC,
+            &PCMD_TONE_SPEC,
         ] {
             assert!(spec.data_bytes() + spec.init_tail.len() <= spec.entry_size);
             for s in spec.sections {
@@ -1604,6 +1858,18 @@ mod tests {
         assert_eq!(sysex(2), pcm_synth::PCMS_PMT_BLOCK_SIZE.value());
         assert_eq!(sysex(3), pcm_synth::PCMS_PARTIAL_BLOCK_SIZE.value());
         assert_eq!(sysex(7), pcm_synth::PCMS_COMMON2_BLOCK_SIZE.value());
+    }
+
+    #[test]
+    fn pcmd_section_sizes() {
+        use crate::{mfx, params, pcm_drum};
+        let sysex = |i: usize| PCMD_TONE_SPEC.sections[i].sysex_size() as u32;
+        assert_eq!(PCMD_TONE_SPEC.data_bytes(), 10889);
+        assert_eq!(sysex(0), pcm_drum::PCMD_COMMON_BLOCK_SIZE.value());
+        assert_eq!(sysex(1), mfx::MFX_BLOCK_SIZE.value());
+        assert_eq!(sysex(2), params::COMP_EQ_BLOCK_SIZE.value());
+        assert_eq!(sysex(3), pcm_drum::PCMD_PARTIAL_BLOCK_SIZE.value());
+        assert_eq!(sysex(91), pcm_drum::PCMD_COMMON2_BLOCK_SIZE.value());
     }
 
     #[test]
