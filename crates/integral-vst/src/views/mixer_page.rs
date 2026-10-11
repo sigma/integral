@@ -15,6 +15,7 @@ use integral_core::params::{chorus, reverb};
 
 use crate::SharedState;
 
+use super::tone_editor::bank_label;
 use super::tone_selector::ToneSelectorEvent;
 use super::top_bar::TopBarEvent;
 use super::{
@@ -377,7 +378,7 @@ impl MixerData {
         let idx = self.selected_part;
         let part = &mixer.parts[idx];
         let tone = &part.tone_name;
-        let type_label = tone_type_label(part.tone_bank_msb);
+        let type_label = bank_label(part.tone_bank_msb, part.tone_bank_lsb);
         self.selected_part_info = if tone.is_empty() {
             format!("Part {}", idx + 1)
         } else {
@@ -431,20 +432,6 @@ fn apply_fx_edit(dev: &mut DeviceState, fx: FxBlock, edit: FxEdit) {
         (FxBlock::Reverb, FxEdit::Type(v)) => dev.set_reverb_param(reverb::TYPE, v),
         (FxBlock::Reverb, FxEdit::Level(v)) => dev.set_reverb_param(reverb::LEVEL, v),
         (FxBlock::Reverb, FxEdit::Output(v)) => dev.set_reverb_param(reverb::OUTPUT_ASSIGN, v),
-    }
-}
-
-/// Return a human-readable tone type from the bank MSB.
-fn tone_type_label(bank_msb: u8) -> &'static str {
-    match bank_msb {
-        87 => "PCM Synth",
-        89 => "SN Acoustic",
-        95 => "SN Synth",
-        86 => "PCM Drum",
-        88 => "SN Drum",
-        93 => "Expansion PCM",
-        121 => "GM2",
-        _ => "Unknown",
     }
 }
 

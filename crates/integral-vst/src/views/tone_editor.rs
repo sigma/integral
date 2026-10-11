@@ -54,7 +54,7 @@ fn tone_type_label(bank_msb: u8) -> &'static str {
 /// The header name of the bank selected by `bank_msb`/`bank_lsb`: its
 /// Expansion (e.g. "ExPCM", "SRX-05") or its group (e.g. "GM2", "PCM
 /// Synth"), falling back to the tone type.
-fn bank_label(bank_msb: u8, bank_lsb: u8) -> &'static str {
+pub(crate) fn bank_label(bank_msb: u8, bank_lsb: u8) -> &'static str {
     let Some(bank) = find_bank(bank_msb, bank_lsb) else {
         return tone_type_label(bank_msb);
     };
