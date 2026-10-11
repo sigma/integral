@@ -483,6 +483,12 @@ pub fn build_studio_set_write_request(device_id: u8, pc: u8) -> Vec<u8> {
     )
 }
 
+/// How long a write waits for its "write finished" reply once sent (ms).
+#[wasm_bindgen]
+pub fn write_timeout_ms() -> f64 {
+    integral_core::librarian::import::WRITE_TIMEOUT_MS
+}
+
 /// A parsed write reply (see `parse_write_reply`).
 #[wasm_bindgen]
 pub struct WriteReply {

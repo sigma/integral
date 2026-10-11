@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  ImportPlan,
-  ImportStatus,
-  ImportWarning,
+import {
   Pack,
-  PackEntryInfo,
-  Placement,
+  planImport,
+  type CatalogName,
+  type ImportPlan,
+  type ImportStatus,
+  type ImportWarning,
+  type PackEntryInfo,
+  type Placement,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import {
   downloadFile,
   libraryType,
+  libraryTypes,
   packFileBase,
   PACK_EXTENSION,
   slotLabel,
@@ -120,6 +123,41 @@ function message(e: unknown): string {
 }
 
 /**
+ * Read an SVD file and plan its import against the User slot names (tones
+ * from `catalog`, Studio Sets from `loadStudioSetNames`) and the loaded
+ * Expansions. The caller owns (and frees) both.
+ */
+async function planImportFromSvd(
+  service: IntegraService,
+  catalog: ToneCatalog,
+  loadStudioSetNames: () => Promise<Map<number, string>>,
+  bytes: Uint8Array,
+): Promise<{ pack: Pack; plan: ImportPlan }> {
+  const pack = Pack.fromSvd(bytes);
+  try {
+    const kinds = new Set(pack.entries().map((e) => e.kind));
+    const names: CatalogName[] = [];
+    for (const t of libraryTypes().filter((t) => kinds.has(t.kind))) {
+      if (!t.bank) {
+        // Studio Sets have one bank: LSB 0.
+        for (const [pc, name] of await loadStudioSetNames()) {
+          names.push({ msb: t.bankMsb, lsb: 0, pc, name });
+        }
+        continue;
+      }
+      for (const { msb, lsb, pc, name } of await catalog.load(t.bank)) {
+        names.push({ msb, lsb, pc, name });
+      }
+    }
+    const slots = await service.readExpansionSlots();
+    return { pack, plan: planImport(pack, names, slots) };
+  } catch (e) {
+    pack.free();
+    throw e;
+  }
+}
+
+/**
  * The Pack opened on the Library page, its import plan and its import.
  * Lives above the page, so an import keeps running while another page is
  * shown.
@@ -163,14 +201,17 @@ export function useLibraryImport(
     [service, replace],
   );
 
+  const { loadStudioSetNames } = mixer;
   const open = useCallback(
     (file: File) => {
-      if (!service || busy) return;
+      if (!service || !catalog || busy) return;
       setOpening(true);
       setOpenError(null);
       file
         .arrayBuffer()
-        .then((buffer) => service.planImportFromSvd(new Uint8Array(buffer)))
+        .then((buffer) =>
+          planImportFromSvd(service, catalog, loadStudioSetNames, new Uint8Array(buffer)),
+        )
         .then(({ pack, plan }) =>
           replace({
             name: file.name,
@@ -183,7 +224,7 @@ export function useLibraryImport(
         .catch((e: unknown) => setOpenError(`${file.name}: ${message(e)}`))
         .finally(() => setOpening(false));
     },
-    [service, busy, replace],
+    [service, catalog, loadStudioSetNames, busy, replace],
   );
 
   const close = useCallback(() => {
@@ -280,7 +321,7 @@ export function useLibraryImport(
 
   const temporary = entries.some((e) => e.placement === "temporary");
   const { selectedPart } = mixer.state;
-  const { reload, loadStudioSetNames } = mixer;
+  const { reload } = mixer;
 
   const start = useCallback(
     (undo: boolean) => {

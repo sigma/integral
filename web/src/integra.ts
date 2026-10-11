@@ -44,6 +44,7 @@ import {
   build_tone_write_request,
   build_studio_set_write_request,
   parse_write_reply,
+  write_timeout_ms,
   decode_nib_params,
   expansionSlotsAddress,
   LoadActionKind,
@@ -54,9 +55,6 @@ import {
   Pack,
   PackExport,
   PackImport,
-  librarianTypes,
-  planImport,
-  type CatalogName,
   type ExportProgress,
   type ExportSource,
   type ImportPlan,
@@ -72,9 +70,6 @@ import { DRUMS_CATEGORY } from "./categories";
 
 /** SysEx start byte (0xF0). */
 const SYSEX_START = 0xf0;
-
-/** How long to wait for the "write finished" reply (device takes 2–3 s). */
-const WRITE_TIMEOUT_MS = 10000;
 
 /** Note On status nibble (0x90). */
 const NOTE_ON = 0x90;
@@ -884,10 +879,7 @@ export class IntegraService {
     }
     this.writing = true;
     return new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        unsubscribe();
-        reject(new Error("No reply from the INTEGRA-7 while saving"));
-      }, WRITE_TIMEOUT_MS);
+      let timer: ReturnType<typeof setTimeout> | undefined;
       const unsubscribe = this.onDt1((addr, data) => {
         const reply = parse_write_reply(addr, data);
         if (!reply) return;
@@ -895,10 +887,17 @@ export class IntegraService {
         reply.free();
         if (!done) return;
         clearTimeout(timer);
+        cancelSent();
         unsubscribe();
         resolve();
       });
-      this.device.sendRaw("write", msg);
+      // The timeout starts once the request leaves the queue.
+      const cancelSent = this.queueRaw("write", msg, () => {
+        timer = setTimeout(() => {
+          unsubscribe();
+          reject(new Error("No reply from the INTEGRA-7 while saving"));
+        }, write_timeout_ms());
+      });
     }).finally(() => {
       this.writing = false;
     });
@@ -1051,35 +1050,6 @@ export class IntegraService {
     } finally {
       throttle.cancel();
       machine.free();
-    }
-  }
-
-  /**
-   * Read an SVD file and plan its import against the device's User slot
-   * names and loaded Expansions. The caller owns (and frees) both.
-   */
-  async planImportFromSvd(bytes: Uint8Array): Promise<{ pack: Pack; plan: ImportPlan }> {
-    const pack = Pack.fromSvd(bytes);
-    try {
-      const kinds = new Set(pack.entries().map((e) => e.kind));
-      const names: CatalogName[] = [];
-      for (const t of librarianTypes().filter((t) => kinds.has(t.kind))) {
-        if (t.studioSet) {
-          // Studio Sets have one bank: LSB 0.
-          for (const [pc, name] of await this.requestStudioSetNames()) {
-            names.push({ msb: t.bankMsb, lsb: 0, pc, name });
-          }
-          continue;
-        }
-        for (let lsb = 0; lsb * 128 < t.slotCount; lsb++) {
-          names.push(...(await this.requestToneCatalogForLsb(t.bankMsb, lsb)));
-        }
-      }
-      const slots = await this.readExpansionSlots();
-      return { pack, plan: planImport(pack, names, slots) };
-    } catch (e) {
-      pack.free();
-      throw e;
     }
   }
 

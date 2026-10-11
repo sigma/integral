@@ -104,6 +104,21 @@ export class ToneCatalog {
     this.fetchPages(bank, key);
   }
 
+  /** A bank's entries once all its pages are fetched, fetching it if needed. */
+  load(bank: ToneBank): Promise<ToneEntry[]> {
+    return new Promise((resolve) => {
+      const done = (): boolean => {
+        if (!this.isComplete(bank)) return false;
+        unsubscribe();
+        resolve(this.get(bank));
+        return true;
+      };
+      const unsubscribe = this.subscribe(bank, done);
+      this.fetch(bank);
+      done();
+    });
+  }
+
   /**
    * Drop a bank's cached entries and fetch it again, e.g. after saving
    * into a user slot. If a fetch is in progress, refetch when it ends.

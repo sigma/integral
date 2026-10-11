@@ -87,9 +87,9 @@ export interface UseMixerResult {
   /**
    * Load Studio Set names once; `force` re-reads them (e.g. after a save).
    * A load that returns nothing keeps the previous names and is retried
-   * on the next call.
+   * on the next call. Resolves with the names known then.
    */
-  loadStudioSetNames: (force?: boolean) => Promise<void>;
+  loadStudioSetNames: (force?: boolean) => Promise<Map<number, string>>;
   /** Read the whole mixer state again, e.g. after a Pack import. */
   reload: () => void;
   preview: () => void;
@@ -315,15 +315,24 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   // -----------------------------------------------------------------------
 
   const catalogLoaded = useRef(false);
+  /** The names read in flight, shared by concurrent callers. */
+  const namesRead = useRef<Promise<Map<number, string>> | null>(null);
   const loadStudioSetNames = useCallback(async (force = false) => {
-    if (!service || (catalogLoaded.current && !force)) return;
+    if (!service) return new Map<number, string>();
+    if (!force && namesRead.current) return namesRead.current;
+    if (!force && catalogLoaded.current) return stateRef.current.studioSetNames;
     catalogLoaded.current = true;
-    const names = await service.requestStudioSetNames();
+    const read = service.requestStudioSetNames();
+    namesRead.current = read;
+    const names = await read.finally(() => {
+      if (namesRead.current === read) namesRead.current = null;
+    });
     if (names.size === 0) {
       catalogLoaded.current = false;
-      return;
+      return stateRef.current.studioSetNames;
     }
     setState((prev) => ({ ...prev, studioSetNames: names }));
+    return names;
   }, [service]);
 
   // -----------------------------------------------------------------------
