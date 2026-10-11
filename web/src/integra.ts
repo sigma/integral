@@ -1184,7 +1184,8 @@ export class IntegraService {
               disarm();
               unsubscribe();
               signal?.removeEventListener("abort", abort);
-              resolve(error);
+              // Done once the last sends (e.g. the restore) have left.
+              void flushed.then(() => resolve(error));
               return;
           }
         }
