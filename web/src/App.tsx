@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo, type ReactNode } from "react";
 import {
   initWasm,
   requestMidiAccess,
@@ -54,6 +54,15 @@ type DeviceStatus =
   | { step: "connected"; identity: DeviceIdentity }
   | { step: "failed"; reason: string }
   | { step: "disconnected" };
+
+/** Controls that turn dimmed and inert while `locked`, laid out as if unwrapped. */
+function Lockable({ locked, children }: { locked: boolean; children: ReactNode }) {
+  return (
+    <div className={`${css.lockable} ${locked ? css.locked : ""}`} inert={locked}>
+      {children}
+    </div>
+  );
+}
 
 export function App() {
   const [midiError, setMidiError] = useState<string | null>(null);
@@ -218,6 +227,9 @@ export function App() {
   // Show connected UI when connected to an Integra-7
   if (service && catalog) {
     const loading = expansions.running;
+    // A running Pack import borrows a Part and the Temporary Studio Set:
+    // what edits them is inert until it ends. Notes and the tabs stay live.
+    const importing = libraryImport.busy;
     return (
       <div className={css.shell}>
         {loading && <ExpansionLoadBanner load={loading} />}
@@ -268,34 +280,38 @@ export function App() {
               </button>
               {sequencer && <Transport engine={sequencer} />}
             </div>
-            <TopBar
-              mixer={mixer}
-              service={service}
-              catalog={catalog}
-              expansions={expansions}
-              onLoadExpansion={loadExpansion}
-            />
+            <Lockable locked={importing}>
+              <TopBar
+                mixer={mixer}
+                service={service}
+                catalog={catalog}
+                expansions={expansions}
+                onLoadExpansion={loadExpansion}
+              />
+            </Lockable>
           </nav>
-          {activeTab === "mixer" && (
-            <ErrorBoundary section="Mixer">
-              <MixerPage mixer={mixer} expansions={expansions} />
-            </ErrorBoundary>
-          )}
-          {activeTab === "surround" && (
-            <ErrorBoundary section="Surround">
-              <SurroundPage mixer={mixer} />
-            </ErrorBoundary>
-          )}
-          {activeTab === "toneEdit" && (
-            <ErrorBoundary section="Tone Editor">
-              <ToneEditorPage mixer={mixer} service={service} onBack={() => setActiveTab("mixer")} />
-            </ErrorBoundary>
-          )}
-          {activeTab === "expansions" && (
-            <ErrorBoundary section="Expansions">
-              <ExpansionsPage expansions={expansions} staging={expansionStaging} />
-            </ErrorBoundary>
-          )}
+          <Lockable locked={importing}>
+            {activeTab === "mixer" && (
+              <ErrorBoundary section="Mixer">
+                <MixerPage mixer={mixer} expansions={expansions} />
+              </ErrorBoundary>
+            )}
+            {activeTab === "surround" && (
+              <ErrorBoundary section="Surround">
+                <SurroundPage mixer={mixer} />
+              </ErrorBoundary>
+            )}
+            {activeTab === "toneEdit" && (
+              <ErrorBoundary section="Tone Editor">
+                <ToneEditorPage mixer={mixer} service={service} onBack={() => setActiveTab("mixer")} />
+              </ErrorBoundary>
+            )}
+            {activeTab === "expansions" && (
+              <ErrorBoundary section="Expansions">
+                <ExpansionsPage expansions={expansions} staging={expansionStaging} />
+              </ErrorBoundary>
+            )}
+          </Lockable>
           {activeTab === "library" && (
             <ErrorBoundary section="Library">
               <LibraryPage

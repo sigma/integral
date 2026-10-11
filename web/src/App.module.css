@@ -51,8 +51,14 @@
   min-height: 0;
 }
 
-/* Dimmed (and inert) while an Expansion load runs. */
-.bodyBusy {
+/* Wraps the controls a Pack import locks, without a box of its own. */
+.lockable {
+  display: contents;
+}
+
+/* Dimmed (and inert) while an Expansion load runs, or locked by a Pack import. */
+.bodyBusy,
+.locked > * {
   opacity: 0.4;
   filter: grayscale(0.6);
 }
