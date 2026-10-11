@@ -13,7 +13,7 @@
 
 use super::frame::{self, Frame};
 use super::pcm_tone::{self, Output, PcmTone};
-use super::report::{ConversionItem, ConversionReport, EffectFamily, ForeignEffect};
+use super::report::{ConversionItem, ConversionReport, EffectFamily, ForeignEffect, Location};
 use super::wave_map::ForeignWaveGroup;
 use super::xv::CATEGORIES;
 use super::{Placed, Unit};
@@ -603,7 +603,7 @@ impl Patch<'_> {
 
     fn drop_param(&mut self, partial: Option<usize>, param: &'static str) {
         self.report.push(ConversionItem::ParamDropped {
-            partial: partial.map(|i| i as u8 + 1),
+            at: partial.map(|i| Location::Partial(i as u8 + 1)),
             param,
         });
     }

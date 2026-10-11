@@ -516,14 +516,14 @@ mod xv_patches {
             report,
             [
                 ConversionItem::WaveUnmapped {
-                    partial: 1,
+                    at: Location::Partial(1),
                     source: ForeignWave {
                         group: ForeignWaveGroup::SrJv80(1),
                         number: 1
                     },
                 },
                 ConversionItem::WaveUnmapped {
-                    partial: 2,
+                    at: Location::Partial(2),
                     source: ForeignWave {
                         group: ForeignWaveGroup::Sample,
                         number: 4
@@ -994,7 +994,7 @@ mod jv_patches {
         // INT-A Wave 1 is INT 19.
         assert_eq!(waves(&entry.blocks()[3]), (0, 1, 19, 0));
         let unmapped = ConversionItem::WaveUnmapped {
-            partial: 1,
+            at: Location::Partial(1),
             source: ForeignWave {
                 group: ForeignWaveGroup::PcmCard(3),
                 number: 30,

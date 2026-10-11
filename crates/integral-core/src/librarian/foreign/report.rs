@@ -8,6 +8,34 @@ use core::fmt;
 use super::wave_map::{ForeignWave, WaveTarget};
 use crate::waves;
 
+/// Where in a converted entry a [`ConversionItem`] applies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub enum Location {
+    /// A PCM Synth tone's partial (1–4).
+    Partial(u8),
+    /// A PCM Drum Kit key, by MIDI note number.
+    Key(u8),
+    /// A Wave layer of a PCM Drum Kit key.
+    Wmt {
+        /// The key, by MIDI note number.
+        key: u8,
+        /// The WMT (1–4).
+        wmt: u8,
+    },
+}
+
+impl fmt::Display for Location {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Partial(partial) => write!(f, "Partial {partial}"),
+            Self::Key(key) => write!(f, "Key {key}"),
+            Self::Wmt { key, wmt } => write!(f, "Key {key} WMT {wmt}"),
+        }
+    }
+}
+
 /// One thing a Foreign patch conversion dropped or approximated. Filled by
 /// the per-family converters, and only for what the Patch uses: a dropped
 /// setting is listed when it differs from its neutral value.
@@ -15,17 +43,18 @@ use crate::waves;
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(tag = "type", rename_all = "camelCase"))]
 pub enum ConversionItem {
-    /// A Wave with no INTEGRA-7 equivalent. Its partial is switched off.
+    /// A Wave with no INTEGRA-7 equivalent. Its partial or WMT is switched
+    /// off.
     WaveUnmapped {
-        /// The partial (1–4).
-        partial: u8,
+        /// The partial or WMT.
+        at: Location,
         /// The Wave.
         source: ForeignWave,
     },
     /// A Wave mapped with low confidence.
     WaveApproximate {
-        /// The partial (1–4).
-        partial: u8,
+        /// The partial or WMT.
+        at: Location,
         /// The Wave.
         source: ForeignWave,
         /// The INTEGRA-7 Wave it was mapped to.
@@ -38,8 +67,8 @@ pub enum ConversionItem {
     },
     /// A parameter with no INTEGRA-7 equivalent.
     ParamDropped {
-        /// The partial (1–4), or `None` for a tone-wide parameter.
-        partial: Option<u8>,
+        /// Where it was set, or `None` for a tone-wide parameter.
+        at: Option<Location>,
         /// Its name on the source synth.
         param: &'static str,
     },
@@ -65,15 +94,11 @@ pub enum ConversionItem {
 impl fmt::Display for ConversionItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::WaveUnmapped { partial, source } => {
-                write!(f, "Partial {partial}: {source} has no INTEGRA-7 Wave")
+            Self::WaveUnmapped { at, source } => {
+                write!(f, "{at}: {source} has no INTEGRA-7 Wave")
             }
-            Self::WaveApproximate {
-                partial,
-                source,
-                target,
-            } => {
-                write!(f, "Partial {partial}: {source} approximated by ")?;
+            Self::WaveApproximate { at, source, target } => {
+                write!(f, "{at}: {source} approximated by ")?;
                 write!(f, "{} Wave {}", target.group.id(), target.number)?;
                 match waves::name(target.group, target.number) {
                     Some(name) => write!(f, " ({name})"),
@@ -84,13 +109,10 @@ impl fmt::Display for ConversionItem {
                 write!(f, "{source} dropped, MFX set to THRU")
             }
             Self::ParamDropped {
-                partial: Some(partial),
+                at: Some(at),
                 param,
-            } => write!(f, "Partial {partial}: {param} dropped"),
-            Self::ParamDropped {
-                partial: None,
-                param,
-            } => write!(f, "{param} dropped"),
+            } => write!(f, "{at}: {param} dropped"),
+            Self::ParamDropped { at: None, param } => write!(f, "{param} dropped"),
             Self::RoutingDropped {
                 partial,
                 control,
@@ -244,9 +266,12 @@ mod tests {
             number: 1,
         };
         let items = [
-            ConversionItem::WaveUnmapped { partial: 1, source },
+            ConversionItem::WaveUnmapped {
+                at: Location::Partial(1),
+                source,
+            },
             ConversionItem::WaveApproximate {
-                partial: 2,
+                at: Location::Wmt { key: 36, wmt: 2 },
                 source,
                 target: WaveTarget {
                     group: WaveGroup::Srx(6),
@@ -261,11 +286,11 @@ mod tests {
                 },
             },
             ConversionItem::ParamDropped {
-                partial: Some(3),
+                at: Some(Location::Key(38)),
                 param: "Receive Pan Mode",
             },
             ConversionItem::ParamDropped {
-                partial: None,
+                at: None,
                 param: "One Shot Mode",
             },
             ConversionItem::RoutingDropped {
@@ -283,9 +308,9 @@ mod tests {
             texts,
             [
                 "Partial 1: SR-JV80-02 Wave 1 (Vl Sect A) has no INTEGRA-7 Wave",
-                "Partial 2: SR-JV80-02 Wave 1 (Vl Sect A) approximated by SRX-06 Wave 29 (Vl Sect A)",
+                "Key 36 WMT 2: SR-JV80-02 Wave 1 (Vl Sect A) approximated by SRX-06 Wave 29 (Vl Sect A)",
                 "EFX type 2 dropped, MFX set to THRU",
-                "Partial 3: Receive Pan Mode dropped",
+                "Key 38: Receive Pan Mode dropped",
                 "One Shot Mode dropped",
                 "Partial 4: Control 2 route to CUT (-10) dropped",
                 "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",

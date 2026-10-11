@@ -6,7 +6,7 @@
 //! (reserves with content) and `docs/research/xv-patch-format.md` (section 3,
 //! Integra-only parameters).
 
-use super::report::{ConversionItem, ConversionReport};
+use super::report::{ConversionItem, ConversionReport, Location};
 use super::wave_map::{Confidence, ForeignWave, ForeignWaveGroup};
 use crate::librarian::pack::{PackEntry, user_memory};
 use crate::mfx::encode_mfx_block;
@@ -224,11 +224,8 @@ pub(super) fn write_waves(partial: &mut [u8], group: WaveGroup, numbers: [u16; 2
 
 /// Map a partial's Foreign Waves L and R (0 = OFF) of `group` through the
 /// Wave map and write them. Partial `index` (0-indexed) is reported only
-/// when it is switched on.
-///
-/// Low-confidence matches are reported as approximate. A Wave with no match,
-/// or one that lands in another Wave Group than its partner, is reported as
-/// unmapped: the partial then gets no Wave and is switched off.
+/// when it is switched on. A partial whose Waves don't map gets no Wave and
+/// is switched off.
 pub(super) fn map_waves(
     tone: &mut PcmTone,
     index: usize,
@@ -236,8 +233,31 @@ pub(super) fn map_waves(
     numbers: [u16; 2],
     report: &mut ConversionReport,
 ) {
+    let at = Location::Partial(index as u8 + 1);
     let used = tone.is_on(index);
-    let partial = index as u8 + 1;
+    match map_wave_pair(group, numbers, at, used, report) {
+        Some((group, mapped)) => write_waves(tone.partial(index), group, mapped),
+        None => {
+            write_waves(tone.partial(index), WaveGroup::Int, [0, 0]);
+            tone.switch_off(index);
+        }
+    }
+}
+
+/// Map Foreign Waves L and R (0 = OFF) of `group` through the Wave map:
+/// their INTEGRA-7 Wave Group and Wave Numbers, or `None` when they don't
+/// map. Items are reported at `at`, and only when it is `used`.
+///
+/// Low-confidence matches are reported as approximate. A Wave with no match,
+/// or one that lands in another Wave Group than its partner, is reported as
+/// unmapped.
+pub(super) fn map_wave_pair(
+    group: ForeignWaveGroup,
+    numbers: [u16; 2],
+    at: Location,
+    used: bool,
+    report: &mut ConversionReport,
+) -> Option<(WaveGroup, [u16; 2])> {
     let mut target_group = None;
     let mut mapped = [0; 2];
     let mut unmapped = false;
@@ -253,31 +273,18 @@ pub(super) fn map_waves(
             Some(target) => {
                 mapped[slot] = target.number;
                 if used && target.confidence == Confidence::Low {
-                    report.push(ConversionItem::WaveApproximate {
-                        partial,
-                        source,
-                        target,
-                    });
+                    report.push(ConversionItem::WaveApproximate { at, source, target });
                 }
             }
             None => {
                 unmapped = true;
                 if used {
-                    report.push(ConversionItem::WaveUnmapped { partial, source });
+                    report.push(ConversionItem::WaveUnmapped { at, source });
                 }
             }
         }
     }
-    if unmapped {
-        write_waves(tone.partial(index), WaveGroup::Int, [0, 0]);
-        tone.switch_off(index);
-    } else {
-        write_waves(
-            tone.partial(index),
-            target_group.unwrap_or(WaveGroup::Int),
-            mapped,
-        );
-    }
+    (!unmapped).then(|| (target_group.unwrap_or(WaveGroup::Int), mapped))
 }
 
 /// Give a partial the INIT LFO step sequencer, which no Foreign synth has.

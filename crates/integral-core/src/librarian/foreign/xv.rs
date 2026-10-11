@@ -13,7 +13,7 @@
 
 use super::frame::{self, Frame};
 use super::pcm_tone::{self, FULL_LEVEL, OUTPUT_TONE, Output, PcmTone};
-use super::report::{ConversionItem, ConversionReport, EffectFamily, ForeignEffect};
+use super::report::{ConversionItem, ConversionReport, EffectFamily, ForeignEffect, Location};
 use super::wave_map::ForeignWaveGroup;
 use super::{Placed, Unit};
 use crate::address::Address;
@@ -303,7 +303,7 @@ fn patch_tempo(p: &mut Patch<'_>) {
 fn one_shot_mode(p: &mut Patch<'_>) {
     if p.xv[COMMON][ONE_SHOT_MODE] != 0 {
         p.report.push(ConversionItem::ParamDropped {
-            partial: None,
+            at: None,
             param: "One Shot Mode",
         });
     }
@@ -343,7 +343,7 @@ fn mfx(p: &mut Patch<'_>) {
 fn mfx_dry_send(p: &mut Patch<'_>) {
     if p.xv[MFX][MFX_DRY_SEND] != FULL_LEVEL {
         p.report.push(ConversionItem::ParamDropped {
-            partial: None,
+            at: None,
             param: "MFX Dry Send Level",
         });
     }
@@ -392,7 +392,7 @@ fn receive_pan_mode(p: &mut Patch<'_>) {
     for i in 0..4 {
         if p.tone.is_on(i) && p.xv[TONE_1 + i][RECEIVE_PAN_MODE] != 0 {
             p.report.push(ConversionItem::ParamDropped {
-                partial: Some(i as u8 + 1),
+                at: Some(Location::Partial(i as u8 + 1)),
                 param: "Receive Pan Mode",
             });
         }
