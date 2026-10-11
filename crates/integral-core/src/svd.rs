@@ -11,7 +11,7 @@ use thiserror::Error;
 
 use crate::bitstream::BitReader;
 use crate::svd_convert::svd_to_sysex;
-use crate::svd_specs::{SNA_TONE_SPEC, SNS_TONE_SPEC};
+use crate::svd_specs::{PCMS_TONE_SPEC, SNA_TONE_SPEC, SNS_TONE_SPEC};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -225,6 +225,11 @@ pub fn extract_entry_category(entry: &[u8], chunk_type: ChunkType) -> Option<u8>
         ChunkType::SnAcousticTone => {
             let sections = svd_to_sysex(entry, &SNA_TONE_SPEC).ok()?;
             Some(sections[0][0x1B])
+        }
+        ChunkType::PcmSynthTone => {
+            // Common 2 `00 10`.
+            let sections = svd_to_sysex(entry, &PCMS_TONE_SPEC).ok()?;
+            Some(sections[7][0x10])
         }
         _ => None,
     }

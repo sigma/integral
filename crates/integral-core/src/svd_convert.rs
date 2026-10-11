@@ -258,7 +258,9 @@ pub fn split_common_mfx(
 mod tests {
     use super::*;
     use crate::svd::SvdFile;
-    use crate::svd_specs::{MFX_PARAMS, SNA_TONE_SPEC, SND_TONE_SPEC, SNS_TONE_SPEC, SS_TONE_SPEC};
+    use crate::svd_specs::{
+        MFX_PARAMS, PCMS_TONE_SPEC, SNA_TONE_SPEC, SND_TONE_SPEC, SNS_TONE_SPEC, SS_TONE_SPEC,
+    };
     use std::ops::RangeInclusive;
     use std::path::Path;
 
@@ -723,6 +725,34 @@ mod tests {
         let note = doc_fields(SN_DRUM_DOC, "## Note (");
         layout.extend((0..62).map(|k| (138 + 14 * k, note.clone())));
         assert_doc_layout(&SND_TONE_SPEC, &layout);
+    }
+
+    #[test]
+    fn pcms_entry_matches_documented_layout() {
+        let partial = doc_fields(PCM_SYNTH_DOC, "## Partial (");
+        let mut layout = vec![
+            (0, doc_fields(PCM_SYNTH_DOC, "## Common (")),
+            (56, doc_fields(PCM_SYNTH_DOC, "## Common MFX")),
+            (134, doc_fields(PCM_SYNTH_DOC, "## PMT")),
+        ];
+        layout.extend((0..4).map(|n| (166 + 99 * n, partial.clone())));
+        layout.push((562, doc_fields(PCM_SYNTH_DOC, "## Common 2 (")));
+        assert_doc_layout(&PCMS_TONE_SPEC, &layout);
+    }
+
+    #[test]
+    fn pcms_long_name_and_category() {
+        // Common 2 starts at byte 562: long name at bit 0, Category at 112.
+        let mut entry = vec![0u8; 590];
+        for (i, c) in "Synthetic Tone 1".bytes().enumerate() {
+            put(&mut entry, 562 * 8 + 7 * i, 7, c.into());
+        }
+        put(&mut entry, 562 * 8 + 112, 7, 34);
+        let sections = svd_to_sysex(&entry, &PCMS_TONE_SPEC).unwrap();
+        assert_eq!(&sections[7][..16], b"Synthetic Tone 1");
+        let category =
+            crate::svd::extract_entry_category(&entry, crate::svd::ChunkType::PcmSynthTone);
+        assert_eq!(category, Some(34));
     }
 
     #[test]
