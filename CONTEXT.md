@@ -108,3 +108,12 @@ A Wave's position within its Wave Group, from 1. Wave Number 0 means no Wave
 Two adjacent Waves of one Wave Group whose names differ only by L and R. A
 naming convention read from the names, not something the device stores: L and
 R are picked as two separate Wave Numbers.
+
+## Editing
+
+**Parameter family**:
+The role a parameter plays in shaping the sound, whatever editor or effect it
+sits in: Pitch / Source, Filter / Tone, Amp / Level, Modulation, Time / Space,
+or Common / Global. Controls of one family look alike everywhere.
+_Avoid_: Section (a section is a group of controls on screen), category (a
+Category classifies Tones)
