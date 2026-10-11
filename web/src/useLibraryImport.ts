@@ -44,8 +44,10 @@ export interface ImportEntry {
   /** Where it sat: its slot in a backup, else its position in the file. */
   origin: string;
   placement: Placement;
-  /** Its Conversion report, one message per item: empty when clean. */
+  /** Its Conversion report, one message per item. */
   report: string[];
+  /** How many of its report items are lossy: 0 when clean. */
+  lossy: number;
 }
 
 /** A non-free User slot the import will overwrite. */
@@ -118,6 +120,8 @@ interface Opened {
   label: string;
   /** Conversion reports, indexed like `entries`. */
   reports: string[][];
+  /** Lossy items per Conversion report, indexed like `entries`. */
+  lossy: Uint32Array;
   fileReport: string[];
 }
 
@@ -241,6 +245,7 @@ export function useLibraryImport(
             entries: pack.entries(),
             label: pack.label,
             reports: plan.reports(),
+            lossy: plan.lossyCounts(),
             fileReport: plan.fileReport(),
           }),
         )
@@ -296,6 +301,7 @@ export function useLibraryImport(
                   : `${type.short} ${slotLabel(type, info.slot)}`,
               placement: view.placements[index] ?? "unplaced",
               report: opened.reports[index] ?? [],
+              lossy: opened.lossy[index] ?? 0,
             };
           })
         : [],

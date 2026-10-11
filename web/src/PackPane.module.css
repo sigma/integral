@@ -287,6 +287,14 @@
   border-radius: 8px;
 }
 
+/* A clean conversion that leaves settings to the Studio Set */
+
+.notes {
+  composes: lossy;
+  color: #888;
+  border-color: #888;
+}
+
 .conversion {
   margin: 0;
   padding: 2px 12px 6px 72px;

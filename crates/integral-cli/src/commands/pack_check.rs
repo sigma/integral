@@ -14,6 +14,7 @@ use anyhow::Result;
 use integral_core::librarian::foreign::wave_map::ForeignWave;
 use integral_core::librarian::foreign::{
     ConversionItem, ConversionReport, FileItem, ForeignEffect, PackRead, Skipped, SourceModel,
+    lossy_count,
 };
 use integral_core::librarian::pack::Pack;
 use serde::Serialize;
@@ -150,7 +151,7 @@ fn check_file(path: &Path, read: PackRead) -> FileCheck {
             report,
         })
         .collect();
-    let clean = tones.iter().filter(|t| t.report.is_empty()).count();
+    let clean = tones.iter().filter(|t| lossy_count(&t.report) == 0).count();
     let rejected = file_report
         .iter()
         .map(|item| match *item {
@@ -377,6 +378,21 @@ mod tests {
         };
         let file = check_file(Path::new("x.syx"), read);
         assert_eq!((file.entries, file.rejected), (0, 5));
+    }
+
+    #[test]
+    fn an_entry_with_only_not_applied_items_is_clean() {
+        let read = Pack::read(include_bytes!(
+            "../../../integral-core/tests/fixtures/foreign/xv/srx03ap2-001.syx"
+        ))
+        .unwrap();
+        let mut not_applied = read.clone();
+        not_applied.reports[0].retain(|i| matches!(i, ConversionItem::NotApplied { .. }));
+        assert!(!not_applied.reports[0].is_empty());
+        let file = check_file(Path::new("x.syx"), not_applied);
+        assert_eq!((file.clean, file.lossy), (1, 0));
+        let file = check_file(Path::new("x.syx"), read);
+        assert_eq!((file.clean, file.lossy), (0, 1));
     }
 
     #[test]

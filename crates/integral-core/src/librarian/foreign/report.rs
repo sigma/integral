@@ -1,7 +1,9 @@
 //! What reading a file dropped or approximated: per file, and per converted
 //! tone (the Conversion report).
 //!
-//! Neither has a severity: a tone is clean when its report is empty.
+//! Neither has a severity. A tone is clean when its report holds only
+//! [`ConversionItem::NotApplied`] items, the settings the Studio Set
+//! restores.
 
 use core::fmt;
 
@@ -91,6 +93,19 @@ pub enum ConversionItem {
     },
 }
 
+impl ConversionItem {
+    /// Whether the item makes its entry lossy: all but
+    /// [`NotApplied`](Self::NotApplied), which the Studio Set restores.
+    pub fn is_lossy(&self) -> bool {
+        !matches!(self, Self::NotApplied { .. })
+    }
+}
+
+/// How many items of `report` make its entry lossy: 0 when it is clean.
+pub fn lossy_count(report: &[ConversionItem]) -> usize {
+    report.iter().filter(|item| item.is_lossy()).count()
+}
+
 impl fmt::Display for ConversionItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -175,8 +190,8 @@ pub enum SourceModel {
     Jv2080,
 }
 
-/// The Conversion report of one Pack entry: empty when it is clean, and
-/// always empty for a native entry.
+/// The Conversion report of one Pack entry: always empty for a native
+/// entry. See [`lossy_count`] for when it is clean.
 pub type ConversionReport = Vec<ConversionItem>;
 
 /// What a group of skipped messages held.
@@ -329,6 +344,20 @@ mod tests {
                 "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
             ]
         );
+    }
+
+    #[test]
+    fn only_not_applied_items_leave_an_entry_clean() {
+        let not_applied = ConversionItem::NotApplied {
+            what: "Tempo 90".into(),
+        };
+        let dropped = ConversionItem::ParamDropped {
+            at: None,
+            param: "One Shot Mode",
+        };
+        assert_eq!(lossy_count(&[]), 0);
+        assert_eq!(lossy_count(&[not_applied.clone(), not_applied.clone()]), 0);
+        assert_eq!(lossy_count(&[not_applied, dropped]), 1);
     }
 
     #[test]

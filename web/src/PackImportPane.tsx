@@ -167,15 +167,19 @@ export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onF
                     >
                       {entry.report.length > 0 && (
                         <button
-                          className={css.lossy}
+                          className={entry.lossy > 0 ? css.lossy : css.notes}
                           aria-expanded={imp.reportShown.has(entry.index)}
-                          title="What converting this Foreign patch dropped or approximated"
+                          title={
+                            entry.lossy > 0
+                              ? "What converting this Foreign patch dropped or approximated"
+                              : "Settings this Foreign patch leaves to the Studio Set"
+                          }
                           onClick={(e) => {
                             e.stopPropagation();
                             imp.toggleReport(entry.index);
                           }}
                         >
-                          lossy · {entry.report.length}
+                          {entry.lossy > 0 ? `lossy · ${entry.lossy}` : `notes · ${entry.report.length}`}
                         </button>
                       )}
                       {run && <EntryStatus status={run.statuses[entry.index]} />}

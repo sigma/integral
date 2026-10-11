@@ -371,8 +371,8 @@ impl ImportPlan {
     }
 
     /// The Conversion report of `entry`: what converting it from a Foreign
-    /// patch dropped or approximated. Empty when it is clean, and for a
-    /// native entry or an index out of range.
+    /// patch dropped or approximated. Empty for a native entry or an index
+    /// out of range.
     pub fn report(&self, entry: usize) -> &[ConversionItem] {
         self.reports.get(entry).map_or(&[], Vec::as_slice)
     }

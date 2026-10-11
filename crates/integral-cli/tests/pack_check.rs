@@ -39,10 +39,11 @@ fn totals_the_fixtures_and_skips_what_is_not_a_pack() {
         totals["skippedReasons"],
         json!([{ "item": "not an SVD, SysEx or MIDI file", "count": 2 }])
     );
-    // 4 JV-1080 Patches and 1 XV-5080 Patch, none clean.
+    // 4 JV-1080 Patches and 1 XV-5080 Patch. Two JV Patches only miss
+    // Studio Set settings (`notApplied`), so they are clean.
     assert_eq!(totals["entries"], 5);
-    assert_eq!(totals["lossy"], 5);
-    assert_eq!(totals["cleanPercent"], 0.0);
+    assert_eq!(totals["lossy"], 3);
+    assert_eq!(totals["cleanPercent"], 40.0);
     assert_eq!(
         totals["unmappedWaves"],
         json!([{ "item": { "group": { "type": "PcmCard", "id": 3 }, "number": 30 }, "count": 1 }])
@@ -71,7 +72,7 @@ fn totals_the_fixtures_and_skips_what_is_not_a_pack() {
     assert_eq!(
         counts,
         [
-            (json!(4), json!(4), json!(0)),
+            (json!(4), json!(2), json!(0)),
             (json!(1), json!(1), json!(0))
         ]
     );

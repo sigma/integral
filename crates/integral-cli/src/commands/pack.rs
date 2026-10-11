@@ -15,7 +15,7 @@ use integral_core::address::DataSize;
 use integral_core::device::DeviceState;
 use integral_core::device_spec::{USER_MEMORY, UserMemorySpec};
 use integral_core::librarian::export::{EntryStatus, ExportAction, ExportSource, PackExport};
-use integral_core::librarian::foreign::{ConversionItem, PackRead};
+use integral_core::librarian::foreign::{ConversionItem, PackRead, lossy_count};
 use integral_core::librarian::pack::{Pack, PackEntry, ToneRef};
 use integral_core::svd::{ChunkType, tone_category_name};
 use integral_core::{params, sysex};
@@ -131,8 +131,11 @@ struct Listed {
     /// For a Studio Set, the User tones its Parts use, as `(part, id)`.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     tones: Vec<PartTone>,
-    /// Whether its Conversion report is empty.
+    /// Whether its Conversion report holds no lossy items.
     clean: bool,
+    /// How many of its Conversion report items are lossy.
+    #[serde(skip)]
+    lossy: usize,
     /// Its Conversion report, as [`report_json`] writes it.
     report: Vec<Value>,
 }
@@ -174,12 +177,12 @@ pub(crate) fn report_json<T: Serialize + std::fmt::Display>(items: &[T]) -> Vec<
 }
 
 /// The clean/lossy marker of an entry whose Conversion report holds
-/// `items` items: empty when it is clean.
-pub(crate) fn lossy_marker(items: usize) -> String {
-    if items == 0 {
+/// `lossy` lossy items: empty when it is clean.
+pub(crate) fn lossy_marker(lossy: usize) -> String {
+    if lossy == 0 {
         String::new()
     } else {
-        format!("lossy · {items}")
+        format!("lossy · {lossy}")
     }
 }
 
@@ -228,7 +231,8 @@ fn listed(
                         ToneRef::Bank { .. } => None,
                     })
                     .collect(),
-                clean: report.is_empty(),
+                clean: lossy_count(report) == 0,
+                lossy: lossy_count(report),
                 report: report_json(report),
             },
         )
@@ -265,7 +269,7 @@ fn render_list(entries: &[Listed], format: ListFormat) -> Result<String> {
                     e.id,
                     e.name,
                     e.category_display(),
-                    lossy_marker(e.report.len())
+                    lossy_marker(e.lossy)
                 );
                 out += line.trim_end();
                 out += "\n";
@@ -284,7 +288,7 @@ fn render_list(entries: &[Listed], format: ListFormat) -> Result<String> {
                     e.name,
                     e.category_display(),
                     e.tones_display(),
-                    lossy_marker(e.report.len())
+                    lossy_marker(e.lossy)
                 );
             }
         }
@@ -566,7 +570,7 @@ mod tests {
         let entries = listed(&read.pack, &read.reports, None, None, None);
         assert_eq!(
             render_list(&entries, ListFormat::Text).unwrap(),
-            "pcm-synth:1      United !         Ac.Piano         lossy · 3\n"
+            "pcm-synth:1      United !         Ac.Piano         lossy · 1\n"
         );
         let json = render_list(&entries, ListFormat::Json).unwrap();
         let doc: serde_json::Value = serde_json::from_str(&json).unwrap();

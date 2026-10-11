@@ -24,18 +24,23 @@ const REPORT = [
   "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
 ];
 
-/** A converted lossy tone, then a clean one: both go to User slots. */
+/** Settings a clean conversion leaves to the Studio Set. */
+const NOT_APPLIED = ["Tempo 90 not applied; set it in the Studio Set"];
+
+/** A converted lossy tone, a clean one with Studio Set items, then a clean
+ * one: all go to User slots. */
 function entries(): ImportEntry[] {
   const type = libraryType("pcm-synth");
-  const entry = (index: number, name: string, report: string[]): ImportEntry => ({
+  const entry = (index: number, name: string, report: string[], lossy: number): ImportEntry => ({
     index,
     info: { kind: type.kind, index, name, toneRefs: [] },
     type,
     origin: `#${index + 1}`,
     placement: { user: index },
     report,
+    lossy,
   });
-  return [entry(0, "United !", REPORT), entry(1, "Clean", [])];
+  return [entry(0, "United !", REPORT, 1), entry(1, "Tempo", NOT_APPLIED, 0), entry(2, "Clean", [], 0)];
 }
 
 function noop(): void {}
@@ -96,10 +101,10 @@ describe("PackImportPane", () => {
     const badges = [...container.querySelectorAll("button")].filter((b) =>
       b.textContent?.startsWith("lossy"),
     );
-    expect(badges.map((b) => b.textContent)).toEqual(["lossy · 3"]);
+    expect(badges.map((b) => b.textContent)).toEqual(["lossy · 1"]);
     expect(reportItems(container)).toEqual([]);
 
-    const badge = button(container, "lossy · 3");
+    const badge = button(container, "lossy · 1");
     click(badge);
     expect(badge.getAttribute("aria-expanded")).toBe("true");
     expect(reportItems(container)).toEqual(REPORT);
@@ -108,11 +113,17 @@ describe("PackImportPane", () => {
     expect(reportItems(container)).toEqual([]);
   });
 
+  it("lists the items of a clean entry without a lossy badge", () => {
+    const { container } = render(<Opened warnings={[]} />);
+    click(button(container, "notes · 1"));
+    expect(reportItems(container)).toEqual(NOT_APPLIED);
+  });
+
   it("keeps lossy entries included", () => {
     const { container } = render(<Opened warnings={[]} />);
     const boxes = [...container.querySelectorAll<HTMLInputElement>("input[type=checkbox]")];
-    expect(boxes.map((b) => b.checked)).toEqual([true, true]);
-    expect(button(container, "Import 2…").disabled).toBe(false);
+    expect(boxes.map((b) => b.checked)).toEqual([true, true, true]);
+    expect(button(container, "Import 3…").disabled).toBe(false);
   });
 
   it("lists file-level items with the warnings", () => {

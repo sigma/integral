@@ -36,7 +36,7 @@ use crate::sysex;
 use frame::FrameError;
 pub use report::{
     ConversionItem, ConversionReport, EffectFamily, FileItem, ForeignEffect, Location, Skipped,
-    SourceModel,
+    SourceModel, lossy_count,
 };
 
 /// First bytes of a Standard MIDI File.

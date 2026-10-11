@@ -12,7 +12,7 @@ use integral_core::catalog::CatalogEntry;
 use integral_core::device_spec::INTEGRA7;
 use integral_core::expansion_slots::ExpansionSlots;
 use integral_core::librarian::export::{self, ExportAction, ExportSource, PackExport};
-use integral_core::librarian::foreign::{PackFormat, PackRead};
+use integral_core::librarian::foreign::{PackFormat, PackRead, lossy_count};
 use integral_core::librarian::import::{ImportAction, PackImport};
 use integral_core::librarian::pack::{Pack, ToneRef};
 use integral_core::librarian::plan::{self, ImportPlan, Origin};
@@ -300,7 +300,7 @@ impl WasmImportPlan {
     }
 
     /// Each entry's Conversion report, one message per item, indexed like
-    /// the Pack's entries. Empty for a clean or native entry.
+    /// the Pack's entries. Empty for a native entry.
     pub fn reports(&self) -> Result<ConversionReports, JsError> {
         let reports: Vec<Vec<String>> = (0..self.inner.placements().len())
             .map(|i| {
@@ -312,6 +312,15 @@ impl WasmImportPlan {
             })
             .collect();
         to_js(&reports)
+    }
+
+    /// How many items of each entry's Conversion report are lossy, indexed
+    /// like the Pack's entries: 0 for a clean or native entry.
+    #[wasm_bindgen(js_name = lossyCounts)]
+    pub fn lossy_counts(&self) -> Vec<u32> {
+        (0..self.inner.placements().len())
+            .map(|i| lossy_count(self.inner.report(i)) as u32)
+            .collect()
     }
 
     /// What the file held that is not in the Pack, one message per item.

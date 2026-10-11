@@ -78,6 +78,15 @@ The per-tone list of everything a Foreign patch conversion dropped or
 approximated: unmapped Waves, effect types, controller routings, parameters.
 _Avoid_: Log, warnings
 
+**Clean**:
+A converted tone whose Conversion report holds nothing but settings the
+Studio Set restores (Tempo, Chorus, Reverb, outputs: `NotApplied` items).
+Those items are still listed.
+
+**Lossy**:
+A converted tone whose Conversion report holds anything else: a Wave, effect,
+routing or parameter the INTEGRA-7 tone lost. Counted by those items only.
+
 ## Expansions
 
 **Expansion**:
