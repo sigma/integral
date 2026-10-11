@@ -110,14 +110,18 @@ pub struct SvdToneSpec {
     /// Sections in SVD packing order. Each section is independently
     /// byte-aligned in the SVD entry.
     pub sections: &'static [SvdSection],
-    /// Total SVD entry size in bytes, including any bytes after the data.
-    pub entry_size: usize,
     /// Bytes after the data sections in a fresh entry, before zero padding
-    /// to `entry_size`. SN-S has a `0x0E` end marker and an INIT trailer.
+    /// to [`Self::entry_size`]. SN-S has a `0x0E` end marker and an INIT trailer.
     pub init_tail: &'static [u8],
 }
 
 impl SvdToneSpec {
+    /// Total SVD entry size in bytes, including any bytes after the data,
+    /// from the chunk table.
+    pub fn entry_size(&self) -> usize {
+        self.kind.default_entry_size()
+    }
+
     /// Sum of all sections' SVD byte sizes (data portion only,
     /// excluding end marker and tail padding).
     pub fn data_bytes(&self) -> usize {
@@ -531,7 +535,6 @@ static SNS_SECTIONS: [SvdSection; 5] = [
 pub static SNS_TONE_SPEC: SvdToneSpec = SvdToneSpec {
     kind: ChunkType::SnSynthTone,
     sections: &SNS_SECTIONS,
-    entry_size: 280,
     // Bytes 246–251 of every INIT TONE (`docs/svd/03-sn-synth.md`).
     init_tail: &[0x0E, 0x00, 0x00, 0x00, 0x02, 0xC0],
 };
@@ -655,7 +658,6 @@ static SNA_SECTIONS: [SvdSection; 2] = [
 pub static SNA_TONE_SPEC: SvdToneSpec = SvdToneSpec {
     kind: ChunkType::SnAcousticTone,
     sections: &SNA_SECTIONS,
-    entry_size: 138,
     init_tail: &[],
 };
 
@@ -936,7 +938,6 @@ static SS_SECTIONS: [SvdSection; 53] = {
 pub static SS_TONE_SPEC: SvdToneSpec = SvdToneSpec {
     kind: ChunkType::StudioSet,
     sections: &SS_SECTIONS,
-    entry_size: 1068,
     init_tail: &[],
 };
 
@@ -1114,7 +1115,6 @@ static SND_SECTIONS: [SvdSection; 65] = {
 pub static SND_TONE_SPEC: SvdToneSpec = SvdToneSpec {
     kind: ChunkType::SnDrumKit,
     sections: &SND_SECTIONS,
-    entry_size: 1006,
     init_tail: &[],
 };
 
@@ -1473,7 +1473,6 @@ static PCMS_SECTIONS: [SvdSection; 8] = {
 pub static PCMS_TONE_SPEC: SvdToneSpec = SvdToneSpec {
     kind: ChunkType::PcmSynthTone,
     sections: &PCMS_SECTIONS,
-    entry_size: 590,
     init_tail: &[],
 };
 
@@ -1727,7 +1726,6 @@ static PCMD_SECTIONS: [SvdSection; 92] = {
 pub static PCMD_TONE_SPEC: SvdToneSpec = SvdToneSpec {
     kind: ChunkType::PcmDrumKit,
     sections: &PCMD_SECTIONS,
-    entry_size: 10890,
     init_tail: &[],
 };
 
@@ -1788,7 +1786,7 @@ mod tests {
     #[test]
     fn sns_tone_spec_sections() {
         assert_eq!(SNS_TONE_SPEC.sections.len(), 5);
-        assert_eq!(SNS_TONE_SPEC.entry_size, 280);
+        assert_eq!(SNS_TONE_SPEC.entry_size(), 280);
         // Total data bytes: 30 + 78 + 46 + 46 + 46 = 246
         assert_eq!(SNS_TONE_SPEC.data_bytes(), 246);
     }
@@ -1814,7 +1812,7 @@ mod tests {
     #[test]
     fn sna_section_count() {
         assert_eq!(SNA_TONE_SPEC.sections.len(), 2);
-        assert_eq!(SNA_TONE_SPEC.entry_size, 138);
+        assert_eq!(SNA_TONE_SPEC.entry_size(), 138);
         assert_eq!(SNA_TONE_SPEC.data_bytes(), 138);
         assert!(SNA_TONE_SPEC.init_tail.is_empty());
     }
@@ -1822,7 +1820,7 @@ mod tests {
     #[test]
     fn ss_section_count() {
         assert_eq!(SS_TONE_SPEC.sections.len(), 53);
-        assert_eq!(SS_TONE_SPEC.entry_size, 1068);
+        assert_eq!(SS_TONE_SPEC.entry_size(), 1068);
         assert_eq!(SS_TONE_SPEC.data_bytes(), 1068);
         for s in SS_TONE_SPEC.sections {
             assert!(s.padded_bytes() <= s.svd_bytes, "{s:?}");
@@ -1840,7 +1838,7 @@ mod tests {
             &PCMS_TONE_SPEC,
             &PCMD_TONE_SPEC,
         ] {
-            assert!(spec.data_bytes() + spec.init_tail.len() <= spec.entry_size);
+            assert!(spec.data_bytes() + spec.init_tail.len() <= spec.entry_size());
             for s in spec.sections {
                 assert!(s.padded_bytes() <= s.svd_bytes, "{s:?}");
             }

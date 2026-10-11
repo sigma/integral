@@ -109,17 +109,17 @@ fn unpack_section(
 /// // sections[3] = Partial 3
 /// ```
 pub fn svd_to_sysex(entry: &[u8], spec: &SvdToneSpec) -> Result<Vec<Vec<u8>>, ConvertError> {
-    if entry.len() < spec.entry_size {
+    if entry.len() < spec.entry_size() {
         return Err(ConvertError::EntryTooShort {
-            expected: spec.entry_size,
+            expected: spec.entry_size(),
             actual: entry.len(),
         });
     }
-    if spec.data_bytes() > spec.entry_size {
+    if spec.data_bytes() > spec.entry_size() {
         return Err(ConvertError::SpecOverflow {
             kind: spec.kind,
             data: spec.data_bytes(),
-            entry: spec.entry_size,
+            entry: spec.entry_size(),
         });
     }
 
@@ -178,9 +178,9 @@ fn pack_section(writer: &mut BitWriter, sysex: &[u8], section: &SvdSection) {
 /// for the corresponding spec section. The bytes after the data sections are
 /// copied from `source`, the entry the sections were decoded from, so that
 /// undocumented trailing bytes survive a round trip. Without a source they
-/// are `spec.init_tail` followed by zero fill up to `spec.entry_size`.
+/// are `spec.init_tail` followed by zero fill up to `spec.entry_size()`.
 pub fn sysex_to_svd(sections: &[Vec<u8>], spec: &SvdToneSpec, source: Option<&[u8]>) -> Vec<u8> {
-    let mut result = Vec::with_capacity(spec.entry_size);
+    let mut result = Vec::with_capacity(spec.entry_size());
 
     for (section_data, section_spec) in sections.iter().zip(spec.sections.iter()) {
         let mut writer = BitWriter::new();
@@ -193,10 +193,10 @@ pub fn sysex_to_svd(sections: &[Vec<u8>], spec: &SvdToneSpec, source: Option<&[u
 
     let tail_start = result.len();
     match source {
-        Some(entry) => result.extend_from_slice(&entry[tail_start..spec.entry_size]),
+        Some(entry) => result.extend_from_slice(&entry[tail_start..spec.entry_size()]),
         None => result.extend_from_slice(spec.init_tail),
     }
-    result.resize(spec.entry_size, 0x00);
+    result.resize(spec.entry_size(), 0x00);
 
     result
 }
@@ -284,7 +284,6 @@ mod tests {
         let spec = SvdToneSpec {
             kind: ChunkType::SnAcousticTone,
             sections: SNS_TONE_SPEC.sections,
-            entry_size: 138,
             init_tail: &[],
         };
         let err = svd_to_sysex(&[0; 138], &spec).unwrap_err();
@@ -660,7 +659,7 @@ mod tests {
     /// must equal the one written and lie in its range, and re-encoding must
     /// reproduce the entry byte for byte.
     fn assert_doc_layout(spec: &SvdToneSpec, layout: &[(usize, Vec<DocField>)]) -> Vec<Vec<u8>> {
-        let mut entry = vec![0u8; spec.entry_size];
+        let mut entry = vec![0u8; spec.entry_size()];
         let mut expected = Vec::new();
         for (offset, fields) in layout {
             let mut prev_end = 0;

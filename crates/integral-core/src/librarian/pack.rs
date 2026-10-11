@@ -254,10 +254,10 @@ impl Pack {
                 continue;
             }
             let spec = codec(kind)?;
-            if chunk.entry_size != spec.entry_size {
+            if chunk.entry_size != spec.entry_size() {
                 return Err(PackError::EntrySize {
                     kind,
-                    expected: spec.entry_size,
+                    expected: spec.entry_size(),
                     actual: chunk.entry_size,
                 });
             }
@@ -327,7 +327,7 @@ mod tests {
     /// SVD entry so that every value round-trips.
     fn blocks(kind: ChunkType, name: &str) -> Vec<Vec<u8>> {
         let spec = codec(kind).unwrap();
-        let mut blocks = svd_to_sysex(&vec![0; spec.entry_size], spec).unwrap();
+        let mut blocks = svd_to_sysex(&vec![0; spec.entry_size()], spec).unwrap();
         let len = kind.name_length().unwrap();
         blocks[0][..len].copy_from_slice(&encode_ascii_name(name, len));
         blocks
@@ -408,7 +408,6 @@ mod tests {
                 .map(|s| s.sysex_size())
                 .collect();
             assert_eq!(sections, sizes, "{kind}");
-            assert_eq!(codec(kind).unwrap().entry_size, kind.default_entry_size());
         }
     }
 
@@ -510,7 +509,7 @@ mod tests {
         let mut file = SvdFile::parse(&Pack { entries: tones }.to_svd().unwrap()).unwrap();
         for chunk in &mut file.chunks {
             let spec = codec(chunk.chunk_type).unwrap();
-            if spec.data_bytes() < spec.entry_size {
+            if spec.data_bytes() < spec.entry_size() {
                 *chunk.entries[0].last_mut().unwrap() = 0x5A;
             }
         }
