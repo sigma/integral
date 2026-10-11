@@ -680,38 +680,6 @@ fx-strip {
     height: auto;
 }
 
-.fx-strip__switch {
-    width: 36px;
-    height: 18px;
-    background-color: #222238;
-    color: #888;
-    font-size: 9;
-    border-width: 1px;
-    border-color: #3a3a5a;
-    border-radius: 3px;
-    child-space: 1s;
-}
-
-.fx-strip__switch--on {
-    background-color: #1a2a1a;
-    color: #4dff4d;
-    border-color: #3a5a3a;
-}
-
-.fx-strip__type {
-    color: #999;
-    font-size: 9;
-    width: auto;
-    height: auto;
-}
-
-.fx-strip__level {
-    color: #aaa;
-    font-size: 10;
-    width: auto;
-    height: auto;
-}
-
 /* ---------- TopBar ---------- */
 
 top-bar {

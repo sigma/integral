@@ -9,14 +9,17 @@ use std::time::Duration;
 
 use nih_plug_vizia::vizia::prelude::*;
 
+use integral_core::device::DeviceState;
 use integral_core::device_spec::INTEGRA7;
+use integral_core::params::{chorus, reverb};
 
 use crate::SharedState;
 
 use super::tone_selector::ToneSelectorEvent;
 use super::top_bar::TopBarEvent;
 use super::{
-    ChannelStrip, ChannelStripData, StripVariant, ToneSelector, TopBar, route_chip, route_label,
+    ChannelStrip, ChannelStripData, StripEdit, StripVariant, SynthSelect, SynthSwitch,
+    ToneSelector, TopBar, VolumeFader, route_chip,
 };
 
 /// Number of mixer parts.
@@ -139,12 +142,51 @@ pub struct MixerData {
 // Events
 // ---------------------------------------------------------------------------
 
+/// The mixer strip a [`StripEdit`] applies to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StripTarget {
+    /// A part (0-15).
+    Part(u8),
+    /// The external input.
+    Ext,
+    /// The system master output.
+    Master,
+    /// A Drum Comp+EQ unit (0-5).
+    CompEq(u8),
+}
+
+/// An effect block shown by an [`FxStrip`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FxBlock {
+    /// FX1: Chorus.
+    Chorus,
+    /// FX2: Reverb.
+    Reverb,
+}
+
+/// An edit made on an [`FxStrip`] control.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FxEdit {
+    /// Effect switched on or off.
+    Switch(bool),
+    /// Effect type picked (index into the device-spec type names).
+    Type(u8),
+    /// Effect level moved (0-127).
+    Level(u8),
+    /// Output route picked (index into the device-spec output names).
+    Output(u8),
+}
+
 /// Events handled by [`MixerData`].
 enum MixerEvent {
     /// Refresh the local snapshot from SharedState.
     Refresh,
     /// Select a part (0-15).
     SelectPart(usize),
+    /// A channel strip control was edited.
+    Strip(StripTarget, StripEdit),
+    /// An FX strip control was edited.
+    Fx(FxBlock, FxEdit),
 }
 
 impl Model for MixerData {
@@ -158,6 +200,12 @@ impl Model for MixerData {
                     self.selected_part = *idx;
                     self.update_selected_part_info();
                 }
+            }
+            MixerEvent::Strip(target, edit) => {
+                self.edit_device(|dev| apply_strip_edit(dev, *target, *edit));
+            }
+            MixerEvent::Fx(fx, edit) => {
+                self.edit_device(|dev| apply_fx_edit(dev, *fx, *edit));
             }
         });
 
@@ -196,12 +244,19 @@ impl MixerData {
             fx2_send: 0.0,
             muted: false,
             soloed: false,
-            route: String::new(),
+            route: 0,
+            route_names: &[],
             route_overridden: false,
         };
 
         let mut data = Self {
-            strips: vec![default_strip.clone(); NUM_PARTS],
+            strips: vec![
+                ChannelStripData {
+                    route_names: INTEGRA7.output_assigns,
+                    ..default_strip.clone()
+                };
+                NUM_PARTS
+            ],
             selected_part: 0,
             master_level: 100,
             ext_level: 100,
@@ -222,6 +277,7 @@ impl MixerData {
             comp_eq_strips: (0..NUM_COMP_EQ_UNITS)
                 .map(|i| ChannelStripData {
                     label: format!("C+E{}", i + 1),
+                    route_names: INTEGRA7.comp_eq_output_assigns,
                     ..default_strip.clone()
                 })
                 .collect(),
@@ -279,7 +335,8 @@ impl MixerData {
                     fx2_send: part.reverb_send as f32 / 127.0,
                     muted: part.muted,
                     soloed: mixer.solo_part == (i as u8 + 1),
-                    route: route_label(INTEGRA7.output_assigns, part.output_assign, surround),
+                    route: part.output_assign,
+                    route_names: INTEGRA7.output_assigns,
                     route_overridden: surround,
                 };
             }
@@ -291,13 +348,24 @@ impl MixerData {
             .iter_mut()
             .zip(&mixer.drum_comp_eq.output_assigns)
         {
-            strip.route = route_label(INTEGRA7.comp_eq_output_assigns, assign, surround);
+            strip.route = assign;
             strip.route_overridden = surround;
         }
 
         // Drop the lock before calling update.
         drop(dev);
         self.update_selected_part_info();
+    }
+
+    /// Apply `edit` to the device state, which queues its DT1, then refresh
+    /// the snapshot so the view shows the new value.
+    fn edit_device(&mut self, edit: impl FnOnce(&mut DeviceState)) {
+        let Ok(mut dev) = self.shared.device.lock() else {
+            return;
+        };
+        edit(&mut dev);
+        drop(dev);
+        self.refresh_from_device();
     }
 
     /// Update the selected part info text and tone bank data from current state.
@@ -324,6 +392,47 @@ impl MixerData {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/// Write a channel strip edit through the matching [`DeviceState`] accessor.
+fn apply_strip_edit(dev: &mut DeviceState, target: StripTarget, edit: StripEdit) {
+    use StripEdit::*;
+    use StripTarget::*;
+    match (target, edit) {
+        (Part(p), Volume(v)) => dev.set_part_level(p, v),
+        (Part(p), Pan(v)) => dev.set_part_pan(p, v),
+        (Part(p), Fx1Send(v)) => dev.set_part_chorus_send(p, v),
+        (Part(p), Fx2Send(v)) => dev.set_part_reverb_send(p, v),
+        (Part(p), Route(v)) => dev.set_part_output_assign(p, v),
+        (Part(p), ToggleMute) => dev.toggle_part_mute(p),
+        (Part(p), ToggleSolo) => dev.toggle_solo(p),
+        (Ext, Volume(v)) => dev.set_ext_level(v),
+        (Ext, ToggleMute) => dev.toggle_ext_mute(),
+        (Master, Volume(v)) => dev.set_master_level(v),
+        (CompEq(unit), Route(v)) => dev.set_drum_comp_eq_output_assign(unit, v),
+        // The strip variant doesn't show this control.
+        _ => {}
+    }
+}
+
+/// Write an FX strip edit through the matching [`DeviceState`] accessor.
+fn apply_fx_edit(dev: &mut DeviceState, fx: FxBlock, edit: FxEdit) {
+    let state = dev.state();
+    let enabled = match fx {
+        FxBlock::Chorus => state.chorus.enabled,
+        FxBlock::Reverb => state.reverb.enabled,
+    };
+    match (fx, edit) {
+        (_, FxEdit::Switch(on)) if on == enabled => {}
+        (FxBlock::Chorus, FxEdit::Switch(_)) => dev.toggle_chorus_switch(),
+        (FxBlock::Chorus, FxEdit::Type(v)) => dev.set_chorus_param(chorus::TYPE, v),
+        (FxBlock::Chorus, FxEdit::Level(v)) => dev.set_chorus_param(chorus::LEVEL, v),
+        (FxBlock::Chorus, FxEdit::Output(v)) => dev.set_chorus_param(chorus::OUTPUT_SELECT, v),
+        (FxBlock::Reverb, FxEdit::Switch(_)) => dev.toggle_reverb_switch(),
+        (FxBlock::Reverb, FxEdit::Type(v)) => dev.set_reverb_param(reverb::TYPE, v),
+        (FxBlock::Reverb, FxEdit::Level(v)) => dev.set_reverb_param(reverb::LEVEL, v),
+        (FxBlock::Reverb, FxEdit::Output(v)) => dev.set_reverb_param(reverb::OUTPUT_ASSIGN, v),
+    }
+}
 
 /// Return a human-readable tone type from the bank MSB.
 fn tone_type_label(bank_msb: u8) -> &'static str {
@@ -430,11 +539,16 @@ impl MixerPage {
                     // 16 part strips.
                     for i in 0..NUM_PARTS {
                         let strip_lens = MixerData::strips.map(move |strips| strips[i].clone());
-                        ChannelStrip::new(cx, StripVariant::Part, strip_lens);
+                        let target = StripTarget::Part(i as u8);
+                        ChannelStrip::new(cx, StripVariant::Part, strip_lens, move |cx, edit| {
+                            cx.emit(MixerEvent::Strip(target, edit));
+                        });
                     }
 
                     // Ext strip.
-                    ChannelStrip::new(cx, StripVariant::Ext, MixerData::ext_strip);
+                    ChannelStrip::new(cx, StripVariant::Ext, MixerData::ext_strip, |cx, edit| {
+                        cx.emit(MixerEvent::Strip(StripTarget::Ext, edit));
+                    });
 
                     // Comp+EQ unit strips, shown while Drum Comp+EQ is on.
                     Binding::new(cx, MixerData::comp_eq_enabled, |cx, enabled| {
@@ -442,19 +556,44 @@ impl MixerPage {
                             for i in 0..NUM_COMP_EQ_UNITS {
                                 let strip_lens =
                                     MixerData::comp_eq_strips.map(move |s| s[i].clone());
-                                ChannelStrip::new(cx, StripVariant::CompEq, strip_lens);
+                                let target = StripTarget::CompEq(i as u8);
+                                ChannelStrip::new(
+                                    cx,
+                                    StripVariant::CompEq,
+                                    strip_lens,
+                                    move |cx, edit| cx.emit(MixerEvent::Strip(target, edit)),
+                                );
                             }
                         }
                     });
 
                     // FX1 (Chorus) strip.
-                    FxStrip::new(cx, "FX1", INTEGRA7.chorus_output_names, MixerData::chorus);
+                    FxStrip::new(
+                        cx,
+                        "FX1",
+                        INTEGRA7.chorus_type_names,
+                        INTEGRA7.chorus_output_names,
+                        MixerData::chorus,
+                        |cx, edit| cx.emit(MixerEvent::Fx(FxBlock::Chorus, edit)),
+                    );
 
                     // FX2 (Reverb) strip.
-                    FxStrip::new(cx, "FX2", INTEGRA7.reverb_output_names, MixerData::reverb);
+                    FxStrip::new(
+                        cx,
+                        "FX2",
+                        INTEGRA7.reverb_type_names,
+                        INTEGRA7.reverb_output_names,
+                        MixerData::reverb,
+                        |cx, edit| cx.emit(MixerEvent::Fx(FxBlock::Reverb, edit)),
+                    );
 
                     // Master strip.
-                    ChannelStrip::new(cx, StripVariant::Master, MixerData::master_strip);
+                    ChannelStrip::new(
+                        cx,
+                        StripVariant::Master,
+                        MixerData::master_strip,
+                        |cx, edit| cx.emit(MixerEvent::Strip(StripTarget::Master, edit)),
+                    );
                 })
                 .class("mixer-strips");
             })
@@ -473,58 +612,58 @@ impl View for MixerPage {
 // FxStrip — lightweight FX block view
 // ---------------------------------------------------------------------------
 
-/// A simplified FX strip showing label, on/off state, type, level, and route chip.
+/// A simplified FX strip with label, on/off switch, type, level, and route chip.
 pub struct FxStrip;
 
 impl FxStrip {
     /// Creates a new [`FxStrip`] view.
     ///
-    /// `label` is the display name (e.g. "FX1", "FX2"), `output_names` the
-    /// device-spec names for its output routing.
-    /// `data_lens` must resolve to an [`FxViewData`].
-    pub fn new<'a, L>(
+    /// `label` is the display name (e.g. "FX1", "FX2"); `type_names` and
+    /// `output_names` are the device-spec names for its type and output
+    /// routing. `data_lens` must resolve to an [`FxViewData`]; `on_edit`
+    /// receives every control edit.
+    pub fn new<'a, L, F>(
         cx: &'a mut Context,
         label: &str,
+        type_names: &'static [&'static str],
         output_names: &'static [&'static str],
         data_lens: L,
+        on_edit: F,
     ) -> Handle<'a, Self>
     where
         L: Lens<Target = FxViewData>,
+        F: Fn(&mut EventContext, FxEdit) + Copy + Send + Sync + 'static,
     {
         let label_owned = label.to_string();
         Self.build(cx, move |cx| {
-            // Label
             Label::new(cx, &label_owned).class("fx-strip__label");
 
-            // On/Off indicator
-            Binding::new(cx, data_lens.map(|d| d.enabled), |cx, enabled_lens| {
-                let on = enabled_lens.get(cx);
-                let text = if on { "ON" } else { "OFF" };
-                Label::new(cx, text)
-                    .class("fx-strip__switch")
-                    .toggle_class("fx-strip__switch--on", on);
-            });
+            SynthSwitch::new(
+                cx,
+                data_lens.map(|d| usize::from(d.enabled)),
+                &["OFF", "ON"],
+                move |cx, idx| on_edit(cx, FxEdit::Switch(idx == 1)),
+            );
 
-            // Type display
-            Binding::new(cx, data_lens.map(|d| d.fx_type), |cx, type_lens| {
-                let t = type_lens.get(cx);
-                let text = format!("Type {}", t);
-                Label::new(cx, &text).class("fx-strip__type");
-            });
-
-            // Level display
-            Binding::new(cx, data_lens.map(|d| d.level), |cx, level_lens| {
-                let lvl = level_lens.get(cx);
-                let text = format!("{}", lvl);
-                Label::new(cx, &text).class("fx-strip__level");
-            });
+            SynthSelect::new(
+                cx,
+                data_lens.map(|d| usize::from(d.fx_type)),
+                type_names,
+                move |cx, idx| on_edit(cx, FxEdit::Type(idx as u8)),
+            );
 
             // FX outputs are never overridden by Motional Surround.
             route_chip(
                 cx,
-                data_lens.map(move |d| route_label(output_names, d.output, false)),
+                output_names,
+                data_lens.map(|d| d.output),
                 data_lens.map(|_| false),
+                move |cx, idx| on_edit(cx, FxEdit::Output(idx)),
             );
+
+            VolumeFader::new(cx, data_lens.map(|d| d.level), move |cx, val| {
+                on_edit(cx, FxEdit::Level(val));
+            });
         })
     }
 }
@@ -532,5 +671,150 @@ impl FxStrip {
 impl View for FxStrip {
     fn element(&self) -> Option<&'static str> {
         Some("fx-strip")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use integral_core::address::Address;
+    use integral_core::params::{self, part};
+    use integral_core::sysex;
+    use std::sync::Mutex;
+
+    const DEV_ID: u8 = 0x10;
+
+    /// A mixer model on a fresh device, with a clock for draining sends.
+    struct Harness {
+        data: MixerData,
+        now_ms: f64,
+    }
+
+    impl Harness {
+        fn new() -> Self {
+            let data = MixerData::new(Arc::new(SharedState {
+                device: Mutex::new(DeviceState::new(DEV_ID)),
+            }));
+            Self { data, now_ms: 0.0 }
+        }
+
+        fn strip(&mut self, target: StripTarget, edit: StripEdit) {
+            self.data
+                .edit_device(|dev| apply_strip_edit(dev, target, edit));
+        }
+
+        fn fx(&mut self, fx: FxBlock, edit: FxEdit) {
+            self.data.edit_device(|dev| apply_fx_edit(dev, fx, edit));
+        }
+
+        fn has_pending(&self) -> bool {
+            self.data.shared.device.lock().unwrap().has_pending()
+        }
+
+        /// The single DT1 queued on the device, as `(address, data)`.
+        fn sent(&mut self) -> (Address, Vec<u8>) {
+            // Step past the send throttle.
+            self.now_ms += 1_000.0;
+            let mut dev = self.data.shared.device.lock().unwrap();
+            let msg = dev.drain(self.now_ms).expect("a DT1 was queued");
+            assert!(!dev.has_pending(), "only one DT1 is queued");
+            let dt1 = sysex::parse_dt1(&msg).unwrap();
+            (dt1.address, dt1.data)
+        }
+    }
+
+    #[test]
+    fn part_strip_edits_write_the_part_and_show_it() {
+        let mut h = Harness::new();
+        let target = StripTarget::Part(3);
+        let cases = [
+            (StripEdit::Volume(90), part::LEVEL, 90),
+            (StripEdit::Pan(20), part::PAN, 20),
+            (StripEdit::Fx1Send(30), part::CHORUS_SEND, 30),
+            (StripEdit::Fx2Send(40), part::REVERB_SEND, 40),
+            (StripEdit::Route(5), part::OUTPUT_ASSIGN, 5),
+            (StripEdit::ToggleMute, part::MUTE, 1),
+        ];
+        for (edit, offset, value) in cases {
+            h.strip(target, edit);
+            assert_eq!(h.sent(), (params::part_address(3, offset), vec![value]));
+        }
+        h.strip(target, StripEdit::ToggleSolo);
+        assert_eq!(h.sent(), (params::SOLO_PART, vec![4]));
+        let strip = &h.data.strips[3];
+        assert_eq!(strip.volume, 90);
+        assert_eq!(strip.pan, 20);
+        assert_eq!(strip.fx1_send, 30.0 / 127.0);
+        assert_eq!(strip.fx2_send, 40.0 / 127.0);
+        assert_eq!(strip.route, 5);
+        assert!(strip.muted && strip.soloed);
+    }
+
+    #[test]
+    fn ext_and_master_faders_write_their_levels() {
+        let mut h = Harness::new();
+        h.strip(StripTarget::Ext, StripEdit::Volume(50));
+        assert_eq!(h.sent(), (params::EXT_PART_LEVEL, vec![50]));
+        assert_eq!(h.data.ext_strip.volume, 50);
+        h.strip(StripTarget::Ext, StripEdit::ToggleMute);
+        assert_eq!(h.sent(), (params::EXT_PART_MUTE, vec![1]));
+        assert!(h.data.ext_strip.muted);
+
+        h.strip(StripTarget::Master, StripEdit::Volume(70));
+        assert_eq!(h.sent(), (params::SYSTEM_MASTER_LEVEL, vec![70]));
+        assert_eq!(h.data.master_strip.volume, 70);
+    }
+
+    #[test]
+    fn comp_eq_route_writes_the_unit_output() {
+        let mut h = Harness::new();
+        h.strip(StripTarget::CompEq(1), StripEdit::Route(2));
+        assert_eq!(h.sent(), (params::drum_comp_eq_output_assign(1), vec![2]));
+        assert_eq!(h.data.comp_eq_strips[1].route, 2);
+    }
+
+    #[test]
+    fn fx_edits_write_chorus_and_reverb() {
+        let mut h = Harness::new();
+        let chorus_cases = [
+            (FxEdit::Type(2), chorus::TYPE, 2),
+            (FxEdit::Level(80), chorus::LEVEL, 80),
+            (FxEdit::Output(1), chorus::OUTPUT_SELECT, 1),
+        ];
+        for (edit, offset, value) in chorus_cases {
+            h.fx(FxBlock::Chorus, edit);
+            assert_eq!(h.sent(), (params::chorus_address(offset), vec![value]));
+        }
+        assert_eq!((h.data.chorus.fx_type, h.data.chorus.level), (2, 80));
+        assert_eq!(h.data.chorus.output, 1);
+
+        let reverb_cases = [
+            (FxEdit::Type(4), reverb::TYPE, 4),
+            (FxEdit::Level(60), reverb::LEVEL, 60),
+            (FxEdit::Output(3), reverb::OUTPUT_ASSIGN, 3),
+        ];
+        for (edit, offset, value) in reverb_cases {
+            h.fx(FxBlock::Reverb, edit);
+            assert_eq!(h.sent(), (params::reverb_address(offset), vec![value]));
+        }
+        assert_eq!((h.data.reverb.fx_type, h.data.reverb.level), (4, 60));
+        assert_eq!(h.data.reverb.output, 3);
+    }
+
+    #[test]
+    fn fx_switch_writes_only_on_change() {
+        let mut h = Harness::new();
+        let on = h.data.chorus.enabled;
+        h.fx(FxBlock::Chorus, FxEdit::Switch(on));
+        assert!(!h.has_pending());
+
+        h.fx(FxBlock::Chorus, FxEdit::Switch(!on));
+        assert_eq!(h.sent(), (params::CHORUS_SWITCH, vec![u8::from(!on)]));
+        assert_eq!(h.data.chorus.enabled, !on);
+
+        let on = h.data.reverb.enabled;
+        h.fx(FxBlock::Reverb, FxEdit::Switch(!on));
+        assert_eq!(h.sent(), (params::REVERB_SWITCH, vec![u8::from(!on)]));
+        assert_eq!(h.data.reverb.enabled, !on);
     }
 }
