@@ -110,15 +110,6 @@ fn entry_id(pack: &Pack, i: usize) -> String {
     id(kind, n)
 }
 
-/// A backup gives every entry its original slot; a sound export none.
-fn origin(pack: &Pack) -> Origin {
-    if pack.entries.iter().all(|e| e.slot().is_some()) {
-        Origin::Backup
-    } else {
-        Origin::Sound
-    }
-}
-
 /// Plan the import, then apply `--only` and `--to`.
 fn plan(
     read: &PackRead,
@@ -127,7 +118,7 @@ fn plan(
     opts: &ImportOptions,
 ) -> Result<ImportPlan> {
     let pack = &read.pack;
-    let mut plan = plan_read(read, origin(pack), names, loaded);
+    let mut plan = plan_read(read, Origin::of(pack), names, loaded);
     if !opts.only.is_empty() {
         let only = opts
             .only
@@ -280,11 +271,16 @@ impl Report<'_> {
     }
 
     fn text_plan(&self) -> String {
-        let kind = self.format.label(origin(self.pack));
+        let kind = self.format.label(Origin::of(self.pack));
         let mut out = format!(
-            "{} ({kind}, {} entries):\n",
+            "{} ({kind}, {} {}):\n",
             self.file.display(),
-            self.pack.entries.len()
+            self.pack.entries.len(),
+            if self.pack.entries.len() == 1 {
+                "entry"
+            } else {
+                "entries"
+            }
         );
         let mut excluded = 0;
         for (i, e) in self.pack.entries.iter().enumerate() {
@@ -763,7 +759,7 @@ mod tests {
                 entry(ChunkType::SnSynthTone, Some(5)),
             ],
         };
-        assert_eq!(origin(&pack), Origin::Backup);
+        assert_eq!(Origin::of(&pack), Origin::Backup);
         let plan = plan(&read_of(pack), &names(), None, &opts(&[]).unwrap()).unwrap();
         assert_eq!(plan.placements(), [Placement::User(2), Placement::Unplaced]);
     }
@@ -834,7 +830,7 @@ mod tests {
         let plan = plan(&read, &[], None, &opts(&[]).unwrap()).unwrap();
         assert_eq!(
             united_report(&read, &plan).text_plan(),
-            "srx03ap2-001.syx (MIDI file, 1 entries):\n\
+            "srx03ap2-001.syx (MIDI file, 1 entry):\n\
              \x20 pcm-synth:1      United !         -> Temporary Part 1 [lossy · 3]\n\
              \x20     effect dropped, MFX set to THRU\n\
              \x20     Chorus CHORUS, level 127 not applied; set it in the Studio Set\n\

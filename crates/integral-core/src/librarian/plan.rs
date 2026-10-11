@@ -39,6 +39,17 @@ pub enum Origin {
     Backup,
 }
 
+impl Origin {
+    /// The origin of `pack`: only a backup gives its entries a slot.
+    pub fn of(pack: &Pack) -> Self {
+        if pack.entries.iter().any(|e| e.slot().is_some()) {
+            Self::Backup
+        } else {
+            Self::Sound
+        }
+    }
+}
+
 /// Where one entry of the Pack goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]

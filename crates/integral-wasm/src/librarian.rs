@@ -183,13 +183,7 @@ impl WasmPack {
     /// dump (`.syx`, `.mid`).
     pub fn read(bytes: &[u8]) -> Result<WasmPack, JsError> {
         let read = Pack::read(bytes).map_err(js_err)?;
-        // Only a backup gives entries a slot.
-        let backup = read.pack.entries.iter().any(|e| e.slot().is_some());
-        let origin = if backup {
-            Origin::Backup
-        } else {
-            Origin::Sound
-        };
+        let origin = Origin::of(&read.pack);
         Ok(Self { read, origin })
     }
 
