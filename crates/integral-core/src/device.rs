@@ -22,6 +22,7 @@
 use std::collections::HashMap;
 
 use crate::address::Address;
+use crate::device_spec::KeyOutOfRange;
 use thiserror::Error;
 
 use crate::expansion_load::{self, LoadAction, LoadMachine, LoadOutcome, LoadPlan};
@@ -768,14 +769,27 @@ impl DeviceState {
     }
 
     /// Set a single SN-D Note parameter for a part and key.
-    pub fn set_snd_note_param(&mut self, part: u8, key: u8, offset: u8, value: u8) {
-        let addr = crate::sn_drum::snd_note_param_address(part, key, offset);
+    pub fn set_snd_note_param(
+        &mut self,
+        part: u8,
+        key: u8,
+        offset: u8,
+        value: u8,
+    ) -> Result<(), KeyOutOfRange> {
+        let addr = crate::sn_drum::snd_note_param_address(part, key, offset)?;
         self.send_dt1(&addr, &[value]);
+        Ok(())
     }
 
     /// Set a nibblized SN-D Note parameter (4 bytes, e.g. inst number or tune).
-    pub fn set_snd_note_nib_param(&mut self, part: u8, key: u8, offset: u8, value: u16) {
-        let addr = crate::sn_drum::snd_note_param_address(part, key, offset);
+    pub fn set_snd_note_nib_param(
+        &mut self,
+        part: u8,
+        key: u8,
+        offset: u8,
+        value: u16,
+    ) -> Result<(), KeyOutOfRange> {
+        let addr = crate::sn_drum::snd_note_param_address(part, key, offset)?;
         let bytes = [
             ((value >> 12) & 0x0F) as u8,
             ((value >> 8) & 0x0F) as u8,
@@ -783,6 +797,7 @@ impl DeviceState {
             (value & 0x0F) as u8,
         ];
         self.send_dt1(&addr, &bytes);
+        Ok(())
     }
 
     /// Build an RQ1 to read the full SN-D Common block for a part.
@@ -796,9 +811,13 @@ impl DeviceState {
     }
 
     /// Build an RQ1 to read an SN-D Note block for a part and key.
-    pub fn build_snd_note_request(&self, part: u8, key: u8) -> Vec<u8> {
-        let addr = crate::sn_drum::snd_note_address(part, key);
-        sysex::build_rq1(self.device_id, &addr, &crate::sn_drum::SND_NOTE_BLOCK_SIZE)
+    pub fn build_snd_note_request(&self, part: u8, key: u8) -> Result<Vec<u8>, KeyOutOfRange> {
+        let addr = crate::sn_drum::snd_note_address(part, key)?;
+        Ok(sysex::build_rq1(
+            self.device_id,
+            &addr,
+            &crate::sn_drum::SND_NOTE_BLOCK_SIZE,
+        ))
     }
 
     // -----------------------------------------------------------------------
@@ -923,14 +942,27 @@ impl DeviceState {
     }
 
     /// Set a single PCM Drum Kit Partial parameter for a part and key.
-    pub fn set_pcmd_partial_param(&mut self, part: u8, key: u8, offset: u16, value: u8) {
-        let addr = crate::pcm_drum::pcmd_partial_param_address(part, key, offset);
+    pub fn set_pcmd_partial_param(
+        &mut self,
+        part: u8,
+        key: u8,
+        offset: u16,
+        value: u8,
+    ) -> Result<(), KeyOutOfRange> {
+        let addr = crate::pcm_drum::pcmd_partial_param_address(part, key, offset)?;
         self.send_dt1(&addr, &[value]);
+        Ok(())
     }
 
     /// Set a nibblized PCM Drum Kit Partial parameter (4 bytes, e.g. wave number).
-    pub fn set_pcmd_partial_nib_param(&mut self, part: u8, key: u8, offset: u16, value: u16) {
-        let addr = crate::pcm_drum::pcmd_partial_param_address(part, key, offset);
+    pub fn set_pcmd_partial_nib_param(
+        &mut self,
+        part: u8,
+        key: u8,
+        offset: u16,
+        value: u16,
+    ) -> Result<(), KeyOutOfRange> {
+        let addr = crate::pcm_drum::pcmd_partial_param_address(part, key, offset)?;
         let bytes = [
             ((value >> 12) & 0x0F) as u8,
             ((value >> 8) & 0x0F) as u8,
@@ -938,6 +970,7 @@ impl DeviceState {
             (value & 0x0F) as u8,
         ];
         self.send_dt1(&addr, &bytes);
+        Ok(())
     }
 
     /// Set a single PCM Drum Kit Common2 parameter for a part.
@@ -957,13 +990,13 @@ impl DeviceState {
     }
 
     /// Build an RQ1 to read a PCM Drum Kit Partial block for a part and key.
-    pub fn build_pcmd_partial_request(&self, part: u8, key: u8) -> Vec<u8> {
-        let addr = crate::pcm_drum::pcmd_partial_address(part, key);
-        sysex::build_rq1(
+    pub fn build_pcmd_partial_request(&self, part: u8, key: u8) -> Result<Vec<u8>, KeyOutOfRange> {
+        let addr = crate::pcm_drum::pcmd_partial_address(part, key)?;
+        Ok(sysex::build_rq1(
             self.device_id,
             &addr,
             &crate::pcm_drum::PCMD_PARTIAL_BLOCK_SIZE,
-        )
+        ))
     }
 
     /// Build an RQ1 to read the PCM Drum Kit Common2 block for a part.
@@ -1504,5 +1537,36 @@ mod tests {
         assert_eq!(dev.state().preview_part, 3);
         dev.preview_toggle(5);
         assert_eq!(dev.state().preview_part, 5);
+    }
+
+    #[test]
+    fn snd_note_setters_reject_keys_outside_the_kit() {
+        use crate::sn_drum::{SND_FIRST_KEY, SND_LAST_KEY};
+        let mut dev = DeviceState::new(0x10);
+        for key in [SND_FIRST_KEY - 1, SND_LAST_KEY + 1] {
+            assert!(dev.set_snd_note_param(0, key, 0x04, 100).is_err());
+            assert!(dev.set_snd_note_nib_param(0, key, 0x00, 1).is_err());
+            assert!(dev.build_snd_note_request(0, key).is_err());
+        }
+        assert!(!dev.has_pending());
+        assert!(dev.set_snd_note_param(0, SND_LAST_KEY, 0x04, 100).is_ok());
+        assert!(dev.has_pending());
+    }
+
+    #[test]
+    fn pcmd_partial_setters_reject_keys_outside_the_kit() {
+        use crate::pcm_drum::{PCMD_FIRST_KEY, PCMD_LAST_KEY};
+        let mut dev = DeviceState::new(0x10);
+        for key in [PCMD_FIRST_KEY - 1, PCMD_LAST_KEY + 1] {
+            assert!(dev.set_pcmd_partial_param(0, key, 0x0021, 1).is_err());
+            assert!(dev.set_pcmd_partial_nib_param(0, key, 0x0027, 1).is_err());
+            assert!(dev.build_pcmd_partial_request(0, key).is_err());
+        }
+        assert!(!dev.has_pending());
+        assert!(
+            dev.set_pcmd_partial_param(0, PCMD_FIRST_KEY, 0x0021, 1)
+                .is_ok()
+        );
+        assert!(dev.has_pending());
     }
 }

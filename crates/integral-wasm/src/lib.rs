@@ -42,26 +42,6 @@ fn check_partial(partial: u8, max: u8) -> Result<(), JsError> {
     }
 }
 
-/// Validate a MIDI key number (0–127).
-fn check_key(key: u8) -> Result<(), JsError> {
-    if key > 127 {
-        Err(JsError::new(&format!("key {key} out of range (0–127)")))
-    } else {
-        Ok(())
-    }
-}
-
-/// Validate a drum kit key against the kit's key range (`first`–`last`).
-fn check_drum_key(key: u8, first: u8, last: u8) -> Result<(), JsError> {
-    if (first..=last).contains(&key) {
-        Ok(())
-    } else {
-        Err(JsError::new(&format!(
-            "key {key} out of range ({first}–{last})"
-        )))
-    }
-}
-
 /// Validate a Comp+EQ unit index (0–5).
 fn check_comp_eq_unit(unit: u8) -> Result<(), JsError> {
     if unit > 5 {
@@ -574,8 +554,7 @@ pub fn snd_mfx_address(part_index: u8) -> Vec<u8> {
 /// Returns the address of part `part_index`'s SN Drum Kit Note block for `key`.
 #[wasm_bindgen]
 pub fn snd_note_address(part_index: u8, key: u8) -> Result<Vec<u8>, JsError> {
-    check_drum_key(key, sn_drum::SND_FIRST_KEY, sn_drum::SND_LAST_KEY)?;
-    Ok(addr_to_vec(sn_drum::snd_note_address(part_index, key)))
+    Ok(addr_to_vec(sn_drum::snd_note_address(part_index, key)?))
 }
 
 /// Returns the RQ1 size for reading an SN Drum Kit Note block.
@@ -617,8 +596,9 @@ pub fn pcmd_mfx_address(part_index: u8) -> Vec<u8> {
 /// Returns the address of part `part_index`'s PCM Drum Kit Partial block for `key`.
 #[wasm_bindgen]
 pub fn pcmd_partial_address(part_index: u8, key: u8) -> Result<Vec<u8>, JsError> {
-    check_drum_key(key, pcm_drum::PCMD_FIRST_KEY, pcm_drum::PCMD_LAST_KEY)?;
-    Ok(addr_to_vec(pcm_drum::pcmd_partial_address(part_index, key)))
+    Ok(addr_to_vec(pcm_drum::pcmd_partial_address(
+        part_index, key,
+    )?))
 }
 
 /// Returns the RQ1 size for reading a PCM Drum Kit Partial block.
@@ -2048,9 +2028,7 @@ impl WasmDeviceState {
         value: u8,
     ) -> Result<(), JsError> {
         check_part(part)?;
-        check_key(key)?;
-        self.inner.set_snd_note_param(part, key, offset, value);
-        Ok(())
+        Ok(self.inner.set_snd_note_param(part, key, offset, value)?)
     }
 
     /// Set a nibblized SN-D Note parameter (4 bytes).
@@ -2063,9 +2041,9 @@ impl WasmDeviceState {
         value: u16,
     ) -> Result<(), JsError> {
         check_part(part)?;
-        check_key(key)?;
-        self.inner.set_snd_note_nib_param(part, key, offset, value);
-        Ok(())
+        Ok(self
+            .inner
+            .set_snd_note_nib_param(part, key, offset, value)?)
     }
 
     /// Parse an SN-D Common dump and return as a JS object.
@@ -2092,8 +2070,8 @@ impl WasmDeviceState {
 
     /// Build an RQ1 to read an SN-D Note block for a part and key.
     #[wasm_bindgen(js_name = buildSndNoteRequest)]
-    pub fn build_snd_note_request(&self, part: u8, key: u8) -> Vec<u8> {
-        self.inner.build_snd_note_request(part, key)
+    pub fn build_snd_note_request(&self, part: u8, key: u8) -> Result<Vec<u8>, JsError> {
+        Ok(self.inner.build_snd_note_request(part, key)?)
     }
 
     // -- PCM Synth Tone Edit -----------------------------------------------
@@ -2254,9 +2232,9 @@ impl WasmDeviceState {
         value: u8,
     ) -> Result<(), JsError> {
         check_part(part)?;
-        check_key(key)?;
-        self.inner.set_pcmd_partial_param(part, key, offset, value);
-        Ok(())
+        Ok(self
+            .inner
+            .set_pcmd_partial_param(part, key, offset, value)?)
     }
 
     /// Set a nibblized PCM Drum Kit Partial parameter (4 bytes, e.g. wave number).
@@ -2269,10 +2247,9 @@ impl WasmDeviceState {
         value: u16,
     ) -> Result<(), JsError> {
         check_part(part)?;
-        check_key(key)?;
-        self.inner
-            .set_pcmd_partial_nib_param(part, key, offset, value);
-        Ok(())
+        Ok(self
+            .inner
+            .set_pcmd_partial_nib_param(part, key, offset, value)?)
     }
 
     /// Set a single PCM Drum Kit Common2 parameter.
@@ -2315,8 +2292,8 @@ impl WasmDeviceState {
 
     /// Build an RQ1 to read a PCM Drum Kit Partial block for a part and key.
     #[wasm_bindgen(js_name = buildPcmdPartialRequest)]
-    pub fn build_pcmd_partial_request(&self, part: u8, key: u8) -> Vec<u8> {
-        self.inner.build_pcmd_partial_request(part, key)
+    pub fn build_pcmd_partial_request(&self, part: u8, key: u8) -> Result<Vec<u8>, JsError> {
+        Ok(self.inner.build_pcmd_partial_request(part, key)?)
     }
 
     /// Build an RQ1 to read the PCM Drum Kit Common2 block for a part.

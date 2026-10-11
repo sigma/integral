@@ -5,6 +5,7 @@
 //! (handled by `params.rs`), 88 per-key Partial blocks, and Common2.
 
 use crate::address::{Address, DataSize};
+use crate::device_spec::{KeyOutOfRange, KeyRange};
 use crate::mfx::MfxState;
 use crate::params;
 use crate::parse_helpers::{nibble2, nibble4, parse_ascii_name};
@@ -39,6 +40,12 @@ pub const PCMD_FIRST_KEY: u8 = 21;
 
 /// Last key number in the PCM Drum Kit partial range.
 pub const PCMD_LAST_KEY: u8 = 108;
+
+/// Keys a PCM Drum Kit has a Partial block for.
+pub const PCMD_KEYS: KeyRange = KeyRange {
+    first: PCMD_FIRST_KEY,
+    last: PCMD_LAST_KEY,
+};
 
 /// Number of PCM Drum Kit key slots.
 pub const PCMD_KEY_COUNT: usize = (PCMD_LAST_KEY - PCMD_FIRST_KEY + 1) as usize; // 88
@@ -76,26 +83,31 @@ pub const fn pcmd_common_param_address(part_index: u8, offset: u8) -> Address {
 /// key number.
 ///
 /// Key 21 maps to offset `00 10 00`, key 22 to `00 12 00`, etc.
-/// Each key is spaced `00 02 00` apart.
-pub const fn pcmd_partial_address(part_index: u8, key: u8) -> Address {
-    let key_offset = (key - PCMD_FIRST_KEY) as u16;
+/// Each key is spaced `00 02 00` apart. Keys outside [`PCMD_KEYS`] are
+/// rejected.
+pub fn pcmd_partial_address(part_index: u8, key: u8) -> Result<Address, KeyOutOfRange> {
+    let key_offset = (PCMD_KEYS.check(key)? - PCMD_FIRST_KEY) as u16;
     // Each key occupies 0x02 00 in the address space (i.e., byte2 increments by 2)
     // Starting at byte1=0x00, byte2=0x10
     let byte2_total = 0x10 + key_offset * 2;
     // Handle 7-bit carry: byte2 wraps at 128
     let byte1_add = (byte2_total / 128) as u8;
     let byte2 = (byte2_total % 128) as u8;
-    pcmd_base(part_index).offset([0x00, byte1_add, byte2, 0x00])
+    Ok(pcmd_base(part_index).offset([0x00, byte1_add, byte2, 0x00]))
 }
 
 /// Compute the absolute address for a single PCM Drum Kit Partial parameter.
 ///
 /// The offset is `u16` because partial blocks are 195 bytes (offsets go up
 /// to `0x0142`). The offset is split into two address bytes.
-pub const fn pcmd_partial_param_address(part_index: u8, key: u8, offset: u16) -> Address {
+pub fn pcmd_partial_param_address(
+    part_index: u8,
+    key: u8,
+    offset: u16,
+) -> Result<Address, KeyOutOfRange> {
     let byte2 = (offset >> 8) as u8;
     let byte3 = (offset & 0xFF) as u8;
-    pcmd_partial_address(part_index, key).offset([0x00, 0x00, byte2, byte3])
+    Ok(pcmd_partial_address(part_index, key)?.offset([0x00, 0x00, byte2, byte3]))
 }
 
 /// Compute the absolute PCM Drum Kit Common2 block address for a part.
@@ -628,14 +640,14 @@ mod tests {
     fn pcmd_partial_address_first_key() {
         let addr = pcmd_partial_address(0, 21);
         // Key 21 → offset 0x10 in byte 2
-        assert_eq!(addr, Address::new(0x19, 0x10, 0x10, 0x00));
+        assert_eq!(addr, Ok(Address::new(0x19, 0x10, 0x10, 0x00)));
     }
 
     #[test]
     fn pcmd_partial_address_second_key() {
         let addr = pcmd_partial_address(0, 22);
         // Key 22 → offset 0x12 in byte 2
-        assert_eq!(addr, Address::new(0x19, 0x10, 0x12, 0x00));
+        assert_eq!(addr, Ok(Address::new(0x19, 0x10, 0x12, 0x00)));
     }
 
     #[test]
@@ -644,20 +656,34 @@ mod tests {
         // Key 108: offset = 0x10 + (108-21)*2 = 0x10 + 174 = 16 + 174 = 190
         // 190 in 7-bit: 190/128=1 remainder 62, so byte1+=1, byte2=62=0x3E
         // Final: 19 11 3E 00
-        assert_eq!(addr, Address::new(0x19, 0x11, 0x3E, 0x00));
+        assert_eq!(addr, Ok(Address::new(0x19, 0x11, 0x3E, 0x00)));
+    }
+
+    #[test]
+    fn pcmd_partial_address_rejects_keys_outside_the_kit() {
+        for key in [PCMD_FIRST_KEY - 1, PCMD_LAST_KEY + 1] {
+            assert_eq!(
+                pcmd_partial_address(0, key),
+                Err(KeyOutOfRange {
+                    key,
+                    range: PCMD_KEYS
+                })
+            );
+            assert!(pcmd_partial_param_address(0, key, 0x0021).is_err());
+        }
     }
 
     #[test]
     fn pcmd_partial_param_address_wmt1_switch() {
         let addr = pcmd_partial_param_address(0, 21, 0x0021);
-        assert_eq!(addr, Address::new(0x19, 0x10, 0x10, 0x21));
+        assert_eq!(addr, Ok(Address::new(0x19, 0x10, 0x10, 0x21)));
     }
 
     #[test]
     fn pcmd_partial_param_address_pitch_env_depth() {
         // Pitch Env Depth at offset 01 15
         let addr = pcmd_partial_param_address(0, 21, 0x0115);
-        assert_eq!(addr, Address::new(0x19, 0x10, 0x11, 0x15));
+        assert_eq!(addr, Ok(Address::new(0x19, 0x10, 0x11, 0x15)));
     }
 
     #[test]

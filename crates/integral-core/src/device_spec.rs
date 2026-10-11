@@ -8,6 +8,7 @@ use crate::address::{self, Address, DataSize};
 use crate::params::{self, tone_type};
 use crate::user_write::BankSelect;
 use crate::{mfx, pcm_drum, pcm_synth, sn_acoustic, sn_drum, sn_synth};
+use thiserror::Error;
 
 /// Number of MIDI channels, fixed by the MIDI protocol.
 pub const MIDI_CHANNELS: u8 = 16;
@@ -85,6 +86,27 @@ pub struct KeyRange {
     pub first: u8,
     /// Highest key.
     pub last: u8,
+}
+
+impl KeyRange {
+    /// Return `key` if it lies in this range, or the error naming the range.
+    pub const fn check(self, key: u8) -> Result<u8, KeyOutOfRange> {
+        if key >= self.first && key <= self.last {
+            Ok(key)
+        } else {
+            Err(KeyOutOfRange { key, range: self })
+        }
+    }
+}
+
+/// Error returned for a key outside a drum kit's [`KeyRange`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[error("key {key} out of range ({}–{})", range.first, range.last)]
+pub struct KeyOutOfRange {
+    /// The rejected key.
+    pub key: u8,
+    /// The range the key had to lie in.
+    pub range: KeyRange,
 }
 
 /// A run of equally sized blocks in a Temporary layout.
@@ -344,14 +366,8 @@ pub const INTEGRA7: DeviceSpec = DeviceSpec {
     pcm_synth_partial_count: pcm_synth::PCMS_PARTIAL_COUNT as u8,
     mfx_control_count: mfx::MFX_CONTROL_COUNT as u8,
     pcm_drum_wmt_count: pcm_drum::PCMD_WMT_COUNT as u8,
-    sn_drum_keys: KeyRange {
-        first: sn_drum::SND_FIRST_KEY,
-        last: sn_drum::SND_LAST_KEY,
-    },
-    pcm_drum_keys: KeyRange {
-        first: pcm_drum::PCMD_FIRST_KEY,
-        last: pcm_drum::PCMD_LAST_KEY,
-    },
+    sn_drum_keys: sn_drum::SND_KEYS,
+    pcm_drum_keys: pcm_drum::PCMD_KEYS,
     tone_name_length: params::TONE_NAME_SIZE.value(),
     studio_set_name_length: params::STUDIO_SET_NAME_SIZE.value(),
     user_memory: USER_MEMORY,

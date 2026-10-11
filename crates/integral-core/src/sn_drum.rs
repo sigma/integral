@@ -5,6 +5,7 @@
 //! (handled by `params.rs`), and 62 per-key Note blocks.
 
 use crate::address::{Address, DataSize};
+use crate::device_spec::{KeyOutOfRange, KeyRange};
 use crate::mfx::MfxState;
 use crate::params;
 use crate::parse_helpers::{nibble4, parse_ascii_name};
@@ -37,6 +38,12 @@ pub const SND_FIRST_KEY: u8 = 27;
 /// Last key number in the SN-D note range.
 pub const SND_LAST_KEY: u8 = 88;
 
+/// Keys an SN-D kit has a Note block for.
+pub const SND_KEYS: KeyRange = KeyRange {
+    first: SND_FIRST_KEY,
+    last: SND_LAST_KEY,
+};
+
 /// Number of SN-D note slots.
 pub const SND_NOTE_COUNT: usize = (SND_LAST_KEY - SND_FIRST_KEY + 1) as usize; // 62
 
@@ -57,15 +64,20 @@ pub const fn snd_common_param_address(part_index: u8, offset: u8) -> Address {
 
 /// Compute the absolute SN-D Note block address for a part and key number.
 ///
-/// Key 27 maps to offset `00 10 00`, key 28 to `00 11 00`, etc.
-pub const fn snd_note_address(part_index: u8, key: u8) -> Address {
-    let note_offset = 0x10 + (key - SND_FIRST_KEY);
-    snd_base(part_index).offset([0x00, 0x00, note_offset, 0x00])
+/// Key 27 maps to offset `00 10 00`, key 28 to `00 11 00`, etc. Keys outside
+/// [`SND_KEYS`] are rejected.
+pub fn snd_note_address(part_index: u8, key: u8) -> Result<Address, KeyOutOfRange> {
+    let note_offset = 0x10 + (SND_KEYS.check(key)? - SND_FIRST_KEY);
+    Ok(snd_base(part_index).offset([0x00, 0x00, note_offset, 0x00]))
 }
 
 /// Compute the absolute address for a single SN-D Note parameter.
-pub const fn snd_note_param_address(part_index: u8, key: u8, offset: u8) -> Address {
-    snd_note_address(part_index, key).offset([0x00, 0x00, 0x00, offset])
+pub fn snd_note_param_address(
+    part_index: u8,
+    key: u8,
+    offset: u8,
+) -> Result<Address, KeyOutOfRange> {
+    Ok(snd_note_address(part_index, key)?.offset([0x00, 0x00, 0x00, offset]))
 }
 
 // ---------------------------------------------------------------------------
@@ -270,20 +282,34 @@ mod tests {
     fn snd_note_address_first_key() {
         let addr = snd_note_address(0, 27);
         // key 27 → offset 0x10 in byte 2
-        assert_eq!(addr, Address::new(0x19, 0x03, 0x10, 0x00));
+        assert_eq!(addr, Ok(Address::new(0x19, 0x03, 0x10, 0x00)));
     }
 
     #[test]
     fn snd_note_address_last_key() {
         let addr = snd_note_address(0, 88);
         // key 88 → offset 0x10 + (88 - 27) = 0x10 + 61 = 0x10 + 0x3D = 0x4D
-        assert_eq!(addr, Address::new(0x19, 0x03, 0x4D, 0x00));
+        assert_eq!(addr, Ok(Address::new(0x19, 0x03, 0x4D, 0x00)));
+    }
+
+    #[test]
+    fn snd_note_address_rejects_keys_outside_the_kit() {
+        for key in [SND_FIRST_KEY - 1, SND_LAST_KEY + 1] {
+            assert_eq!(
+                snd_note_address(0, key),
+                Err(KeyOutOfRange {
+                    key,
+                    range: SND_KEYS
+                })
+            );
+            assert!(snd_note_param_address(0, key, 0x04).is_err());
+        }
     }
 
     #[test]
     fn snd_note_param_address_level() {
         let addr = snd_note_param_address(0, 27, 0x04);
-        assert_eq!(addr, Address::new(0x19, 0x03, 0x10, 0x04));
+        assert_eq!(addr, Ok(Address::new(0x19, 0x03, 0x10, 0x04)));
     }
 
     #[test]
