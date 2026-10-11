@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use integral_core::address::Address;
 use integral_core::device_spec::INTEGRA7;
-use integral_core::params::{tone_type, tone_type_from_bank_msb};
+use integral_core::params::{ToneType, tone_type_from_bank_msb};
 use integral_core::parse_helpers::encode_nibble4;
 use integral_core::sn_synth::{
     SnSynthCommon, SnSynthPartial, parse_sns_common, parse_sns_partial, sns_common_address,
@@ -443,7 +443,7 @@ impl ToneEditorData {
             format!("Part {} : {} : {}", idx + 1, type_label, part.tone_name)
         };
 
-        let is_sns = tone_type_from_bank_msb(part.tone_bank_msb) == Some(tone_type::SN_SYNTH);
+        let is_sns = tone_type_from_bank_msb(part.tone_bank_msb) == Some(ToneType::SnSynth);
         let tone = (idx, part.tone_bank_msb, part.tone_bank_lsb, part.tone_pc);
         drop(dev);
         if !is_sns {
@@ -494,7 +494,7 @@ impl ToneEditorData {
         }
 
         // MFX
-        let rq = dev.build_mfx_request(part, tone_type::SN_SYNTH);
+        let rq = dev.build_mfx_request(part, ToneType::SnSynth);
         dev.send_raw(&format!("mfx-{part}"), rq);
     }
 }
@@ -549,7 +549,7 @@ impl ToneEditorPage {
             Binding::new(cx, ToneEditorData::tone_msb, |cx, msb_lens| {
                 let msb = msb_lens.get(cx);
                 match (msb, tone_type_from_bank_msb(msb)) {
-                    (_, Some(tone_type::SN_SYNTH)) => {
+                    (_, Some(ToneType::SnSynth)) => {
                         build_sns_editor(cx);
                     }
                     (_, Some(_)) => {

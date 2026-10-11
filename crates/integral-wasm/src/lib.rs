@@ -6,8 +6,8 @@ use integral_core::device::DeviceState;
 use integral_core::state::parse as state_parse;
 use integral_core::sysex;
 use integral_core::{
-    fx_params, mfx, mfx_params, param_registry, params, params::part, params::part_eq,
-    params::tone_type, pcm_drum, pcm_synth, sn_acoustic, sn_drum, sn_synth, tone_banks, user_write,
+    fx_params, mfx, mfx_params, param_registry, params, params::part, params::part_eq, pcm_drum,
+    pcm_synth, sn_acoustic, sn_drum, sn_synth, tone_banks, user_write,
 };
 use wasm_bindgen::prelude::*;
 
@@ -470,7 +470,7 @@ macro_rules! mirror_core_enum {
 }
 
 /// Tone type of a Part's Temporary Tone, selecting which tone type block
-/// (and so which MFX block) an edit addresses.
+/// (and so which MFX block) an edit addresses (mirrors [`params::ToneType`]).
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ToneType {
@@ -486,18 +486,13 @@ pub enum ToneType {
     PcmDrum,
 }
 
-impl ToneType {
-    /// The core [`tone_type`] offset for this tone type.
-    const fn offset(self) -> [u8; 3] {
-        match self {
-            Self::PcmSynth => tone_type::PCM_SYNTH,
-            Self::SnSynth => tone_type::SN_SYNTH,
-            Self::SnAcoustic => tone_type::SN_ACOUSTIC,
-            Self::SnDrum => tone_type::SN_DRUM,
-            Self::PcmDrum => tone_type::PCM_DRUM,
-        }
-    }
-}
+mirror_core_enum!(ToneType <=> params::ToneType {
+    PcmSynth,
+    SnSynth,
+    SnAcoustic,
+    SnDrum,
+    PcmDrum,
+});
 
 /// A field of a PCM Drum Kit WMT layer (mirrors [`pcm_drum::PcmdWmtField`]).
 #[wasm_bindgen]
@@ -741,7 +736,7 @@ mirror_core_enum!(MfxHeaderField <=> mfx::MfxHeaderField {
 pub fn pcms_mfx_address(part_index: u8) -> Vec<u8> {
     addr_to_vec(mfx::tone_mfx_block_address(
         part_index,
-        tone_type::PCM_SYNTH,
+        params::ToneType::PcmSynth,
     ))
 }
 
@@ -772,7 +767,10 @@ pub fn sns_partial_size() -> Vec<u8> {
 /// Returns the address of part `part_index`'s SN Synth MFX block.
 #[wasm_bindgen]
 pub fn sns_mfx_address(part_index: u8) -> Vec<u8> {
-    addr_to_vec(mfx::tone_mfx_block_address(part_index, tone_type::SN_SYNTH))
+    addr_to_vec(mfx::tone_mfx_block_address(
+        part_index,
+        params::ToneType::SnSynth,
+    ))
 }
 
 /// Returns the address of part `part_index`'s SN Acoustic Common block.
@@ -792,7 +790,7 @@ pub fn sna_common_size() -> Vec<u8> {
 pub fn sna_mfx_address(part_index: u8) -> Vec<u8> {
     addr_to_vec(mfx::tone_mfx_block_address(
         part_index,
-        tone_type::SN_ACOUSTIC,
+        params::ToneType::SnAcoustic,
     ))
 }
 
@@ -811,7 +809,10 @@ pub fn snd_common_size() -> Vec<u8> {
 /// Returns the address of part `part_index`'s SN Drum Kit MFX block.
 #[wasm_bindgen]
 pub fn snd_mfx_address(part_index: u8) -> Vec<u8> {
-    addr_to_vec(mfx::tone_mfx_block_address(part_index, tone_type::SN_DRUM))
+    addr_to_vec(mfx::tone_mfx_block_address(
+        part_index,
+        params::ToneType::SnDrum,
+    ))
 }
 
 /// Returns the address of part `part_index`'s SN Drum Kit Note block for `key`.
@@ -853,7 +854,10 @@ pub fn pcmd_common2_size() -> Vec<u8> {
 /// Returns the address of part `part_index`'s PCM Drum Kit MFX block.
 #[wasm_bindgen]
 pub fn pcmd_mfx_address(part_index: u8) -> Vec<u8> {
-    addr_to_vec(mfx::tone_mfx_block_address(part_index, tone_type::PCM_DRUM))
+    addr_to_vec(mfx::tone_mfx_block_address(
+        part_index,
+        params::ToneType::PcmDrum,
+    ))
 }
 
 /// Returns the address of part `part_index`'s PCM Drum Kit Partial block for `key`.
@@ -2584,7 +2588,7 @@ impl WasmDeviceState {
     ) -> Result<(), JsError> {
         Ok(self
             .inner
-            .set_mfx_header_param(part, tone_type.offset(), field.into(), index, value)?)
+            .set_mfx_header_param(part, tone_type.into(), field.into(), index, value)?)
     }
 
     /// Set a nibblized MFX parameter (0-based index) of the part's tone of
@@ -2598,7 +2602,7 @@ impl WasmDeviceState {
         value: i32,
     ) {
         self.inner
-            .set_mfx_nib_param(part, tone_type.offset(), param_index, value);
+            .set_mfx_nib_param(part, tone_type.into(), param_index, value);
     }
 
     /// Apply a full MFX block dump to the part's MFX state.

@@ -28,11 +28,11 @@ use thiserror::Error;
 use crate::expansion_load::{self, LoadAction, LoadMachine, LoadOutcome, LoadPlan};
 use crate::expansion_slots::{self, ExpansionSlots};
 use crate::expansions::Expansion;
+use crate::params::{self, ToneType, part};
 use crate::parse_helpers::encode_ascii_name;
 use crate::sn_synth;
 use crate::state::MixerState;
 use crate::sysex;
-use crate::{params, params::part};
 
 /// Minimum interval between SysEx sends (ms).
 const THROTTLE_MS: f64 = 40.0;
@@ -654,39 +654,39 @@ impl DeviceState {
 
     /// Set instance `index` (the 0-based control slot for the per-control
     /// fields, 0 otherwise) of an MFX header field of a part's tone of type
-    /// `tone_type_offset` (a [`params::tone_type`] constant).
+    /// `tone_type`.
     pub fn set_mfx_header_param(
         &mut self,
         part: u8,
-        tone_type_offset: [u8; 3],
+        tone_type: ToneType,
         field: crate::mfx::MfxHeaderField,
         index: u8,
         value: u8,
     ) -> Result<(), crate::mfx::MfxHeaderIndexError> {
         let offset = crate::mfx::mfx_header_offset(field, index)?;
-        let addr = crate::mfx::mfx_address(part, tone_type_offset, offset);
+        let addr = crate::mfx::mfx_address(part, tone_type, offset);
         self.send_dt1(&addr, &[value]);
         Ok(())
     }
 
     /// Set a nibblized MFX effect parameter (0-based index) of a part's tone
-    /// of type `tone_type_offset` (a [`params::tone_type`] constant).
+    /// of type `tone_type`.
     pub fn set_mfx_nib_param(
         &mut self,
         part: u8,
-        tone_type_offset: [u8; 3],
+        tone_type: ToneType,
         param_index: u8,
         value: i32,
     ) {
         let bytes = crate::mfx::encode_mfx_param(value);
-        let addr = crate::mfx::mfx_param_address(part, tone_type_offset, param_index);
+        let addr = crate::mfx::mfx_param_address(part, tone_type, param_index);
         self.send_dt1(&addr, &bytes);
     }
 
     /// Build an RQ1 to read the full MFX block of a part's tone of type
-    /// `tone_type_offset` (a [`params::tone_type`] constant).
-    pub fn build_mfx_request(&self, part: u8, tone_type_offset: [u8; 3]) -> Vec<u8> {
-        let addr = crate::mfx::tone_mfx_block_address(part, tone_type_offset);
+    /// `tone_type`.
+    pub fn build_mfx_request(&self, part: u8, tone_type: ToneType) -> Vec<u8> {
+        let addr = crate::mfx::tone_mfx_block_address(part, tone_type);
         sysex::build_rq1(self.device_id, &addr, &crate::mfx::MFX_BLOCK_SIZE)
     }
 
@@ -1121,11 +1121,11 @@ impl DeviceState {
         sysex::build_rq1(self.device_id, &addr, &params::COMP_EQ_BLOCK_SIZE)
     }
 
-    /// Determine the tone type offset for the Comp+EQ assigned part.
-    fn comp_eq_tone_type(&self) -> [u8; 3] {
+    /// Determine the tone type for the Comp+EQ assigned part.
+    fn comp_eq_tone_type(&self) -> ToneType {
         let part = self.state.drum_comp_eq.part;
         let msb = self.state.parts[part as usize].tone_bank_msb;
-        params::tone_type_from_bank_msb(msb).unwrap_or(params::tone_type::PCM_DRUM)
+        params::tone_type_from_bank_msb(msb).unwrap_or(ToneType::PcmDrum)
     }
 
     // -----------------------------------------------------------------------
@@ -1421,7 +1421,7 @@ mod tests {
         let _ = (dev.drain(0.0), dev.drain(100.0), dev.drain(200.0));
         assert!(dev.rename_tone(1, "My Pad"));
         assert_eq!(dev.state().parts[1].tone_name, "My Pad");
-        let addr = params::tone_name_address(1, params::tone_type::SN_SYNTH);
+        let addr = params::tone_name_address(1, ToneType::SnSynth);
         assert_eq!(
             dev.drain(300.0).unwrap(),
             sysex::build_dt1(0x10, &addr, b"My Pad      ")
@@ -1441,26 +1441,14 @@ mod tests {
     fn set_mfx_header_param_writes_the_tone_types_mfx_block() {
         use crate::mfx::MfxHeaderField;
         let mut dev = DeviceState::new(0x10);
-        dev.set_mfx_header_param(
-            0,
-            params::tone_type::SN_ACOUSTIC,
-            MfxHeaderField::Type,
-            0,
-            5,
-        )
-        .unwrap();
+        dev.set_mfx_header_param(0, ToneType::SnAcoustic, MfxHeaderField::Type, 0, 5)
+            .unwrap();
         assert_eq!(
             dev.drain(0.0).unwrap(),
             sysex::build_dt1(0x10, &Address::new(0x19, 0x02, 0x02, 0x00), &[5])
         );
-        dev.set_mfx_header_param(
-            0,
-            params::tone_type::PCM_DRUM,
-            MfxHeaderField::ControlAssign,
-            3,
-            7,
-        )
-        .unwrap();
+        dev.set_mfx_header_param(0, ToneType::PcmDrum, MfxHeaderField::ControlAssign, 3, 7)
+            .unwrap();
         // PCM Drum MFX block at `10 02 00`, Control Assign 4 at `00 10`.
         assert_eq!(
             dev.drain(100.0).unwrap(),
@@ -1484,7 +1472,7 @@ mod tests {
     #[test]
     fn set_mfx_nib_param_writes_the_tone_types_mfx_block() {
         let mut dev = DeviceState::new(0x10);
-        dev.set_mfx_nib_param(4, params::tone_type::SN_SYNTH, 1, 0x1234);
+        dev.set_mfx_nib_param(4, ToneType::SnSynth, 1, 0x1234);
         assert_eq!(
             dev.drain(0.0).unwrap(),
             sysex::build_dt1(
@@ -1499,7 +1487,7 @@ mod tests {
     fn build_mfx_request_reads_the_tone_types_mfx_block() {
         let dev = DeviceState::new(0x10);
         assert_eq!(
-            dev.build_mfx_request(0, params::tone_type::SN_SYNTH),
+            dev.build_mfx_request(0, ToneType::SnSynth),
             sysex::build_rq1(
                 0x10,
                 &Address::new(0x19, 0x01, 0x02, 0x00),

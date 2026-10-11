@@ -62,11 +62,8 @@ pub const PCMS_COMMON2_SIZE: usize = 0x3C;
 // ---------------------------------------------------------------------------
 
 /// Compute the absolute PCM Synth base address for a part.
-///
-/// PCM Synth has no tone type offset (`00 00 00 00`), so this is the same
-/// as `temporary_tone_base(part_index)`.
 pub const fn pcms_base(part_index: u8) -> Address {
-    params::temporary_tone_base(part_index)
+    params::ToneType::PcmSynth.base_address(part_index)
 }
 
 /// Compute the absolute PCM Synth Common block address for a part.

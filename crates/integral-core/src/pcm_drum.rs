@@ -15,9 +15,6 @@ use thiserror::Error;
 // Address constants
 // ---------------------------------------------------------------------------
 
-/// PCM Drum Kit tone type offset within the temporary tone block.
-const PCMD_TONE_OFFSET: [u8; 4] = [0x00, 0x10, 0x00, 0x00];
-
 /// PCM Drum Kit Common block size (18 bytes).
 pub const PCMD_COMMON_BLOCK_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x12);
 
@@ -251,7 +248,7 @@ pub enum PcmdFieldError {
 
 /// Compute the absolute PCM Drum Kit base address for a part.
 pub const fn pcmd_base(part_index: u8) -> Address {
-    params::temporary_tone_base(part_index).offset(PCMD_TONE_OFFSET)
+    params::ToneType::PcmDrum.base_address(part_index)
 }
 
 /// Compute the absolute PCM Drum Kit Common block address for a part.

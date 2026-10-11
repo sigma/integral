@@ -13,9 +13,6 @@ use crate::parse_helpers::{nibble4, parse_ascii_name};
 // Address constants
 // ---------------------------------------------------------------------------
 
-/// SN-S tone type offset within the temporary tone block.
-const SNS_TONE_OFFSET: [u8; 4] = [0x00, 0x01, 0x00, 0x00];
-
 /// SN-S Common block offset (relative to SN-S base).
 const SNS_COMMON_OFFSET: [u8; 4] = [0x00, 0x00, 0x00, 0x00];
 
@@ -47,7 +44,7 @@ pub const OSC_WAVE_PCM: u8 = 7;
 
 /// Compute the absolute SN-S base address for a part.
 const fn sns_base(part_index: u8) -> Address {
-    params::temporary_tone_base(part_index).offset(SNS_TONE_OFFSET)
+    params::ToneType::SnSynth.base_address(part_index)
 }
 
 /// Compute the absolute SN-S Common block address for a part.

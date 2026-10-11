@@ -6,7 +6,7 @@
 
 use anyhow::{Context, Result};
 use integral_core::device_spec::INTEGRA7;
-use integral_core::params::{self, tone_type};
+use integral_core::params::{self, ToneType};
 use integral_core::pcm_drum::{self, PcmDrumPartial};
 use integral_core::pcm_synth::{self, PcmSynthPartial};
 use integral_core::sn_synth::{self, OSC_WAVE_PCM, SnSynthPartial};
@@ -112,7 +112,7 @@ pub fn sn_synth_lines(partials: &[SnSynthPartial]) -> Vec<String> {
 }
 
 /// The line printed for a tone type without Waves.
-pub fn no_waves_line(tone: [u8; 3]) -> String {
+pub fn no_waves_line(tone: ToneType) -> String {
     let name = INTEGRA7
         .user_memory
         .iter()
@@ -129,7 +129,7 @@ pub fn read(dev: &mut IntegraDevice, part: u8) -> Result<Vec<String>> {
         .with_context(|| format!("unknown tone type for bank MSB {msb}"))?;
 
     match tone {
-        tone_type::PCM_SYNTH => {
+        ToneType::PcmSynth => {
             let partials = (0..pcm_synth::PCMS_PARTIAL_COUNT as u8)
                 .map(|i| {
                     let addr = pcm_synth::pcms_partial_address(part, i);
@@ -139,7 +139,7 @@ pub fn read(dev: &mut IntegraDevice, part: u8) -> Result<Vec<String>> {
                 .collect::<Result<Vec<_>>>()?;
             Ok(pcm_synth_lines(&partials))
         }
-        tone_type::PCM_DRUM => {
+        ToneType::PcmDrum => {
             let range = INTEGRA7.pcm_drum_keys;
             let keys = (range.first..=range.last)
                 .map(|key| {
@@ -150,7 +150,7 @@ pub fn read(dev: &mut IntegraDevice, part: u8) -> Result<Vec<String>> {
                 .collect::<Result<Vec<_>>>()?;
             Ok(pcm_drum_lines(&keys))
         }
-        tone_type::SN_SYNTH => {
+        ToneType::SnSynth => {
             let partials = (0..sn_synth::SNS_PARTIAL_COUNT as u8)
                 .map(|i| {
                     let addr = sn_synth::sns_partial_address(part, i);
@@ -261,12 +261,9 @@ mod tests {
     #[test]
     fn other_tone_types_have_no_waves() {
         assert_eq!(
-            no_waves_line(tone_type::SN_ACOUSTIC),
+            no_waves_line(ToneType::SnAcoustic),
             "sn-acoustic tone has no Waves"
         );
-        assert_eq!(
-            no_waves_line(tone_type::SN_DRUM),
-            "sn-drum tone has no Waves"
-        );
+        assert_eq!(no_waves_line(ToneType::SnDrum), "sn-drum tone has no Waves");
     }
 }

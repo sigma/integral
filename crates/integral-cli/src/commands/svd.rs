@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use integral_core::mfx;
-use integral_core::params::tone_type;
+use integral_core::params::ToneType;
 use integral_core::sn_synth;
 use integral_core::svd::{ChunkType, SvdFile};
 use integral_core::svd_convert::svd_to_sysex;
@@ -108,7 +108,7 @@ pub fn svd_validate(
     let common_ok = compare_sysex("Common", svd_common, &dev_common, &mut mismatches);
     println!("{}", if common_ok { "OK" } else { "MISMATCH" });
 
-    let mfx_base = mfx::tone_mfx_block_address(part_index, tone_type::SN_SYNTH);
+    let mfx_base = mfx::tone_mfx_block_address(part_index, ToneType::SnSynth);
     println!("Reading MFX ...");
     let dev_mfx = midi::request_data(
         &mut conn_out,

@@ -5,7 +5,7 @@
 //! consume a single spec rather than hardcoding device constants.
 
 use crate::address::{self, Address, DataSize};
-use crate::params::{self, tone_type};
+use crate::params::{self, ToneType};
 use crate::user_write::BankSelect;
 use crate::{mfx, pcm_drum, pcm_synth, sn_acoustic, sn_drum, sn_synth};
 use thiserror::Error;
@@ -154,9 +154,9 @@ pub struct UserMemorySpec {
     pub user_base: u8,
     /// Distance between User slots in the second address byte.
     pub slot_stride: u8,
-    /// Offset of the type in a Part's Temporary Tone, or `None` for the
+    /// Tone type this memory holds in a Part's Temporary Tone, or `None` for the
     /// Temporary Studio Set.
-    pub tone_type: Option<[u8; 3]>,
+    pub tone_type: Option<ToneType>,
     /// Blocks of the Temporary layout, which User slots share.
     pub blocks: &'static [BlockRun],
     /// Names the device gives an initialized slot.
@@ -190,7 +190,7 @@ impl UserMemorySpec {
     /// (0-indexed; ignored for the Studio Set).
     pub fn temporary_base(&self, part: u8) -> Address {
         match self.tone_type {
-            Some([a, b, c]) => params::temporary_tone_base(part).offset([0, a, b, c]),
+            Some(tone_type) => tone_type.base_address(part),
             None => address::STUDIO_SET,
         }
     }
@@ -244,7 +244,7 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         slot_count: 512,
         user_base: 0x50,
         slot_stride: 1,
-        tone_type: Some(tone_type::SN_SYNTH),
+        tone_type: Some(ToneType::SnSynth),
         blocks: &[
             one([0x00, 0x00, 0x00], sn_synth::SNS_COMMON_BLOCK_SIZE),
             one(mfx::MFX_BLOCK_OFFSET, mfx::MFX_BLOCK_SIZE),
@@ -263,7 +263,7 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         slot_count: 256,
         user_base: 0x60,
         slot_stride: 1,
-        tone_type: Some(tone_type::SN_ACOUSTIC),
+        tone_type: Some(ToneType::SnAcoustic),
         blocks: &[
             one([0x00, 0x00, 0x00], sn_acoustic::SNA_COMMON_BLOCK_SIZE),
             one(mfx::MFX_BLOCK_OFFSET, mfx::MFX_BLOCK_SIZE),
@@ -276,7 +276,7 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         slot_count: 64,
         user_base: 0x6E,
         slot_stride: 1,
-        tone_type: Some(tone_type::SN_DRUM),
+        tone_type: Some(ToneType::SnDrum),
         blocks: &[
             one([0x00, 0x00, 0x00], sn_drum::SND_COMMON_BLOCK_SIZE),
             one(mfx::MFX_BLOCK_OFFSET, mfx::MFX_BLOCK_SIZE),
@@ -296,7 +296,7 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         slot_count: 256,
         user_base: 0x30,
         slot_stride: 1,
-        tone_type: Some(tone_type::PCM_SYNTH),
+        tone_type: Some(ToneType::PcmSynth),
         blocks: &[
             one([0x00, 0x00, 0x00], pcm_synth::PCMS_COMMON_BLOCK_SIZE),
             one(mfx::MFX_BLOCK_OFFSET, mfx::MFX_BLOCK_SIZE),
@@ -317,7 +317,7 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         slot_count: 32,
         user_base: 0x40,
         slot_stride: 0x10,
-        tone_type: Some(tone_type::PCM_DRUM),
+        tone_type: Some(ToneType::PcmDrum),
         blocks: &[
             one([0x00, 0x00, 0x00], pcm_drum::PCMD_COMMON_BLOCK_SIZE),
             one(mfx::MFX_BLOCK_OFFSET, mfx::MFX_BLOCK_SIZE),

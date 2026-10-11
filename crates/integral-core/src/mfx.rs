@@ -6,7 +6,7 @@
 //! sends, 4 control source slots, and up to 32 nibblized parameters.
 
 use crate::address::{Address, DataSize};
-use crate::params;
+use crate::params::ToneType;
 use thiserror::Error;
 
 // ---------------------------------------------------------------------------
@@ -96,40 +96,28 @@ pub const fn mfx_header_offset(
 
 /// Compute the absolute MFX block address for a part's tone.
 ///
-/// `tone_type_offset` is a [`params::tone_type`] constant: each tone type has
-/// its own MFX block at offset `00 02 00` within its tone type block
-/// (MIDI Implementation, Temporary Tone).
-pub const fn tone_mfx_block_address(part_index: u8, tone_type_offset: [u8; 3]) -> Address {
-    params::temporary_tone_base(part_index)
-        .offset([
-            0x00,
-            tone_type_offset[0],
-            tone_type_offset[1],
-            tone_type_offset[2],
-        ])
-        .offset([
-            0x00,
-            MFX_BLOCK_OFFSET[0],
-            MFX_BLOCK_OFFSET[1],
-            MFX_BLOCK_OFFSET[2],
-        ])
+/// Each tone type has its own MFX block at offset `00 02 00` within its
+/// tone type block (MIDI Implementation, Temporary Tone).
+pub const fn tone_mfx_block_address(part_index: u8, tone_type: ToneType) -> Address {
+    tone_type.base_address(part_index).offset([
+        0x00,
+        MFX_BLOCK_OFFSET[0],
+        MFX_BLOCK_OFFSET[1],
+        MFX_BLOCK_OFFSET[2],
+    ])
 }
 
 /// Compute the absolute address for an MFX header byte (type, sends, controls)
-/// of a part's tone of type `tone_type_offset` (a [`params::tone_type`] constant).
-pub const fn mfx_address(part_index: u8, tone_type_offset: [u8; 3], param_offset: u8) -> Address {
-    tone_mfx_block_address(part_index, tone_type_offset).offset([0x00, 0x00, 0x00, param_offset])
+/// of a part's tone of type `tone_type`.
+pub const fn mfx_address(part_index: u8, tone_type: ToneType, param_offset: u8) -> Address {
+    tone_mfx_block_address(part_index, tone_type).offset([0x00, 0x00, 0x00, param_offset])
 }
 
 /// Compute the absolute address for a nibblized MFX parameter (0-based index)
-/// of a part's tone of type `tone_type_offset` (a [`params::tone_type`] constant).
-pub const fn mfx_param_address(
-    part_index: u8,
-    tone_type_offset: [u8; 3],
-    param_index: u8,
-) -> Address {
+/// of a part's tone of type `tone_type`.
+pub const fn mfx_param_address(part_index: u8, tone_type: ToneType, param_index: u8) -> Address {
     let byte_offset = MFX_PARAMS_START + param_index * 4;
-    tone_mfx_block_address(part_index, tone_type_offset).offset([0x00, 0x00, 0x00, byte_offset])
+    tone_mfx_block_address(part_index, tone_type).offset([0x00, 0x00, 0x00, byte_offset])
 }
 
 // ---------------------------------------------------------------------------
@@ -213,23 +201,23 @@ mod tests {
     #[test]
     fn tone_mfx_block_address_follows_tone_type() {
         assert_eq!(
-            tone_mfx_block_address(0, params::tone_type::PCM_SYNTH),
+            tone_mfx_block_address(0, ToneType::PcmSynth),
             Address::new(0x19, 0x00, 0x02, 0x00)
         );
         assert_eq!(
-            tone_mfx_block_address(4, params::tone_type::SN_SYNTH),
+            tone_mfx_block_address(4, ToneType::SnSynth),
             Address::new(0x1A, 0x01, 0x02, 0x00)
         );
         assert_eq!(
-            tone_mfx_block_address(1, params::tone_type::SN_ACOUSTIC),
+            tone_mfx_block_address(1, ToneType::SnAcoustic),
             Address::new(0x19, 0x22, 0x02, 0x00)
         );
         assert_eq!(
-            tone_mfx_block_address(0, params::tone_type::SN_DRUM),
+            tone_mfx_block_address(0, ToneType::SnDrum),
             Address::new(0x19, 0x03, 0x02, 0x00)
         );
         assert_eq!(
-            tone_mfx_block_address(0, params::tone_type::PCM_DRUM),
+            tone_mfx_block_address(0, ToneType::PcmDrum),
             Address::new(0x19, 0x10, 0x02, 0x00)
         );
     }
@@ -237,11 +225,11 @@ mod tests {
     #[test]
     fn mfx_address_pcm_synth_part1() {
         assert_eq!(
-            mfx_address(0, params::tone_type::PCM_SYNTH, 0x00),
+            mfx_address(0, ToneType::PcmSynth, 0x00),
             Address::new(0x19, 0x00, 0x02, 0x00)
         );
         assert_eq!(
-            mfx_address(0, params::tone_type::PCM_SYNTH, 0x03),
+            mfx_address(0, ToneType::PcmSynth, 0x03),
             Address::new(0x19, 0x00, 0x02, 0x03)
         );
     }
@@ -250,7 +238,7 @@ mod tests {
     fn mfx_address_sn_acoustic_part1() {
         // Must not land on SN-A Common `19 02 00 00` (the tone name).
         assert_eq!(
-            mfx_address(0, params::tone_type::SN_ACOUSTIC, 0x00),
+            mfx_address(0, ToneType::SnAcoustic, 0x00),
             Address::new(0x19, 0x02, 0x02, 0x00)
         );
     }
@@ -259,12 +247,12 @@ mod tests {
     fn mfx_address_higher_part() {
         // Part 5 base = 1A 00 00 00.
         assert_eq!(
-            mfx_address(4, params::tone_type::SN_ACOUSTIC, 0x10),
+            mfx_address(4, ToneType::SnAcoustic, 0x10),
             Address::new(0x1A, 0x02, 0x02, 0x10)
         );
         // Part 16 base = 1C 60 00 00.
         assert_eq!(
-            mfx_address(15, params::tone_type::PCM_DRUM, 0x00),
+            mfx_address(15, ToneType::PcmDrum, 0x00),
             Address::new(0x1C, 0x70, 0x02, 0x00)
         );
     }
@@ -272,12 +260,12 @@ mod tests {
     #[test]
     fn mfx_param_address_pcm_synth_part1() {
         assert_eq!(
-            mfx_param_address(0, params::tone_type::PCM_SYNTH, 0),
+            mfx_param_address(0, ToneType::PcmSynth, 0),
             Address::new(0x19, 0x00, 0x02, 0x11)
         );
         // 0x11 + 9*4 = 0x35
         assert_eq!(
-            mfx_param_address(0, params::tone_type::PCM_SYNTH, 9),
+            mfx_param_address(0, ToneType::PcmSynth, 9),
             Address::new(0x19, 0x00, 0x02, 0x35)
         );
     }
@@ -285,12 +273,12 @@ mod tests {
     #[test]
     fn mfx_param_address_sn_acoustic() {
         assert_eq!(
-            mfx_param_address(0, params::tone_type::SN_ACOUSTIC, 0),
+            mfx_param_address(0, ToneType::SnAcoustic, 0),
             Address::new(0x19, 0x02, 0x02, 0x11)
         );
         // Last param: 0x11 + 31*4 = 0x8D -> carries into byte 2: 02 03 0D.
         assert_eq!(
-            mfx_param_address(1, params::tone_type::SN_ACOUSTIC, 31),
+            mfx_param_address(1, ToneType::SnAcoustic, 31),
             Address::new(0x19, 0x22, 0x03, 0x0D)
         );
     }

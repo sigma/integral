@@ -12,9 +12,6 @@ use crate::parse_helpers::{nibble2, parse_ascii_name};
 // Address constants
 // ---------------------------------------------------------------------------
 
-/// SN-A tone type offset within the temporary tone block.
-const SNA_TONE_OFFSET: [u8; 4] = [0x00, 0x02, 0x00, 0x00];
-
 /// SN-A Common block offset (relative to SN-A base).
 const SNA_COMMON_OFFSET: [u8; 4] = [0x00, 0x00, 0x00, 0x00];
 
@@ -26,7 +23,7 @@ pub const SNA_COMMON_SIZE: usize = 0x46;
 
 /// Compute the absolute SN-A base address for a part.
 const fn sna_base(part_index: u8) -> Address {
-    params::temporary_tone_base(part_index).offset(SNA_TONE_OFFSET)
+    params::ToneType::SnAcoustic.base_address(part_index)
 }
 
 /// Compute the absolute SN-A Common block address for a part.

@@ -14,9 +14,6 @@ use crate::parse_helpers::{nibble4, parse_ascii_name};
 // Address constants
 // ---------------------------------------------------------------------------
 
-/// SN-D tone type offset within the temporary tone block.
-const SND_TONE_OFFSET: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
-
 /// SN-D Common block offset (relative to SN-D base).
 const SND_COMMON_OFFSET: [u8; 4] = [0x00, 0x00, 0x00, 0x00];
 
@@ -52,7 +49,7 @@ pub const SND_NOTE_COUNT: usize = (SND_LAST_KEY - SND_FIRST_KEY + 1) as usize; /
 
 /// Compute the absolute SN-D base address for a part.
 const fn snd_base(part_index: u8) -> Address {
-    params::temporary_tone_base(part_index).offset(SND_TONE_OFFSET)
+    params::ToneType::SnDrum.base_address(part_index)
 }
 
 /// Compute the absolute SN-D Common block address for a part.
