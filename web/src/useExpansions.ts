@@ -2,9 +2,10 @@
  * Loaded state of the Expansions, read from the device into the Rust
  * `WasmDeviceState` and exposed to React, and the loads that change it.
  *
- * The slots are read when a service connects, on window focus and when a
- * tone picker or the Expansions page opens (via `refresh`); never on a
- * timer. A read with no answer makes the state unknown, and unknown state
+ * The slots are read when a service connects, on window focus, when the
+ * pointer comes back into the page (front-panel loads send nothing and
+ * don't blur the window), and when a tone picker or the Expansions page
+ * opens (via `refresh`); never on a timer. A read with no answer makes the state unknown, and unknown state
  * marks nothing.
  */
 
@@ -61,6 +62,9 @@ export interface UseExpansionsResult {
   load: (target: readonly number[]) => Promise<ExpansionLoadResult>;
 }
 
+/** Minimum time between two pointer re-entry reads (ms). */
+const REENTRY_READ_INTERVAL_MS = 2000;
+
 export function useExpansions(
   service: IntegraService | null,
 ): UseExpansionsResult {
@@ -93,8 +97,23 @@ export function useExpansions(
   useEffect(() => {
     if (!service) return;
     refresh();
+    // The pointer moving back in from the device's panel is the cue; a
+    // pointer wiggling across the window edge reads at most once per interval.
+    let lastReentryRead = -Infinity;
+    const onReentry = (e: PointerEvent) => {
+      // A null relatedTarget means the pointer came from outside the window.
+      if (e.relatedTarget !== null) return;
+      const now = performance.now();
+      if (now - lastReentryRead < REENTRY_READ_INTERVAL_MS) return;
+      lastReentryRead = now;
+      refresh();
+    };
     window.addEventListener("focus", refresh);
-    return () => window.removeEventListener("focus", refresh);
+    document.addEventListener("pointerover", onReentry);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("pointerover", onReentry);
+    };
   }, [service, refresh]);
 
   const isUnloaded = useCallback(
