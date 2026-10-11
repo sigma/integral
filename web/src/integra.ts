@@ -8,6 +8,7 @@
  * - Catalog query handlers (event-driven with timeouts)
  * - The drain loop (polls Rust queue via setInterval)
  * - Timers driving the Rust Expansion load machine
+ * - I/O and timers driving the Rust Librarian (Pack export/import) machines
  */
 
 import {
@@ -49,6 +50,17 @@ import {
   LoadOutcomeKind,
   WasmDeviceState,
   type WriteReply,
+  LibrarianActionKind,
+  Pack,
+  PackExport,
+  PackImport,
+  librarianTypes,
+  planImport,
+  type CatalogName,
+  type ExportSource,
+  type ImportPlan,
+  type ImportStatus,
+  type LibrarianAction,
 } from "../pkg/integral_wasm.js";
 import type { MidiPortPair } from "./midi";
 import { DRUMS_CATEGORY } from "./categories";
@@ -98,6 +110,23 @@ export interface ExpansionLoadResult {
   outcome: LoadOutcomeKind;
   /** Slot values A–D read back (`Loaded`, `Failed`), else null. */
   slots: Uint8Array | null;
+}
+
+/** How a Pack import ended. */
+export interface PackImportResult {
+  /** Each entry's final status, indexed like the Pack's entries. */
+  statuses: ImportStatus[];
+  /** Why the import stopped early, if it did. */
+  error: string | undefined;
+}
+
+/** A Librarian machine (`PackExport` or `PackImport`), as the driver sees it. */
+interface LibrarianMachine {
+  nextAction(): LibrarianAction;
+  onRead(addr: Uint8Array, data: Uint8Array): boolean;
+  onWriteReply?(addr: Uint8Array, data: Uint8Array): boolean;
+  onTimeout(): void;
+  cancel(): void;
 }
 
 interface PendingRequest {
@@ -935,6 +964,188 @@ export class IntegraService {
       };
       // Every DT1 may advance the load (ack, done, poll answer).
       const unsubscribe = this.onDt1(() => step());
+      step();
+    });
+  }
+
+  // -----------------------------------------------------------------------
+  // Librarian: Pack export and import (docs/midi/99-undocumented.md §2, §4)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Export User slots `first` to `last` (0-indexed, inclusive) of `kind`
+   * (a `LibrarianType` kind) into sound-export SVD bytes. Studio Sets carry
+   * the User tones their Parts use.
+   */
+  async exportUserSlots(
+    kind: string,
+    first: number,
+    last: number,
+    signal?: AbortSignal,
+  ): Promise<Uint8Array> {
+    const sources: ExportSource[] = [];
+    for (let slot = first; slot <= last; slot++) {
+      sources.push({ source: "user", kind, slot });
+    }
+    const pack = await this.exportPack(sources, signal);
+    try {
+      return pack.toSvd();
+    } finally {
+      pack.free();
+    }
+  }
+
+  /** Read `sources` from the device into a Pack. Only reads. */
+  async exportPack(sources: ExportSource[], signal?: AbortSignal): Promise<Pack> {
+    const machine = new PackExport(this.deviceId, sources);
+    try {
+      const error = await this.runLibrarian(machine, "pack-export", signal);
+      const pack = error === undefined ? machine.pack() : undefined;
+      if (!pack) throw new Error(error ?? "The export produced no Pack");
+      return pack;
+    } finally {
+      machine.free();
+    }
+  }
+
+  /**
+   * Read an SVD file and plan its import against the device's User slot
+   * names and loaded Expansions. The caller owns (and frees) both.
+   */
+  async planImportFromSvd(bytes: Uint8Array): Promise<{ pack: Pack; plan: ImportPlan }> {
+    const pack = Pack.fromSvd(bytes);
+    try {
+      const kinds = new Set(pack.entries().map((e) => e.kind));
+      const names: CatalogName[] = [];
+      for (const t of librarianTypes().filter((t) => kinds.has(t.kind))) {
+        if (t.studioSet) {
+          // Studio Sets have one bank: LSB 0.
+          for (const [pc, name] of await this.requestStudioSetNames()) {
+            names.push({ msb: t.bankMsb, lsb: 0, pc, name });
+          }
+          continue;
+        }
+        for (let lsb = 0; lsb * 128 < t.slotCount; lsb++) {
+          names.push(...(await this.requestToneCatalogForLsb(t.bankMsb, lsb)));
+        }
+      }
+      const slots = await this.readExpansionSlots();
+      return { pack, plan: planImport(pack, names, slots) };
+    } catch (e) {
+      pack.free();
+      throw e;
+    }
+  }
+
+  /**
+   * Store `pack` into User memory as `plan` says, borrowing Part `part`
+   * (0-indexed) to store tones. Resolves with each entry's status once the
+   * borrowed Temporary areas are restored; refresh mixer state then.
+   */
+  async importPack(
+    pack: Pack,
+    plan: ImportPlan,
+    part: number,
+    signal?: AbortSignal,
+  ): Promise<PackImportResult> {
+    if (this.writing) throw new Error("A save is still in progress");
+    if (this.device.expansionLoadTarget()) {
+      throw new Error("An Expansion load is in progress");
+    }
+    const machine = new PackImport(this.deviceId, pack, plan, part);
+    this.writing = true;
+    try {
+      const error = await this.runLibrarian(machine, "pack-import", signal);
+      return { statuses: machine.progress(), error };
+    } finally {
+      this.writing = false;
+      machine.free();
+    }
+  }
+
+  /**
+   * Drive `machine` to its end and resolve with its error, if any. Sends go
+   * through the raw queue (no DT1 coalescing); a wait times out only once
+   * everything queued before it has left the queue.
+   */
+  private runLibrarian(
+    machine: LibrarianMachine,
+    key: string,
+    signal?: AbortSignal,
+  ): Promise<string | undefined> {
+    return new Promise((resolve) => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let waitId = 0;
+      /** Whether the awaited write's timeout runs (a cancel mustn't restart it). */
+      let awaitingWrite = false;
+      let flushed = Promise.resolve();
+      const send = (bytes: Uint8Array): void => {
+        flushed = new Promise((sent) => this.queueRaw(key, bytes, sent));
+      };
+      const disarm = (): void => {
+        waitId++;
+        awaitingWrite = false;
+        clearTimeout(timer);
+      };
+      const arm = (ms: number): void => {
+        disarm();
+        const id = waitId;
+        void flushed.then(() => {
+          if (id !== waitId) return;
+          timer = setTimeout(() => {
+            awaitingWrite = false;
+            machine.onTimeout();
+            step();
+          }, ms);
+        });
+      };
+      const step = (): void => {
+        for (;;) {
+          const action = machine.nextAction();
+          const { kind, bytes, timeoutMs, error } = action;
+          action.free();
+          switch (kind) {
+            case LibrarianActionKind.Read:
+              send(bytes);
+              arm(REQUEST_TIMEOUT_MS);
+              continue;
+            case LibrarianActionKind.Send:
+              disarm();
+              send(bytes);
+              continue;
+            case LibrarianActionKind.Wait:
+              return;
+            case LibrarianActionKind.AwaitWrite:
+              if (!awaitingWrite) {
+                arm(timeoutMs);
+                awaitingWrite = true;
+              }
+              return;
+            case LibrarianActionKind.Done:
+              disarm();
+              unsubscribe();
+              signal?.removeEventListener("abort", abort);
+              resolve(error);
+              return;
+          }
+        }
+      };
+      const abort = (): void => {
+        machine.cancel();
+        step();
+      };
+      const unsubscribe = this.onDt1((addr, data) => {
+        if (machine.onRead(addr, data)) {
+          // Packets of a block keep its read alive.
+          arm(REQUEST_TIMEOUT_MS);
+          step();
+        } else if (machine.onWriteReply?.(addr, data)) {
+          disarm();
+          step();
+        }
+      });
+      signal?.addEventListener("abort", abort);
+      if (signal?.aborted) machine.cancel();
       step();
     });
   }
