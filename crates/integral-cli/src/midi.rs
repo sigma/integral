@@ -1,14 +1,14 @@
 //! MIDI connection helpers for the INTEGRA-7.
 
+use std::ops::Range;
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 use integral_core::address::{Address, DataSize};
+use integral_core::librarian::reader::{BlockData, BlockReader};
 use integral_core::sysex;
 use midir::{MidiInput, MidiOutput};
-
-use crate::hex::format_hex;
 
 /// Default MIDI port name pattern for the INTEGRA-7.
 pub const DEFAULT_PORT_PATTERN: &str = "Integra";
@@ -67,21 +67,32 @@ pub fn open_midi(
     Ok((conn_in, conn_out, rx))
 }
 
-/// Send an RQ1 and wait for the DT1 response, logging the traffic to stderr.
-pub fn request_data(
+/// Read `size` bytes at `address`: send one RQ1 and collect every DT1
+/// packet of the reply, placed by address, until the block is whole or
+/// `timeout` elapses. Logs the traffic to stderr when `verbose`.
+pub fn read_block(
     conn_out: &mut midir::MidiOutputConnection,
     rx: &mpsc::Receiver<Vec<u8>>,
     device_id: u8,
     address: &Address,
     size: &DataSize,
     timeout: Duration,
-) -> Result<Vec<u8>> {
-    request_data_logged(conn_out, rx, device_id, address, size, timeout, true)
+    verbose: bool,
+) -> Result<BlockData> {
+    let mut reader = BlockReader::new(device_id, [(*address, *size)]);
+    let rq1 = reader.next_request().context("nothing to read")?;
+    if verbose {
+        eprintln!(
+            "Sending RQ1: addr={address}, size={size} ({} bytes)",
+            size.value()
+        );
+    }
+    conn_out.send(&rq1).context("failed to send RQ1")?;
+    collect_reply(reader, rx, timeout, verbose)
 }
 
-/// Send an RQ1 and wait for the DT1 response; log the traffic to stderr
-/// only when `verbose`.
-pub fn request_data_logged(
+/// Like [`read_block`], but fails unless every byte of the block arrived.
+pub fn request_data(
     conn_out: &mut midir::MidiOutputConnection,
     rx: &mpsc::Receiver<Vec<u8>>,
     device_id: u8,
@@ -90,60 +101,57 @@ pub fn request_data_logged(
     timeout: Duration,
     verbose: bool,
 ) -> Result<Vec<u8>> {
-    let rq1 = sysex::build_rq1(device_id, address, size);
-    if verbose {
-        eprintln!("Sending RQ1: addr={}, size={}", address, size);
-        eprintln!("  Raw: {}", format_hex(&rq1, " "));
-    }
-    conn_out.send(&rq1).context("failed to send RQ1")?;
+    let data = read_block(conn_out, rx, device_id, address, size, timeout, verbose)?;
+    complete(address, data)
+}
 
-    let deadline = std::time::Instant::now() + timeout;
-    loop {
-        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
-        if remaining.is_zero() {
-            bail!("RQ1 timeout waiting for response at address {address}");
-        }
-        match rx.recv_timeout(remaining) {
-            Ok(data) => {
-                if verbose {
-                    eprintln!(
-                        "  Received ({} bytes): {}",
-                        data.len(),
-                        format_hex(&data[..data.len().min(20)], " ")
-                    );
-                }
-
-                match sysex::parse_dt1(&data) {
-                    Ok(dt1) => {
-                        if verbose {
-                            eprintln!(
-                                "  Parsed DT1: addr={}, {} data bytes",
-                                dt1.address,
-                                dt1.data.len()
-                            );
-                        }
-                        if dt1.address == *address {
-                            return Ok(dt1.data);
-                        }
-                        if verbose {
-                            eprintln!("  (address mismatch, continuing...)");
-                        }
-                    }
-                    Err(e) => {
-                        if verbose {
-                            eprintln!("  (not a DT1: {e})");
-                        }
-                    }
+/// Feed the DT1 packets from `rx` to `reader`, whose one RQ1 has been
+/// sent, until its block is whole or `timeout` elapses.
+fn collect_reply(
+    mut reader: BlockReader,
+    rx: &mpsc::Receiver<Vec<u8>>,
+    timeout: Duration,
+    verbose: bool,
+) -> Result<BlockData> {
+    let deadline = Instant::now() + timeout;
+    while reader.is_waiting() {
+        match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+            Ok(msg) => {
+                if let Ok(dt1) = sysex::parse_dt1(&msg)
+                    && reader.on_dt1(&dt1.address, &dt1.data)
+                    && verbose
+                {
+                    eprintln!("  DT1 at {} ({} bytes)", dt1.address, dt1.data.len());
                 }
             }
-            Err(mpsc::RecvTimeoutError::Timeout) => {
-                bail!("RQ1 timeout waiting for response at address {address}");
-            }
-            Err(mpsc::RecvTimeoutError::Disconnected) => {
-                bail!("MIDI input disconnected");
-            }
+            Err(mpsc::RecvTimeoutError::Timeout) => reader.on_timeout(),
+            Err(mpsc::RecvTimeoutError::Disconnected) => bail!("MIDI input disconnected"),
         }
     }
+    let read = reader.result().pop().context("nothing was read")?;
+    Ok(read.data)
+}
+
+/// The bytes of a block read at `address`, or an error naming what is
+/// missing.
+fn complete(address: &Address, data: BlockData) -> Result<Vec<u8>> {
+    match data {
+        BlockData::Complete(data) => Ok(data),
+        BlockData::Gap { missing, .. } => bail!(
+            "incomplete reply at {address}: byte ranges {} missing",
+            format_ranges(&missing)
+        ),
+        BlockData::Timeout => bail!("RQ1 timeout waiting for response at address {address}"),
+    }
+}
+
+/// Format byte ranges as `start..end`, comma-separated.
+pub fn format_ranges(ranges: &[Range<usize>]) -> String {
+    let ranges: Vec<String> = ranges
+        .iter()
+        .map(|r| format!("{}..{}", r.start, r.end))
+        .collect();
+    ranges.join(", ")
 }
 
 /// Detect the device ID by sending an Identity Request and parsing the reply.
@@ -188,5 +196,63 @@ pub fn detect_device_id(
                 bail!("MIDI input disconnected");
             }
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::single_range_in_vec_init)] // `missing` is a list of ranges
+mod tests {
+    use super::*;
+
+    const MFX: Address = Address::new(0x50, 0x00, 0x02, 0x00);
+    const TIMEOUT: Duration = Duration::from_millis(20);
+
+    /// A reader for `size` bytes at [`MFX`] whose RQ1 has been sent, and a
+    /// receiver holding `replies` (address offset, data) as raw DT1s, and
+    /// its sender, which keeps the receiver connected.
+    fn scripted(
+        size: u32,
+        replies: &[(u8, &[u8])],
+    ) -> (BlockReader, mpsc::Receiver<Vec<u8>>, mpsc::Sender<Vec<u8>>) {
+        let mut reader = BlockReader::new(0x10, [(MFX, DataSize::from_value(size).unwrap())]);
+        reader.next_request().unwrap();
+        let (tx, rx) = mpsc::channel();
+        tx.send(sysex::identity_request().to_vec()).unwrap();
+        for &(offset, data) in replies {
+            let addr = MFX.offset([0, 0, 0, offset]);
+            tx.send(sysex::build_dt1(0x10, &addr, data)).unwrap();
+        }
+        (reader, rx, tx)
+    }
+
+    #[test]
+    fn collects_every_packet_of_a_split_reply() {
+        let (reader, rx, _tx) = scripted(6, &[(4, &[5, 6]), (0, &[1, 2, 3, 4])]);
+        let data = collect_reply(reader, &rx, TIMEOUT, false).unwrap();
+        assert_eq!(complete(&MFX, data).unwrap(), [1, 2, 3, 4, 5, 6]);
+    }
+
+    /// The device stops a reply at the last whole parameter.
+    #[test]
+    fn short_reply_is_an_error() {
+        let (reader, rx, _tx) = scripted(6, &[(0, &[1, 2, 3, 4])]);
+        let data = collect_reply(reader, &rx, TIMEOUT, false).unwrap();
+        assert_eq!(
+            data,
+            BlockData::Gap {
+                data: vec![1, 2, 3, 4, 0, 0],
+                missing: vec![4..6],
+            }
+        );
+        let err = complete(&MFX, data).unwrap_err().to_string();
+        assert!(err.contains("4..6 missing"), "{err}");
+    }
+
+    #[test]
+    fn no_reply_is_an_error() {
+        let (reader, rx, _tx) = scripted(6, &[]);
+        let data = collect_reply(reader, &rx, TIMEOUT, false).unwrap();
+        assert_eq!(data, BlockData::Timeout);
+        assert!(complete(&MFX, data).is_err());
     }
 }

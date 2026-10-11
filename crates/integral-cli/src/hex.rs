@@ -3,20 +3,23 @@
 use anyhow::{Context, Result, ensure};
 use integral_core::address::{Address, DataSize};
 
-/// Parse a hex string into a 4-byte SysEx address.
+/// Parse a hex string into a 4-byte SysEx address. Each byte must be
+/// `00`-`7F`.
 ///
 /// # Examples
 /// ```ignore
 /// let addr = parse_hex_addr("10000000")?;
 /// ```
 pub fn parse_hex_addr(s: &str) -> Result<Address> {
-    let bytes = parse_hex_u32(s).context("invalid hex address")?;
-    Ok(Address::new(
-        ((bytes >> 24) & 0xFF) as u8,
-        ((bytes >> 16) & 0xFF) as u8,
-        ((bytes >> 8) & 0xFF) as u8,
-        (bytes & 0xFF) as u8,
-    ))
+    let bytes = parse_hex_u32(s)
+        .context("invalid hex address")?
+        .to_be_bytes();
+    ensure!(
+        bytes.iter().all(|&b| b < 0x80),
+        "SysEx address bytes must be 00-7F"
+    );
+    let [a, b, c, d] = bytes;
+    Ok(Address::new(a, b, c, d))
 }
 
 /// Parse a hex string into a 4-byte SysEx data size.
@@ -90,6 +93,16 @@ mod tests {
         assert_eq!(format_hex(&[0xF0, 0x0A, 0x7F], " "), "F0 0A 7F");
         assert_eq!(format_hex(&[0x5F, 0x01], ", "), "5F, 01");
         assert_eq!(format_hex(&[], " "), "");
+    }
+
+    #[test]
+    fn rejects_address_bytes_above_7f() {
+        assert_eq!(
+            parse_hex_addr("50000200").unwrap(),
+            Address::new(0x50, 0x00, 0x02, 0x00)
+        );
+        assert!(parse_hex_addr("50008000").is_err());
+        assert!(parse_hex_addr("FF000000").is_err());
     }
 
     #[test]

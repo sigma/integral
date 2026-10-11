@@ -78,9 +78,10 @@ impl IntegraDevice {
         self.timeout
     }
 
-    /// Send an RQ1 request and wait for the corresponding DT1 response.
+    /// Read `size` bytes at `address`, collecting every DT1 packet of the
+    /// reply; fails unless every byte arrives.
     pub fn request_data(&mut self, address: &Address, size: &DataSize) -> Result<Vec<u8>> {
-        midi::request_data_logged(
+        midi::request_data(
             &mut self.conn_out,
             &self.rx,
             self.device_id,

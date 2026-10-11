@@ -4,7 +4,6 @@ use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use integral_core::address::DataSize;
 use integral_core::mfx;
 use integral_core::sn_synth;
 use integral_core::svd::{ChunkType, SvdFile};
@@ -78,6 +77,7 @@ pub fn svd_validate(
         &common_addr,
         &common_size,
         timeout,
+        true,
     )
     .context("failed to read Common")?;
 
@@ -107,34 +107,18 @@ pub fn svd_validate(
     let common_ok = compare_sysex("Common", svd_common, &dev_common, &mut mismatches);
     println!("{}", if common_ok { "OK" } else { "MISMATCH" });
 
-    // Read MFX in two chunks (header + params) since 273 bytes may exceed
-    // the device's single-response limit.
     let mfx_base = sn_synth::sns_common_address(part_index).offset([0x00, 0x00, 0x02, 0x00]);
-    let mfx_hdr_size = mfx::MFX_HEADER_SIZE;
-    println!("Reading MFX header ...");
-    let mut dev_mfx = midi::request_data(
+    println!("Reading MFX ...");
+    let dev_mfx = midi::request_data(
         &mut conn_out,
         &rx,
         device_id,
         &mfx_base,
-        &mfx_hdr_size,
+        &mfx::MFX_BLOCK_SIZE,
         timeout,
+        true,
     )
-    .context("failed to read MFX header")?;
-    // Read params: 32 x 4 bytes starting at offset 0x11
-    let mfx_params_addr = mfx_base.offset([0x00, 0x00, 0x00, 0x11]);
-    let mfx_params_size = DataSize::new(0x00, 0x00, 0x01, 0x00);
-    println!("Reading MFX params ...");
-    let dev_mfx_params = midi::request_data(
-        &mut conn_out,
-        &rx,
-        device_id,
-        &mfx_params_addr,
-        &mfx_params_size,
-        timeout,
-    )
-    .context("failed to read MFX params")?;
-    dev_mfx.extend_from_slice(&dev_mfx_params);
+    .context("failed to read MFX")?;
     print!("MFX ({} bytes): ", svd_mfx.len());
     let mfx_ok = compare_sysex("MFX", svd_mfx, &dev_mfx, &mut mismatches);
     println!("{}", if mfx_ok { "OK" } else { "MISMATCH" });
@@ -151,6 +135,7 @@ pub fn svd_validate(
             &partial_addr,
             &partial_size,
             timeout,
+            true,
         )
         .context(format!("failed to read Partial {}", pi + 1))?;
         let svd_partial = &sections[(pi + 2) as usize];
