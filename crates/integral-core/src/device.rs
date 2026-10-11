@@ -31,7 +31,7 @@ use crate::expansions::Expansion;
 use crate::midi_bridge::RequestTracker;
 use crate::params::{self, ToneType, part};
 use crate::parse_helpers::encode_ascii_name;
-use crate::sn_synth::{self, SnSynthTone, SnSynthToneBlocks, SnsBlock};
+use crate::sn_synth::{SnSynthTone, SnSynthToneBlocks, SnsBlock};
 use crate::state::MixerState;
 use crate::sysex;
 
@@ -775,18 +775,6 @@ impl DeviceState {
         }
     }
 
-    /// Build an RQ1 to read the full SN-S Common block for a part.
-    pub fn build_sns_common_request(&self, part: u8) -> Vec<u8> {
-        let addr = sn_synth::sns_common_address(part);
-        sysex::build_rq1(self.device_id, &addr, &sn_synth::SNS_COMMON_BLOCK_SIZE)
-    }
-
-    /// Build an RQ1 to read an SN-S Partial block for a part.
-    pub fn build_sns_partial_request(&self, part: u8, partial: u8) -> Vec<u8> {
-        let addr = sn_synth::sns_partial_address(part, partial);
-        sysex::build_rq1(self.device_id, &addr, &sn_synth::SNS_PARTIAL_BLOCK_SIZE)
-    }
-
     /// Start reading `part`'s SN Synth Tone (Common and Partials) into the
     /// cache, unless it is already read or being read for the part's
     /// current tone. Returns whether a new read started.
@@ -1208,6 +1196,7 @@ fn stored_name(encoded: &[u8]) -> String {
 mod tests {
     use super::*;
     use crate::expansions;
+    use crate::sn_synth;
 
     #[test]
     fn expansion_slots_start_unknown_and_follow_reads() {
