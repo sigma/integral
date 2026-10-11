@@ -125,7 +125,7 @@ pub const fn mfx_param_address(part_index: u8, tone_type: ToneType, param_index:
 // ---------------------------------------------------------------------------
 
 /// MFX control source slot.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct MfxCtrlSlot {
@@ -135,6 +135,17 @@ pub struct MfxCtrlSlot {
     pub sens: u8,
     /// Assign target parameter (0=OFF, 1–16=param index).
     pub assign: u8,
+}
+
+impl Default for MfxCtrlSlot {
+    /// Source OFF, Sens 0 (raw 64; raw 0 is out of range), Assign OFF.
+    fn default() -> Self {
+        Self {
+            source: 0,
+            sens: 64,
+            assign: 0,
+        }
+    }
 }
 
 /// MFX state for a single part's tone.
@@ -218,6 +229,11 @@ pub fn encode_mfx_param(value: i32) -> [u8; 4] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn default_control_sens_is_neutral() {
+        assert!(MfxState::default().controls.iter().all(|c| c.sens == 64));
+    }
 
     #[test]
     fn encode_mfx_block_inverts_parse() {

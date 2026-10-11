@@ -9,7 +9,7 @@
 use super::report::{ConversionItem, ConversionReport};
 use super::wave_map::{Confidence, ForeignWave, ForeignWaveGroup};
 use crate::librarian::pack::{PackEntry, user_memory};
-use crate::mfx::{MfxState, encode_mfx_block};
+use crate::mfx::encode_mfx_block;
 #[cfg(test)]
 use crate::parse_helpers::nibble4;
 use crate::parse_helpers::{encode_ascii_name, encode_nibble4};
@@ -65,8 +65,6 @@ pub(super) const OUTPUT_TONE: u8 = 13;
 const MFX_DRY_SEND: usize = 0x01;
 /// The level every INTEGRA-7 tone carries in its MFX Dry Send reserve.
 pub(super) const FULL_LEVEL: u8 = 127;
-/// A Control Sens of 0 (raw 64): the MFX Control Sens neutral value.
-const NEUTRAL_SENS: u8 = 64;
 
 /// The PCM Synth tone blocks, in the order of the `pcm-synth` layout of
 /// [`USER_MEMORY`](crate::device_spec::USER_MEMORY): Common, MFX, PMT,
@@ -122,11 +120,7 @@ impl PcmTone {
     /// is filled by [`Self::fill_common2`] once the name is set.
     pub(super) fn init() -> Self {
         let init = PcmSynthState::default();
-        let mut mfx: MfxState = init.mfx;
-        for slot in &mut mfx.controls {
-            slot.sens = NEUTRAL_SENS;
-        }
-        let mut mfx = encode_mfx_block(&mfx);
+        let mut mfx = encode_mfx_block(&init.mfx);
         mfx[MFX_DRY_SEND] = FULL_LEVEL;
         let mut common = encode_pcms_common(&init.common);
         common[COMMON_OUTPUT_ASSIGN] = OUTPUT_TONE;
