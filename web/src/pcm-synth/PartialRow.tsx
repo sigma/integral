@@ -647,21 +647,21 @@ function OutputSection({
       </div>
       <div className={css.panelRow}>
         <SynthSwitch label="Bender" value={partial.receiveBender} options={ON_OFF_OPTIONS}
-          onChange={(v) => setP(0x0F, v)}
+          onChange={(v) => setP(0x12, v)}
           title="Respond to pitch bend" />
         <SynthSwitch label="Express" value={partial.receiveExpression} options={ON_OFF_OPTIONS}
-          onChange={(v) => setP(0x10, v)}
+          onChange={(v) => setP(0x13, v)}
           title="Respond to expression pedal (CC11)" />
         <SynthSwitch label="Hold" value={partial.receiveHold1} options={ON_OFF_OPTIONS}
-          onChange={(v) => setP(0x11, v)}
+          onChange={(v) => setP(0x14, v)}
           title="Respond to sustain pedal (CC64)" />
       </div>
       <OutputStrip
         fx1={partial.chorusSend}
         fx2={partial.reverbSend}
         level={partial.outputLevel}
-        onFx1Change={(v) => setP(0x0D, v)}
-        onFx2Change={(v) => setP(0x0E, v)}
+        onFx1Change={(v) => setP(0x0F, v)}
+        onFx2Change={(v) => setP(0x10, v)}
         onLevelChange={(v) => setP(0x0C, v)}
         trackHeight={150}
       />

@@ -43,10 +43,10 @@ export function CommonStrip({
         <span className={css.groupLabel}>BEND RANGE</span>
         <div className={css.groupRow}>
           <SynthKnob label="Down" value={common.pitchBendRangeDown} min={0} max={24} defaultValue={2}
-            onChange={(v) => onChange(0x25, v)} formatValue={(v) => String(v)} color="#8cf"
+            onChange={(v) => onChange(0x2A, v)} formatValue={(v) => String(v)} color="#8cf"
             title="Pitch bend range down (semitones)" />
           <SynthKnob label="Up" value={common.pitchBendRangeUp} min={0} max={24} defaultValue={2}
-            onChange={(v) => onChange(0x24, v)} formatValue={(v) => String(v)} color="#8cf"
+            onChange={(v) => onChange(0x29, v)} formatValue={(v) => String(v)} color="#8cf"
             title="Pitch bend range up (semitones)" />
         </div>
       </div>
@@ -88,19 +88,19 @@ export function CommonStrip({
         <span className={css.groupLabel}>OFFSETS</span>
         <div className={css.groupRow}>
           <SynthKnob label="Cutoff" value={common.cutoffOffset} min={1} max={127} defaultValue={64} center={64}
-            onChange={(v) => onChange(0x1E, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+            onChange={(v) => onChange(0x22, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
             title="Filter cutoff offset — shifts cutoff across all partials" />
           <SynthKnob label="Reso" value={common.resonanceOffset} min={1} max={127} defaultValue={64} center={64}
-            onChange={(v) => onChange(0x1F, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+            onChange={(v) => onChange(0x23, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
             title="Resonance offset — shifts resonance across all partials" />
           <SynthKnob label="Attack" value={common.attackTimeOffset} min={1} max={127} defaultValue={64} center={64}
-            onChange={(v) => onChange(0x20, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
+            onChange={(v) => onChange(0x24, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
             title="Attack time offset — shifts envelope attack across all partials" />
           <SynthKnob label="Release" value={common.releaseTimeOffset} min={1} max={127} defaultValue={64} center={64}
-            onChange={(v) => onChange(0x21, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
+            onChange={(v) => onChange(0x25, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
             title="Release time offset — shifts envelope release across all partials" />
           <SynthKnob label="Velocity" value={common.velocitySensOffset} min={1} max={127} defaultValue={64} center={64}
-            onChange={(v) => onChange(0x22, v)} formatValue={(v) => signedFmt(v, 64)} color="#c8a"
+            onChange={(v) => onChange(0x26, v)} formatValue={(v) => signedFmt(v, 64)} color="#c8a"
             title="Velocity sensitivity offset — shifts velocity response across all partials" />
         </div>
       </div>

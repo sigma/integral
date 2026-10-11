@@ -131,7 +131,6 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
         if (!prev) return prev;
         const next = { ...prev };
         switch (offset) {
-          case 0x0C: next.toneName = prev.toneName; break; // no-op placeholder
           case 0x0E: next.toneLevel = value; break;
           case 0x0F: next.tonePan = value; break;
           case 0x10: next.tonePriority = value; break;
@@ -148,14 +147,14 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
           case 0x1B: next.portamentoType = value; break;
           case 0x1C: next.portamentoStart = value; break;
           case 0x1D: next.portamentoTime = value; break;
-          case 0x1E: next.cutoffOffset = value; break;
-          case 0x1F: next.resonanceOffset = value; break;
-          case 0x20: next.attackTimeOffset = value; break;
-          case 0x21: next.releaseTimeOffset = value; break;
-          case 0x22: next.velocitySensOffset = value; break;
-          case 0x23: next.pmtControlSwitch = value; break;
-          case 0x24: next.pitchBendRangeUp = value; break;
-          case 0x25: next.pitchBendRangeDown = value; break;
+          case 0x22: next.cutoffOffset = value; break;
+          case 0x23: next.resonanceOffset = value; break;
+          case 0x24: next.attackTimeOffset = value; break;
+          case 0x25: next.releaseTimeOffset = value; break;
+          case 0x26: next.velocitySensOffset = value; break;
+          case 0x28: next.pmtControlSwitch = value; break;
+          case 0x29: next.pitchBendRangeUp = value; break;
+          case 0x2A: next.pitchBendRangeDown = value; break;
         }
         return next;
       });
@@ -253,12 +252,12 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
         case 0x09: u.delayMode = value; break;
         case 0x0A: u.delayTime = value; break; // nib2
         case 0x0C: u.outputLevel = value; break;
-        case 0x0D: u.chorusSend = value; break;
-        case 0x0E: u.reverbSend = value; break;
-        case 0x0F: u.receiveBender = value; break;
-        case 0x10: u.receiveExpression = value; break;
-        case 0x11: u.receiveHold1 = value; break;
-        case 0x12: u.redamperSwitch = value; break;
+        case 0x0F: u.chorusSend = value; break;
+        case 0x10: u.reverbSend = value; break;
+        case 0x12: u.receiveBender = value; break;
+        case 0x13: u.receiveExpression = value; break;
+        case 0x14: u.receiveHold1 = value; break;
+        case 0x16: u.redamperSwitch = value; break;
         // Skipping control switch arrays for now
         case 0x27: u.waveGroupType = value; break;
         case 0x28: u.waveGroupId = value; break; // nib4
