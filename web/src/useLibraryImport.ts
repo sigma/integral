@@ -79,7 +79,8 @@ export interface UseLibraryImportResult {
   open: (file: File) => void;
   close: () => void;
   assign: (entry: number, slot: number) => void;
-  setIncluded: (entry: number, included: boolean) => void;
+  /** Include or leave out these entries. */
+  setIncluded: (entries: number[], included: boolean) => void;
   run: ImportRun | null;
   /** An import is running. */
   busy: boolean;
@@ -206,8 +207,13 @@ export function useLibraryImport(
   );
 
   const setIncluded = useCallback(
-    (entry: number, included: boolean) =>
-      edit((plan) => (included ? plan.unassign(entry) : plan.exclude(entry))),
+    (indices: number[], included: boolean) =>
+      edit((plan) => {
+        for (const i of indices) {
+          if (included) plan.include(i);
+          else plan.exclude(i);
+        }
+      }),
     [edit],
   );
 

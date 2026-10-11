@@ -11,6 +11,7 @@
 //!
 //! Reference: decisions #65 and #66 (`docs/svd/11-sound-vs-backup.md`).
 
+use std::collections::HashSet;
 use std::fmt;
 
 use thiserror::Error;
@@ -122,7 +123,10 @@ pub enum PlanError {
 /// Where each entry of a [`Pack`] goes, and what to tell the user first.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportPlan {
+    origin: Origin,
     kinds: Vec<ChunkType>,
+    /// Each entry's slot in the file it came from, if any.
+    slots: Vec<Option<u16>>,
     placements: Vec<Placement>,
     /// Free User slots, from the slot names.
     free: Vec<(ChunkType, u16)>,
@@ -181,37 +185,22 @@ pub fn plan_import(
             .any(|r| matches!(r, ToneRef::Pack { .. })),
         _ => false,
     };
-    let placements = if single {
-        vec![Placement::Temporary]
-    } else {
-        match origin {
-            Origin::Sound => {
-                let mut free = free.clone();
-                kinds
-                    .iter()
-                    .map(|&kind| match free.iter().position(|&(k, _)| k == kind) {
-                        Some(i) => Placement::User(free.remove(i).1),
-                        None => Placement::Unplaced,
-                    })
-                    .collect()
-            }
-            Origin::Backup => pack
-                .entries
-                .iter()
-                .map(|e| match e.slot() {
-                    Some(s) if free.contains(&(e.kind(), s)) => Placement::User(s),
-                    _ => Placement::Unplaced,
-                })
-                .collect(),
-        }
-    };
-
-    ImportPlan {
+    let mut plan = ImportPlan {
+        origin,
         kinds,
-        placements,
+        slots: pack.entries.iter().map(|e| e.slot()).collect(),
+        placements: vec![Placement::Unplaced; pack.entries.len()],
         free,
         warnings,
+    };
+    if single {
+        plan.placements[0] = Placement::Temporary;
+    } else {
+        for entry in 0..plan.placements.len() {
+            plan.placements[entry] = plan.destination(entry);
+        }
     }
+    plan
 }
 
 /// The free slots among `slot_names`, for the types in `kinds`, lowest
@@ -282,8 +271,7 @@ impl ImportPlan {
         Ok(())
     }
 
-    /// Clear `entry`'s destination, or take it back after an
-    /// [exclude](Self::exclude).
+    /// Clear `entry`'s destination.
     pub fn unassign(&mut self, entry: usize) -> Result<(), PlanError> {
         self.set(entry, Placement::Unplaced)
     }
@@ -291,6 +279,42 @@ impl ImportPlan {
     /// Leave `entry` out of the import.
     pub fn exclude(&mut self, entry: usize) -> Result<(), PlanError> {
         self.set(entry, Placement::Excluded)
+    }
+
+    /// Take `entry` back after an [exclude](Self::exclude), placing it as
+    /// [`plan_import`] would.
+    pub fn include(&mut self, entry: usize) -> Result<(), PlanError> {
+        self.set(entry, Placement::Unplaced)?;
+        let placement = self.destination(entry);
+        self.set(entry, placement)
+    }
+
+    /// Where `entry` goes by default: from a backup, its own slot if free;
+    /// otherwise the lowest free slot of its type. Either way, never a slot
+    /// another entry already takes.
+    fn destination(&self, entry: usize) -> Placement {
+        let kind = self.kinds[entry];
+        let taken: HashSet<u16> = self
+            .kinds
+            .iter()
+            .zip(&self.placements)
+            .filter_map(|(&k, &p)| match p {
+                Placement::User(s) if k == kind => Some(s),
+                _ => None,
+            })
+            .collect();
+        let slot = match self.origin {
+            Origin::Backup => {
+                self.slots[entry].filter(|s| self.free.contains(&(kind, *s)) && !taken.contains(s))
+            }
+            Origin::Sound => self
+                .free
+                .iter()
+                .filter(|&&(k, _)| k == kind)
+                .map(|&(_, s)| s)
+                .find(|s| !taken.contains(s)),
+        };
+        slot.map_or(Placement::Unplaced, Placement::User)
     }
 
     fn set(&mut self, entry: usize, placement: Placement) -> Result<(), PlanError> {
@@ -446,6 +470,31 @@ mod tests {
             })
         );
         assert_eq!(plan.exclude(2), Err(PlanError::NoEntry(2)));
+    }
+
+    #[test]
+    fn include_places_like_the_plan() {
+        let tones = || vec![entry(SNS, None), entry(SNS, None), entry(SNS, None)];
+        let free = names(SNS, &["Lead", "INIT TONE", "INIT TONE", "INIT TONE"]);
+        let mut plan = plan_of(&pack(tones()), Origin::Sound, &free);
+        for i in 0..3 {
+            plan.exclude(i).unwrap();
+        }
+        // Back in, an entry takes the lowest free slot no other entry holds.
+        plan.include(2).unwrap();
+        plan.include(0).unwrap();
+        use Placement::{Excluded, User};
+        assert_eq!(plan.placements(), [User(2), Excluded, User(1)]);
+        assert_eq!(plan.include(3), Err(PlanError::NoEntry(3)));
+
+        // From a backup, only its own slot, and only if free.
+        let p = pack(vec![entry(SNS, Some(0)), entry(SNS, Some(3))]);
+        let mut plan = plan_of(&p, Origin::Backup, &free);
+        plan.exclude(0).unwrap();
+        plan.exclude(1).unwrap();
+        plan.include(0).unwrap();
+        plan.include(1).unwrap();
+        assert_eq!(plan.placements(), [Placement::Unplaced, User(3)]);
     }
 
     #[test]

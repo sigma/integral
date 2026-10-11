@@ -32,7 +32,33 @@ function temporaryLabel(type: LibraryType, part: number): string {
 export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onFocus, busy }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [undo, setUndo] = useState(true);
+  /** The last entry ticked or unticked: ⇧-click spans from it. */
+  const [anchor, setAnchor] = useState<number | null>(null);
   const { file, entries, run, locked } = imp;
+  const types = libraryTypes();
+  /** Entries in the order shown: grouped by type. */
+  const ordered = types.flatMap((type) => entries.filter((e) => e.type.kind === type.kind));
+  const allIncluded = entries.every((e) => e.placement !== "excluded");
+
+  /** Include or leave out `span`, touching only entries that change. */
+  const setIncluded = (span: ImportEntry[], included: boolean): void =>
+    imp.setIncluded(
+      span
+        .filter((e) => e.placement !== "temporary" && (e.placement !== "excluded") !== included)
+        .map((e) => e.index),
+      included,
+    );
+
+  /** Tick or untick `entry`, or with ⇧ everything from the anchor to it. */
+  const toggle = (entry: ImportEntry, included: boolean, range: boolean): void => {
+    const from = range && anchor !== null ? ordered.findIndex((e) => e.index === anchor) : -1;
+    const to = ordered.indexOf(entry);
+    setIncluded(
+      from < 0 ? [entry] : ordered.slice(Math.min(from, to), Math.max(from, to) + 1),
+      included,
+    );
+    setAnchor(entry.index);
+  };
   const included = entries.filter((e) => e.placement !== "excluded");
   const overwriting = new Set(imp.overwrites.map((o) => o.entry));
   const runPart = run?.part ?? part;
@@ -65,6 +91,15 @@ export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onF
             }}
           />
         </label>
+        {file && (
+          <button
+            className={css.button}
+            disabled={locked || imp.temporary}
+            onClick={() => setIncluded(ordered, !allIncluded)}
+          >
+            {allIncluded ? "Untick all" : "Tick all"}
+          </button>
+        )}
         {file && (
           <button className={css.button} disabled={imp.busy} onClick={imp.close}>
             Close
@@ -99,7 +134,7 @@ export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onF
             Open a .SVD file (a sound export or a backup), or drop it here.
           </div>
         ) : (
-          libraryTypes().map((type) => {
+          types.map((type) => {
             const group = entries.filter((e) => e.type.kind === type.kind);
             if (group.length === 0) return null;
             return (
@@ -120,9 +155,12 @@ export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onF
                         type="checkbox"
                         checked={entry.placement !== "excluded"}
                         disabled={locked || entry.placement === "temporary"}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => imp.setIncluded(entry.index, e.target.checked)}
-                        title="Import this entry"
+                        readOnly
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggle(entry, e.currentTarget.checked, e.shiftKey);
+                        }}
+                        title="Import this entry (⇧-click: a range)"
                       />
                     }
                   >
