@@ -173,7 +173,7 @@ pub type ConversionReport = Vec<ConversionItem>;
 pub enum Skipped {
     /// A Foreign patch of a family with no converter yet.
     Patch,
-    /// A Foreign Rhythm Set, with no converter yet.
+    /// A Foreign Rhythm Set of a family with no converter yet.
     Rhythm,
     /// A Foreign Performance.
     Performance,

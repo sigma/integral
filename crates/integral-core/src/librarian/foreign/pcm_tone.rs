@@ -9,7 +9,7 @@
 use super::report::{ConversionItem, ConversionReport, Location};
 use super::wave_map::{Confidence, ForeignWave, ForeignWaveGroup};
 use crate::librarian::pack::{PackEntry, user_memory};
-use crate::mfx::encode_mfx_block;
+use crate::mfx::{MfxState, encode_mfx_block};
 #[cfg(test)]
 use crate::parse_helpers::nibble4;
 use crate::parse_helpers::{encode_ascii_name, encode_nibble4};
@@ -120,8 +120,7 @@ impl PcmTone {
     /// is filled by [`Self::fill_common2`] once the name is set.
     pub(super) fn init() -> Self {
         let init = PcmSynthState::default();
-        let mut mfx = encode_mfx_block(&init.mfx);
-        mfx[MFX_DRY_SEND] = FULL_LEVEL;
+        let mfx = init_mfx(init.mfx);
         let mut common = encode_pcms_common(&init.common);
         common[COMMON_OUTPUT_ASSIGN] = OUTPUT_TONE;
         let partials = init.partials.each_ref().map(encode_pcms_partial);
@@ -173,6 +172,14 @@ impl PcmTone {
     pub(super) fn into_entry(self) -> PackEntry {
         PackEntry::new(ChunkType::PcmSynthTone, None, self.blocks).expect("PCM Synth layout")
     }
+}
+
+/// An INIT MFX block from `mfx` (THRU), with the MFX Dry Send reserve
+/// INTEGRA-7 tones carry.
+pub(super) fn init_mfx(mfx: MfxState) -> Vec<u8> {
+    let mut block = encode_mfx_block(&mfx);
+    block[MFX_DRY_SEND] = FULL_LEVEL;
+    block
 }
 
 /// Where a Foreign partial was routed: through the tone's effect, or past

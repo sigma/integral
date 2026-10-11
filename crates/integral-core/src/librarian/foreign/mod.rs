@@ -7,7 +7,8 @@
 //! become Pack entries; the import then stores them through Temporary as
 //! usual. Foreign patch frames (JV/XP, XV) are grouped per source unit for
 //! the per-family converters: JV/XP and XV Patches become PCM Synth tones,
-//! each with its Conversion report. Units with no converter yet are skipped.
+//! and their Rhythm Sets PCM Drum Kits, each with its Conversion report.
+//! Units with no converter (Performances, System) are skipped.
 //! Everything else goes in the file-level report. XV `.svd` files hold the
 //! same Patches, bit-packed, and convert the same way.
 //!
@@ -16,10 +17,13 @@
 pub mod frame;
 mod integra;
 mod jv;
+mod jv_rhythm;
+mod pcm_kit;
 mod pcm_tone;
 pub mod report;
 pub mod wave_map;
 mod xv;
+mod xv_rhythm;
 
 use std::collections::HashMap;
 
@@ -358,6 +362,12 @@ fn read_sysex(bytes: &[u8], format: PackFormat, mut unreadable: bool) -> PackRea
                 xv::convert(unit.key, &frames).map_err(Skipped::from)
             }
             Source::Jv(unit) if unit.kind == Skipped::Patch => jv::convert(unit.key, &frames),
+            Source::Xv(unit) if unit.kind == Skipped::Rhythm => {
+                xv_rhythm::convert(unit.key, &frames).map_err(Skipped::from)
+            }
+            Source::Jv(unit) if unit.kind == Skipped::Rhythm => {
+                jv_rhythm::convert(unit.key, &frames)
+            }
             Source::Jv(unit) | Source::Xv(unit) => Err(unit.kind),
         });
     }

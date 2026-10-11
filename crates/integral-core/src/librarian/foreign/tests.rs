@@ -204,7 +204,7 @@ fn skips_foreign_units_with_no_converter() {
         foreign(xv, [0x1F, 0, 0, 0], &[0x20; 79]),
         foreign(xv, [0x1F, 0, 0x20, 0], &[0; 137]),
         foreign(xv, [0x1F, 0, 0, 0], &[0x20; 79]),
-        // One XV User Rhythm, Common and its last Rhythm Tone.
+        // An incomplete XV User Rhythm: Common and its last Rhythm Tone.
         foreign(xv, [0x40, 0x10, 0, 0], &[0x20; 18]),
         foreign(xv, [0x40, 0x11, 0x3E, 0], &[0; 193]),
         // An incomplete JV User Patch and a JV Performance.
@@ -221,8 +221,7 @@ fn skips_foreign_units_with_no_converter() {
         read.file_report,
         [
             skipped(Skipped::Other, 1),
-            skipped(Skipped::Incomplete, 3),
-            skipped(Skipped::Rhythm, 1),
+            skipped(Skipped::Incomplete, 4),
             skipped(Skipped::Performance, 1),
         ]
     );
@@ -1004,6 +1003,497 @@ mod jv_patches {
             unmapped.to_string(),
             "Partial 1: PCM card 3 Wave 30 has no INTEGRA-7 Wave"
         );
+    }
+}
+
+mod jv_rhythms {
+    use super::*;
+    use crate::librarian::foreign::wave_map::{ForeignWave, ForeignWaveGroup};
+    use crate::parse_helpers::nibble4;
+    use crate::pcm_drum::{PcmdPartialField as F, PcmdWmtField as W, pcmd_wmt_byte};
+
+    /// User Rhythm Setup 1.
+    const USER_1: [u8; 2] = [0x10, 0x40];
+
+    /// A Rhythm Note of `key` at a neutral value: Tone Switch on, INT-A
+    /// Wave 1, Source Key `key`, Velocity Sens 0 %, Velocity Time Sens 0 %,
+    /// P-Env flat, output MIX.
+    fn note(key: u8) -> Vec<u8> {
+        let mut note = vec![0u8; 0x3A];
+        note[0x00] = 1; // Tone Switch
+        note[0x01..0x03].copy_from_slice(&[0, 1]); // INT-A
+        note[0x05] = 1; // Wave Gain 0 dB
+        note[0x09..0x0C].copy_from_slice(&[1, 1, 1]); // Volume, Hold-1, Pan CONTINUOUS
+        note[0x0C] = key; // Source Key
+        note[0x0D] = 50; // Fine Tune 0
+        note[0x0F] = 12; // P-Env Depth 0
+        for at in [0x10, 0x1D, 0x1F, 0x2A] {
+            note[at] = 50; // Velocity Sens 0 %
+        }
+        for at in [0x11, 0x20, 0x2B] {
+            note[at] = 7; // Velocity Time Sens 0 %
+        }
+        note[0x16..0x1A].fill(63); // P-Env Levels 0
+        note[0x1A..0x1C].copy_from_slice(&[1, 127]); // LPF, Cutoff 127
+        note[0x1E] = 63; // F-Env Depth 0
+        note[0x29] = 127; // Tone Level
+        note[0x30..0x33].copy_from_slice(&[127, 127, 0]); // A-Env Levels
+        note[0x33] = 64; // Pan
+        note[0x35] = 64; // Alternate Pan Depth
+        note[0x37] = 127; // Mix/EFX Send Level
+        note
+    }
+
+    /// A Rhythm Setup at `slot`: Common, then the Notes of `keys` built by
+    /// [`note`] and `edit`ed.
+    fn kit(
+        slot: [u8; 2],
+        keys: impl IntoIterator<Item = u8>,
+        mut edit: impl FnMut(u8, &mut [u8]),
+    ) -> Vec<u8> {
+        let mut bytes = foreign(jv::MODEL, [slot[0], slot[1], 0, 0], b"Byte Kit    ");
+        for key in keys {
+            let mut note = note(key);
+            edit(key, &mut note);
+            bytes.extend(foreign(jv::MODEL, [slot[0], slot[1], key, 0], &note));
+        }
+        bytes
+    }
+
+    fn converted(bytes: &[u8]) -> (PackEntry, ConversionReport) {
+        let mut read = read(bytes);
+        assert_eq!(read.pack.entries.len(), 1, "{:?}", read.file_report);
+        assert!(read.file_report.is_empty(), "{:?}", read.file_report);
+        (read.pack.entries.remove(0), read.reports.remove(0))
+    }
+
+    /// The Partial block of `key`.
+    fn partial(entry: &PackEntry, key: u8) -> &[u8] {
+        &entry.blocks()[3 + usize::from(key - 21)]
+    }
+
+    /// WMT `wmt` (0-indexed) of a Partial: switch, Wave Group Type and ID,
+    /// Wave Number L.
+    fn wmt(partial: &[u8], wmt: usize) -> (u8, u8, u16, u16) {
+        (
+            partial[pcmd_wmt_byte(wmt, W::Switch)],
+            partial[pcmd_wmt_byte(wmt, W::WaveGroupType)],
+            nibble4(partial, pcmd_wmt_byte(wmt, W::WaveGroupId)),
+            nibble4(partial, pcmd_wmt_byte(wmt, W::WaveNumberL)),
+        )
+    }
+
+    #[test]
+    fn converts_each_key_to_the_same_integra_key() {
+        let bytes = kit(USER_1, 35..=98, |key, note| note[0x29] = key);
+        let (entry, report) = converted(&bytes);
+        assert_eq!(entry.kind(), ChunkType::PcmDrumKit);
+        assert_eq!(entry.name(), "Byte Kit");
+        assert_eq!(&entry.blocks()[91][..16], b"Byte Kit        ");
+        assert!(report.is_empty(), "{report:?}");
+        for key in 21..=108u8 {
+            let p = partial(&entry, key);
+            if (35..=98).contains(&key) {
+                assert_eq!(
+                    (p[F::CoarseTune as usize], p[F::Level as usize]),
+                    (key, key)
+                );
+                // INT-A Wave 1 is INT 19.
+                assert_eq!(wmt(p, 0), (1, 0, 1, 19), "key {key}");
+            } else {
+                assert_eq!(wmt(p, 0).0, 0, "key {key}");
+            }
+            assert!((1..4).all(|w| wmt(p, w).0 == 0), "key {key}");
+        }
+        // The kit has no effects of its own: MFX THRU.
+        assert_eq!(entry.blocks()[1][0], 0);
+    }
+
+    #[test]
+    fn fills_what_the_jv_has_no_source_for_as_roland_does() {
+        let (entry, _) = converted(&kit(USER_1, [36], |_, note| {
+            note[0x38..0x3A].copy_from_slice(&[10, 20]);
+        }));
+        let p = partial(&entry, 36);
+        let byte = |f: F| p[f as usize];
+        assert_eq!(byte(F::WmtVelocityControl), 1);
+        assert_eq!(p[pcmd_wmt_byte(0, W::RandomPanSwitch)], 1);
+        assert_eq!(p[pcmd_wmt_byte(0, W::AlternatePanSwitch)], 1);
+        assert_eq!(p[pcmd_wmt_byte(0, W::Level)], 127);
+        assert_eq!(byte(F::TvfCutoffVelocityCurve), 0);
+        assert_eq!(byte(F::TvfEnvVelocityCurve), 1);
+        assert_eq!(byte(F::TvaLevelVelocityCurve), 1);
+        assert_eq!((byte(F::PitchEnvLevel), byte(F::TvfEnvLevel)), (64, 0));
+        assert_eq!((byte(F::OutputAssign), byte(F::OneShotMode)), (0, 0));
+        // Both send pairs, as Roland's XV conversion holds them.
+        assert_eq!(p[0x17..=0x1A], [10, 20, 10, 20]);
+        assert_eq!(p[0x80 + 0x42], 64);
+    }
+
+    /// A JV Note offset, the Partial offset it lands at, and `(JV,
+    /// INTEGRA-7)` value pairs.
+    type Pairs = (usize, usize, &'static [(u8, u8)]);
+
+    /// Roland's own conversion of the SR-JV80-16 "Orch Set": every distinct
+    /// `(JV, INTEGRA-7)` value pair its 64 keys show, per Note field, with
+    /// the JV Note offset and the Partial offset it lands at. Read from the
+    /// JV Rhythm Setup `OrchII-1.syx` (Roland-XV Yahoo group archive) and
+    /// Roland's 2002 XV re-issue `SRJV16R.mid` (bwalk.com.au), whose Rhythm
+    /// Tone is the INTEGRA-7 Partial; see `foreign-rhythm-format.md`,
+    /// section 4. Only these value pairs are taken from the files.
+    const ORCH_SET: [Pairs; 17] = [
+        // Offset rows.
+        (
+            0x0D,
+            0x10,
+            &[
+                (0, 14),
+                (1, 15),
+                (10, 24),
+                (30, 44),
+                (35, 49),
+                (36, 50),
+                (38, 52),
+                (40, 54),
+                (50, 64),
+                (60, 74),
+                (65, 79),
+                (67, 81),
+                (75, 89),
+                (100, 114),
+            ],
+        ), // Fine Tune
+        (0x0F, 0x80 + 0x15, &[(12, 64)]), // P-Env Depth
+        (0x16, 0x80 + 0x1E, &[(63, 64)]), // P-Env Level 1
+        (0x17, 0x80 + 0x1F, &[(63, 64)]), // P-Env Level 2
+        (0x18, 0x80 + 0x20, &[(63, 64)]), // P-Env Level 3
+        (0x19, 0x80 + 0x21, &[(63, 64)]), // P-Env Level 4
+        (
+            0x1E,
+            0x80 + 0x28,
+            &[
+                (63, 64),
+                (68, 69),
+                (69, 70),
+                (74, 75),
+                (76, 77),
+                (83, 84),
+                (87, 88),
+                (93, 94),
+            ],
+        ), // F-Env Depth
+        // Rescale rows.
+        (0x10, 0x80 + 0x16, &[(50, 64)]), // P-Env Velocity Sens
+        (0x1D, 0x80 + 0x27, &[(50, 64)]), // Resonance Velocity Sens
+        (
+            0x1F,
+            0x80 + 0x2A,
+            &[(50, 64), (65, 73), (93, 91), (106, 100)],
+        ), // F-Env Velocity Sens
+        (
+            0x2A,
+            0x80 + 0x37,
+            &[
+                (80, 83),
+                (85, 86),
+                (90, 89),
+                (96, 93),
+                (100, 96),
+                (105, 99),
+                (106, 100),
+                (120, 116),
+            ],
+        ), // A-Env Velocity Sens
+        (0x11, 0x80 + 0x17, &[(7, 64)]),  // P-Env Velocity Time → Time 1
+        (0x11, 0x80 + 0x18, &[(7, 64)]),  // … and Time 4
+        (0x20, 0x80 + 0x2B, &[(7, 64)]),  // F-Env Velocity Time → Time 1
+        (0x20, 0x80 + 0x2C, &[(7, 64)]),  // … and Time 4
+        (0x2B, 0x80 + 0x38, &[(7, 64), (8, 70), (9, 76), (11, 89)]), // A-Env Velocity Time → Time 1
+        (0x2B, 0x80 + 0x39, &[(7, 64), (8, 70), (9, 76), (11, 89)]), // … and Time 4
+    ];
+
+    #[test]
+    fn matches_rolands_orch_set_on_every_offset_and_rescale_row() {
+        for (from, to, pairs) in ORCH_SET {
+            let keys = 35..35 + pairs.len() as u8;
+            let bytes = kit(USER_1, keys.clone(), |key, note| {
+                note[from] = pairs[usize::from(key - 35)].0;
+            });
+            let (entry, _) = converted(&bytes);
+            for (key, &(jv, roland)) in keys.zip(pairs) {
+                let ours = partial(&entry, key)[to];
+                assert_eq!(ours, roland, "JV {from:02X} = {jv} → {to:03X}");
+            }
+        }
+    }
+
+    #[test]
+    fn reports_what_the_integra_cannot_hold() {
+        let bytes = kit(USER_1, 40..=45, |key, note| match key {
+            40 => note[0x0B] = 2,                            // Pan Control KEY-ON
+            41 => note[0x36] = 1,                            // Output Assign EFX
+            42 => note[0x36] = 2,                            // OUTPUT 1
+            43 => note[0x01..0x03].copy_from_slice(&[1, 3]), // PCM card 3
+            44 => note[0x01..0x03].copy_from_slice(&[2, 6]), // SR-JV80-06 Dance
+            _ => note[0x00] = 0,                             // A Note switched off is not reported.
+        });
+        let bytes = [bytes, kit(USER_1, [], |_, _| {})].concat();
+        let read = read(&bytes);
+        // The second Common starts another kit, with no Notes.
+        assert_eq!(read.file_report, [skipped(Skipped::Incomplete, 1)]);
+        let (entry, report) = (&read.pack.entries[0], &read.reports[0]);
+        let texts: Vec<String> = report.iter().map(ToString::to_string).collect();
+        assert_eq!(
+            texts,
+            [
+                "Key 40: Pan Control Switch dropped",
+                "Key 42 Output Assign OUTPUT 1 not applied; set it in the Studio Set",
+                "Key 43 WMT 1: PCM card 3 Wave 1 has no INTEGRA-7 Wave",
+                "Key 44 WMT 1: SR-JV80-06 Wave 1 has no INTEGRA-7 Wave",
+                "Output Assign EFX dropped",
+            ]
+        );
+        assert_eq!(partial(entry, 40)[0x1F], 1); // Receive Pan Mode KEY-ON
+        for key in [43, 44] {
+            assert_eq!(wmt(partial(entry, key), 0), (0, 0, 1, 0));
+        }
+        assert_eq!(
+            report[3],
+            ConversionItem::WaveUnmapped {
+                at: Location::Wmt { key: 44, wmt: 1 },
+                source: ForeignWave {
+                    group: ForeignWaveGroup::SrJv80(6),
+                    number: 1
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn reads_every_rhythm_area() {
+        // Temporary (Part 10), User 2 and the JV-1080 card.
+        for slot in [[0x02, 0x09], [0x10, 0x41], [0x20, 0x40]] {
+            let (entry, _) = converted(&kit(slot, [60], |_, _| {}));
+            assert_eq!(wmt(partial(&entry, 60), 0).0, 1);
+        }
+    }
+}
+
+mod xv_rhythms {
+    use super::*;
+    use crate::parse_helpers::nibble4;
+    use crate::pcm_drum::{PcmdPartialField as F, PcmdWmtField as W, pcmd_wmt_byte};
+
+    /// User Rhythm 2.
+    const USER_2: [u8; 2] = [0x40, 0x10];
+    /// Address bytes 1 and 2 of the Common, MFX, Chorus and Reverb blocks.
+    const COMMONS: [[u8; 2]; 4] = [[0, 0], [0, 2], [0, 4], [0, 6]];
+
+    /// Common, MFX, Chorus and Reverb at neutral values: Tempo 120, Output
+    /// Assign TONE, MFX THRU with Dry Send 127, Chorus and Reverb OFF.
+    fn commons() -> [Vec<u8>; 4] {
+        let mut common = vec![0u8; 18];
+        common[..12].copy_from_slice(b"XV Byte Kit ");
+        common[0x0C] = 127; // Rhythm Level
+        common[0x0E..0x10].copy_from_slice(&[0x07, 0x08]); // Tempo 120
+        common[0x11] = 13; // Output Assign TONE
+        let mut mfx = vec![0u8; 145];
+        mfx[0x01] = 127; // MFX Dry Send Level
+        [common, mfx, vec![0; 52], vec![0; 83]]
+    }
+
+    /// A Rhythm Tone of `key`: WMT1 on and playing INT Wave 100, Coarse
+    /// Tune `key`, output A, every other byte a marker.
+    fn tone(key: u8) -> Vec<u8> {
+        let mut tone = vec![0u8; 193];
+        tone[..12].copy_from_slice(b"Tone        ");
+        tone[F::Level as usize] = 100;
+        tone[F::CoarseTune as usize] = key;
+        tone[0x17..0x1B].copy_from_slice(&[11, 12, 13, 14]); // MFX and non-MFX sends
+        tone[F::OutputAssign as usize] = 1; // A
+        tone[pcmd_wmt_byte(0, W::Switch)] = 1;
+        tone[pcmd_wmt_byte(0, W::WaveGroupId) + 3] = 1; // INT
+        tone[pcmd_wmt_byte(0, W::WaveNumberL)..][..4].copy_from_slice(&[0, 0, 6, 4]); // 100
+        tone
+    }
+
+    /// The DT1 of block `offset` (7-bit, below the slot bits) at `slot`.
+    fn block(slot: [u8; 2], offset: u16, data: &[u8]) -> Vec<u8> {
+        let [hi, lo] = [(offset >> 7) as u8, (offset & 0x7F) as u8];
+        foreign(xv::MODEL, [slot[0], slot[1] | hi, lo, 0], data)
+    }
+
+    /// A Rhythm Set at `slot`: [`commons`], then the Tones of `keys`,
+    /// `edit`ed.
+    fn kit(
+        slot: [u8; 2],
+        keys: impl IntoIterator<Item = u8>,
+        edit: impl FnOnce(&mut [Vec<u8>; 4], &mut [(u8, Vec<u8>)]),
+    ) -> Vec<u8> {
+        let mut commons = commons();
+        let mut tones: Vec<(u8, Vec<u8>)> = keys.into_iter().map(|k| (k, tone(k))).collect();
+        edit(&mut commons, &mut tones);
+        let mut bytes = Vec::new();
+        for ([_, c], data) in COMMONS.into_iter().zip(&commons) {
+            bytes.extend(block(slot, u16::from(c), data));
+        }
+        for (key, data) in &tones {
+            bytes.extend(block(slot, 0x10 + 2 * u16::from(key - 21), data));
+        }
+        bytes
+    }
+
+    fn converted(bytes: &[u8]) -> (PackEntry, ConversionReport) {
+        let mut read = read(bytes);
+        assert_eq!(read.pack.entries.len(), 1, "{:?}", read.file_report);
+        assert!(read.file_report.is_empty(), "{:?}", read.file_report);
+        (read.pack.entries.remove(0), read.reports.remove(0))
+    }
+
+    fn partial(entry: &PackEntry, key: u8) -> &[u8] {
+        &entry.blocks()[3 + usize::from(key - 21)]
+    }
+
+    fn texts(report: &ConversionReport) -> Vec<String> {
+        report.iter().map(ToString::to_string).collect()
+    }
+
+    #[test]
+    fn copies_each_key_to_the_same_integra_key_on_part() {
+        let bytes = kit(USER_2, 21..=108, |_, _| {});
+        let (entry, report) = converted(&bytes);
+        assert!(report.is_empty(), "{report:?}");
+        assert_eq!(entry.kind(), ChunkType::PcmDrumKit);
+        assert_eq!(entry.name(), "XV Byte Kit");
+        let blocks = entry.blocks();
+        assert_eq!(blocks[0], commons()[0]);
+        assert_eq!(blocks[1], commons()[1]);
+        for key in 21..=108u8 {
+            let mut expected = tone(key);
+            // Output A would be COMP+EQ1: every key goes to PART.
+            expected[F::OutputAssign as usize] = 0;
+            expected.extend([0, 64]); // One Shot Mode, reserve `01 42`
+            assert_eq!(partial(&entry, key), expected, "key {key}");
+        }
+    }
+
+    #[test]
+    fn a_key_not_sent_stays_off() {
+        let (entry, _) = converted(&kit(USER_2, [36, 38], |_, _| {}));
+        for key in 21..=108u8 {
+            let on = partial(&entry, key)[pcmd_wmt_byte(0, W::Switch)];
+            assert_eq!(on, u8::from(key == 36 || key == 38), "key {key}");
+        }
+    }
+
+    #[test]
+    fn applies_the_fix_rows() {
+        let bytes = kit(USER_2, 36..=40, |commons, tones| {
+            commons[0][0x10] = 1; // One Shot Mode
+            for (key, tone) in tones.iter_mut() {
+                let wmt = |f| pcmd_wmt_byte(0, f);
+                match key {
+                    36 => tone[F::OutputAssign as usize] = 0, // MFX
+                    37 => {
+                        tone[wmt(W::WaveGroupType)] = 2; // SRX-06
+                        tone[wmt(W::WaveGroupId) + 3] = 6;
+                    }
+                    38 => {
+                        tone[wmt(W::WaveGroupType)] = 1; // SR-JV80-02 Wave 1
+                        tone[wmt(W::WaveGroupId) + 3] = 2;
+                        tone[wmt(W::WaveNumberL) + 2..][..2].copy_from_slice(&[0, 1]);
+                    }
+                    39 => tone[wmt(W::WaveGroupType)] = 3, // SAMPLE
+                    _ => tone[0x1F] = 1,                   // Receive Pan Mode KEY-ON
+                }
+            }
+        });
+        let (entry, report) = converted(&bytes);
+        let wave = |key, f| nibble4(partial(&entry, key), pcmd_wmt_byte(0, f));
+        let group_type = |key| partial(&entry, key)[pcmd_wmt_byte(0, W::WaveGroupType)];
+        // An MFX Tone's sends go where the INTEGRA-7 reads them.
+        assert_eq!(partial(&entry, 36)[0x17..=0x1B], [11, 12, 11, 12, 0]);
+        assert_eq!(partial(&entry, 37)[0x17..=0x1B], [11, 12, 13, 14, 0]);
+        assert_eq!(
+            (
+                group_type(37),
+                wave(37, W::WaveGroupId),
+                wave(37, W::WaveNumberL)
+            ),
+            (1, 6, 100)
+        );
+        assert_eq!(
+            (
+                group_type(38),
+                wave(38, W::WaveGroupId),
+                wave(38, W::WaveNumberL)
+            ),
+            (1, 6, 29)
+        );
+        assert_eq!(partial(&entry, 39)[pcmd_wmt_byte(0, W::Switch)], 0);
+        assert_eq!(partial(&entry, 40)[0x1F], 1);
+        for key in 36..=40 {
+            assert_eq!(partial(&entry, key)[F::OneShotMode as usize], 1);
+        }
+        assert_eq!(entry.blocks()[0][0x10], 1);
+        assert_eq!(
+            texts(&report),
+            [
+                "Key 40: Receive Pan Mode dropped",
+                "Key 39 WMT 1: SAMPLE Wave 100 has no INTEGRA-7 Wave",
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_effects_and_settings_that_live_in_the_studio_set() {
+        let bytes = kit(USER_2, [36], |commons, _| {
+            commons[0][0x0E..0x10].copy_from_slice(&[0x05, 0x0B]); // Tempo 91
+            commons[0][0x11] = 1; // Output Assign A
+            commons[1][0x00] = 7; // MFX Type
+            commons[1][0x01] = 0; // MFX Dry Send Level
+            commons[1][0x04] = 2; // MFX Output Assign
+            commons[3][0x00..0x02].copy_from_slice(&[3, 100]); // SRV HALL
+        });
+        let (entry, report) = converted(&bytes);
+        let blocks = entry.blocks();
+        assert_eq!(blocks[0][0x0E..0x12], [0x05, 0x0B, 0, 13]);
+        assert_eq!(
+            (blocks[1][0x00], blocks[1][0x01], blocks[1][0x04]),
+            (0, 127, 0)
+        );
+        assert_eq!(
+            texts(&report),
+            [
+                "Tempo 91 not applied; set it in the Studio Set",
+                "Output Assign A not applied; set it in the Studio Set",
+                "MFX type 7 dropped, MFX set to THRU",
+                "MFX Dry Send Level dropped",
+                "Reverb SRV HALL, level 100 not applied; set it in the Studio Set",
+            ]
+        );
+    }
+
+    #[test]
+    fn needs_every_common_block() {
+        let mut bytes = kit(USER_2, [36], |_, _| {});
+        // Drop the Reverb, the fourth DT1.
+        let messages = frame::split(&bytes).messages;
+        let reverb = messages[3].len();
+        let start: usize = messages[..3].iter().map(|m| m.len()).sum();
+        bytes.drain(start..start + reverb);
+        let read = read(&bytes);
+        assert!(read.pack.entries.is_empty());
+        assert_eq!(read.file_report, [skipped(Skipped::Incomplete, 1)]);
+    }
+
+    #[test]
+    fn reads_the_temporary_rhythms() {
+        // Patch mode, and Performance part 10.
+        for slot in [[0x1F, 0x10], [0x13, 0x30]] {
+            let (entry, _) = converted(&kit(slot, [60], |_, _| {}));
+            assert_eq!(partial(&entry, 60)[pcmd_wmt_byte(0, W::Switch)], 1);
+        }
     }
 }
 

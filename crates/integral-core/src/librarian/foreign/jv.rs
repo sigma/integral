@@ -234,7 +234,7 @@ const T15_KEYFOLLOW: [u8; 16] = keyfollow(T15);
 /// Keyfollow and Bias Level rows over `T14`.
 const T14_KEYFOLLOW: [u8; 15] = keyfollow(T14);
 /// Velocity Time Sens rows.
-const TIME_SENS: [u8; 15] = time_sens(T14);
+pub(super) const TIME_SENS: [u8; 15] = time_sens(T14);
 
 /// Highest JV Velocity Sens on Roland's linear part.
 const LINEAR_SENS_MAX: usize = 105;
@@ -262,7 +262,7 @@ const fn velocity_sens() -> [u8; 126] {
 }
 
 /// P-Env, Resonance, F-Env and Level Velocity Sens rows.
-const VELOCITY_SENS: [u8; 126] = velocity_sens();
+pub(super) const VELOCITY_SENS: [u8; 126] = velocity_sens();
 
 /// LFO Waveform: TRI, SIN, SAW, SQR, TRP, S&H, RND, CHS. SAW is SAW-UP, as
 /// Roland converts it.
@@ -370,7 +370,7 @@ const DESTINATIONS: [&str; 19] = [
 
 /// How a JV value becomes an INTEGRA-7 value.
 #[derive(Debug, Clone, Copy)]
-enum How {
+pub(super) enum How {
     /// The same value.
     Copy,
     /// The value plus a constant. A value pushed past 127 (out of the JV
@@ -397,17 +397,18 @@ enum To {
 }
 
 /// One mapping row: `count` consecutive JV fields from `from`, written to
-/// as many consecutive INTEGRA-7 fields from `to`.
+/// as many consecutive INTEGRA-7 fields from `to`, a [`To`] for a Patch or a
+/// Partial offset for a Rhythm Setup.
 #[derive(Debug, Clone, Copy)]
-struct Row {
-    from: usize,
-    to: To,
-    how: How,
-    count: usize,
+pub(super) struct Row<T> {
+    pub(super) from: usize,
+    pub(super) to: T,
+    pub(super) how: How,
+    pub(super) count: usize,
 }
 
 /// A row of one field.
-const fn row(from: usize, to: To, how: How) -> Row {
+pub(super) const fn row<T: Copy>(from: usize, to: T, how: How) -> Row<T> {
     Row {
         from,
         to,
@@ -417,12 +418,12 @@ const fn row(from: usize, to: To, how: How) -> Row {
 }
 
 /// A row of one field copied as it is.
-const fn copy(from: usize, to: To) -> Row {
+pub(super) const fn copy<T: Copy>(from: usize, to: T) -> Row<T> {
     copies(from, to, 1)
 }
 
 /// A row of `count` fields copied as they are.
-const fn copies(from: usize, to: To, count: usize) -> Row {
+pub(super) const fn copies<T: Copy>(from: usize, to: T, count: usize) -> Row<T> {
     Row {
         from,
         to,
@@ -432,7 +433,8 @@ const fn copies(from: usize, to: To, count: usize) -> Row {
 }
 
 impl How {
-    fn apply(self, v: u8) -> Option<u8> {
+    /// The INTEGRA-7 value of JV value `v`, or `None` to leave the INIT one.
+    pub(super) fn apply(self, v: u8) -> Option<u8> {
         match self {
             Self::Copy => Some(v),
             Self::Offset(n) => Some(v.saturating_add(n).min(0x7F)),
@@ -447,7 +449,7 @@ use To::{Common, Mfx, Partial, Pmt, PmtEntry};
 /// Patch Common → Common, MFX and PMT (`jv-patch-format.md`, Common table).
 /// EFX Type and Parameters, EFX Mix Out Send Level and EFX Control 1/2 wait
 /// for the effects map: the MFX stays THRU (see [`mfx`]).
-const COMMON_ROWS: [Row; 15] = [
+const COMMON_ROWS: [Row<To>; 15] = [
     copies(0x00, Common(0x00), 12),              // Patch Name 1–12
     copy(0x1B, Mfx(0x02)),                       // EFX Chorus Send Level
     copy(0x1C, Mfx(0x03)),                       // EFX Reverb Send Level
@@ -468,7 +470,7 @@ const COMMON_ROWS: [Row; 15] = [
 /// Patch Tone n → Partial n and its PMT entry (`jv-patch-format.md`, Tone
 /// table). Envelope start levels need no row: the INIT Pitch L0 (64) and
 /// TVF L0 (0) are what Roland converts to.
-const TONE_ROWS: [Row; 68] = [
+const TONE_ROWS: [Row<To>; 68] = [
     copy(0x00, PmtEntry(0)),                         // Tone Switch
     copy(0x05, Partial(0x34)),                       // Wave Gain
     copy(0x06, Partial(0x35)),                       // FXM Switch
@@ -591,7 +593,7 @@ impl Patch<'_> {
     }
 
     /// Apply `rows` reading `source`, for partial `i`.
-    fn apply(&mut self, rows: &[Row], source: &[u8], i: usize) {
+    fn apply(&mut self, rows: &[Row<To>], source: &[u8], i: usize) {
         for row in rows {
             for k in 0..row.count {
                 if let Some(value) = row.how.apply(source[row.from + k]) {
@@ -683,11 +685,11 @@ fn mfx(p: &mut Patch<'_>) {
 }
 
 /// Tone Output Assign EFX: through the EFX.
-const OUTPUT_EFX: u8 = 1;
+pub(super) const OUTPUT_EFX: u8 = 1;
 /// EFX Output Assign names.
 const EFX_OUTPUTS: [&str; 3] = ["MIX", "OUTPUT 1", "OUTPUT 2"];
-/// Tone Output Assign names.
-const TONE_OUTPUTS: [&str; 4] = ["MIX", "EFX", "OUTPUT 1", "OUTPUT 2"];
+/// Tone and Rhythm Note Output Assign names.
+pub(super) const TONE_OUTPUTS: [&str; 4] = ["MIX", "EFX", "OUTPUT 1", "OUTPUT 2"];
 /// Chorus Output names.
 const CHORUS_OUTPUTS: [&str; 3] = ["MIX", "REV", "MIX+REV"];
 /// Reverb Type names.
@@ -700,7 +702,7 @@ const INIT_TEMPO: u16 = 120;
 const CLOCK_PATCH: u8 = 0;
 
 /// The name of `value` in `names`, or the raw value.
-fn named(names: &[&str], value: u8) -> String {
+pub(super) fn named(names: &[&str], value: u8) -> String {
     names
         .get(usize::from(value))
         .map_or_else(|| value.to_string(), |n| (*n).to_string())
@@ -962,14 +964,19 @@ const PAN_CONTINUOUS: u8 = 1;
 /// Pan Control Switch KEY-ON.
 const PAN_KEY_ON: u8 = 2;
 
-/// Pan Control Switch: KEY-ON goes to the Receive Pan Mode reserve as
-/// KEY-ON (1), as Roland converts it. The INTEGRA-7 reads neither KEY-ON
-/// nor OFF, so both are reported.
+/// Pan Control Switch `pan` → the Receive Pan Mode reserve, and whether it
+/// is dropped. KEY-ON goes to the reserve as KEY-ON (1), as Roland converts
+/// it. The INTEGRA-7 reads neither KEY-ON nor OFF, so both are dropped.
+pub(super) fn receive_pan_mode(pan: u8) -> (u8, bool) {
+    (u8::from(pan == PAN_KEY_ON), pan != PAN_CONTINUOUS)
+}
+
+/// Pan Control Switch, by [`receive_pan_mode`].
 fn pan_control(p: &mut Patch<'_>) {
     for i in 0..4 {
-        let pan = p.tones[i][PAN_CONTROL];
-        p.tone.partial(i)[RECEIVE_PAN_MODE] = u8::from(pan == PAN_KEY_ON);
-        if p.active(i) && pan != PAN_CONTINUOUS {
+        let (mode, dropped) = receive_pan_mode(p.tones[i][PAN_CONTROL]);
+        p.tone.partial(i)[RECEIVE_PAN_MODE] = mode;
+        if p.active(i) && dropped {
             p.drop_param(Some(i), "Pan Control Switch");
         }
     }
@@ -1018,19 +1025,24 @@ const WAVE_PCM: u8 = 1;
 /// INT Wave Group ID INT-B; 1 is INT-A.
 const INT_B: u8 = 2;
 
+/// The Foreign Wave of a Patch Tone or Rhythm Note, which both start with
+/// the switch, then Wave Group Type, Wave Group ID and Wave Number.
+pub(super) fn foreign_wave(tone: &[u8]) -> (ForeignWaveGroup, u16) {
+    let id = tone[WAVE_GROUP_ID];
+    let group = match tone[WAVE_GROUP_TYPE] {
+        WAVE_INT if id == INT_B => ForeignWaveGroup::JvIntB,
+        WAVE_INT => ForeignWaveGroup::JvIntA,
+        WAVE_PCM => ForeignWaveGroup::PcmCard(id.into()),
+        _ => ForeignWaveGroup::SrJv80(id.into()),
+    };
+    (group, nibble2(tone, WAVE_NUMBER) + 1)
+}
+
 /// Waves: INT-A/B and SR-JV80 boards (Wave Group Type EXP) go through the
 /// Wave map; PCM-card Waves have none.
 fn waves(p: &mut Patch<'_>) {
     for i in 0..4 {
-        let tone = p.tones[i];
-        let id = tone[WAVE_GROUP_ID];
-        let group = match tone[WAVE_GROUP_TYPE] {
-            WAVE_INT if id == INT_B => ForeignWaveGroup::JvIntB,
-            WAVE_INT => ForeignWaveGroup::JvIntA,
-            WAVE_PCM => ForeignWaveGroup::PcmCard(id.into()),
-            _ => ForeignWaveGroup::SrJv80(id.into()),
-        };
-        let number = nibble2(tone, WAVE_NUMBER) + 1;
+        let (group, number) = foreign_wave(p.tones[i]);
         pcm_tone::map_waves(&mut p.tone, i, group, [number, 0], &mut p.report);
     }
 }
