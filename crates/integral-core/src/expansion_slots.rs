@@ -76,6 +76,27 @@ impl ExpansionSlots {
         self.0.iter().position(|slot| *slot == Some(expansion))
     }
 
+    /// These slots with `expansion` (or OFF) staged into `slot` (0 = A).
+    ///
+    /// ExPCM takes all four slots, so staging it fills them and staging
+    /// anything over it clears the others. An Expansion already in another
+    /// slot moves, leaving that slot OFF.
+    pub fn with(&self, slot: usize, expansion: Option<&'static Expansion>) -> Self {
+        if let Some(e) = expansion.filter(|e| usize::from(e.slot_cost) == SLOT_COUNT) {
+            return Self([Some(e); SLOT_COUNT]);
+        }
+        let mut slots = self.0;
+        for s in &mut slots {
+            if s.is_some_and(|e| usize::from(e.slot_cost) == SLOT_COUNT)
+                || (expansion.is_some() && *s == expansion)
+            {
+                *s = None;
+            }
+        }
+        slots[slot] = expansion;
+        Self(slots)
+    }
+
     /// Whether `expansion` sits in a slot.
     pub fn contains(&self, expansion: &Expansion) -> bool {
         self.slot_of(expansion).is_some()
@@ -153,6 +174,35 @@ mod tests {
         ] {
             assert_eq!(ExpansionSlots::from_values(values), Err(err));
         }
+    }
+
+    fn slots(names: [&str; SLOT_COUNT]) -> ExpansionSlots {
+        ExpansionSlots(names.map(expansions::by_name))
+    }
+
+    #[test]
+    fn staging_replaces_moves_and_fills() {
+        let current = slots(["SRX-03", "SRX-05", "SRX-07", "SRX-08"]);
+        let srx01 = expansions::by_name("SRX-01");
+        let expcm = expansions::by_name("ExPCM");
+        assert_eq!(
+            names(current.with(0, srx01)),
+            ["SRX-01", "SRX-05", "SRX-07", "SRX-08"]
+        );
+        assert_eq!(
+            names(current.with(0, expansions::by_name("SRX-07"))),
+            ["SRX-07", "SRX-05", "OFF", "SRX-08"]
+        );
+        assert_eq!(
+            names(current.with(2, None)),
+            ["SRX-03", "SRX-05", "OFF", "SRX-08"]
+        );
+        assert_eq!(names(current.with(1, expcm)), ["ExPCM"; 4]);
+        assert_eq!(
+            names(current.with(1, expcm).with(2, srx01)),
+            ["OFF", "OFF", "SRX-01", "OFF"]
+        );
+        assert_eq!(names(current.with(1, expcm).with(3, None)), ["OFF"; 4]);
     }
 
     #[test]

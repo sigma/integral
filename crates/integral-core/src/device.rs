@@ -22,7 +22,10 @@
 use std::collections::HashMap;
 
 use crate::address::Address;
-use crate::expansion_slots::ExpansionSlots;
+use thiserror::Error;
+
+use crate::expansion_load::{LoadAction, LoadMachine, LoadOutcome};
+use crate::expansion_slots::{self, ExpansionSlots};
 use crate::expansions::Expansion;
 use crate::parse_helpers::encode_ascii_name;
 use crate::sn_synth;
@@ -63,6 +66,19 @@ pub struct DeviceState {
     echo_tracker: HashMap<String, f64>,
     /// Loaded Expansion slots, or `None` while unknown.
     expansion_slots: Option<ExpansionSlots>,
+    /// The running Expansion load; the send queue is held while set.
+    load: Option<LoadMachine>,
+}
+
+/// Why an Expansion load can't start.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum LoadError {
+    /// The current slots are unknown; read them first.
+    #[error("Expansion slots are unknown; read them first")]
+    SlotsUnknown,
+    /// Another load is running.
+    #[error("an Expansion load is already running")]
+    Busy,
 }
 
 impl DeviceState {
@@ -75,6 +91,7 @@ impl DeviceState {
             last_send_time: -THROTTLE_MS,
             echo_tracker: HashMap::new(),
             expansion_slots: None,
+            load: None,
         }
     }
 
@@ -112,6 +129,59 @@ impl DeviceState {
         self.expansion_slots.map(|slots| slots.contains(expansion))
     }
 
+    /// Feed a DT1 that may concern the Expansion slots: a load reply, or a
+    /// slot read answer. Returns `true` if it did.
+    pub fn handle_expansion_dt1(&mut self, address: &Address, data: &[u8], now_ms: f64) -> bool {
+        if let Some(load) = &mut self.load
+            && load.on_dt1(address, data, now_ms)
+        {
+            return true;
+        }
+        let Some(reply) = expansion_slots::parse_read_reply(address, data) else {
+            return false;
+        };
+        self.expansion_slots = reply.ok();
+        true
+    }
+
+    /// Start loading `target` into the Expansion slots.
+    ///
+    /// Holds the send queue until the load is over. Drive it with
+    /// [`next_load_action`](Self::next_load_action).
+    pub fn start_expansion_load(&mut self, target: ExpansionSlots) -> Result<(), LoadError> {
+        if self.load.is_some() {
+            return Err(LoadError::Busy);
+        }
+        let current = self.expansion_slots.ok_or(LoadError::SlotsUnknown)?;
+        self.load = Some(LoadMachine::new(self.device_id, current, target));
+        Ok(())
+    }
+
+    /// The running load's target, if a load is running.
+    pub fn expansion_load_target(&self) -> Option<&ExpansionSlots> {
+        self.load.as_ref().map(LoadMachine::target)
+    }
+
+    /// The next step of the running load, or `None` if none runs.
+    ///
+    /// `Send` and `Poll` bytes go out at once, bypassing the held queue.
+    /// On `Done` the slots are updated (unknown after a timeout) and the
+    /// queue is released.
+    pub fn next_load_action(&mut self, now_ms: f64) -> Option<LoadAction> {
+        let action = self.load.as_mut()?.next_action(now_ms);
+        if let LoadAction::Done(outcome) = action {
+            self.load = None;
+            match outcome {
+                LoadOutcome::NoOp => {}
+                LoadOutcome::Loaded(slots) | LoadOutcome::Failed(slots) => {
+                    self.expansion_slots = Some(slots);
+                }
+                LoadOutcome::TimedOut => self.expansion_slots = None,
+            }
+        }
+        Some(action)
+    }
+
     // -----------------------------------------------------------------------
     // Send queue
     // -----------------------------------------------------------------------
@@ -144,9 +214,10 @@ impl DeviceState {
     /// Drain the next outbound message if the throttle window has elapsed.
     ///
     /// `now_ms` is a monotonic timestamp in milliseconds.
-    /// Returns `None` if the queue is empty or the throttle hasn't elapsed.
+    /// Returns `None` if the queue is empty, the throttle hasn't elapsed, or
+    /// an Expansion load holds the queue.
     pub fn drain(&mut self, now_ms: f64) -> Option<Vec<u8>> {
-        if self.queue.is_empty() {
+        if self.queue.is_empty() || self.load.is_some() {
             return None;
         }
         if now_ms - self.last_send_time < THROTTLE_MS {
@@ -1079,6 +1150,63 @@ mod tests {
 
         dev.expansion_slots_timed_out();
         assert_eq!(dev.is_loaded(srx03), None);
+
+        let read = expansion_slots::SLOT_READ_ADDR;
+        assert!(dev.handle_expansion_dt1(&read, &[0x03, 0x05, 0x07, 0x08], 0.0));
+        assert_eq!(dev.expansion_slots(), Some(&slots));
+        assert!(dev.handle_expansion_dt1(&read, &[0x7F, 0, 0, 0], 0.0));
+        assert_eq!(dev.expansion_slots(), None);
+    }
+
+    #[test]
+    fn expansion_load_holds_the_queue_until_done() {
+        let mut dev = DeviceState::new(0x10);
+        let target = ExpansionSlots::from_values(&[0x01, 0x05, 0x07, 0x08]).unwrap();
+        assert_eq!(
+            dev.start_expansion_load(target),
+            Err(LoadError::SlotsUnknown)
+        );
+
+        let current = ExpansionSlots::from_values(&[0x03, 0x05, 0x07, 0x08]).unwrap();
+        dev.set_expansion_slots(current);
+        dev.start_expansion_load(target).unwrap();
+        assert_eq!(dev.start_expansion_load(target), Err(LoadError::Busy));
+        dev.set_part_level(0, 100);
+
+        assert!(matches!(
+            dev.next_load_action(0.0),
+            Some(LoadAction::Send(_))
+        ));
+        assert_eq!(dev.drain(1_000.0), None, "queue held during the load");
+        let started = Address::new(0x0F, 0x00, 0x30, 0x01);
+        assert!(dev.handle_expansion_dt1(&started, &[0; 4], 70.0));
+        assert!(matches!(
+            dev.next_load_action(570.0),
+            Some(LoadAction::Poll(_))
+        ));
+        let read = expansion_slots::SLOT_READ_ADDR;
+        assert!(dev.handle_expansion_dt1(&read, &target.values(), 5_000.0));
+        assert_eq!(
+            dev.next_load_action(5_000.0),
+            Some(LoadAction::Done(LoadOutcome::Loaded(target)))
+        );
+        assert_eq!(dev.expansion_slots(), Some(&target));
+        assert_eq!(dev.next_load_action(5_000.0), None);
+        assert!(dev.drain(5_000.0).is_some(), "queue released");
+    }
+
+    #[test]
+    fn expansion_load_timeout_leaves_slots_unknown() {
+        let mut dev = DeviceState::new(0x10);
+        let current = ExpansionSlots::from_values(&[0x03, 0x05, 0x07, 0x08]).unwrap();
+        dev.set_expansion_slots(current);
+        dev.start_expansion_load(current.with(0, None)).unwrap();
+        dev.next_load_action(0.0);
+        assert_eq!(
+            dev.next_load_action(60_000.0),
+            Some(LoadAction::Done(LoadOutcome::TimedOut))
+        );
+        assert_eq!(dev.expansion_slots(), None);
     }
 
     #[test]
