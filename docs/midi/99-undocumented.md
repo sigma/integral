@@ -492,6 +492,96 @@ Captured 2026-10-10 with the bridge setup described in
 
 ---
 
+## 5. Expansion Virtual Slots
+
+### Purpose
+
+Read which Expansion sits in each of the four virtual slots (A–D), and load
+different ones, as the front panel's Expansion load and Roland's Editor do.
+Loaded state is volatile: it is lost at power-off, and the System "Startup
+Exp Slot A–D" settings reload titles at power-on (Owner's Manual pp. 14–15).
+
+### Slot Values
+
+| Value     | Expansion        |
+|-----------|------------------|
+| `00`      | OFF              |
+| `01`–`0C` | SRX-01 … SRX-12  |
+| `0D`–`12` | ExSN1 … ExSN6    |
+| `13`      | ExPCM            |
+
+ExPCM fills all four slots: load it as `13 13 13 13`. It reads back as
+`13 14 15 16` (Integra7AuralAlchemist measurement; not yet verified here).
+
+### Read (RQ1)
+
+```
+F0 41 <dev> 00 00 64 11 0F 00 00 10 00 00 00 00 <checksum> F7
+```
+
+The reply is a DT1 at `0F 00 00 10` with four data bytes, one slot value per
+slot A–D.
+
+### Load (RQ1 with payload)
+
+```
+F0 41 <dev> 00 00 64 11 0F 00 30 00 <A> <B> <C> <D> <checksum> F7
+```
+
+As with the catalog query, the four "size" bytes carry the payload: the slot
+values for A–D. The device answers with two DT1s, both with data
+`00 00 00 00`:
+
+| Address       | When                    | Meaning      |
+|---------------|-------------------------|--------------|
+| `0F 00 30 01` | ~70 ms after the request | Load started |
+| `0F 00 30 02` | ~5 s later (one SRX title) | Load done |
+
+### Behavior
+
+- **Unchanged slots are skipped.** Requesting the slots already loaded sends
+  no DT1 at all and loads nothing.
+- **Sound cuts** for the whole load, and the panel shows a "Load expansion"
+  progress screen.
+- **The device is deaf while loading.** RQ1s sent during the load get no
+  reply; the first answer came ~5 s after the request.
+- **The Temporary Studio Set is kept** (its name read the same before and
+  after).
+- **Front-panel loads are silent.** Loading from the panel sends nothing over
+  MIDI; re-read the slots to see the change.
+- Unloaded banks play silence (Owner's Manual p. 30).
+
+Reported elsewhere, not verified here: some titles take ~13 s and ExPCM
+~19–23 s; a load sent during another load is dropped.
+
+### Examples (device ID 10H)
+
+**Read:**
+```
+F0 41 10 00 00 64 11 0F 00 00 10 00 00 00 00 61 F7
+```
+
+**Load SRX-03, SRX-05, SRX-07, SRX-01 into A–D:**
+```
+F0 41 10 00 00 64 11 0F 00 30 00 03 05 07 01 31 F7
+```
+
+### Studio Set Common `00 50`–`00 53`
+
+Roland's Editor names these reserved bytes "Expansion Slot 1–4 RomID". In the
+preset Studio Set "Integra Preview" they read `00 00 00 00` while SRX-03/05/07/08
+were loaded, so they do not mirror the loaded slots. Whether a saved Studio Set
+records its expected slots there is untested.
+
+### Discovery
+
+Message formats from Roland's Editor JavaScript (`REQ_READ_EXP_ADDR`,
+`REQ_LOAD_EXP_ADDR`), corroborated by open-source editors and 2014 Roland Clan
+forum captures. Verified on our device 2026-10-11, including the
+`0F 00 30 01`/`0F 00 30 02` replies and front-panel silence.
+
+---
+
 ## Future Investigation
 
 - **Expansion board tone catalogs**: SRX, ExSN, ExPCM tones at `0F 00 04 02`
