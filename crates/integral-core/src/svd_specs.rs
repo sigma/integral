@@ -934,6 +934,183 @@ pub static SS_TONE_SPEC: SvdToneSpec = SvdToneSpec {
 };
 
 // ---------------------------------------------------------------------------
+// Drum Kit Comp/EQ (shared by SN Drum and PCM Drum)
+// ---------------------------------------------------------------------------
+
+/// Drum Kit Comp/EQ parameters: 6 × (Comp n + EQ n), 330 bits.
+///
+/// Source: `docs/svd/07-pcm-drum.md` — Common Comp/EQ. SN Drum Kit uses the
+/// same layout (`docs/svd/09-sn-drum.md`).
+#[rustfmt::skip]
+static COMP_EQ_PARAMS: &[ParamBits] = &[
+    ParamBits::normal(1), // 00 00: Comp1 Switch (0–1)
+    ParamBits::normal(5), // 00 01: Comp1 Attack Time (0–31)
+    ParamBits::normal(5), // 00 02: Comp1 Release Time (0–23)
+    ParamBits::normal(7), // 00 03: Comp1 Threshold (0–127)
+    ParamBits::normal(5), // 00 04: Comp1 Ratio (0–19)
+    ParamBits::normal(5), // 00 05: Comp1 Output Gain (0–24)
+    ParamBits::normal(1), // 00 06: EQ1 Switch (0–1)
+    ParamBits::normal(1), // 00 07: EQ1 Low Freq (0–1)
+    ParamBits::normal(5), // 00 08: EQ1 Low Gain (0–30)
+    ParamBits::normal(5), // 00 09: EQ1 Mid Freq (0–16)
+    ParamBits::normal(5), // 00 0A: EQ1 Mid Gain (0–30)
+    ParamBits::normal(3), // 00 0B: EQ1 Mid Q (0–4)
+    ParamBits::normal(2), // 00 0C: EQ1 High Freq (0–2)
+    ParamBits::normal(5), // 00 0D: EQ1 High Gain (0–30)
+    ParamBits::normal(1), // 00 0E: Comp2 Switch (0–1)
+    ParamBits::normal(5), // 00 0F: Comp2 Attack Time (0–31)
+    ParamBits::normal(5), // 00 10: Comp2 Release Time (0–23)
+    ParamBits::normal(7), // 00 11: Comp2 Threshold (0–127)
+    ParamBits::normal(5), // 00 12: Comp2 Ratio (0–19)
+    ParamBits::normal(5), // 00 13: Comp2 Output Gain (0–24)
+    ParamBits::normal(1), // 00 14: EQ2 Switch (0–1)
+    ParamBits::normal(1), // 00 15: EQ2 Low Freq (0–1)
+    ParamBits::normal(5), // 00 16: EQ2 Low Gain (0–30)
+    ParamBits::normal(5), // 00 17: EQ2 Mid Freq (0–16)
+    ParamBits::normal(5), // 00 18: EQ2 Mid Gain (0–30)
+    ParamBits::normal(3), // 00 19: EQ2 Mid Q (0–4)
+    ParamBits::normal(2), // 00 1A: EQ2 High Freq (0–2)
+    ParamBits::normal(5), // 00 1B: EQ2 High Gain (0–30)
+    ParamBits::normal(1), // 00 1C: Comp3 Switch (0–1)
+    ParamBits::normal(5), // 00 1D: Comp3 Attack Time (0–31)
+    ParamBits::normal(5), // 00 1E: Comp3 Release Time (0–23)
+    ParamBits::normal(7), // 00 1F: Comp3 Threshold (0–127)
+    ParamBits::normal(5), // 00 20: Comp3 Ratio (0–19)
+    ParamBits::normal(5), // 00 21: Comp3 Output Gain (0–24)
+    ParamBits::normal(1), // 00 22: EQ3 Switch (0–1)
+    ParamBits::normal(1), // 00 23: EQ3 Low Freq (0–1)
+    ParamBits::normal(5), // 00 24: EQ3 Low Gain (0–30)
+    ParamBits::normal(5), // 00 25: EQ3 Mid Freq (0–16)
+    ParamBits::normal(5), // 00 26: EQ3 Mid Gain (0–30)
+    ParamBits::normal(3), // 00 27: EQ3 Mid Q (0–4)
+    ParamBits::normal(2), // 00 28: EQ3 High Freq (0–2)
+    ParamBits::normal(5), // 00 29: EQ3 High Gain (0–30)
+    ParamBits::normal(1), // 00 2A: Comp4 Switch (0–1)
+    ParamBits::normal(5), // 00 2B: Comp4 Attack Time (0–31)
+    ParamBits::normal(5), // 00 2C: Comp4 Release Time (0–23)
+    ParamBits::normal(7), // 00 2D: Comp4 Threshold (0–127)
+    ParamBits::normal(5), // 00 2E: Comp4 Ratio (0–19)
+    ParamBits::normal(5), // 00 2F: Comp4 Output Gain (0–24)
+    ParamBits::normal(1), // 00 30: EQ4 Switch (0–1)
+    ParamBits::normal(1), // 00 31: EQ4 Low Freq (0–1)
+    ParamBits::normal(5), // 00 32: EQ4 Low Gain (0–30)
+    ParamBits::normal(5), // 00 33: EQ4 Mid Freq (0–16)
+    ParamBits::normal(5), // 00 34: EQ4 Mid Gain (0–30)
+    ParamBits::normal(3), // 00 35: EQ4 Mid Q (0–4)
+    ParamBits::normal(2), // 00 36: EQ4 High Freq (0–2)
+    ParamBits::normal(5), // 00 37: EQ4 High Gain (0–30)
+    ParamBits::normal(1), // 00 38: Comp5 Switch (0–1)
+    ParamBits::normal(5), // 00 39: Comp5 Attack Time (0–31)
+    ParamBits::normal(5), // 00 3A: Comp5 Release Time (0–23)
+    ParamBits::normal(7), // 00 3B: Comp5 Threshold (0–127)
+    ParamBits::normal(5), // 00 3C: Comp5 Ratio (0–19)
+    ParamBits::normal(5), // 00 3D: Comp5 Output Gain (0–24)
+    ParamBits::normal(1), // 00 3E: EQ5 Switch (0–1)
+    ParamBits::normal(1), // 00 3F: EQ5 Low Freq (0–1)
+    ParamBits::normal(5), // 00 40: EQ5 Low Gain (0–30)
+    ParamBits::normal(5), // 00 41: EQ5 Mid Freq (0–16)
+    ParamBits::normal(5), // 00 42: EQ5 Mid Gain (0–30)
+    ParamBits::normal(3), // 00 43: EQ5 Mid Q (0–4)
+    ParamBits::normal(2), // 00 44: EQ5 High Freq (0–2)
+    ParamBits::normal(5), // 00 45: EQ5 High Gain (0–30)
+    ParamBits::normal(1), // 00 46: Comp6 Switch (0–1)
+    ParamBits::normal(5), // 00 47: Comp6 Attack Time (0–31)
+    ParamBits::normal(5), // 00 48: Comp6 Release Time (0–23)
+    ParamBits::normal(7), // 00 49: Comp6 Threshold (0–127)
+    ParamBits::normal(5), // 00 4A: Comp6 Ratio (0–19)
+    ParamBits::normal(5), // 00 4B: Comp6 Output Gain (0–24)
+    ParamBits::normal(1), // 00 4C: EQ6 Switch (0–1)
+    ParamBits::normal(1), // 00 4D: EQ6 Low Freq (0–1)
+    ParamBits::normal(5), // 00 4E: EQ6 Low Gain (0–30)
+    ParamBits::normal(5), // 00 4F: EQ6 Mid Freq (0–16)
+    ParamBits::normal(5), // 00 50: EQ6 Mid Gain (0–30)
+    ParamBits::normal(3), // 00 51: EQ6 Mid Q (0–4)
+    ParamBits::normal(2), // 00 52: EQ6 High Freq (0–2)
+    ParamBits::normal(5), // 00 53: EQ6 High Gain (0–30)
+];
+
+// ---------------------------------------------------------------------------
+// SN Drum Kit (SDKa) — 1006 bytes, no end marker
+// ---------------------------------------------------------------------------
+
+/// SN Drum Kit Common parameters (134 bits).
+///
+/// Source: `docs/svd/09-sn-drum.md` — Common.
+#[rustfmt::skip]
+static SND_COMMON_PARAMS: &[ParamBits] = &[
+    ParamBits::normal(7), // 00 00: Kit Name 1 (32–127)
+    ParamBits::normal(7), // 00 01: Kit Name 2 (32–127)
+    ParamBits::normal(7), // 00 02: Kit Name 3 (32–127)
+    ParamBits::normal(7), // 00 03: Kit Name 4 (32–127)
+    ParamBits::normal(7), // 00 04: Kit Name 5 (32–127)
+    ParamBits::normal(7), // 00 05: Kit Name 6 (32–127)
+    ParamBits::normal(7), // 00 06: Kit Name 7 (32–127)
+    ParamBits::normal(7), // 00 07: Kit Name 8 (32–127)
+    ParamBits::normal(7), // 00 08: Kit Name 9 (32–127)
+    ParamBits::normal(7), // 00 09: Kit Name 10 (32–127)
+    ParamBits::normal(7), // 00 0A: Kit Name 11 (32–127)
+    ParamBits::normal(7), // 00 0B: Kit Name 12 (32–127)
+    ParamBits::normal(7), // 00 0C: (reserve name 13) (32–127)
+    ParamBits::normal(7), // 00 0D: (reserve name 14) (32–127)
+    ParamBits::normal(7), // 00 0E: (reserve name 15) (32–127)
+    ParamBits::normal(7), // 00 0F: (reserve name 16) (32–127)
+    ParamBits::normal(7), // 00 10: Kit Level (0–127)
+    ParamBits::normal(7), // 00 11: Ambience Level (0–127)
+    ParamBits::normal(7), // 00 12: Phrase Number (0–127)
+    ParamBits::normal(1), // 00 13: TFX Switch (0–1)
+];
+
+/// SN Drum Kit Note parameters (102 bits), one section per key 27–88.
+///
+/// Source: `docs/svd/09-sn-drum.md` — Note.
+#[rustfmt::skip]
+static SND_NOTE_PARAMS: &[ParamBits] = &[
+    ParamBits::nibblized(4), // 00 00: Inst Number (0–512)
+    ParamBits::normal(7), // 00 04: Level (0–127)
+    ParamBits::normal(7), // 00 05: Pan (0–127)
+    ParamBits::normal(7), // 00 06: Chorus Send Level (0–127)
+    ParamBits::normal(7), // 00 07: Reverb Send Level (0–127)
+    ParamBits::nibblized(4), // 00 08: Tune (8–248)
+    ParamBits::normal(7), // 00 0C: Attack (0–100)
+    ParamBits::normal(7), // 00 0D: Decay (1–64)
+    ParamBits::signed(5), // 00 0E: Brilliance (49–76)
+    ParamBits::normal(7), // 00 0F: Variation (0–7)
+    ParamBits::normal(6), // 00 10: Dynamic Range (0–63)
+    ParamBits::normal(7), // 00 11: Stereo Width (0–127)
+    ParamBits::normal(3), // 00 12: Output Assign (0–6)
+];
+
+/// SN Drum Kit section layout: Common 18 B, MFX 78 B, Comp/EQ 42 B, then
+/// 62 Notes of 14 B, filling the 1006-byte entry exactly.
+static SND_SECTIONS: [SvdSection; 65] = {
+    let note = SvdSection {
+        params: SND_NOTE_PARAMS,
+        svd_bytes: 14,
+    };
+    let mut sections = [note; 65];
+    sections[0] = SvdSection {
+        params: SND_COMMON_PARAMS,
+        svd_bytes: 18,
+    };
+    sections[1] = SvdSection {
+        params: MFX_PARAMS,
+        svd_bytes: 78,
+    };
+    sections[2] = SvdSection {
+        params: COMP_EQ_PARAMS,
+        svd_bytes: 42,
+    };
+    sections
+};
+
+/// Complete SN Drum Kit SVD specification.
+pub static SND_TONE_SPEC: SvdToneSpec = SvdToneSpec {
+    sections: &SND_SECTIONS,
+    entry_size: 1006,
+    init_tail: &[],
+};
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -1030,6 +1207,32 @@ mod tests {
             assert!(s.padded_bytes() <= s.svd_bytes, "{s:?}");
         }
         assert!(SS_TONE_SPEC.init_tail.is_empty());
+    }
+
+    #[test]
+    fn specs_fill_their_entries() {
+        for spec in [
+            &SNS_TONE_SPEC,
+            &SNA_TONE_SPEC,
+            &SS_TONE_SPEC,
+            &SND_TONE_SPEC,
+        ] {
+            assert!(spec.data_bytes() + spec.init_tail.len() <= spec.entry_size);
+            for s in spec.sections {
+                assert!(s.padded_bytes() <= s.svd_bytes, "{s:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn snd_section_sizes() {
+        use crate::{mfx, params, sn_drum};
+        let sysex = |i: usize| SND_TONE_SPEC.sections[i].sysex_size() as u32;
+        assert_eq!(SND_TONE_SPEC.data_bytes(), 1006);
+        assert_eq!(sysex(0), sn_drum::SND_COMMON_BLOCK_SIZE.value());
+        assert_eq!(sysex(1), mfx::MFX_BLOCK_SIZE.value());
+        assert_eq!(sysex(2), params::COMP_EQ_BLOCK_SIZE.value());
+        assert_eq!(sysex(64), sn_drum::SND_NOTE_BLOCK_SIZE.value());
     }
 
     #[test]

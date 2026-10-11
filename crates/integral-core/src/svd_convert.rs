@@ -258,7 +258,7 @@ pub fn split_common_mfx(
 mod tests {
     use super::*;
     use crate::svd::SvdFile;
-    use crate::svd_specs::{MFX_PARAMS, SNA_TONE_SPEC, SNS_TONE_SPEC, SS_TONE_SPEC};
+    use crate::svd_specs::{MFX_PARAMS, SNA_TONE_SPEC, SND_TONE_SPEC, SNS_TONE_SPEC, SS_TONE_SPEC};
     use std::ops::RangeInclusive;
     use std::path::Path;
 
@@ -591,6 +591,138 @@ mod tests {
         assert_eq!(part16[0x48], 32, "Part 16 Motional Surround Width");
         assert_eq!(sections[37 + 15][0x07], 30, "Part EQ 16 High Gain");
         assert_eq!(sysex_to_svd(&sections, &SS_TONE_SPEC, Some(&entry)), entry);
+    }
+
+    const PCM_SYNTH_DOC: &str = include_str!("../../../docs/svd/06-pcm-synth.md");
+    const PCM_DRUM_DOC: &str = include_str!("../../../docs/svd/07-pcm-drum.md");
+    const SN_DRUM_DOC: &str = include_str!("../../../docs/svd/09-sn-drum.md");
+
+    /// A field documented in a `docs/svd` table.
+    #[derive(Clone)]
+    struct DocField {
+        /// Section bit.
+        bit: usize,
+        /// Stored width.
+        bits: usize,
+        /// Documented SysEx range; the full width for reserves.
+        range: RangeInclusive<u32>,
+    }
+
+    /// Read the field table that follows `heading` in a `docs/svd` page.
+    ///
+    /// Cells are split on `|`. A row covering several offsets
+    /// (`(reserve) × 14`, `7 each`) expands to one field per offset.
+    fn doc_fields(doc: &str, heading: &str) -> Vec<DocField> {
+        let cells = |line: &str| -> Vec<String> {
+            line.trim()
+                .trim_matches('|')
+                .split('|')
+                .map(|c| c.trim().to_string())
+                .collect()
+        };
+        let mut lines = doc
+            .lines()
+            .skip_while(|l| !l.starts_with(heading))
+            .skip_while(|l| !l.starts_with('|'));
+        let header = cells(lines.next().expect("table header"));
+        let col = |name: &str| header.iter().position(|h| h == name).unwrap();
+        let (param, bits, bit, range) = (
+            col("Parameter"),
+            col("Bits"),
+            col("Section bit"),
+            col("Range"),
+        );
+        let mut fields = Vec::new();
+        for line in lines.skip(1).take_while(|l| l.starts_with('|')) {
+            let row = cells(line);
+            let width: usize = row[bits]
+                .trim_end_matches(" each")
+                .split('+')
+                .map(|b| b.parse::<usize>().unwrap())
+                .sum();
+            let count = row[param]
+                .split_once('×')
+                .map_or(1, |(_, n)| n.trim().parse().unwrap());
+            let start: usize = row[bit].split('–').next().unwrap().parse().unwrap();
+            let range = match row[range].split_once('–') {
+                Some((lo, hi)) => lo.parse().unwrap()..=hi.parse().unwrap(),
+                None => 0..=(1u32 << width) - 1,
+            };
+            for i in 0..count {
+                fields.push(DocField {
+                    bit: start + i * width,
+                    bits: width,
+                    range: range.clone(),
+                });
+            }
+        }
+        fields
+    }
+
+    /// Build a synthetic entry from documented sections, given as (entry byte
+    /// offset, fields), then decode it with `spec`.
+    ///
+    /// Fields alternate between the low and high end of their range, stored
+    /// with the bias rule of `docs/svd/02-encoding.md`. Every decoded value
+    /// must equal the one written and lie in its range, and re-encoding must
+    /// reproduce the entry byte for byte.
+    fn assert_doc_layout(spec: &SvdToneSpec, layout: &[(usize, Vec<DocField>)]) -> Vec<Vec<u8>> {
+        let mut entry = vec![0u8; spec.entry_size];
+        let mut expected = Vec::new();
+        for (offset, fields) in layout {
+            let mut prev_end = 0;
+            for (i, f) in fields.iter().enumerate() {
+                assert_eq!(f.bit, prev_end, "documented fields must be contiguous");
+                prev_end = f.bit + f.bits;
+                let value = if i % 2 == 0 {
+                    *f.range.start()
+                } else {
+                    *f.range.end()
+                };
+                let biased = f.bits < 7 && *f.range.end() >= 1 << f.bits;
+                let stored = if biased {
+                    value + (1 << (f.bits - 1)) - 64
+                } else {
+                    value
+                };
+                assert!(stored < 1 << f.bits);
+                put(&mut entry, offset * 8 + f.bit, f.bits, stored);
+                expected.push((value, f.range.clone()));
+            }
+        }
+
+        let sections = svd_to_sysex(&entry, spec).unwrap();
+        let mut values = Vec::new();
+        for (sysex, section) in sections.iter().zip(spec.sections) {
+            let mut bytes = sysex.iter();
+            for param in section.params.iter().filter(|p| p.sysex_bytes > 0) {
+                let value = bytes
+                    .by_ref()
+                    .take(param.sysex_bytes as usize)
+                    .fold(0, |acc, &b| (acc << 4) | b as u32);
+                values.push(value);
+            }
+        }
+        assert_eq!(values.len(), expected.len(), "parameter count");
+        for (i, (value, (want, range))) in values.iter().zip(&expected).enumerate() {
+            assert!(range.contains(value), "param {i}: {value} not in {range:?}");
+            assert_eq!(value, want, "param {i}");
+        }
+        assert_eq!(sysex_to_svd(&sections, spec, Some(&entry)), entry);
+        sections
+    }
+
+    #[test]
+    fn snd_entry_matches_documented_layout() {
+        let mfx = doc_fields(PCM_SYNTH_DOC, "## Common MFX");
+        let mut layout = vec![
+            (0, doc_fields(SN_DRUM_DOC, "## Common (")),
+            (18, mfx),
+            (96, doc_fields(PCM_DRUM_DOC, "## Common Comp/EQ")),
+        ];
+        let note = doc_fields(SN_DRUM_DOC, "## Note (");
+        layout.extend((0..62).map(|k| (138 + 14 * k, note.clone())));
+        assert_doc_layout(&SND_TONE_SPEC, &layout);
     }
 
     #[test]
