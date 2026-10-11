@@ -1,9 +1,9 @@
 //! INTEGRA-7 DT1s: which Temporary area or User slot they write, and the
 //! Pack entry their blocks rebuild.
 //!
-//! Blocks are rebuilt from addresses, not message boundaries: one DT1 may
-//! span several blocks, and one block may be split across several DT1s.
+//! Blocks are rebuilt by [`frame::assemble`].
 
+use super::frame;
 use crate::address::Address;
 use crate::device_spec::{INTEGRA7, UserMemorySpec};
 use crate::librarian::pack::{PackEntry, user_memory};
@@ -65,8 +65,7 @@ pub(super) fn is_common(area: &Area, address: Address) -> bool {
 }
 
 /// The entry that DT1s `(address, data)` aimed at `area` rebuild, or
-/// `None` if a block is not fully covered. Bytes between blocks are
-/// ignored; later bytes overwrite earlier ones.
+/// `None` if a block is not fully covered.
 pub(super) fn assemble<'a>(
     area: &Area,
     frames: impl IntoIterator<Item = (Address, &'a [u8])>,
@@ -76,23 +75,6 @@ pub(super) fn assemble<'a>(
         .blocks(area.base)
         .map(|(a, size)| (a.value(), size.value() as usize))
         .collect();
-    let mut blocks: Vec<Vec<u8>> = layout.iter().map(|&(_, n)| vec![0; n]).collect();
-    let mut filled: Vec<Vec<bool>> = layout.iter().map(|&(_, n)| vec![false; n]).collect();
-    for (address, data) in frames {
-        let start = address.value() as usize;
-        let end = start + data.len();
-        for (i, &(block, size)) in layout.iter().enumerate() {
-            let block = block as usize;
-            let (lo, hi) = (start.max(block), end.min(block + size));
-            if lo < hi {
-                blocks[i][lo - block..hi - block].copy_from_slice(&data[lo - start..hi - start]);
-                filled[i][lo - block..hi - block].fill(true);
-            }
-        }
-    }
-    filled
-        .iter()
-        .all(|f| f.iter().all(|&b| b))
-        .then(|| PackEntry::new(area.kind, None, blocks).ok())
-        .flatten()
+    let blocks = frame::assemble(&layout, frames)?;
+    PackEntry::new(area.kind, None, blocks).ok()
 }

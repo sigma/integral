@@ -9,6 +9,7 @@
 
 use thiserror::Error;
 
+use crate::address::Address;
 use crate::sysex::{self, CMD_DT1, ROLAND_ID};
 
 /// SysEx start byte.
@@ -113,6 +114,36 @@ pub fn split(bytes: &[u8]) -> Messages<'_> {
     }
     out.incomplete |= start.is_some();
     out
+}
+
+/// Rebuild the blocks of `layout`, each `(start address value, size)`, from
+/// DT1s `(address, data)`, or `None` if a block is not fully covered.
+///
+/// Blocks are rebuilt from addresses, not message boundaries: one DT1 may
+/// span several blocks, and one block may be split across several DT1s.
+/// Bytes between blocks are ignored; later bytes overwrite earlier ones.
+pub(super) fn assemble<'a>(
+    layout: &[(u32, usize)],
+    frames: impl IntoIterator<Item = (Address, &'a [u8])>,
+) -> Option<Vec<Vec<u8>>> {
+    let mut blocks: Vec<Vec<u8>> = layout.iter().map(|&(_, n)| vec![0; n]).collect();
+    let mut filled: Vec<Vec<bool>> = layout.iter().map(|&(_, n)| vec![false; n]).collect();
+    for (address, data) in frames {
+        let start = address.value() as usize;
+        let end = start + data.len();
+        for (i, &(block, size)) in layout.iter().enumerate() {
+            let block = block as usize;
+            let (lo, hi) = (start.max(block), end.min(block + size));
+            if lo < hi {
+                blocks[i][lo - block..hi - block].copy_from_slice(&data[lo - start..hi - start]);
+                filled[i][lo - block..hi - block].fill(true);
+            }
+        }
+    }
+    filled
+        .iter()
+        .all(|f| f.iter().all(|&b| b))
+        .then_some(blocks)
 }
 
 #[cfg(test)]
