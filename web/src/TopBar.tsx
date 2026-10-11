@@ -14,12 +14,15 @@ import { useBankEntries } from "./useBankEntries";
 import { deviceSpec } from "./deviceSpec";
 import type { IntegraService } from "./integra";
 import type { UseMixerResult } from "./useMixer";
+import type { UseExpansionsResult } from "./useExpansions";
+import { NotLoadedMarker } from "./NotLoadedMarker";
 import type { PartState } from "./types";
 import css from "./TopBar.module.css";
 
 interface Props {
   mixer: UseMixerResult;
   service: IntegraService;
+  expansions: UseExpansionsResult;
 }
 
 function toneDisplay(part: PartState): string {
@@ -101,7 +104,7 @@ function ToneSaveDialog({
   );
 }
 
-export function TopBar({ mixer, service }: Props) {
+export function TopBar({ mixer, service, expansions }: Props) {
   const { state } = mixer;
   const selectedPart = state.parts[state.selectedPart]!;
   const [toneSelectorOpen, setToneSelectorOpen] = useState(false);
@@ -116,6 +119,10 @@ export function TopBar({ mixer, service }: Props) {
     null,
   );
   const [studioSetLoading, setStudioSetLoading] = useState(false);
+  const unloadedExpansion = expansions.unloadedExpansionOf(
+    selectedPart.toneBankMsb,
+    selectedPart.toneBankLsb,
+  );
   const catalog = useMemo(() => new ToneCatalog(service), [service]);
   const userBank = useMemo(
     () => userToneBank(selectedPart.toneBankMsb),
@@ -164,6 +171,9 @@ export function TopBar({ mixer, service }: Props) {
           title="Choose tone"
         >
           <span className={css.toneName}>{toneDisplay(selectedPart)}</span>
+          {unloadedExpansion && (
+            <NotLoadedMarker expansion={unloadedExpansion} named />
+          )}
           <span className={css.toneArrow}>&#x25BC;</span>
         </button>
         <button
@@ -214,6 +224,7 @@ export function TopBar({ mixer, service }: Props) {
           currentLsb={selectedPart.toneBankLsb}
           currentPC={selectedPart.tonePC}
           catalog={catalog}
+          expansions={expansions}
           onSelect={handleToneSelect}
           onClose={() => setToneSelectorOpen(false)}
         />

@@ -1,0 +1,11 @@
+.marker {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fa4;
+  background: #3a2a14;
+  border: 1px solid #6a4a1a;
+  border-radius: 3px;
+  white-space: nowrap;
+}

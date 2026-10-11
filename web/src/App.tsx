@@ -10,6 +10,7 @@ import {
 } from "./midi";
 import { IntegraService } from "./integra";
 import { useMixer } from "./useMixer";
+import { useExpansions } from "./useExpansions";
 import { DeviceSelector } from "./DeviceSelector";
 import {
   Identifying,
@@ -175,6 +176,7 @@ export function App() {
   }, [sequencer, service]);
 
   const mixer = useMixer(service);
+  const expansions = useExpansions(service);
   const selectedChannel = mixer.state.parts[mixer.state.selectedPart]?.receiveChannel ?? 0;
   const keyboard = useKeyboard(service, selectedChannel, sequencer);
   useEffect(() => {
@@ -216,11 +218,11 @@ export function App() {
             )}
             {sequencer && <Transport engine={sequencer} />}
           </div>
-          <TopBar mixer={mixer} service={service} />
+          <TopBar mixer={mixer} service={service} expansions={expansions} />
         </nav>
         {activeTab === "mixer" && (
           <ErrorBoundary section="Mixer">
-            <MixerPage mixer={mixer} />
+            <MixerPage mixer={mixer} expansions={expansions} />
           </ErrorBoundary>
         )}
         {activeTab === "surround" && (

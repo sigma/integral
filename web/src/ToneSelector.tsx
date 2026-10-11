@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   findToneBank,
   toneBankGroups,
+  type BankExpansion,
   type ToneBank,
   type ToneBankGroup,
 } from "./toneBanks";
@@ -9,6 +10,8 @@ import { is_drum_kit_bank } from "../pkg/integral_wasm.js";
 import type { ToneCatalog, ToneEntry } from "./toneCatalog";
 import { CATEGORIES, CATEGORY_IDS, categoryAbbrev } from "./categories";
 import { useBankEntries } from "./useBankEntries";
+import type { UseExpansionsResult } from "./useExpansions";
+import { NotLoadedMarker } from "./NotLoadedMarker";
 import css from "./ToneSelector.module.css";
 
 type BrowseMode = "bank" | "category";
@@ -23,6 +26,7 @@ interface Props {
   currentLsb: number;
   currentPC: number;
   catalog: ToneCatalog;
+  expansions: UseExpansionsResult;
   onSelect: (msb: number, lsb: number, pc: number) => void;
   onClose: () => void;
 }
@@ -35,22 +39,22 @@ function bankBadge(msb: number, lsb: number): string {
 /** One entry of the bank list: a bank, or an Expansion with its banks. */
 type BankListEntry =
   | { kind: "bank"; bank: ToneBank }
-  | { kind: "expansion"; name: string; banks: ToneBank[] };
+  | { kind: "expansion"; expansion: BankExpansion; banks: ToneBank[] };
 
 /** Bank list entries of a group, one per Expansion for Expansion banks. */
 function bankListEntries(group: ToneBankGroup): BankListEntry[] {
   const entries: BankListEntry[] = [];
   for (const bank of group.banks) {
-    const name = bank.expansion?.name;
-    if (name === undefined) {
+    const expansion = bank.expansion;
+    if (expansion === null) {
       entries.push({ kind: "bank", bank });
       continue;
     }
     const last = entries[entries.length - 1];
-    if (last?.kind === "expansion" && last.name === name) {
+    if (last?.kind === "expansion" && last.expansion.name === expansion.name) {
       last.banks.push(bank);
     } else {
-      entries.push({ kind: "expansion", name, banks: [bank] });
+      entries.push({ kind: "expansion", expansion, banks: [bank] });
     }
   }
   return entries;
@@ -62,6 +66,7 @@ export function ToneSelector({
   currentLsb,
   currentPC,
   catalog,
+  expansions,
   onSelect,
   onClose,
 }: Props) {
@@ -116,6 +121,12 @@ export function ToneSelector({
     [onSelect],
   );
 
+  // Opening the picker re-reads which Expansions are loaded.
+  const { refresh: refreshExpansions } = expansions;
+  useEffect(() => {
+    refreshExpansions();
+  }, [refreshExpansions]);
+
   // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -160,8 +171,13 @@ export function ToneSelector({
                         onSelect={setSelectedBank}
                       />
                     ) : (
-                      <div key={entry.name} className={css.expansionRow}>
-                        <span className={css.expansionName}>{entry.name}</span>
+                      <div key={entry.expansion.name} className={css.expansionRow}>
+                        <span className={css.expansionName}>
+                          {entry.expansion.name}
+                          {expansions.isUnloaded(entry.expansion) && (
+                            <NotLoadedMarker expansion={entry.expansion.name} />
+                          )}
+                        </span>
                         {entry.banks.map((bank) => (
                           <BankButton
                             key={bankId(bank)}
@@ -210,6 +226,10 @@ export function ToneSelector({
                     entry.msb === currentMsb &&
                     entry.lsb === currentLsb &&
                     entry.pc === currentPC;
+                  const unloaded = expansions.unloadedExpansionOf(
+                    entry.msb,
+                    entry.lsb,
+                  );
                   return (
                     <button
                       key={`${entry.msb}:${entry.lsb}:${entry.pc}`}
@@ -230,6 +250,9 @@ export function ToneSelector({
                         </span>
                       )}
                       <span className={css.toneName}>{entry.name}</span>
+                      {mode === "category" && unloaded !== null && (
+                        <NotLoadedMarker expansion={unloaded} />
+                      )}
                     </button>
                   );
                 })}

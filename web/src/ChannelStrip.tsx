@@ -14,6 +14,7 @@ import { is_drum_kit_bank } from "../pkg/integral_wasm.js";
 import css from "./ChannelStrip.module.css";
 import { deviceSpec } from "./deviceSpec";
 import { RouteChip } from "./RouteChip";
+import { NotLoadedMarker } from "./NotLoadedMarker";
 
 const noop = () => {};
 const hide: React.CSSProperties = { visibility: "hidden", pointerEvents: "none" };
@@ -46,6 +47,8 @@ interface Props {
   variant?: Variant;
   label?: string;
   part?: PartState;
+  /** The Expansion of the part's tone, when known not to be loaded. */
+  unloadedExpansion?: string | null;
   partIndex?: number;
   eq?: EqState;
   level?: number;
@@ -105,6 +108,7 @@ function ChannelStripInner({
   variant = "part",
   label,
   part,
+  unloadedExpansion,
   partIndex = 0,
   eq,
   level,
@@ -321,7 +325,13 @@ function ChannelStripInner({
 
       {/* Fader area: level, or makeup gain for Comp+EQ */}
       <div className={`${css.faderArea} ${isCompEq && !compEqUnit?.compSwitch ? box.off : ""}`}>
-        <span className={css.faderLabel}>{faderLabel}</span>
+        <span className={css.faderLabel}>
+          {/* Ahead of the tone name, so a long name can't clip it. */}
+          {isPart && unloadedExpansion && (
+            <NotLoadedMarker expansion={unloadedExpansion} named />
+          )}
+          {faderLabel}
+        </span>
         {isCompEq ? (
           <VolumeFader value={compEqUnit?.compOutputGain ?? 0} onChange={(v) => onCompEqParam?.(0x05, v)}
             min={0} max={24} defaultValue={0} formatValue={(v) => `+${v}dB`} label="Gain" />

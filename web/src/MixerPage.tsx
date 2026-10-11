@@ -4,13 +4,15 @@ import { FxStrip } from "./FxStrip";
 import { chorus_params, reverb_params } from "../pkg/integral_wasm.js";
 import { deviceSpec } from "./deviceSpec";
 import type { UseMixerResult } from "./useMixer";
+import type { UseExpansionsResult } from "./useExpansions";
 import css from "./MixerPage.module.css";
 
 interface Props {
   mixer: UseMixerResult;
+  expansions: UseExpansionsResult;
 }
 
-export function MixerPage({ mixer }: Props) {
+export function MixerPage({ mixer, expansions }: Props) {
   const { state } = mixer;
   const spec = deviceSpec();
 
@@ -26,6 +28,10 @@ export function MixerPage({ mixer }: Props) {
                 key={i}
                 partIndex={i}
                 part={part}
+                unloadedExpansion={expansions.unloadedExpansionOf(
+                  part.toneBankMsb,
+                  part.toneBankLsb,
+                )}
                 compEqAssigned={state.drumCompEq.enabled && state.drumCompEq.part === i}
                 onCompEqToggle={() => {
                   if (state.drumCompEq.enabled && state.drumCompEq.part === i) {
