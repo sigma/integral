@@ -105,9 +105,6 @@ export function isBlackKey(key: number): boolean {
 // Display helpers
 // ---------------------------------------------------------------------------
 
-export const FIRST_KEY = 21;
-export const LAST_KEY = 108;
-
 export function panFmt(raw: number): string {
   if (raw === 64) return "C";
   if (raw < 64) return `L${64 - raw}`;

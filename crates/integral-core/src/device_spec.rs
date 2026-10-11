@@ -45,6 +45,18 @@ pub struct DeviceSpec {
     pub comp_release_times: &'static [&'static str],
     /// Drum Comp+EQ compressor ratio labels, one per value.
     pub comp_ratios: &'static [&'static str],
+    /// Number of Partials in an SN Synth Tone.
+    pub sn_synth_partial_count: u8,
+    /// Number of Partials in a PCM Synth Tone.
+    pub pcm_synth_partial_count: u8,
+    /// Number of MFX control slots in a tone's MFX block.
+    pub mfx_control_count: u8,
+    /// Number of WMT layers in a PCM Drum Kit partial.
+    pub pcm_drum_wmt_count: u8,
+    /// Keys an SN Drum Kit has a Note block for.
+    pub sn_drum_keys: KeyRange,
+    /// Keys a PCM Drum Kit has a Partial block for.
+    pub pcm_drum_keys: KeyRange,
     /// Maximum characters in a tone name.
     pub tone_name_length: u32,
     /// Maximum characters in a Studio Set name.
@@ -63,6 +75,16 @@ impl DeviceSpec {
             .find(|m| m.tone_type.is_none())
             .map_or(0, |m| m.slot_count)
     }
+}
+
+/// An inclusive range of MIDI key numbers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct KeyRange {
+    /// Lowest key.
+    pub first: u8,
+    /// Highest key.
+    pub last: u8,
 }
 
 /// A run of equally sized blocks in a Temporary layout.
@@ -202,7 +224,12 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         blocks: &[
             one([0x00, 0x00, 0x00], sn_synth::SNS_COMMON_BLOCK_SIZE),
             one(mfx::MFX_BLOCK_OFFSET, mfx::MFX_BLOCK_SIZE),
-            run([0x00, 0x20, 0x00], sn_synth::SNS_PARTIAL_BLOCK_SIZE, 3, 1),
+            run(
+                [0x00, 0x20, 0x00],
+                sn_synth::SNS_PARTIAL_BLOCK_SIZE,
+                sn_synth::SNS_PARTIAL_COUNT as u8,
+                1,
+            ),
         ],
         init_names: &["INIT TONE"],
     },
@@ -250,7 +277,12 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
             one([0x00, 0x00, 0x00], pcm_synth::PCMS_COMMON_BLOCK_SIZE),
             one(mfx::MFX_BLOCK_OFFSET, mfx::MFX_BLOCK_SIZE),
             one([0x00, 0x10, 0x00], pcm_synth::PCMS_PMT_BLOCK_SIZE),
-            run([0x00, 0x20, 0x00], pcm_synth::PCMS_PARTIAL_BLOCK_SIZE, 4, 2),
+            run(
+                [0x00, 0x20, 0x00],
+                pcm_synth::PCMS_PARTIAL_BLOCK_SIZE,
+                pcm_synth::PCMS_PARTIAL_COUNT as u8,
+                2,
+            ),
             one([0x00, 0x30, 0x00], pcm_synth::PCMS_COMMON2_BLOCK_SIZE),
         ],
         init_names: &["INIT TONE"],
@@ -308,6 +340,18 @@ pub const INTEGRA7: DeviceSpec = DeviceSpec {
         "1:1", "1.5:1", "2:1", "3:1", "4:1", "5:1", "6:1", "7:1", "8:1", "9:1", "10:1", "12:1",
         "14:1", "16:1", "20:1", "24:1", "30:1", "40:1", "100:1", "inf:1",
     ],
+    sn_synth_partial_count: sn_synth::SNS_PARTIAL_COUNT as u8,
+    pcm_synth_partial_count: pcm_synth::PCMS_PARTIAL_COUNT as u8,
+    mfx_control_count: mfx::MFX_CONTROL_COUNT as u8,
+    pcm_drum_wmt_count: pcm_drum::PCMD_WMT_COUNT as u8,
+    sn_drum_keys: KeyRange {
+        first: sn_drum::SND_FIRST_KEY,
+        last: sn_drum::SND_LAST_KEY,
+    },
+    pcm_drum_keys: KeyRange {
+        first: pcm_drum::PCMD_FIRST_KEY,
+        last: pcm_drum::PCMD_LAST_KEY,
+    },
     tone_name_length: params::TONE_NAME_SIZE.value(),
     studio_set_name_length: params::STUDIO_SET_NAME_SIZE.value(),
     user_memory: USER_MEMORY,
@@ -320,6 +364,35 @@ mod tests {
     #[test]
     fn integra7_name() {
         assert_eq!(INTEGRA7.name, "INTEGRA-7");
+    }
+
+    #[test]
+    fn integra7_tone_counts_follow_the_midi_implementation() {
+        // SN-S Partials 1-3, PCM Synth Partials 1-4, MFX Control 1-4,
+        // PCM Drum Kit WMT1-4.
+        assert_eq!(INTEGRA7.sn_synth_partial_count, 3);
+        assert_eq!(INTEGRA7.pcm_synth_partial_count, 4);
+        assert_eq!(INTEGRA7.mfx_control_count, 4);
+        assert_eq!(INTEGRA7.pcm_drum_wmt_count, 4);
+    }
+
+    #[test]
+    fn integra7_drum_key_ranges_follow_the_midi_implementation() {
+        // SN Drum Kit Note: key 27-88; PCM Drum Kit Partial: key 21-108.
+        assert_eq!(
+            INTEGRA7.sn_drum_keys,
+            KeyRange {
+                first: 27,
+                last: 88
+            }
+        );
+        assert_eq!(
+            INTEGRA7.pcm_drum_keys,
+            KeyRange {
+                first: 21,
+                last: 108
+            }
+        );
     }
 
     #[test]

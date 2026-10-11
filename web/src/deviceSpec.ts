@@ -1,5 +1,11 @@
 import { deviceSpecJson } from "../pkg/integral_wasm.js";
 
+/** An inclusive range of MIDI key numbers. */
+interface KeyRange {
+  first: number;
+  last: number;
+}
+
 interface DeviceSpec {
   name: string;
   part_count: number;
@@ -15,6 +21,12 @@ interface DeviceSpec {
   comp_attack_times: string[];
   comp_release_times: string[];
   comp_ratios: string[];
+  sn_synth_partial_count: number;
+  pcm_synth_partial_count: number;
+  mfx_control_count: number;
+  pcm_drum_wmt_count: number;
+  sn_drum_keys: KeyRange;
+  pcm_drum_keys: KeyRange;
   tone_name_length: number;
   studio_set_name_length: number;
 }

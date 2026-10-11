@@ -1,6 +1,17 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { ToneType } from "../pkg/integral_wasm.js";
+import {
+  pcmd_common_address,
+  pcmd_common_size,
+  pcmd_common2_address,
+  pcmd_common2_size,
+  pcmd_mfx_address,
+  pcmd_partial_address,
+  pcmd_partial_size,
+  mfx_block_size,
+  ToneType,
+} from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
+import { deviceSpec } from "./deviceSpec";
 import {
   SectionPanel,
 } from "./synth-ui";
@@ -14,55 +25,11 @@ import type {
   PcmDrumPartial,
   PcmDrumWmt,
 } from "./pcm-drum/types";
-import { FIRST_KEY, LAST_KEY, linearToSysex, WMT_STARTS } from "./pcm-drum/types";
+import { linearToSysex, WMT_STARTS } from "./pcm-drum/types";
 import { CommonPanel } from "./pcm-drum/CommonPanel";
 import { DrumKeyGrid } from "./DrumKeyGrid";
 import { useKeyPrefetch } from "./useKeyPrefetch";
 import { NoteControls } from "./pcm-drum/NoteControls";
-
-// ---------------------------------------------------------------------------
-// Address helpers
-// ---------------------------------------------------------------------------
-
-function pcmdBaseAddress(part: number): [number, number] {
-  const partTotal = part * 0x20;
-  const toneBase0 = 0x19 + Math.floor(partTotal / 128);
-  const toneBase1 = partTotal % 128;
-  // PCM-D type offset = 10 00 00
-  const b1 = toneBase1 + 0x10;
-  const carry = Math.floor(b1 / 128);
-  return [toneBase0 + carry, b1 % 128];
-}
-
-function pcmdCommonAddress(part: number): number[] {
-  const [b0, b1] = pcmdBaseAddress(part);
-  return [b0, b1, 0x00, 0x00];
-}
-
-function pcmdMfxAddress(part: number): number[] {
-  const [b0, b1] = pcmdBaseAddress(part);
-  return [b0, b1, 0x02, 0x00];
-}
-
-function pcmdCommon2Address(part: number): number[] {
-  const [b0, b1] = pcmdBaseAddress(part);
-  // Common2 is at offset 02 00 00 from PCM-D base
-  const b1plus2 = b1 + 0x02;
-  const carry = Math.floor(b1plus2 / 128);
-  return [b0 + carry, b1plus2 % 128, 0x00, 0x00];
-}
-
-function pcmdPartialAddress(part: number, key: number): number[] {
-  const [b0, b1] = pcmdBaseAddress(part);
-  const keyOffset = key - 21;
-  // Each key is spaced 00 02 00 apart, starting at byte2=0x10
-  const byte2Total = 0x10 + keyOffset * 2;
-  const byte1Add = Math.floor(byte2Total / 128);
-  const byte2 = byte2Total % 128;
-  const newB1 = b1 + byte1Add;
-  const carry = Math.floor(newB1 / 128);
-  return [b0 + carry, newB1 % 128, byte2, 0x00];
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -74,6 +41,7 @@ interface Props {
 }
 
 export function PcmDrumEditor({ partIndex, service }: Props) {
+  const keys = deviceSpec().pcm_drum_keys;
   const [common, setCommon] = useState<PcmDrumCommon | null>(null);
   const [common2, setCommon2] = useState<PcmDrumCommon2 | null>(null);
   const [mfx, setMfx] = useState<MfxState | null>(null);
@@ -91,28 +59,28 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
 
     async function load() {
       try {
-        // Common (0x12 = 18 bytes)
+        // Common
         const commonData = await service.requestData(
-          pcmdCommonAddress(partIndex),
-          [0x00, 0x00, 0x00, 0x12],
+          Array.from(pcmd_common_address(partIndex)),
+          Array.from(pcmd_common_size()),
         );
         if (cancelled) return;
         const c = service.device.applyPcmdCommon(commonData) as PcmDrumCommon | null;
         if (c) setCommon(c);
 
-        // Common2 (0x32 = 50 bytes)
+        // Common2
         const c2Data = await service.requestData(
-          pcmdCommon2Address(partIndex),
-          [0x00, 0x00, 0x00, 0x32],
+          Array.from(pcmd_common2_address(partIndex)),
+          Array.from(pcmd_common2_size()),
         );
         if (cancelled) return;
         const c2 = service.device.applyPcmdCommon2(c2Data) as PcmDrumCommon2 | null;
         if (c2) setCommon2(c2);
 
-        // MFX (0x01 0x11 = 273 bytes)
+        // MFX
         const mfxData = await service.requestData(
-          pcmdMfxAddress(partIndex),
-          [0x00, 0x00, 0x01, 0x11],
+          Array.from(pcmd_mfx_address(partIndex)),
+          Array.from(mfx_block_size()),
         );
         if (cancelled) return;
         const m = service.device.applyMfxBlock(partIndex, mfxData) as MfxState | null;
@@ -129,7 +97,8 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
 
   // Load note data on key selection change
   useEffect(() => {
-    if (selectedKey < FIRST_KEY || selectedKey > LAST_KEY) return;
+    const { first, last } = deviceSpec().pcm_drum_keys;
+    if (selectedKey < first || selectedKey > last) return;
 
     const cached = noteCache.current.get(selectedKey);
     if (cached) {
@@ -142,10 +111,9 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
 
     async function loadNote() {
       try {
-        // Partial block size: 01 43 = 195 bytes
         const data = await service.requestData(
-          pcmdPartialAddress(partIndex, selectedKey),
-          [0x00, 0x00, 0x01, 0x43],
+          Array.from(pcmd_partial_address(partIndex, selectedKey)),
+          Array.from(pcmd_partial_size()),
         );
         if (cancelled) return;
         const n = service.device.applyPcmdPartial(data) as PcmDrumPartial | null;
@@ -167,11 +135,14 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
   const fetchPartial = useCallback(
     async (k: number) =>
       service.device.applyPcmdPartial(
-        await service.requestData(pcmdPartialAddress(partIndex, k), [0x00, 0x00, 0x01, 0x43]),
+        await service.requestData(
+          Array.from(pcmd_partial_address(partIndex, k)),
+          Array.from(pcmd_partial_size()),
+        ),
       ) as PcmDrumPartial | null,
     [partIndex, service],
   );
-  const cacheVersion = useKeyPrefetch(!loading, FIRST_KEY, LAST_KEY, noteCache, fetchPartial);
+  const cacheVersion = useKeyPrefetch(!loading, keys.first, keys.last, noteCache, fetchPartial);
 
   // ---------------------------------------------------------------------------
   // Key selection with note preview
@@ -258,7 +229,7 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
         const next = { ...prev, controls: [...prev.controls] };
         if (offset === 0x02) next.chorusSend = value;
         else if (offset === 0x03) next.reverbSend = value;
-        for (let s = 0; s < 4; s++) {
+        for (let s = 0; s < deviceSpec().mfx_control_count; s++) {
           if (offset === 0x05 + s * 2) {
             next.controls[s] = { ...next.controls[s]!, source: value };
           } else if (offset === 0x06 + s * 2) {
@@ -321,8 +292,8 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
         <div className={css.keyEditorArea}>
           <SectionPanel label="DRUM KEY" accentColor="#f93">
             <DrumKeyGrid
-              firstKey={FIRST_KEY}
-              lastKey={LAST_KEY}
+              firstKey={keys.first}
+              lastKey={keys.last}
               selectedKey={selectedKey}
               onSelect={handleKeySelect}
               keyOutputAssigns={keyOutputAssigns}
@@ -382,7 +353,7 @@ function applyPartialField(p: PcmDrumPartial, offset: number, value: number): vo
     case 0x20: p.wmtVelocityControl = value; break;
     default:
       // WMT layer single-byte fields
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < deviceSpec().pcm_drum_wmt_count; i++) {
         const base = WMT_STARTS[i]!;
         applyWmtField(p.wmt[i]!, offset, base, value);
       }
@@ -441,7 +412,7 @@ function fieldForSysex(sysexBase: number, sysexOffset: number): number {
 
 function applyPartialNibField(p: PcmDrumPartial, offset: number, value: number): void {
   // Nibblized fields in WMT layers
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < deviceSpec().pcm_drum_wmt_count; i++) {
     const base = WMT_STARTS[i]!;
     const sBase = linearToSysex(base);
     const lin = fieldForSysex(sBase, offset);

@@ -8,6 +8,7 @@ import {
   ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
+import { deviceSpec } from "./deviceSpec";
 import {
   SynthKnob,
   SynthFader,
@@ -226,7 +227,7 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
         const next = { ...prev, controls: [...prev.controls] };
         if (offset === 0x02) next.chorusSend = value;
         else if (offset === 0x03) next.reverbSend = value;
-        for (let s = 0; s < 4; s++) {
+        for (let s = 0; s < deviceSpec().mfx_control_count; s++) {
           if (offset === 0x05 + s * 2) {
             next.controls[s] = { ...next.controls[s]!, source: value };
           } else if (offset === 0x06 + s * 2) {

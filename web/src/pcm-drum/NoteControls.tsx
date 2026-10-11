@@ -24,6 +24,7 @@ import {
   WMT_VELOCITY_CTRL_OPTIONS,
   ALT_PAN_OPTIONS,
 } from "./types";
+import { deviceSpec } from "../deviceSpec";
 import css from "../PcmDrumEditor.module.css";
 
 // ---------------------------------------------------------------------------
@@ -127,7 +128,7 @@ function WmtSection({
 
       {/* Layer tabs */}
       <div className={css.wmtTabs}>
-        {[0, 1, 2, 3].map((i) => {
+        {Array.from({ length: deviceSpec().pcm_drum_wmt_count }, (_, i) => {
           const w = note.wmt[i]!;
           const isActive = i === wmtTab;
           const isOn = w.wmtSwitch === 1;

@@ -21,6 +21,9 @@ pub const MFX_BLOCK_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x01, 0x11);
 /// MFX header size (type + sends + controls, before nibblized params).
 pub const MFX_HEADER_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x11);
 
+/// Number of MFX control slots (source, sens, assign).
+pub const MFX_CONTROL_COUNT: usize = 4;
+
 /// Number of nibblized MFX parameters.
 pub const MFX_PARAM_COUNT: usize = 32;
 
@@ -126,8 +129,8 @@ pub struct MfxState {
     pub chorus_send: u8,
     /// Reverb send level (0–127).
     pub reverb_send: u8,
-    /// 4 control source slots.
-    pub controls: [MfxCtrlSlot; 4],
+    /// Control source slots.
+    pub controls: [MfxCtrlSlot; MFX_CONTROL_COUNT],
     /// Nibblized parameters (up to 32, decoded to signed i32).
     pub params: Vec<i32>,
 }
@@ -145,7 +148,7 @@ pub fn parse_mfx_header(data: &[u8]) -> MfxState {
     state.mfx_type = data[0x00];
     state.chorus_send = data[0x02];
     state.reverb_send = data[0x03];
-    for i in 0..4u8 {
+    for i in 0..MFX_CONTROL_COUNT as u8 {
         let src_off = (0x05 + i * 2) as usize;
         let sens_off = (0x06 + i * 2) as usize;
         let assign_off = (0x0D + i) as usize;

@@ -13,6 +13,7 @@ import {
   ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
+import { deviceSpec } from "./deviceSpec";
 import { MfxPanel } from "./MfxPanel";
 import type { MfxState } from "./MfxPanel";
 import css from "./PcmSynthEditor.module.css";
@@ -40,7 +41,9 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
   const [common, setCommon] = useState<PcmSynthCommon | null>(null);
   const [pmt, setPmt] = useState<PcmSynthPmt | null>(null);
   const [_common2, setCommon2] = useState<PcmSynthCommon2 | null>(null);
-  const [partials, setPartials] = useState<(PcmSynthPartial | null)[]>([null, null, null, null]);
+  const [partials, setPartials] = useState<(PcmSynthPartial | null)[]>(() =>
+    Array.from({ length: deviceSpec().pcm_synth_partial_count }, () => null),
+  );
   const [mfx, setMfx] = useState<MfxState | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -87,8 +90,8 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
         const m = service.device.applyMfxBlock(partIndex, mfxData) as MfxState | null;
         if (m) setMfx(m);
 
-        // Load all 4 partials
-        for (let idx = 0; idx < 4; idx++) {
+        // Load all partials
+        for (let idx = 0; idx < deviceSpec().pcm_synth_partial_count; idx++) {
           if (cancelled) return;
           const pData = await service.requestData(
             Array.from(pcms_partial_address(partIndex, idx)),
@@ -375,7 +378,7 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
         const next = { ...prev, controls: [...prev.controls] };
         if (offset === 0x02) next.chorusSend = value;
         else if (offset === 0x03) next.reverbSend = value;
-        for (let s = 0; s < 4; s++) {
+        for (let s = 0; s < deviceSpec().mfx_control_count; s++) {
           if (offset === 0x05 + s * 2) {
             next.controls[s] = { ...next.controls[s]!, source: value };
           } else if (offset === 0x06 + s * 2) {
@@ -413,7 +416,7 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
 
   const partialSwitches = pmt
     ? pmt.partialEntries.map((p) => p.partialSwitch)
-    : [0, 0, 0, 0];
+    : [];
 
   return (
     <div className={css.editor}>
@@ -426,11 +429,10 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
       {common && <CommonStrip common={common} onChange={setCommonParam} />}
       {pmt && <PmtStrip pmt={pmt} onChange={setPmtParam} />}
 
-      {/* 4 partial rows + MFX sidebar */}
+      {/* Partial rows + MFX sidebar */}
       <div className={css.mainArea}>
         <div className={css.partialRows}>
-          {[0, 1, 2, 3].map((idx) => {
-            const p = partials[idx] ?? null;
+          {partials.map((p, idx) => {
             const isOn = (partialSwitches[idx] ?? 0) !== 0;
             return (
               <PartialRow

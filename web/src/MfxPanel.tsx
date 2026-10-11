@@ -13,6 +13,7 @@ import {
 } from "./synth-ui";
 import type { EqControl } from "./synth-ui";
 import css from "./MfxPanel.module.css";
+import { deviceSpec } from "./deviceSpec";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -491,7 +492,7 @@ export function MfxPanel({
             <span className={css.macroColLabel}>SRC / DST</span>
             <span className={css.macroColLabel}>DEPTH</span>
           </div>
-          {[0, 1, 2, 3].map((slot) => {
+          {Array.from({ length: deviceSpec().mfx_control_count }, (_, slot) => {
             const ctrl = mfx.controls[slot] ?? { source: 0, sens: 64, assign: 0 };
             return (
               <div key={slot} className={css.macroSlot}>

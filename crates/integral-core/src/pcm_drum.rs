@@ -46,6 +46,13 @@ pub const PCMD_KEY_COUNT: usize = (PCMD_LAST_KEY - PCMD_FIRST_KEY + 1) as usize;
 /// Number of bytes per WMT layer in a PCM Drum Kit partial.
 const WMT_LAYER_SIZE: usize = 29;
 
+/// Byte index of each WMT layer within a PCM Drum Kit partial
+/// (WMT1 `00 21`, WMT2 `00 3E`, WMT3 `00 5B`, WMT4 `00 78`).
+const WMT_STARTS: [usize; 4] = [0x21, 0x3E, 0x5B, 0x78];
+
+/// Number of WMT (Wave Mix Table) layers in a PCM Drum Kit partial.
+pub const PCMD_WMT_COUNT: usize = WMT_STARTS.len();
+
 // ---------------------------------------------------------------------------
 // Address functions
 // ---------------------------------------------------------------------------
@@ -359,12 +366,7 @@ impl Default for PcmDrumPartial {
             receive_hold1: 1,
 
             wmt_velocity_control: 0,
-            wmt: vec![
-                PcmDrumWmt::default(),
-                PcmDrumWmt::default(),
-                PcmDrumWmt::default(),
-                PcmDrumWmt::default(),
-            ],
+            wmt: vec![PcmDrumWmt::default(); PCMD_WMT_COUNT],
 
             pitch_env_depth: 64,
             pitch_env_velocity_sens: 64,
@@ -532,9 +534,7 @@ pub fn parse_pcmd_partial(data: &[u8]) -> Result<PcmDrumPartial, crate::TonePars
     // -- WMT --
     p.wmt_velocity_control = data[0x20];
 
-    // WMT1 at index 0x21, WMT2 at 0x3E, WMT3 at 0x5B, WMT4 at 0x78
-    let wmt_starts: [usize; 4] = [0x21, 0x3E, 0x5B, 0x78];
-    for (i, &start) in wmt_starts.iter().enumerate() {
+    for (i, &start) in WMT_STARTS.iter().enumerate() {
         p.wmt[i] = parse_pcmd_wmt(&data[start..start + WMT_LAYER_SIZE]);
     }
 

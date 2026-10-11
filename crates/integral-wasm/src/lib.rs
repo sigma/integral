@@ -7,7 +7,7 @@ use integral_core::state::parse as state_parse;
 use integral_core::sysex;
 use integral_core::{
     fx_params, mfx, mfx_params, param_registry, params, params::part, params::part_eq,
-    params::tone_type, pcm_synth, sn_acoustic, sn_synth, tone_banks, user_write,
+    params::tone_type, pcm_drum, pcm_synth, sn_acoustic, sn_drum, sn_synth, tone_banks, user_write,
 };
 use wasm_bindgen::prelude::*;
 
@@ -48,6 +48,17 @@ fn check_key(key: u8) -> Result<(), JsError> {
         Err(JsError::new(&format!("key {key} out of range (0–127)")))
     } else {
         Ok(())
+    }
+}
+
+/// Validate a drum kit key against the kit's key range (`first`–`last`).
+fn check_drum_key(key: u8, first: u8, last: u8) -> Result<(), JsError> {
+    if (first..=last).contains(&key) {
+        Ok(())
+    } else {
+        Err(JsError::new(&format!(
+            "key {key} out of range ({first}–{last})"
+        )))
     }
 }
 
@@ -540,6 +551,80 @@ pub fn sna_mfx_address(part_index: u8) -> Vec<u8> {
         part_index,
         tone_type::SN_ACOUSTIC,
     ))
+}
+
+/// Returns the address of part `part_index`'s SN Drum Kit Common block.
+#[wasm_bindgen]
+pub fn snd_common_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(sn_drum::snd_common_address(part_index))
+}
+
+/// Returns the RQ1 size for reading an SN Drum Kit Common block.
+#[wasm_bindgen]
+pub fn snd_common_size() -> Vec<u8> {
+    sn_drum::SND_COMMON_BLOCK_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of part `part_index`'s SN Drum Kit MFX block.
+#[wasm_bindgen]
+pub fn snd_mfx_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(mfx::tone_mfx_block_address(part_index, tone_type::SN_DRUM))
+}
+
+/// Returns the address of part `part_index`'s SN Drum Kit Note block for `key`.
+#[wasm_bindgen]
+pub fn snd_note_address(part_index: u8, key: u8) -> Result<Vec<u8>, JsError> {
+    check_drum_key(key, sn_drum::SND_FIRST_KEY, sn_drum::SND_LAST_KEY)?;
+    Ok(addr_to_vec(sn_drum::snd_note_address(part_index, key)))
+}
+
+/// Returns the RQ1 size for reading an SN Drum Kit Note block.
+#[wasm_bindgen]
+pub fn snd_note_size() -> Vec<u8> {
+    sn_drum::SND_NOTE_BLOCK_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of part `part_index`'s PCM Drum Kit Common block.
+#[wasm_bindgen]
+pub fn pcmd_common_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(pcm_drum::pcmd_common_address(part_index))
+}
+
+/// Returns the RQ1 size for reading a PCM Drum Kit Common block.
+#[wasm_bindgen]
+pub fn pcmd_common_size() -> Vec<u8> {
+    pcm_drum::PCMD_COMMON_BLOCK_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of part `part_index`'s PCM Drum Kit Common2 block.
+#[wasm_bindgen]
+pub fn pcmd_common2_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(pcm_drum::pcmd_common2_address(part_index))
+}
+
+/// Returns the RQ1 size for reading a PCM Drum Kit Common2 block.
+#[wasm_bindgen]
+pub fn pcmd_common2_size() -> Vec<u8> {
+    pcm_drum::PCMD_COMMON2_BLOCK_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of part `part_index`'s PCM Drum Kit MFX block.
+#[wasm_bindgen]
+pub fn pcmd_mfx_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(mfx::tone_mfx_block_address(part_index, tone_type::PCM_DRUM))
+}
+
+/// Returns the address of part `part_index`'s PCM Drum Kit Partial block for `key`.
+#[wasm_bindgen]
+pub fn pcmd_partial_address(part_index: u8, key: u8) -> Result<Vec<u8>, JsError> {
+    check_drum_key(key, pcm_drum::PCMD_FIRST_KEY, pcm_drum::PCMD_LAST_KEY)?;
+    Ok(addr_to_vec(pcm_drum::pcmd_partial_address(part_index, key)))
+}
+
+/// Returns the RQ1 size for reading a PCM Drum Kit Partial block.
+#[wasm_bindgen]
+pub fn pcmd_partial_size() -> Vec<u8> {
+    pcm_drum::PCMD_PARTIAL_BLOCK_SIZE.as_bytes().to_vec()
 }
 
 // ---------------------------------------------------------------------------
@@ -1864,7 +1949,7 @@ impl WasmDeviceState {
         value: u8,
     ) -> Result<(), JsError> {
         check_part(part)?;
-        check_partial(partial, 2)?;
+        check_partial(partial, sn_synth::SNS_PARTIAL_COUNT as u8 - 1)?;
         self.inner
             .set_sns_partial_param(part, partial, offset, value);
         Ok(())
@@ -1880,7 +1965,7 @@ impl WasmDeviceState {
         value: u16,
     ) -> Result<(), JsError> {
         check_part(part)?;
-        check_partial(partial, 2)?;
+        check_partial(partial, sn_synth::SNS_PARTIAL_COUNT as u8 - 1)?;
         self.inner
             .set_sns_partial_nib_param(part, partial, offset, value);
         Ok(())
@@ -1986,8 +2071,7 @@ impl WasmDeviceState {
     /// Parse an SN-D Common dump and return as a JS object.
     #[wasm_bindgen(js_name = applySndCommon)]
     pub fn apply_snd_common(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
-        let parsed = integral_core::sn_drum::parse_snd_common(data)
-            .map_err(|e| JsError::new(&e.to_string()))?;
+        let parsed = sn_drum::parse_snd_common(data).map_err(|e| JsError::new(&e.to_string()))?;
         serde_wasm_bindgen::to_value(&parsed)
             .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
@@ -1995,8 +2079,7 @@ impl WasmDeviceState {
     /// Parse an SN-D Note dump and return as a JS object.
     #[wasm_bindgen(js_name = applySndNote)]
     pub fn apply_snd_note(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
-        let parsed = integral_core::sn_drum::parse_snd_note(data)
-            .map_err(|e| JsError::new(&e.to_string()))?;
+        let parsed = sn_drum::parse_snd_note(data).map_err(|e| JsError::new(&e.to_string()))?;
         serde_wasm_bindgen::to_value(&parsed)
             .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
@@ -2043,7 +2126,7 @@ impl WasmDeviceState {
         value: u8,
     ) -> Result<(), JsError> {
         check_part(part)?;
-        check_partial(partial, 3)?;
+        check_partial(partial, pcm_synth::PCMS_PARTIAL_COUNT as u8 - 1)?;
         self.inner
             .set_pcms_partial_param(part, partial, offset, value);
         Ok(())
@@ -2059,7 +2142,7 @@ impl WasmDeviceState {
         value: u16,
     ) -> Result<(), JsError> {
         check_part(part)?;
-        check_partial(partial, 3)?;
+        check_partial(partial, pcm_synth::PCMS_PARTIAL_COUNT as u8 - 1)?;
         self.inner
             .set_pcms_partial_nib_param(part, partial, offset, value);
         Ok(())
@@ -2075,7 +2158,7 @@ impl WasmDeviceState {
         value: u8,
     ) -> Result<(), JsError> {
         check_part(part)?;
-        check_partial(partial, 3)?;
+        check_partial(partial, pcm_synth::PCMS_PARTIAL_COUNT as u8 - 1)?;
         self.inner
             .set_pcms_partial_nib2_param(part, partial, offset, value);
         Ok(())
@@ -2201,8 +2284,7 @@ impl WasmDeviceState {
     /// Parse a PCM Drum Kit Common dump and return as a JS object.
     #[wasm_bindgen(js_name = applyPcmdCommon)]
     pub fn apply_pcmd_common(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
-        let parsed = integral_core::pcm_drum::parse_pcmd_common(data)
-            .map_err(|e| JsError::new(&e.to_string()))?;
+        let parsed = pcm_drum::parse_pcmd_common(data).map_err(|e| JsError::new(&e.to_string()))?;
         serde_wasm_bindgen::to_value(&parsed)
             .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
@@ -2210,8 +2292,8 @@ impl WasmDeviceState {
     /// Parse a PCM Drum Kit Partial dump and return as a JS object.
     #[wasm_bindgen(js_name = applyPcmdPartial)]
     pub fn apply_pcmd_partial(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
-        let parsed = integral_core::pcm_drum::parse_pcmd_partial(data)
-            .map_err(|e| JsError::new(&e.to_string()))?;
+        let parsed =
+            pcm_drum::parse_pcmd_partial(data).map_err(|e| JsError::new(&e.to_string()))?;
         serde_wasm_bindgen::to_value(&parsed)
             .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }
@@ -2219,8 +2301,8 @@ impl WasmDeviceState {
     /// Parse a PCM Drum Kit Common2 dump and return as a JS object.
     #[wasm_bindgen(js_name = applyPcmdCommon2)]
     pub fn apply_pcmd_common2(&mut self, data: &[u8]) -> Result<JsValue, JsError> {
-        let parsed = integral_core::pcm_drum::parse_pcmd_common2(data)
-            .map_err(|e| JsError::new(&e.to_string()))?;
+        let parsed =
+            pcm_drum::parse_pcmd_common2(data).map_err(|e| JsError::new(&e.to_string()))?;
         serde_wasm_bindgen::to_value(&parsed)
             .map_err(|e| JsError::new(&format!("serialization failed: {e}")))
     }

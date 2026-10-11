@@ -9,6 +9,7 @@ import {
   ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
+import { deviceSpec } from "./deviceSpec";
 import { MfxPanel } from "./MfxPanel";
 import type { MfxState } from "./MfxPanel";
 import css from "./SnSynthEditor.module.css";
@@ -27,7 +28,9 @@ interface Props {
 
 export function SnSynthEditor({ partIndex, service }: Props) {
   const [common, setCommon] = useState<SnSynthCommon | null>(null);
-  const [partials, setPartials] = useState<(SnSynthPartial | null)[]>([null, null, null]);
+  const [partials, setPartials] = useState<(SnSynthPartial | null)[]>(() =>
+    Array.from({ length: deviceSpec().sn_synth_partial_count }, () => null),
+  );
   const [mfx, setMfx] = useState<MfxState | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +51,7 @@ export function SnSynthEditor({ partIndex, service }: Props) {
         if (c) setCommon(c);
 
         // Partials
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < deviceSpec().sn_synth_partial_count; i++) {
           const pData = await service.requestData(
             Array.from(sns_partial_address(partIndex, i)),
             Array.from(sns_partial_size()),
@@ -213,7 +216,7 @@ export function SnSynthEditor({ partIndex, service }: Props) {
         if (offset === 0x02) next.chorusSend = value;
         else if (offset === 0x03) next.reverbSend = value;
         // Control source/sens/assign updates
-        for (let s = 0; s < 4; s++) {
+        for (let s = 0; s < deviceSpec().mfx_control_count; s++) {
           if (offset === 0x05 + s * 2) {
             next.controls[s] = { ...next.controls[s]!, source: value };
           } else if (offset === 0x06 + s * 2) {
@@ -246,7 +249,7 @@ export function SnSynthEditor({ partIndex, service }: Props) {
   // ---------------------------------------------------------------------------
   const partialSwitches = common
     ? [common.partial1Switch, common.partial2Switch, common.partial3Switch]
-    : [0, 0, 0];
+    : [];
 
   const togglePartialSwitch = (idx: number) => {
     const offsets: Record<number, number> = { 0: 0x19, 1: 0x1B, 2: 0x1D };
@@ -272,11 +275,10 @@ export function SnSynthEditor({ partIndex, service }: Props) {
       {/* Common Controls Strip */}
       {common && <CommonStrip common={common} onChange={setCommonParam} />}
 
-      {/* 3 partial rows + MFX sidebar */}
+      {/* Partial rows + MFX sidebar */}
       <div className={css.mainArea}>
         <div className={css.partialRows}>
-          {[0, 1, 2].map((idx) => {
-            const partial = partials[idx] ?? null;
+          {partials.map((partial, idx) => {
             const isOn = (partialSwitches[idx] ?? 0) !== 0;
             const setP = (offset: number, value: number) => setPartialParam(idx, offset, value);
             const setNibP = (offset: number, value: number) => {

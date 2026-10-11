@@ -1,6 +1,15 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { ToneType } from "../pkg/integral_wasm.js";
+import {
+  snd_common_address,
+  snd_common_size,
+  snd_mfx_address,
+  snd_note_address,
+  snd_note_size,
+  mfx_block_size,
+  ToneType,
+} from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
+import { deviceSpec } from "./deviceSpec";
 import {
   SynthKnob,
   SynthFader,
@@ -43,40 +52,6 @@ interface SnDrumNote {
   dynamicRange: number;
   stereoWidth: number;
   outputAssign: number;
-}
-
-// ---------------------------------------------------------------------------
-// Address helpers
-// ---------------------------------------------------------------------------
-
-function sndBaseAddress(part: number): [number, number] {
-  const partTotal = part * 0x20;
-  const toneBase0 = 0x19 + Math.floor(partTotal / 128);
-  const toneBase1 = partTotal % 128;
-  // SN-D type offset = 03 00 00
-  const sndBase1 = toneBase1 + 3;
-  const carry = Math.floor(sndBase1 / 128);
-  return [toneBase0 + carry, sndBase1 % 128];
-}
-
-function sndCommonAddress(part: number): number[] {
-  const [b0, b1] = sndBaseAddress(part);
-  return [b0, b1, 0x00, 0x00];
-}
-
-function sndMfxAddress(part: number): number[] {
-  const [b0, b1] = sndBaseAddress(part);
-  return [b0, b1, 0x02, 0x00];
-}
-
-/** SN-D kit key range (MIDI notes). */
-const FIRST_KEY = 27;
-const LAST_KEY = 88;
-
-function sndNoteAddress(part: number, key: number): number[] {
-  const [b0, b1] = sndBaseAddress(part);
-  const noteOffset = 0x10 + (key - FIRST_KEY);
-  return [b0, b1, noteOffset, 0x00];
 }
 
 // ---------------------------------------------------------------------------
@@ -131,6 +106,7 @@ interface Props {
 }
 
 export function SnDrumEditor({ partIndex, service }: Props) {
+  const keys = deviceSpec().sn_drum_keys;
   const [common, setCommon] = useState<SnDrumCommon | null>(null);
   const [mfx, setMfx] = useState<MfxState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -149,8 +125,8 @@ export function SnDrumEditor({ partIndex, service }: Props) {
       try {
         // Common
         const commonData = await service.requestData(
-          sndCommonAddress(partIndex),
-          [0x00, 0x00, 0x00, 0x14],
+          Array.from(snd_common_address(partIndex)),
+          Array.from(snd_common_size()),
         );
         if (cancelled) return;
         const c = service.device.applySndCommon(commonData) as SnDrumCommon | null;
@@ -158,8 +134,8 @@ export function SnDrumEditor({ partIndex, service }: Props) {
 
         // MFX
         const mfxData = await service.requestData(
-          sndMfxAddress(partIndex),
-          [0x00, 0x00, 0x01, 0x11],
+          Array.from(snd_mfx_address(partIndex)),
+          Array.from(mfx_block_size()),
         );
         if (cancelled) return;
         const m = service.device.applyMfxBlock(partIndex, mfxData) as MfxState | null;
@@ -178,15 +154,19 @@ export function SnDrumEditor({ partIndex, service }: Props) {
   const fetchNote = useCallback(
     async (k: number) =>
       service.device.applySndNote(
-        await service.requestData(sndNoteAddress(partIndex, k), [0x00, 0x00, 0x00, 0x13]),
+        await service.requestData(
+          Array.from(snd_note_address(partIndex, k)),
+          Array.from(snd_note_size()),
+        ),
       ) as SnDrumNote | null,
     [partIndex, service],
   );
-  const cacheVersion = useKeyPrefetch(!loading, FIRST_KEY, LAST_KEY, noteCache, fetchNote);
+  const cacheVersion = useKeyPrefetch(!loading, keys.first, keys.last, noteCache, fetchNote);
 
   // Load note data on key selection change
   useEffect(() => {
-    if (selectedKey < FIRST_KEY || selectedKey > LAST_KEY) return;
+    const { first, last } = deviceSpec().sn_drum_keys;
+    if (selectedKey < first || selectedKey > last) return;
 
     const cached = noteCache.current.get(selectedKey);
     if (cached) {
@@ -200,8 +180,8 @@ export function SnDrumEditor({ partIndex, service }: Props) {
     async function loadNote() {
       try {
         const data = await service.requestData(
-          sndNoteAddress(partIndex, selectedKey),
-          [0x00, 0x00, 0x00, 0x13],
+          Array.from(snd_note_address(partIndex, selectedKey)),
+          Array.from(snd_note_size()),
         );
         if (cancelled) return;
         const n = service.device.applySndNote(data) as SnDrumNote | null;
@@ -322,7 +302,7 @@ export function SnDrumEditor({ partIndex, service }: Props) {
         const next = { ...prev, controls: [...prev.controls] };
         if (offset === 0x02) next.chorusSend = value;
         else if (offset === 0x03) next.reverbSend = value;
-        for (let s = 0; s < 4; s++) {
+        for (let s = 0; s < deviceSpec().mfx_control_count; s++) {
           if (offset === 0x05 + s * 2) {
             next.controls[s] = { ...next.controls[s]!, source: value };
           } else if (offset === 0x06 + s * 2) {
@@ -381,8 +361,8 @@ export function SnDrumEditor({ partIndex, service }: Props) {
         <div className={css.keyEditorArea}>
           <SectionPanel label="DRUM INST" accentColor="#f93">
             <DrumKeyGrid
-              firstKey={FIRST_KEY}
-              lastKey={LAST_KEY}
+              firstKey={keys.first}
+              lastKey={keys.last}
               selectedKey={selectedKey}
               onSelect={handleKeySelect}
               keyOutputAssigns={keyOutputAssigns}

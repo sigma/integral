@@ -38,6 +38,9 @@ const SNS_PARTIAL_OFFSETS: [[u8; 4]; 3] = [
     [0x00, 0x00, 0x22, 0x00],
 ];
 
+/// Number of Partials in an SN-S Tone.
+pub const SNS_PARTIAL_COUNT: usize = SNS_PARTIAL_OFFSETS.len();
+
 /// Compute the absolute SN-S base address for a part.
 const fn sns_base(part_index: u8) -> Address {
     params::temporary_tone_base(part_index).offset(SNS_TONE_OFFSET)
@@ -340,7 +343,7 @@ pub struct SnSynthState {
     /// Common parameters.
     pub common: SnSynthCommon,
     /// Per-partial parameters (3 partials).
-    pub partials: [SnSynthPartial; 3],
+    pub partials: [SnSynthPartial; SNS_PARTIAL_COUNT],
     /// MFX parameters.
     pub mfx: MfxState,
 }

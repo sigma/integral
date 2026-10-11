@@ -45,6 +45,9 @@ const PCMS_PARTIAL_OFFSETS: [[u8; 4]; 4] = [
     [0x00, 0x00, 0x26, 0x00],
 ];
 
+/// Number of Partials in a PCM Synth Tone.
+pub const PCMS_PARTIAL_COUNT: usize = PCMS_PARTIAL_OFFSETS.len();
+
 /// PCM Synth Common2 block offset (relative to PCMS base).
 const PCMS_COMMON2_OFFSET: [u8; 4] = [0x00, 0x00, 0x30, 0x00];
 
