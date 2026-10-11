@@ -478,7 +478,9 @@ mod tests {
         let fx = 12768..=52768;
         // Common
         let mut r = rep(16, 32..=127);
-        r.extend(rep(41, any.clone()));
+        r.extend(rep(8, any.clone()));
+        r.extend(rep(16, 0..=64)); // Voice Reserve 1-16
+        r.extend(rep(17, any.clone()));
         r.extend(rep(4, 0..=97));
         r.extend([20..=250, 0..=16]);
         r.extend(rep(4, 0..=1));
@@ -540,7 +542,7 @@ mod tests {
         for (i, c) in "Integral Test 01".bytes().enumerate() {
             put(&mut entry, 7 * i, 7, c.into());
         }
-        put(&mut entry, 112, 32, 0xFE82_0878); // undocumented, always set
+        put(&mut entry, 112, 32, 0xFE82_0878); // reserves 0x10-0x17, always set
         for (bit, value) in [(369, 1), (376, 97), (383, 2), (390, 4)] {
             put(&mut entry, bit, 7, value); // Tone Control 1-4 Source
         }
@@ -577,6 +579,7 @@ mod tests {
 
         let sections = svd_to_sysex(&entry, &SS_TONE_SPEC).unwrap();
         assert_eq!(&sections[0][..16], b"Integral Test 01");
+        assert_eq!(&sections[0][0x10..0x18], [127, 16, 16, 16, 1, 1, 1, 1]);
         assert_eq!(sections[0][0x3F], 0, "Solo Part");
         assert_eq!(sections[1][0x00], 3, "Chorus Type");
         assert_eq!(sections[1][0x03], 2, "Chorus Output Select");

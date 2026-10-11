@@ -668,20 +668,22 @@ static SS_COMMON_PARAMS: &[ParamBits] = &[
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    // 0x10–0x38: reserves and Voice Reserve 1-16 (41 params). The SVD packs
-    // them into 257 bits, not 287; the split is unknown, so assume 36 × 7 +
-    // 5 × 1. Bits 112–143 are always `FE 82 08 78`, the rest always 0.
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
-    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    // 0x10–0x17: reserves at their MIDI Implementation widths (7, 6, 6, 6,
+    // 1, 1, 1, 1). Always `FE 82 08 78` (127, 16, 16, 16, 1, 1, 1, 1).
+    ParamBits::normal(7), ParamBits::normal(6), ParamBits::normal(6), ParamBits::normal(6),
     ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1), ParamBits::normal(1),
-    ParamBits::normal(1),
+    // 0x18–0x27: Voice Reserve 1-16 (16 × 7-bit)
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    // 0x28–0x37: reserves (16 × 7-bit)
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
+    // 0x38: reserve
+    ParamBits::normal(4),
     // 0x39–0x3C: Tone Control Sources (4 × 7-bit)
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
     // 0x3D–0x3E: Tempo (nibblized, 2 bytes)
@@ -701,7 +703,8 @@ static SS_COMMON_PARAMS: &[ParamBits] = &[
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7),
     // 0x4F: Ext Part Mute
     ParamBits::normal(1),
-    // 0x50–0x53: reserves, 23 bits in total (split assumed)
+    // 0x50–0x53: reserves. The MIDI Implementation gives 4 × 7 bits, but the
+    // section only has 23 bits left; the split is assumed.
     ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(7), ParamBits::normal(2),
 ];
 

@@ -37,11 +37,15 @@ Entry bit of Part n = `1504 + 408(n−1)`. Entry bit of Part EQ n =
 
 ### Where the SVD differs from SysEx order and widths
 
-- **Common `00 10`–`00 38`** (41 reserve and Voice Reserve parameters, 287 bits at
-  SysEx widths) take only **257 bits** (entry bits 112–368). Bits 112–143 are
-  always `FE 82 08 78`, and their meaning is unknown. Bits 144–368 are always 0.
-  As a result Tone Control 1 Source sits at bit 369, not 399.
-- **Common `00 4B`** (reserve) is 1 bit. `00 50`–`00 53` take 23 zero bits.
+- **Common `00 10`–`00 38`** (41 reserve and Voice Reserve parameters) take
+  **257 bits** (entry bits 112–368). That matches the bit masks in the MIDI
+  Implementation PDF: `00 10` 7 bits, `00 11`–`00 13` 6 each, `00 14`–`00 17`
+  1 each, Voice Reserve 1–16 and `00 28`–`00 37` 7 each, `00 38` 4 bits. Bits
+  112–143 are always `FE 82 08 78`, which decodes as `00 10`–`00 17` = 127, 16,
+  16, 16, 1, 1, 1, 1; their meaning is unknown. Bits 144–368 are always 0, so
+  Tone Control 1 Source sits at bit 369.
+- **Common `00 4B`** (reserve) is 1 bit. `00 50`–`00 53` take 23 zero bits,
+  although the MIDI Implementation gives them 7 bits each (28).
 - **Chorus header** is `[7 zero bits][Type 4][Level 7][Output 2][3 zero bits]`,
   then 20 × 16-bit parameters. The SysEx order is Type, Level, (reserve),
   Output.
@@ -58,7 +62,7 @@ Entry bit of Part n = `1504 + 408(n−1)`. Entry bit of Part EQ n =
 | SysEx | Parameter | Bits | Entry bit | Range | Status |
 |---|---|---|---|---|---|
 | `00 00`–`00 0F` | Studio Set Name 1–16 | 7 each | 0 (+7 per char) | 32–127 | verified (334/334 names match) |
-| `00 10`–`00 38` | (reserve) and Voice Reserve 1–16 | 257 total | 112 |  | bits 112–143 always `FE 82 08 78`; 144–368 always 0 |
+| `00 10`–`00 38` | (reserve) and Voice Reserve 1–16 | 7, 6 × 3, 1 × 4, 7 × 32, 4 (257 total) | 112 |  | bits 112–143 always `FE 82 08 78`; 144–368 always 0 |
 | `00 39` | Tone Control 1 Source | 7 | 369 | 0–97 | inferred (always 1) |
 | `00 3A` | Tone Control 2 Source | 7 | 376 | 0–97 | inferred (always 97) |
 | `00 3B` | Tone Control 3 Source | 7 | 383 | 0–97 | inferred (always 2) |
