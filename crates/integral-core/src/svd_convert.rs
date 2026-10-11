@@ -46,6 +46,29 @@ pub enum ConvertError {
 // SVD → SysEx
 // ---------------------------------------------------------------------------
 
+/// Check that `entry` holds at least the spec's entry size.
+fn check_entry(entry: &[u8], spec: &SvdToneSpec) -> Result<(), ConvertError> {
+    if entry.len() < spec.entry_size() {
+        return Err(ConvertError::EntryTooShort {
+            expected: spec.entry_size(),
+            actual: entry.len(),
+        });
+    }
+    Ok(())
+}
+
+/// Check that the spec's sections fit in its entry.
+fn check_fits(spec: &SvdToneSpec) -> Result<(), ConvertError> {
+    if spec.data_bytes() > spec.entry_size() {
+        return Err(ConvertError::SpecOverflow {
+            kind: spec.kind,
+            data: spec.data_bytes(),
+            entry: spec.entry_size(),
+        });
+    }
+    Ok(())
+}
+
 /// Unpack a single section from the bitstream into SysEx parameter bytes.
 ///
 /// Returns one byte per SysEx parameter address. Nibblized parameters expand
@@ -109,19 +132,8 @@ fn unpack_section(
 /// // sections[3] = Partial 3
 /// ```
 pub fn svd_to_sysex(entry: &[u8], spec: &SvdToneSpec) -> Result<Vec<Vec<u8>>, ConvertError> {
-    if entry.len() < spec.entry_size() {
-        return Err(ConvertError::EntryTooShort {
-            expected: spec.entry_size(),
-            actual: entry.len(),
-        });
-    }
-    if spec.data_bytes() > spec.entry_size() {
-        return Err(ConvertError::SpecOverflow {
-            kind: spec.kind,
-            data: spec.data_bytes(),
-            entry: spec.entry_size(),
-        });
-    }
+    check_entry(entry, spec)?;
+    check_fits(spec)?;
 
     let mut sections = Vec::with_capacity(spec.sections.len());
     let mut offset = 0;
@@ -179,7 +191,19 @@ fn pack_section(writer: &mut BitWriter, sysex: &[u8], section: &SvdSection) {
 /// copied from `source`, the entry the sections were decoded from, so that
 /// undocumented trailing bytes survive a round trip. Without a source they
 /// are `spec.init_tail` followed by zero fill up to `spec.entry_size()`.
-pub fn sysex_to_svd(sections: &[Vec<u8>], spec: &SvdToneSpec, source: Option<&[u8]>) -> Vec<u8> {
+///
+/// Fails with [`ConvertError::SpecOverflow`] if the spec's sections take
+/// more bytes than its entry holds, and with [`ConvertError::EntryTooShort`]
+/// if `source` is shorter than the entry.
+pub fn sysex_to_svd(
+    sections: &[Vec<u8>],
+    spec: &SvdToneSpec,
+    source: Option<&[u8]>,
+) -> Result<Vec<u8>, ConvertError> {
+    check_fits(spec)?;
+    if let Some(entry) = source {
+        check_entry(entry, spec)?;
+    }
     let mut result = Vec::with_capacity(spec.entry_size());
 
     for (section_data, section_spec) in sections.iter().zip(spec.sections.iter()) {
@@ -198,7 +222,7 @@ pub fn sysex_to_svd(sections: &[Vec<u8>], spec: &SvdToneSpec, source: Option<&[u
     }
     result.resize(spec.entry_size(), 0x00);
 
-    result
+    Ok(result)
 }
 
 // ---------------------------------------------------------------------------
@@ -293,6 +317,47 @@ mod tests {
         );
     }
 
+    #[test]
+    fn packing_into_a_smaller_entry_is_an_error() {
+        // SN-S sections (246 bytes) declared for a 138-byte SN-A entry.
+        let spec = SvdToneSpec {
+            kind: ChunkType::SnAcousticTone,
+            sections: SNS_TONE_SPEC.sections,
+            init_tail: &[],
+        };
+        let sections = svd_to_sysex(&[0; 280], &SNS_TONE_SPEC).unwrap();
+        for source in [None, Some(&[0; 138][..])] {
+            let err = sysex_to_svd(&sections, &spec, source).unwrap_err();
+            assert!(
+                matches!(
+                    err,
+                    ConvertError::SpecOverflow {
+                        kind: ChunkType::SnAcousticTone,
+                        data: 246,
+                        entry: 138,
+                    }
+                ),
+                "{err:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn short_source_is_an_error() {
+        let sections = svd_to_sysex(&[0; 280], &SNS_TONE_SPEC).unwrap();
+        let err = sysex_to_svd(&sections, &SNS_TONE_SPEC, Some(&[0; 250])).unwrap_err();
+        assert!(
+            matches!(
+                err,
+                ConvertError::EntryTooShort {
+                    expected: 280,
+                    actual: 250,
+                }
+            ),
+            "{err:?}"
+        );
+    }
+
     /// Load the test SVD fixture (3 SN-S patches).
     fn load_test_fixture() -> SvdFile {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/test_sns.svd");
@@ -308,7 +373,7 @@ mod tests {
         // Use real entries for full round-trip testing.
         let entry = vec![0u8; 280];
         let sections = svd_to_sysex(&entry, &SNS_TONE_SPEC).unwrap();
-        let repacked = sysex_to_svd(&sections, &SNS_TONE_SPEC, None);
+        let repacked = sysex_to_svd(&sections, &SNS_TONE_SPEC, None).unwrap();
         assert_eq!(repacked.len(), 280);
         assert_eq!(&repacked[246..252], [0x0E, 0x00, 0x00, 0x00, 0x02, 0xC0]);
         assert!(repacked[252..].iter().all(|&b| b == 0));
@@ -373,7 +438,7 @@ mod tests {
             let mut entry = entry.clone();
             entry[250..252].copy_from_slice(&[0x44, 0xC0]);
             let sections = svd_to_sysex(&entry, &SNS_TONE_SPEC).unwrap();
-            let repacked = sysex_to_svd(&sections, &SNS_TONE_SPEC, Some(&entry));
+            let repacked = sysex_to_svd(&sections, &SNS_TONE_SPEC, Some(&entry)).unwrap();
             assert_eq!(repacked, entry, "Entry {i} mismatch");
         }
     }
@@ -391,7 +456,7 @@ mod tests {
             // SVD → SysEx
             let sysex_sections = svd_to_sysex(entry, &SNS_TONE_SPEC).unwrap();
             // SysEx → SVD
-            let svd_entry = sysex_to_svd(&sysex_sections, &SNS_TONE_SPEC, None);
+            let svd_entry = sysex_to_svd(&sysex_sections, &SNS_TONE_SPEC, None).unwrap();
             // SVD → SysEx again
             let sysex_sections2 = svd_to_sysex(&svd_entry, &SNS_TONE_SPEC).unwrap();
 
@@ -459,7 +524,10 @@ mod tests {
         let sections = svd_to_sysex(&entry, &SNA_TONE_SPEC).unwrap();
         assert_eq!(sections[0][0x1B], 9, "Category");
         assert_eq!(sections[0][0x41], 127, "Modify Parameter 32");
-        assert_eq!(sysex_to_svd(&sections, &SNA_TONE_SPEC, Some(&entry)), entry);
+        assert_eq!(
+            sysex_to_svd(&sections, &SNA_TONE_SPEC, Some(&entry)).unwrap(),
+            entry
+        );
     }
 
     /// Documented ranges of every PRFb parameter in spec order
@@ -581,7 +649,10 @@ mod tests {
         assert_eq!(part16[0x1B], 64, "Part 16 Octave Shift");
         assert_eq!(part16[0x48], 32, "Part 16 Motional Surround Width");
         assert_eq!(sections[37 + 15][0x07], 30, "Part EQ 16 High Gain");
-        assert_eq!(sysex_to_svd(&sections, &SS_TONE_SPEC, Some(&entry)), entry);
+        assert_eq!(
+            sysex_to_svd(&sections, &SS_TONE_SPEC, Some(&entry)).unwrap(),
+            entry
+        );
     }
 
     const PCM_SYNTH_DOC: &str = include_str!("../../../docs/svd/06-pcm-synth.md");
@@ -700,7 +771,7 @@ mod tests {
             assert!(range.contains(value), "param {i}: {value} not in {range:?}");
             assert_eq!(value, want, "param {i}");
         }
-        assert_eq!(sysex_to_svd(&sections, spec, Some(&entry)), entry);
+        assert_eq!(sysex_to_svd(&sections, spec, Some(&entry)).unwrap(), entry);
         sections
     }
 

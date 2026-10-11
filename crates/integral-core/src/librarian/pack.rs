@@ -227,7 +227,7 @@ impl PackEntry {
     /// entry was read from, else take their INIT value.
     fn to_svd(&self) -> Result<Vec<u8>, PackError> {
         let spec = codec(self.kind)?;
-        Ok(sysex_to_svd(&self.blocks, spec, self.svd.as_deref()))
+        Ok(sysex_to_svd(&self.blocks, spec, self.svd.as_deref())?)
     }
 }
 
