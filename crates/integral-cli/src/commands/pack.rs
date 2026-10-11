@@ -15,10 +15,12 @@ use integral_core::address::DataSize;
 use integral_core::device::DeviceState;
 use integral_core::device_spec::{USER_MEMORY, UserMemorySpec};
 use integral_core::librarian::export::{EntryStatus, ExportAction, ExportSource, PackExport};
+use integral_core::librarian::foreign::{ConversionItem, PackRead};
 use integral_core::librarian::pack::{Pack, PackEntry, ToneRef};
 use integral_core::svd::{ChunkType, tone_category_name};
 use integral_core::{params, sysex};
 use serde::Serialize;
+use serde_json::Value;
 
 use crate::device::IntegraDevice;
 
@@ -129,6 +131,10 @@ struct Listed {
     /// For a Studio Set, the User tones its Parts use, as `(part, id)`.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     tones: Vec<PartTone>,
+    /// Whether its Conversion report is empty.
+    clean: bool,
+    /// Its Conversion report, as [`report_json`] writes it.
+    report: Vec<Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -142,9 +148,36 @@ pub(crate) fn id(kind: ChunkType, index: usize) -> String {
     format!("{}:{}", kind.cli_name(), index + 1)
 }
 
-/// The entries with their ids, filtered.
+/// Report items (Conversion or file-level) as JSON: each item's fields,
+/// and its `message`.
+pub(crate) fn report_json<T: Serialize + std::fmt::Display>(items: &[T]) -> Vec<Value> {
+    items
+        .iter()
+        .map(|item| {
+            let mut value = serde_json::to_value(item).expect("report items serialize");
+            if let Value::Object(fields) = &mut value {
+                fields.insert("message".into(), item.to_string().into());
+            }
+            value
+        })
+        .collect()
+}
+
+/// The clean/lossy marker of an entry whose Conversion report holds
+/// `items` items: empty when it is clean.
+pub(crate) fn lossy_marker(items: usize) -> String {
+    if items == 0 {
+        String::new()
+    } else {
+        format!("lossy · {items}")
+    }
+}
+
+/// The entries with their ids, filtered. `reports` holds the Conversion
+/// report of each of `pack`'s entries; a missing one is empty.
 fn listed(
     pack: &Pack,
+    reports: &[Vec<ConversionItem>],
     type_filter: Option<&str>,
     category: Option<u8>,
     name: Option<&str>,
@@ -154,29 +187,41 @@ fn listed(
         .iter()
         .map(kind_of)
         .filter(|k| type_filter.is_none_or(|t| t == k.cli_name()))
-        .flat_map(|kind| pack.of_kind(kind).enumerate())
-        .filter(|(_, e)| category.is_none() || e.category() == category)
-        .filter(|(_, e)| {
+        .flat_map(|kind| {
+            let report = |i: usize| reports.get(i).map_or(&[][..], Vec::as_slice);
+            pack.entries
+                .iter()
+                .enumerate()
+                .filter(move |(_, e)| e.kind() == kind)
+                .map(move |(i, e)| (e, report(i)))
+                .enumerate()
+        })
+        .filter(|(_, (e, _))| category.is_none() || e.category() == category)
+        .filter(|(_, (e, _))| {
             name.as_ref()
                 .is_none_or(|n| e.name().to_lowercase().contains(n))
         })
-        .map(|(i, e): (usize, &PackEntry)| Listed {
-            id: id(e.kind(), i),
-            kind: e.kind().cli_name(),
-            name: e.name(),
-            category: e.category(),
-            category_name: e.category().and_then(tone_category_name),
-            tones: (1..)
-                .zip(e.tone_refs())
-                .filter_map(|(part, r)| match r {
-                    ToneRef::Pack { kind, index } => Some(PartTone {
-                        part,
-                        id: id(kind, index.into()),
-                    }),
-                    ToneRef::Bank { .. } => None,
-                })
-                .collect(),
-        })
+        .map(
+            |(i, (e, report)): (usize, (&PackEntry, &[ConversionItem]))| Listed {
+                id: id(e.kind(), i),
+                kind: e.kind().cli_name(),
+                name: e.name(),
+                category: e.category(),
+                category_name: e.category().and_then(tone_category_name),
+                tones: (1..)
+                    .zip(e.tone_refs())
+                    .filter_map(|(part, r)| match r {
+                        ToneRef::Pack { kind, index } => Some(PartTone {
+                            part,
+                            id: id(kind, index.into()),
+                        }),
+                        ToneRef::Bank { .. } => None,
+                    })
+                    .collect(),
+                clean: report.is_empty(),
+                report: report_json(report),
+            },
+        )
         .collect()
 }
 
@@ -205,7 +250,13 @@ fn render_list(entries: &[Listed], format: ListFormat) -> Result<String> {
         ListFormat::Json => out = serde_json::to_string_pretty(entries)? + "\n",
         ListFormat::Text => {
             for e in entries {
-                let line = format!("{:<16} {:<16} {}", e.id, e.name, e.category_display());
+                let line = format!(
+                    "{:<16} {:<16} {:<16} {}",
+                    e.id,
+                    e.name,
+                    e.category_display(),
+                    lossy_marker(e.report.len())
+                );
                 out += line.trim_end();
                 out += "\n";
                 if !e.tones.is_empty() {
@@ -214,15 +265,16 @@ fn render_list(entries: &[Listed], format: ListFormat) -> Result<String> {
             }
         }
         ListFormat::Markdown => {
-            out += "| Id | Name | Category | User tones (Part=Id) |\n";
-            out += "|----|------|----------|----------------------|\n";
+            out += "| Id | Name | Category | User tones (Part=Id) | Conversion |\n";
+            out += "|----|------|----------|----------------------|------------|\n";
             for e in entries {
                 out += &format!(
-                    "| {} | {} | {} | {} |\n",
+                    "| {} | {} | {} | {} | {} |\n",
                     e.id,
                     e.name,
                     e.category_display(),
-                    e.tones_display()
+                    e.tones_display(),
+                    lossy_marker(e.report.len())
                 );
             }
         }
@@ -230,16 +282,18 @@ fn render_list(entries: &[Listed], format: ListFormat) -> Result<String> {
     Ok(out)
 }
 
-/// Read a Pack file of any format (SVD, SysEx or MIDI), and warn on stderr
-/// about what the file held that is not in the Pack.
-pub(crate) fn read_pack(path: &Path) -> Result<Pack> {
+/// Read a Pack file of any format (SVD, SysEx or MIDI).
+pub(crate) fn read_pack(path: &Path) -> Result<PackRead> {
     let bytes =
         std::fs::read(path).with_context(|| format!("failed to read {}", path.display()))?;
-    let read = Pack::read(&bytes).with_context(|| format!("failed to parse {}", path.display()))?;
+    Pack::read(&bytes).with_context(|| format!("failed to parse {}", path.display()))
+}
+
+/// Warn on stderr about what `path` held that is not in its Pack.
+pub(crate) fn warn_file_report(path: &Path, read: &PackRead) {
     for item in &read.file_report {
         eprintln!("Warning: {}: {item}", path.display());
     }
-    Ok(read.pack)
 }
 
 /// `pack list`: print a Pack file's entries.
@@ -250,11 +304,10 @@ pub fn list(
     name: Option<&str>,
     format: ListFormat,
 ) -> Result<()> {
-    let pack = read_pack(path)?;
-    print!(
-        "{}",
-        render_list(&listed(&pack, type_filter, category, name), format)?
-    );
+    let read = read_pack(path)?;
+    warn_file_report(path, &read);
+    let entries = listed(&read.pack, &read.reports, type_filter, category, name);
+    print!("{}", render_list(&entries, format)?);
     Ok(())
 }
 
@@ -472,7 +525,7 @@ mod tests {
 
     #[test]
     fn lists_ids_and_set_references() {
-        let text = render_list(&listed(&pack(), None, None, None), ListFormat::Text).unwrap();
+        let text = render_list(&listed(&pack(), &[], None, None, None), ListFormat::Text).unwrap();
         assert_eq!(
             text,
             "studio-set:1     My Set\n\
@@ -485,7 +538,7 @@ mod tests {
 
     #[test]
     fn filters_keep_ids() {
-        let entries = listed(&pack(), Some("sn-synth"), None, Some("pa"));
+        let entries = listed(&pack(), &[], Some("sn-synth"), None, Some("pa"));
         let ids: Vec<_> = entries.iter().map(|e| e.id.as_str()).collect();
         assert_eq!(ids, ["sn-synth:2"]);
         let json = render_list(&entries, ListFormat::Json).unwrap();
@@ -495,10 +548,30 @@ mod tests {
     }
 
     #[test]
+    fn marks_lossy_entries() {
+        let read = Pack::read(include_bytes!(
+            "../../../integral-core/tests/fixtures/foreign/xv/srx03ap2-001.syx"
+        ))
+        .unwrap();
+        let entries = listed(&read.pack, &read.reports, None, None, None);
+        assert_eq!(
+            render_list(&entries, ListFormat::Text).unwrap(),
+            "pcm-synth:1      United !         Ac.Piano         lossy · 3\n"
+        );
+        let json = render_list(&entries, ListFormat::Json).unwrap();
+        let doc: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(doc[0]["clean"], false);
+        assert_eq!(doc[0]["report"][0]["type"], "effectDropped");
+
+        let clean = listed(&pack(), &[], None, None, None);
+        assert!(clean.iter().all(|e| e.clean && e.report.is_empty()));
+    }
+
+    #[test]
     fn lists_a_written_file() {
         let bytes = pack().to_svd().unwrap();
         let read = Pack::from_svd(&bytes).unwrap();
-        let entries = listed(&read, Some("studio-set"), None, None);
+        let entries = listed(&read, &[], Some("studio-set"), None, None);
         assert_eq!(entries[0].tones_display(), "1=sn-synth:2 5=sn-synth:1");
     }
 
@@ -540,7 +613,8 @@ mod tests {
             std::fs::write(&path, bytes).unwrap();
             let read = read_pack(&path);
             std::fs::remove_file(&path).unwrap();
-            let ids: Vec<_> = listed(&read.unwrap(), None, None, None)
+            let read = read.unwrap();
+            let ids: Vec<_> = listed(&read.pack, &read.reports, None, None, None)
                 .into_iter()
                 .map(|e| (e.id, e.name))
                 .collect();

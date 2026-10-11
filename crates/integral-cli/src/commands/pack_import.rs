@@ -18,15 +18,18 @@ use integral_core::catalog::{
 use integral_core::device_spec::{INTEGRA7, USER_MEMORY, UserMemorySpec};
 use integral_core::expansion_slots::ExpansionSlots;
 use integral_core::librarian::export::{ExportSource, PackExport};
+use integral_core::librarian::foreign::{PackFormat, PackRead};
 use integral_core::librarian::import::{EntryStatus, ImportAction, PackImport};
 use integral_core::librarian::pack::Pack;
-use integral_core::librarian::plan::{ImportPlan, Origin, Placement, plan_import};
+use integral_core::librarian::plan::{ImportPlan, Origin, Placement, plan_read};
 use integral_core::svd::ChunkType;
 use integral_core::sysex;
 use serde_json::{Value, json};
 
 use super::expansion::{OutputFormat, read_slots};
-use super::pack::{Throttle, id, read_pack, run_export};
+use super::pack::{
+    Throttle, id, lossy_marker, read_pack, report_json, run_export, warn_file_report,
+};
 use crate::device::IntegraDevice;
 
 /// Exit code when some entries were stored and others not.
@@ -118,12 +121,13 @@ fn origin(pack: &Pack) -> Origin {
 
 /// Plan the import, then apply `--only` and `--to`.
 fn plan(
-    pack: &Pack,
+    read: &PackRead,
     names: &[CatalogEntry],
     loaded: Option<&ExpansionSlots>,
     opts: &ImportOptions,
 ) -> Result<ImportPlan> {
-    let mut plan = plan_import(pack, origin(pack), names, loaded);
+    let pack = &read.pack;
+    let mut plan = plan_read(read, origin(pack), names, loaded);
     if !opts.only.is_empty() {
         let only = opts
             .only
@@ -242,6 +246,7 @@ fn status_name(status: EntryStatus) -> &'static str {
 /// What a run tells the user: the plan, and once run, each entry's status.
 struct Report<'a> {
     file: &'a Path,
+    format: PackFormat,
     pack: &'a Pack,
     plan: &'a ImportPlan,
     names: &'a [CatalogEntry],
@@ -262,22 +267,20 @@ impl Report<'_> {
         }
     }
 
+    /// What the file held that is not in the Pack, then the plan's
+    /// warnings.
     fn warnings(&self) -> Vec<String> {
-        self.plan
-            .warnings()
-            .map(|w| {
-                let entry = w.entry();
-                let name = self.pack.entries[entry].name();
-                format!("{} {name}: {w}", entry_id(self.pack, entry))
-            })
-            .collect()
+        let file = self.plan.file_report().iter().map(ToString::to_string);
+        let plan = self.plan.warnings().map(|w| {
+            let entry = w.entry();
+            let name = self.pack.entries[entry].name();
+            format!("{} {name}: {w}", entry_id(self.pack, entry))
+        });
+        file.chain(plan).collect()
     }
 
     fn text_plan(&self) -> String {
-        let kind = match origin(self.pack) {
-            Origin::Sound => "sound export",
-            Origin::Backup => "backup",
-        };
+        let kind = self.format.label(origin(self.pack));
         let mut out = format!(
             "{} ({kind}, {} entries):\n",
             self.file.display(),
@@ -291,15 +294,23 @@ impl Report<'_> {
                 continue;
             }
             let dest = destination(e.kind(), placement, self.part);
-            let line = format!(
+            let mut line = format!(
                 "  {:<16} {:<16} -> {dest}",
                 entry_id(self.pack, i),
                 e.name()
             );
-            out += &match self.overwritten(i) {
-                Some(name) => format!("{line} (overwrites \"{name}\")\n"),
-                None => line + "\n",
-            };
+            if let Some(name) = self.overwritten(i) {
+                line += &format!(" (overwrites \"{name}\")");
+            }
+            let report = self.plan.report(i);
+            if !report.is_empty() {
+                line += &format!(" [{}]", lossy_marker(report.len()));
+            }
+            out += &line;
+            out += "\n";
+            for item in report {
+                out += &format!("      {item}\n");
+            }
         }
         if excluded > 0 {
             out += &format!("  ({excluded} left out)\n");
@@ -350,12 +361,14 @@ impl Report<'_> {
                     "destination": destination,
                     "overwrites": self.overwritten(i),
                     "status": self.statuses.as_ref().map(|s| status_name(s[i])),
+                    "report": report_json(self.plan.report(i)),
                 })
             })
             .collect();
         json!({
             "file": self.file,
             "entries": entries,
+            "file_report": report_json(self.plan.file_report()),
             "warnings": self.warnings(),
             "undo_file": self.undo,
             "result": result,
@@ -561,23 +574,26 @@ pub fn import(
     file: &Path,
     opts: &ImportOptions,
 ) -> Result<u8> {
-    let pack = read_pack(file)?;
+    let read = read_pack(file)?;
+    let pack = &read.pack;
     if pack.entries.is_empty() {
+        warn_file_report(file, &read);
         bail!("{} holds nothing to import", file.display());
     }
 
     let mut dev = IntegraDevice::connect_detecting(port_pattern, device_id, timeout)?.quiet();
     let mut throttle = Throttle::new(dev.device_id());
-    let names = read_names(&mut dev, &mut throttle, &pack).context("could not read slot names")?;
+    let names = read_names(&mut dev, &mut throttle, pack).context("could not read slot names")?;
     let loaded = read_slots(&mut dev)
         .inspect_err(|e| eprintln!("Warning: {e:#}; Expansion checks skipped"))
         .ok();
-    let plan = plan(&pack, &names, loaded.as_ref(), opts)?;
+    let plan = plan(&read, &names, loaded.as_ref(), opts)?;
 
     let text = opts.format == OutputFormat::Text;
     let mut report = Report {
         file,
-        pack: &pack,
+        format: read.format,
+        pack,
         plan: &plan,
         names: &names,
         part: opts.part,
@@ -588,7 +604,7 @@ pub fn import(
     if text {
         print!("{}", report.text_plan());
     }
-    let unplaced: Vec<String> = plan.unplaced().map(|i| entry_id(&pack, i)).collect();
+    let unplaced: Vec<String> = plan.unplaced().map(|i| entry_id(pack, i)).collect();
     if !unplaced.is_empty() {
         if !text {
             println!("{:#}", report.json("unplaced"));
@@ -653,6 +669,16 @@ mod tests {
         }
     }
 
+    /// `pack` as read from an SVD file.
+    fn read_of(pack: Pack) -> PackRead {
+        PackRead {
+            format: PackFormat::Svd,
+            pack,
+            file_report: vec![],
+            reports: vec![],
+        }
+    }
+
     /// SN Synth slots 1-3 free, the rest used; PCM Drum slots all used.
     fn names() -> Vec<CatalogEntry> {
         let sns = (0..8).map(|pc| CatalogEntry {
@@ -705,8 +731,8 @@ mod tests {
 
     #[test]
     fn only_excludes_and_to_assigns() {
-        let pack = pack();
-        let plan_with = |args: &[&str]| plan(&pack, &names(), None, &opts(args).unwrap());
+        let read = read_of(pack());
+        let plan_with = |args: &[&str]| plan(&read, &names(), None, &opts(args).unwrap());
 
         let default = plan_with(&[]).unwrap();
         assert_eq!(
@@ -738,8 +764,88 @@ mod tests {
             ],
         };
         assert_eq!(origin(&pack), Origin::Backup);
-        let plan = plan(&pack, &names(), None, &opts(&[]).unwrap()).unwrap();
+        let plan = plan(&read_of(pack), &names(), None, &opts(&[]).unwrap()).unwrap();
         assert_eq!(plan.placements(), [Placement::User(2), Placement::Unplaced]);
+    }
+
+    /// The XV fixture: one Patch, converted with a lossy report.
+    const UNITED: &[u8] =
+        include_bytes!("../../../integral-core/tests/fixtures/foreign/xv/srx03ap2-001.syx");
+
+    fn united_report<'a>(read: &'a PackRead, plan: &'a ImportPlan) -> Report<'a> {
+        Report {
+            file: Path::new("srx03ap2-001.syx"),
+            format: read.format,
+            pack: &read.pack,
+            plan,
+            names: &[],
+            part: 1,
+            statuses: None,
+            undo: None,
+            error: None,
+        }
+    }
+
+    #[test]
+    fn json_plan_carries_the_conversion_report() {
+        let read = Pack::read(UNITED).unwrap();
+        // No Expansion loaded: the tone's SRX-03 Waves warn.
+        let loaded = ExpansionSlots::default();
+        let plan = plan(&read, &[], Some(&loaded), &opts(&[]).unwrap()).unwrap();
+        let doc = united_report(&read, &plan).json("dry-run");
+
+        let entry = &doc["entries"][0];
+        assert_eq!(entry["id"], "pcm-synth:1");
+        assert_eq!(entry["name"], "United !");
+        assert_eq!(entry["destination"], json!({ "temporary_part": 1 }));
+        assert_eq!(
+            entry["report"],
+            json!([
+                {
+                    "type": "effectDropped",
+                    "message": "effect dropped, MFX set to THRU",
+                },
+                {
+                    "type": "notApplied",
+                    "what": "Chorus CHORUS, level 127",
+                    "message": "Chorus CHORUS, level 127 not applied; set it in the Studio Set",
+                },
+                {
+                    "type": "notApplied",
+                    "what": "Reverb SRV HALL, level 127",
+                    "message": "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
+                },
+            ])
+        );
+        assert_eq!(doc["file_report"], json!([]));
+        assert_eq!(
+            doc["warnings"],
+            json!(["pcm-synth:1 United !: plays Waves of SRX-03, not loaded"])
+        );
+        assert_eq!(doc["result"], "dry-run");
+    }
+
+    #[test]
+    fn text_plan_lists_items_under_their_entry_and_file_items_as_warnings() {
+        let skipped = identity_request();
+        let mut read = Pack::read(&[UNITED, &skipped].concat()).unwrap();
+        assert_eq!(read.file_report.len(), 1);
+        read.format = PackFormat::Midi;
+        let plan = plan(&read, &[], None, &opts(&[]).unwrap()).unwrap();
+        assert_eq!(
+            united_report(&read, &plan).text_plan(),
+            "srx03ap2-001.syx (MIDI file, 1 entries):\n\
+             \x20 pcm-synth:1      United !         -> Temporary Part 1 [lossy · 3]\n\
+             \x20     effect dropped, MFX set to THRU\n\
+             \x20     Chorus CHORUS, level 127 not applied; set it in the Studio Set\n\
+             \x20     Reverb SRV HALL, level 127 not applied; set it in the Studio Set\n\
+             Warning: 1 other message skipped\n"
+        );
+    }
+
+    /// A message no reader takes: a Universal Identity Request.
+    fn identity_request() -> Vec<u8> {
+        vec![0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7]
     }
 
     #[test]
