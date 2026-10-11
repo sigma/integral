@@ -9,6 +9,9 @@ use crate::params::{self, tone_type};
 use crate::user_write::BankSelect;
 use crate::{mfx, pcm_drum, pcm_synth, sn_acoustic, sn_drum, sn_synth};
 
+/// Number of MIDI channels, fixed by the MIDI protocol.
+pub const MIDI_CHANNELS: u8 = 16;
+
 /// Static specification of the INTEGRA-7's capabilities.
 ///
 /// Views and commands consume this spec rather than hardcoding device constants.

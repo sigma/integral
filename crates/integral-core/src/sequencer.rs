@@ -8,6 +8,7 @@
 use std::collections::BTreeMap;
 
 use crate::device::DeviceState;
+use crate::device_spec::MIDI_CHANNELS;
 
 mod smf;
 pub use smf::SmfError;
@@ -23,9 +24,6 @@ pub const DEFAULT_BPM: u16 = 120;
 
 /// Steps per quarter note: a Step is a 16th note.
 pub const STEPS_PER_QUARTER: u16 = 4;
-
-/// MIDI channels addressed by [`Sequencer::panic`].
-const MIDI_CHANNELS: u8 = 16;
 
 /// All Notes Off controller number.
 const CC_ALL_NOTES_OFF: u8 = 123;
