@@ -620,7 +620,7 @@ impl Default for PcmSynthPartial {
 
             // Wave
             wave_group_type: 0,
-            wave_group_id: 0,
+            wave_group_id: 1, // INT, as `WaveGroup::Int.params()` writes
             wave_number_l: 0,
             wave_number_r: 0,
             wave_gain: 1, // 0 dB
@@ -1018,6 +1018,11 @@ pub fn parse_pcms_common2(data: &[u8]) -> Result<PcmSynthCommon2, crate::TonePar
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn default_partial_uses_int_group_id_1() {
+        assert_eq!(PcmSynthPartial::default().wave_group_id, 1);
+    }
 
     #[test]
     fn pcms_common_address_part1() {

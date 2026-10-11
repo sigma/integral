@@ -70,8 +70,9 @@ impl WaveGroup {
 
     /// The group selected by a partial's or WMT's Wave Group Type and ID.
     ///
-    /// Type 0 is INT, type 1 is SRX board `id`. Reserved types and SRX ids
-    /// outside 1..=12 give `None`.
+    /// Type 0 is INT whatever the `id` (Roland writes 1, some stored tones
+    /// carry 0), type 1 is SRX board `id`. Reserved types and SRX ids outside
+    /// 1..=12 give `None`.
     pub fn from_params(group_type: u8, group_id: u8) -> Option<Self> {
         match (group_type, group_id) {
             (0, _) => Some(Self::Int),
@@ -81,10 +82,11 @@ impl WaveGroup {
     }
 
     /// The Wave Group Type and ID to write for this group, or `None` for SN
-    /// Synth, which has neither.
+    /// Synth, which has neither. INT writes ID 1, as real Integra tones and
+    /// Roland's own conversions store.
     pub fn params(self) -> Option<(u8, u8)> {
         match self {
-            Self::Int => Some((0, 0)),
+            Self::Int => Some((0, 1)),
             Self::Srx(n) => Some((1, n)),
             Self::SnSynth => None,
         }
@@ -195,7 +197,9 @@ mod tests {
 
     #[test]
     fn from_params_int_srx_and_reserved() {
+        // INT accepts any Group ID: Roland writes 1, some stored tones carry 0.
         assert_eq!(WaveGroup::from_params(0, 0), Some(WaveGroup::Int));
+        assert_eq!(WaveGroup::from_params(0, 1), Some(WaveGroup::Int));
         assert_eq!(WaveGroup::from_params(1, 7), Some(WaveGroup::Srx(7)));
         assert_eq!(WaveGroup::from_params(2, 0), None);
         assert_eq!(WaveGroup::from_params(1, 0), None);
@@ -210,6 +214,11 @@ mod tests {
             }
         }
         assert_eq!(WaveGroup::SnSynth.params(), None);
+    }
+
+    #[test]
+    fn int_params_use_group_id_1() {
+        assert_eq!(WaveGroup::Int.params(), Some((0, 1)));
     }
 
     #[test]

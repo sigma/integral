@@ -178,7 +178,7 @@ Per block:
 | Tone `00 11` | Tone Output Assign (MFX, A–D, 1–8) | reserve | no equivalent | Drop, but read it first to choose the send pair (below). |
 | Tone `00 15` | Tone Receive Pan Mode (CONTINUOUS, KEY-ON) | reserve | no equivalent | Report it when KEY-ON. |
 | Tone `00 27` | Wave Group Type (INT-WAVE, SRJV80-EXP, SRX-EXP, SAMPLE) | Wave Group Type (INT, SRX, —, —) | rescaled | `0 → 0`; `2 → 1`; `1` (SR-JV80) → Wave mapping from [#195](https://github.com/sigma/integral/issues/195), else OFF; `3` (SAMPLE, XV-5080 only) → OFF. |
-| Tone `00 28` # | Wave Group ID (0–16384) | Wave Group ID | rescaled | INT: copy as is. Real XV dumps and real Integra tones both store 1 (`docs/svd/06-pcm-synth.md`, `foreign-rhythm-format.md`), not the 0 that [wave-names.md](wave-names.md) gives; see [#207](https://github.com/sigma/integral/issues/207). SRX: the board number 1–12, confirmed on real XV dumps (`foreign-rhythm-format.md`). SR-JV80: from #195. |
+| Tone `00 28` # | Wave Group ID (0–16384) | Wave Group ID | rescaled | INT: copy as is. Real XV dumps and real Integra tones both store 1 (`docs/svd/06-pcm-synth.md`, `foreign-rhythm-format.md`, [wave-names.md](wave-names.md#int-group-id)); see [#207](https://github.com/sigma/integral/issues/207). SRX: the board number 1–12, confirmed on real XV dumps (`foreign-rhythm-format.md`). SR-JV80: from #195. |
 | Split Key (all) | Partial Number, Assign Type, Mute Group, sends, Output Assign | — (Common 2 sits here) | no equivalent | Only present in MULTI-PARTIAL Patches, which are rejected. |
 
 \* **The two pairs of sends.** XV Tones store two Chorus/Reverb send pairs. The "(MFX)" pair
@@ -293,7 +293,8 @@ browsing.
    "(non MFX)" offsets, but every Integra partial appears to pass through the tone MFX. *Check:* on the
    Integra, set Partial `00 0D` to 0 and `00 0F` to 127 (and the reverse), and listen for
    chorus on a dry tone with MFX THRU.
-3. **XV Wave Group ID values** are undocumented in all five manuals. Possibilities: INT = 0 or 1,
+3. **XV Wave Group ID values** are undocumented in all five manuals. INT is settled: real XV dumps
+   store 1 ([`map-check-roland-pairs.md`](map-check-roland-pairs.md), #207). Still open:
    SRX = board number (as on the Integra) or slot, SR-JV80 = board number 1–19. *Check:* a
    real XV-5080 dump of a Patch on an SRX and on an SR-JV80 board (corpus,
    [#197](https://github.com/sigma/integral/issues/197)).

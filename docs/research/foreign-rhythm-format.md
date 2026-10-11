@@ -317,9 +317,9 @@ checksum-valid sets.
    open doubt 1 for Patches. #194's candidate `pct × 63/100` disagrees with Roland: Roland maps
    +100 % to +32, where the candidate gives +63.
 2. **XV Wave Group ID for INT is 1, not 0.** Every INT WMT in the XV corpus has ID 1, and real
-   Integra tones also store 1 (`docs/svd/06-pcm-synth.md`, "Wave Group ID = 1"). Two notes
-   disagree with this: `xv-patch-format.md` ("INT: write 0") and `wave-names.md` ("0 = INT").
-   Copy the ID verbatim. The SRX ID is the board number, which settles #193's open doubt 3
+   Integra tones also store 1 (`docs/svd/06-pcm-synth.md`, "Wave Group ID = 1").
+   `xv-patch-format.md` and `wave-names.md` once said INT is 0; both are corrected
+   ([#207](https://github.com/sigma/integral/issues/207)). Copy the ID verbatim. The SRX ID is the board number, which settles #193's open doubt 3
    for SRX.
 3. **One Shot Mode.** It is per kit on the XV (Common `00 10`) and per key on the Integra
    (`01 41`). Whether the Integra still reads its Common `00 10` is unknown; write both.

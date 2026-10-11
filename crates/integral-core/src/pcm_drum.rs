@@ -411,7 +411,7 @@ impl Default for PcmDrumWmt {
         Self {
             switch: 0,
             wave_group_type: 0,
-            wave_group_id: 0,
+            wave_group_id: 1, // INT, as `WaveGroup::Int.params()` writes
             wave_number_l: 0,
             wave_number_r: 0,
             wave_gain: 1, // 0 dB
@@ -819,6 +819,11 @@ pub fn parse_pcmd_common2(data: &[u8]) -> Result<PcmDrumCommon2, crate::TonePars
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn default_wmt_uses_int_group_id_1() {
+        assert_eq!(PcmDrumWmt::default().wave_group_id, 1);
+    }
 
     // -- Address tests --
 

@@ -19,8 +19,11 @@ Answers [#98](https://github.com/sigma/integral/issues/98) (parent map
   -05 818, -06 512, -07 860, -08 950, -09 873, -10 261, -11 40, -12 168 (6,967 SRX waves).
   SN Synth PCM 450. Every SRX count matches the "Waveform: N waveforms" line in Roland's
   *Sound List*.
-- **Wave Group ID:** 0 = INT (with Wave Group Type 0). `n` = SRX-`n` for n = 1..12 (with
-  Wave Group Type 1). The ID names the SRX **board**, not the expansion slot.
+- **Wave Group ID:** INT is Wave Group **Type** 0. Real Integra tones and Roland's own
+  conversions store Group ID **1** for INT (some store 0), so readers must accept any Group ID
+  when the Type is 0, and writers use 1 (see [INT Group ID](#int-group-id)). `n` = SRX-`n`
+  for n = 1..12 (with Wave Group Type 1). The ID names the SRX **board**, not the expansion
+  slot.
 - **Stereo:** there is no structural pairing. The convention is L at Wave Number `n` and R at
   `n+1`, marked only by an `L`/`R` token in the name. Wave Number R is set separately.
 - **SN Synth PCM OSC uses a different list** of 450 waves (1–450). Only 74 of its names also
@@ -96,9 +99,10 @@ Sample (SN Synth, `wave_list_synth.js` line 112 onward): `"001 JP-8 Saw    "`,
   [L2724](https://github.com/SambaGodschynski/integra7-editor-web/blob/d5b9193874e2a0e3261a231562dff856c685f9fe/js/model/model_stringer.js#L2724).
   PCM-D WMT:
   [L3136–3137](https://github.com/SambaGodschynski/integra7-editor-web/blob/d5b9193874e2a0e3261a231562dff856c685f9fe/js/model/model_stringer.js#L3136-L3137).
-  Index 0 is INT, and `n` is SRX`n`.
-- When the Group selector changes, the editor writes Group Type `0` if the ID is `0` and
-  `1` otherwise. The ID itself is written as-is
+  Index 0 is INT, and `n` is SRX`n`. This is the editor's list index, not what tones
+  store for INT (see [INT Group ID](#int-group-id)).
+- When the Group selector changes, the editor writes Group Type `0` if the list index is `0`
+  and `1` otherwise. The index itself is written as the ID
   ([`scene_tone_pcms.js` L683–695](https://github.com/SambaGodschynski/integra7-editor-web/blob/d5b9193874e2a0e3261a231562dff856c685f9fe/js/view/scene_tone_pcms.js#L683-L695)).
   Group ID `n` selects `wave.srx0n`
   ([L559–606](https://github.com/SambaGodschynski/integra7-editor-web/blob/d5b9193874e2a0e3261a231562dff856c685f9fe/js/view/scene_tone_pcms.js#L559-L606)).
@@ -110,7 +114,7 @@ Sample (SN Synth, `wave_list_synth.js` line 112 onward): `"001 JP-8 Saw    "`,
 
 | Group Type | Group ID | List | Waves | Sound List title (P4) |
 |---|---|---|---|---|
-| 0 INT | 0 | `xv5080` | 1083 | (internal) |
+| 0 INT | any; 1 written (see below) | `xv5080` | 1083 | (internal) |
 | 1 SRX | 1 | `srx01` | 719 | SRX-01 Dynamic Drum Kits |
 | 1 SRX | 2 | `srx02` | 48 | SRX-02 Concert Piano |
 | 1 SRX | 3 | `srx03` | 522 | SRX-03 Studio SRX |
@@ -126,6 +130,21 @@ Sample (SN Synth, `wave_list_synth.js` line 112 onward): `"001 JP-8 Saw    "`,
 
 The SRX counts equal the "• Waveform: N waveforms" line on each SRX page of P4 (verified for
 all 12). P4 gives no count for INT. 1083 comes from P1 only.
+
+#### INT Group ID
+
+The editor's list index puts INT at 0, but that is not device data. Stored tones say
+otherwise:
+
+- Real Integra tones store Group ID 1 on every active INT partial
+  ([`docs/svd/06-pcm-synth.md`](../svd/06-pcm-synth.md), real-tone checks).
+- Roland's own XV conversions store 1 on 5,896 of 6,315 INT tones and 0 on the other 419
+  ([`map-check-roland-pairs.md`](map-check-roland-pairs.md)).
+
+So the device accepts both, and 1 is what Roland writes. Integral reads Type 0 as INT
+whatever the ID, keeps a stored ID as is, and writes 1
+([#207](https://github.com/sigma/integral/issues/207)). Whether 0 and 1 are fully
+equivalent on the device is untested.
 
 ### 4. Stereo pairs → Wave Number L / R
 

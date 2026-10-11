@@ -245,7 +245,7 @@ xv->integra,Patch Tone,00 24,Tone Control 4 Switch 2,0 - 2,Partial,00 24,Partial
 xv->integra,Patch Tone,00 25,Tone Control 4 Switch 3,0 - 2,Partial,00 25,Partial Control 4 Switch 3,0 - 2,identical,
 xv->integra,Patch Tone,00 26,Tone Control 4 Switch 4,0 - 2,Partial,00 26,Partial Control 4 Switch 4,0 - 2,identical,
 xv->integra,Patch Tone,00 27,Wave Group Type,0 - 3,Partial,00 27,Wave Group Type,0 - 3,rescaled,INT-WAVE 0->0; SRX-EXP 2->1; SRJV80-EXP 1 -> lookup (#195) else OFF; SAMPLE 3 -> OFF
-xv->integra,Patch Tone,00 28,Wave Group ID,0 - 16384,Partial,00 28,Wave Group ID,0 - 16384,rescaled,INT: Integra wants 0; SRX: board number 1-12 (XV semantics unverified); SR-JV80: via #195
+xv->integra,Patch Tone,00 28,Wave Group ID,0 - 16384,Partial,00 28,Wave Group ID,0 - 16384,rescaled,INT: copy as is (Integra stores 1; some tones 0); SRX: board number 1-12 (XV semantics unverified); SR-JV80: via #195
 xv->integra,Patch Tone,00 2C,Wave Number L (Mono),0 - 16384,Partial,00 2C,Wave Number L (Mono),0 - 16384,identical,INT Wave Numbers 1-1083 are the same Waves (docs/waves/int.json); SR-JV80 via #195
 xv->integra,Patch Tone,00 30,Wave Number R,0 - 16384,Partial,00 30,Wave Number R,0 - 16384,identical,as Wave Number L
 xv->integra,Patch Tone,00 34,Wave Gain,0 - 3,Partial,00 34,Wave Gain,0 - 3,identical,
