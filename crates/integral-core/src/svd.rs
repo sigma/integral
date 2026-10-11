@@ -90,88 +90,140 @@ pub enum ChunkType {
     SystemSettings,
 }
 
+/// Device-level description of one [`ChunkType`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ChunkTypeSpec {
+    /// The type this descriptor describes.
+    pub kind: ChunkType,
+    /// 4-byte ASCII chunk type code in the SVD directory.
+    pub code: [u8; 4],
+    /// Kebab-case identifier for CLI filtering.
+    pub cli_name: &'static str,
+    /// Human-readable label.
+    pub label: &'static str,
+    /// Entry size in bytes.
+    pub entry_size: usize,
+    /// Patch name length in characters, `None` for unnamed entries.
+    pub name_length: Option<usize>,
+}
+
+/// Every chunk type, in SVD directory order and in [`ChunkType`]
+/// declaration order (so a type's discriminant indexes its descriptor).
+const CHUNK_TYPES: [ChunkTypeSpec; 7] = [
+    ChunkTypeSpec {
+        kind: ChunkType::StudioSet,
+        code: *b"PRFb",
+        cli_name: "studio-set",
+        label: "Studio Set",
+        entry_size: 1068,
+        name_length: Some(16),
+    },
+    ChunkTypeSpec {
+        kind: ChunkType::PcmSynthTone,
+        code: *b"RFPa",
+        cli_name: "pcm-synth",
+        label: "PCM Synth Tone",
+        entry_size: 590,
+        name_length: Some(12),
+    },
+    ChunkTypeSpec {
+        kind: ChunkType::PcmDrumKit,
+        code: *b"RFRa",
+        cli_name: "pcm-drum",
+        label: "PCM Drum Kit",
+        entry_size: 10890,
+        name_length: Some(12),
+    },
+    ChunkTypeSpec {
+        kind: ChunkType::SnSynthTone,
+        code: *b"SHPa",
+        cli_name: "sn-synth",
+        label: "SN Synth Tone",
+        entry_size: 280,
+        name_length: Some(12),
+    },
+    ChunkTypeSpec {
+        kind: ChunkType::SnAcousticTone,
+        code: *b"SNTa",
+        cli_name: "sn-acoustic",
+        label: "SN Acoustic Tone",
+        entry_size: 138,
+        name_length: Some(12),
+    },
+    ChunkTypeSpec {
+        kind: ChunkType::SnDrumKit,
+        code: *b"SDKa",
+        cli_name: "sn-drum",
+        label: "SN Drum Kit",
+        entry_size: 1006,
+        name_length: Some(12),
+    },
+    ChunkTypeSpec {
+        kind: ChunkType::SystemSettings,
+        code: *b"SYSa",
+        cli_name: "system",
+        label: "System Settings",
+        entry_size: 108,
+        name_length: None,
+    },
+];
+
+// `ChunkType::spec` indexes the table by discriminant.
+const _: () = {
+    let mut i = 0;
+    while i < CHUNK_TYPES.len() {
+        assert!(CHUNK_TYPES[i].kind as usize == i);
+        i += 1;
+    }
+};
+
 impl ChunkType {
+    /// The descriptor of this type.
+    pub fn spec(self) -> &'static ChunkTypeSpec {
+        &CHUNK_TYPES[self as usize]
+    }
+
     /// Parse a 4-byte ASCII chunk type code into a [`ChunkType`].
     ///
     /// Returns `None` if the code is not recognised.
     pub fn from_code(code: &[u8; 4]) -> Option<Self> {
-        match code {
-            b"PRFb" => Some(Self::StudioSet),
-            b"RFPa" => Some(Self::PcmSynthTone),
-            b"RFRa" => Some(Self::PcmDrumKit),
-            b"SHPa" => Some(Self::SnSynthTone),
-            b"SNTa" => Some(Self::SnAcousticTone),
-            b"SDKa" => Some(Self::SnDrumKit),
-            b"SYSa" => Some(Self::SystemSettings),
-            _ => None,
-        }
+        CHUNK_TYPES.iter().find(|s| s.code == *code).map(|s| s.kind)
     }
 
     /// Return the 4-byte ASCII chunk type code for this variant.
     pub fn to_code(&self) -> [u8; 4] {
-        match self {
-            Self::StudioSet => *b"PRFb",
-            Self::PcmSynthTone => *b"RFPa",
-            Self::PcmDrumKit => *b"RFRa",
-            Self::SnSynthTone => *b"SHPa",
-            Self::SnAcousticTone => *b"SNTa",
-            Self::SnDrumKit => *b"SDKa",
-            Self::SystemSettings => *b"SYSa",
-        }
+        self.spec().code
     }
 
     /// Kebab-case identifier for CLI filtering.
     pub fn cli_name(&self) -> &'static str {
-        match self {
-            Self::StudioSet => "studio-set",
-            Self::PcmSynthTone => "pcm-synth",
-            Self::PcmDrumKit => "pcm-drum",
-            Self::SnSynthTone => "sn-synth",
-            Self::SnAcousticTone => "sn-acoustic",
-            Self::SnDrumKit => "sn-drum",
-            Self::SystemSettings => "system",
-        }
+        self.spec().cli_name
     }
 
     /// The type whose [`ChunkType::cli_name`] is `name`.
     pub fn from_cli_name(name: &str) -> Option<Self> {
-        [
-            Self::StudioSet,
-            Self::PcmSynthTone,
-            Self::PcmDrumKit,
-            Self::SnSynthTone,
-            Self::SnAcousticTone,
-            Self::SnDrumKit,
-            Self::SystemSettings,
-        ]
-        .into_iter()
-        .find(|k| k.cli_name() == name)
+        CHUNK_TYPES
+            .iter()
+            .find(|s| s.cli_name == name)
+            .map(|s| s.kind)
     }
 
     /// Human-readable label.
     pub fn label(&self) -> &'static str {
-        match self {
-            Self::StudioSet => "Studio Set",
-            Self::PcmSynthTone => "PCM Synth Tone",
-            Self::PcmDrumKit => "PCM Drum Kit",
-            Self::SnSynthTone => "SN Synth Tone",
-            Self::SnAcousticTone => "SN Acoustic Tone",
-            Self::SnDrumKit => "SN Drum Kit",
-            Self::SystemSettings => "System Settings",
-        }
+        self.spec().label
     }
 
     /// Return the default entry size in bytes for this chunk type.
     pub fn default_entry_size(&self) -> usize {
-        match self {
-            Self::StudioSet => 1068,
-            Self::PcmSynthTone => 590,
-            Self::PcmDrumKit => 10890,
-            Self::SnSynthTone => 280,
-            Self::SnAcousticTone => 138,
-            Self::SnDrumKit => 1006,
-            Self::SystemSettings => 108,
-        }
+        self.spec().entry_size
+    }
+
+    /// Return the length (in characters) of patch names for this chunk type.
+    ///
+    /// Studio Sets use 16-character names; all tone/drum types use 12.
+    /// System settings have no name (`None`).
+    pub fn name_length(&self) -> Option<usize> {
+        self.spec().name_length
     }
 }
 
@@ -180,20 +232,6 @@ impl ChunkType {
 // ---------------------------------------------------------------------------
 
 include!(concat!(env!("OUT_DIR"), "/tone_category_data.rs"));
-
-impl ChunkType {
-    /// Return the length (in characters) of patch names for this chunk type.
-    ///
-    /// Studio Sets use 16-character names; all tone/drum types use 12.
-    /// System settings have no name (`None`).
-    pub fn name_length(&self) -> Option<usize> {
-        match self {
-            Self::StudioSet => Some(16),
-            Self::SystemSettings => None,
-            _ => Some(12),
-        }
-    }
-}
 
 impl fmt::Display for ChunkType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -461,18 +499,10 @@ mod tests {
 
     #[test]
     fn chunk_type_roundtrip() {
-        let types = [
-            ChunkType::StudioSet,
-            ChunkType::PcmSynthTone,
-            ChunkType::PcmDrumKit,
-            ChunkType::SnSynthTone,
-            ChunkType::SnAcousticTone,
-            ChunkType::SnDrumKit,
-            ChunkType::SystemSettings,
-        ];
-        for ct in &types {
-            let code = ct.to_code();
-            assert_eq!(ChunkType::from_code(&code), Some(*ct));
+        for spec in &CHUNK_TYPES {
+            let ct = spec.kind;
+            assert_eq!(ChunkType::from_code(&ct.to_code()), Some(ct));
+            assert_eq!(ChunkType::from_cli_name(ct.cli_name()), Some(ct));
         }
     }
 
@@ -490,13 +520,19 @@ mod tests {
 
     #[test]
     fn default_entry_sizes() {
-        assert_eq!(ChunkType::StudioSet.default_entry_size(), 1068);
-        assert_eq!(ChunkType::PcmSynthTone.default_entry_size(), 590);
-        assert_eq!(ChunkType::PcmDrumKit.default_entry_size(), 10890);
-        assert_eq!(ChunkType::SnSynthTone.default_entry_size(), 280);
-        assert_eq!(ChunkType::SnAcousticTone.default_entry_size(), 138);
-        assert_eq!(ChunkType::SnDrumKit.default_entry_size(), 1006);
-        assert_eq!(ChunkType::SystemSettings.default_entry_size(), 108);
+        let sizes = CHUNK_TYPES.map(|s| (s.code, s.kind.default_entry_size()));
+        assert_eq!(
+            sizes,
+            [
+                (*b"PRFb", 1068),
+                (*b"RFPa", 590),
+                (*b"RFRa", 10890),
+                (*b"SHPa", 280),
+                (*b"SNTa", 138),
+                (*b"SDKa", 1006),
+                (*b"SYSa", 108),
+            ]
+        );
     }
 
     /// Path to the test SVD fixture (3 SN-S patches from Synth Legends).
