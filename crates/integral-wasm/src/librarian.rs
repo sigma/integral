@@ -52,8 +52,11 @@ export interface PackEntryInfo {
 export interface CatalogName { msb: number; lsb: number; pc: number; name: string }
 /** Where an entry goes: a User slot (0-indexed) of its type, or not. */
 export type Placement = { user: number } | "temporary" | "unplaced" | "excluded";
-/** Something to tell the user before importing Studio Set `set`. */
-export interface ImportWarning { set: number; part: number; message: string }
+/**
+ * Something to tell the user before importing entry `entry`: a Studio Set
+ * (about its Part `part`), or a tone.
+ */
+export interface ImportWarning { entry: number; part?: number; message: string }
 /** Something to export. */
 export type ExportSource =
   | { source: "user"; kind: string; slot: number }
@@ -240,8 +243,8 @@ struct CatalogName {
 
 #[derive(Serialize)]
 struct WarningInfo {
-    set: usize,
-    part: u8,
+    entry: usize,
+    part: Option<u8>,
     message: String,
 }
 
@@ -290,20 +293,15 @@ impl WasmImportPlan {
         self.inner.overwrites().collect()
     }
 
-    /// Warnings about the Studio Sets that are not excluded.
+    /// Warnings about the entries that are not excluded.
     pub fn warnings(&self) -> Result<ImportWarnings, JsError> {
         let warnings: Vec<WarningInfo> = self
             .inner
             .warnings()
-            .map(|w| {
-                let (plan::Warning::BrokenReference { part, .. }
-                | plan::Warning::ToneNotImported { part, .. }
-                | plan::Warning::ExpansionNotLoaded { part, .. }) = w;
-                WarningInfo {
-                    set: w.set(),
-                    part,
-                    message: w.to_string(),
-                }
+            .map(|w| WarningInfo {
+                entry: w.entry(),
+                part: w.part(),
+                message: w.to_string(),
             })
             .collect();
         to_js(&warnings)

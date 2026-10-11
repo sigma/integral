@@ -69,7 +69,7 @@ export interface UseLibraryImportResult {
   opening: boolean;
   openError: string | null;
   entries: ImportEntry[];
-  /** Warnings about the Studio Sets being imported, naming set and Part. */
+  /** Warnings about the entries being imported, naming each. */
   warnings: string[];
   /** Entries with no destination yet: they block the import. */
   unplaced: number;
@@ -314,7 +314,7 @@ export function useLibraryImport(
   const warnings = useMemo(
     () =>
       (view?.warnings ?? []).map(
-        (w) => `"${opened?.entries[w.set]?.name ?? ""}" ${w.message}`,
+        (w) => `"${opened?.entries[w.entry]?.name ?? ""}" ${w.message}`,
       ),
     [view, opened],
   );

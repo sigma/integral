@@ -27,6 +27,8 @@ use crate::svd_specs::{
     SvdToneSpec,
 };
 use crate::user_write::BankSelect;
+use crate::waves::WaveGroup;
+use crate::{pcm_drum, pcm_synth};
 
 /// Errors reading, building or writing a [`Pack`].
 #[derive(Debug, Error)]
@@ -202,6 +204,61 @@ impl PackEntry {
                 })
             })
             .collect()
+    }
+
+    /// The Wave Groups a PCM Synth tone's switched-on partials or a PCM
+    /// Drum Kit's switched-on WMTs play, each once, in partial order. Empty
+    /// for every other type.
+    pub fn wave_groups(&self) -> Vec<WaveGroup> {
+        // (Group Type, Group ID, Wave Numbers L and R) of each Wave played.
+        let waves: Vec<(u8, u16, [u16; 2])> = match self.kind {
+            ChunkType::PcmSynthTone => {
+                let pmt = self
+                    .blocks
+                    .iter()
+                    .find(|b| b.len() == pcm_synth::PCMS_PMT_BLOCK_SIZE.value() as usize)
+                    .and_then(|b| pcm_synth::parse_pcms_pmt(b).ok());
+                let Some(pmt) = pmt else { return vec![] };
+                self.blocks
+                    .iter()
+                    .filter(|b| b.len() == pcm_synth::PCMS_PARTIAL_BLOCK_SIZE.value() as usize)
+                    .zip(&pmt.partial_entries)
+                    .filter(|(_, e)| e.partial_switch != 0)
+                    .filter_map(|(b, _)| pcm_synth::parse_pcms_partial(b).ok())
+                    .map(|p| {
+                        let numbers = [p.wave_number_l, p.wave_number_r];
+                        (p.wave_group_type, p.wave_group_id, numbers)
+                    })
+                    .collect()
+            }
+            ChunkType::PcmDrumKit => self
+                .blocks
+                .iter()
+                .filter(|b| b.len() == pcm_drum::PCMD_PARTIAL_BLOCK_SIZE.value() as usize)
+                .filter_map(|b| pcm_drum::parse_pcmd_partial(b).ok())
+                .flat_map(|p| p.wmt)
+                .filter(|w| w.switch != 0)
+                .map(|w| {
+                    let numbers = [w.wave_number_l, w.wave_number_r];
+                    (w.wave_group_type, w.wave_group_id, numbers)
+                })
+                .collect(),
+            _ => return vec![],
+        };
+        let mut groups = Vec::new();
+        for (group_type, group_id, numbers) in waves {
+            // Wave Number 0 is OFF: no Wave.
+            if numbers == [0, 0] {
+                continue;
+            }
+            let group = u8::try_from(group_id)
+                .ok()
+                .and_then(|id| WaveGroup::from_params(group_type, id));
+            if let Some(group) = group.filter(|g| !groups.contains(g)) {
+                groups.push(group);
+            }
+        }
+        groups
     }
 
     /// Point Part `part` (0-indexed) of a Studio Set at `tone_ref`.

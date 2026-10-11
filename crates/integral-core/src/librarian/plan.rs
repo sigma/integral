@@ -9,6 +9,11 @@
 //! [`ImportPlan::assign`] does, and the entry then shows among the
 //! [overwrites](ImportPlan::overwrites).
 //!
+//! A plan made with [`plan_read`] also carries what reading the file
+//! dropped: each entry's [Conversion report](ImportPlan::report) and the
+//! [file-level report](ImportPlan::file_report), for the host to show
+//! before anything is written.
+//!
 //! Reference: decisions #65 and #66 (`docs/svd/11-sound-vs-backup.md`).
 
 use std::collections::HashSet;
@@ -21,6 +26,7 @@ use crate::expansion_slots::ExpansionSlots;
 use crate::expansions::{Expansion, expansion_of_bank};
 use crate::svd::ChunkType;
 
+use super::foreign::{ConversionItem, FileItem, PackRead};
 use super::pack::{Pack, ToneRef, user_memory};
 
 /// What kind of file a [`Pack`] was read from.
@@ -49,7 +55,7 @@ pub enum Placement {
     Excluded,
 }
 
-/// Something the user should know before importing a Studio Set.
+/// Something the user should know before importing a Studio Set or a tone.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Warning {
     /// A Part points at a Pack position that holds no tone of its type. It
@@ -86,22 +92,42 @@ pub enum Warning {
         /// The Expansion the tone needs.
         expansion: &'static Expansion,
     },
+    /// A PCM Synth tone or PCM Drum Kit of the Pack plays Waves of an
+    /// Expansion that is not loaded.
+    ToneExpansionNotLoaded {
+        /// The tone, as an index into the Pack's entries.
+        tone: usize,
+        /// The Expansion its Waves need.
+        expansion: &'static Expansion,
+    },
 }
 
 impl Warning {
-    /// The Studio Set the warning is about, as an index into the Pack's
+    /// The entry the warning is about (a Studio Set, or a tone for
+    /// [`Warning::ToneExpansionNotLoaded`]), as an index into the Pack's
     /// entries.
-    pub fn set(&self) -> usize {
+    pub fn entry(&self) -> usize {
         match *self {
             Self::BrokenReference { set, .. }
             | Self::ToneNotImported { set, .. }
             | Self::ExpansionNotLoaded { set, .. } => set,
+            Self::ToneExpansionNotLoaded { tone, .. } => tone,
+        }
+    }
+
+    /// The Studio Set Part the warning is about, 0-indexed, if any.
+    pub fn part(&self) -> Option<u8> {
+        match *self {
+            Self::BrokenReference { part, .. }
+            | Self::ToneNotImported { part, .. }
+            | Self::ExpansionNotLoaded { part, .. } => Some(part),
+            Self::ToneExpansionNotLoaded { .. } => None,
         }
     }
 }
 
 impl fmt::Display for Warning {
-    /// The message, without the Studio Set's name.
+    /// The message, without the entry's name.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Self::BrokenReference {
@@ -123,6 +149,9 @@ impl fmt::Display for Warning {
             Self::ExpansionNotLoaded {
                 part, expansion, ..
             } => write!(f, "Part {}: needs {}, not loaded", part + 1, expansion.name),
+            Self::ToneExpansionNotLoaded { expansion, .. } => {
+                write!(f, "plays Waves of {}, not loaded", expansion.name)
+            }
         }
     }
 }
@@ -158,6 +187,10 @@ pub struct ImportPlan {
     /// Each Part reference to a tone of the Pack, with that tone's entry
     /// index, for [`Warning::ToneNotImported`].
     pack_refs: Vec<(Warning, usize)>,
+    /// Each entry's Conversion report.
+    reports: Vec<Vec<ConversionItem>>,
+    /// What the file held that is not in the Pack.
+    file_report: Vec<FileItem>,
 }
 
 /// Plan the import of `pack`.
@@ -168,8 +201,14 @@ pub struct ImportPlan {
 /// `None` when unknown: a Part playing a tone of an Expansion that isn't
 /// loaded gets a warning, and none when unknown.
 ///
+/// A PCM Synth tone or PCM Drum Kit playing Waves of an Expansion that
+/// isn't loaded gets a warning too, whether converted or native.
+///
 /// A lone tone, or a lone Studio Set that references no tone of the Pack,
 /// goes to Temporary.
+///
+/// The plan's reports are empty: [`plan_read`] plans a Pack with the
+/// reports of its reading.
 pub fn plan_import(
     pack: &Pack,
     origin: Origin,
@@ -217,6 +256,19 @@ pub fn plan_import(
             };
             warnings.extend(warning);
         }
+        if let Some(loaded) = loaded {
+            warnings.extend(
+                entry
+                    .wave_groups()
+                    .into_iter()
+                    .filter_map(|g| g.expansion())
+                    .filter(|e| !loaded.contains(e))
+                    .map(|expansion| Warning::ToneExpansionNotLoaded {
+                        tone: set,
+                        expansion,
+                    }),
+            );
+        }
     }
 
     let single = match pack.entries.as_slice() {
@@ -234,6 +286,8 @@ pub fn plan_import(
         free,
         warnings,
         pack_refs,
+        reports: vec![Vec::new(); pack.entries.len()],
+        file_report: Vec::new(),
     };
     if single {
         plan.placements[0] = Placement::Temporary;
@@ -242,6 +296,21 @@ pub fn plan_import(
             plan.placements[entry] = plan.destination(entry);
         }
     }
+    plan
+}
+
+/// Plan the import of a Pack read from a file, as [`plan_import`] does,
+/// keeping the reports of its reading.
+pub fn plan_read(
+    read: &PackRead,
+    origin: Origin,
+    slot_names: &[CatalogEntry],
+    loaded: Option<&ExpansionSlots>,
+) -> ImportPlan {
+    let mut plan = plan_import(&read.pack, origin, slot_names, loaded);
+    plan.reports.clone_from(&read.reports);
+    plan.reports.resize(read.pack.entries.len(), Vec::new());
+    plan.file_report.clone_from(&read.file_report);
     plan
 }
 
@@ -290,8 +359,20 @@ impl ImportPlan {
         })
     }
 
-    /// Warnings about the Studio Sets that are not excluded, as the plan
-    /// stands now.
+    /// The Conversion report of `entry`: what converting it from a Foreign
+    /// patch dropped or approximated. Empty when it is clean, and for a
+    /// native entry or an index out of range.
+    pub fn report(&self, entry: usize) -> &[ConversionItem] {
+        self.reports.get(entry).map_or(&[], Vec::as_slice)
+    }
+
+    /// What the file held that is not in the Pack.
+    pub fn file_report(&self) -> &[FileItem] {
+        &self.file_report
+    }
+
+    /// Warnings about the entries that are not excluded, as the plan stands
+    /// now.
     pub fn warnings(&self) -> impl Iterator<Item = Warning> + '_ {
         let not_imported = self
             .pack_refs
@@ -302,7 +383,7 @@ impl ImportPlan {
             .iter()
             .copied()
             .chain(not_imported)
-            .filter(|w| self.placements[w.set()] != Placement::Excluded)
+            .filter(|w| self.placements[w.entry()] != Placement::Excluded)
     }
 
     /// Send `entry` to User slot `slot` (0-indexed) of its type, free or
@@ -633,6 +714,85 @@ mod tests {
     #[test]
     fn srx_tone_with_unknown_slots() {
         assert_eq!(srx_warnings(None), []);
+    }
+
+    /// The XV fixture: one PCM Synth tone playing SRX-03 and INT Waves, with
+    /// a Conversion report.
+    fn united() -> PackRead {
+        Pack::read(include_bytes!(
+            "../../tests/fixtures/foreign/xv/srx03ap2-001.syx"
+        ))
+        .unwrap()
+    }
+
+    fn tone_warnings(read: &PackRead, loaded: Option<&ExpansionSlots>) -> Vec<Warning> {
+        plan_read(read, Origin::Sound, &[], loaded)
+            .warnings()
+            .collect()
+    }
+
+    #[test]
+    fn warns_when_a_tone_plays_waves_of_an_unloaded_expansion() {
+        let read = united();
+        let srx03 = by_name("SRX-03").unwrap();
+        let other = ExpansionSlots::default().with(0, by_name("SRX-06"));
+        let warnings = tone_warnings(&read, Some(&other));
+        assert_eq!(
+            warnings,
+            [Warning::ToneExpansionNotLoaded {
+                tone: 0,
+                expansion: srx03
+            }]
+        );
+        assert_eq!(warnings[0].entry(), 0);
+        assert_eq!(warnings[0].part(), None);
+        assert_eq!(warnings[0].to_string(), "plays Waves of SRX-03, not loaded");
+
+        let loaded = ExpansionSlots::default().with(1, Some(srx03));
+        assert_eq!(tone_warnings(&read, Some(&loaded)), []);
+        assert_eq!(tone_warnings(&read, None), []);
+    }
+
+    #[test]
+    fn warns_when_a_drum_kit_plays_waves_of_an_unloaded_expansion() {
+        use crate::parse_helpers::encode_nibble4;
+        use crate::pcm_drum::{PcmdWmtField as F, pcmd_wmt_field_offset};
+
+        let mut kit = entry(ChunkType::PcmDrumKit, None);
+        let mut blocks = kit.blocks().to_vec();
+        // Key 21's first WMT plays SRX-07 Wave 1; every other WMT is off.
+        let key = &mut blocks[3];
+        let at = |field| usize::from(pcmd_wmt_field_offset(0, field).unwrap());
+        key[at(F::Switch)] = 1;
+        key[at(F::WaveGroupType)] = 1;
+        key[at(F::WaveGroupId)..][..4].copy_from_slice(&encode_nibble4(7));
+        key[at(F::WaveNumberL)..][..4].copy_from_slice(&encode_nibble4(1));
+        kit = PackEntry::new(ChunkType::PcmDrumKit, None, blocks).unwrap();
+        assert_eq!(kit.wave_groups(), [crate::waves::WaveGroup::Srx(7)]);
+
+        let loaded = ExpansionSlots::default();
+        let plan = plan_import(&pack(vec![kit]), Origin::Sound, &[], Some(&loaded));
+        assert_eq!(
+            plan.warnings().collect::<Vec<_>>(),
+            [Warning::ToneExpansionNotLoaded {
+                tone: 0,
+                expansion: by_name("SRX-07").unwrap()
+            }]
+        );
+    }
+
+    #[test]
+    fn a_read_plan_carries_the_reports() {
+        let mut read = united();
+        read.file_report.push(FileItem::Unreadable);
+        let plan = plan_read(&read, Origin::Sound, &[], None);
+        assert_eq!(plan.report(0), read.reports[0]);
+        assert!(!plan.report(0).is_empty());
+        assert_eq!(plan.report(1), []);
+        assert_eq!(plan.file_report(), [FileItem::Unreadable]);
+
+        let plain = plan_import(&read.pack, Origin::Sound, &[], None);
+        assert_eq!((plain.report(0), plain.file_report()), (&[][..], &[][..]));
     }
 
     #[test]

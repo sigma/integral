@@ -266,9 +266,9 @@ impl Report<'_> {
         self.plan
             .warnings()
             .map(|w| {
-                let set = w.set();
-                let name = self.pack.entries[set].name();
-                format!("{} {name}: {w}", entry_id(self.pack, set))
+                let entry = w.entry();
+                let name = self.pack.entries[entry].name();
+                format!("{} {name}: {w}", entry_id(self.pack, entry))
             })
             .collect()
     }

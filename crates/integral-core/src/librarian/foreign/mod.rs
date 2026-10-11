@@ -25,6 +25,7 @@ use std::collections::HashMap;
 
 use crate::address::Address;
 use crate::librarian::pack::{Pack, PackEntry, PackError};
+use crate::librarian::plan::Origin;
 use crate::svd::{self, SvdFamily, XvChunkType};
 use crate::sysex;
 
@@ -34,9 +35,35 @@ pub use report::{ConversionItem, ConversionReport, FileItem, Skipped};
 /// First bytes of a Standard MIDI File.
 const SMF_MAGIC: &[u8] = b"MThd";
 
+/// The kind of file a Pack was read from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PackFormat {
+    /// An INTEGRA-7 SVD file.
+    Svd,
+    /// Raw SysEx (`.syx`).
+    Sysex,
+    /// A Standard MIDI File (`.mid`).
+    Midi,
+}
+
+impl PackFormat {
+    /// What a file of this format is called when planning from it: an SVD
+    /// file is a sound export or a backup.
+    pub fn label(self, origin: Origin) -> &'static str {
+        match (self, origin) {
+            (Self::Svd, Origin::Sound) => "sound export",
+            (Self::Svd, Origin::Backup) => "backup",
+            (Self::Sysex, _) => "SysEx dump",
+            (Self::Midi, _) => "MIDI file",
+        }
+    }
+}
+
 /// A Pack read from a file, with what the reading dropped.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackRead {
+    /// The kind of file.
+    pub format: PackFormat,
     /// The entries read.
     pub pack: Pack,
     /// What the file held that is not in `pack`.
@@ -47,9 +74,10 @@ pub struct PackRead {
 
 impl PackRead {
     /// A Pack of native entries: every Conversion report is empty.
-    fn native(pack: Pack, file_report: Vec<FileItem>) -> Self {
+    fn native(format: PackFormat, pack: Pack, file_report: Vec<FileItem>) -> Self {
         let reports = vec![ConversionReport::new(); pack.entries.len()];
         Self {
+            format,
             pack,
             file_report,
             reports,
@@ -63,7 +91,11 @@ impl Pack {
     pub fn read(bytes: &[u8]) -> Result<PackRead, PackError> {
         match SvdFamily::of(bytes) {
             Some(SvdFamily::Integra) => {
-                return Ok(PackRead::native(Pack::from_svd(bytes)?, vec![]));
+                return Ok(PackRead::native(
+                    PackFormat::Svd,
+                    Pack::from_svd(bytes)?,
+                    vec![],
+                ));
             }
             Some(SvdFamily::Xv) => return read_xv_svd(bytes),
             Some(SvdFamily::JvXp) => {
@@ -74,7 +106,7 @@ impl Pack {
             None => {}
         }
         if bytes.first() == Some(&frame::SYSEX_START) {
-            Ok(read_sysex(bytes, false))
+            Ok(read_sysex(bytes, PackFormat::Sysex, false))
         } else if bytes.starts_with(SMF_MAGIC) {
             read_smf(bytes)
         } else {
@@ -84,7 +116,6 @@ impl Pack {
 }
 
 /// Pack entries as units convert, with the tally of what was dropped.
-#[derive(Default)]
 struct Collector {
     read: PackRead,
     skipped: Vec<(Skipped, usize)>,
@@ -92,6 +123,15 @@ struct Collector {
 }
 
 impl Collector {
+    /// An empty Pack read from a file of `format`.
+    fn new(format: PackFormat) -> Self {
+        Self {
+            read: PackRead::native(format, Pack::default(), vec![]),
+            skipped: Vec::new(),
+            duplicates: 0,
+        }
+    }
+
     /// Count `count` units skipped as `kind`.
     fn skip(&mut self, kind: Skipped, count: usize) {
         match self.skipped.iter_mut().find(|(k, _)| *k == kind) {
@@ -144,7 +184,7 @@ impl Collector {
 /// An XV-series `.svd` file: each Patch entry converts like a SysEx Patch
 /// dump. Performances, Rhythm Sets and System settings are skipped.
 fn read_xv_svd(bytes: &[u8]) -> Result<PackRead, PackError> {
-    let mut collector = Collector::default();
+    let mut collector = Collector::new(PackFormat::Svd);
     for chunk in svd::parse_xv(bytes)? {
         let kind = match chunk.chunk_type {
             XvChunkType::Patch => {
@@ -173,6 +213,7 @@ fn read_smf(bytes: &[u8]) -> Result<PackRead, PackError> {
 
     let Ok((_, tracks)) = midly::parse(bytes) else {
         return Ok(PackRead::native(
+            PackFormat::Midi,
             Pack::default(),
             vec![FileItem::Unreadable],
         ));
@@ -200,7 +241,7 @@ fn read_smf(bytes: &[u8]) -> Result<PackRead, PackError> {
             }
         }
     }
-    Ok(read_sysex(&stream, unreadable))
+    Ok(read_sysex(&stream, PackFormat::Midi, unreadable))
 }
 
 #[cfg(not(feature = "smf"))]
@@ -248,15 +289,15 @@ struct Group<'a> {
     frames: Vec<frame::Frame<'a>>,
 }
 
-/// Read a stream of SysEx messages. `unreadable` carries in from the
-/// container.
-fn read_sysex(bytes: &[u8], mut unreadable: bool) -> PackRead {
+/// Read a stream of SysEx messages from a file of `format`. `unreadable`
+/// carries in from the container.
+fn read_sysex(bytes: &[u8], format: PackFormat, mut unreadable: bool) -> PackRead {
     let split = frame::split(bytes);
     unreadable |= split.incomplete;
     let areas = integra::areas();
 
     let mut bad_checksums = 0;
-    let mut collector = Collector::default();
+    let mut collector = Collector::new(format);
 
     // Frames grouped per unit, in the order units start.
     let mut groups: Vec<Group<'_>> = Vec::new();

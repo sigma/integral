@@ -65,6 +65,19 @@ fn every_type_reads_from_any_part() {
 }
 
 #[test]
+fn records_the_file_format() {
+    let tone = blocks(SNS, "Dumped", 0);
+    let syx = read(&dump(SNS, temporary(SNS, 0), &tone));
+    assert_eq!(syx.format, PackFormat::Sysex);
+    assert_eq!(syx.format.label(Origin::Sound), "SysEx dump");
+    let svd = read(&syx.pack.to_svd().unwrap());
+    assert_eq!(svd.format, PackFormat::Svd);
+    assert_eq!(svd.format.label(Origin::Sound), "sound export");
+    assert_eq!(svd.format.label(Origin::Backup), "backup");
+    assert_eq!(PackFormat::Midi.label(Origin::Sound), "MIDI file");
+}
+
+#[test]
 fn reads_a_studio_set() {
     let kind = ChunkType::StudioSet;
     let set = blocks(kind, "Dumped Set", 0);
