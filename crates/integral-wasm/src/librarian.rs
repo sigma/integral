@@ -297,7 +297,8 @@ impl WasmImportPlan {
             .warnings()
             .map(|w| {
                 let (plan::Warning::BrokenReference { part, .. }
-                | plan::Warning::ExpansionNotLoaded { part, .. }) = *w;
+                | plan::Warning::ToneNotImported { part, .. }
+                | plan::Warning::ExpansionNotLoaded { part, .. }) = w;
                 WarningInfo {
                     set: w.set(),
                     part,

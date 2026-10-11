@@ -64,6 +64,19 @@ pub enum Warning {
         /// The missing tone's Pack position.
         index: u16,
     },
+    /// A Part points at a tone of the Pack that the plan doesn't store in a
+    /// User slot (excluded or unplaced). It is imported as is, pointing at
+    /// the User slot of that number.
+    ToneNotImported {
+        /// The Studio Set, as an index into the Pack's entries.
+        set: usize,
+        /// The Part, 0-indexed.
+        part: u8,
+        /// The tone's type.
+        kind: ChunkType,
+        /// The tone's Pack position.
+        index: u16,
+    },
     /// A Part plays a tone of an Expansion that is not loaded.
     ExpansionNotLoaded {
         /// The Studio Set, as an index into the Pack's entries.
@@ -80,7 +93,9 @@ impl Warning {
     /// entries.
     pub fn set(&self) -> usize {
         match *self {
-            Self::BrokenReference { set, .. } | Self::ExpansionNotLoaded { set, .. } => set,
+            Self::BrokenReference { set, .. }
+            | Self::ToneNotImported { set, .. }
+            | Self::ExpansionNotLoaded { set, .. } => set,
         }
     }
 }
@@ -94,6 +109,14 @@ impl fmt::Display for Warning {
             } => write!(
                 f,
                 "Part {}: no {kind} at Pack position {}",
+                part + 1,
+                index + 1
+            ),
+            Self::ToneNotImported {
+                part, kind, index, ..
+            } => write!(
+                f,
+                "Part {}: {kind} at Pack position {} is not imported",
                 part + 1,
                 index + 1
             ),
@@ -130,7 +153,11 @@ pub struct ImportPlan {
     placements: Vec<Placement>,
     /// Free User slots, from the slot names.
     free: Vec<(ChunkType, u16)>,
+    /// Warnings that no edit changes.
     warnings: Vec<Warning>,
+    /// Each Part reference to a tone of the Pack, with that tone's entry
+    /// index, for [`Warning::ToneNotImported`].
+    pack_refs: Vec<(Warning, usize)>,
 }
 
 /// Plan the import of `pack`.
@@ -153,19 +180,33 @@ pub fn plan_import(
     let free = free_slots(&kinds, slot_names);
 
     let mut warnings = Vec::new();
+    let mut pack_refs = Vec::new();
     for (set, entry) in pack.entries.iter().enumerate() {
         for (part, tone_ref) in (0..).zip(entry.tone_refs()) {
             let warning = match tone_ref {
-                ToneRef::Pack { kind, index } => pack
-                    .of_kind(kind)
-                    .nth(usize::from(index))
-                    .is_none()
-                    .then_some(Warning::BrokenReference {
-                        set,
-                        part,
-                        kind,
-                        index,
-                    }),
+                ToneRef::Pack { kind, index } => {
+                    let tone = (0..kinds.len())
+                        .filter(|&i| kinds[i] == kind)
+                        .nth(usize::from(index));
+                    match tone {
+                        Some(tone) => {
+                            let w = Warning::ToneNotImported {
+                                set,
+                                part,
+                                kind,
+                                index,
+                            };
+                            pack_refs.push((w, tone));
+                            None
+                        }
+                        None => Some(Warning::BrokenReference {
+                            set,
+                            part,
+                            kind,
+                            index,
+                        }),
+                    }
+                }
                 ToneRef::Bank { msb, lsb, .. } => expansion_of_bank(msb, lsb)
                     .filter(|e| loaded.is_some_and(|l| !l.contains(e)))
                     .map(|expansion| Warning::ExpansionNotLoaded {
@@ -192,6 +233,7 @@ pub fn plan_import(
         placements: vec![Placement::Unplaced; pack.entries.len()],
         free,
         warnings,
+        pack_refs,
     };
     if single {
         plan.placements[0] = Placement::Temporary;
@@ -248,10 +290,18 @@ impl ImportPlan {
         })
     }
 
-    /// Warnings about the Studio Sets that are not excluded.
-    pub fn warnings(&self) -> impl Iterator<Item = &Warning> {
+    /// Warnings about the Studio Sets that are not excluded, as the plan
+    /// stands now.
+    pub fn warnings(&self) -> impl Iterator<Item = Warning> + '_ {
+        let not_imported = self
+            .pack_refs
+            .iter()
+            .filter(|&&(_, tone)| !matches!(self.placements[tone], Placement::User(_)))
+            .map(|&(w, _)| w);
         self.warnings
             .iter()
+            .copied()
+            .chain(not_imported)
             .filter(|w| self.placements[w.set()] != Placement::Excluded)
     }
 
@@ -501,7 +551,7 @@ mod tests {
     fn warns_on_broken_reference() {
         let p = pack(vec![set_with(&[(2, sns_ref(1))]), entry(SNS, None)]);
         let mut plan = plan_of(&p, Origin::Sound, &[]);
-        let warnings: Vec<_> = plan.warnings().copied().collect();
+        let warnings: Vec<_> = plan.warnings().collect();
         assert_eq!(
             warnings,
             [Warning::BrokenReference {
@@ -519,6 +569,29 @@ mod tests {
         assert_eq!(plan.warnings().count(), 0);
     }
 
+    #[test]
+    fn warns_when_a_referenced_tone_is_not_imported() {
+        let p = pack(vec![set_with(&[(2, sns_ref(0))]), entry(SNS, None)]);
+        let mut plan = plan_of(&p, Origin::Sound, &names(SNS, &["INIT TONE"]));
+        assert_eq!(plan.warnings().count(), 0);
+        let not_imported = Warning::ToneNotImported {
+            set: 0,
+            part: 2,
+            kind: SNS,
+            index: 0,
+        };
+        plan.exclude(1).unwrap();
+        assert_eq!(plan.warnings().collect::<Vec<_>>(), [not_imported]);
+        assert_eq!(
+            not_imported.to_string(),
+            "Part 3: SN Synth Tone at Pack position 1 is not imported"
+        );
+        plan.unassign(1).unwrap();
+        assert_eq!(plan.warnings().collect::<Vec<_>>(), [not_imported]);
+        plan.include(1).unwrap();
+        assert_eq!(plan.warnings().count(), 0);
+    }
+
     /// A Studio Set whose Part 1 plays an SRX-05 tone, with its User tone.
     fn srx_pack() -> Pack {
         pack(vec![
@@ -528,9 +601,9 @@ mod tests {
     }
 
     fn srx_warnings(loaded: Option<&ExpansionSlots>) -> Vec<Warning> {
-        plan_import(&srx_pack(), Origin::Sound, &[], loaded)
+        let free = names(SNS, &["INIT TONE"]);
+        plan_import(&srx_pack(), Origin::Sound, &free, loaded)
             .warnings()
-            .copied()
             .collect()
     }
 

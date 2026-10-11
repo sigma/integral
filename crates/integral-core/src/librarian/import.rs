@@ -617,6 +617,25 @@ mod tests {
                     .all(|(v, b)| before.get(v) == Some(b))
         }
 
+        /// The Bank Select Part `p` had when the Studio Set was written.
+        fn stored_bank(&self, p: u8) -> [u8; 3] {
+            let write_set = self
+                .events
+                .iter()
+                .position(|e| matches!(e, Event::Write(_, WriteSource::StudioSet)))
+                .unwrap();
+            self.events[..write_set]
+                .iter()
+                .rev()
+                .find_map(|e| match e {
+                    Event::Dt1(a, d) if *a == params::part_address(p, [0; 3]) => {
+                        d[6..9].try_into().ok()
+                    }
+                    _ => None,
+                })
+                .unwrap()
+        }
+
         fn writes(&self) -> Vec<(BankSelect, WriteSource)> {
             self.events
                 .iter()
@@ -718,27 +737,26 @@ mod tests {
         );
 
         // The set's Parts point at the slots their tones were stored in.
-        let write_set = device
-            .events
-            .iter()
-            .position(|e| matches!(e, Event::Write(_, WriteSource::StudioSet)))
-            .unwrap();
-        let part_block = |p: u8| {
-            device.events[..write_set]
-                .iter()
-                .rev()
-                .find_map(|e| match e {
-                    Event::Dt1(a, d) if *a == params::part_address(p, [0; 3]) => Some(d.clone()),
-                    _ => None,
-                })
-                .unwrap()
-        };
-        assert_eq!(part_block(0)[6..9], [95, 1, 1]);
-        assert_eq!(part_block(1)[6..9], [95, 0, 9]);
+        assert_eq!(device.stored_bank(0), [95, 1, 1]);
+        assert_eq!(device.stored_bank(1), [95, 0, 9]);
 
         // Restored: every Temporary byte is back.
         assert!(matches!(device.events.last(), Some(Event::Dt1(..))));
         assert!(device.restored(&before));
+    }
+
+    #[test]
+    fn excluded_tone_keeps_the_raw_reference() {
+        let pack = pack();
+        let mut plan = plan(&pack);
+        plan.exclude(2).unwrap();
+        let mut device = Device::new();
+        let mut import = PackImport::new(0x10, &pack, &plan, PART).unwrap();
+        device.run(&mut import);
+
+        // Part 1 played Tone B (Pack position 2): it stays on User slot 2.
+        assert_eq!(device.stored_bank(0), [95, 0, 1]);
+        assert_eq!(device.stored_bank(1), [95, 0, 9]);
     }
 
     #[test]
