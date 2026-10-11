@@ -70,18 +70,31 @@ pub fn plan(
             to: target.0[slot],
         })
         .collect();
-    let silenced_parts = (1..)
-        .zip(part_banks)
-        .filter(|(_, (msb, lsb))| {
-            expansions::expansion_of_bank(*msb, *lsb)
-                .is_some_and(|e| current.contains(e) && !target.contains(e))
-        })
+    let silenced_parts = part_expansions(part_banks)
+        .filter(|(_, e)| current.contains(e) && !target.contains(e))
         .map(|(part, _)| part)
         .collect();
     LoadPlan {
         changes,
         silenced_parts,
     }
+}
+
+/// Parts (1-based) whose tone comes from `expansion`, loaded or not.
+///
+/// `part_banks` holds each Part's tone bank (MSB, LSB), Part 1 first.
+pub fn parts_using(expansion: &Expansion, part_banks: &[(u8, u8)]) -> Vec<u8> {
+    part_expansions(part_banks)
+        .filter(|(_, e)| *e == expansion)
+        .map(|(part, _)| part)
+        .collect()
+}
+
+/// Each Part (1-based) on an Expansion's tone, with that Expansion.
+fn part_expansions(part_banks: &[(u8, u8)]) -> impl Iterator<Item = (u8, &'static Expansion)> + '_ {
+    (1..).zip(part_banks).filter_map(|(part, &(msb, lsb))| {
+        expansions::expansion_of_bank(msb, lsb).map(|e| (part, e))
+    })
 }
 
 /// How a load ended.
@@ -290,6 +303,20 @@ mod tests {
             ]
         );
         assert_eq!(p.silenced_parts, [1]);
+    }
+
+    #[test]
+    fn parts_using_lists_parts_on_an_expansion() {
+        // Parts 1 and 4 on SRX-05 (tone and drum banks), Part 2 on SRX-03,
+        // Part 3 on a preset.
+        let parts = [(93, 4), (93, 2), (89, 64), (92, 4)];
+        let srx05 = expansions::by_name("SRX-05").unwrap();
+        assert_eq!(parts_using(srx05, &parts), [1, 4]);
+        assert_eq!(
+            parts_using(expansions::by_name("SRX-03").unwrap(), &parts),
+            [2]
+        );
+        assert!(parts_using(expansions::by_name("ExPCM").unwrap(), &parts).is_empty());
     }
 
     #[test]

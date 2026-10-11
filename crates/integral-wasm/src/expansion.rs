@@ -41,6 +41,8 @@ impl From<expansions::ExpansionKind> for ExpansionKind {
 #[derive(Clone)]
 pub struct WasmExpansion {
     name: String,
+    title: String,
+    kind_label: String,
     /// Value selecting this Expansion in a slot read or load.
     #[wasm_bindgen(readonly, js_name = loadValue)]
     pub load_value: u8,
@@ -56,6 +58,8 @@ impl From<&Expansion> for WasmExpansion {
     fn from(e: &Expansion) -> Self {
         Self {
             name: e.name.to_string(),
+            title: e.title.to_string(),
+            kind_label: e.kind.label().to_string(),
             load_value: e.load_value,
             kind: e.kind.into(),
             slot_cost: e.slot_cost,
@@ -70,6 +74,18 @@ impl WasmExpansion {
     pub fn name(&self) -> String {
         self.name.clone()
     }
+
+    /// Product title (e.g. "Supreme Dance" for SRX-05).
+    #[wasm_bindgen(getter)]
+    pub fn title(&self) -> String {
+        self.title.clone()
+    }
+
+    /// Short label of its family ("SRX", "ExSN", "ExPCM").
+    #[wasm_bindgen(getter, js_name = kindLabel)]
+    pub fn kind_label(&self) -> String {
+        self.kind_label.clone()
+    }
 }
 
 /// Every Expansion, in catalog (load value) order.
@@ -79,6 +95,21 @@ pub fn expansion_catalog() -> Vec<WasmExpansion> {
         .iter()
         .map(WasmExpansion::from)
         .collect()
+}
+
+/// Names of the Expansion slots, in slot order ("A" to "D").
+#[wasm_bindgen(js_name = expansionSlotNames)]
+pub fn expansion_slot_names() -> Vec<String> {
+    expansion_slots::SLOT_NAMES
+        .iter()
+        .map(char::to_string)
+        .collect()
+}
+
+/// Slot value of an empty (OFF) Expansion slot.
+#[wasm_bindgen(js_name = expansionSlotOff)]
+pub fn expansion_slot_off() -> u8 {
+    expansion_slots::OFF
 }
 
 /// Address of the Expansion slot read and its reply DT1.
@@ -100,7 +131,7 @@ pub fn stage_expansion_slot(slots: &[u8], slot: usize, load_value: u8) -> Result
         )));
     }
     let expansion = match load_value {
-        0 => None,
+        expansion_slots::OFF => None,
         v => Some(
             expansions::by_load_value(v)
                 .ok_or_else(|| JsError::new(&format!("unknown Expansion load value {v}")))?,
@@ -257,6 +288,15 @@ impl WasmDeviceState {
         self.inner.is_loaded(expansions::by_load_value(load_value)?)
     }
 
+    /// Parts (1-based) whose current tone comes from the Expansion of
+    /// `load_value`; empty for an unknown load value.
+    #[wasm_bindgen(js_name = partsUsingExpansion)]
+    pub fn parts_using_expansion(&self, load_value: u8) -> Vec<u8> {
+        expansions::by_load_value(load_value)
+            .map(|e| self.inner.parts_using_expansion(e))
+            .unwrap_or_default()
+    }
+
     /// Feed an incoming DT1 that may concern the Expansion slots (a load
     /// reply or a slot read answer). Returns true if it did.
     #[wasm_bindgen(js_name = handleExpansionDt1)]
@@ -328,6 +368,9 @@ mod tests {
             (expcm.name().as_str(), expcm.kind, expcm.slot_cost),
             ("ExPCM", ExpansionKind::ExPcm, 4)
         );
+        assert_eq!(expcm.kind_label(), "ExPCM");
+        assert_eq!(catalog[4].title(), "Supreme Dance");
+        assert_eq!(expansion_slot_names(), ["A", "B", "C", "D"]);
     }
 
     #[test]

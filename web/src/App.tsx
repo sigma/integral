@@ -11,6 +11,7 @@ import {
 import { IntegraService } from "./integra";
 import { useMixer } from "./useMixer";
 import { useExpansions } from "./useExpansions";
+import { useExpansionStaging } from "./useExpansionStaging";
 import { DeviceSelector } from "./DeviceSelector";
 import {
   Identifying,
@@ -28,11 +29,13 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { Transport } from "./Transport";
 import { KeyboardDrawer } from "./KeyboardDrawer";
 import { SequencerPage } from "./SequencerPage";
+import { ExpansionsPage } from "./ExpansionsPage";
+import { ExpansionLoadBanner } from "./ExpansionLoadBanner";
 import { useKeyboard } from "./useKeyboard";
 import { sequencerEngine, type SequencerEngine } from "./sequencer";
 import css from "./App.module.css";
 
-type PageTab = "mixer" | "surround" | "toneEdit" | "sequencer";
+type PageTab = "mixer" | "surround" | "toneEdit" | "sequencer" | "expansions";
 
 type DeviceStatus =
   | { step: "idle" }
@@ -177,6 +180,7 @@ export function App() {
 
   const mixer = useMixer(service);
   const expansions = useExpansions(service);
+  const expansionStaging = useExpansionStaging(expansions);
   const selectedChannel = mixer.state.parts[mixer.state.selectedPart]?.receiveChannel ?? 0;
   const keyboard = useKeyboard(service, selectedChannel, sequencer);
   useEffect(() => {
@@ -186,62 +190,81 @@ export function App() {
 
   // Show connected UI when connected to an Integra-7
   if (service) {
+    const loading = expansions.running;
     return (
       <div className={css.shell}>
-        <nav className={css.tabBar}>
-          <div className={css.tabs}>
-            <button
-              className={`${css.tab} ${activeTab === "mixer" ? css.tabActive : ""}`}
-              onClick={() => setActiveTab("mixer")}
-            >
-              Mixer
-            </button>
-            <button
-              className={`${css.tab} ${activeTab === "surround" ? css.tabActive : ""}`}
-              onClick={() => setActiveTab("surround")}
-            >
-              Surround
-            </button>
-            <button
-              className={`${css.tab} ${activeTab === "toneEdit" ? css.tabActive : ""}`}
-              onClick={() => setActiveTab("toneEdit")}
-            >
-              Tone Edit
-            </button>
-            {sequencer && (
+        {loading && <ExpansionLoadBanner load={loading} />}
+        {/* A running Expansion load holds every edit: the app is inert. */}
+        <div
+          className={`${css.body} ${loading ? css.bodyBusy : ""}`}
+          inert={loading !== null}
+        >
+          <nav className={css.tabBar}>
+            <div className={css.tabs}>
               <button
-                className={`${css.tab} ${activeTab === "sequencer" ? css.tabActive : ""}`}
-                onClick={() => setActiveTab("sequencer")}
+                className={`${css.tab} ${activeTab === "mixer" ? css.tabActive : ""}`}
+                onClick={() => setActiveTab("mixer")}
               >
-                Sequencer
+                Mixer
               </button>
-            )}
-            {sequencer && <Transport engine={sequencer} />}
-          </div>
-          <TopBar mixer={mixer} service={service} expansions={expansions} />
-        </nav>
-        {activeTab === "mixer" && (
-          <ErrorBoundary section="Mixer">
-            <MixerPage mixer={mixer} expansions={expansions} />
-          </ErrorBoundary>
-        )}
-        {activeTab === "surround" && (
-          <ErrorBoundary section="Surround">
-            <SurroundPage mixer={mixer} />
-          </ErrorBoundary>
-        )}
-        {activeTab === "toneEdit" && (
-          <ErrorBoundary section="Tone Editor">
-            <ToneEditorPage mixer={mixer} service={service} onBack={() => setActiveTab("mixer")} />
-          </ErrorBoundary>
-        )}
-        {activeTab === "sequencer" && sequencer ? (
-          <ErrorBoundary section="Sequencer">
-            <SequencerPage engine={sequencer} mixer={mixer} keyboard={keyboard} />
-          </ErrorBoundary>
-        ) : (
-          <KeyboardDrawer keyboard={keyboard} />
-        )}
+              <button
+                className={`${css.tab} ${activeTab === "surround" ? css.tabActive : ""}`}
+                onClick={() => setActiveTab("surround")}
+              >
+                Surround
+              </button>
+              <button
+                className={`${css.tab} ${activeTab === "toneEdit" ? css.tabActive : ""}`}
+                onClick={() => setActiveTab("toneEdit")}
+              >
+                Tone Edit
+              </button>
+              {sequencer && (
+                <button
+                  className={`${css.tab} ${activeTab === "sequencer" ? css.tabActive : ""}`}
+                  onClick={() => setActiveTab("sequencer")}
+                >
+                  Sequencer
+                </button>
+              )}
+              <button
+                className={`${css.tab} ${activeTab === "expansions" ? css.tabActive : ""}`}
+                onClick={() => setActiveTab("expansions")}
+              >
+                Expansions
+              </button>
+              {sequencer && <Transport engine={sequencer} />}
+            </div>
+            <TopBar mixer={mixer} service={service} expansions={expansions} />
+          </nav>
+          {activeTab === "mixer" && (
+            <ErrorBoundary section="Mixer">
+              <MixerPage mixer={mixer} expansions={expansions} />
+            </ErrorBoundary>
+          )}
+          {activeTab === "surround" && (
+            <ErrorBoundary section="Surround">
+              <SurroundPage mixer={mixer} />
+            </ErrorBoundary>
+          )}
+          {activeTab === "toneEdit" && (
+            <ErrorBoundary section="Tone Editor">
+              <ToneEditorPage mixer={mixer} service={service} onBack={() => setActiveTab("mixer")} />
+            </ErrorBoundary>
+          )}
+          {activeTab === "expansions" && (
+            <ErrorBoundary section="Expansions">
+              <ExpansionsPage expansions={expansions} staging={expansionStaging} />
+            </ErrorBoundary>
+          )}
+          {activeTab === "sequencer" && sequencer ? (
+            <ErrorBoundary section="Sequencer">
+              <SequencerPage engine={sequencer} mixer={mixer} keyboard={keyboard} />
+            </ErrorBoundary>
+          ) : (
+            <KeyboardDrawer keyboard={keyboard} />
+          )}
+        </div>
       </div>
     );
   }

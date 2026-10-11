@@ -22,7 +22,7 @@ pub const SLOT_COUNT: usize = 4;
 pub const SLOT_NAMES: [char; SLOT_COUNT] = ['A', 'B', 'C', 'D'];
 
 /// Slot value for an empty slot.
-const OFF: u8 = 0x00;
+pub const OFF: u8 = 0x00;
 
 /// What sits in each Expansion slot A–D (`None` = OFF).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

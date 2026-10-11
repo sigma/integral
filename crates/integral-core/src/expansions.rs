@@ -7,7 +7,8 @@
 //! [`TONE_BANK_GROUPS`](crate::tone_banks::TONE_BANK_GROUPS), each pointing
 //! back at its Expansion.
 //!
-//! Reference: `docs/midi/99-undocumented.md`, section 5.
+//! Reference: `docs/midi/99-undocumented.md`, section 5. Titles follow the
+//! Sound List banks (`docs/sounds/`).
 
 use crate::tone_banks::{self, ToneBank};
 
@@ -23,12 +24,25 @@ pub enum ExpansionKind {
     ExPcm,
 }
 
+impl ExpansionKind {
+    /// Short label for the family ("SRX", "ExSN", "ExPCM").
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Srx => "SRX",
+            Self::ExSn => "ExSN",
+            Self::ExPcm => "ExPCM",
+        }
+    }
+}
+
 /// One Expansion in the catalog.
 #[derive(Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Expansion {
     /// Display name (e.g. "SRX-03", "ExSN1", "ExPCM").
     pub name: &'static str,
+    /// Product title (e.g. "Supreme Dance" for SRX-05).
+    pub title: &'static str,
     /// Family.
     pub kind: ExpansionKind,
     /// Value selecting this Expansion in a slot read or load (`01`–`13`).
@@ -49,9 +63,10 @@ impl Expansion {
     }
 }
 
-const fn srx(name: &'static str, number: u8) -> Expansion {
+const fn srx(name: &'static str, number: u8, title: &'static str) -> Expansion {
     Expansion {
         name,
+        title,
         kind: ExpansionKind::Srx,
         load_value: number,
         slot_cost: 1,
@@ -59,9 +74,10 @@ const fn srx(name: &'static str, number: u8) -> Expansion {
     }
 }
 
-const fn exsn(name: &'static str, number: u8) -> Expansion {
+const fn exsn(name: &'static str, number: u8, title: &'static str) -> Expansion {
     Expansion {
         name,
+        title,
         kind: ExpansionKind::ExSn,
         load_value: 0x0C + number,
         slot_cost: 1,
@@ -71,26 +87,27 @@ const fn exsn(name: &'static str, number: u8) -> Expansion {
 
 /// Every Expansion, in load-value order.
 pub static EXPANSIONS: [Expansion; 19] = [
-    srx("SRX-01", 1),
-    srx("SRX-02", 2),
-    srx("SRX-03", 3),
-    srx("SRX-04", 4),
-    srx("SRX-05", 5),
-    srx("SRX-06", 6),
-    srx("SRX-07", 7),
-    srx("SRX-08", 8),
-    srx("SRX-09", 9),
-    srx("SRX-10", 10),
-    srx("SRX-11", 11),
-    srx("SRX-12", 12),
-    exsn("ExSN1", 1),
-    exsn("ExSN2", 2),
-    exsn("ExSN3", 3),
-    exsn("ExSN4", 4),
-    exsn("ExSN5", 5),
-    exsn("ExSN6", 6),
+    srx("SRX-01", 1, "Dynamic Drum Kits"),
+    srx("SRX-02", 2, "Concert Piano"),
+    srx("SRX-03", 3, "Studio SRX"),
+    srx("SRX-04", 4, "Symphonique Strings"),
+    srx("SRX-05", 5, "Supreme Dance"),
+    srx("SRX-06", 6, "Complete Orchestra"),
+    srx("SRX-07", 7, "Ultimate Keys"),
+    srx("SRX-08", 8, "Platinum Trax"),
+    srx("SRX-09", 9, "World Collection"),
+    srx("SRX-10", 10, "Big Brass Ensemble"),
+    srx("SRX-11", 11, "Complete Piano"),
+    srx("SRX-12", 12, "Classic EPs"),
+    exsn("ExSN1", 1, "Ethnic"),
+    exsn("ExSN2", 2, "Wood Winds"),
+    exsn("ExSN3", 3, "Session"),
+    exsn("ExSN4", 4, "A.Guitar"),
+    exsn("ExSN5", 5, "Brass"),
+    exsn("ExSN6", 6, "SFX"),
     Expansion {
         name: "ExPCM",
+        title: "HQ GM2 + HQ PCM Sound Collection",
         kind: ExpansionKind::ExPcm,
         load_value: 0x13,
         slot_cost: 4,
@@ -139,6 +156,16 @@ mod tests {
         assert_eq!(by_name("SRX-07").unwrap().slot_cost, 1);
         assert_eq!(by_name("SRX-07").unwrap().wave_group, Some(7));
         assert_eq!(by_name("ExSN3").unwrap().wave_group, None);
+    }
+
+    #[test]
+    fn titles_and_kind_labels() {
+        let srx05 = by_name("SRX-05").unwrap();
+        assert_eq!((srx05.title, srx05.kind.label()), ("Supreme Dance", "SRX"));
+        let exsn4 = by_name("ExSN4").unwrap();
+        assert_eq!((exsn4.title, exsn4.kind.label()), ("A.Guitar", "ExSN"));
+        assert_eq!(by_name("ExPCM").unwrap().kind.label(), "ExPCM");
+        assert!(EXPANSIONS.iter().all(|e| !e.title.is_empty()));
     }
 
     #[test]

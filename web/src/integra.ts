@@ -105,6 +105,14 @@ interface PendingRequest {
   resolve: (data: Uint8Array) => void;
   reject: (err: Error) => void;
   timer?: ReturnType<typeof setTimeout>;
+  /** Drops the start of the timeout if the request is still queued. */
+  cancelSent?: () => void;
+}
+
+/** A queued request and what to do once it leaves the queue. */
+interface SentHook {
+  bytes: Uint8Array;
+  onSent: () => void;
 }
 
 /** High-level communication service for the INTEGRA-7. */
@@ -118,8 +126,12 @@ export class IntegraService {
   private writing = false;
   /** The slot read awaiting its answer, shared by concurrent callers. */
   private slotRead: Promise<Uint8Array | null> | null = null;
-  /** The queued slot read request, and what to do once it is sent. */
-  private slotReadPending: { bytes: Uint8Array; onSent: () => void } | null = null;
+  /**
+   * Queued requests and what to do once each leaves the queue: reply
+   * timeouts start then, so a held queue (an Expansion load) or a busy one
+   * (the initial mixer load) doesn't time them out.
+   */
+  private sentHooks: SentHook[] = [];
   private pendingRequests: PendingRequest[] = [];
   private boundHandler: (event: MIDIMessageEvent) => void;
   private drainTimer: ReturnType<typeof setInterval>;
@@ -147,6 +159,7 @@ export class IntegraService {
       this.boundHandler as EventListener,
     );
     this.dt1Listeners.clear();
+    this.sentHooks = [];
     for (const req of this.pendingRequests) {
       if (req.timer) clearTimeout(req.timer);
     }
@@ -162,11 +175,21 @@ export class IntegraService {
     const msg = this.device.drain(now);
     if (!msg) return;
     this.sendSysex(msg);
-    const pending = this.slotReadPending;
-    if (pending && sameBytes(msg, pending.bytes)) {
-      this.slotReadPending = null;
-      pending.onSent();
-    }
+    const i = this.sentHooks.findIndex((h) => sameBytes(msg, h.bytes));
+    if (i >= 0) this.sentHooks.splice(i, 1)[0]!.onSent();
+  }
+
+  /**
+   * Queue a raw SysEx request and call `onSent` once it leaves the queue.
+   * Returns a function that drops `onSent` if it hasn't run yet.
+   */
+  private queueRaw(key: string, bytes: Uint8Array, onSent: () => void): () => void {
+    const hook: SentHook = { bytes, onSent };
+    this.sentHooks.push(hook);
+    this.device.sendRaw(key, bytes);
+    return () => {
+      this.sentHooks = this.sentHooks.filter((h) => h !== hook);
+    };
   }
 
   private sendSysex(msg: Uint8Array): void {
@@ -211,18 +234,25 @@ export class IntegraService {
       );
 
       const key = addressKey(address);
-      const pending: PendingRequest = { addressKey: key, resolve, reject };
+      const pending: PendingRequest = {
+        addressKey: key,
+        resolve: (data) => {
+          pending.cancelSent?.();
+          resolve(data);
+        },
+        reject,
+      };
       this.pendingRequests.push(pending);
 
-      // Use Rust queue for throttled send; start timeout on send.
-      this.device.sendRaw("rq1:" + key, bytes);
-      // Start timeout immediately (the Rust queue will send it soon).
-      pending.timer = setTimeout(() => {
-        this.pendingRequests = this.pendingRequests.filter(
-          (r) => r !== pending,
-        );
-        reject(new Error(`RQ1 timeout for address ${key}`));
-      }, REQUEST_TIMEOUT_MS);
+      // Throttled through the Rust queue; the timeout starts on send.
+      pending.cancelSent = this.queueRaw("rq1:" + key, bytes, () => {
+        pending.timer = setTimeout(() => {
+          this.pendingRequests = this.pendingRequests.filter(
+            (r) => r !== pending,
+          );
+          reject(new Error(`RQ1 timeout for address ${key}`));
+        }, REQUEST_TIMEOUT_MS);
+      });
     });
   }
 
@@ -610,17 +640,19 @@ export class IntegraService {
     );
 
     return new Promise((resolve) => {
-      let timeoutId: ReturnType<typeof setTimeout>;
-      const absoluteTimeout = setTimeout(() => done(), 15000);
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      let absoluteTimeout: ReturnType<typeof setTimeout> | undefined;
 
       const done = () => {
         clearTimeout(timeoutId);
         clearTimeout(absoluteTimeout);
+        cancelSent();
         cleanup();
         resolve(names);
       };
 
       const resetTimeout = () => {
+        if (absoluteTimeout === undefined) return; // still queued
         clearTimeout(timeoutId);
         timeoutId = setTimeout(done, 3000);
       };
@@ -661,8 +693,11 @@ export class IntegraService {
         handler as EventListener,
       );
 
-      this.device.sendRaw("catalog", msg);
-      resetTimeout();
+      // Timeouts start once the request leaves the queue.
+      const cancelSent = this.queueRaw("catalog", msg, () => {
+        absoluteTimeout = setTimeout(done, 15000);
+        resetTimeout();
+      });
     });
   }
 
@@ -679,17 +714,19 @@ export class IntegraService {
     );
 
     return new Promise((resolve) => {
-      let timeoutId: ReturnType<typeof setTimeout>;
-      const absoluteTimeout = setTimeout(() => done(), 5000);
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      let absoluteTimeout: ReturnType<typeof setTimeout> | undefined;
 
       const done = () => {
         clearTimeout(timeoutId);
         clearTimeout(absoluteTimeout);
+        cancelSent();
         cleanup();
         resolve(entries);
       };
 
       const resetTimeout = () => {
+        if (absoluteTimeout === undefined) return; // still queued
         clearTimeout(timeoutId);
         timeoutId = setTimeout(done, 500);
       };
@@ -735,8 +772,11 @@ export class IntegraService {
         handler as EventListener,
       );
 
-      this.device.sendRaw(`tone-catalog:${msb}:${lsb}:${start}`, msg);
-      resetTimeout();
+      // Timeouts start once the request leaves the queue.
+      const cancelSent = this.queueRaw(`tone-catalog:${msb}:${lsb}:${start}`, msg, () => {
+        absoluteTimeout = setTimeout(done, 5000);
+        resetTimeout();
+      });
     });
   }
 
@@ -828,27 +868,21 @@ export class IntegraService {
       const unsubscribe = this.onDt1((addr) => {
         if (addressKey(Array.from(addr)) !== replyKey) return;
         clearTimeout(timer);
-        this.slotReadPending = null;
+        cancelSent();
         unsubscribe();
         resolve(this.device.expansionSlots() ?? null);
       });
       const bytes = this.device.buildExpansionSlotsRequest();
-      // The wait starts when the request leaves the queue, not when queued:
-      // a busy queue (e.g. the initial mixer load) must not time it out.
-      this.slotReadPending = {
-        bytes,
-        onSent: () => {
-          timer = setTimeout(() => {
-            unsubscribe();
-            // A load started meanwhile owns the slots until it completes.
-            if (!this.device.expansionLoadTarget()) {
-              this.device.expansionSlotsTimedOut();
-            }
-            resolve(this.device.expansionSlots() ?? null);
-          }, SLOT_READ_TIMEOUT_MS);
-        },
-      };
-      this.device.sendRaw("expansion-slots", bytes);
+      const cancelSent = this.queueRaw("expansion-slots", bytes, () => {
+        timer = setTimeout(() => {
+          unsubscribe();
+          // A load started meanwhile owns the slots until it completes.
+          if (!this.device.expansionLoadTarget()) {
+            this.device.expansionSlotsTimedOut();
+          }
+          resolve(this.device.expansionSlots() ?? null);
+        }, SLOT_READ_TIMEOUT_MS);
+      });
     }).finally(() => {
       this.slotRead = null;
     });

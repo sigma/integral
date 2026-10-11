@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   findToneBank,
   toneBankGroups,
-  type BankExpansion,
   type ToneBank,
   type ToneBankGroup,
 } from "./toneBanks";
@@ -11,6 +10,7 @@ import type { ToneCatalog, ToneEntry } from "./toneCatalog";
 import { CATEGORIES, CATEGORY_IDS, categoryAbbrev } from "./categories";
 import { useBankEntries } from "./useBankEntries";
 import type { UseExpansionsResult } from "./useExpansions";
+import type { Expansion } from "./expansionCatalog";
 import { NotLoadedMarker } from "./NotLoadedMarker";
 import css from "./ToneSelector.module.css";
 
@@ -39,7 +39,7 @@ function bankBadge(msb: number, lsb: number): string {
 /** One entry of the bank list: a bank, or an Expansion with its banks. */
 type BankListEntry =
   | { kind: "bank"; bank: ToneBank }
-  | { kind: "expansion"; expansion: BankExpansion; banks: ToneBank[] };
+  | { kind: "expansion"; expansion: Expansion; banks: ToneBank[] };
 
 /** Bank list entries of a group, one per Expansion for Expansion banks. */
 function bankListEntries(group: ToneBankGroup): BankListEntry[] {

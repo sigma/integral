@@ -166,13 +166,21 @@ impl DeviceState {
     /// Parts' current tone banks.
     pub fn plan_expansion_load(&self, target: &ExpansionSlots) -> Result<LoadPlan, LoadError> {
         let current = self.expansion_slots.ok_or(LoadError::SlotsUnknown)?;
-        let part_banks: Vec<(u8, u8)> = self
-            .state
+        Ok(expansion_load::plan(&current, target, &self.part_banks()))
+    }
+
+    /// Parts (1-based) whose current tone comes from `expansion`.
+    pub fn parts_using_expansion(&self, expansion: &Expansion) -> Vec<u8> {
+        expansion_load::parts_using(expansion, &self.part_banks())
+    }
+
+    /// Each Part's tone bank (MSB, LSB), Part 1 first.
+    fn part_banks(&self) -> Vec<(u8, u8)> {
+        self.state
             .parts
             .iter()
             .map(|p| (p.tone_bank_msb, p.tone_bank_lsb))
-            .collect();
-        Ok(expansion_load::plan(&current, target, &part_banks))
+            .collect()
     }
 
     /// The running load's target, if a load is running.
@@ -1265,6 +1273,18 @@ mod tests {
         let plan = dev.plan_expansion_load(&target).unwrap();
         assert_eq!(plan.changes.len(), 1);
         assert_eq!(plan.silenced_parts, [2]);
+    }
+
+    #[test]
+    fn parts_using_expansion_follows_part_tones() {
+        let mut dev = DeviceState::new(0x10);
+        let srx03 = expansions::by_name("SRX-03").unwrap();
+        assert!(dev.parts_using_expansion(srx03).is_empty());
+        for part in [1, 5] {
+            dev.state_mut().parts[part].tone_bank_msb = 93;
+            dev.state_mut().parts[part].tone_bank_lsb = 2;
+        }
+        assert_eq!(dev.parts_using_expansion(srx03), [2, 6]);
     }
 
     #[test]

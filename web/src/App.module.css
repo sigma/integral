@@ -43,6 +43,20 @@
   background: #0c0c1a;
 }
 
+/* Everything but the Expansion load banner. */
+.body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Dimmed (and inert) while an Expansion load runs. */
+.bodyBusy {
+  opacity: 0.4;
+  filter: grayscale(0.6);
+}
+
 /* tabs and transport | selected tone, in the remaining space | selectors */
 .tabBar {
   display: grid;

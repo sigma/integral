@@ -11,16 +11,10 @@ import {
   user_tone_bank,
   type WasmToneBank,
 } from "../pkg/integral_wasm.js";
+import { expansionByLoadValue, type Expansion } from "./expansionCatalog";
 
 /** Program numbers per LSB (MIDI Program Change range). */
 const TONES_PER_LSB = 128;
-
-/** The Expansion providing a bank. */
-export interface BankExpansion {
-  name: string;
-  /** Value selecting it in an Expansion slot read or load. */
-  loadValue: number;
-}
 
 export interface ToneBank {
   label: string;
@@ -32,7 +26,7 @@ export interface ToneBank {
   /** Short tag for the bank's tones in mixed lists (e.g. "SN-A"). */
   badge: string;
   /** The Expansion providing the bank, or null for built-in banks. */
-  expansion: BankExpansion | null;
+  expansion: Expansion | null;
 }
 
 export interface ToneBankGroup {
@@ -49,7 +43,7 @@ function fromWasm(bank: WasmToneBank): ToneBank {
     lsbs: Array.from(bank.lsbs),
     group: bank.group,
     badge: bank.badge,
-    expansion: exp ? { name: exp.name, loadValue: exp.loadValue } : null,
+    expansion: exp ? expansionByLoadValue(exp.loadValue) : null,
   };
   exp?.free();
   bank.free();
