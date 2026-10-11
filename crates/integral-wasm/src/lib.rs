@@ -14,8 +14,10 @@ use wasm_bindgen::prelude::*;
 mod expansion;
 mod librarian;
 mod sequencer;
+mod waves;
 pub use expansion::WasmExpansion;
 pub use sequencer::WasmSequencer;
+pub use waves::WasmWaveGroup;
 
 /// Maximum valid part index (0–15 for 16 parts).
 const MAX_PART: u8 = 15;
