@@ -68,7 +68,11 @@ pub fn svd_list(
         let name_len = chunk.chunk_type.name_length();
 
         for (i, raw) in chunk.entries.iter().enumerate() {
-            let name = extract_entry_name(raw, name_len);
+            // Nameless chunks (System Settings) show their label instead.
+            let name = match name_len {
+                Some(len) => extract_entry_name(raw, len),
+                None => format!("({})", chunk.chunk_type.label()),
+            };
             let category = extract_entry_category(raw, chunk.chunk_type);
 
             if let Some(cf) = category_filter

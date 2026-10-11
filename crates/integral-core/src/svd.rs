@@ -170,12 +170,12 @@ impl ChunkType {
     /// Return the length (in characters) of patch names for this chunk type.
     ///
     /// Studio Sets use 16-character names; all tone/drum types use 12.
-    /// System settings have no name.
-    pub fn name_length(&self) -> usize {
+    /// System settings have no name (`None`).
+    pub fn name_length(&self) -> Option<usize> {
         match self {
-            Self::StudioSet => 16,
-            Self::SystemSettings => 0,
-            _ => 12,
+            Self::StudioSet => Some(16),
+            Self::SystemSettings => None,
+            _ => Some(12),
         }
     }
 }
@@ -432,6 +432,13 @@ mod tests {
             let code = ct.to_code();
             assert_eq!(ChunkType::from_code(&code), Some(*ct));
         }
+    }
+
+    #[test]
+    fn name_lengths() {
+        assert_eq!(ChunkType::StudioSet.name_length(), Some(16));
+        assert_eq!(ChunkType::SnSynthTone.name_length(), Some(12));
+        assert_eq!(ChunkType::SystemSettings.name_length(), None);
     }
 
     #[test]
