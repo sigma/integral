@@ -350,6 +350,115 @@ pub struct SnSynthState {
     pub mfx: MfxState,
 }
 
+/// An SN Synth Tone's Common and Partial parameters (its MFX is read apart).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct SnSynthTone {
+    /// Common parameters.
+    pub common: SnSynthCommon,
+    /// Per-partial parameters.
+    pub partials: [SnSynthPartial; SNS_PARTIAL_COUNT],
+}
+
+/// A block of an SN Synth Tone read with one RQ1: its Common or a Partial.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SnsBlock {
+    /// The Common block.
+    Common,
+    /// The Partial block with this index (0–2).
+    Partial(u8),
+}
+
+impl SnsBlock {
+    /// Every block of a tone, Common first.
+    pub const ALL: [SnsBlock; 1 + SNS_PARTIAL_COUNT] = [
+        SnsBlock::Common,
+        SnsBlock::Partial(0),
+        SnsBlock::Partial(1),
+        SnsBlock::Partial(2),
+    ];
+
+    /// Position in [`ALL`](Self::ALL).
+    pub(crate) const fn index(self) -> usize {
+        match self {
+            SnsBlock::Common => 0,
+            SnsBlock::Partial(i) => 1 + i as usize,
+        }
+    }
+
+    /// The block's absolute address for a part.
+    pub const fn address(self, part_index: u8) -> Address {
+        match self {
+            SnsBlock::Common => sns_common_address(part_index),
+            SnsBlock::Partial(i) => sns_partial_address(part_index, i),
+        }
+    }
+
+    /// The RQ1 size that reads the whole block.
+    pub const fn size(self) -> DataSize {
+        match self {
+            SnsBlock::Common => SNS_COMMON_BLOCK_SIZE,
+            SnsBlock::Partial(_) => SNS_PARTIAL_BLOCK_SIZE,
+        }
+    }
+
+    /// The block's length in bytes.
+    const fn len(self) -> usize {
+        match self {
+            SnsBlock::Common => SNS_COMMON_SIZE,
+            SnsBlock::Partial(_) => SNS_PARTIAL_SIZE,
+        }
+    }
+}
+
+/// One part's SN Synth Tone blocks, as read from the device and patched by
+/// edits.
+#[derive(Debug, Clone, Default)]
+pub struct SnSynthToneBlocks {
+    blocks: [Option<Vec<u8>>; 1 + SNS_PARTIAL_COUNT],
+}
+
+impl SnSynthToneBlocks {
+    /// Store `data` as `block` if it is the whole block; whether it was.
+    pub fn store(&mut self, block: SnsBlock, data: &[u8]) -> bool {
+        if data.len() != block.len() {
+            return false;
+        }
+        self.blocks[block.index()] = Some(data.to_vec());
+        true
+    }
+
+    /// Whether `block` has arrived.
+    pub fn has(&self, block: SnsBlock) -> bool {
+        self.blocks[block.index()].is_some()
+    }
+
+    /// Overwrite `bytes` at `offset` in `block`, if it has arrived.
+    pub fn patch(&mut self, block: SnsBlock, offset: u8, bytes: &[u8]) {
+        let offset = offset as usize;
+        if let Some(dst) = self.blocks[block.index()]
+            .as_mut()
+            .and_then(|b| b.get_mut(offset..offset + bytes.len()))
+        {
+            dst.copy_from_slice(bytes);
+        }
+    }
+
+    /// The parsed tone, once every block has arrived.
+    pub fn tone(&self) -> Option<SnSynthTone> {
+        let [common, partials @ ..] = &self.blocks;
+        let mut tone = SnSynthTone {
+            common: parse_sns_common(common.as_deref()?).ok()?,
+            ..SnSynthTone::default()
+        };
+        for (parsed, block) in tone.partials.iter_mut().zip(partials) {
+            *parsed = parse_sns_partial(block.as_deref()?).ok()?;
+        }
+        Some(tone)
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Parse functions
 // ---------------------------------------------------------------------------

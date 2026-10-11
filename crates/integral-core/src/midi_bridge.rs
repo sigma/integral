@@ -65,10 +65,24 @@ impl RequestTracker {
         self.pending.remove(address_key).is_some()
     }
 
-    /// Remove all requests older than `timeout_ms` relative to `now_ms`.
-    pub fn expire_old(&mut self, now_ms: f64, timeout_ms: f64) {
-        self.pending
-            .retain(|_, req| (now_ms - req.sent_at) < timeout_ms);
+    /// Forget the pending request for `address_key`, if any.
+    pub fn cancel(&mut self, address_key: &str) {
+        self.pending.remove(address_key);
+    }
+
+    /// Remove all requests older than `timeout_ms` relative to `now_ms`,
+    /// returning their address keys.
+    pub fn expire_old(&mut self, now_ms: f64, timeout_ms: f64) -> Vec<String> {
+        let expired: Vec<String> = self
+            .pending
+            .iter()
+            .filter(|(_, req)| now_ms - req.sent_at >= timeout_ms)
+            .map(|(key, _)| key.clone())
+            .collect();
+        for key in &expired {
+            self.pending.remove(key);
+        }
+        expired
     }
 
     /// Returns `true` if there are any pending requests.
@@ -117,11 +131,11 @@ mod tests {
         assert_eq!(tracker.pending_count(), 1);
 
         // Not yet expired at 2999ms with 2000ms timeout.
-        tracker.expire_old(2999.0, 2000.0);
+        assert!(tracker.expire_old(2999.0, 2000.0).is_empty());
         assert_eq!(tracker.pending_count(), 1);
 
         // Expired at 3000ms with 2000ms timeout.
-        tracker.expire_old(3000.0, 2000.0);
+        assert_eq!(tracker.expire_old(3000.0, 2000.0), vec![key]);
         assert_eq!(tracker.pending_count(), 0);
     }
 

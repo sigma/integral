@@ -28,9 +28,10 @@ use thiserror::Error;
 use crate::expansion_load::{self, LoadAction, LoadMachine, LoadOutcome, LoadPlan};
 use crate::expansion_slots::{self, ExpansionSlots};
 use crate::expansions::Expansion;
+use crate::midi_bridge::RequestTracker;
 use crate::params::{self, ToneType, part};
 use crate::parse_helpers::encode_ascii_name;
-use crate::sn_synth;
+use crate::sn_synth::{self, SnSynthTone, SnSynthToneBlocks, SnsBlock};
 use crate::state::MixerState;
 use crate::sysex;
 
@@ -40,6 +41,13 @@ const THROTTLE_MS: f64 = 40.0;
 /// Duration to suppress incoming DT1 echoes after a local send (ms).
 const ECHO_SUPPRESS_MS: f64 = 150.0;
 
+/// How long an SN Synth block request waits for its reply before it is
+/// sent again (ms).
+const SNS_REPLY_TIMEOUT_MS: f64 = 2000.0;
+
+/// How many times an unanswered SN Synth block request is sent again.
+const SNS_MAX_RETRIES: u8 = 2;
+
 // ---------------------------------------------------------------------------
 // Send queue
 // ---------------------------------------------------------------------------
@@ -47,6 +55,24 @@ const ECHO_SUPPRESS_MS: f64 = 150.0;
 struct QueuedMessage {
     key: String,
     bytes: Vec<u8>,
+    /// Whether `key` is a request whose reply the request tracker awaits
+    /// once the message is sent.
+    tracked: bool,
+}
+
+/// A part's SN Synth Tone being read from the device: the tone it was
+/// requested for, the blocks so far, and how often each block was asked
+/// again.
+struct SnsToneLoad {
+    /// The part's (bank MSB, bank LSB, PC) when the load started.
+    tone: (u8, u8, u8),
+    blocks: SnSynthToneBlocks,
+    retries: [u8; SnsBlock::ALL.len()],
+}
+
+/// The request tracker key of `part`'s `block` request.
+fn sns_request_key(part: u8, block: SnsBlock) -> String {
+    format!("rq1:{}", block.address(part))
 }
 
 // ---------------------------------------------------------------------------
@@ -69,6 +95,10 @@ pub struct DeviceState {
     expansion_slots: Option<ExpansionSlots>,
     /// The running Expansion load; the send queue is held while set.
     load: Option<LoadMachine>,
+    /// Each part's SN Synth Tone, by part index, once a load started.
+    sns_tones: HashMap<u8, SnsToneLoad>,
+    /// Sent SN Synth block requests awaiting their reply.
+    requests: RequestTracker,
 }
 
 /// Why an Expansion load can't start.
@@ -93,6 +123,8 @@ impl DeviceState {
             echo_tracker: HashMap::new(),
             expansion_slots: None,
             load: None,
+            sns_tones: HashMap::new(),
+            requests: RequestTracker::new(),
         }
     }
 
@@ -246,7 +278,11 @@ impl DeviceState {
         if let Some(existing) = self.queue.iter_mut().find(|m| m.key == key) {
             existing.bytes = bytes;
         } else {
-            self.queue.push(QueuedMessage { key, bytes });
+            self.queue.push(QueuedMessage {
+                key,
+                bytes,
+                tracked: false,
+            });
         }
     }
 
@@ -255,23 +291,31 @@ impl DeviceState {
         self.queue.push(QueuedMessage {
             key: key.to_string(),
             bytes,
+            tracked: false,
         });
     }
 
     /// Drain the next outbound message if the throttle window has elapsed.
     ///
-    /// `now_ms` is a monotonic timestamp in milliseconds.
+    /// `now_ms` is a monotonic timestamp in milliseconds. Before draining,
+    /// SN Synth block requests whose reply timed out are queued again (see
+    /// [`load_sns_tone`](Self::load_sns_tone)).
+    ///
     /// Returns `None` if the queue is empty, the throttle hasn't elapsed, or
     /// an Expansion load holds the queue.
     pub fn drain(&mut self, now_ms: f64) -> Option<Vec<u8>> {
-        if self.queue.is_empty() || self.load.is_some() {
+        if self.load.is_some() {
             return None;
         }
-        if now_ms - self.last_send_time < THROTTLE_MS {
+        self.retry_sns_requests(now_ms);
+        if self.queue.is_empty() || now_ms - self.last_send_time < THROTTLE_MS {
             return None;
         }
         let msg = self.queue.remove(0);
         self.last_send_time = now_ms;
+        if msg.tracked {
+            self.requests.register_request(msg.key, now_ms);
+        }
 
         // Stamp echo tracker entries that were queued but not yet sent.
         for ts in self.echo_tracker.values_mut() {
@@ -311,6 +355,10 @@ impl DeviceState {
     ///
     /// Returns `true` if the state was changed.
     pub fn handle_dt1(&mut self, address: &Address, data: &[u8], now_ms: f64) -> bool {
+        // A block reply is never an echo of a single-parameter edit.
+        if self.handle_sns_block(address, data) {
+            return true;
+        }
         if self.is_suppressed(address, now_ms) {
             return false;
         }
@@ -453,6 +501,7 @@ impl DeviceState {
         p.tone_bank_lsb = lsb;
         p.tone_pc = pc;
         p.tone_name = String::new(); // Clear until re-read.
+        self.invalidate_sns_tone(part);
 
         let msb_addr = params::part_address(part, part::TONE_BANK_MSB);
         self.send_dt1(&msb_addr, &[msb]);
@@ -643,6 +692,9 @@ impl DeviceState {
     /// Sends BS MSB=85, BS LSB=0, PC=pc.
     pub fn switch_studio_set(&mut self, pc: u8) {
         self.state.studio_set_pc = pc;
+        for part in 0..Self::NUM_PARTS {
+            self.invalidate_sns_tone(part);
+        }
         self.send_dt1(&params::SETUP_STUDIO_SET_BS_MSB, &[85]);
         self.send_dt1(&params::SETUP_STUDIO_SET_BS_LSB, &[0]);
         self.send_dt1(&params::SETUP_STUDIO_SET_PC, &[pc]);
@@ -694,22 +746,33 @@ impl DeviceState {
     // SN-S Tone Edit
     // -----------------------------------------------------------------------
 
-    /// Set a single SN-S Common parameter for a part.
+    /// Set a single SN-S Common parameter for a part, in the cached tone
+    /// too.
     pub fn set_sns_common_param(&mut self, part: u8, offset: u8, value: u8) {
-        let addr = sn_synth::sns_common_param_address(part, offset);
-        self.send_dt1(&addr, &[value]);
+        self.set_sns_bytes(part, SnsBlock::Common, offset, &[value]);
     }
 
-    /// Set a single SN-S Partial parameter for a part.
+    /// Set a single SN-S Partial parameter for a part, in the cached tone
+    /// too.
     pub fn set_sns_partial_param(&mut self, part: u8, partial: u8, offset: u8, value: u8) {
-        let addr = sn_synth::sns_partial_param_address(part, partial, offset);
-        self.send_dt1(&addr, &[value]);
+        self.set_sns_bytes(part, SnsBlock::Partial(partial), offset, &[value]);
     }
 
-    /// Set a nibblized SN-S Partial parameter (4 bytes, e.g. wave number).
+    /// Set a nibblized SN-S Partial parameter (4 bytes, e.g. wave number),
+    /// in the cached tone too.
     pub fn set_sns_partial_nib_param(&mut self, part: u8, partial: u8, offset: u8, value: u16) {
-        let addr = sn_synth::sns_partial_param_address(part, partial, offset);
-        self.send_dt1(&addr, &crate::parse_helpers::encode_nibble4(value));
+        let bytes = crate::parse_helpers::encode_nibble4(value);
+        self.set_sns_bytes(part, SnsBlock::Partial(partial), offset, &bytes);
+    }
+
+    /// Send `bytes` at `offset` in `part`'s SN-S `block`, and patch the
+    /// cached block with them.
+    fn set_sns_bytes(&mut self, part: u8, block: SnsBlock, offset: u8, bytes: &[u8]) {
+        let addr = block.address(part).offset([0x00, 0x00, 0x00, offset]);
+        self.send_dt1(&addr, bytes);
+        if let Some(load) = self.sns_tones.get_mut(&part) {
+            load.blocks.patch(block, offset, bytes);
+        }
     }
 
     /// Build an RQ1 to read the full SN-S Common block for a part.
@@ -722,6 +785,118 @@ impl DeviceState {
     pub fn build_sns_partial_request(&self, part: u8, partial: u8) -> Vec<u8> {
         let addr = sn_synth::sns_partial_address(part, partial);
         sysex::build_rq1(self.device_id, &addr, &sn_synth::SNS_PARTIAL_BLOCK_SIZE)
+    }
+
+    /// Start reading `part`'s SN Synth Tone (Common and Partials) into the
+    /// cache, unless it is already read or being read for the part's
+    /// current tone. Returns whether a new read started.
+    ///
+    /// Requests whose reply doesn't arrive within a timeout are sent again
+    /// by [`drain`](Self::drain), a bounded number of times. A tone change
+    /// drops the cached tone and its outstanding requests.
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < 16.
+    pub fn load_sns_tone(&mut self, part: u8) -> bool {
+        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
+        let tone = self.part_tone(part);
+        if self.sns_tones.get(&part).is_some_and(|l| l.tone == tone) {
+            return false;
+        }
+        self.invalidate_sns_tone(part);
+        self.sns_tones.insert(
+            part,
+            SnsToneLoad {
+                tone,
+                blocks: SnSynthToneBlocks::default(),
+                retries: [0; SnsBlock::ALL.len()],
+            },
+        );
+        for block in SnsBlock::ALL {
+            self.queue_sns_request(part, block);
+        }
+        true
+    }
+
+    /// `part`'s cached SN Synth Tone, or `None` until every block of it has
+    /// arrived (see [`load_sns_tone`](Self::load_sns_tone)).
+    pub fn sns_tone(&self, part: u8) -> Option<SnSynthTone> {
+        self.sns_tones.get(&part)?.blocks.tone()
+    }
+
+    /// The part's (bank MSB, bank LSB, PC).
+    fn part_tone(&self, part: u8) -> (u8, u8, u8) {
+        let p = &self.state.parts[part as usize];
+        (p.tone_bank_msb, p.tone_bank_lsb, p.tone_pc)
+    }
+
+    /// Queue the RQ1 for `part`'s `block`, unless it is queued already.
+    fn queue_sns_request(&mut self, part: u8, block: SnsBlock) {
+        let key = sns_request_key(part, block);
+        if self.queue.iter().any(|m| m.key == key) {
+            return;
+        }
+        let bytes = sysex::build_rq1(self.device_id, &block.address(part), &block.size());
+        self.queue.push(QueuedMessage {
+            key,
+            bytes,
+            tracked: true,
+        });
+    }
+
+    /// Drop `part`'s cached SN Synth Tone and its outstanding requests.
+    fn invalidate_sns_tone(&mut self, part: u8) {
+        if self.sns_tones.remove(&part).is_none() {
+            return;
+        }
+        for block in SnsBlock::ALL {
+            let key = sns_request_key(part, block);
+            self.requests.cancel(&key);
+            self.queue.retain(|m| m.key != key);
+        }
+    }
+
+    /// Queue again the SN Synth block requests whose reply timed out, while
+    /// retries remain and the part's tone hasn't changed.
+    fn retry_sns_requests(&mut self, now_ms: f64) {
+        for key in self.requests.expire_old(now_ms, SNS_REPLY_TIMEOUT_MS) {
+            let Some((part, block)) = self.sns_tones.keys().find_map(|&part| {
+                SnsBlock::ALL
+                    .into_iter()
+                    .find(|&block| sns_request_key(part, block) == key)
+                    .map(|block| (part, block))
+            }) else {
+                continue;
+            };
+            let tone = self.part_tone(part);
+            let Some(load) = self.sns_tones.get_mut(&part) else {
+                continue;
+            };
+            if load.tone != tone {
+                self.invalidate_sns_tone(part);
+                continue;
+            }
+            let retries = &mut load.retries[block.index()];
+            if load.blocks.has(block) || *retries >= SNS_MAX_RETRIES {
+                continue;
+            }
+            *retries += 1;
+            self.queue_sns_request(part, block);
+        }
+    }
+
+    /// Store an SN Synth block reply in the cache of a part being read.
+    /// Returns whether `address` and `data` were such a reply.
+    fn handle_sns_block(&mut self, address: &Address, data: &[u8]) -> bool {
+        for (&part, load) in &mut self.sns_tones {
+            for block in SnsBlock::ALL {
+                if *address == block.address(part) && load.blocks.store(block, data) {
+                    self.requests.cancel(&sns_request_key(part, block));
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     // -----------------------------------------------------------------------
@@ -1424,5 +1599,165 @@ mod tests {
                 &[100]
             ))
         );
+    }
+
+    // -- SN Synth Tone cache ------------------------------------------------
+
+    /// The RQ1 that reads `part`'s `block`.
+    fn sns_request(part: u8, block: SnsBlock) -> Vec<u8> {
+        sysex::build_rq1(0x10, &block.address(part), &block.size())
+    }
+
+    /// A reply for `block` whose every byte is `fill`, with tone name
+    /// "Reply" in a Common block.
+    fn sns_reply(block: SnsBlock, fill: u8) -> Vec<u8> {
+        let mut data = match block {
+            SnsBlock::Common => vec![fill; sn_synth::SNS_COMMON_SIZE],
+            SnsBlock::Partial(_) => vec![fill; sn_synth::SNS_PARTIAL_SIZE],
+        };
+        if block == SnsBlock::Common {
+            data[..12].copy_from_slice(b"Reply       ");
+        }
+        data
+    }
+
+    /// Everything `dev` sends from `from_ms` until `until_ms`, draining
+    /// every 10 ms; `now` ends at `until_ms`.
+    fn drain_until(dev: &mut DeviceState, from_ms: f64, until_ms: f64) -> Vec<Vec<u8>> {
+        let mut sent = Vec::new();
+        let mut now = from_ms;
+        while now <= until_ms {
+            if let Some(msg) = dev.drain(now) {
+                sent.push(msg);
+            }
+            now += 10.0;
+        }
+        sent
+    }
+
+    /// A device with SN Synth Tone (95, 64, 3) on part 3 whose read started.
+    fn loading_sns(part: u8) -> DeviceState {
+        let mut dev = DeviceState::new(0x10);
+        let p = &mut dev.state_mut().parts[part as usize];
+        (p.tone_bank_msb, p.tone_bank_lsb, p.tone_pc) = (95, 64, 3);
+        assert!(dev.load_sns_tone(part));
+        dev
+    }
+
+    #[test]
+    fn sns_tone_parses_once_every_block_arrived() {
+        let mut dev = loading_sns(2);
+        assert!(!dev.load_sns_tone(2), "the same tone is read once");
+        assert_eq!(
+            drain_until(&mut dev, 0.0, 200.0),
+            SnsBlock::ALL.map(|b| sns_request(2, b)).to_vec()
+        );
+
+        for block in SnsBlock::ALL {
+            assert_eq!(dev.sns_tone(2), None);
+            // Another part's block isn't this part's.
+            assert!(!dev.handle_dt1(&block.address(5), &sns_reply(block, 1), 0.0));
+            let reply = sns_reply(block, 0x20);
+            assert!(dev.handle_dt1(&block.address(2), &reply, 0.0));
+        }
+
+        let tone = dev.sns_tone(2).unwrap();
+        assert_eq!(
+            tone.common,
+            sn_synth::parse_sns_common(&sns_reply(SnsBlock::Common, 0x20)).unwrap()
+        );
+        assert_eq!(tone.common.tone_name, "Reply");
+        for partial in &tone.partials {
+            assert_eq!(partial.filter_cutoff, 0x20);
+        }
+        assert_eq!(dev.sns_tone(5), None);
+    }
+
+    #[test]
+    fn sns_edits_show_in_the_cached_tone() {
+        let mut dev = loading_sns(0);
+        drain_until(&mut dev, 0.0, 200.0);
+        for block in SnsBlock::ALL {
+            dev.handle_dt1(&block.address(0), &sns_reply(block, 0), 300.0);
+        }
+
+        dev.set_sns_common_param(0, 0x0C, 99); // Tone Level
+        dev.set_sns_partial_param(0, 1, 0x0C, 77); // Partial 2 Filter Cutoff
+        dev.set_sns_partial_nib_param(0, 2, 0x35, 1234); // Partial 3 Wave Number
+
+        let tone = dev.sns_tone(0).unwrap();
+        assert_eq!(tone.common.tone_level, 99);
+        assert_eq!(tone.partials[0].filter_cutoff, 0);
+        assert_eq!(tone.partials[1].filter_cutoff, 77);
+        assert_eq!(tone.partials[2].wave_number, 1234);
+
+        // Each edit goes out once, as encoded for the cache.
+        let sent = drain_until(&mut dev, 1000.0, 1200.0);
+        assert!(sent.contains(&sysex::build_dt1(
+            0x10,
+            &sn_synth::sns_partial_param_address(0, 2, 0x35),
+            &crate::parse_helpers::encode_nibble4(1234),
+        )));
+        assert_eq!(sent.len(), 3);
+    }
+
+    #[test]
+    fn a_lost_sns_reply_is_requested_again() {
+        let mut dev = loading_sns(3);
+        drain_until(&mut dev, 0.0, 200.0);
+        let lost = SnsBlock::Partial(1);
+        for block in SnsBlock::ALL.into_iter().filter(|&b| b != lost) {
+            dev.handle_dt1(&block.address(3), &sns_reply(block, 0), 300.0);
+        }
+        assert_eq!(dev.sns_tone(3), None);
+
+        // Partial 2's request went out at 80 ms; nothing is resent before
+        // its reply times out.
+        assert!(drain_until(&mut dev, 300.0, 80.0 + SNS_REPLY_TIMEOUT_MS - 10.0).is_empty());
+        assert_eq!(
+            drain_until(&mut dev, 80.0 + SNS_REPLY_TIMEOUT_MS, 3000.0),
+            vec![sns_request(3, lost)]
+        );
+
+        dev.handle_dt1(&lost.address(3), &sns_reply(lost, 0), 3000.0);
+        assert!(dev.sns_tone(3).is_some());
+        assert!(drain_until(&mut dev, 3000.0, 20_000.0).is_empty());
+    }
+
+    #[test]
+    fn sns_retries_are_bounded() {
+        let mut dev = loading_sns(0);
+        let sent = drain_until(&mut dev, 0.0, 60_000.0);
+        let tries = 1 + SNS_MAX_RETRIES as usize;
+        assert_eq!(sent.len(), SnsBlock::ALL.len() * tries);
+        for block in SnsBlock::ALL {
+            let request = sns_request(0, block);
+            assert_eq!(sent.iter().filter(|m| **m == request).count(), tries);
+        }
+        assert_eq!(dev.sns_tone(0), None);
+    }
+
+    #[test]
+    fn a_tone_change_stops_the_old_tone_requests() {
+        // Queued but not yet sent.
+        let mut dev = loading_sns(0);
+        dev.change_part_tone(0, 87, 0, 0);
+        let sent = drain_until(&mut dev, 0.0, 60_000.0);
+        assert_eq!(sent.len(), 3, "only the tone change goes out: {sent:?}");
+
+        // Sent, awaiting replies.
+        let mut dev = loading_sns(0);
+        drain_until(&mut dev, 0.0, 200.0);
+        dev.change_part_tone(0, 87, 0, 0);
+        assert_eq!(drain_until(&mut dev, 200.0, 60_000.0).len(), 3);
+        assert_eq!(dev.sns_tone(0), None);
+
+        // Changed behind the cache's back (a part dump): the timed-out
+        // requests aren't sent again, and the next load reads anew.
+        let mut dev = loading_sns(0);
+        drain_until(&mut dev, 0.0, 200.0);
+        dev.state_mut().parts[0].tone_pc = 4;
+        assert!(drain_until(&mut dev, 200.0, 60_000.0).is_empty());
+        assert!(dev.load_sns_tone(0));
     }
 }
