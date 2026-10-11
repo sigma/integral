@@ -1146,6 +1146,75 @@ mirror_core_enum!(SnaCommonField <=> sn_acoustic::SnaCommonField {
     ModifyParameter,
 });
 
+/// A field of an SN Drum Kit Common (mirrors [`sn_drum::SndCommonField`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SndCommonField {
+    /// See [`sn_drum::SndCommonField::KitLevel`].
+    KitLevel,
+    /// See [`sn_drum::SndCommonField::AmbienceLevel`].
+    AmbienceLevel,
+    /// See [`sn_drum::SndCommonField::PhraseNumber`].
+    PhraseNumber,
+    /// See [`sn_drum::SndCommonField::TfxSwitch`].
+    TfxSwitch,
+}
+
+mirror_core_enum!(SndCommonField <=> sn_drum::SndCommonField {
+    KitLevel,
+    AmbienceLevel,
+    PhraseNumber,
+    TfxSwitch,
+});
+
+/// A field of an SN Drum Kit Note (mirrors [`sn_drum::SndNoteField`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SndNoteField {
+    /// See [`sn_drum::SndNoteField::InstNumber`].
+    InstNumber,
+    /// See [`sn_drum::SndNoteField::Level`].
+    Level,
+    /// See [`sn_drum::SndNoteField::Pan`].
+    Pan,
+    /// See [`sn_drum::SndNoteField::ChorusSend`].
+    ChorusSend,
+    /// See [`sn_drum::SndNoteField::ReverbSend`].
+    ReverbSend,
+    /// See [`sn_drum::SndNoteField::Tune`].
+    Tune,
+    /// See [`sn_drum::SndNoteField::Attack`].
+    Attack,
+    /// See [`sn_drum::SndNoteField::Decay`].
+    Decay,
+    /// See [`sn_drum::SndNoteField::Brilliance`].
+    Brilliance,
+    /// See [`sn_drum::SndNoteField::Variation`].
+    Variation,
+    /// See [`sn_drum::SndNoteField::DynamicRange`].
+    DynamicRange,
+    /// See [`sn_drum::SndNoteField::StereoWidth`].
+    StereoWidth,
+    /// See [`sn_drum::SndNoteField::OutputAssign`].
+    OutputAssign,
+}
+
+mirror_core_enum!(SndNoteField <=> sn_drum::SndNoteField {
+    InstNumber,
+    Level,
+    Pan,
+    ChorusSend,
+    ReverbSend,
+    Tune,
+    Attack,
+    Decay,
+    Brilliance,
+    Variation,
+    DynamicRange,
+    StereoWidth,
+    OutputAssign,
+});
+
 /// A header field of an MFX block (mirrors [`mfx::MfxHeaderField`]).
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2500,38 +2569,32 @@ impl WasmDeviceState {
 
     // -- SN-D Tone Edit ----------------------------------------------------
 
-    /// Set a single SN-D Common parameter.
+    /// Set an SN-D Common field.
     #[wasm_bindgen(js_name = setSndCommonParam)]
-    pub fn set_snd_common_param(&mut self, part: u8, offset: u8, value: u8) {
-        self.inner.set_snd_common_param(part, offset, value);
+    pub fn set_snd_common_param(
+        &mut self,
+        part: u8,
+        field: SndCommonField,
+        value: u8,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        self.inner.set_snd_common_param(part, field.into(), value);
+        Ok(())
     }
 
-    /// Set a single SN-D Note parameter.
+    /// Set an SN-D Note field, sent nibblized when the field is.
     #[wasm_bindgen(js_name = setSndNoteParam)]
     pub fn set_snd_note_param(
         &mut self,
         part: u8,
         key: u8,
-        offset: u8,
-        value: u8,
-    ) -> Result<(), JsError> {
-        check_part(part)?;
-        Ok(self.inner.set_snd_note_param(part, key, offset, value)?)
-    }
-
-    /// Set a nibblized SN-D Note parameter (4 bytes).
-    #[wasm_bindgen(js_name = setSndNoteNibParam)]
-    pub fn set_snd_note_nib_param(
-        &mut self,
-        part: u8,
-        key: u8,
-        offset: u8,
+        field: SndNoteField,
         value: u16,
     ) -> Result<(), JsError> {
         check_part(part)?;
         Ok(self
             .inner
-            .set_snd_note_nib_param(part, key, offset, value)?)
+            .set_snd_note_param(part, key, field.into(), value)?)
     }
 
     /// Parse an SN-D Common dump and return as a JS object.

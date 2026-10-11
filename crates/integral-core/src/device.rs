@@ -34,6 +34,7 @@ use crate::params::{self, ToneType, part};
 use crate::parse_helpers::encode_ascii_name;
 use crate::pcm_synth::{PcmsCommonField, PcmsPartialField, PcmsPmtField};
 use crate::sn_acoustic::SnaCommonField;
+use crate::sn_drum::{SndCommonField, SndNoteField};
 use crate::sn_synth::{SnSynthTone, SnSynthToneBlocks, SnsBlock};
 use crate::state::MixerState;
 use crate::sysex;
@@ -914,35 +915,23 @@ impl DeviceState {
     // SN-D Tone Edit
     // -----------------------------------------------------------------------
 
-    /// Set a single SN-D Common parameter for a part.
-    pub fn set_snd_common_param(&mut self, part: u8, offset: u8, value: u8) {
-        let addr = crate::sn_drum::snd_common_param_address(part, offset);
-        self.send_dt1(&addr, &[value]);
+    /// Set an SN-D Common field for a part.
+    pub fn set_snd_common_param(&mut self, part: u8, field: SndCommonField, value: u8) {
+        let addr = crate::sn_drum::snd_common_param_address(part, field as u8);
+        self.send_dt1(&addr, &field.encode(value.into()));
     }
 
-    /// Set a single SN-D Note parameter for a part and key.
+    /// Set an SN-D Note field for a part and key, sent nibblized when the
+    /// field is.
     pub fn set_snd_note_param(
         &mut self,
         part: u8,
         key: u8,
-        offset: u8,
-        value: u8,
-    ) -> Result<(), KeyOutOfRange> {
-        let addr = crate::sn_drum::snd_note_param_address(part, key, offset)?;
-        self.send_dt1(&addr, &[value]);
-        Ok(())
-    }
-
-    /// Set a nibblized SN-D Note parameter (4 bytes, e.g. inst number or tune).
-    pub fn set_snd_note_nib_param(
-        &mut self,
-        part: u8,
-        key: u8,
-        offset: u8,
+        field: SndNoteField,
         value: u16,
     ) -> Result<(), KeyOutOfRange> {
-        let addr = crate::sn_drum::snd_note_param_address(part, key, offset)?;
-        self.send_dt1(&addr, &crate::parse_helpers::encode_nibble4(value));
+        let addr = crate::sn_drum::snd_note_param_address(part, key, field as u8)?;
+        self.send_dt1(&addr, &field.encode(value));
         Ok(())
     }
 
@@ -1568,12 +1557,47 @@ mod tests {
         use crate::sn_drum::{SND_FIRST_KEY, SND_LAST_KEY};
         let mut dev = DeviceState::new(0x10);
         for key in [SND_FIRST_KEY - 1, SND_LAST_KEY + 1] {
-            assert!(dev.set_snd_note_param(0, key, 0x04, 100).is_err());
-            assert!(dev.set_snd_note_nib_param(0, key, 0x00, 1).is_err());
+            assert!(
+                dev.set_snd_note_param(0, key, SndNoteField::Level, 100)
+                    .is_err()
+            );
+            assert!(
+                dev.set_snd_note_param(0, key, SndNoteField::InstNumber, 1)
+                    .is_err()
+            );
         }
         assert!(!dev.has_pending());
-        assert!(dev.set_snd_note_param(0, SND_LAST_KEY, 0x04, 100).is_ok());
+        assert!(
+            dev.set_snd_note_param(0, SND_LAST_KEY, SndNoteField::Level, 100)
+                .is_ok()
+        );
         assert!(dev.has_pending());
+    }
+
+    #[test]
+    fn snd_setters_write_each_field_at_its_address() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_snd_common_param(0, SndCommonField::AmbienceLevel, 80);
+        dev.set_snd_note_param(0, 28, SndNoteField::InstNumber, 0x1FF)
+            .unwrap();
+        // Part 1: SN-D Common Ambience Level at `19 03 00 11`; key 28's
+        // Note at `03 11 00`, Inst Number (4 nibbles) at `00 00`.
+        assert_eq!(
+            dev.drain(0.0),
+            Some(sysex::build_dt1(
+                0x10,
+                &Address::new(0x19, 0x03, 0x00, 0x11),
+                &[80]
+            ))
+        );
+        assert_eq!(
+            dev.drain(100.0),
+            Some(sysex::build_dt1(
+                0x10,
+                &Address::new(0x19, 0x03, 0x11, 0x00),
+                &[0x00, 0x01, 0x0F, 0x0F]
+            ))
+        );
     }
 
     #[test]

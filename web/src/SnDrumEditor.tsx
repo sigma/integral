@@ -6,6 +6,8 @@ import {
   snd_note_address,
   snd_note_size,
   mfx_block_size,
+  SndCommonField,
+  SndNoteField,
   ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
@@ -54,6 +56,21 @@ interface SnDrumNote {
   stereoWidth: number;
   outputAssign: number;
 }
+
+/** The keys of `T` holding a number. */
+type NumberKey<T> = { [K in keyof T]: T[K] extends number ? K : never }[keyof T];
+
+/** Sets a Common field: `field` addresses it on the device, `key` names it
+ *  in {@link SnDrumCommon}. */
+type CommonParamHandler = (
+  field: SndCommonField,
+  key: NumberKey<SnDrumCommon>,
+  value: number,
+) => void;
+
+/** Sets a field of the selected key's Note: `field` addresses it on the
+ *  device, `key` names it in {@link SnDrumNote}. */
+type NoteParamHandler = (field: SndNoteField, key: keyof SnDrumNote, value: number) => void;
 
 // ---------------------------------------------------------------------------
 // Display helpers
@@ -218,65 +235,22 @@ export function SnDrumEditor({ partIndex, service }: Props) {
   );
 
   // ---------------------------------------------------------------------------
-  // Common param setter
+  // Param setters: send to the device, then patch the local copy
   // ---------------------------------------------------------------------------
-  const setCommonParam = useCallback(
-    (offset: number, value: number) => {
-      service.device.setSndCommonParam(partIndex, offset, value);
-      setCommon((prev) => {
-        if (!prev) return prev;
-        const next = { ...prev };
-        switch (offset) {
-          case 0x10: next.kitLevel = value; break;
-          case 0x11: next.ambienceLevel = value; break;
-          case 0x12: next.phraseNumber = value; break;
-          case 0x13: next.tfxSwitch = value; break;
-        }
-        return next;
-      });
+  const setCommonParam = useCallback<CommonParamHandler>(
+    (field, key, value) => {
+      service.device.setSndCommonParam(partIndex, field, value);
+      setCommon((prev) => (prev ? { ...prev, [key]: value } : prev));
     },
     [partIndex, service],
   );
 
-  // ---------------------------------------------------------------------------
-  // Note param setter
-  // ---------------------------------------------------------------------------
-  const setNoteParam = useCallback(
-    (offset: number, value: number) => {
-      service.device.setSndNoteParam(partIndex, selectedKey, offset, value);
+  const setNoteParam = useCallback<NoteParamHandler>(
+    (field, key, value) => {
+      service.device.setSndNoteParam(partIndex, selectedKey, field, value);
       setNoteData((prev) => {
         if (!prev) return prev;
-        const next = { ...prev };
-        switch (offset) {
-          case 0x04: next.level = value; break;
-          case 0x05: next.pan = value; break;
-          case 0x06: next.chorusSend = value; break;
-          case 0x07: next.reverbSend = value; break;
-          case 0x0C: next.attack = value; break;
-          case 0x0D: next.decay = value; break;
-          case 0x0E: next.brilliance = value; break;
-          case 0x0F: next.variation = value; break;
-          case 0x10: next.dynamicRange = value; break;
-          case 0x11: next.stereoWidth = value; break;
-          case 0x12: next.outputAssign = value; break;
-        }
-        // Update cache
-        noteCache.current.set(selectedKey, next);
-        return next;
-      });
-    },
-    [partIndex, selectedKey, service],
-  );
-
-  // ---------------------------------------------------------------------------
-  // Nibblized note param setter (inst number, tune)
-  // ---------------------------------------------------------------------------
-  const setNoteNibParam = useCallback(
-    (offset: number, value: number, field: keyof SnDrumNote) => {
-      service.device.setSndNoteNibParam(partIndex, selectedKey, offset, value);
-      setNoteData((prev) => {
-        if (!prev) return prev;
-        const next = { ...prev, [field]: value };
+        const next = { ...prev, [key]: value };
         noteCache.current.set(selectedKey, next);
         return next;
       });
@@ -330,7 +304,6 @@ export function SnDrumEditor({ partIndex, service }: Props) {
                 keyNumber={selectedKey}
                 note={noteData}
                 onChange={setNoteParam}
-                onNibChange={setNoteNibParam}
               />
             ) : (
               <div className={css.noteLoadingPlaceholder}>Select a key to edit</div>
@@ -358,17 +331,21 @@ function CommonPanel({
   onChange,
 }: {
   common: SnDrumCommon;
-  onChange: (offset: number, value: number) => void;
+  onChange: CommonParamHandler;
 }) {
+  const set =
+    (field: SndCommonField, key: Parameters<CommonParamHandler>[1]) =>
+    (v: number) =>
+      onChange(field, key, v);
   return (
     <SectionPanel label="COMMON" accentColor="#8cf">
       <FaderGroup>
         <SynthFader label="Kit Lv" value={common.kitLevel} min={0} max={127} defaultValue={127}
-          onChange={(v) => onChange(0x10, v)} formatValue={(v) => String(v)} compact
+          onChange={set(SndCommonField.KitLevel, "kitLevel")} formatValue={(v) => String(v)} compact
           title="Kit Level" />
         <FaderGroupSep />
         <SynthFader label="Amb Lv" value={common.ambienceLevel} min={0} max={127} defaultValue={64}
-          onChange={(v) => onChange(0x11, v)} formatValue={(v) => String(v)} compact
+          onChange={set(SndCommonField.AmbienceLevel, "ambienceLevel")} formatValue={(v) => String(v)} compact
           title="Ambience Level" />
       </FaderGroup>
     </SectionPanel>
@@ -383,13 +360,15 @@ function NoteControls({
   keyNumber,
   note,
   onChange,
-  onNibChange,
 }: {
   keyNumber: number;
   note: SnDrumNote;
-  onChange: (offset: number, value: number) => void;
-  onNibChange: (offset: number, value: number, field: keyof SnDrumNote) => void;
+  onChange: NoteParamHandler;
 }) {
+  const set =
+    (field: SndNoteField, key: Parameters<NoteParamHandler>[1]) =>
+    (v: number) =>
+      onChange(field, key, v);
   const [instDraft, setInstDraft] = useState(String(note.instNumber));
 
   // Sync draft when note changes (key selection)
@@ -400,7 +379,7 @@ function NoteControls({
   const commitInstNumber = () => {
     const n = Number(instDraft);
     if (Number.isInteger(n) && n >= 0 && n <= deviceSpec().sn_drum_inst_number_max) {
-      onNibChange(0x00, n, "instNumber");
+      onChange(SndNoteField.InstNumber, "instNumber", n);
       setInstDraft(String(n));
     } else {
       // Revert to current value
@@ -429,18 +408,18 @@ function NoteControls({
         </label>
         <SynthSelect label="Out" value={note.outputAssign}
           options={OUTPUT_ASSIGN_OPTIONS}
-          onChange={(v) => onChange(0x12, v)} />
+          onChange={set(SndNoteField.OutputAssign, "outputAssign")} />
       </div>
       <div className={css.noteControls}>
         {/* Strip: Pan + Sends + Level — reuses the shared OutputStrip */}
         <SectionPanel label="LEVEL / PAN" accentColor="#8cf">
           <OutputStrip
-            pan={note.pan} onPanChange={(v) => onChange(0x05, v)} panFormat={panFmt}
+            pan={note.pan} onPanChange={set(SndNoteField.Pan, "pan")} panFormat={panFmt}
             fx1={note.chorusSend} fx2={note.reverbSend}
             level={note.level}
-            onFx1Change={(v) => onChange(0x06, v)}
-            onFx2Change={(v) => onChange(0x07, v)}
-            onLevelChange={(v) => onChange(0x04, v)}
+            onFx1Change={set(SndNoteField.ChorusSend, "chorusSend")}
+            onFx2Change={set(SndNoteField.ReverbSend, "reverbSend")}
+            onLevelChange={set(SndNoteField.Level, "level")}
             trackHeight={250}
           />
         </SectionPanel>
@@ -449,26 +428,26 @@ function NoteControls({
         <SectionPanel label="TONE" accentColor="#fc8">
           <div className={css.knobRow}>
             <SynthKnob label="Attack" value={note.attack} min={0} max={100} defaultValue={100}
-              onChange={(v) => onChange(0x0C, v)} formatValue={(v) => `${v}%`} color="#fc8" />
+              onChange={set(SndNoteField.Attack, "attack")} formatValue={(v) => `${v}%`} color="#fc8" />
             <SynthKnob label="Decay" value={note.decay} min={1} max={64} defaultValue={64}
-              onChange={(v) => onChange(0x0D, v)} formatValue={decayFmt} color="#fc8" />
+              onChange={set(SndNoteField.Decay, "decay")} formatValue={decayFmt} color="#fc8" />
             <SynthKnob label="Brill" value={note.brilliance} min={49} max={76} defaultValue={64} center={64}
-              onChange={(v) => onChange(0x0E, v)} formatValue={brillianceFmt} color="#fc8"
+              onChange={set(SndNoteField.Brilliance, "brilliance")} formatValue={brillianceFmt} color="#fc8"
               title="Brilliance" />
           </div>
           <div className={css.knobRow}>
             <SynthKnob label="DynRng" value={note.dynamicRange} min={0} max={63} defaultValue={63}
-              onChange={(v) => onChange(0x10, v)} formatValue={(v) => String(v)} color="#a6f"
+              onChange={set(SndNoteField.DynamicRange, "dynamicRange")} formatValue={(v) => String(v)} color="#a6f"
               title="Dynamic Range" />
             <SynthKnob label="Width" value={note.stereoWidth} min={0} max={127} defaultValue={64}
-              onChange={(v) => onChange(0x11, v)} formatValue={(v) => String(v)} color="#a6f"
+              onChange={set(SndNoteField.StereoWidth, "stereoWidth")} formatValue={(v) => String(v)} color="#a6f"
               title="Stereo Width" />
           </div>
           <div className={css.noteSelects}>
             <SynthSelect label="Variation" value={note.variation} options={VARIATION_OPTIONS}
-              onChange={(v) => onChange(0x0F, v)} />
+              onChange={set(SndNoteField.Variation, "variation")} />
             <SynthSelect label="Output" value={note.outputAssign} options={OUTPUT_ASSIGN_OPTIONS}
-              onChange={(v) => onChange(0x12, v)} />
+              onChange={set(SndNoteField.OutputAssign, "outputAssign")} />
           </div>
         </SectionPanel>
       </div>

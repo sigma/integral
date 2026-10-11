@@ -5,10 +5,11 @@
 //! (handled by `params.rs`), and 62 per-key Note blocks.
 
 use crate::address::{Address, DataSize};
+use crate::block_field::BlockField;
 use crate::device_spec::{KeyOutOfRange, KeyRange};
 use crate::mfx::MfxState;
 use crate::params;
-use crate::parse_helpers::{nibble4, parse_ascii_name};
+use crate::parse_helpers::parse_ascii_name;
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -78,6 +79,74 @@ pub fn snd_note_param_address(
     offset: u8,
 ) -> Result<Address, KeyOutOfRange> {
     Ok(snd_note_address(part_index, key)?.offset([0x00, 0x00, 0x00, offset]))
+}
+
+/// A field of an SN Drum Kit Common block. The discriminant is the field's
+/// byte position within the block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum SndCommonField {
+    /// Kit Level.
+    KitLevel = 0x10,
+    /// Ambience Level.
+    AmbienceLevel = 0x11,
+    /// Phrase Number.
+    PhraseNumber = 0x12,
+    /// TFX Switch.
+    TfxSwitch = 0x13,
+}
+
+impl BlockField for SndCommonField {
+    fn position(self) -> usize {
+        self as usize
+    }
+}
+
+/// A field of an SN Drum Kit per-key Note block. The discriminant is the
+/// field's first byte position within the block; [`BlockField`] gives the
+/// nibblized fields' width.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum SndNoteField {
+    /// Inst Number (nibblized, 4 bytes).
+    InstNumber = 0x00,
+    /// Level.
+    Level = 0x04,
+    /// Pan.
+    Pan = 0x05,
+    /// Chorus Send Level.
+    ChorusSend = 0x06,
+    /// Reverb Send Level.
+    ReverbSend = 0x07,
+    /// Tune (nibblized, 4 bytes).
+    Tune = 0x08,
+    /// Attack.
+    Attack = 0x0C,
+    /// Decay.
+    Decay = 0x0D,
+    /// Brilliance.
+    Brilliance = 0x0E,
+    /// Variation.
+    Variation = 0x0F,
+    /// Dynamic Range.
+    DynamicRange = 0x10,
+    /// Stereo Width.
+    StereoWidth = 0x11,
+    /// Output Assign.
+    OutputAssign = 0x12,
+}
+
+impl BlockField for SndNoteField {
+    fn position(self) -> usize {
+        self as usize
+    }
+
+    fn width(self) -> usize {
+        match self {
+            Self::InstNumber | Self::Tune => 4,
+            _ => 1,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -202,13 +271,12 @@ pub fn parse_snd_common(data: &[u8]) -> Result<SnDrumCommon, crate::ToneParseErr
     }
     let mut c = SnDrumCommon::default();
 
-    // Kit Name: bytes 0x00–0x0B
+    use SndCommonField as F;
     c.kit_name = parse_ascii_name(data);
-
-    c.kit_level = data[0x10];
-    c.ambience_level = data[0x11];
-    c.phrase_number = data[0x12];
-    c.tfx_switch = data[0x13];
+    c.kit_level = F::KitLevel.byte(data);
+    c.ambience_level = F::AmbienceLevel.byte(data);
+    c.phrase_number = F::PhraseNumber.byte(data);
+    c.tfx_switch = F::TfxSwitch.byte(data);
 
     Ok(c)
 }
@@ -239,24 +307,20 @@ pub fn parse_snd_note(data: &[u8]) -> Result<SnDrumNote, crate::ToneParseError> 
     }
     let mut n = SnDrumNote::default();
 
-    // Inst Number: nibblized 4 bytes at 0x00–0x03
-    n.inst_number = nibble4(data, 0x00);
-
-    n.level = data[0x04];
-    n.pan = data[0x05];
-    n.chorus_send = data[0x06];
-    n.reverb_send = data[0x07];
-
-    // Tune: nibblized 4 bytes at 0x08–0x0B
-    n.tune = nibble4(data, 0x08);
-
-    n.attack = data[0x0C];
-    n.decay = data[0x0D];
-    n.brilliance = data[0x0E];
-    n.variation = data[0x0F];
-    n.dynamic_range = data[0x10];
-    n.stereo_width = data[0x11];
-    n.output_assign = data[0x12];
+    use SndNoteField as F;
+    n.inst_number = F::InstNumber.nibbles(data);
+    n.level = F::Level.byte(data);
+    n.pan = F::Pan.byte(data);
+    n.chorus_send = F::ChorusSend.byte(data);
+    n.reverb_send = F::ReverbSend.byte(data);
+    n.tune = F::Tune.nibbles(data);
+    n.attack = F::Attack.byte(data);
+    n.decay = F::Decay.byte(data);
+    n.brilliance = F::Brilliance.byte(data);
+    n.variation = F::Variation.byte(data);
+    n.dynamic_range = F::DynamicRange.byte(data);
+    n.stereo_width = F::StereoWidth.byte(data);
+    n.output_assign = F::OutputAssign.byte(data);
 
     Ok(n)
 }
@@ -386,5 +450,40 @@ mod tests {
     #[test]
     fn parse_note_short_data_returns_err() {
         assert!(parse_snd_note(&[0u8; 5]).is_err());
+    }
+
+    #[test]
+    fn parse_common_reads_every_field_at_its_position() {
+        use crate::block_field::test_support::{assert_reads_at_positions, positional_block};
+        use SndCommonField as F;
+        let c = parse_snd_common(&positional_block(SND_COMMON_SIZE)).unwrap();
+        assert_reads_at_positions!(c, {
+            kit_level: F::KitLevel,
+            ambience_level: F::AmbienceLevel,
+            phrase_number: F::PhraseNumber,
+            tfx_switch: F::TfxSwitch,
+        });
+    }
+
+    #[test]
+    fn parse_note_reads_every_field_at_its_position() {
+        use crate::block_field::test_support::{assert_reads_at_positions, positional_block};
+        use SndNoteField as F;
+        let n = parse_snd_note(&positional_block(SND_NOTE_SIZE)).unwrap();
+        assert_reads_at_positions!(n, {
+            inst_number: F::InstNumber,
+            level: F::Level,
+            pan: F::Pan,
+            chorus_send: F::ChorusSend,
+            reverb_send: F::ReverbSend,
+            tune: F::Tune,
+            attack: F::Attack,
+            decay: F::Decay,
+            brilliance: F::Brilliance,
+            variation: F::Variation,
+            dynamic_range: F::DynamicRange,
+            stereo_width: F::StereoWidth,
+            output_assign: F::OutputAssign,
+        });
     }
 }
