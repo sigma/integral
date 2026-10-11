@@ -1,4 +1,5 @@
 import { useDragControl } from "../useDragControl";
+import { MAX_TICKS } from "../EqKnob";
 import css from "./SynthKnob.module.css";
 
 interface Props {
@@ -21,6 +22,7 @@ interface Props {
 
 const ANGLE_MIN = -135;
 const ANGLE_MAX = 135;
+/** LEDs on the ring of a wide-range knob; discrete ranges get one per value. */
 const LED_COUNT = 21;
 
 function valueToAngle(value: number, min: number, max: number): number {
@@ -47,6 +49,7 @@ export function SynthKnob({
   const knobR = size === "lg" ? 24 : 17;
   const ledR = size === "lg" ? 32 : 23;
   const range = max - min || 1;
+  const ledCount = max > min && max - min + 1 <= MAX_TICKS ? max - min + 1 : LED_COUNT;
 
   const angle = valueToAngle(value, min, max);
   const norm = (value - min) / range;
@@ -54,11 +57,11 @@ export function SynthKnob({
   const drag = useDragControl({ value, min, max, defaultValue, onChange });
 
   // LED dots: lit from the center LED (nearest to `center`) to the value
-  const from = Math.round((((center ?? (min < 0 && max > 0 ? 0 : min)) - min) / range) * (LED_COUNT - 1));
-  const to = norm * (LED_COUNT - 1);
+  const from = Math.round((((center ?? (min < 0 && max > 0 ? 0 : min)) - min) / range) * (ledCount - 1));
+  const to = norm * (ledCount - 1);
   const leds = [];
-  for (let i = 0; i < LED_COUNT; i++) {
-    const ledNorm = i / (LED_COUNT - 1);
+  for (let i = 0; i < ledCount; i++) {
+    const ledNorm = i / (ledCount - 1);
     const ledAngle = ANGLE_MIN + ledNorm * (ANGLE_MAX - ANGLE_MIN);
     const rad = (ledAngle - 90) * (Math.PI / 180);
     const lx = cx + ledR * Math.cos(rad);

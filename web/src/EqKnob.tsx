@@ -16,7 +16,7 @@ interface Props {
 }
 
 /** Ranges with at most this many values get one tick per value; wider ones read as continuous. */
-const MAX_TICKS = 24;
+export const MAX_TICKS = 24;
 
 function valueToAngle(value: number, min: number, max: number): number {
   const range = max - min;
