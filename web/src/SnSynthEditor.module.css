@@ -129,6 +129,11 @@
   flex-shrink: 0;
 }
 
+/* The PCM Wave picker needs its full width; the knobs wrap to the next row */
+.oscSelectorsPcm {
+  width: auto;
+}
+
 .oscKnobGrid {
   display: grid;
   grid-template-columns: auto auto;

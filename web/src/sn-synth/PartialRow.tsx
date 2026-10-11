@@ -129,7 +129,7 @@ function OscPanel({
   return (
     <SectionPanel label="OSC" accentColor="#fc8">
       <div className={css.panelRow}>
-        <div className={css.oscSelectors}>
+        <div className={`${css.oscSelectors} ${isPcm ? css.oscSelectorsPcm : ""}`}>
           <SynthSwitch label="Wave" value={partial.oscWave} vertical
             options={OSC_WAVE_NAMES.map((l, i) => ({ value: i, label: l }))}
             onChange={(v) => onChange(0x00, v)} led={false} />
