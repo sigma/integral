@@ -68,9 +68,9 @@ first and never overwrites another slot without the user choosing it.
 _Avoid_: Empty slot (a slot always holds something)
 
 **Foreign patch**:
-A patch dumped by another Roland synth (JV, XP or XV series) that the
-Librarian converts into a PCM Synth tone. Importing foreign patches yields an
-ordinary Pack.
+A Patch or Rhythm Set dumped by another Roland synth (JV, XP or XV series)
+that the Librarian converts into a PCM Synth tone or a PCM Drum Kit. Importing
+Foreign patches yields an ordinary Pack.
 _Avoid_: Legacy patch, external patch (external reads as Expansion)
 
 **Conversion report**:
