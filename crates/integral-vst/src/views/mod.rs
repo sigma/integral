@@ -30,6 +30,7 @@ mod tone_editor;
 pub(crate) mod tone_selector;
 pub(crate) mod top_bar;
 mod volume_fader;
+mod wave_picker;
 
 pub use channel_strip::*;
 pub use envelope::*;
@@ -46,3 +47,4 @@ pub use tone_editor::ToneEditorPage;
 pub use tone_selector::ToneSelector;
 pub use top_bar::TopBar;
 pub use volume_fader::*;
+pub use wave_picker::WavePicker;

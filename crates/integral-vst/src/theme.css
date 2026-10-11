@@ -252,6 +252,57 @@ synth-select {
     background-color: #2a2a4a;
 }
 
+/* ---------- WavePicker ---------- */
+
+wave-picker {
+    layout-type: column;
+    row-between: 2px;
+    width: auto;
+    height: auto;
+}
+
+.wave-picker__stepper {
+    child-right: 6px;
+}
+
+.wave-picker__name {
+    width: 96px;
+}
+
+.wave-picker__arrow {
+    color: #888;
+    font-size: 12;
+    width: auto;
+    height: auto;
+}
+
+.wave-picker__arrow:hover {
+    color: #fff;
+}
+
+.wave-picker__popover {
+    width: 360px;
+    height: 240px;
+    background-color: #121224;
+    border-width: 1px;
+    border-color: #3a3a5a;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.wave-picker__families {
+    width: 120px;
+    height: 100%;
+    background-color: #0e0e1c;
+    border-width: 0 1px 0 0;
+    border-color: #2a2a4a;
+}
+
+.wave-picker__waves {
+    width: 1s;
+    height: 100%;
+}
+
 /* ---------- SectionPanel ---------- */
 
 section-panel {

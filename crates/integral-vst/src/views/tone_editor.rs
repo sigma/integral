@@ -12,12 +12,13 @@ use integral_core::device_spec::INTEGRA7;
 use integral_core::params::{tone_type, tone_type_from_bank_msb};
 use integral_core::sn_synth::{SnSynthCommon, SnSynthPartial};
 use integral_core::tone_banks::{find_bank, group_of, user_bank_for};
+use integral_core::waves::WaveGroup;
 use nih_plug_vizia::vizia::prelude::*;
 
 use crate::SharedState;
 use crate::editor::{EditorEvent, PageTab};
 
-use super::{SectionPanel, SynthKnob, SynthKnobExt, SynthSwitch};
+use super::{SectionPanel, SynthKnob, SynthKnobExt, SynthSwitch, WavePicker};
 
 /// Refresh interval for reading device state (milliseconds).
 const REFRESH_INTERVAL_MS: u64 = 100;
@@ -32,6 +33,15 @@ const NUM_SNS_PARTIALS: usize = INTEGRA7.sn_synth_partial_count as usize;
 
 /// SN-S oscillator wave type names (indexed by OSC Wave value 0-7).
 const SNS_OSC_WAVE_NAMES: &[&str] = &["SAW", "SQR", "PWSQ", "TRI", "SIN", "NSE", "SSAW", "PCM"];
+
+/// OSC Wave value selecting a PCM Wave (index of "PCM" in [`SNS_OSC_WAVE_NAMES`]).
+const SNS_OSC_WAVE_PCM: usize = 7;
+
+/// SN-S Partial offset of OSC Wave.
+const SNS_OSC_WAVE_OFFSET: u8 = 0x00;
+
+/// SN-S Partial offset of the nibblized PCM Wave Number.
+const SNS_WAVE_NUMBER_OFFSET: u8 = 0x35;
 
 /// SN-S filter mode names (indexed by Filter Mode value 0-7).
 const SNS_FILTER_MODE_NAMES: &[&str] = &["BYP", "LPF", "HPF", "BPF", "PKG", "LP2", "LP3", "LP4"];
@@ -189,6 +199,8 @@ impl SnSynthCommonView {
 pub struct SnSynthPartialView {
     /// OSC Wave (0–7).
     pub osc_wave: usize,
+    /// PCM Wave Number (0 = OFF), used when OSC Wave is PCM.
+    pub wave_number: u16,
     /// Filter Cutoff (0–127 → normalized).
     pub filter_cutoff: f32,
     /// Filter Resonance (0–127 → normalized).
@@ -229,6 +241,7 @@ impl Default for SnSynthPartialView {
     fn default() -> Self {
         Self {
             osc_wave: 0,
+            wave_number: 0,
             filter_cutoff: 1.0,
             filter_resonance: 0.0,
             amp_level: 1.0,
@@ -256,6 +269,7 @@ impl SnSynthPartialView {
     fn from_core(p: &SnSynthPartial) -> Self {
         Self {
             osc_wave: p.osc_wave as usize,
+            wave_number: p.wave_number,
             filter_cutoff: p.filter_cutoff as f32 / 127.0,
             filter_resonance: p.filter_resonance as f32 / 127.0,
             amp_level: p.amp_level as f32 / 127.0,
@@ -289,6 +303,8 @@ enum ToneEditorEvent {
     SetSnsCommon(u8, u8),
     /// Set an SN-S Partial parameter (partial index, offset, raw MIDI value).
     SetSnsPartial(u8, u8, u8),
+    /// Set an SN-S Partial's PCM Wave Number (partial index, Wave Number).
+    SetSnsPartialWave(u8, u16),
 }
 
 impl Model for ToneEditorData {
@@ -308,6 +324,22 @@ impl Model for ToneEditorData {
                     return;
                 };
                 dev.set_sns_partial_param(self.selected_part as u8, *partial, *offset, *value);
+                // Track OSC Wave locally: it decides whether the Wave picker shows.
+                if *offset == SNS_OSC_WAVE_OFFSET {
+                    self.sns_partials[*partial as usize].osc_wave = *value as usize;
+                }
+            }
+            ToneEditorEvent::SetSnsPartialWave(partial, number) => {
+                let Ok(mut dev) = self.shared.device.lock() else {
+                    return;
+                };
+                dev.set_sns_partial_nib_param(
+                    self.selected_part as u8,
+                    *partial,
+                    SNS_WAVE_NUMBER_OFFSET,
+                    *number,
+                );
+                self.sns_partials[*partial as usize].wave_number = *number;
             }
         });
     }
@@ -732,9 +764,25 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 SynthSwitch::new(cx, wave_lens, SNS_OSC_WAVE_NAMES, move |cx, idx| {
                     cx.emit(ToneEditorEvent::SetSnsPartial(
                         partial_idx_u8,
-                        0x00,
+                        SNS_OSC_WAVE_OFFSET,
                         idx as u8,
                     ));
+                });
+            });
+
+            // PCM Wave picker, shown only when OSC Wave is PCM.
+            Binding::new(cx, wave_lens, move |cx, osc_wave| {
+                if osc_wave.get(cx) != SNS_OSC_WAVE_PCM {
+                    return;
+                }
+                let number_lens = ToneEditorData::sns_partials
+                    .map(move |p| p[partial_idx].clone())
+                    .then(SnSynthPartialView::wave_number);
+                VStack::new(cx, |cx| {
+                    Label::new(cx, "PCM Wave").class("tone-editor__switch-label");
+                    WavePicker::new(cx, WaveGroup::SnSynth, number_lens, move |cx, n| {
+                        cx.emit(ToneEditorEvent::SetSnsPartialWave(partial_idx_u8, n));
+                    });
                 });
             });
 
@@ -933,5 +981,10 @@ mod tests {
         assert_eq!(bank_label(87, 0), "PCM Synth");
         // The editor placeholder still names the tone type.
         assert_eq!(tone_type_label(97), "PCM Synth");
+    }
+
+    #[test]
+    fn osc_wave_pcm_index_names_pcm() {
+        assert_eq!(SNS_OSC_WAVE_NAMES[SNS_OSC_WAVE_PCM], "PCM");
     }
 }
