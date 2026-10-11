@@ -157,13 +157,6 @@ export const WAVE_GAIN_OPTIONS = [
   { value: 3, label: "+12dB" },
 ];
 
-export const WAVE_GROUP_OPTIONS = [
-  { value: 0, label: "INT" },
-  { value: 1, label: "SRX" },
-  { value: 2, label: "SRX" },
-  { value: 3, label: "SRX" },
-];
-
 export const FILTER_TYPE_OPTIONS = [
   { value: 0, label: "OFF" },
   { value: 1, label: "LPF" },

@@ -20,7 +20,6 @@ import {
   panFmt,
   signedFmt,
   WAVE_GAIN_OPTIONS,
-  WAVE_GROUP_OPTIONS,
   FILTER_TYPE_OPTIONS,
   VELOCITY_CURVE_OPTIONS,
   ASSIGN_TYPE_OPTIONS,
@@ -30,6 +29,8 @@ import {
   ALT_PAN_OPTIONS,
 } from "./types";
 import { deviceSpec } from "../deviceSpec";
+import { WavePicker, type ExpansionMarking } from "../WavePicker";
+import { waveSourceOf } from "../waveCatalog";
 import css from "../PcmDrumEditor.module.css";
 
 // ---------------------------------------------------------------------------
@@ -41,11 +42,14 @@ export function NoteControls({
   note,
   onParam,
   onWmtParam,
+  marking,
 }: {
   keyNumber: number;
   note: PcmDrumPartial;
   onParam: PartialParamHandler;
   onWmtParam: WmtParamHandler;
+  /** Loaded state of the Expansions behind SRX Wave Groups. */
+  marking?: ExpansionMarking;
 }) {
   const [wmtTab, setWmtTab] = useState(0);
   const set: PartialSetter = (field, key, index = 0) =>
@@ -73,6 +77,7 @@ export function NoteControls({
           onWmtTab={setWmtTab}
           set={set}
           onWmtParam={onWmtParam}
+          marking={marking}
         />
 
         {/* PITCH ENV */}
@@ -114,12 +119,14 @@ function WmtSection({
   onWmtTab,
   set,
   onWmtParam,
+  marking,
 }: {
   note: PcmDrumPartial;
   wmtTab: number;
   onWmtTab: (tab: number) => void;
   set: PartialSetter;
   onWmtParam: WmtParamHandler;
+  marking?: ExpansionMarking;
 }) {
   const wmt = note.wmt[wmtTab]!;
   const setWmt = (field: PcmdWmtField, key: keyof PcmDrumWmt) =>
@@ -157,24 +164,12 @@ function WmtSection({
           options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
           onChange={setWmt(PcmdWmtField.Switch, "wmtSwitch")}
           title="Wave layer switch" />
-        <SynthSelect label="Group" value={wmt.waveGroupType}
-          options={WAVE_GROUP_OPTIONS}
-          onChange={setWmt(PcmdWmtField.WaveGroupType, "waveGroupType")} />
         <SynthSelect label="Gain" value={wmt.waveGain}
           options={WAVE_GAIN_OPTIONS}
           onChange={setWmt(PcmdWmtField.WaveGain, "waveGain")} />
       </div>
 
-      <div className={css.wmtLayer}>
-        <SynthKnob label="Wave L" value={wmt.waveNumberL} min={0} max={16384} defaultValue={0}
-          onChange={setWmt(PcmdWmtField.WaveNumberL, "waveNumberL")}
-          formatValue={(v) => String(v)} color="#fc8"
-          title="Wave Number L / Mono" />
-        <SynthKnob label="Wave R" value={wmt.waveNumberR} min={0} max={16384} defaultValue={0}
-          onChange={setWmt(PcmdWmtField.WaveNumberR, "waveNumberR")}
-          formatValue={(v) => String(v)} color="#fc8"
-          title="Wave Number R" />
-      </div>
+      <WmtWave wmt={wmt} index={wmtTab} onWmtParam={onWmtParam} marking={marking} />
 
       <div className={css.wmtLayer}>
         <SynthSwitch label="FXM" value={wmt.waveFxmSwitch}
@@ -243,6 +238,41 @@ function WmtSection({
           title="Velocity Fade Width Upper" />
       </div>
     </SectionPanel>
+  );
+}
+
+/** WMT `index`'s Wave Group and L/R Wave Numbers, picked by name. */
+export function WmtWave({
+  wmt,
+  index,
+  onWmtParam,
+  marking,
+}: {
+  wmt: Pick<PcmDrumWmt, "waveGroupType" | "waveGroupId" | "waveNumberL" | "waveNumberR">;
+  index: number;
+  onWmtParam: WmtParamHandler;
+  marking?: ExpansionMarking;
+}) {
+  return (
+    <WavePicker
+      source={waveSourceOf(wmt.waveGroupType, wmt.waveGroupId)}
+      unknownGroupLabel={`Type ${wmt.waveGroupType} ID ${wmt.waveGroupId}`}
+      stereo
+      l={wmt.waveNumberL}
+      r={wmt.waveNumberR}
+      onChange={(side, n) =>
+        side === "l"
+          ? onWmtParam(index, PcmdWmtField.WaveNumberL, "waveNumberL", n)
+          : onWmtParam(index, PcmdWmtField.WaveNumberR, "waveNumberR", n)
+      }
+      onGroupChange={(source) => {
+        if (!source.params) return;
+        const [type, id] = source.params;
+        onWmtParam(index, PcmdWmtField.WaveGroupType, "waveGroupType", type);
+        onWmtParam(index, PcmdWmtField.WaveGroupId, "waveGroupId", id);
+      }}
+      marking={marking}
+    />
   );
 }
 

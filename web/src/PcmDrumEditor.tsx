@@ -11,6 +11,7 @@ import {
   ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
+import type { ExpansionMarking } from "./WavePicker";
 import { deviceSpec } from "./deviceSpec";
 import {
   SectionPanel,
@@ -39,9 +40,11 @@ import { NoteControls } from "./pcm-drum/NoteControls";
 interface Props {
   partIndex: number;
   service: IntegraService;
+  /** Loaded state of the Expansions behind SRX Wave Groups. */
+  marking?: ExpansionMarking;
 }
 
-export function PcmDrumEditor({ partIndex, service }: Props) {
+export function PcmDrumEditor({ partIndex, service, marking }: Props) {
   const keys = deviceSpec().pcm_drum_keys;
   const [common, setCommon] = useState<PcmDrumCommon | null>(null);
   const [common2, setCommon2] = useState<PcmDrumCommon2 | null>(null);
@@ -267,6 +270,7 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
                 note={noteData}
                 onParam={setPartialParam}
                 onWmtParam={setWmtParam}
+                marking={marking}
               />
             ) : (
               <div className={css.noteLoadingPlaceholder}>Select a key to edit</div>

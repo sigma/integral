@@ -49,7 +49,7 @@ export function ToneEditorPage({ mixer, service, marking, onBack }: Props) {
       {/* Keyed on tone identity so a new tone pick remounts and re-reads the editor. */}
       <Fragment key={`${part.toneBankMsb}-${part.toneBankLsb}-${part.tonePC}`}>
         {isPcmd ? (
-          <PcmDrumEditor partIndex={partIndex} service={service} />
+          <PcmDrumEditor partIndex={partIndex} service={service} marking={marking} />
         ) : isPcms ? (
           <PcmSynthEditor partIndex={partIndex} service={service} marking={marking} />
         ) : isSns ? (
