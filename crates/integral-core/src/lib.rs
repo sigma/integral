@@ -21,6 +21,7 @@ pub mod bitstream;
 pub mod catalog;
 pub mod device;
 pub mod device_spec;
+pub mod expansions;
 pub mod factory_catalog;
 pub mod fx_params;
 pub mod mfx;

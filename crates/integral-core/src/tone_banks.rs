@@ -6,6 +6,7 @@
 //!
 //! Reference: `docs/midi/03-bank-select-tables.md`
 
+use crate::expansions::{EXPANSIONS, Expansion};
 use crate::params::tone_type_from_bank_msb;
 
 /// A single tone bank identified by its Bank Select MSB and one or more LSB
@@ -18,6 +19,8 @@ pub struct ToneBank {
     pub msb: u8,
     /// Bank Select LSB values.  Each LSB holds up to 128 tones (PC 0–127).
     pub lsbs: &'static [u8],
+    /// The Expansion providing this bank, or `None` for built-in banks.
+    pub expansion: Option<&'static Expansion>,
 }
 
 /// A labelled group of related tone banks (e.g. "SN Acoustic").
@@ -41,11 +44,13 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
                 label: "Preset",
                 msb: 89,
                 lsbs: &[64, 65],
+                expansion: None,
             },
             ToneBank {
                 label: USER_LABEL,
                 msb: 89,
                 lsbs: &[0, 1],
+                expansion: None,
             },
         ],
     },
@@ -56,11 +61,13 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
                 label: "Preset",
                 msb: 95,
                 lsbs: &[64, 65, 66, 67, 68, 69, 70, 71, 72],
+                expansion: None,
             },
             ToneBank {
                 label: USER_LABEL,
                 msb: 95,
                 lsbs: &[0, 1, 2, 3],
+                expansion: None,
             },
         ],
     },
@@ -71,11 +78,13 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
                 label: "Preset",
                 msb: 88,
                 lsbs: &[64],
+                expansion: None,
             },
             ToneBank {
                 label: USER_LABEL,
                 msb: 88,
                 lsbs: &[0],
+                expansion: None,
             },
         ],
     },
@@ -86,11 +95,13 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
                 label: "Preset",
                 msb: 87,
                 lsbs: &[64, 65, 66, 67, 68, 69, 70],
+                expansion: None,
             },
             ToneBank {
                 label: USER_LABEL,
                 msb: 87,
                 lsbs: &[0, 1],
+                expansion: None,
             },
         ],
     },
@@ -101,11 +112,13 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
                 label: "Preset",
                 msb: 86,
                 lsbs: &[64],
+                expansion: None,
             },
             ToneBank {
                 label: USER_LABEL,
                 msb: 86,
                 lsbs: &[0],
+                expansion: None,
             },
         ],
     },
@@ -116,11 +129,13 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
                 label: "Tone",
                 msb: 121,
                 lsbs: &[0, 1],
+                expansion: None,
             },
             ToneBank {
                 label: "Drum",
                 msb: 120,
                 lsbs: &[0],
+                expansion: None,
             },
         ],
     },
@@ -128,44 +143,166 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
         label: "Expansion",
         banks: &[
             ToneBank {
+                label: "SRX-01",
+                msb: 93,
+                lsbs: &[0],
+                expansion: Some(&EXPANSIONS[0]),
+            },
+            ToneBank {
+                label: "SRX-01 Drum",
+                msb: 92,
+                lsbs: &[0],
+                expansion: Some(&EXPANSIONS[0]),
+            },
+            ToneBank {
+                label: "SRX-02",
+                msb: 93,
+                lsbs: &[1],
+                expansion: Some(&EXPANSIONS[1]),
+            },
+            ToneBank {
+                label: "SRX-03",
+                msb: 93,
+                lsbs: &[2],
+                expansion: Some(&EXPANSIONS[2]),
+            },
+            ToneBank {
+                label: "SRX-03 Drum",
+                msb: 92,
+                lsbs: &[2],
+                expansion: Some(&EXPANSIONS[2]),
+            },
+            ToneBank {
+                label: "SRX-04",
+                msb: 93,
+                lsbs: &[3],
+                expansion: Some(&EXPANSIONS[3]),
+            },
+            ToneBank {
+                label: "SRX-05",
+                msb: 93,
+                lsbs: &[4, 5, 6],
+                expansion: Some(&EXPANSIONS[4]),
+            },
+            ToneBank {
+                label: "SRX-05 Drum",
+                msb: 92,
+                lsbs: &[4],
+                expansion: Some(&EXPANSIONS[4]),
+            },
+            ToneBank {
+                label: "SRX-06",
+                msb: 93,
+                lsbs: &[7, 8, 9, 10],
+                expansion: Some(&EXPANSIONS[5]),
+            },
+            ToneBank {
+                label: "SRX-06 Drum",
+                msb: 92,
+                lsbs: &[7],
+                expansion: Some(&EXPANSIONS[5]),
+            },
+            ToneBank {
+                label: "SRX-07",
+                msb: 93,
+                lsbs: &[11, 12, 13, 14],
+                expansion: Some(&EXPANSIONS[6]),
+            },
+            ToneBank {
+                label: "SRX-07 Drum",
+                msb: 92,
+                lsbs: &[11],
+                expansion: Some(&EXPANSIONS[6]),
+            },
+            ToneBank {
+                label: "SRX-08",
+                msb: 93,
+                lsbs: &[15, 16, 17, 18],
+                expansion: Some(&EXPANSIONS[7]),
+            },
+            ToneBank {
+                label: "SRX-08 Drum",
+                msb: 92,
+                lsbs: &[15],
+                expansion: Some(&EXPANSIONS[7]),
+            },
+            ToneBank {
+                label: "SRX-09",
+                msb: 93,
+                lsbs: &[19, 20, 21, 22],
+                expansion: Some(&EXPANSIONS[8]),
+            },
+            ToneBank {
+                label: "SRX-09 Drum",
+                msb: 92,
+                lsbs: &[19],
+                expansion: Some(&EXPANSIONS[8]),
+            },
+            ToneBank {
+                label: "SRX-10",
+                msb: 93,
+                lsbs: &[23],
+                expansion: Some(&EXPANSIONS[9]),
+            },
+            ToneBank {
+                label: "SRX-11",
+                msb: 93,
+                lsbs: &[24],
+                expansion: Some(&EXPANSIONS[10]),
+            },
+            ToneBank {
+                label: "SRX-12",
+                msb: 93,
+                lsbs: &[26],
+                expansion: Some(&EXPANSIONS[11]),
+            },
+            ToneBank {
                 label: "ExSN1",
                 msb: 89,
                 lsbs: &[96],
+                expansion: Some(&EXPANSIONS[12]),
             },
             ToneBank {
                 label: "ExSN2",
                 msb: 89,
                 lsbs: &[97],
+                expansion: Some(&EXPANSIONS[13]),
             },
             ToneBank {
                 label: "ExSN3",
                 msb: 89,
                 lsbs: &[98],
+                expansion: Some(&EXPANSIONS[14]),
             },
             ToneBank {
                 label: "ExSN4",
                 msb: 89,
                 lsbs: &[99],
+                expansion: Some(&EXPANSIONS[15]),
             },
             ToneBank {
                 label: "ExSN5",
                 msb: 89,
                 lsbs: &[100],
+                expansion: Some(&EXPANSIONS[16]),
             },
             ToneBank {
                 label: "ExSN6 Drum",
                 msb: 88,
                 lsbs: &[101],
+                expansion: Some(&EXPANSIONS[17]),
             },
             ToneBank {
                 label: "ExPCM Tone",
                 msb: 97,
                 lsbs: &[0, 1, 2, 3],
+                expansion: Some(&EXPANSIONS[18]),
             },
             ToneBank {
                 label: "ExPCM Drum",
                 msb: 96,
                 lsbs: &[0],
+                expansion: Some(&EXPANSIONS[18]),
             },
         ],
     },
@@ -256,6 +393,6 @@ mod tests {
     #[test]
     fn total_bank_count() {
         let count: usize = TONE_BANK_GROUPS.iter().map(|g| g.banks.len()).sum();
-        assert_eq!(count, 20);
+        assert_eq!(count, 39);
     }
 }
