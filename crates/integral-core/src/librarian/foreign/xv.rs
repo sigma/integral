@@ -11,7 +11,7 @@
 //! Rhythm Set).
 
 use super::frame::{self, Frame};
-use super::pcm_tone::{self, Output, PcmTone};
+use super::pcm_tone::{self, FULL_LEVEL, OUTPUT_TONE, Output, PcmTone};
 use super::report::{ConversionItem, ConversionReport};
 use super::wave_map::ForeignWaveGroup;
 use super::{Placed, Unit};
@@ -157,10 +157,8 @@ const WAVE_SR_JV80: u8 = 1;
 /// Wave Group Type SRX-EXP.
 const WAVE_SRX: u8 = 2;
 
-/// Output Assign MFX; Patch Output Assign also has 13, TONE.
+/// Output Assign MFX; Patch Output Assign also has [`OUTPUT_TONE`].
 const OUTPUT_MFX: u8 = 0;
-/// Patch Output Assign TONE: each Tone's own.
-const OUTPUT_TONE: u8 = 13;
 /// Output Assign values, as the XV-5080 names them.
 const OUTPUTS: [&str; 14] = [
     "MFX", "A", "B", "C", "D", "1", "2", "3", "4", "5", "6", "7", "8", "TONE",
@@ -179,12 +177,10 @@ const REVERB_TYPES: [&str; 6] = [
 
 /// The tempo a Patch that doesn't use one carries.
 const DEFAULT_TEMPO: u16 = 120;
-/// The MFX Dry Send Level of a Patch that doesn't change it.
-const FULL_LEVEL: u8 = 127;
 
 /// INTEGRA-7 Tone Category of each XV Patch Category, in the XV-5080's list
 /// order (0 = NO ASSIGN … 38 = CMB). From `xv-patch-format.md`, section 6.
-const CATEGORIES: [u8; 39] = [
+pub(super) const CATEGORIES: [u8; 39] = [
     0, 1, 5, 10, 14, 14, 6, 12, 12, 16, // —, PNO, EP, KEY, BEL, MLT, ORG, ACD, HRM, AGT
     17, 18, 20, 21, 24, 24, 44, 28, 29, 26, // EGT, DGT, BS, SBS, STR, ORC, HIT, WND, FLT, BRS
     35, 30, 34, 34, 40, 42, 39, 38, 36, 36, // SBR, SAX, HLD, SLD, TEK, PLS, FX, SYN, BPD, SPD

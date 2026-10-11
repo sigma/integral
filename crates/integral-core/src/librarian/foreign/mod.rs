@@ -6,8 +6,8 @@
 //! cover a whole tone or Studio Set, in a Temporary area or a User slot,
 //! become Pack entries; the import then stores them through Temporary as
 //! usual. Foreign patch frames (JV/XP, XV) are grouped per source unit for
-//! the per-family converters: XV Patches become PCM Synth tones, each with
-//! its Conversion report. Units with no converter yet are skipped.
+//! the per-family converters: JV/XP and XV Patches become PCM Synth tones,
+//! each with its Conversion report. Units with no converter yet are skipped.
 //! Everything else goes in the file-level report.
 //!
 //! Reference: `docs/research/xv-svd-format.md` (SVD routing).
@@ -241,6 +241,7 @@ fn read_sysex(bytes: &[u8], mut unreadable: bool) -> PackRead {
             Source::Xv(unit) if unit.kind == Skipped::Patch => {
                 xv::convert(unit.key, &frames).map_err(Skipped::from)
             }
+            Source::Jv(unit) if unit.kind == Skipped::Patch => jv::convert(unit.key, &frames),
             Source::Jv(unit) | Source::Xv(unit) => Err(unit.kind),
         };
         match converted {

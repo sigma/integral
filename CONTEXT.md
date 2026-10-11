@@ -75,7 +75,7 @@ _Avoid_: Legacy patch, external patch (external reads as Expansion)
 
 **Conversion report**:
 The per-tone list of everything a Foreign patch conversion dropped or
-approximated: unmapped Waves, effect types, parameters.
+approximated: unmapped Waves, effect types, controller routings, parameters.
 _Avoid_: Log, warnings
 
 ## Expansions

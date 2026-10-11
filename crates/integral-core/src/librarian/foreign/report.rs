@@ -40,6 +40,18 @@ pub enum ConversionItem {
         /// Its name on the source synth.
         param: &'static str,
     },
+    /// A controller route that found no place among the four Matrix
+    /// Controls, or whose source the INTEGRA-7 doesn't have.
+    RoutingDropped {
+        /// The partial (1–4).
+        partial: u8,
+        /// The source synth's controller (1–3).
+        control: u8,
+        /// The destination, as the source synth names it.
+        destination: &'static str,
+        /// The depth, from −63 to +63.
+        sens: i8,
+    },
     /// A Patch setting that lives in the Studio Set on the INTEGRA-7.
     NotApplied {
         /// The setting and its value, e.g. `Reverb SRV HALL, level 127`.
@@ -74,6 +86,15 @@ impl fmt::Display for ConversionItem {
                 partial: None,
                 param,
             } => write!(f, "{param} dropped"),
+            Self::RoutingDropped {
+                partial,
+                control,
+                destination,
+                sens,
+            } => write!(
+                f,
+                "Partial {partial}: Control {control} route to {destination} ({sens:+}) dropped"
+            ),
             Self::NotApplied { what } => {
                 write!(f, "{what} not applied; set it in the Studio Set")
             }
@@ -204,6 +225,12 @@ mod tests {
                 partial: None,
                 param: "One Shot Mode",
             },
+            ConversionItem::RoutingDropped {
+                partial: 4,
+                control: 2,
+                destination: "CUT",
+                sens: -10,
+            },
             ConversionItem::NotApplied {
                 what: "Reverb SRV HALL, level 127".into(),
             },
@@ -217,6 +244,7 @@ mod tests {
                 "effect dropped, MFX set to THRU",
                 "Partial 3: Receive Pan Mode dropped",
                 "One Shot Mode dropped",
+                "Partial 4: Control 2 route to CUT (-10) dropped",
                 "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
             ]
         );

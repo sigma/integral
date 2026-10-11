@@ -18,6 +18,8 @@ pub enum ForeignWaveGroup {
     JvIntA,
     /// JV/XP internal ROM, INT-B.
     JvIntB,
+    /// JV/XP PCM card `n` (SO-PCM1 series), which no Wave map covers.
+    PcmCard(u16),
     /// SR-JV80 expansion board `n` (1–19).
     SrJv80(u16),
     /// XV SRX board `n`, outside the INTEGRA-7's SRX-01…SRX-12.
@@ -31,6 +33,7 @@ impl fmt::Display for ForeignWaveGroup {
         match self {
             Self::JvIntA => f.write_str("INT-A"),
             Self::JvIntB => f.write_str("INT-B"),
+            Self::PcmCard(n) => write!(f, "PCM card {n}"),
             Self::SrJv80(n) => write!(f, "SR-JV80-{n:02}"),
             Self::Srx(n) => write!(f, "SRX-{n:02}"),
             Self::Sample => f.write_str("SAMPLE"),

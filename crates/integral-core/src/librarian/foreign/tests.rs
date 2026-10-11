@@ -194,7 +194,7 @@ fn skips_foreign_units_with_no_converter() {
         // One XV User Rhythm, Common and its last Rhythm Tone.
         foreign(xv, [0x40, 0x10, 0, 0], &[0x20; 18]),
         foreign(xv, [0x40, 0x11, 0x3E, 0], &[0; 193]),
-        // A JV User Patch and a JV Performance.
+        // An incomplete JV User Patch and a JV Performance.
         foreign(jv, [0x11, 0x05, 0, 0], &[0x20; 72]),
         foreign(jv, [0x11, 0x05, 0x10, 0], &[0; 129]),
         foreign(jv, [0x10, 0x00, 0, 0], &[0x20; 64]),
@@ -208,9 +208,8 @@ fn skips_foreign_units_with_no_converter() {
         read.file_report,
         [
             skipped(Skipped::Other, 1),
-            skipped(Skipped::Incomplete, 2),
+            skipped(Skipped::Incomplete, 3),
             skipped(Skipped::Rhythm, 1),
-            skipped(Skipped::Patch, 1),
             skipped(Skipped::Performance, 1),
         ]
     );
@@ -477,6 +476,447 @@ mod xv_patches {
         let (entry, report) = converted(&patch([0x30, 0x7F], |_| {}));
         assert_eq!(entry.name(), "Byte Built");
         assert!(report.is_empty(), "{report:?}");
+    }
+}
+
+mod jv_patches {
+    use super::*;
+    use crate::librarian::foreign::wave_map::{ForeignWave, ForeignWaveGroup};
+    use crate::parse_helpers::{nibble2, nibble4};
+
+    /// User Patches 002 `AwesomeChoir`, 007 `Bright Lead`, 041 `Softpad`
+    /// and 045 `Winds Of Chg`, cut from the public-domain `80TO1080.SYX`
+    /// (see the fixture's `SOURCE.md`). All four are JV-1080 Patches.
+    const BANK: &[u8] = include_bytes!("../../../tests/fixtures/foreign/jv/80to1080-cut.syx");
+
+    /// Offsets (address byte 3) of Patch Common and Tones 1–4.
+    const OFFSETS: [u8; 5] = [0x00, 0x10, 0x12, 0x14, 0x16];
+
+    /// A JV Patch of 5 DT1s at `key` with a Common of `common_len` bytes:
+    /// Tone 1 on and playing INT-A Wave 1, every setting at its JV INIT or
+    /// a neutral value, then `edit`ed. Blocks are Common and Tones 1–4.
+    fn patch(key: [u8; 2], common_len: usize, edit: impl FnOnce(&mut [Vec<u8>])) -> Vec<u8> {
+        let mut blocks = vec![vec![0u8; common_len]];
+        blocks.extend((0..4).map(|_| vec![0u8; 0x81]));
+        blocks[0][..12].copy_from_slice(b"Byte Built  ");
+        blocks[0][0x0C..0x2E].copy_from_slice(&jv::INIT_EFFECTS);
+        for tone in &mut blocks[1..] {
+            tone[0x0C..0x10].copy_from_slice(&[1, 127, 0, 127]); // Velocity, Key ranges
+            tone[0x11] = 1; // Volume Control ON
+            tone[0x14] = 1; // Pan Control CONTINUOUS
+        }
+        blocks[1][0x00] = 1; // Tone 1 Switch
+        blocks[1][0x01..0x03].copy_from_slice(&[0, 1]); // INT-A
+        edit(&mut blocks);
+        OFFSETS
+            .into_iter()
+            .zip(&blocks)
+            .flat_map(|(c, data)| foreign(jv::MODEL, [key[0], key[1], c, 0], data))
+            .collect()
+    }
+
+    fn converted(bytes: &[u8]) -> (PackEntry, ConversionReport) {
+        let mut read = read(bytes);
+        assert_eq!(read.pack.entries.len(), 1, "{:?}", read.file_report);
+        assert!(read.file_report.is_empty(), "{:?}", read.file_report);
+        (read.pack.entries.remove(0), read.reports.remove(0))
+    }
+
+    fn texts(report: &ConversionReport) -> Vec<String> {
+        report.iter().map(ToString::to_string).collect()
+    }
+
+    /// Matrix Controls 1–4 (36 bytes), and each partial's 16 Control
+    /// Switches.
+    fn matrix(entry: &PackEntry) -> (Vec<u8>, Vec<Vec<u8>>) {
+        let blocks = entry.blocks();
+        let switches = blocks[3..7].iter().map(|p| p[0x17..0x27].to_vec());
+        (blocks[0][0x2B..0x4F].to_vec(), switches.collect())
+    }
+
+    /// Matrix Controls from `(source, [(destination, sens)])`, unused slots
+    /// OFF at sens 0.
+    fn controls(mcs: &[(u8, &[(u8, u8)])]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        for m in 0..4 {
+            let (source, slots) = mcs.get(m).copied().unwrap_or((0, &[]));
+            bytes.push(source);
+            for k in 0..4 {
+                let (dest, sens) = slots.get(k).copied().unwrap_or((0, 64));
+                bytes.extend([dest, sens]);
+            }
+        }
+        bytes
+    }
+
+    fn waves(partial: &[u8]) -> (u8, u16, u16, u16) {
+        (
+            partial[0x27],
+            nibble4(partial, 0x28),
+            nibble4(partial, 0x2C),
+            nibble4(partial, 0x30),
+        )
+    }
+
+    #[test]
+    fn the_fixture_is_four_patches_of_5_dt1s() {
+        assert_eq!(BANK.len(), 4 * 643);
+        assert_eq!(frame::split(BANK).messages.len(), 20);
+    }
+
+    #[test]
+    fn converts_the_fixture() {
+        let read = read(BANK);
+        assert!(read.file_report.is_empty(), "{:?}", read.file_report);
+        let names: Vec<String> = read.pack.entries.iter().map(PackEntry::name).collect();
+        assert_eq!(
+            names,
+            ["AwesomeChoir", "Bright Lead", "Softpad", "Winds Of Chg"]
+        );
+        assert!(
+            read.pack
+                .entries
+                .iter()
+                .all(|e| e.kind() == ChunkType::PcmSynthTone && e.category() == Some(0))
+        );
+        let studio = " not applied; set it in the Studio Set";
+        let reports: Vec<Vec<String>> = read.reports.iter().map(texts).collect();
+        assert_eq!(
+            reports,
+            [
+                vec![
+                    format!(
+                        "Chorus level 127, rate 16, depth 30, pre-delay 69, feedback 0, output REV{studio}"
+                    ),
+                    format!("Reverb PAN-DLY, level 90, time 127, HF damp 17, feedback 25{studio}"),
+                ],
+                vec![
+                    format!(
+                        "Chorus level 70, rate 24, depth 28, pre-delay 69, feedback 0, output MIX{studio}"
+                    ),
+                    format!("Reverb STAGE2, level 100, time 60, HF damp 13, feedback 0{studio}"),
+                    "Partial 3: PCM card 3 Wave 30 has no INTEGRA-7 Wave".into(),
+                ],
+                vec![
+                    format!(
+                        "Chorus level 80, rate 12, depth 11, pre-delay 69, feedback 0, output MIX{studio}"
+                    ),
+                    format!("Reverb STAGE2, level 127, time 94, HF damp 13, feedback 0{studio}"),
+                ],
+                vec![
+                    format!(
+                        "Chorus level 127, rate 45, depth 13, pre-delay 69, feedback 0, output REV{studio}"
+                    ),
+                    format!("Reverb STAGE2, level 127, time 127, HF damp 13, feedback 42{studio}"),
+                    "Partial 3: Delay Mode KEY-INTERVAL dropped".into(),
+                ],
+            ]
+        );
+
+        let [choir, lead, pad, winds] = &read.pack.entries[..] else {
+            unreachable!()
+        };
+        // SR-JV80-04 Waves 126 and 128 land on SRX-07, INT-A 249 on INT.
+        let choir_waves: Vec<_> = choir.blocks()[3..7].iter().map(|p| waves(p)).collect();
+        assert_eq!(
+            choir_waves,
+            [
+                (1, 7, 603, 0),
+                (1, 7, 605, 0),
+                (1, 7, 604, 0),
+                (0, 1, 464, 0)
+            ]
+        );
+        // Tone 3 plays a PCM-card Wave: no Wave, switched off.
+        let pmt = &lead.blocks()[2];
+        assert_eq!([pmt[0x05], pmt[0x0E], pmt[0x17], pmt[0x20]], [1, 1, 0, 0]);
+        assert_eq!(waves(&lead.blocks()[5]), (0, 1, 0, 0));
+
+        // Controllers: MOD, then AFT and EXPRESSION, packed by first use.
+        let on = [1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0];
+        assert_eq!(
+            matrix(choir),
+            (
+                controls(&[
+                    (1, &[(9, 70)]),
+                    (97, &[(4, 74), (9, 74), (11, 63), (17, 75)]),
+                    (11, &[(4, 87)]),
+                ]),
+                vec![on.to_vec(), on.to_vec(), vec![0; 16], on.to_vec()]
+            )
+        );
+        // AFT needs two Matrix Controls, so all four are in use.
+        assert_eq!(
+            matrix(pad),
+            (
+                controls(&[
+                    (1, &[(9, 76), (9, 75)]),
+                    (97, &[(9, 78), (2, 80), (9, 72), (17, 73)]),
+                    (97, &[(4, 84), (10, 56), (18, 71), (9, 76)]),
+                    (11, &[(2, 85)]),
+                ]),
+                vec![
+                    vec![1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                    vec![1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0],
+                    vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                    vec![0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0],
+                ]
+            )
+        );
+        // Tone 4 has the negated MOD depth: REVERSE.
+        let shared = [1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let mut reversed = shared;
+        reversed[0] = 2;
+        assert_eq!(
+            matrix(winds),
+            (
+                controls(&[(1, &[(9, 73)]), (97, &[(2, 77), (9, 73)])]),
+                vec![
+                    vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    shared.to_vec(),
+                    shared.to_vec(),
+                    reversed.to_vec(),
+                ]
+            )
+        );
+        // Velocity Range Switch ON: ranges copied, Velocity Control ON.
+        let pmt = &winds.blocks()[2];
+        assert_eq!(pmt[0x04], 1);
+        assert_eq!(pmt[0x05 + 9 + 5..0x05 + 9 + 9], [71, 127, 0, 0]);
+        // KEY-INTERVAL: NORMAL with no delay.
+        let partial = &winds.blocks()[5];
+        assert_eq!((partial[0x09], nibble2(partial, 0x0A)), (0, 0));
+    }
+
+    /// Roland's own conversion of SR-JV80-12 Patch `Spooky Hits` (JV-2080
+    /// format, User 059 of `HipHop2.syx`) into XV format (`SRJV12PB.mid`,
+    /// User 059, from Roland's 2002 XV patch sets for SR-JV80 boards). Only
+    /// the controller bytes, taken from the corpus pair family R02 of
+    /// `docs/research/jv-xv-roland-pairs.md`.
+    mod spooky_hits {
+        /// JV Patch Control Source 2 and 3: SYS-CTRL1, SYS-CTRL2.
+        pub const JV_SOURCES: [u8; 2] = [1, 2];
+        /// JV Tone 1–4 Controller 1–3 Destination/Depth 1–4 (`15`–`2C`);
+        /// all four Tones are on.
+        pub const JV_CONTROLLERS: [[u8; 24]; 4] = [
+            [
+                0x04, 0x30, 0x00, 0x3F, 0x00, 0x3F, 0x00, 0x3F, 0x09, 0x48, 0x00, 0x3F, 0x00, 0x3F,
+                0x00, 0x3F, 0x04, 0x59, 0x00, 0x3F, 0x00, 0x3F, 0x00, 0x3F,
+            ],
+            [
+                0x08, 0x7E, 0x03, 0x24, 0x01, 0x00, 0x00, 0x3F, 0x09, 0x48, 0x00, 0x3F, 0x00, 0x3F,
+                0x00, 0x3F, 0x04, 0x59, 0x00, 0x3F, 0x00, 0x3F, 0x00, 0x3F,
+            ],
+            [
+                0x09, 0x3C, 0x04, 0x3A, 0x02, 0x3A, 0x00, 0x3F, 0x09, 0x48, 0x00, 0x3F, 0x00, 0x3F,
+                0x00, 0x3F, 0x04, 0x59, 0x00, 0x3F, 0x00, 0x3F, 0x00, 0x3F,
+            ],
+            [
+                0x04, 0x3D, 0x08, 0x00, 0x02, 0x54, 0x03, 0x0F, 0x09, 0x48, 0x00, 0x3F, 0x00, 0x3F,
+                0x00, 0x3F, 0x04, 0x59, 0x00, 0x3F, 0x00, 0x3F, 0x00, 0x3F,
+            ],
+        ];
+        /// XV Patch Common Matrix Control 1–4 (`2B`–`4E`).
+        pub const XV_MATRIX: [u8; 36] = [
+            1, 4, 49, 8, 127, 3, 37, 1, 1, // MOD
+            99, 9, 73, 0, 64, 0, 64, 0, 64, // CTRL2
+            100, 4, 90, 0, 64, 0, 64, 0, 64, // CTRL3
+            1, 9, 61, 4, 59, 2, 59, 4, 62, // MOD again
+        ];
+        /// XV Tone 1–4 Control 1–4 Switch 1–4 (`17`–`26`).
+        pub const XV_SWITCHES: [[u8; 16]; 4] = [
+            [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0],
+            [0, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+        ];
+    }
+
+    #[test]
+    fn packs_matrix_controls_as_roland_does() {
+        let bytes = patch([0x11, 0x3A], 0x4A, |b| {
+            b[0][0x3A..0x3C].copy_from_slice(&spooky_hits::JV_SOURCES);
+            for (tone, controllers) in b[1..].iter_mut().zip(spooky_hits::JV_CONTROLLERS) {
+                tone[0x00] = 1;
+                tone[0x15..0x2D].copy_from_slice(&controllers);
+            }
+        });
+        let (entry, report) = converted(&bytes);
+        assert_eq!(
+            matrix(&entry),
+            (
+                spooky_hits::XV_MATRIX.to_vec(),
+                spooky_hits::XV_SWITCHES.map(|s| s.to_vec()).to_vec()
+            )
+        );
+        // Tone 4's last two MOD routes find no Matrix Control left.
+        assert_eq!(
+            texts(&report),
+            [
+                "Partial 4: Control 1 route to CUT (+21) dropped",
+                "Partial 4: Control 1 route to RES (-48) dropped",
+            ]
+        );
+    }
+
+    #[test]
+    fn tells_the_model_from_the_common_length() {
+        let edit = |b: &mut [Vec<u8>]| {
+            b[0][0x2C..0x2E].copy_from_slice(&[0x06, 0x04]); // Tempo 100
+            b[1][0x09] = 2; // KEY-INTERVAL / PLAYMATE
+        };
+        let (_, report) = converted(&patch([0x03, 0x00], 0x48, edit));
+        assert_eq!(
+            texts(&report),
+            [
+                "Tempo 100 not applied; set it in the Studio Set",
+                "Partial 1: Delay Mode KEY-INTERVAL dropped",
+            ]
+        );
+        // XP: Clock Source SEQUENCER, so the Patch Tempo is unused.
+        let (_, report) = converted(&patch([0x02, 0x00], 0x49, |b| {
+            edit(b);
+            b[0][0x48] = 1;
+        }));
+        assert_eq!(texts(&report), ["Partial 1: Delay Mode PLAYMATE dropped"]);
+        // JV-2080: Patch Category 2 (EP) carries over by number.
+        let (entry, report) = converted(&patch([0x02, 0x0F], 0x4A, |b| {
+            edit(b);
+            b[0][0x49] = 2;
+        }));
+        assert_eq!(entry.category(), Some(5));
+        assert_eq!(entry.blocks()[0][0x0C], 2);
+        assert_eq!(report.len(), 2);
+        // A longer Common reads as the JV-2080's; a shorter one is not a
+        // Patch.
+        assert_eq!(
+            converted(&patch([0x11, 0,], 0x4C, |_| {})).0.name(),
+            "Byte Built"
+        );
+        let short = read(&patch([0x11, 0x01], 0x47, |_| {}));
+        assert!(short.pack.entries.is_empty());
+        assert_eq!(short.file_report, [skipped(Skipped::Incomplete, 1)]);
+    }
+
+    #[test]
+    fn applies_the_mapping_rows() {
+        let (entry, report) = converted(&patch([0x11, 0x00], 0x48, |b| {
+            b[0][0x33] = 1; // Key Assign SOLO
+            b[0][0x41] = 6; // Octave Shift +3
+            let t = &mut b[1];
+            t[0x08] = 15; // FXM Depth 16
+            t[0x2D] = 2; // LFO1 SAW
+            t[0x3D] = 60; // Coarse Tune +12
+            t[0x41] = 24; // P-Env Depth +12
+            t[0x42] = 125; // P-Env Velocity Sens +150 %
+            t[0x43] = 13; // P-Env Velocity Time 1 +70 %
+            t[0x52] = 15; // Cutoff Keyfollow +200
+            t[0x6D] = 0; // Level Time Keyfollow −100
+            t[0x4A] = 126; // P-Env Level 1 +63
+        }));
+        assert!(report.is_empty(), "{report:?}");
+        let [common, _, pmt, p, ..] = entry.blocks() else {
+            unreachable!()
+        };
+        assert_eq!((common[0x16], common[0x13], common[0x18]), (0, 67, 1));
+        assert_eq!(
+            (p[0x37], p[0x6D], p[0x01], p[0x3A], p[0x3B], p[0x3C]),
+            (16, 2, 76, 76, 127, 108)
+        );
+        assert_eq!((p[0x4A], p[0x65], p[0x44]), (84, 54, 127));
+        // Start levels: Pitch L0 = 64, TVF L0 = 0.
+        assert_eq!((p[0x43], p[0x59]), (64, 0));
+        // Velocity Range Switch OFF: 1–127, no fade, Velocity Control ON.
+        assert_eq!(pmt[0x04], 1);
+        assert_eq!(pmt[0x05..0x0E], [1, 0, 127, 0, 0, 1, 127, 0, 0]);
+    }
+
+    #[test]
+    fn copies_cross_fade_to_both_widths() {
+        let (entry, _) = converted(&patch([0x11, 0x00], 0x48, |b| {
+            b[0][0x40] = 1;
+            b[1][0x0B..0x0E].copy_from_slice(&[20, 30, 100]);
+        }));
+        assert_eq!(entry.blocks()[2][0x05 + 5..0x05 + 9], [30, 100, 20, 20]);
+    }
+
+    #[test]
+    fn converts_synced_delays_and_lfo_rates() {
+        let (entry, report) = converted(&patch([0x11, 0x00], 0x48, |b| {
+            for (tone, (mode, time)) in b[1..].iter_mut().zip([(3, 24), (4, 5), (7, 120), (5, 10)])
+            {
+                tone[0x00] = 1;
+                tone[0x09..0x0B].copy_from_slice(&[mode, time]);
+            }
+            b[1][0x2F] = 48; // LFO1 Rate, CLOCK-synced: 1/4
+            b[1][0x34] = 1;
+            b[1][0x37] = 100; // LFO2 Rate, free
+        }));
+        assert!(report.is_empty(), "{report:?}");
+        let delays: Vec<(u8, u16)> = entry.blocks()[3..7]
+            .iter()
+            .map(|p| (p[0x09], nibble2(p, 0x0A)))
+            .collect();
+        assert_eq!(delays, [(0, 137), (0, 130), (0, 149), (2, 10)]);
+        let p = &entry.blocks()[3];
+        assert_eq!((nibble2(p, 0x6E), nibble2(p, 0x7C)), (140, 100));
+    }
+
+    #[test]
+    fn reports_what_the_integra_cannot_hold() {
+        let (entry, report) = converted(&patch([0x11, 0x00], 0x48, |b| {
+            b[0][0x0C] = 5; // EFX OVERDRIVE
+            b[0][0x19] = 1; // EFX Output Assign OUTPUT 1
+            b[0][0x3E] = 1; // Control 2 HOLD
+            b[0][0x3A] = 15; // Control 2 source PLAYMATE
+            let t = &mut b[1];
+            t[0x1D..0x1F].copy_from_slice(&[2, 73]); // Control 2 → CUT +10
+            t[0x11] = 0; // Volume Control OFF
+            t[0x14] = 2; // Pan Control KEY-ON
+            t[0x7D] = 1; // Output EFX
+            t[0x7F..0x81].copy_from_slice(&[10, 20]);
+            b[2][0x00] = 1;
+            b[2][0x7D] = 2; // Output OUTPUT 1
+            b[2][0x7F..0x81].copy_from_slice(&[30, 40]);
+        }));
+        assert_eq!(
+            texts(&report),
+            [
+                "effect dropped, MFX set to THRU",
+                "EFX Output Assign OUTPUT 1 not applied; set it in the Studio Set",
+                "Control 2 Hold/Peak dropped",
+                "Partial 1: Control 2 route to CUT (+10) dropped",
+                "Partial 1: Volume Control Switch dropped",
+                "Partial 1: Pan Control Switch dropped",
+                "Partial 2 Output Assign OUTPUT 1 not applied; set it in the Studio Set",
+            ]
+        );
+        let p = &entry.blocks()[3..5];
+        // Sends, output reserve, Receive Bender/Expression/Hold-1, then
+        // the Receive Pan Mode reserve at KEY-ON.
+        assert_eq!(p[0][0x0D..=0x15], [127, 127, 10, 20, 0, 0, 1, 0, 1]);
+        assert_eq!(p[1][0x0D..=0x11], [127, 127, 30, 40, 1]);
+        assert_eq!(entry.blocks()[1][0x00], 0);
+    }
+
+    #[test]
+    fn a_clean_patch_has_an_empty_report() {
+        let (entry, report) = converted(&patch([0x11, 0x7F], 0x48, |_| {}));
+        assert_eq!(entry.name(), "Byte Built");
+        assert!(report.is_empty(), "{report:?}");
+        // INT-A Wave 1 is INT 19.
+        assert_eq!(waves(&entry.blocks()[3]), (0, 1, 19, 0));
+        let unmapped = ConversionItem::WaveUnmapped {
+            partial: 1,
+            source: ForeignWave {
+                group: ForeignWaveGroup::PcmCard(3),
+                number: 30,
+            },
+        };
+        assert_eq!(
+            unmapped.to_string(),
+            "Partial 1: PCM card 3 Wave 30 has no INTEGRA-7 Wave"
+        );
     }
 }
 

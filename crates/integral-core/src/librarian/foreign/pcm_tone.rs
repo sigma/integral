@@ -9,10 +9,14 @@
 use super::report::{ConversionItem, ConversionReport};
 use super::wave_map::{Confidence, ForeignWave, ForeignWaveGroup};
 use crate::librarian::pack::{PackEntry, user_memory};
+use crate::mfx::{MfxState, encode_mfx_block};
 #[cfg(test)]
 use crate::parse_helpers::nibble4;
 use crate::parse_helpers::{encode_ascii_name, encode_nibble4};
-use crate::pcm_synth::{PCMS_COMMON2_SIZE, PCMS_PARTIAL_COUNT, PcmSynthCommon2, PcmSynthPartial};
+use crate::pcm_synth::{
+    PCMS_COMMON2_SIZE, PCMS_PARTIAL_COUNT, PcmSynthCommon2, PcmSynthPartial, PcmSynthState,
+    encode_pcms_common, encode_pcms_partial, encode_pcms_pmt,
+};
 use crate::svd::ChunkType;
 use crate::waves::WaveGroup;
 
@@ -51,6 +55,18 @@ const NIBBLIZED: [(usize, usize); 2] = [(0x11, 2), (0x38, 4)];
 
 /// Value of an unused send pair, as Roland's own Patches store it.
 const UNUSED_SEND_LEVEL: u8 = 127;
+
+/// Common: reserve that keeps the XV Patch Output Assign.
+const COMMON_OUTPUT_ASSIGN: usize = 0x27;
+/// The XV Patch Output Assign TONE, which every INTEGRA-7 tone carries in
+/// its Common reserve.
+pub(super) const OUTPUT_TONE: u8 = 13;
+/// MFX: reserve that keeps the XV MFX Dry Send Level.
+const MFX_DRY_SEND: usize = 0x01;
+/// The level every INTEGRA-7 tone carries in its MFX Dry Send reserve.
+pub(super) const FULL_LEVEL: u8 = 127;
+/// A Control Sens of 0 (raw 64): the MFX Control Sens neutral value.
+const NEUTRAL_SENS: u8 = 64;
 
 /// The PCM Synth tone blocks, in the order of the `pcm-synth` layout of
 /// [`USER_MEMORY`](crate::device_spec::USER_MEMORY): Common, MFX, PMT,
@@ -101,6 +117,34 @@ impl PcmTone {
         Self { blocks }
     }
 
+    /// An INIT tone: every block holds the [`PcmSynthState`] defaults (MFX
+    /// THRU), and the reserves hold what INTEGRA-7 tones carry. Its Common 2
+    /// is filled by [`Self::fill_common2`] once the name is set.
+    pub(super) fn init() -> Self {
+        let init = PcmSynthState::default();
+        let mut mfx: MfxState = init.mfx;
+        for slot in &mut mfx.controls {
+            slot.sens = NEUTRAL_SENS;
+        }
+        let mut mfx = encode_mfx_block(&mfx);
+        mfx[MFX_DRY_SEND] = FULL_LEVEL;
+        let mut common = encode_pcms_common(&init.common);
+        common[COMMON_OUTPUT_ASSIGN] = OUTPUT_TONE;
+        let partials = init.partials.each_ref().map(encode_pcms_partial);
+        Self::new(
+            &common,
+            &mfx,
+            &encode_pcms_pmt(&init.pmt),
+            partials.each_ref().map(Vec::as_slice),
+            init.common2.tone_category,
+        )
+    }
+
+    /// Rebuild Common 2 from the Common name, with `category`.
+    pub(super) fn fill_common2(&mut self, category: u8) {
+        self.blocks[COMMON2] = common2(&self.blocks[0], category);
+    }
+
     /// The Common block.
     pub(super) fn common(&mut self) -> &mut [u8] {
         &mut self.blocks[0]
@@ -109,6 +153,11 @@ impl PcmTone {
     /// The MFX block.
     pub(super) fn mfx(&mut self) -> &mut [u8] {
         &mut self.blocks[MFX]
+    }
+
+    /// The PMT block.
+    pub(super) fn pmt(&mut self) -> &mut [u8] {
+        &mut self.blocks[PMT]
     }
 
     /// Partial `index`'s block (0-indexed).
@@ -292,6 +341,29 @@ mod tests {
             LONG_NAME_LEN + 2
         );
         assert_eq!(tone.into_entry().kind(), ChunkType::PcmSynthTone);
+    }
+
+    #[test]
+    fn init_holds_the_state_defaults() {
+        let mut tone = PcmTone::init();
+        tone.common()[..4].copy_from_slice(b"Init");
+        tone.fill_common2(3);
+        let entry = tone.into_entry();
+        let blocks = entry.blocks();
+        let state = PcmSynthState::default();
+        let common = crate::pcm_synth::parse_pcms_common(&blocks[0]).unwrap();
+        assert_eq!(common.tone_name, "Init");
+        assert_eq!(common.matrix_controls, state.common.matrix_controls);
+        assert_eq!(
+            (blocks[0][0x27], blocks[1][0x01], blocks[1][0x06]),
+            (13, 127, 64)
+        );
+        assert_eq!(
+            crate::pcm_synth::parse_pcms_partial(&blocks[3]).unwrap(),
+            state.partials[0]
+        );
+        assert_eq!(&blocks[COMMON2][..LONG_NAME_LEN], b"Init            ");
+        assert_eq!(blocks[COMMON2][TONE_CATEGORY], 3);
     }
 
     #[test]
