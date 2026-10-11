@@ -3,6 +3,7 @@ import { WavePicker, type ExpansionMarking } from "./WavePicker";
 import { waveSourceOf, type WaveSource } from "./waveCatalog";
 import { PartialWave } from "./pcm-synth/PartialRow";
 import { WmtWave } from "./pcm-drum/NoteControls";
+import { OscPcmWave } from "./sn-synth/PartialRow";
 import { PcmdWmtField } from "../pkg/integral_wasm.js";
 import { button, cleanup, click, options, render, typeInto } from "./test/dom";
 
@@ -251,5 +252,24 @@ describe("PCM Drum WMT wiring", () => {
     rerender(<WmtWave wmt={snare} index={2} onWmtParam={onWmtParam} />);
     expect(nameButton(container, 0).textContent).toBe(`SRX-07 0003 ${SRX07.name(3)}`);
     expect(nameButton(container, 1).textContent).toBe("SRX-07 0000 OFF");
+  });
+});
+
+describe("SN Synth OSC PCM Wave wiring", () => {
+  it("shows raw value 1 as JP-8 Saw and steps via the nibble path at 0x35", () => {
+    const onNibChange = vi.fn();
+    const { container } = render(<OscPcmWave waveNumber={1} onNibChange={onNibChange} />);
+    expect(nameButton(container, 0).textContent).toBe("SN-Synth 0001 JP-8 Saw");
+    // A single row: no group dropdown, no R, no pair, no marker.
+    expect(container.querySelectorAll('[aria-label="Next Wave"]')).toHaveLength(1);
+    expect(container.querySelector('[aria-haspopup="listbox"]')).toBeNull();
+    expect(container.textContent).not.toContain("pair");
+
+    click(container.querySelector('[aria-label="Next Wave"]')!);
+    click(container.querySelector('[aria-label="Previous Wave"]')!);
+    expect(onNibChange.mock.calls).toEqual([
+      [0x35, 2],
+      [0x35, 0],
+    ]);
   });
 });

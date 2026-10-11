@@ -10,6 +10,8 @@ import {
 } from "../synth-ui";
 import css from "../SnSynthEditor.module.css";
 import type { SnSynthPartial } from "./types";
+import { WavePicker } from "../WavePicker";
+import { snSynthWaveSource } from "../waveCatalog";
 import {
   OSC_WAVE_NAMES,
   OSC_VARIATION_NAMES,
@@ -89,6 +91,24 @@ export function PartialRow({
   );
 }
 
+/** The OSC's PCM Wave (SN Synth group), picked by name. */
+export function OscPcmWave({
+  waveNumber,
+  onNibChange,
+}: {
+  waveNumber: number;
+  onNibChange: (offset: number, value: number) => void;
+}) {
+  return (
+    <WavePicker
+      source={snSynthWaveSource()}
+      stereo={false}
+      l={waveNumber}
+      onChange={(_side, n) => onNibChange(0x35, n)}
+    />
+  );
+}
+
 // ---------------------------------------------------------------------------
 // OSC Panel
 // ---------------------------------------------------------------------------
@@ -118,22 +138,7 @@ function OscPanel({
               options={OSC_VARIATION_NAMES.map((l, i) => ({ value: i, label: l }))}
               onChange={(v) => onChange(0x01, v)} led={false} />
           )}
-          {isPcm && (
-            <label className={css.selectLabel}>
-              PCM #
-              <input
-                type="number"
-                className={css.waveNumberInput}
-                value={partial.waveNumber}
-                min={0}
-                max={16384}
-                onChange={(e) => {
-                  const v = Math.max(0, Math.min(16384, Number(e.target.value)));
-                  onNibChange(0x35, v);
-                }}
-              />
-            </label>
-          )}
+          {isPcm && <OscPcmWave waveNumber={partial.waveNumber} onNibChange={onNibChange} />}
         </div>
         <div className={css.oscKnobGrid}>
           <SynthKnob label="Pitch" value={partial.oscPitch} min={40} max={88} defaultValue={64} center={64}
