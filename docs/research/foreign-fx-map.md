@@ -6,6 +6,12 @@ types land on the INTEGRA-7 MFX types of a PCM Synth tone, with the conversion f
 parameter. It also covers where a Foreign patch's Chorus and Reverb go. Per-parameter data
 for all 40 JV types is in [`foreign-fx-map.json`](foreign-fx-map.json).
 
+> **Checked against Roland's own conversions** ([#206](https://github.com/sigma/integral/issues/206),
+> [`map-check-roland-pairs.md`](map-check-roland-pairs.md)): 37 of 40 JV types are confirmed. XV MFX
+> types 1-40 store the JV EFX parameters **verbatim** (XV Parameter n = JV Parameter n). So the
+> XV encoding statements below are superseded for types 1-40, and XV 1-40 converts with the JV
+> rows.
+
 ## TL;DR
 
 - **JV/XP EFX (40 types; JV-1080/2080/1010, XP-30/50/60/80)**: 3 are the same, 25 are
@@ -142,8 +148,10 @@ same targets and classes. The display ranges differ in a few places:
 - Several Rate/Delay parameters accept notes from list \*2. That list is the Integra `NOTE`
   table: 22 entries, 1/64T … 2/1.
 
-So the JV formulas do **not** carry over raw. The XV raw encoding is unpublished (see
-[Unresolved](#unresolved)).
+~~So the JV formulas do **not** carry over raw.~~ Superseded: Roland's pairs show that XV types
+1-40 store the JV raw values verbatim, so the JV formulas do carry over
+([`map-check-roland-pairs.md`](map-check-roland-pairs.md)). The STEREO EQ High Freq list is the
+one open exception.
 
 **XV 41-90** (from X1):
 

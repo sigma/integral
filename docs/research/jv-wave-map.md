@@ -9,6 +9,11 @@ The mapping is in [`jv-wave-map.json`](jv-wave-map.json). It has one entry per s
 Wave, with its target, confidence, evidence codes and sources. This file explains how it was
 built and what it shows.
 
+> **Checked against Roland's own conversions** ([#206](https://github.com/sigma/integral/issues/206),
+> [`map-check-roland-pairs.md`](map-check-roland-pairs.md)): 1,860 entries confirmed, 42 changed
+> (mostly MENU Waves on merged SRX boards), 2,339 not covered. The JSON carries the regraded
+> confidence, so the counts below are those before the check.
+
 ## TL;DR
 
 - **The JV/XP family has one internal ROM:** 448 Waves, INT-A 1–255 and INT-B 1–193. The
