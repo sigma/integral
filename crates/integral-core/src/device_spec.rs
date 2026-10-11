@@ -4,7 +4,10 @@
 //! FX type labels, surround options, etc.) so that views and commands
 //! consume a single spec rather than hardcoding device constants.
 
-use crate::params;
+use crate::address::{self, Address, DataSize};
+use crate::params::{self, tone_type};
+use crate::user_write::BankSelect;
+use crate::{mfx, pcm_drum, pcm_synth, sn_acoustic, sn_drum, sn_synth};
 
 /// Static specification of the INTEGRA-7's capabilities.
 ///
@@ -37,7 +40,223 @@ pub struct DeviceSpec {
     pub tone_name_length: u32,
     /// Maximum characters in a Studio Set name.
     pub studio_set_name_length: u32,
+    /// User memory layout of each type the librarian handles.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub user_memory: &'static [UserMemorySpec],
 }
+
+/// A run of equally sized blocks in a Temporary layout.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BlockRun {
+    /// Offset of the first block from the area base (`aa bb cc`).
+    pub offset: [u8; 3],
+    /// Size of each block, 7-bit.
+    pub size: DataSize,
+    /// Number of blocks.
+    pub count: u8,
+    /// Distance between consecutive blocks, in `00 xx 00` units.
+    pub stride: u8,
+}
+
+const fn run(offset: [u8; 3], size: DataSize, count: u8, stride: u8) -> BlockRun {
+    BlockRun {
+        offset,
+        size,
+        count,
+        stride,
+    }
+}
+
+const fn one(offset: [u8; 3], size: DataSize) -> BlockRun {
+    run(offset, size, 1, 0)
+}
+
+/// Where one type (Studio Set, or a tone or kit type) lives in User memory
+/// and in its Temporary area.
+///
+/// Reference: `docs/midi/99-undocumented.md` §2, `docs/midi/04-address-map.md`
+/// and the per-type `docs/midi/` pages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UserMemorySpec {
+    /// Type name on the CLI (e.g. `sn-synth`).
+    pub cli_name: &'static str,
+    /// Bank Select MSB of the User bank. Slot `n` is LSB `n / 128`, PC `n % 128`.
+    pub bank_msb: u8,
+    /// Number of User slots.
+    pub slot_count: u16,
+    /// First address byte of User slot 0.
+    pub user_base: u8,
+    /// Distance between User slots in the second address byte.
+    pub slot_stride: u8,
+    /// Offset of the type in a Part's Temporary Tone, or `None` for the
+    /// Temporary Studio Set.
+    pub tone_type: Option<[u8; 3]>,
+    /// Blocks of the Temporary layout, which User slots share.
+    pub blocks: &'static [BlockRun],
+    /// Names the device gives an initialized slot.
+    pub init_names: &'static [&'static str],
+}
+
+impl UserMemorySpec {
+    /// Address of User slot `slot` (0-indexed), or `None` past the last slot.
+    pub fn user_address(&self, slot: u16) -> Option<Address> {
+        let per_unit = 128 / u16::from(self.slot_stride);
+        (slot < self.slot_count).then(|| {
+            Address::new(
+                self.user_base + (slot / per_unit) as u8,
+                (slot % per_unit) as u8 * self.slot_stride,
+                0,
+                0,
+            )
+        })
+    }
+
+    /// Bank Select of User slot `slot` (0-indexed), or `None` past the last slot.
+    pub fn bank_select(&self, slot: u16) -> Option<BankSelect> {
+        (slot < self.slot_count).then_some(BankSelect {
+            msb: self.bank_msb,
+            lsb: (slot / 128) as u8,
+            pc: (slot % 128) as u8,
+        })
+    }
+
+    /// Base of the Temporary area this type loads into, for Part `part`
+    /// (0-indexed; ignored for the Studio Set).
+    pub fn temporary_base(&self, part: u8) -> Address {
+        match self.tone_type {
+            Some([a, b, c]) => params::temporary_tone_base(part).offset([0, a, b, c]),
+            None => address::STUDIO_SET,
+        }
+    }
+
+    /// Every block of the layout rebased at `base`, as `(address, size)`.
+    pub fn blocks(&self, base: Address) -> impl Iterator<Item = (Address, DataSize)> + '_ {
+        self.blocks.iter().flat_map(move |r| {
+            let [a, b, c] = r.offset;
+            (0..r.count).map(move |i| {
+                let step = u16::from(i) * u16::from(r.stride);
+                let addr = base.offset([0, a, b, c]).offset([
+                    0,
+                    (step / 128) as u8,
+                    (step % 128) as u8,
+                    0,
+                ]);
+                (addr, r.size)
+            })
+        })
+    }
+}
+
+const fn size(n: u8) -> DataSize {
+    DataSize::new(0, 0, 0, n)
+}
+
+/// User memory of every librarian type, Studio Set first.
+pub const USER_MEMORY: &[UserMemorySpec] = &[
+    UserMemorySpec {
+        cli_name: "studio-set",
+        bank_msb: 85,
+        slot_count: 64,
+        user_base: 0x2F,
+        slot_stride: 1,
+        tone_type: None,
+        blocks: &[
+            one([0x00, 0x00, 0x00], size(0x54)), // Common
+            one([0x00, 0x04, 0x00], size(0x54)), // Chorus
+            one([0x00, 0x06, 0x00], size(0x63)), // Reverb
+            one([0x00, 0x08, 0x00], size(0x10)), // Motional Surround
+            one([0x00, 0x09, 0x00], params::MASTER_EQ_SIZE),
+            run([0x00, 0x10, 0x00], DataSize::ONE, 16, 1), // MIDI 1–16
+            run([0x00, 0x20, 0x00], size(0x4D), 16, 1),    // Parts 1–16
+            run([0x00, 0x50, 0x00], params::PART_EQ_SIZE, 16, 1),
+        ],
+        init_names: &["INIT STUDIO"],
+    },
+    UserMemorySpec {
+        cli_name: "sn-synth",
+        bank_msb: 95,
+        slot_count: 512,
+        user_base: 0x50,
+        slot_stride: 1,
+        tone_type: Some(tone_type::SN_SYNTH),
+        blocks: &[
+            one([0x00, 0x00, 0x00], sn_synth::SNS_COMMON_BLOCK_SIZE),
+            one([0x00, 0x02, 0x00], mfx::MFX_BLOCK_SIZE),
+            run([0x00, 0x20, 0x00], sn_synth::SNS_PARTIAL_BLOCK_SIZE, 3, 1),
+        ],
+        init_names: &["INIT TONE"],
+    },
+    UserMemorySpec {
+        cli_name: "sn-acoustic",
+        bank_msb: 89,
+        slot_count: 256,
+        user_base: 0x60,
+        slot_stride: 1,
+        tone_type: Some(tone_type::SN_ACOUSTIC),
+        blocks: &[
+            one([0x00, 0x00, 0x00], sn_acoustic::SNA_COMMON_BLOCK_SIZE),
+            one([0x00, 0x02, 0x00], mfx::MFX_BLOCK_SIZE),
+        ],
+        init_names: &["INIT TONE"],
+    },
+    UserMemorySpec {
+        cli_name: "sn-drum",
+        bank_msb: 88,
+        slot_count: 64,
+        user_base: 0x6E,
+        slot_stride: 1,
+        tone_type: Some(tone_type::SN_DRUM),
+        blocks: &[
+            one([0x00, 0x00, 0x00], sn_drum::SND_COMMON_BLOCK_SIZE),
+            one([0x00, 0x02, 0x00], mfx::MFX_BLOCK_SIZE),
+            one([0x00, 0x08, 0x00], params::COMP_EQ_BLOCK_SIZE),
+            run(
+                [0x00, 0x10, 0x00],
+                sn_drum::SND_NOTE_BLOCK_SIZE,
+                sn_drum::SND_NOTE_COUNT as u8,
+                1,
+            ),
+        ],
+        init_names: &["INIT KIT", "INITIAL KIT"],
+    },
+    UserMemorySpec {
+        cli_name: "pcm-synth",
+        bank_msb: 87,
+        slot_count: 256,
+        user_base: 0x30,
+        slot_stride: 1,
+        tone_type: Some(tone_type::PCM_SYNTH),
+        blocks: &[
+            one([0x00, 0x00, 0x00], pcm_synth::PCMS_COMMON_BLOCK_SIZE),
+            one([0x00, 0x02, 0x00], mfx::MFX_BLOCK_SIZE),
+            one([0x00, 0x10, 0x00], pcm_synth::PCMS_PMT_BLOCK_SIZE),
+            run([0x00, 0x20, 0x00], pcm_synth::PCMS_PARTIAL_BLOCK_SIZE, 4, 2),
+            one([0x00, 0x30, 0x00], pcm_synth::PCMS_COMMON2_BLOCK_SIZE),
+        ],
+        init_names: &["INIT TONE"],
+    },
+    UserMemorySpec {
+        cli_name: "pcm-drum",
+        bank_msb: 86,
+        slot_count: 32,
+        user_base: 0x40,
+        slot_stride: 0x10,
+        tone_type: Some(tone_type::PCM_DRUM),
+        blocks: &[
+            one([0x00, 0x00, 0x00], pcm_drum::PCMD_COMMON_BLOCK_SIZE),
+            one([0x00, 0x02, 0x00], mfx::MFX_BLOCK_SIZE),
+            one([0x00, 0x08, 0x00], params::COMP_EQ_BLOCK_SIZE),
+            run(
+                [0x00, 0x10, 0x00],
+                pcm_drum::PCMD_PARTIAL_BLOCK_SIZE,
+                pcm_drum::PCMD_KEY_COUNT as u8,
+                2,
+            ),
+            one([0x02, 0x00, 0x00], pcm_drum::PCMD_COMMON2_BLOCK_SIZE),
+        ],
+        init_names: &["INIT KIT", "INIT RHYTHM"],
+    },
+];
 
 /// The INTEGRA-7 device specification with all factory constants.
 pub const INTEGRA7: DeviceSpec = DeviceSpec {
@@ -58,6 +277,7 @@ pub const INTEGRA7: DeviceSpec = DeviceSpec {
     surround_room_sizes: &["Small", "Medium", "Large"],
     tone_name_length: params::TONE_NAME_SIZE.value(),
     studio_set_name_length: params::STUDIO_SET_NAME_SIZE.value(),
+    user_memory: USER_MEMORY,
 };
 
 #[cfg(test)]
@@ -134,5 +354,127 @@ mod tests {
         assert_eq!(INTEGRA7.surround_room_sizes.len(), 3);
         assert_eq!(INTEGRA7.surround_room_sizes[0], "Small");
         assert_eq!(INTEGRA7.surround_room_sizes[2], "Large");
+    }
+
+    fn spec(cli_name: &str) -> &'static UserMemorySpec {
+        INTEGRA7
+            .user_memory
+            .iter()
+            .find(|t| t.cli_name == cli_name)
+            .unwrap()
+    }
+
+    /// First, a middle and the last slot of each type, against
+    /// `docs/midi/99-undocumented.md` §2.
+    #[test]
+    fn user_addresses_match_doc_table() {
+        for (name, cases) in [
+            (
+                "studio-set",
+                [(0, [0x2F, 0x00]), (31, [0x2F, 0x1F]), (63, [0x2F, 0x3F])],
+            ),
+            (
+                "pcm-synth",
+                [(0, [0x30, 0x00]), (128, [0x31, 0x00]), (255, [0x31, 0x7F])],
+            ),
+            (
+                "pcm-drum",
+                [(0, [0x40, 0x00]), (9, [0x41, 0x10]), (31, [0x43, 0x70])],
+            ),
+            (
+                "sn-synth",
+                [(0, [0x50, 0x00]), (129, [0x51, 0x01]), (511, [0x53, 0x7F])],
+            ),
+            (
+                "sn-acoustic",
+                [(0, [0x60, 0x00]), (130, [0x61, 0x02]), (255, [0x61, 0x7F])],
+            ),
+            (
+                "sn-drum",
+                [(0, [0x6E, 0x00]), (32, [0x6E, 0x20]), (63, [0x6E, 0x3F])],
+            ),
+        ] {
+            let t = spec(name);
+            for (slot, [a, b]) in cases {
+                assert_eq!(
+                    t.user_address(slot),
+                    Some(Address::new(a, b, 0, 0)),
+                    "{name} {slot}"
+                );
+            }
+            assert_eq!(t.user_address(t.slot_count), None, "{name}");
+        }
+    }
+
+    #[test]
+    fn user_banks_match_tone_banks() {
+        assert_eq!(INTEGRA7.user_memory.len(), 6);
+        for t in INTEGRA7.user_memory {
+            let last = t.bank_select(t.slot_count - 1).unwrap();
+            let lsbs: Vec<u8> = (0..=last.lsb).collect();
+            match crate::tone_banks::user_bank_for(t.bank_msb) {
+                Some(bank) => assert_eq!((bank.msb, bank.lsbs), (t.bank_msb, &lsbs[..])),
+                None => assert_eq!(
+                    (t.cli_name, t.bank_msb, &lsbs[..]),
+                    ("studio-set", 85, &[0][..])
+                ),
+            }
+            assert_eq!(t.bank_select(t.slot_count), None);
+        }
+        let ss = spec("studio-set").bank_select(63).unwrap();
+        assert_eq!((ss.msb, ss.lsb, ss.pc), (0x55, 0x00, 0x3F));
+    }
+
+    /// Block count and total bytes per type, summed from the `docs/midi`
+    /// "Total size" of each block.
+    #[test]
+    fn block_sizes_match_doc_totals() {
+        for (name, count, total) in [
+            // Common 54 + Chorus 54 + Reverb 63 + Surround 10 + Master EQ 07
+            // + 16 × MIDI 01 + 16 × Part 4D + 16 × Part EQ 08
+            (
+                "studio-set",
+                53,
+                84 + 84 + 99 + 16 + 7 + 16 + 16 * 77 + 16 * 8,
+            ),
+            ("sn-synth", 5, 64 + 145 + 3 * 61),
+            ("sn-acoustic", 2, 70 + 145),
+            ("sn-drum", 65, 20 + 145 + 84 + 62 * 19),
+            ("pcm-synth", 8, 80 + 145 + 41 + 4 * 154 + 60),
+            ("pcm-drum", 92, 18 + 145 + 84 + 88 * 195 + 50),
+        ] {
+            let blocks: Vec<_> = spec(name).blocks(Address::new(0, 0, 0, 0)).collect();
+            let sum: u32 = blocks.iter().map(|(_, s)| s.value()).sum();
+            assert_eq!((blocks.len(), sum), (count, total), "{name}");
+        }
+    }
+
+    #[test]
+    fn blocks_rebase_on_slot_and_temporary_area() {
+        let sns = spec("sn-synth");
+        let blocks: Vec<_> = sns.blocks(sns.user_address(0).unwrap()).collect();
+        assert_eq!(
+            blocks[1],
+            (
+                Address::new(0x50, 0x00, 0x02, 0x00),
+                DataSize::new(0, 0, 1, 0x11)
+            )
+        );
+        assert_eq!(blocks[4].0, Address::new(0x50, 0x00, 0x22, 0x00));
+        assert_eq!(sns.temporary_base(2), Address::new(0x19, 0x41, 0x00, 0x00));
+
+        let pcmd = spec("pcm-drum");
+        let blocks: Vec<_> = pcmd.blocks(pcmd.user_address(1).unwrap()).collect();
+        assert_eq!(blocks[3].0, Address::new(0x40, 0x10, 0x10, 0x00)); // key 21
+        assert_eq!(blocks[90].0, Address::new(0x40, 0x11, 0x3E, 0x00)); // key 108
+        assert_eq!(blocks[91].0, Address::new(0x40, 0x12, 0x00, 0x00)); // Common 2
+        assert_eq!(pcmd.temporary_base(0), Address::new(0x19, 0x10, 0x00, 0x00));
+
+        let ss = spec("studio-set");
+        let last = ss.blocks(ss.temporary_base(5)).last().unwrap();
+        assert_eq!(
+            last,
+            (Address::new(0x18, 0x00, 0x5F, 0x00), params::PART_EQ_SIZE)
+        );
     }
 }
