@@ -606,6 +606,50 @@ Message formats from Roland's Editor JavaScript (`REQ_READ_EXP_ADDR`,
 forum captures. Verified on our device 2026-10-11, including the
 `0F 00 30 01`/`0F 00 30 02` replies and front-panel silence.
 
+## 6. Temporary Tone Reloads
+
+### Purpose
+
+What happens to a Part's Temporary tone when its tone reference (Tone Bank
+Select MSB/LSB and Program Number, Studio Set Part `00 06`–`00 08`) is written
+or changed. This decides the order in which a Studio Set and its tones can be
+loaded into Temporary without one overwriting the other.
+
+### Behavior
+
+- **Any DT1 covering `00 06`–`00 08` reloads the tone**, even when the values
+  don't change. The Part's Temporary tone is replaced by the referenced slot's
+  stored tone. A DT1 over the whole Part block (`00 00`–`00 0A`) reloads too.
+  A DT1 that doesn't cover those bytes (e.g. Part Level alone) leaves it.
+- **The reference survives tone DT1s.** After setting a Part to a User slot
+  and writing a different tone into its Temporary area, the Part keeps
+  pointing at that slot, and the Temporary tone stays as written.
+- **Bank Select + Program Change over MIDI reloads too**, even re-selecting
+  the same slot. The written Temporary tone is lost.
+- **The device announces none of this.** A tone reload by Bank Select +
+  Program Change on a Part's receive channel, or a Studio Set change by Bank
+  Select + Program Change on the Studio Set Control Channel, sends nothing
+  over MIDI: no DT1, no Program Change.
+- **The write request leaves Temporary alone.** Storing a Part's Temporary
+  tone ([§4](#4-write-save-to-user-memory)) while the Temporary Studio Set
+  holds unsaved changes keeps both the Part's reference and the Studio Set's
+  Temporary data as they were.
+
+So: load the Temporary Studio Set first, then each Part's tone. Writing the
+Studio Set after a tone wipes that tone.
+
+### Open
+
+- Front-panel tone re-selection and Studio Set changes weren't checked. The
+  MIDI equivalents above suggest the same reload, but whether the front panel
+  sends anything is unknown.
+
+### Discovery
+
+Probed on our device 2026-10-11 with `raw-send`/`raw-read` on Parts 15 and
+16 using PCM Synth User slots, with `monitor` running
+([#183](https://github.com/sigma/integral/issues/183)).
+
 ---
 
 ## Future Investigation
@@ -614,8 +658,9 @@ forum captures. Verified on our device 2026-10-11, including the
   with their respective MSB/LSB values (MSB 93, 92, 97, 96, etc.) — untested
   but expected to work.
 
-- **User tone catalogs**: User tone banks (LSB 0-3 instead of 64+) likely
-  return user-defined tone names via the same mechanism.
+- **User tone catalogs**: User tone banks (LSB 0-3 instead of 64+) return
+  user-defined tone names the same way. Verified for PCM Synth User (MSB 87,
+  LSB 0) on 2026-10-11.
 
 - **Drum kit catalogs**: MSB 88 (SN Drum) and MSB 86 (PCM Drum) catalogs —
   untested.
