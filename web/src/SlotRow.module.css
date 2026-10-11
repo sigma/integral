@@ -1,0 +1,15 @@
+.slot {
+  composes: toneItem from "./ToneSelector.module.css";
+}
+
+.slotActive {
+  composes: toneActive from "./ToneSelector.module.css";
+}
+
+.slotNumber {
+  composes: toneNumber from "./ToneSelector.module.css";
+}
+
+.slotName {
+  composes: toneName from "./ToneSelector.module.css";
+}

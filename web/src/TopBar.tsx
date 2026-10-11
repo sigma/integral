@@ -2,14 +2,11 @@ import { useState, useCallback, useMemo } from "react";
 import { StudioSetSelector } from "./StudioSetSelector";
 import { PartSelector } from "./PartSelector";
 import { ToneSelector } from "./ToneSelector";
-import { ToneCatalog } from "./toneCatalog";
-import { SaveDialog, type SaveSlot } from "./SaveDialog";
-import {
-  findToneBank,
-  toneSlotNumber,
-  userToneBank,
-  type ToneBank,
-} from "./toneBanks";
+import type { ToneCatalog } from "./toneCatalog";
+import { SaveDialog } from "./SaveDialog";
+import { findToneBank, userToneBank, type ToneBank } from "./toneBanks";
+import { studioSetUserSlots, toneUserSlots, type UserSlot } from "./userSlots";
+import { studioSetType } from "./librarian";
 import { useBankEntries } from "./useBankEntries";
 import { deviceSpec } from "./deviceSpec";
 import type { IntegraService } from "./integra";
@@ -23,6 +20,8 @@ import css from "./TopBar.module.css";
 interface Props {
   mixer: UseMixerResult;
   service: IntegraService;
+  /** The tone catalog, shared with the other pages. */
+  catalog: ToneCatalog;
   expansions: UseExpansionsResult;
   /** Open the Expansions page with `expansion` staged. */
   onLoadExpansion: (expansion: Expansion) => void;
@@ -40,16 +39,6 @@ function toneSourceLabel(part: PartState): string {
   const bank = findToneBank(part.toneBankMsb, part.toneBankLsb);
   if (!bank) return `Bank ${part.toneBankMsb}`;
   return bank.expansion?.name ?? bank.group;
-}
-
-interface ToneSlot extends SaveSlot {
-  msb: number;
-  lsb: number;
-  pc: number;
-}
-
-interface StudioSetSlot extends SaveSlot {
-  pc: number;
 }
 
 interface ToneSaveDialogProps {
@@ -73,20 +62,9 @@ function ToneSaveDialog({
   onClose,
 }: ToneSaveDialogProps) {
   const { entries, loading } = useBankEntries(catalog, bank);
-  const slots: ToneSlot[] = useMemo(
-    () =>
-      entries.map((e) => ({
-        key: `${e.lsb}:${e.pc}`,
-        number: toneSlotNumber(bank, e.lsb, e.pc),
-        name: e.name,
-        msb: e.msb,
-        lsb: e.lsb,
-        pc: e.pc,
-      })),
-    [entries, bank],
-  );
+  const slots = useMemo(() => toneUserSlots(entries, bank), [entries, bank]);
   const handleSave = useCallback(
-    async (slot: ToneSlot, name: string) => {
+    async (slot: UserSlot, name: string) => {
       // Queued ahead of the save request, so the device stores the new name.
       if (name !== toneName) onRename(part, name);
       await service.saveToneToUser(part, slot.msb, slot.lsb, slot.pc);
@@ -107,7 +85,7 @@ function ToneSaveDialog({
   );
 }
 
-export function TopBar({ mixer, service, expansions, onLoadExpansion }: Props) {
+export function TopBar({ mixer, service, catalog, expansions, onLoadExpansion }: Props) {
   const { state } = mixer;
   const selectedPart = state.parts[state.selectedPart]!;
   const [toneSelectorOpen, setToneSelectorOpen] = useState(false);
@@ -126,17 +104,13 @@ export function TopBar({ mixer, service, expansions, onLoadExpansion }: Props) {
     selectedPart.toneBankMsb,
     selectedPart.toneBankLsb,
   );
-  const catalog = useMemo(() => new ToneCatalog(service), [service]);
   const userBank = useMemo(
     () => userToneBank(selectedPart.toneBankMsb),
     [selectedPart.toneBankMsb],
   );
 
-  const studioSetSlots: StudioSetSlot[] = useMemo(
-    () =>
-      [...state.studioSetNames.entries()]
-        .sort(([a], [b]) => a - b)
-        .map(([pc, name]) => ({ key: String(pc), number: String(pc + 1), name, pc })),
+  const studioSetSlots = useMemo(
+    () => studioSetUserSlots(state.studioSetNames, studioSetType().bankMsb),
     [state.studioSetNames],
   );
   const { loadStudioSetNames, renameStudioSet } = mixer;
@@ -147,7 +121,7 @@ export function TopBar({ mixer, service, expansions, onLoadExpansion }: Props) {
     setStudioSetLoading(false);
   }, [loadStudioSetNames, state.studioSetName]);
   const handleStudioSetSave = useCallback(
-    async (slot: StudioSetSlot, name: string) => {
+    async (slot: UserSlot, name: string) => {
       // Queued ahead of the save request, so the device stores the new name.
       if (name !== studioSetSave?.name) renameStudioSet(name);
       await service.saveStudioSetToUser(slot.pc);

@@ -31,12 +31,21 @@ import { Transport } from "./Transport";
 import { KeyboardDrawer } from "./KeyboardDrawer";
 import { SequencerPage } from "./SequencerPage";
 import { ExpansionsPage } from "./ExpansionsPage";
+import { LibraryPage } from "./LibraryPage";
+import { ToneCatalog } from "./toneCatalog";
+import { useLibraryExport } from "./useLibraryExport";
 import { ExpansionLoadBanner } from "./ExpansionLoadBanner";
 import { useKeyboard } from "./useKeyboard";
 import { sequencerEngine, type SequencerEngine } from "./sequencer";
 import css from "./App.module.css";
 
-type PageTab = "mixer" | "surround" | "toneEdit" | "sequencer" | "expansions";
+type PageTab =
+  | "mixer"
+  | "surround"
+  | "toneEdit"
+  | "sequencer"
+  | "expansions"
+  | "library";
 
 type DeviceStatus =
   | { step: "idle" }
@@ -189,6 +198,12 @@ export function App() {
     sequencer?.setTrack(mixer.state.selectedPart);
   }, [sequencer, mixer.state.selectedPart]);
   const [activeTab, setActiveTab] = useState<PageTab>("mixer");
+  // One tone catalog for the top bar and the Library.
+  const catalog = useMemo(
+    () => (service ? new ToneCatalog(service) : null),
+    [service],
+  );
+  const libraryExport = useLibraryExport(service);
   // The tone picker's Load action: stage, then let the user Apply.
   const loadExpansion = useCallback(
     (expansion: Expansion) => {
@@ -199,7 +214,7 @@ export function App() {
   );
 
   // Show connected UI when connected to an Integra-7
-  if (service) {
+  if (service && catalog) {
     const loading = expansions.running;
     return (
       <div className={css.shell}>
@@ -243,11 +258,18 @@ export function App() {
               >
                 Expansions
               </button>
+              <button
+                className={`${css.tab} ${activeTab === "library" ? css.tabActive : ""}`}
+                onClick={() => setActiveTab("library")}
+              >
+                Library
+              </button>
               {sequencer && <Transport engine={sequencer} />}
             </div>
             <TopBar
               mixer={mixer}
               service={service}
+              catalog={catalog}
               expansions={expansions}
               onLoadExpansion={loadExpansion}
             />
@@ -270,6 +292,15 @@ export function App() {
           {activeTab === "expansions" && (
             <ErrorBoundary section="Expansions">
               <ExpansionsPage expansions={expansions} staging={expansionStaging} />
+            </ErrorBoundary>
+          )}
+          {activeTab === "library" && (
+            <ErrorBoundary section="Library">
+              <LibraryPage
+                mixer={mixer}
+                catalog={catalog}
+                libraryExport={libraryExport}
+              />
             </ErrorBoundary>
           )}
           {activeTab === "sequencer" && sequencer ? (

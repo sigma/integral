@@ -1,15 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { SlotRow, type SaveSlot } from "./SlotRow";
 import css from "./SaveDialog.module.css";
-
-/** A user slot the dialog can save into. */
-export interface SaveSlot {
-  /** Stable React key. */
-  key: string;
-  /** Slot number as shown on the device (e.g. "0129", "64"). */
-  number: string;
-  /** Name currently stored in the slot. */
-  name: string;
-}
 
 interface Props<T extends SaveSlot> {
   /** Dialog title, e.g. "Save Tone — Part 1". */
@@ -106,23 +97,18 @@ export function SaveDialog<T extends SaveSlot>({
               {loading ? "Loading slots..." : "No reply from the INTEGRA-7"}
             </div>
           ) : (
-            slots.map((slot) => {
-              const isActive = slot.key === selected?.key;
-              return (
-                <button
-                  key={slot.key}
-                  className={`${css.slot} ${isActive ? css.slotActive : ""}`}
-                  onClick={() => {
-                    setSelected(slot);
-                    setPhase({ kind: "pick" });
-                  }}
-                  disabled={saving}
-                >
-                  <span className={css.slotNumber}>{slot.number}</span>
-                  <span className={css.slotName}>{slot.name}</span>
-                </button>
-              );
-            })
+            slots.map((slot) => (
+              <SlotRow
+                key={slot.key}
+                slot={slot}
+                active={slot.key === selected?.key}
+                disabled={saving}
+                onClick={() => {
+                  setSelected(slot);
+                  setPhase({ kind: "pick" });
+                }}
+              />
+            ))
           )}
         </div>
         <div className={css.footer}>

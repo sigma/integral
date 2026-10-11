@@ -1,0 +1,84 @@
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  padding: 12px 16px;
+  color: #e0e0e0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+}
+
+.head {
+  composes: head from "./PackPane.module.css";
+}
+
+.title {
+  composes: title from "./PackPane.module.css";
+}
+
+.foot {
+  composes: foot from "./PackPane.module.css";
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hint {
+  composes: hint from "./PackPane.module.css";
+}
+
+.empty {
+  composes: empty from "./PackPane.module.css";
+}
+
+.primary {
+  composes: primary from "./PackPane.module.css";
+}
+
+.typeTabs {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #2a2a4a;
+  flex-shrink: 0;
+}
+
+.typeTab {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.typeTab:hover {
+  color: #c0c0e0;
+}
+
+.typeTabActive {
+  color: #e0e0e0;
+  border-bottom-color: #4a6cf7;
+}
+
+.slotList {
+  composes: toneList from "./ToneSelector.module.css";
+  min-height: 0;
+}
+
+/* A Free slot: its type's INIT name. */
+.free {
+  opacity: 0.45;
+}

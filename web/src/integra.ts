@@ -57,6 +57,7 @@ import {
   librarianTypes,
   planImport,
   type CatalogName,
+  type ExportProgress,
   type ExportSource,
   type ImportPlan,
   type ImportStatus,
@@ -118,6 +119,34 @@ export interface PackImportResult {
   statuses: ImportStatus[];
   /** Why the import stopped early, if it did. */
   error: string | undefined;
+}
+
+/** Where a running Pack export stands. */
+export interface PackExportProgress {
+  /** Every source with its status, in Pack order. */
+  progress: ExportProgress[];
+  /** The User tones pulled in by Studio Set references, once known. */
+  autoIncluded: ExportSource[];
+}
+
+/**
+ * Call `report` at most once per animation frame after `schedule`, so
+ * progress isn't rebuilt for every incoming packet.
+ */
+function frameThrottle(report: () => void): { schedule: () => void; cancel: () => void } {
+  let frame: number | undefined;
+  return {
+    schedule: () => {
+      frame ??= requestAnimationFrame(() => {
+        frame = undefined;
+        report();
+      });
+    },
+    cancel: () => {
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      frame = undefined;
+    },
+  };
 }
 
 /** A Librarian machine (`PackExport` or `PackImport`), as the driver sees it. */
@@ -995,15 +1024,32 @@ export class IntegraService {
     }
   }
 
-  /** Read `sources` from the device into a Pack. Only reads. */
-  async exportPack(sources: ExportSource[], signal?: AbortSignal): Promise<Pack> {
+  /**
+   * Read `sources` from the device into a Pack. Only reads. `onProgress`
+   * hears where the export stands as it goes, and once more at the end.
+   */
+  async exportPack(
+    sources: ExportSource[],
+    signal?: AbortSignal,
+    onProgress?: (progress: PackExportProgress) => void,
+  ): Promise<Pack> {
     const machine = new PackExport(this.deviceId, sources);
+    const report = (): void =>
+      onProgress?.({ progress: machine.progress(), autoIncluded: machine.autoIncluded() });
+    const throttle = frameThrottle(report);
     try {
-      const error = await this.runLibrarian(machine, "pack-export", signal);
+      const error = await this.runLibrarian(
+        machine,
+        "pack-export",
+        signal,
+        onProgress && throttle.schedule,
+      );
+      report();
       const pack = error === undefined ? machine.pack() : undefined;
       if (!pack) throw new Error(error ?? "The export produced no Pack");
       return pack;
     } finally {
+      throttle.cancel();
       machine.free();
     }
   }
@@ -1066,12 +1112,14 @@ export class IntegraService {
   /**
    * Drive `machine` to its end and resolve with its error, if any. Sends go
    * through the raw queue (no DT1 coalescing); a wait times out only once
-   * everything queued before it has left the queue.
+   * everything queued before it has left the queue. `onStep` runs after
+   * each step the machine takes.
    */
   private runLibrarian(
     machine: LibrarianMachine,
     key: string,
     signal?: AbortSignal,
+    onStep?: () => void,
   ): Promise<string | undefined> {
     return new Promise((resolve) => {
       let timer: ReturnType<typeof setTimeout> | undefined;
@@ -1114,12 +1162,14 @@ export class IntegraService {
               send(bytes);
               continue;
             case LibrarianActionKind.Wait:
+              onStep?.();
               return;
             case LibrarianActionKind.AwaitWrite:
               if (!awaitingWrite) {
                 arm(timeoutMs);
                 awaitingWrite = true;
               }
+              onStep?.();
               return;
             case LibrarianActionKind.Done:
               disarm();

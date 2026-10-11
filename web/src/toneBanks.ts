@@ -79,9 +79,13 @@ export function findToneBank(msb: number, lsb: number): ToneBank | null {
   return null;
 }
 
-/** Slot number as shown on the device (e.g. "0129") for a tone in `bank`. */
-export function toneSlotNumber(bank: ToneBank, lsb: number, pc: number): string {
-  const index = bank.lsbs.indexOf(lsb) * TONES_PER_LSB + pc;
+/** Index (0-based) of the tone at (lsb, pc) among the slots of `bank`. */
+export function toneSlotIndex(bank: ToneBank, lsb: number, pc: number): number {
+  return bank.lsbs.indexOf(lsb) * TONES_PER_LSB + pc;
+}
+
+/** Tone slot number as shown on the device (e.g. "0129") for slot `index`. */
+export function toneSlotLabel(index: number): string {
   return String(index + 1).padStart(4, "0");
 }
 
