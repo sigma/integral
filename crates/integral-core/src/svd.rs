@@ -59,8 +59,9 @@ pub enum SvdError {
     #[error("invalid SVD header length: {0:#06x}")]
     InvalidHeaderLength(u16),
 
-    /// A directory entry has a model identifier other than `MI69`.
-    #[error("invalid model identifier (expected MI69)")]
+    /// A directory entry has a model identifier other than its family's
+    /// (`MI69` for the INTEGRA-7).
+    #[error("invalid model identifier")]
     InvalidModel,
 
     /// A directory entry has an unrecognised chunk type code.
@@ -334,11 +335,13 @@ pub fn blocks_category(blocks: &[Vec<u8>], chunk_type: ChunkType) -> Option<u8> 
 // SvdChunk / SvdFile
 // ---------------------------------------------------------------------------
 
-/// A single chunk within an SVD file, containing zero or more fixed-size entries.
+/// A single chunk within an SVD file, containing zero or more fixed-size
+/// entries. `K` is the type of its data: [`ChunkType`] in an INTEGRA-7 file,
+/// [`XvChunkType`] in an XV one.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SvdChunk {
+pub struct SvdChunk<K = ChunkType> {
     /// The type of patch data in this chunk.
-    pub chunk_type: ChunkType,
+    pub chunk_type: K,
     /// Size of each entry in bytes.
     pub entry_size: usize,
     /// The raw entry data. Each entry is exactly `entry_size` bytes.
@@ -399,95 +402,157 @@ fn write_u32_be(buf: &mut Vec<u8>, value: u32) {
     buf.extend_from_slice(&value.to_be_bytes());
 }
 
+/// Read the chunks of an `SVD1` container, whatever the family. `kind_of`
+/// turns each directory entry's chunk code and model ID into the chunk's
+/// type, or rejects the file.
+fn parse_chunks<K>(
+    data: &[u8],
+    kind_of: impl Fn(&[u8; 4], &[u8; 4]) -> Result<K, SvdError>,
+) -> Result<Vec<SvdChunk<K>>, SvdError> {
+    // Validate header
+    if data.len() < HEADER_SIZE {
+        return Err(SvdError::UnexpectedEof);
+    }
+    if data[2..6] != SIGNATURE {
+        return Err(SvdError::InvalidMagic);
+    }
+
+    // The header length bounds the directory, which starts at 0x10.
+    let header_length = u16::from_be_bytes([data[0], data[1]]);
+    let dir_end = header_length as usize + LENGTH_FIELD_SIZE;
+    if dir_end < HEADER_SIZE || !(dir_end - HEADER_SIZE).is_multiple_of(DIR_ENTRY_SIZE) {
+        return Err(SvdError::InvalidHeaderLength(header_length));
+    }
+    if dir_end > data.len() {
+        return Err(SvdError::UnexpectedEof);
+    }
+
+    let mut chunks = Vec::new();
+    for entry in data[HEADER_SIZE..dir_end].chunks_exact(DIR_ENTRY_SIZE) {
+        let code: [u8; 4] = entry[0..4].try_into().expect("4-byte slice");
+        let model: [u8; 4] = entry[4..8].try_into().expect("4-byte slice");
+        let chunk_type = kind_of(&code, &model)?;
+
+        let chunk_offset = read_u32_be(&entry[8..12]) as usize;
+        let chunk_size = read_u32_be(&entry[12..16]) as usize;
+
+        // Validate chunk bounds
+        let chunk_end = chunk_offset
+            .checked_add(chunk_size)
+            .ok_or(SvdError::ChunkOverflow)?;
+        if chunk_end > data.len() {
+            return Err(SvdError::ChunkOverflow);
+        }
+
+        // Read zone header
+        if chunk_size < ZONE_HEADER_SIZE {
+            return Err(SvdError::UnexpectedEof);
+        }
+        let zone = &data[chunk_offset..chunk_offset + ZONE_HEADER_SIZE];
+        let count = read_u32_be(&zone[0..4]) as usize;
+        let entry_size = read_u32_be(&zone[4..8]) as usize;
+
+        // Entries must fit in their chunk; zero-size entries carry no data.
+        let entries_start = chunk_offset + ZONE_HEADER_SIZE;
+        let entries_len = count.checked_mul(entry_size);
+        if (count > 0 && entry_size == 0)
+            || entries_len.is_none_or(|len| len > chunk_end - entries_start)
+        {
+            return Err(SvdError::ChunkOverflow);
+        }
+        let entries = data[entries_start..chunk_end]
+            .chunks_exact(entry_size.max(1))
+            .take(count)
+            .map(<[u8]>::to_vec)
+            .collect();
+
+        chunks.push(SvdChunk {
+            chunk_type,
+            entry_size,
+            entries,
+        });
+    }
+    Ok(chunks)
+}
+
+// ---------------------------------------------------------------------------
+// XV series
+// ---------------------------------------------------------------------------
+
+/// What an XV-series SVD chunk holds.
+///
+/// Reference: `docs/research/xv-svd-format.md`, section 1.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum XvChunkType {
+    /// Patches (`PATa`).
+    Patch,
+    /// Performances (`PRFa`, and `MLTa` on the XV-2020).
+    Performance,
+    /// Rhythm Sets (`RHYa`).
+    Rhythm,
+    /// System settings (`SYSa`, `SYSb`).
+    System,
+    /// Data about the other chunks, or for a host sequencer: Patch
+    /// categories (`CTGa`), the Favorites list (`FVRa`), and `SEQa`, `VIPa`
+    /// and `VIFa`, empty in every file seen.
+    Aux,
+}
+
+/// Every XV-series chunk code and what its chunk holds.
+const XV_CHUNK_TYPES: [([u8; 4], XvChunkType); 11] = [
+    (*b"PATa", XvChunkType::Patch),
+    (*b"PRFa", XvChunkType::Performance),
+    (*b"MLTa", XvChunkType::Performance),
+    (*b"RHYa", XvChunkType::Rhythm),
+    (*b"SYSa", XvChunkType::System),
+    (*b"SYSb", XvChunkType::System),
+    (*b"CTGa", XvChunkType::Aux),
+    (*b"FVRa", XvChunkType::Aux),
+    (*b"SEQa", XvChunkType::Aux),
+    (*b"VIPa", XvChunkType::Aux),
+    (*b"VIFa", XvChunkType::Aux),
+];
+
+impl XvChunkType {
+    /// Parse a 4-byte ASCII XV chunk code, or `None` if it is not one.
+    pub fn from_code(code: &[u8; 4]) -> Option<Self> {
+        XV_CHUNK_TYPES
+            .iter()
+            .find(|(c, _)| c == code)
+            .map(|&(_, kind)| kind)
+    }
+}
+
+/// Parse an XV-series SVD file (see [`SvdFamily::Xv`]): the INTEGRA-7
+/// container with XV chunk codes and models `XV88` and `NEXY`. Empty chunks
+/// record entry size 0.
+pub fn parse_xv(data: &[u8]) -> Result<Vec<SvdChunk<XvChunkType>>, SvdError> {
+    parse_chunks(data, |code, model| {
+        let kind = XvChunkType::from_code(code).ok_or(SvdError::InvalidChunkType(*code))?;
+        if !XV_MODELS.contains(model) {
+            return Err(SvdError::InvalidModel);
+        }
+        Ok(kind)
+    })
+}
+
 // ---------------------------------------------------------------------------
 // SvdFile implementation
 // ---------------------------------------------------------------------------
 
 impl SvdFile {
-    /// Parse an SVD file from raw bytes.
+    /// Parse an INTEGRA-7 SVD file from raw bytes.
     ///
     /// Validates the header magic, reads the chunk directory, and extracts
     /// each chunk's zone header and entries.
     pub fn parse(data: &[u8]) -> Result<Self, SvdError> {
-        // Validate header
-        if data.len() < HEADER_SIZE {
-            return Err(SvdError::UnexpectedEof);
-        }
-        if data[2..6] != SIGNATURE {
-            return Err(SvdError::InvalidMagic);
-        }
-
-        // The header length bounds the directory, which starts at 0x10.
-        let header_length = u16::from_be_bytes([data[0], data[1]]);
-        let dir_end = header_length as usize + LENGTH_FIELD_SIZE;
-        if dir_end < HEADER_SIZE || !(dir_end - HEADER_SIZE).is_multiple_of(DIR_ENTRY_SIZE) {
-            return Err(SvdError::InvalidHeaderLength(header_length));
-        }
-        if dir_end > data.len() {
-            return Err(SvdError::UnexpectedEof);
-        }
-
-        let mut chunks = Vec::new();
-        for dir_offset in (HEADER_SIZE..dir_end).step_by(DIR_ENTRY_SIZE) {
-            // Read directory entry fields
-            let code: [u8; 4] = [
-                data[dir_offset],
-                data[dir_offset + 1],
-                data[dir_offset + 2],
-                data[dir_offset + 3],
-            ];
-            let chunk_type = ChunkType::from_code(&code).ok_or(SvdError::InvalidChunkType(code))?;
-
-            let model: [u8; 4] = [
-                data[dir_offset + 4],
-                data[dir_offset + 5],
-                data[dir_offset + 6],
-                data[dir_offset + 7],
-            ];
-            if model != MODEL_MI69 {
+        let chunks = parse_chunks(data, |code, model| {
+            let chunk_type = ChunkType::from_code(code).ok_or(SvdError::InvalidChunkType(*code))?;
+            if *model != MODEL_MI69 {
                 return Err(SvdError::InvalidModel);
             }
-
-            let chunk_offset = read_u32_be(&data[dir_offset + 8..dir_offset + 12]) as usize;
-            let chunk_size = read_u32_be(&data[dir_offset + 12..dir_offset + 16]) as usize;
-
-            // Validate chunk bounds
-            let chunk_end = chunk_offset
-                .checked_add(chunk_size)
-                .ok_or(SvdError::ChunkOverflow)?;
-            if chunk_end > data.len() {
-                return Err(SvdError::ChunkOverflow);
-            }
-
-            // Read zone header
-            if chunk_size < ZONE_HEADER_SIZE {
-                return Err(SvdError::UnexpectedEof);
-            }
-            let zone = &data[chunk_offset..chunk_offset + ZONE_HEADER_SIZE];
-            let count = read_u32_be(&zone[0..4]) as usize;
-            let entry_size = read_u32_be(&zone[4..8]) as usize;
-
-            // Entries must fit in their chunk; zero-size entries carry no data.
-            let entries_start = chunk_offset + ZONE_HEADER_SIZE;
-            let entries_len = count.checked_mul(entry_size);
-            if (count > 0 && entry_size == 0)
-                || entries_len.is_none_or(|len| len > chunk_end - entries_start)
-            {
-                return Err(SvdError::ChunkOverflow);
-            }
-            let entries = data[entries_start..chunk_end]
-                .chunks_exact(entry_size.max(1))
-                .take(count)
-                .map(<[u8]>::to_vec)
-                .collect();
-
-            chunks.push(SvdChunk {
-                chunk_type,
-                entry_size,
-                entries,
-            });
-        }
-
+            Ok(chunk_type)
+        })?;
         Ok(SvdFile { chunks })
     }
 
@@ -598,6 +663,46 @@ mod tests {
         assert_eq!(SvdFamily::of(&jv), Some(SvdFamily::JvXp));
         assert_eq!(SvdFamily::of(b"\xF0\x41"), None);
         assert_eq!(SvdFamily::of(b"MThd\0\0\0\x06"), None);
+    }
+
+    /// An XV file: a `PATa` chunk of one 4-byte entry and an empty `MLTa`.
+    fn xv_file(patch_model: &[u8; 4]) -> Vec<u8> {
+        let mut data = b"\x00\x2ESVD1\0\0\0\0\0\0\0\0\0\0".to_vec();
+        data.extend_from_slice(b"PATa");
+        data.extend_from_slice(patch_model);
+        data.extend_from_slice(&[0, 0, 0, 0x30, 0, 0, 0, 0x14]);
+        data.extend_from_slice(b"MLTaNEXY");
+        data.extend_from_slice(&[0, 0, 0, 0x44, 0, 0, 0, 0x10]);
+        data.extend_from_slice(&[0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0x10, 0, 0, 0, 0]);
+        data.extend_from_slice(b"\x01\x02\x03\x04");
+        data.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0, 0, 0, 0]);
+        data
+    }
+
+    #[test]
+    fn parses_xv_chunks() {
+        let data = xv_file(b"XV88");
+        assert_eq!(SvdFamily::of(&data), Some(SvdFamily::Xv));
+        assert_eq!(
+            parse_xv(&data),
+            Ok(vec![
+                SvdChunk {
+                    chunk_type: XvChunkType::Patch,
+                    entry_size: 4,
+                    entries: vec![vec![1, 2, 3, 4]],
+                },
+                SvdChunk {
+                    chunk_type: XvChunkType::Performance,
+                    entry_size: 0,
+                    entries: vec![],
+                },
+            ])
+        );
+        assert_eq!(
+            SvdFile::parse(&data),
+            Err(SvdError::InvalidChunkType(*b"PATa"))
+        );
+        assert_eq!(parse_xv(&xv_file(b"MI69")), Err(SvdError::InvalidModel));
     }
 
     #[test]
