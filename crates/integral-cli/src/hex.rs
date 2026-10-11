@@ -39,6 +39,10 @@ pub fn parse_hex_size(s: &str) -> Result<DataSize> {
 ///
 /// The string must have an even number of hex characters.
 pub fn parse_hex_bytes(s: &str) -> Result<Vec<u8>> {
+    anyhow::ensure!(
+        s.is_ascii() && s.len().is_multiple_of(2),
+        "expected an even number of hex digits"
+    );
     (0..s.len())
         .step_by(2)
         .map(|i| {
@@ -68,5 +72,12 @@ mod tests {
         assert_eq!(format_hex(&[0xF0, 0x0A, 0x7F], " "), "F0 0A 7F");
         assert_eq!(format_hex(&[0x5F, 0x01], ", "), "5F, 01");
         assert_eq!(format_hex(&[], " "), "");
+    }
+
+    #[test]
+    fn rejects_odd_or_non_ascii_hex() {
+        assert_eq!(parse_hex_bytes("F07E").unwrap(), [0xF0, 0x7E]);
+        assert!(parse_hex_bytes("F07").is_err());
+        assert!(parse_hex_bytes("aéb").is_err());
     }
 }
