@@ -2134,6 +2134,18 @@ pub fn mixer_params_json() -> String {
     serde_json::to_string(&params).unwrap_or_else(|_| "[]".to_string())
 }
 
+/// Format a raw value of the mixer parameter `id` for display.
+///
+/// Unknown ids fall back to the raw number.
+#[wasm_bindgen(js_name = formatMixerParam)]
+pub fn format_mixer_param(id: &str, value: i32) -> String {
+    static PARAMS: std::sync::LazyLock<Vec<param_registry::ParamDef>> =
+        std::sync::LazyLock::new(param_registry::mixer_params);
+    param_registry::lookup(&PARAMS, id)
+        .map(|def| param_registry::format_value(def, value))
+        .unwrap_or_else(|| value.to_string())
+}
+
 /// Return all SuperNATURAL Synth Tone parameter definitions as a JSON string.
 ///
 /// Returns a JSON array of `ParamDef` objects.

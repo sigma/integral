@@ -1,4 +1,4 @@
-import { mixerParamsJson } from "../pkg/integral_wasm.js";
+import { formatMixerParam, mixerParamsJson } from "../pkg/integral_wasm.js";
 
 interface ParamMeta {
   name: string;
@@ -24,4 +24,9 @@ function getRegistry(): Map<string, ParamMeta> {
 /** Look up param metadata by registry id. Falls back to sensible defaults. */
 export function paramMeta(id: string): ParamMeta {
   return getRegistry().get(id) ?? { name: id, min: 0, max: 127, defaultValue: 0 };
+}
+
+/** Display formatter for a mixer param, using the registry's value labels. */
+export function paramFormatter(id: string): (value: number) => string {
+  return (value) => formatMixerParam(id, value);
 }

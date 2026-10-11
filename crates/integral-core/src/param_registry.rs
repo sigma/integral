@@ -31,6 +31,8 @@ pub enum ParamGroup {
     Chorus,
     /// Reverb effect.
     Reverb,
+    /// Mixer 3-band EQ, shared by parts, master and Drum Comp+EQ units.
+    Eq,
     /// Global / top-level.
     Global,
     /// Tone-level common parameters.
@@ -98,10 +100,11 @@ pub fn format_value(def: &ParamDef, value: i32) -> String {
 /// Generate all mixer parameter definitions.
 ///
 /// This includes per-part parameters (16 parts x 7 params each), master,
-/// external input, chorus, reverb, and the solo-part selector — 124 total.
+/// external input, chorus, reverb, the solo-part selector and the shared
+/// mixer EQ bands — 131 total.
 pub fn mixer_params() -> Vec<ParamDef> {
-    // We know the exact count: 16*7 + 1 + 2 + 4 + 4 + 1 = 124
-    let mut params = Vec::with_capacity(124);
+    // We know the exact count: 16*7 + 1 + 2 + 4 + 4 + 1 + 7 = 131
+    let mut params = Vec::with_capacity(131);
 
     static OUTPUT_ASSIGN_NAMES: &[&str] =
         &["A", "B", "C", "D", "1", "2", "3", "4", "5", "6", "7", "8"];
@@ -340,6 +343,57 @@ pub fn mixer_params() -> Vec<ParamDef> {
         default: 0,
         format: ParamFormat::Raw,
     });
+
+    // Mixer EQ: part, master and Drum Comp+EQ units share these ranges.
+    static EQ_LOW_FREQ_NAMES: &[&str] = &["200", "400"];
+    static EQ_MID_FREQ_NAMES: &[&str] = &[
+        "200", "250", "315", "400", "500", "630", "800", "1.0k", "1.2k", "1.6k", "2.0k", "2.5k",
+        "3.1k", "4.0k", "5.0k", "6.3k", "8.0k",
+    ];
+    static EQ_HIGH_FREQ_NAMES: &[&str] = &["2.0k", "4.0k", "8.0k"];
+    static EQ_Q_NAMES: &[&str] = &["0.5", "1.0", "2.0", "4.0", "8.0"];
+
+    let eq = |id, name, max, default, format| ParamDef {
+        id,
+        name,
+        group: ParamGroup::Eq,
+        min: 0,
+        max,
+        default,
+        format,
+    };
+    let gain = || ParamFormat::SignedCenter(15);
+    params.push(eq(
+        "eq.low_freq",
+        "Low Freq",
+        1,
+        1,
+        ParamFormat::Named(EQ_LOW_FREQ_NAMES),
+    ));
+    params.push(eq("eq.low_gain", "Low Gain", 30, 15, gain()));
+    params.push(eq(
+        "eq.mid_freq",
+        "Mid Freq",
+        16,
+        7,
+        ParamFormat::Named(EQ_MID_FREQ_NAMES),
+    ));
+    params.push(eq("eq.mid_gain", "Mid Gain", 30, 15, gain()));
+    params.push(eq(
+        "eq.mid_q",
+        "Mid Q",
+        4,
+        0,
+        ParamFormat::Named(EQ_Q_NAMES),
+    ));
+    params.push(eq(
+        "eq.high_freq",
+        "High Freq",
+        2,
+        1,
+        ParamFormat::Named(EQ_HIGH_FREQ_NAMES),
+    ));
+    params.push(eq("eq.high_gain", "High Gain", 30, 15, gain()));
 
     params
 }
@@ -588,8 +642,8 @@ mod tests {
     #[test]
     fn mixer_param_count() {
         let params = mixer_params();
-        // 16 parts * 7 params + 1 master + 2 ext + 4 chorus + 4 reverb + 1 solo = 124
-        assert_eq!(params.len(), 124);
+        // 16 parts * 7 params + 1 master + 2 ext + 4 chorus + 4 reverb + 1 solo + 7 EQ = 131
+        assert_eq!(params.len(), 131);
     }
 
     #[test]
@@ -630,5 +684,20 @@ mod tests {
         let def = lookup(&params, "part.0.output_assign").unwrap();
         assert_eq!(format_value(def, 0), "A");
         assert_eq!(format_value(def, 3), "D");
+    }
+
+    #[test]
+    fn eq_named_tables_cover_their_range() {
+        let params = mixer_params();
+        for id in ["eq.low_freq", "eq.mid_freq", "eq.mid_q", "eq.high_freq"] {
+            let def = lookup(&params, id).unwrap();
+            let ParamFormat::Named(names) = def.format else {
+                panic!("{id} should be named");
+            };
+            assert_eq!(names.len() as i32, def.max - def.min + 1, "{id}");
+        }
+        let gain = lookup(&params, "eq.mid_gain").unwrap();
+        assert_eq!(format_value(gain, 0), "-15");
+        assert_eq!(format_value(gain, 30), "+15");
     }
 }
