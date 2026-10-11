@@ -292,9 +292,20 @@ Reads past the last slot of a block (e.g. `2F 40 00 00`) get no reply.
 - An RQ1 cannot start or end inside a multi-byte (nibblized) parameter: a
   1-byte read at an SN Drum Note (whose first parameter is 4 nibbles) gets
   no reply.
-- A large read comes back as **several DT1 packets**, split at parameter
-  boundaries (a 64-byte read of SN Synth MFX returns 61 bytes, then the rest).
-  Readers must concatenate packets by address.
+- A reply covers only whole parameters inside the requested range, and only
+  addresses that exist. It can be **shorter than requested**, or come as
+  **several DT1 packets with gaps between them**. Readers must place packets
+  by address and check that every byte arrived. Observed with `integral
+  raw-read` on User SN Synth Tone 1, MFX (`50 00 02 00`):
+  - A 64-byte read returns one 61-byte DT1, and nothing follows. MFX
+    Parameter 12 spans `3D`–`40`, so it would end past byte 64; the reply
+    stops at the last whole parameter.
+  - A 145-byte read (`00 00 01 11`, the whole MFX block) returns all 145
+    bytes in one DT1.
+  - A 384-byte read at `2F 00 20 00` (Studio Set Parts 1–3 of User Studio
+    Set 1) returns three 77-byte DT1s at `2F 00 20 00`, `2F 00 21 00` and
+    `2F 00 22 00`. Each Part block is 77 bytes (`00 00 00 4D`), so bytes
+    77–127 of each 128-byte step never arrive.
 - The SysEx size field is 7-bit: SN Synth MFX is `00 00 01 11` (145 bytes).
 
 ### Not User Memory

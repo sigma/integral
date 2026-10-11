@@ -1,10 +1,10 @@
 //! Host-driven reader that fetches whole blocks with one RQ1 each.
 //!
-//! The device answers a large RQ1 with several DT1 packets, split at
-//! parameter boundaries (e.g. a 145-byte MFX read at `50 00 02 00` comes back
-//! as 61 bytes, then the rest at `50 00 02 3D`). The reader places each
-//! packet by its address and reports each block as complete, with a gap, or
-//! timed out.
+//! The device can answer an RQ1 with several DT1 packets, and only covers
+//! whole parameters at addresses that exist (e.g. a 384-byte read at
+//! `2F 00 20 00` comes back as three 77-byte Studio Set Part blocks, with
+//! gaps between them). The reader places each packet by its address and
+//! reports each block as complete, with a gap, or timed out.
 //!
 //! The reader does no I/O. The host sends [`BlockReader::next_request`],
 //! feeds every DT1 it receives to [`BlockReader::on_dt1`] while
@@ -200,9 +200,9 @@ mod tests {
         );
     }
 
-    /// A 145-byte SN-S MFX read comes back as 61 bytes, then the rest at `02 3D`.
+    /// A block split across two packets is whole once both arrive.
     #[test]
-    fn sn_synth_mfx_split() {
+    fn two_packet_reply() {
         let mut reader = BlockReader::new(0x10, [(MFX, MFX_SIZE)]);
         reader.next_request().unwrap();
         let data: Vec<u8> = (0..145).map(|i| (i % 128) as u8).collect();
