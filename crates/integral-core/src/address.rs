@@ -44,6 +44,12 @@ impl Address {
         &self.0
     }
 
+    /// The address as a number (each byte carries 7 bits), so that the
+    /// distance between two addresses is a byte count.
+    pub const fn value(&self) -> u32 {
+        seven_bit(self.0)
+    }
+
     /// Convert address to a string key suitable for hash map lookups.
     ///
     /// Returns a 4-byte string of the raw address bytes.
@@ -99,9 +105,12 @@ impl DataSize {
 impl DataSize {
     /// The size as a number (each byte carries 7 bits).
     pub const fn value(&self) -> u32 {
-        let [a, b, c, d] = self.0;
-        (a as u32) << 21 | (b as u32) << 14 | (c as u32) << 7 | d as u32
+        seven_bit(self.0)
     }
+}
+
+const fn seven_bit([a, b, c, d]: [u8; 4]) -> u32 {
+    (a as u32) << 21 | (b as u32) << 14 | (c as u32) << 7 | d as u32
 }
 
 impl fmt::Debug for DataSize {
@@ -165,6 +174,15 @@ mod tests {
         assert_eq!(DataSize::new(0x00, 0x00, 0x00, 0x0C).value(), 12);
         assert_eq!(DataSize::new(0x00, 0x00, 0x01, 0x00).value(), 128);
         assert_eq!(DataSize::new(0x00, 0x00, 0x7F, 0x7F).value(), 16383);
+        let mfx = Address::new(0x50, 0x00, 0x02, 0x00);
+        assert_eq!(
+            Address::new(0x50, 0x00, 0x02, 0x3D).value() - mfx.value(),
+            61
+        );
+        assert_eq!(
+            Address::new(0x50, 0x00, 0x03, 0x00).value() - mfx.value(),
+            128
+        );
     }
 
     #[test]

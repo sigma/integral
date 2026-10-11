@@ -26,6 +26,7 @@ pub mod expansion_slots;
 pub mod expansions;
 pub mod factory_catalog;
 pub mod fx_params;
+pub mod librarian;
 pub mod mfx;
 pub mod mfx_params;
 pub mod midi_bridge;
