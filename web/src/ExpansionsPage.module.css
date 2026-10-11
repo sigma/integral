@@ -175,15 +175,3 @@
   border-radius: 8px;
   white-space: nowrap;
 }
-
-.loaded {
-  flex-shrink: 0;
-  padding: 1px 5px;
-  font-size: 10px;
-  font-weight: 600;
-  color: #6ddb6d;
-  background: #1a3a1a;
-  border: 1px solid #2a5a2a;
-  border-radius: 3px;
-  white-space: nowrap;
-}

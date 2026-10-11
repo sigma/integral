@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import css from "./NotLoadedMarker.module.css";
 
 interface Props {
@@ -17,4 +18,13 @@ export function NotLoadedMarker({ expansion, named = false }: Props) {
       {named ? `${expansion} not loaded` : "not loaded"}
     </span>
   );
+}
+
+/** Marks a loaded Expansion; `children` replaces the "loaded" text. */
+export function LoadedMarker({
+  children = "loaded",
+}: {
+  children?: ReactNode;
+}) {
+  return <span className={css.loaded}>{children}</span>;
 }

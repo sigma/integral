@@ -6,7 +6,7 @@ import {
   expansionSlotNames,
   type Expansion,
 } from "./expansionCatalog";
-import { NotLoadedMarker } from "./NotLoadedMarker";
+import { LoadedMarker, NotLoadedMarker } from "./NotLoadedMarker";
 import type { UseExpansionsResult } from "./useExpansions";
 import type {
   ExpansionLoadNotice,
@@ -173,9 +173,9 @@ function CatalogRow({
       )}
       {expansion && slots && (
         loadedAt >= 0 ? (
-          <span className={css.loaded}>
+          <LoadedMarker>
             loaded · {loadedSlots(loadedAt, expansion.slotCost)}
-          </span>
+          </LoadedMarker>
         ) : (
           <NotLoadedMarker expansion={expansion.name} />
         )

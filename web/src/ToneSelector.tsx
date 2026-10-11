@@ -11,7 +11,7 @@ import { CATEGORIES, CATEGORY_IDS, categoryAbbrev } from "./categories";
 import { useBankEntries } from "./useBankEntries";
 import type { UseExpansionsResult } from "./useExpansions";
 import type { Expansion } from "./expansionCatalog";
-import { NotLoadedMarker } from "./NotLoadedMarker";
+import { LoadedMarker, NotLoadedMarker } from "./NotLoadedMarker";
 import css from "./ToneSelector.module.css";
 
 type BrowseMode = "bank" | "category";
@@ -177,6 +177,10 @@ export function ToneSelector({
                       <div key={entry.expansion.name} className={css.expansionRow}>
                         <span className={css.expansionName}>
                           {entry.expansion.name}
+                          {expansions.slots !== null &&
+                            !expansions.isUnloaded(entry.expansion) && (
+                              <LoadedMarker />
+                            )}
                           {expansions.isUnloaded(entry.expansion) && (
                             <>
                               <NotLoadedMarker expansion={entry.expansion.name} />
