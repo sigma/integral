@@ -21,12 +21,16 @@ fmt-check:
 lint:
     cargo clippy --workspace --all-targets -- -D warnings
 
-# typecheck the web app
-lint-web:
+# install web dependencies when missing or older than package-lock.json
+web-deps:
+    cd web && if [ ! -d node_modules ] || [ package-lock.json -nt node_modules/.package-lock.json ]; then npm ci; fi
+
+# typecheck the web app (needs the WASM package and web dependencies)
+lint-web: pack-wasm web-deps
     cd web && npx tsc -b
 
 # lint CSS (web + VST Vizia theme)
-lint-css:
+lint-css: web-deps
     cd web && npx stylelint "src/**/*.css"
     cd web && npx stylelint --config ../crates/integral-vst/.stylelintrc.json "../crates/integral-vst/src/**/*.css"
 

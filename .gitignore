@@ -31,3 +31,6 @@ Thumbs.db
 
 # Internal code tours
 .tours/internal-*.tour
+
+# TypeScript incremental build state
+*.tsbuildinfo
