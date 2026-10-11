@@ -570,7 +570,7 @@ impl DeviceState {
             self.state.chorus.params[param_index] = value;
         }
         let bytes = crate::state::parse::encode_nib_param(value);
-        let offset = 0x04 + (param_index as u8) * 4;
+        let offset = params::chorus::PARAM_BASE + (param_index as u8) * 4;
         let addr = params::chorus_address(offset);
         self.send_dt1(&addr, &bytes);
     }
@@ -602,7 +602,7 @@ impl DeviceState {
             self.state.reverb.params[param_index] = value;
         }
         let bytes = crate::state::parse::encode_nib_param(value);
-        let offset = 0x03 + (param_index as u8) * 4;
+        let offset = params::reverb::PARAM_BASE + (param_index as u8) * 4;
         let addr = params::reverb_address(offset);
         self.send_dt1(&addr, &bytes);
     }

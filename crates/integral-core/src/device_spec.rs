@@ -54,6 +54,17 @@ pub struct DeviceSpec {
     pub user_memory: &'static [UserMemorySpec],
 }
 
+impl DeviceSpec {
+    /// Number of User Studio Set slots (the [`Self::user_memory`] entry with
+    /// no tone type), or 0 if the device has none.
+    pub fn user_studio_set_count(&self) -> u16 {
+        self.user_memory
+            .iter()
+            .find(|m| m.tone_type.is_none())
+            .map_or(0, |m| m.slot_count)
+    }
+}
+
 /// A run of equally sized blocks in a Temporary layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BlockRun {
@@ -385,6 +396,11 @@ mod tests {
         assert_eq!(INTEGRA7.surround_room_sizes.len(), 3);
         assert_eq!(INTEGRA7.surround_room_sizes[0], "Small");
         assert_eq!(INTEGRA7.surround_room_sizes[2], "Large");
+    }
+
+    #[test]
+    fn integra7_user_studio_set_count() {
+        assert_eq!(INTEGRA7.user_studio_set_count(), 64);
     }
 
     fn spec(cli_name: &str) -> &'static UserMemorySpec {

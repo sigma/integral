@@ -1,6 +1,10 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   sna_inst_params_by_category,
+  sna_common_address,
+  sna_common_size,
+  sna_mfx_address,
+  mfx_block_size,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import {
@@ -48,30 +52,6 @@ interface InstParamDef {
   min: number;
   max: number;
   defaultValue: number;
-}
-
-// ---------------------------------------------------------------------------
-// Address helpers
-// ---------------------------------------------------------------------------
-
-function snaBaseAddress(part: number): [number, number] {
-  const partTotal = part * 0x20;
-  const toneBase0 = 0x19 + Math.floor(partTotal / 128);
-  const toneBase1 = partTotal % 128;
-  // Add SN-A type offset (02 00 00) to byte1
-  const snaBase1 = toneBase1 + 2;
-  const carry = Math.floor(snaBase1 / 128);
-  return [toneBase0 + carry, snaBase1 % 128];
-}
-
-function snaCommonAddress(part: number): number[] {
-  const [b0, b1] = snaBaseAddress(part);
-  return [b0, b1, 0x00, 0x00];
-}
-
-function snaMfxAddress(part: number): number[] {
-  const [b0, b1] = snaBaseAddress(part);
-  return [b0, b1, 0x02, 0x00];
 }
 
 // ---------------------------------------------------------------------------
@@ -153,8 +133,8 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
       try {
         // Common
         const commonData = await service.requestData(
-          snaCommonAddress(partIndex),
-          [0x00, 0x00, 0x00, 0x46],
+          Array.from(sna_common_address(partIndex)),
+          Array.from(sna_common_size()),
         );
         if (cancelled) return;
         const c = service.device.applySnaCommon(commonData) as SnAcousticCommon | null;
@@ -162,8 +142,8 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
 
         // MFX
         const mfxData = await service.requestData(
-          snaMfxAddress(partIndex),
-          [0x00, 0x00, 0x01, 0x11],
+          Array.from(sna_mfx_address(partIndex)),
+          Array.from(mfx_block_size()),
         );
         if (cancelled) return;
         const m = service.device.applyMfxBlock(partIndex, mfxData) as MfxState | null;

@@ -686,7 +686,7 @@ export class IntegraService {
   async requestStudioSetNames(): Promise<Map<number, string>> {
     const names = new Map<number, string>();
     const msg = new Uint8Array(
-      build_studio_set_catalog_request(this.deviceId, 0, 64),
+      build_studio_set_catalog_request(this.deviceId),
     );
 
     return new Promise((resolve) => {

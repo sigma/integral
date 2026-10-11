@@ -1,4 +1,16 @@
 import { useEffect, useState, useCallback } from "react";
+import {
+  pcms_common_address,
+  pcms_common_size,
+  pcms_pmt_address,
+  pcms_pmt_size,
+  pcms_common2_address,
+  pcms_common2_size,
+  pcms_mfx_address,
+  mfx_block_size,
+  pcms_partial_address,
+  pcms_partial_size,
+} from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import { MfxPanel } from "./MfxPanel";
 import type { MfxState } from "./MfxPanel";
@@ -13,43 +25,6 @@ import type {
 import { CommonStrip } from "./pcm-synth/CommonStrip";
 import { PmtStrip } from "./pcm-synth/PmtStrip";
 import { PartialRow } from "./pcm-synth/PartialRow";
-
-// ---------------------------------------------------------------------------
-// Address helpers
-// ---------------------------------------------------------------------------
-
-/** Compute PCM Synth base address bytes for a part (same as temporary_tone_base). */
-function pcmsBaseAddress(part: number): [number, number] {
-  const partTotal = part * 0x20;
-  const byte0 = 0x19 + Math.floor(partTotal / 128);
-  const byte1 = partTotal % 128;
-  return [byte0, byte1];
-}
-
-function pcmsCommonAddress(part: number): number[] {
-  const [b0, b1] = pcmsBaseAddress(part);
-  return [b0, b1, 0x00, 0x00];
-}
-
-function pcmsPmtAddress(part: number): number[] {
-  const [b0, b1] = pcmsBaseAddress(part);
-  return [b0, b1, 0x10, 0x00];
-}
-
-function pcmsPartialAddress(part: number, partial: number): number[] {
-  const [b0, b1] = pcmsBaseAddress(part);
-  return [b0, b1, 0x20 + partial * 2, 0x00];
-}
-
-function pcmsCommon2Address(part: number): number[] {
-  const [b0, b1] = pcmsBaseAddress(part);
-  return [b0, b1, 0x30, 0x00];
-}
-
-function pcmsMfxAddress(part: number): number[] {
-  const [b0, b1] = pcmsBaseAddress(part);
-  return [b0, b1, 0x02, 0x00];
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -75,37 +50,37 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
 
     async function load() {
       try {
-        // Common (0x50 bytes)
+        // Common
         const commonData = await service.requestData(
-          pcmsCommonAddress(partIndex),
-          [0x00, 0x00, 0x00, 0x50],
+          Array.from(pcms_common_address(partIndex)),
+          Array.from(pcms_common_size()),
         );
         if (cancelled) return;
         const c = service.device.applyPcmsCommon(commonData) as PcmSynthCommon | null;
         if (c) setCommon(c);
 
-        // PMT (0x29 bytes)
+        // PMT
         const pmtData = await service.requestData(
-          pcmsPmtAddress(partIndex),
-          [0x00, 0x00, 0x00, 0x29],
+          Array.from(pcms_pmt_address(partIndex)),
+          Array.from(pcms_pmt_size()),
         );
         if (cancelled) return;
         const p = service.device.applyPcmsPmt(pmtData) as PcmSynthPmt | null;
         if (p) setPmt(p);
 
-        // Common2 (0x3C bytes)
+        // Common2
         const c2Data = await service.requestData(
-          pcmsCommon2Address(partIndex),
-          [0x00, 0x00, 0x00, 0x3C],
+          Array.from(pcms_common2_address(partIndex)),
+          Array.from(pcms_common2_size()),
         );
         if (cancelled) return;
         const c2 = service.device.applyPcmsCommon2(c2Data) as PcmSynthCommon2 | null;
         if (c2) setCommon2(c2);
 
-        // MFX (0x111 bytes)
+        // MFX
         const mfxData = await service.requestData(
-          pcmsMfxAddress(partIndex),
-          [0x00, 0x00, 0x01, 0x11],
+          Array.from(pcms_mfx_address(partIndex)),
+          Array.from(mfx_block_size()),
         );
         if (cancelled) return;
         const m = service.device.applyMfxBlock(partIndex, mfxData) as MfxState | null;
@@ -115,8 +90,8 @@ export function PcmSynthEditor({ partIndex, service }: Props) {
         for (let idx = 0; idx < 4; idx++) {
           if (cancelled) return;
           const pData = await service.requestData(
-            pcmsPartialAddress(partIndex, idx),
-            [0x00, 0x00, 0x01, 0x1A],
+            Array.from(pcms_partial_address(partIndex, idx)),
+            Array.from(pcms_partial_size()),
           );
           if (cancelled) return;
           const parsed = service.device.applyPcmsPartial(pData) as PcmSynthPartial | null;

@@ -1,4 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
+import {
+  sns_common_address,
+  sns_common_size,
+  sns_partial_address,
+  sns_partial_size,
+  sns_mfx_address,
+  mfx_block_size,
+} from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import { MfxPanel } from "./MfxPanel";
 import type { MfxState } from "./MfxPanel";
@@ -6,37 +14,6 @@ import css from "./SnSynthEditor.module.css";
 import type { SnSynthCommon, SnSynthPartial } from "./sn-synth/types";
 import { CommonStrip } from "./sn-synth/CommonStrip";
 import { PartialRow } from "./sn-synth/PartialRow";
-
-// ---------------------------------------------------------------------------
-// Address helpers
-// ---------------------------------------------------------------------------
-
-/** Compute SN-S base address bytes for a part. */
-function snsBaseAddress(part: number): [number, number] {
-  const partTotal = part * 0x20;
-  const toneBase0 = 0x19 + Math.floor(partTotal / 128);
-  const toneBase1 = partTotal % 128;
-  // Add SN-S type offset (01 00 00) to byte1
-  const snsBase1 = toneBase1 + 1;
-  const carry = Math.floor(snsBase1 / 128);
-  return [toneBase0 + carry, snsBase1 % 128];
-}
-
-function snsCommonAddress(part: number): number[] {
-  const [b0, b1] = snsBaseAddress(part);
-  return [b0, b1, 0x00, 0x00];
-}
-
-function snsPartialAddress(part: number, partial: number): number[] {
-  const [b0, b1] = snsBaseAddress(part);
-  return [b0, b1, 0x20 + partial, 0x00];
-}
-
-// MFX block is at sns_base + 00 02 00
-function mfxAddress(part: number): number[] {
-  const [b0, b1] = snsBaseAddress(part);
-  return [b0, b1, 0x02, 0x00];
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -62,8 +39,8 @@ export function SnSynthEditor({ partIndex, service }: Props) {
       try {
         // Common
         const commonData = await service.requestData(
-          snsCommonAddress(partIndex),
-          [0x00, 0x00, 0x00, 0x40],
+          Array.from(sns_common_address(partIndex)),
+          Array.from(sns_common_size()),
         );
         if (cancelled) return;
         const c = service.device.applySnsCommon(commonData) as SnSynthCommon | null;
@@ -72,8 +49,8 @@ export function SnSynthEditor({ partIndex, service }: Props) {
         // Partials
         for (let i = 0; i < 3; i++) {
           const pData = await service.requestData(
-            snsPartialAddress(partIndex, i),
-            [0x00, 0x00, 0x00, 0x3D],
+            Array.from(sns_partial_address(partIndex, i)),
+            Array.from(sns_partial_size()),
           );
           if (cancelled) return;
           const p = service.device.applySnsPartial(pData) as SnSynthPartial | null;
@@ -88,8 +65,8 @@ export function SnSynthEditor({ partIndex, service }: Props) {
 
         // MFX
         const mfxData = await service.requestData(
-          mfxAddress(partIndex),
-          [0x00, 0x00, 0x01, 0x11],
+          Array.from(sns_mfx_address(partIndex)),
+          Array.from(mfx_block_size()),
         );
         if (cancelled) return;
         const m = service.device.applyMfxBlock(partIndex, mfxData) as MfxState | null;

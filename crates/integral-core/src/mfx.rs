@@ -64,6 +64,22 @@ pub const fn mfx_block_address(part_index: u8) -> Address {
     params::temporary_tone_base(part_index).offset(MFX_OFFSET)
 }
 
+/// Compute the absolute MFX block address for a part's tone.
+///
+/// `tone_type_offset` is a [`params::tone_type`] constant: each tone type has
+/// its own MFX block at offset `00 02 00` within its tone type block
+/// (MIDI Implementation, Temporary Tone).
+pub const fn tone_mfx_block_address(part_index: u8, tone_type_offset: [u8; 3]) -> Address {
+    params::temporary_tone_base(part_index)
+        .offset([
+            0x00,
+            tone_type_offset[0],
+            tone_type_offset[1],
+            tone_type_offset[2],
+        ])
+        .offset([0x00, 0x00, 0x02, 0x00])
+}
+
 /// Compute the absolute address for an MFX header byte (type, sends, controls).
 pub const fn mfx_address(part_index: u8, param_offset: u8) -> Address {
     mfx_block_address(part_index).offset([0x00, 0x00, 0x00, param_offset])
@@ -158,6 +174,22 @@ mod tests {
         let addr = mfx_block_address(0);
         // Part 1 tone base = 19 00 00 00, + 00 02 00 00 = 19 02 00 00
         assert_eq!(addr, Address::new(0x19, 0x02, 0x00, 0x00));
+    }
+
+    #[test]
+    fn tone_mfx_block_address_follows_tone_type() {
+        assert_eq!(
+            tone_mfx_block_address(0, params::tone_type::PCM_SYNTH),
+            Address::new(0x19, 0x00, 0x02, 0x00)
+        );
+        assert_eq!(
+            tone_mfx_block_address(4, params::tone_type::SN_SYNTH),
+            Address::new(0x1A, 0x01, 0x02, 0x00)
+        );
+        assert_eq!(
+            tone_mfx_block_address(1, params::tone_type::SN_ACOUSTIC),
+            Address::new(0x19, 0x22, 0x02, 0x00)
+        );
     }
 
     #[test]

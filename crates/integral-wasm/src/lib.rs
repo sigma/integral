@@ -6,8 +6,8 @@ use integral_core::device::DeviceState;
 use integral_core::state::parse as state_parse;
 use integral_core::sysex;
 use integral_core::{
-    fx_params, mfx, mfx_params, param_registry, params, params::part, params::part_eq, tone_banks,
-    user_write,
+    fx_params, mfx, mfx_params, param_registry, params, params::part, params::part_eq,
+    params::tone_type, pcm_synth, sn_acoustic, sn_synth, tone_banks, user_write,
 };
 use wasm_bindgen::prelude::*;
 
@@ -395,16 +395,135 @@ pub fn tone_name_size() -> Vec<u8> {
 }
 
 // ---------------------------------------------------------------------------
+// Tone edit blocks
+// ---------------------------------------------------------------------------
+
+/// Returns the RQ1 size for reading a tone's whole MFX block.
+#[wasm_bindgen]
+pub fn mfx_block_size() -> Vec<u8> {
+    mfx::MFX_BLOCK_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of part `part_index`'s PCM Synth Common block.
+#[wasm_bindgen]
+pub fn pcms_common_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(pcm_synth::pcms_common_address(part_index))
+}
+
+/// Returns the RQ1 size for reading a PCM Synth Common block.
+#[wasm_bindgen]
+pub fn pcms_common_size() -> Vec<u8> {
+    pcm_synth::PCMS_COMMON_BLOCK_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of part `part_index`'s PCM Synth PMT block.
+#[wasm_bindgen]
+pub fn pcms_pmt_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(pcm_synth::pcms_pmt_address(part_index))
+}
+
+/// Returns the RQ1 size for reading a PCM Synth PMT block.
+#[wasm_bindgen]
+pub fn pcms_pmt_size() -> Vec<u8> {
+    pcm_synth::PCMS_PMT_BLOCK_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of part `part_index`'s PCM Synth Partial `partial` (0–3).
+#[wasm_bindgen]
+pub fn pcms_partial_address(part_index: u8, partial: u8) -> Vec<u8> {
+    addr_to_vec(pcm_synth::pcms_partial_address(part_index, partial))
+}
+
+/// Returns the RQ1 size for reading a PCM Synth Partial block.
+#[wasm_bindgen]
+pub fn pcms_partial_size() -> Vec<u8> {
+    pcm_synth::PCMS_PARTIAL_BLOCK_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of part `part_index`'s PCM Synth Common2 block.
+#[wasm_bindgen]
+pub fn pcms_common2_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(pcm_synth::pcms_common2_address(part_index))
+}
+
+/// Returns the RQ1 size for reading a PCM Synth Common2 block.
+#[wasm_bindgen]
+pub fn pcms_common2_size() -> Vec<u8> {
+    pcm_synth::PCMS_COMMON2_BLOCK_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of part `part_index`'s PCM Synth MFX block.
+#[wasm_bindgen]
+pub fn pcms_mfx_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(mfx::tone_mfx_block_address(
+        part_index,
+        tone_type::PCM_SYNTH,
+    ))
+}
+
+/// Returns the address of part `part_index`'s SN Synth Common block.
+#[wasm_bindgen]
+pub fn sns_common_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(sn_synth::sns_common_address(part_index))
+}
+
+/// Returns the RQ1 size for reading an SN Synth Common block.
+#[wasm_bindgen]
+pub fn sns_common_size() -> Vec<u8> {
+    sn_synth::SNS_COMMON_BLOCK_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of part `part_index`'s SN Synth Partial `partial` (0–2).
+#[wasm_bindgen]
+pub fn sns_partial_address(part_index: u8, partial: u8) -> Vec<u8> {
+    addr_to_vec(sn_synth::sns_partial_address(part_index, partial))
+}
+
+/// Returns the RQ1 size for reading an SN Synth Partial block.
+#[wasm_bindgen]
+pub fn sns_partial_size() -> Vec<u8> {
+    sn_synth::SNS_PARTIAL_BLOCK_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of part `part_index`'s SN Synth MFX block.
+#[wasm_bindgen]
+pub fn sns_mfx_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(mfx::tone_mfx_block_address(part_index, tone_type::SN_SYNTH))
+}
+
+/// Returns the address of part `part_index`'s SN Acoustic Common block.
+#[wasm_bindgen]
+pub fn sna_common_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(sn_acoustic::sna_common_address(part_index))
+}
+
+/// Returns the RQ1 size for reading an SN Acoustic Common block.
+#[wasm_bindgen]
+pub fn sna_common_size() -> Vec<u8> {
+    sn_acoustic::SNA_COMMON_BLOCK_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of part `part_index`'s SN Acoustic MFX block.
+#[wasm_bindgen]
+pub fn sna_mfx_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(mfx::tone_mfx_block_address(
+        part_index,
+        tone_type::SN_ACOUSTIC,
+    ))
+}
+
+// ---------------------------------------------------------------------------
 // Catalog queries (undocumented)
 // ---------------------------------------------------------------------------
 
-/// Build a catalog query for all Studio Set names.
+/// Build a catalog query for all User Studio Set names.
 ///
-/// Returns the raw SysEx bytes to send. The device responds with multiple
-/// DT1 messages containing all 64 Studio Set names.
+/// Returns the raw SysEx bytes to send. The device responds with one DT1
+/// message per User Studio Set, as many as the device spec declares.
 #[wasm_bindgen]
-pub fn build_studio_set_catalog_request(device_id: u8, start: u8, count: u8) -> Vec<u8> {
-    catalog::build_studio_set_catalog_request(device_id, start, count)
+pub fn build_studio_set_catalog_request(device_id: u8) -> Vec<u8> {
+    let count = integral_core::device_spec::INTEGRA7.user_studio_set_count();
+    catalog::build_studio_set_catalog_request(device_id, 0, u8::try_from(count).unwrap_or(u8::MAX))
 }
 
 /// Build a catalog query for tone names in a specific bank.
