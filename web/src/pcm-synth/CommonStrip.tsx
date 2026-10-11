@@ -23,8 +23,8 @@ export function CommonStrip({
       {/* Mono/Poly */}
       <div className={css.commonGroup}>
         <SynthSwitch label="MONO" value={common.monoPoly}
-          options={[{ value: 0, label: "MONO" }, { value: 1, label: "POLY" }, { value: 2, label: "MONO2" }]}
-          onChange={set(PcmsCommonField.MonoPoly, "monoPoly")} vertical title="Voice mode: monophonic, polyphonic, or mono with legato" />
+          options={[{ value: 0, label: "MONO" }, { value: 1, label: "POLY" }]}
+          onChange={set(PcmsCommonField.MonoPoly, "monoPoly")} vertical title="Voice mode: monophonic or polyphonic" />
       </div>
 
       <div className={css.commonDivider} />
