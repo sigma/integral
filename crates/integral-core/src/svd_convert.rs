@@ -628,9 +628,10 @@ mod tests {
                 .split_once('×')
                 .map_or(1, |(_, n)| n.trim().parse().unwrap());
             let start: usize = row[bit].split('–').next().unwrap().parse().unwrap();
+            // Reserves leave the range blank or write `–`: take the full width.
             let range = match row[range].split_once('–') {
-                Some((lo, hi)) => lo.parse().unwrap()..=hi.parse().unwrap(),
-                None => 0..=(1u32 << width) - 1,
+                Some((lo, hi)) if !lo.is_empty() => lo.parse().unwrap()..=hi.parse().unwrap(),
+                _ => 0..=(1u32 << width) - 1,
             };
             for i in 0..count {
                 fields.push(DocField {
