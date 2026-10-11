@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import {
+  MfxHeaderField,
   mfx_type_names,
   mfx_type_param_count,
   mfx_param_def,
@@ -14,6 +15,7 @@ import {
 import type { EqControl } from "./synth-ui";
 import css from "./MfxPanel.module.css";
 import { deviceSpec } from "./deviceSpec";
+import type { MfxHandlers } from "./useMfxHandlers";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -33,11 +35,8 @@ export interface MfxState {
   params: number[];
 }
 
-interface Props {
+interface Props extends MfxHandlers {
   mfx: MfxState;
-  onTypeChange: (type_: number) => void;
-  onHeaderParam: (offset: number, value: number) => void;
-  onNibParam: (paramIndex: number, value: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -478,8 +477,8 @@ export function MfxPanel({
           <OutputStrip
             fx1={mfx.chorusSend} fx2={mfx.reverbSend}
             level={levelParamIndex >= 0 ? (mfx.params[levelParamIndex] ?? 127) : 127}
-            onFx1Change={(v) => onHeaderParam(0x02, v)}
-            onFx2Change={(v) => onHeaderParam(0x03, v)}
+            onFx1Change={(v) => onHeaderParam(MfxHeaderField.ChorusSend, 0, v)}
+            onFx2Change={(v) => onHeaderParam(MfxHeaderField.ReverbSend, 0, v)}
             onLevelChange={levelParamIndex >= 0 ? (v) => onNibParam(levelParamIndex, v) : () => {}}
             trackHeight={250}
           />
@@ -501,7 +500,7 @@ export function MfxPanel({
                   <select
                     className={css.macroSelect}
                     value={ctrl.source}
-                    onChange={(e) => onHeaderParam(0x05 + slot * 2, Number(e.target.value))}
+                    onChange={(e) => onHeaderParam(MfxHeaderField.ControlSource, slot, Number(e.target.value))}
                     title="Source"
                   >
                     {CTRL_SOURCE_NAMES.map((name, i) => (
@@ -511,7 +510,7 @@ export function MfxPanel({
                   <select
                     className={css.macroSelect}
                     value={ctrl.assign}
-                    onChange={(e) => onHeaderParam(0x0D + slot, Number(e.target.value))}
+                    onChange={(e) => onHeaderParam(MfxHeaderField.ControlAssign, slot, Number(e.target.value))}
                     title="Destination"
                   >
                     <option value={0}>OFF</option>
@@ -527,7 +526,7 @@ export function MfxPanel({
                   max={127}
                   defaultValue={64}
                   center={64}
-                  onChange={(v) => onHeaderParam(0x06 + slot * 2, v)}
+                  onChange={(v) => onHeaderParam(MfxHeaderField.ControlSens, slot, v)}
                   formatValue={(v) => String(v - 64)}
                   color="#8ac"
                   title={`Macro ${slot + 1} Depth`}

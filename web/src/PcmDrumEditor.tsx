@@ -23,6 +23,7 @@ import css from "./PcmDrumEditor.module.css";
 import type {
   PcmDrumCommon,
   PcmDrumCommon2,
+  PartialParamHandler,
   PcmDrumPartial,
   WmtParamHandler,
 } from "./pcm-drum/types";
@@ -177,15 +178,18 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
   );
 
   // ---------------------------------------------------------------------------
-  // Per-key partial param setter (single byte)
+  // Per-key partial param setter
   // ---------------------------------------------------------------------------
-  const setPartialParam = useCallback(
-    (offset: number, value: number) => {
-      service.device.setPcmdPartialParam(partIndex, selectedKey, offset, value);
+  const setPartialParam = useCallback<PartialParamHandler>(
+    (field, key, index, value) => {
+      service.device.setPcmdPartialField(partIndex, selectedKey, field, index, value);
       setNoteData((prev) => {
         if (!prev) return prev;
-        const next = { ...prev };
-        applyPartialField(next, offset, value);
+        const cur = prev[key];
+        const updated = Array.isArray(cur)
+          ? cur.map((c, i) => (i === index ? value : c))
+          : value;
+        const next = { ...prev, [key]: updated };
         noteCache.current.set(selectedKey, next);
         return next;
       });
@@ -279,101 +283,4 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
       </div>
     </div>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Field update helpers — map SysEx offset to the TS field
-// ---------------------------------------------------------------------------
-
-function applyPartialField(p: PcmDrumPartial, offset: number, value: number): void {
-  switch (offset) {
-    case 0x0C: p.assignType = value; break;
-    case 0x0D: p.muteGroup = value; break;
-    case 0x0E: p.level = value; break;
-    case 0x0F: p.coarseTune = value; break;
-    case 0x10: p.fineTune = value; break;
-    case 0x11: p.randomPitchDepth = value; break;
-    case 0x12: p.pan = value; break;
-    case 0x13: p.randomPanDepth = value; break;
-    case 0x14: p.alternatePanDepth = value; break;
-    case 0x15: p.envMode = value; break;
-    case 0x16: p.outputLevel = value; break;
-    case 0x19: p.chorusSend = value; break;
-    case 0x1A: p.reverbSend = value; break;
-    case 0x1B: p.outputAssign = value; break;
-    case 0x1C: p.pitchBendRange = value; break;
-    case 0x1D: p.receiveExpression = value; break;
-    case 0x1E: p.receiveHold1 = value; break;
-    case 0x20: p.wmtVelocityControl = value; break;
-    default:
-      // Pitch env
-      applyPitchEnvField(p, offset, value);
-      // TVF
-      applyTvfField(p, offset, value);
-      // TVA
-      applyTvaField(p, offset, value);
-      // One-shot
-      if (offset === 0x0141) p.oneShotMode = value;
-      break;
-  }
-}
-
-function applyPitchEnvField(p: PcmDrumPartial, offset: number, value: number): void {
-  // Pitch env fields at 0x0115-0x0121
-  const pitchBase = 0x0115; // Pitch Env Depth
-  const rel = offset - pitchBase;
-  if (rel < 0 || rel > 12) return;
-  switch (rel) {
-    case 0: p.pitchEnvDepth = value; break;
-    case 1: p.pitchEnvVelocitySens = value; break;
-    case 2: p.pitchEnvT1VelocitySens = value; break;
-    case 3: p.pitchEnvT4VelocitySens = value; break;
-    case 4: case 5: case 6: case 7:
-      p.pitchEnvTime = [...p.pitchEnvTime]; p.pitchEnvTime[rel - 4] = value; break;
-    case 8: case 9: case 10: case 11: case 12:
-      p.pitchEnvLevel = [...p.pitchEnvLevel]; p.pitchEnvLevel[rel - 8] = value; break;
-  }
-}
-
-function applyTvfField(p: PcmDrumPartial, offset: number, value: number): void {
-  // TVF fields at 0x0122-0x0135
-  const tvfBase = 0x0122; // TVF Filter Type
-  const rel = offset - tvfBase;
-  if (rel < 0 || rel > 19) return;
-  switch (rel) {
-    case 0: p.tvfFilterType = value; break;
-    case 1: p.tvfCutoffFrequency = value; break;
-    case 2: p.tvfCutoffVelocityCurve = value; break;
-    case 3: p.tvfCutoffVelocitySens = value; break;
-    case 4: p.tvfResonance = value; break;
-    case 5: p.tvfResonanceVelocitySens = value; break;
-    // TVF Env
-    case 6: p.tvfEnvDepth = value; break;
-    case 7: p.tvfEnvVelocityCurve = value; break;
-    case 8: p.tvfEnvVelocitySens = value; break;
-    case 9: p.tvfEnvT1VelocitySens = value; break;
-    case 10: p.tvfEnvT4VelocitySens = value; break;
-    case 11: case 12: case 13: case 14:
-      p.tvfEnvTime = [...p.tvfEnvTime]; p.tvfEnvTime[rel - 11] = value; break;
-    case 15: case 16: case 17: case 18: case 19:
-      p.tvfEnvLevel = [...p.tvfEnvLevel]; p.tvfEnvLevel[rel - 15] = value; break;
-  }
-}
-
-function applyTvaField(p: PcmDrumPartial, offset: number, value: number): void {
-  // TVA fields at 0x0136-0x0141
-  const tvaBase = 0x0136; // TVA Level Velocity Curve
-  const rel = offset - tvaBase;
-  if (rel < 0 || rel > 11) return;
-  switch (rel) {
-    case 0: p.tvaLevelVelocityCurve = value; break;
-    case 1: p.tvaLevelVelocitySens = value; break;
-    case 2: p.tvaEnvT1VelocitySens = value; break;
-    case 3: p.tvaEnvT4VelocitySens = value; break;
-    case 4: case 5: case 6: case 7:
-      p.tvaEnvTime = [...p.tvaEnvTime]; p.tvaEnvTime[rel - 4] = value; break;
-    case 8: case 9: case 10:
-      p.tvaEnvLevel = [...p.tvaEnvLevel]; p.tvaEnvLevel[rel - 8] = value; break;
-    case 11: p.oneShotMode = value; break;
-  }
 }

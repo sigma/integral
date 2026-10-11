@@ -1,4 +1,4 @@
-import type { PcmdWmtField } from "../../pkg/integral_wasm.js";
+import type { PcmdPartialField, PcmdWmtField } from "../../pkg/integral_wasm.js";
 
 // ---------------------------------------------------------------------------
 // Types mirroring the Rust serde output (PcmDrumCommon, PcmDrumPartial, etc.)
@@ -89,6 +89,29 @@ export interface PcmDrumPartial {
   tvaEnvLevel: number[];
   oneShotMode: number;
 }
+
+/** A {@link PcmDrumPartial} key holding a non-WMT field (a value or an
+ *  envelope's times or levels). */
+export type PartialFieldKey = {
+  [K in keyof PcmDrumPartial]: PcmDrumPartial[K] extends number | number[] ? K : never;
+}[keyof PcmDrumPartial];
+
+/** Sets element `index` (0 unless an envelope's times or levels) of a
+ *  non-WMT Partial field: `field` addresses it on the device, `key` names it
+ *  in {@link PcmDrumPartial}. */
+export type PartialParamHandler = (
+  field: PcmdPartialField,
+  key: PartialFieldKey,
+  index: number,
+  value: number,
+) => void;
+
+/** Builds the change callback for element `index` (default 0) of a field. */
+export type PartialSetter = (
+  field: PcmdPartialField,
+  key: PartialFieldKey,
+  index?: number,
+) => (value: number) => void;
 
 export interface PcmDrumCommon2 {
   phraseNumber: number;

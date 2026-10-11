@@ -546,6 +546,182 @@ impl From<PcmdWmtField> for pcm_drum::PcmdWmtField {
     }
 }
 
+/// A non-WMT field of a PCM Drum Kit Partial (mirrors [`pcm_drum::PcmdPartialField`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PcmdPartialField {
+    /// See [`pcm_drum::PcmdPartialField::AssignType`].
+    AssignType,
+    /// See [`pcm_drum::PcmdPartialField::MuteGroup`].
+    MuteGroup,
+    /// See [`pcm_drum::PcmdPartialField::Level`].
+    Level,
+    /// See [`pcm_drum::PcmdPartialField::CoarseTune`].
+    CoarseTune,
+    /// See [`pcm_drum::PcmdPartialField::FineTune`].
+    FineTune,
+    /// See [`pcm_drum::PcmdPartialField::RandomPitchDepth`].
+    RandomPitchDepth,
+    /// See [`pcm_drum::PcmdPartialField::Pan`].
+    Pan,
+    /// See [`pcm_drum::PcmdPartialField::RandomPanDepth`].
+    RandomPanDepth,
+    /// See [`pcm_drum::PcmdPartialField::AlternatePanDepth`].
+    AlternatePanDepth,
+    /// See [`pcm_drum::PcmdPartialField::EnvMode`].
+    EnvMode,
+    /// See [`pcm_drum::PcmdPartialField::OutputLevel`].
+    OutputLevel,
+    /// See [`pcm_drum::PcmdPartialField::ChorusSend`].
+    ChorusSend,
+    /// See [`pcm_drum::PcmdPartialField::ReverbSend`].
+    ReverbSend,
+    /// See [`pcm_drum::PcmdPartialField::OutputAssign`].
+    OutputAssign,
+    /// See [`pcm_drum::PcmdPartialField::PitchBendRange`].
+    PitchBendRange,
+    /// See [`pcm_drum::PcmdPartialField::ReceiveExpression`].
+    ReceiveExpression,
+    /// See [`pcm_drum::PcmdPartialField::ReceiveHold1`].
+    ReceiveHold1,
+    /// See [`pcm_drum::PcmdPartialField::WmtVelocityControl`].
+    WmtVelocityControl,
+    /// See [`pcm_drum::PcmdPartialField::PitchEnvDepth`].
+    PitchEnvDepth,
+    /// See [`pcm_drum::PcmdPartialField::PitchEnvVelocitySens`].
+    PitchEnvVelocitySens,
+    /// See [`pcm_drum::PcmdPartialField::PitchEnvT1VelocitySens`].
+    PitchEnvT1VelocitySens,
+    /// See [`pcm_drum::PcmdPartialField::PitchEnvT4VelocitySens`].
+    PitchEnvT4VelocitySens,
+    /// See [`pcm_drum::PcmdPartialField::PitchEnvTime`].
+    PitchEnvTime,
+    /// See [`pcm_drum::PcmdPartialField::PitchEnvLevel`].
+    PitchEnvLevel,
+    /// See [`pcm_drum::PcmdPartialField::TvfFilterType`].
+    TvfFilterType,
+    /// See [`pcm_drum::PcmdPartialField::TvfCutoffFrequency`].
+    TvfCutoffFrequency,
+    /// See [`pcm_drum::PcmdPartialField::TvfCutoffVelocityCurve`].
+    TvfCutoffVelocityCurve,
+    /// See [`pcm_drum::PcmdPartialField::TvfCutoffVelocitySens`].
+    TvfCutoffVelocitySens,
+    /// See [`pcm_drum::PcmdPartialField::TvfResonance`].
+    TvfResonance,
+    /// See [`pcm_drum::PcmdPartialField::TvfResonanceVelocitySens`].
+    TvfResonanceVelocitySens,
+    /// See [`pcm_drum::PcmdPartialField::TvfEnvDepth`].
+    TvfEnvDepth,
+    /// See [`pcm_drum::PcmdPartialField::TvfEnvVelocityCurve`].
+    TvfEnvVelocityCurve,
+    /// See [`pcm_drum::PcmdPartialField::TvfEnvVelocitySens`].
+    TvfEnvVelocitySens,
+    /// See [`pcm_drum::PcmdPartialField::TvfEnvT1VelocitySens`].
+    TvfEnvT1VelocitySens,
+    /// See [`pcm_drum::PcmdPartialField::TvfEnvT4VelocitySens`].
+    TvfEnvT4VelocitySens,
+    /// See [`pcm_drum::PcmdPartialField::TvfEnvTime`].
+    TvfEnvTime,
+    /// See [`pcm_drum::PcmdPartialField::TvfEnvLevel`].
+    TvfEnvLevel,
+    /// See [`pcm_drum::PcmdPartialField::TvaLevelVelocityCurve`].
+    TvaLevelVelocityCurve,
+    /// See [`pcm_drum::PcmdPartialField::TvaLevelVelocitySens`].
+    TvaLevelVelocitySens,
+    /// See [`pcm_drum::PcmdPartialField::TvaEnvT1VelocitySens`].
+    TvaEnvT1VelocitySens,
+    /// See [`pcm_drum::PcmdPartialField::TvaEnvT4VelocitySens`].
+    TvaEnvT4VelocitySens,
+    /// See [`pcm_drum::PcmdPartialField::TvaEnvTime`].
+    TvaEnvTime,
+    /// See [`pcm_drum::PcmdPartialField::TvaEnvLevel`].
+    TvaEnvLevel,
+    /// See [`pcm_drum::PcmdPartialField::OneShotMode`].
+    OneShotMode,
+}
+
+impl From<PcmdPartialField> for pcm_drum::PcmdPartialField {
+    fn from(field: PcmdPartialField) -> Self {
+        match field {
+            PcmdPartialField::AssignType => Self::AssignType,
+            PcmdPartialField::MuteGroup => Self::MuteGroup,
+            PcmdPartialField::Level => Self::Level,
+            PcmdPartialField::CoarseTune => Self::CoarseTune,
+            PcmdPartialField::FineTune => Self::FineTune,
+            PcmdPartialField::RandomPitchDepth => Self::RandomPitchDepth,
+            PcmdPartialField::Pan => Self::Pan,
+            PcmdPartialField::RandomPanDepth => Self::RandomPanDepth,
+            PcmdPartialField::AlternatePanDepth => Self::AlternatePanDepth,
+            PcmdPartialField::EnvMode => Self::EnvMode,
+            PcmdPartialField::OutputLevel => Self::OutputLevel,
+            PcmdPartialField::ChorusSend => Self::ChorusSend,
+            PcmdPartialField::ReverbSend => Self::ReverbSend,
+            PcmdPartialField::OutputAssign => Self::OutputAssign,
+            PcmdPartialField::PitchBendRange => Self::PitchBendRange,
+            PcmdPartialField::ReceiveExpression => Self::ReceiveExpression,
+            PcmdPartialField::ReceiveHold1 => Self::ReceiveHold1,
+            PcmdPartialField::WmtVelocityControl => Self::WmtVelocityControl,
+            PcmdPartialField::PitchEnvDepth => Self::PitchEnvDepth,
+            PcmdPartialField::PitchEnvVelocitySens => Self::PitchEnvVelocitySens,
+            PcmdPartialField::PitchEnvT1VelocitySens => Self::PitchEnvT1VelocitySens,
+            PcmdPartialField::PitchEnvT4VelocitySens => Self::PitchEnvT4VelocitySens,
+            PcmdPartialField::PitchEnvTime => Self::PitchEnvTime,
+            PcmdPartialField::PitchEnvLevel => Self::PitchEnvLevel,
+            PcmdPartialField::TvfFilterType => Self::TvfFilterType,
+            PcmdPartialField::TvfCutoffFrequency => Self::TvfCutoffFrequency,
+            PcmdPartialField::TvfCutoffVelocityCurve => Self::TvfCutoffVelocityCurve,
+            PcmdPartialField::TvfCutoffVelocitySens => Self::TvfCutoffVelocitySens,
+            PcmdPartialField::TvfResonance => Self::TvfResonance,
+            PcmdPartialField::TvfResonanceVelocitySens => Self::TvfResonanceVelocitySens,
+            PcmdPartialField::TvfEnvDepth => Self::TvfEnvDepth,
+            PcmdPartialField::TvfEnvVelocityCurve => Self::TvfEnvVelocityCurve,
+            PcmdPartialField::TvfEnvVelocitySens => Self::TvfEnvVelocitySens,
+            PcmdPartialField::TvfEnvT1VelocitySens => Self::TvfEnvT1VelocitySens,
+            PcmdPartialField::TvfEnvT4VelocitySens => Self::TvfEnvT4VelocitySens,
+            PcmdPartialField::TvfEnvTime => Self::TvfEnvTime,
+            PcmdPartialField::TvfEnvLevel => Self::TvfEnvLevel,
+            PcmdPartialField::TvaLevelVelocityCurve => Self::TvaLevelVelocityCurve,
+            PcmdPartialField::TvaLevelVelocitySens => Self::TvaLevelVelocitySens,
+            PcmdPartialField::TvaEnvT1VelocitySens => Self::TvaEnvT1VelocitySens,
+            PcmdPartialField::TvaEnvT4VelocitySens => Self::TvaEnvT4VelocitySens,
+            PcmdPartialField::TvaEnvTime => Self::TvaEnvTime,
+            PcmdPartialField::TvaEnvLevel => Self::TvaEnvLevel,
+            PcmdPartialField::OneShotMode => Self::OneShotMode,
+        }
+    }
+}
+
+/// A header field of an MFX block (mirrors [`mfx::MfxHeaderField`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MfxHeaderField {
+    /// See [`mfx::MfxHeaderField::Type`].
+    Type,
+    /// See [`mfx::MfxHeaderField::ChorusSend`].
+    ChorusSend,
+    /// See [`mfx::MfxHeaderField::ReverbSend`].
+    ReverbSend,
+    /// See [`mfx::MfxHeaderField::ControlSource`].
+    ControlSource,
+    /// See [`mfx::MfxHeaderField::ControlSens`].
+    ControlSens,
+    /// See [`mfx::MfxHeaderField::ControlAssign`].
+    ControlAssign,
+}
+
+impl From<MfxHeaderField> for mfx::MfxHeaderField {
+    fn from(field: MfxHeaderField) -> Self {
+        match field {
+            MfxHeaderField::Type => Self::Type,
+            MfxHeaderField::ChorusSend => Self::ChorusSend,
+            MfxHeaderField::ReverbSend => Self::ReverbSend,
+            MfxHeaderField::ControlSource => Self::ControlSource,
+            MfxHeaderField::ControlSens => Self::ControlSens,
+            MfxHeaderField::ControlAssign => Self::ControlAssign,
+        }
+    }
+}
+
 /// Returns the address of part `part_index`'s PCM Synth MFX block.
 #[wasm_bindgen]
 pub fn pcms_mfx_address(part_index: u8) -> Vec<u8> {
@@ -2341,6 +2517,23 @@ impl WasmDeviceState {
             .set_pcmd_wmt_param(part, key, wmt, field.into(), value)?)
     }
 
+    /// Set element `index` (0-based; 0 unless the field is an envelope's
+    /// times or levels) of a non-WMT field in the PCM Drum Kit Partial for `key`.
+    #[wasm_bindgen(js_name = setPcmdPartialField)]
+    pub fn set_pcmd_partial_field(
+        &mut self,
+        part: u8,
+        key: u8,
+        field: PcmdPartialField,
+        index: u8,
+        value: u8,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        Ok(self
+            .inner
+            .set_pcmd_partial_field(part, key, field.into(), index, value)?)
+    }
+
     /// Set a single PCM Drum Kit Common2 parameter.
     #[wasm_bindgen(js_name = setPcmdCommon2Param)]
     pub fn set_pcmd_common2_param(&mut self, part: u8, offset: u8, value: u8) {
@@ -2393,12 +2586,21 @@ impl WasmDeviceState {
 
     // -- MFX ---------------------------------------------------------------
 
-    /// Set an MFX header parameter (type, sends, control slots) of the part's
-    /// tone of type `tone_type`.
-    #[wasm_bindgen(js_name = setMfxParam)]
-    pub fn set_mfx_param(&mut self, part: u8, tone_type: ToneType, param_offset: u8, value: u8) {
-        self.inner
-            .set_mfx_param(part, tone_type.offset(), param_offset, value);
+    /// Set instance `index` (the 0-based control slot for the per-control
+    /// fields, 0 otherwise) of an MFX header field of the part's tone of type
+    /// `tone_type`.
+    #[wasm_bindgen(js_name = setMfxHeaderParam)]
+    pub fn set_mfx_header_param(
+        &mut self,
+        part: u8,
+        tone_type: ToneType,
+        field: MfxHeaderField,
+        index: u8,
+        value: u8,
+    ) -> Result<(), JsError> {
+        Ok(self
+            .inner
+            .set_mfx_header_param(part, tone_type.offset(), field.into(), index, value)?)
     }
 
     /// Set a nibblized MFX parameter (0-based index) of the part's tone of

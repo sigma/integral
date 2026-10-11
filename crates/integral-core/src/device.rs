@@ -652,17 +652,21 @@ impl DeviceState {
     // MFX
     // -----------------------------------------------------------------------
 
-    /// Set an MFX header parameter (type, sends, control slots) of a part's
-    /// tone of type `tone_type_offset` (a [`params::tone_type`] constant).
-    pub fn set_mfx_param(
+    /// Set instance `index` (the 0-based control slot for the per-control
+    /// fields, 0 otherwise) of an MFX header field of a part's tone of type
+    /// `tone_type_offset` (a [`params::tone_type`] constant).
+    pub fn set_mfx_header_param(
         &mut self,
         part: u8,
         tone_type_offset: [u8; 3],
-        param_offset: u8,
+        field: crate::mfx::MfxHeaderField,
+        index: u8,
         value: u8,
-    ) {
-        let addr = crate::mfx::mfx_address(part, tone_type_offset, param_offset);
+    ) -> Result<(), crate::mfx::MfxHeaderIndexError> {
+        let offset = crate::mfx::mfx_header_offset(field, index)?;
+        let addr = crate::mfx::mfx_address(part, tone_type_offset, offset);
         self.send_dt1(&addr, &[value]);
+        Ok(())
     }
 
     /// Set a nibblized MFX effect parameter (0-based index) of a part's tone
@@ -982,13 +986,28 @@ impl DeviceState {
         wmt: u8,
         field: crate::pcm_drum::PcmdWmtField,
         value: u16,
-    ) -> Result<(), crate::pcm_drum::PcmdWmtError> {
+    ) -> Result<(), crate::pcm_drum::PcmdFieldError> {
         let offset = crate::pcm_drum::pcmd_wmt_field_offset(wmt, field)?;
         if field.is_nibblized() {
             self.set_pcmd_partial_nib_param(part, key, offset, value)?;
         } else {
             self.set_pcmd_partial_param(part, key, offset, value as u8)?;
         }
+        Ok(())
+    }
+
+    /// Set element `index` (0-based; 0 unless the field is an envelope's
+    /// times or levels) of a non-WMT field in the Partial for `key`.
+    pub fn set_pcmd_partial_field(
+        &mut self,
+        part: u8,
+        key: u8,
+        field: crate::pcm_drum::PcmdPartialField,
+        index: u8,
+        value: u8,
+    ) -> Result<(), crate::pcm_drum::PcmdFieldError> {
+        let offset = crate::pcm_drum::pcmd_partial_field_offset(field, index)?;
+        self.set_pcmd_partial_param(part, key, offset, value)?;
         Ok(())
     }
 
@@ -1461,22 +1480,46 @@ mod tests {
     }
 
     #[test]
-    fn set_mfx_param_writes_the_tone_types_mfx_block() {
+    fn set_mfx_header_param_writes_the_tone_types_mfx_block() {
+        use crate::mfx::MfxHeaderField;
         let mut dev = DeviceState::new(0x10);
-        dev.set_mfx_param(
+        dev.set_mfx_header_param(
             0,
             params::tone_type::SN_ACOUSTIC,
-            crate::mfx::offset::TYPE,
+            MfxHeaderField::Type,
+            0,
             5,
-        );
+        )
+        .unwrap();
         assert_eq!(
             dev.drain(0.0).unwrap(),
             sysex::build_dt1(0x10, &Address::new(0x19, 0x02, 0x02, 0x00), &[5])
         );
-        dev.set_mfx_param(0, params::tone_type::PCM_SYNTH, crate::mfx::offset::TYPE, 7);
+        dev.set_mfx_header_param(
+            0,
+            params::tone_type::PCM_DRUM,
+            MfxHeaderField::ControlAssign,
+            3,
+            7,
+        )
+        .unwrap();
+        // PCM Drum MFX block at `10 02 00`, Control Assign 4 at `00 10`.
         assert_eq!(
             dev.drain(100.0).unwrap(),
-            sysex::build_dt1(0x10, &Address::new(0x19, 0x00, 0x02, 0x00), &[7])
+            sysex::build_dt1(0x10, &Address::new(0x19, 0x10, 0x02, 0x10), &[7])
+        );
+    }
+
+    #[test]
+    fn set_pcmd_partial_field_writes_the_keys_partial() {
+        use crate::pcm_drum::PcmdPartialField;
+        let mut dev = DeviceState::new(0x10);
+        dev.set_pcmd_partial_field(0, 22, PcmdPartialField::TvfCutoffFrequency, 0, 90)
+            .unwrap();
+        // Part 1, key 22: Partial at `10 12 00`, TVF Cutoff Frequency at `01 23`.
+        assert_eq!(
+            dev.drain(0.0).unwrap(),
+            sysex::build_dt1(0x10, &Address::new(0x19, 0x10, 0x13, 0x23), &[90])
         );
     }
 

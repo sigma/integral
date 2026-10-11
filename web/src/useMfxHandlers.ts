@@ -1,15 +1,38 @@
 import { useCallback, useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import { MfxHeaderField } from "../pkg/integral_wasm.js";
 import type { ToneType } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
-import type { MfxState } from "./MfxPanel";
-import { deviceSpec } from "./deviceSpec";
+import type { MfxCtrl, MfxState } from "./MfxPanel";
 
 /** The `MfxPanel` callbacks that edit a tone's MFX block. */
 export interface MfxHandlers {
   onTypeChange: (type_: number) => void;
-  onHeaderParam: (offset: number, value: number) => void;
+  /** `index` is the control slot for the per-control fields, 0 otherwise. */
+  onHeaderParam: (field: MfxHeaderField, index: number, value: number) => void;
   onNibParam: (paramIndex: number, value: number) => void;
+}
+
+/** `mfx` with instance `index` of header `field` set to `value`. */
+function withHeaderField(
+  mfx: MfxState,
+  field: MfxHeaderField,
+  index: number,
+  value: number,
+): MfxState {
+  const withControl = (key: keyof MfxCtrl): MfxState => {
+    const controls = [...mfx.controls];
+    controls[index] = { ...controls[index]!, [key]: value };
+    return { ...mfx, controls };
+  };
+  switch (field) {
+    case MfxHeaderField.Type: return { ...mfx, mfxType: value, params: [] };
+    case MfxHeaderField.ChorusSend: return { ...mfx, chorusSend: value };
+    case MfxHeaderField.ReverbSend: return { ...mfx, reverbSend: value };
+    case MfxHeaderField.ControlSource: return withControl("source");
+    case MfxHeaderField.ControlSens: return withControl("sens");
+    case MfxHeaderField.ControlAssign: return withControl("assign");
+  }
 }
 
 /**
@@ -22,35 +45,17 @@ export function useMfxHandlers(
   toneType: ToneType,
   setMfx: Dispatch<SetStateAction<MfxState | null>>,
 ): MfxHandlers {
-  const onTypeChange = useCallback(
-    (type_: number) => {
-      service.device.setMfxParam(partIndex, toneType, 0x00, type_);
-      setMfx((prev) => prev ? { ...prev, mfxType: type_, params: [] } : prev);
+  const onHeaderParam = useCallback(
+    (field: MfxHeaderField, index: number, value: number) => {
+      service.device.setMfxHeaderParam(partIndex, toneType, field, index, value);
+      setMfx((prev) => prev ? withHeaderField(prev, field, index, value) : prev);
     },
     [partIndex, toneType, service, setMfx],
   );
 
-  const onHeaderParam = useCallback(
-    (offset: number, value: number) => {
-      service.device.setMfxParam(partIndex, toneType, offset, value);
-      setMfx((prev) => {
-        if (!prev) return prev;
-        const next = { ...prev, controls: [...prev.controls] };
-        if (offset === 0x02) next.chorusSend = value;
-        else if (offset === 0x03) next.reverbSend = value;
-        for (let s = 0; s < deviceSpec().mfx_control_count; s++) {
-          if (offset === 0x05 + s * 2) {
-            next.controls[s] = { ...next.controls[s]!, source: value };
-          } else if (offset === 0x06 + s * 2) {
-            next.controls[s] = { ...next.controls[s]!, sens: value };
-          } else if (offset === 0x0D + s) {
-            next.controls[s] = { ...next.controls[s]!, assign: value };
-          }
-        }
-        return next;
-      });
-    },
-    [partIndex, toneType, service, setMfx],
+  const onTypeChange = useCallback(
+    (type_: number) => onHeaderParam(MfxHeaderField.Type, 0, type_),
+    [onHeaderParam],
   );
 
   const onNibParam = useCallback(

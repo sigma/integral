@@ -118,15 +118,131 @@ impl PcmdWmtField {
     }
 }
 
-/// Error returned for a WMT field address that doesn't exist.
+/// A per-key field of a PCM Drum Kit Partial outside the WMT layers. The
+/// discriminant is the field's first byte position within the partial;
+/// envelope time and level fields span [`PcmdPartialField::count`] bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PcmdPartialField {
+    /// Assign Type.
+    AssignType = 0x0C,
+    /// Mute Group.
+    MuteGroup = 0x0D,
+    /// Partial Level.
+    Level = 0x0E,
+    /// Partial Coarse Tune.
+    CoarseTune = 0x0F,
+    /// Partial Fine Tune.
+    FineTune = 0x10,
+    /// Partial Random Pitch Depth.
+    RandomPitchDepth = 0x11,
+    /// Partial Pan.
+    Pan = 0x12,
+    /// Partial Random Pan Depth.
+    RandomPanDepth = 0x13,
+    /// Partial Alternate Pan Depth.
+    AlternatePanDepth = 0x14,
+    /// Partial Env Mode.
+    EnvMode = 0x15,
+    /// Partial Output Level.
+    OutputLevel = 0x16,
+    /// Partial Chorus Send Level.
+    ChorusSend = 0x19,
+    /// Partial Reverb Send Level.
+    ReverbSend = 0x1A,
+    /// Partial Output Assign.
+    OutputAssign = 0x1B,
+    /// Partial Pitch Bend Range.
+    PitchBendRange = 0x1C,
+    /// Partial Receive Expression.
+    ReceiveExpression = 0x1D,
+    /// Partial Receive Hold-1.
+    ReceiveHold1 = 0x1E,
+    /// WMT Velocity Control.
+    WmtVelocityControl = 0x20,
+    /// Pitch Env Depth (`01 15`).
+    PitchEnvDepth = 0x80 + 0x15,
+    /// Pitch Env Velocity Sens.
+    PitchEnvVelocitySens = 0x80 + 0x16,
+    /// Pitch Env Time 1 Velocity Sens.
+    PitchEnvT1VelocitySens = 0x80 + 0x17,
+    /// Pitch Env Time 4 Velocity Sens.
+    PitchEnvT4VelocitySens = 0x80 + 0x18,
+    /// Pitch Env Time 1–4.
+    PitchEnvTime = 0x80 + 0x19,
+    /// Pitch Env Level 0–4.
+    PitchEnvLevel = 0x80 + 0x1D,
+    /// TVF Filter Type (`01 22`).
+    TvfFilterType = 0x80 + 0x22,
+    /// TVF Cutoff Frequency.
+    TvfCutoffFrequency = 0x80 + 0x23,
+    /// TVF Cutoff Velocity Curve.
+    TvfCutoffVelocityCurve = 0x80 + 0x24,
+    /// TVF Cutoff Velocity Sens.
+    TvfCutoffVelocitySens = 0x80 + 0x25,
+    /// TVF Resonance.
+    TvfResonance = 0x80 + 0x26,
+    /// TVF Resonance Velocity Sens.
+    TvfResonanceVelocitySens = 0x80 + 0x27,
+    /// TVF Env Depth.
+    TvfEnvDepth = 0x80 + 0x28,
+    /// TVF Env Velocity Curve Type.
+    TvfEnvVelocityCurve = 0x80 + 0x29,
+    /// TVF Env Velocity Sens.
+    TvfEnvVelocitySens = 0x80 + 0x2A,
+    /// TVF Env Time 1 Velocity Sens.
+    TvfEnvT1VelocitySens = 0x80 + 0x2B,
+    /// TVF Env Time 4 Velocity Sens.
+    TvfEnvT4VelocitySens = 0x80 + 0x2C,
+    /// TVF Env Time 1–4.
+    TvfEnvTime = 0x80 + 0x2D,
+    /// TVF Env Level 0–4.
+    TvfEnvLevel = 0x80 + 0x31,
+    /// TVA Level Velocity Curve (`01 36`).
+    TvaLevelVelocityCurve = 0x80 + 0x36,
+    /// TVA Level Velocity Sens.
+    TvaLevelVelocitySens = 0x80 + 0x37,
+    /// TVA Env Time 1 Velocity Sens.
+    TvaEnvT1VelocitySens = 0x80 + 0x38,
+    /// TVA Env Time 4 Velocity Sens.
+    TvaEnvT4VelocitySens = 0x80 + 0x39,
+    /// TVA Env Time 1–4.
+    TvaEnvTime = 0x80 + 0x3A,
+    /// TVA Env Level 1–3.
+    TvaEnvLevel = 0x80 + 0x3E,
+    /// One Shot Mode (`01 41`).
+    OneShotMode = 0x80 + 0x41,
+}
+
+impl PcmdPartialField {
+    /// Number of consecutive bytes (envelope steps) the field spans.
+    pub const fn count(self) -> usize {
+        match self {
+            Self::PitchEnvTime | Self::TvfEnvTime | Self::TvaEnvTime => 4,
+            Self::PitchEnvLevel | Self::TvfEnvLevel => 5,
+            Self::TvaEnvLevel => 3,
+            _ => 1,
+        }
+    }
+}
+
+/// Error returned for a PCM Drum Kit Partial field address that doesn't exist.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
-pub enum PcmdWmtError {
+pub enum PcmdFieldError {
     /// The key is outside the kit's range.
     #[error(transparent)]
     Key(#[from] KeyOutOfRange),
     /// The WMT index is not below [`PCMD_WMT_COUNT`].
     #[error("WMT index {0} out of range (0–{max})", max = PCMD_WMT_COUNT - 1)]
     Wmt(u8),
+    /// The element index is not below the field's [`PcmdPartialField::count`].
+    #[error("{field:?} has no element {index}")]
+    Element {
+        /// The field addressed.
+        field: PcmdPartialField,
+        /// The out-of-range element index.
+        index: u8,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -181,10 +297,28 @@ pub fn pcmd_partial_param_address(
 
 /// Offset of `field` in WMT `wmt` (0-based) from the start of a Partial
 /// block, in the 2-byte form [`pcmd_partial_param_address`] takes.
-pub fn pcmd_wmt_field_offset(wmt: u8, field: PcmdWmtField) -> Result<u16, PcmdWmtError> {
-    let start = WMT_STARTS.get(wmt as usize).ok_or(PcmdWmtError::Wmt(wmt))?;
-    let linear = (start + field as usize) as u16;
-    Ok(((linear / 128) << 8) | (linear % 128))
+pub fn pcmd_wmt_field_offset(wmt: u8, field: PcmdWmtField) -> Result<u16, PcmdFieldError> {
+    let start = WMT_STARTS
+        .get(wmt as usize)
+        .ok_or(PcmdFieldError::Wmt(wmt))?;
+    Ok(split_offset(start + field as usize))
+}
+
+/// Offset of element `index` (0-based) of `field` from the start of a Partial
+/// block, in the 2-byte form [`pcmd_partial_param_address`] takes.
+pub fn pcmd_partial_field_offset(
+    field: PcmdPartialField,
+    index: u8,
+) -> Result<u16, PcmdFieldError> {
+    if index as usize >= field.count() {
+        return Err(PcmdFieldError::Element { field, index });
+    }
+    Ok(split_offset(field as usize + index as usize))
+}
+
+/// Split a byte position within a Partial into its 7-bit `hi lo` offset.
+const fn split_offset(linear: usize) -> u16 {
+    (((linear / 128) << 8) | (linear % 128)) as u16
 }
 
 /// Compute the absolute PCM Drum Kit Common2 block address for a part.
@@ -600,71 +734,63 @@ pub fn parse_pcmd_partial(data: &[u8]) -> Result<PcmDrumPartial, crate::TonePars
     }
     let mut p = PcmDrumPartial::default();
 
-    // -- Common per-key (linear indices 0-30) --
+    use PcmdPartialField as F;
+    let byte = |f: F| data[f as usize];
+    let bytes = |f: F| &data[f as usize..f as usize + f.count()];
+
     p.partial_name = parse_ascii_name(data);
-    p.assign_type = data[0x0C];
-    p.mute_group = data[0x0D];
-    p.level = data[0x0E];
-    p.coarse_tune = data[0x0F];
-    p.fine_tune = data[0x10];
-    p.random_pitch_depth = data[0x11];
-    p.pan = data[0x12];
-    p.random_pan_depth = data[0x13];
-    p.alternate_pan_depth = data[0x14];
-    p.env_mode = data[0x15];
-    p.output_level = data[0x16];
-    // 0x17, 0x18: reserved
-    p.chorus_send = data[0x19];
-    p.reverb_send = data[0x1A];
-    p.output_assign = data[0x1B];
-    p.pitch_bend_range = data[0x1C];
-    p.receive_expression = data[0x1D];
-    p.receive_hold1 = data[0x1E];
-    // 0x1F: reserved
+    p.assign_type = byte(F::AssignType);
+    p.mute_group = byte(F::MuteGroup);
+    p.level = byte(F::Level);
+    p.coarse_tune = byte(F::CoarseTune);
+    p.fine_tune = byte(F::FineTune);
+    p.random_pitch_depth = byte(F::RandomPitchDepth);
+    p.pan = byte(F::Pan);
+    p.random_pan_depth = byte(F::RandomPanDepth);
+    p.alternate_pan_depth = byte(F::AlternatePanDepth);
+    p.env_mode = byte(F::EnvMode);
+    p.output_level = byte(F::OutputLevel);
+    p.chorus_send = byte(F::ChorusSend);
+    p.reverb_send = byte(F::ReverbSend);
+    p.output_assign = byte(F::OutputAssign);
+    p.pitch_bend_range = byte(F::PitchBendRange);
+    p.receive_expression = byte(F::ReceiveExpression);
+    p.receive_hold1 = byte(F::ReceiveHold1);
 
-    // -- WMT --
-    p.wmt_velocity_control = data[0x20];
-
+    p.wmt_velocity_control = byte(F::WmtVelocityControl);
     for (i, &start) in WMT_STARTS.iter().enumerate() {
         p.wmt[i] = parse_pcmd_wmt(&data[start..start + WMT_LAYER_SIZE]);
     }
 
-    // -- Pitch Envelope (offsets 01 15 - 01 21, linear 149-161) --
-    p.pitch_env_depth = data[149];
-    p.pitch_env_velocity_sens = data[150];
-    p.pitch_env_t1_velocity_sens = data[151];
-    p.pitch_env_t4_velocity_sens = data[152];
-    p.pitch_env_time.copy_from_slice(&data[153..157]);
-    p.pitch_env_level.copy_from_slice(&data[157..162]);
+    p.pitch_env_depth = byte(F::PitchEnvDepth);
+    p.pitch_env_velocity_sens = byte(F::PitchEnvVelocitySens);
+    p.pitch_env_t1_velocity_sens = byte(F::PitchEnvT1VelocitySens);
+    p.pitch_env_t4_velocity_sens = byte(F::PitchEnvT4VelocitySens);
+    p.pitch_env_time.copy_from_slice(bytes(F::PitchEnvTime));
+    p.pitch_env_level.copy_from_slice(bytes(F::PitchEnvLevel));
 
-    // -- TVF (offsets 01 22 - 01 27, linear 162-167) --
-    p.tvf_filter_type = data[162];
-    p.tvf_cutoff_frequency = data[163];
-    p.tvf_cutoff_velocity_curve = data[164];
-    p.tvf_cutoff_velocity_sens = data[165];
-    p.tvf_resonance = data[166];
-    p.tvf_resonance_velocity_sens = data[167];
+    p.tvf_filter_type = byte(F::TvfFilterType);
+    p.tvf_cutoff_frequency = byte(F::TvfCutoffFrequency);
+    p.tvf_cutoff_velocity_curve = byte(F::TvfCutoffVelocityCurve);
+    p.tvf_cutoff_velocity_sens = byte(F::TvfCutoffVelocitySens);
+    p.tvf_resonance = byte(F::TvfResonance);
+    p.tvf_resonance_velocity_sens = byte(F::TvfResonanceVelocitySens);
+    p.tvf_env_depth = byte(F::TvfEnvDepth);
+    p.tvf_env_velocity_curve = byte(F::TvfEnvVelocityCurve);
+    p.tvf_env_velocity_sens = byte(F::TvfEnvVelocitySens);
+    p.tvf_env_t1_velocity_sens = byte(F::TvfEnvT1VelocitySens);
+    p.tvf_env_t4_velocity_sens = byte(F::TvfEnvT4VelocitySens);
+    p.tvf_env_time.copy_from_slice(bytes(F::TvfEnvTime));
+    p.tvf_env_level.copy_from_slice(bytes(F::TvfEnvLevel));
 
-    // -- TVF Envelope (offsets 01 28 - 01 35, linear 168-181) --
-    p.tvf_env_depth = data[168];
-    p.tvf_env_velocity_curve = data[169];
-    p.tvf_env_velocity_sens = data[170];
-    p.tvf_env_t1_velocity_sens = data[171];
-    p.tvf_env_t4_velocity_sens = data[172];
-    p.tvf_env_time.copy_from_slice(&data[173..177]);
-    p.tvf_env_level.copy_from_slice(&data[177..182]);
+    p.tva_level_velocity_curve = byte(F::TvaLevelVelocityCurve);
+    p.tva_level_velocity_sens = byte(F::TvaLevelVelocitySens);
+    p.tva_env_t1_velocity_sens = byte(F::TvaEnvT1VelocitySens);
+    p.tva_env_t4_velocity_sens = byte(F::TvaEnvT4VelocitySens);
+    p.tva_env_time.copy_from_slice(bytes(F::TvaEnvTime));
+    p.tva_env_level.copy_from_slice(bytes(F::TvaEnvLevel));
 
-    // -- TVA (offsets 01 36 - 01 40, linear 182-192) --
-    p.tva_level_velocity_curve = data[182];
-    p.tva_level_velocity_sens = data[183];
-    p.tva_env_t1_velocity_sens = data[184];
-    p.tva_env_t4_velocity_sens = data[185];
-    p.tva_env_time.copy_from_slice(&data[186..190]);
-    p.tva_env_level.copy_from_slice(&data[190..193]);
-
-    // -- One Shot Mode (offset 01 41, linear 193) --
-    p.one_shot_mode = data[193];
-    // data[194] = reserved
+    p.one_shot_mode = byte(F::OneShotMode);
 
     Ok(p)
 }
@@ -770,7 +896,36 @@ mod tests {
         assert_eq!(pcmd_wmt_field_offset(3, PcmdWmtField::Level), Ok(0x0110));
         assert_eq!(
             pcmd_wmt_field_offset(4, PcmdWmtField::Switch),
-            Err(PcmdWmtError::Wmt(4))
+            Err(PcmdFieldError::Wmt(4))
+        );
+    }
+
+    #[test]
+    fn pcmd_partial_field_offsets_follow_the_midi_implementation() {
+        // Partial Pan `00 12`, TVF Env Time 3 `01 2F`, TVA Env Level 3 `01 40`,
+        // One Shot Mode `01 41`.
+        assert_eq!(
+            pcmd_partial_field_offset(PcmdPartialField::Pan, 0),
+            Ok(0x0012)
+        );
+        assert_eq!(
+            pcmd_partial_field_offset(PcmdPartialField::TvfEnvTime, 2),
+            Ok(0x012F)
+        );
+        assert_eq!(
+            pcmd_partial_field_offset(PcmdPartialField::TvaEnvLevel, 2),
+            Ok(0x0140)
+        );
+        assert_eq!(
+            pcmd_partial_field_offset(PcmdPartialField::OneShotMode, 0),
+            Ok(0x0141)
+        );
+        assert_eq!(
+            pcmd_partial_field_offset(PcmdPartialField::TvaEnvLevel, 3),
+            Err(PcmdFieldError::Element {
+                field: PcmdPartialField::TvaEnvLevel,
+                index: 3
+            })
         );
     }
 

@@ -7,6 +7,7 @@
 
 use crate::address::{Address, DataSize};
 use crate::params;
+use thiserror::Error;
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -27,40 +28,70 @@ pub const MFX_CONTROL_COUNT: usize = 4;
 /// Number of nibblized MFX parameters.
 pub const MFX_PARAM_COUNT: usize = 32;
 
-/// Per-param offsets within the MFX block.
-pub mod offset {
+/// Offset of the first nibblized parameter (4 bytes each) in the MFX block.
+pub const MFX_PARAMS_START: u8 = 0x11;
+
+/// A header field of the MFX block. The per-control fields repeat for each
+/// of the [`MFX_CONTROL_COUNT`] control slots.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MfxHeaderField {
     /// MFX Type (0–67).
-    pub const TYPE: u8 = 0x00;
+    Type,
     /// MFX Chorus Send Level (0–127).
-    pub const CHORUS_SEND: u8 = 0x02;
+    ChorusSend,
     /// MFX Reverb Send Level (0–127).
-    pub const REVERB_SEND: u8 = 0x03;
-    /// MFX Control 1 Source.
-    pub const CTRL1_SOURCE: u8 = 0x05;
-    /// MFX Control 1 Sens.
-    pub const CTRL1_SENS: u8 = 0x06;
-    /// MFX Control 2 Source.
-    pub const CTRL2_SOURCE: u8 = 0x07;
-    /// MFX Control 2 Sens.
-    pub const CTRL2_SENS: u8 = 0x08;
-    /// MFX Control 3 Source.
-    pub const CTRL3_SOURCE: u8 = 0x09;
-    /// MFX Control 3 Sens.
-    pub const CTRL3_SENS: u8 = 0x0A;
-    /// MFX Control 4 Source.
-    pub const CTRL4_SOURCE: u8 = 0x0B;
-    /// MFX Control 4 Sens.
-    pub const CTRL4_SENS: u8 = 0x0C;
-    /// MFX Control Assign 1 (0–16: OFF, param 1–16).
-    pub const CTRL_ASSIGN1: u8 = 0x0D;
-    /// MFX Control Assign 2.
-    pub const CTRL_ASSIGN2: u8 = 0x0E;
-    /// MFX Control Assign 3.
-    pub const CTRL_ASSIGN3: u8 = 0x0F;
-    /// MFX Control Assign 4.
-    pub const CTRL_ASSIGN4: u8 = 0x10;
-    /// First nibblized parameter (4 bytes each, starting at 0x11).
-    pub const PARAMS_START: u8 = 0x11;
+    ReverbSend,
+    /// MFX Control Source of a control slot.
+    ControlSource,
+    /// MFX Control Sens of a control slot.
+    ControlSens,
+    /// MFX Control Assign of a control slot (0–16: OFF, param 1–16).
+    ControlAssign,
+}
+
+impl MfxHeaderField {
+    /// Number of instances of the field: [`MFX_CONTROL_COUNT`] for the
+    /// per-control fields, 1 otherwise.
+    pub const fn count(self) -> usize {
+        match self {
+            Self::Type | Self::ChorusSend | Self::ReverbSend => 1,
+            Self::ControlSource | Self::ControlSens | Self::ControlAssign => MFX_CONTROL_COUNT,
+        }
+    }
+
+    /// Offset of instance `index` in the MFX block, unchecked.
+    const fn raw_offset(self, index: u8) -> u8 {
+        match self {
+            Self::Type => 0x00,
+            Self::ChorusSend => 0x02,
+            Self::ReverbSend => 0x03,
+            Self::ControlSource => 0x05 + index * 2,
+            Self::ControlSens => 0x06 + index * 2,
+            Self::ControlAssign => 0x0D + index,
+        }
+    }
+}
+
+/// Error returned for an MFX header field instance that doesn't exist.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[error("MFX {field:?} has no instance {index}")]
+pub struct MfxHeaderIndexError {
+    /// The field addressed.
+    pub field: MfxHeaderField,
+    /// The out-of-range instance (control slot) index.
+    pub index: u8,
+}
+
+/// Offset in the MFX block of instance `index` (the 0-based control slot for
+/// the per-control fields, 0 otherwise) of `field`.
+pub const fn mfx_header_offset(
+    field: MfxHeaderField,
+    index: u8,
+) -> Result<u8, MfxHeaderIndexError> {
+    if index as usize >= field.count() {
+        return Err(MfxHeaderIndexError { field, index });
+    }
+    Ok(field.raw_offset(index))
 }
 
 /// Compute the absolute MFX block address for a part's tone.
@@ -97,7 +128,7 @@ pub const fn mfx_param_address(
     tone_type_offset: [u8; 3],
     param_index: u8,
 ) -> Address {
-    let byte_offset = offset::PARAMS_START + param_index * 4;
+    let byte_offset = MFX_PARAMS_START + param_index * 4;
     tone_mfx_block_address(part_index, tone_type_offset).offset([0x00, 0x00, 0x00, byte_offset])
 }
 
@@ -142,20 +173,19 @@ pub struct MfxState {
 /// Parse the MFX header (17 bytes at offset 0x00–0x10).
 pub fn parse_mfx_header(data: &[u8]) -> MfxState {
     let mut state = MfxState::default();
-    if data.len() < 0x11 {
+    if data.len() < MFX_PARAMS_START as usize {
         return state;
     }
-    state.mfx_type = data[0x00];
-    state.chorus_send = data[0x02];
-    state.reverb_send = data[0x03];
+    use MfxHeaderField as F;
+    let byte = |f: F, i: u8| data[f.raw_offset(i) as usize];
+    state.mfx_type = byte(F::Type, 0);
+    state.chorus_send = byte(F::ChorusSend, 0);
+    state.reverb_send = byte(F::ReverbSend, 0);
     for i in 0..MFX_CONTROL_COUNT as u8 {
-        let src_off = (0x05 + i * 2) as usize;
-        let sens_off = (0x06 + i * 2) as usize;
-        let assign_off = (0x0D + i) as usize;
         state.controls[i as usize] = MfxCtrlSlot {
-            source: data[src_off],
-            sens: data[sens_off],
-            assign: data[assign_off],
+            source: byte(F::ControlSource, i),
+            sens: byte(F::ControlSens, i),
+            assign: byte(F::ControlAssign, i),
         };
     }
     state
@@ -164,8 +194,9 @@ pub fn parse_mfx_header(data: &[u8]) -> MfxState {
 /// Parse the full MFX block (header + 32 nibblized params).
 pub fn parse_mfx_block(data: &[u8]) -> MfxState {
     let mut state = parse_mfx_header(data);
-    if data.len() > 0x11 {
-        state.params = crate::state::parse::decode_nib_params(&data[0x11..], MFX_PARAM_COUNT);
+    let start = MFX_PARAMS_START as usize;
+    if data.len() > start {
+        state.params = crate::state::parse::decode_nib_params(&data[start..], MFX_PARAM_COUNT);
     }
     state
 }
@@ -206,11 +237,11 @@ mod tests {
     #[test]
     fn mfx_address_pcm_synth_part1() {
         assert_eq!(
-            mfx_address(0, params::tone_type::PCM_SYNTH, offset::TYPE),
+            mfx_address(0, params::tone_type::PCM_SYNTH, 0x00),
             Address::new(0x19, 0x00, 0x02, 0x00)
         );
         assert_eq!(
-            mfx_address(0, params::tone_type::PCM_SYNTH, offset::REVERB_SEND),
+            mfx_address(0, params::tone_type::PCM_SYNTH, 0x03),
             Address::new(0x19, 0x00, 0x02, 0x03)
         );
     }
@@ -219,7 +250,7 @@ mod tests {
     fn mfx_address_sn_acoustic_part1() {
         // Must not land on SN-A Common `19 02 00 00` (the tone name).
         assert_eq!(
-            mfx_address(0, params::tone_type::SN_ACOUSTIC, offset::TYPE),
+            mfx_address(0, params::tone_type::SN_ACOUSTIC, 0x00),
             Address::new(0x19, 0x02, 0x02, 0x00)
         );
     }
@@ -228,12 +259,12 @@ mod tests {
     fn mfx_address_higher_part() {
         // Part 5 base = 1A 00 00 00.
         assert_eq!(
-            mfx_address(4, params::tone_type::SN_ACOUSTIC, offset::CTRL_ASSIGN4),
+            mfx_address(4, params::tone_type::SN_ACOUSTIC, 0x10),
             Address::new(0x1A, 0x02, 0x02, 0x10)
         );
         // Part 16 base = 1C 60 00 00.
         assert_eq!(
-            mfx_address(15, params::tone_type::PCM_DRUM, offset::TYPE),
+            mfx_address(15, params::tone_type::PCM_DRUM, 0x00),
             Address::new(0x1C, 0x70, 0x02, 0x00)
         );
     }
@@ -261,6 +292,31 @@ mod tests {
         assert_eq!(
             mfx_param_address(1, params::tone_type::SN_ACOUSTIC, 31),
             Address::new(0x19, 0x22, 0x03, 0x0D)
+        );
+    }
+
+    #[test]
+    fn mfx_header_offsets_follow_the_midi_implementation() {
+        // Chorus Send `00 02`, Control 2 Sens `00 08`, Control Assign 4 `00 10`.
+        assert_eq!(mfx_header_offset(MfxHeaderField::ChorusSend, 0), Ok(0x02));
+        assert_eq!(mfx_header_offset(MfxHeaderField::ControlSens, 1), Ok(0x08));
+        assert_eq!(
+            mfx_header_offset(MfxHeaderField::ControlAssign, 3),
+            Ok(0x10)
+        );
+        assert_eq!(
+            mfx_header_offset(MfxHeaderField::ControlAssign, 4),
+            Err(MfxHeaderIndexError {
+                field: MfxHeaderField::ControlAssign,
+                index: 4
+            })
+        );
+        assert_eq!(
+            mfx_header_offset(MfxHeaderField::Type, 1),
+            Err(MfxHeaderIndexError {
+                field: MfxHeaderField::Type,
+                index: 1
+            })
         );
     }
 
