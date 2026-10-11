@@ -2613,11 +2613,12 @@ impl WasmDeviceState {
     /// Set chorus state from core bytes.
     #[wasm_bindgen(js_name = applyChorusCore)]
     pub fn apply_chorus_core(&mut self, data: &[u8]) {
-        if data.len() >= 3 {
+        let out = usize::from(params::chorus::OUTPUT_SELECT);
+        if data.len() > out {
             let fx = &mut self.inner.state_mut().chorus;
-            fx.fx_type = data[0];
-            fx.level = data[1];
-            fx.output = data[2];
+            fx.fx_type = data[usize::from(params::chorus::TYPE)];
+            fx.level = data[usize::from(params::chorus::LEVEL)];
+            fx.output = data[out];
         }
     }
 
@@ -2636,11 +2637,12 @@ impl WasmDeviceState {
     /// Set reverb state from core bytes.
     #[wasm_bindgen(js_name = applyReverbCore)]
     pub fn apply_reverb_core(&mut self, data: &[u8]) {
-        if data.len() >= 3 {
+        let out = usize::from(params::reverb::OUTPUT_ASSIGN);
+        if data.len() > out {
             let fx = &mut self.inner.state_mut().reverb;
-            fx.fx_type = data[0];
-            fx.level = data[1];
-            fx.output = data[2];
+            fx.fx_type = data[usize::from(params::reverb::TYPE)];
+            fx.level = data[usize::from(params::reverb::LEVEL)];
+            fx.output = data[out];
         }
     }
 
@@ -3264,4 +3266,27 @@ pub fn format_mixer_param(id: &str, value: i32) -> String {
     param_registry::lookup(&PARAMS, id)
         .map(|def| param_registry::format_value(def, value))
         .unwrap_or_else(|| value.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fx_core_reads_output_at_its_own_offset() {
+        let mut dev = WasmDeviceState::new(0x10);
+        // Chorus: type, level, reserved, Output Select.
+        dev.apply_chorus_core(&[1, 100, 0, 2]);
+        // Reverb: type, level, Output Assign.
+        dev.apply_reverb_core(&[3, 90, 1]);
+        let s = dev.inner.state();
+        assert_eq!(
+            (s.chorus.fx_type, s.chorus.level, s.chorus.output),
+            (1, 100, 2)
+        );
+        assert_eq!(
+            (s.reverb.fx_type, s.reverb.level, s.reverb.output),
+            (3, 90, 1)
+        );
+    }
 }
