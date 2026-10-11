@@ -1,0 +1,5058 @@
+{
+  "_about": "Companion data for docs/research/foreign-fx-map.md. 'integra_params' are MFX Parameter numbers n (1-32) of the PCM Synth Tone MFX block, taken from Roland INTEGRA-7 Editor model_excmap_mfx.js leaf order minus the four CTRL_ASGN leaves. 'jv_prm' is EFX Parameter n (Patch Common 00 0D + n - 1), from the JV-1010 Owner's Manual MIDI Implementation, 'Correspondence of the EFX algorithm and Exclusive Address'. JV raw type r = XV MFX type r + 1 by name and parameter list; the XV raw parameter encoding is unverified.",
+  "conversions": {
+    "copy": "target raw = source raw",
+    "drop": "no Integra equivalent: list in the Conversion report",
+    "eq_hi_jv": "JV 0-1 (4000/8000 Hz) -> Integra list 2000/4000/8000: target = source + 1",
+    "rate_jv": "<x> Rate (sync sw) = 0 (Hz); <x> Rate (Hz) stored = round(20 * jv_rate_hz(i)); jv_rate_hz: i 0-98 -> 0.05*(i+1); 99-118 -> 5.0+0.1*(i-99); 119-125 -> 7.0+0.5*(i-119). Exact: every JV rate is a multiple of 0.05 Hz.",
+    "rate_jv_plain": "Integra rotor speed stored 1-200 = Hz*20 (no sync slot): target = round(20 * jv_rate_hz(i)). Exact.",
+    "step_rate_jv": "Integra Step Rate (Hz) stored 1-200 = Hz*10 (0.10-20.00 Hz): target = max(1, round(10 * jv_rate_hz(i))), sync sw = 0. 0.05 Hz clamps to 0.10 Hz; x.x5 Hz values round. JV note settings: unresolved.",
+    "delay500_jv": "Delay (sync sw) = 0 (msec); msec = round(jv_delay500_ms(i)); jv_delay500_ms: i 0-49 -> 0.1*i; 50-59 -> 5.0+0.5*(i-50); 60-89 -> 10+(i-60); 90-115 -> 40+10*(i-90); 116-126 -> 300+20*(i-116). Values below 10 ms lose their sub-millisecond part.",
+    "delay1000_jv": "i 0-115: sync sw = 0, msec = 200+5*i (i<70) or 550+10*(i-70). i 116-125: note (sync sw = 1), assumed order = XV note list *1 (1/16, 1/8T, 1/16., 1/8, 1/4T, 1/8., 1/4, 1/2T, 1/4., 1/2) -> Integra NOTE index 6+(i-116). Note order unverified.",
+    "delay_tcd_jv": "sync sw = 0, msec = 200+5*i (i<80) or 600+10*(i-80). Exact.",
+    "post_gain": "JV x1/x2/x4/x8 (0-3) = 0/+6/+12/+18 dB -> Integra Post Gain 0-18 dB: target = 6*i. Exact.",
+    "sustain_to_threshold": "different control law (JV Sustain vs Integra Threshold): no formula. Leave Integra init and report.",
+    "phaser_manual_jv": "JV Manual is a Hz table (i 0-19: 100+10*i; 20-54: 300+20*(i-20); 55-125: 1000+100*(i-55)); Integra Manual 0-127 has no published Hz curve: approximate and report.",
+    "level_balance": "JV Level Balance A100:0B..A0:100B (0-100): Pitch1 Level = round(127*min(1,(100-x)/50)), Pitch2 Level = round(127*min(1,x/50)). Hypothesis (crossfade law not published)."
+  },
+  "jv_efx": [
+    {
+      "jv_raw": 0,
+      "jv_display": 1,
+      "xv_type": 1,
+      "name": "STEREO-EQ",
+      "class": "rescaled",
+      "integra_type": 1,
+      "integra_name": "EQUALIZER",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Low Frequency",
+          "jv_range": "0-1",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Low Freq"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "High Frequency",
+          "jv_range": "0-1",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "High Freq"
+          ],
+          "conv": "eq_hi_jv"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Hi Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Peaking1 Frequency",
+          "jv_range": "0-16",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Mid1 Freq"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Peaking1 Q",
+          "jv_range": "0-4",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Mid1 Q"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Peaking1 Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Mid1 Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Peaking2 Frequency",
+          "jv_range": "0-16",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Mid2 Freq"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Peaking2 Q",
+          "jv_range": "0-4",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Mid2 Q"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Peaking2 Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Mid2 Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 11,
+          "jv_name": "Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 1,
+      "jv_display": 2,
+      "xv_type": 2,
+      "name": "OVERDRIVE",
+      "class": "same",
+      "integra_type": 28,
+      "integra_name": "OVERDRIVE",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Drive",
+          "jv_range": "0-127",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Drive"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Output Pan",
+          "jv_range": "0-127",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Pan"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Amp Simulator Type",
+          "jv_range": "0-3",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Amp Type"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "High Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": [
+        {
+          "n": 2,
+          "name": "Tone",
+          "value": 50
+        },
+        {
+          "n": 3,
+          "name": "Amp Sw",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "jv_raw": 2,
+      "jv_display": 3,
+      "xv_type": 3,
+      "name": "DISTORTION",
+      "class": "same",
+      "integra_type": 29,
+      "integra_name": "DISTORTION",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Drive",
+          "jv_range": "0-127",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Drive"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Output Pan",
+          "jv_range": "0-127",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Pan"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Amp Simulator Type",
+          "jv_range": "0-3",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Amp Type"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "High Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": [
+        {
+          "n": 2,
+          "name": "Tone",
+          "value": 50
+        },
+        {
+          "n": 3,
+          "name": "Amp Sw",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "jv_raw": 3,
+      "jv_display": 4,
+      "xv_type": 4,
+      "name": "PHASER",
+      "class": "substitute",
+      "integra_type": 9,
+      "integra_name": "PHASER 1",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Manual",
+          "jv_range": "0-125",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Manual"
+          ],
+          "conv": "phaser_manual_jv"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 3,
+          "note_param": 5
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Resonance",
+          "jv_range": "0-127",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Resonance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Mix Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Mix"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Output Pan",
+          "jv_range": "0-127",
+          "conv": "drop"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            13
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": [
+        {
+          "n": 1,
+          "name": "Mode",
+          "value": 2
+        },
+        {
+          "n": 7,
+          "name": "Polarity",
+          "value": 1
+        },
+        {
+          "n": 9,
+          "name": "Cross Feedback",
+          "value": 49
+        },
+        {
+          "n": 11,
+          "name": "Low Gain",
+          "value": 15
+        },
+        {
+          "n": 12,
+          "name": "High Gain",
+          "value": 15
+        }
+      ]
+    },
+    {
+      "jv_raw": 4,
+      "jv_display": 5,
+      "xv_type": 5,
+      "name": "SPECTRUM",
+      "class": "rescaled-lossy",
+      "integra_type": 2,
+      "integra_name": "SPECTRUM",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Band1 Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Band1 (250Hz)"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Band2 Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Band2 (500Hz)"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Band3 Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Band3 (1000Hz)"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Band4 Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Band4 (1250Hz)"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Band5 Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Band5 (2000Hz)"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Band6 Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Band6 (3150Hz)"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Band7 Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Band7 (4000Hz)"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Band8 Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Band8 (8000Hz)"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Q",
+          "jv_range": "0-4",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Q"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Output Pan",
+          "jv_range": "0-127",
+          "conv": "drop"
+        },
+        {
+          "jv_prm": 11,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 5,
+      "jv_display": 6,
+      "xv_type": 6,
+      "name": "ENHANCER",
+      "class": "same",
+      "integra_type": 5,
+      "integra_name": "ENHANCER",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Sens",
+          "jv_range": "0-127",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Sens"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Mix Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Mix"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "High Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 6,
+      "jv_display": 7,
+      "xv_type": 7,
+      "name": "AUTO-WAH",
+      "class": "rescaled",
+      "integra_type": 6,
+      "integra_name": "AUTO WAH",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Filter Type",
+          "jv_range": "0-1",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Filter Type"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 6,
+          "note_param": 8
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Sens",
+          "jv_range": "0-127",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Sens"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Manual",
+          "jv_range": "0-127",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Manual"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Peak",
+          "jv_range": "0-127",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Peak"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            13
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": [
+        {
+          "n": 5,
+          "name": "Polarity",
+          "value": 0
+        },
+        {
+          "n": 10,
+          "name": "Phase",
+          "value": 0
+        },
+        {
+          "n": 11,
+          "name": "Low Gain",
+          "value": 15
+        },
+        {
+          "n": 12,
+          "name": "High Gain",
+          "value": 15
+        }
+      ]
+    },
+    {
+      "jv_raw": 7,
+      "jv_display": 8,
+      "xv_type": 8,
+      "name": "ROTARY",
+      "class": "rescaled",
+      "integra_type": 19,
+      "integra_name": "ROTARY 1",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "High Frequency Slow Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Tweeter Slow Speed"
+          ],
+          "conv": "rate_jv_plain"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Low Frequency Slow Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Woofer Slow Speed"
+          ],
+          "conv": "rate_jv_plain"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "High Frequency Fast Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Tweeter Fast Speed"
+          ],
+          "conv": "rate_jv_plain"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Low Frequency Fast Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Woofer Fast Speed"
+          ],
+          "conv": "rate_jv_plain"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Speed",
+          "jv_range": "0-1",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Speed"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "High Frequency Acceleration",
+          "jv_range": "0-15",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Tweeter Acceleration"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Low Frequency Acceleration",
+          "jv_range": "0-15",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Woofer Acceleration"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "High Frequency Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Tweeter Level"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Low Frequency Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Woofer Level"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Separation",
+          "jv_range": "0-127",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Separation"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 11,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 8,
+      "jv_display": 9,
+      "xv_type": 9,
+      "name": "COMPRESSOR",
+      "class": "substitute",
+      "integra_type": 31,
+      "integra_name": "COMPRESSOR",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Sustain",
+          "jv_range": "0-127",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Threshold"
+          ],
+          "conv": "sustain_to_threshold"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Attack",
+          "jv_range": "0-127",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Attack"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Output Pan",
+          "jv_range": "0-127",
+          "conv": "drop"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Post Gain",
+          "jv_range": "0-3",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Post Gain"
+          ],
+          "conv": "post_gain"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "High Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": [
+        {
+          "n": 7,
+          "name": "(hidden)",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "jv_raw": 9,
+      "jv_display": 10,
+      "xv_type": 10,
+      "name": "LIMITER",
+      "class": "rescaled-lossy",
+      "integra_type": 32,
+      "integra_name": "LIMITER",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Threshold Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Threshold"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Release Time",
+          "jv_range": "0-127",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Release"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Compression Ratio",
+          "jv_range": "0-3",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Ratio"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Output Pan",
+          "jv_range": "0-127",
+          "conv": "drop"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Post Gain",
+          "jv_range": "0-3",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Post Gain"
+          ],
+          "conv": "post_gain"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "High Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 10,
+      "jv_display": 11,
+      "xv_type": 11,
+      "name": "HEXA-CHORUS",
+      "class": "rescaled",
+      "integra_type": 25,
+      "integra_name": "HEXA-CHORUS",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 2,
+          "note_param": 4
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Pre Delay Deviation",
+          "jv_range": "0-20",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Pre Delay Deviation"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Depth Deviation",
+          "jv_range": "0-40",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Depth Deviation"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Pan Deviation",
+          "jv_range": "0-20",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Pan Deviation"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Effect Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 11,
+      "jv_display": 12,
+      "xv_type": 12,
+      "name": "TREMOLO-CHORUS",
+      "class": "rescaled",
+      "integra_type": 26,
+      "integra_name": "TREMOLO CHORUS",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Chorus Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Chorus Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 2,
+          "note_param": 4
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Chorus Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Chorus Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Tremolo Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Tremolo Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 6,
+          "note_param": 8
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Tremolo Separation",
+          "jv_range": "0-127",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Tremolo Separation"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Tremolo Phase",
+          "jv_range": "0-90",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Tremolo Phase"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Effect Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            12
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 12,
+      "jv_display": 13,
+      "xv_type": 13,
+      "name": "SPACE-D",
+      "class": "rescaled",
+      "integra_type": 27,
+      "integra_name": "SPACE-D",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 2,
+          "note_param": 4
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Phase",
+          "jv_range": "0-90",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Phase"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "High Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Effect Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 13,
+      "jv_display": 14,
+      "xv_type": 14,
+      "name": "STEREO-CHORUS",
+      "class": "rescaled",
+      "integra_type": 22,
+      "integra_name": "CHORUS",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Filter Type",
+          "jv_range": "0-2",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Filter Type"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Cutoff Frequency",
+          "jv_range": "0-16",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Cutoff Freq"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 4,
+          "note_param": 6
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Phase",
+          "jv_range": "0-90",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Phase"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "High Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Effect Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 11,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            12
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 14,
+      "jv_display": 15,
+      "xv_type": 15,
+      "name": "STEREO-FLANGER",
+      "class": "rescaled",
+      "integra_type": 23,
+      "integra_name": "FLANGER",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Filter Type",
+          "jv_range": "0-2",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Filter Type"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Cutoff Frequency",
+          "jv_range": "0-16",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Cutoff Freq"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 4,
+          "note_param": 6
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Phase",
+          "jv_range": "0-90",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Phase"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "High Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Effect Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            12
+          ],
+          "integra_names": [
+            "Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 11,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            13
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 15,
+      "jv_display": 16,
+      "xv_type": 16,
+      "name": "STEP-FLANGER",
+      "class": "rescaled",
+      "integra_type": 24,
+      "integra_name": "STEP FLANGER",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 4,
+          "note_param": 6
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Step Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "Step Rate (Hz)"
+          ],
+          "conv": "step_rate_jv",
+          "sync_sw_param": 10,
+          "note_param": 12
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Phase",
+          "jv_range": "0-90",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Phase"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            13
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "High Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            14
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Effect Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            15
+          ],
+          "integra_names": [
+            "Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            16
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": [
+        {
+          "n": 1,
+          "name": "Filter Type",
+          "value": 0
+        },
+        {
+          "n": 2,
+          "name": "Cutoff Freq",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "jv_raw": 16,
+      "jv_display": 17,
+      "xv_type": 17,
+      "name": "STEREO-DELAY",
+      "class": "rescaled",
+      "integra_type": 34,
+      "integra_name": "DELAY",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Feedback Mode",
+          "jv_range": "0-1",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Feedback Mode"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Delay Time Left",
+          "jv_range": "0-126",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Delay Left (msec)"
+          ],
+          "conv": "delay500_jv",
+          "sync_sw_param": 1,
+          "note_param": 3
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Delay Time Right",
+          "jv_range": "0-126",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Delay Right (msec)"
+          ],
+          "conv": "delay500_jv",
+          "sync_sw_param": 4,
+          "note_param": 6
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Feedback Phase Left",
+          "jv_range": "0-1",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Phase Left"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Feedback Phase Right",
+          "jv_range": "0-1",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Phase Right"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "HF Damp",
+          "jv_range": "0-17",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "HF Damp"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            12
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "High Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            13
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Effect Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            14
+          ],
+          "integra_names": [
+            "Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 11,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            15
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 17,
+      "jv_display": 18,
+      "xv_type": 18,
+      "name": "MODULATION-DELAY",
+      "class": "rescaled",
+      "integra_type": 35,
+      "integra_name": "MODULATION DELAY",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Feedback Mode",
+          "jv_range": "0-1",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Feedback Mode"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Delay Time Left",
+          "jv_range": "0-126",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Delay Left (msec)"
+          ],
+          "conv": "delay500_jv",
+          "sync_sw_param": 1,
+          "note_param": 3
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Delay Time Right",
+          "jv_range": "0-126",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Delay Right (msec)"
+          ],
+          "conv": "delay500_jv",
+          "sync_sw_param": 4,
+          "note_param": 6
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "HF Damp",
+          "jv_range": "0-17",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "HF Damp"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 10,
+          "note_param": 12
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            13
+          ],
+          "integra_names": [
+            "Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Phase",
+          "jv_range": "0-90",
+          "integra_params": [
+            14
+          ],
+          "integra_names": [
+            "Phase"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            15
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "High Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            16
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 11,
+          "jv_name": "Effect Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            17
+          ],
+          "integra_names": [
+            "Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 12,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            18
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 18,
+      "jv_display": 19,
+      "xv_type": 19,
+      "name": "TRIPLE-TAP-DELAY",
+      "class": "rescaled",
+      "integra_type": 36,
+      "integra_name": "3TAP PAN DELAY",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Delay Time Left",
+          "jv_range": "0-125",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Delay Left (msec)"
+          ],
+          "conv": "delay1000_jv",
+          "sync_sw_param": 1,
+          "note_param": 3
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Delay Time Right",
+          "jv_range": "0-125",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Delay Right (msec)"
+          ],
+          "conv": "delay1000_jv",
+          "sync_sw_param": 4,
+          "note_param": 6
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Delay Time Center",
+          "jv_range": "0-125",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Delay Center (msec)"
+          ],
+          "conv": "delay1000_jv",
+          "sync_sw_param": 7,
+          "note_param": 9
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Center Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "HF Damp",
+          "jv_range": "0-17",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "HF Damp"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Left Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            12
+          ],
+          "integra_names": [
+            "Left Level "
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Right Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            13
+          ],
+          "integra_names": [
+            "Right Level"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Center Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            14
+          ],
+          "integra_names": [
+            "Center Level"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            15
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "High Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            16
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 11,
+          "jv_name": "Effect Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            17
+          ],
+          "integra_names": [
+            "Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 12,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            18
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 19,
+      "jv_display": 20,
+      "xv_type": 20,
+      "name": "QUADRUPLE-TAP-DELAY",
+      "class": "rescaled",
+      "integra_type": 37,
+      "integra_name": "4TAP PAN DELAY",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Delay Time 1",
+          "jv_range": "0-125",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Delay 1 Time (msec)"
+          ],
+          "conv": "delay1000_jv",
+          "sync_sw_param": 1,
+          "note_param": 3
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Delay Time 2",
+          "jv_range": "0-125",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Delay 2 Time (msec)"
+          ],
+          "conv": "delay1000_jv",
+          "sync_sw_param": 4,
+          "note_param": 6
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Delay Time 3",
+          "jv_range": "0-125",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Delay 3 Time (msec)"
+          ],
+          "conv": "delay1000_jv",
+          "sync_sw_param": 7,
+          "note_param": 9
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Delay Time 4",
+          "jv_range": "0-125",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "Delay 4 Time (msec)"
+          ],
+          "conv": "delay1000_jv",
+          "sync_sw_param": 10,
+          "note_param": 12
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Level 1",
+          "jv_range": "0-127",
+          "integra_params": [
+            15
+          ],
+          "integra_names": [
+            "Delay 1 Level"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Level 2",
+          "jv_range": "0-127",
+          "integra_params": [
+            16
+          ],
+          "integra_names": [
+            "Delay 2 Level"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Level 3",
+          "jv_range": "0-127",
+          "integra_params": [
+            17
+          ],
+          "integra_names": [
+            "Delay 3 Level"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Level 4",
+          "jv_range": "0-127",
+          "integra_params": [
+            18
+          ],
+          "integra_names": [
+            "Delay 4 Level"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            13
+          ],
+          "integra_names": [
+            "Delay 1 Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "HF Damp",
+          "jv_range": "0-17",
+          "integra_params": [
+            14
+          ],
+          "integra_names": [
+            "HF Damp"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 11,
+          "jv_name": "Effect Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            21
+          ],
+          "integra_names": [
+            "Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 12,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            22
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": [
+        {
+          "n": 19,
+          "name": "Low Gain",
+          "value": 15
+        },
+        {
+          "n": 20,
+          "name": "High Gain",
+          "value": 15
+        }
+      ]
+    },
+    {
+      "jv_raw": 20,
+      "jv_display": 21,
+      "xv_type": 21,
+      "name": "TIME-CONTROL-DELAY",
+      "class": "rescaled-lossy",
+      "integra_type": 40,
+      "integra_name": "TIME CTRL DELAY",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Delay Time",
+          "jv_range": "0-120",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Delay Time (msec)"
+          ],
+          "conv": "delay_tcd_jv",
+          "sync_sw_param": 1,
+          "note_param": 3
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Acceleration",
+          "jv_range": "0-15",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Acceleration"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "HF Damp",
+          "jv_range": "0-17",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "HF Damp"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Output Pan",
+          "jv_range": "0-127",
+          "conv": "drop"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "High Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Effect Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 21,
+      "jv_display": 22,
+      "xv_type": 22,
+      "name": "2VOICE-PITCH-SHIFTER",
+      "class": "rescaled-lossy",
+      "integra_type": 44,
+      "integra_name": "2VOICE PITCH SHIFTER",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Pitch Shifter Mode",
+          "jv_range": "0-4",
+          "conv": "drop"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Coarse Pitch A",
+          "jv_range": "0-36",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Pitch1 Coarse"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Coarse Pitch B",
+          "jv_range": "0-36",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Pitch2 Coarse"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Fine Pitch A",
+          "jv_range": "0-100",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Pitch1 Fine"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Fine Pitch B",
+          "jv_range": "0-100",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Pitch2 Fine"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Pre Delay Time A",
+          "jv_range": "0-126",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Pitch1 Delay (msec)"
+          ],
+          "conv": "delay500_jv",
+          "sync_sw_param": 3,
+          "note_param": 5
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Pre Delay Time B",
+          "jv_range": "0-126",
+          "integra_params": [
+            12
+          ],
+          "integra_names": [
+            "Pitch2 Delay (msec)"
+          ],
+          "conv": "delay500_jv",
+          "sync_sw_param": 11,
+          "note_param": 13
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Output Pan A",
+          "jv_range": "0-127",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Pitch1 Pan"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Output Pan B",
+          "jv_range": "0-127",
+          "integra_params": [
+            15
+          ],
+          "integra_names": [
+            "Pitch2 Pan"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Level Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            8,
+            16
+          ],
+          "integra_names": [
+            "Pitch1 Level",
+            "Pitch2 Level"
+          ],
+          "conv": "level_balance"
+        },
+        {
+          "jv_prm": 11,
+          "jv_name": "Effect Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            19
+          ],
+          "integra_names": [
+            "Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 12,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            20
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": [
+        {
+          "n": 6,
+          "name": "Pitch1 Feedback",
+          "value": 49
+        },
+        {
+          "n": 14,
+          "name": "Pitch2 Feedback",
+          "value": 49
+        },
+        {
+          "n": 17,
+          "name": "Low Gain",
+          "value": 15
+        },
+        {
+          "n": 18,
+          "name": "High Gain",
+          "value": 15
+        }
+      ]
+    },
+    {
+      "jv_raw": 22,
+      "jv_display": 23,
+      "xv_type": 23,
+      "name": "FBK-PITCH-SHIFTER",
+      "class": "rescaled-lossy",
+      "integra_type": 43,
+      "integra_name": "PITCH SHIFTER",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Pitch Shifter Mode",
+          "jv_range": "0-4",
+          "conv": "drop"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Coarse Pitch",
+          "jv_range": "0-36",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Coarse"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Fine Pitch",
+          "jv_range": "0-100",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Fine"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Pre Delay Time",
+          "jv_range": "0-126",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Delay Time (msec)"
+          ],
+          "conv": "delay500_jv",
+          "sync_sw_param": 3,
+          "note_param": 5
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Output Pan",
+          "jv_range": "0-127",
+          "conv": "drop"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Low Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Low Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "High Gain",
+          "jv_range": "0-30",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "High Gain"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Effect Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 23,
+      "jv_display": 24,
+      "xv_type": 24,
+      "name": "REVERB",
+      "class": "none",
+      "integra_type": null,
+      "integra_name": null,
+      "params": []
+    },
+    {
+      "jv_raw": 24,
+      "jv_display": 25,
+      "xv_type": 25,
+      "name": "GATED-REVERB",
+      "class": "none",
+      "integra_type": null,
+      "integra_name": null,
+      "params": []
+    },
+    {
+      "jv_raw": 25,
+      "jv_display": 26,
+      "xv_type": 26,
+      "name": "OVERDRIVE->CHORUS",
+      "class": "rescaled",
+      "integra_type": 45,
+      "integra_name": "OD->CHORUS",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Drive",
+          "jv_range": "0-127",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Overdrive Drive"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Over Drive Pan",
+          "jv_range": "0-127",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Overdrive Pan"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Chorus Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Chorus Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Chorus Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Chorus Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 4,
+          "note_param": 6
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Chorus Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Chorus Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Chorus Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Chorus Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 26,
+      "jv_display": 27,
+      "xv_type": 27,
+      "name": "OVERDRIVE->FLANGER",
+      "class": "rescaled",
+      "integra_type": 46,
+      "integra_name": "OD->FLANGER",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Drive",
+          "jv_range": "0-127",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Overdrive Drive"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Over Drive Pan",
+          "jv_range": "0-127",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Overdrive Pan"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Flanger Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Flanger Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Flanger Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Flanger Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 4,
+          "note_param": 6
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Flanger Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Flanger Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Flanger Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Flanger Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Flanger Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Flanger Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 27,
+      "jv_display": 28,
+      "xv_type": 28,
+      "name": "OVERDRIVE->DELAY",
+      "class": "rescaled",
+      "integra_type": 47,
+      "integra_name": "OD->DELAY",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Drive",
+          "jv_range": "0-127",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Overdrive Drive"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Over Drive Pan",
+          "jv_range": "0-127",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Overdrive Pan"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Delay Time",
+          "jv_range": "0-126",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Delay Time (msec)"
+          ],
+          "conv": "delay500_jv",
+          "sync_sw_param": 3,
+          "note_param": 5
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Delay Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Delay Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Delay HF Damp",
+          "jv_range": "0-17",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Delay HF Damp"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Delay Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Delay Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 28,
+      "jv_display": 29,
+      "xv_type": 29,
+      "name": "DISTORTION->CHORUS",
+      "class": "rescaled",
+      "integra_type": 48,
+      "integra_name": "DS->CHORUS",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Distortion Drive",
+          "jv_range": "0-127",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Distortion Drive"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Distortion Pan",
+          "jv_range": "0-127",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Distortion Pan"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Chorus Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Chorus Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Chorus Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Chorus Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 4,
+          "note_param": 6
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Chorus Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Chorus Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Chorus Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Chorus Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 29,
+      "jv_display": 30,
+      "xv_type": 30,
+      "name": "DISTORTION->FLANGER",
+      "class": "rescaled",
+      "integra_type": 49,
+      "integra_name": "DS->FLANGER",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Distortion Drive",
+          "jv_range": "0-127",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Distortion Drive"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Distortion Pan",
+          "jv_range": "0-127",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Distortion Pan"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Flanger Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Flanger Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Flanger Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Flanger Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 4,
+          "note_param": 6
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Flanger Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Flanger Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Flanger Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Flanger Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Flanger Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Flanger Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 30,
+      "jv_display": 31,
+      "xv_type": 31,
+      "name": "DISTORTION->DELAY",
+      "class": "rescaled",
+      "integra_type": 50,
+      "integra_name": "DS->DELAY",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Distortion Drive",
+          "jv_range": "0-127",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Distortion Drive"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Distortion Pan",
+          "jv_range": "0-127",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Distortion Pan"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Delay Time",
+          "jv_range": "0-126",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Delay Time (msec)"
+          ],
+          "conv": "delay500_jv",
+          "sync_sw_param": 3,
+          "note_param": 5
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Delay Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Delay Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Delay HF Damp",
+          "jv_range": "0-17",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Delay HF Damp"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Delay Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Delay Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 31,
+      "jv_display": 32,
+      "xv_type": 32,
+      "name": "ENHANCER->CHORUS",
+      "class": "rescaled",
+      "integra_type": 62,
+      "integra_name": "ENHANCER->CHORUS",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Enhancer Sens",
+          "jv_range": "0-127",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Enhancer Sens"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Enhancer Mix Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Enhancer Mix"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Chorus Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Chorus Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Chorus Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Chorus Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 4,
+          "note_param": 6
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Chorus Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Chorus Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Chorus Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Chorus Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 32,
+      "jv_display": 33,
+      "xv_type": 33,
+      "name": "ENHANCER->FLANGER",
+      "class": "rescaled",
+      "integra_type": 63,
+      "integra_name": "ENHANCER->FLANGER",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Enhancer Sens",
+          "jv_range": "0-127",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Enhancer Sens"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Enhancer Mix Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Enhancer Mix"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Flanger Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Flanger Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Flanger Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Flanger Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 4,
+          "note_param": 6
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Flanger Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Flanger Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Flanger Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Flanger Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Flanger Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Flanger Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 33,
+      "jv_display": 34,
+      "xv_type": 34,
+      "name": "ENHANCER->DELAY",
+      "class": "rescaled",
+      "integra_type": 64,
+      "integra_name": "ENHANCER->DELAY",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Enhancer Sens",
+          "jv_range": "0-127",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Enhancer Sens"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Enhancer Mix Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            2
+          ],
+          "integra_names": [
+            "Enhancer Mix"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Delay Time",
+          "jv_range": "0-126",
+          "integra_params": [
+            4
+          ],
+          "integra_names": [
+            "Delay Time (msec)"
+          ],
+          "conv": "delay500_jv",
+          "sync_sw_param": 3,
+          "note_param": 5
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Delay Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Delay Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Delay HF Damp",
+          "jv_range": "0-17",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Delay HF Damp"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Delay Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Delay Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 34,
+      "jv_display": 35,
+      "xv_type": 35,
+      "name": "CHORUS->DELAY",
+      "class": "rescaled",
+      "integra_type": 65,
+      "integra_name": "CHORUS->DELAY",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Chorus Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Chorus Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Chorus Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Chorus Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 2,
+          "note_param": 4
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Chorus Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Chorus Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Chorus Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Chorus Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Delay Time",
+          "jv_range": "0-126",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Delay Time (msec)"
+          ],
+          "conv": "delay500_jv",
+          "sync_sw_param": 7,
+          "note_param": 9
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Delay Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Delay Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Delay HF Damp",
+          "jv_range": "0-17",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "Delay HF Damp"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Delay Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            12
+          ],
+          "integra_names": [
+            "Delay Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            13
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 35,
+      "jv_display": 36,
+      "xv_type": 36,
+      "name": "FLANGER->DELAY",
+      "class": "rescaled",
+      "integra_type": 66,
+      "integra_name": "FLANGER->DELAY",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Flanger Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Flanger Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Flanger Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Flanger Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 2,
+          "note_param": 4
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Flanger Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Flanger Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Flanger Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Flanger Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Flanger Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Flanger Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Delay Time",
+          "jv_range": "0-126",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Delay Time (msec)"
+          ],
+          "conv": "delay500_jv",
+          "sync_sw_param": 8,
+          "note_param": 10
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Delay Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "Delay Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Delay HF Damp",
+          "jv_range": "0-17",
+          "integra_params": [
+            12
+          ],
+          "integra_names": [
+            "Delay HF Damp"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Delay Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            13
+          ],
+          "integra_names": [
+            "Delay Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            14
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 36,
+      "jv_display": 37,
+      "xv_type": 37,
+      "name": "CHORUS->FLANGER",
+      "class": "rescaled",
+      "integra_type": 67,
+      "integra_name": "CHORUS->FLANGER",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Chorus Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Chorus Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Chorus Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Chorus Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 2,
+          "note_param": 4
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Chorus Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Chorus Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Chorus Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Chorus Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Flanger Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Flanger Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Flanger Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Flanger Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 8,
+          "note_param": 10
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Flanger Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "Flanger Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Flanger Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            12
+          ],
+          "integra_names": [
+            "Flanger Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Flanger Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            13
+          ],
+          "integra_names": [
+            "Flanger Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            14
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 37,
+      "jv_display": 38,
+      "xv_type": 38,
+      "name": "CHORUS/DELAY",
+      "class": "substitute",
+      "integra_type": 65,
+      "integra_name": "CHORUS->DELAY",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Chorus Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Chorus Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Chorus Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Chorus Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 2,
+          "note_param": 4
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Chorus Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Chorus Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Chorus Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Chorus Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Delay Time",
+          "jv_range": "0-126",
+          "integra_params": [
+            8
+          ],
+          "integra_names": [
+            "Delay Time (msec)"
+          ],
+          "conv": "delay500_jv",
+          "sync_sw_param": 7,
+          "note_param": 9
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Delay Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            10
+          ],
+          "integra_names": [
+            "Delay Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Delay HF Damp",
+          "jv_range": "0-17",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "Delay HF Damp"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Delay Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            12
+          ],
+          "integra_names": [
+            "Delay Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            13
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 38,
+      "jv_display": 39,
+      "xv_type": 39,
+      "name": "FLANGER/DELAY",
+      "class": "substitute",
+      "integra_type": 66,
+      "integra_name": "FLANGER->DELAY",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Flanger Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Flanger Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Flanger Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Flanger Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 2,
+          "note_param": 4
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Flanger Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Flanger Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Flanger Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Flanger Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Flanger Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Flanger Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Delay Time",
+          "jv_range": "0-126",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Delay Time (msec)"
+          ],
+          "conv": "delay500_jv",
+          "sync_sw_param": 8,
+          "note_param": 10
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Delay Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "Delay Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Delay HF Damp",
+          "jv_range": "0-17",
+          "integra_params": [
+            12
+          ],
+          "integra_names": [
+            "Delay HF Damp"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Delay Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            13
+          ],
+          "integra_names": [
+            "Delay Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            14
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    },
+    {
+      "jv_raw": 39,
+      "jv_display": 40,
+      "xv_type": 40,
+      "name": "CHORUS/FLANGER",
+      "class": "substitute",
+      "integra_type": 67,
+      "integra_name": "CHORUS->FLANGER",
+      "params": [
+        {
+          "jv_prm": 1,
+          "jv_name": "Chorus Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            1
+          ],
+          "integra_names": [
+            "Chorus Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 2,
+          "jv_name": "Chorus Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            3
+          ],
+          "integra_names": [
+            "Chorus Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 2,
+          "note_param": 4
+        },
+        {
+          "jv_prm": 3,
+          "jv_name": "Chorus Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            5
+          ],
+          "integra_names": [
+            "Chorus Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 4,
+          "jv_name": "Chorus Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            6
+          ],
+          "integra_names": [
+            "Chorus Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 5,
+          "jv_name": "Flanger Pre Delay Time",
+          "jv_range": "0-125",
+          "integra_params": [
+            7
+          ],
+          "integra_names": [
+            "Flanger Pre Delay"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 6,
+          "jv_name": "Flanger Rate",
+          "jv_range": "0-125",
+          "integra_params": [
+            9
+          ],
+          "integra_names": [
+            "Flanger Rate (Hz)"
+          ],
+          "conv": "rate_jv",
+          "sync_sw_param": 8,
+          "note_param": 10
+        },
+        {
+          "jv_prm": 7,
+          "jv_name": "Flanger Depth",
+          "jv_range": "0-127",
+          "integra_params": [
+            11
+          ],
+          "integra_names": [
+            "Flanger Depth"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 8,
+          "jv_name": "Flanger Feedback Level",
+          "jv_range": "0-98",
+          "integra_params": [
+            12
+          ],
+          "integra_names": [
+            "Flanger Feedback"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 9,
+          "jv_name": "Flanger Balance",
+          "jv_range": "0-100",
+          "integra_params": [
+            13
+          ],
+          "integra_names": [
+            "Flanger Balance"
+          ],
+          "conv": "copy"
+        },
+        {
+          "jv_prm": 10,
+          "jv_name": "Output Level",
+          "jv_range": "0-127",
+          "integra_params": [
+            14
+          ],
+          "integra_names": [
+            "Level"
+          ],
+          "conv": "copy"
+        }
+      ],
+      "integra_unmapped": []
+    }
+  ],
+  "classes": {
+    "same": "every source parameter copies raw; Integra-only parameters take the listed neutral value",
+    "rescaled": "same algorithm; every source parameter lands, some through a listed formula",
+    "rescaled-lossy": "same algorithm; some source parameters have no target (dropped or clamped) and go to the Conversion report",
+    "substitute": "different algorithm; closest Integra type, approximate",
+    "none": "no Integra MFX type; MFX goes to THRU and the effect goes to the Conversion report"
+  },
+  "xv_mfx_41_90": [
+    {
+      "xv_type": 41,
+      "name": "STEREO PHASER",
+      "integra": "9 PHASER 1 (Step Switch OFF) / 12 STEP PHASER (Step Switch ON)",
+      "class": "rescaled-lossy",
+      "notes": "Type 1/2 dropped; Mode 4/8-STAGE -> Integra Mode; Polarity, Manual 0-127, X-Feedback -> Cross Feedback, Mix, Low/High"
+    },
+    {
+      "xv_type": 42,
+      "name": "KEYSYNC FLANGER",
+      "integra": "23 FLANGER (Step Sw OFF) / 24 STEP FLANGER (ON)",
+      "class": "rescaled-lossy",
+      "notes": "Keysync, Threshold, Ksync Phase dropped"
+    },
+    {
+      "xv_type": 43,
+      "name": "FORMANT FILTER",
+      "integra": "7 HUMANIZER",
+      "class": "rescaled",
+      "notes": "Drive Sw/Drive/Vowel1/Vowel2/Rate/Depth/Manual 0-100/Low/High/Level/Pan land by name; Keysync -> Input Sync Sw, Threshold -> Input Sync Threshold"
+    },
+    {
+      "xv_type": 44,
+      "name": "RING MODULATOR",
+      "integra": "15 RING MODULATOR",
+      "class": "rescaled-lossy",
+      "notes": "Modulator (OFF/SOURCE/A/B) and Monitor dropped"
+    },
+    {
+      "xv_type": 45,
+      "name": "MULTI TAP DELAY",
+      "integra": "38 MULTI TAP DELAY",
+      "class": "rescaled",
+      "notes": "Delay 1-4 0-1800 ms fit Integra 0-2600"
+    },
+    {
+      "xv_type": 46,
+      "name": "REVERSE DELAY",
+      "integra": "39 REVERSE DELAY",
+      "class": "rescaled-lossy",
+      "notes": "Delay 1-4 0-900 ms fit 0-1300; XV has Feedback/HF Damp for delays 1 and 4, Integra for reverse delay and delay 3: correspondence unverified"
+    },
+    {
+      "xv_type": 47,
+      "name": "SHUFFLE DELAY",
+      "integra": "34 DELAY",
+      "class": "substitute",
+      "notes": "no shuffle on Integra"
+    },
+    {
+      "xv_type": 48,
+      "name": "3D DELAY",
+      "integra": "36 3TAP PAN DELAY",
+      "class": "substitute",
+      "notes": "RSS 3D placement and Output Mode lost"
+    },
+    {
+      "xv_type": 49,
+      "name": "3VOICE PITCH SHIFTER",
+      "integra": "44 2VOICE PITCH SHIFTER",
+      "class": "substitute",
+      "notes": "voice 3 and Mode dropped"
+    },
+    {
+      "xv_type": 50,
+      "name": "LOFI COMPRESS",
+      "integra": "41 LOFI COMPRESS",
+      "class": "rescaled-lossy",
+      "notes": "Post Filter 1 (1-6) and Pan dropped"
+    },
+    {
+      "xv_type": 51,
+      "name": "LOFI NOISE",
+      "integra": "41 LOFI COMPRESS",
+      "class": "substitute",
+      "notes": "radio/disc noise generators lost"
+    },
+    {
+      "xv_type": 52,
+      "name": "SPEAKER SIMULATOR",
+      "integra": "8 SPEAKER SIMULATOR",
+      "class": "same",
+      "notes": "same 16 speaker types, Mic Setting 1-3"
+    },
+    {
+      "xv_type": 53,
+      "name": "OVERDRIVE 2",
+      "integra": "28 OVERDRIVE",
+      "class": "same",
+      "notes": "Drive, Tone, Amp Sw, Amp Type, Low, High, Level, Pan"
+    },
+    {
+      "xv_type": 54,
+      "name": "DISTORTION 2",
+      "integra": "29 DISTORTION",
+      "class": "same",
+      "notes": "as 53"
+    },
+    {
+      "xv_type": 55,
+      "name": "STEREO COMPRESSOR",
+      "integra": "31 COMPRESSOR",
+      "class": "substitute",
+      "notes": "Sustain has no target (Integra: Threshold); Post Gain x6"
+    },
+    {
+      "xv_type": 56,
+      "name": "STEREO LIMITER",
+      "integra": "32 LIMITER",
+      "class": "rescaled",
+      "notes": "Post Gain 0/6/12/18 -> 0-18 (x6)"
+    },
+    {
+      "xv_type": 57,
+      "name": "GATE",
+      "integra": "33 GATE",
+      "class": "rescaled-lossy",
+      "notes": "Key (SOURCE/A/B) and Monitor dropped"
+    },
+    {
+      "xv_type": 58,
+      "name": "SLICER",
+      "integra": "18 SLICER",
+      "class": "rescaled-lossy",
+      "notes": "Reset Trigger -> Input Sync Sw, Reset Threshold -> Input Sync Threshold, Beat Chg Mode -> Mode; Reset Monitor dropped"
+    },
+    {
+      "xv_type": 59,
+      "name": "ISOLATOR",
+      "integra": "-",
+      "class": "none",
+      "notes": "no isolator MFX on the Integra"
+    },
+    {
+      "xv_type": 60,
+      "name": "3D CHORUS",
+      "integra": "22 CHORUS",
+      "class": "substitute",
+      "notes": "RSS 3D and Output Mode lost"
+    },
+    {
+      "xv_type": 61,
+      "name": "3D FLANGER",
+      "integra": "23 FLANGER / 24 STEP FLANGER",
+      "class": "substitute",
+      "notes": "RSS 3D and Output Mode lost"
+    },
+    {
+      "xv_type": 62,
+      "name": "TREMOLO",
+      "integra": "16 TREMOLO",
+      "class": "rescaled",
+      "notes": "Mod Wave list identical"
+    },
+    {
+      "xv_type": 63,
+      "name": "AUTO PAN",
+      "integra": "17 AUTO PAN",
+      "class": "rescaled",
+      "notes": "Mod Wave list identical"
+    },
+    {
+      "xv_type": 64,
+      "name": "STEREO PHASER 2",
+      "integra": "9 PHASER 1 / 12 STEP PHASER",
+      "class": "rescaled-lossy",
+      "notes": "as 41"
+    },
+    {
+      "xv_type": 65,
+      "name": "STEREO AUTO WAH",
+      "integra": "6 AUTO WAH",
+      "class": "rescaled",
+      "notes": "Filter Type, Sens, Manual, Peak, Rate, Depth, Polarity, Phase, Low, High, Level: one-to-one"
+    },
+    {
+      "xv_type": 66,
+      "name": "ST FORMANT FILTER",
+      "integra": "7 HUMANIZER",
+      "class": "rescaled-lossy",
+      "notes": "Phase dropped (Humanizer is mono-LFO); Pan stays centre"
+    },
+    {
+      "xv_type": 67,
+      "name": "MULTI TAP DELAY 2",
+      "integra": "38 MULTI TAP DELAY",
+      "class": "rescaled-lossy",
+      "notes": "0-3000 ms clamps at 2600"
+    },
+    {
+      "xv_type": 68,
+      "name": "REVERSE DELAY 2",
+      "integra": "39 REVERSE DELAY",
+      "class": "rescaled-lossy",
+      "notes": "0-1500 ms clamps at 1300"
+    },
+    {
+      "xv_type": 69,
+      "name": "SHUFFLE DELAY 2",
+      "integra": "34 DELAY",
+      "class": "substitute",
+      "notes": "as 47"
+    },
+    {
+      "xv_type": 70,
+      "name": "3D DELAY 2",
+      "integra": "36 3TAP PAN DELAY",
+      "class": "substitute",
+      "notes": "as 48; 0-3000 ms clamps at 2600"
+    },
+    {
+      "xv_type": 71,
+      "name": "ROTARY 2",
+      "integra": "20 ROTARY 2",
+      "class": "rescaled",
+      "notes": "Speed, Brake, Spread, Low/High rotor Slow/Fast/Trans Up/Trans Down/Level, Low/High Gain, Level"
+    },
+    {
+      "xv_type": 72,
+      "name": "ROTARY MULTI",
+      "integra": "21 ROTARY 3",
+      "class": "substitute",
+      "notes": "OD/DS block -> Rotary 3 OD; Amp Simulator and EQ blocks lost"
+    },
+    {
+      "xv_type": 73,
+      "name": "KEYBOARD MULTI",
+      "integra": "-",
+      "class": "none",
+      "notes": "ring mod + EQ + pitch shift + phaser + delay chain"
+    },
+    {
+      "xv_type": 74,
+      "name": "RHODES MULTI",
+      "integra": "57-60 EP AMPSIM -> TREMOLO/CHORUS/FLANGER/PHASER",
+      "class": "substitute",
+      "notes": "pick by the enabled block; adds an EP amp the source lacks; low confidence"
+    },
+    {
+      "xv_type": 75,
+      "name": "JD MULTI",
+      "integra": "-",
+      "class": "none",
+      "notes": "JD-800 style chain"
+    },
+    {
+      "xv_type": 76,
+      "name": "STEREO LOFI COMPRESS",
+      "integra": "41 LOFI COMPRESS",
+      "class": "rescaled-lossy",
+      "notes": "as 50"
+    },
+    {
+      "xv_type": 77,
+      "name": "STEREO LOFI NOISE",
+      "integra": "41 LOFI COMPRESS",
+      "class": "substitute",
+      "notes": "as 51"
+    },
+    {
+      "xv_type": 78,
+      "name": "GUITAR AMP SIMULATOR",
+      "integra": "30 GUITAR AMP SIMULATOR",
+      "class": "rescaled",
+      "notes": "same 14 amp types and 16 speaker types"
+    },
+    {
+      "xv_type": 79,
+      "name": "STEREO OVERDRIVE",
+      "integra": "28 OVERDRIVE",
+      "class": "same",
+      "notes": "Pan absent in source: centre"
+    },
+    {
+      "xv_type": 80,
+      "name": "STEREO DISTORTION",
+      "integra": "29 DISTORTION",
+      "class": "same",
+      "notes": "as 79"
+    },
+    {
+      "xv_type": 81,
+      "name": "GUITAR MULTI A",
+      "integra": "53/54/56 GTAMPSIM -> CHORUS/FLANGER/DELAY",
+      "class": "substitute",
+      "notes": "compressor and OD/DS blocks lost; pick by enabled block"
+    },
+    {
+      "xv_type": 82,
+      "name": "GUITAR MULTI B",
+      "integra": "53/54 GTAMPSIM -> CHORUS/FLANGER",
+      "class": "substitute",
+      "notes": "as 81, EQ block lost"
+    },
+    {
+      "xv_type": 83,
+      "name": "GUITAR MULTI C",
+      "integra": "52 OD/DS -> AUTOWAH or 53/56",
+      "class": "substitute",
+      "notes": "wah + amp + delay + chorus chain; low confidence"
+    },
+    {
+      "xv_type": 84,
+      "name": "CLEAN GUITAR MULTI A",
+      "integra": "65 CHORUS -> DELAY",
+      "class": "substitute",
+      "notes": "compressor and EQ lost; low confidence"
+    },
+    {
+      "xv_type": 85,
+      "name": "CLEAN GUITAR MULTI B",
+      "integra": "65 CHORUS -> DELAY",
+      "class": "substitute",
+      "notes": "auto wah and EQ lost; low confidence"
+    },
+    {
+      "xv_type": 86,
+      "name": "BASS MULTI",
+      "integra": "48/45 DS/OD -> CHORUS or 29 DISTORTION",
+      "class": "substitute",
+      "notes": "compressor, amp and EQ lost; low confidence"
+    },
+    {
+      "xv_type": 87,
+      "name": "ISOLATOR 2",
+      "integra": "-",
+      "class": "none",
+      "notes": "as 59"
+    },
+    {
+      "xv_type": 88,
+      "name": "STEREO SPECTRUM",
+      "integra": "2 SPECTRUM",
+      "class": "same",
+      "notes": "same eight bands and Q list"
+    },
+    {
+      "xv_type": 89,
+      "name": "3D AUTO SPIN",
+      "integra": "17 AUTO PAN",
+      "class": "substitute",
+      "notes": "RSS rotation lost; low confidence"
+    },
+    {
+      "xv_type": 90,
+      "name": "3D MANUAL",
+      "integra": "-",
+      "class": "none",
+      "notes": "static RSS placement"
+    }
+  ],
+  "xv_types_per_model": {
+    "XV-2020": "1-40 (MFX Type 0-40)",
+    "XV-3080, XV-88": "1-63",
+    "XV-5080, XV-5050": "1-90"
+  }
+}
