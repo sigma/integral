@@ -623,13 +623,12 @@ pub static SNA_COMMON_SECTION: SvdSection = SvdSection {
 
 /// SN Acoustic section layout: separate Common and MFX sections, no partials.
 ///
-/// NOTE: `svd_bytes` are predicted but not yet validated against a real SVD.
-/// Common (464 bits) and MFX (618 bits) likely follow the same separate-section
-/// pattern as SN-S. Entry size 138 = Common + MFX + marker + padding.
+/// Common (464 bits) takes 60 bytes and MFX (618 bits) 78, filling the
+/// 138-byte entry exactly. Reference: `docs/svd/08-sn-acoustic.md`.
 static SNA_SECTIONS: [SvdSection; 2] = [
     SvdSection {
         params: SNA_COMMON_PARAMS,
-        svd_bytes: 59, // predicted: ceil(464/8) = 58, +1 padding
+        svd_bytes: 60, // ceil(464/8) = 58, +2 padding
     },
     SvdSection {
         params: MFX_PARAMS,
@@ -641,7 +640,7 @@ static SNA_SECTIONS: [SvdSection; 2] = [
 pub static SNA_TONE_SPEC: SvdToneSpec = SvdToneSpec {
     sections: &SNA_SECTIONS,
     entry_size: 138,
-    has_end_marker: true,
+    has_end_marker: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -1007,6 +1006,8 @@ mod tests {
     fn sna_section_count() {
         assert_eq!(SNA_TONE_SPEC.sections.len(), 2);
         assert_eq!(SNA_TONE_SPEC.entry_size, 138);
+        assert_eq!(SNA_TONE_SPEC.data_bytes(), 138);
+        assert!(!SNA_TONE_SPEC.has_end_marker);
     }
 
     #[test]

@@ -246,8 +246,49 @@ pub fn split_common_mfx(
 mod tests {
     use super::*;
     use crate::svd::SvdFile;
-    use crate::svd_specs::{MFX_PARAMS, SNS_TONE_SPEC};
+    use crate::svd_specs::{MFX_PARAMS, SNA_TONE_SPEC, SNS_TONE_SPEC};
+    use std::ops::RangeInclusive;
     use std::path::Path;
+
+    /// Write `value` as `bits` bits, MSB first, at entry bit `bit`.
+    ///
+    /// Builds synthetic entries from the documented bit positions, independently
+    /// of the spec under test.
+    fn put(entry: &mut [u8], bit: usize, bits: usize, value: u32) {
+        for i in 0..bits {
+            let b = (value >> (bits - 1 - i)) & 1;
+            let pos = bit + i;
+            entry[pos / 8] |= (b as u8) << (7 - pos % 8);
+        }
+    }
+
+    /// `n` copies of `range`.
+    fn rep(n: usize, range: RangeInclusive<u32>) -> Vec<RangeInclusive<u32>> {
+        vec![range; n]
+    }
+
+    /// Decode `entry` with `spec` and check every SysEx parameter against its
+    /// documented range. `ranges` lists one range per parameter in spec order;
+    /// nibblized parameters are checked as their combined value.
+    fn assert_in_range(entry: &[u8], spec: &SvdToneSpec, ranges: &[RangeInclusive<u32>]) {
+        let sections = svd_to_sysex(entry, spec).unwrap();
+        let mut values = Vec::new();
+        for (sysex, section) in sections.iter().zip(spec.sections) {
+            let mut bytes = sysex.iter();
+            for param in section.params {
+                // A single byte folds to itself; nibbles combine MSB first.
+                let value = bytes
+                    .by_ref()
+                    .take(param.sysex_bytes as usize)
+                    .fold(0, |acc, &b| (acc << 4) | b as u32);
+                values.push(value);
+            }
+        }
+        assert_eq!(values.len(), ranges.len(), "parameter count");
+        for (i, (value, range)) in values.iter().zip(ranges).enumerate() {
+            assert!(range.contains(value), "param {i}: {value} not in {range:?}");
+        }
+    }
 
     /// Load the test SVD fixture (3 SN-S patches).
     fn load_test_fixture() -> SvdFile {
@@ -364,6 +405,62 @@ mod tests {
                 assert_eq!(a, b, "Entry {i} section {s} SysEx mismatch");
             }
         }
+    }
+
+    /// Documented ranges of the MFX block shared by every tone type
+    /// (`docs/svd/06-pcm-synth.md`, Common MFX).
+    fn mfx_ranges() -> Vec<RangeInclusive<u32>> {
+        let mut r = vec![0..=67, 0..=127, 0..=127, 0..=127, 0..=3];
+        for _ in 0..4 {
+            r.extend([0..=101, 1..=127]);
+        }
+        r.extend(rep(4, 0..=16));
+        r.extend(rep(32, 12768..=52768));
+        r
+    }
+
+    /// Fill an MFX section starting at entry bit `base` with in-range values
+    /// at the documented section bits.
+    fn put_mfx(entry: &mut [u8], base: usize) {
+        put(entry, base + 7, 7, 127); // reserve, always 127
+        for n in 0..4 {
+            put(entry, base + 37 + 14 * n, 7, 64); // Control n Sens
+        }
+        for n in 0..32 {
+            put(entry, base + 106 + 16 * n, 16, 32768); // Parameter n
+        }
+    }
+
+    #[test]
+    fn sna_entry_decodes_in_range_and_round_trips() {
+        // Synthetic SNTa entry laid out per docs/svd/08-sn-acoustic.md:
+        // Common at bit 0 (60 bytes), MFX at byte 60, no end marker.
+        let mut entry = vec![0u8; 138];
+        for (i, c) in "SYNTH ACOUST    ".bytes().enumerate() {
+            put(&mut entry, 7 * i, 7, c.into());
+        }
+        put(&mut entry, 112, 7, 100); // Tone Level
+        put(&mut entry, 176, 3, 4); // Octave Shift (bias: SysEx 64)
+        put(&mut entry, 179, 7, 9); // Category
+        put(&mut entry, 186, 8, 200); // Phrase Number
+        put(&mut entry, 194, 3, 4); // Phrase Octave Shift
+        put(&mut entry, 197, 1, 1); // TFX Switch
+        put(&mut entry, 429, 7, 127); // Modify Parameter 32
+        put_mfx(&mut entry, 60 * 8);
+
+        let mut ranges = rep(16, 32..=127);
+        ranges.extend([0..=127, 0..=1]);
+        ranges.extend(rep(8, 0..=127));
+        ranges.extend([61..=67, 0..=127, 0..=255, 61..=67, 0..=1]);
+        ranges.extend(rep(34, 0..=127));
+        ranges.extend(rep(4, 0..=127)); // reserves
+        ranges.extend(mfx_ranges());
+        assert_in_range(&entry, &SNA_TONE_SPEC, &ranges);
+
+        let sections = svd_to_sysex(&entry, &SNA_TONE_SPEC).unwrap();
+        assert_eq!(sections[0][0x1B], 9, "Category");
+        assert_eq!(sections[0][0x41], 127, "Modify Parameter 32");
+        assert_eq!(sysex_to_svd(&sections, &SNA_TONE_SPEC), entry);
     }
 
     #[test]

@@ -11,7 +11,7 @@ header and by the INIT defaults listed under [Evidence](#evidence). Fields that
 hold the same value in all three entries are placed by MIDI Implementation order
 only.
 
-## Entry Layout (corrected)
+## Entry Layout
 
 | Byte Range | Section                         | Bits | Bytes |
 |------------|---------------------------------|------|-------|
@@ -21,13 +21,6 @@ only.
 
 The two sections fill the entry exactly. There is **no** `0x0E` end marker:
 byte 137 is `00` in all 4,608 entries.
-
-> Current code diverges: see [#70](https://github.com/sigma/integral/issues/70). `SNA_TONE_SPEC` in
-> `crates/integral-core/src/svd_specs.rs` sets Common to 59 bytes and
-> `has_end_marker: true`. That puts MFX at byte 59 and expects `0x0E` at byte 137.
-> With that layout MFX Control Sens decodes as 0 and all 32 MFX parameters as 128
-> (out of range) in every entry. Common 60 bytes with no end marker gives 0
-> violations.
 
 ## Common (entry bytes 0–59)
 
