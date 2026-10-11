@@ -26,6 +26,14 @@ import {
   reverb_switch_address,
   reverb_core_size,
   ext_part_level_address,
+  drum_comp_eq_common_address,
+  drum_comp_eq_common_size,
+  comp_eq_block_address,
+  comp_eq_block_size,
+  surround_common_address,
+  surround_common_size,
+  part_surround_address,
+  part_surround_size,
   ext_part_mute_address,
   setup_studio_set_pc_address,
   studio_set_name_address,
@@ -545,12 +553,11 @@ export class IntegraService {
   // Drum Comp+EQ
   // -----------------------------------------------------------------------
 
-  /** Read Drum Comp+EQ common params: switch (0x43), part (0x44), 6 output assigns (0x45-0x4A). */
+  /** Read Drum Comp+EQ common params: switch, part and the 6 output assigns. */
   async requestDrumCompEqCommon(): Promise<{ enabled: boolean; part: number; outputAssigns: number[] }> {
-    // Read 8 bytes from 0x43 to 0x4A inclusive.
     const data = await this.requestData(
-      [0x18, 0x00, 0x00, 0x43],
-      [0x00, 0x00, 0x00, 0x08],
+      Array.from(drum_comp_eq_common_address()),
+      Array.from(drum_comp_eq_common_size()),
     );
     return {
       enabled: data[0] === 1,
@@ -559,57 +566,41 @@ export class IntegraService {
     };
   }
 
-  /** Read the full 84-byte Comp+EQ block for the given part index and bank MSB. */
-  async requestCompEqBlock(partIndex: number, bankMsb: number): Promise<Uint8Array> {
-    // Comp+EQ lives at tone_type_offset + 00 08 00 within the temporary tone.
-    // Tone type offset is in byte1: PCM Drum → 0x10, SN Drum → 0x03.
-    // Comp+EQ sub-block offset is in byte2: 0x08.
-    const toneTypeByte1 = (bankMsb === 86 || bankMsb === 96 || bankMsb === 120) ? 0x10 : 0x03;
-    const total = partIndex * 0x20;
-    const byte0 = 0x19 + Math.floor(total / 128);
-    const rawByte1 = (total % 128) + toneTypeByte1;
-    // Handle 7-bit carry from byte1 to byte0.
-    const byte1 = rawByte1 % 128;
-    const byte0Final = byte0 + Math.floor(rawByte1 / 128);
-    return this.requestData(
-      [byte0Final, byte1, 0x08, 0x00],
-      [0x00, 0x00, 0x00, 0x54],
-    );
+  /**
+   * Read the full Comp+EQ block of part `partIndex`'s tone (bank MSB
+   * `bankMsb`), or null if that tone isn't a drum kit (only they have one).
+   */
+  async requestCompEqBlock(partIndex: number, bankMsb: number): Promise<Uint8Array | null> {
+    const address = comp_eq_block_address(partIndex, bankMsb);
+    if (address.length === 0) return null;
+    return this.requestData(Array.from(address), Array.from(comp_eq_block_size()));
   }
 
   // -----------------------------------------------------------------------
   // Motional Surround
   // -----------------------------------------------------------------------
 
-  /** Read the 13-byte Motional Surround common block. */
+  /** Read the Motional Surround common block. */
   async requestSurroundCommon(): Promise<Uint8Array> {
     return this.requestData(
-      [0x18, 0x00, 0x08, 0x00],
-      [0x00, 0x00, 0x00, 0x0D],
+      Array.from(surround_common_address()),
+      Array.from(surround_common_size()),
     );
   }
 
-  /** Read per-part surround params (LR at 0x44, FB at 0x46, Width at 0x48, AmbSend at 0x49). */
+  /** Read per-part surround params: L-R, F-B, Width and Ambience Send. */
   async requestPartSurround(part: number): Promise<{ lr: number; fb: number; width: number; ambienceSend: number }> {
-    // Read 6 bytes from offset 0x44 to cover LR(44), ??(45), FB(46), ??(47), Width(48), AmbSend(49)
-    const addr = this.partSurroundAddress(part);
-    const data = await this.requestData(addr, [0x00, 0x00, 0x00, 0x06]);
+    // L-R, (reserved), F-B, (reserved), Width, Ambience Send.
+    const data = await this.requestData(
+      Array.from(part_surround_address(part)),
+      Array.from(part_surround_size()),
+    );
     return {
       lr: data[0] ?? 64,
       fb: data[2] ?? 64,
       width: data[4] ?? 16,
       ambienceSend: data[5] ?? 0,
     };
-  }
-
-  private partSurroundAddress(part: number): number[] {
-    // Part surround LR is at part block offset 0x44
-    // Part block base in Studio Set: 18 00 {20+part} 00
-    // But we need 7-bit address arithmetic...
-    // Studio Set base: 18 00 00 00
-    // Part N offset: 00 {20 + N} 00 00 (each part is 0x01 apart in byte 2)
-    // So Part 0 = 18 00 20 44, Part 1 = 18 00 21 44, etc.
-    return [0x18, 0x00, 0x20 + part, 0x44];
   }
 
   // -----------------------------------------------------------------------

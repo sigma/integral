@@ -243,6 +243,10 @@ pub const fn drum_comp_eq_output_assign(unit: u8) -> Address {
     Address::new(0x18, 0x00, 0x00, 0x45 + unit)
 }
 
+/// Size for reading the Drum Comp/EQ common params from
+/// [`DRUM_COMP_EQ_SWITCH`]: switch, part and the 6 output assigns (8 bytes).
+pub const DRUM_COMP_EQ_COMMON_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x08);
+
 /// Number of Comp+EQ units.
 pub const COMP_EQ_UNIT_COUNT: usize = 6;
 
@@ -375,6 +379,18 @@ pub mod part_surround {
     pub const AMBIENCE_SEND: [u8; 3] = [0x00, 0x00, 0x49];
 }
 
+/// Size for reading a Part's surround params from [`part_surround::LR`]
+/// through [`part_surround::AMBIENCE_SEND`] (6 bytes).
+pub const PART_SURROUND_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x06);
+
+/// Address of the Comp+EQ block for a part whose tone is selected by Bank
+/// Select MSB `msb`, or `None` if that isn't a drum kit (only drum kits
+/// have one).
+pub fn comp_eq_block_address_for_bank(part_index: u8, msb: u8) -> Option<Address> {
+    let tt = tone_type_from_bank_msb(msb)?;
+    is_drum_kit_bank(msb).then(|| comp_eq_block_address(part_index, tt))
+}
+
 // ---------------------------------------------------------------------------
 // Temporary Tone (tone name reading)
 // ---------------------------------------------------------------------------
@@ -488,6 +504,27 @@ pub const PART_MIXER_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x2A);
 mod tests {
     use super::*;
     use crate::address::Address;
+
+    #[test]
+    fn comp_eq_block_address_follows_drum_kit_type() {
+        assert_eq!(
+            comp_eq_block_address_for_bank(0, 86),
+            Some(Address::new(0x19, 0x10, 0x08, 0x00))
+        );
+        assert_eq!(
+            comp_eq_block_address_for_bank(5, 88),
+            Some(Address::new(0x1A, 0x23, 0x08, 0x00))
+        );
+        assert_eq!(comp_eq_block_address_for_bank(0, 87), None);
+    }
+
+    #[test]
+    fn part_surround_starts_at_lr() {
+        assert_eq!(
+            part_address(3, part_surround::LR),
+            Address::new(0x18, 0x00, 0x23, 0x44)
+        );
+    }
 
     #[test]
     fn part1_level_address() {

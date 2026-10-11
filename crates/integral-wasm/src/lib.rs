@@ -574,6 +574,61 @@ pub fn reverb_core_size() -> Vec<u8> {
 }
 
 // ---------------------------------------------------------------------------
+// Drum Comp+EQ and Motional Surround addresses
+// ---------------------------------------------------------------------------
+
+/// Returns the address of the Drum Comp/EQ common params (the switch, first).
+#[wasm_bindgen]
+pub fn drum_comp_eq_common_address() -> Vec<u8> {
+    addr_to_vec(params::DRUM_COMP_EQ_SWITCH)
+}
+
+/// Returns the RQ1 size for reading the Drum Comp/EQ common params.
+#[wasm_bindgen]
+pub fn drum_comp_eq_common_size() -> Vec<u8> {
+    params::DRUM_COMP_EQ_COMMON_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of the Comp+EQ block of part `part_index`'s tone
+/// (bank MSB `bank_msb`), or empty if that tone isn't a drum kit.
+#[wasm_bindgen]
+pub fn comp_eq_block_address(part_index: u8, bank_msb: u8) -> Vec<u8> {
+    params::comp_eq_block_address_for_bank(part_index, bank_msb)
+        .map(addr_to_vec)
+        .unwrap_or_default()
+}
+
+/// Returns the RQ1 size for reading a whole Comp+EQ block.
+#[wasm_bindgen]
+pub fn comp_eq_block_size() -> Vec<u8> {
+    params::COMP_EQ_BLOCK_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of the Motional Surround common block.
+#[wasm_bindgen]
+pub fn surround_common_address() -> Vec<u8> {
+    addr_to_vec(params::SURROUND_BASE)
+}
+
+/// Returns the RQ1 size for reading the Motional Surround common block.
+#[wasm_bindgen]
+pub fn surround_common_size() -> Vec<u8> {
+    params::SURROUND_COMMON_SIZE.as_bytes().to_vec()
+}
+
+/// Returns the address of part `part_index`'s surround params (L-R, first).
+#[wasm_bindgen]
+pub fn part_surround_address(part_index: u8) -> Vec<u8> {
+    addr_to_vec(params::part_address(part_index, params::part_surround::LR))
+}
+
+/// Returns the RQ1 size for reading a part's surround params.
+#[wasm_bindgen]
+pub fn part_surround_size() -> Vec<u8> {
+    params::PART_SURROUND_SIZE.as_bytes().to_vec()
+}
+
+// ---------------------------------------------------------------------------
 // Ext Part addresses
 // ---------------------------------------------------------------------------
 

@@ -284,13 +284,12 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
         await seq("drum comp+eq", async () => {
           const { enabled, part, outputAssigns } = await svc.requestDrumCompEqCommon();
           dev.applyDrumCompEqCommon(enabled, part, new Uint8Array(outputAssigns));
-          // The Comp+EQ block only exists in drum tone types (MSB 86/96/120=PCM-D, 88=SN-D).
           if (enabled) {
             const partMsb = (dev.readState() as RustMixerState).parts?.[part]?.toneBankMsb;
-            if (partMsb === 86 || partMsb === 88 || partMsb === 96 || partMsb === 120) {
-              const blockData = await svc.requestCompEqBlock(part, partMsb);
-              dev.applyCompEqBlock(blockData);
-            }
+            // Only a drum kit has a Comp+EQ block.
+            const blockData =
+              partMsb === undefined ? null : await svc.requestCompEqBlock(part, partMsb);
+            if (blockData) dev.applyCompEqBlock(blockData);
           }
         });
 
