@@ -1,8 +1,6 @@
-import { useRef, useLayoutEffect, useState, useCallback } from "react";
-import { EqKnob } from "./EqKnob";
+import { ParametricEq } from "./synth-ui";
+import type { EqControl } from "./synth-ui";
 import type { EqState } from "./types";
-import css from "./EqSection.module.css";
-import box from "./PanelBox.module.css";
 
 const LOW_FREQ_VALUES = ["200", "400"];
 const MID_FREQ_VALUES = [
@@ -18,179 +16,49 @@ function formatGain(v: number): string {
   return `${db >= 0 ? "+" : ""}${db}dB`;
 }
 
-function formatFreq(v: number, table: string[]): string {
-  return table[v] ?? `${v}`;
-}
-
-function formatQ(v: number): string {
-  return Q_VALUES[v] ?? `${v}`;
+function formatFrom(table: string[]): (v: number) => string {
+  return (v) => table[v] ?? `${v}`;
 }
 
 interface Props {
   eq: EqState;
   onToggleSwitch: () => void;
   onParam: (paramOffset: number, value: number) => void;
-  showSwitch?: boolean;
   /** Offset added to all param indices. Part EQ has switch at 0 so params start at 1.
    *  Master EQ has no switch so params start at 0. Default: 1 (Part EQ). */
   paramBase?: number;
   style?: React.CSSProperties;
 }
 
-interface DividerLines {
-  w: number;
-  h: number;
-  topPath: string;
-  botPath: string;
-  hiLabel: { x: number; y: number };
-  midLabel: { x: number; y: number };
-  loLabel: { x: number; y: number };
-}
-
-export function EqSection({ eq, onToggleSwitch, onParam, showSwitch = true, paramBase = 1, style }: Props) {
-  const knobAreaRef = useRef<HTMLDivElement>(null);
-  const knobRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [lines, setLines] = useState<DividerLines | null>(null);
-
-  const setKnobRef = useCallback((key: string) => (el: HTMLDivElement | null) => {
-    knobRefs.current[key] = el;
-  }, []);
-
-  const measure = useCallback(() => {
-    const area = knobAreaRef.current;
-    if (!area) return;
-    const refs = knobRefs.current;
-
-    const aRect = area.getBoundingClientRect();
-    const cy = (key: string): number => {
-      const el = refs[key];
-      if (!el) return 0;
-      const r = el.getBoundingClientRect();
-      return r.top + r.height / 2 - aRect.top;
-    };
-    const cx = (key: string): number => {
-      const el = refs[key];
-      if (!el) return 0;
-      const r = el.getBoundingClientRect();
-      return r.left + r.width / 2 - aRect.left;
-    };
-
-    const w = area.offsetWidth;
-    const h = area.offsetHeight;
-    if (w === 0 || h === 0) return;
-
-    // Top divider: horizontal from left edge → midpoint(HI Freq, MID Freq),
-    //              diagonal to midpoint(HI Gain, MID Gain),
-    //              horizontal to right edge
-    const tLx = cx("hiFreq");
-    const tLy = (cy("hiFreq") + cy("midFreq")) / 2;
-    const tRx = cx("hiGain");
-    const tRy = (cy("hiGain") + cy("midGain")) / 2;
-    const topPath = `M 0 ${tLy} L ${tLx} ${tLy} L ${tRx} ${tRy} L ${w} ${tRy}`;
-
-    // Bottom divider: same pattern
-    const bLx = cx("midQ");
-    const bLy = (cy("midQ") + cy("loFreq")) / 2;
-    const bRx = cx("loGain");
-    const bRy = (cy("midGain") + cy("loGain")) / 2;
-    const botPath = `M 0 ${bLy} L ${bLx} ${bLy} L ${bRx} ${bRy} L ${w} ${bRy}`;
-
-    // Labels: HI right of HI Freq, MID left of MID Gain, LO right of LO Freq
-    const rightColX = cx("hiGain");
-    const leftColX = cx("hiFreq");
-
-    setLines({
-      w, h,
-      topPath,
-      botPath,
-      hiLabel: { x: rightColX, y: cy("hiFreq") },
-      midLabel: { x: leftColX, y: cy("midGain") },
-      loLabel: { x: rightColX, y: cy("loFreq") },
-    });
-  }, []);
-
-  useLayoutEffect(() => {
-    // Measure once after first render
-    requestAnimationFrame(measure);
-
-    // Re-measure on resize
-    const area = knobAreaRef.current;
-    if (!area) return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(area);
-    return () => observer.disconnect();
-  }, [measure]);
+/** Mixer 3-band EQ (part, master and Comp+EQ) over `ParametricEq`. */
+export function EqSection({ eq, onToggleSwitch, onParam, paramBase = 1, style }: Props) {
+  const knob = (
+    value: number, max: number, defaultValue: number, offset: number, formatValue: (v: number) => string,
+  ): EqControl => ({ value, min: 0, max, defaultValue, onChange: (v) => onParam(paramBase + offset, v), formatValue });
 
   return (
-    <div className={`${box.box} ${showSwitch && !eq.enabled ? box.off : ""}`} style={style}>
-      {showSwitch && (
-        <button
-          className={`${box.switchButton} ${eq.enabled ? box.switchOn : box.switchOff}`}
-          onClick={onToggleSwitch}
-        >
-          {eq.enabled ? "EQ ON" : "EQ OFF"}
-        </button>
-      )}
-
-      <div className={css.knobArea} ref={knobAreaRef}>
-        {lines && (
-          <svg className={css.dividers} viewBox={`0 0 ${lines.w} ${lines.h}`}>
-            <path d={lines.topPath} fill="none" stroke="#3a3a5a" strokeWidth="2" />
-            <path d={lines.botPath} fill="none" stroke="#3a3a5a" strokeWidth="2" />
-            <text x={lines.hiLabel.x} y={lines.hiLabel.y + 6} textAnchor="middle" fill="#555" fontSize="18" fontWeight="900" fontFamily="sans-serif">HI</text>
-            <text x={lines.midLabel.x} y={lines.midLabel.y + 6} textAnchor="middle" fill="#555" fontSize="18" fontWeight="900" fontFamily="sans-serif">MID</text>
-            <text x={lines.loLabel.x} y={lines.loLabel.y + 6} textAnchor="middle" fill="#555" fontSize="18" fontWeight="900" fontFamily="sans-serif">LO</text>
-          </svg>
-        )}
-
-        <div className={css.knobs}>
-          <div className={css.r2} ref={setKnobRef("hiGain")}>
-            <EqKnob
-              label="Gain" value={eq.highGain} min={0} max={30} defaultValue={15}
-              onChange={(v) => onParam(paramBase + 6, v)} formatValue={formatGain} color="#c66"
-            />
-          </div>
-          <div className={css.r1} ref={setKnobRef("hiFreq")}>
-            <EqKnob
-              label="Freq" value={eq.highFreq} min={0} max={2} defaultValue={1}
-              onChange={(v) => onParam(paramBase + 5, v)}
-              formatValue={(v) => formatFreq(v, HIGH_FREQ_VALUES)} color="#c66"
-            />
-          </div>
-          <div className={css.r4} ref={setKnobRef("midGain")}>
-            <EqKnob
-              label="Gain" value={eq.midGain} min={0} max={30} defaultValue={15}
-              onChange={(v) => onParam(paramBase + 3, v)} formatValue={formatGain} color="#6c6"
-            />
-          </div>
-          <div className={css.r3} ref={setKnobRef("midFreq")}>
-            <EqKnob
-              label="Freq" value={eq.midFreq} min={0} max={16} defaultValue={7}
-              onChange={(v) => onParam(paramBase + 2, v)}
-              formatValue={(v) => formatFreq(v, MID_FREQ_VALUES)} color="#6c6"
-            />
-          </div>
-          <div className={css.r5} ref={setKnobRef("midQ")}>
-            <EqKnob
-              label="Q" value={eq.midQ} min={0} max={4} defaultValue={0}
-              onChange={(v) => onParam(paramBase + 4, v)} formatValue={formatQ} color="#6c6"
-            />
-          </div>
-          <div className={css.r7} ref={setKnobRef("loFreq")}>
-            <EqKnob
-              label="Freq" value={eq.lowFreq} min={0} max={1} defaultValue={1}
-              onChange={(v) => onParam(paramBase + 0, v)}
-              formatValue={(v) => formatFreq(v, LOW_FREQ_VALUES)} color="#66c"
-            />
-          </div>
-          <div className={css.r6} ref={setKnobRef("loGain")}>
-            <EqKnob
-              label="Gain" value={eq.lowGain} min={0} max={30} defaultValue={15}
-              onChange={(v) => onParam(paramBase + 1, v)} formatValue={formatGain} color="#66c"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+    <ParametricEq
+      enabled={eq.enabled}
+      onToggleSwitch={onToggleSwitch}
+      style={style}
+      bands={[
+        {
+          label: "HI", color: "#c66",
+          gain: knob(eq.highGain, 30, 15, 6, formatGain),
+          freq: knob(eq.highFreq, 2, 1, 5, formatFrom(HIGH_FREQ_VALUES)),
+        },
+        {
+          label: "MID", color: "#6c6",
+          gain: knob(eq.midGain, 30, 15, 3, formatGain),
+          freq: knob(eq.midFreq, 16, 7, 2, formatFrom(MID_FREQ_VALUES)),
+          q: knob(eq.midQ, 4, 0, 4, formatFrom(Q_VALUES)),
+        },
+        {
+          label: "LO", color: "#66c",
+          gain: knob(eq.lowGain, 30, 15, 1, formatGain),
+          freq: knob(eq.lowFreq, 1, 1, 0, formatFrom(LOW_FREQ_VALUES)),
+        },
+      ]}
+    />
   );
 }

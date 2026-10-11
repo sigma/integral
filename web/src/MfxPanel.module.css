@@ -152,38 +152,6 @@
 }
 
 /* ----------------------------------------------------------------
-   Custom layout: Equalizer
-   ---------------------------------------------------------------- */
-
-/* EQ bands — one row per band */
-.eqBands {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.eqBandRow {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.eqBandTag {
-  font-size: 8px;
-  font-weight: 900;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  flex-shrink: 0;
-}
-
-.eqKnobs {
-  display: flex;
-  gap: 2px;
-}
-
-/* ----------------------------------------------------------------
    Custom layout: Compressor
    ---------------------------------------------------------------- */
 

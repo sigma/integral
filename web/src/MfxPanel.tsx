@@ -9,7 +9,9 @@ import {
   SynthFader,
   SynthSwitch,
   OutputStrip,
+  ParametricEq,
 } from "./synth-ui";
+import type { EqControl } from "./synth-ui";
 import css from "./MfxPanel.module.css";
 
 // ---------------------------------------------------------------------------
@@ -69,6 +71,7 @@ interface ParamDef {
   min: number;
   max: number;
   defaultValue: number;
+  formatValue: (v: number) => string;
 }
 
 function useParamDefs(mfxType: number): ParamDef[] {
@@ -78,8 +81,11 @@ function useParamDefs(mfxType: number): ParamDef[] {
     for (let i = 0; i < count; i++) {
       const d = mfx_param_def(mfxType, i);
       if (d) {
-        defs.push({ index: d.index, name: d.name, min: d.min, max: d.max, defaultValue: d.defaultValue });
-        d.free();
+        // Kept alive (not freed): formatValue calls back into it.
+        defs.push({
+          index: d.index, name: d.name, min: d.min, max: d.max, defaultValue: d.defaultValue,
+          formatValue: (v) => d.formatValue(v),
+        });
       }
     }
     return defs;
@@ -99,74 +105,30 @@ interface CustomPanelProps {
 // ---------------------------------------------------------------------------
 // Type 1: Equalizer
 // ---------------------------------------------------------------------------
-// Params: 0=LowFreq(0-1) 1=LowGain(-15..15) 2=Mid1Freq(200-8000)
-//         3=Mid1Gain(-15..15) 4=Mid1Q(0-4) 5=Mid2Freq(200-8000)
-//         6=Mid2Gain(-15..15) 7=Mid2Q(0-4) 8=HighFreq(0-2)
-//         9=HighGain(-15..15) 10=Level(0-127)
-
-const Q_LABELS = ["0.5", "1.0", "2.0", "4.0", "8.0"];
-const LOW_FREQ_OPTIONS = [{ value: 0, label: "200Hz" }, { value: 1, label: "400Hz" }];
-const HIGH_FREQ_OPTIONS = [
-  { value: 0, label: "2kHz" },
-  { value: 1, label: "4kHz" },
-  { value: 2, label: "8kHz" },
-];
+// Params: 0=LowFreq 1=LowGain 2=Mid1Freq 3=Mid1Gain 4=Mid1Q 5=Mid2Freq
+//         6=Mid2Gain 7=Mid2Q 8=HighFreq 9=HighGain 10=Level
 
 function signedGain(v: number): string {
   return v > 0 ? `+${v}` : String(v);
 }
 
 function EqualizerPanel({ params, paramDefs, onParam }: CustomPanelProps) {
-  const p = (i: number) => params[i] ?? paramDefs[i]?.defaultValue ?? 0;
-  const fmtHiFreq = (v: number) => HIGH_FREQ_OPTIONS[v]?.label ?? String(v);
-  const fmtLoFreq = (v: number) => LOW_FREQ_OPTIONS[v]?.label ?? String(v);
+  const knob = (i: number): EqControl => {
+    const def = paramDefs[i]!;
+    return {
+      value: params[i] ?? def.defaultValue, min: def.min, max: def.max, defaultValue: def.defaultValue,
+      onChange: (v) => onParam(i, v), formatValue: def.formatValue,
+    };
+  };
   return (
-    <div className={css.eqBands}>
-      {/* HI band */}
-      <div className={css.eqBandRow}>
-        <span className={css.eqBandTag} style={{ color: "#c66" }}>HI</span>
-        <div className={css.eqKnobs}>
-          <SynthKnob label="Gain" value={p(9)} min={-15} max={15} defaultValue={0}
-            onChange={(v) => onParam(9, v)} formatValue={signedGain} color="#c66" />
-          <SynthKnob label="Freq" value={p(8)} min={0} max={2} defaultValue={1}
-            onChange={(v) => onParam(8, v)} formatValue={fmtHiFreq} color="#c66" title="High Frequency" />
-        </div>
-      </div>
-      {/* MID2 band */}
-      <div className={css.eqBandRow}>
-        <span className={css.eqBandTag} style={{ color: "#cc6" }}>MID2</span>
-        <div className={css.eqKnobs}>
-          <SynthKnob label="Gain" value={p(6)} min={-15} max={15} defaultValue={0}
-            onChange={(v) => onParam(6, v)} formatValue={signedGain} color="#cc6" />
-          <SynthKnob label="Freq" value={p(5)} min={200} max={8000} defaultValue={2000}
-            onChange={(v) => onParam(5, v)} formatValue={(v) => `${v}`} color="#cc6" title="Mid2 Frequency" />
-          <SynthKnob label="Q" value={p(7)} min={0} max={4} defaultValue={2}
-            onChange={(v) => onParam(7, v)} formatValue={(v) => Q_LABELS[v] ?? String(v)} color="#cc6" />
-        </div>
-      </div>
-      {/* MID1 band */}
-      <div className={css.eqBandRow}>
-        <span className={css.eqBandTag} style={{ color: "#6c6" }}>MID1</span>
-        <div className={css.eqKnobs}>
-          <SynthKnob label="Gain" value={p(3)} min={-15} max={15} defaultValue={0}
-            onChange={(v) => onParam(3, v)} formatValue={signedGain} color="#6c6" />
-          <SynthKnob label="Freq" value={p(2)} min={200} max={8000} defaultValue={1000}
-            onChange={(v) => onParam(2, v)} formatValue={(v) => `${v}`} color="#6c6" title="Mid1 Frequency" />
-          <SynthKnob label="Q" value={p(4)} min={0} max={4} defaultValue={2}
-            onChange={(v) => onParam(4, v)} formatValue={(v) => Q_LABELS[v] ?? String(v)} color="#6c6" />
-        </div>
-      </div>
-      {/* LO band */}
-      <div className={css.eqBandRow}>
-        <span className={css.eqBandTag} style={{ color: "#66c" }}>LO</span>
-        <div className={css.eqKnobs}>
-          <SynthKnob label="Gain" value={p(1)} min={-15} max={15} defaultValue={0}
-            onChange={(v) => onParam(1, v)} formatValue={signedGain} color="#66c" />
-          <SynthKnob label="Freq" value={p(0)} min={0} max={1} defaultValue={0}
-            onChange={(v) => onParam(0, v)} formatValue={fmtLoFreq} color="#66c" title="Low Frequency" />
-        </div>
-      </div>
-    </div>
+    <ParametricEq
+      bands={[
+        { label: "HI", color: "#c66", gain: knob(9), freq: knob(8) },
+        { label: "MID2", color: "#cc6", gain: knob(6), freq: knob(5), q: knob(7) },
+        { label: "MID1", color: "#6c6", gain: knob(3), freq: knob(2), q: knob(4) },
+        { label: "LO", color: "#66c", gain: knob(1), freq: knob(0) },
+      ]}
+    />
   );
 }
 

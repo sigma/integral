@@ -7,3 +7,5 @@ export { ADSREnvelope } from "./ADSREnvelope";
 export { BreakpointEnvelope } from "./BreakpointEnvelope";
 export { FaderGroup, FaderGroupSep } from "./FaderGroup";
 export { OutputStrip } from "./OutputStrip";
+export { ParametricEq } from "./ParametricEq";
+export type { EqBand, EqControl } from "./ParametricEq";
