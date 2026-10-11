@@ -13,7 +13,7 @@
 
 use super::frame::{self, Frame};
 use super::pcm_tone::{self, Output, PcmTone};
-use super::report::{ConversionItem, ConversionReport};
+use super::report::{ConversionItem, ConversionReport, EffectFamily, ForeignEffect};
 use super::wave_map::ForeignWaveGroup;
 use super::xv::CATEGORIES;
 use super::{Placed, Unit};
@@ -673,7 +673,12 @@ pub(super) fn convert(
 fn mfx(p: &mut Patch<'_>) {
     let used = (0..4).any(|i| p.active(i) && p.tones[i][TONE_OUTPUT_ASSIGN] == OUTPUT_EFX);
     if used && p.common[EFX_TYPE..=EFX_LAST_PARAM] != *init(EFX_TYPE..=EFX_LAST_PARAM) {
-        p.report.push(ConversionItem::EffectDropped);
+        p.report.push(ConversionItem::EffectDropped {
+            source: ForeignEffect {
+                family: EffectFamily::JvEfx,
+                number: p.common[EFX_TYPE] + 1,
+            },
+        });
     }
 }
 

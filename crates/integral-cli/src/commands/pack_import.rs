@@ -799,7 +799,8 @@ mod tests {
             json!([
                 {
                     "type": "effectDropped",
-                    "message": "effect dropped, MFX set to THRU",
+                    "source": { "family": "xvMfx", "number": 6 },
+                    "message": "MFX type 6 dropped, MFX set to THRU",
                 },
                 {
                     "type": "notApplied",
@@ -832,7 +833,7 @@ mod tests {
             united_report(&read, &plan).text_plan(),
             "srx03ap2-001.syx (MIDI file, 1 entry):\n\
              \x20 pcm-synth:1      United !         -> Temporary Part 1 [lossy · 3]\n\
-             \x20     effect dropped, MFX set to THRU\n\
+             \x20     MFX type 6 dropped, MFX set to THRU\n\
              \x20     Chorus CHORUS, level 127 not applied; set it in the Studio Set\n\
              \x20     Reverb SRV HALL, level 127 not applied; set it in the Studio Set\n\
              Warning: 1 other message skipped\n"

@@ -19,7 +19,7 @@ afterAll(() => {
 
 /** The Conversion report of the XV fixture's Patch, as the core words it. */
 const REPORT = [
-  "effect dropped, MFX set to THRU",
+  "MFX type 6 dropped, MFX set to THRU",
   "Chorus CHORUS, level 127 not applied; set it in the Studio Set",
   "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
 ];

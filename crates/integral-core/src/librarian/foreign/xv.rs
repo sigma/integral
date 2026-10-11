@@ -13,7 +13,7 @@
 
 use super::frame::{self, Frame};
 use super::pcm_tone::{self, FULL_LEVEL, OUTPUT_TONE, Output, PcmTone};
-use super::report::{ConversionItem, ConversionReport};
+use super::report::{ConversionItem, ConversionReport, EffectFamily, ForeignEffect};
 use super::wave_map::ForeignWaveGroup;
 use super::{Placed, Unit};
 use crate::address::Address;
@@ -324,8 +324,14 @@ fn patch_output_assign(p: &mut Patch<'_>) {
 /// MFX Type: THRU until the effect types are mapped. MFX Output Assign
 /// names physical outputs and is dropped.
 fn mfx(p: &mut Patch<'_>) {
-    if p.xv[MFX][MFX_TYPE] != 0 {
-        p.report.push(ConversionItem::EffectDropped);
+    let number = p.xv[MFX][MFX_TYPE];
+    if number != 0 {
+        p.report.push(ConversionItem::EffectDropped {
+            source: ForeignEffect {
+                family: EffectFamily::XvMfx,
+                number,
+            },
+        });
     }
     let mfx = p.tone.mfx();
     mfx[MFX_TYPE] = 0;

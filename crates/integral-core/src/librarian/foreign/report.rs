@@ -32,7 +32,10 @@ pub enum ConversionItem {
         target: WaveTarget,
     },
     /// The tone's effect, set to THRU.
-    EffectDropped,
+    EffectDropped {
+        /// The effect the Patch used.
+        source: ForeignEffect,
+    },
     /// A parameter with no INTEGRA-7 equivalent.
     ParamDropped {
         /// The partial (1–4), or `None` for a tone-wide parameter.
@@ -77,7 +80,9 @@ impl fmt::Display for ConversionItem {
                     None => Ok(()),
                 }
             }
-            Self::EffectDropped => f.write_str("effect dropped, MFX set to THRU"),
+            Self::EffectDropped { source } => {
+                write!(f, "{source} dropped, MFX set to THRU")
+            }
             Self::ParamDropped {
                 partial: Some(partial),
                 param,
@@ -99,6 +104,39 @@ impl fmt::Display for ConversionItem {
                 write!(f, "{what} not applied; set it in the Studio Set")
             }
         }
+    }
+}
+
+/// The effect block of a Foreign Patch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub enum EffectFamily {
+    /// The JV/XP EFX.
+    JvEfx,
+    /// The XV MFX.
+    XvMfx,
+}
+
+/// One effect type of a Foreign Patch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct ForeignEffect {
+    /// Its effect block.
+    pub family: EffectFamily,
+    /// Its type number as the source synth shows it, from 1: JV EFX type
+    /// `n` stores `n - 1`, XV MFX type `n` stores `n` (0 is THRU). Both
+    /// number the 40 shared types alike (`docs/research/foreign-fx-map.md`).
+    pub number: u8,
+}
+
+impl fmt::Display for ForeignEffect {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let family = match self.family {
+            EffectFamily::JvEfx => "EFX",
+            EffectFamily::XvMfx => "MFX",
+        };
+        write!(f, "{family} type {}", self.number)
     }
 }
 
@@ -216,7 +254,12 @@ mod tests {
                     confidence: Confidence::Low,
                 },
             },
-            ConversionItem::EffectDropped,
+            ConversionItem::EffectDropped {
+                source: ForeignEffect {
+                    family: EffectFamily::JvEfx,
+                    number: 2,
+                },
+            },
             ConversionItem::ParamDropped {
                 partial: Some(3),
                 param: "Receive Pan Mode",
@@ -241,7 +284,7 @@ mod tests {
             [
                 "Partial 1: SR-JV80-02 Wave 1 (Vl Sect A) has no INTEGRA-7 Wave",
                 "Partial 2: SR-JV80-02 Wave 1 (Vl Sect A) approximated by SRX-06 Wave 29 (Vl Sect A)",
-                "effect dropped, MFX set to THRU",
+                "EFX type 2 dropped, MFX set to THRU",
                 "Partial 3: Receive Pan Mode dropped",
                 "One Shot Mode dropped",
                 "Partial 4: Control 2 route to CUT (-10) dropped",

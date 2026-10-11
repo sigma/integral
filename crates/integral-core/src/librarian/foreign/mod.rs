@@ -30,7 +30,9 @@ use crate::svd::{self, SvdFamily, XvChunkType};
 use crate::sysex;
 
 use frame::FrameError;
-pub use report::{ConversionItem, ConversionReport, FileItem, Skipped};
+pub use report::{
+    ConversionItem, ConversionReport, EffectFamily, FileItem, ForeignEffect, Skipped,
+};
 
 /// First bytes of a Standard MIDI File.
 const SMF_MAGIC: &[u8] = b"MThd";

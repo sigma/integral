@@ -392,7 +392,7 @@ mod xv_patches {
         assert_eq!(
             texts,
             [
-                "effect dropped, MFX set to THRU",
+                "MFX type 6 dropped, MFX set to THRU",
                 "Chorus CHORUS, level 127 not applied; set it in the Studio Set",
                 "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
             ]
@@ -952,7 +952,7 @@ mod jv_patches {
     #[test]
     fn reports_what_the_integra_cannot_hold() {
         let (entry, report) = converted(&patch([0x11, 0x00], 0x48, |b| {
-            b[0][0x0C] = 5; // EFX OVERDRIVE
+            b[0][0x0C] = 5; // EFX ENHANCER
             b[0][0x19] = 1; // EFX Output Assign OUTPUT 1
             b[0][0x3E] = 1; // Control 2 HOLD
             b[0][0x3A] = 15; // Control 2 source PLAYMATE
@@ -969,7 +969,7 @@ mod jv_patches {
         assert_eq!(
             texts(&report),
             [
-                "effect dropped, MFX set to THRU",
+                "EFX type 6 dropped, MFX set to THRU",
                 "EFX Output Assign OUTPUT 1 not applied; set it in the Studio Set",
                 "Control 2 Hold/Peak dropped",
                 "Partial 1: Control 2 route to CUT (+10) dropped",
