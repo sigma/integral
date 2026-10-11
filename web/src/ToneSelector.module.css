@@ -71,6 +71,33 @@
   letter-spacing: 1px;
 }
 
+/* Collapsible headers: hide the native <summary> marker (WebKit ignores display for it) and draw one */
+
+.groupLabel,
+.expansionName {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.groupLabel::before,
+.expansionName::before {
+  content: "▸";
+  width: 10px;
+  flex-shrink: 0;
+}
+
+.groupLabel::-webkit-details-marker,
+.expansionName::-webkit-details-marker {
+  display: none;
+}
+
+[open] > .groupLabel::before,
+[open] > .expansionName::before {
+  content: "▾";
+}
+
 .bankButton {
   display: block;
   width: 100%;
@@ -96,8 +123,6 @@
 /* One Expansion as a sub-group: its name, then its banks (Tone, Drum) indented */
 
 .expansionName {
-  display: flex;
-  align-items: center;
   gap: 6px;
   padding: 6px 12px 6px 20px;
   font-size: 12px;

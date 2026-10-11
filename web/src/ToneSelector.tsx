@@ -162,8 +162,8 @@ export function ToneSelector({
           {mode === "bank" ? (
             <div className={css.bankList}>
               {toneBankGroups().map((group) => (
-                <div key={group.label}>
-                  <div className={css.groupLabel}>{group.label}</div>
+                <details key={group.label} open>
+                  <summary className={css.groupLabel}>{group.label}</summary>
                   {bankListEntries(group).map((entry) =>
                     entry.kind === "bank" ? (
                       <BankButton
@@ -174,8 +174,12 @@ export function ToneSelector({
                         onSelect={setSelectedBank}
                       />
                     ) : (
-                      <div key={entry.expansion.name} className={css.expansionRow}>
-                        <span className={css.expansionName}>
+                      <details
+                        key={entry.expansion.name}
+                        className={css.expansionRow}
+                        open={!expansions.isUnloaded(entry.expansion)}
+                      >
+                        <summary className={css.expansionName}>
                           {entry.expansion.name}
                           {expansions.slots !== null &&
                             !expansions.isUnloaded(entry.expansion) && (
@@ -186,14 +190,18 @@ export function ToneSelector({
                               <NotLoadedMarker expansion={entry.expansion.name} />
                               <button
                                 className={css.loadButton}
-                                onClick={() => onLoadExpansion(entry.expansion)}
+                                onClick={(e) => {
+                                  // Don't also toggle the enclosing <details>.
+                                  e.preventDefault();
+                                  onLoadExpansion(entry.expansion);
+                                }}
                                 title={`Stage ${entry.expansion.name} on the Expansions page`}
                               >
                                 Load
                               </button>
                             </>
                           )}
-                        </span>
+                        </summary>
                         {entry.banks.map((bank) => (
                           <BankButton
                             key={bankId(bank)}
@@ -203,10 +211,10 @@ export function ToneSelector({
                             onSelect={setSelectedBank}
                           />
                         ))}
-                      </div>
+                      </details>
                     ),
                   )}
-                </div>
+                </details>
               ))}
             </div>
           ) : (
