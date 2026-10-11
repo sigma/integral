@@ -2089,6 +2089,7 @@ pub struct WasmMfxParamDef {
     #[wasm_bindgen(readonly, js_name = defaultValue)]
     pub default_value: i32,
     name: String,
+    unit: fx_params::FxUnit,
 }
 
 #[wasm_bindgen]
@@ -2096,6 +2097,12 @@ impl WasmMfxParamDef {
     #[wasm_bindgen(getter)]
     pub fn name(&self) -> String {
         self.name.clone()
+    }
+
+    /// Format a stored value for display.
+    #[wasm_bindgen(js_name = formatValue)]
+    pub fn format_value(&self, value: i32) -> String {
+        self.unit.format(value)
     }
 }
 
@@ -2109,6 +2116,7 @@ pub fn mfx_param_def(mfx_type: u8, param_idx: u32) -> Option<WasmMfxParamDef> {
         max: p.max,
         default_value: p.default_value,
         name: p.name.to_string(),
+        unit: p.unit,
     })
 }
 

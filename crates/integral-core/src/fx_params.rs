@@ -71,6 +71,31 @@ pub enum FxUnit {
     FeedbackPercent,
     /// Index into [`NOTE_NAMES`].
     Note,
+    /// Signed decibels (`+3dB`).
+    Decibels,
+    /// EQ low band frequency: index into [`EQ_LOW_FREQ`].
+    EqLowFreq,
+    /// EQ high band frequency: index into [`EQ_HIGH_FREQ`].
+    EqHighFreq,
+    /// EQ band Q: index into [`EQ_Q`].
+    EqQ,
+}
+
+/// EQ low band frequencies.
+pub static EQ_LOW_FREQ: &[&str] = &["200Hz", "400Hz"];
+
+/// EQ high band frequencies.
+pub static EQ_HIGH_FREQ: &[&str] = &["2kHz", "4kHz", "8kHz"];
+
+/// EQ band Q values.
+pub static EQ_Q: &[&str] = &["0.5", "1.0", "2.0", "4.0", "8.0"];
+
+/// `table[v]`, or `v` itself when out of range.
+fn label(table: &[&str], v: i32) -> String {
+    usize::try_from(v)
+        .ok()
+        .and_then(|i| table.get(i))
+        .map_or_else(|| v.to_string(), |s| s.to_string())
 }
 
 /// Note values for tempo-synced times and rates.
@@ -106,10 +131,10 @@ fn pre_delay_tenths(v: i32) -> i32 {
     }
 }
 
-impl FxParamDef {
-    /// Format a stored parameter value for display.
-    pub fn format_value(&self, v: i32) -> String {
-        match self.unit {
+impl FxUnit {
+    /// Format a stored value for display.
+    pub fn format(self, v: i32) -> String {
+        match self {
             FxUnit::Plain => v.to_string(),
             FxUnit::Percent => format!("{v}%"),
             FxUnit::Hz => format!("{v}Hz"),
@@ -139,11 +164,19 @@ impl FxParamDef {
             FxUnit::RateHz => format!("{:.2}Hz", v as f64 * 0.05),
             FxUnit::DegreesX2 => format!("{}°", v * 2),
             FxUnit::FeedbackPercent => format!("{}%", v * 2 - 98),
-            FxUnit::Note => usize::try_from(v)
-                .ok()
-                .and_then(|i| NOTE_NAMES.get(i))
-                .map_or_else(|| v.to_string(), |n| n.to_string()),
+            FxUnit::Note => label(NOTE_NAMES, v),
+            FxUnit::Decibels => format!("{v:+}dB"),
+            FxUnit::EqLowFreq => label(EQ_LOW_FREQ, v),
+            FxUnit::EqHighFreq => label(EQ_HIGH_FREQ, v),
+            FxUnit::EqQ => label(EQ_Q, v),
         }
+    }
+}
+
+impl FxParamDef {
+    /// Format a stored parameter value for display.
+    pub fn format_value(&self, v: i32) -> String {
+        self.unit.format(v)
     }
 
     /// The note-mode view of a tempo-syncable parameter: same name, but it

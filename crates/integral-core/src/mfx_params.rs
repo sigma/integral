@@ -53,7 +53,7 @@ const MFX_01_EQUALIZER: &[MfxParamDef] = &[
         min: 0,
         max: 1,
         default_value: 0,
-        unit: FxUnit::Plain,
+        unit: FxUnit::EqLowFreq,
     },
     MfxParamDef {
         index: 2,
@@ -61,7 +61,7 @@ const MFX_01_EQUALIZER: &[MfxParamDef] = &[
         min: -15,
         max: 15,
         default_value: 0,
-        unit: FxUnit::Plain,
+        unit: FxUnit::Decibels,
     },
     MfxParamDef {
         index: 3,
@@ -77,7 +77,7 @@ const MFX_01_EQUALIZER: &[MfxParamDef] = &[
         min: -15,
         max: 15,
         default_value: 0,
-        unit: FxUnit::Plain,
+        unit: FxUnit::Decibels,
     },
     MfxParamDef {
         index: 5,
@@ -85,7 +85,7 @@ const MFX_01_EQUALIZER: &[MfxParamDef] = &[
         min: 0,
         max: 4,
         default_value: 2,
-        unit: FxUnit::Plain,
+        unit: FxUnit::EqQ,
     },
     MfxParamDef {
         index: 6,
@@ -101,7 +101,7 @@ const MFX_01_EQUALIZER: &[MfxParamDef] = &[
         min: -15,
         max: 15,
         default_value: 0,
-        unit: FxUnit::Plain,
+        unit: FxUnit::Decibels,
     },
     MfxParamDef {
         index: 8,
@@ -109,7 +109,7 @@ const MFX_01_EQUALIZER: &[MfxParamDef] = &[
         min: 0,
         max: 4,
         default_value: 2,
-        unit: FxUnit::Plain,
+        unit: FxUnit::EqQ,
     },
     MfxParamDef {
         index: 9,
@@ -117,7 +117,7 @@ const MFX_01_EQUALIZER: &[MfxParamDef] = &[
         min: 0,
         max: 2,
         default_value: 1,
-        unit: FxUnit::Plain,
+        unit: FxUnit::EqHighFreq,
     },
     MfxParamDef {
         index: 10,
@@ -125,7 +125,7 @@ const MFX_01_EQUALIZER: &[MfxParamDef] = &[
         min: -15,
         max: 15,
         default_value: 0,
-        unit: FxUnit::Plain,
+        unit: FxUnit::Decibels,
     },
     MfxParamDef {
         index: 11,
@@ -6817,6 +6817,18 @@ mod tests {
         let def = mfx_type_def(1).unwrap();
         assert_eq!(def.name, "Equalizer");
         assert_eq!(def.params.len(), 11);
+        let shown: Vec<_> = def
+            .params
+            .iter()
+            .map(|p| p.unit.format(p.default_value))
+            .collect();
+        assert_eq!(
+            shown,
+            [
+                "200Hz", "+0dB", "1000Hz", "+0dB", "2.0", "2000Hz", "+0dB", "2.0", "4kHz", "+0dB",
+                "127"
+            ]
+        );
     }
 
     #[test]
