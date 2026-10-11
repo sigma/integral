@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Placeholder app icon (an "I7" mark). Source of the PWA PNG icons; see
+     `just web-icons`. Glyphs are paths, not text, so renders don't depend on
+     installed fonts, and they stay inside the maskable safe zone (the central
+     circle of radius 40%). -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0f0f1a"/>
+  <path fill="#e0e0e0" d="M136 156h80v36h-22v128h22v36h-80v-36h22V192h-22z"/>
+  <path fill="#4a6cf7" d="M246 156h130v36l-76 164h-42l76-160h-88z"/>
+</svg>

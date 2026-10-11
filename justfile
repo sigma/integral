@@ -38,6 +38,15 @@ lint-css: web-deps
     cd web && npx stylelint "src/**/*.css"
     cd web && npx stylelint --config ../crates/integral-vst/.stylelintrc.json "../crates/integral-vst/src/**/*.css"
 
+# build the web app for both bases and check its PWA manifest and precache
+check-pwa: pack-wasm web-deps
+    cd web && npx vite build --logLevel warn --outDir dist/check-root --emptyOutDir && node scripts/check-pwa-build.mjs dist/check-root /
+    cd web && GITHUB_PAGES=true npx vite build --logLevel warn --outDir dist/check-pages --emptyOutDir && node scripts/check-pwa-build.mjs dist/check-pages /integral/
+
+# render the PWA icons from web/public/icon.svg (librsvg from the pinned nixpkgs)
+web-icons:
+    cd web/public && for s in 192 512; do nix shell --quiet --inputs-from ../.. nixpkgs#librsvg -c rsvg-convert -w $s -h $s icon.svg -o pwa-$s.png; done
+
 # build all crates (native)
 build:
     cargo build --workspace
@@ -59,7 +68,7 @@ build-web: pack-wasm
     cd web && npx vite build
 
 # format, lint, build, and test — the full pre-commit check
-check: fmt-check lint lint-web lint-css build build-wasm test test-web
+check: fmt-check lint lint-web lint-css build build-wasm test test-web check-pwa
 
 # clean build artifacts
 clean:

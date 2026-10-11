@@ -49,5 +49,5 @@ jobs:
       - name: Web tests
         run: nix develop -c bash -c "cd web && npx vitest run"
 
-      - name: Build web
-        run: nix develop -c bash -c "cd web && npx vite build"
+      - name: Build web and check PWA output
+        run: nix develop -c just check-pwa
