@@ -101,13 +101,13 @@ export function categoryAbbrev(id: number): string {
 // ---------------------------------------------------------------------------
 
 import { factoryTonesJson } from "../pkg/integral_wasm.js";
-import { TONE_BANK_GROUPS } from "./toneBanks";
+import { toneBankGroups } from "./toneBanks";
 
 let categoryCache: Map<string, number> | null = null;
 
 function buildCategoryCache(): Map<string, number> {
   const cache = new Map<string, number>();
-  for (const group of TONE_BANK_GROUPS) {
+  for (const group of toneBankGroups()) {
     for (const bank of group.banks) {
       for (const lsb of bank.lsbs) {
         const json = factoryTonesJson(bank.msb, lsb);

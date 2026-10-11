@@ -6,8 +6,8 @@ use integral_core::device::DeviceState;
 use integral_core::state::parse as state_parse;
 use integral_core::sysex;
 use integral_core::{
-    fx_params, mfx, mfx_params, param_registry, params, params::part, params::part_eq, tone_banks,
-    user_write,
+    expansions, fx_params, mfx, mfx_params, param_registry, params, params::part, params::part_eq,
+    tone_banks, user_write,
 };
 use wasm_bindgen::prelude::*;
 
@@ -752,35 +752,92 @@ pub fn encode_nib_param(value: i32) -> Vec<u8> {
 // Tone bank definitions
 // ---------------------------------------------------------------------------
 
+/// An Expansion exposed to JS.
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct WasmExpansion {
+    name: String,
+    /// Value selecting this Expansion in a slot read or load.
+    #[wasm_bindgen(readonly, js_name = loadValue)]
+    pub load_value: u8,
+}
+
+impl From<&expansions::Expansion> for WasmExpansion {
+    fn from(e: &expansions::Expansion) -> Self {
+        Self {
+            name: e.name.to_string(),
+            load_value: e.load_value,
+        }
+    }
+}
+
+#[wasm_bindgen]
+impl WasmExpansion {
+    /// Display name (e.g. "SRX-05", "ExSN1", "ExPCM").
+    #[wasm_bindgen(getter)]
+    pub fn name(&self) -> String {
+        self.name.clone()
+    }
+}
+
 /// A tone bank exposed to JS.
 #[wasm_bindgen]
+#[derive(Clone)]
 pub struct WasmToneBank {
+    /// Bank Select MSB.
     #[wasm_bindgen(readonly)]
     pub msb: u8,
     label: String,
     lsbs: Vec<u8>,
+    group: String,
+    badge: String,
+    expansion: Option<WasmExpansion>,
 }
 
-impl From<&tone_banks::ToneBank> for WasmToneBank {
-    fn from(b: &tone_banks::ToneBank) -> Self {
+impl From<&'static tone_banks::ToneBank> for WasmToneBank {
+    fn from(b: &'static tone_banks::ToneBank) -> Self {
         Self {
             msb: b.msb,
             label: b.label.to_string(),
             lsbs: b.lsbs.to_vec(),
+            group: tone_banks::group_of(b).map_or("", |g| g.label).to_string(),
+            badge: b.badge().to_string(),
+            expansion: b.expansion.map(WasmExpansion::from),
         }
     }
 }
 
 #[wasm_bindgen]
 impl WasmToneBank {
+    /// Bank name within its group (e.g. "Preset", "SRX-05 Drum").
     #[wasm_bindgen(getter)]
     pub fn label(&self) -> String {
         self.label.clone()
     }
 
+    /// Bank Select LSBs; each holds up to 128 tones.
     #[wasm_bindgen(getter)]
     pub fn lsbs(&self) -> Vec<u8> {
         self.lsbs.clone()
+    }
+
+    /// Label of the group holding this bank (e.g. "SN Acoustic").
+    #[wasm_bindgen(getter)]
+    pub fn group(&self) -> String {
+        self.group.clone()
+    }
+
+    /// Short tag for this bank's tones in mixed lists (e.g. "SN-A",
+    /// "SRX-05").
+    #[wasm_bindgen(getter)]
+    pub fn badge(&self) -> String {
+        self.badge.clone()
+    }
+
+    /// The Expansion providing this bank, or `undefined` for built-in banks.
+    #[wasm_bindgen(getter)]
+    pub fn expansion(&self) -> Option<WasmExpansion> {
+        self.expansion.clone()
     }
 }
 
@@ -793,6 +850,7 @@ pub struct WasmToneBankGroup {
 
 #[wasm_bindgen]
 impl WasmToneBankGroup {
+    /// Group display name.
     #[wasm_bindgen(getter)]
     pub fn label(&self) -> String {
         self.label.clone()
@@ -807,15 +865,12 @@ impl WasmToneBankGroup {
     /// Get bank at index.
     #[wasm_bindgen(js_name = getBank)]
     pub fn get_bank(&self, index: usize) -> Option<WasmToneBank> {
-        self.banks.get(index).map(|b| WasmToneBank {
-            msb: b.msb,
-            label: b.label.clone(),
-            lsbs: b.lsbs.clone(),
-        })
+        self.banks.get(index).cloned()
     }
 }
 
-/// Returns all tone bank groups.
+/// Returns all tone bank groups, in display order. Banks of the Expansion
+/// group follow the Expansion catalog order, tone bank before drum bank.
 #[wasm_bindgen]
 pub fn tone_bank_groups() -> Vec<WasmToneBankGroup> {
     tone_banks::TONE_BANK_GROUPS

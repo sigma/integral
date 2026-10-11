@@ -4,7 +4,12 @@ import { PartSelector } from "./PartSelector";
 import { ToneSelector } from "./ToneSelector";
 import { ToneCatalog } from "./toneCatalog";
 import { SaveDialog, type SaveSlot } from "./SaveDialog";
-import { toneSlotNumber, userToneBank, type ToneBank } from "./toneBanks";
+import {
+  findToneBank,
+  toneSlotNumber,
+  userToneBank,
+  type ToneBank,
+} from "./toneBanks";
 import { useBankEntries } from "./useBankEntries";
 import { deviceSpec } from "./deviceSpec";
 import type { IntegraService } from "./integra";
@@ -19,30 +24,16 @@ interface Props {
 
 function toneDisplay(part: PartState): string {
   if (part.toneName) {
-    return `${toneTypeLabel(part.toneBankMsb)} : ${part.tonePC + 1} : ${part.toneName}`;
+    return `${toneSourceLabel(part)} : ${part.tonePC + 1} : ${part.toneName}`;
   }
   return `Bank ${part.toneBankMsb}-${part.toneBankLsb} : PC ${part.tonePC + 1}`;
 }
 
-function toneTypeLabel(bankMsb: number): string {
-  switch (bankMsb) {
-    case 87:
-      return "PCM Synth";
-    case 89:
-      return "SN Acoustic";
-    case 95:
-      return "SN Synth";
-    case 86:
-      return "PCM Drum";
-    case 88:
-      return "SN Drum";
-    case 93:
-      return "Expansion PCM";
-    case 121:
-      return "GM2";
-    default:
-      return `Bank ${bankMsb}`;
-  }
+/** The part's tone bank group, or its Expansion for Expansion banks. */
+function toneSourceLabel(part: PartState): string {
+  const bank = findToneBank(part.toneBankMsb, part.toneBankLsb);
+  if (!bank) return `Bank ${part.toneBankMsb}`;
+  return bank.expansion?.name ?? bank.group;
 }
 
 interface ToneSlot extends SaveSlot {

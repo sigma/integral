@@ -28,6 +28,8 @@ pub struct ToneBank {
 pub struct ToneBankGroup {
     /// Group display name.
     pub label: &'static str,
+    /// Short tag for the group's tones in mixed lists (e.g. "SN-A").
+    pub badge: &'static str,
     /// Banks within this group.
     pub banks: &'static [ToneBank],
 }
@@ -39,6 +41,7 @@ pub const USER_LABEL: &str = "User";
 pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
     ToneBankGroup {
         label: "SN Acoustic",
+        badge: "SN-A",
         banks: &[
             ToneBank {
                 label: "Preset",
@@ -56,6 +59,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
     },
     ToneBankGroup {
         label: "SN Synth",
+        badge: "SN-S",
         banks: &[
             ToneBank {
                 label: "Preset",
@@ -73,6 +77,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
     },
     ToneBankGroup {
         label: "SN Drum",
+        badge: "SN-D",
         banks: &[
             ToneBank {
                 label: "Preset",
@@ -90,6 +95,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
     },
     ToneBankGroup {
         label: "PCM Synth",
+        badge: "PCM-S",
         banks: &[
             ToneBank {
                 label: "Preset",
@@ -107,6 +113,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
     },
     ToneBankGroup {
         label: "PCM Drum",
+        badge: "PCM-D",
         banks: &[
             ToneBank {
                 label: "Preset",
@@ -124,6 +131,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
     },
     ToneBankGroup {
         label: "GM2",
+        badge: "GM2",
         banks: &[
             ToneBank {
                 label: "Tone",
@@ -141,6 +149,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
     },
     ToneBankGroup {
         label: "Expansion",
+        badge: "EXP",
         banks: &[
             ToneBank {
                 label: "SRX-01",
@@ -308,6 +317,25 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
     },
 ];
 
+impl ToneBank {
+    /// Short tag for this bank's tones in mixed lists: its Expansion's
+    /// name, else its group's badge.
+    pub fn badge(&'static self) -> &'static str {
+        match self.expansion {
+            Some(expansion) => expansion.name,
+            None => group_of(self).map_or("", |group| group.badge),
+        }
+    }
+}
+
+/// The group of [`TONE_BANK_GROUPS`] holding `bank`, or `None` for a bank
+/// outside the table.
+pub fn group_of(bank: &ToneBank) -> Option<&'static ToneBankGroup> {
+    TONE_BANK_GROUPS
+        .iter()
+        .find(|group| group.banks.iter().any(|b| std::ptr::eq(b, bank)))
+}
+
 /// Find the bank that contains a given (MSB, LSB) pair.
 pub fn find_bank(msb: u8, lsb: u8) -> Option<&'static ToneBank> {
     for group in TONE_BANK_GROUPS {
@@ -388,6 +416,19 @@ mod tests {
     #[test]
     fn unknown_bank_returns_none() {
         assert!(find_bank(0, 0).is_none());
+    }
+
+    #[test]
+    fn group_and_badge_of_banks() {
+        let user_pcm = user_bank_for(97).unwrap();
+        assert_eq!(group_of(user_pcm).unwrap().label, "PCM Synth");
+        assert_eq!(user_pcm.badge(), "PCM-S");
+        let srx05_drum = find_bank(92, 4).unwrap();
+        assert_eq!(group_of(srx05_drum).unwrap().label, "Expansion");
+        assert_eq!(srx05_drum.badge(), "SRX-05");
+        assert_eq!(find_bank(96, 0).unwrap().badge(), "ExPCM");
+        let copy = user_pcm.clone();
+        assert!(group_of(&copy).is_none(), "only banks of the table");
     }
 
     #[test]

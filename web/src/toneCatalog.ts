@@ -8,8 +8,7 @@
  */
 
 import type { IntegraService } from "./integra";
-import type { ToneBank } from "./toneBanks";
-import { TONE_BANK_GROUPS } from "./toneBanks";
+import { toneBankGroups, type ToneBank } from "./toneBanks";
 import { factoryTonesJson } from "../pkg/integral_wasm.js";
 
 export interface ToneEntry {
@@ -131,7 +130,7 @@ export class ToneCatalog {
   ensureAllFactoryLoaded(): void {
     if (this.allFactoryLoaded) return;
     this.allFactoryLoaded = true;
-    for (const group of TONE_BANK_GROUPS) {
+    for (const group of toneBankGroups()) {
       for (const bank of group.banks) {
         const key = bankKey(bank);
         if (this.cache.has(key)) continue;

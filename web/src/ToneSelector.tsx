@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { TONE_BANK_GROUPS, type ToneBank } from "./toneBanks";
+import {
+  findToneBank,
+  toneBankGroups,
+  type ToneBank,
+  type ToneBankGroup,
+} from "./toneBanks";
+import { is_drum_kit_bank } from "../pkg/integral_wasm.js";
 import type { ToneCatalog, ToneEntry } from "./toneCatalog";
 import { CATEGORIES, CATEGORY_IDS, categoryAbbrev } from "./categories";
 import { useBankEntries } from "./useBankEntries";
@@ -21,20 +27,33 @@ interface Props {
   onClose: () => void;
 }
 
-/** Short bank badge from MSB for category-mode rows. */
-function bankBadge(msb: number): string {
-  switch (msb) {
-    case 89: return "SN-A";
-    case 95: return "SN-S";
-    case 88: return "SN-D";
-    case 87: return "PCM-S";
-    case 86: return "PCM-D";
-    case 121: return "GM2";
-    case 120: return "GM2-D";
-    case 97: return "ExPCM";
-    case 96: return "ExDRM";
-    default: return `${msb}`;
+/** Short bank badge for category-mode rows. */
+function bankBadge(msb: number, lsb: number): string {
+  return findToneBank(msb, lsb)?.badge ?? `${msb}`;
+}
+
+/** One entry of the bank list: a bank, or an Expansion with its banks. */
+type BankListEntry =
+  | { kind: "bank"; bank: ToneBank }
+  | { kind: "expansion"; name: string; banks: ToneBank[] };
+
+/** Bank list entries of a group, one per Expansion for Expansion banks. */
+function bankListEntries(group: ToneBankGroup): BankListEntry[] {
+  const entries: BankListEntry[] = [];
+  for (const bank of group.banks) {
+    const name = bank.expansion?.name;
+    if (name === undefined) {
+      entries.push({ kind: "bank", bank });
+      continue;
+    }
+    const last = entries[entries.length - 1];
+    if (last?.kind === "expansion" && last.name === name) {
+      last.banks.push(bank);
+    } else {
+      entries.push({ kind: "expansion", name, banks: [bank] });
+    }
   }
+  return entries;
 }
 
 export function ToneSelector({
@@ -46,7 +65,7 @@ export function ToneSelector({
   onSelect,
   onClose,
 }: Props) {
-  const initialBank = findBank(currentMsb, currentLsb);
+  const initialBank = findToneBank(currentMsb, currentLsb);
 
   const [mode, setMode] = useState<BrowseMode>("bank");
   const [selectedBank, setSelectedBank] = useState<ToneBank | null>(
@@ -128,23 +147,33 @@ export function ToneSelector({
           {/* Left panel: bank list or category grid */}
           {mode === "bank" ? (
             <div className={css.bankList}>
-              {TONE_BANK_GROUPS.map((group) => (
+              {toneBankGroups().map((group) => (
                 <div key={group.label}>
                   <div className={css.groupLabel}>{group.label}</div>
-                  {group.banks.map((bank) => {
-                    const isActive =
-                      selectedBank?.msb === bank.msb &&
-                      selectedBank?.lsbs.join() === bank.lsbs.join();
-                    return (
-                      <button
-                        key={`${bank.msb}-${bank.lsbs.join()}`}
-                        className={`${css.bankButton} ${isActive ? css.bankActive : ""}`}
-                        onClick={() => setSelectedBank(bank)}
-                      >
-                        {bank.label}
-                      </button>
-                    );
-                  })}
+                  {bankListEntries(group).map((entry) =>
+                    entry.kind === "bank" ? (
+                      <BankButton
+                        key={bankId(entry.bank)}
+                        bank={entry.bank}
+                        label={entry.bank.label}
+                        selected={selectedBank}
+                        onSelect={setSelectedBank}
+                      />
+                    ) : (
+                      <div key={entry.name} className={css.expansionRow}>
+                        <span className={css.expansionName}>{entry.name}</span>
+                        {entry.banks.map((bank) => (
+                          <BankButton
+                            key={bankId(bank)}
+                            bank={bank}
+                            label={is_drum_kit_bank(bank.msb) ? "Drum" : "Tone"}
+                            selected={selectedBank}
+                            onSelect={setSelectedBank}
+                          />
+                        ))}
+                      </div>
+                    ),
+                  )}
                 </div>
               ))}
             </div>
@@ -193,7 +222,7 @@ export function ToneSelector({
                       </span>
                       {mode === "category" ? (
                         <span className={css.toneBadge}>
-                          {bankBadge(entry.msb)}
+                          {bankBadge(entry.msb, entry.lsb)}
                         </span>
                       ) : (
                         <span className={css.toneCategory}>
@@ -232,11 +261,28 @@ export function ToneSelector({
   );
 }
 
-function findBank(msb: number, lsb: number): ToneBank | null {
-  for (const group of TONE_BANK_GROUPS) {
-    for (const bank of group.banks) {
-      if (bank.msb === msb && bank.lsbs.includes(lsb)) return bank;
-    }
-  }
-  return null;
+function bankId(bank: ToneBank): string {
+  return `${bank.msb}-${bank.lsbs.join()}`;
+}
+
+function BankButton({
+  bank,
+  label,
+  selected,
+  onSelect,
+}: {
+  bank: ToneBank;
+  label: string;
+  selected: ToneBank | null;
+  onSelect: (bank: ToneBank) => void;
+}) {
+  const isActive = selected !== null && bankId(selected) === bankId(bank);
+  return (
+    <button
+      className={`${css.bankButton} ${isActive ? css.bankActive : ""}`}
+      onClick={() => onSelect(bank)}
+    >
+      {label}
+    </button>
+  );
 }
