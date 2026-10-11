@@ -8,4 +8,5 @@ pub mod pack_import;
 pub mod ping;
 pub mod raw;
 pub mod svd;
+pub mod tone_waves;
 pub mod wave;

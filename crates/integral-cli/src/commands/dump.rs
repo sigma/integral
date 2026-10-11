@@ -11,6 +11,7 @@ use integral_core::params;
 use integral_core::sysex;
 use midir::MidiOutput;
 
+use super::tone_waves;
 use crate::device::IntegraDevice;
 use crate::midi;
 
@@ -67,8 +68,15 @@ pub fn read_param(
             let name = String::from_utf8_lossy(&data);
             println!("Part {} Tone Name: \"{name}\"", p + 1);
         }
+        "tone-waves" => {
+            let p = part.context("--part is required for tone-waves")? - 1;
+            let mut dev = IntegraDevice::connect(port_pattern, device_id, timeout)?;
+            for line in tone_waves::read(&mut dev, p)? {
+                println!("{line}");
+            }
+        }
         _ => bail!(
-            "unknown read target: {what}. Use: studio-set-name, master-level, part-mixer, tone-name"
+            "unknown read target: {what}. Use: studio-set-name, master-level, part-mixer, tone-name, tone-waves"
         ),
     }
 

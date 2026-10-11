@@ -41,6 +41,10 @@ const SNS_PARTIAL_OFFSETS: [[u8; 4]; 3] = [
 /// Number of Partials in an SN-S Tone.
 pub const SNS_PARTIAL_COUNT: usize = SNS_PARTIAL_OFFSETS.len();
 
+/// [`SnSynthPartial::osc_wave`] value selecting a PCM Wave
+/// ([`SnSynthPartial::wave_number`] in the SN Synth Wave list).
+pub const OSC_WAVE_PCM: u8 = 7;
+
 /// Compute the absolute SN-S base address for a part.
 const fn sns_base(part_index: u8) -> Address {
     params::temporary_tone_base(part_index).offset(SNS_TONE_OFFSET)
@@ -164,7 +168,8 @@ impl Default for SnSynthCommon {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct SnSynthPartial {
-    /// OSC Wave (0–7: SAW, SQR, PW-SQR, TRI, SINE, NOISE, SUPER-SAW, PCM).
+    /// OSC Wave (0–7: SAW, SQR, PW-SQR, TRI, SINE, NOISE, SUPER-SAW,
+    /// [`OSC_WAVE_PCM`]).
     pub osc_wave: u8,
     /// OSC Wave Variation (0–2: A, B, C).
     pub osc_wave_variation: u8,

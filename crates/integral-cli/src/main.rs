@@ -34,7 +34,8 @@ enum Cli {
         port: String,
         #[arg(long, default_value_t = 2.0)]
         timeout: f64,
-        /// What to read: studio-set-name, master-level, part-mixer, tone-name
+        /// What to read: studio-set-name, master-level, part-mixer, tone-name,
+        /// tone-waves
         what: String,
         /// Part number (1-16), required for part-specific reads.
         #[arg(long)]
