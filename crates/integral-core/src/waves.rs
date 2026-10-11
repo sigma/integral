@@ -22,6 +22,21 @@ pub struct Wave {
 
 include!(concat!(env!("OUT_DIR"), "/wave_catalog_data.rs"));
 
+/// Family of every tempo-prefixed SRX phrase (`080:BladeBtL`, `75:BoomRvBel`).
+pub const BPM_LOOPS: &str = "BPM loops";
+
+impl Wave {
+    /// The Wave's family: its name's first word, or [`BPM_LOOPS`] for
+    /// tempo-prefixed phrases.
+    pub fn family(&self) -> &'static str {
+        let first = self.name.split_whitespace().next().unwrap_or("");
+        let is_tempo = first.split_once(':').is_some_and(|(tempo, _)| {
+            !tempo.is_empty() && tempo.bytes().all(|b| b.is_ascii_digit())
+        });
+        if is_tempo { BPM_LOOPS } else { first }
+    }
+}
+
 /// A list of Waves selectable together.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
@@ -133,6 +148,47 @@ pub fn name(group: WaveGroup, number: u16) -> Option<&'static str> {
     }
 }
 
+/// The distinct families of `group`, in catalog order.
+pub fn families(group: WaveGroup) -> Vec<&'static str> {
+    let mut families: Vec<&'static str> = Vec::new();
+    for wave in waves(group) {
+        let family = wave.family();
+        if !families.contains(&family) {
+            families.push(family);
+        }
+    }
+    families
+}
+
+/// The R Wave Number paired with L Wave `number`, if any.
+///
+/// A Stereo pair is two adjacent Waves (R at `number + 1`) whose names differ
+/// in a single word, that word ending in `L` for one and `R` for the other:
+/// a suffix (`StGrand pA L` / `StGrand pA R`, `PhraseMenuL` / `PhraseMenuR`)
+/// or a mid-name token (`Grand1 L p A` / `Grand1 R p A`).
+pub fn stereo_partner(group: WaveGroup, number: u16) -> Option<u16> {
+    let list = waves(group);
+    let l = list.get(usize::from(number).checked_sub(1)?)?;
+    let r = list.get(usize::from(number))?;
+    pair_word(l.name, r.name).map(|_| number + 1)
+}
+
+/// Index of the single word in which `l` and `r` differ by a final `L`/`R`.
+fn pair_word(l: &str, r: &str) -> Option<usize> {
+    let lw: Vec<&str> = l.split_whitespace().collect();
+    let rw: Vec<&str> = r.split_whitespace().collect();
+    if lw.len() != rw.len() {
+        return None;
+    }
+    let mut differing = (0..lw.len()).filter(|&i| lw[i] != rw[i]);
+    let i = differing.next()?;
+    if differing.next().is_some() {
+        return None;
+    }
+    let lp = lw[i].strip_suffix('L')?;
+    (rw[i].strip_suffix('R')? == lp).then_some(i)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -185,5 +241,78 @@ mod tests {
         assert_eq!(srx07.waves(), waves(WaveGroup::Srx(7)));
         assert!(expansions::by_name("ExSN1").unwrap().waves().is_empty());
         assert_eq!(WaveGroup::Int.expansion(), None);
+    }
+
+    /// Count adjacent pairs whose differing word is the last (suffix form)
+    /// and those where it isn't (mid-name form).
+    fn pair_forms(group: WaveGroup) -> (usize, usize) {
+        let list = waves(group);
+        let (mut suffix, mut mid) = (0, 0);
+        for pair in list.windows(2) {
+            if let Some(i) = pair_word(pair[0].name, pair[1].name) {
+                if i + 1 == pair[0].name.split_whitespace().count() {
+                    suffix += 1;
+                } else {
+                    mid += 1;
+                }
+            }
+        }
+        (suffix, mid)
+    }
+
+    #[test]
+    fn suffix_pair_counts_match_research() {
+        let expected = [
+            (WaveGroup::Int, 70),
+            (WaveGroup::Srx(1), 301),
+            (WaveGroup::Srx(3), 167),
+            (WaveGroup::Srx(4), 98),
+            (WaveGroup::Srx(5), 101),
+            (WaveGroup::Srx(6), 14),
+            (WaveGroup::Srx(8), 2),
+            (WaveGroup::Srx(10), 123),
+            (WaveGroup::Srx(11), 20),
+        ];
+        for (group, count) in expected {
+            assert_eq!(pair_forms(group).0, count, "{}", group.id());
+        }
+    }
+
+    #[test]
+    fn mid_name_pairs() {
+        assert!(pair_forms(WaveGroup::Srx(2)).1 > 0);
+        assert!(pair_forms(WaveGroup::Srx(7)).1 > 0);
+        let l = waves(WaveGroup::Srx(2))
+            .iter()
+            .find(|w| w.name == "Grand1 L p A")
+            .unwrap();
+        assert_eq!(
+            stereo_partner(WaveGroup::Srx(2), l.number).and_then(|r| name(WaveGroup::Srx(2), r)),
+            Some("Grand1 R p A")
+        );
+    }
+
+    #[test]
+    fn stereo_partner_suffix_and_none() {
+        assert_eq!(stereo_partner(WaveGroup::Int, 1), Some(2));
+        // R has no partner of its own, nor does OFF or the last Wave.
+        assert_eq!(stereo_partner(WaveGroup::Int, 2), None);
+        assert_eq!(stereo_partner(WaveGroup::Int, 0), None);
+        assert_eq!(stereo_partner(WaveGroup::Int, 1083), None);
+    }
+
+    #[test]
+    fn families_plain_and_bpm() {
+        let int = waves(WaveGroup::Int);
+        assert_eq!(int[0].family(), "StGrand");
+        let srx05 = waves(WaveGroup::Srx(5));
+        assert_eq!(srx05[2].family(), BPM_LOOPS);
+        let srx05_families = families(WaveGroup::Srx(5));
+        assert_eq!(srx05_families[0], "PhraseMenuL");
+        assert_eq!(
+            srx05_families.iter().filter(|f| **f == BPM_LOOPS).count(),
+            1
+        );
+        assert_eq!(families(WaveGroup::Int)[0], "StGrand");
     }
 }
