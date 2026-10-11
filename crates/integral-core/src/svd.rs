@@ -17,11 +17,14 @@ use crate::svd_specs::{SNA_TONE_SPEC, SNS_TONE_SPEC};
 // Constants
 // ---------------------------------------------------------------------------
 
-/// SVD file magic signature: `\x00nSVD1`.
-const MAGIC: [u8; 6] = [0x00, 0x6E, 0x53, 0x56, 0x44, 0x31];
+/// SVD file signature at bytes 2–5, after the big-endian header length.
+const SIGNATURE: [u8; 4] = *b"SVD1";
 
 /// INTEGRA-7 model identifier in SVD directory entries.
 const MODEL_MI69: [u8; 4] = [b'M', b'I', b'6', b'9'];
+
+/// Size of the big-endian header length at bytes 0–1, which excludes itself.
+const LENGTH_FIELD_SIZE: usize = 2;
 
 /// Size of the file header in bytes.
 const HEADER_SIZE: usize = 16;
@@ -39,9 +42,13 @@ const ZONE_HEADER_SIZE: usize = 16;
 /// Errors that can occur when parsing an SVD file.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum SvdError {
-    /// The file does not start with the expected `\x00nSVD1` magic signature.
+    /// Bytes 2–5 are not the `SVD1` signature.
     #[error("invalid SVD magic signature")]
     InvalidMagic,
+
+    /// The header length does not span a whole number of directory entries.
+    #[error("invalid SVD header length: {0:#06x}")]
+    InvalidHeaderLength(u16),
 
     /// A directory entry has a model identifier other than `MI69`.
     #[error("invalid model identifier (expected MI69)")]
@@ -79,6 +86,8 @@ pub enum ChunkType {
     SnAcousticTone,
     /// SuperNATURAL Drum Kit (`SDKa`).
     SnDrumKit,
+    /// System settings (`SYSa`), present only in BACKUP files.
+    SystemSettings,
 }
 
 impl ChunkType {
@@ -93,6 +102,7 @@ impl ChunkType {
             b"SHPa" => Some(Self::SnSynthTone),
             b"SNTa" => Some(Self::SnAcousticTone),
             b"SDKa" => Some(Self::SnDrumKit),
+            b"SYSa" => Some(Self::SystemSettings),
             _ => None,
         }
     }
@@ -106,6 +116,7 @@ impl ChunkType {
             Self::SnSynthTone => *b"SHPa",
             Self::SnAcousticTone => *b"SNTa",
             Self::SnDrumKit => *b"SDKa",
+            Self::SystemSettings => *b"SYSa",
         }
     }
 
@@ -118,6 +129,7 @@ impl ChunkType {
             Self::SnSynthTone => "sn-synth",
             Self::SnAcousticTone => "sn-acoustic",
             Self::SnDrumKit => "sn-drum",
+            Self::SystemSettings => "system",
         }
     }
 
@@ -130,6 +142,7 @@ impl ChunkType {
             Self::SnSynthTone => "SN Synth Tone",
             Self::SnAcousticTone => "SN Acoustic Tone",
             Self::SnDrumKit => "SN Drum Kit",
+            Self::SystemSettings => "System Settings",
         }
     }
 
@@ -142,6 +155,7 @@ impl ChunkType {
             Self::SnSynthTone => 280,
             Self::SnAcousticTone => 138,
             Self::SnDrumKit => 1006,
+            Self::SystemSettings => 108,
         }
     }
 }
@@ -156,9 +170,11 @@ impl ChunkType {
     /// Return the length (in characters) of patch names for this chunk type.
     ///
     /// Studio Sets use 16-character names; all tone/drum types use 12.
+    /// System settings have no name.
     pub fn name_length(&self) -> usize {
         match self {
             Self::StudioSet => 16,
+            Self::SystemSettings => 0,
             _ => 12,
         }
     }
@@ -264,24 +280,22 @@ impl SvdFile {
         if data.len() < HEADER_SIZE {
             return Err(SvdError::UnexpectedEof);
         }
-        if data[..6] != MAGIC {
+        if data[2..6] != SIGNATURE {
             return Err(SvdError::InvalidMagic);
         }
 
-        // Parse chunk directory starting at offset 0x10
+        // The header length bounds the directory, which starts at 0x10.
+        let header_length = u16::from_be_bytes([data[0], data[1]]);
+        let dir_end = header_length as usize + LENGTH_FIELD_SIZE;
+        if dir_end < HEADER_SIZE || !(dir_end - HEADER_SIZE).is_multiple_of(DIR_ENTRY_SIZE) {
+            return Err(SvdError::InvalidHeaderLength(header_length));
+        }
+        if dir_end > data.len() {
+            return Err(SvdError::UnexpectedEof);
+        }
+
         let mut chunks = Vec::new();
-        let mut dir_offset = HEADER_SIZE;
-
-        loop {
-            if dir_offset + DIR_ENTRY_SIZE > data.len() {
-                return Err(SvdError::UnexpectedEof);
-            }
-
-            // Null terminator — first byte 0x00 ends directory
-            if data[dir_offset] == 0x00 {
-                break;
-            }
-
+        for dir_offset in (HEADER_SIZE..dir_end).step_by(DIR_ENTRY_SIZE) {
             // Read directory entry fields
             let code: [u8; 4] = [
                 data[dir_offset],
@@ -334,8 +348,6 @@ impl SvdFile {
                 entry_size,
                 entries,
             });
-
-            dir_offset += DIR_ENTRY_SIZE;
         }
 
         Ok(SvdFile { chunks })
@@ -343,14 +355,13 @@ impl SvdFile {
 
     /// Serialize this SVD file to raw bytes.
     ///
-    /// Writes the header, chunk directory, null terminator, and all zone
-    /// headers with their entries. Empty chunks still get a zone header
-    /// with count=0 and the correct entry size.
+    /// Writes the header, chunk directory, and all zone headers with their
+    /// entries, in `chunks` order. Empty chunks still get a zone header with
+    /// count=0 and the correct entry size. A SOUND file needs all 6 tone and
+    /// studio set chunks; a BACKUP adds `SYSa` as the seventh.
     pub fn write(&self) -> Vec<u8> {
         let num_chunks = self.chunks.len();
-        // Directory size: entries + null terminator (16 bytes)
-        let dir_size = num_chunks * DIR_ENTRY_SIZE + DIR_ENTRY_SIZE;
-        let data_start = HEADER_SIZE + dir_size;
+        let data_start = HEADER_SIZE + num_chunks * DIR_ENTRY_SIZE;
 
         // Calculate chunk sizes and offsets
         let mut chunk_offsets = Vec::with_capacity(num_chunks);
@@ -365,7 +376,8 @@ impl SvdFile {
         let mut buf = Vec::with_capacity(total_size);
 
         // Write header (16 bytes)
-        buf.extend_from_slice(&MAGIC);
+        buf.extend_from_slice(&((data_start - LENGTH_FIELD_SIZE) as u16).to_be_bytes());
+        buf.extend_from_slice(&SIGNATURE);
         buf.extend_from_slice(&[0u8; 10]); // padding
 
         // Write directory entries
@@ -376,9 +388,6 @@ impl SvdFile {
             write_u32_be(&mut buf, chunk_offsets[i] as u32);
             write_u32_be(&mut buf, chunk_data_size as u32);
         }
-
-        // Write null terminator entry
-        buf.extend_from_slice(&[0u8; DIR_ENTRY_SIZE]);
 
         // Write chunk data
         for chunk in &self.chunks {
@@ -412,6 +421,7 @@ mod tests {
             ChunkType::SnSynthTone,
             ChunkType::SnAcousticTone,
             ChunkType::SnDrumKit,
+            ChunkType::SystemSettings,
         ];
         for ct in &types {
             let code = ct.to_code();
@@ -432,6 +442,7 @@ mod tests {
         assert_eq!(ChunkType::SnSynthTone.default_entry_size(), 280);
         assert_eq!(ChunkType::SnAcousticTone.default_entry_size(), 138);
         assert_eq!(ChunkType::SnDrumKit.default_entry_size(), 1006);
+        assert_eq!(ChunkType::SystemSettings.default_entry_size(), 108);
     }
 
     /// Path to the test SVD fixture (3 SN-S patches from Synth Legends).
@@ -467,17 +478,52 @@ mod tests {
     fn roundtrip_test_fixture() {
         let original = std::fs::read(fixture_path()).expect("failed to read fixture");
         let svd = SvdFile::parse(&original).expect("failed to parse SVD");
-        let written = svd.write();
-        let reparsed = SvdFile::parse(&written).expect("failed to re-parse SVD");
-        assert_eq!(svd, reparsed);
+        assert_eq!(svd.write(), original);
+    }
+
+    /// A BACKUP-shaped file: the 6 SOUND chunks plus `SYSa`.
+    fn backup_file() -> SvdFile {
+        let original = std::fs::read(fixture_path()).expect("failed to read fixture");
+        let mut svd = SvdFile::parse(&original).expect("failed to parse SVD");
+        let entry_size = ChunkType::SystemSettings.default_entry_size();
+        svd.chunks.push(SvdChunk {
+            chunk_type: ChunkType::SystemSettings,
+            entry_size,
+            entries: vec![vec![0x5A; entry_size]],
+        });
+        svd
     }
 
     #[test]
-    fn error_bad_magic() {
-        let mut data = vec![0u8; 32];
-        // Write wrong magic
-        data[0] = 0xFF;
+    fn write_backup_layout() {
+        let data = backup_file().write();
+        assert_eq!(&data[..6], b"\x00\x7ESVD1");
+        assert_eq!(&data[0x70..0x78], b"SYSaMI69");
+        // First chunk starts right after the seventh directory entry.
+        assert_eq!(read_u32_be(&data[0x18..0x1C]), 0x80);
+    }
+
+    #[test]
+    fn parse_backup_file() {
+        let svd = backup_file();
+        assert_eq!(SvdFile::parse(&svd.write()), Ok(svd));
+    }
+
+    #[test]
+    fn error_bad_signature() {
+        let mut data = std::fs::read(fixture_path()).expect("failed to read fixture");
+        data[2] = b'X';
         assert_eq!(SvdFile::parse(&data), Err(SvdError::InvalidMagic));
+    }
+
+    #[test]
+    fn error_bad_header_length() {
+        let mut data = std::fs::read(fixture_path()).expect("failed to read fixture");
+        data[1] = 0x6F;
+        assert_eq!(
+            SvdFile::parse(&data),
+            Err(SvdError::InvalidHeaderLength(0x6F))
+        );
     }
 
     #[test]
@@ -488,31 +534,16 @@ mod tests {
     }
 
     #[test]
-    fn error_truncated_header_only() {
-        // Valid magic but no directory space — the null-terminator check
-        // should trigger UnexpectedEof.
-        let mut data = vec![0u8; HEADER_SIZE];
-        data[..6].copy_from_slice(&MAGIC);
-        assert_eq!(SvdFile::parse(&data), Err(SvdError::UnexpectedEof));
+    fn error_truncated_directory() {
+        let data = std::fs::read(fixture_path()).expect("failed to read fixture");
+        assert_eq!(SvdFile::parse(&data[..0x40]), Err(SvdError::UnexpectedEof));
     }
 
     #[test]
-    fn parse_empty_file_with_terminator() {
-        // Header + immediate null terminator (no chunks)
-        let mut data = vec![0u8; HEADER_SIZE + DIR_ENTRY_SIZE];
-        data[..6].copy_from_slice(&MAGIC);
-        let svd = SvdFile::parse(&data).expect("should parse empty SVD");
-        assert!(svd.chunks.is_empty());
-    }
-
-    #[test]
-    fn write_empty_file() {
+    fn empty_file_roundtrip() {
         let svd = SvdFile { chunks: Vec::new() };
         let data = svd.write();
-        // Header (16) + null terminator (16) = 32
-        assert_eq!(data.len(), 32);
-        assert_eq!(&data[..6], &MAGIC);
-        // Null terminator at offset 16
-        assert_eq!(data[16], 0x00);
+        assert_eq!(data, b"\x00\x0ESVD1\0\0\0\0\0\0\0\0\0\0");
+        assert_eq!(SvdFile::parse(&data), Ok(svd));
     }
 }

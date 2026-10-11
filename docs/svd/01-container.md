@@ -39,11 +39,6 @@ Each directory entry:
 The model identifier `MI69` is constant for all INTEGRA-7 SVD files. Other
 Roland models use different identifiers (e.g. `XP50`, `ZCOR`).
 
-> Current code diverges: see [#69](https://github.com/sigma/integral/issues/69). `svd.rs` treats bytes 0–5 as a
-> fixed `\x00nSVD1` magic and expects a NUL-terminated directory. `parse()`
-> therefore rejects every BACKUP file (header length `00 7E`), and `write()` emits
-> a 16-byte terminator entry that the device does not write.
-
 ## Zone Header (16 bytes at chunk offset)
 
 Each chunk's data begins with a 16-byte zone header:
