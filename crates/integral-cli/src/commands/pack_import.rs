@@ -26,7 +26,7 @@ use integral_core::sysex;
 use serde_json::{Value, json};
 
 use super::expansion::{OutputFormat, read_slots};
-use super::pack::{Throttle, id, run_export};
+use super::pack::{Throttle, id, read_pack, run_export};
 use crate::device::IntegraDevice;
 
 /// Exit code when some entries were stored and others not.
@@ -561,10 +561,7 @@ pub fn import(
     file: &Path,
     opts: &ImportOptions,
 ) -> Result<u8> {
-    let bytes =
-        std::fs::read(file).with_context(|| format!("failed to read {}", file.display()))?;
-    let pack =
-        Pack::from_svd(&bytes).with_context(|| format!("failed to parse {}", file.display()))?;
+    let pack = read_pack(file)?;
     if pack.entries.is_empty() {
         bail!("{} holds nothing to import", file.display());
     }

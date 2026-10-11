@@ -78,7 +78,7 @@ export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onF
           Open…
           <input
             type="file"
-            accept=".svd,.SVD"
+            accept=".svd,.syx,.mid,.midi"
             hidden
             disabled={imp.busy}
             onChange={(e) => {
@@ -131,7 +131,8 @@ export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onF
       <div className={css.body}>
         {!file ? (
           <div className={css.empty}>
-            Open a .SVD file (a sound export or a backup), or drop it here.
+            Open a .SVD file (a sound export or a backup) or a .syx or .mid SysEx
+            dump, or drop it here.
           </div>
         ) : (
           types.map((type) => {

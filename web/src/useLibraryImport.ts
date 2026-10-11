@@ -123,17 +123,17 @@ function message(e: unknown): string {
 }
 
 /**
- * Read an SVD file and plan its import against the User slot names (tones
- * from `catalog`, Studio Sets from `loadStudioSetNames`) and the loaded
- * Expansions. The caller owns (and frees) both.
+ * Read a Pack file (SVD, .syx or .mid) and plan its import against the User
+ * slot names (tones from `catalog`, Studio Sets from `loadStudioSetNames`) and
+ * the loaded Expansions. The caller owns (and frees) both.
  */
-async function planImportFromSvd(
+async function planImportFromFile(
   service: IntegraService,
   catalog: ToneCatalog,
   loadStudioSetNames: () => Promise<Map<number, string>>,
   bytes: Uint8Array,
 ): Promise<{ pack: Pack; plan: ImportPlan }> {
-  const pack = Pack.fromSvd(bytes);
+  const pack = Pack.read(bytes);
   try {
     const kinds = new Set(pack.entries().map((e) => e.kind));
     const names: CatalogName[] = [];
@@ -210,7 +210,7 @@ export function useLibraryImport(
       file
         .arrayBuffer()
         .then((buffer) =>
-          planImportFromSvd(service, catalog, loadStudioSetNames, new Uint8Array(buffer)),
+          planImportFromFile(service, catalog, loadStudioSetNames, new Uint8Array(buffer)),
         )
         .then(({ pack, plan }) =>
           replace({

@@ -139,7 +139,8 @@ enum Cli {
         #[arg(long, value_parser = parse_device_id)]
         device_id: Option<u8>,
     },
-    /// List, export and import Packs: Studio Sets and tones in one .SVD file.
+    /// List, export and import Packs: Studio Sets and tones in one .SVD file
+    /// (also read from .syx and .mid SysEx dumps).
     Pack {
         #[command(subcommand)]
         command: PackCommand,
@@ -220,7 +221,7 @@ enum ExpansionCommand {
 enum PackCommand {
     /// List a Pack file's entries as `<type>:<n>` ids (sound export or backup).
     List {
-        /// Path to the .SVD file.
+        /// Path to the .SVD, .syx or .mid file.
         file: PathBuf,
         /// Only entries of this type.
         #[arg(long, short = 't', value_parser = commands::pack::type_parser())]
@@ -272,7 +273,8 @@ enum PackCommand {
         /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
         #[arg(long, value_parser = parse_device_id)]
         device_id: Option<u8>,
-        /// Path to the .SVD file (sound export or backup).
+        /// Path to the .SVD file (sound export or backup), or a .syx or .mid
+        /// SysEx dump.
         file: PathBuf,
         #[command(flatten)]
         options: ImportOptions,

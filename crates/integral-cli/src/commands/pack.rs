@@ -230,6 +230,18 @@ fn render_list(entries: &[Listed], format: ListFormat) -> Result<String> {
     Ok(out)
 }
 
+/// Read a Pack file of any format (SVD, SysEx or MIDI), and warn on stderr
+/// about what the file held that is not in the Pack.
+pub(crate) fn read_pack(path: &Path) -> Result<Pack> {
+    let bytes =
+        std::fs::read(path).with_context(|| format!("failed to read {}", path.display()))?;
+    let read = Pack::read(&bytes).with_context(|| format!("failed to parse {}", path.display()))?;
+    for item in &read.file_report {
+        eprintln!("Warning: {}: {item}", path.display());
+    }
+    Ok(read.pack)
+}
+
 /// `pack list`: print a Pack file's entries.
 pub fn list(
     path: &Path,
@@ -238,10 +250,7 @@ pub fn list(
     name: Option<&str>,
     format: ListFormat,
 ) -> Result<()> {
-    let bytes =
-        std::fs::read(path).with_context(|| format!("failed to read {}", path.display()))?;
-    let pack =
-        Pack::from_svd(&bytes).with_context(|| format!("failed to parse {}", path.display()))?;
+    let pack = read_pack(path)?;
     print!(
         "{}",
         render_list(&listed(&pack, type_filter, category, name), format)?
@@ -491,5 +500,55 @@ mod tests {
         let read = Pack::from_svd(&bytes).unwrap();
         let entries = listed(&read, Some("studio-set"), None, None);
         assert_eq!(entries[0].tones_display(), "1=sn-synth:2 5=sn-synth:1");
+    }
+
+    /// An entry's DT1s, aimed at Part 2's Temporary area.
+    fn dt1s(entry: &PackEntry) -> Vec<Vec<u8>> {
+        let spec = USER_MEMORY
+            .iter()
+            .find(|m| m.cli_name == entry.kind().cli_name())
+            .unwrap();
+        spec.blocks(spec.temporary_base(1))
+            .zip(entry.blocks())
+            .map(|((addr, _), data)| sysex::build_dt1(0x10, &addr, data))
+            .collect()
+    }
+
+    /// A one-track Standard MIDI File of `messages`, one `F0` event each.
+    fn smf(messages: &[Vec<u8>]) -> Vec<u8> {
+        let mut track = Vec::new();
+        for m in messages {
+            let len = m.len() - 1;
+            // Delta 0, F0, then the length as a two-byte variable-length
+            // quantity.
+            track.extend([0x00, 0xF0, 0x80 | (len >> 7) as u8, (len & 0x7F) as u8]);
+            track.extend(&m[1..]);
+        }
+        let mut file = b"MThd\0\0\0\x06\0\0\0\x01\0\x60MTrk".to_vec();
+        file.extend((track.len() as u32).to_be_bytes());
+        file.extend(track);
+        file
+    }
+
+    #[test]
+    fn lists_syx_and_mid_files() {
+        let messages = dt1s(&entry(ChunkType::SnSynthTone, "Dumped"));
+        let dir = std::env::temp_dir();
+        let id = std::process::id();
+        for (ext, bytes) in [("syx", messages.concat()), ("mid", smf(&messages))] {
+            let path = dir.join(format!("integral-pack-list-{id}.{ext}"));
+            std::fs::write(&path, bytes).unwrap();
+            let read = read_pack(&path);
+            std::fs::remove_file(&path).unwrap();
+            let ids: Vec<_> = listed(&read.unwrap(), None, None, None)
+                .into_iter()
+                .map(|e| (e.id, e.name))
+                .collect();
+            assert_eq!(
+                ids,
+                [("sn-synth:1".to_owned(), "Dumped".to_owned())],
+                "{ext}"
+            );
+        }
     }
 }

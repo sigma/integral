@@ -171,11 +171,11 @@ struct EntryInfo {
 
 #[wasm_bindgen(js_class = Pack)]
 impl WasmPack {
-    /// Read a sound-export or backup SVD file.
-    #[wasm_bindgen(js_name = fromSvd)]
-    pub fn from_svd(bytes: &[u8]) -> Result<WasmPack, JsError> {
-        let inner = Pack::from_svd(bytes).map_err(js_err)?;
-        // `from_svd` gives entries a slot only when reading a backup.
+    /// Read a Pack file: a sound-export or backup SVD file, or a SysEx
+    /// dump (`.syx`, `.mid`).
+    pub fn read(bytes: &[u8]) -> Result<WasmPack, JsError> {
+        let inner = Pack::read(bytes).map_err(js_err)?.pack;
+        // Only a backup gives entries a slot.
         let backup = inner.entries.iter().any(|e| e.slot().is_some());
         let origin = if backup {
             Origin::Backup
