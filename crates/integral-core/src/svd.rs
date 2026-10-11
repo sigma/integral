@@ -319,7 +319,10 @@ impl SvdFile {
             let chunk_size = read_u32_be(&data[dir_offset + 12..dir_offset + 16]) as usize;
 
             // Validate chunk bounds
-            if chunk_offset + chunk_size > data.len() {
+            let chunk_end = chunk_offset
+                .checked_add(chunk_size)
+                .ok_or(SvdError::ChunkOverflow)?;
+            if chunk_end > data.len() {
                 return Err(SvdError::ChunkOverflow);
             }
 
@@ -331,17 +334,19 @@ impl SvdFile {
             let count = read_u32_be(&zone[0..4]) as usize;
             let entry_size = read_u32_be(&zone[4..8]) as usize;
 
-            // Extract entries
+            // Entries must fit in their chunk; zero-size entries carry no data.
             let entries_start = chunk_offset + ZONE_HEADER_SIZE;
-            let mut entries = Vec::with_capacity(count);
-            for i in 0..count {
-                let start = entries_start + i * entry_size;
-                let end = start + entry_size;
-                if end > data.len() {
-                    return Err(SvdError::UnexpectedEof);
-                }
-                entries.push(data[start..end].to_vec());
+            let entries_len = count.checked_mul(entry_size);
+            if (count > 0 && entry_size == 0)
+                || entries_len.is_none_or(|len| len > chunk_end - entries_start)
+            {
+                return Err(SvdError::ChunkOverflow);
             }
+            let entries = data[entries_start..chunk_end]
+                .chunks_exact(entry_size.max(1))
+                .take(count)
+                .map(<[u8]>::to_vec)
+                .collect();
 
             chunks.push(SvdChunk {
                 chunk_type,
@@ -524,6 +529,22 @@ mod tests {
             SvdFile::parse(&data),
             Err(SvdError::InvalidHeaderLength(0x6F))
         );
+    }
+
+    #[test]
+    fn error_entries_overflow_chunk() {
+        let mut data = std::fs::read(fixture_path()).expect("failed to read fixture");
+        // SHPa zone header at 0xA0 claims a 4th entry its chunk can't hold.
+        data[0xA3] = 4;
+        assert_eq!(SvdFile::parse(&data), Err(SvdError::ChunkOverflow));
+    }
+
+    #[test]
+    fn error_huge_entry_count() {
+        let mut data = std::fs::read(fixture_path()).expect("failed to read fixture");
+        // SHPa: count 0xFFFFFFFF, entry size 0.
+        data[0xA0..0xA8].copy_from_slice(&[0xFF, 0xFF, 0xFF, 0xFF, 0, 0, 0, 0]);
+        assert_eq!(SvdFile::parse(&data), Err(SvdError::ChunkOverflow));
     }
 
     #[test]
