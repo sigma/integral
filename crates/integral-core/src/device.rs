@@ -22,6 +22,8 @@
 use std::collections::HashMap;
 
 use crate::address::Address;
+use crate::expansion_slots::ExpansionSlots;
+use crate::expansions::Expansion;
 use crate::parse_helpers::encode_ascii_name;
 use crate::sn_synth;
 use crate::state::MixerState;
@@ -59,6 +61,8 @@ pub struct DeviceState {
     last_send_time: f64,
     /// Timestamps of recently sent DT1 messages, keyed by address hex.
     echo_tracker: HashMap<String, f64>,
+    /// Loaded Expansion slots, or `None` while unknown.
+    expansion_slots: Option<ExpansionSlots>,
 }
 
 impl DeviceState {
@@ -70,6 +74,7 @@ impl DeviceState {
             queue: Vec::new(),
             last_send_time: -THROTTLE_MS,
             echo_tracker: HashMap::new(),
+            expansion_slots: None,
         }
     }
 
@@ -81,6 +86,30 @@ impl DeviceState {
     /// Mutable access to the mixer state (for direct patching during load).
     pub fn state_mut(&mut self) -> &mut MixerState {
         &mut self.state
+    }
+
+    // -----------------------------------------------------------------------
+    // Expansion slots
+    // -----------------------------------------------------------------------
+
+    /// The loaded Expansion slots, or `None` while unknown.
+    pub fn expansion_slots(&self) -> Option<&ExpansionSlots> {
+        self.expansion_slots.as_ref()
+    }
+
+    /// Record the slots a slot read answered.
+    pub fn set_expansion_slots(&mut self, slots: ExpansionSlots) {
+        self.expansion_slots = Some(slots);
+    }
+
+    /// Record that a slot read got no answer: the slots are unknown.
+    pub fn expansion_slots_timed_out(&mut self) {
+        self.expansion_slots = None;
+    }
+
+    /// Whether `expansion` is loaded, or `None` while the slots are unknown.
+    pub fn is_loaded(&self, expansion: &Expansion) -> Option<bool> {
+        self.expansion_slots.map(|slots| slots.contains(expansion))
     }
 
     // -----------------------------------------------------------------------
@@ -1030,6 +1059,27 @@ fn stored_name(encoded: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::expansions;
+
+    #[test]
+    fn expansion_slots_start_unknown_and_follow_reads() {
+        let srx03 = expansions::by_name("SRX-03").unwrap();
+        let mut dev = DeviceState::new(0x10);
+        assert_eq!(dev.expansion_slots(), None);
+        assert_eq!(dev.is_loaded(srx03), None);
+
+        let slots = ExpansionSlots::from_values(&[0x03, 0x05, 0x07, 0x08]).unwrap();
+        dev.set_expansion_slots(slots);
+        assert_eq!(dev.expansion_slots(), Some(&slots));
+        assert_eq!(dev.is_loaded(srx03), Some(true));
+        assert_eq!(
+            dev.is_loaded(expansions::by_name("ExPCM").unwrap()),
+            Some(false)
+        );
+
+        dev.expansion_slots_timed_out();
+        assert_eq!(dev.is_loaded(srx03), None);
+    }
 
     #[test]
     fn send_dt1_coalesces_same_address() {
