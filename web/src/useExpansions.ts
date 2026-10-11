@@ -45,6 +45,11 @@ export interface UseExpansionsResult {
   unloadedExpansionOf: (msb: number, lsb: number) => string | null;
   /** Parts (1-based) whose current tone comes from `expansion`. */
   partsUsing: (expansion: Expansion) => number[];
+  /**
+   * The slot (0 = A) to stage another Expansion into over `slots`: an OFF
+   * slot, else one no current Part uses, else A.
+   */
+  preselectSlot: (slots: readonly number[]) => number;
   /** What loading `target` would change, or null while slots are unknown. */
   plan: (target: readonly number[]) => ExpansionLoadPlan | null;
   /** The load in progress, or null. */
@@ -117,6 +122,12 @@ export function useExpansions(
     [service],
   );
 
+  const preselectSlot = useCallback(
+    (base: readonly number[]) =>
+      service?.device.preselectExpansionSlot(Uint8Array.from(base)) ?? 0,
+    [service],
+  );
+
   const plan = useCallback(
     (target: readonly number[]): ExpansionLoadPlan | null => {
       if (!service || slots === null) return null;
@@ -166,6 +177,7 @@ export function useExpansions(
     isUnloaded,
     unloadedExpansionOf,
     partsUsing,
+    preselectSlot,
     plan,
     running,
     load,

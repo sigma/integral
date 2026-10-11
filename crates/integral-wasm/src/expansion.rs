@@ -297,6 +297,13 @@ impl WasmDeviceState {
             .unwrap_or_default()
     }
 
+    /// The slot (0 = A) to stage another Expansion into over `slots` (four
+    /// slot values): an OFF slot, else one no current Part uses, else A.
+    #[wasm_bindgen(js_name = preselectExpansionSlot)]
+    pub fn preselect_expansion_slot(&self, slots: &[u8]) -> Result<usize, JsError> {
+        Ok(self.inner.preselect_expansion_slot(&parse_slots(slots)?))
+    }
+
     /// Feed an incoming DT1 that may concern the Expansion slots (a load
     /// reply or a slot read answer). Returns true if it did.
     #[wasm_bindgen(js_name = handleExpansionDt1)]

@@ -12,6 +12,7 @@ import { IntegraService } from "./integra";
 import { useMixer } from "./useMixer";
 import { useExpansions } from "./useExpansions";
 import { useExpansionStaging } from "./useExpansionStaging";
+import type { Expansion } from "./expansionCatalog";
 import { DeviceSelector } from "./DeviceSelector";
 import {
   Identifying,
@@ -181,12 +182,21 @@ export function App() {
   const mixer = useMixer(service);
   const expansions = useExpansions(service);
   const expansionStaging = useExpansionStaging(expansions);
+  const { stageInPreselectedSlot } = expansionStaging;
   const selectedChannel = mixer.state.parts[mixer.state.selectedPart]?.receiveChannel ?? 0;
   const keyboard = useKeyboard(service, selectedChannel, sequencer);
   useEffect(() => {
     sequencer?.setTrack(mixer.state.selectedPart);
   }, [sequencer, mixer.state.selectedPart]);
   const [activeTab, setActiveTab] = useState<PageTab>("mixer");
+  // The tone picker's Load action: stage, then let the user Apply.
+  const loadExpansion = useCallback(
+    (expansion: Expansion) => {
+      stageInPreselectedSlot(expansion.loadValue);
+      setActiveTab("expansions");
+    },
+    [stageInPreselectedSlot],
+  );
 
   // Show connected UI when connected to an Integra-7
   if (service) {
@@ -235,7 +245,12 @@ export function App() {
               </button>
               {sequencer && <Transport engine={sequencer} />}
             </div>
-            <TopBar mixer={mixer} service={service} expansions={expansions} />
+            <TopBar
+              mixer={mixer}
+              service={service}
+              expansions={expansions}
+              onLoadExpansion={loadExpansion}
+            />
           </nav>
           {activeTab === "mixer" && (
             <ErrorBoundary section="Mixer">

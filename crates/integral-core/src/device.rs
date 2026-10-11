@@ -174,6 +174,12 @@ impl DeviceState {
         expansion_load::parts_using(expansion, &self.part_banks())
     }
 
+    /// The slot (0 = A) to stage another Expansion into over `slots`: an
+    /// OFF slot, else one whose Expansion no current Part uses, else A.
+    pub fn preselect_expansion_slot(&self, slots: &ExpansionSlots) -> usize {
+        expansion_load::preselect_slot(slots, &self.part_banks())
+    }
+
     /// Each Part's tone bank (MSB, LSB), Part 1 first.
     fn part_banks(&self) -> Vec<(u8, u8)> {
         self.state
@@ -1285,6 +1291,18 @@ mod tests {
             dev.state_mut().parts[part].tone_bank_lsb = 2;
         }
         assert_eq!(dev.parts_using_expansion(srx03), [2, 6]);
+    }
+
+    #[test]
+    fn preselect_expansion_slot_skips_slots_parts_use() {
+        let mut dev = DeviceState::new(0x10);
+        let slots = ExpansionSlots::from_values(&[0x03, 0x05, 0x07, 0x08]).unwrap();
+        assert_eq!(dev.preselect_expansion_slot(&slots), 0);
+        // Part 1 on SRX-03 (MSB 93, LSB 2), in slot A.
+        dev.state_mut().parts[0].tone_bank_msb = 93;
+        dev.state_mut().parts[0].tone_bank_lsb = 2;
+        assert_eq!(dev.preselect_expansion_slot(&slots), 1);
+        assert_eq!(dev.preselect_expansion_slot(&slots.with(3, None)), 3);
     }
 
     #[test]

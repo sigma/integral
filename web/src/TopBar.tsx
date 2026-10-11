@@ -15,6 +15,7 @@ import { deviceSpec } from "./deviceSpec";
 import type { IntegraService } from "./integra";
 import type { UseMixerResult } from "./useMixer";
 import type { UseExpansionsResult } from "./useExpansions";
+import type { Expansion } from "./expansionCatalog";
 import { NotLoadedMarker } from "./NotLoadedMarker";
 import type { PartState } from "./types";
 import css from "./TopBar.module.css";
@@ -23,6 +24,8 @@ interface Props {
   mixer: UseMixerResult;
   service: IntegraService;
   expansions: UseExpansionsResult;
+  /** Open the Expansions page with `expansion` staged. */
+  onLoadExpansion: (expansion: Expansion) => void;
 }
 
 function toneDisplay(part: PartState): string {
@@ -104,7 +107,7 @@ function ToneSaveDialog({
   );
 }
 
-export function TopBar({ mixer, service, expansions }: Props) {
+export function TopBar({ mixer, service, expansions, onLoadExpansion }: Props) {
   const { state } = mixer;
   const selectedPart = state.parts[state.selectedPart]!;
   const [toneSelectorOpen, setToneSelectorOpen] = useState(false);
@@ -226,6 +229,10 @@ export function TopBar({ mixer, service, expansions }: Props) {
           catalog={catalog}
           expansions={expansions}
           onSelect={handleToneSelect}
+          onLoadExpansion={(expansion) => {
+            setToneSelectorOpen(false);
+            onLoadExpansion(expansion);
+          }}
           onClose={() => setToneSelectorOpen(false)}
         />
       )}

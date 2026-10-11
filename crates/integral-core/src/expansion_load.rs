@@ -90,6 +90,25 @@ pub fn parts_using(expansion: &Expansion, part_banks: &[(u8, u8)]) -> Vec<u8> {
         .collect()
 }
 
+/// The slot (0 = A) to stage another Expansion into over `slots`: an OFF
+/// slot, else one whose Expansion no Part uses, else A.
+///
+/// `part_banks` holds each Part's tone bank (MSB, LSB), Part 1 first.
+pub fn preselect_slot(slots: &ExpansionSlots, part_banks: &[(u8, u8)]) -> usize {
+    let used: Vec<&Expansion> = part_expansions(part_banks).map(|(_, e)| e).collect();
+    slots
+        .0
+        .iter()
+        .position(Option::is_none)
+        .or_else(|| {
+            slots
+                .0
+                .iter()
+                .position(|slot| slot.is_some_and(|e| !used.contains(&e)))
+        })
+        .unwrap_or(0)
+}
+
 /// Each Part (1-based) on an Expansion's tone, with that Expansion.
 fn part_expansions(part_banks: &[(u8, u8)]) -> impl Iterator<Item = (u8, &'static Expansion)> + '_ {
     (1..).zip(part_banks).filter_map(|(part, &(msb, lsb))| {
@@ -317,6 +336,20 @@ mod tests {
             [2]
         );
         assert!(parts_using(expansions::by_name("ExPCM").unwrap(), &parts).is_empty());
+    }
+
+    #[test]
+    fn preselect_prefers_off_then_unused_then_a() {
+        // Parts on SRX-03 and SRX-07.
+        let parts = [(93, 2), (93, 11), (89, 64)];
+        let full = current(); // SRX-03, SRX-05, SRX-07, SRX-08
+        assert_eq!(preselect_slot(&full.with(2, None), &parts), 2);
+        assert_eq!(preselect_slot(&full, &parts), 1, "SRX-05 unused");
+        let all_used = [(93, 2), (93, 4), (93, 11), (93, 15)];
+        assert_eq!(preselect_slot(&full, &all_used), 0, "every slot used");
+        let expcm = slots(["ExPCM"; 4]);
+        assert_eq!(preselect_slot(&expcm, &[(97, 0)]), 0);
+        assert_eq!(preselect_slot(&ExpansionSlots::default(), &parts), 0);
     }
 
     #[test]

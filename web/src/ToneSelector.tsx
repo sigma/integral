@@ -28,6 +28,8 @@ interface Props {
   catalog: ToneCatalog;
   expansions: UseExpansionsResult;
   onSelect: (msb: number, lsb: number, pc: number) => void;
+  /** Load an Expansion that is not loaded (stages it; nothing loads yet). */
+  onLoadExpansion: (expansion: Expansion) => void;
   onClose: () => void;
 }
 
@@ -68,6 +70,7 @@ export function ToneSelector({
   catalog,
   expansions,
   onSelect,
+  onLoadExpansion,
   onClose,
 }: Props) {
   const initialBank = findToneBank(currentMsb, currentLsb);
@@ -175,7 +178,16 @@ export function ToneSelector({
                         <span className={css.expansionName}>
                           {entry.expansion.name}
                           {expansions.isUnloaded(entry.expansion) && (
-                            <NotLoadedMarker expansion={entry.expansion.name} />
+                            <>
+                              <NotLoadedMarker expansion={entry.expansion.name} />
+                              <button
+                                className={css.loadButton}
+                                onClick={() => onLoadExpansion(entry.expansion)}
+                                title={`Stage ${entry.expansion.name} on the Expansions page`}
+                              >
+                                Load
+                              </button>
+                            </>
                           )}
                         </span>
                         {entry.banks.map((bank) => (

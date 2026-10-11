@@ -26,6 +26,11 @@ export interface UseExpansionStagingResult {
   changedSlots: number[];
   /** Stage the Expansion of `loadValue` (or OFF) into the selected slot. */
   stage: (loadValue: number) => void;
+  /**
+   * Select the slot preselected for another Expansion and stage the
+   * Expansion of `loadValue` into it (the tone picker's Load action).
+   */
+  stageInPreselectedSlot: (loadValue: number) => void;
   /** Drop the staged edits. */
   discard: () => void;
   /** Parts Apply would silence, once asked to confirm; else null. */
@@ -39,7 +44,7 @@ export interface UseExpansionStagingResult {
 export function useExpansionStaging(
   expansions: UseExpansionsResult,
 ): UseExpansionStagingResult {
-  const { slots, plan, load } = expansions;
+  const { slots, plan, load, preselectSlot } = expansions;
   const [selectedSlot, selectSlot] = useState(0);
   const [stagedState, setStaged] = useState<readonly number[] | null>(null);
   const [confirming, setConfirming] = useState<number[] | null>(null);
@@ -49,15 +54,30 @@ export function useExpansionStaging(
   const staged = slots === null ? null : stagedState;
   const changedSlots = staged ? (plan(staged)?.changedSlots ?? []) : [];
 
-  const stage = useCallback(
-    (loadValue: number) => {
+  const stageInto = useCallback(
+    (slot: number, loadValue: number) => {
       if (slots === null) return;
       const base = Uint8Array.from(stagedState ?? slots);
-      setStaged(Array.from(stageExpansionSlot(base, selectedSlot, loadValue)));
+      setStaged(Array.from(stageExpansionSlot(base, slot, loadValue)));
       setConfirming(null);
       setNotice(null);
     },
-    [slots, stagedState, selectedSlot],
+    [slots, stagedState],
+  );
+
+  const stage = useCallback(
+    (loadValue: number) => stageInto(selectedSlot, loadValue),
+    [stageInto, selectedSlot],
+  );
+
+  const stageInPreselectedSlot = useCallback(
+    (loadValue: number) => {
+      if (slots === null) return;
+      const slot = preselectSlot(stagedState ?? slots);
+      selectSlot(slot);
+      stageInto(slot, loadValue);
+    },
+    [slots, stagedState, preselectSlot, stageInto],
   );
 
   const discard = useCallback(() => {
@@ -98,6 +118,7 @@ export function useExpansionStaging(
     staged,
     changedSlots,
     stage,
+    stageInPreselectedSlot,
     discard,
     confirming,
     apply,
