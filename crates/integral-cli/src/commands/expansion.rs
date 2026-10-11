@@ -287,7 +287,7 @@ fn plan_json(
 }
 
 /// Read the Expansion slots.
-fn read_slots(dev: &mut IntegraDevice) -> Result<ExpansionSlots> {
+pub(crate) fn read_slots(dev: &mut IntegraDevice) -> Result<ExpansionSlots> {
     let request = expansion_slots::build_read_request(dev.device_id());
     dev.conn_out_mut()
         .send(&request)

@@ -11,6 +11,7 @@ mod midi;
 
 use commands::expansion::OutputFormat;
 use commands::pack::{ListFormat, UserSlots};
+use commands::pack_import::ImportOptions;
 use integral_core::device_spec::INTEGRA7;
 use midi::DEFAULT_PORT_PATTERN;
 
@@ -137,7 +138,7 @@ enum Cli {
         #[arg(long, value_parser = parse_device_id)]
         device_id: Option<u8>,
     },
-    /// List and export Packs: Studio Sets and tones in one .SVD file.
+    /// List, export and import Packs: Studio Sets and tones in one .SVD file.
     Pack {
         #[command(subcommand)]
         command: PackCommand,
@@ -146,25 +147,6 @@ enum Cli {
     Expansion {
         #[command(subcommand)]
         command: ExpansionCommand,
-    },
-    /// Import patches from an SVD file to the device.
-    SvdImport {
-        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
-        port: String,
-        /// Path to the .SVD file.
-        file: PathBuf,
-        /// Part number to write to (1-16, default 1).
-        #[arg(long, default_value_t = 1)]
-        part: u8,
-        /// Patch index to import (1-based). Omit to import all.
-        #[arg(long)]
-        index: Option<usize>,
-        /// Only show what would be sent (don't actually send).
-        #[arg(long)]
-        dry_run: bool,
-        /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
-        #[arg(long, value_parser = parse_device_id)]
-        device_id: Option<u8>,
     },
 }
 
@@ -253,6 +235,24 @@ enum PackCommand {
         /// Overwrite the output file if it exists.
         #[arg(long)]
         force: bool,
+    },
+    /// Import a Pack file into User memory. Prints the plan first; a lone
+    /// tone or Studio Set loads into Temporary instead.
+    ///
+    /// Exit status: 0 everything stored; 1 error before anything was
+    /// stored; 2 partial store.
+    Import {
+        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
+        port: String,
+        #[arg(long, default_value_t = 2.0)]
+        timeout: f64,
+        /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
+        #[arg(long, value_parser = parse_device_id)]
+        device_id: Option<u8>,
+        /// Path to the .SVD file (sound export or backup).
+        file: PathBuf,
+        #[command(flatten)]
+        options: ImportOptions,
     },
 }
 
@@ -387,6 +387,28 @@ fn main() -> Result<()> {
             current_set,
             force,
         ),
+        Cli::Pack {
+            command:
+                PackCommand::Import {
+                    port,
+                    timeout,
+                    device_id,
+                    file,
+                    options,
+                },
+        } => {
+            let code = commands::pack_import::import(
+                &port,
+                device_id,
+                Duration::from_secs_f64(timeout),
+                &file,
+                &options,
+            )?;
+            if code != 0 {
+                std::process::exit(code.into());
+            }
+            Ok(())
+        }
         Cli::Expansion {
             command:
                 ExpansionCommand::List {
@@ -421,17 +443,6 @@ fn main() -> Result<()> {
                 std::process::exit(code.into());
             }
             Ok(())
-        }
-        Cli::SvdImport {
-            port,
-            file,
-            part,
-            index,
-            dry_run,
-            device_id,
-        } => {
-            let did = resolve_device_id(&port, device_id)?;
-            commands::svd::svd_import(&port, did, &file, part, index, dry_run)
         }
     }
 }

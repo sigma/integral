@@ -34,7 +34,7 @@ pub enum ListFormat {
 }
 
 /// The type of a User memory spec.
-fn kind_of(spec: &UserMemorySpec) -> ChunkType {
+pub(crate) fn kind_of(spec: &UserMemorySpec) -> ChunkType {
     ChunkType::from_cli_name(spec.cli_name).expect("every User memory type is a chunk type")
 }
 
@@ -137,7 +137,8 @@ struct PartTone {
     id: String,
 }
 
-fn id(kind: ChunkType, index: usize) -> String {
+/// The `<type>:<n>` id of the `index`th (0-based) entry of `kind`.
+pub(crate) fn id(kind: ChunkType, index: usize) -> String {
     format!("{}:{}", kind.cli_name(), index + 1)
 }
 
@@ -265,13 +266,43 @@ fn part_tone_kind(dev: &mut IntegraDevice, part: u8) -> Result<ChunkType> {
         })
 }
 
-/// Drive `export` to its Pack: send each RQ1 through the throttled queue,
-/// feed the DT1s back, and time out a block after `dev.timeout()` of
-/// silence.
-fn run_export(dev: &mut IntegraDevice, export: &mut PackExport) -> Result<Pack> {
-    let mut queue = DeviceState::new(dev.device_id());
-    let start = Instant::now();
-    let now_ms = || start.elapsed().as_secs_f64() * 1000.0;
+/// Sends through `DeviceState`'s throttled queue, raw so that DT1s to the
+/// same address are not coalesced.
+pub(crate) struct Throttle {
+    queue: DeviceState,
+    start: Instant,
+}
+
+impl Throttle {
+    pub(crate) fn new(device_id: u8) -> Self {
+        Self {
+            queue: DeviceState::new(device_id),
+            start: Instant::now(),
+        }
+    }
+
+    /// Send `bytes` once the throttle allows.
+    pub(crate) fn send(&mut self, dev: &mut IntegraDevice, bytes: Vec<u8>) -> Result<()> {
+        self.queue.send_raw("pack", bytes);
+        loop {
+            match self
+                .queue
+                .drain(self.start.elapsed().as_secs_f64() * 1000.0)
+            {
+                Some(bytes) => return dev.conn_out_mut().send(&bytes).context("failed to send"),
+                None => std::thread::sleep(Duration::from_millis(2)),
+            }
+        }
+    }
+}
+
+/// Drive `export` to its Pack: send each RQ1, feed the DT1s back, and time
+/// out a block after `dev.timeout()` of silence.
+pub(crate) fn run_export(
+    dev: &mut IntegraDevice,
+    throttle: &mut Throttle,
+    export: &mut PackExport,
+) -> Result<Pack> {
     let mut deadline = Instant::now();
     let mut reported = Vec::new();
     loop {
@@ -285,16 +316,7 @@ fn run_export(dev: &mut IntegraDevice, export: &mut PackExport) -> Result<Pack> 
         match action {
             ExportAction::Done(result) => return Ok(result?),
             ExportAction::Read(rq1) => {
-                queue.send_raw("pack-export", rq1);
-                let bytes = loop {
-                    match queue.drain(now_ms()) {
-                        Some(bytes) => break bytes,
-                        None => std::thread::sleep(Duration::from_millis(2)),
-                    }
-                };
-                dev.conn_out_mut()
-                    .send(&bytes)
-                    .context("failed to send RQ1")?;
+                throttle.send(dev, rq1)?;
                 deadline = Instant::now() + dev.timeout();
             }
             ExportAction::Wait => {
@@ -347,7 +369,8 @@ pub fn export(
         sources.push(ExportSource::PartTone { kind, part });
     }
     let mut export = PackExport::new(dev.device_id(), sources)?;
-    let pack = run_export(&mut dev, &mut export)?;
+    let mut throttle = Throttle::new(dev.device_id());
+    let pack = run_export(&mut dev, &mut throttle, &mut export)?;
     let bytes = pack.to_svd()?;
     std::fs::write(out, &bytes).with_context(|| format!("failed to write {}", out.display()))?;
     println!(
