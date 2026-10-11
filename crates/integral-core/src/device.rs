@@ -597,12 +597,13 @@ impl DeviceState {
         );
     }
 
-    /// Set a chorus core parameter (type, level, output at offsets 0–2).
+    /// Set a chorus core parameter (type, level or output select, at the
+    /// [`params::chorus`] offsets).
     pub fn set_chorus_param(&mut self, offset: u8, value: u8) {
         match offset {
-            0 => self.state.chorus.fx_type = value,
-            1 => self.state.chorus.level = value,
-            2 => self.state.chorus.output = value,
+            params::chorus::TYPE => self.state.chorus.fx_type = value,
+            params::chorus::LEVEL => self.state.chorus.level = value,
+            params::chorus::OUTPUT_SELECT => self.state.chorus.output = value,
             _ => return,
         }
         let addr = params::chorus_address(offset);
@@ -629,12 +630,13 @@ impl DeviceState {
         self.send_dt1(&addr, &bytes);
     }
 
-    /// Set a reverb core parameter (type, level, output at offsets 0–2).
+    /// Set a reverb core parameter (type, level or output assign, at the
+    /// [`params::reverb`] offsets).
     pub fn set_reverb_param(&mut self, offset: u8, value: u8) {
         match offset {
-            0 => self.state.reverb.fx_type = value,
-            1 => self.state.reverb.level = value,
-            2 => self.state.reverb.output = value,
+            params::reverb::TYPE => self.state.reverb.fx_type = value,
+            params::reverb::LEVEL => self.state.reverb.level = value,
+            params::reverb::OUTPUT_ASSIGN => self.state.reverb.output = value,
             _ => return,
         }
         let addr = params::reverb_address(offset);
@@ -1215,6 +1217,23 @@ mod tests {
     use super::*;
     use crate::expansions;
     use crate::sn_synth;
+
+    #[test]
+    fn chorus_output_select_writes_its_own_offset() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_chorus_param(params::chorus::OUTPUT_SELECT, 2);
+        assert_eq!(dev.state().chorus.output, 2);
+        let expected = sysex::build_dt1(
+            0x10,
+            &params::chorus_address(params::chorus::OUTPUT_SELECT),
+            &[2],
+        );
+        assert_eq!(dev.drain(0.0), Some(expected));
+        // Offset 0x02 is reserved: nothing to write.
+        dev.set_chorus_param(0x02, 1);
+        assert_eq!(dev.state().chorus.output, 2);
+        assert!(!dev.has_pending());
+    }
 
     #[test]
     fn expansion_slots_start_unknown_and_follow_reads() {
