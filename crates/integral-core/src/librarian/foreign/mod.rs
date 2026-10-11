@@ -8,7 +8,8 @@
 //! usual. Foreign patch frames (JV/XP, XV) are grouped per source unit for
 //! the per-family converters: JV/XP and XV Patches become PCM Synth tones,
 //! each with its Conversion report. Units with no converter yet are skipped.
-//! Everything else goes in the file-level report.
+//! Everything else goes in the file-level report. XV `.svd` files hold the
+//! same Patches, bit-packed, and convert the same way.
 //!
 //! Reference: `docs/research/xv-svd-format.md` (SVD routing).
 
@@ -23,8 +24,8 @@ mod xv;
 use std::collections::HashMap;
 
 use crate::address::Address;
-use crate::librarian::pack::{Pack, PackError};
-use crate::svd::SvdFamily;
+use crate::librarian::pack::{Pack, PackEntry, PackError};
+use crate::svd::{self, SvdFamily, XvChunkType};
 use crate::sysex;
 
 use frame::FrameError;
@@ -64,11 +65,7 @@ impl Pack {
             Some(SvdFamily::Integra) => {
                 return Ok(PackRead::native(Pack::from_svd(bytes)?, vec![]));
             }
-            Some(SvdFamily::Xv) => {
-                return Err(PackError::UnsupportedFormat(
-                    "XV .svd files are not supported yet",
-                ));
-            }
+            Some(SvdFamily::Xv) => return read_xv_svd(bytes),
             Some(SvdFamily::JvXp) => {
                 return Err(PackError::UnsupportedFormat(
                     "JV/XP .svd files (SVD0) are not supported",
@@ -84,6 +81,88 @@ impl Pack {
             Err(PackError::UnknownFormat)
         }
     }
+}
+
+/// Pack entries as units convert, with the tally of what was dropped.
+#[derive(Default)]
+struct Collector {
+    read: PackRead,
+    skipped: Vec<(Skipped, usize)>,
+    duplicates: usize,
+}
+
+impl Collector {
+    /// Count `count` units skipped as `kind`.
+    fn skip(&mut self, kind: Skipped, count: usize) {
+        match self.skipped.iter_mut().find(|(k, _)| *k == kind) {
+            Some((_, n)) => *n += count,
+            None => self.skipped.push((kind, count)),
+        }
+    }
+
+    /// Add a converted unit, unless an earlier one is byte-identical, or
+    /// count it skipped.
+    fn add(&mut self, converted: Result<(PackEntry, ConversionReport), Skipped>) {
+        match converted {
+            Ok((entry, _)) if self.read.pack.entries.contains(&entry) => self.duplicates += 1,
+            Ok((entry, report)) => {
+                self.read.pack.entries.push(entry);
+                self.read.reports.push(report);
+            }
+            Err(kind) => self.skip(kind, 1),
+        }
+    }
+
+    /// The Pack read, with its file-level report.
+    fn finish(self, bad_checksums: usize, unreadable: bool) -> PackRead {
+        let Self {
+            mut read,
+            skipped,
+            duplicates,
+        } = self;
+        if bad_checksums > 0 {
+            read.file_report.push(FileItem::BadChecksum {
+                count: bad_checksums,
+            });
+        }
+        read.file_report.extend(
+            skipped
+                .into_iter()
+                .map(|(kind, count)| FileItem::Skipped { kind, count }),
+        );
+        if duplicates > 0 {
+            read.file_report
+                .push(FileItem::Duplicates { count: duplicates });
+        }
+        if unreadable {
+            read.file_report.push(FileItem::Unreadable);
+        }
+        read
+    }
+}
+
+/// An XV-series `.svd` file: each Patch entry converts like a SysEx Patch
+/// dump. Performances, Rhythm Sets and System settings are skipped.
+fn read_xv_svd(bytes: &[u8]) -> Result<PackRead, PackError> {
+    let mut collector = Collector::default();
+    for chunk in svd::parse_xv(bytes)? {
+        let kind = match chunk.chunk_type {
+            XvChunkType::Patch => {
+                for entry in &chunk.entries {
+                    collector.add(xv::convert_svd(entry).map_err(Skipped::from));
+                }
+                continue;
+            }
+            XvChunkType::Performance => Skipped::Performance,
+            XvChunkType::Rhythm => Skipped::Rhythm,
+            XvChunkType::System => Skipped::System,
+            XvChunkType::Aux => continue,
+        };
+        if !chunk.entries.is_empty() {
+            collector.skip(kind, chunk.entries.len());
+        }
+    }
+    Ok(collector.finish(0, false))
 }
 
 /// The SysEx stream of a Standard MIDI File: every track's `F0` events, with
@@ -177,11 +256,7 @@ fn read_sysex(bytes: &[u8], mut unreadable: bool) -> PackRead {
     let areas = integra::areas();
 
     let mut bad_checksums = 0;
-    let mut skipped: Vec<(Skipped, usize)> = Vec::new();
-    let mut skip = |kind| match skipped.iter_mut().find(|(k, _)| *k == kind) {
-        Some((_, n)) => *n += 1,
-        None => skipped.push((kind, 1)),
-    };
+    let mut collector = Collector::default();
 
     // Frames grouped per unit, in the order units start.
     let mut groups: Vec<Group<'_>> = Vec::new();
@@ -194,7 +269,7 @@ fn read_sysex(bytes: &[u8], mut unreadable: bool) -> PackRead {
                 continue;
             }
             Err(FrameError::NotDt1) => {
-                skip(Skipped::Other);
+                collector.skip(Skipped::Other, 1);
                 continue;
             }
         };
@@ -209,7 +284,7 @@ fn read_sysex(bytes: &[u8], mut unreadable: bool) -> PackRead {
             _ => None,
         };
         let Some((source, common)) = placed else {
-            skip(Skipped::Other);
+            collector.skip(Skipped::Other, 1);
             continue;
         };
         let group = match open.get(&source) {
@@ -228,10 +303,8 @@ fn read_sysex(bytes: &[u8], mut unreadable: bool) -> PackRead {
         groups[group].frames.push(frame);
     }
 
-    let mut read = PackRead::default();
-    let mut duplicates = 0;
     for Group { source, frames, .. } in groups {
-        let converted = match source {
+        collector.add(match source {
             Source::Integra(i) => {
                 let frames = frames.iter().map(|f| (Address(f.address), f.data));
                 integra::assemble(&areas[i], frames)
@@ -243,36 +316,9 @@ fn read_sysex(bytes: &[u8], mut unreadable: bool) -> PackRead {
             }
             Source::Jv(unit) if unit.kind == Skipped::Patch => jv::convert(unit.key, &frames),
             Source::Jv(unit) | Source::Xv(unit) => Err(unit.kind),
-        };
-        match converted {
-            Ok((entry, _)) if read.pack.entries.contains(&entry) => duplicates += 1,
-            Ok((entry, report)) => {
-                read.pack.entries.push(entry);
-                read.reports.push(report);
-            }
-            Err(kind) => skip(kind),
-        }
-    }
-
-    let mut file_report = Vec::new();
-    if bad_checksums > 0 {
-        file_report.push(FileItem::BadChecksum {
-            count: bad_checksums,
         });
     }
-    file_report.extend(
-        skipped
-            .into_iter()
-            .map(|(kind, count)| FileItem::Skipped { kind, count }),
-    );
-    if duplicates > 0 {
-        file_report.push(FileItem::Duplicates { count: duplicates });
-    }
-    if unreadable {
-        file_report.push(FileItem::Unreadable);
-    }
-    read.file_report = file_report;
-    read
+    collector.finish(bad_checksums, unreadable)
 }
 
 #[cfg(test)]

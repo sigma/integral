@@ -134,18 +134,38 @@ fn unpack_section(
 pub fn svd_to_sysex(entry: &[u8], spec: &SvdToneSpec) -> Result<Vec<Vec<u8>>, ConvertError> {
     check_entry(entry, spec)?;
     check_fits(spec)?;
+    unpack_sections(entry, spec.sections)
+}
 
-    let mut sections = Vec::with_capacity(spec.sections.len());
+/// Unpack the leading bytes of an SVD entry laid out as `sections` into
+/// per-section SysEx byte vectors, like [`svd_to_sysex`] does for a whole
+/// entry of a known type. Bytes after the sections are ignored.
+///
+/// Fails with [`ConvertError::EntryTooShort`] if `entry` is shorter than
+/// the sections.
+pub fn unpack_sections(
+    entry: &[u8],
+    sections: &[SvdSection],
+) -> Result<Vec<Vec<u8>>, ConvertError> {
+    let expected = sections.iter().map(|s| s.svd_bytes).sum();
+    if entry.len() < expected {
+        return Err(ConvertError::EntryTooShort {
+            expected,
+            actual: entry.len(),
+        });
+    }
+
+    let mut unpacked = Vec::with_capacity(sections.len());
     let mut offset = 0;
 
-    for section in spec.sections {
+    for section in sections {
         let section_slice = &entry[offset..offset + section.svd_bytes];
         let mut reader = BitReader::new(section_slice);
-        sections.push(unpack_section(&mut reader, section)?);
+        unpacked.push(unpack_section(&mut reader, section)?);
         offset += section.svd_bytes;
     }
 
-    Ok(sections)
+    Ok(unpacked)
 }
 
 // ---------------------------------------------------------------------------
@@ -184,6 +204,22 @@ fn pack_section(writer: &mut BitWriter, sysex: &[u8], section: &SvdSection) {
     writer.align_to_byte();
 }
 
+/// Pack SysEx byte sections into the leading bytes of an SVD entry laid out
+/// as `specs`, the inverse of [`unpack_sections`]. Each element of
+/// `sections` must hold its spec section's SysEx bytes.
+pub fn pack_sections(sections: &[Vec<u8>], specs: &[SvdSection]) -> Vec<u8> {
+    let mut result = Vec::with_capacity(specs.iter().map(|s| s.svd_bytes).sum());
+    for (section_data, section_spec) in sections.iter().zip(specs) {
+        let mut writer = BitWriter::new();
+        pack_section(&mut writer, section_data, section_spec);
+        let mut section_bytes = writer.into_bytes();
+        // Pad section to its known SVD size.
+        section_bytes.resize(section_spec.svd_bytes, 0x00);
+        result.extend_from_slice(&section_bytes);
+    }
+    result
+}
+
 /// Pack SysEx byte sections into an SVD entry.
 ///
 /// Each element of `sections` must contain the correct number of SysEx bytes
@@ -204,16 +240,7 @@ pub fn sysex_to_svd(
     if let Some(entry) = source {
         check_entry(entry, spec)?;
     }
-    let mut result = Vec::with_capacity(spec.entry_size());
-
-    for (section_data, section_spec) in sections.iter().zip(spec.sections.iter()) {
-        let mut writer = BitWriter::new();
-        pack_section(&mut writer, section_data, section_spec);
-        let mut section_bytes = writer.into_bytes();
-        // Pad section to its known SVD size.
-        section_bytes.resize(section_spec.svd_bytes, 0x00);
-        result.extend_from_slice(&section_bytes);
-    }
+    let mut result = pack_sections(sections, spec.sections);
 
     let tail_start = result.len();
     match source {

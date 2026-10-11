@@ -5,7 +5,7 @@ use crate::address::Address;
 use crate::device_spec::INTEGRA7;
 use crate::librarian::pack::{PackEntry, user_memory};
 use crate::parse_helpers::encode_ascii_name;
-use crate::svd::ChunkType;
+use crate::svd::{ChunkType, SvdError};
 use crate::sysex::build_dt1;
 
 const SNS: ChunkType = ChunkType::SnSynthTone;
@@ -232,16 +232,19 @@ fn routes_svd_files_on_their_model() {
     let svd = pack.to_svd().unwrap();
     assert_eq!(read(&svd).pack, Pack::from_svd(&svd).unwrap());
 
+    // An XV model routes to the XV reader, which rejects INTEGRA-7 chunks.
     let mut xv = svd.clone();
     xv[0x14..0x18].copy_from_slice(b"XV88");
+    assert!(matches!(
+        Pack::read(&xv),
+        Err(PackError::Svd(SvdError::InvalidChunkType(code))) if code == *b"PRFb"
+    ));
     let mut jv = svd.clone();
     jv[2..6].copy_from_slice(b"SVD0");
-    for bytes in [xv, jv] {
-        assert!(matches!(
-            Pack::read(&bytes),
-            Err(PackError::UnsupportedFormat(_))
-        ));
-    }
+    assert!(matches!(
+        Pack::read(&jv),
+        Err(PackError::UnsupportedFormat(_))
+    ));
     assert!(matches!(Pack::read(b"RIFF"), Err(PackError::UnknownFormat)));
 }
 
@@ -258,6 +261,8 @@ mod xv_patches {
     use super::*;
     use crate::librarian::foreign::wave_map::{ForeignWave, ForeignWaveGroup};
     use crate::parse_helpers::nibble4;
+    use crate::svd_convert::pack_sections;
+    use crate::svd_specs::XV_PATCH_SECTIONS;
 
     /// User Patch 001 `United !` of Roland's `SRX03AP2.mid` (see the
     /// fixture's `SOURCE.md`).
@@ -379,6 +384,75 @@ mod xv_patches {
                 "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
             ]
         );
+    }
+
+    /// An `.svd` chunk: code, model, entry size and entries.
+    type Chunk = (&'static [u8; 4], &'static [u8; 4], usize, Vec<Vec<u8>>);
+
+    /// An XV `.svd` file with the given chunks.
+    fn xv_svd(chunks: &[Chunk]) -> Vec<u8> {
+        let be = |n: usize| u32::try_from(n).unwrap().to_be_bytes();
+        let dir_end = 16 + 16 * chunks.len();
+        let mut header = u16::try_from(dir_end - 2).unwrap().to_be_bytes().to_vec();
+        header.extend_from_slice(b"SVD1");
+        header.resize(16, 0);
+        let mut data = Vec::new();
+        for (code, model, size, entries) in chunks {
+            let chunk_size = 16 + size * entries.len();
+            header.extend_from_slice(*code);
+            header.extend_from_slice(*model);
+            header.extend_from_slice(&be(dir_end + data.len()));
+            header.extend_from_slice(&be(chunk_size));
+            data.extend_from_slice(&be(entries.len()));
+            data.extend_from_slice(&be(*size));
+            data.extend_from_slice(&[0, 0, 0, 0x10, 0, 0, 0, 0]);
+            entries.iter().for_each(|e| data.extend_from_slice(e));
+        }
+        [header, data].concat()
+    }
+
+    #[test]
+    fn reads_an_xv_svd_patch_like_its_sysex_dump() {
+        // The fixture's blocks, bit-packed into a 956-byte entry: no Split
+        // Key data, then the 18-byte block seen in 12-chunk files.
+        let mut entry = pack_sections(&data(UNITED), &XV_PATCH_SECTIONS);
+        assert_eq!(entry.len(), 574);
+        // "United !" as 7-bit characters, MSB first.
+        assert_eq!(entry[..7], [0xAB, 0xBB, 0x4F, 0x4C, 0xB9, 0x10, 0x21]);
+        entry.extend_from_slice(&[
+            0x02, 0x00, 0xFE, 0, 0, 0, 0, 0x20, 0x20, 0x20, 0x20, 0, 0, 0x32, 0x32, 0x80, 0x80, 0,
+        ]);
+        entry.resize(956, 0);
+        let svd = xv_svd(&[
+            (b"PRFa", b"NEXY", 0, vec![]),
+            (b"MLTa", b"NEXY", 2, vec![vec![0; 2]; 3]),
+            (b"PATa", b"XV88", 956, vec![entry.clone(), entry]),
+            (b"CTGa", b"XV88", 1, vec![vec![1]; 2]),
+            (b"RHYa", b"XV88", 1, vec![vec![0]]),
+            (b"SYSa", b"XV88", 1, vec![vec![0]]),
+        ]);
+
+        let read = read(&svd);
+        let sysex = super::read(UNITED);
+        assert_eq!(read.pack, sysex.pack);
+        assert_eq!(read.reports, sysex.reports);
+        assert_eq!(
+            read.file_report,
+            [
+                skipped(Skipped::Performance, 3),
+                skipped(Skipped::Rhythm, 1),
+                skipped(Skipped::System, 1),
+                FileItem::Duplicates { count: 1 },
+            ]
+        );
+    }
+
+    #[test]
+    fn a_short_xv_svd_entry_is_incomplete() {
+        let svd = xv_svd(&[(b"PATa", b"XV88", 4, vec![vec![0; 4]])]);
+        let read = read(&svd);
+        assert!(read.pack.entries.is_empty());
+        assert_eq!(read.file_report, [skipped(Skipped::Incomplete, 1)]);
     }
 
     #[test]

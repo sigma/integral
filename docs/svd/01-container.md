@@ -37,7 +37,10 @@ Each directory entry:
 | 12     | 4    | u32 BE  | Total chunk data size in bytes       |
 
 The model identifier `MI69` is constant for all INTEGRA-7 SVD files. Other
-Roland models use different identifiers (e.g. `XP50`, `ZCOR`).
+Roland models use different identifiers (e.g. `XP50`, `ZCOR`). XV-series
+files (`XV88`, `NEXY`) use this same container with their own chunk codes;
+their Patch entries are read for import (see
+[`xv-svd-format.md`](../research/xv-svd-format.md)).
 
 ## Zone Header (16 bytes at chunk offset)
 

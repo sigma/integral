@@ -1730,6 +1730,99 @@ pub static PCMD_TONE_SPEC: SvdToneSpec = SvdToneSpec {
 };
 
 // ---------------------------------------------------------------------------
+// XV Patch (XV-series `PATa`) — 574 bytes, then Split Key data
+// ---------------------------------------------------------------------------
+
+/// The leading `params` that cover the first `sysex_bytes` SysEx bytes.
+const fn sysex_prefix(params: &'static [ParamBits], sysex_bytes: usize) -> &'static [ParamBits] {
+    let mut count = 0;
+    let mut bytes = 0;
+    while bytes < sysex_bytes {
+        bytes += params[count].sysex_bytes as usize;
+        count += 1;
+    }
+    assert!(bytes == sysex_bytes, "a parameter straddles the cut");
+    params.split_at(count).0
+}
+
+/// XV Patch Common Chorus parameters (207 bits).
+///
+/// Source: `docs/research/xv-svd-format.md`, section 3. Chorus Type takes 4
+/// bits although its range is 0–3.
+#[rustfmt::skip]
+static XV_CHORUS_PARAMS: &[ParamBits] = &[
+    ParamBits::normal(4), // 00 00: Chorus Type (0–3)
+    ParamBits::normal(7), // 00 01: Chorus Level (0–127)
+    ParamBits::normal(2), // 00 02: Chorus Output Assign (0–3)
+    ParamBits::normal(2), // 00 03: Chorus Output Select (0–2)
+    // 00 04–00 33: 12 nibblized Chorus Parameters (12 × 4 nibbles)
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+];
+
+/// XV Patch Common Reverb parameters (333 bits).
+///
+/// Source: `docs/research/xv-svd-format.md`, section 3. Reverb Type takes 4
+/// bits although its range is 0–5.
+#[rustfmt::skip]
+static XV_REVERB_PARAMS: &[ParamBits] = &[
+    ParamBits::normal(4), // 00 00: Reverb Type (0–5)
+    ParamBits::normal(7), // 00 01: Reverb Level (0–127)
+    ParamBits::normal(2), // 00 02: Reverb Output Assign (0–3)
+    // 00 03–00 52: 20 nibblized Reverb Parameters (20 × 4 nibbles)
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+    ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4), ParamBits::nibblized(4),
+];
+
+/// XV Patch section layout, one section per XV SysEx block: Common 56 B,
+/// MFX 78 B, Chorus 26 B, Reverb 42 B, TMT 32 B and 4 Tones of 85 B. Common
+/// and the Tones are the PCM Synth Tone Common and Partial without the
+/// INTEGRA-7's last fields: Common `00 4F` and the Partial LFO Step
+/// sequencer (`01 09`–`01 19`).
+///
+/// Larger entries (938 and 956 bytes) add Split Key data after these
+/// 574 bytes, used only by Multi-Partial Patches, and an undecoded 18-byte
+/// block.
+///
+/// Source: `docs/research/xv-svd-format.md`, section 3.
+pub static XV_PATCH_SECTIONS: [SvdSection; 9] = {
+    let tone = SvdSection {
+        params: sysex_prefix(PCMS_PARTIAL_PARAMS, 137),
+        svd_bytes: 85,
+    };
+    [
+        SvdSection {
+            params: sysex_prefix(PCMS_COMMON_PARAMS, 79),
+            svd_bytes: 56,
+        },
+        SvdSection {
+            params: MFX_PARAMS,
+            svd_bytes: 78,
+        },
+        SvdSection {
+            params: XV_CHORUS_PARAMS,
+            svd_bytes: 26,
+        },
+        SvdSection {
+            params: XV_REVERB_PARAMS,
+            svd_bytes: 42,
+        },
+        SvdSection {
+            params: PCMS_PMT_PARAMS,
+            svd_bytes: 32,
+        },
+        tone,
+        tone,
+        tone,
+        tone,
+    ]
+};
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -1914,5 +2007,24 @@ mod tests {
             .sysex_size(),
             8
         );
+    }
+
+    #[test]
+    fn xv_patch_sections_fit_the_blocks() {
+        let bits: Vec<usize> = XV_PATCH_SECTIONS
+            .iter()
+            .map(SvdSection::total_bits)
+            .collect();
+        assert_eq!(bits, [445, 618, 207, 333, 242, 674, 674, 674, 674]);
+        let sysex: Vec<usize> = XV_PATCH_SECTIONS
+            .iter()
+            .map(SvdSection::sysex_size)
+            .collect();
+        assert_eq!(sysex, [79, 145, 52, 83, 41, 137, 137, 137, 137]);
+        let svd: usize = XV_PATCH_SECTIONS.iter().map(|s| s.svd_bytes).sum();
+        assert_eq!(svd, 574);
+        for section in &XV_PATCH_SECTIONS {
+            assert!(section.padded_bytes() <= section.svd_bytes);
+        }
     }
 }

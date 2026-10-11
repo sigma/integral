@@ -7,7 +7,8 @@
 //! applying one fix row per field that is not identical.
 //!
 //! Reference: `docs/research/xv-patch-format.md` and its per-field
-//! `xv-patch-format.csv`, and `docs/research/foreign-rhythm-format.md` (XV
+//! `xv-patch-format.csv`, `docs/research/xv-svd-format.md` (`.svd`
+//! entries), and `docs/research/foreign-rhythm-format.md` (XV
 //! Rhythm Set).
 
 use super::frame::{self, Frame};
@@ -19,6 +20,8 @@ use crate::address::Address;
 use crate::librarian::foreign::report::Skipped;
 use crate::librarian::pack::PackEntry;
 use crate::parse_helpers::{nibble2, nibble4};
+use crate::svd_convert::unpack_sections;
+use crate::svd_specs::XV_PATCH_SECTIONS;
 use crate::waves::WaveGroup;
 
 /// XV Model ID.
@@ -192,7 +195,8 @@ pub(super) const CATEGORIES: [u8; 39] = [
 pub(super) enum Rejected {
     /// A Multi-Partial Patch: it plays user samples.
     MultiPartial,
-    /// A block is missing.
+    /// A block is missing, or an `.svd` entry is too short to hold them
+    /// all.
     Incomplete,
 }
 
@@ -236,11 +240,29 @@ pub(super) fn convert(
 ) -> Result<(PackEntry, ConversionReport), Rejected> {
     let layout = BLOCKS.map(|([c, d], size)| (Address::new(key[0], key[1], c, d).value(), size));
     let dt1s = || frames.iter().map(|f| (Address(f.address), f.data));
+    // A Multi-Partial Patch is rejected as such even with blocks missing.
     let common = frame::assemble(&layout[..1], dt1s()).ok_or(Rejected::Incomplete)?;
     if common[0][TONE_TYPE] == MULTI_PARTIAL {
         return Err(Rejected::MultiPartial);
     }
     let xv = frame::assemble(&layout, dt1s()).ok_or(Rejected::Incomplete)?;
+    convert_blocks(&xv)
+}
+
+/// Convert the Patch decoded from an XV `.svd` entry: its leading
+/// [`XV_PATCH_SECTIONS`] bytes hold the 9 blocks. Split Key data after them
+/// is ignored, since only Multi-Partial Patches use it.
+pub(super) fn convert_svd(entry: &[u8]) -> Result<(PackEntry, ConversionReport), Rejected> {
+    let xv = unpack_sections(entry, &XV_PATCH_SECTIONS).map_err(|_| Rejected::Incomplete)?;
+    convert_blocks(&xv)
+}
+
+/// Convert a Patch from its 9 blocks, in [`BLOCKS`] order.
+fn convert_blocks(xv: &[Vec<u8>]) -> Result<(PackEntry, ConversionReport), Rejected> {
+    debug_assert!(xv.iter().map(Vec::len).eq(BLOCKS.map(|(_, size)| size)));
+    if xv[COMMON][TONE_TYPE] == MULTI_PARTIAL {
+        return Err(Rejected::MultiPartial);
+    }
 
     let category = CATEGORIES
         .get(usize::from(xv[COMMON][PATCH_CATEGORY]))
@@ -249,7 +271,7 @@ pub(super) fn convert(
     let tones = core::array::from_fn(|i| xv[TONE_1 + i].as_slice());
     let mut patch = Patch {
         tone: PcmTone::new(&xv[COMMON], &xv[MFX], &xv[TMT], tones, category),
-        xv: &xv,
+        xv,
         report: ConversionReport::new(),
     };
     for fix in FIXES {
