@@ -316,6 +316,17 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   const catalogLoaded = useRef(false);
   /** The names read in flight, shared by concurrent callers. */
   const namesRead = useRef<Promise<Map<number, string>> | null>(null);
+  /** The current service, so a read from a previous connection is dropped. */
+  const serviceRef = useRef(service);
+  serviceRef.current = service;
+
+  // Names belong to the device behind the connection: forget them on change.
+  useEffect(() => {
+    catalogLoaded.current = false;
+    namesRead.current = null;
+    setState((prev) => ({ ...prev, studioSetNames: new Map() }));
+  }, [service]);
+
   const loadStudioSetNames = useCallback(async (force = false) => {
     if (!service) return new Map<number, string>();
     if (!force && namesRead.current) return namesRead.current;
@@ -326,6 +337,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     const names = await read.finally(() => {
       if (namesRead.current === read) namesRead.current = null;
     });
+    if (serviceRef.current !== service) return names;
     if (names.size === 0) {
       catalogLoaded.current = false;
       return stateRef.current.studioSetNames;
