@@ -3,6 +3,8 @@
 
 use std::fmt::Write;
 
+use crate::device_spec::INTEGRA7;
+
 /// How a parameter value should be displayed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
@@ -106,8 +108,8 @@ pub fn mixer_params() -> Vec<ParamDef> {
     // We know the exact count: 16*7 + 1 + 2 + 4 + 4 + 1 + 7 = 131
     let mut params = Vec::with_capacity(131);
 
-    static OUTPUT_ASSIGN_NAMES: &[&str] =
-        &["A", "B", "C", "D", "1", "2", "3", "4", "5", "6", "7", "8"];
+    let spec = &INTEGRA7;
+    let last = |names: &[&str]| names.len() as i32 - 1;
     static CHANNEL_NAMES: &[&str] = &[
         "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16",
     ];
@@ -197,9 +199,9 @@ pub fn mixer_params() -> Vec<ParamDef> {
             name: "Output Assign",
             group: ParamGroup::Part(i),
             min: 0,
-            max: 11,
+            max: last(spec.output_assigns),
             default: 0,
-            format: ParamFormat::Named(OUTPUT_ASSIGN_NAMES),
+            format: ParamFormat::Named(spec.output_assigns),
         });
         params.push(ParamDef {
             id: RECEIVE_CHANNEL_IDS[idx],
@@ -244,9 +246,6 @@ pub fn mixer_params() -> Vec<ParamDef> {
     });
 
     // Chorus
-    static CHORUS_TYPE_NAMES: &[&str] = &["Chorus", "Delay", "GM2 Chorus", "Off"];
-    static CHORUS_OUTPUT_NAMES: &[&str] = &["MAIN", "REV", "MAIN+REV"];
-
     params.push(ParamDef {
         id: "chorus.enabled",
         name: "Chorus",
@@ -261,9 +260,9 @@ pub fn mixer_params() -> Vec<ParamDef> {
         name: "Chorus Type",
         group: ParamGroup::Chorus,
         min: 0,
-        max: 3,
+        max: last(spec.chorus_type_names),
         default: 0,
-        format: ParamFormat::Named(CHORUS_TYPE_NAMES),
+        format: ParamFormat::Named(spec.chorus_type_names),
     });
     params.push(ParamDef {
         id: "chorus.level",
@@ -279,23 +278,12 @@ pub fn mixer_params() -> Vec<ParamDef> {
         name: "Chorus Output",
         group: ParamGroup::Chorus,
         min: 0,
-        max: 2,
+        max: last(spec.chorus_output_names),
         default: 0,
-        format: ParamFormat::Named(CHORUS_OUTPUT_NAMES),
+        format: ParamFormat::Named(spec.chorus_output_names),
     });
 
     // Reverb
-    static REVERB_TYPE_NAMES: &[&str] = &[
-        "Room1",
-        "Room2",
-        "Hall1",
-        "Hall2",
-        "Plate",
-        "GM2 Reverb",
-        "Off",
-    ];
-    static REVERB_OUTPUT_NAMES: &[&str] = &["A", "B", "C", "D"];
-
     params.push(ParamDef {
         id: "reverb.enabled",
         name: "Reverb",
@@ -310,9 +298,9 @@ pub fn mixer_params() -> Vec<ParamDef> {
         name: "Reverb Type",
         group: ParamGroup::Reverb,
         min: 0,
-        max: 6,
+        max: last(spec.reverb_type_names),
         default: 0,
-        format: ParamFormat::Named(REVERB_TYPE_NAMES),
+        format: ParamFormat::Named(spec.reverb_type_names),
     });
     params.push(ParamDef {
         id: "reverb.level",
@@ -328,9 +316,9 @@ pub fn mixer_params() -> Vec<ParamDef> {
         name: "Reverb Output",
         group: ParamGroup::Reverb,
         min: 0,
-        max: 3,
+        max: last(spec.reverb_output_names),
         default: 0,
-        format: ParamFormat::Named(REVERB_OUTPUT_NAMES),
+        format: ParamFormat::Named(spec.reverb_output_names),
     });
 
     // Solo part
@@ -684,6 +672,15 @@ mod tests {
         let def = lookup(&params, "part.0.output_assign").unwrap();
         assert_eq!(format_value(def, 0), "A");
         assert_eq!(format_value(def, 3), "D");
+    }
+
+    #[test]
+    fn fx_type_zero_is_off() {
+        let params = mixer_params();
+        for id in ["chorus.type", "reverb.type"] {
+            let def = lookup(&params, id).unwrap();
+            assert_eq!(format_value(def, 0), "OFF", "{id}");
+        }
     }
 
     #[test]
