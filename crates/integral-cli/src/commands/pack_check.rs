@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use integral_core::librarian::foreign::wave_map::ForeignWave;
 use integral_core::librarian::foreign::{
-    ConversionItem, ConversionReport, FileItem, ForeignEffect, PackRead, Skipped,
+    ConversionItem, ConversionReport, FileItem, ForeignEffect, PackRead, Skipped, SourceModel,
 };
 use integral_core::librarian::pack::Pack;
 use serde::Serialize;
@@ -26,6 +26,8 @@ use super::pack::entry_id;
 struct Tone {
     id: String,
     name: String,
+    /// The model the entry was made on, when its bytes tell.
+    source: Option<SourceModel>,
     report: ConversionReport,
 }
 
@@ -134,14 +136,17 @@ fn check_file(path: &Path, read: PackRead) -> FileCheck {
         pack,
         file_report,
         reports,
+        sources,
         ..
     } = read;
     let tones: Vec<Tone> = reports
         .into_iter()
+        .zip(sources)
         .enumerate()
-        .map(|(i, report)| Tone {
+        .map(|(i, (report, source))| Tone {
             id: entry_id(&pack, i),
             name: pack.entries[i].name(),
+            source,
             report,
         })
         .collect();
@@ -368,6 +373,7 @@ mod tests {
             format: PackFormat::Sysex,
             pack: Pack::default(),
             reports: vec![],
+            sources: vec![],
         };
         let file = check_file(Path::new("x.syx"), read);
         assert_eq!((file.entries, file.rejected), (0, 5));

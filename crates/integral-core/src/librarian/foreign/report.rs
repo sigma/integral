@@ -162,6 +162,19 @@ impl fmt::Display for ForeignEffect {
     }
 }
 
+/// The model a Foreign Patch was made on, when its bytes tell.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub enum SourceModel {
+    /// JV-1080.
+    Jv1080,
+    /// XP-50, XP-60 or XP-80.
+    Xp,
+    /// JV-2080, JV-1010 or XP-30.
+    Jv2080,
+}
+
 /// The Conversion report of one Pack entry: empty when it is clean, and
 /// always empty for a native entry.
 pub type ConversionReport = Vec<ConversionItem>;

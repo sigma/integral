@@ -675,26 +675,32 @@ mod jv_patches {
                     format!(
                         "Chorus level 127, rate 16, depth 30, pre-delay 69, feedback 0, output REV{studio}"
                     ),
-                    format!("Reverb PAN-DLY, level 90, time 127, HF damp 17, feedback 25{studio}"),
+                    format!("Reverb PAN-DLY, level 90, time 127, HF damp BYP, feedback 25{studio}"),
                 ],
                 vec![
                     format!(
                         "Chorus level 70, rate 24, depth 28, pre-delay 69, feedback 0, output MIX{studio}"
                     ),
-                    format!("Reverb STAGE2, level 100, time 60, HF damp 13, feedback 0{studio}"),
+                    format!(
+                        "Reverb STAGE2, level 100, time 60, HF damp 4000Hz, feedback 0{studio}"
+                    ),
                     "Partial 3: PCM card 3 Wave 30 has no INTEGRA-7 Wave".into(),
                 ],
                 vec![
                     format!(
                         "Chorus level 80, rate 12, depth 11, pre-delay 69, feedback 0, output MIX{studio}"
                     ),
-                    format!("Reverb STAGE2, level 127, time 94, HF damp 13, feedback 0{studio}"),
+                    format!(
+                        "Reverb STAGE2, level 127, time 94, HF damp 4000Hz, feedback 0{studio}"
+                    ),
                 ],
                 vec![
                     format!(
                         "Chorus level 127, rate 45, depth 13, pre-delay 69, feedback 0, output REV{studio}"
                     ),
-                    format!("Reverb STAGE2, level 127, time 127, HF damp 13, feedback 42{studio}"),
+                    format!(
+                        "Reverb STAGE2, level 127, time 127, HF damp 4000Hz, feedback 42{studio}"
+                    ),
                     "Partial 3: Delay Mode KEY-INTERVAL dropped".into(),
                 ],
             ]
@@ -852,7 +858,20 @@ mod jv_patches {
             b[0][0x2C..0x2E].copy_from_slice(&[0x06, 0x04]); // Tempo 100
             b[1][0x09] = 2; // KEY-INTERVAL / PLAYMATE
         };
+        let model = |bytes: &[u8]| read(bytes).sources;
         let (_, report) = converted(&patch([0x03, 0x00], 0x48, edit));
+        assert_eq!(
+            model(&patch([0x03, 0x00], 0x48, edit)),
+            [Some(SourceModel::Jv1080)]
+        );
+        assert_eq!(
+            model(&patch([0x03, 0x00], 0x49, edit)),
+            [Some(SourceModel::Xp)]
+        );
+        assert_eq!(
+            model(&patch([0x03, 0x00], 0x4A, edit)),
+            [Some(SourceModel::Jv2080)]
+        );
         assert_eq!(
             texts(&report),
             [

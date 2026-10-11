@@ -478,6 +478,7 @@ impl WasmPackExport {
                 pack,
                 file_report: vec![],
                 reports: vec![],
+                sources: vec![],
             },
             origin: Origin::Sound,
         })

@@ -662,6 +662,7 @@ mod tests {
             pack,
             file_report: vec![],
             reports: vec![],
+            sources: vec![],
         }
     }
 

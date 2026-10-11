@@ -75,7 +75,10 @@ fn totals_the_fixtures_and_skips_what_is_not_a_pack() {
             (json!(1), json!(1), json!(0))
         ]
     );
+    // A JV Patch tells its model; an XV one doesn't.
+    assert_eq!(files[0]["tones"][0]["source"], "jv1080");
     let united = &files[1]["tones"][0];
+    assert_eq!(united["source"], Value::Null);
     assert_eq!(united["id"], "pcm-synth:1");
     assert_eq!(united["name"], "United !");
     assert_eq!(united["report"][0]["type"], "effectDropped");

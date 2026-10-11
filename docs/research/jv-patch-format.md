@@ -124,8 +124,8 @@ Other cues:
 - A Delay Mode of 7 (TEMPO-SYNC) rules out the JV-1080 and XP-50.
 - Data-card addresses mean a JV-1080.
 
-A reader should **detect by Patch Common length** and record the family in the Conversion
-report. It should not refuse a shorter or longer Common: the parameter map is a prefix-compatible
+A reader should **detect by Patch Common length** and record the family beside the Conversion
+report (`PackRead::sources`). It should not refuse a shorter or longer Common: the parameter map is a prefix-compatible
 superset (P5's `< >` convention).
 
 ## Model differences that matter
@@ -165,7 +165,7 @@ same raw range and meaning.
 | `1E`, `20` | EFX Control Depth 1/2 (0–126 = ±63) | MFX `06`, `08` Control Sens | `i = v + 1` |
 | — | (EFX control destination is fixed per type) | MFX `0D`–`10` Control Assign | from the EFX type (#196) |
 | `21`–`26` | Chorus Level, Rate, Depth, Pre-Delay, Feedback, Output | — | **none** in a tone; Studio Set Chorus (#196) |
-| `27`–`2B` | Reverb Type, Level, Time, HF Damp, Delay Feedback | — | **none** in a tone; Studio Set Reverb (#196) |
+| `27`–`2B` | Reverb Type, Level, Time, HF Damp (0–17: 200–8000 Hz, BYPASS, the `FREQ_BYPASS` list of [`fx-param-layout.md`](fx-param-layout.md)), Delay Feedback | — | **none** in a tone; Studio Set Reverb (#196) |
 | `2C`–`2D`# | Patch Tempo (20–250) | — | **none** (tempo belongs to the Studio Set) |
 | `2E` | Patch Level | C `0E` Tone Level | identical |
 | `2F` | Patch Pan | C `0F` Tone Pan | identical |

@@ -36,6 +36,7 @@ use crate::sysex;
 use frame::FrameError;
 pub use report::{
     ConversionItem, ConversionReport, EffectFamily, FileItem, ForeignEffect, Location, Skipped,
+    SourceModel,
 };
 
 /// First bytes of a Standard MIDI File.
@@ -79,17 +80,22 @@ pub struct PackRead {
     pub file_report: Vec<FileItem>,
     /// The Conversion report of each entry, indexed like `pack.entries`.
     pub reports: Vec<ConversionReport>,
+    /// The model each entry was made on, when its bytes tell, indexed like
+    /// `pack.entries`.
+    pub sources: Vec<Option<SourceModel>>,
 }
 
 impl PackRead {
     /// A Pack of native entries: every Conversion report is empty.
     fn native(format: PackFormat, pack: Pack, file_report: Vec<FileItem>) -> Self {
         let reports = vec![ConversionReport::new(); pack.entries.len()];
+        let sources = vec![None; pack.entries.len()];
         Self {
             format,
             pack,
             file_report,
             reports,
+            sources,
         }
     }
 }
@@ -124,6 +130,9 @@ impl Pack {
     }
 }
 
+/// A converted unit, with the model it was made on when its bytes tell.
+type Converted = (PackEntry, ConversionReport, Option<SourceModel>);
+
 /// Pack entries as units convert, with the tally of what was dropped.
 struct Collector {
     read: PackRead,
@@ -152,11 +161,17 @@ impl Collector {
     /// Add a converted unit, unless an earlier one is byte-identical, or
     /// count it skipped.
     fn add(&mut self, converted: Result<(PackEntry, ConversionReport), Skipped>) {
+        self.add_from(converted.map(|(entry, report)| (entry, report, None)));
+    }
+
+    /// [`add`](Self::add) a unit made on a known model.
+    fn add_from(&mut self, converted: Result<Converted, Skipped>) {
         match converted {
-            Ok((entry, _)) if self.read.pack.entries.contains(&entry) => self.duplicates += 1,
-            Ok((entry, report)) => {
+            Ok((entry, ..)) if self.read.pack.entries.contains(&entry) => self.duplicates += 1,
+            Ok((entry, report, source)) => {
                 self.read.pack.entries.push(entry);
                 self.read.reports.push(report);
+                self.read.sources.push(source);
             }
             Err(kind) => self.skip(kind, 1),
         }
@@ -354,6 +369,12 @@ fn read_sysex(bytes: &[u8], format: PackFormat, mut unreadable: bool) -> PackRea
     }
 
     for Group { source, frames, .. } in groups {
+        if let Source::Jv(unit) = source
+            && unit.kind == Skipped::Patch
+        {
+            collector.add_from(jv::convert(unit.key, &frames));
+            continue;
+        }
         collector.add(match source {
             Source::Integra(i) => {
                 let frames = frames.iter().map(|f| (Address(f.address), f.data));
@@ -364,7 +385,6 @@ fn read_sysex(bytes: &[u8], format: PackFormat, mut unreadable: bool) -> PackRea
             Source::Xv(unit) if unit.kind == Skipped::Patch => {
                 xv::convert(unit.key, &frames).map_err(Skipped::from)
             }
-            Source::Jv(unit) if unit.kind == Skipped::Patch => jv::convert(unit.key, &frames),
             Source::Xv(unit) if unit.kind == Skipped::Rhythm => {
                 xv_rhythm::convert(unit.key, &frames).map_err(Skipped::from)
             }

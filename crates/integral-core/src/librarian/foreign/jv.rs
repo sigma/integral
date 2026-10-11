@@ -13,13 +13,15 @@
 
 use super::frame::{self, Frame};
 use super::pcm_tone::{self, Output, PcmTone};
-use super::report::{ConversionItem, ConversionReport, EffectFamily, ForeignEffect, Location};
+use super::report::{
+    ConversionItem, ConversionReport, EffectFamily, ForeignEffect, Location, SourceModel as Model,
+};
 use super::wave_map::ForeignWaveGroup;
 use super::xv::CATEGORIES;
-use super::{Placed, Unit};
+use super::{Converted, Placed, Unit};
 use crate::address::Address;
+use crate::fx_params::FxUnit;
 use crate::librarian::foreign::report::Skipped;
-use crate::librarian::pack::PackEntry;
 use crate::parse_helpers::{encode_nibble2, nibble2};
 
 /// JV/XP Model ID.
@@ -83,17 +85,6 @@ const COMMON_JV2080: usize = 0x4A;
 const TONE_LEN: usize = 0x81;
 /// Offsets (address bytes 2 and 3) of Patch Tones 1–4.
 const TONE_OFFSETS: [[u8; 2]; 4] = [[0x10, 0], [0x12, 0], [0x14, 0], [0x16, 0]];
-
-/// The source model, told by the Patch Common length.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Model {
-    /// JV-1080.
-    Jv1080,
-    /// XP-50, XP-60 or XP-80.
-    Xp,
-    /// JV-2080, JV-1010 or XP-30.
-    Jv2080,
-}
 
 // Patch Common fields read by the code rows.
 /// Common: EFX Type, the first EFX byte.
@@ -632,10 +623,7 @@ fn common_len(key: [u8; 2], frames: &[Frame<'_>]) -> usize {
 /// Convert the Patch whose frames share address bytes `key`. A Patch whose
 /// Common is shorter than the JV-1080's, or that misses a block, is
 /// incomplete. A longer Common is read as far as the JV-2080's.
-pub(super) fn convert(
-    key: [u8; 2],
-    frames: &[Frame<'_>],
-) -> Result<(PackEntry, ConversionReport), Skipped> {
+pub(super) fn convert(key: [u8; 2], frames: &[Frame<'_>]) -> Result<Converted, Skipped> {
     let (model, len) = match common_len(key, frames) {
         COMMON_JV1080 => (Model::Jv1080, COMMON_JV1080),
         COMMON_XP => (Model::Xp, COMMON_XP),
@@ -667,7 +655,7 @@ pub(super) fn convert(
         code(&mut patch);
     }
     patch.tone.fill_common2(patch.category);
-    Ok((patch.tone.into_entry(), patch.report))
+    Ok((patch.tone.into_entry(), patch.report, Some(model)))
 }
 
 /// EFX: THRU until the effects map lands. Dropped, and reported, only when
@@ -724,8 +712,9 @@ fn studio_set(p: &mut Patch<'_>) {
     if c[REVERB] != *init(REVERB) {
         let [kind, level, time, damp, feedback] = c[REVERB].try_into().expect("5 Reverb bytes");
         p.not_applied(format!(
-            "Reverb {}, level {level}, time {time}, HF damp {damp}, feedback {feedback}",
-            named(&REVERB_TYPES, kind)
+            "Reverb {}, level {level}, time {time}, HF damp {}, feedback {feedback}",
+            named(&REVERB_TYPES, kind),
+            FxUnit::Freq.format(damp.into())
         ));
     }
     let tempo = nibble2(c, PATCH_TEMPO);
