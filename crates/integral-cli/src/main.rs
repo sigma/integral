@@ -260,6 +260,21 @@ enum PackCommand {
         #[arg(long)]
         force: bool,
     },
+    /// Check how Pack files convert, offline: read every file under the
+    /// paths and total the Conversion reports of their Foreign patches.
+    ///
+    /// Files that are not Packs are skipped and counted. Exit status: 0
+    /// checked; 1 a path can't be read.
+    Check {
+        /// Pack files, or directories to search recursively.
+        #[arg(required = true)]
+        paths: Vec<PathBuf>,
+        /// How many unmapped Waves and dropped effects the totals list.
+        #[arg(long, default_value_t = 10)]
+        top: usize,
+        #[arg(long, short = 'f', value_enum, default_value_t = OutputFormat::Text)]
+        format: OutputFormat,
+    },
     /// Import a Pack file into User memory. Prints the plan first; a lone
     /// tone or Studio Set loads into Temporary instead.
     ///
@@ -412,6 +427,15 @@ fn main() -> Result<()> {
             current_set,
             force,
         ),
+        Cli::Pack {
+            command: PackCommand::Check { paths, top, format },
+        } => {
+            let code = commands::pack_check::run(&paths, top, format)?;
+            if code != 0 {
+                std::process::exit(code.into());
+            }
+            Ok(())
+        }
         Cli::Pack {
             command:
                 PackCommand::Import {

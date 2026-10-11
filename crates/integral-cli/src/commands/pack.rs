@@ -148,6 +148,16 @@ pub(crate) fn id(kind: ChunkType, index: usize) -> String {
     format!("{}:{}", kind.cli_name(), index + 1)
 }
 
+/// The id of `pack.entries[i]`.
+pub(crate) fn entry_id(pack: &Pack, i: usize) -> String {
+    let kind = pack.entries[i].kind();
+    let n = pack.entries[..i]
+        .iter()
+        .filter(|e| e.kind() == kind)
+        .count();
+    id(kind, n)
+}
+
 /// Report items (Conversion or file-level) as JSON: each item's fields,
 /// and its `message`.
 pub(crate) fn report_json<T: Serialize + std::fmt::Display>(items: &[T]) -> Vec<Value> {

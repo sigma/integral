@@ -28,7 +28,7 @@ use serde_json::{Value, json};
 
 use super::expansion::{OutputFormat, read_slots};
 use super::pack::{
-    Throttle, id, lossy_marker, read_pack, report_json, run_export, warn_file_report,
+    Throttle, entry_id, lossy_marker, read_pack, report_json, run_export, warn_file_report,
 };
 use crate::device::IntegraDevice;
 
@@ -98,16 +98,6 @@ fn entry_index(pack: &Pack, entry_id: &str) -> Result<usize> {
         .nth(n - 1)
         .map(|(i, _)| i)
         .with_context(|| format!("no entry {entry_id} in the Pack"))
-}
-
-/// The id of `pack.entries[i]`.
-fn entry_id(pack: &Pack, i: usize) -> String {
-    let kind = pack.entries[i].kind();
-    let n = pack.entries[..i]
-        .iter()
-        .filter(|e| e.kind() == kind)
-        .count();
-    id(kind, n)
 }
 
 /// Plan the import, then apply `--only` and `--to`.
