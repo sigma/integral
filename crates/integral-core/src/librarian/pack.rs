@@ -4,6 +4,8 @@
 //! layout (the block list of its [`UserMemorySpec`]). SVD is only the
 //! encoding at the file boundary: [`Pack::from_svd`] reads the sound-export
 //! and backup shapes, and [`Pack::to_svd`] writes the sound-export shape.
+//! [`Pack::read`] reads any Pack file, SysEx and MIDI included (see
+//! [`super::foreign`]).
 //!
 //! A Studio Set Part that selects a User tone holds that tone's 0-based
 //! position among the Pack's entries of its type, as Roland's export does.
@@ -51,6 +53,12 @@ pub enum PackError {
     /// Blocks don't match the type's Temporary layout.
     #[error("blocks don't match the {0} Temporary layout")]
     BlockLayout(ChunkType),
+    /// The file is not an SVD, SysEx or MIDI file.
+    #[error("not an SVD, SysEx or MIDI file")]
+    UnknownFormat,
+    /// A file format that is recognized but not read.
+    #[error("{0}")]
+    UnsupportedFormat(&'static str),
     /// A reference that this entry's Part can't hold.
     #[error("Part {part} can't hold {tone_ref:?}")]
     InvalidToneRef {

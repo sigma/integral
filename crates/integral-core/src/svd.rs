@@ -23,6 +23,15 @@ const SIGNATURE: [u8; 4] = *b"SVD1";
 /// INTEGRA-7 model identifier in SVD directory entries.
 const MODEL_MI69: [u8; 4] = [b'M', b'I', b'6', b'9'];
 
+/// Signature of the JV/XP-era SVD files, whose payload isn't decoded.
+///
+/// Reference: `docs/research/xv-svd-format.md`.
+const SIGNATURE_SVD0: [u8; 4] = *b"SVD0";
+
+/// Model identifiers of XV-series SVD directory entries, which share the
+/// `SVD1` signature.
+const XV_MODELS: [[u8; 4]; 2] = [*b"XV88", *b"NEXY"];
+
 /// Size of the big-endian header length at bytes 0–1, which excludes itself.
 const LENGTH_FIELD_SIZE: usize = 2;
 
@@ -343,6 +352,39 @@ pub struct SvdFile {
     pub chunks: Vec<SvdChunk>,
 }
 
+/// The synth family that wrote an SVD file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SvdFamily {
+    /// INTEGRA-7 (`SVD1`, model `MI69`), or any other `SVD1` file.
+    Integra,
+    /// XV series (`SVD1`, a directory model `XV88` or `NEXY`).
+    Xv,
+    /// JV/XP series (`SVD0`).
+    JvXp,
+}
+
+impl SvdFamily {
+    /// The family of `data` from its signature and directory model IDs, or
+    /// `None` if it is not an SVD file.
+    pub fn of(data: &[u8]) -> Option<Self> {
+        let signature = data.get(LENGTH_FIELD_SIZE..LENGTH_FIELD_SIZE + SIGNATURE.len())?;
+        if signature == SIGNATURE_SVD0 {
+            return Some(Self::JvXp);
+        }
+        if signature != SIGNATURE {
+            return None;
+        }
+        let header_length = usize::from(u16::from_be_bytes([data[0], data[1]]));
+        let dir_end = (header_length + LENGTH_FIELD_SIZE).min(data.len());
+        let xv = data
+            .get(HEADER_SIZE..dir_end)
+            .unwrap_or_default()
+            .chunks_exact(DIR_ENTRY_SIZE)
+            .any(|entry| XV_MODELS.iter().any(|m| entry[4..8] == *m));
+        Some(if xv { Self::Xv } else { Self::Integra })
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Parsing helpers
 // ---------------------------------------------------------------------------
@@ -542,6 +584,20 @@ mod tests {
         assert_eq!(ChunkType::StudioSet.name_length(), Some(16));
         assert_eq!(ChunkType::SnSynthTone.name_length(), Some(12));
         assert_eq!(ChunkType::SystemSettings.name_length(), None);
+    }
+
+    #[test]
+    fn family_routes_on_signature_and_model() {
+        let integra = SvdFile::sound(Vec::new()).write();
+        assert_eq!(SvdFamily::of(&integra), Some(SvdFamily::Integra));
+        let mut xv = integra.clone();
+        xv[0x14..0x18].copy_from_slice(b"XV88");
+        assert_eq!(SvdFamily::of(&xv), Some(SvdFamily::Xv));
+        let mut jv = integra.clone();
+        jv[2..6].copy_from_slice(b"SVD0");
+        assert_eq!(SvdFamily::of(&jv), Some(SvdFamily::JvXp));
+        assert_eq!(SvdFamily::of(b"\xF0\x41"), None);
+        assert_eq!(SvdFamily::of(b"MThd\0\0\0\x06"), None);
     }
 
     #[test]
