@@ -19,13 +19,16 @@ interface UseDragControlOptions {
   /** Called with the new clamped integer value. */
   onChange: (value: number) => void;
   /**
-   * Pixels of vertical drag per 1-unit change at normal sensitivity.
-   * Lower = more sensitive. Default: 1.
+   * Pixels of vertical drag per 1-unit change at normal sensitivity, capped so
+   * a full sweep never exceeds `MAX_SWEEP_PX`. Lower = more sensitive. Default: 1.
    */
   pxPerStep?: number;
-  /** Shift-key sensitivity multiplier (0–1). Default: 0.2. */
-  shiftScale?: number;
 }
+
+/** Longest drag, in pixels, that sweeps the whole range at normal sensitivity. */
+const MAX_SWEEP_PX = 300;
+/** Minimum pixels per 1-unit change with Shift held, so wide ranges can be set to single steps. */
+const FINE_PX_PER_STEP = 5;
 
 interface UseDragControlResult {
   onPointerDown: (e: React.PointerEvent) => void;
@@ -47,7 +50,6 @@ export function useDragControl({
   defaultValue,
   onChange,
   pxPerStep = 1,
-  shiftScale = 0.2,
 }: UseDragControlOptions): UseDragControlResult {
   const dragging = useRef(false);
   const lastY = useRef(0);
@@ -67,16 +69,17 @@ export function useDragControl({
       if (!dragging.current) return;
       const dy = lastY.current - e.clientY;
       lastY.current = e.clientY;
-      const sensitivity = e.shiftKey ? shiftScale : 1;
-      accumulator.current += dy * sensitivity;
+      accumulator.current += dy;
 
-      const steps = Math.trunc(accumulator.current / pxPerStep);
+      const normal = Math.min(pxPerStep, MAX_SWEEP_PX / Math.max(1, max - min));
+      const px = e.shiftKey ? Math.max(normal, FINE_PX_PER_STEP) : normal;
+      const steps = Math.trunc(accumulator.current / px);
       if (steps !== 0) {
-        accumulator.current -= steps * pxPerStep;
+        accumulator.current -= steps * px;
         onChange(clamp(value + steps));
       }
     },
-    [value, onChange, min, max, pxPerStep, shiftScale],
+    [value, onChange, min, max, pxPerStep],
   );
 
   const onPointerUp = useCallback(() => {
