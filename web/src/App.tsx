@@ -34,6 +34,7 @@ import { ExpansionsPage } from "./ExpansionsPage";
 import { LibraryPage } from "./LibraryPage";
 import { ToneCatalog } from "./toneCatalog";
 import { useLibraryExport } from "./useLibraryExport";
+import { useLibraryImport } from "./useLibraryImport";
 import { ExpansionLoadBanner } from "./ExpansionLoadBanner";
 import { useKeyboard } from "./useKeyboard";
 import { sequencerEngine, type SequencerEngine } from "./sequencer";
@@ -204,6 +205,7 @@ export function App() {
     [service],
   );
   const libraryExport = useLibraryExport(service);
+  const libraryImport = useLibraryImport(service, mixer, catalog);
   // The tone picker's Load action: stage, then let the user Apply.
   const loadExpansion = useCallback(
     (expansion: Expansion) => {
@@ -300,6 +302,7 @@ export function App() {
                 mixer={mixer}
                 catalog={catalog}
                 libraryExport={libraryExport}
+                libraryImport={libraryImport}
               />
             </ErrorBoundary>
           )}

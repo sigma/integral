@@ -1087,23 +1087,32 @@ export class IntegraService {
    * Store `pack` into User memory as `plan` says, borrowing Part `part`
    * (0-indexed) to store tones. Resolves with each entry's status once the
    * borrowed Temporary areas are restored; refresh mixer state then.
+   * `onProgress` hears each entry's status as the import goes.
    */
   async importPack(
     pack: Pack,
     plan: ImportPlan,
     part: number,
     signal?: AbortSignal,
+    onProgress?: (statuses: ImportStatus[]) => void,
   ): Promise<PackImportResult> {
     if (this.writing) throw new Error("A save is still in progress");
     if (this.device.expansionLoadTarget()) {
       throw new Error("An Expansion load is in progress");
     }
     const machine = new PackImport(this.deviceId, pack, plan, part);
+    const throttle = frameThrottle(() => onProgress?.(machine.progress()));
     this.writing = true;
     try {
-      const error = await this.runLibrarian(machine, "pack-import", signal);
+      const error = await this.runLibrarian(
+        machine,
+        "pack-import",
+        signal,
+        onProgress && throttle.schedule,
+      );
       return { statuses: machine.progress(), error };
     } finally {
+      throttle.cancel();
       this.writing = false;
       machine.free();
     }

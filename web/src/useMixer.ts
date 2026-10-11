@@ -90,6 +90,8 @@ export interface UseMixerResult {
    * on the next call.
    */
   loadStudioSetNames: (force?: boolean) => Promise<void>;
+  /** Read the whole mixer state again, e.g. after a Pack import. */
+  reload: () => void;
   preview: () => void;
 }
 
@@ -302,6 +304,10 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   useEffect(() => {
     if (!service) return;
     loadState(service);
+  }, [service, loadState]);
+
+  const reload = useCallback(() => {
+    if (service) void loadState(service);
   }, [service, loadState]);
 
   // -----------------------------------------------------------------------
@@ -671,6 +677,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     renameTone,
     renameStudioSet,
     loadStudioSetNames,
+    reload,
     preview,
   };
 }

@@ -46,14 +46,14 @@
   composes: primary from "./PackPane.module.css";
 }
 
-.typeTabs {
+.tabs {
   display: flex;
   flex-wrap: wrap;
   border-bottom: 1px solid #2a2a4a;
   flex-shrink: 0;
 }
 
-.typeTab {
+.tab {
   padding: 6px 12px;
   font-size: 11px;
   font-weight: 600;
@@ -64,11 +64,11 @@
   cursor: pointer;
 }
 
-.typeTab:hover {
+.tab:hover {
   color: #c0c0e0;
 }
 
-.typeTabActive {
+.tabActive {
   color: #e0e0e0;
   border-bottom-color: #4a6cf7;
 }
@@ -81,4 +81,19 @@
 /* A Free slot: its type's INIT name. */
 .free {
   opacity: 0.45;
+}
+
+/* Import: a slot an entry of the Pack lands in. */
+.intoFree {
+  opacity: 1;
+  box-shadow: inset 3px 0 0 #6c6;
+}
+
+.intoTaken {
+  box-shadow: inset 3px 0 0 #fa4;
+}
+
+.into {
+  font-size: 11px;
+  color: #4ae0e0;
 }
