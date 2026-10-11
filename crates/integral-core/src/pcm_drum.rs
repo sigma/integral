@@ -8,7 +8,9 @@ use crate::address::{Address, DataSize};
 use crate::device_spec::{KeyOutOfRange, KeyRange};
 use crate::mfx::MfxState;
 use crate::params;
-use crate::parse_helpers::{nibble2, nibble4, parse_ascii_name};
+use crate::parse_helpers::{
+    encode_ascii_name, encode_nibble2, encode_nibble4, nibble2, nibble4, parse_ascii_name,
+};
 use thiserror::Error;
 
 // ---------------------------------------------------------------------------
@@ -316,6 +318,15 @@ pub fn pcmd_partial_field_offset(
     Ok(split_offset(field as usize + index as usize))
 }
 
+/// Byte position of `field` in WMT `wmt` (0-based) within a Partial block.
+///
+/// # Panics
+///
+/// If `wmt` is not below [`PCMD_WMT_COUNT`].
+pub const fn pcmd_wmt_byte(wmt: usize, field: PcmdWmtField) -> usize {
+    WMT_STARTS[wmt] + field as usize
+}
+
 /// Split a byte position within a Partial into its 7-bit `hi lo` offset.
 const fn split_offset(linear: usize) -> u16 {
     (((linear / 128) << 8) | (linear % 128)) as u16
@@ -325,6 +336,12 @@ const fn split_offset(linear: usize) -> u16 {
 pub const fn pcmd_common2_address(part_index: u8) -> Address {
     pcmd_base(part_index).offset([0x00, 0x02, 0x00, 0x00])
 }
+
+/// PCM Drum Kit Common2 offset of Phrase Number (2 nibbles).
+pub const COMMON2_PHRASE_NUMBER: u8 = 0x10;
+
+/// PCM Drum Kit Common2 offset of TFX Switch (0–1).
+pub const COMMON2_TFX_SWITCH: u8 = 0x31;
 
 /// Compute the absolute address for a single PCM Drum Kit Common2 parameter.
 pub const fn pcmd_common2_param_address(part_index: u8, offset: u8) -> Address {
@@ -811,9 +828,141 @@ pub fn parse_pcmd_common2(data: &[u8]) -> Result<PcmDrumCommon2, crate::TonePars
         });
     }
     let mut c2 = PcmDrumCommon2::default();
-    c2.phrase_number = nibble2(data, 0x10);
-    c2.tfx_switch = data[0x31];
+    c2.phrase_number = nibble2(data, usize::from(COMMON2_PHRASE_NUMBER));
+    c2.tfx_switch = data[usize::from(COMMON2_TFX_SWITCH)];
     Ok(c2)
+}
+
+// ---------------------------------------------------------------------------
+// Encode functions
+// ---------------------------------------------------------------------------
+
+/// Common: the unnamed and reserve bytes after Kit Level, as `INIT RHYTHM`
+/// holds them: `00 0D` 0, `00 0E` 120 (2 nibbles), `00 10` 0, `00 11` 13.
+/// See `docs/svd/07-pcm-drum.md`.
+const INIT_COMMON_TAIL: [u8; 5] = [0, 0x07, 0x08, 0, 13];
+
+/// Partial: reserve `01 42`, which the MIDI Implementation prints as 64.
+const PARTIAL_RESERVE_64: usize = 0x80 + 0x42;
+
+/// Encode a PCM Drum Kit Common block (18 bytes), the inverse of
+/// [`parse_pcmd_common`]. The bytes after Kit Level get the `INIT RHYTHM`
+/// values.
+pub fn encode_pcmd_common(c: &PcmDrumCommon) -> Vec<u8> {
+    let mut data = encode_ascii_name(&c.kit_name, usize::from(KIT_LEVEL));
+    data.push(c.kit_level);
+    data.extend_from_slice(&INIT_COMMON_TAIL);
+    data
+}
+
+/// Encode a single WMT layer (29 bytes), the inverse of `parse_pcmd_wmt`.
+fn encode_pcmd_wmt(w: &PcmDrumWmt, data: &mut [u8]) {
+    use PcmdWmtField as F;
+    let mut set = |f: F, v: u8| data[f as usize] = v;
+    set(F::Switch, w.switch);
+    set(F::WaveGroupType, w.wave_group_type);
+    set(F::WaveGain, w.wave_gain);
+    set(F::WaveFxmSwitch, w.wave_fxm_switch);
+    set(F::WaveFxmColor, w.wave_fxm_color);
+    set(F::WaveFxmDepth, w.wave_fxm_depth);
+    set(F::WaveTempoSync, w.wave_tempo_sync);
+    set(F::CoarseTune, w.coarse_tune);
+    set(F::FineTune, w.fine_tune);
+    set(F::Pan, w.pan);
+    set(F::RandomPanSwitch, w.random_pan_switch);
+    set(F::AlternatePanSwitch, w.alternate_pan_switch);
+    set(F::Level, w.level);
+    set(F::VelocityRangeLower, w.velocity_range_lower);
+    set(F::VelocityRangeUpper, w.velocity_range_upper);
+    set(F::VelocityFadeLower, w.velocity_fade_lower);
+    set(F::VelocityFadeUpper, w.velocity_fade_upper);
+    for (f, v) in [
+        (F::WaveGroupId, w.wave_group_id),
+        (F::WaveNumberL, w.wave_number_l),
+        (F::WaveNumberR, w.wave_number_r),
+    ] {
+        data[f as usize..f as usize + 4].copy_from_slice(&encode_nibble4(v));
+    }
+}
+
+/// Encode a PCM Drum Kit per-key Partial block (195 bytes), the inverse of
+/// [`parse_pcmd_partial`]. Reserve `01 42` gets 64, the value the MIDI
+/// Implementation prints. The others (`00 17`, `00 18`, `00 1F`) get 0, a
+/// stand-in: no documented INIT kit shows them.
+pub fn encode_pcmd_partial(p: &PcmDrumPartial) -> Vec<u8> {
+    let mut data = vec![0; PCMD_PARTIAL_SIZE];
+    use PcmdPartialField as F;
+    data[..F::AssignType as usize]
+        .copy_from_slice(&encode_ascii_name(&p.partial_name, F::AssignType as usize));
+    let mut set = |f: F, v: &[u8]| data[f as usize..f as usize + v.len()].copy_from_slice(v);
+    set(F::AssignType, &[p.assign_type]);
+    set(F::MuteGroup, &[p.mute_group]);
+    set(F::Level, &[p.level]);
+    set(F::CoarseTune, &[p.coarse_tune]);
+    set(F::FineTune, &[p.fine_tune]);
+    set(F::RandomPitchDepth, &[p.random_pitch_depth]);
+    set(F::Pan, &[p.pan]);
+    set(F::RandomPanDepth, &[p.random_pan_depth]);
+    set(F::AlternatePanDepth, &[p.alternate_pan_depth]);
+    set(F::EnvMode, &[p.env_mode]);
+    set(F::OutputLevel, &[p.output_level]);
+    set(F::ChorusSend, &[p.chorus_send]);
+    set(F::ReverbSend, &[p.reverb_send]);
+    set(F::OutputAssign, &[p.output_assign]);
+    set(F::PitchBendRange, &[p.pitch_bend_range]);
+    set(F::ReceiveExpression, &[p.receive_expression]);
+    set(F::ReceiveHold1, &[p.receive_hold1]);
+    set(F::WmtVelocityControl, &[p.wmt_velocity_control]);
+
+    set(F::PitchEnvDepth, &[p.pitch_env_depth]);
+    set(F::PitchEnvVelocitySens, &[p.pitch_env_velocity_sens]);
+    set(F::PitchEnvT1VelocitySens, &[p.pitch_env_t1_velocity_sens]);
+    set(F::PitchEnvT4VelocitySens, &[p.pitch_env_t4_velocity_sens]);
+    set(F::PitchEnvTime, &p.pitch_env_time);
+    set(F::PitchEnvLevel, &p.pitch_env_level);
+
+    set(F::TvfFilterType, &[p.tvf_filter_type]);
+    set(F::TvfCutoffFrequency, &[p.tvf_cutoff_frequency]);
+    set(F::TvfCutoffVelocityCurve, &[p.tvf_cutoff_velocity_curve]);
+    set(F::TvfCutoffVelocitySens, &[p.tvf_cutoff_velocity_sens]);
+    set(F::TvfResonance, &[p.tvf_resonance]);
+    set(
+        F::TvfResonanceVelocitySens,
+        &[p.tvf_resonance_velocity_sens],
+    );
+    set(F::TvfEnvDepth, &[p.tvf_env_depth]);
+    set(F::TvfEnvVelocityCurve, &[p.tvf_env_velocity_curve]);
+    set(F::TvfEnvVelocitySens, &[p.tvf_env_velocity_sens]);
+    set(F::TvfEnvT1VelocitySens, &[p.tvf_env_t1_velocity_sens]);
+    set(F::TvfEnvT4VelocitySens, &[p.tvf_env_t4_velocity_sens]);
+    set(F::TvfEnvTime, &p.tvf_env_time);
+    set(F::TvfEnvLevel, &p.tvf_env_level);
+
+    set(F::TvaLevelVelocityCurve, &[p.tva_level_velocity_curve]);
+    set(F::TvaLevelVelocitySens, &[p.tva_level_velocity_sens]);
+    set(F::TvaEnvT1VelocitySens, &[p.tva_env_t1_velocity_sens]);
+    set(F::TvaEnvT4VelocitySens, &[p.tva_env_t4_velocity_sens]);
+    set(F::TvaEnvTime, &p.tva_env_time);
+    set(F::TvaEnvLevel, &p.tva_env_level);
+
+    set(F::OneShotMode, &[p.one_shot_mode]);
+
+    for (w, &start) in p.wmt.iter().zip(&WMT_STARTS) {
+        encode_pcmd_wmt(w, &mut data[start..start + WMT_LAYER_SIZE]);
+    }
+    data[PARTIAL_RESERVE_64] = 64;
+    data
+}
+
+/// Encode a PCM Drum Kit Common2 block (50 bytes), the inverse of
+/// [`parse_pcmd_common2`]. The long-name reserves are left blank, and the
+/// other reserves get 0, a stand-in: no documented INIT kit shows them.
+pub fn encode_pcmd_common2(c2: &PcmDrumCommon2) -> Vec<u8> {
+    let mut data = vec![0; PCMD_COMMON2_SIZE];
+    let phrase_number = usize::from(COMMON2_PHRASE_NUMBER);
+    data[phrase_number..phrase_number + 2].copy_from_slice(&encode_nibble2(c2.phrase_number));
+    data[usize::from(COMMON2_TFX_SWITCH)] = c2.tfx_switch;
+    data
 }
 
 #[cfg(test)]
@@ -949,7 +1098,7 @@ mod tests {
 
     #[test]
     fn pcmd_common2_param_address_tfx_switch() {
-        let addr = pcmd_common2_param_address(0, 0x31);
+        let addr = pcmd_common2_param_address(0, COMMON2_TFX_SWITCH);
         assert_eq!(addr, Address::new(0x19, 0x12, 0x00, 0x31));
     }
 
@@ -1072,5 +1221,48 @@ mod tests {
         let p = parse_pcmd_partial(&data).unwrap();
         assert_eq!(p.wmt[3].switch, 1);
         assert_eq!(p.wmt[3].wave_number_l, 1000);
+    }
+
+    #[test]
+    fn blocks_round_trip_through_their_encoders() {
+        let common = PcmDrumCommon {
+            kit_name: "Round Trip".into(),
+            kit_level: 100,
+        };
+        let block = encode_pcmd_common(&common);
+        assert_eq!(block.len(), PCMD_COMMON_SIZE);
+        assert_eq!(parse_pcmd_common(&block).unwrap(), common);
+        assert_eq!(&block[usize::from(KIT_LEVEL) + 1..], [0, 7, 8, 0, 13]);
+
+        let mut partial = PcmDrumPartial {
+            partial_name: "Kick".into(),
+            mute_group: 3,
+            pitch_env_level: [1, 2, 3, 4, 5],
+            tva_env_level: [6, 7, 8],
+            one_shot_mode: 1,
+            ..PcmDrumPartial::default()
+        };
+        partial.wmt[2] = PcmDrumWmt {
+            switch: 1,
+            wave_group_type: 1,
+            wave_group_id: 6,
+            wave_number_l: 300,
+            wave_number_r: 301,
+            velocity_fade_upper: 9,
+            ..PcmDrumWmt::default()
+        };
+        let block = encode_pcmd_partial(&partial);
+        assert_eq!(block.len(), PCMD_PARTIAL_SIZE);
+        assert_eq!(parse_pcmd_partial(&block).unwrap(), partial);
+        assert_eq!(block[PARTIAL_RESERVE_64], 64);
+        assert_eq!(block[pcmd_wmt_byte(2, PcmdWmtField::VelocityFadeUpper)], 9);
+
+        let common2 = PcmDrumCommon2 {
+            phrase_number: 200,
+            tfx_switch: 1,
+        };
+        let block = encode_pcmd_common2(&common2);
+        assert_eq!(block.len(), PCMD_COMMON2_SIZE);
+        assert_eq!(parse_pcmd_common2(&block).unwrap(), common2);
     }
 }

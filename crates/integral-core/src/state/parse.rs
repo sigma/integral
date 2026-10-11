@@ -160,6 +160,32 @@ pub fn parse_comp_eq_block(data: &[u8]) -> [super::CompEqUnit; 6] {
     })
 }
 
+/// Encode one Comp+EQ unit (14 bytes), the inverse of [`parse_comp_eq_unit`].
+fn encode_comp_eq_unit(unit: &super::CompEqUnit) -> [u8; COMP_EQ_UNIT_BYTES] {
+    [
+        u8::from(unit.comp_switch),
+        unit.comp_attack,
+        unit.comp_release,
+        unit.comp_threshold,
+        unit.comp_ratio,
+        unit.comp_output_gain,
+        u8::from(unit.eq_switch),
+        unit.eq_low_freq,
+        unit.eq_low_gain,
+        unit.eq_mid_freq,
+        unit.eq_mid_gain,
+        unit.eq_mid_q,
+        unit.eq_high_freq,
+        unit.eq_high_gain,
+    ]
+}
+
+/// Encode the full 84-byte (0x54) Comp+EQ block, the inverse of
+/// [`parse_comp_eq_block`].
+pub fn encode_comp_eq_block(units: &[super::CompEqUnit; 6]) -> Vec<u8> {
+    units.iter().flat_map(encode_comp_eq_unit).collect()
+}
+
 // ---------------------------------------------------------------------------
 // Nibble codec
 // ---------------------------------------------------------------------------
@@ -229,6 +255,16 @@ mod tests {
             width: F::ExtPartWidth,
             ambience_send: F::ExtPartAmbienceSend,
         });
+    }
+
+    #[test]
+    fn comp_eq_block_round_trips() {
+        let mut units: [super::super::CompEqUnit; 6] = Default::default();
+        units[4].comp_switch = true;
+        units[4].eq_high_gain = 3;
+        let block = encode_comp_eq_block(&units);
+        assert_eq!(block.len(), 0x54);
+        assert_eq!(parse_comp_eq_block(&block), units);
     }
 
     #[test]
