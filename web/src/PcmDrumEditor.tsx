@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { ToneType } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import {
   SectionPanel,
@@ -243,7 +244,7 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
   // ---------------------------------------------------------------------------
   const handleMfxTypeChange = useCallback(
     (type_: number) => {
-      service.device.setMfxParam(partIndex, 0x00, type_);
+      service.device.setMfxParam(partIndex, ToneType.PcmDrum, 0x00, type_);
       setMfx((prev) => prev ? { ...prev, mfxType: type_, params: [] } : prev);
     },
     [partIndex, service],
@@ -251,7 +252,7 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
 
   const handleMfxHeaderParam = useCallback(
     (offset: number, value: number) => {
-      service.device.setMfxParam(partIndex, offset, value);
+      service.device.setMfxParam(partIndex, ToneType.PcmDrum, offset, value);
       setMfx((prev) => {
         if (!prev) return prev;
         const next = { ...prev, controls: [...prev.controls] };
@@ -274,7 +275,7 @@ export function PcmDrumEditor({ partIndex, service }: Props) {
 
   const handleMfxNibParam = useCallback(
     (paramIndex: number, value: number) => {
-      service.device.setMfxNibParam(partIndex, paramIndex, value);
+      service.device.setMfxNibParam(partIndex, ToneType.PcmDrum, paramIndex, value);
       setMfx((prev) => {
         if (!prev) return prev;
         const params = [...prev.params];

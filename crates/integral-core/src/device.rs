@@ -651,22 +651,37 @@ impl DeviceState {
     // MFX
     // -----------------------------------------------------------------------
 
-    /// Set an MFX header parameter (type, sends, control slots).
-    pub fn set_mfx_param(&mut self, part: u8, param_offset: u8, value: u8) {
-        let addr = crate::mfx::mfx_address(part, param_offset);
+    /// Set an MFX header parameter (type, sends, control slots) of a part's
+    /// tone of type `tone_type_offset` (a [`params::tone_type`] constant).
+    pub fn set_mfx_param(
+        &mut self,
+        part: u8,
+        tone_type_offset: [u8; 3],
+        param_offset: u8,
+        value: u8,
+    ) {
+        let addr = crate::mfx::mfx_address(part, tone_type_offset, param_offset);
         self.send_dt1(&addr, &[value]);
     }
 
-    /// Set a nibblized MFX effect parameter (0-based index).
-    pub fn set_mfx_nib_param(&mut self, part: u8, param_index: u8, value: i32) {
+    /// Set a nibblized MFX effect parameter (0-based index) of a part's tone
+    /// of type `tone_type_offset` (a [`params::tone_type`] constant).
+    pub fn set_mfx_nib_param(
+        &mut self,
+        part: u8,
+        tone_type_offset: [u8; 3],
+        param_index: u8,
+        value: i32,
+    ) {
         let bytes = crate::mfx::encode_mfx_param(value);
-        let addr = crate::mfx::mfx_param_address(part, param_index);
+        let addr = crate::mfx::mfx_param_address(part, tone_type_offset, param_index);
         self.send_dt1(&addr, &bytes);
     }
 
-    /// Build an RQ1 to read the full MFX block for a part.
-    pub fn build_mfx_request(&self, part: u8) -> Vec<u8> {
-        let addr = crate::mfx::mfx_block_address(part);
+    /// Build an RQ1 to read the full MFX block of a part's tone of type
+    /// `tone_type_offset` (a [`params::tone_type`] constant).
+    pub fn build_mfx_request(&self, part: u8, tone_type_offset: [u8; 3]) -> Vec<u8> {
+        let addr = crate::mfx::tone_mfx_block_address(part, tone_type_offset);
         sysex::build_rq1(self.device_id, &addr, &crate::mfx::MFX_BLOCK_SIZE)
     }
 
@@ -1391,6 +1406,53 @@ mod tests {
         let _ = (dev.drain(0.0), dev.drain(100.0), dev.drain(200.0));
         assert!(!dev.rename_tone(0, "X"));
         assert!(dev.drain(300.0).is_none());
+    }
+
+    #[test]
+    fn set_mfx_param_writes_the_tone_types_mfx_block() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_mfx_param(
+            0,
+            params::tone_type::SN_ACOUSTIC,
+            crate::mfx::offset::TYPE,
+            5,
+        );
+        assert_eq!(
+            dev.drain(0.0).unwrap(),
+            sysex::build_dt1(0x10, &Address::new(0x19, 0x02, 0x02, 0x00), &[5])
+        );
+        dev.set_mfx_param(0, params::tone_type::PCM_SYNTH, crate::mfx::offset::TYPE, 7);
+        assert_eq!(
+            dev.drain(100.0).unwrap(),
+            sysex::build_dt1(0x10, &Address::new(0x19, 0x00, 0x02, 0x00), &[7])
+        );
+    }
+
+    #[test]
+    fn set_mfx_nib_param_writes_the_tone_types_mfx_block() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_mfx_nib_param(4, params::tone_type::SN_SYNTH, 1, 0x1234);
+        assert_eq!(
+            dev.drain(0.0).unwrap(),
+            sysex::build_dt1(
+                0x10,
+                &Address::new(0x1A, 0x01, 0x02, 0x15),
+                &crate::mfx::encode_mfx_param(0x1234)
+            )
+        );
+    }
+
+    #[test]
+    fn build_mfx_request_reads_the_tone_types_mfx_block() {
+        let dev = DeviceState::new(0x10);
+        assert_eq!(
+            dev.build_mfx_request(0, params::tone_type::SN_SYNTH),
+            sysex::build_rq1(
+                0x10,
+                &Address::new(0x19, 0x01, 0x02, 0x00),
+                &crate::mfx::MFX_BLOCK_SIZE
+            )
+        );
     }
 
     #[test]

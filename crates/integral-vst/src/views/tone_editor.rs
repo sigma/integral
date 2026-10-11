@@ -8,6 +8,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use integral_core::params::tone_type;
 use integral_core::sn_synth::{SnSynthCommon, SnSynthPartial};
 use nih_plug_vizia::vizia::prelude::*;
 
@@ -387,7 +388,7 @@ impl ToneEditorData {
         }
 
         // MFX
-        let rq = dev.build_mfx_request(part);
+        let rq = dev.build_mfx_request(part, tone_type::SN_SYNTH);
         dev.send_raw(&format!("mfx-{part}"), rq);
     }
 }

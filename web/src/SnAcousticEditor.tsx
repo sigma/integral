@@ -5,6 +5,7 @@ import {
   sna_common_size,
   sna_mfx_address,
   mfx_block_size,
+  ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import {
@@ -211,7 +212,7 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
   // ---------------------------------------------------------------------------
   const handleMfxTypeChange = useCallback(
     (type_: number) => {
-      service.device.setMfxParam(partIndex, 0x00, type_);
+      service.device.setMfxParam(partIndex, ToneType.SnAcoustic, 0x00, type_);
       setMfx((prev) => prev ? { ...prev, mfxType: type_, params: [] } : prev);
     },
     [partIndex, service],
@@ -219,7 +220,7 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
 
   const handleMfxHeaderParam = useCallback(
     (offset: number, value: number) => {
-      service.device.setMfxParam(partIndex, offset, value);
+      service.device.setMfxParam(partIndex, ToneType.SnAcoustic, offset, value);
       setMfx((prev) => {
         if (!prev) return prev;
         const next = { ...prev, controls: [...prev.controls] };
@@ -242,7 +243,7 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
 
   const handleMfxNibParam = useCallback(
     (paramIndex: number, value: number) => {
-      service.device.setMfxNibParam(partIndex, paramIndex, value);
+      service.device.setMfxNibParam(partIndex, ToneType.SnAcoustic, paramIndex, value);
       setMfx((prev) => {
         if (!prev) return prev;
         const params = [...prev.params];

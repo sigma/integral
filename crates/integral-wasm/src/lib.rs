@@ -452,6 +452,36 @@ pub fn pcms_common2_size() -> Vec<u8> {
     pcm_synth::PCMS_COMMON2_BLOCK_SIZE.as_bytes().to_vec()
 }
 
+/// Tone type of a Part's Temporary Tone, selecting which tone type block
+/// (and so which MFX block) an edit addresses.
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ToneType {
+    /// PCM Synth Tone.
+    PcmSynth,
+    /// SuperNATURAL Synth Tone.
+    SnSynth,
+    /// SuperNATURAL Acoustic Tone.
+    SnAcoustic,
+    /// SuperNATURAL Drum Kit.
+    SnDrum,
+    /// PCM Drum Kit.
+    PcmDrum,
+}
+
+impl ToneType {
+    /// The core [`tone_type`] offset for this tone type.
+    const fn offset(self) -> [u8; 3] {
+        match self {
+            Self::PcmSynth => tone_type::PCM_SYNTH,
+            Self::SnSynth => tone_type::SN_SYNTH,
+            Self::SnAcoustic => tone_type::SN_ACOUSTIC,
+            Self::SnDrum => tone_type::SN_DRUM,
+            Self::PcmDrum => tone_type::PCM_DRUM,
+        }
+    }
+}
+
 /// Returns the address of part `part_index`'s PCM Synth MFX block.
 #[wasm_bindgen]
 pub fn pcms_mfx_address(part_index: u8) -> Vec<u8> {
@@ -2215,19 +2245,32 @@ impl WasmDeviceState {
 
     // -- MFX ---------------------------------------------------------------
 
+    /// Set an MFX header parameter (type, sends, control slots) of the part's
+    /// tone of type `tone_type`.
     #[wasm_bindgen(js_name = setMfxParam)]
-    pub fn set_mfx_param(&mut self, part: u8, param_offset: u8, value: u8) {
-        self.inner.set_mfx_param(part, param_offset, value);
+    pub fn set_mfx_param(&mut self, part: u8, tone_type: ToneType, param_offset: u8, value: u8) {
+        self.inner
+            .set_mfx_param(part, tone_type.offset(), param_offset, value);
     }
 
+    /// Set a nibblized MFX parameter (0-based index) of the part's tone of
+    /// type `tone_type`.
     #[wasm_bindgen(js_name = setMfxNibParam)]
-    pub fn set_mfx_nib_param(&mut self, part: u8, param_index: u8, value: i32) {
-        self.inner.set_mfx_nib_param(part, param_index, value);
+    pub fn set_mfx_nib_param(
+        &mut self,
+        part: u8,
+        tone_type: ToneType,
+        param_index: u8,
+        value: i32,
+    ) {
+        self.inner
+            .set_mfx_nib_param(part, tone_type.offset(), param_index, value);
     }
 
+    /// Build an RQ1 to read the MFX block of the part's tone of type `tone_type`.
     #[wasm_bindgen(js_name = buildMfxRequest)]
-    pub fn build_mfx_request(&self, part: u8) -> Vec<u8> {
-        self.inner.build_mfx_request(part)
+    pub fn build_mfx_request(&self, part: u8, tone_type: ToneType) -> Vec<u8> {
+        self.inner.build_mfx_request(part, tone_type.offset())
     }
 
     /// Apply a full MFX block dump to the part's MFX state.

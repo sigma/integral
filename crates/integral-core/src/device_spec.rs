@@ -201,7 +201,7 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         tone_type: Some(tone_type::SN_SYNTH),
         blocks: &[
             one([0x00, 0x00, 0x00], sn_synth::SNS_COMMON_BLOCK_SIZE),
-            one([0x00, 0x02, 0x00], mfx::MFX_BLOCK_SIZE),
+            one(mfx::MFX_BLOCK_OFFSET, mfx::MFX_BLOCK_SIZE),
             run([0x00, 0x20, 0x00], sn_synth::SNS_PARTIAL_BLOCK_SIZE, 3, 1),
         ],
         init_names: &["INIT TONE"],
@@ -215,7 +215,7 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         tone_type: Some(tone_type::SN_ACOUSTIC),
         blocks: &[
             one([0x00, 0x00, 0x00], sn_acoustic::SNA_COMMON_BLOCK_SIZE),
-            one([0x00, 0x02, 0x00], mfx::MFX_BLOCK_SIZE),
+            one(mfx::MFX_BLOCK_OFFSET, mfx::MFX_BLOCK_SIZE),
         ],
         init_names: &["INIT TONE"],
     },
@@ -228,7 +228,7 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         tone_type: Some(tone_type::SN_DRUM),
         blocks: &[
             one([0x00, 0x00, 0x00], sn_drum::SND_COMMON_BLOCK_SIZE),
-            one([0x00, 0x02, 0x00], mfx::MFX_BLOCK_SIZE),
+            one(mfx::MFX_BLOCK_OFFSET, mfx::MFX_BLOCK_SIZE),
             one([0x00, 0x08, 0x00], params::COMP_EQ_BLOCK_SIZE),
             run(
                 [0x00, 0x10, 0x00],
@@ -248,7 +248,7 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         tone_type: Some(tone_type::PCM_SYNTH),
         blocks: &[
             one([0x00, 0x00, 0x00], pcm_synth::PCMS_COMMON_BLOCK_SIZE),
-            one([0x00, 0x02, 0x00], mfx::MFX_BLOCK_SIZE),
+            one(mfx::MFX_BLOCK_OFFSET, mfx::MFX_BLOCK_SIZE),
             one([0x00, 0x10, 0x00], pcm_synth::PCMS_PMT_BLOCK_SIZE),
             run([0x00, 0x20, 0x00], pcm_synth::PCMS_PARTIAL_BLOCK_SIZE, 4, 2),
             one([0x00, 0x30, 0x00], pcm_synth::PCMS_COMMON2_BLOCK_SIZE),
@@ -264,7 +264,7 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         tone_type: Some(tone_type::PCM_DRUM),
         blocks: &[
             one([0x00, 0x00, 0x00], pcm_drum::PCMD_COMMON_BLOCK_SIZE),
-            one([0x00, 0x02, 0x00], mfx::MFX_BLOCK_SIZE),
+            one(mfx::MFX_BLOCK_OFFSET, mfx::MFX_BLOCK_SIZE),
             one([0x00, 0x08, 0x00], params::COMP_EQ_BLOCK_SIZE),
             run(
                 [0x00, 0x10, 0x00],

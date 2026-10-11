@@ -6,6 +6,7 @@ import {
   sns_partial_size,
   sns_mfx_address,
   mfx_block_size,
+  ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import { MfxPanel } from "./MfxPanel";
@@ -197,7 +198,7 @@ export function SnSynthEditor({ partIndex, service }: Props) {
   // ---------------------------------------------------------------------------
   const handleMfxTypeChange = useCallback(
     (type_: number) => {
-      service.device.setMfxParam(partIndex, 0x00, type_);
+      service.device.setMfxParam(partIndex, ToneType.SnSynth, 0x00, type_);
       setMfx((prev) => prev ? { ...prev, mfxType: type_, params: [] } : prev);
     },
     [partIndex, service],
@@ -205,7 +206,7 @@ export function SnSynthEditor({ partIndex, service }: Props) {
 
   const handleMfxHeaderParam = useCallback(
     (offset: number, value: number) => {
-      service.device.setMfxParam(partIndex, offset, value);
+      service.device.setMfxParam(partIndex, ToneType.SnSynth, offset, value);
       setMfx((prev) => {
         if (!prev) return prev;
         const next = { ...prev, controls: [...prev.controls] };
@@ -229,7 +230,7 @@ export function SnSynthEditor({ partIndex, service }: Props) {
 
   const handleMfxNibParam = useCallback(
     (paramIndex: number, value: number) => {
-      service.device.setMfxNibParam(partIndex, paramIndex, value);
+      service.device.setMfxNibParam(partIndex, ToneType.SnSynth, paramIndex, value);
       setMfx((prev) => {
         if (!prev) return prev;
         const params = [...prev.params];
