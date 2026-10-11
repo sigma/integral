@@ -86,6 +86,8 @@ pub enum ImportError {
 
 /// Where an entry stands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub enum EntryStatus {
     /// Not stored (yet).
     Pending,

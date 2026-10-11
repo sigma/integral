@@ -73,6 +73,8 @@ pub enum PackError {
 
 /// The tone a Studio Set Part selects.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub enum ToneRef {
     /// A User tone of this Pack: the `index`-th entry of type `kind`
     /// (0-based, in Pack order).

@@ -201,6 +201,24 @@ impl fmt::Display for ChunkType {
     }
 }
 
+/// Serialized as its [`ChunkType::cli_name`].
+#[cfg(feature = "serde")]
+impl serde::Serialize for ChunkType {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.cli_name())
+    }
+}
+
+/// Deserialized from its [`ChunkType::cli_name`].
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for ChunkType {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let name = String::deserialize(d)?;
+        Self::from_cli_name(&name)
+            .ok_or_else(|| serde::de::Error::custom(format!("unknown type: {name}")))
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Entry extraction helpers
 // ---------------------------------------------------------------------------

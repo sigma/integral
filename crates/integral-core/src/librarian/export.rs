@@ -31,6 +31,8 @@ use crate::svd::ChunkType;
 
 /// Something to export.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(tag = "source", rename_all = "camelCase"))]
 pub enum ExportSource {
     /// User slot `slot` (0-indexed) of type `kind`.
     User {
@@ -126,6 +128,8 @@ pub enum ExportError {
 
 /// Where a source's read stands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub enum EntryStatus {
     /// Not requested yet.
     Pending,

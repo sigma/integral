@@ -12,6 +12,7 @@ use integral_core::{
 use wasm_bindgen::prelude::*;
 
 mod expansion;
+mod librarian;
 mod sequencer;
 pub use expansion::WasmExpansion;
 pub use sequencer::WasmSequencer;

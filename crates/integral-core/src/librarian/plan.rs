@@ -34,6 +34,8 @@ pub enum Origin {
 
 /// Where one entry of the Pack goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub enum Placement {
     /// This User slot (0-indexed) of the entry's type.
     User(u16),
