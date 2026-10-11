@@ -5,7 +5,6 @@
 //! three Partial blocks.
 
 use crate::address::{Address, DataSize};
-use crate::mfx::MfxState;
 use crate::params;
 use crate::parse_helpers::{nibble4, parse_ascii_name};
 
@@ -335,19 +334,6 @@ impl Default for SnSynthPartial {
             amp_level_keyfollow: 64,
         }
     }
-}
-
-/// Full SN Synth Tone state for one part.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-pub struct SnSynthState {
-    /// Common parameters.
-    pub common: SnSynthCommon,
-    /// Per-partial parameters (3 partials).
-    pub partials: [SnSynthPartial; SNS_PARTIAL_COUNT],
-    /// MFX parameters.
-    pub mfx: MfxState,
 }
 
 /// An SN Synth Tone's Common and Partial parameters (its MFX is read apart).
