@@ -11,6 +11,7 @@ use nih_plug::prelude::*;
 use nih_plug_vizia::ViziaState;
 use std::num::NonZeroU32;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 mod editor;
 pub mod views;
@@ -71,6 +72,8 @@ pub struct Integral {
     params: Arc<IntegralParams>,
     /// Shared between process() and the editor GUI.
     shared: Arc<SharedState>,
+    /// Origin of the `now_ms` clock passed to [`DeviceState`].
+    started: Instant,
 }
 
 /// Plugin parameters (currently empty — Integral uses SysEx, not DAW automation).
@@ -90,6 +93,7 @@ impl Default for Integral {
             shared: Arc::new(SharedState {
                 device: Mutex::new(DeviceState::new(DEFAULT_DEVICE_ID)),
             }),
+            started: Instant::now(),
         }
     }
 }
@@ -127,7 +131,9 @@ impl Plugin for Integral {
         _aux: &mut AuxiliaryBuffers,
         context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
-        let now_ms = context.transport().pos_seconds().unwrap_or(0.0) * 1000.0;
+        // Not the DAW transport: it jumps back on loop or seek and stalls
+        // while stopped, which would break send spacing and retry timeouts.
+        let now_ms = self.started.elapsed().as_secs_f64() * 1000.0;
 
         // Process incoming MIDI events.
         while let Some(event) = context.next_event() {
