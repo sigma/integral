@@ -28,6 +28,13 @@ export function placedSlot(placement: Placement): number | undefined {
   return typeof placement === "object" ? placement.user : undefined;
 }
 
+/** `set` with `item` added, or removed if it was in. */
+export function toggled<T>(set: ReadonlySet<T>, item: T): ReadonlySet<T> {
+  const next = new Set(set);
+  if (!next.delete(item)) next.add(item);
+  return next;
+}
+
 /** One entry of the opened Pack, with where it goes. */
 export interface ImportEntry {
   /** Index into the Pack's entries. */
@@ -37,6 +44,8 @@ export interface ImportEntry {
   /** Where it sat: its slot in a backup, else its position in the file. */
   origin: string;
   placement: Placement;
+  /** Its Conversion report, one message per item: empty when clean. */
+  report: string[];
 }
 
 /** A non-free User slot the import will overwrite. */
@@ -64,12 +73,15 @@ export interface ImportRun {
 }
 
 export interface UseLibraryImportResult {
-  /** The opened file, if any. */
-  file: { name: string; backup: boolean } | null;
+  /** The opened file and what it is ("sound export", "SysEx dump"...), if any. */
+  file: { name: string; label: string } | null;
   opening: boolean;
   openError: string | null;
   entries: ImportEntry[];
-  /** Warnings about the entries being imported, naming each. */
+  /**
+   * What the file held that is not in the Pack, then warnings about the
+   * entries being imported, naming each.
+   */
   warnings: string[];
   /** Entries with no destination yet: they block the import. */
   unplaced: number;
@@ -79,6 +91,10 @@ export interface UseLibraryImportResult {
   /** The entry a slot click places. */
   focused: number | null;
   focus: (entry: number | null) => void;
+  /** Entries whose Conversion report is shown. */
+  reportShown: ReadonlySet<number>;
+  /** Show or hide `entry`'s Conversion report. */
+  toggleReport: (entry: number) => void;
   open: (file: File) => void;
   close: () => void;
   assign: (entry: number, slot: number) => void;
@@ -99,7 +115,10 @@ interface Opened {
   pack: Pack;
   plan: ImportPlan;
   entries: PackEntryInfo[];
-  backup: boolean;
+  label: string;
+  /** Conversion reports, indexed like `entries`. */
+  reports: string[][];
+  fileReport: string[];
 }
 
 interface PlanView {
@@ -172,6 +191,7 @@ export function useLibraryImport(
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
   const [focused, setFocused] = useState<number | null>(null);
+  const [reportShown, setReportShown] = useState<ReadonlySet<number>>(new Set());
   const [run, setRun] = useState<ImportRun | null>(null);
   const openedRef = useRef<Opened | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -189,6 +209,7 @@ export function useLibraryImport(
     setOpened(next);
     setView(next && readPlan(next.plan));
     setFocused(null);
+    setReportShown(new Set());
     setRun(null);
   }, []);
 
@@ -218,7 +239,9 @@ export function useLibraryImport(
             pack,
             plan,
             entries: pack.entries(),
-            backup: pack.isBackup,
+            label: pack.label,
+            reports: plan.reports(),
+            fileReport: plan.fileReport(),
           }),
         )
         .catch((e: unknown) => setOpenError(`${file.name}: ${message(e)}`))
@@ -272,6 +295,7 @@ export function useLibraryImport(
                   ? `#${info.index + 1}`
                   : `${type.short} ${slotLabel(type, info.slot)}`,
               placement: view.placements[index] ?? "unplaced",
+              report: opened.reports[index] ?? [],
             };
           })
         : [],
@@ -312,11 +336,18 @@ export function useLibraryImport(
   );
 
   const warnings = useMemo(
-    () =>
-      (view?.warnings ?? []).map(
+    () => [
+      ...(opened?.fileReport ?? []),
+      ...(view?.warnings ?? []).map(
         (w) => `"${opened?.entries[w.entry]?.name ?? ""}" ${w.message}`,
       ),
+    ],
     [view, opened],
+  );
+
+  const toggleReport = useCallback(
+    (entry: number) => setReportShown((shown) => toggled(shown, entry)),
+    [],
   );
 
   const temporary = entries.some((e) => e.placement === "temporary");
@@ -419,7 +450,7 @@ export function useLibraryImport(
   const cancel = useCallback(() => abortRef.current?.abort(), []);
 
   return {
-    file: opened && { name: opened.name, backup: opened.backup },
+    file: opened && { name: opened.name, label: opened.label },
     opening,
     openError,
     entries,
@@ -429,6 +460,8 @@ export function useLibraryImport(
     temporary,
     focused,
     focus: setFocused,
+    reportShown,
+    toggleReport,
     open,
     close,
     assign,

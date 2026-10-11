@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { isFree, libraryTypes, slotLabel, type LibraryType } from "./librarian";
 import { PackRow, ProgressBar } from "./PackPane";
 import {
@@ -72,7 +72,7 @@ export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onF
     <>
       <header className={css.head}>
         <span className={css.title}>
-          {file ? `${file.name} · ${file.backup ? "backup" : "sound export"}` : "Open a Pack"}
+          {file ? `${file.name} · ${file.label}` : "Open a Pack"}
         </span>
         <label className={css.button}>
           Open…
@@ -123,8 +123,8 @@ export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onF
               destination: click a slot on the left, pick one in its row, or untick it.
             </li>
           )}
-          {imp.warnings.map((w) => (
-            <li key={w}>{w}</li>
+          {imp.warnings.map((w, i) => (
+            <li key={i}>{w}</li>
           ))}
         </ul>
       )}
@@ -144,46 +144,67 @@ export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onF
                   {type.label} · {group.length}
                 </div>
                 {group.map((entry) => (
-                  <PackRow
-                    key={entry.index}
-                    type={entry.type}
-                    label={entry.origin}
-                    name={entry.info.name}
-                    className={`${css.selectable} ${imp.focused === entry.index ? css.focused : ""} ${entry.placement === "excluded" ? css.excluded : ""}`}
-                    onClick={() => onFocus(entry)}
-                    lead={
-                      <input
-                        type="checkbox"
-                        checked={entry.placement !== "excluded"}
-                        disabled={locked || entry.placement === "temporary"}
-                        readOnly
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggle(entry, e.currentTarget.checked, e.shiftKey);
-                        }}
-                        title="Import this entry (⇧-click: a range)"
-                      />
-                    }
-                  >
-                    {run && <EntryStatus status={run.statuses[entry.index]} />}
-                    <span className={css.destination}>
-                      {entry.placement === "temporary" ? (
-                        temporaryLabel(entry.type, runPart)
-                      ) : imp.focused === entry.index &&
-                        !locked &&
-                        entry.placement !== "excluded" &&
-                        slotsType.kind === entry.type.kind ? (
-                        <DestinationSelect
-                          entry={entry}
-                          entries={entries}
-                          slots={slots}
-                          onAssign={(slot) => imp.assign(entry.index, slot)}
+                  <Fragment key={entry.index}>
+                    <PackRow
+                      type={entry.type}
+                      label={entry.origin}
+                      name={entry.info.name}
+                      className={`${css.selectable} ${imp.focused === entry.index ? css.focused : ""} ${entry.placement === "excluded" ? css.excluded : ""}`}
+                      onClick={() => onFocus(entry)}
+                      lead={
+                        <input
+                          type="checkbox"
+                          checked={entry.placement !== "excluded"}
+                          disabled={locked || entry.placement === "temporary"}
+                          readOnly
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggle(entry, e.currentTarget.checked, e.shiftKey);
+                          }}
+                          title="Import this entry (⇧-click: a range)"
                         />
-                      ) : (
-                        <DestinationLabel entry={entry} overwrite={overwriting.has(entry.index)} />
+                      }
+                    >
+                      {entry.report.length > 0 && (
+                        <button
+                          className={css.lossy}
+                          aria-expanded={imp.reportShown.has(entry.index)}
+                          title="What converting this Foreign patch dropped or approximated"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            imp.toggleReport(entry.index);
+                          }}
+                        >
+                          lossy · {entry.report.length}
+                        </button>
                       )}
-                    </span>
-                  </PackRow>
+                      {run && <EntryStatus status={run.statuses[entry.index]} />}
+                      <span className={css.destination}>
+                        {entry.placement === "temporary" ? (
+                          temporaryLabel(entry.type, runPart)
+                        ) : imp.focused === entry.index &&
+                          !locked &&
+                          entry.placement !== "excluded" &&
+                          slotsType.kind === entry.type.kind ? (
+                          <DestinationSelect
+                            entry={entry}
+                            entries={entries}
+                            slots={slots}
+                            onAssign={(slot) => imp.assign(entry.index, slot)}
+                          />
+                        ) : (
+                          <DestinationLabel entry={entry} overwrite={overwriting.has(entry.index)} />
+                        )}
+                      </span>
+                    </PackRow>
+                    {imp.reportShown.has(entry.index) && (
+                      <ul className={css.conversion}>
+                        {entry.report.map((item, i) => (
+                          <li key={i}>{item}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </Fragment>
                 ))}
               </div>
             );

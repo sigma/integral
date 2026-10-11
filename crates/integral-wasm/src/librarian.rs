@@ -12,6 +12,7 @@ use integral_core::catalog::CatalogEntry;
 use integral_core::device_spec::INTEGRA7;
 use integral_core::expansion_slots::ExpansionSlots;
 use integral_core::librarian::export::{self, ExportAction, ExportSource, PackExport};
+use integral_core::librarian::foreign::{PackFormat, PackRead};
 use integral_core::librarian::import::{ImportAction, PackImport};
 use integral_core::librarian::pack::{Pack, ToneRef};
 use integral_core::librarian::plan::{self, ImportPlan, Origin};
@@ -84,6 +85,9 @@ extern "C" {
     /// `Placement[]`.
     #[wasm_bindgen(typescript_type = "Placement[]")]
     pub type Placements;
+    /// `string[][]`: messages per entry.
+    #[wasm_bindgen(typescript_type = "string[][]")]
+    pub type ConversionReports;
     /// `ImportWarning[]`.
     #[wasm_bindgen(typescript_type = "ImportWarning[]")]
     pub type ImportWarnings;
@@ -153,11 +157,12 @@ pub fn librarian_types() -> Result<LibrarianTypes, JsError> {
 // Pack
 // ---------------------------------------------------------------------------
 
-/// Studio Sets and tones moved together.
+/// Studio Sets and tones moved together, with the reports of reading them
+/// from a file.
 #[wasm_bindgen(js_name = Pack)]
 #[derive(Clone)]
 pub struct WasmPack {
-    inner: Pack,
+    read: PackRead,
     origin: Origin,
 }
 
@@ -177,21 +182,21 @@ impl WasmPack {
     /// Read a Pack file: a sound-export or backup SVD file, or a SysEx
     /// dump (`.syx`, `.mid`).
     pub fn read(bytes: &[u8]) -> Result<WasmPack, JsError> {
-        let inner = Pack::read(bytes).map_err(js_err)?.pack;
+        let read = Pack::read(bytes).map_err(js_err)?;
         // Only a backup gives entries a slot.
-        let backup = inner.entries.iter().any(|e| e.slot().is_some());
+        let backup = read.pack.entries.iter().any(|e| e.slot().is_some());
         let origin = if backup {
             Origin::Backup
         } else {
             Origin::Sound
         };
-        Ok(Self { inner, origin })
+        Ok(Self { read, origin })
     }
 
     /// The sound-export SVD file.
     #[wasm_bindgen(js_name = toSvd)]
     pub fn to_svd(&self) -> Result<Vec<u8>, JsError> {
-        self.inner.to_svd().map_err(js_err)
+        self.read.pack.to_svd().map_err(js_err)
     }
 
     /// Whether it was read from a full backup.
@@ -200,16 +205,23 @@ impl WasmPack {
         self.origin == Origin::Backup
     }
 
+    /// What the file is: "sound export", "backup", "SysEx dump" or "MIDI
+    /// file".
+    #[wasm_bindgen(getter)]
+    pub fn label(&self) -> String {
+        self.read.format.label(self.origin).into()
+    }
+
     /// The entries, in Pack order.
     pub fn entries(&self) -> Result<PackEntries, JsError> {
-        let entries: Vec<EntryInfo> = self
-            .inner
+        let pack = &self.read.pack;
+        let entries: Vec<EntryInfo> = pack
             .entries
             .iter()
             .enumerate()
             .map(|(i, e)| EntryInfo {
                 kind: e.kind(),
-                index: self.inner.entries[..i]
+                index: pack.entries[..i]
                     .iter()
                     .filter(|o| o.kind() == e.kind())
                     .count(),
@@ -272,7 +284,7 @@ pub fn plan_import(
         .transpose()
         .map_err(js_err)?;
     Ok(WasmImportPlan {
-        inner: plan::plan_import(&pack.inner, pack.origin, &names, loaded.as_ref()),
+        inner: plan::plan_read(&pack.read, pack.origin, &names, loaded.as_ref()),
     })
 }
 
@@ -291,6 +303,31 @@ impl WasmImportPlan {
     /// Entries whose destination is a User slot that isn't free.
     pub fn overwrites(&self) -> Vec<usize> {
         self.inner.overwrites().collect()
+    }
+
+    /// Each entry's Conversion report, one message per item, indexed like
+    /// the Pack's entries. Empty for a clean or native entry.
+    pub fn reports(&self) -> Result<ConversionReports, JsError> {
+        let reports: Vec<Vec<String>> = (0..self.inner.placements().len())
+            .map(|i| {
+                self.inner
+                    .report(i)
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect()
+            })
+            .collect();
+        to_js(&reports)
+    }
+
+    /// What the file held that is not in the Pack, one message per item.
+    #[wasm_bindgen(js_name = fileReport)]
+    pub fn file_report(&self) -> Vec<String> {
+        self.inner
+            .file_report()
+            .iter()
+            .map(ToString::to_string)
+            .collect()
     }
 
     /// Warnings about the entries that are not excluded.
@@ -441,8 +478,13 @@ impl WasmPackExport {
 
     /// The exported Pack, once `nextAction` returned `Done` with no error.
     pub fn pack(&self) -> Option<WasmPack> {
-        self.pack.clone().map(|inner| WasmPack {
-            inner,
+        self.pack.clone().map(|pack| WasmPack {
+            read: PackRead {
+                format: PackFormat::Svd,
+                pack,
+                file_report: vec![],
+                reports: vec![],
+            },
             origin: Origin::Sound,
         })
     }
@@ -501,7 +543,8 @@ impl WasmPackImport {
         part: u8,
     ) -> Result<WasmPackImport, JsError> {
         Ok(Self {
-            inner: PackImport::new(device_id, &pack.inner, &plan.inner, part).map_err(js_err)?,
+            inner: PackImport::new(device_id, &pack.read.pack, &plan.inner, part)
+                .map_err(js_err)?,
         })
     }
 
