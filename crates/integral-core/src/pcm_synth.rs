@@ -5,9 +5,10 @@
 //! Table), four Partial blocks, Common2, and MFX (handled by `mfx.rs`).
 
 use crate::address::{Address, DataSize};
+use crate::block_field::BlockField;
 use crate::mfx::MfxState;
 use crate::params;
-use crate::parse_helpers::{nibble2, nibble4, parse_ascii_name};
+use crate::parse_helpers::parse_ascii_name;
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -92,15 +93,13 @@ pub const fn pcms_partial_address(part_index: u8, partial: u8) -> Address {
     pcms_base(part_index).offset(PCMS_PARTIAL_OFFSETS[partial as usize])
 }
 
-/// Compute the absolute address for a single PCM Synth Partial parameter.
+/// Compute the absolute address for a single PCM Synth Partial parameter
+/// at byte `position` within the block.
 ///
-/// The offset is `u16` because partial blocks are 282 bytes (offsets go up
-/// to `0x0119`). The offset is split into two address bytes:
-/// `byte2 = (offset >> 8)`, `byte3 = (offset & 0xFF)`.
-pub const fn pcms_partial_param_address(part_index: u8, partial: u8, offset: u16) -> Address {
-    let byte2 = (offset >> 8) as u8;
-    let byte3 = (offset & 0xFF) as u8;
-    pcms_partial_address(part_index, partial).offset([0x00, 0x00, byte2, byte3])
+/// Partial blocks are 154 bytes, so positions from `0x80` carry into the
+/// next address byte (position `0x80` is offset `01 00`).
+pub const fn pcms_partial_param_address(part_index: u8, partial: u8, position: u8) -> Address {
+    pcms_partial_address(part_index, partial).offset([0x00, 0x00, 0x00, position])
 }
 
 /// Compute the absolute PCM Synth Common2 block address for a part.
@@ -111,6 +110,456 @@ pub const fn pcms_common2_address(part_index: u8) -> Address {
 /// Compute the absolute address for a single PCM Synth Common2 parameter.
 pub const fn pcms_common2_param_address(part_index: u8, offset: u8) -> Address {
     pcms_common2_address(part_index).offset([0x00, 0x00, 0x00, offset])
+}
+
+// ---------------------------------------------------------------------------
+// Fields
+// ---------------------------------------------------------------------------
+
+/// Number of Matrix Controls in a PCM Synth Tone Common.
+pub const PCMS_MATRIX_CONTROL_COUNT: usize = 4;
+
+/// Bytes from one Matrix Control (or PMT entry) to the next.
+const PCMS_ENTRY_STRIDE: usize = 9;
+
+/// A field of a PCM Synth Tone Common block. The discriminant is the
+/// field's byte position within the block; the Matrix Control fields hold
+/// one value per Matrix Control ([`PCMS_MATRIX_CONTROL_COUNT`]), 9 bytes
+/// apart.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PcmsCommonField {
+    /// PCM Synth Tone Level.
+    ToneLevel = 0x0E,
+    /// PCM Synth Tone Pan.
+    TonePan = 0x0F,
+    /// PCM Synth Tone Priority.
+    TonePriority = 0x10,
+    /// PCM Synth Tone Coarse Tune.
+    CoarseTune = 0x11,
+    /// PCM Synth Tone Fine Tune.
+    FineTune = 0x12,
+    /// Octave Shift.
+    OctaveShift = 0x13,
+    /// Stretch Tune Depth.
+    StretchTuneDepth = 0x14,
+    /// Analog Feel.
+    AnalogFeel = 0x15,
+    /// Mono/Poly.
+    MonoPoly = 0x16,
+    /// Legato Switch.
+    LegatoSwitch = 0x17,
+    /// Legato Retrigger.
+    LegatoRetrigger = 0x18,
+    /// Portamento Switch.
+    PortamentoSwitch = 0x19,
+    /// Portamento Mode.
+    PortamentoMode = 0x1A,
+    /// Portamento Type.
+    PortamentoType = 0x1B,
+    /// Portamento Start.
+    PortamentoStart = 0x1C,
+    /// Portamento Time.
+    PortamentoTime = 0x1D,
+    /// Cutoff Offset.
+    CutoffOffset = 0x22,
+    /// Resonance Offset.
+    ResonanceOffset = 0x23,
+    /// Attack Time Offset.
+    AttackTimeOffset = 0x24,
+    /// Release Time Offset.
+    ReleaseTimeOffset = 0x25,
+    /// Velocity Sens Offset.
+    VelocitySensOffset = 0x26,
+    /// PMT Control Switch.
+    PmtControlSwitch = 0x28,
+    /// Pitch Bend Range Up.
+    PitchBendRangeUp = 0x29,
+    /// Pitch Bend Range Down.
+    PitchBendRangeDown = 0x2A,
+    /// Matrix Control 1–4 Source.
+    MatrixControlSource = 0x2B,
+    /// Matrix Control 1–4 Destination 1.
+    MatrixControlDestination1 = 0x2C,
+    /// Matrix Control 1–4 Sens 1.
+    MatrixControlSens1 = 0x2D,
+    /// Matrix Control 1–4 Destination 2.
+    MatrixControlDestination2 = 0x2E,
+    /// Matrix Control 1–4 Sens 2.
+    MatrixControlSens2 = 0x2F,
+    /// Matrix Control 1–4 Destination 3.
+    MatrixControlDestination3 = 0x30,
+    /// Matrix Control 1–4 Sens 3.
+    MatrixControlSens3 = 0x31,
+    /// Matrix Control 1–4 Destination 4.
+    MatrixControlDestination4 = 0x32,
+    /// Matrix Control 1–4 Sens 4.
+    MatrixControlSens4 = 0x33,
+}
+
+impl PcmsCommonField {
+    /// The Destination 1–4 fields of a Matrix Control, in order.
+    pub const MATRIX_CONTROL_DESTINATIONS: [Self; 4] = [
+        Self::MatrixControlDestination1,
+        Self::MatrixControlDestination2,
+        Self::MatrixControlDestination3,
+        Self::MatrixControlDestination4,
+    ];
+
+    /// The Sens 1–4 fields of a Matrix Control, in order.
+    pub const MATRIX_CONTROL_SENS: [Self; 4] = [
+        Self::MatrixControlSens1,
+        Self::MatrixControlSens2,
+        Self::MatrixControlSens3,
+        Self::MatrixControlSens4,
+    ];
+
+    /// Whether the field holds one value per Matrix Control.
+    const fn is_matrix_control(self) -> bool {
+        self as u8 >= Self::MatrixControlSource as u8
+    }
+}
+
+impl BlockField for PcmsCommonField {
+    fn position(self) -> usize {
+        self as usize
+    }
+
+    fn count(self) -> usize {
+        if self.is_matrix_control() {
+            PCMS_MATRIX_CONTROL_COUNT
+        } else {
+            1
+        }
+    }
+
+    fn stride(self) -> usize {
+        if self.is_matrix_control() {
+            PCMS_ENTRY_STRIDE
+        } else {
+            1
+        }
+    }
+}
+
+/// A field of a PCM Synth Tone PMT (Partial Mix Table) block. The
+/// discriminant is the field's byte position within the block; the
+/// per-Partial fields (from [`PcmsPmtField::PartialSwitch`]) hold one value
+/// per Partial ([`PCMS_PARTIAL_COUNT`]), 9 bytes apart.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PcmsPmtField {
+    /// Structure Type 1 & 2.
+    StructureType12 = 0x00,
+    /// Booster 1 & 2.
+    Booster12 = 0x01,
+    /// Structure Type 3 & 4.
+    StructureType34 = 0x02,
+    /// Booster 3 & 4.
+    Booster34 = 0x03,
+    /// PMT Velocity Control.
+    PmtVelocityControl = 0x04,
+    /// PMT1–4 Partial Switch.
+    PartialSwitch = 0x05,
+    /// PMT1–4 Keyboard Range Lower.
+    KeyRangeLower = 0x06,
+    /// PMT1–4 Keyboard Range Upper.
+    KeyRangeUpper = 0x07,
+    /// PMT1–4 Keyboard Fade Width Lower.
+    KeyFadeLower = 0x08,
+    /// PMT1–4 Keyboard Fade Width Upper.
+    KeyFadeUpper = 0x09,
+    /// PMT1–4 Velocity Range Lower.
+    VelocityRangeLower = 0x0A,
+    /// PMT1–4 Velocity Range Upper.
+    VelocityRangeUpper = 0x0B,
+    /// PMT1–4 Velocity Fade Width Lower.
+    VelocityFadeLower = 0x0C,
+    /// PMT1–4 Velocity Fade Width Upper.
+    VelocityFadeUpper = 0x0D,
+}
+
+impl PcmsPmtField {
+    /// Whether the field holds one value per Partial.
+    const fn is_per_partial(self) -> bool {
+        self as u8 >= Self::PartialSwitch as u8
+    }
+}
+
+impl BlockField for PcmsPmtField {
+    fn position(self) -> usize {
+        self as usize
+    }
+
+    fn count(self) -> usize {
+        if self.is_per_partial() {
+            PCMS_PARTIAL_COUNT
+        } else {
+            1
+        }
+    }
+
+    fn stride(self) -> usize {
+        if self.is_per_partial() {
+            PCMS_ENTRY_STRIDE
+        } else {
+            1
+        }
+    }
+}
+
+/// A field of a PCM Synth Tone Partial block. The discriminant is the
+/// field's first byte position within the block (positions from `0x80` are
+/// at offset `01 00` and up); [`BlockField`] gives the envelope, control
+/// switch and step fields' value count and the nibblized fields' width.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PcmsPartialField {
+    /// Partial Level.
+    Level = 0x00,
+    /// Partial Coarse Tune.
+    CoarseTune = 0x01,
+    /// Partial Fine Tune.
+    FineTune = 0x02,
+    /// Partial Random Pitch Depth.
+    RandomPitchDepth = 0x03,
+    /// Partial Pan.
+    Pan = 0x04,
+    /// Partial Pan Keyfollow.
+    PanKeyfollow = 0x05,
+    /// Partial Random Pan Depth.
+    RandomPanDepth = 0x06,
+    /// Partial Alternate Pan Depth.
+    AlternatePanDepth = 0x07,
+    /// Partial Env Mode.
+    EnvMode = 0x08,
+    /// Partial Delay Mode.
+    DelayMode = 0x09,
+    /// Partial Delay Time (nibblized, 2 bytes).
+    DelayTime = 0x0A,
+    /// Partial Output Level.
+    OutputLevel = 0x0C,
+    /// Partial Chorus Send Level.
+    ChorusSend = 0x0F,
+    /// Partial Reverb Send Level.
+    ReverbSend = 0x10,
+    /// Partial Receive Bender.
+    ReceiveBender = 0x12,
+    /// Partial Receive Expression.
+    ReceiveExpression = 0x13,
+    /// Partial Receive Hold-1.
+    ReceiveHold1 = 0x14,
+    /// Partial Redamper Switch.
+    RedamperSwitch = 0x16,
+    /// Partial Control 1 Switch 1–4.
+    Control1Switch = 0x17,
+    /// Partial Control 2 Switch 1–4.
+    Control2Switch = 0x1B,
+    /// Partial Control 3 Switch 1–4.
+    Control3Switch = 0x1F,
+    /// Partial Control 4 Switch 1–4.
+    Control4Switch = 0x23,
+    /// Wave Group Type.
+    WaveGroupType = 0x27,
+    /// Wave Group ID (nibblized, 4 bytes).
+    WaveGroupId = 0x28,
+    /// Wave Number L / Mono (nibblized, 4 bytes).
+    WaveNumberL = 0x2C,
+    /// Wave Number R (nibblized, 4 bytes).
+    WaveNumberR = 0x30,
+    /// Wave Gain.
+    WaveGain = 0x34,
+    /// Wave FXM Switch.
+    WaveFxmSwitch = 0x35,
+    /// Wave FXM Color.
+    WaveFxmColor = 0x36,
+    /// Wave FXM Depth.
+    WaveFxmDepth = 0x37,
+    /// Wave Tempo Sync.
+    WaveTempoSync = 0x38,
+    /// Wave Pitch Keyfollow.
+    WavePitchKeyfollow = 0x39,
+    /// Pitch Env Depth.
+    PitchEnvDepth = 0x3A,
+    /// Pitch Env Velocity Sens.
+    PitchEnvVelocitySens = 0x3B,
+    /// Pitch Env Time 1 Velocity Sens.
+    PitchEnvT1VelocitySens = 0x3C,
+    /// Pitch Env Time 4 Velocity Sens.
+    PitchEnvT4VelocitySens = 0x3D,
+    /// Pitch Env Time Keyfollow.
+    PitchEnvTimeKeyfollow = 0x3E,
+    /// Pitch Env Time 1–4.
+    PitchEnvTime = 0x3F,
+    /// Pitch Env Level 0–4.
+    PitchEnvLevel = 0x43,
+    /// TVF Filter Type.
+    TvfFilterType = 0x48,
+    /// TVF Cutoff Frequency.
+    TvfCutoffFrequency = 0x49,
+    /// TVF Cutoff Keyfollow.
+    TvfCutoffKeyfollow = 0x4A,
+    /// TVF Cutoff Velocity Curve.
+    TvfCutoffVelocityCurve = 0x4B,
+    /// TVF Cutoff Velocity Sens.
+    TvfCutoffVelocitySens = 0x4C,
+    /// TVF Resonance.
+    TvfResonance = 0x4D,
+    /// TVF Resonance Velocity Sens.
+    TvfResonanceVelocitySens = 0x4E,
+    /// TVF Env Depth.
+    TvfEnvDepth = 0x4F,
+    /// TVF Env Velocity Curve.
+    TvfEnvVelocityCurve = 0x50,
+    /// TVF Env Velocity Sens.
+    TvfEnvVelocitySens = 0x51,
+    /// TVF Env Time 1 Velocity Sens.
+    TvfEnvT1VelocitySens = 0x52,
+    /// TVF Env Time 4 Velocity Sens.
+    TvfEnvT4VelocitySens = 0x53,
+    /// TVF Env Time Keyfollow.
+    TvfEnvTimeKeyfollow = 0x54,
+    /// TVF Env Time 1–4.
+    TvfEnvTime = 0x55,
+    /// TVF Env Level 0–4.
+    TvfEnvLevel = 0x59,
+    /// Bias Level.
+    TvaBiasLevel = 0x5E,
+    /// Bias Position.
+    TvaBiasPosition = 0x5F,
+    /// Bias Direction.
+    TvaBiasDirection = 0x60,
+    /// TVA Level Velocity Curve.
+    TvaLevelVelocityCurve = 0x61,
+    /// TVA Level Velocity Sens.
+    TvaLevelVelocitySens = 0x62,
+    /// TVA Env Time 1 Velocity Sens.
+    TvaEnvT1VelocitySens = 0x63,
+    /// TVA Env Time 4 Velocity Sens.
+    TvaEnvT4VelocitySens = 0x64,
+    /// TVA Env Time Keyfollow.
+    TvaEnvTimeKeyfollow = 0x65,
+    /// TVA Env Time 1–4.
+    TvaEnvTime = 0x66,
+    /// TVA Env Level 1–3.
+    TvaEnvLevel = 0x6A,
+    /// LFO1 Waveform.
+    Lfo1Waveform = 0x6D,
+    /// LFO1 Rate (nibblized, 2 bytes).
+    Lfo1Rate = 0x6E,
+    /// LFO1 Offset.
+    Lfo1Offset = 0x70,
+    /// LFO1 Rate Detune.
+    Lfo1RateDetune = 0x71,
+    /// LFO1 Delay Time.
+    Lfo1DelayTime = 0x72,
+    /// LFO1 Delay Time Keyfollow.
+    Lfo1DelayTimeKeyfollow = 0x73,
+    /// LFO1 Fade Mode.
+    Lfo1FadeMode = 0x74,
+    /// LFO1 Fade Time.
+    Lfo1FadeTime = 0x75,
+    /// LFO1 Key Trigger.
+    Lfo1KeyTrigger = 0x76,
+    /// LFO1 Pitch Depth.
+    Lfo1PitchDepth = 0x77,
+    /// LFO1 TVF Depth.
+    Lfo1TvfDepth = 0x78,
+    /// LFO1 TVA Depth.
+    Lfo1TvaDepth = 0x79,
+    /// LFO1 Pan Depth.
+    Lfo1PanDepth = 0x7A,
+    /// LFO2 Waveform.
+    Lfo2Waveform = 0x7B,
+    /// LFO2 Rate (nibblized, 2 bytes).
+    Lfo2Rate = 0x7C,
+    /// LFO2 Offset.
+    Lfo2Offset = 0x7E,
+    /// LFO2 Rate Detune.
+    Lfo2RateDetune = 0x7F,
+    /// LFO2 Delay Time (`01 00`).
+    Lfo2DelayTime = 0x80,
+    /// LFO2 Delay Time Keyfollow.
+    Lfo2DelayTimeKeyfollow = 0x80 + 0x01,
+    /// LFO2 Fade Mode.
+    Lfo2FadeMode = 0x80 + 0x02,
+    /// LFO2 Fade Time.
+    Lfo2FadeTime = 0x80 + 0x03,
+    /// LFO2 Key Trigger.
+    Lfo2KeyTrigger = 0x80 + 0x04,
+    /// LFO2 Pitch Depth.
+    Lfo2PitchDepth = 0x80 + 0x05,
+    /// LFO2 TVF Depth.
+    Lfo2TvfDepth = 0x80 + 0x06,
+    /// LFO2 TVA Depth.
+    Lfo2TvaDepth = 0x80 + 0x07,
+    /// LFO2 Pan Depth.
+    Lfo2PanDepth = 0x80 + 0x08,
+    /// LFO Step Type (`01 09`).
+    LfoStepType = 0x80 + 0x09,
+    /// LFO Step 1–16 (`01 0A`).
+    LfoStep = 0x80 + 0x0A,
+}
+
+impl BlockField for PcmsPartialField {
+    fn position(self) -> usize {
+        self as usize
+    }
+
+    fn count(self) -> usize {
+        match self {
+            Self::Control1Switch
+            | Self::Control2Switch
+            | Self::Control3Switch
+            | Self::Control4Switch
+            | Self::PitchEnvTime
+            | Self::TvfEnvTime
+            | Self::TvaEnvTime => 4,
+            Self::PitchEnvLevel | Self::TvfEnvLevel => 5,
+            Self::TvaEnvLevel => 3,
+            Self::LfoStep => 16,
+            _ => 1,
+        }
+    }
+
+    fn width(self) -> usize {
+        match self {
+            Self::DelayTime | Self::Lfo1Rate | Self::Lfo2Rate => 2,
+            Self::WaveGroupId | Self::WaveNumberL | Self::WaveNumberR => 4,
+            _ => 1,
+        }
+    }
+}
+
+/// A field of a PCM Synth Tone Common 2 block. The discriminant is the
+/// field's first byte position within the block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PcmsCommon2Field {
+    /// Tone Category.
+    ToneCategory = 0x10,
+    /// Tone Number (nibblized, 2 bytes).
+    ToneNumber = 0x11,
+    /// Phrase Octave Shift.
+    PhraseOctaveShift = 0x13,
+    /// TFX Switch.
+    TfxSwitch = 0x33,
+    /// Phrase Number (nibblized, 4 bytes).
+    PhraseNumber = 0x38,
+}
+
+impl BlockField for PcmsCommon2Field {
+    fn position(self) -> usize {
+        self as usize
+    }
+
+    fn width(self) -> usize {
+        match self {
+            Self::ToneNumber => 2,
+            Self::PhraseNumber => 4,
+            _ => 1,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -769,48 +1218,37 @@ pub fn parse_pcms_common(data: &[u8]) -> Result<PcmSynthCommon, crate::ToneParse
     }
     let mut c = PcmSynthCommon::default();
 
+    use PcmsCommonField as F;
     c.tone_name = parse_ascii_name(data);
-    // 0x0C–0x0D: reserved
-    c.tone_level = data[0x0E];
-    c.tone_pan = data[0x0F];
-    c.tone_priority = data[0x10];
-    c.coarse_tune = data[0x11];
-    c.fine_tune = data[0x12];
-    c.octave_shift = data[0x13];
-    c.stretch_tune_depth = data[0x14];
-    c.analog_feel = data[0x15];
-    c.mono_poly = data[0x16];
-    c.legato_switch = data[0x17];
-    c.legato_retrigger = data[0x18];
-    c.portamento_switch = data[0x19];
-    c.portamento_mode = data[0x1A];
-    c.portamento_type = data[0x1B];
-    c.portamento_start = data[0x1C];
-    c.portamento_time = data[0x1D];
-    // 0x1E–0x21: reserved
-    c.cutoff_offset = data[0x22];
-    c.resonance_offset = data[0x23];
-    c.attack_time_offset = data[0x24];
-    c.release_time_offset = data[0x25];
-    c.velocity_sens_offset = data[0x26];
-    // 0x27: reserved
-    c.pmt_control_switch = data[0x28];
-    c.pitch_bend_range_up = data[0x29];
-    c.pitch_bend_range_down = data[0x2A];
+    c.tone_level = F::ToneLevel.byte(data);
+    c.tone_pan = F::TonePan.byte(data);
+    c.tone_priority = F::TonePriority.byte(data);
+    c.coarse_tune = F::CoarseTune.byte(data);
+    c.fine_tune = F::FineTune.byte(data);
+    c.octave_shift = F::OctaveShift.byte(data);
+    c.stretch_tune_depth = F::StretchTuneDepth.byte(data);
+    c.analog_feel = F::AnalogFeel.byte(data);
+    c.mono_poly = F::MonoPoly.byte(data);
+    c.legato_switch = F::LegatoSwitch.byte(data);
+    c.legato_retrigger = F::LegatoRetrigger.byte(data);
+    c.portamento_switch = F::PortamentoSwitch.byte(data);
+    c.portamento_mode = F::PortamentoMode.byte(data);
+    c.portamento_type = F::PortamentoType.byte(data);
+    c.portamento_start = F::PortamentoStart.byte(data);
+    c.portamento_time = F::PortamentoTime.byte(data);
+    c.cutoff_offset = F::CutoffOffset.byte(data);
+    c.resonance_offset = F::ResonanceOffset.byte(data);
+    c.attack_time_offset = F::AttackTimeOffset.byte(data);
+    c.release_time_offset = F::ReleaseTimeOffset.byte(data);
+    c.velocity_sens_offset = F::VelocitySensOffset.byte(data);
+    c.pmt_control_switch = F::PmtControlSwitch.byte(data);
+    c.pitch_bend_range_up = F::PitchBendRangeUp.byte(data);
+    c.pitch_bend_range_down = F::PitchBendRangeDown.byte(data);
 
-    // Matrix Controls 1-4: each 9 bytes starting at 0x2B, stride 9
-    for i in 0..4 {
-        let base = 0x2B + i * 9;
-        let mc = &mut c.matrix_controls[i];
-        mc.source = data[base];
-        mc.destinations[0] = data[base + 1];
-        mc.sensitivities[0] = data[base + 2];
-        mc.destinations[1] = data[base + 3];
-        mc.sensitivities[1] = data[base + 4];
-        mc.destinations[2] = data[base + 5];
-        mc.sensitivities[2] = data[base + 6];
-        mc.destinations[3] = data[base + 7];
-        mc.sensitivities[3] = data[base + 8];
+    for (i, mc) in c.matrix_controls.iter_mut().enumerate() {
+        mc.source = F::MatrixControlSource.element(data, i);
+        mc.destinations = F::MATRIX_CONTROL_DESTINATIONS.map(|f| f.element(data, i));
+        mc.sensitivities = F::MATRIX_CONTROL_SENS.map(|f| f.element(data, i));
     }
 
     Ok(c)
@@ -829,25 +1267,23 @@ pub fn parse_pcms_pmt(data: &[u8]) -> Result<PcmSynthPmt, crate::ToneParseError>
     }
     let mut pmt = PcmSynthPmt::default();
 
-    pmt.structure_type_12 = data[0x00];
-    pmt.booster_12 = data[0x01];
-    pmt.structure_type_34 = data[0x02];
-    pmt.booster_34 = data[0x03];
-    pmt.pmt_velocity_control = data[0x04];
+    use PcmsPmtField as F;
+    pmt.structure_type_12 = F::StructureType12.byte(data);
+    pmt.booster_12 = F::Booster12.byte(data);
+    pmt.structure_type_34 = F::StructureType34.byte(data);
+    pmt.booster_34 = F::Booster34.byte(data);
+    pmt.pmt_velocity_control = F::PmtVelocityControl.byte(data);
 
-    // 4 PMT partial entries at offsets 0x05, 0x0E, 0x17, 0x20 (each 9 bytes)
-    let entry_offsets = [0x05, 0x0E, 0x17, 0x20];
-    for (i, &off) in entry_offsets.iter().enumerate() {
-        let e = &mut pmt.partial_entries[i];
-        e.partial_switch = data[off];
-        e.key_range_lower = data[off + 1];
-        e.key_range_upper = data[off + 2];
-        e.key_fade_lower = data[off + 3];
-        e.key_fade_upper = data[off + 4];
-        e.velocity_range_lower = data[off + 5];
-        e.velocity_range_upper = data[off + 6];
-        e.velocity_fade_lower = data[off + 7];
-        e.velocity_fade_upper = data[off + 8];
+    for (i, e) in pmt.partial_entries.iter_mut().enumerate() {
+        e.partial_switch = F::PartialSwitch.element(data, i);
+        e.key_range_lower = F::KeyRangeLower.element(data, i);
+        e.key_range_upper = F::KeyRangeUpper.element(data, i);
+        e.key_fade_lower = F::KeyFadeLower.element(data, i);
+        e.key_fade_upper = F::KeyFadeUpper.element(data, i);
+        e.velocity_range_lower = F::VelocityRangeLower.element(data, i);
+        e.velocity_range_upper = F::VelocityRangeUpper.element(data, i);
+        e.velocity_fade_lower = F::VelocityFadeLower.element(data, i);
+        e.velocity_fade_upper = F::VelocityFadeUpper.element(data, i);
     }
 
     Ok(pmt)
@@ -868,124 +1304,121 @@ pub fn parse_pcms_partial(data: &[u8]) -> Result<PcmSynthPartial, crate::TonePar
     }
     let mut p = PcmSynthPartial::default();
 
+    use PcmsPartialField as F;
+
     // -- General --
-    p.level = data[0x00];
-    p.coarse_tune = data[0x01];
-    p.fine_tune = data[0x02];
-    p.random_pitch_depth = data[0x03];
-    p.pan = data[0x04];
-    p.pan_keyfollow = data[0x05];
-    p.random_pan_depth = data[0x06];
-    p.alternate_pan_depth = data[0x07];
-    p.env_mode = data[0x08];
-    p.delay_mode = data[0x09];
-    p.delay_time = nibble2(data, 0x0A);
+    p.level = F::Level.byte(data);
+    p.coarse_tune = F::CoarseTune.byte(data);
+    p.fine_tune = F::FineTune.byte(data);
+    p.random_pitch_depth = F::RandomPitchDepth.byte(data);
+    p.pan = F::Pan.byte(data);
+    p.pan_keyfollow = F::PanKeyfollow.byte(data);
+    p.random_pan_depth = F::RandomPanDepth.byte(data);
+    p.alternate_pan_depth = F::AlternatePanDepth.byte(data);
+    p.env_mode = F::EnvMode.byte(data);
+    p.delay_mode = F::DelayMode.byte(data);
+    p.delay_time = F::DelayTime.nibbles(data);
 
     // -- Output --
-    p.output_level = data[0x0C];
-    // 0x0D-0x0E: reserved
-    p.chorus_send = data[0x0F];
-    p.reverb_send = data[0x10];
-    // 0x11: reserved
+    p.output_level = F::OutputLevel.byte(data);
+    p.chorus_send = F::ChorusSend.byte(data);
+    p.reverb_send = F::ReverbSend.byte(data);
 
     // -- Receive switches --
-    p.receive_bender = data[0x12];
-    p.receive_expression = data[0x13];
-    p.receive_hold1 = data[0x14];
-    // 0x15: reserved
-    p.redamper_switch = data[0x16];
+    p.receive_bender = F::ReceiveBender.byte(data);
+    p.receive_expression = F::ReceiveExpression.byte(data);
+    p.receive_hold1 = F::ReceiveHold1.byte(data);
+    p.redamper_switch = F::RedamperSwitch.byte(data);
 
     // -- Partial control switches --
-    p.control1_switches.copy_from_slice(&data[0x17..0x1B]);
-    p.control2_switches.copy_from_slice(&data[0x1B..0x1F]);
-    p.control3_switches.copy_from_slice(&data[0x1F..0x23]);
-    p.control4_switches.copy_from_slice(&data[0x23..0x27]);
+    p.control1_switches = F::Control1Switch.elements(data);
+    p.control2_switches = F::Control2Switch.elements(data);
+    p.control3_switches = F::Control3Switch.elements(data);
+    p.control4_switches = F::Control4Switch.elements(data);
 
     // -- Wave --
-    p.wave_group_type = data[0x27];
-    p.wave_group_id = nibble4(data, 0x28);
-    p.wave_number_l = nibble4(data, 0x2C);
-    p.wave_number_r = nibble4(data, 0x30);
-    p.wave_gain = data[0x34];
-    p.wave_fxm_switch = data[0x35];
-    p.wave_fxm_color = data[0x36];
-    p.wave_fxm_depth = data[0x37];
-    p.wave_tempo_sync = data[0x38];
-    p.wave_pitch_keyfollow = data[0x39];
+    p.wave_group_type = F::WaveGroupType.byte(data);
+    p.wave_group_id = F::WaveGroupId.nibbles(data);
+    p.wave_number_l = F::WaveNumberL.nibbles(data);
+    p.wave_number_r = F::WaveNumberR.nibbles(data);
+    p.wave_gain = F::WaveGain.byte(data);
+    p.wave_fxm_switch = F::WaveFxmSwitch.byte(data);
+    p.wave_fxm_color = F::WaveFxmColor.byte(data);
+    p.wave_fxm_depth = F::WaveFxmDepth.byte(data);
+    p.wave_tempo_sync = F::WaveTempoSync.byte(data);
+    p.wave_pitch_keyfollow = F::WavePitchKeyfollow.byte(data);
 
     // -- Pitch Envelope --
-    p.pitch_env_depth = data[0x3A];
-    p.pitch_env_velocity_sens = data[0x3B];
-    p.pitch_env_t1_velocity_sens = data[0x3C];
-    p.pitch_env_t4_velocity_sens = data[0x3D];
-    p.pitch_env_time_keyfollow = data[0x3E];
-    p.pitch_env_time.copy_from_slice(&data[0x3F..0x43]);
-    p.pitch_env_level.copy_from_slice(&data[0x43..0x48]);
+    p.pitch_env_depth = F::PitchEnvDepth.byte(data);
+    p.pitch_env_velocity_sens = F::PitchEnvVelocitySens.byte(data);
+    p.pitch_env_t1_velocity_sens = F::PitchEnvT1VelocitySens.byte(data);
+    p.pitch_env_t4_velocity_sens = F::PitchEnvT4VelocitySens.byte(data);
+    p.pitch_env_time_keyfollow = F::PitchEnvTimeKeyfollow.byte(data);
+    p.pitch_env_time = F::PitchEnvTime.elements(data);
+    p.pitch_env_level = F::PitchEnvLevel.elements(data);
 
     // -- TVF (Filter) --
-    p.tvf_filter_type = data[0x48];
-    p.tvf_cutoff_frequency = data[0x49];
-    p.tvf_cutoff_keyfollow = data[0x4A];
-    p.tvf_cutoff_velocity_curve = data[0x4B];
-    p.tvf_cutoff_velocity_sens = data[0x4C];
-    p.tvf_resonance = data[0x4D];
-    p.tvf_resonance_velocity_sens = data[0x4E];
-    p.tvf_env_depth = data[0x4F];
-    p.tvf_env_velocity_curve = data[0x50];
-    p.tvf_env_velocity_sens = data[0x51];
-    p.tvf_env_t1_velocity_sens = data[0x52];
-    p.tvf_env_t4_velocity_sens = data[0x53];
-    p.tvf_env_time_keyfollow = data[0x54];
-    p.tvf_env_time.copy_from_slice(&data[0x55..0x59]);
-    p.tvf_env_level.copy_from_slice(&data[0x59..0x5E]);
+    p.tvf_filter_type = F::TvfFilterType.byte(data);
+    p.tvf_cutoff_frequency = F::TvfCutoffFrequency.byte(data);
+    p.tvf_cutoff_keyfollow = F::TvfCutoffKeyfollow.byte(data);
+    p.tvf_cutoff_velocity_curve = F::TvfCutoffVelocityCurve.byte(data);
+    p.tvf_cutoff_velocity_sens = F::TvfCutoffVelocitySens.byte(data);
+    p.tvf_resonance = F::TvfResonance.byte(data);
+    p.tvf_resonance_velocity_sens = F::TvfResonanceVelocitySens.byte(data);
+    p.tvf_env_depth = F::TvfEnvDepth.byte(data);
+    p.tvf_env_velocity_curve = F::TvfEnvVelocityCurve.byte(data);
+    p.tvf_env_velocity_sens = F::TvfEnvVelocitySens.byte(data);
+    p.tvf_env_t1_velocity_sens = F::TvfEnvT1VelocitySens.byte(data);
+    p.tvf_env_t4_velocity_sens = F::TvfEnvT4VelocitySens.byte(data);
+    p.tvf_env_time_keyfollow = F::TvfEnvTimeKeyfollow.byte(data);
+    p.tvf_env_time = F::TvfEnvTime.elements(data);
+    p.tvf_env_level = F::TvfEnvLevel.elements(data);
 
     // -- TVA (Amplifier) --
-    p.tva_bias_level = data[0x5E];
-    p.tva_bias_position = data[0x5F];
-    p.tva_bias_direction = data[0x60];
-    p.tva_level_velocity_curve = data[0x61];
-    p.tva_level_velocity_sens = data[0x62];
-    p.tva_env_t1_velocity_sens = data[0x63];
-    p.tva_env_t4_velocity_sens = data[0x64];
-    p.tva_env_time_keyfollow = data[0x65];
-    p.tva_env_time.copy_from_slice(&data[0x66..0x6A]);
-    p.tva_env_level.copy_from_slice(&data[0x6A..0x6D]);
+    p.tva_bias_level = F::TvaBiasLevel.byte(data);
+    p.tva_bias_position = F::TvaBiasPosition.byte(data);
+    p.tva_bias_direction = F::TvaBiasDirection.byte(data);
+    p.tva_level_velocity_curve = F::TvaLevelVelocityCurve.byte(data);
+    p.tva_level_velocity_sens = F::TvaLevelVelocitySens.byte(data);
+    p.tva_env_t1_velocity_sens = F::TvaEnvT1VelocitySens.byte(data);
+    p.tva_env_t4_velocity_sens = F::TvaEnvT4VelocitySens.byte(data);
+    p.tva_env_time_keyfollow = F::TvaEnvTimeKeyfollow.byte(data);
+    p.tva_env_time = F::TvaEnvTime.elements(data);
+    p.tva_env_level = F::TvaEnvLevel.elements(data);
 
     // -- LFO1 --
-    p.lfo1_waveform = data[0x6D];
-    p.lfo1_rate = nibble2(data, 0x6E);
-    p.lfo1_offset = data[0x70];
-    p.lfo1_rate_detune = data[0x71];
-    p.lfo1_delay_time = data[0x72];
-    p.lfo1_delay_time_keyfollow = data[0x73];
-    p.lfo1_fade_mode = data[0x74];
-    p.lfo1_fade_time = data[0x75];
-    p.lfo1_key_trigger = data[0x76];
-    p.lfo1_pitch_depth = data[0x77];
-    p.lfo1_tvf_depth = data[0x78];
-    p.lfo1_tva_depth = data[0x79];
-    p.lfo1_pan_depth = data[0x7A];
+    p.lfo1_waveform = F::Lfo1Waveform.byte(data);
+    p.lfo1_rate = F::Lfo1Rate.nibbles(data);
+    p.lfo1_offset = F::Lfo1Offset.byte(data);
+    p.lfo1_rate_detune = F::Lfo1RateDetune.byte(data);
+    p.lfo1_delay_time = F::Lfo1DelayTime.byte(data);
+    p.lfo1_delay_time_keyfollow = F::Lfo1DelayTimeKeyfollow.byte(data);
+    p.lfo1_fade_mode = F::Lfo1FadeMode.byte(data);
+    p.lfo1_fade_time = F::Lfo1FadeTime.byte(data);
+    p.lfo1_key_trigger = F::Lfo1KeyTrigger.byte(data);
+    p.lfo1_pitch_depth = F::Lfo1PitchDepth.byte(data);
+    p.lfo1_tvf_depth = F::Lfo1TvfDepth.byte(data);
+    p.lfo1_tva_depth = F::Lfo1TvaDepth.byte(data);
+    p.lfo1_pan_depth = F::Lfo1PanDepth.byte(data);
 
     // -- LFO2 --
-    // LFO2 starts at offset 0x7B in the linear data array
-    p.lfo2_waveform = data[0x7B];
-    p.lfo2_rate = nibble2(data, 0x7C);
-    p.lfo2_offset = data[0x7E];
-    p.lfo2_rate_detune = data[0x7F];
-    // Bytes beyond 0x7F: linear data index continues at 0x80 (= SysEx offset 01 00)
-    p.lfo2_delay_time = data[0x80];
-    p.lfo2_delay_time_keyfollow = data[0x81];
-    p.lfo2_fade_mode = data[0x82];
-    p.lfo2_fade_time = data[0x83];
-    p.lfo2_key_trigger = data[0x84];
-    p.lfo2_pitch_depth = data[0x85];
-    p.lfo2_tvf_depth = data[0x86];
-    p.lfo2_tva_depth = data[0x87];
-    p.lfo2_pan_depth = data[0x88];
+    p.lfo2_waveform = F::Lfo2Waveform.byte(data);
+    p.lfo2_rate = F::Lfo2Rate.nibbles(data);
+    p.lfo2_offset = F::Lfo2Offset.byte(data);
+    p.lfo2_rate_detune = F::Lfo2RateDetune.byte(data);
+    p.lfo2_delay_time = F::Lfo2DelayTime.byte(data);
+    p.lfo2_delay_time_keyfollow = F::Lfo2DelayTimeKeyfollow.byte(data);
+    p.lfo2_fade_mode = F::Lfo2FadeMode.byte(data);
+    p.lfo2_fade_time = F::Lfo2FadeTime.byte(data);
+    p.lfo2_key_trigger = F::Lfo2KeyTrigger.byte(data);
+    p.lfo2_pitch_depth = F::Lfo2PitchDepth.byte(data);
+    p.lfo2_tvf_depth = F::Lfo2TvfDepth.byte(data);
+    p.lfo2_tva_depth = F::Lfo2TvaDepth.byte(data);
+    p.lfo2_pan_depth = F::Lfo2PanDepth.byte(data);
 
     // -- LFO Step Sequencer --
-    p.lfo_step_type = data[0x89];
-    p.lfo_step_values.copy_from_slice(&data[0x8A..0x9A]);
+    p.lfo_step_type = F::LfoStepType.byte(data);
+    p.lfo_step_values = F::LfoStep.elements(data);
 
     Ok(p)
 }
@@ -1003,14 +1436,12 @@ pub fn parse_pcms_common2(data: &[u8]) -> Result<PcmSynthCommon2, crate::TonePar
     }
     let mut c2 = PcmSynthCommon2::default();
 
-    // 0x00–0x0F: reserved
-    c2.tone_category = data[0x10];
-    c2.tone_number = nibble2(data, 0x11);
-    c2.phrase_octave_shift = data[0x13];
-    // 0x14–0x32: reserved
-    c2.tfx_switch = data[0x33];
-    // 0x34–0x37: reserved
-    c2.phrase_number = nibble4(data, 0x38);
+    use PcmsCommon2Field as F;
+    c2.tone_category = F::ToneCategory.byte(data);
+    c2.tone_number = F::ToneNumber.nibbles(data);
+    c2.phrase_octave_shift = F::PhraseOctaveShift.byte(data);
+    c2.tfx_switch = F::TfxSwitch.byte(data);
+    c2.phrase_number = F::PhraseNumber.nibbles(data);
 
     Ok(c2)
 }
@@ -1064,28 +1495,28 @@ mod tests {
     #[test]
     fn pcms_partial_param_address_single_byte_offset() {
         // level at offset 0x00
-        let addr = pcms_partial_param_address(0, 0, 0x0000);
+        let addr = pcms_partial_param_address(0, 0, 0x00);
         assert_eq!(addr, Address::new(0x19, 0x00, 0x20, 0x00));
     }
 
     #[test]
     fn pcms_partial_param_address_two_byte_offset() {
-        // lfo2_delay_time at offset 0x0100
-        let addr = pcms_partial_param_address(0, 0, 0x0100);
+        // lfo2_delay_time at position 0x80 (offset 01 00)
+        let addr = pcms_partial_param_address(0, 0, 0x80);
         assert_eq!(addr, Address::new(0x19, 0x00, 0x21, 0x00));
     }
 
     #[test]
     fn pcms_partial_param_address_lfo_step_last() {
-        // Last LFO step value at offset 0x0119
-        let addr = pcms_partial_param_address(0, 0, 0x0119);
+        // Last LFO step value at position 0x99 (offset 01 19)
+        let addr = pcms_partial_param_address(0, 0, 0x99);
         assert_eq!(addr, Address::new(0x19, 0x00, 0x21, 0x19));
     }
 
     #[test]
     fn pcms_partial_param_address_partial2_high_offset() {
-        // partial 2 (offset 00 22 00) + param offset 0x0108
-        let addr = pcms_partial_param_address(0, 1, 0x0108);
+        // partial 2 (offset 00 22 00) + position 0x88 (offset 01 08)
+        let addr = pcms_partial_param_address(0, 1, 0x88);
         assert_eq!(addr, Address::new(0x19, 0x00, 0x23, 0x08));
     }
 
@@ -1376,5 +1807,217 @@ mod tests {
         assert_eq!(c2.phrase_octave_shift, 63);
         assert_eq!(c2.tfx_switch, 1);
         assert_eq!(c2.phrase_number, 0x1234);
+    }
+
+    // -- Field tests --
+
+    use crate::block_field::test_support::{
+        EntryField, assert_entries_read_at_positions, assert_reads_at_positions, positional_block,
+    };
+
+    #[test]
+    fn field_positions_follow_the_midi_implementation() {
+        // Cutoff Offset `00 22`, Matrix Control 4 Sens 4 `00 4E`.
+        assert_eq!(PcmsCommonField::CutoffOffset.element_position(0), Ok(0x22));
+        assert_eq!(
+            PcmsCommonField::MatrixControlSens4.element_position(3),
+            Ok(0x4E)
+        );
+        // PMT4 Velocity Fade Width Upper `00 28`.
+        assert_eq!(
+            PcmsPmtField::VelocityFadeUpper.element_position(3),
+            Ok(0x28)
+        );
+        // Chorus Send `00 0F`, LFO Step 16 `01 19`.
+        assert_eq!(PcmsPartialField::ChorusSend.element_position(0), Ok(0x0F));
+        assert_eq!(PcmsPartialField::LfoStep.element_position(15), Ok(0x99));
+        assert_eq!(
+            pcms_partial_param_address(0, 0, 0x99),
+            Address::new(0x19, 0x00, 0x21, 0x19)
+        );
+        assert!(PcmsPartialField::LfoStep.element_position(16).is_err());
+        assert!(PcmsPmtField::Booster12.element_position(1).is_err());
+    }
+
+    #[test]
+    fn parse_common_reads_every_field_at_its_position() {
+        use PcmsCommonField as F;
+        let c = parse_pcms_common(&positional_block(PCMS_COMMON_SIZE)).unwrap();
+        assert_reads_at_positions!(c, {
+            tone_level: F::ToneLevel,
+            tone_pan: F::TonePan,
+            tone_priority: F::TonePriority,
+            coarse_tune: F::CoarseTune,
+            fine_tune: F::FineTune,
+            octave_shift: F::OctaveShift,
+            stretch_tune_depth: F::StretchTuneDepth,
+            analog_feel: F::AnalogFeel,
+            mono_poly: F::MonoPoly,
+            legato_switch: F::LegatoSwitch,
+            legato_retrigger: F::LegatoRetrigger,
+            portamento_switch: F::PortamentoSwitch,
+            portamento_mode: F::PortamentoMode,
+            portamento_type: F::PortamentoType,
+            portamento_start: F::PortamentoStart,
+            portamento_time: F::PortamentoTime,
+            cutoff_offset: F::CutoffOffset,
+            resonance_offset: F::ResonanceOffset,
+            attack_time_offset: F::AttackTimeOffset,
+            release_time_offset: F::ReleaseTimeOffset,
+            velocity_sens_offset: F::VelocitySensOffset,
+            pmt_control_switch: F::PmtControlSwitch,
+            pitch_bend_range_up: F::PitchBendRangeUp,
+            pitch_bend_range_down: F::PitchBendRangeDown,
+        });
+        let per_control: [EntryField<F, MatrixControl>; 9] = [
+            (F::MatrixControlSource, |m| m.source),
+            (F::MatrixControlDestination1, |m| m.destinations[0]),
+            (F::MatrixControlSens1, |m| m.sensitivities[0]),
+            (F::MatrixControlDestination2, |m| m.destinations[1]),
+            (F::MatrixControlSens2, |m| m.sensitivities[1]),
+            (F::MatrixControlDestination3, |m| m.destinations[2]),
+            (F::MatrixControlSens3, |m| m.sensitivities[2]),
+            (F::MatrixControlDestination4, |m| m.destinations[3]),
+            (F::MatrixControlSens4, |m| m.sensitivities[3]),
+        ];
+        assert_entries_read_at_positions(&c.matrix_controls, &per_control);
+    }
+
+    #[test]
+    fn parse_pmt_reads_every_field_at_its_position() {
+        use PcmsPmtField as F;
+        let pmt = parse_pcms_pmt(&positional_block(PCMS_PMT_SIZE)).unwrap();
+        assert_reads_at_positions!(pmt, {
+            structure_type_12: F::StructureType12,
+            booster_12: F::Booster12,
+            structure_type_34: F::StructureType34,
+            booster_34: F::Booster34,
+            pmt_velocity_control: F::PmtVelocityControl,
+        });
+        let per_partial: [EntryField<F, PmtPartialEntry>; 9] = [
+            (F::PartialSwitch, |e| e.partial_switch),
+            (F::KeyRangeLower, |e| e.key_range_lower),
+            (F::KeyRangeUpper, |e| e.key_range_upper),
+            (F::KeyFadeLower, |e| e.key_fade_lower),
+            (F::KeyFadeUpper, |e| e.key_fade_upper),
+            (F::VelocityRangeLower, |e| e.velocity_range_lower),
+            (F::VelocityRangeUpper, |e| e.velocity_range_upper),
+            (F::VelocityFadeLower, |e| e.velocity_fade_lower),
+            (F::VelocityFadeUpper, |e| e.velocity_fade_upper),
+        ];
+        assert_entries_read_at_positions(&pmt.partial_entries, &per_partial);
+    }
+
+    #[test]
+    fn parse_partial_reads_every_field_at_its_position() {
+        use PcmsPartialField as F;
+        let p = parse_pcms_partial(&positional_block(PCMS_PARTIAL_SIZE)).unwrap();
+        assert_reads_at_positions!(p, {
+            level: F::Level,
+            coarse_tune: F::CoarseTune,
+            fine_tune: F::FineTune,
+            random_pitch_depth: F::RandomPitchDepth,
+            pan: F::Pan,
+            pan_keyfollow: F::PanKeyfollow,
+            random_pan_depth: F::RandomPanDepth,
+            alternate_pan_depth: F::AlternatePanDepth,
+            env_mode: F::EnvMode,
+            delay_mode: F::DelayMode,
+            delay_time: F::DelayTime,
+            output_level: F::OutputLevel,
+            chorus_send: F::ChorusSend,
+            reverb_send: F::ReverbSend,
+            receive_bender: F::ReceiveBender,
+            receive_expression: F::ReceiveExpression,
+            receive_hold1: F::ReceiveHold1,
+            redamper_switch: F::RedamperSwitch,
+            control1_switches: F::Control1Switch,
+            control2_switches: F::Control2Switch,
+            control3_switches: F::Control3Switch,
+            control4_switches: F::Control4Switch,
+            wave_group_type: F::WaveGroupType,
+            wave_group_id: F::WaveGroupId,
+            wave_number_l: F::WaveNumberL,
+            wave_number_r: F::WaveNumberR,
+            wave_gain: F::WaveGain,
+            wave_fxm_switch: F::WaveFxmSwitch,
+            wave_fxm_color: F::WaveFxmColor,
+            wave_fxm_depth: F::WaveFxmDepth,
+            wave_tempo_sync: F::WaveTempoSync,
+            wave_pitch_keyfollow: F::WavePitchKeyfollow,
+            pitch_env_depth: F::PitchEnvDepth,
+            pitch_env_velocity_sens: F::PitchEnvVelocitySens,
+            pitch_env_t1_velocity_sens: F::PitchEnvT1VelocitySens,
+            pitch_env_t4_velocity_sens: F::PitchEnvT4VelocitySens,
+            pitch_env_time_keyfollow: F::PitchEnvTimeKeyfollow,
+            pitch_env_time: F::PitchEnvTime,
+            pitch_env_level: F::PitchEnvLevel,
+            tvf_filter_type: F::TvfFilterType,
+            tvf_cutoff_frequency: F::TvfCutoffFrequency,
+            tvf_cutoff_keyfollow: F::TvfCutoffKeyfollow,
+            tvf_cutoff_velocity_curve: F::TvfCutoffVelocityCurve,
+            tvf_cutoff_velocity_sens: F::TvfCutoffVelocitySens,
+            tvf_resonance: F::TvfResonance,
+            tvf_resonance_velocity_sens: F::TvfResonanceVelocitySens,
+            tvf_env_depth: F::TvfEnvDepth,
+            tvf_env_velocity_curve: F::TvfEnvVelocityCurve,
+            tvf_env_velocity_sens: F::TvfEnvVelocitySens,
+            tvf_env_t1_velocity_sens: F::TvfEnvT1VelocitySens,
+            tvf_env_t4_velocity_sens: F::TvfEnvT4VelocitySens,
+            tvf_env_time_keyfollow: F::TvfEnvTimeKeyfollow,
+            tvf_env_time: F::TvfEnvTime,
+            tvf_env_level: F::TvfEnvLevel,
+            tva_bias_level: F::TvaBiasLevel,
+            tva_bias_position: F::TvaBiasPosition,
+            tva_bias_direction: F::TvaBiasDirection,
+            tva_level_velocity_curve: F::TvaLevelVelocityCurve,
+            tva_level_velocity_sens: F::TvaLevelVelocitySens,
+            tva_env_t1_velocity_sens: F::TvaEnvT1VelocitySens,
+            tva_env_t4_velocity_sens: F::TvaEnvT4VelocitySens,
+            tva_env_time_keyfollow: F::TvaEnvTimeKeyfollow,
+            tva_env_time: F::TvaEnvTime,
+            tva_env_level: F::TvaEnvLevel,
+            lfo1_waveform: F::Lfo1Waveform,
+            lfo1_rate: F::Lfo1Rate,
+            lfo1_offset: F::Lfo1Offset,
+            lfo1_rate_detune: F::Lfo1RateDetune,
+            lfo1_delay_time: F::Lfo1DelayTime,
+            lfo1_delay_time_keyfollow: F::Lfo1DelayTimeKeyfollow,
+            lfo1_fade_mode: F::Lfo1FadeMode,
+            lfo1_fade_time: F::Lfo1FadeTime,
+            lfo1_key_trigger: F::Lfo1KeyTrigger,
+            lfo1_pitch_depth: F::Lfo1PitchDepth,
+            lfo1_tvf_depth: F::Lfo1TvfDepth,
+            lfo1_tva_depth: F::Lfo1TvaDepth,
+            lfo1_pan_depth: F::Lfo1PanDepth,
+            lfo2_waveform: F::Lfo2Waveform,
+            lfo2_rate: F::Lfo2Rate,
+            lfo2_offset: F::Lfo2Offset,
+            lfo2_rate_detune: F::Lfo2RateDetune,
+            lfo2_delay_time: F::Lfo2DelayTime,
+            lfo2_delay_time_keyfollow: F::Lfo2DelayTimeKeyfollow,
+            lfo2_fade_mode: F::Lfo2FadeMode,
+            lfo2_fade_time: F::Lfo2FadeTime,
+            lfo2_key_trigger: F::Lfo2KeyTrigger,
+            lfo2_pitch_depth: F::Lfo2PitchDepth,
+            lfo2_tvf_depth: F::Lfo2TvfDepth,
+            lfo2_tva_depth: F::Lfo2TvaDepth,
+            lfo2_pan_depth: F::Lfo2PanDepth,
+            lfo_step_type: F::LfoStepType,
+            lfo_step_values: F::LfoStep,
+        });
+    }
+
+    #[test]
+    fn parse_common2_reads_every_field_at_its_position() {
+        use PcmsCommon2Field as F;
+        let c2 = parse_pcms_common2(&positional_block(PCMS_COMMON2_SIZE)).unwrap();
+        assert_reads_at_positions!(c2, {
+            tone_category: F::ToneCategory,
+            tone_number: F::ToneNumber,
+            phrase_octave_shift: F::PhraseOctaveShift,
+            tfx_switch: F::TfxSwitch,
+            phrase_number: F::PhraseNumber,
+        });
     }
 }

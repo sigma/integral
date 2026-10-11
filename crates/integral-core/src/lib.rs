@@ -18,6 +18,7 @@ pub struct ToneParseError {
 
 pub mod address;
 pub mod bitstream;
+pub mod block_field;
 pub mod catalog;
 pub mod device;
 pub mod device_spec;

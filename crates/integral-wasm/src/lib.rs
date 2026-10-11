@@ -639,6 +639,450 @@ mirror_core_enum!(PcmdPartialField <=> pcm_drum::PcmdPartialField {
     OneShotMode,
 });
 
+/// A field of a PCM Synth Tone Common (mirrors [`pcm_synth::PcmsCommonField`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PcmsCommonField {
+    /// See [`pcm_synth::PcmsCommonField::ToneLevel`].
+    ToneLevel,
+    /// See [`pcm_synth::PcmsCommonField::TonePan`].
+    TonePan,
+    /// See [`pcm_synth::PcmsCommonField::TonePriority`].
+    TonePriority,
+    /// See [`pcm_synth::PcmsCommonField::CoarseTune`].
+    CoarseTune,
+    /// See [`pcm_synth::PcmsCommonField::FineTune`].
+    FineTune,
+    /// See [`pcm_synth::PcmsCommonField::OctaveShift`].
+    OctaveShift,
+    /// See [`pcm_synth::PcmsCommonField::StretchTuneDepth`].
+    StretchTuneDepth,
+    /// See [`pcm_synth::PcmsCommonField::AnalogFeel`].
+    AnalogFeel,
+    /// See [`pcm_synth::PcmsCommonField::MonoPoly`].
+    MonoPoly,
+    /// See [`pcm_synth::PcmsCommonField::LegatoSwitch`].
+    LegatoSwitch,
+    /// See [`pcm_synth::PcmsCommonField::LegatoRetrigger`].
+    LegatoRetrigger,
+    /// See [`pcm_synth::PcmsCommonField::PortamentoSwitch`].
+    PortamentoSwitch,
+    /// See [`pcm_synth::PcmsCommonField::PortamentoMode`].
+    PortamentoMode,
+    /// See [`pcm_synth::PcmsCommonField::PortamentoType`].
+    PortamentoType,
+    /// See [`pcm_synth::PcmsCommonField::PortamentoStart`].
+    PortamentoStart,
+    /// See [`pcm_synth::PcmsCommonField::PortamentoTime`].
+    PortamentoTime,
+    /// See [`pcm_synth::PcmsCommonField::CutoffOffset`].
+    CutoffOffset,
+    /// See [`pcm_synth::PcmsCommonField::ResonanceOffset`].
+    ResonanceOffset,
+    /// See [`pcm_synth::PcmsCommonField::AttackTimeOffset`].
+    AttackTimeOffset,
+    /// See [`pcm_synth::PcmsCommonField::ReleaseTimeOffset`].
+    ReleaseTimeOffset,
+    /// See [`pcm_synth::PcmsCommonField::VelocitySensOffset`].
+    VelocitySensOffset,
+    /// See [`pcm_synth::PcmsCommonField::PmtControlSwitch`].
+    PmtControlSwitch,
+    /// See [`pcm_synth::PcmsCommonField::PitchBendRangeUp`].
+    PitchBendRangeUp,
+    /// See [`pcm_synth::PcmsCommonField::PitchBendRangeDown`].
+    PitchBendRangeDown,
+    /// See [`pcm_synth::PcmsCommonField::MatrixControlSource`].
+    MatrixControlSource,
+    /// See [`pcm_synth::PcmsCommonField::MatrixControlDestination1`].
+    MatrixControlDestination1,
+    /// See [`pcm_synth::PcmsCommonField::MatrixControlSens1`].
+    MatrixControlSens1,
+    /// See [`pcm_synth::PcmsCommonField::MatrixControlDestination2`].
+    MatrixControlDestination2,
+    /// See [`pcm_synth::PcmsCommonField::MatrixControlSens2`].
+    MatrixControlSens2,
+    /// See [`pcm_synth::PcmsCommonField::MatrixControlDestination3`].
+    MatrixControlDestination3,
+    /// See [`pcm_synth::PcmsCommonField::MatrixControlSens3`].
+    MatrixControlSens3,
+    /// See [`pcm_synth::PcmsCommonField::MatrixControlDestination4`].
+    MatrixControlDestination4,
+    /// See [`pcm_synth::PcmsCommonField::MatrixControlSens4`].
+    MatrixControlSens4,
+}
+
+mirror_core_enum!(PcmsCommonField <=> pcm_synth::PcmsCommonField {
+    ToneLevel,
+    TonePan,
+    TonePriority,
+    CoarseTune,
+    FineTune,
+    OctaveShift,
+    StretchTuneDepth,
+    AnalogFeel,
+    MonoPoly,
+    LegatoSwitch,
+    LegatoRetrigger,
+    PortamentoSwitch,
+    PortamentoMode,
+    PortamentoType,
+    PortamentoStart,
+    PortamentoTime,
+    CutoffOffset,
+    ResonanceOffset,
+    AttackTimeOffset,
+    ReleaseTimeOffset,
+    VelocitySensOffset,
+    PmtControlSwitch,
+    PitchBendRangeUp,
+    PitchBendRangeDown,
+    MatrixControlSource,
+    MatrixControlDestination1,
+    MatrixControlSens1,
+    MatrixControlDestination2,
+    MatrixControlSens2,
+    MatrixControlDestination3,
+    MatrixControlSens3,
+    MatrixControlDestination4,
+    MatrixControlSens4,
+});
+
+/// A field of a PCM Synth Tone PMT (mirrors [`pcm_synth::PcmsPmtField`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PcmsPmtField {
+    /// See [`pcm_synth::PcmsPmtField::StructureType12`].
+    StructureType12,
+    /// See [`pcm_synth::PcmsPmtField::Booster12`].
+    Booster12,
+    /// See [`pcm_synth::PcmsPmtField::StructureType34`].
+    StructureType34,
+    /// See [`pcm_synth::PcmsPmtField::Booster34`].
+    Booster34,
+    /// See [`pcm_synth::PcmsPmtField::PmtVelocityControl`].
+    PmtVelocityControl,
+    /// See [`pcm_synth::PcmsPmtField::PartialSwitch`].
+    PartialSwitch,
+    /// See [`pcm_synth::PcmsPmtField::KeyRangeLower`].
+    KeyRangeLower,
+    /// See [`pcm_synth::PcmsPmtField::KeyRangeUpper`].
+    KeyRangeUpper,
+    /// See [`pcm_synth::PcmsPmtField::KeyFadeLower`].
+    KeyFadeLower,
+    /// See [`pcm_synth::PcmsPmtField::KeyFadeUpper`].
+    KeyFadeUpper,
+    /// See [`pcm_synth::PcmsPmtField::VelocityRangeLower`].
+    VelocityRangeLower,
+    /// See [`pcm_synth::PcmsPmtField::VelocityRangeUpper`].
+    VelocityRangeUpper,
+    /// See [`pcm_synth::PcmsPmtField::VelocityFadeLower`].
+    VelocityFadeLower,
+    /// See [`pcm_synth::PcmsPmtField::VelocityFadeUpper`].
+    VelocityFadeUpper,
+}
+
+mirror_core_enum!(PcmsPmtField <=> pcm_synth::PcmsPmtField {
+    StructureType12,
+    Booster12,
+    StructureType34,
+    Booster34,
+    PmtVelocityControl,
+    PartialSwitch,
+    KeyRangeLower,
+    KeyRangeUpper,
+    KeyFadeLower,
+    KeyFadeUpper,
+    VelocityRangeLower,
+    VelocityRangeUpper,
+    VelocityFadeLower,
+    VelocityFadeUpper,
+});
+
+/// A field of a PCM Synth Tone Partial (mirrors [`pcm_synth::PcmsPartialField`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PcmsPartialField {
+    /// See [`pcm_synth::PcmsPartialField::Level`].
+    Level,
+    /// See [`pcm_synth::PcmsPartialField::CoarseTune`].
+    CoarseTune,
+    /// See [`pcm_synth::PcmsPartialField::FineTune`].
+    FineTune,
+    /// See [`pcm_synth::PcmsPartialField::RandomPitchDepth`].
+    RandomPitchDepth,
+    /// See [`pcm_synth::PcmsPartialField::Pan`].
+    Pan,
+    /// See [`pcm_synth::PcmsPartialField::PanKeyfollow`].
+    PanKeyfollow,
+    /// See [`pcm_synth::PcmsPartialField::RandomPanDepth`].
+    RandomPanDepth,
+    /// See [`pcm_synth::PcmsPartialField::AlternatePanDepth`].
+    AlternatePanDepth,
+    /// See [`pcm_synth::PcmsPartialField::EnvMode`].
+    EnvMode,
+    /// See [`pcm_synth::PcmsPartialField::DelayMode`].
+    DelayMode,
+    /// See [`pcm_synth::PcmsPartialField::DelayTime`].
+    DelayTime,
+    /// See [`pcm_synth::PcmsPartialField::OutputLevel`].
+    OutputLevel,
+    /// See [`pcm_synth::PcmsPartialField::ChorusSend`].
+    ChorusSend,
+    /// See [`pcm_synth::PcmsPartialField::ReverbSend`].
+    ReverbSend,
+    /// See [`pcm_synth::PcmsPartialField::ReceiveBender`].
+    ReceiveBender,
+    /// See [`pcm_synth::PcmsPartialField::ReceiveExpression`].
+    ReceiveExpression,
+    /// See [`pcm_synth::PcmsPartialField::ReceiveHold1`].
+    ReceiveHold1,
+    /// See [`pcm_synth::PcmsPartialField::RedamperSwitch`].
+    RedamperSwitch,
+    /// See [`pcm_synth::PcmsPartialField::Control1Switch`].
+    Control1Switch,
+    /// See [`pcm_synth::PcmsPartialField::Control2Switch`].
+    Control2Switch,
+    /// See [`pcm_synth::PcmsPartialField::Control3Switch`].
+    Control3Switch,
+    /// See [`pcm_synth::PcmsPartialField::Control4Switch`].
+    Control4Switch,
+    /// See [`pcm_synth::PcmsPartialField::WaveGroupType`].
+    WaveGroupType,
+    /// See [`pcm_synth::PcmsPartialField::WaveGroupId`].
+    WaveGroupId,
+    /// See [`pcm_synth::PcmsPartialField::WaveNumberL`].
+    WaveNumberL,
+    /// See [`pcm_synth::PcmsPartialField::WaveNumberR`].
+    WaveNumberR,
+    /// See [`pcm_synth::PcmsPartialField::WaveGain`].
+    WaveGain,
+    /// See [`pcm_synth::PcmsPartialField::WaveFxmSwitch`].
+    WaveFxmSwitch,
+    /// See [`pcm_synth::PcmsPartialField::WaveFxmColor`].
+    WaveFxmColor,
+    /// See [`pcm_synth::PcmsPartialField::WaveFxmDepth`].
+    WaveFxmDepth,
+    /// See [`pcm_synth::PcmsPartialField::WaveTempoSync`].
+    WaveTempoSync,
+    /// See [`pcm_synth::PcmsPartialField::WavePitchKeyfollow`].
+    WavePitchKeyfollow,
+    /// See [`pcm_synth::PcmsPartialField::PitchEnvDepth`].
+    PitchEnvDepth,
+    /// See [`pcm_synth::PcmsPartialField::PitchEnvVelocitySens`].
+    PitchEnvVelocitySens,
+    /// See [`pcm_synth::PcmsPartialField::PitchEnvT1VelocitySens`].
+    PitchEnvT1VelocitySens,
+    /// See [`pcm_synth::PcmsPartialField::PitchEnvT4VelocitySens`].
+    PitchEnvT4VelocitySens,
+    /// See [`pcm_synth::PcmsPartialField::PitchEnvTimeKeyfollow`].
+    PitchEnvTimeKeyfollow,
+    /// See [`pcm_synth::PcmsPartialField::PitchEnvTime`].
+    PitchEnvTime,
+    /// See [`pcm_synth::PcmsPartialField::PitchEnvLevel`].
+    PitchEnvLevel,
+    /// See [`pcm_synth::PcmsPartialField::TvfFilterType`].
+    TvfFilterType,
+    /// See [`pcm_synth::PcmsPartialField::TvfCutoffFrequency`].
+    TvfCutoffFrequency,
+    /// See [`pcm_synth::PcmsPartialField::TvfCutoffKeyfollow`].
+    TvfCutoffKeyfollow,
+    /// See [`pcm_synth::PcmsPartialField::TvfCutoffVelocityCurve`].
+    TvfCutoffVelocityCurve,
+    /// See [`pcm_synth::PcmsPartialField::TvfCutoffVelocitySens`].
+    TvfCutoffVelocitySens,
+    /// See [`pcm_synth::PcmsPartialField::TvfResonance`].
+    TvfResonance,
+    /// See [`pcm_synth::PcmsPartialField::TvfResonanceVelocitySens`].
+    TvfResonanceVelocitySens,
+    /// See [`pcm_synth::PcmsPartialField::TvfEnvDepth`].
+    TvfEnvDepth,
+    /// See [`pcm_synth::PcmsPartialField::TvfEnvVelocityCurve`].
+    TvfEnvVelocityCurve,
+    /// See [`pcm_synth::PcmsPartialField::TvfEnvVelocitySens`].
+    TvfEnvVelocitySens,
+    /// See [`pcm_synth::PcmsPartialField::TvfEnvT1VelocitySens`].
+    TvfEnvT1VelocitySens,
+    /// See [`pcm_synth::PcmsPartialField::TvfEnvT4VelocitySens`].
+    TvfEnvT4VelocitySens,
+    /// See [`pcm_synth::PcmsPartialField::TvfEnvTimeKeyfollow`].
+    TvfEnvTimeKeyfollow,
+    /// See [`pcm_synth::PcmsPartialField::TvfEnvTime`].
+    TvfEnvTime,
+    /// See [`pcm_synth::PcmsPartialField::TvfEnvLevel`].
+    TvfEnvLevel,
+    /// See [`pcm_synth::PcmsPartialField::TvaBiasLevel`].
+    TvaBiasLevel,
+    /// See [`pcm_synth::PcmsPartialField::TvaBiasPosition`].
+    TvaBiasPosition,
+    /// See [`pcm_synth::PcmsPartialField::TvaBiasDirection`].
+    TvaBiasDirection,
+    /// See [`pcm_synth::PcmsPartialField::TvaLevelVelocityCurve`].
+    TvaLevelVelocityCurve,
+    /// See [`pcm_synth::PcmsPartialField::TvaLevelVelocitySens`].
+    TvaLevelVelocitySens,
+    /// See [`pcm_synth::PcmsPartialField::TvaEnvT1VelocitySens`].
+    TvaEnvT1VelocitySens,
+    /// See [`pcm_synth::PcmsPartialField::TvaEnvT4VelocitySens`].
+    TvaEnvT4VelocitySens,
+    /// See [`pcm_synth::PcmsPartialField::TvaEnvTimeKeyfollow`].
+    TvaEnvTimeKeyfollow,
+    /// See [`pcm_synth::PcmsPartialField::TvaEnvTime`].
+    TvaEnvTime,
+    /// See [`pcm_synth::PcmsPartialField::TvaEnvLevel`].
+    TvaEnvLevel,
+    /// See [`pcm_synth::PcmsPartialField::Lfo1Waveform`].
+    Lfo1Waveform,
+    /// See [`pcm_synth::PcmsPartialField::Lfo1Rate`].
+    Lfo1Rate,
+    /// See [`pcm_synth::PcmsPartialField::Lfo1Offset`].
+    Lfo1Offset,
+    /// See [`pcm_synth::PcmsPartialField::Lfo1RateDetune`].
+    Lfo1RateDetune,
+    /// See [`pcm_synth::PcmsPartialField::Lfo1DelayTime`].
+    Lfo1DelayTime,
+    /// See [`pcm_synth::PcmsPartialField::Lfo1DelayTimeKeyfollow`].
+    Lfo1DelayTimeKeyfollow,
+    /// See [`pcm_synth::PcmsPartialField::Lfo1FadeMode`].
+    Lfo1FadeMode,
+    /// See [`pcm_synth::PcmsPartialField::Lfo1FadeTime`].
+    Lfo1FadeTime,
+    /// See [`pcm_synth::PcmsPartialField::Lfo1KeyTrigger`].
+    Lfo1KeyTrigger,
+    /// See [`pcm_synth::PcmsPartialField::Lfo1PitchDepth`].
+    Lfo1PitchDepth,
+    /// See [`pcm_synth::PcmsPartialField::Lfo1TvfDepth`].
+    Lfo1TvfDepth,
+    /// See [`pcm_synth::PcmsPartialField::Lfo1TvaDepth`].
+    Lfo1TvaDepth,
+    /// See [`pcm_synth::PcmsPartialField::Lfo1PanDepth`].
+    Lfo1PanDepth,
+    /// See [`pcm_synth::PcmsPartialField::Lfo2Waveform`].
+    Lfo2Waveform,
+    /// See [`pcm_synth::PcmsPartialField::Lfo2Rate`].
+    Lfo2Rate,
+    /// See [`pcm_synth::PcmsPartialField::Lfo2Offset`].
+    Lfo2Offset,
+    /// See [`pcm_synth::PcmsPartialField::Lfo2RateDetune`].
+    Lfo2RateDetune,
+    /// See [`pcm_synth::PcmsPartialField::Lfo2DelayTime`].
+    Lfo2DelayTime,
+    /// See [`pcm_synth::PcmsPartialField::Lfo2DelayTimeKeyfollow`].
+    Lfo2DelayTimeKeyfollow,
+    /// See [`pcm_synth::PcmsPartialField::Lfo2FadeMode`].
+    Lfo2FadeMode,
+    /// See [`pcm_synth::PcmsPartialField::Lfo2FadeTime`].
+    Lfo2FadeTime,
+    /// See [`pcm_synth::PcmsPartialField::Lfo2KeyTrigger`].
+    Lfo2KeyTrigger,
+    /// See [`pcm_synth::PcmsPartialField::Lfo2PitchDepth`].
+    Lfo2PitchDepth,
+    /// See [`pcm_synth::PcmsPartialField::Lfo2TvfDepth`].
+    Lfo2TvfDepth,
+    /// See [`pcm_synth::PcmsPartialField::Lfo2TvaDepth`].
+    Lfo2TvaDepth,
+    /// See [`pcm_synth::PcmsPartialField::Lfo2PanDepth`].
+    Lfo2PanDepth,
+    /// See [`pcm_synth::PcmsPartialField::LfoStepType`].
+    LfoStepType,
+    /// See [`pcm_synth::PcmsPartialField::LfoStep`].
+    LfoStep,
+}
+
+mirror_core_enum!(PcmsPartialField <=> pcm_synth::PcmsPartialField {
+    Level,
+    CoarseTune,
+    FineTune,
+    RandomPitchDepth,
+    Pan,
+    PanKeyfollow,
+    RandomPanDepth,
+    AlternatePanDepth,
+    EnvMode,
+    DelayMode,
+    DelayTime,
+    OutputLevel,
+    ChorusSend,
+    ReverbSend,
+    ReceiveBender,
+    ReceiveExpression,
+    ReceiveHold1,
+    RedamperSwitch,
+    Control1Switch,
+    Control2Switch,
+    Control3Switch,
+    Control4Switch,
+    WaveGroupType,
+    WaveGroupId,
+    WaveNumberL,
+    WaveNumberR,
+    WaveGain,
+    WaveFxmSwitch,
+    WaveFxmColor,
+    WaveFxmDepth,
+    WaveTempoSync,
+    WavePitchKeyfollow,
+    PitchEnvDepth,
+    PitchEnvVelocitySens,
+    PitchEnvT1VelocitySens,
+    PitchEnvT4VelocitySens,
+    PitchEnvTimeKeyfollow,
+    PitchEnvTime,
+    PitchEnvLevel,
+    TvfFilterType,
+    TvfCutoffFrequency,
+    TvfCutoffKeyfollow,
+    TvfCutoffVelocityCurve,
+    TvfCutoffVelocitySens,
+    TvfResonance,
+    TvfResonanceVelocitySens,
+    TvfEnvDepth,
+    TvfEnvVelocityCurve,
+    TvfEnvVelocitySens,
+    TvfEnvT1VelocitySens,
+    TvfEnvT4VelocitySens,
+    TvfEnvTimeKeyfollow,
+    TvfEnvTime,
+    TvfEnvLevel,
+    TvaBiasLevel,
+    TvaBiasPosition,
+    TvaBiasDirection,
+    TvaLevelVelocityCurve,
+    TvaLevelVelocitySens,
+    TvaEnvT1VelocitySens,
+    TvaEnvT4VelocitySens,
+    TvaEnvTimeKeyfollow,
+    TvaEnvTime,
+    TvaEnvLevel,
+    Lfo1Waveform,
+    Lfo1Rate,
+    Lfo1Offset,
+    Lfo1RateDetune,
+    Lfo1DelayTime,
+    Lfo1DelayTimeKeyfollow,
+    Lfo1FadeMode,
+    Lfo1FadeTime,
+    Lfo1KeyTrigger,
+    Lfo1PitchDepth,
+    Lfo1TvfDepth,
+    Lfo1TvaDepth,
+    Lfo1PanDepth,
+    Lfo2Waveform,
+    Lfo2Rate,
+    Lfo2Offset,
+    Lfo2RateDetune,
+    Lfo2DelayTime,
+    Lfo2DelayTimeKeyfollow,
+    Lfo2FadeMode,
+    Lfo2FadeTime,
+    Lfo2KeyTrigger,
+    Lfo2PitchDepth,
+    Lfo2TvfDepth,
+    Lfo2TvaDepth,
+    Lfo2PanDepth,
+    LfoStepType,
+    LfoStep,
+});
+
 /// A header field of an MFX block (mirrors [`mfx::MfxHeaderField`]).
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2034,64 +2478,55 @@ impl WasmDeviceState {
 
     // -- PCM Synth Tone Edit -----------------------------------------------
 
-    /// Set a single PCM Synth Common parameter.
+    /// Set value `index` (0-based; 0 unless the field holds one value per
+    /// Matrix Control) of a PCM Synth Common field.
     #[wasm_bindgen(js_name = setPcmsCommonParam)]
-    pub fn set_pcms_common_param(&mut self, part: u8, offset: u8, value: u8) {
-        self.inner.set_pcms_common_param(part, offset, value);
+    pub fn set_pcms_common_param(
+        &mut self,
+        part: u8,
+        field: PcmsCommonField,
+        index: u8,
+        value: u8,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        Ok(self
+            .inner
+            .set_pcms_common_param(part, field.into(), index, value)?)
     }
 
-    /// Set a single PCM Synth PMT parameter.
+    /// Set value `index` (0-based; the Partial for the per-Partial fields,
+    /// else 0) of a PCM Synth PMT field.
     #[wasm_bindgen(js_name = setPcmsPmtParam)]
-    pub fn set_pcms_pmt_param(&mut self, part: u8, offset: u8, value: u8) {
-        self.inner.set_pcms_pmt_param(part, offset, value);
+    pub fn set_pcms_pmt_param(
+        &mut self,
+        part: u8,
+        field: PcmsPmtField,
+        index: u8,
+        value: u8,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        Ok(self
+            .inner
+            .set_pcms_pmt_param(part, field.into(), index, value)?)
     }
 
-    /// Set a single PCM Synth Partial parameter.
+    /// Set value `index` (0-based; 0 unless the field is an envelope's
+    /// times or levels, a control's switches or the LFO steps) of a PCM
+    /// Synth Partial field, sent nibblized when the field is.
     #[wasm_bindgen(js_name = setPcmsPartialParam)]
     pub fn set_pcms_partial_param(
         &mut self,
         part: u8,
         partial: u8,
-        offset: u16,
-        value: u8,
-    ) -> Result<(), JsError> {
-        check_part(part)?;
-        check_partial(partial, pcm_synth::PCMS_PARTIAL_COUNT as u8 - 1)?;
-        self.inner
-            .set_pcms_partial_param(part, partial, offset, value);
-        Ok(())
-    }
-
-    /// Set a nibblized PCM Synth Partial parameter (4 bytes, e.g. wave number).
-    #[wasm_bindgen(js_name = setPcmsPartialNibParam)]
-    pub fn set_pcms_partial_nib_param(
-        &mut self,
-        part: u8,
-        partial: u8,
-        offset: u16,
+        field: PcmsPartialField,
+        index: u8,
         value: u16,
     ) -> Result<(), JsError> {
         check_part(part)?;
         check_partial(partial, pcm_synth::PCMS_PARTIAL_COUNT as u8 - 1)?;
-        self.inner
-            .set_pcms_partial_nib_param(part, partial, offset, value);
-        Ok(())
-    }
-
-    /// Set a nibblized PCM Synth Partial parameter (2 bytes, e.g. delay time).
-    #[wasm_bindgen(js_name = setPcmsPartialNib2Param)]
-    pub fn set_pcms_partial_nib2_param(
-        &mut self,
-        part: u8,
-        partial: u8,
-        offset: u16,
-        value: u8,
-    ) -> Result<(), JsError> {
-        check_part(part)?;
-        check_partial(partial, pcm_synth::PCMS_PARTIAL_COUNT as u8 - 1)?;
-        self.inner
-            .set_pcms_partial_nib2_param(part, partial, offset, value);
-        Ok(())
+        Ok(self
+            .inner
+            .set_pcms_partial_param(part, partial, field.into(), index, value)?)
     }
 
     /// Parse a PCM Synth Common dump and return as a JS object.

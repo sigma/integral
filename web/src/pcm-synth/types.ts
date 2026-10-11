@@ -1,3 +1,9 @@
+import type {
+  PcmsCommonField,
+  PcmsPartialField,
+  PcmsPmtField,
+} from "../../pkg/integral_wasm.js";
+
 // ---------------------------------------------------------------------------
 // Types mirroring the Rust serde output
 // ---------------------------------------------------------------------------
@@ -152,6 +158,55 @@ export interface PcmSynthCommon2 {
   tfxSwitch: number;
   phraseNumber: number;
 }
+
+/** The keys of `T` holding a number (or, with `number[]`, a list of them). */
+type KeysOf<T, V> = { [K in keyof T]: T[K] extends V ? K : never }[keyof T];
+
+/** Sets a Common field: `field` addresses it on the device, `key` names it
+ *  in {@link PcmSynthCommon}. */
+export type CommonParamHandler = (
+  field: PcmsCommonField,
+  key: KeysOf<PcmSynthCommon, number>,
+  value: number,
+) => void;
+
+/** Sets a PMT field common to all Partials: `field` addresses it on the
+ *  device, `key` names it in {@link PcmSynthPmt}. */
+export type PmtParamHandler = (
+  field: PcmsPmtField,
+  key: KeysOf<PcmSynthPmt, number>,
+  value: number,
+) => void;
+
+/** Sets Partial `partial`'s (0-based) entry of a per-Partial PMT field:
+ *  `field` addresses it on the device, `key` names it in
+ *  {@link PmtPartialEntry}. */
+export type PmtEntryParamHandler = (
+  partial: number,
+  field: PcmsPmtField,
+  key: keyof PmtPartialEntry,
+  value: number,
+) => void;
+
+/** A {@link PcmSynthPartial} key holding a value or a list of values. */
+export type PartialFieldKey = KeysOf<PcmSynthPartial, number | number[]>;
+
+/** Sets value `index` (0 unless the field holds a list) of a Partial field:
+ *  `field` addresses it on the device, `key` names it in
+ *  {@link PcmSynthPartial}. */
+export type PartialParamHandler = (
+  field: PcmsPartialField,
+  key: PartialFieldKey,
+  index: number,
+  value: number,
+) => void;
+
+/** Builds the change callback for value `index` (default 0) of a field. */
+export type PartialSetter = (
+  field: PcmsPartialField,
+  key: PartialFieldKey,
+  index?: number,
+) => (value: number) => void;
 
 // ---------------------------------------------------------------------------
 // Display helpers

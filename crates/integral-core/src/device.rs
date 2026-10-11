@@ -22,6 +22,7 @@
 use std::collections::HashMap;
 
 use crate::address::Address;
+use crate::block_field::{BlockField, FieldIndexError};
 use crate::device_spec::KeyOutOfRange;
 use thiserror::Error;
 
@@ -31,6 +32,7 @@ use crate::expansions::Expansion;
 use crate::midi_bridge::RequestTracker;
 use crate::params::{self, ToneType, part};
 use crate::parse_helpers::encode_ascii_name;
+use crate::pcm_synth::{PcmsCommonField, PcmsPartialField, PcmsPmtField};
 use crate::sn_synth::{SnSynthTone, SnSynthToneBlocks, SnsBlock};
 use crate::state::MixerState;
 use crate::sysex;
@@ -937,35 +939,51 @@ impl DeviceState {
     // PCM Synth Tone Edit
     // -----------------------------------------------------------------------
 
-    /// Set a single PCM Synth Common parameter for a part.
-    pub fn set_pcms_common_param(&mut self, part: u8, offset: u8, value: u8) {
-        let addr = crate::pcm_synth::pcms_common_param_address(part, offset);
-        self.send_dt1(&addr, &[value]);
+    /// Set value `index` (0-based; 0 unless the field holds one value per
+    /// Matrix Control) of a PCM Synth Common field for a part.
+    pub fn set_pcms_common_param(
+        &mut self,
+        part: u8,
+        field: PcmsCommonField,
+        index: u8,
+        value: u8,
+    ) -> Result<(), FieldIndexError<PcmsCommonField>> {
+        let position = field.element_position(index)?;
+        let addr = crate::pcm_synth::pcms_common_param_address(part, position);
+        self.send_dt1(&addr, &field.encode(value.into()));
+        Ok(())
     }
 
-    /// Set a single PCM Synth PMT parameter for a part.
-    pub fn set_pcms_pmt_param(&mut self, part: u8, offset: u8, value: u8) {
-        let addr = crate::pcm_synth::pcms_pmt_param_address(part, offset);
-        self.send_dt1(&addr, &[value]);
+    /// Set value `index` (0-based; the Partial for the per-Partial fields,
+    /// else 0) of a PCM Synth PMT field for a part.
+    pub fn set_pcms_pmt_param(
+        &mut self,
+        part: u8,
+        field: PcmsPmtField,
+        index: u8,
+        value: u8,
+    ) -> Result<(), FieldIndexError<PcmsPmtField>> {
+        let position = field.element_position(index)?;
+        let addr = crate::pcm_synth::pcms_pmt_param_address(part, position);
+        self.send_dt1(&addr, &field.encode(value.into()));
+        Ok(())
     }
 
-    /// Set a single PCM Synth Partial parameter for a part.
-    pub fn set_pcms_partial_param(&mut self, part: u8, partial: u8, offset: u16, value: u8) {
-        let addr = crate::pcm_synth::pcms_partial_param_address(part, partial, offset);
-        self.send_dt1(&addr, &[value]);
-    }
-
-    /// Set a nibblized PCM Synth Partial parameter (4 bytes, e.g. wave number).
-    pub fn set_pcms_partial_nib_param(&mut self, part: u8, partial: u8, offset: u16, value: u16) {
-        let addr = crate::pcm_synth::pcms_partial_param_address(part, partial, offset);
-        self.send_dt1(&addr, &crate::parse_helpers::encode_nibble4(value));
-    }
-
-    /// Set a nibblized PCM Synth Partial parameter (2 bytes, e.g. delay time, LFO rate).
-    pub fn set_pcms_partial_nib2_param(&mut self, part: u8, partial: u8, offset: u16, value: u8) {
-        let addr = crate::pcm_synth::pcms_partial_param_address(part, partial, offset);
-        let bytes = [((value >> 4) & 0x0F), value & 0x0F];
-        self.send_dt1(&addr, &bytes);
+    /// Set value `index` (0-based; 0 unless the field is an envelope's
+    /// times or levels, a control's switches or the LFO steps) of a PCM
+    /// Synth Partial field for a part, sent nibblized when the field is.
+    pub fn set_pcms_partial_param(
+        &mut self,
+        part: u8,
+        partial: u8,
+        field: PcmsPartialField,
+        index: u8,
+        value: u16,
+    ) -> Result<(), FieldIndexError<PcmsPartialField>> {
+        let position = field.element_position(index)?;
+        let addr = crate::pcm_synth::pcms_partial_param_address(part, partial, position);
+        self.send_dt1(&addr, &field.encode(value));
+        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -1587,6 +1605,38 @@ mod tests {
                 &Address::new(0x19, 0x10, 0x10, 0x39),
                 &[100]
             ))
+        );
+    }
+
+    #[test]
+    fn pcms_setters_write_each_field_at_its_address() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_pcms_common_param(0, PcmsCommonField::MatrixControlSens1, 2, 70)
+            .unwrap();
+        dev.set_pcms_pmt_param(0, PcmsPmtField::PartialSwitch, 3, 1)
+            .unwrap();
+        dev.set_pcms_partial_param(0, 1, PcmsPartialField::Lfo1Rate, 0, 0x95)
+            .unwrap();
+        dev.set_pcms_partial_param(0, 3, PcmsPartialField::LfoStep, 15, 100)
+            .unwrap();
+        // Part 1: Common Matrix Control 3 Sens 1 at `00 00 3F`; PMT4
+        // Partial Switch at `00 10 20`; Partial 2 LFO1 Rate (2 nibbles) at
+        // `00 22 6E`; Partial 4 LFO Step 16 at `00 27 19`.
+        let expected = [
+            (Address::new(0x19, 0x00, 0x00, 0x3F), vec![70]),
+            (Address::new(0x19, 0x00, 0x10, 0x20), vec![1]),
+            (Address::new(0x19, 0x00, 0x22, 0x6E), vec![0x09, 0x05]),
+            (Address::new(0x19, 0x00, 0x27, 0x19), vec![100]),
+        ];
+        for (i, (addr, data)) in expected.into_iter().enumerate() {
+            assert_eq!(
+                dev.drain(100.0 * i as f64),
+                Some(sysex::build_dt1(0x10, &addr, &data))
+            );
+        }
+        assert!(
+            dev.set_pcms_partial_param(0, 0, PcmsPartialField::TvaEnvLevel, 3, 0)
+                .is_err()
         );
     }
 

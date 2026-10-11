@@ -4,7 +4,8 @@ import { waveSourceOf, type WaveSource } from "./waveCatalog";
 import { PartialWave } from "./pcm-synth/PartialRow";
 import { WmtWave } from "./pcm-drum/NoteControls";
 import { OscPcmWave } from "./sn-synth/PartialRow";
-import { PcmdWmtField } from "../pkg/integral_wasm.js";
+import { PcmdWmtField, PcmsPartialField } from "../pkg/integral_wasm.js";
+import type { PartialSetter } from "./pcm-synth/types";
 import { button, cleanup, click, options, render, typeInto } from "./test/dom";
 
 const INT = waveSourceOf(0, 0)!;
@@ -173,16 +174,15 @@ describe("PCM Synth partial wiring", () => {
     waveNumberL: number;
     waveNumberR: number;
   }) {
-    const setP = vi.fn();
-    const setNibP = vi.fn();
-    const { container } = render(
-      <PartialWave partial={partial} setP={setP} setNibP={setNibP} />,
-    );
-    return { container, setP, setNibP };
+    const onParam = vi.fn();
+    const set: PartialSetter = (field, key, index = 0) => (v) =>
+      onParam(field, key, index, v);
+    const { container } = render(<PartialWave partial={partial} set={set} />);
+    return { container, onParam };
   }
 
-  it("writes L at 0x2C and R at 0x30 via the nibble path", () => {
-    const { container, setP, setNibP } = partialWave({
+  it("writes L and R through the core Wave Number fields", () => {
+    const { container, onParam } = partialWave({
       waveGroupType: 0,
       waveGroupId: 0,
       waveNumberL: 1,
@@ -190,15 +190,14 @@ describe("PCM Synth partial wiring", () => {
     });
     click(container.querySelector('[aria-label="Next Wave"]')!);
     click(button(container, "pair"));
-    expect(setNibP.mock.calls).toEqual([
-      [0x2c, 2],
-      [0x30, 2],
+    expect(onParam.mock.calls).toEqual([
+      [PcmsPartialField.WaveNumberL, "waveNumberL", 0, 2],
+      [PcmsPartialField.WaveNumberR, "waveNumberR", 0, 2],
     ]);
-    expect(setP).not.toHaveBeenCalled();
   });
 
-  it("writes Group Type at 0x27 and ID at 0x28 together", () => {
-    const { container, setP, setNibP } = partialWave({
+  it("writes Group Type and ID together", () => {
+    const { container, onParam } = partialWave({
       waveGroupType: 0,
       waveGroupId: 0,
       waveNumberL: 1,
@@ -209,8 +208,10 @@ describe("PCM Synth partial wiring", () => {
       o.textContent?.startsWith("SRX-07 "),
     );
     click(srx07!);
-    expect(setP.mock.calls).toEqual([[0x27, 1]]);
-    expect(setNibP.mock.calls).toEqual([[0x28, 7]]);
+    expect(onParam.mock.calls).toEqual([
+      [PcmsPartialField.WaveGroupType, "waveGroupType", 0, 1],
+      [PcmsPartialField.WaveGroupId, "waveGroupId", 0, 7],
+    ]);
   });
 
   it("labels a reserved group by its raw Type and ID", () => {
