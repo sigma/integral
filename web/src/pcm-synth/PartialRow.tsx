@@ -10,6 +10,10 @@ import {
 } from "../synth-ui";
 import css from "../PcmSynthEditor.module.css";
 import type { PcmSynthPartial } from "./types";
+// PROTOTYPE ONLY (throwaway): Wave picker variants, ?variant=A|B|C.
+import { WavePickerPrototype } from "./wave-picker-prototype/WavePickerPrototype";
+import { PrototypeSwitcher } from "./wave-picker-prototype/PrototypeSwitcher";
+import { useVariant } from "./wave-picker-prototype/variantStore.prototype";
 import {
   ON_OFF_OPTIONS,
   WAVE_GAIN_NAMES,
@@ -83,7 +87,7 @@ export function PartialRow({
 
 function WaveSection({
   partial,
-  partialIdx: _partialIdx,
+  partialIdx,
   setP,
   setNibP,
 }: {
@@ -92,8 +96,13 @@ function WaveSection({
   setP: (offset: number, value: number) => void;
   setNibP: (offset: number, value: number) => void;
 }) {
+  const variant = useVariant();
   return (
     <SectionPanel label="WAVE" accentColor="#fc8">
+      {import.meta.env.DEV && partialIdx === 0 && <PrototypeSwitcher />}
+      {variant !== "0" ? (
+        <WavePickerPrototype key={partialIdx} variant={variant} partial={partial} partialIdx={partialIdx} />
+      ) : (<>
       <SynthSwitch label="Source" value={partial.waveGroupType}
         options={[{ value: 0, label: "INT" }, { value: 1, label: "SRX" }]}
         onChange={(v) => setP(0x27, v)} title="Wave source: Internal or SRX expansion" />
@@ -107,6 +116,7 @@ function WaveSection({
           value={partial.waveNumberR} min={0} max={16384}
           onChange={(e) => setNibP(0x30, Math.max(0, Math.min(16384, Number(e.target.value))))} />
       </label>
+      </>)}
       <SynthSwitch label="Gain" value={partial.waveGain}
         options={WAVE_GAIN_NAMES.map((l, i) => ({ value: i, label: l }))}
         onChange={(v) => setP(0x34, v)} title="Wave output gain" />
