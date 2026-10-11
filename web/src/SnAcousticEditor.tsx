@@ -5,6 +5,7 @@ import {
   sna_common_size,
   sna_mfx_address,
   mfx_block_size,
+  SnaCommonField,
   ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
@@ -46,6 +47,15 @@ interface SnAcousticCommon {
   instNumber: number;
   modifyParams: number[];
 }
+
+/** The keys of {@link SnAcousticCommon} holding a number. */
+type CommonKey = {
+  [K in keyof SnAcousticCommon]: SnAcousticCommon[K] extends number ? K : never;
+}[keyof SnAcousticCommon];
+
+/** Sets a Common field: `field` addresses it on the device, `key` names it
+ *  in {@link SnAcousticCommon}. */
+type CommonParamHandler = (field: SnaCommonField, key: CommonKey, value: number) => void;
 
 /** A single instrument parameter definition from the Rust table. */
 interface InstParamDef {
@@ -161,38 +171,24 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
   }, [partIndex, service]);
 
   // ---------------------------------------------------------------------------
-  // Common param setter
+  // Param setters: send to the device, then patch the local copy
   // ---------------------------------------------------------------------------
-  const setCommonParam = useCallback(
-    (offset: number, value: number) => {
-      service.device.setSnaCommonParam(partIndex, offset, value);
-      setCommon((prev) => {
-        if (!prev) return prev;
-        const next = { ...prev };
-        switch (offset) {
-          case 0x10: next.toneLevel = value; break;
-          case 0x11: next.monoPoly = value; break;
-          case 0x12: next.portamentoTimeOffset = value; break;
-          case 0x13: next.cutoffOffset = value; break;
-          case 0x14: next.resonanceOffset = value; break;
-          case 0x15: next.attackTimeOffset = value; break;
-          case 0x16: next.releaseTimeOffset = value; break;
-          case 0x17: next.vibratoRate = value; break;
-          case 0x18: next.vibratoDepth = value; break;
-          case 0x19: next.vibratoDelay = value; break;
-          case 0x1A: next.octaveShift = value; break;
-          default: {
-            // Modify parameters: offsets 0x22..0x41
-            if (offset >= 0x22 && offset <= 0x41) {
-              const mp = [...next.modifyParams];
-              mp[offset - 0x22] = value;
-              next.modifyParams = mp;
-            }
-            break;
-          }
-        }
-        return next;
-      });
+  const setCommonParam = useCallback<CommonParamHandler>(
+    (field, key, value) => {
+      service.device.setSnaCommonParam(partIndex, field, 0, value);
+      setCommon((prev) => (prev ? { ...prev, [key]: value } : prev));
+    },
+    [partIndex, service],
+  );
+
+  const setModifyParam = useCallback(
+    (index: number, value: number) => {
+      service.device.setSnaCommonParam(partIndex, SnaCommonField.ModifyParameter, index, value);
+      setCommon((prev) =>
+        prev
+          ? { ...prev, modifyParams: prev.modifyParams.map((v, i) => (i === index ? value : v)) }
+          : prev,
+      );
     },
     [partIndex, service],
   );
@@ -233,7 +229,7 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
             categoryName={categoryName}
             paramDefs={instParamDefs}
             modifyParams={common.modifyParams}
-            onChange={setCommonParam}
+            onModify={setModifyParam}
           />
         )}
         {mfx && (
@@ -256,47 +252,51 @@ function CommonPanel({
   onChange,
 }: {
   common: SnAcousticCommon;
-  onChange: (offset: number, value: number) => void;
+  onChange: CommonParamHandler;
 }) {
+  const set =
+    (field: SnaCommonField, key: Parameters<CommonParamHandler>[1]) =>
+    (v: number) =>
+      onChange(field, key, v);
   return (
     <SectionPanel label="COMMON" accentColor="#8cf">
       <div className={css.panelRow}>
         <SynthSwitch label="Mono/Poly" value={common.monoPoly} options={MONO_POLY_OPTIONS}
-          onChange={(v) => onChange(0x11, v)} />
+          onChange={set(SnaCommonField.MonoPoly, "monoPoly")} />
         <SynthKnob label="Oct" value={common.octaveShift} min={61} max={67} defaultValue={64} center={64}
-          onChange={(v) => onChange(0x1A, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cf"
+          onChange={set(SnaCommonField.OctaveShift, "octaveShift")} formatValue={(v) => signedFmt(v, 64)} color="#8cf"
           title="Octave Shift" />
         <SynthKnob label="Cutoff" value={common.cutoffOffset} min={0} max={127} defaultValue={64} center={64}
-          onChange={(v) => onChange(0x13, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+          onChange={set(SnaCommonField.CutoffOffset, "cutoffOffset")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Cutoff Offset" />
         <SynthKnob label="Reso" value={common.resonanceOffset} min={0} max={127} defaultValue={64} center={64}
-          onChange={(v) => onChange(0x14, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+          onChange={set(SnaCommonField.ResonanceOffset, "resonanceOffset")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
           title="Resonance Offset" />
       </div>
       <div className={css.panelRow}>
         <SynthKnob label="Port" value={common.portamentoTimeOffset} min={0} max={127} defaultValue={64} center={64}
-          onChange={(v) => onChange(0x12, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cf"
+          onChange={set(SnaCommonField.PortamentoTimeOffset, "portamentoTimeOffset")} formatValue={(v) => signedFmt(v, 64)} color="#8cf"
           title="Portamento Time Offset" />
         <SynthKnob label="Vib Rt" value={common.vibratoRate} min={0} max={127} defaultValue={64} center={64}
-          onChange={(v) => onChange(0x17, v)} formatValue={(v) => signedFmt(v, 64)} color="#a6f"
+          onChange={set(SnaCommonField.VibratoRate, "vibratoRate")} formatValue={(v) => signedFmt(v, 64)} color="#a6f"
           title="Vibrato Rate" />
         <SynthKnob label="Vib Dp" value={common.vibratoDepth} min={0} max={127} defaultValue={64} center={64}
-          onChange={(v) => onChange(0x18, v)} formatValue={(v) => signedFmt(v, 64)} color="#a6f"
+          onChange={set(SnaCommonField.VibratoDepth, "vibratoDepth")} formatValue={(v) => signedFmt(v, 64)} color="#a6f"
           title="Vibrato Depth" />
         <SynthKnob label="Vib Dl" value={common.vibratoDelay} min={0} max={127} defaultValue={64} center={64}
-          onChange={(v) => onChange(0x19, v)} formatValue={(v) => signedFmt(v, 64)} color="#a6f"
+          onChange={set(SnaCommonField.VibratoDelay, "vibratoDelay")} formatValue={(v) => signedFmt(v, 64)} color="#a6f"
           title="Vibrato Delay" />
       </div>
       <FaderGroup>
         <SynthFader label="Level" value={common.toneLevel} min={0} max={127} defaultValue={127}
-          onChange={(v) => onChange(0x10, v)} formatValue={(v) => String(v)} compact
+          onChange={set(SnaCommonField.ToneLevel, "toneLevel")} formatValue={(v) => String(v)} compact
           title="Tone Level" />
         <FaderGroupSep />
         <SynthFader label="Atk" value={common.attackTimeOffset} min={0} max={127} defaultValue={64}
-          onChange={(v) => onChange(0x15, v)} formatValue={(v) => signedFmt(v, 64)} compact
+          onChange={set(SnaCommonField.AttackTimeOffset, "attackTimeOffset")} formatValue={(v) => signedFmt(v, 64)} compact
           title="Attack Time Offset" />
         <SynthFader label="Rel" value={common.releaseTimeOffset} min={0} max={127} defaultValue={64}
-          onChange={(v) => onChange(0x16, v)} formatValue={(v) => signedFmt(v, 64)} compact
+          onChange={set(SnaCommonField.ReleaseTimeOffset, "releaseTimeOffset")} formatValue={(v) => signedFmt(v, 64)} compact
           title="Release Time Offset" />
       </FaderGroup>
     </SectionPanel>
@@ -311,16 +311,17 @@ function InstrumentPanel({
   categoryName,
   paramDefs,
   modifyParams,
-  onChange,
+  onModify,
 }: {
   categoryName: string;
   paramDefs: InstParamDef[];
   modifyParams: number[];
-  onChange: (offset: number, value: number) => void;
+  /** Sets Modify Parameter `index + 1`. */
+  onModify: (index: number, value: number) => void;
 }) {
   const setModParam = (paramIndex: number, value: number) => {
-    // paramIndex is 1-based; offset = 0x22 + (paramIndex - 1)
-    onChange(0x22 + paramIndex - 1, value);
+    // paramIndex is 1-based
+    onModify(paramIndex - 1, value);
   };
 
   switch (categoryName) {

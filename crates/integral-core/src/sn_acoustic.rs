@@ -4,9 +4,10 @@
 //! It contains: Common parameters and MFX (handled by `mfx.rs`).
 
 use crate::address::{Address, DataSize};
+use crate::block_field::BlockField;
 use crate::mfx::MfxState;
 use crate::params;
-use crate::parse_helpers::{nibble2, parse_ascii_name};
+use crate::parse_helpers::parse_ascii_name;
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -34,6 +35,73 @@ pub const fn sna_common_address(part_index: u8) -> Address {
 /// Compute the absolute address for a single SN-A Common parameter.
 pub const fn sna_common_param_address(part_index: u8, offset: u8) -> Address {
     sna_common_address(part_index).offset([0x00, 0x00, 0x00, offset])
+}
+
+/// Number of Modify Parameters in an SN-A Common block.
+pub const SNA_MODIFY_PARAM_COUNT: usize = 32;
+
+/// A field of an SN Acoustic Tone Common block. The discriminant is the
+/// field's first byte position within the block; [`BlockField`] gives the
+/// Phrase Number's nibble width and the Modify Parameters' count.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum SnaCommonField {
+    /// Tone Level.
+    ToneLevel = 0x10,
+    /// Mono/Poly.
+    MonoPoly = 0x11,
+    /// Portamento Time Offset.
+    PortamentoTimeOffset = 0x12,
+    /// Cutoff Offset.
+    CutoffOffset = 0x13,
+    /// Resonance Offset.
+    ResonanceOffset = 0x14,
+    /// Attack Time Offset.
+    AttackTimeOffset = 0x15,
+    /// Release Time Offset.
+    ReleaseTimeOffset = 0x16,
+    /// Vibrato Rate.
+    VibratoRate = 0x17,
+    /// Vibrato Depth.
+    VibratoDepth = 0x18,
+    /// Vibrato Delay.
+    VibratoDelay = 0x19,
+    /// Octave Shift.
+    OctaveShift = 0x1A,
+    /// Category.
+    Category = 0x1B,
+    /// Phrase Number (nibblized, 2 bytes).
+    PhraseNumber = 0x1C,
+    /// Phrase Octave Shift.
+    PhraseOctaveShift = 0x1E,
+    /// TFX Switch.
+    TfxSwitch = 0x1F,
+    /// Inst Variation.
+    InstVariation = 0x20,
+    /// Inst Number.
+    InstNumber = 0x21,
+    /// Modify Parameter 1–32.
+    ModifyParameter = 0x22,
+}
+
+impl BlockField for SnaCommonField {
+    fn position(self) -> usize {
+        self as usize
+    }
+
+    fn count(self) -> usize {
+        match self {
+            Self::ModifyParameter => SNA_MODIFY_PARAM_COUNT,
+            _ => 1,
+        }
+    }
+
+    fn width(self) -> usize {
+        match self {
+            Self::PhraseNumber => 2,
+            _ => 1,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -82,7 +150,7 @@ pub struct SnAcousticCommon {
     /// Inst Number (0–127).
     pub inst_number: u8,
     /// Modify Parameters 1–32 (each 0–127).
-    pub modify_params: [u8; 32],
+    pub modify_params: [u8; SNA_MODIFY_PARAM_COUNT],
 }
 
 impl Default for SnAcousticCommon {
@@ -106,7 +174,7 @@ impl Default for SnAcousticCommon {
             tfx_switch: 0,
             inst_variation: 0,
             inst_number: 0,
-            modify_params: [0; 32],
+            modify_params: [0; SNA_MODIFY_PARAM_COUNT],
         }
     }
 }
@@ -153,33 +221,26 @@ pub fn parse_sna_common(data: &[u8]) -> Result<SnAcousticCommon, crate::TonePars
     }
     let mut c = SnAcousticCommon::default();
 
-    // Tone Name: bytes 0x00–0x0B
+    use SnaCommonField as F;
     c.tone_name = parse_ascii_name(data);
-
-    // 0x0C–0x0F: reserve
-    c.tone_level = data[0x10];
-    c.mono_poly = data[0x11];
-    c.portamento_time_offset = data[0x12];
-    c.cutoff_offset = data[0x13];
-    c.resonance_offset = data[0x14];
-    c.attack_time_offset = data[0x15];
-    c.release_time_offset = data[0x16];
-    c.vibrato_rate = data[0x17];
-    c.vibrato_depth = data[0x18];
-    c.vibrato_delay = data[0x19];
-    c.octave_shift = data[0x1A];
-    c.category = data[0x1B];
-
-    // Phrase Number: nibblized 2 bytes at 0x1C–0x1D
-    c.phrase_number = nibble2(data, 0x1C);
-
-    c.phrase_octave_shift = data[0x1E];
-    c.tfx_switch = data[0x1F];
-    c.inst_variation = data[0x20];
-    c.inst_number = data[0x21];
-
-    // Modify Parameters 1–32: bytes 0x22–0x41
-    c.modify_params.copy_from_slice(&data[0x22..0x22 + 32]);
+    c.tone_level = F::ToneLevel.byte(data);
+    c.mono_poly = F::MonoPoly.byte(data);
+    c.portamento_time_offset = F::PortamentoTimeOffset.byte(data);
+    c.cutoff_offset = F::CutoffOffset.byte(data);
+    c.resonance_offset = F::ResonanceOffset.byte(data);
+    c.attack_time_offset = F::AttackTimeOffset.byte(data);
+    c.release_time_offset = F::ReleaseTimeOffset.byte(data);
+    c.vibrato_rate = F::VibratoRate.byte(data);
+    c.vibrato_depth = F::VibratoDepth.byte(data);
+    c.vibrato_delay = F::VibratoDelay.byte(data);
+    c.octave_shift = F::OctaveShift.byte(data);
+    c.category = F::Category.byte(data);
+    c.phrase_number = F::PhraseNumber.nibbles(data);
+    c.phrase_octave_shift = F::PhraseOctaveShift.byte(data);
+    c.tfx_switch = F::TfxSwitch.byte(data);
+    c.inst_variation = F::InstVariation.byte(data);
+    c.inst_number = F::InstNumber.byte(data);
+    c.modify_params = F::ModifyParameter.elements(data);
 
     Ok(c)
 }
@@ -250,5 +311,47 @@ mod tests {
     #[test]
     fn parse_common_short_data_returns_err() {
         assert!(parse_sna_common(&[0u8; 10]).is_err());
+    }
+
+    #[test]
+    fn parse_common_reads_every_field_at_its_position() {
+        use crate::block_field::test_support::{assert_reads_at_positions, positional_block};
+        use SnaCommonField as F;
+        let c = parse_sna_common(&positional_block(SNA_COMMON_SIZE)).unwrap();
+        assert_reads_at_positions!(c, {
+            tone_level: F::ToneLevel,
+            mono_poly: F::MonoPoly,
+            portamento_time_offset: F::PortamentoTimeOffset,
+            cutoff_offset: F::CutoffOffset,
+            resonance_offset: F::ResonanceOffset,
+            attack_time_offset: F::AttackTimeOffset,
+            release_time_offset: F::ReleaseTimeOffset,
+            vibrato_rate: F::VibratoRate,
+            vibrato_depth: F::VibratoDepth,
+            vibrato_delay: F::VibratoDelay,
+            octave_shift: F::OctaveShift,
+            category: F::Category,
+            phrase_number: F::PhraseNumber,
+            phrase_octave_shift: F::PhraseOctaveShift,
+            tfx_switch: F::TfxSwitch,
+            inst_variation: F::InstVariation,
+            inst_number: F::InstNumber,
+            modify_params: F::ModifyParameter,
+        });
+    }
+
+    #[test]
+    fn field_positions_follow_the_midi_implementation() {
+        // Tone Level `00 10`, Modify Parameter 32 `00 41`.
+        assert_eq!(SnaCommonField::ToneLevel.element_position(0), Ok(0x10));
+        assert_eq!(
+            SnaCommonField::ModifyParameter.element_position(31),
+            Ok(0x41)
+        );
+        assert!(
+            SnaCommonField::ModifyParameter
+                .element_position(32)
+                .is_err()
+        );
     }
 }

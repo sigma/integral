@@ -1083,6 +1083,69 @@ mirror_core_enum!(PcmsPartialField <=> pcm_synth::PcmsPartialField {
     LfoStep,
 });
 
+/// A field of an SN Acoustic Tone Common (mirrors [`sn_acoustic::SnaCommonField`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SnaCommonField {
+    /// See [`sn_acoustic::SnaCommonField::ToneLevel`].
+    ToneLevel,
+    /// See [`sn_acoustic::SnaCommonField::MonoPoly`].
+    MonoPoly,
+    /// See [`sn_acoustic::SnaCommonField::PortamentoTimeOffset`].
+    PortamentoTimeOffset,
+    /// See [`sn_acoustic::SnaCommonField::CutoffOffset`].
+    CutoffOffset,
+    /// See [`sn_acoustic::SnaCommonField::ResonanceOffset`].
+    ResonanceOffset,
+    /// See [`sn_acoustic::SnaCommonField::AttackTimeOffset`].
+    AttackTimeOffset,
+    /// See [`sn_acoustic::SnaCommonField::ReleaseTimeOffset`].
+    ReleaseTimeOffset,
+    /// See [`sn_acoustic::SnaCommonField::VibratoRate`].
+    VibratoRate,
+    /// See [`sn_acoustic::SnaCommonField::VibratoDepth`].
+    VibratoDepth,
+    /// See [`sn_acoustic::SnaCommonField::VibratoDelay`].
+    VibratoDelay,
+    /// See [`sn_acoustic::SnaCommonField::OctaveShift`].
+    OctaveShift,
+    /// See [`sn_acoustic::SnaCommonField::Category`].
+    Category,
+    /// See [`sn_acoustic::SnaCommonField::PhraseNumber`].
+    PhraseNumber,
+    /// See [`sn_acoustic::SnaCommonField::PhraseOctaveShift`].
+    PhraseOctaveShift,
+    /// See [`sn_acoustic::SnaCommonField::TfxSwitch`].
+    TfxSwitch,
+    /// See [`sn_acoustic::SnaCommonField::InstVariation`].
+    InstVariation,
+    /// See [`sn_acoustic::SnaCommonField::InstNumber`].
+    InstNumber,
+    /// See [`sn_acoustic::SnaCommonField::ModifyParameter`].
+    ModifyParameter,
+}
+
+mirror_core_enum!(SnaCommonField <=> sn_acoustic::SnaCommonField {
+    ToneLevel,
+    MonoPoly,
+    PortamentoTimeOffset,
+    CutoffOffset,
+    ResonanceOffset,
+    AttackTimeOffset,
+    ReleaseTimeOffset,
+    VibratoRate,
+    VibratoDepth,
+    VibratoDelay,
+    OctaveShift,
+    Category,
+    PhraseNumber,
+    PhraseOctaveShift,
+    TfxSwitch,
+    InstVariation,
+    InstNumber,
+    ModifyParameter,
+});
+
 /// A header field of an MFX block (mirrors [`mfx::MfxHeaderField`]).
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2409,10 +2472,21 @@ impl WasmDeviceState {
 
     // -- SN-A Tone Edit ----------------------------------------------------
 
-    /// Set a single SN-A Common parameter.
+    /// Set value `index` (0-based; 0 unless the field is the Modify
+    /// Parameters) of an SN-A Common field, sent nibblized when the field
+    /// is.
     #[wasm_bindgen(js_name = setSnaCommonParam)]
-    pub fn set_sna_common_param(&mut self, part: u8, offset: u8, value: u8) {
-        self.inner.set_sna_common_param(part, offset, value);
+    pub fn set_sna_common_param(
+        &mut self,
+        part: u8,
+        field: SnaCommonField,
+        index: u8,
+        value: u16,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        Ok(self
+            .inner
+            .set_sna_common_param(part, field.into(), index, value)?)
     }
 
     /// Parse an SN-A Common dump and return as a JS object.

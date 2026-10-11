@@ -33,6 +33,7 @@ use crate::midi_bridge::RequestTracker;
 use crate::params::{self, ToneType, part};
 use crate::parse_helpers::encode_ascii_name;
 use crate::pcm_synth::{PcmsCommonField, PcmsPartialField, PcmsPmtField};
+use crate::sn_acoustic::SnaCommonField;
 use crate::sn_synth::{SnSynthTone, SnSynthToneBlocks, SnsBlock};
 use crate::state::MixerState;
 use crate::sysex;
@@ -893,10 +894,20 @@ impl DeviceState {
     // SN-A Tone Edit
     // -----------------------------------------------------------------------
 
-    /// Set a single SN-A Common parameter for a part.
-    pub fn set_sna_common_param(&mut self, part: u8, offset: u8, value: u8) {
-        let addr = crate::sn_acoustic::sna_common_param_address(part, offset);
-        self.send_dt1(&addr, &[value]);
+    /// Set value `index` (0-based; 0 unless the field is the Modify
+    /// Parameters) of an SN-A Common field for a part, sent nibblized when
+    /// the field is.
+    pub fn set_sna_common_param(
+        &mut self,
+        part: u8,
+        field: SnaCommonField,
+        index: u8,
+        value: u16,
+    ) -> Result<(), FieldIndexError<SnaCommonField>> {
+        let position = field.element_position(index)?;
+        let addr = crate::sn_acoustic::sna_common_param_address(part, position);
+        self.send_dt1(&addr, &field.encode(value));
+        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -1636,6 +1647,37 @@ mod tests {
         }
         assert!(
             dev.set_pcms_partial_param(0, 0, PcmsPartialField::TvaEnvLevel, 3, 0)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn sna_setter_writes_each_field_at_its_address() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_sna_common_param(0, SnaCommonField::ModifyParameter, 31, 50)
+            .unwrap();
+        dev.set_sna_common_param(0, SnaCommonField::PhraseNumber, 0, 0x2A)
+            .unwrap();
+        // Part 1: SN-A Common at `19 02 00 00`; Modify Parameter 32 at
+        // `00 41`, Phrase Number (2 nibbles) at `00 1C`.
+        assert_eq!(
+            dev.drain(0.0),
+            Some(sysex::build_dt1(
+                0x10,
+                &Address::new(0x19, 0x02, 0x00, 0x41),
+                &[50]
+            ))
+        );
+        assert_eq!(
+            dev.drain(100.0),
+            Some(sysex::build_dt1(
+                0x10,
+                &Address::new(0x19, 0x02, 0x00, 0x1C),
+                &[0x02, 0x0A]
+            ))
+        );
+        assert!(
+            dev.set_sna_common_param(0, SnaCommonField::ModifyParameter, 32, 0)
                 .is_err()
         );
     }
