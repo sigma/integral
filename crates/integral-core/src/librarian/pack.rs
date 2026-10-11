@@ -18,7 +18,7 @@ use crate::address;
 use crate::device_spec::{INTEGRA7, USER_MEMORY, UserMemorySpec};
 use crate::params::{self, part};
 use crate::parse_helpers::parse_ascii_name_len;
-use crate::svd::{ChunkType, SvdChunk, SvdError, SvdFile};
+use crate::svd::{ChunkType, SvdChunk, SvdError, SvdFile, blocks_category};
 use crate::svd_convert::{ConvertError, svd_to_sysex, sysex_to_svd};
 use crate::svd_specs::{
     PCMD_TONE_SPEC, PCMS_TONE_SPEC, SNA_TONE_SPEC, SND_TONE_SPEC, SNS_TONE_SPEC, SS_TONE_SPEC,
@@ -182,6 +182,11 @@ impl PackEntry {
         self.kind.name_length().map_or_else(String::new, |len| {
             parse_ascii_name_len(&self.blocks[0], len)
         })
+    }
+
+    /// Tone category byte, for the types that have one.
+    pub fn category(&self) -> Option<u8> {
+        blocks_category(&self.blocks, self.kind)
     }
 
     /// The tone of each Part of a Studio Set; empty for a tone.

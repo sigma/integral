@@ -133,6 +133,21 @@ impl ChunkType {
         }
     }
 
+    /// The type whose [`ChunkType::cli_name`] is `name`.
+    pub fn from_cli_name(name: &str) -> Option<Self> {
+        [
+            Self::StudioSet,
+            Self::PcmSynthTone,
+            Self::PcmDrumKit,
+            Self::SnSynthTone,
+            Self::SnAcousticTone,
+            Self::SnDrumKit,
+            Self::SystemSettings,
+        ]
+        .into_iter()
+        .find(|k| k.cli_name() == name)
+    }
+
     /// Human-readable label.
     pub fn label(&self) -> &'static str {
         match self {
@@ -217,22 +232,26 @@ pub fn extract_entry_name(entry: &[u8], name_len: usize) -> String {
 /// Returns `None` for chunk types without category information (e.g.
 /// `StudioSet`, `PcmDrumKit`).
 pub fn extract_entry_category(entry: &[u8], chunk_type: ChunkType) -> Option<u8> {
-    match chunk_type {
-        ChunkType::SnSynthTone => {
-            let sections = svd_to_sysex(entry, &SNS_TONE_SPEC).ok()?;
-            Some(sections[0][0x36])
-        }
-        ChunkType::SnAcousticTone => {
-            let sections = svd_to_sysex(entry, &SNA_TONE_SPEC).ok()?;
-            Some(sections[0][0x1B])
-        }
-        ChunkType::PcmSynthTone => {
-            // Common 2 `00 10`.
-            let sections = svd_to_sysex(entry, &PCMS_TONE_SPEC).ok()?;
-            Some(sections[7][0x10])
-        }
-        _ => None,
-    }
+    let spec = match chunk_type {
+        ChunkType::SnSynthTone => &SNS_TONE_SPEC,
+        ChunkType::SnAcousticTone => &SNA_TONE_SPEC,
+        ChunkType::PcmSynthTone => &PCMS_TONE_SPEC,
+        _ => return None,
+    };
+    blocks_category(&svd_to_sysex(entry, spec).ok()?, chunk_type)
+}
+
+/// The tone category byte of an entry decoded into SysEx blocks (in its
+/// Temporary layout), if the type has one.
+pub fn blocks_category(blocks: &[Vec<u8>], chunk_type: ChunkType) -> Option<u8> {
+    let (block, offset) = match chunk_type {
+        ChunkType::SnSynthTone => (0, 0x36),
+        ChunkType::SnAcousticTone => (0, 0x1B),
+        // Common 2 `00 10`.
+        ChunkType::PcmSynthTone => (7, 0x10),
+        _ => return None,
+    };
+    blocks.get(block)?.get(offset).copied()
 }
 
 // ---------------------------------------------------------------------------

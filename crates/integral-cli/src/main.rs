@@ -10,6 +10,8 @@ mod hex;
 mod midi;
 
 use commands::expansion::OutputFormat;
+use commands::pack::{ListFormat, UserSlots};
+use integral_core::device_spec::INTEGRA7;
 use midi::DEFAULT_PORT_PATTERN;
 
 /// Integral -- CLI tools for the Roland INTEGRA-7.
@@ -117,23 +119,6 @@ enum Cli {
         #[arg(long)]
         bridge: Option<String>,
     },
-    /// List the contents of an SVD backup file.
-    SvdList {
-        /// Path to the .SVD file.
-        file: PathBuf,
-        /// Filter by chunk type (e.g. "sn-synth", "pcm-drum").
-        #[arg(long, short = 't')]
-        r#type: Option<String>,
-        /// Filter by category number.
-        #[arg(long, short = 'c')]
-        category: Option<u8>,
-        /// Filter by name pattern (case-insensitive substring match).
-        #[arg(long, short = 'n')]
-        name: Option<String>,
-        /// Output format: text (default), json, markdown.
-        #[arg(long, short = 'f', default_value = "text")]
-        format: String,
-    },
     /// Validate SVD decode against the device by comparing SysEx reads.
     SvdValidate {
         #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
@@ -152,20 +137,10 @@ enum Cli {
         #[arg(long, value_parser = parse_device_id)]
         device_id: Option<u8>,
     },
-    /// Export an SN-S tone from the device to an SVD file.
-    SvdExport {
-        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
-        port: String,
-        #[arg(long, default_value_t = 2.0)]
-        timeout: f64,
-        /// Output .SVD file path.
-        file: PathBuf,
-        /// Part number to read from (1-16).
-        #[arg(long, default_value_t = 1)]
-        part: u8,
-        /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
-        #[arg(long, value_parser = parse_device_id)]
-        device_id: Option<u8>,
+    /// List and export Packs: Studio Sets and tones in one .SVD file.
+    Pack {
+        #[command(subcommand)]
+        command: PackCommand,
     },
     /// List the Expansions and load them into the Expansion slots A-D.
     Expansion {
@@ -232,6 +207,52 @@ enum ExpansionCommand {
         yes: bool,
         #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
         format: OutputFormat,
+    },
+}
+
+/// `pack` subcommands.
+#[derive(Subcommand)]
+enum PackCommand {
+    /// List a Pack file's entries as `<type>:<n>` ids (sound export or backup).
+    List {
+        /// Path to the .SVD file.
+        file: PathBuf,
+        /// Only entries of this type.
+        #[arg(long, short = 't', value_parser = commands::pack::type_parser())]
+        r#type: Option<String>,
+        /// Only entries with this category number.
+        #[arg(long, short = 'c')]
+        category: Option<u8>,
+        /// Only names containing this (case-insensitive).
+        #[arg(long, short = 'n')]
+        name: Option<String>,
+        #[arg(long, short = 'f', value_enum, default_value_t = ListFormat::Text)]
+        format: ListFormat,
+    },
+    /// Export User slots to a Pack file. Only reads from the device; the
+    /// User tones of the chosen Studio Sets are added automatically.
+    Export {
+        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
+        port: String,
+        #[arg(long, default_value_t = 2.0)]
+        timeout: f64,
+        /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
+        #[arg(long, value_parser = parse_device_id)]
+        device_id: Option<u8>,
+        /// Output .SVD file path.
+        file: PathBuf,
+        #[command(flatten)]
+        slots: UserSlots,
+        /// Also export the tone on Part N, unsaved edits included.
+        #[arg(long, value_name = "N",
+              value_parser = clap::value_parser!(u8).range(1..=i64::from(INTEGRA7.part_count)))]
+        current_part: Option<u8>,
+        /// Also export the current Studio Set, unsaved edits included.
+        #[arg(long)]
+        current_set: bool,
+        /// Overwrite the output file if it exists.
+        #[arg(long)]
+        force: bool,
     },
 }
 
@@ -316,13 +337,6 @@ fn main() -> Result<()> {
             commands::raw::raw_send(&port, Duration::from_secs_f64(timeout), did, &addr, &data)
         }
         Cli::Monitor { port, bridge } => commands::monitor::monitor(&port, bridge.as_deref()),
-        Cli::SvdList {
-            file,
-            r#type,
-            category,
-            name,
-            format,
-        } => commands::svd::svd_list(&file, r#type.as_deref(), category, name.as_deref(), &format),
         Cli::SvdValidate {
             port,
             timeout,
@@ -341,16 +355,38 @@ fn main() -> Result<()> {
                 index,
             )
         }
-        Cli::SvdExport {
-            port,
-            timeout,
-            file,
-            part,
+        Cli::Pack {
+            command:
+                PackCommand::List {
+                    file,
+                    r#type,
+                    category,
+                    name,
+                    format,
+                },
+        } => commands::pack::list(&file, r#type.as_deref(), category, name.as_deref(), format),
+        Cli::Pack {
+            command:
+                PackCommand::Export {
+                    port,
+                    timeout,
+                    device_id,
+                    file,
+                    slots,
+                    current_part,
+                    current_set,
+                    force,
+                },
+        } => commands::pack::export(
+            &port,
             device_id,
-        } => {
-            let did = resolve_device_id(&port, device_id)?;
-            commands::svd::svd_export(&port, Duration::from_secs_f64(timeout), did, &file, part)
-        }
+            Duration::from_secs_f64(timeout),
+            &file,
+            slots,
+            current_part,
+            current_set,
+            force,
+        ),
         Cli::Expansion {
             command:
                 ExpansionCommand::List {
