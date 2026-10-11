@@ -1,0 +1,1802 @@
+[
+  {
+    "number": 1,
+    "name": "JP-8 Saw"
+  },
+  {
+    "number": 2,
+    "name": "Syn Saw Wave"
+  },
+  {
+    "number": 3,
+    "name": "MG Saw 1"
+  },
+  {
+    "number": 4,
+    "name": "GR-300 Saw"
+  },
+  {
+    "number": 5,
+    "name": "P5 Saw"
+  },
+  {
+    "number": 6,
+    "name": "MG Saw 2"
+  },
+  {
+    "number": 7,
+    "name": "Calc.Saw"
+  },
+  {
+    "number": 8,
+    "name": "Calc.Saw inv"
+  },
+  {
+    "number": 9,
+    "name": "Digital Saw"
+  },
+  {
+    "number": 10,
+    "name": "JD Fat Saw"
+  },
+  {
+    "number": 11,
+    "name": "Unison Saw"
+  },
+  {
+    "number": 12,
+    "name": "DistSaw Wave"
+  },
+  {
+    "number": 13,
+    "name": "JP-8 Pls 05"
+  },
+  {
+    "number": 14,
+    "name": "Pulse Wave"
+  },
+  {
+    "number": 15,
+    "name": "Ramp Wave 1"
+  },
+  {
+    "number": 16,
+    "name": "Ramp Wave 2"
+  },
+  {
+    "number": 17,
+    "name": "Sine"
+  },
+  {
+    "number": 18,
+    "name": "PWM Wave 1"
+  },
+  {
+    "number": 19,
+    "name": "PWM Wave 2"
+  },
+  {
+    "number": 20,
+    "name": "PWM Wave 3"
+  },
+  {
+    "number": 21,
+    "name": "PWM Wave 4"
+  },
+  {
+    "number": 22,
+    "name": "Hollo Wave1"
+  },
+  {
+    "number": 23,
+    "name": "Hollo Wave2"
+  },
+  {
+    "number": 24,
+    "name": "Hollo Wave2+"
+  },
+  {
+    "number": 25,
+    "name": "SynStrings 1"
+  },
+  {
+    "number": 26,
+    "name": "SynStrings 2"
+  },
+  {
+    "number": 27,
+    "name": "SynStrings 3"
+  },
+  {
+    "number": 28,
+    "name": "SynStrings 4"
+  },
+  {
+    "number": 29,
+    "name": "SynStrings 5"
+  },
+  {
+    "number": 30,
+    "name": "SynStrings5+"
+  },
+  {
+    "number": 31,
+    "name": "SynStrings 6"
+  },
+  {
+    "number": 32,
+    "name": "SynStrings 7"
+  },
+  {
+    "number": 33,
+    "name": "SynStrings 8"
+  },
+  {
+    "number": 34,
+    "name": "SynStrings 9"
+  },
+  {
+    "number": 35,
+    "name": "FM Brass"
+  },
+  {
+    "number": 36,
+    "name": "Lead Wave 1"
+  },
+  {
+    "number": 37,
+    "name": "Lead Wave 2"
+  },
+  {
+    "number": 38,
+    "name": "Lead Wave 3"
+  },
+  {
+    "number": 39,
+    "name": "Lead Wave 4"
+  },
+  {
+    "number": 40,
+    "name": "Lead Wave 5"
+  },
+  {
+    "number": 41,
+    "name": "SqrLeadWave"
+  },
+  {
+    "number": 42,
+    "name": "SqrLeadWave+"
+  },
+  {
+    "number": 43,
+    "name": "SBF Lead 1"
+  },
+  {
+    "number": 44,
+    "name": "SBF Lead 2"
+  },
+  {
+    "number": 45,
+    "name": "Sync Sweep"
+  },
+  {
+    "number": 46,
+    "name": "Saw Sync"
+  },
+  {
+    "number": 47,
+    "name": "Unison Sync"
+  },
+  {
+    "number": 48,
+    "name": "Unison Sync+"
+  },
+  {
+    "number": 49,
+    "name": "Sync Wave"
+  },
+  {
+    "number": 50,
+    "name": "X-Mod Wave 1"
+  },
+  {
+    "number": 51,
+    "name": "X-Mod Wave 2"
+  },
+  {
+    "number": 52,
+    "name": "X-Mod Wave 3"
+  },
+  {
+    "number": 53,
+    "name": "X-Mod Wave 4"
+  },
+  {
+    "number": 54,
+    "name": "X-Mod Wave 5"
+  },
+  {
+    "number": 55,
+    "name": "X-Mod Wave 6"
+  },
+  {
+    "number": 56,
+    "name": "X-Mod Wave 7"
+  },
+  {
+    "number": 57,
+    "name": "FeedbackWave"
+  },
+  {
+    "number": 58,
+    "name": "SubOSC Wave1"
+  },
+  {
+    "number": 59,
+    "name": "SubOSC Wave2"
+  },
+  {
+    "number": 60,
+    "name": "SubOSC Wave3"
+  },
+  {
+    "number": 61,
+    "name": "Saw+Sub Wave"
+  },
+  {
+    "number": 62,
+    "name": "DipthongWave"
+  },
+  {
+    "number": 63,
+    "name": "DipthongWv +"
+  },
+  {
+    "number": 64,
+    "name": "Heaven Wave"
+  },
+  {
+    "number": 65,
+    "name": "Fanta Synth"
+  },
+  {
+    "number": 66,
+    "name": "Syn Vox 1"
+  },
+  {
+    "number": 67,
+    "name": "Syn Vox 2"
+  },
+  {
+    "number": 68,
+    "name": "Org Vox"
+  },
+  {
+    "number": 69,
+    "name": "ZZZ Vox"
+  },
+  {
+    "number": 70,
+    "name": "Male Ooh"
+  },
+  {
+    "number": 71,
+    "name": "Doo"
+  },
+  {
+    "number": 72,
+    "name": "MMM Vox"
+  },
+  {
+    "number": 73,
+    "name": "Digital Vox"
+  },
+  {
+    "number": 74,
+    "name": "Spark Vox 1"
+  },
+  {
+    "number": 75,
+    "name": "Spark Vox 2"
+  },
+  {
+    "number": 76,
+    "name": "Aah Formant"
+  },
+  {
+    "number": 77,
+    "name": "Eeh Formant"
+  },
+  {
+    "number": 78,
+    "name": "Iih Formant"
+  },
+  {
+    "number": 79,
+    "name": "Ooh Formant"
+  },
+  {
+    "number": 80,
+    "name": "Uuh Formant"
+  },
+  {
+    "number": 81,
+    "name": "SBF Vox"
+  },
+  {
+    "number": 82,
+    "name": "SBF Digi Vox"
+  },
+  {
+    "number": 83,
+    "name": "VP-330 Choir"
+  },
+  {
+    "number": 84,
+    "name": "FM Syn Vox"
+  },
+  {
+    "number": 85,
+    "name": "Fine Wine"
+  },
+  {
+    "number": 86,
+    "name": "Digi Loop"
+  },
+  {
+    "number": 87,
+    "name": "Vib Wave"
+  },
+  {
+    "number": 88,
+    "name": "Bell Wave 1"
+  },
+  {
+    "number": 89,
+    "name": "Bell Wave 1+"
+  },
+  {
+    "number": 90,
+    "name": "Bell Wave 2"
+  },
+  {
+    "number": 91,
+    "name": "Bell Wave 3"
+  },
+  {
+    "number": 92,
+    "name": "Bell Wave 4"
+  },
+  {
+    "number": 93,
+    "name": "Digi Wave 1"
+  },
+  {
+    "number": 94,
+    "name": "Digi Wave 2"
+  },
+  {
+    "number": 95,
+    "name": "Digi Wave 3"
+  },
+  {
+    "number": 96,
+    "name": "DIGI Bell"
+  },
+  {
+    "number": 97,
+    "name": "DIGI Bell +"
+  },
+  {
+    "number": 98,
+    "name": "Digi Chime"
+  },
+  {
+    "number": 99,
+    "name": "Org Bell"
+  },
+  {
+    "number": 100,
+    "name": "FM Bell"
+  },
+  {
+    "number": 101,
+    "name": "Hooky"
+  },
+  {
+    "number": 102,
+    "name": "Klack Wave"
+  },
+  {
+    "number": 103,
+    "name": "Syn Sax"
+  },
+  {
+    "number": 104,
+    "name": "Can Wave 1"
+  },
+  {
+    "number": 105,
+    "name": "Can Wave 2"
+  },
+  {
+    "number": 106,
+    "name": "MIDI Clav"
+  },
+  {
+    "number": 107,
+    "name": "Huge MIDI"
+  },
+  {
+    "number": 108,
+    "name": "Huge MIDI +"
+  },
+  {
+    "number": 109,
+    "name": "Pulse Clav"
+  },
+  {
+    "number": 110,
+    "name": "Pulse Clav+"
+  },
+  {
+    "number": 111,
+    "name": "Cello Wave"
+  },
+  {
+    "number": 112,
+    "name": "Cutters"
+  },
+  {
+    "number": 113,
+    "name": "5th Wave"
+  },
+  {
+    "number": 114,
+    "name": "Nasty"
+  },
+  {
+    "number": 115,
+    "name": "Wave Table"
+  },
+  {
+    "number": 116,
+    "name": "Bagpipe Wave"
+  },
+  {
+    "number": 117,
+    "name": "Wally Wave"
+  },
+  {
+    "number": 118,
+    "name": "Brusky Wave"
+  },
+  {
+    "number": 119,
+    "name": "Wave Scan"
+  },
+  {
+    "number": 120,
+    "name": "Wire String"
+  },
+  {
+    "number": 121,
+    "name": "Synth Piano"
+  },
+  {
+    "number": 122,
+    "name": "EP Hard"
+  },
+  {
+    "number": 123,
+    "name": "Vint. EP mp"
+  },
+  {
+    "number": 124,
+    "name": "Vint. EP f"
+  },
+  {
+    "number": 125,
+    "name": "Vint. EP ff"
+  },
+  {
+    "number": 126,
+    "name": "Stage EP p"
+  },
+  {
+    "number": 127,
+    "name": "Stage EP f"
+  },
+  {
+    "number": 128,
+    "name": "SA EP 1"
+  },
+  {
+    "number": 129,
+    "name": "SA EP 2"
+  },
+  {
+    "number": 130,
+    "name": "Wurly mp"
+  },
+  {
+    "number": 131,
+    "name": "Wurly mf"
+  },
+  {
+    "number": 132,
+    "name": "FM EP 1"
+  },
+  {
+    "number": 133,
+    "name": "FM EP 2"
+  },
+  {
+    "number": 134,
+    "name": "FM EP 3"
+  },
+  {
+    "number": 135,
+    "name": "FM EP 4"
+  },
+  {
+    "number": 136,
+    "name": "FM EP 5"
+  },
+  {
+    "number": 137,
+    "name": "EP Distone"
+  },
+  {
+    "number": 138,
+    "name": "OrganWave 1"
+  },
+  {
+    "number": 139,
+    "name": "OrganWave 2"
+  },
+  {
+    "number": 140,
+    "name": "OrganWave 3"
+  },
+  {
+    "number": 141,
+    "name": "OrganWave 4"
+  },
+  {
+    "number": 142,
+    "name": "OrganWave 5"
+  },
+  {
+    "number": 143,
+    "name": "OrganWave 5+"
+  },
+  {
+    "number": 144,
+    "name": "OrganWave 6"
+  },
+  {
+    "number": 145,
+    "name": "PercOrgan 1"
+  },
+  {
+    "number": 146,
+    "name": "PercOrgan 1+"
+  },
+  {
+    "number": 147,
+    "name": "PercOrgan 2"
+  },
+  {
+    "number": 148,
+    "name": "PercOrgan 2+"
+  },
+  {
+    "number": 149,
+    "name": "OrganWave 7"
+  },
+  {
+    "number": 150,
+    "name": "OrganWave 8"
+  },
+  {
+    "number": 151,
+    "name": "Org Basic 1"
+  },
+  {
+    "number": 152,
+    "name": "Org Basic 2"
+  },
+  {
+    "number": 153,
+    "name": "3rd Perc Org"
+  },
+  {
+    "number": 154,
+    "name": "Vint.Organ"
+  },
+  {
+    "number": 155,
+    "name": "Chorus Organ"
+  },
+  {
+    "number": 156,
+    "name": "Org Perc"
+  },
+  {
+    "number": 157,
+    "name": "Org Perc 2nd"
+  },
+  {
+    "number": 158,
+    "name": "JLOrg1 Slw L"
+  },
+  {
+    "number": 159,
+    "name": "JLOrg1 Slw R"
+  },
+  {
+    "number": 160,
+    "name": "JLOrg1 Fst L"
+  },
+  {
+    "number": 161,
+    "name": "JLOrg1 Fst R"
+  },
+  {
+    "number": 162,
+    "name": "JLOrg2 Slw L"
+  },
+  {
+    "number": 163,
+    "name": "JLOrg2 Slw R"
+  },
+  {
+    "number": 164,
+    "name": "JLOrg2 Fst L"
+  },
+  {
+    "number": 165,
+    "name": "JLOrg2 Fst R"
+  },
+  {
+    "number": 166,
+    "name": "TheaterOrg1L"
+  },
+  {
+    "number": 167,
+    "name": "TheaterOrg1R"
+  },
+  {
+    "number": 168,
+    "name": "TheaterOrg2L"
+  },
+  {
+    "number": 169,
+    "name": "TheaterOrg2R"
+  },
+  {
+    "number": 170,
+    "name": "TheaterOrg3L"
+  },
+  {
+    "number": 171,
+    "name": "TheaterOrg3R"
+  },
+  {
+    "number": 172,
+    "name": "Positive '8"
+  },
+  {
+    "number": 173,
+    "name": "Pipe Organ"
+  },
+  {
+    "number": 174,
+    "name": "CathedralOrg"
+  },
+  {
+    "number": 175,
+    "name": "Clav Wave 1"
+  },
+  {
+    "number": 176,
+    "name": "Clav Wave 2"
+  },
+  {
+    "number": 177,
+    "name": "Clav Wave 3"
+  },
+  {
+    "number": 178,
+    "name": "Reg.Clav"
+  },
+  {
+    "number": 179,
+    "name": "Harpsi Wave1"
+  },
+  {
+    "number": 180,
+    "name": "Harpsi Wave2"
+  },
+  {
+    "number": 181,
+    "name": "Harpsi Wave3"
+  },
+  {
+    "number": 182,
+    "name": "Marimba Wave"
+  },
+  {
+    "number": 183,
+    "name": "Marimba Atk"
+  },
+  {
+    "number": 184,
+    "name": "Vibe Wave"
+  },
+  {
+    "number": 185,
+    "name": "Xylo Wave 1"
+  },
+  {
+    "number": 186,
+    "name": "Xylo Wave 2"
+  },
+  {
+    "number": 187,
+    "name": "FM Mallet"
+  },
+  {
+    "number": 188,
+    "name": "Tubular Bell"
+  },
+  {
+    "number": 189,
+    "name": "Celesta"
+  },
+  {
+    "number": 190,
+    "name": "Music Box 1"
+  },
+  {
+    "number": 191,
+    "name": "Music Box 2"
+  },
+  {
+    "number": 192,
+    "name": "Nylon Gtr"
+  },
+  {
+    "number": 193,
+    "name": "Brite Nylon"
+  },
+  {
+    "number": 194,
+    "name": "Ac. Gtr ff"
+  },
+  {
+    "number": 195,
+    "name": "Strat Sust"
+  },
+  {
+    "number": 196,
+    "name": "Strat Wave 1"
+  },
+  {
+    "number": 197,
+    "name": "Jazz Gtr"
+  },
+  {
+    "number": 198,
+    "name": "Strat Wave 2"
+  },
+  {
+    "number": 199,
+    "name": "FstPick70s"
+  },
+  {
+    "number": 200,
+    "name": "Funk Gtr"
+  },
+  {
+    "number": 201,
+    "name": "Muters"
+  },
+  {
+    "number": 202,
+    "name": "Mute Gtr 1"
+  },
+  {
+    "number": 203,
+    "name": "Mute Gtr 2"
+  },
+  {
+    "number": 204,
+    "name": "Mute Gtr 3"
+  },
+  {
+    "number": 205,
+    "name": "Harm Gtr"
+  },
+  {
+    "number": 206,
+    "name": "Nasty Gtr"
+  },
+  {
+    "number": 207,
+    "name": "E.Gtr Loop"
+  },
+  {
+    "number": 208,
+    "name": "Overdrive 1"
+  },
+  {
+    "number": 209,
+    "name": "Overdrive 2"
+  },
+  {
+    "number": 210,
+    "name": "Dist Gtr 1"
+  },
+  {
+    "number": 211,
+    "name": "Dist Gtr 2"
+  },
+  {
+    "number": 212,
+    "name": "Mute Dist"
+  },
+  {
+    "number": 213,
+    "name": "Fretless"
+  },
+  {
+    "number": 214,
+    "name": "SlapBs Wave1"
+  },
+  {
+    "number": 215,
+    "name": "SlapBs Wave2"
+  },
+  {
+    "number": 216,
+    "name": "Hollow Bass"
+  },
+  {
+    "number": 217,
+    "name": "Solid Bass"
+  },
+  {
+    "number": 218,
+    "name": "FM Super Bs"
+  },
+  {
+    "number": 219,
+    "name": "SynBs Wave"
+  },
+  {
+    "number": 220,
+    "name": "SynBs Wave +"
+  },
+  {
+    "number": 221,
+    "name": "Banjo Wave"
+  },
+  {
+    "number": 222,
+    "name": "Pluck Harp"
+  },
+  {
+    "number": 223,
+    "name": "Harp Harm"
+  },
+  {
+    "number": 224,
+    "name": "Harp Wave"
+  },
+  {
+    "number": 225,
+    "name": "E.Sitar"
+  },
+  {
+    "number": 226,
+    "name": "Sitar Wave"
+  },
+  {
+    "number": 227,
+    "name": "Sitar Drone"
+  },
+  {
+    "number": 228,
+    "name": "Yangqin"
+  },
+  {
+    "number": 229,
+    "name": "KalimbaWave1"
+  },
+  {
+    "number": 230,
+    "name": "KalimbaWave2"
+  },
+  {
+    "number": 231,
+    "name": "Gamelan 1"
+  },
+  {
+    "number": 232,
+    "name": "Gamelan 2"
+  },
+  {
+    "number": 233,
+    "name": "Gamelan 3"
+  },
+  {
+    "number": 234,
+    "name": "Steel Drums"
+  },
+  {
+    "number": 235,
+    "name": "Log Drum"
+  },
+  {
+    "number": 236,
+    "name": "Bottle Hit"
+  },
+  {
+    "number": 237,
+    "name": "Agogo"
+  },
+  {
+    "number": 238,
+    "name": "Agogo Bell"
+  },
+  {
+    "number": 239,
+    "name": "Crystal"
+  },
+  {
+    "number": 240,
+    "name": "Finger Bell"
+  },
+  {
+    "number": 241,
+    "name": "Church Bell"
+  },
+  {
+    "number": 242,
+    "name": "LargeChrF 1"
+  },
+  {
+    "number": 243,
+    "name": "LargeChrF 2"
+  },
+  {
+    "number": 244,
+    "name": "Female Aahs1"
+  },
+  {
+    "number": 245,
+    "name": "Female Oohs"
+  },
+  {
+    "number": 246,
+    "name": "Female Aahs2"
+  },
+  {
+    "number": 247,
+    "name": "Male Aahs"
+  },
+  {
+    "number": 248,
+    "name": "Gospel Hum 1"
+  },
+  {
+    "number": 249,
+    "name": "Gospel Hum 2"
+  },
+  {
+    "number": 250,
+    "name": "Pop Voice"
+  },
+  {
+    "number": 251,
+    "name": "Jazz Doo 1"
+  },
+  {
+    "number": 252,
+    "name": "Jazz Doo 2"
+  },
+  {
+    "number": 253,
+    "name": "Jazz Doo 1+"
+  },
+  {
+    "number": 254,
+    "name": "Jazz Doo 2+"
+  },
+  {
+    "number": 255,
+    "name": "Jazz Doot 1"
+  },
+  {
+    "number": 256,
+    "name": "Jazz Doot 2"
+  },
+  {
+    "number": 257,
+    "name": "Jazz Dat 1"
+  },
+  {
+    "number": 258,
+    "name": "Jazz Dat 2"
+  },
+  {
+    "number": 259,
+    "name": "Jazz Bap 1"
+  },
+  {
+    "number": 260,
+    "name": "Jazz Bap 2"
+  },
+  {
+    "number": 261,
+    "name": "Dow fall 1"
+  },
+  {
+    "number": 262,
+    "name": "Dow fall 2"
+  },
+  {
+    "number": 263,
+    "name": "Bass Thum"
+  },
+  {
+    "number": 264,
+    "name": "Strings 1"
+  },
+  {
+    "number": 265,
+    "name": "Strings 2"
+  },
+  {
+    "number": 266,
+    "name": "Strings 3"
+  },
+  {
+    "number": 267,
+    "name": "Strings 4"
+  },
+  {
+    "number": 268,
+    "name": "Strings 5 L"
+  },
+  {
+    "number": 269,
+    "name": "Strings 5 R"
+  },
+  {
+    "number": 270,
+    "name": "Marcato1 L"
+  },
+  {
+    "number": 271,
+    "name": "Marcato1 R"
+  },
+  {
+    "number": 272,
+    "name": "Marcato2"
+  },
+  {
+    "number": 273,
+    "name": "F.StrStac1"
+  },
+  {
+    "number": 274,
+    "name": "F.StrStac2 L"
+  },
+  {
+    "number": 275,
+    "name": "F.StrStac2 R"
+  },
+  {
+    "number": 276,
+    "name": "Pizz 1"
+  },
+  {
+    "number": 277,
+    "name": "Pizz 2"
+  },
+  {
+    "number": 278,
+    "name": "Pizzagogo"
+  },
+  {
+    "number": 279,
+    "name": "Flute Wave"
+  },
+  {
+    "number": 280,
+    "name": "Flute Push"
+  },
+  {
+    "number": 281,
+    "name": "PanPipe Wave"
+  },
+  {
+    "number": 282,
+    "name": "Bottle Blow"
+  },
+  {
+    "number": 283,
+    "name": "Rad Hose"
+  },
+  {
+    "number": 284,
+    "name": "Shaku Atk 1"
+  },
+  {
+    "number": 285,
+    "name": "Shaku Atk 2"
+  },
+  {
+    "number": 286,
+    "name": "OrchUnison L"
+  },
+  {
+    "number": 287,
+    "name": "OrchUnison R"
+  },
+  {
+    "number": 288,
+    "name": "Tp Section"
+  },
+  {
+    "number": 289,
+    "name": "Flugel Wave"
+  },
+  {
+    "number": 290,
+    "name": "Fr.Horn Wave"
+  },
+  {
+    "number": 291,
+    "name": "Harmonica"
+  },
+  {
+    "number": 292,
+    "name": "Harmonica +"
+  },
+  {
+    "number": 293,
+    "name": "Cowbell"
+  },
+  {
+    "number": 294,
+    "name": "Tabla"
+  },
+  {
+    "number": 295,
+    "name": "O'Skool Hit"
+  },
+  {
+    "number": 296,
+    "name": "Orch. Hit"
+  },
+  {
+    "number": 297,
+    "name": "Punch Hit"
+  },
+  {
+    "number": 298,
+    "name": "Philly Hit"
+  },
+  {
+    "number": 299,
+    "name": "ClassicHseHt"
+  },
+  {
+    "number": 300,
+    "name": "Tao Hit"
+  },
+  {
+    "number": 301,
+    "name": "Anklungs"
+  },
+  {
+    "number": 302,
+    "name": "Rattles"
+  },
+  {
+    "number": 303,
+    "name": "Xylo Seq. 1"
+  },
+  {
+    "number": 304,
+    "name": "Wind Chimes"
+  },
+  {
+    "number": 305,
+    "name": "Bubble"
+  },
+  {
+    "number": 306,
+    "name": "Xylo Seq. 2"
+  },
+  {
+    "number": 307,
+    "name": "Siren Wave"
+  },
+  {
+    "number": 308,
+    "name": "Scratch 1"
+  },
+  {
+    "number": 309,
+    "name": "Scratch 2"
+  },
+  {
+    "number": 310,
+    "name": "Scratch 3"
+  },
+  {
+    "number": 311,
+    "name": "Scratch 4"
+  },
+  {
+    "number": 312,
+    "name": "Scratch 5"
+  },
+  {
+    "number": 313,
+    "name": "Scratch 6"
+  },
+  {
+    "number": 314,
+    "name": "Scratch Push"
+  },
+  {
+    "number": 315,
+    "name": "Scratch Pull"
+  },
+  {
+    "number": 316,
+    "name": "Metal Vox 1"
+  },
+  {
+    "number": 317,
+    "name": "Metal Vox 1+"
+  },
+  {
+    "number": 318,
+    "name": "Metal Vox 2"
+  },
+  {
+    "number": 319,
+    "name": "Metal Vox 2+"
+  },
+  {
+    "number": 320,
+    "name": "Metal Vox 3"
+  },
+  {
+    "number": 321,
+    "name": "Metal Vox 3+"
+  },
+  {
+    "number": 322,
+    "name": "Scrape Gut"
+  },
+  {
+    "number": 323,
+    "name": "Strat Atk"
+  },
+  {
+    "number": 324,
+    "name": "EP Atk"
+  },
+  {
+    "number": 325,
+    "name": "Org Atk 1"
+  },
+  {
+    "number": 326,
+    "name": "Org Atk 2"
+  },
+  {
+    "number": 327,
+    "name": "Org Click"
+  },
+  {
+    "number": 328,
+    "name": "Harpsi Thmp1"
+  },
+  {
+    "number": 329,
+    "name": "Harpsi Thmp2"
+  },
+  {
+    "number": 330,
+    "name": "Shaku Noise"
+  },
+  {
+    "number": 331,
+    "name": "Klmba Atk"
+  },
+  {
+    "number": 332,
+    "name": "Shami Attack"
+  },
+  {
+    "number": 333,
+    "name": "Block"
+  },
+  {
+    "number": 334,
+    "name": "Wood Crak"
+  },
+  {
+    "number": 335,
+    "name": "AnalogAttack"
+  },
+  {
+    "number": 336,
+    "name": "Metal Attack"
+  },
+  {
+    "number": 337,
+    "name": "Pole Loop"
+  },
+  {
+    "number": 338,
+    "name": "Strike Pole"
+  },
+  {
+    "number": 339,
+    "name": "Switch"
+  },
+  {
+    "number": 340,
+    "name": "Tuba Slap"
+  },
+  {
+    "number": 341,
+    "name": "Plink"
+  },
+  {
+    "number": 342,
+    "name": "Plunk"
+  },
+  {
+    "number": 343,
+    "name": "Tin Wave"
+  },
+  {
+    "number": 344,
+    "name": "Vinyl Noise"
+  },
+  {
+    "number": 345,
+    "name": "Pitch Wind"
+  },
+  {
+    "number": 346,
+    "name": "Vox Noise 1"
+  },
+  {
+    "number": 347,
+    "name": "Vox Noise 2"
+  },
+  {
+    "number": 348,
+    "name": "SynVox Noise"
+  },
+  {
+    "number": 349,
+    "name": "Digi Breath"
+  },
+  {
+    "number": 350,
+    "name": "Agogo Noise"
+  },
+  {
+    "number": 351,
+    "name": "Wind Agogo"
+  },
+  {
+    "number": 352,
+    "name": "Polishing Nz"
+  },
+  {
+    "number": 353,
+    "name": "Dentist Nz"
+  },
+  {
+    "number": 354,
+    "name": "CrunchWind"
+  },
+  {
+    "number": 355,
+    "name": "ThroatWind"
+  },
+  {
+    "number": 356,
+    "name": "MetalWind"
+  },
+  {
+    "number": 357,
+    "name": "Atmosphere"
+  },
+  {
+    "number": 358,
+    "name": "DigiSpectrum"
+  },
+  {
+    "number": 359,
+    "name": "SBF Cym"
+  },
+  {
+    "number": 360,
+    "name": "SBF Bell"
+  },
+  {
+    "number": 361,
+    "name": "SBF Nz"
+  },
+  {
+    "number": 362,
+    "name": "White Noise"
+  },
+  {
+    "number": 363,
+    "name": "Pink Noise"
+  },
+  {
+    "number": 364,
+    "name": "Thickness Bs"
+  },
+  {
+    "number": 365,
+    "name": "Plastic Bass"
+  },
+  {
+    "number": 366,
+    "name": "Breakdown Bs"
+  },
+  {
+    "number": 367,
+    "name": "Dist TB"
+  },
+  {
+    "number": 368,
+    "name": "Pulse Bass"
+  },
+  {
+    "number": 369,
+    "name": "Hip Lead"
+  },
+  {
+    "number": 370,
+    "name": "VintageStack"
+  },
+  {
+    "number": 371,
+    "name": "Tekno Ld 1"
+  },
+  {
+    "number": 372,
+    "name": "Icy Keys"
+  },
+  {
+    "number": 373,
+    "name": "JP-8StringsL"
+  },
+  {
+    "number": 374,
+    "name": "JP-8StringsR"
+  },
+  {
+    "number": 375,
+    "name": "Revalation"
+  },
+  {
+    "number": 376,
+    "name": "Boreal Pad L"
+  },
+  {
+    "number": 377,
+    "name": "Boreal Pad R"
+  },
+  {
+    "number": 378,
+    "name": "Sea Waves L"
+  },
+  {
+    "number": 379,
+    "name": "Sea Waves R"
+  },
+  {
+    "number": 380,
+    "name": "Sweep Pad 1"
+  },
+  {
+    "number": 381,
+    "name": "Sweep Pad 2"
+  },
+  {
+    "number": 382,
+    "name": "Sweep Pad 3"
+  },
+  {
+    "number": 383,
+    "name": "Particles L"
+  },
+  {
+    "number": 384,
+    "name": "Particles R"
+  },
+  {
+    "number": 385,
+    "name": "3Delay Poly"
+  },
+  {
+    "number": 386,
+    "name": "Poly Fat 1"
+  },
+  {
+    "number": 387,
+    "name": "Poly Fat 2"
+  },
+  {
+    "number": 388,
+    "name": "Poly Fat 3"
+  },
+  {
+    "number": 389,
+    "name": "Alan's Pad L"
+  },
+  {
+    "number": 390,
+    "name": "Alan's Pad R"
+  },
+  {
+    "number": 391,
+    "name": "DlyReso Saw1"
+  },
+  {
+    "number": 392,
+    "name": "DlyReso Saw2"
+  },
+  {
+    "number": 393,
+    "name": "DlyReso Saw3"
+  },
+  {
+    "number": 394,
+    "name": "TranceSaws 1"
+  },
+  {
+    "number": 395,
+    "name": "TranceSaws 2"
+  },
+  {
+    "number": 396,
+    "name": "TranceSaws 3"
+  },
+  {
+    "number": 397,
+    "name": "Tekno Ld 2"
+  },
+  {
+    "number": 398,
+    "name": "NuWave"
+  },
+  {
+    "number": 399,
+    "name": "EQ Lead 1"
+  },
+  {
+    "number": 400,
+    "name": "EQ Lead 2"
+  },
+  {
+    "number": 401,
+    "name": "EQ Lead 3"
+  },
+  {
+    "number": 402,
+    "name": "80sBrsSect L"
+  },
+  {
+    "number": 403,
+    "name": "80sBrsSect R"
+  },
+  {
+    "number": 404,
+    "name": "LoveBrsLiveL"
+  },
+  {
+    "number": 405,
+    "name": "LoveBrsLiveR"
+  },
+  {
+    "number": 406,
+    "name": "ScoopSynBrsL"
+  },
+  {
+    "number": 407,
+    "name": "ScoopSynBrsR"
+  },
+  {
+    "number": 408,
+    "name": "Power JP L"
+  },
+  {
+    "number": 409,
+    "name": "Power JP R"
+  },
+  {
+    "number": 410,
+    "name": "ChasingBells"
+  },
+  {
+    "number": 411,
+    "name": "Bad Axe L"
+  },
+  {
+    "number": 412,
+    "name": "Bad Axe R"
+  },
+  {
+    "number": 413,
+    "name": "Cutting Lead"
+  },
+  {
+    "number": 414,
+    "name": "Poly Key"
+  },
+  {
+    "number": 415,
+    "name": "Buzz Cut"
+  },
+  {
+    "number": 416,
+    "name": "DsturbedSync"
+  },
+  {
+    "number": 417,
+    "name": "LFO Poly"
+  },
+  {
+    "number": 418,
+    "name": "HPF Pad L"
+  },
+  {
+    "number": 419,
+    "name": "HPF Pad R"
+  },
+  {
+    "number": 420,
+    "name": "Chubby Ld"
+  },
+  {
+    "number": 421,
+    "name": "FantaClaus"
+  },
+  {
+    "number": 422,
+    "name": "FantasyPad 1"
+  },
+  {
+    "number": 423,
+    "name": "FantasyPad 2"
+  },
+  {
+    "number": 424,
+    "name": "FantasyPad 3"
+  },
+  {
+    "number": 425,
+    "name": "Legend Pad"
+  },
+  {
+    "number": 426,
+    "name": "D-50 Stack"
+  },
+  {
+    "number": 427,
+    "name": "Digi Crystal"
+  },
+  {
+    "number": 428,
+    "name": "PipeChatter1"
+  },
+  {
+    "number": 429,
+    "name": "PipeChatter2"
+  },
+  {
+    "number": 430,
+    "name": "PipeChatter3"
+  },
+  {
+    "number": 431,
+    "name": "JP Hollow L"
+  },
+  {
+    "number": 432,
+    "name": "JP Hollow R"
+  },
+  {
+    "number": 433,
+    "name": "VoiceHeavenL"
+  },
+  {
+    "number": 434,
+    "name": "VoiceHeavenR"
+  },
+  {
+    "number": 435,
+    "name": "Atmospheric"
+  },
+  {
+    "number": 436,
+    "name": "Air Pad 1"
+  },
+  {
+    "number": 437,
+    "name": "Air Pad 2"
+  },
+  {
+    "number": 438,
+    "name": "Air Pad 3"
+  },
+  {
+    "number": 439,
+    "name": "ChrdOfCnadaL"
+  },
+  {
+    "number": 440,
+    "name": "ChrdOfCnadaR"
+  },
+  {
+    "number": 441,
+    "name": "Fireflies"
+  },
+  {
+    "number": 442,
+    "name": "NewJupiter 1"
+  },
+  {
+    "number": 443,
+    "name": "NewJupiter 2"
+  },
+  {
+    "number": 444,
+    "name": "NewJupiter 3"
+  },
+  {
+    "number": 445,
+    "name": "NewJupiter 4"
+  },
+  {
+    "number": 446,
+    "name": "NewJupiter 5"
+  },
+  {
+    "number": 447,
+    "name": "Pulsatron"
+  },
+  {
+    "number": 448,
+    "name": "JazzyBubbles"
+  },
+  {
+    "number": 449,
+    "name": "SynthFx 1"
+  },
+  {
+    "number": 450,
+    "name": "SynthFx 2"
+  }
+]

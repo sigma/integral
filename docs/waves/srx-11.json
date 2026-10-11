@@ -1,0 +1,162 @@
+[
+  {
+    "number": 1,
+    "name": "CmpPno ppA L"
+  },
+  {
+    "number": 2,
+    "name": "CmpPno ppA R"
+  },
+  {
+    "number": 3,
+    "name": "CmpPno ppB L"
+  },
+  {
+    "number": 4,
+    "name": "CmpPno ppB R"
+  },
+  {
+    "number": 5,
+    "name": "CmpPno ppB'L"
+  },
+  {
+    "number": 6,
+    "name": "CmpPno ppB'R"
+  },
+  {
+    "number": 7,
+    "name": "CmpPno ppC L"
+  },
+  {
+    "number": 8,
+    "name": "CmpPno ppC R"
+  },
+  {
+    "number": 9,
+    "name": "CmpPno ppC'L"
+  },
+  {
+    "number": 10,
+    "name": "CmpPno ppC'R"
+  },
+  {
+    "number": 11,
+    "name": "CmpPno mpA L"
+  },
+  {
+    "number": 12,
+    "name": "CmpPno mpA R"
+  },
+  {
+    "number": 13,
+    "name": "CmpPno mpB L"
+  },
+  {
+    "number": 14,
+    "name": "CmpPno mpB R"
+  },
+  {
+    "number": 15,
+    "name": "CmpPno mpB'L"
+  },
+  {
+    "number": 16,
+    "name": "CmpPno mpB'R"
+  },
+  {
+    "number": 17,
+    "name": "CmpPno mpC L"
+  },
+  {
+    "number": 18,
+    "name": "CmpPno mpC R"
+  },
+  {
+    "number": 19,
+    "name": "CmpPno mpC'L"
+  },
+  {
+    "number": 20,
+    "name": "CmpPno mpC'R"
+  },
+  {
+    "number": 21,
+    "name": "CmpPno f A L"
+  },
+  {
+    "number": 22,
+    "name": "CmpPno f A R"
+  },
+  {
+    "number": 23,
+    "name": "CmpPno f B L"
+  },
+  {
+    "number": 24,
+    "name": "CmpPno f B R"
+  },
+  {
+    "number": 25,
+    "name": "CmpPno f B'L"
+  },
+  {
+    "number": 26,
+    "name": "CmpPno f B'R"
+  },
+  {
+    "number": 27,
+    "name": "CmpPno f C L"
+  },
+  {
+    "number": 28,
+    "name": "CmpPno f C R"
+  },
+  {
+    "number": 29,
+    "name": "CmpPno f C'L"
+  },
+  {
+    "number": 30,
+    "name": "CmpPno f C'R"
+  },
+  {
+    "number": 31,
+    "name": "CmpPno ffA L"
+  },
+  {
+    "number": 32,
+    "name": "CmpPno ffA R"
+  },
+  {
+    "number": 33,
+    "name": "CmpPno ffB L"
+  },
+  {
+    "number": 34,
+    "name": "CmpPno ffB R"
+  },
+  {
+    "number": 35,
+    "name": "CmpPno ffB'L"
+  },
+  {
+    "number": 36,
+    "name": "CmpPno ffB'R"
+  },
+  {
+    "number": 37,
+    "name": "CmpPno ffC L"
+  },
+  {
+    "number": 38,
+    "name": "CmpPno ffC R"
+  },
+  {
+    "number": 39,
+    "name": "CmpPno ffC'L"
+  },
+  {
+    "number": 40,
+    "name": "CmpPno ffC'R"
+  }
+]

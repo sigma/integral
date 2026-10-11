@@ -1,0 +1,3274 @@
+[
+  {
+    "number": 1,
+    "name": "PhraseMenuL"
+  },
+  {
+    "number": 2,
+    "name": "PhraseMenuR"
+  },
+  {
+    "number": 3,
+    "name": "080:BladeBtL"
+  },
+  {
+    "number": 4,
+    "name": "080:BladeBtR"
+  },
+  {
+    "number": 5,
+    "name": "093:R&Bees"
+  },
+  {
+    "number": 6,
+    "name": "096:RugBurnL"
+  },
+  {
+    "number": 7,
+    "name": "096:RugBurnR"
+  },
+  {
+    "number": 8,
+    "name": "120:BossClbL"
+  },
+  {
+    "number": 9,
+    "name": "120:BossClbR"
+  },
+  {
+    "number": 10,
+    "name": "120:ClubbinL"
+  },
+  {
+    "number": 11,
+    "name": "120:ClubbinR"
+  },
+  {
+    "number": 12,
+    "name": "135:XRacer L"
+  },
+  {
+    "number": 13,
+    "name": "135:XRacer R"
+  },
+  {
+    "number": 14,
+    "name": "Drain-O L"
+  },
+  {
+    "number": 15,
+    "name": "Drain-O R"
+  },
+  {
+    "number": 16,
+    "name": "RocketBrs L"
+  },
+  {
+    "number": 17,
+    "name": "RocketBrs R"
+  },
+  {
+    "number": 18,
+    "name": "Resound L"
+  },
+  {
+    "number": 19,
+    "name": "Resound R"
+  },
+  {
+    "number": 20,
+    "name": "StrikeWhstle"
+  },
+  {
+    "number": 21,
+    "name": "Blowout L"
+  },
+  {
+    "number": 22,
+    "name": "Blowout R"
+  },
+  {
+    "number": 23,
+    "name": "MGSAW HQ"
+  },
+  {
+    "number": 24,
+    "name": "P5SAW HQ"
+  },
+  {
+    "number": 25,
+    "name": "106 Saw HQ"
+  },
+  {
+    "number": 26,
+    "name": "SH101SAW HQ"
+  },
+  {
+    "number": 27,
+    "name": "TB303SAW HQ"
+  },
+  {
+    "number": 28,
+    "name": "CustomSawA2"
+  },
+  {
+    "number": 29,
+    "name": "JU2SpSaw2"
+  },
+  {
+    "number": 30,
+    "name": "JU2SpSaw3"
+  },
+  {
+    "number": 31,
+    "name": "JU2SpSaw4"
+  },
+  {
+    "number": 32,
+    "name": "OB2 Pat7"
+  },
+  {
+    "number": 33,
+    "name": "JPSuperSaw"
+  },
+  {
+    "number": 34,
+    "name": "JP8SQU HQ"
+  },
+  {
+    "number": 35,
+    "name": "MGSQU HQ"
+  },
+  {
+    "number": 36,
+    "name": "P5SQU HQ"
+  },
+  {
+    "number": 37,
+    "name": "CustomSquA2"
+  },
+  {
+    "number": 38,
+    "name": "TB303SQU HQ"
+  },
+  {
+    "number": 39,
+    "name": "106 SubOsc"
+  },
+  {
+    "number": 40,
+    "name": "JU2SpSub1"
+  },
+  {
+    "number": 41,
+    "name": "JU2SpSub2"
+  },
+  {
+    "number": 42,
+    "name": "JP8PLS05 HQ"
+  },
+  {
+    "number": 43,
+    "name": "JP8PLS15 HQ"
+  },
+  {
+    "number": 44,
+    "name": "JP8PLS20 HQ"
+  },
+  {
+    "number": 45,
+    "name": "JP8PLS30 HQ"
+  },
+  {
+    "number": 46,
+    "name": "JP8PLS40 HQ"
+  },
+  {
+    "number": 47,
+    "name": "JP8PLS45 HQ"
+  },
+  {
+    "number": 48,
+    "name": "SyncPlsInv"
+  },
+  {
+    "number": 49,
+    "name": "JUNO Pls Bd"
+  },
+  {
+    "number": 50,
+    "name": "JUNO Pls Rls"
+  },
+  {
+    "number": 51,
+    "name": "JP6 DynPLS P"
+  },
+  {
+    "number": 52,
+    "name": "JP6 DynPLS N"
+  },
+  {
+    "number": 53,
+    "name": "JUNO106 Rave"
+  },
+  {
+    "number": 54,
+    "name": "MGTRI HQ"
+  },
+  {
+    "number": 55,
+    "name": "JP8TRI HQ"
+  },
+  {
+    "number": 56,
+    "name": "Variant Sin"
+  },
+  {
+    "number": 57,
+    "name": "ARP SIN"
+  },
+  {
+    "number": 58,
+    "name": "CalcSIN2"
+  },
+  {
+    "number": 59,
+    "name": "106 Bs56"
+  },
+  {
+    "number": 60,
+    "name": "Spct11"
+  },
+  {
+    "number": 61,
+    "name": "Sprk vx2"
+  },
+  {
+    "number": 62,
+    "name": "Spct2 20"
+  },
+  {
+    "number": 63,
+    "name": "MG WhteNz HQ"
+  },
+  {
+    "number": 64,
+    "name": "MG PinkNz HQ"
+  },
+  {
+    "number": 65,
+    "name": "Spect Noise"
+  },
+  {
+    "number": 66,
+    "name": "JD PnoEQ"
+  },
+  {
+    "number": 67,
+    "name": "EP Chd Menu"
+  },
+  {
+    "number": 68,
+    "name": "EP Maj 9th"
+  },
+  {
+    "number": 69,
+    "name": "EP Maj 11th"
+  },
+  {
+    "number": 70,
+    "name": "EP Min 11th"
+  },
+  {
+    "number": 71,
+    "name": "FM Clavi mf"
+  },
+  {
+    "number": 72,
+    "name": "Old Hous Org"
+  },
+  {
+    "number": 73,
+    "name": "FM Prc Organ"
+  },
+  {
+    "number": 74,
+    "name": "Fing E.Bs mf"
+  },
+  {
+    "number": 75,
+    "name": "Fing E.Bs ff"
+  },
+  {
+    "number": 76,
+    "name": "Baby Bass f2"
+  },
+  {
+    "number": 77,
+    "name": "Baby Bassff2"
+  },
+  {
+    "number": 78,
+    "name": "GuitarrnWarm"
+  },
+  {
+    "number": 79,
+    "name": "GuitarrnOct2"
+  },
+  {
+    "number": 80,
+    "name": "HouseBass mf"
+  },
+  {
+    "number": 81,
+    "name": "HouseBass ff"
+  },
+  {
+    "number": 82,
+    "name": "Brs Stab L"
+  },
+  {
+    "number": 83,
+    "name": "Brs Stab R"
+  },
+  {
+    "number": 84,
+    "name": "Brs Fall L"
+  },
+  {
+    "number": 85,
+    "name": "Brs Fall R"
+  },
+  {
+    "number": 86,
+    "name": "WindsFX Menu"
+  },
+  {
+    "number": 87,
+    "name": "Flute Fx 1"
+  },
+  {
+    "number": 88,
+    "name": "Flute Fx 2"
+  },
+  {
+    "number": 89,
+    "name": "Flute Fx 3"
+  },
+  {
+    "number": 90,
+    "name": "Sax Fx 1"
+  },
+  {
+    "number": 91,
+    "name": "Sax Fx 2"
+  },
+  {
+    "number": 92,
+    "name": "Sax Fx 3"
+  },
+  {
+    "number": 93,
+    "name": "Gregorian2 L"
+  },
+  {
+    "number": 94,
+    "name": "Gregorian2 R"
+  },
+  {
+    "number": 95,
+    "name": "Dance Str L"
+  },
+  {
+    "number": 96,
+    "name": "Dance Str R"
+  },
+  {
+    "number": 97,
+    "name": "D50Pizzagogo"
+  },
+  {
+    "number": 98,
+    "name": "Str Fall L"
+  },
+  {
+    "number": 99,
+    "name": "Str Fall R"
+  },
+  {
+    "number": 100,
+    "name": "StrScaleMajL"
+  },
+  {
+    "number": 101,
+    "name": "StrScaleMajR"
+  },
+  {
+    "number": 102,
+    "name": "StrChd MenuL"
+  },
+  {
+    "number": 103,
+    "name": "StrChd MenuR"
+  },
+  {
+    "number": 104,
+    "name": "StrChdMin9L"
+  },
+  {
+    "number": 105,
+    "name": "StrChdMin9R"
+  },
+  {
+    "number": 106,
+    "name": "StrChdMn11L"
+  },
+  {
+    "number": 107,
+    "name": "StrChdMn11R"
+  },
+  {
+    "number": 108,
+    "name": "StrSprdMaj L"
+  },
+  {
+    "number": 109,
+    "name": "StrSprdMaj R"
+  },
+  {
+    "number": 110,
+    "name": "StrSprdMin L"
+  },
+  {
+    "number": 111,
+    "name": "StrSprdMin R"
+  },
+  {
+    "number": 112,
+    "name": "E.Gtr Menu L"
+  },
+  {
+    "number": 113,
+    "name": "E.Gtr Menu R"
+  },
+  {
+    "number": 114,
+    "name": "ShredFuzzGtr"
+  },
+  {
+    "number": 115,
+    "name": "ClnGtrRif1 L"
+  },
+  {
+    "number": 116,
+    "name": "ClnGtrRif1 R"
+  },
+  {
+    "number": 117,
+    "name": "ClnGtrRif2 L"
+  },
+  {
+    "number": 118,
+    "name": "ClnGtrRif2 R"
+  },
+  {
+    "number": 119,
+    "name": "TrmDwnGtr1 L"
+  },
+  {
+    "number": 120,
+    "name": "TrmDwnGtr1 R"
+  },
+  {
+    "number": 121,
+    "name": "TrmDwnGtr2 L"
+  },
+  {
+    "number": 122,
+    "name": "TrmDwnGtr2 R"
+  },
+  {
+    "number": 123,
+    "name": "WahGtrChord"
+  },
+  {
+    "number": 124,
+    "name": "WahGtrCt1 L"
+  },
+  {
+    "number": 125,
+    "name": "WahGtrCt1 R"
+  },
+  {
+    "number": 126,
+    "name": "WahGtrCt2 L"
+  },
+  {
+    "number": 127,
+    "name": "WahGtrCt2 R"
+  },
+  {
+    "number": 128,
+    "name": "WahGtrCt3 L"
+  },
+  {
+    "number": 129,
+    "name": "WahGtrCt3 R"
+  },
+  {
+    "number": 130,
+    "name": "WahGtrCt4 L"
+  },
+  {
+    "number": 131,
+    "name": "WahGtrCt4 R"
+  },
+  {
+    "number": 132,
+    "name": "WahGtrCt5 L"
+  },
+  {
+    "number": 133,
+    "name": "WahGtrCt5 R"
+  },
+  {
+    "number": 134,
+    "name": "WahGtrCt6 L"
+  },
+  {
+    "number": 135,
+    "name": "WahGtrCt6 R"
+  },
+  {
+    "number": 136,
+    "name": "WahGtrRif1 L"
+  },
+  {
+    "number": 137,
+    "name": "WahGtrRif1 R"
+  },
+  {
+    "number": 138,
+    "name": "WahGtrRif2 L"
+  },
+  {
+    "number": 139,
+    "name": "WahGtrRif2 R"
+  },
+  {
+    "number": 140,
+    "name": "Hit SpecialL"
+  },
+  {
+    "number": 141,
+    "name": "Hit SpecialR"
+  },
+  {
+    "number": 142,
+    "name": "Hit OneShotL"
+  },
+  {
+    "number": 143,
+    "name": "Hit OneShotR"
+  },
+  {
+    "number": 144,
+    "name": "BrassHit 1"
+  },
+  {
+    "number": 145,
+    "name": "BrassHit 2"
+  },
+  {
+    "number": 146,
+    "name": "BrassHit 3"
+  },
+  {
+    "number": 147,
+    "name": "BrassHit 4"
+  },
+  {
+    "number": 148,
+    "name": "BrassHit 5"
+  },
+  {
+    "number": 149,
+    "name": "BrassHit 6 L"
+  },
+  {
+    "number": 150,
+    "name": "BrassHit 6 R"
+  },
+  {
+    "number": 151,
+    "name": "BrassHit 7 L"
+  },
+  {
+    "number": 152,
+    "name": "BrassHit 7 R"
+  },
+  {
+    "number": 153,
+    "name": "BrassHit 8"
+  },
+  {
+    "number": 154,
+    "name": "BrassHit 9 L"
+  },
+  {
+    "number": 155,
+    "name": "BrassHit 9 R"
+  },
+  {
+    "number": 156,
+    "name": "BrassHit 10L"
+  },
+  {
+    "number": 157,
+    "name": "BrassHit 10R"
+  },
+  {
+    "number": 158,
+    "name": "BrassHit 11L"
+  },
+  {
+    "number": 159,
+    "name": "BrassHit 11R"
+  },
+  {
+    "number": 160,
+    "name": "BrassHit 12L"
+  },
+  {
+    "number": 161,
+    "name": "BrassHit 12R"
+  },
+  {
+    "number": 162,
+    "name": "BrassHit 13L"
+  },
+  {
+    "number": 163,
+    "name": "BrassHit 13R"
+  },
+  {
+    "number": 164,
+    "name": "BrassHit 14L"
+  },
+  {
+    "number": 165,
+    "name": "BrassHit 14R"
+  },
+  {
+    "number": 166,
+    "name": "BrassHit 15"
+  },
+  {
+    "number": 167,
+    "name": "BrassHit 16L"
+  },
+  {
+    "number": 168,
+    "name": "BrassHit 16R"
+  },
+  {
+    "number": 169,
+    "name": "BrassHit 17L"
+  },
+  {
+    "number": 170,
+    "name": "BrassHit 17R"
+  },
+  {
+    "number": 171,
+    "name": "BrassHit 18"
+  },
+  {
+    "number": 172,
+    "name": "BrassHit 19L"
+  },
+  {
+    "number": 173,
+    "name": "BrassHit 19R"
+  },
+  {
+    "number": 174,
+    "name": "BrassHit 20"
+  },
+  {
+    "number": 175,
+    "name": "BrassHit 21L"
+  },
+  {
+    "number": 176,
+    "name": "BrassHit 21R"
+  },
+  {
+    "number": 177,
+    "name": "BrassHit 22L"
+  },
+  {
+    "number": 178,
+    "name": "BrassHit 22R"
+  },
+  {
+    "number": 179,
+    "name": "BrassHit 23L"
+  },
+  {
+    "number": 180,
+    "name": "BrassHit 23R"
+  },
+  {
+    "number": 181,
+    "name": "BrassHit 24"
+  },
+  {
+    "number": 182,
+    "name": "SymphHit 1 L"
+  },
+  {
+    "number": 183,
+    "name": "SymphHit 1 R"
+  },
+  {
+    "number": 184,
+    "name": "SymphHit 2 L"
+  },
+  {
+    "number": 185,
+    "name": "SymphHit 2 R"
+  },
+  {
+    "number": 186,
+    "name": "SymphHit 3 L"
+  },
+  {
+    "number": 187,
+    "name": "SymphHit 3 R"
+  },
+  {
+    "number": 188,
+    "name": "SymphHit 4 L"
+  },
+  {
+    "number": 189,
+    "name": "SymphHit 4 R"
+  },
+  {
+    "number": 190,
+    "name": "SymphHit 5 L"
+  },
+  {
+    "number": 191,
+    "name": "SymphHit 5 R"
+  },
+  {
+    "number": 192,
+    "name": "SymphHit 6 L"
+  },
+  {
+    "number": 193,
+    "name": "SymphHit 6 R"
+  },
+  {
+    "number": 194,
+    "name": "SymphHit 7 L"
+  },
+  {
+    "number": 195,
+    "name": "SymphHit 7 R"
+  },
+  {
+    "number": 196,
+    "name": "Organ Hit 1"
+  },
+  {
+    "number": 197,
+    "name": "OrgTrnsplntL"
+  },
+  {
+    "number": 198,
+    "name": "OrgTrnsplntR"
+  },
+  {
+    "number": 199,
+    "name": "Organ Hit 2L"
+  },
+  {
+    "number": 200,
+    "name": "Organ Hit 2R"
+  },
+  {
+    "number": 201,
+    "name": "Chord Hit 1"
+  },
+  {
+    "number": 202,
+    "name": "Chord Hit 2L"
+  },
+  {
+    "number": 203,
+    "name": "Chord Hit 2R"
+  },
+  {
+    "number": 204,
+    "name": "Chord Hit 3L"
+  },
+  {
+    "number": 205,
+    "name": "Chord Hit 3R"
+  },
+  {
+    "number": 206,
+    "name": "Chord Hit 4"
+  },
+  {
+    "number": 207,
+    "name": "Altr Hit L"
+  },
+  {
+    "number": 208,
+    "name": "Altr Hit R"
+  },
+  {
+    "number": 209,
+    "name": "Crystal HitL"
+  },
+  {
+    "number": 210,
+    "name": "Crystal HitR"
+  },
+  {
+    "number": 211,
+    "name": "Dirty Hit 2"
+  },
+  {
+    "number": 212,
+    "name": "Exhaust HitL"
+  },
+  {
+    "number": 213,
+    "name": "Exhaust HitR"
+  },
+  {
+    "number": 214,
+    "name": "Scoop Hit L"
+  },
+  {
+    "number": 215,
+    "name": "Scoop Hit R"
+  },
+  {
+    "number": 216,
+    "name": "Stamp Hit L"
+  },
+  {
+    "number": 217,
+    "name": "Stamp Hit R"
+  },
+  {
+    "number": 218,
+    "name": "ThousandHitL"
+  },
+  {
+    "number": 219,
+    "name": "ThousandHitR"
+  },
+  {
+    "number": 220,
+    "name": "9th Hit L"
+  },
+  {
+    "number": 221,
+    "name": "9th Hit R"
+  },
+  {
+    "number": 222,
+    "name": "Slap Hit 1 L"
+  },
+  {
+    "number": 223,
+    "name": "Slap Hit 1 R"
+  },
+  {
+    "number": 224,
+    "name": "Slap Hit 2 L"
+  },
+  {
+    "number": 225,
+    "name": "Slap Hit 2 R"
+  },
+  {
+    "number": 226,
+    "name": "Slap Hit 3 L"
+  },
+  {
+    "number": 227,
+    "name": "Slap Hit 3 R"
+  },
+  {
+    "number": 228,
+    "name": "Dust Hit L"
+  },
+  {
+    "number": 229,
+    "name": "Dust Hit R"
+  },
+  {
+    "number": 230,
+    "name": "Dist Hit 1 L"
+  },
+  {
+    "number": 231,
+    "name": "Dist Hit 1 R"
+  },
+  {
+    "number": 232,
+    "name": "Dist Hit 2 L"
+  },
+  {
+    "number": 233,
+    "name": "Dist Hit 2 R"
+  },
+  {
+    "number": 234,
+    "name": "Slide Hit L"
+  },
+  {
+    "number": 235,
+    "name": "Slide Hit R"
+  },
+  {
+    "number": 236,
+    "name": "Wah Hit"
+  },
+  {
+    "number": 237,
+    "name": "Slide Hit 2L"
+  },
+  {
+    "number": 238,
+    "name": "Slide Hit 2R"
+  },
+  {
+    "number": 239,
+    "name": "Tremble Hit"
+  },
+  {
+    "number": 240,
+    "name": "Sweep Hit"
+  },
+  {
+    "number": 241,
+    "name": "ParabolaHitL"
+  },
+  {
+    "number": 242,
+    "name": "ParabolaHitR"
+  },
+  {
+    "number": 243,
+    "name": "Daw Hit L"
+  },
+  {
+    "number": 244,
+    "name": "Daw Hit R"
+  },
+  {
+    "number": 245,
+    "name": "Dah Hit L"
+  },
+  {
+    "number": 246,
+    "name": "Dah Hit R"
+  },
+  {
+    "number": 247,
+    "name": "Aah Hit"
+  },
+  {
+    "number": 248,
+    "name": "Mixed Hit L"
+  },
+  {
+    "number": 249,
+    "name": "Mixed Hit R"
+  },
+  {
+    "number": 250,
+    "name": "Showy Hit"
+  },
+  {
+    "number": 251,
+    "name": "Pretty Hit L"
+  },
+  {
+    "number": 252,
+    "name": "Pretty Hit R"
+  },
+  {
+    "number": 253,
+    "name": "Smoky Hit L"
+  },
+  {
+    "number": 254,
+    "name": "Smoky Hit R"
+  },
+  {
+    "number": 255,
+    "name": "Fist Hit"
+  },
+  {
+    "number": 256,
+    "name": "Iron Hit 2"
+  },
+  {
+    "number": 257,
+    "name": "Clavy Hit L"
+  },
+  {
+    "number": 258,
+    "name": "Clavy Hit R"
+  },
+  {
+    "number": 259,
+    "name": "Warp Hit 1L"
+  },
+  {
+    "number": 260,
+    "name": "Warp Hit 1R"
+  },
+  {
+    "number": 261,
+    "name": "Warp Hit 2L"
+  },
+  {
+    "number": 262,
+    "name": "Warp Hit 2R"
+  },
+  {
+    "number": 263,
+    "name": "Warp Hit 3L"
+  },
+  {
+    "number": 264,
+    "name": "Warp Hit 3R"
+  },
+  {
+    "number": 265,
+    "name": "Warp Hit 4"
+  },
+  {
+    "number": 266,
+    "name": "Tread Hit"
+  },
+  {
+    "number": 267,
+    "name": "Old Org Hit"
+  },
+  {
+    "number": 268,
+    "name": "Sand Hit"
+  },
+  {
+    "number": 269,
+    "name": "Bounce Hit1"
+  },
+  {
+    "number": 270,
+    "name": "Bounce Hit2L"
+  },
+  {
+    "number": 271,
+    "name": "Bounce Hit2R"
+  },
+  {
+    "number": 272,
+    "name": "Bounce Hit3"
+  },
+  {
+    "number": 273,
+    "name": "Warp Hit 5L"
+  },
+  {
+    "number": 274,
+    "name": "Warp Hit 5R"
+  },
+  {
+    "number": 275,
+    "name": "Bounce Hit4"
+  },
+  {
+    "number": 276,
+    "name": "Scratch Menu"
+  },
+  {
+    "number": 277,
+    "name": "Scratch 4"
+  },
+  {
+    "number": 278,
+    "name": "Scratch 5"
+  },
+  {
+    "number": 279,
+    "name": "Scratch 6"
+  },
+  {
+    "number": 280,
+    "name": "Scratch 7"
+  },
+  {
+    "number": 281,
+    "name": "Scratch 8"
+  },
+  {
+    "number": 282,
+    "name": "Scratch 9"
+  },
+  {
+    "number": 283,
+    "name": "Scratch 10"
+  },
+  {
+    "number": 284,
+    "name": "Scratch 11"
+  },
+  {
+    "number": 285,
+    "name": "Scratch 12"
+  },
+  {
+    "number": 286,
+    "name": "Scratch 13"
+  },
+  {
+    "number": 287,
+    "name": "Scratch 14"
+  },
+  {
+    "number": 288,
+    "name": "Scratch 15"
+  },
+  {
+    "number": 289,
+    "name": "Vinyl NzLp 1"
+  },
+  {
+    "number": 290,
+    "name": "Vinyl NzLp 2"
+  },
+  {
+    "number": 291,
+    "name": "Vox Menu"
+  },
+  {
+    "number": 292,
+    "name": "Whoo!  M"
+  },
+  {
+    "number": 293,
+    "name": "You're DJ M"
+  },
+  {
+    "number": 294,
+    "name": "Groove M"
+  },
+  {
+    "number": 295,
+    "name": "Com'on M"
+  },
+  {
+    "number": 296,
+    "name": "Yeah M"
+  },
+  {
+    "number": 297,
+    "name": "Wow Yeah F"
+  },
+  {
+    "number": 298,
+    "name": "Yeah F"
+  },
+  {
+    "number": 299,
+    "name": "Ho F"
+  },
+  {
+    "number": 300,
+    "name": "Aow F"
+  },
+  {
+    "number": 301,
+    "name": "Oh F"
+  },
+  {
+    "number": 302,
+    "name": "R&B Kick 1"
+  },
+  {
+    "number": 303,
+    "name": "LoBit Kick 1"
+  },
+  {
+    "number": 304,
+    "name": "LoBit Kick 2"
+  },
+  {
+    "number": 305,
+    "name": "Old Kick 1"
+  },
+  {
+    "number": 306,
+    "name": "Old Kick 2"
+  },
+  {
+    "number": 307,
+    "name": "Metal Kick"
+  },
+  {
+    "number": 308,
+    "name": "Old Kick 3"
+  },
+  {
+    "number": 309,
+    "name": "Rebo Kick 1"
+  },
+  {
+    "number": 310,
+    "name": "Abuz Kick"
+  },
+  {
+    "number": 311,
+    "name": "Cool Kick 1"
+  },
+  {
+    "number": 312,
+    "name": "Dyna Kick"
+  },
+  {
+    "number": 313,
+    "name": "Floor Kick"
+  },
+  {
+    "number": 314,
+    "name": "Gan Kick"
+  },
+  {
+    "number": 315,
+    "name": "GoGo Kick"
+  },
+  {
+    "number": 316,
+    "name": "Livn Kick"
+  },
+  {
+    "number": 317,
+    "name": "Old Kick 4"
+  },
+  {
+    "number": 318,
+    "name": "Mellow Kick"
+  },
+  {
+    "number": 319,
+    "name": "Two Kick"
+  },
+  {
+    "number": 320,
+    "name": "Gummo Kick 1"
+  },
+  {
+    "number": 321,
+    "name": "Gummo Kick 2"
+  },
+  {
+    "number": 322,
+    "name": "R&B Kick 2"
+  },
+  {
+    "number": 323,
+    "name": "Narrow Kick"
+  },
+  {
+    "number": 324,
+    "name": "Alley Kick 1"
+  },
+  {
+    "number": 325,
+    "name": "Alley Kick 2"
+  },
+  {
+    "number": 326,
+    "name": "FunkB Kick"
+  },
+  {
+    "number": 327,
+    "name": "Light Kick 1"
+  },
+  {
+    "number": 328,
+    "name": "Light Kick 2"
+  },
+  {
+    "number": 329,
+    "name": "Light Kick 3"
+  },
+  {
+    "number": 330,
+    "name": "L-RiderKick1"
+  },
+  {
+    "number": 331,
+    "name": "Light Kick 4"
+  },
+  {
+    "number": 332,
+    "name": "Light Kick 5"
+  },
+  {
+    "number": 333,
+    "name": "Light Kick 6"
+  },
+  {
+    "number": 334,
+    "name": "H-Rider Kick"
+  },
+  {
+    "number": 335,
+    "name": "Light Kick 7"
+  },
+  {
+    "number": 336,
+    "name": "L-RiderKick2"
+  },
+  {
+    "number": 337,
+    "name": "Light Kick 8"
+  },
+  {
+    "number": 338,
+    "name": "ChickenKick1"
+  },
+  {
+    "number": 339,
+    "name": "Edge Kick"
+  },
+  {
+    "number": 340,
+    "name": "Buck Kick"
+  },
+  {
+    "number": 341,
+    "name": "Layer Kick 1"
+  },
+  {
+    "number": 342,
+    "name": "Layer Kick 2"
+  },
+  {
+    "number": 343,
+    "name": "Layer Kick 3"
+  },
+  {
+    "number": 344,
+    "name": "Layer Kick 4"
+  },
+  {
+    "number": 345,
+    "name": "Retro Kick 1"
+  },
+  {
+    "number": 346,
+    "name": "Ambi Kick"
+  },
+  {
+    "number": 347,
+    "name": "Cbell Kick"
+  },
+  {
+    "number": 348,
+    "name": "Tamb Kick"
+  },
+  {
+    "number": 349,
+    "name": "Retro Kick 2"
+  },
+  {
+    "number": 350,
+    "name": "Pump Kick"
+  },
+  {
+    "number": 351,
+    "name": "Heavy Kick 1"
+  },
+  {
+    "number": 352,
+    "name": "Heavy Kick 2"
+  },
+  {
+    "number": 353,
+    "name": "Heavy Kick 3"
+  },
+  {
+    "number": 354,
+    "name": "Heavy Kick 4"
+  },
+  {
+    "number": 355,
+    "name": "Layer Kick 5"
+  },
+  {
+    "number": 356,
+    "name": "Shake Kick"
+  },
+  {
+    "number": 357,
+    "name": "Rebo Kick 2"
+  },
+  {
+    "number": 358,
+    "name": "Chop Kick"
+  },
+  {
+    "number": 359,
+    "name": "Cool Kick 2"
+  },
+  {
+    "number": 360,
+    "name": "Light Kick 9"
+  },
+  {
+    "number": 361,
+    "name": "Seiz Kick"
+  },
+  {
+    "number": 362,
+    "name": "Soul Kick"
+  },
+  {
+    "number": 363,
+    "name": "Trip Kick"
+  },
+  {
+    "number": 364,
+    "name": "Lo-Tek Kick"
+  },
+  {
+    "number": 365,
+    "name": "Filter Kick"
+  },
+  {
+    "number": 366,
+    "name": "Vinyl Kick"
+  },
+  {
+    "number": 367,
+    "name": "Blade Kick"
+  },
+  {
+    "number": 368,
+    "name": "Club Kick"
+  },
+  {
+    "number": 369,
+    "name": "Dinky Kick 1"
+  },
+  {
+    "number": 370,
+    "name": "Dinky Kick 2"
+  },
+  {
+    "number": 371,
+    "name": "Dinky Kick 3"
+  },
+  {
+    "number": 372,
+    "name": "Dinky Kick 4"
+  },
+  {
+    "number": 373,
+    "name": "Old Kick 5"
+  },
+  {
+    "number": 374,
+    "name": "Hybrid Kick3"
+  },
+  {
+    "number": 375,
+    "name": "Slopey Kick1"
+  },
+  {
+    "number": 376,
+    "name": "Junk Kick"
+  },
+  {
+    "number": 377,
+    "name": "707 DryKick1"
+  },
+  {
+    "number": 378,
+    "name": "707 DryKick2"
+  },
+  {
+    "number": 379,
+    "name": "808 DryKick1"
+  },
+  {
+    "number": 380,
+    "name": "808 DryKick2"
+  },
+  {
+    "number": 381,
+    "name": "808 DryKick3"
+  },
+  {
+    "number": 382,
+    "name": "808 DryKick4"
+  },
+  {
+    "number": 383,
+    "name": "808 DryKick5"
+  },
+  {
+    "number": 384,
+    "name": "Analog Kick1"
+  },
+  {
+    "number": 385,
+    "name": "Analog Kick2"
+  },
+  {
+    "number": 386,
+    "name": "909 DryKick1"
+  },
+  {
+    "number": 387,
+    "name": "909 DryKick2"
+  },
+  {
+    "number": 388,
+    "name": "909 DryKick3"
+  },
+  {
+    "number": 389,
+    "name": "Craze Kick 1"
+  },
+  {
+    "number": 390,
+    "name": "Craze Kick 2"
+  },
+  {
+    "number": 391,
+    "name": "106 Kick 1"
+  },
+  {
+    "number": 392,
+    "name": "106 Kick 2"
+  },
+  {
+    "number": 393,
+    "name": "MG Kick 1"
+  },
+  {
+    "number": 394,
+    "name": "MG Kick 2"
+  },
+  {
+    "number": 395,
+    "name": "Fat Kick"
+  },
+  {
+    "number": 396,
+    "name": "Croak Kick 1"
+  },
+  {
+    "number": 397,
+    "name": "Fuzz Kick"
+  },
+  {
+    "number": 398,
+    "name": "ChickenKick2"
+  },
+  {
+    "number": 399,
+    "name": "Motor Kick"
+  },
+  {
+    "number": 400,
+    "name": "Craze Kick 3"
+  },
+  {
+    "number": 401,
+    "name": "Craze Kick 4"
+  },
+  {
+    "number": 402,
+    "name": "Layer Kick 6"
+  },
+  {
+    "number": 403,
+    "name": "Plump Kick"
+  },
+  {
+    "number": 404,
+    "name": "Deviant Kick"
+  },
+  {
+    "number": 405,
+    "name": "Dance Kick 5"
+  },
+  {
+    "number": 406,
+    "name": "Dance Kick 6"
+  },
+  {
+    "number": 407,
+    "name": "Dance Kick 7"
+  },
+  {
+    "number": 408,
+    "name": "Dance Kick 8"
+  },
+  {
+    "number": 409,
+    "name": "BigDrds Kick"
+  },
+  {
+    "number": 410,
+    "name": "Slopey Kick2"
+  },
+  {
+    "number": 411,
+    "name": "Swanky Kick"
+  },
+  {
+    "number": 412,
+    "name": "SnugBugaKick"
+  },
+  {
+    "number": 413,
+    "name": "Synth Kick"
+  },
+  {
+    "number": 414,
+    "name": "DeeBee Kick"
+  },
+  {
+    "number": 415,
+    "name": "HipHop SD 1"
+  },
+  {
+    "number": 416,
+    "name": "R&B SD 1"
+  },
+  {
+    "number": 417,
+    "name": "Lo-Bit SD 1"
+  },
+  {
+    "number": 418,
+    "name": "Blade SD"
+  },
+  {
+    "number": 419,
+    "name": "Basis SD 1"
+  },
+  {
+    "number": 420,
+    "name": "Gruntoid SD"
+  },
+  {
+    "number": 421,
+    "name": "L-Rider SD"
+  },
+  {
+    "number": 422,
+    "name": "Craze SD 1"
+  },
+  {
+    "number": 423,
+    "name": "R&B SD 2"
+  },
+  {
+    "number": 424,
+    "name": "Lo-Bit SD 2"
+  },
+  {
+    "number": 425,
+    "name": "Metalic SD"
+  },
+  {
+    "number": 426,
+    "name": "Noisy SD"
+  },
+  {
+    "number": 427,
+    "name": "Pump SD"
+  },
+  {
+    "number": 428,
+    "name": "Dinky SD 1"
+  },
+  {
+    "number": 429,
+    "name": "Dinky SD 2"
+  },
+  {
+    "number": 430,
+    "name": "Dinky SD 3"
+  },
+  {
+    "number": 431,
+    "name": "Basis SD 2"
+  },
+  {
+    "number": 432,
+    "name": "Basis SD 3"
+  },
+  {
+    "number": 433,
+    "name": "Basis SD 4"
+  },
+  {
+    "number": 434,
+    "name": "Retro SD 1"
+  },
+  {
+    "number": 435,
+    "name": "HiTune SD"
+  },
+  {
+    "number": 436,
+    "name": "Snapy SD"
+  },
+  {
+    "number": 437,
+    "name": "Thin SD"
+  },
+  {
+    "number": 438,
+    "name": "Thin SD mb"
+  },
+  {
+    "number": 439,
+    "name": "Slim SD"
+  },
+  {
+    "number": 440,
+    "name": "Rocky SD1"
+  },
+  {
+    "number": 441,
+    "name": "Rocky SD1 mb"
+  },
+  {
+    "number": 442,
+    "name": "Rocky SD2 mb"
+  },
+  {
+    "number": 443,
+    "name": "Rocky SD3 mb"
+  },
+  {
+    "number": 444,
+    "name": "Club SD1"
+  },
+  {
+    "number": 445,
+    "name": "Club SD2 mb"
+  },
+  {
+    "number": 446,
+    "name": "Club SD3"
+  },
+  {
+    "number": 447,
+    "name": "Club SD3 mb"
+  },
+  {
+    "number": 448,
+    "name": "Comp SD1 mb"
+  },
+  {
+    "number": 449,
+    "name": "Comp SD2 mb"
+  },
+  {
+    "number": 450,
+    "name": "Rev SD mb"
+  },
+  {
+    "number": 451,
+    "name": "LoBtHf SD1mb"
+  },
+  {
+    "number": 452,
+    "name": "LoBtHf SD2mb"
+  },
+  {
+    "number": 453,
+    "name": "LoBtHf SD3mb"
+  },
+  {
+    "number": 454,
+    "name": "LoBtHf SD4mb"
+  },
+  {
+    "number": 455,
+    "name": "LoBtHf SD5mb"
+  },
+  {
+    "number": 456,
+    "name": "LoBtHf SD6mb"
+  },
+  {
+    "number": 457,
+    "name": "Light SD1"
+  },
+  {
+    "number": 458,
+    "name": "Light SD1 mb"
+  },
+  {
+    "number": 459,
+    "name": "Light SD2"
+  },
+  {
+    "number": 460,
+    "name": "Light SD2 mb"
+  },
+  {
+    "number": 461,
+    "name": "Alley SD1"
+  },
+  {
+    "number": 462,
+    "name": "Alley SD1mb"
+  },
+  {
+    "number": 463,
+    "name": "BigDreds SD"
+  },
+  {
+    "number": 464,
+    "name": "H-Rider SD"
+  },
+  {
+    "number": 465,
+    "name": "PFunkSD mb"
+  },
+  {
+    "number": 466,
+    "name": "Slopey SD"
+  },
+  {
+    "number": 467,
+    "name": "Gan SD mb"
+  },
+  {
+    "number": 468,
+    "name": "GoGo SD mb"
+  },
+  {
+    "number": 469,
+    "name": "MellowSD mb"
+  },
+  {
+    "number": 470,
+    "name": "Metal SD mb"
+  },
+  {
+    "number": 471,
+    "name": "Old SD1 mb"
+  },
+  {
+    "number": 472,
+    "name": "Old SD2 mb"
+  },
+  {
+    "number": 473,
+    "name": "Old SD3 mb"
+  },
+  {
+    "number": 474,
+    "name": "Old SD4 mb"
+  },
+  {
+    "number": 475,
+    "name": "Old SD5 mb"
+  },
+  {
+    "number": 476,
+    "name": "Attack SD1"
+  },
+  {
+    "number": 477,
+    "name": "Retro SD1"
+  },
+  {
+    "number": 478,
+    "name": "Retro SD2 mb"
+  },
+  {
+    "number": 479,
+    "name": "Retro SD3"
+  },
+  {
+    "number": 480,
+    "name": "Retro SD4"
+  },
+  {
+    "number": 481,
+    "name": "Retro SD5"
+  },
+  {
+    "number": 482,
+    "name": "Retro SD6"
+  },
+  {
+    "number": 483,
+    "name": "Hybrid SD mb"
+  },
+  {
+    "number": 484,
+    "name": "DeeBee SD"
+  },
+  {
+    "number": 485,
+    "name": "Old SD6 mb"
+  },
+  {
+    "number": 486,
+    "name": "Layer SD1 mb"
+  },
+  {
+    "number": 487,
+    "name": "Layer SD2 mb"
+  },
+  {
+    "number": 488,
+    "name": "Filter SD1"
+  },
+  {
+    "number": 489,
+    "name": "Filter SD2"
+  },
+  {
+    "number": 490,
+    "name": "Attack SD2"
+  },
+  {
+    "number": 491,
+    "name": "Attack SD3"
+  },
+  {
+    "number": 492,
+    "name": "Attack SD4"
+  },
+  {
+    "number": 493,
+    "name": "Lo-Tek SD"
+  },
+  {
+    "number": 494,
+    "name": "Chicken SD"
+  },
+  {
+    "number": 495,
+    "name": "Filter SD3"
+  },
+  {
+    "number": 496,
+    "name": "Filter SD4"
+  },
+  {
+    "number": 497,
+    "name": "Retro SD7"
+  },
+  {
+    "number": 498,
+    "name": "Retro SD8"
+  },
+  {
+    "number": 499,
+    "name": "Ultra SD 1"
+  },
+  {
+    "number": 500,
+    "name": "Ultra SD 2"
+  },
+  {
+    "number": 501,
+    "name": "Funky SD"
+  },
+  {
+    "number": 502,
+    "name": "Layer SD3"
+  },
+  {
+    "number": 503,
+    "name": "Layer SD4 mb"
+  },
+  {
+    "number": 504,
+    "name": "Alley SD2"
+  },
+  {
+    "number": 505,
+    "name": "Alley SD2 mb"
+  },
+  {
+    "number": 506,
+    "name": "Fella SD1 mb"
+  },
+  {
+    "number": 507,
+    "name": "Fella SD2"
+  },
+  {
+    "number": 508,
+    "name": "Fella SD2 mb"
+  },
+  {
+    "number": 509,
+    "name": "Rebo SD1"
+  },
+  {
+    "number": 510,
+    "name": "Rebo SD1 mb"
+  },
+  {
+    "number": 511,
+    "name": "Rebo SD2"
+  },
+  {
+    "number": 512,
+    "name": "Swush SD mb"
+  },
+  {
+    "number": 513,
+    "name": "Heat SD mb"
+  },
+  {
+    "number": 514,
+    "name": "Layer SD5 mb"
+  },
+  {
+    "number": 515,
+    "name": "Cool SD"
+  },
+  {
+    "number": 516,
+    "name": "GoGo SD"
+  },
+  {
+    "number": 517,
+    "name": "Soul SD mb"
+  },
+  {
+    "number": 518,
+    "name": "Layer SD6"
+  },
+  {
+    "number": 519,
+    "name": "Funk SD1"
+  },
+  {
+    "number": 520,
+    "name": "Funk SD2"
+  },
+  {
+    "number": 521,
+    "name": "Dinky SD4 mb"
+  },
+  {
+    "number": 522,
+    "name": "Layer SD7 mb"
+  },
+  {
+    "number": 523,
+    "name": "Layer SD8 mb"
+  },
+  {
+    "number": 524,
+    "name": "Layer SD9 mb"
+  },
+  {
+    "number": 525,
+    "name": "Vynil SD  mb"
+  },
+  {
+    "number": 526,
+    "name": "FilterSD5 mb"
+  },
+  {
+    "number": 527,
+    "name": "Junk SD mb"
+  },
+  {
+    "number": 528,
+    "name": "707 Dry SD1"
+  },
+  {
+    "number": 529,
+    "name": "707 Dry SD2"
+  },
+  {
+    "number": 530,
+    "name": "808 Dry SD1"
+  },
+  {
+    "number": 531,
+    "name": "808 Dry SD2"
+  },
+  {
+    "number": 532,
+    "name": "808 Dry SD3"
+  },
+  {
+    "number": 533,
+    "name": "909 Dry SD1"
+  },
+  {
+    "number": 534,
+    "name": "909 Dry SD2"
+  },
+  {
+    "number": 535,
+    "name": "909 Dry SD3"
+  },
+  {
+    "number": 536,
+    "name": "909 Dry SD4"
+  },
+  {
+    "number": 537,
+    "name": "909 Dry SD5"
+  },
+  {
+    "number": 538,
+    "name": "909 SD&CLP"
+  },
+  {
+    "number": 539,
+    "name": "106 SD1"
+  },
+  {
+    "number": 540,
+    "name": "106 SD2"
+  },
+  {
+    "number": 541,
+    "name": "Clappy SD"
+  },
+  {
+    "number": 542,
+    "name": "Cranky SD"
+  },
+  {
+    "number": 543,
+    "name": "Grim SD"
+  },
+  {
+    "number": 544,
+    "name": "Sparkle SD"
+  },
+  {
+    "number": 545,
+    "name": "SparkleSD mb"
+  },
+  {
+    "number": 546,
+    "name": "Hush SD mb"
+  },
+  {
+    "number": 547,
+    "name": "R&B Crs Stk1"
+  },
+  {
+    "number": 548,
+    "name": "R&B Crs Stk2"
+  },
+  {
+    "number": 549,
+    "name": "Lo-Bit CStk"
+  },
+  {
+    "number": 550,
+    "name": "707 Dry RSht"
+  },
+  {
+    "number": 551,
+    "name": "808 Dry RSht"
+  },
+  {
+    "number": 552,
+    "name": "909 Dry RSht"
+  },
+  {
+    "number": 553,
+    "name": "Basis Rim"
+  },
+  {
+    "number": 554,
+    "name": "Basis Rim mb"
+  },
+  {
+    "number": 555,
+    "name": "Deviant RM1"
+  },
+  {
+    "number": 556,
+    "name": "Devi RM1mb"
+  },
+  {
+    "number": 557,
+    "name": "Deviant RM2"
+  },
+  {
+    "number": 558,
+    "name": "Deviant RM3"
+  },
+  {
+    "number": 559,
+    "name": "Devi RM3mb"
+  },
+  {
+    "number": 560,
+    "name": "Hop RimShot1"
+  },
+  {
+    "number": 561,
+    "name": "Hop RimShot2"
+  },
+  {
+    "number": 562,
+    "name": "Hop RimShot3"
+  },
+  {
+    "number": 563,
+    "name": "Old HTom A1"
+  },
+  {
+    "number": 564,
+    "name": "Old HTom A2"
+  },
+  {
+    "number": 565,
+    "name": "Old HTom A3"
+  },
+  {
+    "number": 566,
+    "name": "Old LTom A1"
+  },
+  {
+    "number": 567,
+    "name": "Old LTom A2"
+  },
+  {
+    "number": 568,
+    "name": "Old HTom B1"
+  },
+  {
+    "number": 569,
+    "name": "Old HTom B2"
+  },
+  {
+    "number": 570,
+    "name": "Old HTom B3"
+  },
+  {
+    "number": 571,
+    "name": "Old LTom B1"
+  },
+  {
+    "number": 572,
+    "name": "Old LTom B2"
+  },
+  {
+    "number": 573,
+    "name": "Retro Tom1"
+  },
+  {
+    "number": 574,
+    "name": "Retro Tom2"
+  },
+  {
+    "number": 575,
+    "name": "Sim5 Tom1S"
+  },
+  {
+    "number": 576,
+    "name": "Sim5 Tom1F"
+  },
+  {
+    "number": 577,
+    "name": "Sim5 Tom2S"
+  },
+  {
+    "number": 578,
+    "name": "Sim5 Tom2F"
+  },
+  {
+    "number": 579,
+    "name": "Sim5 Tom3S"
+  },
+  {
+    "number": 580,
+    "name": "Sim5 Tom3F"
+  },
+  {
+    "number": 581,
+    "name": "Sim5 Tom4S"
+  },
+  {
+    "number": 582,
+    "name": "Sim5 Tom4F"
+  },
+  {
+    "number": 583,
+    "name": "707 Dry HTom"
+  },
+  {
+    "number": 584,
+    "name": "707 Dry MTom"
+  },
+  {
+    "number": 585,
+    "name": "707 Dry LTom"
+  },
+  {
+    "number": 586,
+    "name": "808 Dry HTom"
+  },
+  {
+    "number": 587,
+    "name": "808 Dry MTom"
+  },
+  {
+    "number": 588,
+    "name": "808 Dry LTom"
+  },
+  {
+    "number": 589,
+    "name": "909 Dry HTom"
+  },
+  {
+    "number": 590,
+    "name": "909 Dry MTom"
+  },
+  {
+    "number": 591,
+    "name": "909 Dry LTom"
+  },
+  {
+    "number": 592,
+    "name": "Lo-Tek HH1"
+  },
+  {
+    "number": 593,
+    "name": "Lo-Tek HH2"
+  },
+  {
+    "number": 594,
+    "name": "Lo-Tek HH3"
+  },
+  {
+    "number": 595,
+    "name": "Lo-Tek HH4"
+  },
+  {
+    "number": 596,
+    "name": "Lo-Bit CHH"
+  },
+  {
+    "number": 597,
+    "name": "Dry CHH 1"
+  },
+  {
+    "number": 598,
+    "name": "Dry CHH 2"
+  },
+  {
+    "number": 599,
+    "name": "Dry CHH 3"
+  },
+  {
+    "number": 600,
+    "name": "Comp CHH 1"
+  },
+  {
+    "number": 601,
+    "name": "Comp CHH 2"
+  },
+  {
+    "number": 602,
+    "name": "Comp CHH 3"
+  },
+  {
+    "number": 603,
+    "name": "Lo-Fi CHH 1"
+  },
+  {
+    "number": 604,
+    "name": "Lo-Fi CHH 2"
+  },
+  {
+    "number": 605,
+    "name": "Lo-Fi CHH 3"
+  },
+  {
+    "number": 606,
+    "name": "Timba CHH"
+  },
+  {
+    "number": 607,
+    "name": "Chill CHH"
+  },
+  {
+    "number": 608,
+    "name": "Mosaic CHH 1"
+  },
+  {
+    "number": 609,
+    "name": "Mosaic CHH 2"
+  },
+  {
+    "number": 610,
+    "name": "Mosaic CHH 3"
+  },
+  {
+    "number": 611,
+    "name": "UltrafunkCH1"
+  },
+  {
+    "number": 612,
+    "name": "UltrafunkCH2"
+  },
+  {
+    "number": 613,
+    "name": "Miami CHH"
+  },
+  {
+    "number": 614,
+    "name": "Lulu CHH"
+  },
+  {
+    "number": 615,
+    "name": "707 Dry CHH"
+  },
+  {
+    "number": 616,
+    "name": "808 Dry CHH"
+  },
+  {
+    "number": 617,
+    "name": "808 Cl&OpHH"
+  },
+  {
+    "number": 618,
+    "name": "909 Dry CHH1"
+  },
+  {
+    "number": 619,
+    "name": "909 Dry CHH2"
+  },
+  {
+    "number": 620,
+    "name": "909 Dry CHH3"
+  },
+  {
+    "number": 621,
+    "name": "Miami OHH"
+  },
+  {
+    "number": 622,
+    "name": "Time OHH"
+  },
+  {
+    "number": 623,
+    "name": "UltrafunkOHH"
+  },
+  {
+    "number": 624,
+    "name": "Jiggle OHH"
+  },
+  {
+    "number": 625,
+    "name": "Lo-Bit OHH"
+  },
+  {
+    "number": 626,
+    "name": "Dry OHH"
+  },
+  {
+    "number": 627,
+    "name": "Comp OHH"
+  },
+  {
+    "number": 628,
+    "name": "Lo-Fi OHH"
+  },
+  {
+    "number": 629,
+    "name": "707 Dry OHH"
+  },
+  {
+    "number": 630,
+    "name": "808 Dry OHH1"
+  },
+  {
+    "number": 631,
+    "name": "808 Dry OHH2"
+  },
+  {
+    "number": 632,
+    "name": "808 Dry OHH3"
+  },
+  {
+    "number": 633,
+    "name": "909 Dry OHH1"
+  },
+  {
+    "number": 634,
+    "name": "909 Dry OHH2"
+  },
+  {
+    "number": 635,
+    "name": "Single HClp1"
+  },
+  {
+    "number": 636,
+    "name": "Single HClp2"
+  },
+  {
+    "number": 637,
+    "name": "Single HClp3"
+  },
+  {
+    "number": 638,
+    "name": "Real Clap L"
+  },
+  {
+    "number": 639,
+    "name": "Real Clap R"
+  },
+  {
+    "number": 640,
+    "name": "Lofi Clap1mb"
+  },
+  {
+    "number": 641,
+    "name": "Lofi Clap2mb"
+  },
+  {
+    "number": 642,
+    "name": "Lofi Clap3mb"
+  },
+  {
+    "number": 643,
+    "name": "Buck Clap"
+  },
+  {
+    "number": 644,
+    "name": "Head Knd Clp"
+  },
+  {
+    "number": 645,
+    "name": "Royal Clap"
+  },
+  {
+    "number": 646,
+    "name": "Clap Tail 2"
+  },
+  {
+    "number": 647,
+    "name": "GospelClap L"
+  },
+  {
+    "number": 648,
+    "name": "GospelClap R"
+  },
+  {
+    "number": 649,
+    "name": "707 Dry Clap"
+  },
+  {
+    "number": 650,
+    "name": "808 Dry Clap"
+  },
+  {
+    "number": 651,
+    "name": "909 Dry Clap"
+  },
+  {
+    "number": 652,
+    "name": "Pop Crash1"
+  },
+  {
+    "number": 653,
+    "name": "Pop Crash2"
+  },
+  {
+    "number": 654,
+    "name": "Pop SprshCym"
+  },
+  {
+    "number": 655,
+    "name": "Pop ChinaCym"
+  },
+  {
+    "number": 656,
+    "name": "Pop Cym Roll"
+  },
+  {
+    "number": 657,
+    "name": "707 Dry CR"
+  },
+  {
+    "number": 658,
+    "name": "909 Dry CR 1"
+  },
+  {
+    "number": 659,
+    "name": "909 Dry CR 2"
+  },
+  {
+    "number": 660,
+    "name": "909 Dry CR 3"
+  },
+  {
+    "number": 661,
+    "name": "PopRideCym 1"
+  },
+  {
+    "number": 662,
+    "name": "PopRideCym 2"
+  },
+  {
+    "number": 663,
+    "name": "PopRideCym 3"
+  },
+  {
+    "number": 664,
+    "name": "PopRideCym 4"
+  },
+  {
+    "number": 665,
+    "name": "707 Dry RD"
+  },
+  {
+    "number": 666,
+    "name": "808 Dry Cym1"
+  },
+  {
+    "number": 667,
+    "name": "808 Dry Cym2"
+  },
+  {
+    "number": 668,
+    "name": "808 Dry Cym3"
+  },
+  {
+    "number": 669,
+    "name": "808 Dry Cym4"
+  },
+  {
+    "number": 670,
+    "name": "909 Dry RD1"
+  },
+  {
+    "number": 671,
+    "name": "909 Dry RD2"
+  },
+  {
+    "number": 672,
+    "name": "909 Dry RD3"
+  },
+  {
+    "number": 673,
+    "name": "MG Nz Cym"
+  },
+  {
+    "number": 674,
+    "name": "US Nz Cym"
+  },
+  {
+    "number": 675,
+    "name": "WindChime Up"
+  },
+  {
+    "number": 676,
+    "name": "WindChime Dn"
+  },
+  {
+    "number": 677,
+    "name": "Cwbl Lo"
+  },
+  {
+    "number": 678,
+    "name": "Cwbl Hi"
+  },
+  {
+    "number": 679,
+    "name": "Cwbl Mute"
+  },
+  {
+    "number": 680,
+    "name": "707 Dry Cwbl"
+  },
+  {
+    "number": 681,
+    "name": "808 Dry Cwbl"
+  },
+  {
+    "number": 682,
+    "name": "808 Dry Clvs"
+  },
+  {
+    "number": 683,
+    "name": "Clvs Hi"
+  },
+  {
+    "number": 684,
+    "name": "Clvs Lo"
+  },
+  {
+    "number": 685,
+    "name": "HiBongo Opn"
+  },
+  {
+    "number": 686,
+    "name": "HiBongo Mfld"
+  },
+  {
+    "number": 687,
+    "name": "HiBongo 2"
+  },
+  {
+    "number": 688,
+    "name": "HiBongo Slp1"
+  },
+  {
+    "number": 689,
+    "name": "HiBongo Slp2"
+  },
+  {
+    "number": 690,
+    "name": "HiBongo Mute"
+  },
+  {
+    "number": 691,
+    "name": "LoBongo Opn"
+  },
+  {
+    "number": 692,
+    "name": "LoBongo Slap"
+  },
+  {
+    "number": 693,
+    "name": "808 Dry HCng"
+  },
+  {
+    "number": 694,
+    "name": "808 Dry MCng"
+  },
+  {
+    "number": 695,
+    "name": "808 Dry LCng"
+  },
+  {
+    "number": 696,
+    "name": "LTBit CgH L"
+  },
+  {
+    "number": 697,
+    "name": "LTBit CgH R"
+  },
+  {
+    "number": 698,
+    "name": "LTBit CgL L"
+  },
+  {
+    "number": 699,
+    "name": "LTBit CgL R"
+  },
+  {
+    "number": 700,
+    "name": "HiConga Opn"
+  },
+  {
+    "number": 701,
+    "name": "HiConga Slap"
+  },
+  {
+    "number": 702,
+    "name": "HiConga Cls"
+  },
+  {
+    "number": 703,
+    "name": "LoConga Opn"
+  },
+  {
+    "number": 704,
+    "name": "Tmbl Hi p"
+  },
+  {
+    "number": 705,
+    "name": "Tmbl Hi f"
+  },
+  {
+    "number": 706,
+    "name": "Tmbl Hi Rim"
+  },
+  {
+    "number": 707,
+    "name": "Tmbl Hi Flm"
+  },
+  {
+    "number": 708,
+    "name": "Tmbl Hi Roll"
+  },
+  {
+    "number": 709,
+    "name": "Tmbl HiPaila"
+  },
+  {
+    "number": 710,
+    "name": "Tmbl Lo p"
+  },
+  {
+    "number": 711,
+    "name": "Tmbl Lo Flm"
+  },
+  {
+    "number": 712,
+    "name": "Latin Hit"
+  },
+  {
+    "number": 713,
+    "name": "Chekele 1"
+  },
+  {
+    "number": 714,
+    "name": "Chekele 2"
+  },
+  {
+    "number": 715,
+    "name": "Real Shaker1"
+  },
+  {
+    "number": 716,
+    "name": "Real Shaker2"
+  },
+  {
+    "number": 717,
+    "name": "Real Shaker3"
+  },
+  {
+    "number": 718,
+    "name": "Real Cabasa3"
+  },
+  {
+    "number": 719,
+    "name": "808 Dry Mrcs"
+  },
+  {
+    "number": 720,
+    "name": "Short Guiro2"
+  },
+  {
+    "number": 721,
+    "name": "Long Guiro2"
+  },
+  {
+    "number": 722,
+    "name": "Long Tamb"
+  },
+  {
+    "number": 723,
+    "name": "707 Dry Tamb"
+  },
+  {
+    "number": 724,
+    "name": "Long Triangl"
+  },
+  {
+    "number": 725,
+    "name": "Short FgSnap"
+  },
+  {
+    "number": 726,
+    "name": "St. FgSnap L"
+  },
+  {
+    "number": 727,
+    "name": "St. FgSnap R"
+  },
+  {
+    "number": 728,
+    "name": "Bobs Slide"
+  },
+  {
+    "number": 729,
+    "name": "Cave Hit L"
+  },
+  {
+    "number": 730,
+    "name": "Cave Hit R"
+  },
+  {
+    "number": 731,
+    "name": "Warp Hit 6"
+  },
+  {
+    "number": 732,
+    "name": "Thru Hit 1"
+  },
+  {
+    "number": 733,
+    "name": "Thru Hit 2"
+  },
+  {
+    "number": 734,
+    "name": "Mull Hit"
+  },
+  {
+    "number": 735,
+    "name": "Warp Hit 7"
+  },
+  {
+    "number": 736,
+    "name": "Warp Hit 8"
+  },
+  {
+    "number": 737,
+    "name": "Electronica"
+  },
+  {
+    "number": 738,
+    "name": "Ripper L"
+  },
+  {
+    "number": 739,
+    "name": "Ripper R"
+  },
+  {
+    "number": 740,
+    "name": "Warp Hit 9"
+  },
+  {
+    "number": 741,
+    "name": "Tickle Hit"
+  },
+  {
+    "number": 742,
+    "name": "PercolateHit"
+  },
+  {
+    "number": 743,
+    "name": "Tramp Hit L"
+  },
+  {
+    "number": 744,
+    "name": "Tramp Hit R"
+  },
+  {
+    "number": 745,
+    "name": "LoFi Moan"
+  },
+  {
+    "number": 746,
+    "name": "Sonar Hit"
+  },
+  {
+    "number": 747,
+    "name": "Electric Saw"
+  },
+  {
+    "number": 748,
+    "name": "Cartn Fall L"
+  },
+  {
+    "number": 749,
+    "name": "Cartn Fall R"
+  },
+  {
+    "number": 750,
+    "name": "Cartn Boing1"
+  },
+  {
+    "number": 751,
+    "name": "Cartn Boing2"
+  },
+  {
+    "number": 752,
+    "name": "LoTek Bit L"
+  },
+  {
+    "number": 753,
+    "name": "LoTek Bit R"
+  },
+  {
+    "number": 754,
+    "name": "LoFi Hole"
+  },
+  {
+    "number": 755,
+    "name": "LoFi Coo"
+  },
+  {
+    "number": 756,
+    "name": "LoFi Bit 1"
+  },
+  {
+    "number": 757,
+    "name": "LoFi Bit 2"
+  },
+  {
+    "number": 758,
+    "name": "Nz Pass L"
+  },
+  {
+    "number": 759,
+    "name": "Nz Pass R"
+  },
+  {
+    "number": 760,
+    "name": "Thumpkin L"
+  },
+  {
+    "number": 761,
+    "name": "Thumpkin R"
+  },
+  {
+    "number": 762,
+    "name": "Dist Slide L"
+  },
+  {
+    "number": 763,
+    "name": "Dist Slide R"
+  },
+  {
+    "number": 764,
+    "name": "Howl Sync"
+  },
+  {
+    "number": 765,
+    "name": "Slipper Hit"
+  },
+  {
+    "number": 766,
+    "name": "Spoon Hit"
+  },
+  {
+    "number": 767,
+    "name": "Pod Hit"
+  },
+  {
+    "number": 768,
+    "name": "LoFi Shaker"
+  },
+  {
+    "number": 769,
+    "name": "Box Hit 1"
+  },
+  {
+    "number": 770,
+    "name": "Hard Shaker"
+  },
+  {
+    "number": 771,
+    "name": "LoFi Pod Hit"
+  },
+  {
+    "number": 772,
+    "name": "Press Hit"
+  },
+  {
+    "number": 773,
+    "name": "Swish Hit"
+  },
+  {
+    "number": 774,
+    "name": "Rumble Hit"
+  },
+  {
+    "number": 775,
+    "name": "Cym Slide"
+  },
+  {
+    "number": 776,
+    "name": "Knock Hit 1"
+  },
+  {
+    "number": 777,
+    "name": "Knock Hit 2"
+  },
+  {
+    "number": 778,
+    "name": "Swish Rope 1"
+  },
+  {
+    "number": 779,
+    "name": "Swish Rope 2"
+  },
+  {
+    "number": 780,
+    "name": "Swish Rope 3"
+  },
+  {
+    "number": 781,
+    "name": "Swish Rope 4"
+  },
+  {
+    "number": 782,
+    "name": "Metal Atk Lo"
+  },
+  {
+    "number": 783,
+    "name": "Metal Atk Hi"
+  },
+  {
+    "number": 784,
+    "name": "Fl Press Hit"
+  },
+  {
+    "number": 785,
+    "name": "Dump Hit"
+  },
+  {
+    "number": 786,
+    "name": "Vice Hit 1"
+  },
+  {
+    "number": 787,
+    "name": "Vice Hit 2"
+  },
+  {
+    "number": 788,
+    "name": "Vice Hit 3"
+  },
+  {
+    "number": 789,
+    "name": "Box Hit 2"
+  },
+  {
+    "number": 790,
+    "name": "US Metal 1"
+  },
+  {
+    "number": 791,
+    "name": "US Metal 2"
+  },
+  {
+    "number": 792,
+    "name": "MG NoiseHit"
+  },
+  {
+    "number": 793,
+    "name": "SH2 S Zap 1"
+  },
+  {
+    "number": 794,
+    "name": "SH2 S Zap 2"
+  },
+  {
+    "number": 795,
+    "name": "SH2 S Zap 3"
+  },
+  {
+    "number": 796,
+    "name": "SH2 S Zap 4"
+  },
+  {
+    "number": 797,
+    "name": "SH2 S Zap 5"
+  },
+  {
+    "number": 798,
+    "name": "MG S Zap 1"
+  },
+  {
+    "number": 799,
+    "name": "MG S Zap 2"
+  },
+  {
+    "number": 800,
+    "name": "MG S Zap 3"
+  },
+  {
+    "number": 801,
+    "name": "SH2 U Zap 1"
+  },
+  {
+    "number": 802,
+    "name": "SH2 U Zap 2"
+  },
+  {
+    "number": 803,
+    "name": "SH2 U Zap 3"
+  },
+  {
+    "number": 804,
+    "name": "SH2 U Zap 4"
+  },
+  {
+    "number": 805,
+    "name": "SH2 U Zap 5"
+  },
+  {
+    "number": 806,
+    "name": "SH2 U Zap 6"
+  },
+  {
+    "number": 807,
+    "name": "Ring FX 1"
+  },
+  {
+    "number": 808,
+    "name": "Ring FX 2"
+  },
+  {
+    "number": 809,
+    "name": "OSC Perc 1"
+  },
+  {
+    "number": 810,
+    "name": "OSC Perc 2"
+  },
+  {
+    "number": 811,
+    "name": "US SweepD L1"
+  },
+  {
+    "number": 812,
+    "name": "US SweepD S1"
+  },
+  {
+    "number": 813,
+    "name": "US SweepD L2"
+  },
+  {
+    "number": 814,
+    "name": "US SweepD S2"
+  },
+  {
+    "number": 815,
+    "name": "US SweepD L3"
+  },
+  {
+    "number": 816,
+    "name": "MG SweepDn"
+  },
+  {
+    "number": 817,
+    "name": "US SweepU L1"
+  },
+  {
+    "number": 818,
+    "name": "US SweepU L2"
+  }
+]

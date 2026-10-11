@@ -1,0 +1,786 @@
+[
+  {
+    "number": 1,
+    "name": "F.Str mp A L"
+  },
+  {
+    "number": 2,
+    "name": "F.Str mp A R"
+  },
+  {
+    "number": 3,
+    "name": "F.Str mp B L"
+  },
+  {
+    "number": 4,
+    "name": "F.Str mp B R"
+  },
+  {
+    "number": 5,
+    "name": "F.Str mp C L"
+  },
+  {
+    "number": 6,
+    "name": "F.Str mp C R"
+  },
+  {
+    "number": 7,
+    "name": "F.Str mp + L"
+  },
+  {
+    "number": 8,
+    "name": "F.Str mp + R"
+  },
+  {
+    "number": 9,
+    "name": "Mrct A  L"
+  },
+  {
+    "number": 10,
+    "name": "Mrct A  R"
+  },
+  {
+    "number": 11,
+    "name": "Mrct B  L"
+  },
+  {
+    "number": 12,
+    "name": "Mrct B  R"
+  },
+  {
+    "number": 13,
+    "name": "Mrct C  L"
+  },
+  {
+    "number": 14,
+    "name": "Mrct C  R"
+  },
+  {
+    "number": 15,
+    "name": "Mrct +  L"
+  },
+  {
+    "number": 16,
+    "name": "Mrct +  R"
+  },
+  {
+    "number": 17,
+    "name": "Spcct A  L"
+  },
+  {
+    "number": 18,
+    "name": "Spcct A  R"
+  },
+  {
+    "number": 19,
+    "name": "Spcct B  L"
+  },
+  {
+    "number": 20,
+    "name": "Spcct B  R"
+  },
+  {
+    "number": 21,
+    "name": "Spcct C  L"
+  },
+  {
+    "number": 22,
+    "name": "Spcct C  R"
+  },
+  {
+    "number": 23,
+    "name": "Trem mp A  L"
+  },
+  {
+    "number": 24,
+    "name": "Trem mp A  R"
+  },
+  {
+    "number": 25,
+    "name": "Trem mp B  L"
+  },
+  {
+    "number": 26,
+    "name": "Trem mp B  R"
+  },
+  {
+    "number": 27,
+    "name": "Trem mp C  L"
+  },
+  {
+    "number": 28,
+    "name": "Trem mp C  R"
+  },
+  {
+    "number": 29,
+    "name": "Trem mp +  L"
+  },
+  {
+    "number": 30,
+    "name": "Trem mp +  R"
+  },
+  {
+    "number": 31,
+    "name": "Vn mp A  L"
+  },
+  {
+    "number": 32,
+    "name": "Vn mp A  R"
+  },
+  {
+    "number": 33,
+    "name": "Vn mp B  L"
+  },
+  {
+    "number": 34,
+    "name": "Vn mp B  R"
+  },
+  {
+    "number": 35,
+    "name": "Vn mp C  L"
+  },
+  {
+    "number": 36,
+    "name": "Vn mp C  R"
+  },
+  {
+    "number": 37,
+    "name": "Vn mp +  L"
+  },
+  {
+    "number": 38,
+    "name": "Vn mp +  R"
+  },
+  {
+    "number": 39,
+    "name": "Va mp A  L"
+  },
+  {
+    "number": 40,
+    "name": "Va mp A  R"
+  },
+  {
+    "number": 41,
+    "name": "Va mp B  L"
+  },
+  {
+    "number": 42,
+    "name": "Va mp B  R"
+  },
+  {
+    "number": 43,
+    "name": "Va mp C  L"
+  },
+  {
+    "number": 44,
+    "name": "Va mp C  R"
+  },
+  {
+    "number": 45,
+    "name": "Va mp +  L"
+  },
+  {
+    "number": 46,
+    "name": "Va mp +  R"
+  },
+  {
+    "number": 47,
+    "name": "Vc mp A  L"
+  },
+  {
+    "number": 48,
+    "name": "Vc mp A  R"
+  },
+  {
+    "number": 49,
+    "name": "Vc mp B  L"
+  },
+  {
+    "number": 50,
+    "name": "Vc mp B  R"
+  },
+  {
+    "number": 51,
+    "name": "Vc mp C  L"
+  },
+  {
+    "number": 52,
+    "name": "Vc mp C  R"
+  },
+  {
+    "number": 53,
+    "name": "Vc mp +  L"
+  },
+  {
+    "number": 54,
+    "name": "Vc mp +  R"
+  },
+  {
+    "number": 55,
+    "name": "Cb mp A  L"
+  },
+  {
+    "number": 56,
+    "name": "Cb mp A  R"
+  },
+  {
+    "number": 57,
+    "name": "Cb mp B  L"
+  },
+  {
+    "number": 58,
+    "name": "Cb mp B  R"
+  },
+  {
+    "number": 59,
+    "name": "Cb mp C  L"
+  },
+  {
+    "number": 60,
+    "name": "Cb mp C  R"
+  },
+  {
+    "number": 61,
+    "name": "Cb mp +  L"
+  },
+  {
+    "number": 62,
+    "name": "Cb mp +  R"
+  },
+  {
+    "number": 63,
+    "name": "Vn mltV A  L"
+  },
+  {
+    "number": 64,
+    "name": "Vn mltV A  R"
+  },
+  {
+    "number": 65,
+    "name": "Vn mltV B  L"
+  },
+  {
+    "number": 66,
+    "name": "Vn mltV B  R"
+  },
+  {
+    "number": 67,
+    "name": "Vn mltV C  L"
+  },
+  {
+    "number": 68,
+    "name": "Vn mltV C  R"
+  },
+  {
+    "number": 69,
+    "name": "Vn mltV +  L"
+  },
+  {
+    "number": 70,
+    "name": "Vn mltV +  R"
+  },
+  {
+    "number": 71,
+    "name": "Va mltV A  L"
+  },
+  {
+    "number": 72,
+    "name": "Va mltV A  R"
+  },
+  {
+    "number": 73,
+    "name": "Va mltV B  L"
+  },
+  {
+    "number": 74,
+    "name": "Va mltV B  R"
+  },
+  {
+    "number": 75,
+    "name": "Va mltV C  L"
+  },
+  {
+    "number": 76,
+    "name": "Va mltV C  R"
+  },
+  {
+    "number": 77,
+    "name": "Va mltV +  L"
+  },
+  {
+    "number": 78,
+    "name": "Va mltV +  R"
+  },
+  {
+    "number": 79,
+    "name": "Vc mltV A  L"
+  },
+  {
+    "number": 80,
+    "name": "Vc mltV A  R"
+  },
+  {
+    "number": 81,
+    "name": "Vc mltV B  L"
+  },
+  {
+    "number": 82,
+    "name": "Vc mltV B  R"
+  },
+  {
+    "number": 83,
+    "name": "Vc mltV C  L"
+  },
+  {
+    "number": 84,
+    "name": "Vc mltV C  R"
+  },
+  {
+    "number": 85,
+    "name": "Vc mltV +  L"
+  },
+  {
+    "number": 86,
+    "name": "Vc mltV +  R"
+  },
+  {
+    "number": 87,
+    "name": "Cb  f A  L"
+  },
+  {
+    "number": 88,
+    "name": "Cb  f A  R"
+  },
+  {
+    "number": 89,
+    "name": "Cb  f B  L"
+  },
+  {
+    "number": 90,
+    "name": "Cb  f B  R"
+  },
+  {
+    "number": 91,
+    "name": "Cb  f C  L"
+  },
+  {
+    "number": 92,
+    "name": "Cb  f C  R"
+  },
+  {
+    "number": 93,
+    "name": "Cb  f +  L"
+  },
+  {
+    "number": 94,
+    "name": "Cb  f +  R"
+  },
+  {
+    "number": 95,
+    "name": "Vn mltV^ A L"
+  },
+  {
+    "number": 96,
+    "name": "Vn mltV^ A R"
+  },
+  {
+    "number": 97,
+    "name": "Vn mltV^ B L"
+  },
+  {
+    "number": 98,
+    "name": "Vn mltV^ B R"
+  },
+  {
+    "number": 99,
+    "name": "Vn mltV^ C L"
+  },
+  {
+    "number": 100,
+    "name": "Vn mltV^ C R"
+  },
+  {
+    "number": 101,
+    "name": "Vn mltV^ + L"
+  },
+  {
+    "number": 102,
+    "name": "Vn mltV^ + R"
+  },
+  {
+    "number": 103,
+    "name": "Va mltV^ A L"
+  },
+  {
+    "number": 104,
+    "name": "Va mltV^ A R"
+  },
+  {
+    "number": 105,
+    "name": "Va mltV^ B L"
+  },
+  {
+    "number": 106,
+    "name": "Va mltV^ B R"
+  },
+  {
+    "number": 107,
+    "name": "Va mltV^ C L"
+  },
+  {
+    "number": 108,
+    "name": "Va mltV^ C R"
+  },
+  {
+    "number": 109,
+    "name": "Va mltV^ + L"
+  },
+  {
+    "number": 110,
+    "name": "Va mltV^ + R"
+  },
+  {
+    "number": 111,
+    "name": "Vc mltV^ A L"
+  },
+  {
+    "number": 112,
+    "name": "Vc mltV^ A R"
+  },
+  {
+    "number": 113,
+    "name": "Vc mltV^ B L"
+  },
+  {
+    "number": 114,
+    "name": "Vc mltV^ B R"
+  },
+  {
+    "number": 115,
+    "name": "Vc mltV^ C L"
+  },
+  {
+    "number": 116,
+    "name": "Vc mltV^ C R"
+  },
+  {
+    "number": 117,
+    "name": "Vc mltV^ + L"
+  },
+  {
+    "number": 118,
+    "name": "Vc mltV^ + R"
+  },
+  {
+    "number": 119,
+    "name": "Vn Stc A  L"
+  },
+  {
+    "number": 120,
+    "name": "Vn Stc A  R"
+  },
+  {
+    "number": 121,
+    "name": "Vn Stc B  L"
+  },
+  {
+    "number": 122,
+    "name": "Vn Stc B  R"
+  },
+  {
+    "number": 123,
+    "name": "Vn Stc C  L"
+  },
+  {
+    "number": 124,
+    "name": "Vn Stc C  R"
+  },
+  {
+    "number": 125,
+    "name": "Va Stc A  L"
+  },
+  {
+    "number": 126,
+    "name": "Va Stc A  R"
+  },
+  {
+    "number": 127,
+    "name": "Va Stc B  L"
+  },
+  {
+    "number": 128,
+    "name": "Va Stc B  R"
+  },
+  {
+    "number": 129,
+    "name": "Va Stc C  L"
+  },
+  {
+    "number": 130,
+    "name": "Va Stc C  R"
+  },
+  {
+    "number": 131,
+    "name": "Vc Stc A  L"
+  },
+  {
+    "number": 132,
+    "name": "Vc Stc A  R"
+  },
+  {
+    "number": 133,
+    "name": "Vc Stc B  L"
+  },
+  {
+    "number": 134,
+    "name": "Vc Stc B  R"
+  },
+  {
+    "number": 135,
+    "name": "Vc Stc C  L"
+  },
+  {
+    "number": 136,
+    "name": "Vc Stc C  R"
+  },
+  {
+    "number": 137,
+    "name": "Cb Stc A  L"
+  },
+  {
+    "number": 138,
+    "name": "Cb Stc A  R"
+  },
+  {
+    "number": 139,
+    "name": "Cb Stc B  L"
+  },
+  {
+    "number": 140,
+    "name": "Cb Stc B  R"
+  },
+  {
+    "number": 141,
+    "name": "Cb Stc C  L"
+  },
+  {
+    "number": 142,
+    "name": "Cb Stc C  R"
+  },
+  {
+    "number": 143,
+    "name": "All Stc   L"
+  },
+  {
+    "number": 144,
+    "name": "All Stc   R"
+  },
+  {
+    "number": 145,
+    "name": "Vn Pz mf A L"
+  },
+  {
+    "number": 146,
+    "name": "Vn Pz mf A R"
+  },
+  {
+    "number": 147,
+    "name": "Vn Pz mf B L"
+  },
+  {
+    "number": 148,
+    "name": "Vn Pz mf B R"
+  },
+  {
+    "number": 149,
+    "name": "Vn Pz mf C L"
+  },
+  {
+    "number": 150,
+    "name": "Vn Pz mf C R"
+  },
+  {
+    "number": 151,
+    "name": "Va Pz mf A L"
+  },
+  {
+    "number": 152,
+    "name": "Va Pz mf A R"
+  },
+  {
+    "number": 153,
+    "name": "Va Pz mf B L"
+  },
+  {
+    "number": 154,
+    "name": "Va Pz mf B R"
+  },
+  {
+    "number": 155,
+    "name": "Va Pz mf C L"
+  },
+  {
+    "number": 156,
+    "name": "Va Pz mf C R"
+  },
+  {
+    "number": 157,
+    "name": "Vc Pz mf A L"
+  },
+  {
+    "number": 158,
+    "name": "Vc Pz mf A R"
+  },
+  {
+    "number": 159,
+    "name": "Vc Pz mf B L"
+  },
+  {
+    "number": 160,
+    "name": "Vc Pz mf B R"
+  },
+  {
+    "number": 161,
+    "name": "Vc Pz mf C L"
+  },
+  {
+    "number": 162,
+    "name": "Vc Pz mf C R"
+  },
+  {
+    "number": 163,
+    "name": "Cb Pz mf A L"
+  },
+  {
+    "number": 164,
+    "name": "Cb Pz mf A R"
+  },
+  {
+    "number": 165,
+    "name": "Cb Pz mf B L"
+  },
+  {
+    "number": 166,
+    "name": "Cb Pz mf B R"
+  },
+  {
+    "number": 167,
+    "name": "Cb Pz mf C L"
+  },
+  {
+    "number": 168,
+    "name": "Cb Pz mf C R"
+  },
+  {
+    "number": 169,
+    "name": "All Pz mf  L"
+  },
+  {
+    "number": 170,
+    "name": "All Pz mf  R"
+  },
+  {
+    "number": 171,
+    "name": "Vn Pz ff A L"
+  },
+  {
+    "number": 172,
+    "name": "Vn Pz ff A R"
+  },
+  {
+    "number": 173,
+    "name": "Vn Pz ff B L"
+  },
+  {
+    "number": 174,
+    "name": "Vn Pz ff B R"
+  },
+  {
+    "number": 175,
+    "name": "Vn Pz ff C L"
+  },
+  {
+    "number": 176,
+    "name": "Vn Pz ff C R"
+  },
+  {
+    "number": 177,
+    "name": "Va Pz ff A L"
+  },
+  {
+    "number": 178,
+    "name": "Va Pz ff A R"
+  },
+  {
+    "number": 179,
+    "name": "Va Pz ff B L"
+  },
+  {
+    "number": 180,
+    "name": "Va Pz ff B R"
+  },
+  {
+    "number": 181,
+    "name": "Va Pz ff C L"
+  },
+  {
+    "number": 182,
+    "name": "Va Pz ff C R"
+  },
+  {
+    "number": 183,
+    "name": "Vc Pz ff A L"
+  },
+  {
+    "number": 184,
+    "name": "Vc Pz ff A R"
+  },
+  {
+    "number": 185,
+    "name": "Vc Pz ff B L"
+  },
+  {
+    "number": 186,
+    "name": "Vc Pz ff B R"
+  },
+  {
+    "number": 187,
+    "name": "Vc Pz ff C L"
+  },
+  {
+    "number": 188,
+    "name": "Vc Pz ff C R"
+  },
+  {
+    "number": 189,
+    "name": "Cb Pz ff A L"
+  },
+  {
+    "number": 190,
+    "name": "Cb Pz ff A R"
+  },
+  {
+    "number": 191,
+    "name": "Cb Pz ff B L"
+  },
+  {
+    "number": 192,
+    "name": "Cb Pz ff B R"
+  },
+  {
+    "number": 193,
+    "name": "Cb Pz ff C L"
+  },
+  {
+    "number": 194,
+    "name": "Cb Pz ff C R"
+  },
+  {
+    "number": 195,
+    "name": "All Pz ff  L"
+  },
+  {
+    "number": 196,
+    "name": "All Pz ff  R"
+  }
+]

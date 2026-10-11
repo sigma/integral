@@ -1,0 +1,2090 @@
+[
+  {
+    "number": 1,
+    "name": "AcPiano3pA L"
+  },
+  {
+    "number": 2,
+    "name": "AcPiano3pA R"
+  },
+  {
+    "number": 3,
+    "name": "AcPiano3pB L"
+  },
+  {
+    "number": 4,
+    "name": "AcPiano3pB R"
+  },
+  {
+    "number": 5,
+    "name": "AcPiano3pC L"
+  },
+  {
+    "number": 6,
+    "name": "AcPiano3pC R"
+  },
+  {
+    "number": 7,
+    "name": "AcPiano3fA L"
+  },
+  {
+    "number": 8,
+    "name": "AcPiano3fA R"
+  },
+  {
+    "number": 9,
+    "name": "AcPiano3fB L"
+  },
+  {
+    "number": 10,
+    "name": "AcPiano3fB R"
+  },
+  {
+    "number": 11,
+    "name": "AcPiano3fC L"
+  },
+  {
+    "number": 12,
+    "name": "AcPiano3fC R"
+  },
+  {
+    "number": 13,
+    "name": "Dyn EP 2 p A"
+  },
+  {
+    "number": 14,
+    "name": "Dyn EP 2 p B"
+  },
+  {
+    "number": 15,
+    "name": "Dyn EP 2 p C"
+  },
+  {
+    "number": 16,
+    "name": "Dyn EP 2 f A"
+  },
+  {
+    "number": 17,
+    "name": "Dyn EP 2 f B"
+  },
+  {
+    "number": 18,
+    "name": "Dyn EP 2 f C"
+  },
+  {
+    "number": 19,
+    "name": "BrightB3 A L"
+  },
+  {
+    "number": 20,
+    "name": "BrightB3 A R"
+  },
+  {
+    "number": 21,
+    "name": "BrightB3 B L"
+  },
+  {
+    "number": 22,
+    "name": "BrightB3 B R"
+  },
+  {
+    "number": 23,
+    "name": "BrightB3 C L"
+  },
+  {
+    "number": 24,
+    "name": "BrightB3 C R"
+  },
+  {
+    "number": 25,
+    "name": "NylonGt4 p A"
+  },
+  {
+    "number": 26,
+    "name": "NylonGt4 p B"
+  },
+  {
+    "number": 27,
+    "name": "NylonGt4 p C"
+  },
+  {
+    "number": 28,
+    "name": "NylonGt4 f A"
+  },
+  {
+    "number": 29,
+    "name": "NylonGt4 f B"
+  },
+  {
+    "number": 30,
+    "name": "NylonGt4 f C"
+  },
+  {
+    "number": 31,
+    "name": "NylnGt4Sld A"
+  },
+  {
+    "number": 32,
+    "name": "NylnGt4Sld B"
+  },
+  {
+    "number": 33,
+    "name": "NylnGt4Sld C"
+  },
+  {
+    "number": 34,
+    "name": "NylnGt4Noiz1"
+  },
+  {
+    "number": 35,
+    "name": "NylnGt4Noiz2"
+  },
+  {
+    "number": 36,
+    "name": "FlamncGt p A"
+  },
+  {
+    "number": 37,
+    "name": "FlamncGt p B"
+  },
+  {
+    "number": 38,
+    "name": "FlamncGt p C"
+  },
+  {
+    "number": 39,
+    "name": "FlamncGt f A"
+  },
+  {
+    "number": 40,
+    "name": "FlamncGt f B"
+  },
+  {
+    "number": 41,
+    "name": "FlamncGt f C"
+  },
+  {
+    "number": 42,
+    "name": "FlamncGtRoll"
+  },
+  {
+    "number": 43,
+    "name": "12StrGt A L"
+  },
+  {
+    "number": 44,
+    "name": "12StrGt A R"
+  },
+  {
+    "number": 45,
+    "name": "12StrGt B L"
+  },
+  {
+    "number": 46,
+    "name": "12StrGt B R"
+  },
+  {
+    "number": 47,
+    "name": "12StrGt C L"
+  },
+  {
+    "number": 48,
+    "name": "12StrGt C R"
+  },
+  {
+    "number": 49,
+    "name": "335Gt p A"
+  },
+  {
+    "number": 50,
+    "name": "335Gt p B"
+  },
+  {
+    "number": 51,
+    "name": "335Gt p C"
+  },
+  {
+    "number": 52,
+    "name": "335Gt f A"
+  },
+  {
+    "number": 53,
+    "name": "335Gt f B"
+  },
+  {
+    "number": 54,
+    "name": "335Gt f C"
+  },
+  {
+    "number": 55,
+    "name": "JazzGt2 p A"
+  },
+  {
+    "number": 56,
+    "name": "JazzGt2 p B"
+  },
+  {
+    "number": 57,
+    "name": "JazzGt2 p C"
+  },
+  {
+    "number": 58,
+    "name": "JazzGt2 f A"
+  },
+  {
+    "number": 59,
+    "name": "JazzGt2 f B"
+  },
+  {
+    "number": 60,
+    "name": "JazzGt2 f C"
+  },
+  {
+    "number": 61,
+    "name": "JzGt3HrmncsA"
+  },
+  {
+    "number": 62,
+    "name": "JzGt3HrmncsB"
+  },
+  {
+    "number": 63,
+    "name": "JzGt3HrmncsC"
+  },
+  {
+    "number": 64,
+    "name": "JzGt3OctaveA"
+  },
+  {
+    "number": 65,
+    "name": "JzGt3OctaveB"
+  },
+  {
+    "number": 66,
+    "name": "JzGt3OctaveC"
+  },
+  {
+    "number": 67,
+    "name": "JzGt3OctSldA"
+  },
+  {
+    "number": 68,
+    "name": "JzGt3OctSldB"
+  },
+  {
+    "number": 69,
+    "name": "JzGt3OctSldC"
+  },
+  {
+    "number": 70,
+    "name": "CleanGt2 A"
+  },
+  {
+    "number": 71,
+    "name": "CleanGt2 B"
+  },
+  {
+    "number": 72,
+    "name": "CleanGt2 C"
+  },
+  {
+    "number": 73,
+    "name": "CleanGt3 A"
+  },
+  {
+    "number": 74,
+    "name": "CleanGt3 B"
+  },
+  {
+    "number": 75,
+    "name": "CleanGt3 C"
+  },
+  {
+    "number": 76,
+    "name": "CrunchGt A"
+  },
+  {
+    "number": 77,
+    "name": "CrunchGt B"
+  },
+  {
+    "number": 78,
+    "name": "CrunchGt C"
+  },
+  {
+    "number": 79,
+    "name": "6StrBs2 p A"
+  },
+  {
+    "number": 80,
+    "name": "6StrBs2 p B"
+  },
+  {
+    "number": 81,
+    "name": "6StrBs2 p C"
+  },
+  {
+    "number": 82,
+    "name": "6StrBs2 f A"
+  },
+  {
+    "number": 83,
+    "name": "6StrBs2 f B"
+  },
+  {
+    "number": 84,
+    "name": "6StrBs2 f C"
+  },
+  {
+    "number": 85,
+    "name": "6StrBs2ThumA"
+  },
+  {
+    "number": 86,
+    "name": "6StrBs2ThumB"
+  },
+  {
+    "number": 87,
+    "name": "6StrBs2ThumC"
+  },
+  {
+    "number": 88,
+    "name": "6StrBs2PullA"
+  },
+  {
+    "number": 89,
+    "name": "6StrBs2PullB"
+  },
+  {
+    "number": 90,
+    "name": "6StrBs2PullC"
+  },
+  {
+    "number": 91,
+    "name": "JazzBs3 p A"
+  },
+  {
+    "number": 92,
+    "name": "JazzBs3 p B"
+  },
+  {
+    "number": 93,
+    "name": "JazzBs3 p C"
+  },
+  {
+    "number": 94,
+    "name": "JazzBs3 f A"
+  },
+  {
+    "number": 95,
+    "name": "JazzBs3 f B"
+  },
+  {
+    "number": 96,
+    "name": "JazzBs3 f C"
+  },
+  {
+    "number": 97,
+    "name": "JzBs3PckMt A"
+  },
+  {
+    "number": 98,
+    "name": "JzBs3PckMt B"
+  },
+  {
+    "number": 99,
+    "name": "JzBs3PckMt C"
+  },
+  {
+    "number": 100,
+    "name": "JzBs3Pops A"
+  },
+  {
+    "number": 101,
+    "name": "JzBs3Pops B"
+  },
+  {
+    "number": 102,
+    "name": "JzBs3Pops C"
+  },
+  {
+    "number": 103,
+    "name": "JzBs3Noise1"
+  },
+  {
+    "number": 104,
+    "name": "JzBs3Noise2"
+  },
+  {
+    "number": 105,
+    "name": "AcBass2 p A"
+  },
+  {
+    "number": 106,
+    "name": "AcBass2 p B"
+  },
+  {
+    "number": 107,
+    "name": "AcBass2 p C"
+  },
+  {
+    "number": 108,
+    "name": "AcBass2 f A"
+  },
+  {
+    "number": 109,
+    "name": "AcBass2 f B"
+  },
+  {
+    "number": 110,
+    "name": "AcBass2 f C"
+  },
+  {
+    "number": 111,
+    "name": "AcBass2Noiz1"
+  },
+  {
+    "number": 112,
+    "name": "AcBass2Noiz2"
+  },
+  {
+    "number": 113,
+    "name": "AcBass2Noiz3"
+  },
+  {
+    "number": 114,
+    "name": "Gt/BsNz Menu"
+  },
+  {
+    "number": 115,
+    "name": "Flute Vib3 A"
+  },
+  {
+    "number": 116,
+    "name": "Flute Vib3 B"
+  },
+  {
+    "number": 117,
+    "name": "Flute Vib3 C"
+  },
+  {
+    "number": 118,
+    "name": "Alto Flute A"
+  },
+  {
+    "number": 119,
+    "name": "Alto Flute B"
+  },
+  {
+    "number": 120,
+    "name": "Alto Flute C"
+  },
+  {
+    "number": 121,
+    "name": "Afro Flute A"
+  },
+  {
+    "number": 122,
+    "name": "Afro Flute B"
+  },
+  {
+    "number": 123,
+    "name": "Afro Flute C"
+  },
+  {
+    "number": 124,
+    "name": "Vox Flute A"
+  },
+  {
+    "number": 125,
+    "name": "Vox Flute B"
+  },
+  {
+    "number": 126,
+    "name": "Vox Flute C"
+  },
+  {
+    "number": 127,
+    "name": "Flute Atk A"
+  },
+  {
+    "number": 128,
+    "name": "Flute Atk B"
+  },
+  {
+    "number": 129,
+    "name": "Flute Atk C"
+  },
+  {
+    "number": 130,
+    "name": "Pan Pipe 2 A"
+  },
+  {
+    "number": 131,
+    "name": "Pan Pipe 2 B"
+  },
+  {
+    "number": 132,
+    "name": "Pan Pipe 2 C"
+  },
+  {
+    "number": 133,
+    "name": "PanPipeBrthA"
+  },
+  {
+    "number": 134,
+    "name": "PanPipeBrthB"
+  },
+  {
+    "number": 135,
+    "name": "PanPipeBrthC"
+  },
+  {
+    "number": 136,
+    "name": "Moceno A"
+  },
+  {
+    "number": 137,
+    "name": "Moceno B"
+  },
+  {
+    "number": 138,
+    "name": "Moceno C"
+  },
+  {
+    "number": 139,
+    "name": "AltoSax2 p A"
+  },
+  {
+    "number": 140,
+    "name": "AltoSax2 p B"
+  },
+  {
+    "number": 141,
+    "name": "AltoSax2 p C"
+  },
+  {
+    "number": 142,
+    "name": "AltoSax2 f A"
+  },
+  {
+    "number": 143,
+    "name": "AltoSax2 f B"
+  },
+  {
+    "number": 144,
+    "name": "AltoSax2 f C"
+  },
+  {
+    "number": 145,
+    "name": "TenrSax2 p A"
+  },
+  {
+    "number": 146,
+    "name": "TenrSax2 p B"
+  },
+  {
+    "number": 147,
+    "name": "TenrSax2 p C"
+  },
+  {
+    "number": 148,
+    "name": "TenrSax2 f A"
+  },
+  {
+    "number": 149,
+    "name": "TenrSax2 f B"
+  },
+  {
+    "number": 150,
+    "name": "TenrSax2 f C"
+  },
+  {
+    "number": 151,
+    "name": "BariSax2 p A"
+  },
+  {
+    "number": 152,
+    "name": "BariSax2 p B"
+  },
+  {
+    "number": 153,
+    "name": "BariSax2 p C"
+  },
+  {
+    "number": 154,
+    "name": "BariSax2 f A"
+  },
+  {
+    "number": 155,
+    "name": "BariSax2 f B"
+  },
+  {
+    "number": 156,
+    "name": "BariSax2 f C"
+  },
+  {
+    "number": 157,
+    "name": "WindsFX Menu"
+  },
+  {
+    "number": 158,
+    "name": "Perc.Flute 1"
+  },
+  {
+    "number": 159,
+    "name": "Perc.Flute 2"
+  },
+  {
+    "number": 160,
+    "name": "Perc.Flute 3"
+  },
+  {
+    "number": 161,
+    "name": "Perc.Flute 4"
+  },
+  {
+    "number": 162,
+    "name": "Perc.Flute 5"
+  },
+  {
+    "number": 163,
+    "name": "Perc.Flute 6"
+  },
+  {
+    "number": 164,
+    "name": "Perc.Flute 7"
+  },
+  {
+    "number": 165,
+    "name": "AltFlOvrTone"
+  },
+  {
+    "number": 166,
+    "name": "AltoSax EFX"
+  },
+  {
+    "number": 167,
+    "name": "StudioTp p A"
+  },
+  {
+    "number": 168,
+    "name": "StudioTp p B"
+  },
+  {
+    "number": 169,
+    "name": "StudioTp p C"
+  },
+  {
+    "number": 170,
+    "name": "StudioTp f A"
+  },
+  {
+    "number": 171,
+    "name": "StudioTp f B"
+  },
+  {
+    "number": 172,
+    "name": "StudioTp f C"
+  },
+  {
+    "number": 173,
+    "name": "TpHrmnMt p A"
+  },
+  {
+    "number": 174,
+    "name": "TpHrmnMt p B"
+  },
+  {
+    "number": 175,
+    "name": "TpHrmnMt p C"
+  },
+  {
+    "number": 176,
+    "name": "TpHrmnMt f A"
+  },
+  {
+    "number": 177,
+    "name": "TpHrmnMt f B"
+  },
+  {
+    "number": 178,
+    "name": "TpHrmnMt f C"
+  },
+  {
+    "number": 179,
+    "name": "S-BoreTb p A"
+  },
+  {
+    "number": 180,
+    "name": "S-BoreTb p B"
+  },
+  {
+    "number": 181,
+    "name": "S-BoreTb p C"
+  },
+  {
+    "number": 182,
+    "name": "S-BoreTb f A"
+  },
+  {
+    "number": 183,
+    "name": "S-BoreTb f B"
+  },
+  {
+    "number": 184,
+    "name": "S-BoreTb f C"
+  },
+  {
+    "number": 185,
+    "name": "Brs2K mf A L"
+  },
+  {
+    "number": 186,
+    "name": "Brs2K mf A R"
+  },
+  {
+    "number": 187,
+    "name": "Brs2K mf B L"
+  },
+  {
+    "number": 188,
+    "name": "Brs2K mf B R"
+  },
+  {
+    "number": 189,
+    "name": "Brs2K mf C L"
+  },
+  {
+    "number": 190,
+    "name": "Brs2K mf C R"
+  },
+  {
+    "number": 191,
+    "name": "Brs2K ff A L"
+  },
+  {
+    "number": 192,
+    "name": "Brs2K ff A R"
+  },
+  {
+    "number": 193,
+    "name": "Brs2K ff B L"
+  },
+  {
+    "number": 194,
+    "name": "Brs2K ff B R"
+  },
+  {
+    "number": 195,
+    "name": "Brs2K ff C L"
+  },
+  {
+    "number": 196,
+    "name": "Brs2K ff C R"
+  },
+  {
+    "number": 197,
+    "name": "SoftPad2 A L"
+  },
+  {
+    "number": 198,
+    "name": "SoftPad2 A R"
+  },
+  {
+    "number": 199,
+    "name": "SoftPad2 B L"
+  },
+  {
+    "number": 200,
+    "name": "SoftPad2 B R"
+  },
+  {
+    "number": 201,
+    "name": "SoftPad2 C L"
+  },
+  {
+    "number": 202,
+    "name": "SoftPad2 C R"
+  },
+  {
+    "number": 203,
+    "name": "MG Stringz A"
+  },
+  {
+    "number": 204,
+    "name": "MG Stringz B"
+  },
+  {
+    "number": 205,
+    "name": "MG Stringz C"
+  },
+  {
+    "number": 206,
+    "name": "OB Stringz A"
+  },
+  {
+    "number": 207,
+    "name": "OB Stringz B"
+  },
+  {
+    "number": 208,
+    "name": "OB Stringz C"
+  },
+  {
+    "number": 209,
+    "name": "KidsChoirA L"
+  },
+  {
+    "number": 210,
+    "name": "KidsChoirA R"
+  },
+  {
+    "number": 211,
+    "name": "KidsChoirB L"
+  },
+  {
+    "number": 212,
+    "name": "KidsChoirB R"
+  },
+  {
+    "number": 213,
+    "name": "KidsChoirC L"
+  },
+  {
+    "number": 214,
+    "name": "KidsChoirC R"
+  },
+  {
+    "number": 215,
+    "name": "M+F Ahs A L"
+  },
+  {
+    "number": 216,
+    "name": "M+F Ahs A R"
+  },
+  {
+    "number": 217,
+    "name": "M+F Ahs B L"
+  },
+  {
+    "number": 218,
+    "name": "M+F Ahs B R"
+  },
+  {
+    "number": 219,
+    "name": "M+F Ahs C L"
+  },
+  {
+    "number": 220,
+    "name": "M+F Ahs C R"
+  },
+  {
+    "number": 221,
+    "name": "JazzOoo A"
+  },
+  {
+    "number": 222,
+    "name": "JazzOoo B"
+  },
+  {
+    "number": 223,
+    "name": "JazzOoo C"
+  },
+  {
+    "number": 224,
+    "name": "SteelDrm3p A"
+  },
+  {
+    "number": 225,
+    "name": "SteelDrm3p B"
+  },
+  {
+    "number": 226,
+    "name": "SteelDrm3p C"
+  },
+  {
+    "number": 227,
+    "name": "SteelDrm3f A"
+  },
+  {
+    "number": 228,
+    "name": "SteelDrm3f B"
+  },
+  {
+    "number": 229,
+    "name": "SteelDrm3f C"
+  },
+  {
+    "number": 230,
+    "name": "Kick Menu L"
+  },
+  {
+    "number": 231,
+    "name": "Kick Menu R"
+  },
+  {
+    "number": 232,
+    "name": "Stdio1K sftL"
+  },
+  {
+    "number": 233,
+    "name": "Stdio1K sftR"
+  },
+  {
+    "number": 234,
+    "name": "Stdio1K medL"
+  },
+  {
+    "number": 235,
+    "name": "Stdio1K medR"
+  },
+  {
+    "number": 236,
+    "name": "Stdio1K hrdL"
+  },
+  {
+    "number": 237,
+    "name": "Stdio1K hrdR"
+  },
+  {
+    "number": 238,
+    "name": "Stdio2K sftL"
+  },
+  {
+    "number": 239,
+    "name": "Stdio2K sftR"
+  },
+  {
+    "number": 240,
+    "name": "Stdio2K medL"
+  },
+  {
+    "number": 241,
+    "name": "Stdio2K medR"
+  },
+  {
+    "number": 242,
+    "name": "Stdio2K hrdL"
+  },
+  {
+    "number": 243,
+    "name": "Stdio2K hrdR"
+  },
+  {
+    "number": 244,
+    "name": "Stdio1SMenuL"
+  },
+  {
+    "number": 245,
+    "name": "Stdio1SMenuR"
+  },
+  {
+    "number": 246,
+    "name": "Stdio2SMenuL"
+  },
+  {
+    "number": 247,
+    "name": "Stdio2SMenuR"
+  },
+  {
+    "number": 248,
+    "name": "Stdio3SMenuL"
+  },
+  {
+    "number": 249,
+    "name": "Stdio3SMenuR"
+  },
+  {
+    "number": 250,
+    "name": "Stdio4SMenuL"
+  },
+  {
+    "number": 251,
+    "name": "Stdio4SMenuR"
+  },
+  {
+    "number": 252,
+    "name": "CymbalSMenuL"
+  },
+  {
+    "number": 253,
+    "name": "CymbalSMenuR"
+  },
+  {
+    "number": 254,
+    "name": "Stdio1Ssft1L"
+  },
+  {
+    "number": 255,
+    "name": "Stdio1Ssft1R"
+  },
+  {
+    "number": 256,
+    "name": "Stdio1Ssft2L"
+  },
+  {
+    "number": 257,
+    "name": "Stdio1Ssft2R"
+  },
+  {
+    "number": 258,
+    "name": "Stdio1Smed1L"
+  },
+  {
+    "number": 259,
+    "name": "Stdio1Smed1R"
+  },
+  {
+    "number": 260,
+    "name": "Stdio1Smed2L"
+  },
+  {
+    "number": 261,
+    "name": "Stdio1Smed2R"
+  },
+  {
+    "number": 262,
+    "name": "Stdio1Shrd1L"
+  },
+  {
+    "number": 263,
+    "name": "Stdio1Shrd1R"
+  },
+  {
+    "number": 264,
+    "name": "Stdio1Shrd2L"
+  },
+  {
+    "number": 265,
+    "name": "Stdio1Shrd2R"
+  },
+  {
+    "number": 266,
+    "name": "Stdio1Srim1L"
+  },
+  {
+    "number": 267,
+    "name": "Stdio1Srim1R"
+  },
+  {
+    "number": 268,
+    "name": "Stdio1Srim2L"
+  },
+  {
+    "number": 269,
+    "name": "Stdio1Srim2R"
+  },
+  {
+    "number": 270,
+    "name": "Stdio1Sbuz1L"
+  },
+  {
+    "number": 271,
+    "name": "Stdio1Sbuz1R"
+  },
+  {
+    "number": 272,
+    "name": "Stdio1Sbuz2L"
+  },
+  {
+    "number": 273,
+    "name": "Stdio1Sbuz2R"
+  },
+  {
+    "number": 274,
+    "name": "Stdio1Sflm L"
+  },
+  {
+    "number": 275,
+    "name": "Stdio1Sflm R"
+  },
+  {
+    "number": 276,
+    "name": "Stdio1Sstk1L"
+  },
+  {
+    "number": 277,
+    "name": "Stdio1Sstk1R"
+  },
+  {
+    "number": 278,
+    "name": "Stdio1Sstk2L"
+  },
+  {
+    "number": 279,
+    "name": "Stdio1Sstk2R"
+  },
+  {
+    "number": 280,
+    "name": "Stdio2Ssft1L"
+  },
+  {
+    "number": 281,
+    "name": "Stdio2Ssft1R"
+  },
+  {
+    "number": 282,
+    "name": "Stdio2Ssft2L"
+  },
+  {
+    "number": 283,
+    "name": "Stdio2Ssft2R"
+  },
+  {
+    "number": 284,
+    "name": "Stdio2Smed1L"
+  },
+  {
+    "number": 285,
+    "name": "Stdio2Smed1R"
+  },
+  {
+    "number": 286,
+    "name": "Stdio2Smed2L"
+  },
+  {
+    "number": 287,
+    "name": "Stdio2Smed2R"
+  },
+  {
+    "number": 288,
+    "name": "Stdio2Shrd1L"
+  },
+  {
+    "number": 289,
+    "name": "Stdio2Shrd1R"
+  },
+  {
+    "number": 290,
+    "name": "Stdio2Shrd2L"
+  },
+  {
+    "number": 291,
+    "name": "Stdio2Shrd2R"
+  },
+  {
+    "number": 292,
+    "name": "Stdio2Srim1L"
+  },
+  {
+    "number": 293,
+    "name": "Stdio2Srim1R"
+  },
+  {
+    "number": 294,
+    "name": "Stdio2Srim2L"
+  },
+  {
+    "number": 295,
+    "name": "Stdio2Srim2R"
+  },
+  {
+    "number": 296,
+    "name": "Stdio2Sbuz1L"
+  },
+  {
+    "number": 297,
+    "name": "Stdio2Sbuz1R"
+  },
+  {
+    "number": 298,
+    "name": "Stdio2Sbuz2L"
+  },
+  {
+    "number": 299,
+    "name": "Stdio2Sbuz2R"
+  },
+  {
+    "number": 300,
+    "name": "Stdio2Sflm L"
+  },
+  {
+    "number": 301,
+    "name": "Stdio2Sflm R"
+  },
+  {
+    "number": 302,
+    "name": "Stdio2Sstk1L"
+  },
+  {
+    "number": 303,
+    "name": "Stdio2Sstk1R"
+  },
+  {
+    "number": 304,
+    "name": "Stdio2Sstk2L"
+  },
+  {
+    "number": 305,
+    "name": "Stdio2Sstk2R"
+  },
+  {
+    "number": 306,
+    "name": "Stdio3Ssft1L"
+  },
+  {
+    "number": 307,
+    "name": "Stdio3Ssft1R"
+  },
+  {
+    "number": 308,
+    "name": "Stdio3Ssft2L"
+  },
+  {
+    "number": 309,
+    "name": "Stdio3Ssft2R"
+  },
+  {
+    "number": 310,
+    "name": "Stdio3Smed1L"
+  },
+  {
+    "number": 311,
+    "name": "Stdio3Smed1R"
+  },
+  {
+    "number": 312,
+    "name": "Stdio3Smed2L"
+  },
+  {
+    "number": 313,
+    "name": "Stdio3Smed2R"
+  },
+  {
+    "number": 314,
+    "name": "Stdio3Shrd1L"
+  },
+  {
+    "number": 315,
+    "name": "Stdio3Shrd1R"
+  },
+  {
+    "number": 316,
+    "name": "Stdio3Shrd2L"
+  },
+  {
+    "number": 317,
+    "name": "Stdio3Shrd2R"
+  },
+  {
+    "number": 318,
+    "name": "Stdio3Srim1L"
+  },
+  {
+    "number": 319,
+    "name": "Stdio3Srim1R"
+  },
+  {
+    "number": 320,
+    "name": "Stdio3Srim2L"
+  },
+  {
+    "number": 321,
+    "name": "Stdio3Srim2R"
+  },
+  {
+    "number": 322,
+    "name": "Stdio3Sbuz1L"
+  },
+  {
+    "number": 323,
+    "name": "Stdio3Sbuz1R"
+  },
+  {
+    "number": 324,
+    "name": "Stdio3Sbuz2L"
+  },
+  {
+    "number": 325,
+    "name": "Stdio3Sbuz2R"
+  },
+  {
+    "number": 326,
+    "name": "Stdio3Sflm L"
+  },
+  {
+    "number": 327,
+    "name": "Stdio3Sflm R"
+  },
+  {
+    "number": 328,
+    "name": "Stdio3Sstk1L"
+  },
+  {
+    "number": 329,
+    "name": "Stdio3Sstk1R"
+  },
+  {
+    "number": 330,
+    "name": "Stdio3Sstk2L"
+  },
+  {
+    "number": 331,
+    "name": "Stdio3Sstk2R"
+  },
+  {
+    "number": 332,
+    "name": "Stdio4Ssft1L"
+  },
+  {
+    "number": 333,
+    "name": "Stdio4Ssft1R"
+  },
+  {
+    "number": 334,
+    "name": "Stdio4Ssft2L"
+  },
+  {
+    "number": 335,
+    "name": "Stdio4Ssft2R"
+  },
+  {
+    "number": 336,
+    "name": "Stdio4Smed1L"
+  },
+  {
+    "number": 337,
+    "name": "Stdio4Smed1R"
+  },
+  {
+    "number": 338,
+    "name": "Stdio4Smed2L"
+  },
+  {
+    "number": 339,
+    "name": "Stdio4Smed2R"
+  },
+  {
+    "number": 340,
+    "name": "Stdio4Shrd1L"
+  },
+  {
+    "number": 341,
+    "name": "Stdio4Shrd1R"
+  },
+  {
+    "number": 342,
+    "name": "Stdio4Shrd2L"
+  },
+  {
+    "number": 343,
+    "name": "Stdio4Shrd2R"
+  },
+  {
+    "number": 344,
+    "name": "Stdio4Srim1L"
+  },
+  {
+    "number": 345,
+    "name": "Stdio4Srim1R"
+  },
+  {
+    "number": 346,
+    "name": "Stdio4Srim2L"
+  },
+  {
+    "number": 347,
+    "name": "Stdio4Srim2R"
+  },
+  {
+    "number": 348,
+    "name": "Stdio4Sbuz1L"
+  },
+  {
+    "number": 349,
+    "name": "Stdio4Sbuz1R"
+  },
+  {
+    "number": 350,
+    "name": "Stdio4Sbuz2L"
+  },
+  {
+    "number": 351,
+    "name": "Stdio4Sbuz2R"
+  },
+  {
+    "number": 352,
+    "name": "Stdio4Sflm L"
+  },
+  {
+    "number": 353,
+    "name": "Stdio4Sflm R"
+  },
+  {
+    "number": 354,
+    "name": "Sn w/Cym 1 L"
+  },
+  {
+    "number": 355,
+    "name": "Sn w/Cym 1 R"
+  },
+  {
+    "number": 356,
+    "name": "Sn w/Cym 2 L"
+  },
+  {
+    "number": 357,
+    "name": "Sn w/Cym 2 R"
+  },
+  {
+    "number": 358,
+    "name": "Sn w/Cym 3 L"
+  },
+  {
+    "number": 359,
+    "name": "Sn w/Cym 3 R"
+  },
+  {
+    "number": 360,
+    "name": "Sn w/Cym 4 L"
+  },
+  {
+    "number": 361,
+    "name": "Sn w/Cym 4 R"
+  },
+  {
+    "number": 362,
+    "name": "StdioT MenuL"
+  },
+  {
+    "number": 363,
+    "name": "StdioT MenuR"
+  },
+  {
+    "number": 364,
+    "name": "StdioT1sft L"
+  },
+  {
+    "number": 365,
+    "name": "StdioT1sft R"
+  },
+  {
+    "number": 366,
+    "name": "StdioT1med L"
+  },
+  {
+    "number": 367,
+    "name": "StdioT1med R"
+  },
+  {
+    "number": 368,
+    "name": "StdioT1hrd L"
+  },
+  {
+    "number": 369,
+    "name": "StdioT1hrd R"
+  },
+  {
+    "number": 370,
+    "name": "StdioT1flm1L"
+  },
+  {
+    "number": 371,
+    "name": "StdioT1flm1R"
+  },
+  {
+    "number": 372,
+    "name": "StdioT1flm2L"
+  },
+  {
+    "number": 373,
+    "name": "StdioT1flm2R"
+  },
+  {
+    "number": 374,
+    "name": "StdioT2sft L"
+  },
+  {
+    "number": 375,
+    "name": "StdioT2sft R"
+  },
+  {
+    "number": 376,
+    "name": "StdioT2med L"
+  },
+  {
+    "number": 377,
+    "name": "StdioT2med R"
+  },
+  {
+    "number": 378,
+    "name": "StdioT2hrd L"
+  },
+  {
+    "number": 379,
+    "name": "StdioT2hrd R"
+  },
+  {
+    "number": 380,
+    "name": "StdioT2flm1L"
+  },
+  {
+    "number": 381,
+    "name": "StdioT2flm1R"
+  },
+  {
+    "number": 382,
+    "name": "StdioT2flm2L"
+  },
+  {
+    "number": 383,
+    "name": "StdioT2flm2R"
+  },
+  {
+    "number": 384,
+    "name": "StdioT3sft L"
+  },
+  {
+    "number": 385,
+    "name": "StdioT3sft R"
+  },
+  {
+    "number": 386,
+    "name": "StdioT3med L"
+  },
+  {
+    "number": 387,
+    "name": "StdioT3med R"
+  },
+  {
+    "number": 388,
+    "name": "StdioT3hrd L"
+  },
+  {
+    "number": 389,
+    "name": "StdioT3hrd R"
+  },
+  {
+    "number": 390,
+    "name": "StdioT3flm1L"
+  },
+  {
+    "number": 391,
+    "name": "StdioT3flm1R"
+  },
+  {
+    "number": 392,
+    "name": "StdioT3flm2L"
+  },
+  {
+    "number": 393,
+    "name": "StdioT3flm2R"
+  },
+  {
+    "number": 394,
+    "name": "StdioT4sft L"
+  },
+  {
+    "number": 395,
+    "name": "StdioT4sft R"
+  },
+  {
+    "number": 396,
+    "name": "StdioT4med L"
+  },
+  {
+    "number": 397,
+    "name": "StdioT4med R"
+  },
+  {
+    "number": 398,
+    "name": "StdioT4hrd L"
+  },
+  {
+    "number": 399,
+    "name": "StdioT4hrd R"
+  },
+  {
+    "number": 400,
+    "name": "StdioT4flm1L"
+  },
+  {
+    "number": 401,
+    "name": "StdioT4flm1R"
+  },
+  {
+    "number": 402,
+    "name": "StdioT4flm2L"
+  },
+  {
+    "number": 403,
+    "name": "StdioT4flm2R"
+  },
+  {
+    "number": 404,
+    "name": "StdioH MenuL"
+  },
+  {
+    "number": 405,
+    "name": "StdioH MenuR"
+  },
+  {
+    "number": 406,
+    "name": "StdioH cl1 L"
+  },
+  {
+    "number": 407,
+    "name": "StdioH cl1 R"
+  },
+  {
+    "number": 408,
+    "name": "StdioH cl2 L"
+  },
+  {
+    "number": 409,
+    "name": "StdioH cl2 R"
+  },
+  {
+    "number": 410,
+    "name": "StdioH cl3 L"
+  },
+  {
+    "number": 411,
+    "name": "StdioH cl3 R"
+  },
+  {
+    "number": 412,
+    "name": "StdioH cl4 L"
+  },
+  {
+    "number": 413,
+    "name": "StdioH cl4 R"
+  },
+  {
+    "number": 414,
+    "name": "StdioH cl5 L"
+  },
+  {
+    "number": 415,
+    "name": "StdioH cl5 R"
+  },
+  {
+    "number": 416,
+    "name": "StdioH hcl L"
+  },
+  {
+    "number": 417,
+    "name": "StdioH hcl R"
+  },
+  {
+    "number": 418,
+    "name": "StdioH op1 L"
+  },
+  {
+    "number": 419,
+    "name": "StdioH op1 R"
+  },
+  {
+    "number": 420,
+    "name": "StdioH op2 L"
+  },
+  {
+    "number": 421,
+    "name": "StdioH op2 R"
+  },
+  {
+    "number": 422,
+    "name": "StdioH op3 L"
+  },
+  {
+    "number": 423,
+    "name": "StdioH op3 R"
+  },
+  {
+    "number": 424,
+    "name": "StdioH pdl1L"
+  },
+  {
+    "number": 425,
+    "name": "StdioH pdl1R"
+  },
+  {
+    "number": 426,
+    "name": "StdioH pdl2L"
+  },
+  {
+    "number": 427,
+    "name": "StdioH pdl2R"
+  },
+  {
+    "number": 428,
+    "name": "Conga2 MenuL"
+  },
+  {
+    "number": 429,
+    "name": "Conga2 MenuR"
+  },
+  {
+    "number": 430,
+    "name": "Cng2LoMtSftL"
+  },
+  {
+    "number": 431,
+    "name": "Cng2LoMtSftR"
+  },
+  {
+    "number": 432,
+    "name": "Cng2LoMtHrdL"
+  },
+  {
+    "number": 433,
+    "name": "Cng2LoMtHrdR"
+  },
+  {
+    "number": 434,
+    "name": "Cng2LoOpSftL"
+  },
+  {
+    "number": 435,
+    "name": "Cng2LoOpSftR"
+  },
+  {
+    "number": 436,
+    "name": "Cng2LoOpHrdL"
+  },
+  {
+    "number": 437,
+    "name": "Cng2LoOpHrdR"
+  },
+  {
+    "number": 438,
+    "name": "Cng2LoRoll L"
+  },
+  {
+    "number": 439,
+    "name": "Cng2LoRoll R"
+  },
+  {
+    "number": 440,
+    "name": "Cng2HiMtSftL"
+  },
+  {
+    "number": 441,
+    "name": "Cng2HiMtSftR"
+  },
+  {
+    "number": 442,
+    "name": "Cng2HiMtHrdL"
+  },
+  {
+    "number": 443,
+    "name": "Cng2HiMtHrdR"
+  },
+  {
+    "number": 444,
+    "name": "Cng2HiOpSftL"
+  },
+  {
+    "number": 445,
+    "name": "Cng2HiOpSftR"
+  },
+  {
+    "number": 446,
+    "name": "Cng2HiOpHrdL"
+  },
+  {
+    "number": 447,
+    "name": "Cng2HiOpHrdR"
+  },
+  {
+    "number": 448,
+    "name": "Cng2SlClSftL"
+  },
+  {
+    "number": 449,
+    "name": "Cng2SlClSftR"
+  },
+  {
+    "number": 450,
+    "name": "Cng2SlClHrdL"
+  },
+  {
+    "number": 451,
+    "name": "Cng2SlClHrdR"
+  },
+  {
+    "number": 452,
+    "name": "Cng2SlOpSftL"
+  },
+  {
+    "number": 453,
+    "name": "Cng2SlOpSftR"
+  },
+  {
+    "number": 454,
+    "name": "Cng2SlOpHrdL"
+  },
+  {
+    "number": 455,
+    "name": "Cng2SlOpHrdR"
+  },
+  {
+    "number": 456,
+    "name": "Cng2HiFlam L"
+  },
+  {
+    "number": 457,
+    "name": "Cng2HiFlam R"
+  },
+  {
+    "number": 458,
+    "name": "Cng2HiRoll L"
+  },
+  {
+    "number": 459,
+    "name": "Cng2HiRoll R"
+  },
+  {
+    "number": 460,
+    "name": "Bngo4LoMenuL"
+  },
+  {
+    "number": 461,
+    "name": "Bngo4LoMenuR"
+  },
+  {
+    "number": 462,
+    "name": "Bg4LFngrSftL"
+  },
+  {
+    "number": 463,
+    "name": "Bg4LFngrSftR"
+  },
+  {
+    "number": 464,
+    "name": "Bg4LFngrHrdL"
+  },
+  {
+    "number": 465,
+    "name": "Bg4LFngrHrdR"
+  },
+  {
+    "number": 466,
+    "name": "Bg4LFngsSftL"
+  },
+  {
+    "number": 467,
+    "name": "Bg4LFngsSftR"
+  },
+  {
+    "number": 468,
+    "name": "Bg4LFngsHrdL"
+  },
+  {
+    "number": 469,
+    "name": "Bg4LFngsHrdR"
+  },
+  {
+    "number": 470,
+    "name": "Bg4LMuteSftL"
+  },
+  {
+    "number": 471,
+    "name": "Bg4LMuteSftR"
+  },
+  {
+    "number": 472,
+    "name": "Bg4LMuteHrdL"
+  },
+  {
+    "number": 473,
+    "name": "Bg4LMuteHrdR"
+  },
+  {
+    "number": 474,
+    "name": "Bg4LSlapSftL"
+  },
+  {
+    "number": 475,
+    "name": "Bg4LSlapSftR"
+  },
+  {
+    "number": 476,
+    "name": "Bg4LSlapHrdL"
+  },
+  {
+    "number": 477,
+    "name": "Bg4LSlapHrdR"
+  },
+  {
+    "number": 478,
+    "name": "Bg4LOpenSftL"
+  },
+  {
+    "number": 479,
+    "name": "Bg4LOpenSftR"
+  },
+  {
+    "number": 480,
+    "name": "Bg4LOpenHrdL"
+  },
+  {
+    "number": 481,
+    "name": "Bg4LOpenHrdR"
+  },
+  {
+    "number": 482,
+    "name": "Bngo4HiMenuL"
+  },
+  {
+    "number": 483,
+    "name": "Bngo4HiMenuR"
+  },
+  {
+    "number": 484,
+    "name": "Bg4HFgMtSftL"
+  },
+  {
+    "number": 485,
+    "name": "Bg4HFgMtSftR"
+  },
+  {
+    "number": 486,
+    "name": "Bg4HFgMtHrdL"
+  },
+  {
+    "number": 487,
+    "name": "Bg4HFgMtHrdR"
+  },
+  {
+    "number": 488,
+    "name": "Bg4HFgOpSftL"
+  },
+  {
+    "number": 489,
+    "name": "Bg4HFgOpSftR"
+  },
+  {
+    "number": 490,
+    "name": "Bg4HFgOpHrdL"
+  },
+  {
+    "number": 491,
+    "name": "Bg4HFgOpHrdR"
+  },
+  {
+    "number": 492,
+    "name": "Bg4HFngsSftL"
+  },
+  {
+    "number": 493,
+    "name": "Bg4HFngsSftR"
+  },
+  {
+    "number": 494,
+    "name": "Bg4HFngsHrdL"
+  },
+  {
+    "number": 495,
+    "name": "Bg4HFngsHrdR"
+  },
+  {
+    "number": 496,
+    "name": "Bg4H Heel L"
+  },
+  {
+    "number": 497,
+    "name": "Bg4H Heel R"
+  },
+  {
+    "number": 498,
+    "name": "Bg4HSlapSftL"
+  },
+  {
+    "number": 499,
+    "name": "Bg4HSlapSftR"
+  },
+  {
+    "number": 500,
+    "name": "Bg4HSlapHrdL"
+  },
+  {
+    "number": 501,
+    "name": "Bg4HSlapHrdR"
+  },
+  {
+    "number": 502,
+    "name": "Bg4HOpenSftL"
+  },
+  {
+    "number": 503,
+    "name": "Bg4HOpenSftR"
+  },
+  {
+    "number": 504,
+    "name": "Bg4HOpenHrdL"
+  },
+  {
+    "number": 505,
+    "name": "Bg4HOpenHrdR"
+  },
+  {
+    "number": 506,
+    "name": "Bg4H Flam L"
+  },
+  {
+    "number": 507,
+    "name": "Bg4H Flam R"
+  },
+  {
+    "number": 508,
+    "name": "Bg4H Roll L"
+  },
+  {
+    "number": 509,
+    "name": "Bg4H Roll R"
+  },
+  {
+    "number": 510,
+    "name": "Timbals3Menu"
+  },
+  {
+    "number": 511,
+    "name": "Timbl3HiHead"
+  },
+  {
+    "number": 512,
+    "name": "Timbl3HiRim"
+  },
+  {
+    "number": 513,
+    "name": "Timbl3LoHead"
+  },
+  {
+    "number": 514,
+    "name": "Timbl3LoRim"
+  },
+  {
+    "number": 515,
+    "name": "Timbl3HPaila"
+  },
+  {
+    "number": 516,
+    "name": "Timb3lLPaila"
+  },
+  {
+    "number": 517,
+    "name": "Synth Saw 2"
+  },
+  {
+    "number": 518,
+    "name": "Syn Saw 2inv"
+  },
+  {
+    "number": 519,
+    "name": "Synth Square"
+  },
+  {
+    "number": 520,
+    "name": "Synth Pulse1"
+  },
+  {
+    "number": 521,
+    "name": "Triangle"
+  },
+  {
+    "number": 522,
+    "name": "Sine"
+  }
+]
