@@ -5,12 +5,18 @@
 //! the appropriate sub-editor.  Currently only the SN-S (SuperNATURAL Synth)
 //! editor is implemented; other tone types show stub placeholders.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use integral_core::address::Address;
 use integral_core::device_spec::INTEGRA7;
 use integral_core::params::{tone_type, tone_type_from_bank_msb};
-use integral_core::sn_synth::{SnSynthCommon, SnSynthPartial};
+use integral_core::parse_helpers::encode_nibble4;
+use integral_core::sn_synth::{
+    SnSynthCommon, SnSynthPartial, parse_sns_common, parse_sns_partial, sns_common_address,
+    sns_partial_address,
+};
 use integral_core::tone_banks::{find_bank, group_of, user_bank_for};
 use integral_core::waves::WaveGroup;
 use nih_plug_vizia::vizia::prelude::*;
@@ -90,8 +96,12 @@ pub struct ToneEditorData {
     pub sns_partials: [SnSynthPartialView; NUM_SNS_PARTIALS],
     /// Whether SN-S data has been loaded at least once.
     pub sns_loaded: bool,
-    /// Whether an RQ1 load has been queued for the current part.
-    pub sns_load_queued: bool,
+    /// The (part, bank MSB, bank LSB, PC) whose SN-S blocks were requested.
+    #[lens(ignore)]
+    sns_tone: Option<(usize, u8, u8, u8)>,
+    /// The SN-S blocks read so far for `sns_tone`.
+    #[lens(ignore)]
+    sns_blocks: SnsBlocks,
 
     /// Shared state handle.
     #[lens(ignore)]
@@ -169,7 +179,6 @@ impl Default for SnSynthCommonView {
 
 impl SnSynthCommonView {
     /// Populate from a parsed [`SnSynthCommon`].
-    #[allow(dead_code)]
     fn from_core(c: &SnSynthCommon) -> Self {
         Self {
             tone_name: c.tone_name.clone(),
@@ -265,7 +274,6 @@ impl Default for SnSynthPartialView {
 
 impl SnSynthPartialView {
     /// Populate from a parsed [`SnSynthPartial`].
-    #[allow(dead_code)]
     fn from_core(p: &SnSynthPartial) -> Self {
         Self {
             osc_wave: p.osc_wave as usize,
@@ -288,6 +296,52 @@ impl SnSynthPartialView {
             filter_env_depth: (p.filter_env_depth as f32 - 1.0) / 126.0,
             amp_vel_sens: (p.amp_vel_sens as f32 - 1.0) / 126.0,
         }
+    }
+}
+
+/// Raw SN-S blocks of one part, as read from the device and patched by edits.
+#[derive(Default)]
+struct SnsBlocks {
+    common: Option<Vec<u8>>,
+    partials: [Option<Vec<u8>>; NUM_SNS_PARTIALS],
+}
+
+impl SnsBlocks {
+    /// Move `part`'s SN-S block replies out of `inbox`; whether any arrived.
+    fn collect(&mut self, part: u8, inbox: &mut HashMap<Address, Vec<u8>>) -> bool {
+        let mut arrived = false;
+        if let Some(data) = inbox.remove(&sns_common_address(part)) {
+            self.common = Some(data);
+            arrived = true;
+        }
+        for (i, block) in self.partials.iter_mut().enumerate() {
+            if let Some(data) = inbox.remove(&sns_partial_address(part, i as u8)) {
+                *block = Some(data);
+                arrived = true;
+            }
+        }
+        arrived
+    }
+
+    /// Overwrite `bytes` at `offset` in `block`, if it has arrived.
+    fn patch(block: &mut Option<Vec<u8>>, offset: u8, bytes: &[u8]) {
+        let offset = offset as usize;
+        if let Some(dst) = block
+            .as_mut()
+            .and_then(|b| b.get_mut(offset..offset + bytes.len()))
+        {
+            dst.copy_from_slice(bytes);
+        }
+    }
+
+    /// The views parsed from the blocks, once every block has arrived.
+    fn views(&self) -> Option<(SnSynthCommonView, [SnSynthPartialView; NUM_SNS_PARTIALS])> {
+        let common = parse_sns_common(self.common.as_deref()?).ok()?;
+        let mut partials = std::array::from_fn(|_| SnSynthPartialView::default());
+        for (view, block) in partials.iter_mut().zip(&self.partials) {
+            *view = SnSynthPartialView::from_core(&parse_sns_partial(block.as_deref()?).ok()?);
+        }
+        Some((SnSynthCommonView::from_core(&common), partials))
     }
 }
 
@@ -318,16 +372,19 @@ impl Model for ToneEditorData {
                     return;
                 };
                 dev.set_sns_common_param(self.selected_part as u8, *offset, *value);
+                drop(dev);
+                SnsBlocks::patch(&mut self.sns_blocks.common, *offset, &[*value]);
+                self.show_sns_blocks();
             }
             ToneEditorEvent::SetSnsPartial(partial, offset, value) => {
                 let Ok(mut dev) = self.shared.device.lock() else {
                     return;
                 };
                 dev.set_sns_partial_param(self.selected_part as u8, *partial, *offset, *value);
-                // Track OSC Wave locally: it decides whether the Wave picker shows.
-                if *offset == SNS_OSC_WAVE_OFFSET {
-                    self.sns_partials[*partial as usize].osc_wave = *value as usize;
-                }
+                drop(dev);
+                let block = &mut self.sns_blocks.partials[*partial as usize];
+                SnsBlocks::patch(block, *offset, &[*value]);
+                self.show_sns_blocks();
             }
             ToneEditorEvent::SetSnsPartialWave(partial, number) => {
                 let Ok(mut dev) = self.shared.device.lock() else {
@@ -339,7 +396,10 @@ impl Model for ToneEditorData {
                     SNS_WAVE_NUMBER_OFFSET,
                     *number,
                 );
-                self.sns_partials[*partial as usize].wave_number = *number;
+                drop(dev);
+                let block = &mut self.sns_blocks.partials[*partial as usize];
+                SnsBlocks::patch(block, SNS_WAVE_NUMBER_OFFSET, &encode_nibble4(*number));
+                self.show_sns_blocks();
             }
         });
     }
@@ -356,7 +416,8 @@ impl ToneEditorData {
             sns_common: SnSynthCommonView::default(),
             sns_partials: std::array::from_fn(|_| SnSynthPartialView::default()),
             sns_loaded: false,
-            sns_load_queued: false,
+            sns_tone: None,
+            sns_blocks: SnsBlocks::default(),
             shared,
         };
         data.refresh_from_device();
@@ -382,18 +443,36 @@ impl ToneEditorData {
             format!("Part {} : {} : {}", idx + 1, type_label, part.tone_name)
         };
 
-        // Queue SN-S data requests if this is an SN-S tone and we haven't loaded yet.
         let is_sns = tone_type_from_bank_msb(part.tone_bank_msb) == Some(tone_type::SN_SYNTH);
-        if is_sns && !self.sns_load_queued {
-            self.sns_load_queued = true;
-            // We'll queue the requests after dropping the lock.
+        let tone = (idx, part.tone_bank_msb, part.tone_bank_lsb, part.tone_pc);
+        drop(dev);
+        if !is_sns {
+            return;
         }
 
-        drop(dev);
-
-        // Queue RQ1 requests for SN-S data if needed.
-        if is_sns && !self.sns_loaded {
+        let Ok(mut inbox) = self.shared.sns_replies.lock() else {
+            return;
+        };
+        // Keep collecting after load: replies to an earlier tone's requests,
+        // still queued when the tone changed, are overwritten by later ones.
+        let arrived = self.sns_blocks.collect(idx as u8, &mut inbox);
+        drop(inbox);
+        if self.sns_tone != Some(tone) {
+            self.sns_tone = Some(tone);
+            self.sns_blocks = SnsBlocks::default();
+            self.sns_loaded = false;
             self.queue_sns_requests();
+        } else if arrived {
+            self.show_sns_blocks();
+        }
+    }
+
+    /// Show the SN-S blocks in the view, once every block has arrived.
+    fn show_sns_blocks(&mut self) {
+        if let Some((common, partials)) = self.sns_blocks.views() {
+            self.sns_common = common;
+            self.sns_partials = partials;
+            self.sns_loaded = true;
         }
     }
 
@@ -973,6 +1052,7 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use integral_core::sn_synth::{SNS_COMMON_SIZE, SNS_PARTIAL_SIZE};
 
     #[test]
     fn header_names_expansion_and_gm2_banks() {
@@ -981,6 +1061,60 @@ mod tests {
         assert_eq!(bank_label(87, 0), "PCM Synth");
         // The editor placeholder still names the tone type.
         assert_eq!(tone_type_label(97), "PCM Synth");
+    }
+
+    /// Replies for `part`: a Common block and 3 Partial blocks.
+    fn sns_replies(part: u8) -> HashMap<Address, Vec<u8>> {
+        let mut common = vec![0u8; SNS_COMMON_SIZE];
+        common[..4].copy_from_slice(b"Lead");
+        common[0x0C] = 100; // Tone Level
+        common[0x1B] = 1; // Partial 2 Switch
+        let mut inbox = HashMap::from([(sns_common_address(part), common)]);
+        for i in 0..NUM_SNS_PARTIALS as u8 {
+            let mut partial = vec![0u8; SNS_PARTIAL_SIZE];
+            partial[SNS_OSC_WAVE_OFFSET as usize] = i;
+            inbox.insert(sns_partial_address(part, i), partial);
+        }
+        inbox
+    }
+
+    #[test]
+    fn sns_blocks_load_only_once_every_block_arrived() {
+        let mut inbox = sns_replies(2);
+        let partial3 = sns_partial_address(2, 2);
+        let late = inbox.remove(&partial3).unwrap();
+        inbox.extend(sns_replies(5));
+
+        let mut blocks = SnsBlocks::default();
+        blocks.collect(2, &mut inbox);
+        assert!(blocks.views().is_none());
+        // Part 5's replies stay for part 5.
+        assert_eq!(inbox.len(), 1 + NUM_SNS_PARTIALS);
+
+        inbox.insert(partial3, late);
+        blocks.collect(2, &mut inbox);
+        let (common, partials) = blocks.views().unwrap();
+        assert_eq!(common.tone_name, "Lead");
+        assert_eq!(common.tone_level, 100.0 / 127.0);
+        assert_eq!(common.partial2_switch, 1);
+        assert_eq!(partials.map(|p| p.osc_wave), [0, 1, 2]);
+    }
+
+    #[test]
+    fn sns_block_edits_show_in_views() {
+        let mut blocks = SnsBlocks::default();
+        blocks.collect(0, &mut sns_replies(0));
+
+        SnsBlocks::patch(&mut blocks.common, 0x1B, &[0]);
+        SnsBlocks::patch(
+            &mut blocks.partials[1],
+            SNS_WAVE_NUMBER_OFFSET,
+            &[0, 1, 2, 3],
+        );
+
+        let (common, partials) = blocks.views().unwrap();
+        assert_eq!(common.partial2_switch, 0);
+        assert_eq!(partials[1].wave_number, 0x0123);
     }
 
     #[test]

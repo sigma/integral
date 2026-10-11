@@ -5,10 +5,14 @@
 //! MIDI SysEx I/O, with the Integra-7 state machine handled by
 //! [`integral_core::device::DeviceState`].
 
+use integral_core::address::Address;
 use integral_core::device::DeviceState;
+use integral_core::device_spec::INTEGRA7;
+use integral_core::sn_synth::{sns_common_address, sns_partial_address};
 use integral_core::sysex;
 use nih_plug::prelude::*;
 use nih_plug_vizia::ViziaState;
+use std::collections::HashMap;
 use std::num::NonZeroU32;
 use std::sync::{Arc, Mutex};
 
@@ -60,6 +64,17 @@ impl SysExMessage for RawSysEx {
 pub struct SharedState {
     /// The Integra-7 device state machine.
     pub device: Mutex<DeviceState>,
+    /// SN-S Common/Partial block replies for the tone editor, by address.
+    pub sns_replies: Mutex<HashMap<Address, Vec<u8>>>,
+}
+
+/// Whether `address` starts an SN-S Common or Partial block of any part.
+fn is_sns_block(address: &Address) -> bool {
+    (0..INTEGRA7.part_count).any(|part| {
+        *address == sns_common_address(part)
+            || (0..INTEGRA7.sn_synth_partial_count)
+                .any(|i| *address == sns_partial_address(part, i))
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -89,6 +104,7 @@ impl Default for Integral {
             }),
             shared: Arc::new(SharedState {
                 device: Mutex::new(DeviceState::new(DEFAULT_DEVICE_ID)),
+                sns_replies: Mutex::default(),
             }),
         }
     }
@@ -134,6 +150,11 @@ impl Plugin for Integral {
             match event {
                 NoteEvent::MidiSysEx { timing: _, message } => {
                     if let Ok(dt1) = sysex::parse_dt1(&message.data) {
+                        if is_sns_block(&dt1.address) {
+                            let mut replies = self.shared.sns_replies.lock().unwrap();
+                            replies.insert(dt1.address, dt1.data);
+                            continue;
+                        }
                         let mut dev = self.shared.device.lock().unwrap();
                         dev.handle_dt1(&dt1.address, &dt1.data, now_ms);
                     }

@@ -53,6 +53,16 @@ pub fn nibble4(data: &[u8], offset: usize) -> u16 {
         | (data[offset + 3] as u16 & 0x0F)
 }
 
+/// Encode a value as 4 nibblized bytes, the inverse of [`nibble4`].
+pub fn encode_nibble4(value: u16) -> [u8; 4] {
+    [
+        ((value >> 12) & 0x0F) as u8,
+        ((value >> 8) & 0x0F) as u8,
+        ((value >> 4) & 0x0F) as u8,
+        (value & 0x0F) as u8,
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
