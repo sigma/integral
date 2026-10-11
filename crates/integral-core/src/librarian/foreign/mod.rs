@@ -15,6 +15,7 @@ pub mod frame;
 mod integra;
 mod jv;
 pub mod report;
+pub mod wave_map;
 mod xv;
 
 use std::collections::HashMap;
