@@ -178,7 +178,7 @@ Per block:
 | Tone `00 11` | Tone Output Assign (MFX, A–D, 1–8) | reserve | no equivalent | Drop, but read it first to choose the send pair (below). |
 | Tone `00 15` | Tone Receive Pan Mode (CONTINUOUS, KEY-ON) | reserve | no equivalent | Report it when KEY-ON. |
 | Tone `00 27` | Wave Group Type (INT-WAVE, SRJV80-EXP, SRX-EXP, SAMPLE) | Wave Group Type (INT, SRX, —, —) | rescaled | `0 → 0`; `2 → 1`; `1` (SR-JV80) → Wave mapping from [#195](https://github.com/sigma/integral/issues/195), else OFF; `3` (SAMPLE, XV-5080 only) → OFF. |
-| Tone `00 28` # | Wave Group ID (0–16384) | Wave Group ID | rescaled | INT: write 0 (Integra convention, [wave-names.md](wave-names.md)). SRX: the board number 1–12, *assumed* to be the same on the XV (unverified). SR-JV80: from #195. |
+| Tone `00 28` # | Wave Group ID (0–16384) | Wave Group ID | rescaled | INT: copy as is. Real XV dumps and real Integra tones both store 1 (`docs/svd/06-pcm-synth.md`, `foreign-rhythm-format.md`), not the 0 that [wave-names.md](wave-names.md) gives; see [#207](https://github.com/sigma/integral/issues/207). SRX: the board number 1–12, confirmed on real XV dumps (`foreign-rhythm-format.md`). SR-JV80: from #195. |
 | Split Key (all) | Partial Number, Assign Type, Mute Group, sends, Output Assign | — (Common 2 sits here) | no equivalent | Only present in MULTI-PARTIAL Patches, which are rejected. |
 
 \* **The two pairs of sends.** XV Tones store two Chorus/Reverb send pairs. The "(MFX)" pair
