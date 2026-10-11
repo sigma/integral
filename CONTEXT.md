@@ -67,6 +67,17 @@ A User slot whose name is its type's INIT name. An import fills free slots
 first and never overwrites another slot without the user choosing it.
 _Avoid_: Empty slot (a slot always holds something)
 
+**Foreign patch**:
+A patch dumped by another Roland synth (JV, XP or XV series) that the
+Librarian converts into a PCM Synth tone. Importing foreign patches yields an
+ordinary Pack.
+_Avoid_: Legacy patch, external patch (external reads as Expansion)
+
+**Conversion report**:
+The per-tone list of everything a Foreign patch conversion dropped or
+approximated: unmapped Waves, effect types, parameters.
+_Avoid_: Log, warnings
+
 ## Expansions
 
 **Expansion**:
