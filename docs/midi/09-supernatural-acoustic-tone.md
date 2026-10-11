@@ -84,6 +84,10 @@ Total size: `00 00 00 46`.
 | `00 44` | `0aaa aaaa` | (reserve) \<\*>          | --         | --                 |
 | `00 45` | `0aaa aaaa` | (reserve) \<\*>          | --         | --                 |
 
+> **Note:** Reserves `00 0C` -- `00 0F` extend the tone name to 16 characters.
+> Saved files store them as 7-bit ASCII, spaces in every sample. See
+> [SVD: SN Acoustic Tone](../svd/08-sn-acoustic.md#common-entry-bytes-059).
+
 ---
 
 ## SN Acoustic Tone MFX (offset `00 02 00`)
@@ -237,3 +241,6 @@ Total size: `00 00 01 11`.
 |         | `0000 bbbb` |                        |                |                                                  |
 |         | `0000 cccc` |                        |                |                                                  |
 |         | `0000 dddd` |                        |                |                                                  |
+
+> **Note:** Reserve `00 01` is always 127 in saved files. See
+> [SVD: Reserve Parameters](../svd/02-encoding.md#reserve-parameters).

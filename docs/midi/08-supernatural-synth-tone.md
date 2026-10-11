@@ -232,6 +232,9 @@ Total size: `00 00 01 11`.
 |         | `0000 cccc` |                        |                |                                                  |
 |         | `0000 dddd` |                        |                |                                                  |
 
+> **Note:** Reserve `00 01` is always 127 in saved files. See
+> [SVD: Reserve Parameters](../svd/02-encoding.md#reserve-parameters).
+
 ---
 
 ## SN Synth Tone Partial (offsets `00 20 00`, `00 21 00`, `00 22 00`)

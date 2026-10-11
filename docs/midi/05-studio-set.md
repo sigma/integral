@@ -6,6 +6,10 @@ The Studio Set is the top-level performance container in the INTEGRA-7. It holds
 global mix settings, effects routing, per-channel MIDI configuration, 16 parts
 with full tone/mix/controller setup, and per-part EQ.
 
+The tables list every `(reserve)` row of the MIDI Implementation v1.00. The
+INTEGRA-7 ignores rows marked \<\*> on receive. A `...` row stands for every
+address between its neighbours, each with the same bit pattern.
+
 ---
 
 ## 1. Studio Set Common
@@ -31,6 +35,14 @@ Total size: **00 00 00 54**
 | 00 0D | 0aaa aaaa | Studio Set Name 14 | 32 - 127 | ASCII |
 | 00 0E | 0aaa aaaa | Studio Set Name 15 | 32 - 127 | ASCII |
 | 00 0F | 0aaa aaaa | Studio Set Name 16 | 32 - 127 | ASCII |
+| 00 10 | 0aaa aaaa | (reserve) \<\*> | -- | -- |
+| 00 11 | 00aa aaaa | (reserve) \<\*> | -- | -- |
+| 00 12 | 00aa aaaa | (reserve) \<\*> | -- | -- |
+| 00 13 | 00aa aaaa | (reserve) \<\*> | -- | -- |
+| 00 14 | 0000 000a | (reserve) \<\*> | -- | -- |
+| 00 15 | 0000 000a | (reserve) \<\*> | -- | -- |
+| 00 16 | 0000 000a | (reserve) \<\*> | -- | -- |
+| 00 17 | 0000 000a | (reserve) \<\*> | -- | -- |
 | 00 18 | 0aaa aaaa | Voice Reserve 1 | 0 - 64 | 0 - 63, FULL |
 | 00 19 | 0aaa aaaa | Voice Reserve 2 | 0 - 64 | 0 - 63, FULL |
 | 00 1A | 0aaa aaaa | Voice Reserve 3 | 0 - 64 | 0 - 63, FULL |
@@ -47,6 +59,10 @@ Total size: **00 00 00 54**
 | 00 25 | 0aaa aaaa | Voice Reserve 14 | 0 - 64 | 0 - 63, FULL |
 | 00 26 | 0aaa aaaa | Voice Reserve 15 | 0 - 64 | 0 - 63, FULL |
 | 00 27 | 0aaa aaaa | Voice Reserve 16 | 0 - 64 | 0 - 63, FULL |
+| 00 28 | 0aaa aaaa | (reserve) \<\*> | -- | -- |
+| ... | ... | ... | ... | ... |
+| 00 37 | 0aaa aaaa | (reserve) \<\*> | -- | -- |
+| 00 38 | 0000 aaaa | (reserve) \<\*> | -- | -- |
 | 00 39 | 0aaa aaaa | Tone Control 1 Source | 0 - 97 | OFF, CC01 - CC31, CC33 - CC95, BEND, AFT |
 | 00 3A | 0aaa aaaa | Tone Control 2 Source | 0 - 97 | OFF, CC01 - CC31, CC33 - CC95, BEND, AFT |
 | 00 3B | 0aaa aaaa | Tone Control 3 Source | 0 - 97 | OFF, CC01 - CC31, CC33 - CC95, BEND, AFT |
@@ -64,13 +80,19 @@ Total size: **00 00 00 54**
 | 00 48 | 0000 aaaa | Drum Comp/EQ 4 Output Assign | 0 - 12 | PART, A, B, C, D, 1, 2, 3, 4, 5, 6, 7, 8 |
 | 00 49 | 0000 aaaa | Drum Comp/EQ 5 Output Assign | 0 - 12 | PART, A, B, C, D, 1, 2, 3, 4, 5, 6, 7, 8 |
 | 00 4A | 0000 aaaa | Drum Comp/EQ 6 Output Assign | 0 - 12 | PART, A, B, C, D, 1, 2, 3, 4, 5, 6, 7, 8 |
+| 00 4B | 0000 000a | (reserve) \<\*> | -- | -- |
 | 00 4C | 0aaa aaaa | Ext Part Level | 0 - 127 | 0 - 127 |
 | 00 4D | 0aaa aaaa | Ext Part Chorus Send Level | 0 - 127 | 0 - 127 |
 | 00 4E | 0aaa aaaa | Ext Part Reverb Send Level | 0 - 127 | 0 - 127 |
 | 00 4F | 0000 000a | Ext Part Mute Switch | 0 - 1 | OFF, ON |
+| 00 50 | 0aaa aaaa | (reserve) \<\*> | -- | -- |
+| 00 51 | 0aaa aaaa | (reserve) \<\*> | -- | -- |
+| 00 52 | 0aaa aaaa | (reserve) \<\*> | -- | -- |
+| 00 53 | 0aaa aaaa | (reserve) \<\*> | -- | -- |
 
-> **Note:** Offsets 00 10 - 00 17, 00 28 - 00 38, 00 4B, and 00 50 - 00 53 are
-> reserved.
+> **Note:** The reserves are not all zero in saved files. In an SVD entry the
+> 00 10 - 00 38 block (reserves and Voice Reserve 1 - 16) packs into 257 bits,
+> and its first 32 bits are always `FE 82 08 78`. See [SVD: Studio Set](../svd/05-studio-set.md#where-the-svd-differs-from-sysex-order-and-widths).
 
 ---
 
@@ -83,6 +105,7 @@ Total size: **00 00 00 54**
 |--------|------|-----------|-------|---------|
 | 00 00 | 0000 aaaa | Chorus Type | 0 - 3 | 0 - 3 |
 | 00 01 | 0aaa aaaa | Chorus Level | 0 - 127 | 0 - 127 |
+| 00 02 | 0000 00aa | (reserve) \<\*> | -- | -- |
 | 00 03 | 0000 00aa | Chorus Output Select | 0 - 2 | MAIN, REV, MAIN+REV |
 | 00 04 | 0000 aaaa 0000 bbbb 0000 cccc 0000 dddd | Chorus Parameter 1 (#) | 12768 - 52768 | -20000 - +20000 |
 | 00 08 | 0000 aaaa 0000 bbbb 0000 cccc 0000 dddd | Chorus Parameter 2 (#) | 12768 - 52768 | -20000 - +20000 |
@@ -105,8 +128,7 @@ Total size: **00 00 00 54**
 | 00 4C | 0000 aaaa 0000 bbbb 0000 cccc 0000 dddd | Chorus Parameter 19 (#) | 12768 - 52768 | -20000 - +20000 |
 | 00 50 | 0000 aaaa 0000 bbbb 0000 cccc 0000 dddd | Chorus Parameter 20 (#) | 12768 - 52768 | -20000 - +20000 |
 
-> **Note:** Offset 00 02 is reserved. All Chorus Parameters are nibblized
-> 4-byte values (marked with #).
+> **Note:** All Chorus Parameters are nibblized 4-byte values (marked with #).
 
 ---
 
@@ -169,8 +191,9 @@ Total size: **00 00 00 10**
 | 00 0A | 0aaa aaaa | Ext Part Ambience Send Level | 0 - 127 | 0 - 127 |
 | 00 0B | 000a aaaa | Ext Part Control Channel | 0 - 16 | 1 - 16, OFF |
 | 00 0C | 0aaa aaaa | Motional Surround Depth | 0 - 100 | 0 - 100 |
-
-> **Note:** Offsets 00 0D - 00 0F are reserved.
+| 00 0D | 0aaa aaaa | (reserve) \<\*> | -- | -- |
+| 00 0E | 0aaa aaaa | (reserve) \<\*> | -- | -- |
+| 00 0F | 0aaa aaaa | (reserve) \<\*> | -- | -- |
 
 ---
 
@@ -257,6 +280,10 @@ Each part block contains:
 |--------|------|-----------|-------|---------|
 | 00 00 | 0000 aaaa | Receive Channel | 0 - 15 | 1 - 16 |
 | 00 01 | 0000 000a | Receive Switch | 0 - 1 | OFF, ON |
+| 00 02 | 0000 000a | (reserve) | 1 | -- |
+| 00 03 | 0000 000a | (reserve) | 1 | -- |
+| 00 04 | 0000 000a | (reserve) | 1 | -- |
+| 00 05 | 0000 000a | (reserve) | 1 | -- |
 | 00 06 | 0aaa aaaa | Tone Bank Select MSB (CC# 0) | 0 - 127 | 0 - 127 |
 | 00 07 | 0aaa aaaa | Tone Bank Select LSB (CC# 32) | 0 - 127 | 0 - 127 |
 | 00 08 | 0aaa aaaa | Tone Program Number (PC) | 0 - 127 | 0 - 127 |
@@ -288,9 +315,11 @@ Each part block contains:
 | 00 23 | 0aaa aaaa | Velocity Fade Width Lower | 0 - 127 | 0 - 127 |
 | 00 24 | 0aaa aaaa | Velocity Fade Width Upper | 0 - 127 | 0 - 127 |
 | 00 25 | 0000 000a | Mute Switch | 0 - 1 | OFF, MUTE |
+| 00 26 | 0aaa aaaa | (reserve) \<\*> | -- | -- |
 | 00 27 | 0aaa aaaa | Part Chorus Send Level (CC# 93) | 0 - 127 | 0 - 127 |
 | 00 28 | 0aaa aaaa | Part Reverb Send Level (CC# 91) | 0 - 127 | 0 - 127 |
 | 00 29 | 0000 aaaa | Part Output Assign | 0 - 11 | A, B, C, D, 1, 2, 3, 4, 5, 6, 7, 8 |
+| 00 2A | 0000 00aa | (reserve) \<\*> | -- | -- |
 | 00 2B | 0aaa aaaa | Part Scale Tune Type | 0 - 8 | CUSTOM, EQUAL, JUST-MAJ, JUST-MIN, PYTHAGORE, KIRNBERGE, MEANTONE, WERCKMEIS, ARABIC |
 | 00 2C | 0aaa aaaa | Part Scale Tune Key | 0 - 11 | C, C#, D, D#, E, F, F#, G, G#, A, A#, B |
 | 00 2D | 0aaa aaaa | Part Scale Tune for C | 0 - 127 | -64 - +63 |
@@ -317,13 +346,20 @@ Each part block contains:
 | 00 42 | 0000 000a | Receive Hold-1 | 0 - 1 | OFF, ON |
 | 00 43 | 0000 0aaa | Velocity Curve Type | 0 - 4 | OFF, 1, 2, 3, 4 |
 | 00 44 | 0aaa aaaa | Motional Surround L-R | 0 - 127 | -64 - +63 |
+| 00 45 | 0aaa aaaa | (reserve) \<\*> | -- | -- |
 | 00 46 | 0aaa aaaa | Motional Surround F-B | 0 - 127 | -64 - +63 |
+| 00 47 | 0aaa aaaa | (reserve) \<\*> | -- | -- |
 | 00 48 | 00aa aaaa | Motional Surround Width | 0 - 32 | 0 - 32 |
 | 00 49 | 0aaa aaaa | Motional Surround Ambience Send Level | 0 - 127 | 0 - 127 |
+| 00 4A | 0aaa aaaa | (reserve) \<\*> | -- | -- |
+| 00 4B | 0aaa aaaa | (reserve) \<\*> | -- | -- |
+| 00 4C | 0aaa aaaa | (reserve) \<\*> | -- | -- |
 
-> **Note:** Offsets 00 02 - 00 05, 00 26, 00 2A, 00 45, 00 47, and
-> 00 4A - 00 4C are reserved. Portamento Time at 00 11 is a nibblized
-> 2-byte value (marked with #).
+> **Note:** Portamento Time at 00 11 is a nibblized 2-byte value (marked
+> with #). Some reserves carry data in saved files: 00 02 - 00 05 always
+> hold 1, 00 26 holds 127, and 00 45 and 00 47 hold 64 (inferred from SVD
+> samples). See
+> [SVD: Studio Set](../svd/05-studio-set.md#where-the-svd-differs-from-sysex-order-and-widths).
 
 ---
 

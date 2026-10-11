@@ -34,6 +34,10 @@ Total size: `00 00 00 14`.
 | `00 12` | `0aaa aaaa` | Phrase Number      | 0 -- 127   | 0 -- 127           |
 | `00 13` | `0000 000a` | TFX Switch         | 0 -- 1     | OFF, ON            |
 
+> **Note:** Reserves `00 0C` -- `00 0F` extend the kit name to 16 characters.
+> Saved files store them as 7-bit ASCII, spaces in every sample. See
+> [SVD: SN Drum Kit](../svd/09-sn-drum.md#common-entry-bytes-017).
+
 ---
 
 ## SN Drum Kit MFX (offset `00 02 00`)
@@ -187,6 +191,9 @@ Total size: `00 00 01 11`.
 |         | `0000 bbbb` |                        |                |                                                  |
 |         | `0000 cccc` |                        |                |                                                  |
 |         | `0000 dddd` |                        |                |                                                  |
+
+> **Note:** Reserve `00 01` is always 127 in saved files. See
+> [SVD: Reserve Parameters](../svd/02-encoding.md#reserve-parameters).
 
 ---
 

@@ -13,6 +13,10 @@ The PCM Synth Tone starts at offset `00 00 00` within the Temporary Tone block. 
 | [PCM Synth Tone Partial 4](#pcm-synth-tone-partial) | `00 26 00` | `00 00 01 1A` |
 | [PCM Synth Tone Common 2](#pcm-synth-tone-common-2) | `00 30 00` | `00 00 00 3C` |
 
+The tables list every `(reserve)` row of the MIDI Implementation v1.00. The
+INTEGRA-7 ignores rows marked \<\*> on receive. A `...` row stands for every
+address between its neighbours, each with the same bit pattern.
+
 ---
 
 ## PCM Synth Tone Common
@@ -40,6 +44,8 @@ Offset: `00 00 00` | Total size: `00 00 00 50`
 
 | Offset | Bits | Parameter | Range | Display |
 |---|---|---|---|---|
+| `00 0C` | `0aaa aaaa` | (reserve) \<\*> | -- | -- |
+| `00 0D` | `0000 000a` | (reserve) \<\*> | -- | -- |
 | `00 0E` | `0aaa aaaa` | PCM Synth Tone Level | 0 - 127 | 0 - 127 |
 | `00 0F` | `0aaa aaaa` | PCM Synth Tone Pan | 0 - 127 | L64 - 63R |
 | `00 10` | `0000 000a` | PCM Synth Tone Priority | 0 - 1 | LAST, LOUDEST |
@@ -66,6 +72,9 @@ Offset: `00 00 00` | Total size: `00 00 00 50`
 
 | Offset | Bits | Parameter | Range | Display |
 |---|---|---|---|---|
+| `00 1E` | `0000 000a` | (reserve) \<\*> | -- | -- |
+| `00 1F` # | `0000 aaaa` `0000 bbbb` | (reserve) \<\*> | -- | -- |
+| `00 21` | `0000 000a` | (reserve) \<\*> | -- | -- |
 | `00 22` | `0aaa aaaa` | Cutoff Offset | 1 - 127 | -63 - +63 |
 | `00 23` | `0aaa aaaa` | Resonance Offset | 1 - 127 | -63 - +63 |
 | `00 24` | `0aaa aaaa` | Attack Time Offset | 1 - 127 | -63 - +63 |
@@ -76,6 +85,7 @@ Offset: `00 00 00` | Total size: `00 00 00 50`
 
 | Offset | Bits | Parameter | Range | Display |
 |---|---|---|---|---|
+| `00 27` | `0000 aaaa` | (reserve) \<\*> | -- | -- |
 | `00 28` | `0000 000a` | PMT Control Switch | 0 - 1 | OFF, ON |
 | `00 29` | `00aa aaaa` | Pitch Bend Range Up | 0 - 48 | 0 - 48 |
 | `00 2A` | `00aa aaaa` | Pitch Bend Range Down | 0 - 48 | 0 - 48 |
@@ -135,6 +145,12 @@ Offset: `00 00 00` | Total size: `00 00 00 50`
 | `00 4C` | `0aaa aaaa` | Matrix Control 4 Sens 3 | 1 - 127 | -63 - +63 |
 | `00 4D` | `00aa aaaa` | Matrix Control 4 Destination 4 | 0 - 33 | (same as Destination 1) |
 | `00 4E` | `0aaa aaaa` | Matrix Control 4 Sens 4 | 1 - 127 | -63 - +63 |
+| `00 4F` | `0000 000a` | (reserve) \<\*> | -- | -- |
+
+> **Note:** Some reserves carry data in saved files: `00 0C` holds what looks
+> like a legacy category (inferred), `00 1F` an 8-bit value (0, 100 and 120
+> observed), and `00 27` is always 13. See
+> [SVD: PCM Synth Tone](../svd/06-pcm-synth.md#undocumented-and-reserve-fields-with-content).
 
 ---
 
@@ -147,13 +163,18 @@ Offset: `00 02 00` | Total size: `00 00 01 11`
 | Offset | Bits | Parameter | Range | Display |
 |---|---|---|---|---|
 | `00 00` | `0aaa aaaa` | MFX Type | 0 - 67 | 0 - 67 |
+| `00 01` | `0aaa aaaa` | (reserve) \<\*> | -- | -- |
 | `00 02` | `0aaa aaaa` | MFX Chorus Send Level | 0 - 127 | 0 - 127 |
 | `00 03` | `0aaa aaaa` | MFX Reverb Send Level | 0 - 127 | 0 - 127 |
+
+> **Note:** Reserve `00 01` is always 127 in saved files. See
+> [SVD: Reserve Parameters](../svd/02-encoding.md#reserve-parameters).
 
 ### MFX Controls
 
 | Offset | Bits | Parameter | Range | Display |
 |---|---|---|---|---|
+| `00 04` | `0000 00aa` | (reserve) \<\*> | -- | -- |
 | `00 05` | `0aaa aaaa` | MFX Control 1 Source | 0 - 101 | OFF, CC01 - CC31, CC33 - CC95, BEND, AFT, SYS1 - SYS4 |
 | `00 06` | `0aaa aaaa` | MFX Control 1 Sens | 1 - 127 | -63 - +63 |
 | `00 07` | `0aaa aaaa` | MFX Control 2 Source | 0 - 101 | OFF, CC01 - CC31, CC33 - CC95, BEND, AFT, SYS1 - SYS4 |
@@ -314,6 +335,8 @@ All four partials share identical parameter layout. The offsets below are relati
 | Offset | Bits | Parameter | Range | Display |
 |---|---|---|---|---|
 | `00 0C` | `0aaa aaaa` | Partial Output Level | 0 - 127 | 0 - 127 |
+| `00 0D` | `0aaa aaaa` | (reserve) \<\*> | -- | -- |
+| `00 0E` | `0aaa aaaa` | (reserve) \<\*> | -- | -- |
 | `00 0F` | `0aaa aaaa` | Partial Chorus Send Level | 0 - 127 | 0 - 127 |
 | `00 10` | `0aaa aaaa` | Partial Reverb Send Level | 0 - 127 | 0 - 127 |
 
@@ -321,10 +344,16 @@ All four partials share identical parameter layout. The offsets below are relati
 
 | Offset | Bits | Parameter | Range | Display |
 |---|---|---|---|---|
+| `00 11` | `0000 aaaa` | (reserve) \<\*> | -- | -- |
 | `00 12` | `0000 000a` | Partial Receive Bender | 0 - 1 | OFF, ON |
 | `00 13` | `0000 000a` | Partial Receive Expression | 0 - 1 | OFF, ON |
 | `00 14` | `0000 000a` | Partial Receive Hold-1 | 0 - 1 | OFF, ON |
+| `00 15` | `0000 000a` | (reserve) \<\*> | -- | -- |
 | `00 16` | `0000 000a` | Partial Redamper Switch | 0 - 1 | OFF, ON |
+
+> **Note:** Reserves `00 0D` and `00 0E` are non-zero in real tones (0, 53,
+> 60, 72 and 127 observed), and `00 11` holds 0 or 1. See
+> [SVD: PCM Synth Tone](../svd/06-pcm-synth.md#undocumented-and-reserve-fields-with-content).
 
 ### Partial Control Switches
 
@@ -496,8 +525,22 @@ Offset: `00 30 00` | Total size: `00 00 00 3C`
 
 | Offset | Bits | Parameter | Range | Display |
 |---|---|---|---|---|
+| `00 00` | `0aaa aaaa` | (reserve) \<\*> | -- | -- |
+| ... | ... | ... | ... | ... |
+| `00 0F` | `0aaa aaaa` | (reserve) \<\*> | -- | -- |
 | `00 10` | `0aaa aaaa` | Tone Category | 0 - 127 | 0 - 127 |
 | `00 11` # | `0000 aaaa` `0000 bbbb` | Tone Number | 0 - 255 | 0 - 255 |
 | `00 13` | `0000 0aaa` | Phrase Octave Shift | 61 - 67 | -3 - +3 |
+| `00 14` | `0000 000a` | (reserve) \<\*> | -- | -- |
+| ... | ... | ... | ... | ... |
+| `00 32` | `0000 000a` | (reserve) \<\*> | -- | -- |
 | `00 33` | `0000 000a` | TFX Switch | 0 - 1 | OFF, ON |
+| `00 34` | `0aaa aaaa` | (reserve) \<\*> | -- | -- |
+| `00 35` | `0aaa aaaa` | (reserve) \<\*> | -- | -- |
+| `00 36` | `0aaa aaaa` | (reserve) \<\*> | -- | -- |
+| `00 37` | `0aaa aaaa` | (reserve) \<\*> | -- | -- |
 | `00 38` # | `0000 aaaa` x4 | Phrase Number | 0 - 65535 | 0 - 65535 |
+
+> **Note:** Reserves `00 00` - `00 0F` hold the 16-character long name, in
+> 7-bit ASCII padded with spaces. See
+> [SVD: PCM Synth Tone](../svd/06-pcm-synth.md#undocumented-and-reserve-fields-with-content).

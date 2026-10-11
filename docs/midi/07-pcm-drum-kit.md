@@ -26,11 +26,15 @@ Total size: `00 00 00 12`.
 | `00 0A` | `0aaa aaaa` | Kit Name 11        | 32 -- 127  | 32 -- 127 (ASCII) |
 | `00 0B` | `0aaa aaaa` | Kit Name 12        | 32 -- 127  | 32 -- 127 (ASCII) |
 | `00 0C` | `0aaa aaaa` | Kit Level          | 0 -- 127   | 0 -- 127          |
-| `00 0D` | `0000 000a` | (reserve) \<\*>    | --         | --                |
-| `00 0E` | `0000 aaaa` | (reserve) \<\*> #  | --         | --                |
+| `00 0D` | `0000 000a` | (unnamed)          | --         | --                |
+| `00 0E` | `0000 aaaa` | (unnamed) #        | --         | --                |
 |         | `0000 bbbb` |                    |            |                   |
-| `00 10` | `0000 000a` | (reserve) \<\*>    | --         | --                |
+| `00 10` | `0000 000a` | (unnamed)          | --         | --                |
 | `00 11` | `0000 aaaa` | (reserve) \<\*>    | --         | --                |
+
+> **Note:** The MIDI Implementation gives `00 0D`, `00 0E` and `00 10` no name
+> and no \<\*> mark. In saved files `00 0E` holds 0 or 120, and reserve `00 11`
+> is always 13. See [SVD: PCM Drum Kit](../svd/07-pcm-drum.md#undocumented-and-reserve-fields-with-content).
 
 ---
 
@@ -185,6 +189,9 @@ Total size: `00 00 01 11`.
 |         | `0000 bbbb` |                        |                |                                                  |
 |         | `0000 cccc` |                        |                |                                                  |
 |         | `0000 dddd` |                        |                |                                                  |
+
+> **Note:** Reserve `00 01` is always 127 in saved files. See
+> [SVD: Reserve Parameters](../svd/02-encoding.md#reserve-parameters).
 
 ---
 
@@ -509,3 +516,6 @@ Total size: `00 00 00 32`.
 |  ...    |  ...        |  ...               |  ...      |  ...          |
 | `00 30` | `0000 000a` | (reserve) \<\*>    | --        | --            |
 | `00 31` | `0000 000a` | TFX Switch         | 0 -- 1    | OFF, ON       |
+
+> **Note:** Reserves `00 00` -- `00 0F` hold the 16-character long name, in
+> 7-bit ASCII padded with spaces. See [SVD: PCM Drum Kit](../svd/07-pcm-drum.md#undocumented-and-reserve-fields-with-content).
