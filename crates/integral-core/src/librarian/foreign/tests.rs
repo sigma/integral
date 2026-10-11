@@ -446,6 +446,7 @@ mod xv_patches {
 
         let read = read(&svd);
         let sysex = super::read(UNITED);
+        assert_eq!(read.format.label(Origin::Sound), "XV SVD file");
         assert_eq!(read.pack, sysex.pack);
         assert_eq!(read.reports, sysex.reports);
         assert_eq!(

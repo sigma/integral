@@ -46,6 +46,8 @@ const SMF_MAGIC: &[u8] = b"MThd";
 pub enum PackFormat {
     /// An INTEGRA-7 SVD file.
     Svd,
+    /// An XV-series SVD file.
+    XvSvd,
     /// Raw SysEx (`.syx`).
     Sysex,
     /// A Standard MIDI File (`.mid`).
@@ -59,6 +61,7 @@ impl PackFormat {
         match (self, origin) {
             (Self::Svd, Origin::Sound) => "sound export",
             (Self::Svd, Origin::Backup) => "backup",
+            (Self::XvSvd, _) => "XV SVD file",
             (Self::Sysex, _) => "SysEx dump",
             (Self::Midi, _) => "MIDI file",
         }
@@ -190,7 +193,7 @@ impl Collector {
 /// An XV-series `.svd` file: each Patch entry converts like a SysEx Patch
 /// dump. Performances, Rhythm Sets and System settings are skipped.
 fn read_xv_svd(bytes: &[u8]) -> Result<PackRead, PackError> {
-    let mut collector = Collector::new(PackFormat::Svd);
+    let mut collector = Collector::new(PackFormat::XvSvd);
     for chunk in svd::parse_xv(bytes)? {
         let kind = match chunk.chunk_type {
             XvChunkType::Patch => {
