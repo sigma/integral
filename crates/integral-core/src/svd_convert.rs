@@ -6,6 +6,8 @@
 //! Reference: `docs/svd/02-encoding.md`
 
 use crate::bitstream::{BitReader, BitReaderError, BitWriter};
+use crate::device_spec::USER_MEMORY;
+use crate::params::tone_type;
 use crate::svd_specs::{ParamBits, SvdSection, SvdToneSpec};
 use crate::sysex;
 use thiserror::Error;
@@ -187,45 +189,24 @@ pub fn sysex_to_svd(sections: &[Vec<u8>], spec: &SvdToneSpec, source: Option<&[u
 // DT1 message generation
 // ---------------------------------------------------------------------------
 
-/// SysEx address offsets for each SN-S section within a temporary tone block.
-///
-/// These are relative to the SN-S base (tone type offset `01 00 00`).
-const SNS_SECTION_OFFSETS: [[u8; 4]; 5] = [
-    [0x00, 0x00, 0x00, 0x00], // Common
-    [0x00, 0x00, 0x02, 0x00], // MFX
-    [0x00, 0x00, 0x20, 0x00], // Partial 1
-    [0x00, 0x00, 0x21, 0x00], // Partial 2
-    [0x00, 0x00, 0x22, 0x00], // Partial 3
-];
-
 /// Build DT1 messages to write an SN-S tone to a part's temporary area.
 ///
-/// Takes the decoded SysEx sections from [`svd_to_sysex`] (which has 5
-/// sections: Common, MFX, Partial1, Partial2, Partial3) and generates
-/// one DT1 message per SysEx block.
+/// Takes the decoded SysEx sections from [`svd_to_sysex`] (Common, MFX,
+/// Partial 1–3) and generates one DT1 message per block, at the block
+/// addresses of the SN-S [`USER_MEMORY`] layout.
 ///
 /// Each DT1 message is at most 256 data bytes (the SysEx protocol limit).
 /// All SN-S blocks fit within this limit.
 pub fn sns_to_dt1s(device_id: u8, part_index: u8, sections: &[Vec<u8>]) -> Vec<Vec<u8>> {
-    use crate::params;
-
-    let sns_base = params::temporary_tone_base(part_index).offset([0x00, 0x01, 0x00, 0x00]);
-
-    // Build the 5 SysEx blocks: Common, MFX, Partial1, Partial2, Partial3.
-    let blocks: Vec<(&[u8], [u8; 4])> = vec![
-        (&sections[0], SNS_SECTION_OFFSETS[0]),
-        (&sections[1], SNS_SECTION_OFFSETS[1]),
-        (&sections[2], SNS_SECTION_OFFSETS[2]),
-        (&sections[3], SNS_SECTION_OFFSETS[3]),
-        (&sections[4], SNS_SECTION_OFFSETS[4]),
-    ];
-
-    let mut dt1s = Vec::new();
-    for (data, offset) in blocks {
-        let addr = sns_base.offset(offset);
-        dt1s.push(sysex::build_dt1(device_id, &addr, data));
-    }
-    dt1s
+    let memory = USER_MEMORY
+        .iter()
+        .find(|m| m.tone_type == Some(tone_type::SN_SYNTH))
+        .expect("SN-S User memory spec");
+    memory
+        .blocks(memory.temporary_base(part_index))
+        .zip(sections)
+        .map(|((addr, _), data)| sysex::build_dt1(device_id, &addr, data))
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -767,6 +748,25 @@ mod tests {
         let category =
             crate::svd::extract_entry_category(&entry, crate::svd::ChunkType::PcmSynthTone);
         assert_eq!(category, Some(34));
+    }
+
+    #[test]
+    fn sns_dt1s_address_each_block() {
+        let sections = svd_to_sysex(&[0u8; 280], &SNS_TONE_SPEC).unwrap();
+        let addrs: Vec<[u8; 4]> = sns_to_dt1s(0x10, 1, &sections)
+            .iter()
+            .map(|m| m[7..11].try_into().unwrap())
+            .collect();
+        assert_eq!(
+            addrs,
+            [
+                [0x19, 0x21, 0x00, 0x00],
+                [0x19, 0x21, 0x02, 0x00],
+                [0x19, 0x21, 0x20, 0x00],
+                [0x19, 0x21, 0x21, 0x00],
+                [0x19, 0x21, 0x22, 0x00],
+            ]
+        );
     }
 
     #[test]

@@ -20,7 +20,10 @@ use crate::params::{self, part};
 use crate::parse_helpers::parse_ascii_name_len;
 use crate::svd::{ChunkType, SvdChunk, SvdError, SvdFile};
 use crate::svd_convert::{ConvertError, svd_to_sysex, sysex_to_svd};
-use crate::svd_specs::{SNS_TONE_SPEC, SS_TONE_SPEC, SvdToneSpec};
+use crate::svd_specs::{
+    PCMD_TONE_SPEC, PCMS_TONE_SPEC, SNA_TONE_SPEC, SND_TONE_SPEC, SNS_TONE_SPEC, SS_TONE_SPEC,
+    SvdToneSpec,
+};
 use crate::user_write::BankSelect;
 
 /// Chunks of a sound-export file, in directory order.
@@ -42,7 +45,7 @@ pub enum PackError {
     /// An entry does not decode with its type's codec.
     #[error(transparent)]
     Convert(#[from] ConvertError),
-    /// No codec handles this type yet.
+    /// The type has no codec (System Settings).
     #[error("unsupported type: {0}")]
     UnsupportedType(ChunkType),
     /// A chunk's entry size differs from its type's.
@@ -302,7 +305,11 @@ fn codec(kind: ChunkType) -> Result<&'static SvdToneSpec, PackError> {
     match kind {
         ChunkType::StudioSet => Ok(&SS_TONE_SPEC),
         ChunkType::SnSynthTone => Ok(&SNS_TONE_SPEC),
-        _ => Err(PackError::UnsupportedType(kind)),
+        ChunkType::SnAcousticTone => Ok(&SNA_TONE_SPEC),
+        ChunkType::SnDrumKit => Ok(&SND_TONE_SPEC),
+        ChunkType::PcmSynthTone => Ok(&PCMS_TONE_SPEC),
+        ChunkType::PcmDrumKit => Ok(&PCMD_TONE_SPEC),
+        ChunkType::SystemSettings => Err(PackError::UnsupportedType(kind)),
     }
 }
 
@@ -398,7 +405,7 @@ mod tests {
 
     #[test]
     fn codec_sections_match_temporary_blocks() {
-        for kind in [ChunkType::StudioSet, SNS] {
+        for kind in SOUND_CHUNKS {
             let memory = user_memory(kind).unwrap();
             let sizes: Vec<usize> = memory
                 .blocks(memory.temporary_base(0))
@@ -490,16 +497,88 @@ mod tests {
     }
 
     #[test]
-    fn other_types_are_unsupported() {
-        let mut file = SvdFile::parse(&sound_file()).unwrap();
-        file.chunks[1].entries.push(vec![0; 590]);
-        assert!(matches!(
-            Pack::from_svd(&file.write()),
-            Err(PackError::UnsupportedType(ChunkType::PcmSynthTone))
-        ));
-
+    fn system_settings_are_unsupported() {
+        let sys = PackEntry::new(ChunkType::SystemSettings, None, vec![]);
+        assert!(matches!(sys, Err(PackError::UnsupportedType(_))));
         let pcm = PackEntry::new(ChunkType::PcmSynthTone, None, vec![]);
         assert!(matches!(pcm, Err(PackError::BlockLayout(_))));
+    }
+
+    /// A backup-shaped file: every chunk non-empty, plus `SYSa`. Each tone
+    /// entry carries data the codec doesn't model: the PCM Synth long name
+    /// (a reserve) and non-zero bytes after the data sections.
+    fn backup() -> SvdFile {
+        let mut tones = Vec::new();
+        for kind in SOUND_CHUNKS {
+            let mut blocks = blocks(kind, kind.cli_name());
+            if kind == ChunkType::PcmSynthTone {
+                // Common 2 `00 00`–`00 0F`.
+                blocks[7][..16].copy_from_slice(&encode_ascii_name("Long Name Tone", 16));
+            }
+            tones.push(PackEntry::new(kind, None, blocks).unwrap());
+        }
+        let mut file = SvdFile::parse(&Pack { entries: tones }.to_svd().unwrap()).unwrap();
+        for chunk in &mut file.chunks {
+            let spec = codec(chunk.chunk_type).unwrap();
+            if spec.data_bytes() < spec.entry_size {
+                *chunk.entries[0].last_mut().unwrap() = 0x5A;
+            }
+        }
+        file.chunks.push(SvdChunk {
+            chunk_type: ChunkType::SystemSettings,
+            entry_size: ChunkType::SystemSettings.default_entry_size(),
+            entries: vec![vec![0x5A; ChunkType::SystemSettings.default_entry_size()]],
+        });
+        file
+    }
+
+    #[test]
+    fn backup_round_trips_every_type() {
+        let file = backup();
+        let pack = Pack::from_svd(&file.write()).unwrap();
+        assert_eq!(pack.entries.len(), SOUND_CHUNKS.len());
+        assert!(pack.entries.iter().all(|e| e.slot() == Some(0)));
+        for (entry, kind) in pack.entries.iter().zip(SOUND_CHUNKS) {
+            assert_eq!(entry.kind(), kind);
+            assert_eq!(entry.name(), kind.cli_name());
+        }
+        let pcms = pack.of_kind(ChunkType::PcmSynthTone).next().unwrap();
+        assert_eq!(&pcms.blocks()[7][..14], b"Long Name Tone");
+
+        // Every entry comes back byte for byte; only `SYSa` is dropped.
+        let written = SvdFile::parse(&pack.to_svd().unwrap()).unwrap();
+        assert_eq!(written.chunks, file.chunks[..SOUND_CHUNKS.len()]);
+    }
+
+    #[test]
+    fn drum_kit_banks_are_pack_refs() {
+        let typed = |msb, lsb, pc| ToneRef::from_bank_select(BankSelect { msb, lsb, pc });
+        let snd = ToneRef::Pack {
+            kind: ChunkType::SnDrumKit,
+            index: 63,
+        };
+        let pcmd = ToneRef::Pack {
+            kind: ChunkType::PcmDrumKit,
+            index: 31,
+        };
+        assert_eq!(typed(88, 0, 63), snd);
+        assert_eq!(typed(86, 0, 31), pcmd);
+        // Past the last User kit.
+        assert_eq!(
+            typed(86, 0, 32),
+            ToneRef::Bank {
+                msb: 86,
+                lsb: 0,
+                pc: 32
+            }
+        );
+
+        let mut set = studio_set();
+        set.set_tone_ref(4, snd).unwrap();
+        set.set_tone_ref(5, pcmd).unwrap();
+        let pack = Pack::from_svd(&Pack { entries: vec![set] }.to_svd().unwrap()).unwrap();
+        let refs = pack.entries[0].tone_refs();
+        assert_eq!((refs[4], refs[5]), (snd, pcmd));
     }
 
     #[test]
