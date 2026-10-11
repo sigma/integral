@@ -36,6 +36,12 @@ pub struct DeviceSpec {
     pub surround_room_types: &'static [&'static str],
     /// Motional Surround room size names.
     pub surround_room_sizes: &'static [&'static str],
+    /// Drum Comp+EQ compressor attack time labels (msec), one per value.
+    pub comp_attack_times: &'static [&'static str],
+    /// Drum Comp+EQ compressor release time labels (msec), one per value.
+    pub comp_release_times: &'static [&'static str],
+    /// Drum Comp+EQ compressor ratio labels, one per value.
+    pub comp_ratios: &'static [&'static str],
     /// Maximum characters in a tone name.
     pub tone_name_length: u32,
     /// Maximum characters in a Studio Set name.
@@ -275,6 +281,19 @@ pub const INTEGRA7: DeviceSpec = DeviceSpec {
     reverb_output_names: &["A", "B", "C", "D"],
     surround_room_types: &["Room 1", "Room 2", "Hall 1", "Hall 2"],
     surround_room_sizes: &["Small", "Medium", "Large"],
+    comp_attack_times: &[
+        "0.05", "0.06", "0.07", "0.08", "0.09", "0.10", "0.12", "0.14", "0.16", "0.18", "0.20",
+        "0.25", "0.30", "0.35", "0.40", "0.50", "0.60", "0.70", "0.80", "0.90", "1.0", "2.0",
+        "4.0", "6.0", "8.0", "10", "15", "20", "25", "30", "40", "50",
+    ],
+    comp_release_times: &[
+        "0.05", "0.07", "0.10", "0.50", "1", "5", "10", "17", "25", "50", "75", "100", "150",
+        "200", "300", "400", "500", "600", "700", "800", "900", "1000", "1200", "2000",
+    ],
+    comp_ratios: &[
+        "1:1", "1.5:1", "2:1", "3:1", "4:1", "5:1", "6:1", "7:1", "8:1", "9:1", "10:1", "12:1",
+        "14:1", "16:1", "20:1", "24:1", "30:1", "40:1", "100:1", "inf:1",
+    ],
     tone_name_length: params::TONE_NAME_SIZE.value(),
     studio_set_name_length: params::STUDIO_SET_NAME_SIZE.value(),
     user_memory: USER_MEMORY,
@@ -318,6 +337,15 @@ mod tests {
         assert_eq!(INTEGRA7.chorus_type_names.len(), 4);
         assert_eq!(INTEGRA7.chorus_type_names[0], "OFF");
         assert_eq!(INTEGRA7.chorus_type_names[3], "GM2 Cho");
+    }
+
+    #[test]
+    fn integra7_comp_tables() {
+        // Value ranges from the Drum Comp+EQ block: attack 0-31, release 0-23, ratio 0-19.
+        assert_eq!(INTEGRA7.comp_attack_times.len(), 32);
+        assert_eq!(INTEGRA7.comp_release_times.len(), 24);
+        assert_eq!(INTEGRA7.comp_ratios.len(), 20);
+        assert_eq!(INTEGRA7.comp_ratios[19], "inf:1");
     }
 
     #[test]

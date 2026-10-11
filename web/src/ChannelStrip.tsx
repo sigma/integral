@@ -21,25 +21,9 @@ const hide: React.CSSProperties = { visibility: "hidden", pointerEvents: "none" 
 
 type Variant = "part" | "ext" | "master" | "comp-eq";
 
-const ATTACK_VALUES = [
-  "0.05", "0.06", "0.07", "0.08", "0.09", "0.10", "0.12", "0.14",
-  "0.16", "0.18", "0.20", "0.25", "0.30", "0.35", "0.40", "0.50",
-  "0.60", "0.70", "0.80", "0.90", "1.0", "2.0", "4.0", "6.0",
-  "8.0", "10", "15", "20", "25", "30", "40", "50",
-];
-const RELEASE_VALUES = [
-  "0.05", "0.07", "0.10", "0.50", "1", "5", "10", "17",
-  "25", "50", "75", "100", "150", "200", "300", "400",
-  "500", "600", "700", "800", "900", "1000", "1200", "2000",
-];
-const RATIO_VALUES = [
-  "1:1", "1.5:1", "2:1", "3:1", "4:1", "5:1", "6:1", "7:1",
-  "8:1", "9:1", "10:1", "12:1", "14:1", "16:1", "20:1", "24:1",
-  "30:1", "40:1", "100:1", "inf:1",
-];
-/** Numeric ratio for a RATIO_VALUES index ("inf:1" is a limiter). */
+/** Numeric ratio for a `comp_ratios` index ("inf:1" is a limiter). */
 function ratioOf(i: number): number {
-  const r = parseFloat(RATIO_VALUES[i] ?? "1");
+  const r = parseFloat(deviceSpec().comp_ratios[i] ?? "1");
   return Number.isNaN(r) ? Infinity : r;
 }
 
@@ -138,6 +122,7 @@ function ChannelStripInner({
   onOutputAssignChange,
 }: Props) {
   const p = part ?? defaultPartState();
+  const spec = deviceSpec();
   const isCompEq = variant === "comp-eq";
   const isPart = variant === "part";
   const showEq = variant !== "ext";
@@ -224,10 +209,12 @@ function ChannelStripInner({
               {/* Curve plots table index, not ms: the tables are non-linear. */}
               <ADSREnvelope
                 compact
-                attack={{ label: "Atk", value: compEqUnit?.compAttack ?? 10, min: 0, max: 31, defaultValue: 10,
-                  onChange: (v) => onCompEqParam?.(0x01, v), formatValue: (v) => ATTACK_VALUES[v] ?? String(v) }}
-                decay={{ label: "Rel", value: compEqUnit?.compRelease ?? 10, min: 0, max: 23, defaultValue: 10,
-                  onChange: (v) => onCompEqParam?.(0x02, v), formatValue: (v) => RELEASE_VALUES[v] ?? String(v) }}
+                attack={{ label: "Atk", value: compEqUnit?.compAttack ?? 10, min: 0, max: spec.comp_attack_times.length - 1,
+                  defaultValue: 10, onChange: (v) => onCompEqParam?.(0x01, v),
+                  formatValue: (v) => spec.comp_attack_times[v] ?? String(v) }}
+                decay={{ label: "Rel", value: compEqUnit?.compRelease ?? 10, min: 0, max: spec.comp_release_times.length - 1,
+                  defaultValue: 10, onChange: (v) => onCompEqParam?.(0x02, v),
+                  formatValue: (v) => spec.comp_release_times[v] ?? String(v) }}
               />
               <TransferCurve
                 threshold={compEqUnit?.compThreshold ?? 127}
@@ -238,9 +225,9 @@ function ChannelStripInner({
                 <EqKnob label="Thr" value={compEqUnit?.compThreshold ?? 127} min={0} max={127} defaultValue={127}
                   onChange={(v) => onCompEqParam?.(0x03, v)}
                   formatValue={(v) => String(v)} color="#c96" />
-                <EqKnob label="Ratio" value={compEqUnit?.compRatio ?? 0} min={0} max={19} defaultValue={0}
-                  onChange={(v) => onCompEqParam?.(0x04, v)}
-                  formatValue={(v) => RATIO_VALUES[v] ?? String(v)} color="#c96" />
+                <EqKnob label="Ratio" value={compEqUnit?.compRatio ?? 0} min={0} max={spec.comp_ratios.length - 1}
+                  defaultValue={0} onChange={(v) => onCompEqParam?.(0x04, v)}
+                  formatValue={(v) => spec.comp_ratios[v] ?? String(v)} color="#c96" />
               </div>
             </div>
           )}

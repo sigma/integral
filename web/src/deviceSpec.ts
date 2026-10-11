@@ -12,6 +12,9 @@ interface DeviceSpec {
   reverb_output_names: string[];
   surround_room_types: string[];
   surround_room_sizes: string[];
+  comp_attack_times: string[];
+  comp_release_times: string[];
+  comp_ratios: string[];
   tone_name_length: number;
   studio_set_name_length: number;
 }
