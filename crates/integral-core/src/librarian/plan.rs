@@ -131,7 +131,9 @@ pub struct ImportPlan {
 ///
 /// `slot_names` are the catalog entries of the User banks: a slot is free
 /// when its name is one of its type's INIT names. A slot missing from
-/// `slot_names` counts as taken. `loaded` holds the loaded Expansions.
+/// `slot_names` counts as taken. `loaded` holds the loaded Expansions, or
+/// `None` when unknown: a Part playing a tone of an Expansion that isn't
+/// loaded gets a warning, and none when unknown.
 ///
 /// A lone tone, or a lone Studio Set that references no tone of the Pack,
 /// goes to Temporary.
@@ -139,7 +141,7 @@ pub fn plan_import(
     pack: &Pack,
     origin: Origin,
     slot_names: &[CatalogEntry],
-    loaded: &ExpansionSlots,
+    loaded: Option<&ExpansionSlots>,
 ) -> ImportPlan {
     let kinds: Vec<ChunkType> = pack.entries.iter().map(|e| e.kind()).collect();
     let free = free_slots(&kinds, slot_names);
@@ -159,7 +161,7 @@ pub fn plan_import(
                         index,
                     }),
                 ToneRef::Bank { msb, lsb, .. } => expansion_of_bank(msb, lsb)
-                    .filter(|e| !loaded.contains(e))
+                    .filter(|e| loaded.is_some_and(|l| !l.contains(e)))
                     .map(|expansion| Warning::ExpansionNotLoaded {
                         set,
                         part,
@@ -354,7 +356,7 @@ mod tests {
     }
 
     fn plan_of(pack: &Pack, origin: Origin, slot_names: &[CatalogEntry]) -> ImportPlan {
-        plan_import(pack, origin, slot_names, &ExpansionSlots::default())
+        plan_import(pack, origin, slot_names, None)
     }
 
     fn pack(entries: Vec<PackEntry>) -> Pack {
@@ -466,15 +468,33 @@ mod tests {
         assert_eq!(plan.warnings().count(), 0);
     }
 
-    #[test]
-    fn warns_on_unloaded_expansion() {
-        let srx05 = by_name("SRX-05").unwrap();
-        let p = pack(vec![
+    /// A Studio Set whose Part 1 plays an SRX-05 tone, with its User tone.
+    fn srx_pack() -> Pack {
+        pack(vec![
             set_with(&[(0, SRX05), (1, sns_ref(0))]),
             entry(SNS, None),
-        ]);
-        let plan = plan_of(&p, Origin::Sound, &[]);
-        let warnings: Vec<_> = plan.warnings().copied().collect();
+        ])
+    }
+
+    fn srx_warnings(loaded: Option<&ExpansionSlots>) -> Vec<Warning> {
+        plan_import(&srx_pack(), Origin::Sound, &[], loaded)
+            .warnings()
+            .copied()
+            .collect()
+    }
+
+    #[test]
+    fn srx_tone_with_srx_loaded() {
+        let srx05 = by_name("SRX-05").unwrap();
+        let loaded = ExpansionSlots::default().with(2, Some(srx05));
+        assert_eq!(srx_warnings(Some(&loaded)), []);
+    }
+
+    #[test]
+    fn srx_tone_with_srx_not_loaded() {
+        let srx05 = by_name("SRX-05").unwrap();
+        let loaded = ExpansionSlots::default().with(0, by_name("SRX-06"));
+        let warnings = srx_warnings(Some(&loaded));
         assert_eq!(
             warnings,
             [Warning::ExpansionNotLoaded {
@@ -484,10 +504,11 @@ mod tests {
             }]
         );
         assert_eq!(warnings[0].to_string(), "Part 1: needs SRX-05, not loaded");
+    }
 
-        let loaded = ExpansionSlots::default().with(0, Some(srx05));
-        let plan = plan_import(&p, Origin::Sound, &[], &loaded);
-        assert_eq!(plan.warnings().count(), 0);
+    #[test]
+    fn srx_tone_with_unknown_slots() {
+        assert_eq!(srx_warnings(None), []);
     }
 
     #[test]
