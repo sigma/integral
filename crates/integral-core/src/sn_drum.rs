@@ -38,6 +38,9 @@ pub const SND_FIRST_KEY: u8 = 27;
 /// Last key number in the SN-D note range.
 pub const SND_LAST_KEY: u8 = 88;
 
+/// Highest SN-D Note Inst Number (0 is OFF).
+pub const SND_INST_NUMBER_MAX: u16 = 512;
+
 /// Keys an SN-D kit has a Note block for.
 pub const SND_KEYS: KeyRange = KeyRange {
     first: SND_FIRST_KEY,
@@ -118,7 +121,7 @@ impl Default for SnDrumCommon {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct SnDrumNote {
-    /// Inst Number (0–512, nibblized across 4 bytes).
+    /// Inst Number (0–[`SND_INST_NUMBER_MAX`], nibblized across 4 bytes).
     pub inst_number: u16,
     /// Level (0–127).
     pub level: u8,

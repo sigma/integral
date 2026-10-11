@@ -56,6 +56,8 @@ pub struct DeviceSpec {
     pub pcm_drum_wmt_count: u8,
     /// Keys an SN Drum Kit has a Note block for.
     pub sn_drum_keys: KeyRange,
+    /// Highest Inst Number an SN Drum Kit Note can select.
+    pub sn_drum_inst_number_max: u16,
     /// Keys a PCM Drum Kit has a Partial block for.
     pub pcm_drum_keys: KeyRange,
     /// Maximum characters in a tone name.
@@ -367,6 +369,7 @@ pub const INTEGRA7: DeviceSpec = DeviceSpec {
     mfx_control_count: mfx::MFX_CONTROL_COUNT as u8,
     pcm_drum_wmt_count: pcm_drum::PCMD_WMT_COUNT as u8,
     sn_drum_keys: sn_drum::SND_KEYS,
+    sn_drum_inst_number_max: sn_drum::SND_INST_NUMBER_MAX,
     pcm_drum_keys: pcm_drum::PCMD_KEYS,
     tone_name_length: params::TONE_NAME_SIZE.value(),
     studio_set_name_length: params::STUDIO_SET_NAME_SIZE.value(),
@@ -390,6 +393,12 @@ mod tests {
         assert_eq!(INTEGRA7.pcm_synth_partial_count, 4);
         assert_eq!(INTEGRA7.mfx_control_count, 4);
         assert_eq!(INTEGRA7.pcm_drum_wmt_count, 4);
+    }
+
+    #[test]
+    fn integra7_sn_drum_inst_numbers_follow_the_midi_implementation() {
+        // SN Drum Kit Note Inst Number: 0-512.
+        assert_eq!(INTEGRA7.sn_drum_inst_number_max, 512);
     }
 
     #[test]

@@ -399,7 +399,7 @@ function NoteControls({
 
   const commitInstNumber = () => {
     const n = Number(instDraft);
-    if (Number.isInteger(n) && n >= 0 && n <= 512) {
+    if (Number.isInteger(n) && n >= 0 && n <= deviceSpec().sn_drum_inst_number_max) {
       onNibChange(0x00, n, "instNumber");
       setInstDraft(String(n));
     } else {
@@ -420,7 +420,7 @@ function NoteControls({
             className={css.instInput}
             type="number"
             min={0}
-            max={512}
+            max={deviceSpec().sn_drum_inst_number_max}
             value={instDraft}
             onChange={(e) => setInstDraft(e.target.value)}
             onBlur={commitInstNumber}

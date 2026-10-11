@@ -26,6 +26,7 @@ interface DeviceSpec {
   mfx_control_count: number;
   pcm_drum_wmt_count: number;
   sn_drum_keys: KeyRange;
+  sn_drum_inst_number_max: number;
   pcm_drum_keys: KeyRange;
   tone_name_length: number;
   studio_set_name_length: number;

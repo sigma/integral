@@ -8,8 +8,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use integral_core::params::tone_type;
+use integral_core::device_spec::INTEGRA7;
+use integral_core::params::{tone_type, tone_type_from_bank_msb};
 use integral_core::sn_synth::{SnSynthCommon, SnSynthPartial};
+use integral_core::tone_banks::{find_bank, group_of, user_bank_for};
 use nih_plug_vizia::vizia::prelude::*;
 
 use crate::SharedState;
@@ -21,7 +23,7 @@ use super::{SectionPanel, SynthKnob, SynthKnobExt, SynthSwitch};
 const REFRESH_INTERVAL_MS: u64 = 100;
 
 /// Number of SN-S partials.
-const NUM_SNS_PARTIALS: usize = 3;
+const NUM_SNS_PARTIALS: usize = INTEGRA7.sn_synth_partial_count as usize;
 
 // ---------------------------------------------------------------------------
 // SN-S parameter display names
@@ -34,33 +36,25 @@ const SNS_OSC_WAVE_NAMES: &[&str] = &["SAW", "SQR", "PWSQ", "TRI", "SIN", "NSE",
 /// SN-S filter mode names (indexed by Filter Mode value 0-7).
 const SNS_FILTER_MODE_NAMES: &[&str] = &["BYP", "LPF", "HPF", "BPF", "PKG", "LP2", "LP3", "LP4"];
 
-// ---------------------------------------------------------------------------
-// Tone type constants (bank MSB values)
-// ---------------------------------------------------------------------------
-
-/// Bank MSB for PCM Synth tones.
-const MSB_PCM_SYNTH: u8 = 87;
-/// Bank MSB for SN Acoustic tones.
-const MSB_SN_ACOUSTIC: u8 = 89;
-/// Bank MSB for SN Synth tones.
-const MSB_SN_SYNTH: u8 = 95;
-/// Bank MSB for PCM Drum kits.
-const MSB_PCM_DRUM: u8 = 86;
-/// Bank MSB for SN Drum kits.
-const MSB_SN_DRUM: u8 = 88;
-
-/// Return a human-readable tone type from the bank MSB.
+/// The name of the tone type selected by `bank_msb` (e.g. "PCM Synth"),
+/// taken from the core tone bank table.
 fn tone_type_label(bank_msb: u8) -> &'static str {
-    match bank_msb {
-        MSB_PCM_SYNTH => "PCM Synth",
-        MSB_SN_ACOUSTIC => "SN Acoustic",
-        MSB_SN_SYNTH => "SN Synth",
-        MSB_PCM_DRUM => "PCM Drum",
-        MSB_SN_DRUM => "SN Drum",
-        93 => "ExPCM",
-        121 => "GM2",
-        _ => "Unknown",
-    }
+    user_bank_for(bank_msb)
+        .and_then(group_of)
+        .map_or("Unknown", |group| group.label)
+}
+
+/// The header name of the bank selected by `bank_msb`/`bank_lsb`: its
+/// Expansion (e.g. "ExPCM", "SRX-05") or its group (e.g. "GM2", "PCM
+/// Synth"), falling back to the tone type.
+fn bank_label(bank_msb: u8, bank_lsb: u8) -> &'static str {
+    let Some(bank) = find_bank(bank_msb, bank_lsb) else {
+        return tone_type_label(bank_msb);
+    };
+    bank.expansion
+        .map(|e| e.name)
+        .or_else(|| group_of(bank).map(|group| group.label))
+        .unwrap_or_else(|| tone_type_label(bank_msb))
 }
 
 // ---------------------------------------------------------------------------
@@ -349,7 +343,7 @@ impl ToneEditorData {
         self.tone_msb = part.tone_bank_msb;
         self.tone_name = part.tone_name.clone();
 
-        let type_label = tone_type_label(part.tone_bank_msb);
+        let type_label = bank_label(part.tone_bank_msb, part.tone_bank_lsb);
         self.header_info = if part.tone_name.is_empty() {
             format!("Part {} : {}", idx + 1, type_label)
         } else {
@@ -357,7 +351,8 @@ impl ToneEditorData {
         };
 
         // Queue SN-S data requests if this is an SN-S tone and we haven't loaded yet.
-        if part.tone_bank_msb == MSB_SN_SYNTH && !self.sns_load_queued {
+        let is_sns = tone_type_from_bank_msb(part.tone_bank_msb) == Some(tone_type::SN_SYNTH);
+        if is_sns && !self.sns_load_queued {
             self.sns_load_queued = true;
             // We'll queue the requests after dropping the lock.
         }
@@ -365,7 +360,7 @@ impl ToneEditorData {
         drop(dev);
 
         // Queue RQ1 requests for SN-S data if needed.
-        if self.tone_msb == MSB_SN_SYNTH && !self.sns_loaded {
+        if is_sns && !self.sns_loaded {
             self.queue_sns_requests();
         }
     }
@@ -442,26 +437,18 @@ impl ToneEditorPage {
             // --- Content: dispatch by tone type ---
             Binding::new(cx, ToneEditorData::tone_msb, |cx, msb_lens| {
                 let msb = msb_lens.get(cx);
-                match msb {
-                    MSB_SN_SYNTH => {
+                match (msb, tone_type_from_bank_msb(msb)) {
+                    (_, Some(tone_type::SN_SYNTH)) => {
                         build_sns_editor(cx);
                     }
-                    MSB_PCM_SYNTH => {
-                        build_stub(cx, "PCM Synth editor — coming soon");
+                    (_, Some(_)) => {
+                        let msg = format!("{} editor — coming soon", tone_type_label(msb));
+                        build_stub(cx, &msg);
                     }
-                    MSB_SN_ACOUSTIC => {
-                        build_stub(cx, "SN Acoustic editor — coming soon");
-                    }
-                    MSB_PCM_DRUM => {
-                        build_stub(cx, "PCM Drum editor — coming soon");
-                    }
-                    MSB_SN_DRUM => {
-                        build_stub(cx, "SN Drum editor — coming soon");
-                    }
-                    0 => {
+                    (0, None) => {
                         build_stub(cx, "No tone loaded — select a part with a tone assigned");
                     }
-                    _ => {
+                    (_, None) => {
                         let msg = format!("Unsupported tone type (MSB {})", msb);
                         build_stub(cx, &msg);
                     }
@@ -933,4 +920,18 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
         })
         .class("tone-editor__knob-row");
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn header_names_expansion_and_gm2_banks() {
+        assert_eq!(bank_label(97, 0), "ExPCM");
+        assert_eq!(bank_label(121, 0), "GM2");
+        assert_eq!(bank_label(87, 0), "PCM Synth");
+        // The editor placeholder still names the tone type.
+        assert_eq!(tone_type_label(97), "PCM Synth");
+    }
 }
