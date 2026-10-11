@@ -93,26 +93,19 @@
   font-weight: 600;
 }
 
-/* One Expansion with its banks (Tone, Drum) on a row */
-
-.expansionRow {
-  display: flex;
-  align-items: center;
-  padding-left: 20px;
-}
+/* One Expansion as a sub-group: its name, then its banks (Tone, Drum) indented */
 
 .expansionName {
-  flex: 1;
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 6px 12px 6px 20px;
   font-size: 12px;
   color: #c0c0e0;
 }
 
 .expansionRow .bankButton {
-  width: auto;
-  padding: 6px 10px;
+  padding-left: 36px;
 }
 
 /* Load action of an unloaded Expansion: stages it on the Expansions page */
