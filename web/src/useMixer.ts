@@ -11,7 +11,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { IntegraService } from "./integra";
-import { factoryToneName } from "../pkg/integral_wasm.js";
+import { factoryToneName, type SurroundField } from "../pkg/integral_wasm.js";
 import {
   defaultMixerState,
   type MixerState,
@@ -69,7 +69,7 @@ export interface UseMixerResult {
   toggleReverbSwitch: () => void;
   setExtLevel: (value: number) => void;
   toggleExtMute: () => void;
-  setSurroundParam: (paramOffset: number, value: number) => void;
+  setSurroundParam: (field: SurroundField, value: number) => void;
   setPartSurroundLr: (part: number, value: number) => void;
   setPartSurroundFb: (part: number, value: number) => void;
   setPartSurroundWidth: (part: number, value: number) => void;
@@ -576,8 +576,8 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   // --- Motional Surround ---
 
   const setSurroundParam = useCallback(
-    (paramOffset: number, value: number) => {
-      service?.device.setSurroundParam(paramOffset, value);
+    (field: SurroundField, value: number) => {
+      service?.device.setSurroundParam(field, value);
       syncFromRust();
     },
     [service, syncFromRust],

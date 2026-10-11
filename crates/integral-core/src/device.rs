@@ -1060,27 +1060,27 @@ impl DeviceState {
     // Motional Surround
     // -----------------------------------------------------------------------
 
-    /// Set a Motional Surround common parameter.
-    pub fn set_surround_param(&mut self, param_offset: u8, value: u8) {
+    /// Set a Motional Surround common field.
+    pub fn set_surround_param(&mut self, field: params::SurroundField, value: u8) {
+        use params::SurroundField as F;
         let s = &mut self.state.surround;
-        match param_offset {
-            0x00 => s.enabled = value == 1,
-            0x01 => s.room_type = value,
-            0x02 => s.ambience_level = value,
-            0x03 => s.room_size = value,
-            0x04 => s.ambience_time = value,
-            0x05 => s.ambience_density = value,
-            0x06 => s.ambience_hf_damp = value,
-            0x07 => s.ext.lr = value,
-            0x08 => s.ext.fb = value,
-            0x09 => s.ext.width = value,
-            0x0A => s.ext.ambience_send = value,
-            0x0B => s.ext_control_channel = value,
-            0x0C => s.depth = value,
-            _ => return,
+        match field {
+            F::Switch => s.enabled = value == 1,
+            F::RoomType => s.room_type = value,
+            F::AmbienceLevel => s.ambience_level = value,
+            F::RoomSize => s.room_size = value,
+            F::AmbienceTime => s.ambience_time = value,
+            F::AmbienceDensity => s.ambience_density = value,
+            F::AmbienceHfDamp => s.ambience_hf_damp = value,
+            F::ExtPartLr => s.ext.lr = value,
+            F::ExtPartFb => s.ext.fb = value,
+            F::ExtPartWidth => s.ext.width = value,
+            F::ExtPartAmbienceSend => s.ext.ambience_send = value,
+            F::ExtPartControlChannel => s.ext_control_channel = value,
+            F::Depth => s.depth = value,
         }
-        let addr = params::surround_address(param_offset);
-        self.send_dt1(&addr, &[value]);
+        let addr = params::surround_address(field as u8);
+        self.send_dt1(&addr, &field.encode(value.into()));
     }
 
     /// Set a per-part surround parameter.
@@ -1703,6 +1703,22 @@ mod tests {
         assert!(
             dev.set_sna_common_param(0, SnaCommonField::ModifyParameter, 32, 0)
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn set_surround_param_updates_state_and_writes_the_field() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_surround_param(params::SurroundField::Depth, 80);
+        assert_eq!(dev.state().surround.depth, 80);
+        // Motional Surround at `18 00 08 00`, Depth at `00 0C`.
+        assert_eq!(
+            dev.drain(0.0),
+            Some(sysex::build_dt1(
+                0x10,
+                &Address::new(0x18, 0x00, 0x08, 0x0C),
+                &[80]
+            ))
         );
     }
 

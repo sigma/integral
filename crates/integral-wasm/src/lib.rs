@@ -1215,6 +1215,54 @@ mirror_core_enum!(SndNoteField <=> sn_drum::SndNoteField {
     OutputAssign,
 });
 
+/// A Motional Surround common field (mirrors [`params::SurroundField`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SurroundField {
+    /// See [`params::SurroundField::Switch`].
+    Switch,
+    /// See [`params::SurroundField::RoomType`].
+    RoomType,
+    /// See [`params::SurroundField::AmbienceLevel`].
+    AmbienceLevel,
+    /// See [`params::SurroundField::RoomSize`].
+    RoomSize,
+    /// See [`params::SurroundField::AmbienceTime`].
+    AmbienceTime,
+    /// See [`params::SurroundField::AmbienceDensity`].
+    AmbienceDensity,
+    /// See [`params::SurroundField::AmbienceHfDamp`].
+    AmbienceHfDamp,
+    /// See [`params::SurroundField::ExtPartLr`].
+    ExtPartLr,
+    /// See [`params::SurroundField::ExtPartFb`].
+    ExtPartFb,
+    /// See [`params::SurroundField::ExtPartWidth`].
+    ExtPartWidth,
+    /// See [`params::SurroundField::ExtPartAmbienceSend`].
+    ExtPartAmbienceSend,
+    /// See [`params::SurroundField::ExtPartControlChannel`].
+    ExtPartControlChannel,
+    /// See [`params::SurroundField::Depth`].
+    Depth,
+}
+
+mirror_core_enum!(SurroundField <=> params::SurroundField {
+    Switch,
+    RoomType,
+    AmbienceLevel,
+    RoomSize,
+    AmbienceTime,
+    AmbienceDensity,
+    AmbienceHfDamp,
+    ExtPartLr,
+    ExtPartFb,
+    ExtPartWidth,
+    ExtPartAmbienceSend,
+    ExtPartControlChannel,
+    Depth,
+});
+
 /// A header field of an MFX block (mirrors [`mfx::MfxHeaderField`]).
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2405,9 +2453,10 @@ impl WasmDeviceState {
 
     // -- Motional Surround -------------------------------------------------
 
+    /// Set a Motional Surround common field.
     #[wasm_bindgen(js_name = setSurroundParam)]
-    pub fn set_surround_param(&mut self, param_offset: u8, value: u8) {
-        self.inner.set_surround_param(param_offset, value);
+    pub fn set_surround_param(&mut self, field: SurroundField, value: u8) {
+        self.inner.set_surround_param(field.into(), value);
     }
 
     #[wasm_bindgen(js_name = setPartSurroundLr)]

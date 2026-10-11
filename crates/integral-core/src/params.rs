@@ -6,6 +6,7 @@
 //! Reference: `docs/midi/05-studio-set.md`, `docs/midi/04-address-map.md`
 
 use crate::address::{Address, DataSize};
+use crate::block_field::BlockField;
 
 // ---------------------------------------------------------------------------
 // Setup (base: 01 00 00 00)
@@ -340,34 +341,44 @@ pub const fn comp_eq_param_address(
 /// Motional Surround Common base address.
 pub const SURROUND_BASE: Address = Address::new(0x18, 0x00, 0x08, 0x00);
 
-/// Motional Surround common parameter offsets.
-pub mod surround {
-    /// Switch (0=OFF, 1=ON).
-    pub const SWITCH: u8 = 0x00;
+/// A Motional Surround common field (Studio Set Common Motional
+/// Surround). The discriminant is the field's byte position within the
+/// block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum SurroundField {
+    /// Motional Surround Switch (0=OFF, 1=ON).
+    Switch = 0x00,
     /// Room Type (0–3: ROOM1, ROOM2, HALL1, HALL2).
-    pub const ROOM_TYPE: u8 = 0x01;
+    RoomType = 0x01,
     /// Ambience Level (0–127).
-    pub const AMBIENCE_LEVEL: u8 = 0x02;
+    AmbienceLevel = 0x02,
     /// Room Size (0–2: SMALL, MEDIUM, LARGE).
-    pub const ROOM_SIZE: u8 = 0x03;
+    RoomSize = 0x03,
     /// Ambience Time (0–100).
-    pub const AMBIENCE_TIME: u8 = 0x04;
+    AmbienceTime = 0x04,
     /// Ambience Density (0–100).
-    pub const AMBIENCE_DENSITY: u8 = 0x05;
+    AmbienceDensity = 0x05,
     /// Ambience HF Damp (0–100).
-    pub const AMBIENCE_HF_DAMP: u8 = 0x06;
+    AmbienceHfDamp = 0x06,
     /// Ext Part L-R (0–127, display: -64 to +63).
-    pub const EXT_LR: u8 = 0x07;
+    ExtPartLr = 0x07,
     /// Ext Part F-B (0–127, display: -64 to +63).
-    pub const EXT_FB: u8 = 0x08;
+    ExtPartFb = 0x08,
     /// Ext Part Width (0–32).
-    pub const EXT_WIDTH: u8 = 0x09;
+    ExtPartWidth = 0x09,
     /// Ext Part Ambience Send Level (0–127).
-    pub const EXT_AMBIENCE_SEND: u8 = 0x0A;
+    ExtPartAmbienceSend = 0x0A,
     /// Ext Part Control Channel (0–16: 1–16, OFF).
-    pub const EXT_CONTROL_CHANNEL: u8 = 0x0B;
+    ExtPartControlChannel = 0x0B,
     /// Motional Surround Depth (0–100).
-    pub const DEPTH: u8 = 0x0C;
+    Depth = 0x0C,
+}
+
+impl BlockField for SurroundField {
+    fn position(self) -> usize {
+        self as usize
+    }
 }
 
 /// Compute absolute address for a Motional Surround common parameter.

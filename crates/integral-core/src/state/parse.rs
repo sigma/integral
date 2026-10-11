@@ -77,23 +77,25 @@ pub fn parse_master_eq_dump(data: &[u8]) -> EqState {
 
 /// Parse the 13-byte Motional Surround common dump.
 pub fn parse_surround_common(data: &[u8]) -> super::SurroundState {
+    use crate::block_field::BlockField;
+    use crate::params::SurroundField as F;
     let mut s = super::SurroundState::default();
-    if data.len() < 13 {
+    if data.len() < crate::params::SURROUND_COMMON_SIZE.value() as usize {
         return s;
     }
-    s.enabled = data[0] == 1;
-    s.room_type = data[1];
-    s.ambience_level = data[2];
-    s.room_size = data[3];
-    s.ambience_time = data[4];
-    s.ambience_density = data[5];
-    s.ambience_hf_damp = data[6];
-    s.ext.lr = data[7];
-    s.ext.fb = data[8];
-    s.ext.width = data[9];
-    s.ext.ambience_send = data[10];
-    s.ext_control_channel = data[11];
-    s.depth = data[12];
+    s.enabled = F::Switch.byte(data) == 1;
+    s.room_type = F::RoomType.byte(data);
+    s.ambience_level = F::AmbienceLevel.byte(data);
+    s.room_size = F::RoomSize.byte(data);
+    s.ambience_time = F::AmbienceTime.byte(data);
+    s.ambience_density = F::AmbienceDensity.byte(data);
+    s.ambience_hf_damp = F::AmbienceHfDamp.byte(data);
+    s.ext.lr = F::ExtPartLr.byte(data);
+    s.ext.fb = F::ExtPartFb.byte(data);
+    s.ext.width = F::ExtPartWidth.byte(data);
+    s.ext.ambience_send = F::ExtPartAmbienceSend.byte(data);
+    s.ext_control_channel = F::ExtPartControlChannel.byte(data);
+    s.depth = F::Depth.byte(data);
     s
 }
 
@@ -201,6 +203,33 @@ pub fn encode_nib_param(value: i32) -> [u8; 4] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_surround_common_reads_every_field_at_its_position() {
+        use crate::block_field::test_support::{assert_reads_at_positions, positional_block};
+        use crate::params::SurroundField as F;
+        let mut data = positional_block(crate::params::SURROUND_COMMON_SIZE.value() as usize);
+        // The switch reads ON from a 1, not from its position (0).
+        data[F::Switch as usize] = 1;
+        let s = parse_surround_common(&data);
+        assert!(s.enabled);
+        assert_reads_at_positions!(s, {
+            room_type: F::RoomType,
+            ambience_level: F::AmbienceLevel,
+            room_size: F::RoomSize,
+            ambience_time: F::AmbienceTime,
+            ambience_density: F::AmbienceDensity,
+            ambience_hf_damp: F::AmbienceHfDamp,
+            ext_control_channel: F::ExtPartControlChannel,
+            depth: F::Depth,
+        });
+        assert_reads_at_positions!(s.ext, {
+            lr: F::ExtPartLr,
+            fb: F::ExtPartFb,
+            width: F::ExtPartWidth,
+            ambience_send: F::ExtPartAmbienceSend,
+        });
+    }
 
     #[test]
     fn parse_part_dump_extracts_fields() {

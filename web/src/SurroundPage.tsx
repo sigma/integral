@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { SurroundField } from "../pkg/integral_wasm.js";
 import { EqKnob } from "./EqKnob";
 import { SurroundXYPad } from "./SurroundXYPad";
 import type { UseMixerResult } from "./useMixer";
@@ -27,8 +28,8 @@ export function SurroundPage({ mixer }: Props) {
         mixer.setPartSurroundLr(index, lr);
         mixer.setPartSurroundFb(index, fb);
       } else {
-        mixer.setSurroundParam(0x07, lr);
-        mixer.setSurroundParam(0x08, fb);
+        mixer.setSurroundParam(SurroundField.ExtPartLr, lr);
+        mixer.setSurroundParam(SurroundField.ExtPartFb, fb);
       }
     },
     [mixer],
@@ -40,34 +41,34 @@ export function SurroundPage({ mixer }: Props) {
       <div className={css.header}>
         <button
           className={`${css.switchBtn} ${surround.enabled ? css.on : ""}`}
-          onClick={() => mixer.setSurroundParam(0x00, surround.enabled ? 0 : 1)}
+          onClick={() => mixer.setSurroundParam(SurroundField.Switch, surround.enabled ? 0 : 1)}
         >
           {surround.enabled ? "ON" : "OFF"}
         </button>
         <label className={css.selectLabel}>
           Room
           <select className={css.select} value={surround.roomType}
-            onChange={(e) => mixer.setSurroundParam(0x01, Number(e.target.value))}>
+            onChange={(e) => mixer.setSurroundParam(SurroundField.RoomType, Number(e.target.value))}>
             {spec.surround_room_types.map((n, i) => <option key={i} value={i}>{n}</option>)}
           </select>
         </label>
         <label className={css.selectLabel}>
           Size
           <select className={css.select} value={surround.roomSize}
-            onChange={(e) => mixer.setSurroundParam(0x03, Number(e.target.value))}>
+            onChange={(e) => mixer.setSurroundParam(SurroundField.RoomSize, Number(e.target.value))}>
             {spec.surround_room_sizes.map((n, i) => <option key={i} value={i}>{n}</option>)}
           </select>
         </label>
         <EqKnob label="Depth" value={surround.depth} min={0} max={100} defaultValue={50}
-          onChange={(v) => mixer.setSurroundParam(0x0C, v)} formatValue={(v) => String(v)} color="#4a6cf7" />
+          onChange={(v) => mixer.setSurroundParam(SurroundField.Depth, v)} formatValue={(v) => String(v)} color="#4a6cf7" />
         <EqKnob label="Amb Lvl" value={surround.ambienceLevel} min={0} max={127} defaultValue={64}
-          onChange={(v) => mixer.setSurroundParam(0x02, v)} formatValue={(v) => String(v)} color="#4a6cf7" />
+          onChange={(v) => mixer.setSurroundParam(SurroundField.AmbienceLevel, v)} formatValue={(v) => String(v)} color="#4a6cf7" />
         <EqKnob label="Amb Time" value={surround.ambienceTime} min={0} max={100} defaultValue={50}
-          onChange={(v) => mixer.setSurroundParam(0x04, v)} formatValue={(v) => String(v)} color="#4a6cf7" />
+          onChange={(v) => mixer.setSurroundParam(SurroundField.AmbienceTime, v)} formatValue={(v) => String(v)} color="#4a6cf7" />
         <EqKnob label="Density" value={surround.ambienceDensity} min={0} max={100} defaultValue={50}
-          onChange={(v) => mixer.setSurroundParam(0x05, v)} formatValue={(v) => String(v)} color="#4a6cf7" />
+          onChange={(v) => mixer.setSurroundParam(SurroundField.AmbienceDensity, v)} formatValue={(v) => String(v)} color="#4a6cf7" />
         <EqKnob label="HF Damp" value={surround.ambienceHfDamp} min={0} max={100} defaultValue={50}
-          onChange={(v) => mixer.setSurroundParam(0x06, v)} formatValue={(v) => String(v)} color="#4a6cf7" />
+          onChange={(v) => mixer.setSurroundParam(SurroundField.AmbienceHfDamp, v)} formatValue={(v) => String(v)} color="#4a6cf7" />
       </div>
 
       {/* Part boxes: 16 parts + EX, each with Width + AMB knobs */}
@@ -89,13 +90,13 @@ export function SurroundPage({ mixer }: Props) {
                 <EqKnob label="W" value={p.state.width} min={0} max={32} defaultValue={16}
                   onChange={(v) => {
                     if (p.index < 16) mixer.setPartSurroundWidth(p.index, v);
-                    else mixer.setSurroundParam(0x09, v);
+                    else mixer.setSurroundParam(SurroundField.ExtPartWidth, v);
                   }}
                   formatValue={(v) => String(v)} color="#ffaa44" />
                 <EqKnob label="AMB" value={p.state.ambienceSend} min={0} max={127} defaultValue={0}
                   onChange={(v) => {
                     if (p.index < 16) mixer.setPartSurroundAmbienceSend(p.index, v);
-                    else mixer.setSurroundParam(0x0A, v);
+                    else mixer.setSurroundParam(SurroundField.ExtPartAmbienceSend, v);
                   }}
                   formatValue={(v) => String(v)} color="#a6f" />
               </div>
