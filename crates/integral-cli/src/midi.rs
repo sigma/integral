@@ -67,7 +67,7 @@ pub fn open_midi(
     Ok((conn_in, conn_out, rx))
 }
 
-/// Send an RQ1 and wait for the DT1 response.
+/// Send an RQ1 and wait for the DT1 response, logging the traffic to stderr.
 pub fn request_data(
     conn_out: &mut midir::MidiOutputConnection,
     rx: &mpsc::Receiver<Vec<u8>>,
@@ -76,9 +76,25 @@ pub fn request_data(
     size: &DataSize,
     timeout: Duration,
 ) -> Result<Vec<u8>> {
+    request_data_logged(conn_out, rx, device_id, address, size, timeout, true)
+}
+
+/// Send an RQ1 and wait for the DT1 response; log the traffic to stderr
+/// only when `verbose`.
+pub fn request_data_logged(
+    conn_out: &mut midir::MidiOutputConnection,
+    rx: &mpsc::Receiver<Vec<u8>>,
+    device_id: u8,
+    address: &Address,
+    size: &DataSize,
+    timeout: Duration,
+    verbose: bool,
+) -> Result<Vec<u8>> {
     let rq1 = sysex::build_rq1(device_id, address, size);
-    eprintln!("Sending RQ1: addr={}, size={}", address, size);
-    eprintln!("  Raw: {}", format_hex(&rq1, " "));
+    if verbose {
+        eprintln!("Sending RQ1: addr={}, size={}", address, size);
+        eprintln!("  Raw: {}", format_hex(&rq1, " "));
+    }
     conn_out.send(&rq1).context("failed to send RQ1")?;
 
     let deadline = std::time::Instant::now() + timeout;
@@ -89,27 +105,34 @@ pub fn request_data(
         }
         match rx.recv_timeout(remaining) {
             Ok(data) => {
-                // Print every incoming message for debugging
-                eprintln!(
-                    "  Received ({} bytes): {}",
-                    data.len(),
-                    format_hex(&data[..data.len().min(20)], " ")
-                );
+                if verbose {
+                    eprintln!(
+                        "  Received ({} bytes): {}",
+                        data.len(),
+                        format_hex(&data[..data.len().min(20)], " ")
+                    );
+                }
 
                 match sysex::parse_dt1(&data) {
                     Ok(dt1) => {
-                        eprintln!(
-                            "  Parsed DT1: addr={}, {} data bytes",
-                            dt1.address,
-                            dt1.data.len()
-                        );
+                        if verbose {
+                            eprintln!(
+                                "  Parsed DT1: addr={}, {} data bytes",
+                                dt1.address,
+                                dt1.data.len()
+                            );
+                        }
                         if dt1.address == *address {
                             return Ok(dt1.data);
                         }
-                        eprintln!("  (address mismatch, continuing...)");
+                        if verbose {
+                            eprintln!("  (address mismatch, continuing...)");
+                        }
                     }
                     Err(e) => {
-                        eprintln!("  (not a DT1: {e})");
+                        if verbose {
+                            eprintln!("  (not a DT1: {e})");
+                        }
                     }
                 }
             }

@@ -2,13 +2,14 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::Result;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 
 mod commands;
 mod device;
 mod hex;
 mod midi;
 
+use commands::expansion::OutputFormat;
 use midi::DEFAULT_PORT_PATTERN;
 
 /// Integral -- CLI tools for the Roland INTEGRA-7.
@@ -165,6 +166,11 @@ enum Cli {
         #[arg(long, value_parser = parse_device_id)]
         device_id: Option<u8>,
     },
+    /// List the Expansions and load them into the Expansion slots A-D.
+    Expansion {
+        #[command(subcommand)]
+        command: ExpansionCommand,
+    },
     /// Import patches from an SVD file to the device.
     SvdImport {
         #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
@@ -183,6 +189,48 @@ enum Cli {
         /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
         #[arg(long, value_parser = parse_device_id)]
         device_id: Option<u8>,
+    },
+}
+
+/// `expansion` subcommands.
+#[derive(Subcommand)]
+enum ExpansionCommand {
+    /// Show the Expansion slots, then every Expansion and the slot holding it.
+    List {
+        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
+        port: String,
+        #[arg(long, default_value_t = 2.0)]
+        timeout: f64,
+        /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
+        #[arg(long, value_parser = parse_device_id)]
+        device_id: Option<u8>,
+        #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+        format: OutputFormat,
+    },
+    /// Load Expansions into slots. All sound stops while loading.
+    ///
+    /// Exit status: 0 success or nothing to do; 1 nothing sent (bad argument,
+    /// no device, confirmation refused); 2 load sent but failed or timed out.
+    Load {
+        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
+        port: String,
+        #[arg(long, default_value_t = 2.0)]
+        timeout: f64,
+        /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
+        #[arg(long, value_parser = parse_device_id)]
+        device_id: Option<u8>,
+        /// Slot assignments such as `A=SRX-01 C=ExSN3 D=OFF` (unnamed slots
+        /// keep their Expansion), or `ExPCM` alone to fill all four.
+        #[arg(required = true)]
+        assignments: Vec<String>,
+        /// Print the plan and stop.
+        #[arg(long)]
+        dry_run: bool,
+        /// Load even if Parts would go silent, without asking.
+        #[arg(long, short = 'y')]
+        yes: bool,
+        #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+        format: OutputFormat,
     },
 }
 
@@ -301,6 +349,41 @@ fn main() -> Result<()> {
         } => {
             let did = resolve_device_id(&port, device_id)?;
             commands::svd::svd_export(&port, Duration::from_secs_f64(timeout), did, &file, part)
+        }
+        Cli::Expansion {
+            command:
+                ExpansionCommand::List {
+                    port,
+                    timeout,
+                    device_id,
+                    format,
+                },
+        } => commands::expansion::list(&port, device_id, Duration::from_secs_f64(timeout), format),
+        Cli::Expansion {
+            command:
+                ExpansionCommand::Load {
+                    port,
+                    timeout,
+                    device_id,
+                    assignments,
+                    dry_run,
+                    yes,
+                    format,
+                },
+        } => {
+            let code = commands::expansion::load(
+                &port,
+                device_id,
+                Duration::from_secs_f64(timeout),
+                &assignments,
+                dry_run,
+                yes,
+                format,
+            )?;
+            if code != 0 {
+                std::process::exit(code.into());
+            }
+            Ok(())
         }
         Cli::SvdImport {
             port,

@@ -27,6 +27,7 @@ pub struct IntegraDevice {
     rx: Receiver<Vec<u8>>,
     device_id: u8,
     timeout: Duration,
+    verbose: bool,
 }
 
 #[allow(dead_code)]
@@ -40,18 +41,53 @@ impl IntegraDevice {
             rx,
             device_id,
             timeout,
+            verbose: true,
         })
+    }
+
+    /// Open MIDI ports matching `port_pattern` and use `device_id`, or the ID
+    /// from the device's Identity Reply when `None`.
+    pub fn connect_detecting(
+        port_pattern: &str,
+        device_id: Option<u8>,
+        timeout: Duration,
+    ) -> Result<Self> {
+        let (conn_in, mut conn_out, rx) = midi::open_midi(port_pattern)?;
+        let device_id = match device_id {
+            Some(id) => id,
+            None => midi::detect_device_id(&mut conn_out, &rx, timeout)?,
+        };
+        Ok(Self {
+            _conn_in: conn_in,
+            conn_out,
+            rx,
+            device_id,
+            timeout,
+            verbose: true,
+        })
+    }
+
+    /// Stop logging each request and reply to stderr.
+    pub fn quiet(mut self) -> Self {
+        self.verbose = false;
+        self
+    }
+
+    /// Return the response timeout.
+    pub fn timeout(&self) -> Duration {
+        self.timeout
     }
 
     /// Send an RQ1 request and wait for the corresponding DT1 response.
     pub fn request_data(&mut self, address: &Address, size: &DataSize) -> Result<Vec<u8>> {
-        midi::request_data(
+        midi::request_data_logged(
             &mut self.conn_out,
             &self.rx,
             self.device_id,
             address,
             size,
             self.timeout,
+            self.verbose,
         )
     }
 
