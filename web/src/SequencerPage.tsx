@@ -110,9 +110,7 @@ function PatternFile({ engine }: { engine: SequencerEngine }) {
   const [error, setError] = useState<string | null>(null);
 
   const download = () => {
-    const bytes = engine.toSmf();
-    if (!bytes) return;
-    const url = URL.createObjectURL(new Blob([bytes], { type: "audio/midi" }));
+    const url = URL.createObjectURL(new Blob([engine.toSmf()], { type: "audio/midi" }));
     const a = document.createElement("a");
     a.href = url;
     a.download = "pattern.mid";

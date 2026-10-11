@@ -239,9 +239,9 @@ export class SequencerEngine {
     }
   }
 
-  /** The Pattern as `.mid` bytes, or null without a device to read channels from. */
-  toSmf(): Uint8Array | null {
-    return this.service ? this.seq.toSmf(this.service.device) : null;
+  /** The Pattern as `.mid` bytes, on the device's receive channels or, offline, the defaults. */
+  toSmf(): Uint8Array {
+    return this.service ? this.seq.toSmf(this.service.device) : this.seq.toSmfOffline();
   }
 
   /** Replace the Pattern with a `.mid` file. Throws (Pattern unchanged) if it is rejected. */
@@ -254,8 +254,7 @@ export class SequencerEngine {
   }
 
   private save(): void {
-    const bytes = this.toSmf();
-    if (bytes) localStorage.setItem(STORAGE_KEY, bytesToBase64(bytes));
+    localStorage.setItem(STORAGE_KEY, bytesToBase64(this.toSmf()));
   }
 
   private tick(): void {

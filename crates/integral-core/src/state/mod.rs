@@ -326,7 +326,7 @@ pub struct MixerState {
     pub master_level: u8,
     /// Solo Part (0=OFF, 1–16=Part 1–16).
     pub solo_part: u8,
-    /// All 16 parts.
+    /// All 16 parts. By default Part N receives on channel N.
     pub parts: [PartState; NUM_PARTS],
     /// Chorus (FX1) state.
     pub chorus: FxState,
@@ -355,7 +355,10 @@ impl Default for MixerState {
             studio_set_pc: 0,
             master_level: 100,
             solo_part: 0,
-            parts: std::array::from_fn(|_| PartState::default()),
+            parts: std::array::from_fn(|i| PartState {
+                receive_channel: i as u8,
+                ..PartState::default()
+            }),
             chorus: FxState::default(),
             reverb: FxState::default(),
             ext_level: 100,
@@ -377,6 +380,14 @@ mod tests {
     fn default_mixer_has_16_parts() {
         let m = MixerState::default();
         assert_eq!(m.parts.len(), NUM_PARTS);
+    }
+
+    #[test]
+    fn default_parts_receive_on_their_own_channel() {
+        let m = MixerState::default();
+        for (i, p) in m.parts.iter().enumerate() {
+            assert_eq!(usize::from(p.receive_channel), i);
+        }
     }
 
     #[test]

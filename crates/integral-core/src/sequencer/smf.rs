@@ -11,7 +11,7 @@ use midly::{Format, Header, MetaMessage, MidiMessage, Smf, Timing, TrackEvent, T
 use thiserror::Error;
 
 use super::{MAX_STEPS, Note, Pattern, STEPS_PER_QUARTER, Track, track_channel};
-use crate::device::DeviceState;
+use crate::state::MixerState;
 
 /// Ticks per quarter note.
 const PPQ: u16 = 96;
@@ -71,10 +71,11 @@ pub enum SmfError {
 impl Pattern {
     /// Encode the Pattern as SMF bytes.
     ///
-    /// Each Track's channel nibble is its Part's receive channel in `state`.
+    /// Each Track's channel nibble is its Part's receive channel in `state`;
+    /// pass [`MixerState::default`] when no device is connected.
     /// Notes are written as they play: clamped at the Track end, and notes
     /// starting past the end are dropped.
-    pub fn to_smf(&self, state: &DeviceState) -> Vec<u8> {
+    pub fn to_smf(&self, state: &MixerState) -> Vec<u8> {
         let tempo = (MICROS_PER_MINUTE / f64::from(self.bpm)).round() as u32;
         let conductor = vec![
             meta(0, MetaMessage::Tempo(u24::new(tempo))),
@@ -245,12 +246,8 @@ mod tests {
     use super::*;
     use crate::device_spec::INTEGRA7;
 
-    fn state() -> DeviceState {
-        let mut s = DeviceState::new(0x10);
-        for (i, p) in s.state_mut().parts.iter_mut().enumerate() {
-            p.receive_channel = i as u8;
-        }
-        s
+    fn state() -> MixerState {
+        MixerState::default()
     }
 
     fn sample() -> Pattern {
@@ -302,9 +299,22 @@ mod tests {
     }
 
     #[test]
+    fn offline_export_puts_each_track_on_its_part_channel() {
+        let smf_bytes = sample().to_smf(&MixerState::default());
+        let smf = Smf::parse(&smf_bytes).unwrap();
+        for (part, track) in smf.tracks[1..].iter().enumerate() {
+            let mut channels = track.iter().filter_map(|e| match e.kind {
+                TrackEventKind::Midi { channel, .. } => Some(usize::from(channel.as_int())),
+                _ => None,
+            });
+            assert!(channels.all(|c| c == part), "Part {} channel", part + 1);
+        }
+    }
+
+    #[test]
     fn channels_are_ignored_on_read() {
         let mut other = state();
-        other.state_mut().parts[0].receive_channel = 9;
+        other.parts[0].receive_channel = 9;
         let back = Pattern::from_smf(&sample().to_smf(&other), INTEGRA7.part_count).unwrap();
         assert_eq!(back, sample());
     }

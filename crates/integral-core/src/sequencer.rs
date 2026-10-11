@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 
 use crate::device::DeviceState;
 use crate::device_spec::MIDI_CHANNELS;
+use crate::state::MixerState;
 
 mod smf;
 pub use smf::SmfError;
@@ -281,7 +282,7 @@ impl Sequencer {
                 if notes.is_empty() {
                     continue;
                 }
-                let channel = track_channel(state, i);
+                let channel = track_channel(state.state(), i);
                 for note in notes {
                     let length = note.length.min(track.length - local);
                     events.push((step, true, vec![0x90 | channel, note.pitch, note.velocity]));
@@ -338,7 +339,7 @@ impl Sequencer {
             for i in 0..self.pattern.tracks.len() {
                 out.push(TimedMidi {
                     t_ms,
-                    bytes: all_notes_off(track_channel(state, i)),
+                    bytes: all_notes_off(track_channel(state.state(), i)),
                 });
             }
         }
@@ -351,9 +352,8 @@ impl Sequencer {
     }
 }
 
-fn track_channel(state: &DeviceState, track: usize) -> u8 {
+fn track_channel(state: &MixerState, track: usize) -> u8 {
     state
-        .state()
         .parts
         .get(track)
         .map_or(0, |p| p.receive_channel & 0x0F)
@@ -376,11 +376,7 @@ mod tests {
     const STEP: f64 = 125.0;
 
     fn state() -> DeviceState {
-        let mut s = DeviceState::new(0x10);
-        for (i, p) in s.state_mut().parts.iter_mut().enumerate() {
-            p.receive_channel = i as u8;
-        }
-        s
+        DeviceState::new(0x10)
     }
 
     fn seq_with(f: impl FnOnce(&mut Pattern)) -> Sequencer {

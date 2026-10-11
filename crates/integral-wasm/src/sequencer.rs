@@ -7,6 +7,7 @@
 
 use integral_core::device_spec::INTEGRA7;
 use integral_core::sequencer::{MAX_STEPS, Note, Pattern, Sequencer, TimedMidi};
+use integral_core::state::MixerState;
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
@@ -187,10 +188,17 @@ impl WasmSequencer {
         }
     }
 
-    /// The Pattern as Standard MIDI File bytes.
+    /// The Pattern as Standard MIDI File bytes, on `device`'s receive channels.
     #[wasm_bindgen(js_name = toSmf)]
     pub fn to_smf(&self, device: &WasmDeviceState) -> Vec<u8> {
-        self.inner.pattern().to_smf(&device.inner)
+        self.inner.pattern().to_smf(device.inner.state())
+    }
+
+    /// The Pattern as Standard MIDI File bytes on the default receive
+    /// channels (Part N on channel N), for when no device is connected.
+    #[wasm_bindgen(js_name = toSmfOffline)]
+    pub fn to_smf_offline(&self) -> Vec<u8> {
+        self.inner.pattern().to_smf(&MixerState::default())
     }
 
     /// Replace the Pattern with one read from Standard MIDI File bytes.
