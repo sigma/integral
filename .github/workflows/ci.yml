@@ -40,6 +40,9 @@ jobs:
       - name: Install web dependencies
         run: nix develop -c bash -c "cd web && npm ci"
 
+      - name: CSS lint
+        run: nix develop -c just lint-css
+
       - name: TypeScript check
         run: nix develop -c just lint-web
 
