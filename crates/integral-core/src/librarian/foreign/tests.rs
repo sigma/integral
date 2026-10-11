@@ -1283,7 +1283,10 @@ mod jv_rhythms {
 mod xv_rhythms {
     use super::*;
     use crate::parse_helpers::nibble4;
-    use crate::pcm_drum::{PcmdPartialField as F, PcmdWmtField as W, pcmd_wmt_byte};
+    use crate::pcm_drum::{
+        PCMD_WMT_COUNT, PcmDrumPartial, PcmdPartialField as F, PcmdWmtField as W,
+        encode_pcmd_partial, pcmd_wmt_byte,
+    };
 
     /// User Rhythm 2.
     const USER_2: [u8; 2] = [0x40, 0x10];
@@ -1359,6 +1362,24 @@ mod xv_rhythms {
         report.iter().map(ToString::to_string).collect()
     }
 
+    /// The bytes of WMT `w` (0-indexed) in `partial`.
+    fn wmt(partial: &[u8], w: usize) -> &[u8] {
+        let len = pcmd_wmt_byte(1, W::Switch) - pcmd_wmt_byte(0, W::Switch);
+        &partial[pcmd_wmt_byte(w, W::Switch)..][..len]
+    }
+
+    /// Reset the switched-off WMTs of `partial` to the INIT WMT.
+    fn reset_off_wmts(partial: &mut [u8]) {
+        let init = encode_pcmd_partial(&PcmDrumPartial::default());
+        for w in 0..PCMD_WMT_COUNT {
+            if partial[pcmd_wmt_byte(w, W::Switch)] == 0 {
+                let at = pcmd_wmt_byte(w, W::Switch);
+                let len = wmt(&init, w).len();
+                partial[at..at + len].copy_from_slice(wmt(&init, w));
+            }
+        }
+    }
+
     #[test]
     fn copies_each_key_to_the_same_integra_key_on_part() {
         let bytes = kit(USER_2, 21..=108, |_, _| {});
@@ -1374,7 +1395,28 @@ mod xv_rhythms {
             // Output A would be COMP+EQ1: every key goes to PART.
             expected[F::OutputAssign as usize] = 0;
             expected.extend([0, 64]); // One Shot Mode, reserve `01 42`
+            reset_off_wmts(&mut expected);
             assert_eq!(partial(&entry, key), expected, "key {key}");
+        }
+    }
+
+    #[test]
+    fn a_switched_off_wmt_gets_the_init_wmt() {
+        let bytes = kit(USER_2, [22], |_, tones| {
+            let tone = &mut tones[0].1;
+            // WMT1 on, WMT2 off holding out-of-range bytes, as `XV 5080 All.mid`.
+            tone[pcmd_wmt_byte(1, W::WaveGroupId)..][..4].copy_from_slice(&[0, 0, 0, 9]);
+            tone[pcmd_wmt_byte(1, W::CoarseTune)] = 0;
+            tone[pcmd_wmt_byte(1, W::VelocityRangeLower)] = 0;
+        });
+        let (entry, report) = converted(&bytes);
+        assert!(report.is_empty(), "{report:?}");
+        let init = encode_pcmd_partial(&PcmDrumPartial::default());
+        let mut expected = tone(22);
+        expected[F::OutputAssign as usize] = 0;
+        assert_eq!(wmt(partial(&entry, 22), 0), wmt(&expected, 0));
+        for w in 1..PCMD_WMT_COUNT {
+            assert_eq!(wmt(partial(&entry, 22), w), wmt(&init, w), "WMT {}", w + 1);
         }
     }
 

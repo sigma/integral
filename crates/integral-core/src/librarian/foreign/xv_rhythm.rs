@@ -67,8 +67,8 @@ struct Rhythm<'a> {
 }
 
 /// The fix rows, in `foreign-rhythm-format.csv` order: kit-wide first, then
-/// per key.
-const FIXES: [fn(&mut Rhythm<'_>); 9] = [
+/// per key. Switched-off WMTs are reset last.
+const FIXES: [fn(&mut Rhythm<'_>); 10] = [
     tempo,
     output_assign,
     mfx,
@@ -78,6 +78,7 @@ const FIXES: [fn(&mut Rhythm<'_>); 9] = [
     tone_output_assign,
     receive_pan_mode,
     wave_group,
+    off_wmts,
 ];
 
 /// Convert the Rhythm Set whose frames share address byte `key[0]` and the
@@ -215,6 +216,18 @@ fn wave_group(r: &mut Rhythm<'_>) {
                 WaveSource::Foreign(group) => {
                     r.kit.map_waves(*k, w, group, numbers, &mut r.report);
                 }
+            }
+        }
+    }
+}
+
+/// A switched-off WMT may hold out-of-range bytes (`XV 5080 All.mid`, key
+/// 22), so it gets the default WMT, still off. It was unused: no report.
+fn off_wmts(r: &mut Rhythm<'_>) {
+    for (k, tone) in &r.tones {
+        for w in 0..PCMD_WMT_COUNT {
+            if tone[pcmd_wmt_byte(w, PcmdWmtField::Switch)] == 0 {
+                r.kit.reset_wmt(*k, w);
             }
         }
     }

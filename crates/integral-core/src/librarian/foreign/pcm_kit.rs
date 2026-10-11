@@ -10,8 +10,8 @@ use super::wave_map::ForeignWaveGroup;
 use crate::librarian::pack::PackEntry;
 use crate::parse_helpers::{encode_ascii_name, encode_nibble4};
 use crate::pcm_drum::{
-    PCMD_FIRST_KEY, PCMD_KEY_COUNT, PcmDrumKitState, PcmDrumPartial, PcmdWmtField,
-    encode_pcmd_common, encode_pcmd_common2, encode_pcmd_partial, pcmd_wmt_byte,
+    PCMD_FIRST_KEY, PCMD_KEY_COUNT, PcmDrumKitState, PcmDrumPartial, PcmDrumWmt, PcmdWmtField,
+    encode_pcmd_common, encode_pcmd_common2, encode_pcmd_partial, encode_pcmd_wmt, pcmd_wmt_byte,
 };
 use crate::state::DrumCompEqState;
 use crate::state::parse::encode_comp_eq_block;
@@ -70,6 +70,12 @@ impl PcmKit {
     /// Whether WMT `wmt` (0-indexed) of `key` is switched on.
     pub(super) fn wmt_on(&mut self, key: u8, wmt: usize) -> bool {
         self.key(key)[pcmd_wmt_byte(wmt, PcmdWmtField::Switch)] != 0
+    }
+
+    /// Reset WMT `wmt` (0-indexed) of `key` to the default, switched off.
+    pub(super) fn reset_wmt(&mut self, key: u8, wmt: usize) {
+        let at = pcmd_wmt_byte(wmt, PcmdWmtField::Switch);
+        encode_pcmd_wmt(&PcmDrumWmt::default(), &mut self.key(key)[at..]);
     }
 
     /// Write INTEGRA-7 Waves into WMT `wmt` (0-indexed) of `key`: Wave Group

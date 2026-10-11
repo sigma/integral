@@ -856,7 +856,7 @@ pub fn encode_pcmd_common(c: &PcmDrumCommon) -> Vec<u8> {
 }
 
 /// Encode a single WMT layer (29 bytes), the inverse of `parse_pcmd_wmt`.
-fn encode_pcmd_wmt(w: &PcmDrumWmt, data: &mut [u8]) {
+pub(crate) fn encode_pcmd_wmt(w: &PcmDrumWmt, data: &mut [u8]) {
     use PcmdWmtField as F;
     let mut set = |f: F, v: u8| data[f as usize] = v;
     set(F::Switch, w.switch);
