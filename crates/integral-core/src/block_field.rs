@@ -76,6 +76,39 @@ pub trait BlockField: Copy + Debug {
             .fold(0, |acc, &b| (acc << 4) | u16::from(b & 0x0F))
     }
 
+    /// Write the single-byte value of the field into a block dump: the
+    /// inverse of [`byte`](Self::byte).
+    fn set_byte(self, data: &mut [u8], value: u8) {
+        data[self.position()] = value;
+    }
+
+    /// Write value `index` (0-based) of a single-byte field into a block
+    /// dump: the inverse of [`element`](Self::element).
+    fn set_element(self, data: &mut [u8], index: usize, value: u8) {
+        data[self.position() + index * self.stride()] = value;
+    }
+
+    /// Write all [`count`](Self::count) values of a single-byte field into
+    /// a block dump: the inverse of [`elements`](Self::elements).
+    fn set_elements(self, data: &mut [u8], values: &[u8]) {
+        debug_assert_eq!(
+            values.len(),
+            self.count(),
+            "{self:?} holds {} values",
+            self.count()
+        );
+        for (i, &value) in values.iter().enumerate() {
+            self.set_element(data, i, value);
+        }
+    }
+
+    /// Write the nibblized value of the field into a block dump: the
+    /// inverse of [`nibbles`](Self::nibbles).
+    fn set_nibbles(self, data: &mut [u8], value: u16) {
+        let start = self.position();
+        data[start..start + self.width()].copy_from_slice(&self.encode(value));
+    }
+
     /// The bytes that set one value of the field to `value`: the value
     /// itself, or its nibbles (most significant first) when nibblized.
     fn encode(self, value: u16) -> Vec<u8> {

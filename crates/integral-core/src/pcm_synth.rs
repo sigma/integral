@@ -8,7 +8,7 @@ use crate::address::{Address, DataSize};
 use crate::block_field::BlockField;
 use crate::mfx::MfxState;
 use crate::params;
-use crate::parse_helpers::parse_ascii_name;
+use crate::parse_helpers::{encode_ascii_name, parse_ascii_name};
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -16,6 +16,9 @@ use crate::parse_helpers::parse_ascii_name;
 
 /// PCM Synth Common block offset (relative to PCMS base).
 const PCMS_COMMON_OFFSET: [u8; 4] = [0x00, 0x00, 0x00, 0x00];
+
+/// Bytes of the PCM Synth Tone Name, at Common `00 00`.
+const PCMS_NAME_LEN: usize = 12;
 
 /// PCM Synth Common block size (80 bytes).
 pub const PCMS_COMMON_BLOCK_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x50);
@@ -1446,9 +1449,224 @@ pub fn parse_pcms_common2(data: &[u8]) -> Result<PcmSynthCommon2, crate::TonePar
     Ok(c2)
 }
 
+// ---------------------------------------------------------------------------
+// Encode functions: the inverse of the parse functions. Reserve bytes are 0.
+// ---------------------------------------------------------------------------
+
+/// Encode a PCM Synth Tone Common block (0x50 = 80 bytes), the inverse of
+/// [`parse_pcms_common`].
+pub fn encode_pcms_common(c: &PcmSynthCommon) -> Vec<u8> {
+    let mut data = vec![0; PCMS_COMMON_SIZE];
+    data[..PCMS_NAME_LEN].copy_from_slice(&encode_ascii_name(&c.tone_name, PCMS_NAME_LEN));
+
+    use PcmsCommonField as F;
+    F::ToneLevel.set_byte(&mut data, c.tone_level);
+    F::TonePan.set_byte(&mut data, c.tone_pan);
+    F::TonePriority.set_byte(&mut data, c.tone_priority);
+    F::CoarseTune.set_byte(&mut data, c.coarse_tune);
+    F::FineTune.set_byte(&mut data, c.fine_tune);
+    F::OctaveShift.set_byte(&mut data, c.octave_shift);
+    F::StretchTuneDepth.set_byte(&mut data, c.stretch_tune_depth);
+    F::AnalogFeel.set_byte(&mut data, c.analog_feel);
+    F::MonoPoly.set_byte(&mut data, c.mono_poly);
+    F::LegatoSwitch.set_byte(&mut data, c.legato_switch);
+    F::LegatoRetrigger.set_byte(&mut data, c.legato_retrigger);
+    F::PortamentoSwitch.set_byte(&mut data, c.portamento_switch);
+    F::PortamentoMode.set_byte(&mut data, c.portamento_mode);
+    F::PortamentoType.set_byte(&mut data, c.portamento_type);
+    F::PortamentoStart.set_byte(&mut data, c.portamento_start);
+    F::PortamentoTime.set_byte(&mut data, c.portamento_time);
+    F::CutoffOffset.set_byte(&mut data, c.cutoff_offset);
+    F::ResonanceOffset.set_byte(&mut data, c.resonance_offset);
+    F::AttackTimeOffset.set_byte(&mut data, c.attack_time_offset);
+    F::ReleaseTimeOffset.set_byte(&mut data, c.release_time_offset);
+    F::VelocitySensOffset.set_byte(&mut data, c.velocity_sens_offset);
+    F::PmtControlSwitch.set_byte(&mut data, c.pmt_control_switch);
+    F::PitchBendRangeUp.set_byte(&mut data, c.pitch_bend_range_up);
+    F::PitchBendRangeDown.set_byte(&mut data, c.pitch_bend_range_down);
+
+    for (i, mc) in c.matrix_controls.iter().enumerate() {
+        F::MatrixControlSource.set_element(&mut data, i, mc.source);
+        for (f, &value) in F::MATRIX_CONTROL_DESTINATIONS.iter().zip(&mc.destinations) {
+            f.set_element(&mut data, i, value);
+        }
+        for (f, &value) in F::MATRIX_CONTROL_SENS.iter().zip(&mc.sensitivities) {
+            f.set_element(&mut data, i, value);
+        }
+    }
+    data
+}
+
+/// Encode a PCM Synth Tone PMT block (0x29 = 41 bytes), the inverse of
+/// [`parse_pcms_pmt`].
+pub fn encode_pcms_pmt(pmt: &PcmSynthPmt) -> Vec<u8> {
+    let mut data = vec![0; PCMS_PMT_SIZE];
+    use PcmsPmtField as F;
+    F::StructureType12.set_byte(&mut data, pmt.structure_type_12);
+    F::Booster12.set_byte(&mut data, pmt.booster_12);
+    F::StructureType34.set_byte(&mut data, pmt.structure_type_34);
+    F::Booster34.set_byte(&mut data, pmt.booster_34);
+    F::PmtVelocityControl.set_byte(&mut data, pmt.pmt_velocity_control);
+
+    for (i, e) in pmt.partial_entries.iter().enumerate() {
+        F::PartialSwitch.set_element(&mut data, i, e.partial_switch);
+        F::KeyRangeLower.set_element(&mut data, i, e.key_range_lower);
+        F::KeyRangeUpper.set_element(&mut data, i, e.key_range_upper);
+        F::KeyFadeLower.set_element(&mut data, i, e.key_fade_lower);
+        F::KeyFadeUpper.set_element(&mut data, i, e.key_fade_upper);
+        F::VelocityRangeLower.set_element(&mut data, i, e.velocity_range_lower);
+        F::VelocityRangeUpper.set_element(&mut data, i, e.velocity_range_upper);
+        F::VelocityFadeLower.set_element(&mut data, i, e.velocity_fade_lower);
+        F::VelocityFadeUpper.set_element(&mut data, i, e.velocity_fade_upper);
+    }
+    data
+}
+
+/// Encode a PCM Synth Tone Partial block (154 bytes), the inverse of
+/// [`parse_pcms_partial`].
+pub fn encode_pcms_partial(p: &PcmSynthPartial) -> Vec<u8> {
+    let mut data = vec![0; PCMS_PARTIAL_SIZE];
+    use PcmsPartialField as F;
+
+    // -- General --
+    F::Level.set_byte(&mut data, p.level);
+    F::CoarseTune.set_byte(&mut data, p.coarse_tune);
+    F::FineTune.set_byte(&mut data, p.fine_tune);
+    F::RandomPitchDepth.set_byte(&mut data, p.random_pitch_depth);
+    F::Pan.set_byte(&mut data, p.pan);
+    F::PanKeyfollow.set_byte(&mut data, p.pan_keyfollow);
+    F::RandomPanDepth.set_byte(&mut data, p.random_pan_depth);
+    F::AlternatePanDepth.set_byte(&mut data, p.alternate_pan_depth);
+    F::EnvMode.set_byte(&mut data, p.env_mode);
+    F::DelayMode.set_byte(&mut data, p.delay_mode);
+    F::DelayTime.set_nibbles(&mut data, p.delay_time);
+
+    // -- Output --
+    F::OutputLevel.set_byte(&mut data, p.output_level);
+    F::ChorusSend.set_byte(&mut data, p.chorus_send);
+    F::ReverbSend.set_byte(&mut data, p.reverb_send);
+
+    // -- Receive switches --
+    F::ReceiveBender.set_byte(&mut data, p.receive_bender);
+    F::ReceiveExpression.set_byte(&mut data, p.receive_expression);
+    F::ReceiveHold1.set_byte(&mut data, p.receive_hold1);
+    F::RedamperSwitch.set_byte(&mut data, p.redamper_switch);
+
+    // -- Partial control switches --
+    F::Control1Switch.set_elements(&mut data, &p.control1_switches);
+    F::Control2Switch.set_elements(&mut data, &p.control2_switches);
+    F::Control3Switch.set_elements(&mut data, &p.control3_switches);
+    F::Control4Switch.set_elements(&mut data, &p.control4_switches);
+
+    // -- Wave --
+    F::WaveGroupType.set_byte(&mut data, p.wave_group_type);
+    F::WaveGroupId.set_nibbles(&mut data, p.wave_group_id);
+    F::WaveNumberL.set_nibbles(&mut data, p.wave_number_l);
+    F::WaveNumberR.set_nibbles(&mut data, p.wave_number_r);
+    F::WaveGain.set_byte(&mut data, p.wave_gain);
+    F::WaveFxmSwitch.set_byte(&mut data, p.wave_fxm_switch);
+    F::WaveFxmColor.set_byte(&mut data, p.wave_fxm_color);
+    F::WaveFxmDepth.set_byte(&mut data, p.wave_fxm_depth);
+    F::WaveTempoSync.set_byte(&mut data, p.wave_tempo_sync);
+    F::WavePitchKeyfollow.set_byte(&mut data, p.wave_pitch_keyfollow);
+
+    // -- Pitch Envelope --
+    F::PitchEnvDepth.set_byte(&mut data, p.pitch_env_depth);
+    F::PitchEnvVelocitySens.set_byte(&mut data, p.pitch_env_velocity_sens);
+    F::PitchEnvT1VelocitySens.set_byte(&mut data, p.pitch_env_t1_velocity_sens);
+    F::PitchEnvT4VelocitySens.set_byte(&mut data, p.pitch_env_t4_velocity_sens);
+    F::PitchEnvTimeKeyfollow.set_byte(&mut data, p.pitch_env_time_keyfollow);
+    F::PitchEnvTime.set_elements(&mut data, &p.pitch_env_time);
+    F::PitchEnvLevel.set_elements(&mut data, &p.pitch_env_level);
+
+    // -- TVF (Filter) --
+    F::TvfFilterType.set_byte(&mut data, p.tvf_filter_type);
+    F::TvfCutoffFrequency.set_byte(&mut data, p.tvf_cutoff_frequency);
+    F::TvfCutoffKeyfollow.set_byte(&mut data, p.tvf_cutoff_keyfollow);
+    F::TvfCutoffVelocityCurve.set_byte(&mut data, p.tvf_cutoff_velocity_curve);
+    F::TvfCutoffVelocitySens.set_byte(&mut data, p.tvf_cutoff_velocity_sens);
+    F::TvfResonance.set_byte(&mut data, p.tvf_resonance);
+    F::TvfResonanceVelocitySens.set_byte(&mut data, p.tvf_resonance_velocity_sens);
+    F::TvfEnvDepth.set_byte(&mut data, p.tvf_env_depth);
+    F::TvfEnvVelocityCurve.set_byte(&mut data, p.tvf_env_velocity_curve);
+    F::TvfEnvVelocitySens.set_byte(&mut data, p.tvf_env_velocity_sens);
+    F::TvfEnvT1VelocitySens.set_byte(&mut data, p.tvf_env_t1_velocity_sens);
+    F::TvfEnvT4VelocitySens.set_byte(&mut data, p.tvf_env_t4_velocity_sens);
+    F::TvfEnvTimeKeyfollow.set_byte(&mut data, p.tvf_env_time_keyfollow);
+    F::TvfEnvTime.set_elements(&mut data, &p.tvf_env_time);
+    F::TvfEnvLevel.set_elements(&mut data, &p.tvf_env_level);
+
+    // -- TVA (Amplifier) --
+    F::TvaBiasLevel.set_byte(&mut data, p.tva_bias_level);
+    F::TvaBiasPosition.set_byte(&mut data, p.tva_bias_position);
+    F::TvaBiasDirection.set_byte(&mut data, p.tva_bias_direction);
+    F::TvaLevelVelocityCurve.set_byte(&mut data, p.tva_level_velocity_curve);
+    F::TvaLevelVelocitySens.set_byte(&mut data, p.tva_level_velocity_sens);
+    F::TvaEnvT1VelocitySens.set_byte(&mut data, p.tva_env_t1_velocity_sens);
+    F::TvaEnvT4VelocitySens.set_byte(&mut data, p.tva_env_t4_velocity_sens);
+    F::TvaEnvTimeKeyfollow.set_byte(&mut data, p.tva_env_time_keyfollow);
+    F::TvaEnvTime.set_elements(&mut data, &p.tva_env_time);
+    F::TvaEnvLevel.set_elements(&mut data, &p.tva_env_level);
+
+    // -- LFO1 --
+    F::Lfo1Waveform.set_byte(&mut data, p.lfo1_waveform);
+    F::Lfo1Rate.set_nibbles(&mut data, p.lfo1_rate);
+    F::Lfo1Offset.set_byte(&mut data, p.lfo1_offset);
+    F::Lfo1RateDetune.set_byte(&mut data, p.lfo1_rate_detune);
+    F::Lfo1DelayTime.set_byte(&mut data, p.lfo1_delay_time);
+    F::Lfo1DelayTimeKeyfollow.set_byte(&mut data, p.lfo1_delay_time_keyfollow);
+    F::Lfo1FadeMode.set_byte(&mut data, p.lfo1_fade_mode);
+    F::Lfo1FadeTime.set_byte(&mut data, p.lfo1_fade_time);
+    F::Lfo1KeyTrigger.set_byte(&mut data, p.lfo1_key_trigger);
+    F::Lfo1PitchDepth.set_byte(&mut data, p.lfo1_pitch_depth);
+    F::Lfo1TvfDepth.set_byte(&mut data, p.lfo1_tvf_depth);
+    F::Lfo1TvaDepth.set_byte(&mut data, p.lfo1_tva_depth);
+    F::Lfo1PanDepth.set_byte(&mut data, p.lfo1_pan_depth);
+
+    // -- LFO2 --
+    F::Lfo2Waveform.set_byte(&mut data, p.lfo2_waveform);
+    F::Lfo2Rate.set_nibbles(&mut data, p.lfo2_rate);
+    F::Lfo2Offset.set_byte(&mut data, p.lfo2_offset);
+    F::Lfo2RateDetune.set_byte(&mut data, p.lfo2_rate_detune);
+    F::Lfo2DelayTime.set_byte(&mut data, p.lfo2_delay_time);
+    F::Lfo2DelayTimeKeyfollow.set_byte(&mut data, p.lfo2_delay_time_keyfollow);
+    F::Lfo2FadeMode.set_byte(&mut data, p.lfo2_fade_mode);
+    F::Lfo2FadeTime.set_byte(&mut data, p.lfo2_fade_time);
+    F::Lfo2KeyTrigger.set_byte(&mut data, p.lfo2_key_trigger);
+    F::Lfo2PitchDepth.set_byte(&mut data, p.lfo2_pitch_depth);
+    F::Lfo2TvfDepth.set_byte(&mut data, p.lfo2_tvf_depth);
+    F::Lfo2TvaDepth.set_byte(&mut data, p.lfo2_tva_depth);
+    F::Lfo2PanDepth.set_byte(&mut data, p.lfo2_pan_depth);
+
+    // -- LFO Step Sequencer --
+    F::LfoStepType.set_byte(&mut data, p.lfo_step_type);
+    F::LfoStep.set_elements(&mut data, &p.lfo_step_values);
+
+    data
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn encoders_invert_the_parsers() {
+        let mut state = PcmSynthState::default();
+        state.common.tone_name = "INIT TONE".into();
+        state.common.matrix_controls[3].destinations[2] = 5;
+        state.pmt.partial_entries[2].velocity_fade_upper = 9;
+        state.partials[1].delay_time = 140;
+        state.partials[1].lfo2_rate = 131;
+        state.partials[1].wave_number_l = 300;
+        let common = encode_pcms_common(&state.common);
+        assert_eq!(common.len(), PCMS_COMMON_SIZE);
+        assert_eq!(parse_pcms_common(&common).unwrap(), state.common);
+        let pmt = encode_pcms_pmt(&state.pmt);
+        assert_eq!(parse_pcms_pmt(&pmt).unwrap(), state.pmt);
+        let partial = encode_pcms_partial(&state.partials[1]);
+        assert_eq!(partial.len(), PCMS_PARTIAL_SIZE);
+        assert_eq!(parse_pcms_partial(&partial).unwrap(), state.partials[1]);
+    }
 
     #[test]
     fn default_partial_uses_int_group_id_1() {

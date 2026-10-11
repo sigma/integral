@@ -189,6 +189,27 @@ pub fn parse_mfx_block(data: &[u8]) -> MfxState {
     state
 }
 
+/// Encode a full MFX block (header + 32 nibblized params), the inverse of
+/// [`parse_mfx_block`]. Missing params encode as 0; reserves are 0.
+pub fn encode_mfx_block(state: &MfxState) -> Vec<u8> {
+    use MfxHeaderField as F;
+    let start = MFX_PARAMS_START as usize;
+    let mut data = vec![0; start + 4 * MFX_PARAM_COUNT];
+    data[F::Type.raw_offset(0) as usize] = state.mfx_type;
+    data[F::ChorusSend.raw_offset(0) as usize] = state.chorus_send;
+    data[F::ReverbSend.raw_offset(0) as usize] = state.reverb_send;
+    for (i, slot) in (0..).zip(&state.controls) {
+        data[F::ControlSource.raw_offset(i) as usize] = slot.source;
+        data[F::ControlSens.raw_offset(i) as usize] = slot.sens;
+        data[F::ControlAssign.raw_offset(i) as usize] = slot.assign;
+    }
+    for i in 0..MFX_PARAM_COUNT {
+        let value = state.params.get(i).copied().unwrap_or_default();
+        data[start + 4 * i..start + 4 * i + 4].copy_from_slice(&encode_mfx_param(value));
+    }
+    data
+}
+
 /// Encode a single MFX nibblized parameter value to 4 bytes.
 pub fn encode_mfx_param(value: i32) -> [u8; 4] {
     crate::state::parse::encode_nib_param(value)
@@ -197,6 +218,25 @@ pub fn encode_mfx_param(value: i32) -> [u8; 4] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn encode_mfx_block_inverts_parse() {
+        let mut state = MfxState {
+            mfx_type: 34,
+            chorus_send: 10,
+            reverb_send: 20,
+            params: (0..32).map(|i| i * 3 - 40).collect(),
+            ..MfxState::default()
+        };
+        state.controls[3] = MfxCtrlSlot {
+            source: 99,
+            sens: 70,
+            assign: 5,
+        };
+        let block = encode_mfx_block(&state);
+        assert_eq!(block.len(), MFX_BLOCK_SIZE.value() as usize);
+        assert_eq!(parse_mfx_block(&block), state);
+    }
 
     #[test]
     fn tone_mfx_block_address_follows_tone_type() {
