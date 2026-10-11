@@ -4,6 +4,7 @@ import { WasmDeviceState } from "../pkg/integral_wasm.js";
 import { SnSynthEditor } from "./SnSynthEditor";
 import type { IntegraService } from "./integra";
 import { cleanup, render } from "./test/dom";
+import { dt1Drainer } from "./test/toneService";
 
 afterEach(cleanup);
 
@@ -44,12 +45,12 @@ function fakeService() {
     });
   }
 
-  return { service, sentRequests, reply };
+  return { device, service, sentRequests, reply };
 }
 
 describe("SnSynthEditor", () => {
   it("shows the tone the core read, and edits to it", () => {
-    const { service, sentRequests, reply } = fakeService();
+    const { device, service, sentRequests, reply } = fakeService();
     const { container } = render(<SnSynthEditor partIndex={PART} service={service} />);
     expect(container.textContent).toContain("Loading SN-S tone data");
 
@@ -71,9 +72,14 @@ describe("SnSynthEditor", () => {
     if (!level) throw new Error("no Tone Level knob");
     expect(level.getAttribute("aria-valuenow")).toBe("100");
 
+    const sentDt1s = dt1Drainer(device, 10_000);
     act(() => {
       level.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
     });
     expect(level.getAttribute("aria-valuenow")).toBe("101");
+    // Tone Level is Common (the first block read) `00 0C`.
+    expect(sentDt1s()).toEqual([
+      { address: [...requests[0]!.address.slice(0, 3), 12], data: [101] },
+    ]);
   });
 });

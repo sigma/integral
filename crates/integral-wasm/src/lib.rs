@@ -1263,6 +1263,258 @@ mirror_core_enum!(SurroundField <=> params::SurroundField {
     Depth,
 });
 
+/// A field of an SN Synth Tone Common (mirrors [`sn_synth::SnsCommonField`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SnsCommonField {
+    /// See [`sn_synth::SnsCommonField::ToneLevel`].
+    ToneLevel,
+    /// See [`sn_synth::SnsCommonField::PortamentoSwitch`].
+    PortamentoSwitch,
+    /// See [`sn_synth::SnsCommonField::PortamentoTime`].
+    PortamentoTime,
+    /// See [`sn_synth::SnsCommonField::MonoSwitch`].
+    MonoSwitch,
+    /// See [`sn_synth::SnsCommonField::OctaveShift`].
+    OctaveShift,
+    /// See [`sn_synth::SnsCommonField::PitchBendRangeUp`].
+    PitchBendRangeUp,
+    /// See [`sn_synth::SnsCommonField::PitchBendRangeDown`].
+    PitchBendRangeDown,
+    /// See [`sn_synth::SnsCommonField::Partial1Switch`].
+    Partial1Switch,
+    /// See [`sn_synth::SnsCommonField::Partial1Select`].
+    Partial1Select,
+    /// See [`sn_synth::SnsCommonField::Partial2Switch`].
+    Partial2Switch,
+    /// See [`sn_synth::SnsCommonField::Partial2Select`].
+    Partial2Select,
+    /// See [`sn_synth::SnsCommonField::Partial3Switch`].
+    Partial3Switch,
+    /// See [`sn_synth::SnsCommonField::Partial3Select`].
+    Partial3Select,
+    /// See [`sn_synth::SnsCommonField::RingSwitch`].
+    RingSwitch,
+    /// See [`sn_synth::SnsCommonField::TfxSwitch`].
+    TfxSwitch,
+    /// See [`sn_synth::SnsCommonField::UnisonSwitch`].
+    UnisonSwitch,
+    /// See [`sn_synth::SnsCommonField::PortamentoMode`].
+    PortamentoMode,
+    /// See [`sn_synth::SnsCommonField::LegatoSwitch`].
+    LegatoSwitch,
+    /// See [`sn_synth::SnsCommonField::AnalogFeel`].
+    AnalogFeel,
+    /// See [`sn_synth::SnsCommonField::WaveShape`].
+    WaveShape,
+    /// See [`sn_synth::SnsCommonField::ToneCategory`].
+    ToneCategory,
+    /// See [`sn_synth::SnsCommonField::PhraseNumber`].
+    PhraseNumber,
+    /// See [`sn_synth::SnsCommonField::PhraseOctaveShift`].
+    PhraseOctaveShift,
+    /// See [`sn_synth::SnsCommonField::UnisonSize`].
+    UnisonSize,
+}
+
+mirror_core_enum!(SnsCommonField <=> sn_synth::SnsCommonField {
+    ToneLevel,
+    PortamentoSwitch,
+    PortamentoTime,
+    MonoSwitch,
+    OctaveShift,
+    PitchBendRangeUp,
+    PitchBendRangeDown,
+    Partial1Switch,
+    Partial1Select,
+    Partial2Switch,
+    Partial2Select,
+    Partial3Switch,
+    Partial3Select,
+    RingSwitch,
+    TfxSwitch,
+    UnisonSwitch,
+    PortamentoMode,
+    LegatoSwitch,
+    AnalogFeel,
+    WaveShape,
+    ToneCategory,
+    PhraseNumber,
+    PhraseOctaveShift,
+    UnisonSize,
+});
+
+/// A field of an SN Synth Tone Partial (mirrors [`sn_synth::SnsPartialField`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SnsPartialField {
+    /// See [`sn_synth::SnsPartialField::OscWave`].
+    OscWave,
+    /// See [`sn_synth::SnsPartialField::OscWaveVariation`].
+    OscWaveVariation,
+    /// See [`sn_synth::SnsPartialField::OscPitch`].
+    OscPitch,
+    /// See [`sn_synth::SnsPartialField::OscDetune`].
+    OscDetune,
+    /// See [`sn_synth::SnsPartialField::OscPwModDepth`].
+    OscPwModDepth,
+    /// See [`sn_synth::SnsPartialField::OscPulseWidth`].
+    OscPulseWidth,
+    /// See [`sn_synth::SnsPartialField::OscPitchEnvAttack`].
+    OscPitchEnvAttack,
+    /// See [`sn_synth::SnsPartialField::OscPitchEnvDecay`].
+    OscPitchEnvDecay,
+    /// See [`sn_synth::SnsPartialField::OscPitchEnvDepth`].
+    OscPitchEnvDepth,
+    /// See [`sn_synth::SnsPartialField::FilterMode`].
+    FilterMode,
+    /// See [`sn_synth::SnsPartialField::FilterSlope`].
+    FilterSlope,
+    /// See [`sn_synth::SnsPartialField::FilterCutoff`].
+    FilterCutoff,
+    /// See [`sn_synth::SnsPartialField::FilterKeyfollow`].
+    FilterKeyfollow,
+    /// See [`sn_synth::SnsPartialField::FilterEnvVelSens`].
+    FilterEnvVelSens,
+    /// See [`sn_synth::SnsPartialField::FilterResonance`].
+    FilterResonance,
+    /// See [`sn_synth::SnsPartialField::FilterEnvAttack`].
+    FilterEnvAttack,
+    /// See [`sn_synth::SnsPartialField::FilterEnvDecay`].
+    FilterEnvDecay,
+    /// See [`sn_synth::SnsPartialField::FilterEnvSustain`].
+    FilterEnvSustain,
+    /// See [`sn_synth::SnsPartialField::FilterEnvRelease`].
+    FilterEnvRelease,
+    /// See [`sn_synth::SnsPartialField::FilterEnvDepth`].
+    FilterEnvDepth,
+    /// See [`sn_synth::SnsPartialField::AmpLevel`].
+    AmpLevel,
+    /// See [`sn_synth::SnsPartialField::AmpVelSens`].
+    AmpVelSens,
+    /// See [`sn_synth::SnsPartialField::AmpEnvAttack`].
+    AmpEnvAttack,
+    /// See [`sn_synth::SnsPartialField::AmpEnvDecay`].
+    AmpEnvDecay,
+    /// See [`sn_synth::SnsPartialField::AmpEnvSustain`].
+    AmpEnvSustain,
+    /// See [`sn_synth::SnsPartialField::AmpEnvRelease`].
+    AmpEnvRelease,
+    /// See [`sn_synth::SnsPartialField::AmpPan`].
+    AmpPan,
+    /// See [`sn_synth::SnsPartialField::LfoShape`].
+    LfoShape,
+    /// See [`sn_synth::SnsPartialField::LfoRate`].
+    LfoRate,
+    /// See [`sn_synth::SnsPartialField::LfoTempoSync`].
+    LfoTempoSync,
+    /// See [`sn_synth::SnsPartialField::LfoTempoSyncNote`].
+    LfoTempoSyncNote,
+    /// See [`sn_synth::SnsPartialField::LfoFadeTime`].
+    LfoFadeTime,
+    /// See [`sn_synth::SnsPartialField::LfoKeyTrigger`].
+    LfoKeyTrigger,
+    /// See [`sn_synth::SnsPartialField::LfoPitchDepth`].
+    LfoPitchDepth,
+    /// See [`sn_synth::SnsPartialField::LfoFilterDepth`].
+    LfoFilterDepth,
+    /// See [`sn_synth::SnsPartialField::LfoAmpDepth`].
+    LfoAmpDepth,
+    /// See [`sn_synth::SnsPartialField::LfoPanDepth`].
+    LfoPanDepth,
+    /// See [`sn_synth::SnsPartialField::ModLfoShape`].
+    ModLfoShape,
+    /// See [`sn_synth::SnsPartialField::ModLfoRate`].
+    ModLfoRate,
+    /// See [`sn_synth::SnsPartialField::ModLfoTempoSync`].
+    ModLfoTempoSync,
+    /// See [`sn_synth::SnsPartialField::ModLfoTempoSyncNote`].
+    ModLfoTempoSyncNote,
+    /// See [`sn_synth::SnsPartialField::PwShift`].
+    PwShift,
+    /// See [`sn_synth::SnsPartialField::ModLfoPitchDepth`].
+    ModLfoPitchDepth,
+    /// See [`sn_synth::SnsPartialField::ModLfoFilterDepth`].
+    ModLfoFilterDepth,
+    /// See [`sn_synth::SnsPartialField::ModLfoAmpDepth`].
+    ModLfoAmpDepth,
+    /// See [`sn_synth::SnsPartialField::ModLfoPanDepth`].
+    ModLfoPanDepth,
+    /// See [`sn_synth::SnsPartialField::AftertouchCutoff`].
+    AftertouchCutoff,
+    /// See [`sn_synth::SnsPartialField::AftertouchLevel`].
+    AftertouchLevel,
+    /// See [`sn_synth::SnsPartialField::WaveGain`].
+    WaveGain,
+    /// See [`sn_synth::SnsPartialField::WaveNumber`].
+    WaveNumber,
+    /// See [`sn_synth::SnsPartialField::HpfCutoff`].
+    HpfCutoff,
+    /// See [`sn_synth::SnsPartialField::SuperSawDetune`].
+    SuperSawDetune,
+    /// See [`sn_synth::SnsPartialField::ModLfoRateControl`].
+    ModLfoRateControl,
+    /// See [`sn_synth::SnsPartialField::AmpLevelKeyfollow`].
+    AmpLevelKeyfollow,
+}
+
+mirror_core_enum!(SnsPartialField <=> sn_synth::SnsPartialField {
+    OscWave,
+    OscWaveVariation,
+    OscPitch,
+    OscDetune,
+    OscPwModDepth,
+    OscPulseWidth,
+    OscPitchEnvAttack,
+    OscPitchEnvDecay,
+    OscPitchEnvDepth,
+    FilterMode,
+    FilterSlope,
+    FilterCutoff,
+    FilterKeyfollow,
+    FilterEnvVelSens,
+    FilterResonance,
+    FilterEnvAttack,
+    FilterEnvDecay,
+    FilterEnvSustain,
+    FilterEnvRelease,
+    FilterEnvDepth,
+    AmpLevel,
+    AmpVelSens,
+    AmpEnvAttack,
+    AmpEnvDecay,
+    AmpEnvSustain,
+    AmpEnvRelease,
+    AmpPan,
+    LfoShape,
+    LfoRate,
+    LfoTempoSync,
+    LfoTempoSyncNote,
+    LfoFadeTime,
+    LfoKeyTrigger,
+    LfoPitchDepth,
+    LfoFilterDepth,
+    LfoAmpDepth,
+    LfoPanDepth,
+    ModLfoShape,
+    ModLfoRate,
+    ModLfoTempoSync,
+    ModLfoTempoSyncNote,
+    PwShift,
+    ModLfoPitchDepth,
+    ModLfoFilterDepth,
+    ModLfoAmpDepth,
+    ModLfoPanDepth,
+    AftertouchCutoff,
+    AftertouchLevel,
+    WaveGain,
+    WaveNumber,
+    HpfCutoff,
+    SuperSawDetune,
+    ModLfoRateControl,
+    AmpLevelKeyfollow,
+});
+
 /// A header field of an MFX block (mirrors [`mfx::MfxHeaderField`]).
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1297,6 +1549,14 @@ pub fn pcms_mfx_address(part_index: u8) -> Vec<u8> {
         part_index,
         params::ToneType::PcmSynth,
     ))
+}
+
+/// The SN Synth Common field switching Partial `partial` (0-based) on or
+/// off.
+#[wasm_bindgen]
+pub fn sns_partial_switch_field(partial: u8) -> Result<SnsCommonField, JsError> {
+    check_partial(partial, sn_synth::SNS_PARTIAL_COUNT as u8 - 1)?;
+    Ok(sn_synth::SnsCommonField::PARTIAL_SWITCHES[partial as usize].into())
 }
 
 /// Returns the address of part `part_index`'s SN Synth MFX block.
@@ -2528,41 +2788,33 @@ impl WasmDeviceState {
 
     // -- SN-S Tone Edit ----------------------------------------------------
 
-    /// Set a single SN-S Common parameter.
+    /// Set an SN-S Common field, sent nibblized when the field is.
     #[wasm_bindgen(js_name = setSnsCommonParam)]
-    pub fn set_sns_common_param(&mut self, part: u8, offset: u8, value: u8) {
-        self.inner.set_sns_common_param(part, offset, value);
+    pub fn set_sns_common_param(
+        &mut self,
+        part: u8,
+        field: SnsCommonField,
+        value: u16,
+    ) -> Result<(), JsError> {
+        check_part(part)?;
+        self.inner.set_sns_common_param(part, field.into(), value);
+        Ok(())
     }
 
-    /// Set a single SN-S Partial parameter.
+    /// Set an SN-S Partial field, sent nibblized when the field is (e.g.
+    /// the Wave Number).
     #[wasm_bindgen(js_name = setSnsPartialParam)]
     pub fn set_sns_partial_param(
         &mut self,
         part: u8,
         partial: u8,
-        offset: u8,
-        value: u8,
-    ) -> Result<(), JsError> {
-        check_part(part)?;
-        check_partial(partial, sn_synth::SNS_PARTIAL_COUNT as u8 - 1)?;
-        self.inner
-            .set_sns_partial_param(part, partial, offset, value);
-        Ok(())
-    }
-
-    /// Set a nibblized SN-S Partial parameter (4 bytes, e.g. wave number).
-    #[wasm_bindgen(js_name = setSnsPartialNibParam)]
-    pub fn set_sns_partial_nib_param(
-        &mut self,
-        part: u8,
-        partial: u8,
-        offset: u8,
+        field: SnsPartialField,
         value: u16,
     ) -> Result<(), JsError> {
         check_part(part)?;
         check_partial(partial, sn_synth::SNS_PARTIAL_COUNT as u8 - 1)?;
         self.inner
-            .set_sns_partial_nib_param(part, partial, offset, value);
+            .set_sns_partial_param(part, partial, field.into(), value);
         Ok(())
     }
 

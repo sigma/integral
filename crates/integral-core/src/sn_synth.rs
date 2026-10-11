@@ -5,8 +5,9 @@
 //! three Partial blocks.
 
 use crate::address::{Address, DataSize};
+use crate::block_field::BlockField;
 use crate::params;
-use crate::parse_helpers::{nibble4, parse_ascii_name};
+use crate::parse_helpers::parse_ascii_name;
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -64,6 +65,211 @@ pub const fn sns_common_param_address(part_index: u8, offset: u8) -> Address {
 /// Compute the absolute address for a single SN-S Partial parameter.
 pub const fn sns_partial_param_address(part_index: u8, partial_index: u8, offset: u8) -> Address {
     sns_partial_address(part_index, partial_index).offset([0x00, 0x00, 0x00, offset])
+}
+
+/// A field of an SN Synth Tone Common block. The discriminant is the
+/// field's first byte position within the block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum SnsCommonField {
+    /// Tone Level.
+    ToneLevel = 0x0C,
+    /// Portamento Switch.
+    PortamentoSwitch = 0x12,
+    /// Portamento Time.
+    PortamentoTime = 0x13,
+    /// Mono Switch.
+    MonoSwitch = 0x14,
+    /// Octave Shift.
+    OctaveShift = 0x15,
+    /// Pitch Bend Range Up.
+    PitchBendRangeUp = 0x16,
+    /// Pitch Bend Range Down.
+    PitchBendRangeDown = 0x17,
+    /// Partial1 Switch.
+    Partial1Switch = 0x19,
+    /// Partial1 Select.
+    Partial1Select = 0x1A,
+    /// Partial2 Switch.
+    Partial2Switch = 0x1B,
+    /// Partial2 Select.
+    Partial2Select = 0x1C,
+    /// Partial3 Switch.
+    Partial3Switch = 0x1D,
+    /// Partial3 Select.
+    Partial3Select = 0x1E,
+    /// RING Switch.
+    RingSwitch = 0x1F,
+    /// TFX Switch.
+    TfxSwitch = 0x20,
+    /// Unison Switch.
+    UnisonSwitch = 0x2E,
+    /// Portamento Mode.
+    PortamentoMode = 0x31,
+    /// Legato Switch.
+    LegatoSwitch = 0x32,
+    /// Analog Feel.
+    AnalogFeel = 0x34,
+    /// Wave Shape.
+    WaveShape = 0x35,
+    /// Tone Category.
+    ToneCategory = 0x36,
+    /// Phrase Number (nibblized, 4 bytes).
+    PhraseNumber = 0x37,
+    /// Phrase Octave Shift.
+    PhraseOctaveShift = 0x3B,
+    /// Unison Size.
+    UnisonSize = 0x3C,
+}
+
+impl BlockField for SnsCommonField {
+    fn position(self) -> usize {
+        self as usize
+    }
+
+    fn width(self) -> usize {
+        match self {
+            Self::PhraseNumber => 4,
+            _ => 1,
+        }
+    }
+}
+
+impl SnsCommonField {
+    /// The Partial1–3 Switch fields, by Partial index.
+    pub const PARTIAL_SWITCHES: [Self; SNS_PARTIAL_COUNT] = [
+        Self::Partial1Switch,
+        Self::Partial2Switch,
+        Self::Partial3Switch,
+    ];
+}
+
+/// A field of an SN Synth Tone Partial block. The discriminant is the
+/// field's first byte position within the block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum SnsPartialField {
+    /// OSC Wave.
+    OscWave = 0x00,
+    /// OSC Wave Variation.
+    OscWaveVariation = 0x01,
+    /// OSC Pitch.
+    OscPitch = 0x03,
+    /// OSC Detune.
+    OscDetune = 0x04,
+    /// OSC Pulse Width Mod Depth.
+    OscPwModDepth = 0x05,
+    /// OSC Pulse Width.
+    OscPulseWidth = 0x06,
+    /// OSC Pitch Env Attack Time.
+    OscPitchEnvAttack = 0x07,
+    /// OSC Pitch Env Decay.
+    OscPitchEnvDecay = 0x08,
+    /// OSC Pitch Env Depth.
+    OscPitchEnvDepth = 0x09,
+    /// FILTER Mode.
+    FilterMode = 0x0A,
+    /// FILTER Slope.
+    FilterSlope = 0x0B,
+    /// FILTER Cutoff.
+    FilterCutoff = 0x0C,
+    /// FILTER Cutoff Keyfollow.
+    FilterKeyfollow = 0x0D,
+    /// FILTER Env Velocity Sens.
+    FilterEnvVelSens = 0x0E,
+    /// FILTER Resonance.
+    FilterResonance = 0x0F,
+    /// FILTER Env Attack Time.
+    FilterEnvAttack = 0x10,
+    /// FILTER Env Decay Time.
+    FilterEnvDecay = 0x11,
+    /// FILTER Env Sustain Level.
+    FilterEnvSustain = 0x12,
+    /// FILTER Env Release Time.
+    FilterEnvRelease = 0x13,
+    /// FILTER Env Depth.
+    FilterEnvDepth = 0x14,
+    /// AMP Level.
+    AmpLevel = 0x15,
+    /// AMP Level Velocity Sens.
+    AmpVelSens = 0x16,
+    /// AMP Env Attack Time.
+    AmpEnvAttack = 0x17,
+    /// AMP Env Decay Time.
+    AmpEnvDecay = 0x18,
+    /// AMP Env Sustain Level.
+    AmpEnvSustain = 0x19,
+    /// AMP Env Release Time.
+    AmpEnvRelease = 0x1A,
+    /// AMP Pan.
+    AmpPan = 0x1B,
+    /// LFO Shape.
+    LfoShape = 0x1C,
+    /// LFO Rate.
+    LfoRate = 0x1D,
+    /// LFO Tempo Sync Switch.
+    LfoTempoSync = 0x1E,
+    /// LFO Tempo Sync Note.
+    LfoTempoSyncNote = 0x1F,
+    /// LFO Fade Time.
+    LfoFadeTime = 0x20,
+    /// LFO Key Trigger.
+    LfoKeyTrigger = 0x21,
+    /// LFO Pitch Depth.
+    LfoPitchDepth = 0x22,
+    /// LFO Filter Depth.
+    LfoFilterDepth = 0x23,
+    /// LFO Amp Depth.
+    LfoAmpDepth = 0x24,
+    /// LFO Pan Depth.
+    LfoPanDepth = 0x25,
+    /// Modulation LFO Shape.
+    ModLfoShape = 0x26,
+    /// Modulation LFO Rate.
+    ModLfoRate = 0x27,
+    /// Modulation LFO Tempo Sync Switch.
+    ModLfoTempoSync = 0x28,
+    /// Modulation LFO Tempo Sync Note.
+    ModLfoTempoSyncNote = 0x29,
+    /// OSC Pulse Width Shift.
+    PwShift = 0x2A,
+    /// Modulation LFO Pitch Depth.
+    ModLfoPitchDepth = 0x2C,
+    /// Modulation LFO Filter Depth.
+    ModLfoFilterDepth = 0x2D,
+    /// Modulation LFO Amp Depth.
+    ModLfoAmpDepth = 0x2E,
+    /// Modulation LFO Pan Depth.
+    ModLfoPanDepth = 0x2F,
+    /// Cutoff Aftertouch Sens.
+    AftertouchCutoff = 0x30,
+    /// Level Aftertouch Sens.
+    AftertouchLevel = 0x31,
+    /// Wave Gain.
+    WaveGain = 0x34,
+    /// Wave Number (nibblized, 4 bytes).
+    WaveNumber = 0x35,
+    /// HPF Cutoff.
+    HpfCutoff = 0x39,
+    /// Super Saw Detune.
+    SuperSawDetune = 0x3A,
+    /// Modulation LFO Rate Control.
+    ModLfoRateControl = 0x3B,
+    /// AMP Level Keyfollow.
+    AmpLevelKeyfollow = 0x3C,
+}
+
+impl BlockField for SnsPartialField {
+    fn position(self) -> usize {
+        self as usize
+    }
+
+    fn width(self) -> usize {
+        match self {
+            Self::WaveNumber => 4,
+            _ => 1,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -468,43 +674,32 @@ pub fn parse_sns_common(data: &[u8]) -> Result<SnSynthCommon, crate::ToneParseEr
     }
     let mut c = SnSynthCommon::default();
 
-    // Tone Name: bytes 0x00–0x0B
+    use SnsCommonField as F;
     c.tone_name = parse_ascii_name(data);
-
-    c.tone_level = data[0x0C];
-    // 0x0D–0x0F: reserve (nibblized, 3 bytes) — skip
-    // 0x10–0x11: reserve — skip
-    c.portamento_switch = data[0x12];
-    c.portamento_time = data[0x13];
-    c.mono_switch = data[0x14];
-    c.octave_shift = data[0x15];
-    c.pitch_bend_range_up = data[0x16];
-    c.pitch_bend_range_down = data[0x17];
-    // 0x18: reserve — skip
-    c.partial1_switch = data[0x19];
-    c.partial1_select = data[0x1A];
-    c.partial2_switch = data[0x1B];
-    c.partial2_select = data[0x1C];
-    c.partial3_switch = data[0x1D];
-    c.partial3_select = data[0x1E];
-    c.ring_switch = data[0x1F];
-    c.tfx_switch = data[0x20];
-    // 0x21–0x2D: reserve — skip
-    c.unison_switch = data[0x2E];
-    // 0x2F–0x30: reserve — skip
-    c.portamento_mode = data[0x31];
-    c.legato_switch = data[0x32];
-    // 0x33: reserve — skip
-    c.analog_feel = data[0x34];
-    c.wave_shape = data[0x35];
-    c.tone_category = data[0x36];
-
-    // Phrase Number: nibblized 4 bytes at 0x37–0x3A
-    c.phrase_number = nibble4(data, 0x37);
-
-    c.phrase_octave_shift = data[0x3B];
-    c.unison_size = data[0x3C];
-    // 0x3D–0x3F: reserve — skip
+    c.tone_level = F::ToneLevel.byte(data);
+    c.portamento_switch = F::PortamentoSwitch.byte(data);
+    c.portamento_time = F::PortamentoTime.byte(data);
+    c.mono_switch = F::MonoSwitch.byte(data);
+    c.octave_shift = F::OctaveShift.byte(data);
+    c.pitch_bend_range_up = F::PitchBendRangeUp.byte(data);
+    c.pitch_bend_range_down = F::PitchBendRangeDown.byte(data);
+    c.partial1_switch = F::Partial1Switch.byte(data);
+    c.partial1_select = F::Partial1Select.byte(data);
+    c.partial2_switch = F::Partial2Switch.byte(data);
+    c.partial2_select = F::Partial2Select.byte(data);
+    c.partial3_switch = F::Partial3Switch.byte(data);
+    c.partial3_select = F::Partial3Select.byte(data);
+    c.ring_switch = F::RingSwitch.byte(data);
+    c.tfx_switch = F::TfxSwitch.byte(data);
+    c.unison_switch = F::UnisonSwitch.byte(data);
+    c.portamento_mode = F::PortamentoMode.byte(data);
+    c.legato_switch = F::LegatoSwitch.byte(data);
+    c.analog_feel = F::AnalogFeel.byte(data);
+    c.wave_shape = F::WaveShape.byte(data);
+    c.tone_category = F::ToneCategory.byte(data);
+    c.phrase_number = F::PhraseNumber.nibbles(data);
+    c.phrase_octave_shift = F::PhraseOctaveShift.byte(data);
+    c.unison_size = F::UnisonSize.byte(data);
 
     Ok(c)
 }
@@ -522,66 +717,61 @@ pub fn parse_sns_partial(data: &[u8]) -> Result<SnSynthPartial, crate::ToneParse
     }
     let mut p = SnSynthPartial::default();
 
-    p.osc_wave = data[0x00];
-    p.osc_wave_variation = data[0x01];
-    // 0x02: reserve — skip
-    p.osc_pitch = data[0x03];
-    p.osc_detune = data[0x04];
-    p.osc_pw_mod_depth = data[0x05];
-    p.osc_pulse_width = data[0x06];
-    p.osc_pitch_env_attack = data[0x07];
-    p.osc_pitch_env_decay = data[0x08];
-    p.osc_pitch_env_depth = data[0x09];
-    p.filter_mode = data[0x0A];
-    p.filter_slope = data[0x0B];
-    p.filter_cutoff = data[0x0C];
-    p.filter_keyfollow = data[0x0D];
-    p.filter_env_vel_sens = data[0x0E];
-    p.filter_resonance = data[0x0F];
-    p.filter_env_attack = data[0x10];
-    p.filter_env_decay = data[0x11];
-    p.filter_env_sustain = data[0x12];
-    p.filter_env_release = data[0x13];
-    p.filter_env_depth = data[0x14];
-    p.amp_level = data[0x15];
-    p.amp_vel_sens = data[0x16];
-    p.amp_env_attack = data[0x17];
-    p.amp_env_decay = data[0x18];
-    p.amp_env_sustain = data[0x19];
-    p.amp_env_release = data[0x1A];
-    p.amp_pan = data[0x1B];
-    p.lfo_shape = data[0x1C];
-    p.lfo_rate = data[0x1D];
-    p.lfo_tempo_sync = data[0x1E];
-    p.lfo_tempo_sync_note = data[0x1F];
-    p.lfo_fade_time = data[0x20];
-    p.lfo_key_trigger = data[0x21];
-    p.lfo_pitch_depth = data[0x22];
-    p.lfo_filter_depth = data[0x23];
-    p.lfo_amp_depth = data[0x24];
-    p.lfo_pan_depth = data[0x25];
-    p.mod_lfo_shape = data[0x26];
-    p.mod_lfo_rate = data[0x27];
-    p.mod_lfo_tempo_sync = data[0x28];
-    p.mod_lfo_tempo_sync_note = data[0x29];
-    p.pw_shift = data[0x2A];
-    // 0x2B: reserve — skip
-    p.mod_lfo_pitch_depth = data[0x2C];
-    p.mod_lfo_filter_depth = data[0x2D];
-    p.mod_lfo_amp_depth = data[0x2E];
-    p.mod_lfo_pan_depth = data[0x2F];
-    p.aftertouch_cutoff = data[0x30];
-    p.aftertouch_level = data[0x31];
-    // 0x32–0x33: reserve — skip
-    p.wave_gain = data[0x34];
-
-    // Wave Number: nibblized 4 bytes at 0x35–0x38
-    p.wave_number = nibble4(data, 0x35);
-
-    p.hpf_cutoff = data[0x39];
-    p.super_saw_detune = data[0x3A];
-    p.mod_lfo_rate_control = data[0x3B];
-    p.amp_level_keyfollow = data[0x3C];
+    use SnsPartialField as F;
+    p.osc_wave = F::OscWave.byte(data);
+    p.osc_wave_variation = F::OscWaveVariation.byte(data);
+    p.osc_pitch = F::OscPitch.byte(data);
+    p.osc_detune = F::OscDetune.byte(data);
+    p.osc_pw_mod_depth = F::OscPwModDepth.byte(data);
+    p.osc_pulse_width = F::OscPulseWidth.byte(data);
+    p.osc_pitch_env_attack = F::OscPitchEnvAttack.byte(data);
+    p.osc_pitch_env_decay = F::OscPitchEnvDecay.byte(data);
+    p.osc_pitch_env_depth = F::OscPitchEnvDepth.byte(data);
+    p.filter_mode = F::FilterMode.byte(data);
+    p.filter_slope = F::FilterSlope.byte(data);
+    p.filter_cutoff = F::FilterCutoff.byte(data);
+    p.filter_keyfollow = F::FilterKeyfollow.byte(data);
+    p.filter_env_vel_sens = F::FilterEnvVelSens.byte(data);
+    p.filter_resonance = F::FilterResonance.byte(data);
+    p.filter_env_attack = F::FilterEnvAttack.byte(data);
+    p.filter_env_decay = F::FilterEnvDecay.byte(data);
+    p.filter_env_sustain = F::FilterEnvSustain.byte(data);
+    p.filter_env_release = F::FilterEnvRelease.byte(data);
+    p.filter_env_depth = F::FilterEnvDepth.byte(data);
+    p.amp_level = F::AmpLevel.byte(data);
+    p.amp_vel_sens = F::AmpVelSens.byte(data);
+    p.amp_env_attack = F::AmpEnvAttack.byte(data);
+    p.amp_env_decay = F::AmpEnvDecay.byte(data);
+    p.amp_env_sustain = F::AmpEnvSustain.byte(data);
+    p.amp_env_release = F::AmpEnvRelease.byte(data);
+    p.amp_pan = F::AmpPan.byte(data);
+    p.lfo_shape = F::LfoShape.byte(data);
+    p.lfo_rate = F::LfoRate.byte(data);
+    p.lfo_tempo_sync = F::LfoTempoSync.byte(data);
+    p.lfo_tempo_sync_note = F::LfoTempoSyncNote.byte(data);
+    p.lfo_fade_time = F::LfoFadeTime.byte(data);
+    p.lfo_key_trigger = F::LfoKeyTrigger.byte(data);
+    p.lfo_pitch_depth = F::LfoPitchDepth.byte(data);
+    p.lfo_filter_depth = F::LfoFilterDepth.byte(data);
+    p.lfo_amp_depth = F::LfoAmpDepth.byte(data);
+    p.lfo_pan_depth = F::LfoPanDepth.byte(data);
+    p.mod_lfo_shape = F::ModLfoShape.byte(data);
+    p.mod_lfo_rate = F::ModLfoRate.byte(data);
+    p.mod_lfo_tempo_sync = F::ModLfoTempoSync.byte(data);
+    p.mod_lfo_tempo_sync_note = F::ModLfoTempoSyncNote.byte(data);
+    p.pw_shift = F::PwShift.byte(data);
+    p.mod_lfo_pitch_depth = F::ModLfoPitchDepth.byte(data);
+    p.mod_lfo_filter_depth = F::ModLfoFilterDepth.byte(data);
+    p.mod_lfo_amp_depth = F::ModLfoAmpDepth.byte(data);
+    p.mod_lfo_pan_depth = F::ModLfoPanDepth.byte(data);
+    p.aftertouch_cutoff = F::AftertouchCutoff.byte(data);
+    p.aftertouch_level = F::AftertouchLevel.byte(data);
+    p.wave_gain = F::WaveGain.byte(data);
+    p.wave_number = F::WaveNumber.nibbles(data);
+    p.hpf_cutoff = F::HpfCutoff.byte(data);
+    p.super_saw_detune = F::SuperSawDetune.byte(data);
+    p.mod_lfo_rate_control = F::ModLfoRateControl.byte(data);
+    p.amp_level_keyfollow = F::AmpLevelKeyfollow.byte(data);
 
     Ok(p)
 }
@@ -684,5 +874,101 @@ mod tests {
         assert_eq!(p.amp_pan, 64);
         assert_eq!(p.wave_number, 256);
         assert_eq!(p.super_saw_detune, 50);
+    }
+
+    #[test]
+    fn parse_common_reads_every_field_at_its_position() {
+        use crate::block_field::test_support::{assert_reads_at_positions, positional_block};
+        use SnsCommonField as F;
+        let c = parse_sns_common(&positional_block(SNS_COMMON_SIZE)).unwrap();
+        assert_reads_at_positions!(c, {
+            tone_level: F::ToneLevel,
+            portamento_switch: F::PortamentoSwitch,
+            portamento_time: F::PortamentoTime,
+            mono_switch: F::MonoSwitch,
+            octave_shift: F::OctaveShift,
+            pitch_bend_range_up: F::PitchBendRangeUp,
+            pitch_bend_range_down: F::PitchBendRangeDown,
+            partial1_switch: F::Partial1Switch,
+            partial1_select: F::Partial1Select,
+            partial2_switch: F::Partial2Switch,
+            partial2_select: F::Partial2Select,
+            partial3_switch: F::Partial3Switch,
+            partial3_select: F::Partial3Select,
+            ring_switch: F::RingSwitch,
+            tfx_switch: F::TfxSwitch,
+            unison_switch: F::UnisonSwitch,
+            portamento_mode: F::PortamentoMode,
+            legato_switch: F::LegatoSwitch,
+            analog_feel: F::AnalogFeel,
+            wave_shape: F::WaveShape,
+            tone_category: F::ToneCategory,
+            phrase_number: F::PhraseNumber,
+            phrase_octave_shift: F::PhraseOctaveShift,
+            unison_size: F::UnisonSize,
+        });
+    }
+
+    #[test]
+    fn parse_partial_reads_every_field_at_its_position() {
+        use crate::block_field::test_support::{assert_reads_at_positions, positional_block};
+        use SnsPartialField as F;
+        let p = parse_sns_partial(&positional_block(SNS_PARTIAL_SIZE)).unwrap();
+        assert_reads_at_positions!(p, {
+            osc_wave: F::OscWave,
+            osc_wave_variation: F::OscWaveVariation,
+            osc_pitch: F::OscPitch,
+            osc_detune: F::OscDetune,
+            osc_pw_mod_depth: F::OscPwModDepth,
+            osc_pulse_width: F::OscPulseWidth,
+            osc_pitch_env_attack: F::OscPitchEnvAttack,
+            osc_pitch_env_decay: F::OscPitchEnvDecay,
+            osc_pitch_env_depth: F::OscPitchEnvDepth,
+            filter_mode: F::FilterMode,
+            filter_slope: F::FilterSlope,
+            filter_cutoff: F::FilterCutoff,
+            filter_keyfollow: F::FilterKeyfollow,
+            filter_env_vel_sens: F::FilterEnvVelSens,
+            filter_resonance: F::FilterResonance,
+            filter_env_attack: F::FilterEnvAttack,
+            filter_env_decay: F::FilterEnvDecay,
+            filter_env_sustain: F::FilterEnvSustain,
+            filter_env_release: F::FilterEnvRelease,
+            filter_env_depth: F::FilterEnvDepth,
+            amp_level: F::AmpLevel,
+            amp_vel_sens: F::AmpVelSens,
+            amp_env_attack: F::AmpEnvAttack,
+            amp_env_decay: F::AmpEnvDecay,
+            amp_env_sustain: F::AmpEnvSustain,
+            amp_env_release: F::AmpEnvRelease,
+            amp_pan: F::AmpPan,
+            lfo_shape: F::LfoShape,
+            lfo_rate: F::LfoRate,
+            lfo_tempo_sync: F::LfoTempoSync,
+            lfo_tempo_sync_note: F::LfoTempoSyncNote,
+            lfo_fade_time: F::LfoFadeTime,
+            lfo_key_trigger: F::LfoKeyTrigger,
+            lfo_pitch_depth: F::LfoPitchDepth,
+            lfo_filter_depth: F::LfoFilterDepth,
+            lfo_amp_depth: F::LfoAmpDepth,
+            lfo_pan_depth: F::LfoPanDepth,
+            mod_lfo_shape: F::ModLfoShape,
+            mod_lfo_rate: F::ModLfoRate,
+            mod_lfo_tempo_sync: F::ModLfoTempoSync,
+            mod_lfo_tempo_sync_note: F::ModLfoTempoSyncNote,
+            pw_shift: F::PwShift,
+            mod_lfo_pitch_depth: F::ModLfoPitchDepth,
+            mod_lfo_filter_depth: F::ModLfoFilterDepth,
+            mod_lfo_amp_depth: F::ModLfoAmpDepth,
+            mod_lfo_pan_depth: F::ModLfoPanDepth,
+            aftertouch_cutoff: F::AftertouchCutoff,
+            aftertouch_level: F::AftertouchLevel,
+            wave_gain: F::WaveGain,
+            wave_number: F::WaveNumber,
+            hpf_cutoff: F::HpfCutoff,
+            super_saw_detune: F::SuperSawDetune,
+            mod_lfo_rate_control: F::ModLfoRateControl,
+            amp_level_keyfollow: F::AmpLevelKeyfollow,
+        });
     }
 }

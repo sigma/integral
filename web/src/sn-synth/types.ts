@@ -1,3 +1,5 @@
+import type { SnsCommonField, SnsPartialField } from "../../pkg/integral_wasm.js";
+
 // ---------------------------------------------------------------------------
 // Types mirroring the Rust serde output
 // ---------------------------------------------------------------------------
@@ -92,6 +94,12 @@ export interface SnSynthTone {
   common: SnSynthCommon;
   partials: SnSynthPartial[];
 }
+
+/** Sets a Common field (sent nibblized when the field is). */
+export type CommonParamHandler = (field: SnsCommonField, value: number) => void;
+
+/** Sets a field of one Partial (sent nibblized when the field is). */
+export type PartialParamHandler = (field: SnsPartialField, value: number) => void;
 
 // ---------------------------------------------------------------------------
 // Display helpers

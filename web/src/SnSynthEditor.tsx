@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import {
   sns_mfx_address,
   mfx_block_size,
+  sns_partial_switch_field,
   ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
@@ -9,7 +10,11 @@ import { MfxPanel } from "./MfxPanel";
 import { useMfxHandlers } from "./useMfxHandlers";
 import type { MfxState } from "./MfxPanel";
 import css from "./SnSynthEditor.module.css";
-import type { SnSynthTone } from "./sn-synth/types";
+import type {
+  CommonParamHandler,
+  PartialParamHandler,
+  SnSynthTone,
+} from "./sn-synth/types";
 import { CommonStrip } from "./sn-synth/CommonStrip";
 import { PartialRow } from "./sn-synth/PartialRow";
 
@@ -62,25 +67,17 @@ export function SnSynthEditor({ partIndex, service }: Props) {
   // ---------------------------------------------------------------------------
   // Param setters: core updates its cached tone along with the device
   // ---------------------------------------------------------------------------
-  const setCommonParam = useCallback(
-    (offset: number, value: number) => {
-      service.device.setSnsCommonParam(partIndex, offset, value);
+  const setCommonParam = useCallback<CommonParamHandler>(
+    (field, value) => {
+      service.device.setSnsCommonParam(partIndex, field, value);
       readTone();
     },
     [partIndex, service, readTone],
   );
 
   const setPartialParam = useCallback(
-    (partial: number, offset: number, value: number) => {
-      service.device.setSnsPartialParam(partIndex, partial, offset, value);
-      readTone();
-    },
-    [partIndex, service, readTone],
-  );
-
-  const setPartialNibParam = useCallback(
-    (partial: number, offset: number, value: number) => {
-      service.device.setSnsPartialNibParam(partIndex, partial, offset, value);
+    (partial: number, ...[field, value]: Parameters<PartialParamHandler>) => {
+      service.device.setSnsPartialParam(partIndex, partial, field, value);
       readTone();
     },
     [partIndex, service, readTone],
@@ -97,9 +94,8 @@ export function SnSynthEditor({ partIndex, service }: Props) {
     : [];
 
   const togglePartialSwitch = (idx: number) => {
-    const offsets: Record<number, number> = { 0: 0x19, 1: 0x1B, 2: 0x1D };
     const current = partialSwitches[idx] ?? 0;
-    setCommonParam(offsets[idx] ?? 0x19, current !== 0 ? 0 : 1);
+    setCommonParam(sns_partial_switch_field(idx), current !== 0 ? 0 : 1);
   };
 
   // ---------------------------------------------------------------------------
@@ -123,9 +119,8 @@ export function SnSynthEditor({ partIndex, service }: Props) {
         <div className={css.partialRows}>
           {tone.partials.map((partial, idx) => {
             const isOn = (partialSwitches[idx] ?? 0) !== 0;
-            const setP = (offset: number, value: number) => setPartialParam(idx, offset, value);
-            const setNibP = (offset: number, value: number) =>
-              setPartialNibParam(idx, offset, value);
+            const setP: PartialParamHandler = (field, value) =>
+              setPartialParam(idx, field, value);
 
             return (
               <PartialRow
@@ -135,7 +130,6 @@ export function SnSynthEditor({ partIndex, service }: Props) {
                 isOn={isOn}
                 onToggle={() => togglePartialSwitch(idx)}
                 setP={setP}
-                setNibP={setNibP}
               />
             );
           })}

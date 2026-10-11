@@ -35,7 +35,7 @@ use crate::parse_helpers::encode_ascii_name;
 use crate::pcm_synth::{PcmsCommonField, PcmsPartialField, PcmsPmtField};
 use crate::sn_acoustic::SnaCommonField;
 use crate::sn_drum::{SndCommonField, SndNoteField};
-use crate::sn_synth::{SnSynthTone, SnSynthToneBlocks, SnsBlock};
+use crate::sn_synth::{SnSynthTone, SnSynthToneBlocks, SnsBlock, SnsCommonField, SnsPartialField};
 use crate::state::MixerState;
 use crate::sysex;
 
@@ -750,23 +750,23 @@ impl DeviceState {
     // SN-S Tone Edit
     // -----------------------------------------------------------------------
 
-    /// Set a single SN-S Common parameter for a part, in the cached tone
-    /// too.
-    pub fn set_sns_common_param(&mut self, part: u8, offset: u8, value: u8) {
-        self.set_sns_bytes(part, SnsBlock::Common, offset, &[value]);
+    /// Set an SN-S Common field for a part, sent nibblized when the field
+    /// is, in the cached tone too.
+    pub fn set_sns_common_param(&mut self, part: u8, field: SnsCommonField, value: u16) {
+        self.set_sns_bytes(part, SnsBlock::Common, field as u8, &field.encode(value));
     }
 
-    /// Set a single SN-S Partial parameter for a part, in the cached tone
-    /// too.
-    pub fn set_sns_partial_param(&mut self, part: u8, partial: u8, offset: u8, value: u8) {
-        self.set_sns_bytes(part, SnsBlock::Partial(partial), offset, &[value]);
-    }
-
-    /// Set a nibblized SN-S Partial parameter (4 bytes, e.g. wave number),
-    /// in the cached tone too.
-    pub fn set_sns_partial_nib_param(&mut self, part: u8, partial: u8, offset: u8, value: u16) {
-        let bytes = crate::parse_helpers::encode_nibble4(value);
-        self.set_sns_bytes(part, SnsBlock::Partial(partial), offset, &bytes);
+    /// Set an SN-S Partial field for a part, sent nibblized when the field
+    /// is (e.g. the Wave Number), in the cached tone too.
+    pub fn set_sns_partial_param(
+        &mut self,
+        part: u8,
+        partial: u8,
+        field: SnsPartialField,
+        value: u16,
+    ) {
+        let bytes = field.encode(value);
+        self.set_sns_bytes(part, SnsBlock::Partial(partial), field as u8, &bytes);
     }
 
     /// Send `bytes` at `offset` in `part`'s SN-S `block`, and patch the
@@ -1802,9 +1802,9 @@ mod tests {
             dev.handle_dt1(&block.address(0), &sns_reply(block, 0), 300.0);
         }
 
-        dev.set_sns_common_param(0, 0x0C, 99); // Tone Level
-        dev.set_sns_partial_param(0, 1, 0x0C, 77); // Partial 2 Filter Cutoff
-        dev.set_sns_partial_nib_param(0, 2, 0x35, 1234); // Partial 3 Wave Number
+        dev.set_sns_common_param(0, SnsCommonField::ToneLevel, 99);
+        dev.set_sns_partial_param(0, 1, SnsPartialField::FilterCutoff, 77);
+        dev.set_sns_partial_param(0, 2, SnsPartialField::WaveNumber, 1234);
 
         let tone = dev.sns_tone(0).unwrap();
         assert_eq!(tone.common.tone_level, 99);
@@ -1816,8 +1816,9 @@ mod tests {
         let sent = drain_until(&mut dev, 1000.0, 1200.0);
         assert!(sent.contains(&sysex::build_dt1(
             0x10,
-            &sn_synth::sns_partial_param_address(0, 2, 0x35),
-            &crate::parse_helpers::encode_nibble4(1234),
+            // Partial 3 Wave Number at `00 35`, as 4 nibbles.
+            &Address::new(0x19, 0x01, 0x22, 0x35),
+            &[0x00, 0x04, 0x0D, 0x02],
         )));
         assert_eq!(sent.len(), 3);
     }

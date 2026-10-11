@@ -11,7 +11,7 @@ use std::time::Duration;
 use integral_core::device::DeviceState;
 use integral_core::device_spec::INTEGRA7;
 use integral_core::params::{ToneType, tone_type_from_bank_msb};
-use integral_core::sn_synth::{SnSynthCommon, SnSynthPartial};
+use integral_core::sn_synth::{SnSynthCommon, SnSynthPartial, SnsCommonField, SnsPartialField};
 use integral_core::tone_banks::{find_bank, group_of, user_bank_for};
 use integral_core::waves::WaveGroup;
 use nih_plug_vizia::vizia::prelude::*;
@@ -37,12 +37,6 @@ const SNS_OSC_WAVE_NAMES: &[&str] = &["SAW", "SQR", "PWSQ", "TRI", "SIN", "NSE",
 
 /// OSC Wave value selecting a PCM Wave (index of "PCM" in [`SNS_OSC_WAVE_NAMES`]).
 const SNS_OSC_WAVE_PCM: usize = 7;
-
-/// SN-S Partial offset of OSC Wave.
-const SNS_OSC_WAVE_OFFSET: u8 = 0x00;
-
-/// SN-S Partial offset of the nibblized PCM Wave Number.
-const SNS_WAVE_NUMBER_OFFSET: u8 = 0x35;
 
 /// SN-S filter mode names (indexed by Filter Mode value 0-7).
 const SNS_FILTER_MODE_NAMES: &[&str] = &["BYP", "LPF", "HPF", "BPF", "PKG", "LP2", "LP3", "LP4"];
@@ -296,12 +290,11 @@ impl SnSynthPartialView {
 enum ToneEditorEvent {
     /// Periodic refresh from device state.
     Refresh,
-    /// Set an SN-S Common parameter (offset, raw MIDI value).
-    SetSnsCommon(u8, u8),
-    /// Set an SN-S Partial parameter (partial index, offset, raw MIDI value).
-    SetSnsPartial(u8, u8, u8),
-    /// Set an SN-S Partial's PCM Wave Number (partial index, Wave Number).
-    SetSnsPartialWave(u8, u16),
+    /// Set an SN-S Common field (field, raw MIDI value).
+    SetSnsCommon(SnsCommonField, u8),
+    /// Set an SN-S Partial field (partial index, field, raw value; the
+    /// PCM Wave Number is sent nibblized).
+    SetSnsPartial(u8, SnsPartialField, u16),
 }
 
 impl Model for ToneEditorData {
@@ -318,14 +311,11 @@ impl Model for ToneEditorData {
             let part = self.selected_part as u8;
             match e {
                 ToneEditorEvent::Refresh => {}
-                ToneEditorEvent::SetSnsCommon(offset, value) => {
-                    dev.set_sns_common_param(part, *offset, *value);
+                ToneEditorEvent::SetSnsCommon(field, value) => {
+                    dev.set_sns_common_param(part, *field, (*value).into());
                 }
-                ToneEditorEvent::SetSnsPartial(partial, offset, value) => {
-                    dev.set_sns_partial_param(part, *partial, *offset, *value);
-                }
-                ToneEditorEvent::SetSnsPartialWave(partial, number) => {
-                    dev.set_sns_partial_nib_param(part, *partial, SNS_WAVE_NUMBER_OFFSET, *number);
+                ToneEditorEvent::SetSnsPartial(partial, field, value) => {
+                    dev.set_sns_partial_param(part, *partial, *field, *value);
                 }
             }
             self.show_sns_tone(&dev);
@@ -534,7 +524,10 @@ fn build_sns_common_section(cx: &mut Context) {
                 ToneEditorData::sns_common.then(SnSynthCommonView::tone_level),
                 |cx, val| {
                     let raw = (val * 127.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(0x0C, raw));
+                    cx.emit(ToneEditorEvent::SetSnsCommon(
+                        SnsCommonField::ToneLevel,
+                        raw,
+                    ));
                 },
             )
             .label("Level");
@@ -545,7 +538,10 @@ fn build_sns_common_section(cx: &mut Context) {
                 ToneEditorData::sns_common.then(SnSynthCommonView::wave_shape),
                 |cx, val| {
                     let raw = (val * 127.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(0x35, raw));
+                    cx.emit(ToneEditorEvent::SetSnsCommon(
+                        SnsCommonField::WaveShape,
+                        raw,
+                    ));
                 },
             )
             .label("WaveShape");
@@ -556,7 +552,10 @@ fn build_sns_common_section(cx: &mut Context) {
                 ToneEditorData::sns_common.then(SnSynthCommonView::analog_feel),
                 |cx, val| {
                     let raw = (val * 127.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(0x34, raw));
+                    cx.emit(ToneEditorEvent::SetSnsCommon(
+                        SnsCommonField::AnalogFeel,
+                        raw,
+                    ));
                 },
             )
             .label("AnalogFeel");
@@ -567,7 +566,10 @@ fn build_sns_common_section(cx: &mut Context) {
                 ToneEditorData::sns_common.then(SnSynthCommonView::portamento_time),
                 |cx, val| {
                     let raw = (val * 127.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(0x13, raw));
+                    cx.emit(ToneEditorEvent::SetSnsCommon(
+                        SnsCommonField::PortamentoTime,
+                        raw,
+                    ));
                 },
             )
             .label("Porta Time");
@@ -578,7 +580,10 @@ fn build_sns_common_section(cx: &mut Context) {
                 ToneEditorData::sns_common.then(SnSynthCommonView::bend_range_up),
                 |cx, val| {
                     let raw = (val * 24.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(0x16, raw));
+                    cx.emit(ToneEditorEvent::SetSnsCommon(
+                        SnsCommonField::PitchBendRangeUp,
+                        raw,
+                    ));
                 },
             )
             .label("BendUp");
@@ -589,7 +594,10 @@ fn build_sns_common_section(cx: &mut Context) {
                 ToneEditorData::sns_common.then(SnSynthCommonView::bend_range_down),
                 |cx, val| {
                     let raw = (val * 24.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(0x17, raw));
+                    cx.emit(ToneEditorEvent::SetSnsCommon(
+                        SnsCommonField::PitchBendRangeDown,
+                        raw,
+                    ));
                 },
             )
             .label("BendDown");
@@ -600,7 +608,10 @@ fn build_sns_common_section(cx: &mut Context) {
                 ToneEditorData::sns_common.then(SnSynthCommonView::octave_shift),
                 |cx, val| {
                     let raw = (val * 6.0 + 61.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(0x15, raw));
+                    cx.emit(ToneEditorEvent::SetSnsCommon(
+                        SnsCommonField::OctaveShift,
+                        raw,
+                    ));
                 },
             )
             .label("OctShift");
@@ -611,7 +622,10 @@ fn build_sns_common_section(cx: &mut Context) {
                 ToneEditorData::sns_common.then(SnSynthCommonView::unison_size),
                 |cx, val| {
                     let raw = (val * 3.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(0x3C, raw));
+                    cx.emit(ToneEditorEvent::SetSnsCommon(
+                        SnsCommonField::UnisonSize,
+                        raw,
+                    ));
                 },
             )
             .label("UniSize");
@@ -628,7 +642,10 @@ fn build_sns_common_section(cx: &mut Context) {
                     ToneEditorData::sns_common.then(SnSynthCommonView::unison_switch),
                     &["OFF", "ON"],
                     |cx, idx| {
-                        cx.emit(ToneEditorEvent::SetSnsCommon(0x2E, idx as u8));
+                        cx.emit(ToneEditorEvent::SetSnsCommon(
+                            SnsCommonField::UnisonSwitch,
+                            idx as u8,
+                        ));
                     },
                 );
             });
@@ -641,7 +658,10 @@ fn build_sns_common_section(cx: &mut Context) {
                     ToneEditorData::sns_common.then(SnSynthCommonView::mono_switch),
                     &["OFF", "ON"],
                     |cx, idx| {
-                        cx.emit(ToneEditorEvent::SetSnsCommon(0x14, idx as u8));
+                        cx.emit(ToneEditorEvent::SetSnsCommon(
+                            SnsCommonField::MonoSwitch,
+                            idx as u8,
+                        ));
                     },
                 );
             });
@@ -654,7 +674,10 @@ fn build_sns_common_section(cx: &mut Context) {
                     ToneEditorData::sns_common.then(SnSynthCommonView::portamento_switch),
                     &["OFF", "ON"],
                     |cx, idx| {
-                        cx.emit(ToneEditorEvent::SetSnsCommon(0x12, idx as u8));
+                        cx.emit(ToneEditorEvent::SetSnsCommon(
+                            SnsCommonField::PortamentoSwitch,
+                            idx as u8,
+                        ));
                     },
                 );
             });
@@ -667,7 +690,10 @@ fn build_sns_common_section(cx: &mut Context) {
                     ToneEditorData::sns_common.then(SnSynthCommonView::portamento_mode),
                     &["NORMAL", "LEGATO"],
                     |cx, idx| {
-                        cx.emit(ToneEditorEvent::SetSnsCommon(0x31, idx as u8));
+                        cx.emit(ToneEditorEvent::SetSnsCommon(
+                            SnsCommonField::PortamentoMode,
+                            idx as u8,
+                        ));
                     },
                 );
             });
@@ -680,7 +706,10 @@ fn build_sns_common_section(cx: &mut Context) {
                     ToneEditorData::sns_common.then(SnSynthCommonView::legato_switch),
                     &["OFF", "ON"],
                     |cx, idx| {
-                        cx.emit(ToneEditorEvent::SetSnsCommon(0x32, idx as u8));
+                        cx.emit(ToneEditorEvent::SetSnsCommon(
+                            SnsCommonField::LegatoSwitch,
+                            idx as u8,
+                        ));
                     },
                 );
             });
@@ -695,7 +724,10 @@ fn build_sns_common_section(cx: &mut Context) {
                     |cx, idx| {
                         // Ring switch: OFF=0, ON=2 in the MIDI spec.
                         let raw = if idx == 1 { 2u8 } else { 0u8 };
-                        cx.emit(ToneEditorEvent::SetSnsCommon(0x1F, raw));
+                        cx.emit(ToneEditorEvent::SetSnsCommon(
+                            SnsCommonField::RingSwitch,
+                            raw,
+                        ));
                     },
                 );
             });
@@ -714,17 +746,13 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
             1 => c.partial2_switch,
             _ => c.partial3_switch,
         });
-        let switch_offset: u8 = match partial_idx {
-            0 => 0x19,
-            1 => 0x1B,
-            _ => 0x1D,
-        };
+        let switch_field = SnsCommonField::PARTIAL_SWITCHES[partial_idx];
 
         HStack::new(cx, |cx| {
             VStack::new(cx, |cx| {
                 Label::new(cx, "SW").class("tone-editor__switch-label");
                 SynthSwitch::new(cx, switch_lens, &["OFF", "ON"], move |cx, idx| {
-                    cx.emit(ToneEditorEvent::SetSnsCommon(switch_offset, idx as u8));
+                    cx.emit(ToneEditorEvent::SetSnsCommon(switch_field, idx as u8));
                 });
             });
 
@@ -738,8 +766,8 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 SynthSwitch::new(cx, wave_lens, SNS_OSC_WAVE_NAMES, move |cx, idx| {
                     cx.emit(ToneEditorEvent::SetSnsPartial(
                         partial_idx_u8,
-                        SNS_OSC_WAVE_OFFSET,
-                        idx as u8,
+                        SnsPartialField::OscWave,
+                        idx as u16,
                     ));
                 });
             });
@@ -755,7 +783,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 VStack::new(cx, |cx| {
                     Label::new(cx, "PCM Wave").class("tone-editor__switch-label");
                     WavePicker::new(cx, WaveGroup::SnSynth, number_lens, move |cx, n| {
-                        cx.emit(ToneEditorEvent::SetSnsPartialWave(partial_idx_u8, n));
+                        cx.emit(ToneEditorEvent::SetSnsPartial(
+                            partial_idx_u8,
+                            SnsPartialField::WaveNumber,
+                            n,
+                        ));
                     });
                 });
             });
@@ -769,8 +801,8 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 SynthSwitch::new(cx, fmode_lens, SNS_FILTER_MODE_NAMES, move |cx, idx| {
                     cx.emit(ToneEditorEvent::SetSnsPartial(
                         partial_idx_u8,
-                        0x0A,
-                        idx as u8,
+                        SnsPartialField::FilterMode,
+                        idx as u16,
                     ));
                 });
             });
@@ -787,7 +819,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::osc_pitch);
             SynthKnob::new(cx, pitch_lens, move |cx, val| {
                 let raw = (val * 48.0 + 40.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x03, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::OscPitch,
+                    raw.into(),
+                ));
             })
             .label("Pitch");
 
@@ -797,7 +833,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::osc_detune);
             SynthKnob::new(cx, detune_lens, move |cx, val| {
                 let raw = (val * 100.0 + 14.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x04, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::OscDetune,
+                    raw.into(),
+                ));
             })
             .label("Detune");
 
@@ -807,7 +847,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::filter_cutoff);
             SynthKnob::new(cx, cutoff_lens, move |cx, val| {
                 let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x0C, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::FilterCutoff,
+                    raw.into(),
+                ));
             })
             .label("Cutoff");
 
@@ -817,7 +861,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::filter_resonance);
             SynthKnob::new(cx, reso_lens, move |cx, val| {
                 let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x0F, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::FilterResonance,
+                    raw.into(),
+                ));
             })
             .label("Reso");
 
@@ -827,7 +875,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::amp_level);
             SynthKnob::new(cx, level_lens, move |cx, val| {
                 let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x15, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::AmpLevel,
+                    raw.into(),
+                ));
             })
             .label("Level");
 
@@ -837,7 +889,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::amp_pan);
             SynthKnob::new(cx, pan_lens, move |cx, val| {
                 let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x1B, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::AmpPan,
+                    raw.into(),
+                ));
             })
             .label("Pan");
 
@@ -847,7 +903,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::amp_vel_sens);
             SynthKnob::new(cx, vel_lens, move |cx, val| {
                 let raw = (val * 126.0 + 1.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x16, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::AmpVelSens,
+                    raw.into(),
+                ));
             })
             .label("VelSns");
         })
@@ -863,7 +923,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::filter_env_attack);
             SynthKnob::new(cx, f_a, move |cx, val| {
                 let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x10, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::FilterEnvAttack,
+                    raw.into(),
+                ));
             })
             .label("F.Atk");
 
@@ -872,7 +936,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::filter_env_decay);
             SynthKnob::new(cx, f_d, move |cx, val| {
                 let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x11, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::FilterEnvDecay,
+                    raw.into(),
+                ));
             })
             .label("F.Dec");
 
@@ -881,7 +949,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::filter_env_sustain);
             SynthKnob::new(cx, f_s, move |cx, val| {
                 let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x12, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::FilterEnvSustain,
+                    raw.into(),
+                ));
             })
             .label("F.Sus");
 
@@ -890,7 +962,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::filter_env_release);
             SynthKnob::new(cx, f_r, move |cx, val| {
                 let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x13, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::FilterEnvRelease,
+                    raw.into(),
+                ));
             })
             .label("F.Rel");
 
@@ -899,7 +975,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::filter_env_depth);
             SynthKnob::new(cx, f_dep, move |cx, val| {
                 let raw = (val * 126.0 + 1.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x14, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::FilterEnvDepth,
+                    raw.into(),
+                ));
             })
             .label("F.Dep");
 
@@ -909,7 +989,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::amp_env_attack);
             SynthKnob::new(cx, a_a, move |cx, val| {
                 let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x17, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::AmpEnvAttack,
+                    raw.into(),
+                ));
             })
             .label("A.Atk");
 
@@ -918,7 +1002,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::amp_env_decay);
             SynthKnob::new(cx, a_d, move |cx, val| {
                 let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x18, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::AmpEnvDecay,
+                    raw.into(),
+                ));
             })
             .label("A.Dec");
 
@@ -927,7 +1015,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::amp_env_sustain);
             SynthKnob::new(cx, a_s, move |cx, val| {
                 let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x19, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::AmpEnvSustain,
+                    raw.into(),
+                ));
             })
             .label("A.Sus");
 
@@ -936,7 +1028,11 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
                 .then(SnSynthPartialView::amp_env_release);
             SynthKnob::new(cx, a_r, move |cx, val| {
                 let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(partial_idx_u8, 0x1A, raw));
+                cx.emit(ToneEditorEvent::SetSnsPartial(
+                    partial_idx_u8,
+                    SnsPartialField::AmpEnvRelease,
+                    raw.into(),
+                ));
             })
             .label("A.Rel");
         })

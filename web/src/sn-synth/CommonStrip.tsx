@@ -3,8 +3,9 @@ import {
   SynthSwitch,
   SynthSelect,
 } from "../synth-ui";
+import { SnsCommonField } from "../../pkg/integral_wasm.js";
 import css from "../SnSynthEditor.module.css";
-import type { SnSynthCommon } from "./types";
+import type { CommonParamHandler, SnSynthCommon } from "./types";
 import { ON_OFF_OPTIONS, UNISON_SIZE_NAMES, signedFmt } from "./types";
 
 export function CommonStrip({
@@ -12,7 +13,7 @@ export function CommonStrip({
   onChange,
 }: {
   common: SnSynthCommon;
-  onChange: (offset: number, value: number) => void;
+  onChange: CommonParamHandler;
 }) {
   return (
     <div className={css.commonStrip}>
@@ -21,9 +22,9 @@ export function CommonStrip({
         <span className={css.groupLabel}>UNISON</span>
         <div className={css.groupRow}>
           <SynthSwitch label="SW" value={common.unisonSwitch} options={ON_OFF_OPTIONS}
-            onChange={(v) => onChange(0x2E, v)} />
+            onChange={(v) => onChange(SnsCommonField.UnisonSwitch, v)} />
           <SynthKnob label="Size" value={common.unisonSize} min={0} max={3} defaultValue={0}
-            onChange={(v) => onChange(0x3C, v)} formatValue={(v) => UNISON_SIZE_NAMES[v] ?? String(v)} color="#8cf" />
+            onChange={(v) => onChange(SnsCommonField.UnisonSize, v)} formatValue={(v) => UNISON_SIZE_NAMES[v] ?? String(v)} color="#8cf" />
         </div>
       </div>
 
@@ -32,7 +33,7 @@ export function CommonStrip({
       {/* Mono */}
       <div className={css.commonGroup}>
         <SynthSwitch label="MONO" value={common.monoSwitch} options={ON_OFF_OPTIONS}
-          onChange={(v) => onChange(0x14, v)} />
+          onChange={(v) => onChange(SnsCommonField.MonoSwitch, v)} />
       </div>
 
       <div className={css.commonDivider} />
@@ -42,12 +43,12 @@ export function CommonStrip({
         <span className={css.groupLabel}>PORTAMENTO</span>
         <div className={css.groupRow}>
           <SynthSwitch label="SW" value={common.portamentoSwitch} options={ON_OFF_OPTIONS}
-            onChange={(v) => onChange(0x12, v)} />
+            onChange={(v) => onChange(SnsCommonField.PortamentoSwitch, v)} />
           <SynthKnob label="Time" value={common.portamentoTime} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(0x13, v)} formatValue={(v) => String(v)} color="#8cf" />
+            onChange={(v) => onChange(SnsCommonField.PortamentoTime, v)} formatValue={(v) => String(v)} color="#8cf" />
           <SynthSelect label="Mode" value={common.portamentoMode}
             options={[{ value: 0, label: "NORMAL" }, { value: 1, label: "LEGATO" }]}
-            onChange={(v) => onChange(0x31, v)} />
+            onChange={(v) => onChange(SnsCommonField.PortamentoMode, v)} />
         </div>
       </div>
 
@@ -58,9 +59,9 @@ export function CommonStrip({
         <span className={css.groupLabel}>BEND RANGE</span>
         <div className={css.groupRow}>
           <SynthKnob label="Down" value={common.pitchBendRangeDown} min={0} max={24} defaultValue={2}
-            onChange={(v) => onChange(0x17, v)} formatValue={(v) => String(v)} color="#8cf" />
+            onChange={(v) => onChange(SnsCommonField.PitchBendRangeDown, v)} formatValue={(v) => String(v)} color="#8cf" />
           <SynthKnob label="Up" value={common.pitchBendRangeUp} min={0} max={24} defaultValue={2}
-            onChange={(v) => onChange(0x16, v)} formatValue={(v) => String(v)} color="#8cf" />
+            onChange={(v) => onChange(SnsCommonField.PitchBendRangeUp, v)} formatValue={(v) => String(v)} color="#8cf" />
         </div>
       </div>
 
@@ -68,19 +69,19 @@ export function CommonStrip({
 
       {/* Standalone params */}
       <SynthKnob label="Wave Shape" value={common.waveShape} min={0} max={127} defaultValue={0}
-        onChange={(v) => onChange(0x35, v)} formatValue={(v) => String(v)} color="#8cf" />
+        onChange={(v) => onChange(SnsCommonField.WaveShape, v)} formatValue={(v) => String(v)} color="#8cf" />
       <SynthKnob label="Tone Level" value={common.toneLevel} min={0} max={127} defaultValue={127}
-        onChange={(v) => onChange(0x0C, v)} formatValue={(v) => String(v)} color="#8cf" />
+        onChange={(v) => onChange(SnsCommonField.ToneLevel, v)} formatValue={(v) => String(v)} color="#8cf" />
       <SynthKnob label="Analog Feel" value={common.analogFeel} min={0} max={127} defaultValue={0}
-        onChange={(v) => onChange(0x34, v)} formatValue={(v) => String(v)} color="#8cf" />
+        onChange={(v) => onChange(SnsCommonField.AnalogFeel, v)} formatValue={(v) => String(v)} color="#8cf" />
 
       <div className={css.commonDivider} />
 
       <SynthSwitch label="LEGATO" value={common.legatoSwitch} options={ON_OFF_OPTIONS}
-        onChange={(v) => onChange(0x32, v)} />
+        onChange={(v) => onChange(SnsCommonField.LegatoSwitch, v)} />
 
       <SynthKnob label="Oct Shift" value={common.octaveShift} min={61} max={67} defaultValue={64} center={64}
-        onChange={(v) => onChange(0x15, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cf" />
+        onChange={(v) => onChange(SnsCommonField.OctaveShift, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cf" />
     </div>
   );
 }

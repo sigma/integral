@@ -23,9 +23,15 @@ export function fakeToneService(device: WasmDeviceState) {
     },
   } as unknown as IntegraService;
 
-  let now = 0;
-  /** Drain the core's queue; return every DT1 sent since the last call. */
-  function sentDt1s(): SentDt1[] {
+  const sentDt1s = dt1Drainer(device);
+  return { service, sentDt1s };
+}
+
+/** A function that drains `device`'s queue, from time `start` (ms) on, and
+ *  returns every DT1 sent since its last call. */
+export function dt1Drainer(device: WasmDeviceState, start = 0): () => SentDt1[] {
+  let now = start;
+  return () => {
     const sent: SentDt1[] = [];
     for (;;) {
       now += 1000;
@@ -39,9 +45,7 @@ export function fakeToneService(device: WasmDeviceState) {
       });
     }
     return sent;
-  }
-
-  return { service, sentDt1s };
+  };
 }
 
 /** The slider control labelled `label` (the first, if several). */
