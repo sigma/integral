@@ -536,7 +536,7 @@ pub fn svd_export(
         partials[1].clone(),
         partials[2].clone(),
     ];
-    let entry = sysex_to_svd(&sections, &SNS_TONE_SPEC);
+    let entry = sysex_to_svd(&sections, &SNS_TONE_SPEC, None);
 
     // Build SVD file with a single SN-S entry.
     let svd = SvdFile {

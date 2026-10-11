@@ -106,12 +106,11 @@ pub struct SvdToneSpec {
     /// Sections in SVD packing order. Each section is independently
     /// byte-aligned in the SVD entry.
     pub sections: &'static [SvdSection],
-    /// Total SVD entry size in bytes (including end marker + padding
-    /// for tone types, or just data for Studio Sets).
+    /// Total SVD entry size in bytes, including any bytes after the data.
     pub entry_size: usize,
-    /// Whether the entry ends with a `0x0E` marker byte followed by
-    /// zero padding. Tone types have this; Studio Sets do not.
-    pub has_end_marker: bool,
+    /// Bytes after the data sections in a fresh entry, before zero padding
+    /// to `entry_size`. SN-S has a `0x0E` end marker and an INIT trailer.
+    pub init_tail: &'static [u8],
 }
 
 impl SvdToneSpec {
@@ -528,7 +527,8 @@ static SNS_SECTIONS: [SvdSection; 5] = [
 pub static SNS_TONE_SPEC: SvdToneSpec = SvdToneSpec {
     sections: &SNS_SECTIONS,
     entry_size: 280,
-    has_end_marker: true,
+    // Bytes 246–251 of every INIT TONE (`docs/svd/03-sn-synth.md`).
+    init_tail: &[0x0E, 0x00, 0x00, 0x00, 0x02, 0xC0],
 };
 
 // ---------------------------------------------------------------------------
@@ -650,7 +650,7 @@ static SNA_SECTIONS: [SvdSection; 2] = [
 pub static SNA_TONE_SPEC: SvdToneSpec = SvdToneSpec {
     sections: &SNA_SECTIONS,
     entry_size: 138,
-    has_end_marker: false,
+    init_tail: &[],
 };
 
 // ---------------------------------------------------------------------------
@@ -927,7 +927,7 @@ static SS_SECTIONS: [SvdSection; 53] = {
 pub static SS_TONE_SPEC: SvdToneSpec = SvdToneSpec {
     sections: &SS_SECTIONS,
     entry_size: 1068,
-    has_end_marker: false,
+    init_tail: &[],
 };
 
 // ---------------------------------------------------------------------------
@@ -1015,7 +1015,7 @@ mod tests {
         assert_eq!(SNA_TONE_SPEC.sections.len(), 2);
         assert_eq!(SNA_TONE_SPEC.entry_size, 138);
         assert_eq!(SNA_TONE_SPEC.data_bytes(), 138);
-        assert!(!SNA_TONE_SPEC.has_end_marker);
+        assert!(SNA_TONE_SPEC.init_tail.is_empty());
     }
 
     #[test]
@@ -1026,7 +1026,7 @@ mod tests {
         for s in SS_TONE_SPEC.sections {
             assert!(s.padded_bytes() <= s.svd_bytes, "{s:?}");
         }
-        assert!(!SS_TONE_SPEC.has_end_marker);
+        assert!(SS_TONE_SPEC.init_tail.is_empty());
     }
 
     #[test]

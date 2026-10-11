@@ -157,9 +157,11 @@ fn pack_section(writer: &mut BitWriter, sysex: &[u8], section: &SvdSection) {
 /// Pack SysEx byte sections into an SVD entry.
 ///
 /// Each element of `sections` must contain the correct number of SysEx bytes
-/// for the corresponding spec section. The returned `Vec<u8>` is padded to
-/// `spec.entry_size` with a `0x0E` end marker and zero fill.
-pub fn sysex_to_svd(sections: &[Vec<u8>], spec: &SvdToneSpec) -> Vec<u8> {
+/// for the corresponding spec section. The bytes after the data sections are
+/// copied from `source`, the entry the sections were decoded from, so that
+/// undocumented trailing bytes survive a round trip. Without a source they
+/// are `spec.init_tail` followed by zero fill up to `spec.entry_size`.
+pub fn sysex_to_svd(sections: &[Vec<u8>], spec: &SvdToneSpec, source: Option<&[u8]>) -> Vec<u8> {
     let mut result = Vec::with_capacity(spec.entry_size);
 
     for (section_data, section_spec) in sections.iter().zip(spec.sections.iter()) {
@@ -171,12 +173,11 @@ pub fn sysex_to_svd(sections: &[Vec<u8>], spec: &SvdToneSpec) -> Vec<u8> {
         result.extend_from_slice(&section_bytes);
     }
 
-    if spec.has_end_marker {
-        // Append end marker.
-        result.push(0x0E);
+    let tail_start = result.len();
+    match source {
+        Some(entry) => result.extend_from_slice(&entry[tail_start..spec.entry_size]),
+        None => result.extend_from_slice(spec.init_tail),
     }
-
-    // Pad to entry size.
     result.resize(spec.entry_size, 0x00);
 
     result
@@ -316,9 +317,10 @@ mod tests {
         // Use real entries for full round-trip testing.
         let entry = vec![0u8; 280];
         let sections = svd_to_sysex(&entry, &SNS_TONE_SPEC).unwrap();
-        let repacked = sysex_to_svd(&sections, &SNS_TONE_SPEC);
+        let repacked = sysex_to_svd(&sections, &SNS_TONE_SPEC, None);
         assert_eq!(repacked.len(), 280);
-        assert_eq!(repacked[246], 0x0E);
+        assert_eq!(&repacked[246..252], [0x0E, 0x00, 0x00, 0x00, 0x02, 0xC0]);
+        assert!(repacked[252..].iter().all(|&b| b == 0));
     }
 
     #[test]
@@ -375,18 +377,13 @@ mod tests {
             .find(|c| c.chunk_type == crate::svd::ChunkType::SnSynthTone)
             .unwrap();
 
-        // Round-trip every entry.
+        // Round-trip every entry, with a non-INIT tail after the end marker.
         for (i, entry) in sns_chunk.entries.iter().enumerate() {
-            let sections = svd_to_sysex(entry, &SNS_TONE_SPEC).unwrap();
-            let repacked = sysex_to_svd(&sections, &SNS_TONE_SPEC);
-
-            // Compare data portion (before end marker).
-            let data_end = SNS_TONE_SPEC.data_bytes();
-            assert_eq!(
-                &repacked[..data_end],
-                &entry[..data_end],
-                "Entry {i} data mismatch"
-            );
+            let mut entry = entry.clone();
+            entry[250..252].copy_from_slice(&[0x44, 0xC0]);
+            let sections = svd_to_sysex(&entry, &SNS_TONE_SPEC).unwrap();
+            let repacked = sysex_to_svd(&sections, &SNS_TONE_SPEC, Some(&entry));
+            assert_eq!(repacked, entry, "Entry {i} mismatch");
         }
     }
 
@@ -403,7 +400,7 @@ mod tests {
             // SVD → SysEx
             let sysex_sections = svd_to_sysex(entry, &SNS_TONE_SPEC).unwrap();
             // SysEx → SVD
-            let svd_entry = sysex_to_svd(&sysex_sections, &SNS_TONE_SPEC);
+            let svd_entry = sysex_to_svd(&sysex_sections, &SNS_TONE_SPEC, None);
             // SVD → SysEx again
             let sysex_sections2 = svd_to_sysex(&svd_entry, &SNS_TONE_SPEC).unwrap();
 
@@ -471,7 +468,7 @@ mod tests {
         let sections = svd_to_sysex(&entry, &SNA_TONE_SPEC).unwrap();
         assert_eq!(sections[0][0x1B], 9, "Category");
         assert_eq!(sections[0][0x41], 127, "Modify Parameter 32");
-        assert_eq!(sysex_to_svd(&sections, &SNA_TONE_SPEC), entry);
+        assert_eq!(sysex_to_svd(&sections, &SNA_TONE_SPEC, Some(&entry)), entry);
     }
 
     /// Documented ranges of every PRFb parameter in spec order
@@ -590,7 +587,7 @@ mod tests {
         assert_eq!(part16[0x1B], 64, "Part 16 Octave Shift");
         assert_eq!(part16[0x48], 32, "Part 16 Motional Surround Width");
         assert_eq!(sections[37 + 15][0x07], 30, "Part EQ 16 High Gain");
-        assert_eq!(sysex_to_svd(&sections, &SS_TONE_SPEC), entry);
+        assert_eq!(sysex_to_svd(&sections, &SS_TONE_SPEC, Some(&entry)), entry);
     }
 
     #[test]

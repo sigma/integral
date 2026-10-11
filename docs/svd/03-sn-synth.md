@@ -277,10 +277,11 @@ No documented parameter separates the tones with a tail from those without.
 Until the tail is understood, a writer must copy bytes 246–279 through from the
 source entry rather than regenerate them.
 
-> Current code diverges: see [#72](https://github.com/sigma/integral/issues/72). `sysex_to_svd()` in
-> `crates/integral-core/src/svd_convert.rs` writes `0x0E` and then zero-fills,
-> so it loses bytes 247–251. An SVD → SysEx → SVD round trip is not
-> byte-identical for these 4,894 entries.
+`sysex_to_svd()` in `crates/integral-core/src/svd_convert.rs` copies bytes
+246–279 from the source entry when there is one, so an SVD → SysEx → SVD round
+trip is byte-identical. A fresh export writes the INIT tail
+`0E 00 00 00 02 C0` and zero-fills the rest
+([#72](https://github.com/sigma/integral/issues/72)).
 
 ## Open Questions / Device Check
 
