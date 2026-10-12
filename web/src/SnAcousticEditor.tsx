@@ -4,6 +4,7 @@ import {
   sna_inst_params,
   sna_has_portamento_offset,
   sna_has_tone_offsets,
+  sna_common_spec,
   sna_common_address,
   sna_common_size,
   sna_mfx_address,
@@ -22,6 +23,7 @@ import {
   FaderGroupSep,
 } from "./synth-ui";
 import { MfxPanel } from "./MfxPanel";
+import { knobRange, switchOptions } from "./fieldSpec";
 import { WavePicker } from "./WavePicker";
 import { snaInstNumberOf, snaInstSource, snaInsts } from "./snaInstCatalog";
 import { SignalArrows } from "./synth-ui/SignalArrows";
@@ -77,14 +79,6 @@ interface InstParamDef {
 // ---------------------------------------------------------------------------
 // Display helpers
 // ---------------------------------------------------------------------------
-
-/** Category index to instrument type name mapping. */
-const MONO_POLY_OPTIONS = [{ value: 0, label: "MONO" }, { value: 1, label: "POLY" }];
-
-function signedFmt(raw: number, center: number): string {
-  const v = raw - center;
-  return v > 0 ? `+${v}` : String(v);
-}
 
 /** Parse the raw tuple array from WASM into structured InstParamDef[]. */
 function parseInstParams(raw: unknown): InstParamDef[] {
@@ -292,7 +286,7 @@ function toneBoxes(
     (field: SnaCommonField, key: Parameters<CommonParamHandler>[1]) =>
     (v: number) =>
       onChange(field, key, v);
-  const offset = (v: number) => signedFmt(v, 64);
+  const resonanceCenter = sna_common_spec(SnaCommonField.ResonanceOffset).center ?? 0;
   // Some instruments ignore some offsets (Parameter Guide): show them disabled.
   const toneOffsets = sna_has_tone_offsets(common.instVariation, common.instNumber);
   const portamento = sna_has_portamento_offset(common.instVariation, common.instNumber);
@@ -300,14 +294,14 @@ function toneBoxes(
     common: (
         <SectionPanel label="COMMON" accentColor="#8cf">
           <div className={css.panelRow}>
-            <SynthSwitch label="Mono/Poly" value={common.monoPoly} options={MONO_POLY_OPTIONS}
+            <SynthSwitch label="Mono/Poly" value={common.monoPoly} options={switchOptions(sna_common_spec(SnaCommonField.MonoPoly))}
               onChange={set(SnaCommonField.MonoPoly, "monoPoly")} />
-            <SynthKnob label="Oct" value={common.octaveShift} min={61} max={67} defaultValue={64} center={64}
-              onChange={set(SnaCommonField.OctaveShift, "octaveShift")} formatValue={offset} color="#8cf"
+            <SynthKnob label="Oct" value={common.octaveShift} {...knobRange(sna_common_spec(SnaCommonField.OctaveShift))}
+              onChange={set(SnaCommonField.OctaveShift, "octaveShift")} color="#8cf"
               title="Octave Shift" />
             <Offset enabled={portamento}>
-              <SynthKnob label="Port" value={common.portamentoTimeOffset} min={0} max={127} defaultValue={64} center={64}
-                onChange={set(SnaCommonField.PortamentoTimeOffset, "portamentoTimeOffset")} formatValue={offset} color="#8cf"
+              <SynthKnob label="Port" value={common.portamentoTimeOffset} {...knobRange(sna_common_spec(SnaCommonField.PortamentoTimeOffset))}
+                onChange={set(SnaCommonField.PortamentoTimeOffset, "portamentoTimeOffset")} color="#8cf"
                 title="Portamento Time Offset" />
             </Offset>
           </div>
@@ -316,14 +310,14 @@ function toneBoxes(
     vibrato: (
         <SectionPanel label="VIB" accentColor="#a6f">
           <div className={css.knobColumn}>
-            <SynthKnob label="Rate" value={common.vibratoRate} min={0} max={127} defaultValue={64} center={64}
-              onChange={set(SnaCommonField.VibratoRate, "vibratoRate")} formatValue={offset} color="#a6f"
+            <SynthKnob label="Rate" value={common.vibratoRate} {...knobRange(sna_common_spec(SnaCommonField.VibratoRate))}
+              onChange={set(SnaCommonField.VibratoRate, "vibratoRate")} color="#a6f"
               title="Vibrato Rate (offset)" />
-            <SynthKnob label="Depth" value={common.vibratoDepth} min={0} max={127} defaultValue={64} center={64}
-              onChange={set(SnaCommonField.VibratoDepth, "vibratoDepth")} formatValue={offset} color="#a6f"
+            <SynthKnob label="Depth" value={common.vibratoDepth} {...knobRange(sna_common_spec(SnaCommonField.VibratoDepth))}
+              onChange={set(SnaCommonField.VibratoDepth, "vibratoDepth")} color="#a6f"
               title="Vibrato Depth (offset)" />
-            <SynthKnob label="Delay" value={common.vibratoDelay} min={0} max={127} defaultValue={64} center={64}
-              onChange={set(SnaCommonField.VibratoDelay, "vibratoDelay")} formatValue={offset} color="#a6f"
+            <SynthKnob label="Delay" value={common.vibratoDelay} {...knobRange(sna_common_spec(SnaCommonField.VibratoDelay))}
+              onChange={set(SnaCommonField.VibratoDelay, "vibratoDelay")} color="#a6f"
               title="Vibrato Delay (offset)" />
           </div>
         </SectionPanel>
@@ -332,14 +326,14 @@ function toneBoxes(
         <SectionPanel label="FILTER" accentColor="#68c">
           {/* shortcut: SN-A never exposes its filter type; this draws a low-pass moved by the offsets, to show their direction, not the instrument's real filter. */}
           <FilterScope className={css.filterScope} type="LPF" cutoff={common.cutoffOffset}
-            resonance={Math.max(0, common.resonanceOffset - 64) * 2} />
+            resonance={Math.max(0, common.resonanceOffset - resonanceCenter) * 2} />
           <Offset enabled={toneOffsets}>
             <div className={css.panelRow}>
-              <SynthKnob label="Cutoff" value={common.cutoffOffset} min={0} max={127} defaultValue={64} center={64}
-                onChange={set(SnaCommonField.CutoffOffset, "cutoffOffset")} formatValue={offset} color="#68c"
+              <SynthKnob label="Cutoff" value={common.cutoffOffset} {...knobRange(sna_common_spec(SnaCommonField.CutoffOffset))}
+                onChange={set(SnaCommonField.CutoffOffset, "cutoffOffset")} color="#68c"
                 title="Cutoff Offset" />
-              <SynthKnob label="Reso" value={common.resonanceOffset} min={0} max={127} defaultValue={64} center={64}
-                onChange={set(SnaCommonField.ResonanceOffset, "resonanceOffset")} formatValue={offset} color="#68c"
+              <SynthKnob label="Reso" value={common.resonanceOffset} {...knobRange(sna_common_spec(SnaCommonField.ResonanceOffset))}
+                onChange={set(SnaCommonField.ResonanceOffset, "resonanceOffset")} color="#68c"
                 title="Resonance Offset" />
             </div>
           </Offset>
@@ -352,21 +346,21 @@ function toneBoxes(
               <ADSREnvelope
                 compact
                 attack={{
-                  label: "Atk", value: common.attackTimeOffset, min: 0, max: 127, defaultValue: 64,
-                  onChange: set(SnaCommonField.AttackTimeOffset, "attackTimeOffset"), formatValue: offset,
+                  label: "Atk", value: common.attackTimeOffset,
+                  onChange: set(SnaCommonField.AttackTimeOffset, "attackTimeOffset"), ...knobRange(sna_common_spec(SnaCommonField.AttackTimeOffset)),
                   title: "Attack Time Offset",
                 }}
                 release={{
-                  label: "Rel", value: common.releaseTimeOffset, min: 0, max: 127, defaultValue: 64,
-                  onChange: set(SnaCommonField.ReleaseTimeOffset, "releaseTimeOffset"), formatValue: offset,
+                  label: "Rel", value: common.releaseTimeOffset,
+                  onChange: set(SnaCommonField.ReleaseTimeOffset, "releaseTimeOffset"), ...knobRange(sna_common_spec(SnaCommonField.ReleaseTimeOffset)),
                   title: "Release Time Offset",
                 }}
               />
             </Offset>
             <FaderGroupSep />
             <FaderGroup>
-              <SynthFader label="Level" value={common.toneLevel} min={0} max={127} defaultValue={127}
-                onChange={set(SnaCommonField.ToneLevel, "toneLevel")} formatValue={(v) => String(v)} compact
+              <SynthFader label="Level" value={common.toneLevel} {...knobRange(sna_common_spec(SnaCommonField.ToneLevel))}
+                onChange={set(SnaCommonField.ToneLevel, "toneLevel")} compact
                 title="Tone Level" />
             </FaderGroup>
           </div>

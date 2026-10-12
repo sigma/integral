@@ -12,6 +12,7 @@ use crate::block_field::BlockField;
 use crate::param_registry::ParamFormat;
 use crate::pcm_drum::{self, PcmdCommonField, PcmdPartialField, PcmdWmtField};
 use crate::pcm_synth::{self, PcmsCommon2Field, PcmsCommonField, PcmsPartialField, PcmsPmtField};
+use crate::sn_acoustic::{self, SnaCommonField};
 use crate::sn_synth::{self, SnsCommonField, SnsPartialField};
 
 /// Range, default and display format of a tone block field, looked up by
@@ -83,6 +84,7 @@ const PAN: Shape = shape(0, 127, Pan);
 const ALTERNATE_PAN_DEPTH: Shape = shape(1, 127, Pan);
 const VELOCITY_RANGE: Shape = shape(1, 127, Raw);
 const OFF_ON_REVERSE: Shape = shape(0, 2, Named(&["OFF", "ON", "REVERSE"]));
+const MONO_POLY: Shape = shape(0, 1, Named(&["MONO", "POLY"]));
 const PORTAMENTO_MODE: Shape = shape(0, 1, Named(&["NORMAL", "LEGATO"]));
 const PHRASE_NUMBER: Shape = shape(0, 65535, Raw);
 const ENV_MODE: Shape = shape(0, 1, Named(&["NO-SUS", "SUSTAIN"]));
@@ -143,7 +145,7 @@ pub fn pcms_common_spec(field: PcmsCommonField) -> FieldSpec {
         F::FineTune => FINE_TUNE,
         F::OctaveShift => OCTAVE_SHIFT,
         F::StretchTuneDepth => shape(0, 3, Named(&["OFF", "1", "2", "3"])),
-        F::MonoPoly => shape(0, 1, Named(&["MONO", "POLY"])),
+        F::MonoPoly => MONO_POLY,
         F::LegatoSwitch | F::LegatoRetrigger | F::PortamentoSwitch | F::PmtControlSwitch => ON_OFF,
         F::PortamentoMode => PORTAMENTO_MODE,
         F::PortamentoType => shape(0, 1, Named(&["RATE", "TIME"])),
@@ -522,6 +524,35 @@ pub fn sns_partial_spec(field: SnsPartialField) -> FieldSpec {
     spec(field, init, shape)
 }
 
+/// The spec of an SN Acoustic Tone Common field.
+pub fn sna_common_spec(field: SnaCommonField) -> FieldSpec {
+    static INIT: OnceLock<Vec<u8>> = OnceLock::new();
+    let init = INIT.get_or_init(|| sn_acoustic::encode_sna_common(&Default::default()));
+    use SnaCommonField as F;
+    let shape = match field {
+        F::ToneLevel => RAW_127,
+        F::MonoPoly => MONO_POLY,
+        F::PortamentoTimeOffset
+        | F::CutoffOffset
+        | F::ResonanceOffset
+        | F::AttackTimeOffset
+        | F::ReleaseTimeOffset
+        | F::VibratoRate
+        | F::VibratoDepth
+        | F::VibratoDelay => shape(0, 127, SignedCenter(64)),
+        F::OctaveShift | F::PhraseOctaveShift => OCTAVE_SHIFT,
+        // shortcut: Category shows its raw index; name it when an editor shows it.
+        F::Category => RAW_127,
+        // Two nibbles here, not the four of PHRASE_NUMBER.
+        F::PhraseNumber => shape(0, 255, Raw),
+        F::TfxSwitch => ON_OFF,
+        F::InstVariation | F::InstNumber => RAW_127,
+        // Each instrument gives its Modify Parameters their own ranges (`sna_inst_params`).
+        F::ModifyParameter => RAW_127,
+    };
+    spec(field, init, shape)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -529,6 +560,7 @@ mod tests {
     const PCMS_DOC: &str = include_str!("../../../docs/midi/06-pcm-synth-tone.md");
     const PCMD_DOC: &str = include_str!("../../../docs/midi/07-pcm-drum-kit.md");
     const SNS_DOC: &str = include_str!("../../../docs/midi/08-supernatural-synth-tone.md");
+    const SNA_DOC: &str = include_str!("../../../docs/midi/09-supernatural-acoustic-tone.md");
 
     /// A documented parameter: its byte position in the block and its range.
     struct DocRow {
@@ -1074,6 +1106,38 @@ mod tests {
             |_| true,
             &fields,
             sns_partial_spec,
+        );
+    }
+
+    #[test]
+    fn sna_common_specs_match_the_doc() {
+        use SnaCommonField as F;
+        let fields = [
+            F::ToneLevel,
+            F::MonoPoly,
+            F::PortamentoTimeOffset,
+            F::CutoffOffset,
+            F::ResonanceOffset,
+            F::AttackTimeOffset,
+            F::ReleaseTimeOffset,
+            F::VibratoRate,
+            F::VibratoDepth,
+            F::VibratoDelay,
+            F::OctaveShift,
+            F::Category,
+            F::PhraseNumber,
+            F::PhraseOctaveShift,
+            F::TfxSwitch,
+            F::InstVariation,
+            F::InstNumber,
+            F::ModifyParameter,
+        ];
+        assert_matches_doc(
+            SNA_DOC,
+            "SN Acoustic Tone Common",
+            |name| !name.starts_with("Tone Name"),
+            &fields,
+            sna_common_spec,
         );
     }
 }

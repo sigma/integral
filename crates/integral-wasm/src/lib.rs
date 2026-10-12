@@ -2053,6 +2053,12 @@ pub fn pcms_partial_spec(field: PcmsPartialField) -> WasmFieldSpec {
     wrap_field_spec(field_spec::pcms_partial_spec(field.into()))
 }
 
+/// Spec of an SN Acoustic Tone Common field.
+#[wasm_bindgen]
+pub fn sna_common_spec(field: SnaCommonField) -> WasmFieldSpec {
+    wrap_field_spec(field_spec::sna_common_spec(field.into()))
+}
+
 /// Spec of an SN Synth Tone Common field.
 #[wasm_bindgen]
 pub fn sns_common_spec(field: SnsCommonField) -> WasmFieldSpec {

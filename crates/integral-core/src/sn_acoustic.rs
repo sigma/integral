@@ -7,7 +7,7 @@ use crate::address::{Address, DataSize};
 use crate::block_field::BlockField;
 use crate::mfx::MfxState;
 use crate::params;
-use crate::parse_helpers::parse_ascii_name;
+use crate::parse_helpers::{encode_ascii_name, parse_ascii_name};
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -21,6 +21,9 @@ pub const SNA_COMMON_BLOCK_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x46
 
 /// SN-A Common parse size in bytes.
 pub const SNA_COMMON_SIZE: usize = 0x46;
+
+/// Length of the Tone Name (`00 00`–`00 0B`).
+const SNA_NAME_LEN: usize = 12;
 
 /// Compute the absolute SN-A base address for a part.
 const fn sna_base(part_index: u8) -> Address {
@@ -245,6 +248,33 @@ pub fn parse_sna_common(data: &[u8]) -> Result<SnAcousticCommon, crate::TonePars
     Ok(c)
 }
 
+/// Encode an SN Acoustic Tone Common block (0x46 bytes), the inverse of
+/// [`parse_sna_common`]. The reserves get 0.
+pub fn encode_sna_common(c: &SnAcousticCommon) -> Vec<u8> {
+    let mut data = encode_ascii_name(&c.tone_name, SNA_NAME_LEN);
+    data.resize(SNA_COMMON_SIZE, 0);
+    use SnaCommonField as F;
+    F::ToneLevel.set_byte(&mut data, c.tone_level);
+    F::MonoPoly.set_byte(&mut data, c.mono_poly);
+    F::PortamentoTimeOffset.set_byte(&mut data, c.portamento_time_offset);
+    F::CutoffOffset.set_byte(&mut data, c.cutoff_offset);
+    F::ResonanceOffset.set_byte(&mut data, c.resonance_offset);
+    F::AttackTimeOffset.set_byte(&mut data, c.attack_time_offset);
+    F::ReleaseTimeOffset.set_byte(&mut data, c.release_time_offset);
+    F::VibratoRate.set_byte(&mut data, c.vibrato_rate);
+    F::VibratoDepth.set_byte(&mut data, c.vibrato_depth);
+    F::VibratoDelay.set_byte(&mut data, c.vibrato_delay);
+    F::OctaveShift.set_byte(&mut data, c.octave_shift);
+    F::Category.set_byte(&mut data, c.category);
+    F::PhraseNumber.set_nibbles(&mut data, c.phrase_number);
+    F::PhraseOctaveShift.set_byte(&mut data, c.phrase_octave_shift);
+    F::TfxSwitch.set_byte(&mut data, c.tfx_switch);
+    F::InstVariation.set_byte(&mut data, c.inst_variation);
+    F::InstNumber.set_byte(&mut data, c.inst_number);
+    F::ModifyParameter.set_elements(&mut data, &c.modify_params);
+    data
+}
+
 /// An instrument an SN Acoustic tone can play, from Roland's Editor list
 /// (`docs/sn-acoustic-insts/`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -466,5 +496,15 @@ mod tests {
                 .element_position(32)
                 .is_err()
         );
+    }
+
+    #[test]
+    fn encoder_inverts_the_parser() {
+        use crate::block_field::test_support::positional_block;
+        let mut c = parse_sna_common(&positional_block(SNA_COMMON_SIZE)).unwrap();
+        c.tone_name = "INIT TONE".into();
+        let block = encode_sna_common(&c);
+        assert_eq!(block.len(), SNA_COMMON_SIZE);
+        assert_eq!(parse_sna_common(&block).unwrap(), c);
     }
 }
