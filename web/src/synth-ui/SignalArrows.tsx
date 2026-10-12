@@ -21,13 +21,12 @@ const GLYPH_GAP = 16;
 const GLYPH_R = 7;
 
 /**
- * The curve of an edge from `from`'s right side to `to`'s left side, or null
- * when the two line up (a straight hop needs no arrow). With a glyph, the
- * curve ends at the glyph, left of the target.
+ * The curve of an edge from `from`'s right side to `to`'s left side (straight
+ * when they line up). With a glyph, the curve ends at the glyph, left of the
+ * target.
  */
-export function arrowPath(from: Box, to: Box, glyph?: boolean): string | null {
+export function arrowPath(from: Box, to: Box, glyph?: boolean): string {
   const endX = glyph ? to.left - GLYPH_GAP - GLYPH_R : to.left;
-  if (!glyph && Math.abs(from.mid - to.mid) < 2) return null;
   const bend = (from.right + endX) / 2;
   return `M ${from.right} ${from.mid} C ${bend} ${from.mid} ${bend} ${to.mid} ${endX} ${to.mid}`;
 }
@@ -65,8 +64,7 @@ export function SignalArrows({ container, edges }: { container: RefObject<HTMLEl
         const from = box(e.from);
         const to = box(e.to);
         if (!from || !to) continue;
-        const d = arrowPath(from, to, !!e.glyph);
-        if (d) next.curves.push(d);
+        next.curves.push(arrowPath(from, to, !!e.glyph));
         if (e.glyph && !glyphed.has(e.to)) {
           glyphed.add(e.to);
           const x = to.left - GLYPH_GAP;

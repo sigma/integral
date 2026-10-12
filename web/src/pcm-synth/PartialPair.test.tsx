@@ -16,12 +16,17 @@ const half = (): PairPartial => ({ partial: partial(), isOn: true, onParam: () =
 
 function layout(structure: number) {
   const { container } = render(<PartialPair first={0} structure={structure} upper={half()} lower={half()} />);
-  // A box is a panel headed `label`, directly in a grid cell placed by PartialPair.
-  const spans = (label: string) =>
-    [...container.querySelectorAll("div")]
-      .filter((d) => d.firstElementChild?.textContent === label && d.parentElement?.style.gridColumn)
-      .map((d) => d.parentElement!.style.gridRow);
-  return { container, spans };
+  // A box is a SectionPanel (it sets its accent as the top border) headed `label`;
+  // its block is the nearest element placed on the grid.
+  const panels = (label: string) =>
+    [...container.querySelectorAll("div")].filter(
+      (d) => d.style.borderTopColor && d.firstElementChild?.textContent === label,
+    );
+  const block = (d: HTMLElement) => d.closest<HTMLElement>("[data-node]")!;
+  const spans = (label: string) => panels(label).map((d) => block(d).style.gridRow);
+  /** Names of the blocks holding each box headed `label`. */
+  const blocks = (label: string) => panels(label).map((d) => block(d).dataset.node);
+  return { container, spans, blocks };
 }
 
 describe("PartialPair", () => {
@@ -36,7 +41,14 @@ describe("PartialPair", () => {
 
   it("runs a merged pair's blocks after the join across both rows, with one OUTPUT", () => {
     // Structure 2: WG1→TVA1 and WG2 mix, then TVF1 → TVF2 → TVA2.
-    const { spans, container } = layout(1);
+    const { spans, blocks, container } = layout(1);
+    // FILTER 1, FILTER 2, AMP 2 and OUTPUT 2 form one block (named for partial 2's
+    // output, 0-based like the MFX arrows); AMP 1 its own.
+    expect(new Set(["FILTER 1", "FILTER 2", "AMP 2", "OUTPUT 2"].flatMap(blocks))).toEqual(new Set(["out-1"]));
+    expect(blocks("AMP 1")).toEqual(["0-pre-upper"]);
+    // The WAVE boxes head both lanes in the same column.
+    expect(blocks("WAVE 1")).toEqual(["0-head-upper"]);
+    expect(blocks("WAVE 2")).toEqual(["0-head-lower"]);
     expect(spans("FILTER 1")).toEqual(["1 / span 2"]);
     expect(spans("FILTER 2")).toEqual(["1 / span 2"]);
     expect(spans("AMP 1")).toEqual(["1"]);

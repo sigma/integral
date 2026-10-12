@@ -79,117 +79,93 @@ export function PartialPair({
   const merged = !!routing.join;
   /** A box's partial number, shown only once the pair is merged. */
   const nOf = (side: Side) => (merged ? number[side] : undefined);
+  const followsFor = (side: Side) => (merged && side === "upper" ? number.lower : undefined);
   const gridRef = useRef<HTMLDivElement>(null);
+
+  /** One box of a block, dimmed with its own partial's power. */
+  const box = (key: string, side: Side, content: ReactNode) => (
+    <div key={key} className={`${css.blockBox} ${sides[side].isOn ? "" : css.partialDimmed}`}>{content}</div>
+  );
+  const pathBox = (b: Block, key: string): ReactNode => {
+    if (b.kind === "booster") {
+      return <div key={key} className={css.inlineGlyph} title="Booster: distorts the signal (depth set by Boost in PARTIAL MIX)">B</div>;
+    }
+    const side = b.side;
+    const p = sides[side].partial;
+    if (!p) return null;
+    if (b.kind === "filter") return box(key, side, <TvfSection partial={p} set={setters[side]} n={nOf(side)} />);
+    if (b.kind === "amp") {
+      return box(key, side, <TvaSection partial={p} set={setters[side]} n={nOf(side)} follows={followsFor(side)} />);
+    }
+    return null; // WAVE heads its lane
+  };
+  const outputBox = (side: Side, n?: number): ReactNode => {
+    const p = sides[side].partial;
+    return p && box(`out-${side}`, side, <OutputSection partial={p} set={setters[side]} n={n} />);
+  };
 
   const cells: ReactNode[] = [];
   const edges: Edge[] = [];
-  /** The last box placed in each row: where its lane leaves for the join. */
-  const laneEnd: Record<Side, string> = { upper: "", lower: "" };
-  let col = 1;
   /**
-   * Place a box at `column`: in its partial's row, or centred between both
-   * rows when the two lanes have merged. `node` names it for the arrows.
+   * Place a block at `column`: in its partial's row, or centred across both
+   * rows once the lanes have merged. `node` names it for the arrows.
    */
-  const place = (node: string, row: Side | "both", column: number, content: ReactNode, dim: boolean) => {
+  const place = (node: string, row: Side | "both", column: number, content: ReactNode, block = true) => {
     cells.push(
-      <div key={node} data-node={node}
-        className={`${row === "both" ? css.pairCellMerged : css.pairCell} ${dim ? css.partialDimmed : ""}`}
+      <div key={node} data-node={node} className={`${block ? css.block : css.pairCell} ${row === "both" ? css.mergedCell : ""}`}
         style={{ gridColumn: column, gridRow: row === "both" ? "1 / span 2" : row === "upper" ? 1 : 2 }}>
         {content}
       </div>,
     );
-    if (row !== "both") laneEnd[row] = node;
-  };
-  /** An empty column the arrows bend through, meeting at a glyph. */
-  const gap = () => {
-    cells.push(<div key={`gap${col}`} className={css.joinGap} style={{ gridColumn: col, gridRow: "1 / span 2" }} />);
-    col++;
-  };
-  const perRow = (key: string, render: (side: Side, p: PcmSynthPartial) => ReactNode) => {
-    for (const side of ["upper", "lower"] as const) {
-      const p = sides[side].partial;
-      if (p) place(`${first}-${key}-${side}`, side, col, render(side, p), !sides[side].isOn);
-    }
-    col++;
-  };
-  const block = (b: Block): ((side: Side, p: PcmSynthPartial) => ReactNode) | null => {
-    if (b.kind === "filter") return (side, p) => <TvfSection partial={p} set={setters[side]} n={nOf(side)} />;
-    if (b.kind === "amp") {
-      return (side, p) => (
-        <TvaSection partial={p} set={setters[side]} n={nOf(side)} follows={merged && side === "upper" ? number.lower : undefined} />
-      );
-    }
-    return null; // WAVE has its own column; the booster is a glyph
   };
 
+  const lastBlock: Record<Side, string> = { upper: "", lower: "" };
+  const preColumn = routing.upper.length > 1 || routing.lower.length > 1 || !merged;
   for (const side of ["upper", "lower"] as const) {
+    const p = sides[side].partial;
+    const idx = side === "upper" ? first : first + 1;
     place(`${first}-power-${side}`, side, 1, (
       <PartialPowerButton label={`Partial ${number[side]}`} isOn={sides[side].isOn}
         onToggle={() => sides[side].onSwitch(sides[side].isOn ? 0 : 1)} />
     ), false);
-  }
-  col = 2;
-  const followsFor = (side: Side) => (merged && side === "upper" ? number.lower : undefined);
-  perRow("lfo1", (side, p) => <Lfo1Section partial={p} set={setters[side]} n={nOf(side)} follows={followsFor(side)} />);
-  perRow("lfo2", (side, p) => <Lfo2Section partial={p} set={setters[side]} n={nOf(side)} follows={followsFor(side)} />);
-  perRow("step", (side, p) => (
-    <StepLfoSection partial={p} set={setters[side]} n={nOf(side)}
-      dimmed={!isStepWaveform(p.lfo1Waveform) && !isStepWaveform(p.lfo2Waveform)} />
-  ));
-  perRow("wave", (side, p) => <WaveSection partial={p} set={setters[side]} n={nOf(side)} marking={marking} />);
-  perRow("pitch", (side, p) => <PitchSection partial={p} set={setters[side]} n={nOf(side)} />);
-  perRow("control", (side, p) => <ControlSection partial={p} set={setters[side]} n={nOf(side)} />);
-
-  // Blocks before the join, in each partial's own row (WAVE already placed).
-  const pre = { upper: routing.upper.slice(1), lower: routing.lower.slice(1) };
-  const preColumns = Math.max(pre.upper.length, pre.lower.length);
-  for (let i = 0; i < preColumns; i++) {
-    for (const side of ["upper", "lower"] as const) {
-      const b = pre[side][i];
-      const p = sides[side].partial;
-      const render = b && block(b);
-      if (render && p) place(`${first}-pre${i}-${side}`, side, col, render(side, p), !sides[side].isOn);
+    if (!p) continue;
+    const set = setters[side];
+    // Modulation sources: detached from the signal path, no arrows.
+    place(`${first}-lfo-${side}`, side, 2, [
+      box("lfo1", side, <Lfo1Section partial={p} set={set} n={nOf(side)} follows={followsFor(side)} />),
+      box("lfo2", side, <Lfo2Section partial={p} set={set} n={nOf(side)} follows={followsFor(side)} />),
+      box("step", side, <StepLfoSection partial={p} set={set} n={nOf(side)}
+        dimmed={!isStepWaveform(p.lfo1Waveform) && !isStepWaveform(p.lfo2Waveform)} />),
+    ]);
+    // The lane's head: the wave and what shapes it, aligned in both rows.
+    const head = `${first}-head-${side}`;
+    place(head, side, 3, [
+      box("wave", side, <WaveSection partial={p} set={set} n={nOf(side)} marking={marking} />),
+      box("pitch", side, <PitchSection partial={p} set={set} n={nOf(side)} />),
+      box("control", side, <ControlSection partial={p} set={set} n={nOf(side)} />),
+    ]);
+    lastBlock[side] = head;
+    // The lane's own blocks before the join; independent lanes end in their OUTPUT.
+    const pre = routing[side].slice(1).map((b, i) => pathBox(b, `pre${i}`));
+    if (!merged) pre.push(outputBox(side));
+    if (pre.length) {
+      const node = merged ? `${first}-pre-${side}` : `out-${idx}`;
+      place(node, side, 4, pre);
+      edges.push({ from: head, to: node });
+      lastBlock[side] = node;
     }
-    col++;
   }
 
   const join = routing.join;
   if (join) {
-    // Both lanes curve into the first merged box, meeting at the join's glyph.
-    let glyph: string = JOIN_GLYPHS[join.kind] + (join.lowerDry ? "+" : "");
-    let into = (to: string) => {
-      edges.push({ from: laneEnd.upper, to, glyph }, { from: laneEnd.lower, to, glyph });
-    };
-    gap();
-    join.after.forEach((b, i) => {
-      if (b.kind === "booster") {
-        // A booster mid-chain: the next box is reached through a B glyph.
-        gap();
-        const prev = laneEnd.upper;
-        into = (to) => edges.push({ from: prev, to, glyph: "B" });
-        return;
-      }
-      const side = b.side;
-      const p = sides[side].partial;
-      const render = block(b);
-      const node = `${first}-after${i}`;
-      if (render && p) {
-        place(node, "both", col++, render(side, p), !sides[side].isOn);
-        into(node);
-        laneEnd.upper = laneEnd.lower = node;
-        into = () => {};
-      }
-      glyph = "";
-    });
-    // The pair has one output, through the lower partial.
-    const p = lower.partial;
-    if (p) place(`out-${first + 1}`, "both", col, <OutputSection partial={p} set={setters.lower} n={number.lower} />, !lower.isOn);
-  } else {
-    for (const side of ["upper", "lower"] as const) {
-      const p = sides[side].partial;
-      const idx = side === "upper" ? first : first + 1;
-      if (p) place(`out-${idx}`, side, col, <OutputSection partial={p} set={setters[side]} />, !sides[side].isOn);
-    }
+    // After the join: one block, centred on both lanes, ending in the pair's single output.
+    const node = `out-${first + 1}`;
+    place(node, "both", preColumn ? 5 : 4, [
+      ...join.after.map((b, i) => pathBox(b, `after${i}`)),
+      outputBox("lower", number.lower),
+    ]);
+    const glyph = JOIN_GLYPHS[join.kind] + (join.lowerDry ? "+" : "");
+    edges.push({ from: lastBlock.upper, to: node, glyph }, { from: lastBlock.lower, to: node, glyph });
   }
 
   return (

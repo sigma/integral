@@ -8,8 +8,8 @@ describe("arrowPath", () => {
     expect(arrowPath(box(0, 50), box(200, 100))).toBe("M 100 50 C 150 50 150 100 200 100");
   });
 
-  it("draws nothing between boxes in line", () => {
-    expect(arrowPath(box(0, 50), box(200, 50))).toBeNull();
+  it("runs straight between boxes in line", () => {
+    expect(arrowPath(box(0, 50), box(200, 50))).toBe("M 100 50 C 150 50 150 50 200 50");
   });
 
   it("ends at the glyph left of the target, even in line", () => {
