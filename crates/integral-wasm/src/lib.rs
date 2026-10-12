@@ -1980,6 +1980,53 @@ fn wrap_fx_params(params: &[fx_params::FxParamDef]) -> Vec<WasmFxParamDef> {
     params.iter().cloned().map(wrap_fx_param).collect()
 }
 
+/// Range, default and display format of a tone block field.
+#[wasm_bindgen]
+pub struct WasmFieldSpec {
+    /// Minimum raw value.
+    #[wasm_bindgen(readonly)]
+    pub min: i32,
+    /// Maximum raw value.
+    #[wasm_bindgen(readonly)]
+    pub max: i32,
+    /// Default raw value.
+    #[wasm_bindgen(readonly, js_name = defaultValue)]
+    pub default_value: i32,
+    format: param_registry::ParamFormat,
+}
+
+#[wasm_bindgen]
+impl WasmFieldSpec {
+    /// Format a raw value for display.
+    #[wasm_bindgen(js_name = formatValue)]
+    pub fn format_value(&self, value: i32) -> String {
+        self.format.format(value)
+    }
+}
+
+fn wrap_field_spec(spec: param_registry::FieldSpec) -> WasmFieldSpec {
+    WasmFieldSpec {
+        min: spec.min,
+        max: spec.max,
+        default_value: spec.default,
+        format: spec.format,
+    }
+}
+
+/// Spec of a PCM Synth Tone Partial field; `undefined` for fields not
+/// specified yet.
+#[wasm_bindgen]
+pub fn pcms_partial_spec(field: PcmsPartialField) -> Option<WasmFieldSpec> {
+    param_registry::pcms_partial_spec(field.into()).map(wrap_field_spec)
+}
+
+/// Spec of a PCM Drum Kit Partial field; `undefined` for fields not
+/// specified yet.
+#[wasm_bindgen]
+pub fn pcmd_partial_spec(field: PcmdPartialField) -> Option<WasmFieldSpec> {
+    param_registry::pcmd_partial_spec(field.into()).map(wrap_field_spec)
+}
+
 /// Returns chorus parameter definitions for the given type index.
 #[wasm_bindgen]
 pub fn chorus_params(chorus_type: u8) -> Vec<WasmFxParamDef> {

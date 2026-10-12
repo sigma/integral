@@ -6,6 +6,8 @@ use std::fmt::Write;
 use std::sync::{Mutex, OnceLock};
 
 use crate::device_spec::{INTEGRA7, MIDI_CHANNELS};
+use crate::pcm_drum::PcmdPartialField;
+use crate::pcm_synth::PcmsPartialField;
 
 /// How a parameter value should be displayed.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,33 +73,99 @@ pub struct ParamDef {
 /// Returns the formatted string. Out-of-range named indices fall back to the
 /// raw numeric representation.
 pub fn format_value(def: &ParamDef, value: i32) -> String {
-    match &def.format {
-        ParamFormat::Raw => value.to_string(),
-        ParamFormat::SignedCenter(center) => {
-            let offset = value - center;
-            if offset > 0 {
-                let mut s = String::new();
-                let _ = write!(s, "+{offset}");
-                s
-            } else {
-                offset.to_string()
+    def.format.format(value)
+}
+
+impl ParamFormat {
+    /// Format a raw value; out-of-range named indices fall back to the raw
+    /// number.
+    pub fn format(&self, value: i32) -> String {
+        match self {
+            ParamFormat::Raw => value.to_string(),
+            ParamFormat::SignedCenter(center) => {
+                let offset = value - center;
+                if offset > 0 {
+                    let mut s = String::new();
+                    let _ = write!(s, "+{offset}");
+                    s
+                } else {
+                    offset.to_string()
+                }
+            }
+            ParamFormat::Named(names) => {
+                let idx = value as usize;
+                if idx < names.len() {
+                    names[idx].to_string()
+                } else {
+                    value.to_string()
+                }
+            }
+            ParamFormat::OnOff => {
+                if value == 0 {
+                    "OFF".to_string()
+                } else {
+                    "ON".to_string()
+                }
             }
         }
-        ParamFormat::Named(names) => {
-            let idx = value as usize;
-            if idx < names.len() {
-                names[idx].to_string()
-            } else {
-                value.to_string()
-            }
-        }
-        ParamFormat::OnOff => {
-            if value == 0 {
-                "OFF".to_string()
-            } else {
-                "ON".to_string()
-            }
-        }
+    }
+}
+
+/// Range, default and display format of a tone block field, looked up by
+/// the field itself rather than by a string id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FieldSpec {
+    /// Minimum raw value (inclusive).
+    pub min: i32,
+    /// Maximum raw value (inclusive).
+    pub max: i32,
+    /// Default raw value.
+    pub default: i32,
+    /// Display format.
+    pub format: ParamFormat,
+}
+
+/// Cents for each Random Pitch Depth value (0-30), shared by PCM Synth
+/// Tone and PCM Drum Kit partials.
+static RANDOM_PITCH_CENTS: &[&str] = &[
+    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "20", "30", "40", "50", "60", "70",
+    "80", "90", "100", "200", "300", "400", "500", "600", "700", "800", "900", "1000", "1100",
+    "1200",
+];
+
+const RANDOM_PITCH_DEPTH: FieldSpec = FieldSpec {
+    min: 0,
+    max: 30,
+    default: 0,
+    format: ParamFormat::Named(RANDOM_PITCH_CENTS),
+};
+
+/// Pitch Env Depth, -12 to +12 semitones, shared by PCM Synth Tone and PCM
+/// Drum Kit partials.
+const PITCH_ENV_DEPTH: FieldSpec = FieldSpec {
+    min: 52,
+    max: 76,
+    default: 64,
+    format: ParamFormat::SignedCenter(64),
+};
+
+/// The spec of a PCM Synth Tone Partial field, for the fields specified so
+/// far; `None` for the rest.
+pub fn pcms_partial_spec(field: PcmsPartialField) -> Option<FieldSpec> {
+    match field {
+        PcmsPartialField::RandomPitchDepth => Some(RANDOM_PITCH_DEPTH),
+        PcmsPartialField::PitchEnvDepth => Some(PITCH_ENV_DEPTH),
+        _ => None,
+    }
+}
+
+/// The spec of a PCM Drum Kit Partial field, for the fields specified so
+/// far; `None` for the rest.
+pub fn pcmd_partial_spec(field: PcmdPartialField) -> Option<FieldSpec> {
+    match field {
+        PcmdPartialField::RandomPitchDepth => Some(RANDOM_PITCH_DEPTH),
+        PcmdPartialField::PitchEnvDepth => Some(PITCH_ENV_DEPTH),
+        _ => None,
     }
 }
 
@@ -693,6 +761,31 @@ mod tests {
         let def = lookup(&params, "part.0.mute").unwrap();
         assert_eq!(format_value(def, 0), "OFF");
         assert_eq!(format_value(def, 1), "ON");
+    }
+
+    #[test]
+    fn random_pitch_depth_shows_cents() {
+        let spec = pcms_partial_spec(PcmsPartialField::RandomPitchDepth).unwrap();
+        assert_eq!((spec.min, spec.max), (0, 30));
+        assert_eq!(RANDOM_PITCH_CENTS.len(), 31);
+        assert_eq!(spec.format.format(10), "10");
+        assert_eq!(spec.format.format(11), "20");
+        assert_eq!(spec.format.format(30), "1200");
+        assert_eq!(
+            pcmd_partial_spec(PcmdPartialField::RandomPitchDepth),
+            Some(spec)
+        );
+    }
+
+    #[test]
+    fn pitch_env_depth_spans_an_octave_each_way() {
+        let spec = pcms_partial_spec(PcmsPartialField::PitchEnvDepth).unwrap();
+        assert_eq!(spec.format.format(spec.min), "-12");
+        assert_eq!(spec.format.format(spec.max), "+12");
+        assert_eq!(
+            pcmd_partial_spec(PcmdPartialField::PitchEnvDepth),
+            Some(spec)
+        );
     }
 
     #[test]

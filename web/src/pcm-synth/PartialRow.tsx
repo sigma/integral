@@ -9,7 +9,8 @@ import {
   FaderGroup,
   OutputStrip,
 } from "../synth-ui";
-import { PcmsPartialField } from "../../pkg/integral_wasm.js";
+import { PcmsPartialField, pcms_partial_spec } from "../../pkg/integral_wasm.js";
+import { knobRange } from "../fieldSpec";
 import css from "../PcmSynthEditor.module.css";
 import type { PartialParamHandler, PartialSetter, PcmSynthPartial } from "./types";
 import { WavePicker, type ExpansionMarking } from "../WavePicker";
@@ -166,14 +167,16 @@ function PitchSection({
         <SynthKnob label="Fine" value={partial.fineTune} min={14} max={114} defaultValue={64} center={64}
           onChange={set(PcmsPartialField.FineTune, "fineTune")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Fine tuning (cents)" />
-        <SynthKnob label="Random" value={partial.randomPitchDepth} min={0} max={127} defaultValue={0}
-          onChange={set(PcmsPartialField.RandomPitchDepth, "randomPitchDepth")} formatValue={(v) => String(v)} color="#fc8"
-          title="Random pitch variation on each note" />
+        <SynthKnob label="Random" value={partial.randomPitchDepth}
+          {...knobRange(pcms_partial_spec(PcmsPartialField.RandomPitchDepth))}
+          onChange={set(PcmsPartialField.RandomPitchDepth, "randomPitchDepth")} color="#fc8"
+          title="Random pitch variation on each note (cents)" />
       </div>
       <div className={css.panelRow}>
-        <SynthKnob label="Depth" value={partial.pitchEnvDepth} min={1} max={127} defaultValue={64} center={64}
-          onChange={set(PcmsPartialField.PitchEnvDepth, "pitchEnvDepth")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
-          title="Pitch envelope depth — how much the envelope affects pitch" />
+        <SynthKnob label="Depth" value={partial.pitchEnvDepth} center={64}
+          {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvDepth))}
+          onChange={set(PcmsPartialField.PitchEnvDepth, "pitchEnvDepth")} color="#fc8"
+          title="Pitch envelope depth (semitones) — how much the envelope affects pitch" />
         <SynthKnob label="Vel Sns" value={partial.pitchEnvVelocitySens} min={1} max={127} defaultValue={64} center={64}
           onChange={set(PcmsPartialField.PitchEnvVelocitySens, "pitchEnvVelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Velocity sensitivity — how key velocity affects envelope depth" />

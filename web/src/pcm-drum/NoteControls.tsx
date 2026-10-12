@@ -7,7 +7,7 @@ import {
   BreakpointEnvelope,
   OutputStrip,
 } from "../synth-ui";
-import { PcmdPartialField, PcmdWmtField } from "../../pkg/integral_wasm.js";
+import { PcmdPartialField, PcmdWmtField, pcmd_partial_spec } from "../../pkg/integral_wasm.js";
 import type {
   PartialParamHandler,
   PartialSetter,
@@ -28,6 +28,7 @@ import {
   WMT_VELOCITY_CTRL_OPTIONS,
   ALT_PAN_OPTIONS,
 } from "./types";
+import { knobRange } from "../fieldSpec";
 import { deviceSpec } from "../deviceSpec";
 import { WavePicker, type ExpansionMarking } from "../WavePicker";
 import { waveSourceOf } from "../waveCatalog";
@@ -290,8 +291,9 @@ function PitchEnvSection({
   return (
     <SectionPanel label="PITCH ENV" accentColor="#fc8">
       <div className={css.knobRow}>
-        <SynthKnob label="Depth" value={note.pitchEnvDepth} min={52} max={76} defaultValue={64} center={64}
-          onChange={set(PcmdPartialField.PitchEnvDepth, "pitchEnvDepth")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
+        <SynthKnob label="Depth" value={note.pitchEnvDepth} center={64}
+          {...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvDepth))}
+          onChange={set(PcmdPartialField.PitchEnvDepth, "pitchEnvDepth")} color="#fc8"
           title="Pitch envelope depth (-12 to +12)" />
         <SynthKnob label="Vel Sns" value={note.pitchEnvVelocitySens} min={1} max={127} defaultValue={64} center={64}
           onChange={set(PcmdPartialField.PitchEnvVelocitySens, "pitchEnvVelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
@@ -529,9 +531,10 @@ function MiscSection({
         <SynthKnob label="Fine" value={note.fineTune} min={14} max={114} defaultValue={64} center={64}
           onChange={set(PcmdPartialField.FineTune, "fineTune")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
           title="Partial Fine Tune (-50 to +50)" />
-        <SynthKnob label="Rnd Pit" value={note.randomPitchDepth} min={0} max={30} defaultValue={0}
-          onChange={set(PcmdPartialField.RandomPitchDepth, "randomPitchDepth")} formatValue={(v) => String(v)} color="#fc8"
-          title="Random Pitch Depth" />
+        <SynthKnob label="Rnd Pit" value={note.randomPitchDepth} 
+          {...knobRange(pcmd_partial_spec(PcmdPartialField.RandomPitchDepth))}
+          onChange={set(PcmdPartialField.RandomPitchDepth, "randomPitchDepth")} color="#fc8"
+          title="Random Pitch Depth (cents)" />
       </div>
       <div className={css.miscRow}>
         <SynthSwitch label="RxExpr" value={note.receiveExpression}
