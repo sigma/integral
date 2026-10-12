@@ -89,6 +89,11 @@
   flex-wrap: wrap;
 }
 
+.structureDiagram {
+  display: block;
+  flex-shrink: 0;
+}
+
 .pmtPartialRow {
   display: flex;
   align-items: center;

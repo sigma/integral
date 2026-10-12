@@ -2051,6 +2051,18 @@ pub fn velocity_curve(curve: u8, v: f64) -> f64 {
     integral_core::velocity_curve::velocity_curve(curve, v)
 }
 
+/// Signal routing of PCM Synth Structure Type `structure` (0-9), as
+/// `{ upper, lower, join? }`; see [`integral_core::pcm_structure::Routing`].
+///
+/// # Errors
+/// `structure` is out of range.
+#[wasm_bindgen]
+pub fn pcms_structure_routing(structure: u8) -> Result<JsValue, JsError> {
+    let routing = integral_core::pcm_structure::routing(structure)
+        .ok_or_else(|| JsError::new("structure type out of range"))?;
+    serde_wasm_bindgen::to_value(&routing).map_err(|e| JsError::new(&e.to_string()))
+}
+
 /// Returns chorus parameter definitions for the given type index.
 #[wasm_bindgen]
 pub fn chorus_params(chorus_type: u8) -> Vec<WasmFxParamDef> {
