@@ -993,7 +993,7 @@ const MFX_36_3TAP_PAN_DELAY: &[FxParamDef] = &[
         .note_by_default(),
     param(9, "Center Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
     param(10, "HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(11, "Left Level ", 0, 127, 127, FxUnit::Plain),
+    param(11, "Left Level", 0, 127, 127, FxUnit::Plain),
     param(12, "Right Level", 0, 127, 127, FxUnit::Plain),
     param(13, "Center Level", 0, 127, 127, FxUnit::Plain),
     param(14, "Low Gain", 0, 30, 15, GAIN_DB),

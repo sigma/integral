@@ -146,7 +146,8 @@ const consts = T.map((x, id) => {
         leaves[k - 1]?.desc.endsWith("(sync sw)"))
         ? m0
         : null;
-    const label = m0 ? m0[1] : l.desc;
+    // Roland's labels can carry stray spaces (3Tap Pan Delay "Left Level ").
+    const label = (m0 ? m0[1] : l.desc).trim();
     if (m && m[2] === "sync sw") continue;
     if (m && m[2] === "note") continue;
     const st = (v) => v - 32768;
