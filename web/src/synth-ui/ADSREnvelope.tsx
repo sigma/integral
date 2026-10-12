@@ -6,7 +6,8 @@ type Stage = Omit<ComponentProps<typeof SynthFader>, "compact">;
 
 interface Props {
   attack: Stage;
-  decay: Stage;
+  /** Decay time; leave it out (with sustain) for an AR envelope. */
+  decay?: Stage;
   /** Sustain level and release time; give both for an ADSR, neither for an AD. */
   sustain?: Stage;
   release?: Stage;
@@ -19,10 +20,15 @@ function normalize(s: Stage): number {
 
 const CURVE_H = 40;
 
-/** A/D or A/D/S/R fader row with the envelope shape drawn above it. */
+/** A/D, A/R or A/D/S/R fader row with the envelope shape drawn above it. */
 export function ADSREnvelope({ attack, decay, sustain, release, compact }: Props) {
   let path: string;
-  if (sustain && release) {
+  if (!decay && release) {
+    // A/R: rise, hold while the key is down, fall.
+    const aX = normalize(attack) * 0.35;
+    const hold = aX + 0.25;
+    path = `M 0 1 L ${aX} 0 L ${hold} 0 L ${hold + normalize(release) * 0.35} 1`;
+  } else if (decay && sustain && release) {
     const aX = normalize(attack) * 0.25;
     const dX = aX + normalize(decay) * 0.25;
     const sY = 1 - normalize(sustain);
@@ -30,7 +36,7 @@ export function ADSREnvelope({ attack, decay, sustain, release, compact }: Props
     path = `M 0 1 L ${aX} 0 L ${dX} ${sY} L ${sEnd} ${sY} L ${sEnd + normalize(release) * 0.25} 1`;
   } else {
     const aX = normalize(attack) * 0.5;
-    path = `M 0 1 L ${aX} 0 L ${aX + normalize(decay) * 0.45} 1`;
+    path = `M 0 1 L ${aX} 0 L ${aX + (decay ? normalize(decay) : 0) * 0.45} 1`;
   }
 
   return (
@@ -41,7 +47,7 @@ export function ADSREnvelope({ attack, decay, sustain, release, compact }: Props
       </svg>
       <div className={css.faders}>
         <SynthFader {...attack} compact={compact} />
-        <SynthFader {...decay} compact={compact} />
+        {decay && <SynthFader {...decay} compact={compact} />}
         {sustain && <SynthFader {...sustain} compact={compact} />}
         {release && <SynthFader {...release} compact={compact} />}
       </div>

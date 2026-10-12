@@ -15,7 +15,7 @@ import {
   SynthSwitch,
   SectionPanel,
   FaderGroup,
-  FaderGroupSep,
+  ADSREnvelope,
 } from "./synth-ui";
 import { MfxPanel } from "./MfxPanel";
 import { useMfxHandlers } from "./useMfxHandlers";
@@ -221,9 +221,9 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
         <div className={css.toneName}>{common.toneName || "(unnamed)"}</div>
       )}
 
-      {/* Three boxes side by side: Common | Instrument | MFX */}
+      {/* Side by side: the tone-wide boxes, the instrument, then the MFX */}
       <div className={css.mainArea}>
-        {common && <CommonPanel common={common} onChange={setCommonParam} />}
+        {common && <CommonPanels common={common} onChange={setCommonParam} />}
         {common && categoryName && (
           <InstrumentPanel
             categoryName={categoryName}
@@ -244,10 +244,10 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
 }
 
 // ---------------------------------------------------------------------------
-// Common Controls Strip
+// Tone-wide boxes: COMMON, VIBRATO, FILTER, AMP, ENV
 // ---------------------------------------------------------------------------
 
-function CommonPanel({
+function CommonPanels({
   common,
   onChange,
 }: {
@@ -258,48 +258,71 @@ function CommonPanel({
     (field: SnaCommonField, key: Parameters<CommonParamHandler>[1]) =>
     (v: number) =>
       onChange(field, key, v);
+  const offset = (v: number) => signedFmt(v, 64);
   return (
-    <SectionPanel label="COMMON" accentColor="#8cf">
-      <div className={css.panelRow}>
-        <SynthSwitch label="Mono/Poly" value={common.monoPoly} options={MONO_POLY_OPTIONS}
-          onChange={set(SnaCommonField.MonoPoly, "monoPoly")} />
-        <SynthKnob label="Oct" value={common.octaveShift} min={61} max={67} defaultValue={64} center={64}
-          onChange={set(SnaCommonField.OctaveShift, "octaveShift")} formatValue={(v) => signedFmt(v, 64)} color="#8cf"
-          title="Octave Shift" />
-        <SynthKnob label="Cutoff" value={common.cutoffOffset} min={0} max={127} defaultValue={64} center={64}
-          onChange={set(SnaCommonField.CutoffOffset, "cutoffOffset")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
-          title="Cutoff Offset" />
-        <SynthKnob label="Reso" value={common.resonanceOffset} min={0} max={127} defaultValue={64} center={64}
-          onChange={set(SnaCommonField.ResonanceOffset, "resonanceOffset")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
-          title="Resonance Offset" />
-      </div>
-      <div className={css.panelRow}>
-        <SynthKnob label="Port" value={common.portamentoTimeOffset} min={0} max={127} defaultValue={64} center={64}
-          onChange={set(SnaCommonField.PortamentoTimeOffset, "portamentoTimeOffset")} formatValue={(v) => signedFmt(v, 64)} color="#8cf"
-          title="Portamento Time Offset" />
-        <SynthKnob label="Vib Rt" value={common.vibratoRate} min={0} max={127} defaultValue={64} center={64}
-          onChange={set(SnaCommonField.VibratoRate, "vibratoRate")} formatValue={(v) => signedFmt(v, 64)} color="#a6f"
-          title="Vibrato Rate" />
-        <SynthKnob label="Vib Dp" value={common.vibratoDepth} min={0} max={127} defaultValue={64} center={64}
-          onChange={set(SnaCommonField.VibratoDepth, "vibratoDepth")} formatValue={(v) => signedFmt(v, 64)} color="#a6f"
-          title="Vibrato Depth" />
-        <SynthKnob label="Vib Dl" value={common.vibratoDelay} min={0} max={127} defaultValue={64} center={64}
-          onChange={set(SnaCommonField.VibratoDelay, "vibratoDelay")} formatValue={(v) => signedFmt(v, 64)} color="#a6f"
-          title="Vibrato Delay" />
-      </div>
-      <FaderGroup>
-        <SynthFader label="Level" value={common.toneLevel} min={0} max={127} defaultValue={127}
-          onChange={set(SnaCommonField.ToneLevel, "toneLevel")} formatValue={(v) => String(v)} compact
-          title="Tone Level" />
-        <FaderGroupSep />
-        <SynthFader label="Atk" value={common.attackTimeOffset} min={0} max={127} defaultValue={64}
-          onChange={set(SnaCommonField.AttackTimeOffset, "attackTimeOffset")} formatValue={(v) => signedFmt(v, 64)} compact
-          title="Attack Time Offset" />
-        <SynthFader label="Rel" value={common.releaseTimeOffset} min={0} max={127} defaultValue={64}
-          onChange={set(SnaCommonField.ReleaseTimeOffset, "releaseTimeOffset")} formatValue={(v) => signedFmt(v, 64)} compact
-          title="Release Time Offset" />
-      </FaderGroup>
-    </SectionPanel>
+    <>
+      <SectionPanel label="COMMON" accentColor="#8cf">
+        <div className={css.panelRow}>
+          <SynthSwitch label="Mono/Poly" value={common.monoPoly} options={MONO_POLY_OPTIONS}
+            onChange={set(SnaCommonField.MonoPoly, "monoPoly")} />
+          <SynthKnob label="Oct" value={common.octaveShift} min={61} max={67} defaultValue={64} center={64}
+            onChange={set(SnaCommonField.OctaveShift, "octaveShift")} formatValue={offset} color="#8cf"
+            title="Octave Shift" />
+          <SynthKnob label="Port" value={common.portamentoTimeOffset} min={0} max={127} defaultValue={64} center={64}
+            onChange={set(SnaCommonField.PortamentoTimeOffset, "portamentoTimeOffset")} formatValue={offset} color="#8cf"
+            title="Portamento Time Offset" />
+        </div>
+      </SectionPanel>
+
+      <SectionPanel label="VIBRATO" accentColor="#a6f">
+        <div className={css.panelRow}>
+          <SynthKnob label="Rate" value={common.vibratoRate} min={0} max={127} defaultValue={64} center={64}
+            onChange={set(SnaCommonField.VibratoRate, "vibratoRate")} formatValue={offset} color="#a6f"
+            title="Vibrato Rate (offset)" />
+          <SynthKnob label="Depth" value={common.vibratoDepth} min={0} max={127} defaultValue={64} center={64}
+            onChange={set(SnaCommonField.VibratoDepth, "vibratoDepth")} formatValue={offset} color="#a6f"
+            title="Vibrato Depth (offset)" />
+          <SynthKnob label="Delay" value={common.vibratoDelay} min={0} max={127} defaultValue={64} center={64}
+            onChange={set(SnaCommonField.VibratoDelay, "vibratoDelay")} formatValue={offset} color="#a6f"
+            title="Vibrato Delay (offset)" />
+        </div>
+      </SectionPanel>
+
+      <SectionPanel label="FILTER" accentColor="#68c">
+        <div className={css.panelRow}>
+          <SynthKnob label="Cutoff" value={common.cutoffOffset} min={0} max={127} defaultValue={64} center={64}
+            onChange={set(SnaCommonField.CutoffOffset, "cutoffOffset")} formatValue={offset} color="#68c"
+            title="Cutoff Offset" />
+          <SynthKnob label="Reso" value={common.resonanceOffset} min={0} max={127} defaultValue={64} center={64}
+            onChange={set(SnaCommonField.ResonanceOffset, "resonanceOffset")} formatValue={offset} color="#68c"
+            title="Resonance Offset" />
+        </div>
+      </SectionPanel>
+
+      <SectionPanel label="AMP" accentColor="#6c8">
+        <FaderGroup>
+          <SynthFader label="Level" value={common.toneLevel} min={0} max={127} defaultValue={127}
+            onChange={set(SnaCommonField.ToneLevel, "toneLevel")} formatValue={(v) => String(v)} compact
+            title="Tone Level" />
+        </FaderGroup>
+      </SectionPanel>
+
+      <SectionPanel label="ENV" accentColor="#6c8">
+        <ADSREnvelope
+          compact
+          attack={{
+            label: "Atk", value: common.attackTimeOffset, min: 0, max: 127, defaultValue: 64,
+            onChange: set(SnaCommonField.AttackTimeOffset, "attackTimeOffset"), formatValue: offset,
+            title: "Attack Time Offset",
+          }}
+          release={{
+            label: "Rel", value: common.releaseTimeOffset, min: 0, max: 127, defaultValue: 64,
+            onChange: set(SnaCommonField.ReleaseTimeOffset, "releaseTimeOffset"), formatValue: offset,
+            title: "Release Time Offset",
+          }}
+        />
+      </SectionPanel>
+    </>
   );
 }
 
