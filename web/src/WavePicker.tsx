@@ -3,9 +3,10 @@
  *
  * In stereo mode: a Wave Group dropdown and two independent rows,
  * `L ‹ name ›` and `R ‹ name ›`, with a "pair" shortcut on L, a clear (×)
- * on R and a warning when L is OFF but R isn't. Otherwise a single row in
- * the given group. Clicking a name opens a popover with search, family
- * chips and an OFF entry. Names, families and Stereo pairs come from core.
+ * on R and a warning when L is OFF but R isn't. Otherwise a single, larger
+ * name button in the given group, without the group label or steppers.
+ * Clicking a name opens a popover with search, family chips and an OFF
+ * entry. Names, families and Stereo pairs come from core.
  */
 
 import {
@@ -150,7 +151,10 @@ export function WavePicker({
   );
 }
 
-/** One `‹ name ›` stepper; clicking the name opens the popover. */
+/**
+ * One `‹ group name ›` stepper for a stereo side, or the bare name when
+ * `side` is null; clicking the name opens the popover.
+ */
 function WaveRow({
   side,
   source,
@@ -173,33 +177,37 @@ function WaveRow({
   return (
     <div className={css.row}>
       {side && <span className={css.side}>{side}</span>}
-      <button
-        type="button"
-        className={css.button}
-        aria-label="Previous Wave"
-        disabled={number <= 0}
-        onClick={() => onPick(number - 1)}
-      >
-        ‹
-      </button>
+      {side && (
+        <button
+          type="button"
+          className={css.button}
+          aria-label="Previous Wave"
+          disabled={number <= 0}
+          onClick={() => onPick(number - 1)}
+        >
+          ‹
+        </button>
+      )}
       <button
         type="button"
         ref={anchor}
-        className={css.collapsed}
+        className={`${css.collapsed} ${side ? "" : css.collapsedSingle}`}
         disabled={!source}
         onClick={() => setOpen((v) => !v)}
       >
-        {`${groupLabel} ${pad4(number)} ${name}`}
+        {side ? `${groupLabel} ${pad4(number)} ${name}` : `${pad4(number)} ${name}`}
       </button>
-      <button
-        type="button"
-        className={css.button}
-        aria-label="Next Wave"
-        disabled={number >= count}
-        onClick={() => onPick(number + 1)}
-      >
-        ›
-      </button>
+      {side && (
+        <button
+          type="button"
+          className={css.button}
+          aria-label="Next Wave"
+          disabled={number >= count}
+          onClick={() => onPick(number + 1)}
+        >
+          ›
+        </button>
+      )}
       {children}
       {open && source && (
         <WavePopover

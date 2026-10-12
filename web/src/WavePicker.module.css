@@ -38,6 +38,11 @@
   border-color: #4dff4d;
 }
 
+.collapsedSingle {
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
 .collapsed:disabled {
   color: #888;
   cursor: default;

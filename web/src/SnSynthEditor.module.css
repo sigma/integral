@@ -135,6 +135,11 @@
   min-width: 220px;
 }
 
+/* Centred in its row, rather than hugging the panel's top. */
+.oscPcmSlot {
+  align-self: center;
+}
+
 .scopeKnobRow {
   grid-row: 2;
   display: flex;

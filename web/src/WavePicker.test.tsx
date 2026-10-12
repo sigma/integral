@@ -257,20 +257,21 @@ describe("PCM Drum WMT wiring", () => {
 });
 
 describe("SN Synth OSC PCM Wave wiring", () => {
-  it("shows raw value 1 as JP-8 Saw and steps through the core Wave Number field", () => {
+  it("shows raw value 1 as JP-8 Saw and picks through the core Wave Number field", () => {
     const onChange = vi.fn();
     const { container } = render(<OscPcmWave waveNumber={1} onChange={onChange} />);
-    expect(nameButton(container, 0).textContent).toBe("SN-Synth 0001 JP-8 Saw");
-    // A single row: no group dropdown, no R, no pair, no marker.
-    expect(container.querySelectorAll('[aria-label="Next Wave"]')).toHaveLength(1);
+    const name = container.querySelector("button")!;
+    expect(name.textContent).toBe("0001 JP-8 Saw");
+    // Just the name: no group label, steppers, dropdown, R, pair or marker.
+    expect(container.querySelector('[aria-label="Next Wave"]')).toBeNull();
     expect(container.querySelector('[aria-haspopup="listbox"]')).toBeNull();
     expect(container.textContent).not.toContain("pair");
 
-    click(container.querySelector('[aria-label="Next Wave"]')!);
-    click(container.querySelector('[aria-label="Previous Wave"]')!);
-    expect(onChange.mock.calls).toEqual([
-      [SnsPartialField.WaveNumber, 2],
-      [SnsPartialField.WaveNumber, 0],
-    ]);
+    click(name);
+    const second = [...document.body.querySelectorAll('[role="option"]')].find((o) =>
+      o.textContent?.startsWith("0002"),
+    );
+    click(second!);
+    expect(onChange.mock.calls).toEqual([[SnsPartialField.WaveNumber, 2]]);
   });
 });

@@ -140,7 +140,9 @@ function OscPanel({
         </div>
         <div className={`${css.scopeKnobArea} ${css.oscKnobArea}`}>
           {isPcm ? (
-            <OscPcmWave waveNumber={partial.waveNumber} onChange={onChange} />
+            <div className={css.oscPcmSlot}>
+              <OscPcmWave waveNumber={partial.waveNumber} onChange={onChange} />
+            </div>
           ) : (
             <OscWaveScope wave={OSC_WAVE_NAMES[partial.oscWave] ?? ""}
               pulseWidth={partial.oscPulseWidth} pwmDepth={partial.oscPwModDepth}
