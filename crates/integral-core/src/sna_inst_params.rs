@@ -292,7 +292,7 @@ fn modify_range(name: &str) -> (u8, u8, u8) {
         // 0…127
         "Growl Sens" => (0, 127, 0),
         // -12…+12 semitones
-        // shortcut: the guide gives -12…+12; the raw 52-76 (centred on 64, as other ±12 parameters) is assumed, not documented.
+        // shortcut: the guide gives -12…+12; the raw 52-76 (centred on 64, as other ±12 parameters) is assumed, not documented; device check: #252.
         "Drone Pitch" | "Tambura Pitch" => (52, 76, 64),
         // OFF/ON, and Glide's Porta/Gliss
         "Strum Mode" | "Picking Harmonics" | "Glissando Mode" | "Hold Legato Mode"
