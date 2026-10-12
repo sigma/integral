@@ -20,8 +20,8 @@ const sampleHold = (t: number) => rand(Math.floor(t));
 const rnd = (t: number) => ease(rand(Math.floor(t)), rand(Math.floor(t) + 1), frac(t));
 
 /**
- * One cycle of each LFO shape, keyed by its waveform label: SN-S's
- * LFO_SHAPE_NAMES and PCM-S's core LFO Waveform labels. Shapes follow the
+ * One cycle of each LFO shape, keyed by its waveform label: the SN-S LFO
+ * Shape and PCM-S LFO Waveform labels from core. Shapes follow the
  * INTEGRA-7 Parameter Guide's descriptions (it draws none of them).
  */
 const SHAPES: Record<string, (t: number) => number> = {

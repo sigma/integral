@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { PcmsPartialField, pcms_partial_spec } from "../../pkg/integral_wasm.js";
+import {
+  PcmsPartialField,
+  SnsPartialField,
+  pcms_partial_spec,
+  sns_partial_spec,
+} from "../../pkg/integral_wasm.js";
 import { LfoScope } from "./LfoScope";
-import { LFO_SHAPE_NAMES } from "../sn-synth/types";
 import { switchOptions } from "../fieldSpec";
 import { cleanup, render } from "../test/dom";
 
@@ -16,7 +20,9 @@ function pathOf(shape: string, rate = 0, steps?: number[], smooth?: boolean): st
 
 describe("LfoScope", () => {
   it("draws every SN-S LFO shape", () => {
-    for (const shape of LFO_SHAPE_NAMES) expect(pathOf(shape), shape).toBeTruthy();
+    for (const { label } of switchOptions(sns_partial_spec(SnsPartialField.LfoShape))) {
+      expect(pathOf(label), label).toBeTruthy();
+    }
   });
 
   it("draws every PCM-S LFO waveform, STEP from its pattern", () => {

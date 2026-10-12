@@ -7,7 +7,7 @@
 use crate::address::{Address, DataSize};
 use crate::block_field::BlockField;
 use crate::params;
-use crate::parse_helpers::parse_ascii_name;
+use crate::parse_helpers::{encode_ascii_name, parse_ascii_name};
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -41,6 +41,10 @@ pub const SNS_PARTIAL_COUNT: usize = SNS_PARTIAL_OFFSETS.len();
 /// [`SnSynthPartial::osc_wave`] value selecting a PCM Wave
 /// ([`SnSynthPartial::wave_number`] in the SN Synth Wave list).
 pub const OSC_WAVE_PCM: u8 = 7;
+
+/// [`SnSynthPartial::osc_wave`] value selecting the Super Saw
+/// ([`SnSynthPartial::super_saw_detune`] sets its detune).
+pub const OSC_WAVE_SUPER_SAW: u8 = 6;
 
 /// Compute the absolute SN-S base address for a part.
 const fn sns_base(part_index: u8) -> Address {
@@ -525,7 +529,7 @@ impl Default for SnSynthPartial {
             mod_lfo_rate: 0,
             mod_lfo_tempo_sync: 0,
             mod_lfo_tempo_sync_note: 0,
-            pw_shift: 0,
+            pw_shift: 127, // the full PW range; 0 holds PW-SQR at a square
             mod_lfo_pitch_depth: 64,
             mod_lfo_filter_depth: 64,
             mod_lfo_amp_depth: 64,
@@ -776,6 +780,101 @@ pub fn parse_sns_partial(data: &[u8]) -> Result<SnSynthPartial, crate::ToneParse
     Ok(p)
 }
 
+/// Encode an SN Synth Tone Common block (0x40 bytes), the inverse of
+/// [`parse_sns_common`]. The reserves get 0.
+pub fn encode_sns_common(c: &SnSynthCommon) -> Vec<u8> {
+    let mut data = encode_ascii_name(&c.tone_name, SnsCommonField::ToneLevel.position());
+    data.resize(SNS_COMMON_SIZE, 0);
+    use SnsCommonField as F;
+    F::ToneLevel.set_byte(&mut data, c.tone_level);
+    F::PortamentoSwitch.set_byte(&mut data, c.portamento_switch);
+    F::PortamentoTime.set_byte(&mut data, c.portamento_time);
+    F::MonoSwitch.set_byte(&mut data, c.mono_switch);
+    F::OctaveShift.set_byte(&mut data, c.octave_shift);
+    F::PitchBendRangeUp.set_byte(&mut data, c.pitch_bend_range_up);
+    F::PitchBendRangeDown.set_byte(&mut data, c.pitch_bend_range_down);
+    F::Partial1Switch.set_byte(&mut data, c.partial1_switch);
+    F::Partial1Select.set_byte(&mut data, c.partial1_select);
+    F::Partial2Switch.set_byte(&mut data, c.partial2_switch);
+    F::Partial2Select.set_byte(&mut data, c.partial2_select);
+    F::Partial3Switch.set_byte(&mut data, c.partial3_switch);
+    F::Partial3Select.set_byte(&mut data, c.partial3_select);
+    F::RingSwitch.set_byte(&mut data, c.ring_switch);
+    F::TfxSwitch.set_byte(&mut data, c.tfx_switch);
+    F::UnisonSwitch.set_byte(&mut data, c.unison_switch);
+    F::PortamentoMode.set_byte(&mut data, c.portamento_mode);
+    F::LegatoSwitch.set_byte(&mut data, c.legato_switch);
+    F::AnalogFeel.set_byte(&mut data, c.analog_feel);
+    F::WaveShape.set_byte(&mut data, c.wave_shape);
+    F::ToneCategory.set_byte(&mut data, c.tone_category);
+    F::PhraseNumber.set_nibbles(&mut data, c.phrase_number);
+    F::PhraseOctaveShift.set_byte(&mut data, c.phrase_octave_shift);
+    F::UnisonSize.set_byte(&mut data, c.unison_size);
+    data
+}
+
+/// Encode an SN Synth Tone Partial block (0x3D bytes), the inverse of
+/// [`parse_sns_partial`]. The reserves get 0.
+pub fn encode_sns_partial(p: &SnSynthPartial) -> Vec<u8> {
+    let mut data = vec![0; SNS_PARTIAL_SIZE];
+    use SnsPartialField as F;
+    F::OscWave.set_byte(&mut data, p.osc_wave);
+    F::OscWaveVariation.set_byte(&mut data, p.osc_wave_variation);
+    F::OscPitch.set_byte(&mut data, p.osc_pitch);
+    F::OscDetune.set_byte(&mut data, p.osc_detune);
+    F::OscPwModDepth.set_byte(&mut data, p.osc_pw_mod_depth);
+    F::OscPulseWidth.set_byte(&mut data, p.osc_pulse_width);
+    F::OscPitchEnvAttack.set_byte(&mut data, p.osc_pitch_env_attack);
+    F::OscPitchEnvDecay.set_byte(&mut data, p.osc_pitch_env_decay);
+    F::OscPitchEnvDepth.set_byte(&mut data, p.osc_pitch_env_depth);
+    F::FilterMode.set_byte(&mut data, p.filter_mode);
+    F::FilterSlope.set_byte(&mut data, p.filter_slope);
+    F::FilterCutoff.set_byte(&mut data, p.filter_cutoff);
+    F::FilterKeyfollow.set_byte(&mut data, p.filter_keyfollow);
+    F::FilterEnvVelSens.set_byte(&mut data, p.filter_env_vel_sens);
+    F::FilterResonance.set_byte(&mut data, p.filter_resonance);
+    F::FilterEnvAttack.set_byte(&mut data, p.filter_env_attack);
+    F::FilterEnvDecay.set_byte(&mut data, p.filter_env_decay);
+    F::FilterEnvSustain.set_byte(&mut data, p.filter_env_sustain);
+    F::FilterEnvRelease.set_byte(&mut data, p.filter_env_release);
+    F::FilterEnvDepth.set_byte(&mut data, p.filter_env_depth);
+    F::AmpLevel.set_byte(&mut data, p.amp_level);
+    F::AmpVelSens.set_byte(&mut data, p.amp_vel_sens);
+    F::AmpEnvAttack.set_byte(&mut data, p.amp_env_attack);
+    F::AmpEnvDecay.set_byte(&mut data, p.amp_env_decay);
+    F::AmpEnvSustain.set_byte(&mut data, p.amp_env_sustain);
+    F::AmpEnvRelease.set_byte(&mut data, p.amp_env_release);
+    F::AmpPan.set_byte(&mut data, p.amp_pan);
+    F::LfoShape.set_byte(&mut data, p.lfo_shape);
+    F::LfoRate.set_byte(&mut data, p.lfo_rate);
+    F::LfoTempoSync.set_byte(&mut data, p.lfo_tempo_sync);
+    F::LfoTempoSyncNote.set_byte(&mut data, p.lfo_tempo_sync_note);
+    F::LfoFadeTime.set_byte(&mut data, p.lfo_fade_time);
+    F::LfoKeyTrigger.set_byte(&mut data, p.lfo_key_trigger);
+    F::LfoPitchDepth.set_byte(&mut data, p.lfo_pitch_depth);
+    F::LfoFilterDepth.set_byte(&mut data, p.lfo_filter_depth);
+    F::LfoAmpDepth.set_byte(&mut data, p.lfo_amp_depth);
+    F::LfoPanDepth.set_byte(&mut data, p.lfo_pan_depth);
+    F::ModLfoShape.set_byte(&mut data, p.mod_lfo_shape);
+    F::ModLfoRate.set_byte(&mut data, p.mod_lfo_rate);
+    F::ModLfoTempoSync.set_byte(&mut data, p.mod_lfo_tempo_sync);
+    F::ModLfoTempoSyncNote.set_byte(&mut data, p.mod_lfo_tempo_sync_note);
+    F::PwShift.set_byte(&mut data, p.pw_shift);
+    F::ModLfoPitchDepth.set_byte(&mut data, p.mod_lfo_pitch_depth);
+    F::ModLfoFilterDepth.set_byte(&mut data, p.mod_lfo_filter_depth);
+    F::ModLfoAmpDepth.set_byte(&mut data, p.mod_lfo_amp_depth);
+    F::ModLfoPanDepth.set_byte(&mut data, p.mod_lfo_pan_depth);
+    F::AftertouchCutoff.set_byte(&mut data, p.aftertouch_cutoff);
+    F::AftertouchLevel.set_byte(&mut data, p.aftertouch_level);
+    F::WaveGain.set_byte(&mut data, p.wave_gain);
+    F::WaveNumber.set_nibbles(&mut data, p.wave_number);
+    F::HpfCutoff.set_byte(&mut data, p.hpf_cutoff);
+    F::SuperSawDetune.set_byte(&mut data, p.super_saw_detune);
+    F::ModLfoRateControl.set_byte(&mut data, p.mod_lfo_rate_control);
+    F::AmpLevelKeyfollow.set_byte(&mut data, p.amp_level_keyfollow);
+    data
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -970,5 +1069,25 @@ mod tests {
             mod_lfo_rate_control: F::ModLfoRateControl,
             amp_level_keyfollow: F::AmpLevelKeyfollow,
         });
+    }
+
+    #[test]
+    fn encoders_invert_the_parsers() {
+        use crate::block_field::test_support::positional_block;
+        let mut c = parse_sns_common(&positional_block(SNS_COMMON_SIZE)).unwrap();
+        c.tone_name = "INIT TONE".into();
+        let block = encode_sns_common(&c);
+        assert_eq!(block.len(), SNS_COMMON_SIZE);
+        assert_eq!(parse_sns_common(&block).unwrap(), c);
+
+        // Shifted by one, so the field at position 0 (OSC Wave) is not 0.
+        let shifted: Vec<u8> = positional_block(SNS_PARTIAL_SIZE)
+            .iter()
+            .map(|b| b + 1)
+            .collect();
+        let p = parse_sns_partial(&shifted).unwrap();
+        let block = encode_sns_partial(&p);
+        assert_eq!(block.len(), SNS_PARTIAL_SIZE);
+        assert_eq!(parse_sns_partial(&block).unwrap(), p);
     }
 }

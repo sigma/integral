@@ -42,7 +42,7 @@ function superSaw(detune: number): string {
   return sampled(400, (x) => 1 - freqs.reduce((sum, f) => sum + ((x * f) % 1), 0) / freqs.length);
 }
 
-/** Two cycles of each OSC wave, keyed by its OSC_WAVE_NAMES label. */
+/** Two cycles of each OSC wave, keyed by its name in core's OSC Wave spec. */
 const SHAPES: Record<string, string> = {
   SAW: saw(0.5, 0),
   SQR: "M 0 0 H 0.25 V 1 H 0.5 V 0 H 0.75 V 1 H 1",

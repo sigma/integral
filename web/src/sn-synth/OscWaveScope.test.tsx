@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { SnsPartialField, sns_partial_spec } from "../../pkg/integral_wasm.js";
 import { OscWaveScope } from "./OscWaveScope";
-import { OSC_WAVE_NAMES } from "./types";
+import { switchOptions } from "../fieldSpec";
 import { cleanup, render } from "../test/dom";
 
 afterEach(cleanup);
@@ -17,7 +18,7 @@ const pathOf = (wave: string) => pathsOf(wave)[0] ?? null;
 
 describe("OscWaveScope", () => {
   it("draws every OSC wave except PCM", () => {
-    for (const wave of OSC_WAVE_NAMES) {
+    for (const { label: wave } of switchOptions(sns_partial_spec(SnsPartialField.OscWave))) {
       if (wave === "PCM") expect(pathOf(wave)).toBeNull();
       else expect(pathOf(wave), wave).toBeTruthy();
     }

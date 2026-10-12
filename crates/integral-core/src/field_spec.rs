@@ -12,6 +12,7 @@ use crate::block_field::BlockField;
 use crate::param_registry::ParamFormat;
 use crate::pcm_drum::{self, PcmdCommonField, PcmdPartialField, PcmdWmtField};
 use crate::pcm_synth::{self, PcmsCommon2Field, PcmsCommonField, PcmsPartialField, PcmsPmtField};
+use crate::sn_synth::{self, SnsCommonField, SnsPartialField};
 
 /// Range, default and display format of a tone block field, looked up by
 /// the field itself rather than by a string id. A field holding several
@@ -82,6 +83,8 @@ const PAN: Shape = shape(0, 127, Pan);
 const ALTERNATE_PAN_DEPTH: Shape = shape(1, 127, Pan);
 const VELOCITY_RANGE: Shape = shape(1, 127, Raw);
 const OFF_ON_REVERSE: Shape = shape(0, 2, Named(&["OFF", "ON", "REVERSE"]));
+const PORTAMENTO_MODE: Shape = shape(0, 1, Named(&["NORMAL", "LEGATO"]));
+const PHRASE_NUMBER: Shape = shape(0, 65535, Raw);
 const ENV_MODE: Shape = shape(0, 1, Named(&["NO-SUS", "SUSTAIN"]));
 const WAVE_GROUP_TYPE: Shape = shape(0, 3, Named(&["INT", "SRX", "---", "---"]));
 const WAVE_NUMBER: Shape = shape(0, 16384, Raw);
@@ -142,7 +145,7 @@ pub fn pcms_common_spec(field: PcmsCommonField) -> FieldSpec {
         F::StretchTuneDepth => shape(0, 3, Named(&["OFF", "1", "2", "3"])),
         F::MonoPoly => shape(0, 1, Named(&["MONO", "POLY"])),
         F::LegatoSwitch | F::LegatoRetrigger | F::PortamentoSwitch | F::PmtControlSwitch => ON_OFF,
-        F::PortamentoMode => shape(0, 1, Named(&["NORMAL", "LEGATO"])),
+        F::PortamentoMode => PORTAMENTO_MODE,
         F::PortamentoType => shape(0, 1, Named(&["RATE", "TIME"])),
         F::PortamentoStart => shape(0, 1, Named(&["PITCH", "NOTE"])),
         F::CutoffOffset
@@ -296,7 +299,7 @@ pub fn pcms_common2_spec(field: PcmsCommon2Field) -> FieldSpec {
         F::ToneNumber => (shape(0, 255, Raw), init.tone_number.into()),
         F::PhraseOctaveShift => (OCTAVE_SHIFT, init.phrase_octave_shift.into()),
         F::TfxSwitch => (ON_OFF, init.tfx_switch.into()),
-        F::PhraseNumber => (shape(0, 65535, Raw), init.phrase_number.into()),
+        F::PhraseNumber => (PHRASE_NUMBER, init.phrase_number.into()),
     };
     FieldSpec {
         min,
@@ -406,12 +409,126 @@ pub fn pcmd_partial_spec(field: PcmdPartialField) -> FieldSpec {
     spec(field, pcmd_partial_init(), shape)
 }
 
+/// The spec of an SN Synth Tone Common field.
+pub fn sns_common_spec(field: SnsCommonField) -> FieldSpec {
+    static INIT: OnceLock<Vec<u8>> = OnceLock::new();
+    let init = INIT.get_or_init(|| sn_synth::encode_sns_common(&Default::default()));
+    use SnsCommonField as F;
+    let shape = match field {
+        F::ToneLevel | F::PortamentoTime | F::AnalogFeel | F::WaveShape => RAW_127,
+        // shortcut: Tone Category shows its raw index; name it when an editor shows it.
+        F::ToneCategory => RAW_127,
+        F::PortamentoSwitch
+        | F::MonoSwitch
+        | F::Partial1Switch
+        | F::Partial1Select
+        | F::Partial2Switch
+        | F::Partial2Select
+        | F::Partial3Switch
+        | F::Partial3Select
+        | F::TfxSwitch
+        | F::UnisonSwitch
+        | F::LegatoSwitch => ON_OFF,
+        F::OctaveShift | F::PhraseOctaveShift => OCTAVE_SHIFT,
+        F::PitchBendRangeUp | F::PitchBendRangeDown => shape(0, 24, Raw),
+        F::RingSwitch => shape(0, 2, Named(&["OFF", "---", "ON"])),
+        F::PortamentoMode => PORTAMENTO_MODE,
+        F::PhraseNumber => PHRASE_NUMBER,
+        F::UnisonSize => shape(0, 3, Named(&["2", "4", "6", "8"])),
+    };
+    spec(field, init, shape)
+}
+
+/// SN Synth Tone LFO shapes.
+const SNS_LFO_SHAPE: Shape = shape(0, 5, Named(&["TRI", "SIN", "SAW", "SQR", "S&H", "RND"]));
+/// SN Synth Tone LFO Tempo Sync notes.
+const SNS_TEMPO_SYNC_NOTE: Shape = shape(
+    0,
+    19,
+    Named(&[
+        "16", "12", "8", "4", "2", "1", "3/4", "2/3", "1/2", "3/8", "1/3", "1/4", "3/16", "1/6",
+        "1/8", "3/32", "1/12", "1/16", "1/24", "1/32",
+    ]),
+);
+
+/// The spec of an SN Synth Tone Partial field.
+pub fn sns_partial_spec(field: SnsPartialField) -> FieldSpec {
+    static INIT: OnceLock<Vec<u8>> = OnceLock::new();
+    let init = INIT.get_or_init(|| sn_synth::encode_sns_partial(&Default::default()));
+    use SnsPartialField as F;
+    let shape = match field {
+        // The doc spells SP-SAW as SUPER-SAW; the OSC scope draws by these names.
+        F::OscWave => shape(
+            0,
+            7,
+            Named(&[
+                "SAW", "SQR", "PW-SQR", "TRI", "SINE", "NOISE", "SP-SAW", "PCM",
+            ]),
+        ),
+        F::OscWaveVariation => shape(0, 2, Named(&["A", "B", "C"])),
+        F::OscPitch => shape(40, 88, SignedCenter(64)),
+        F::OscDetune => FINE_TUNE,
+        F::OscPwModDepth
+        | F::OscPulseWidth
+        | F::OscPitchEnvAttack
+        | F::OscPitchEnvDecay
+        | F::FilterCutoff
+        | F::FilterResonance
+        | F::FilterEnvAttack
+        | F::FilterEnvDecay
+        | F::FilterEnvSustain
+        | F::FilterEnvRelease
+        | F::AmpLevel
+        | F::AmpEnvAttack
+        | F::AmpEnvDecay
+        | F::AmpEnvSustain
+        | F::AmpEnvRelease
+        | F::LfoRate
+        | F::LfoFadeTime
+        | F::ModLfoRate
+        | F::PwShift
+        | F::HpfCutoff
+        | F::SuperSawDetune => RAW_127,
+        F::OscPitchEnvDepth
+        | F::FilterEnvVelSens
+        | F::FilterEnvDepth
+        | F::AmpVelSens
+        | F::LfoPitchDepth
+        | F::LfoFilterDepth
+        | F::LfoAmpDepth
+        | F::LfoPanDepth
+        | F::ModLfoPitchDepth
+        | F::ModLfoFilterDepth
+        | F::ModLfoAmpDepth
+        | F::ModLfoPanDepth
+        | F::AftertouchCutoff
+        | F::AftertouchLevel
+        | F::ModLfoRateControl => SIGNED_63,
+        // The doc spells BYP as BYPASS.
+        F::FilterMode => shape(
+            0,
+            7,
+            Named(&["BYP", "LPF", "HPF", "BPF", "PKG", "LPF2", "LPF3", "LPF4"]),
+        ),
+        F::FilterSlope => shape(0, 1, Named(&["-12dB", "-24dB"])),
+        F::FilterKeyfollow | F::AmpLevelKeyfollow => KEYFOLLOW_100,
+        F::AmpPan => PAN,
+        F::LfoShape | F::ModLfoShape => SNS_LFO_SHAPE,
+        F::LfoTempoSync | F::LfoKeyTrigger | F::ModLfoTempoSync => ON_OFF,
+        F::LfoTempoSyncNote | F::ModLfoTempoSyncNote => SNS_TEMPO_SYNC_NOTE,
+        F::WaveGain => WAVE_GAIN,
+        F::WaveNumber => WAVE_NUMBER,
+    };
+    spec(field, init, shape)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const PCMS_DOC: &str = include_str!("../../../docs/midi/06-pcm-synth-tone.md");
     const PCMD_DOC: &str = include_str!("../../../docs/midi/07-pcm-drum-kit.md");
+    const SNS_DOC: &str = include_str!("../../../docs/midi/08-supernatural-synth-tone.md");
 
     /// A documented parameter: its byte position in the block and its range.
     struct DocRow {
@@ -852,5 +969,111 @@ mod tests {
         ] {
             assert_eq!(pcmd_partial_spec(d), pcms_partial_spec(s));
         }
+    }
+
+    #[test]
+    fn sns_common_specs_match_the_doc() {
+        use SnsCommonField as F;
+        let fields = [
+            F::ToneLevel,
+            F::PortamentoSwitch,
+            F::PortamentoTime,
+            F::MonoSwitch,
+            F::OctaveShift,
+            F::PitchBendRangeUp,
+            F::PitchBendRangeDown,
+            F::Partial1Switch,
+            F::Partial1Select,
+            F::Partial2Switch,
+            F::Partial2Select,
+            F::Partial3Switch,
+            F::Partial3Select,
+            F::RingSwitch,
+            F::TfxSwitch,
+            F::UnisonSwitch,
+            F::PortamentoMode,
+            F::LegatoSwitch,
+            F::AnalogFeel,
+            F::WaveShape,
+            F::ToneCategory,
+            F::PhraseNumber,
+            F::PhraseOctaveShift,
+            F::UnisonSize,
+        ];
+        assert_matches_doc(
+            SNS_DOC,
+            "SN Synth Tone Common",
+            |name| !name.starts_with("Tone Name"),
+            &fields,
+            sns_common_spec,
+        );
+    }
+
+    #[test]
+    fn sns_partial_specs_match_the_doc() {
+        use SnsPartialField as F;
+        let fields = [
+            F::OscWave,
+            F::OscWaveVariation,
+            F::OscPitch,
+            F::OscDetune,
+            F::OscPwModDepth,
+            F::OscPulseWidth,
+            F::OscPitchEnvAttack,
+            F::OscPitchEnvDecay,
+            F::OscPitchEnvDepth,
+            F::FilterMode,
+            F::FilterSlope,
+            F::FilterCutoff,
+            F::FilterKeyfollow,
+            F::FilterEnvVelSens,
+            F::FilterResonance,
+            F::FilterEnvAttack,
+            F::FilterEnvDecay,
+            F::FilterEnvSustain,
+            F::FilterEnvRelease,
+            F::FilterEnvDepth,
+            F::AmpLevel,
+            F::AmpVelSens,
+            F::AmpEnvAttack,
+            F::AmpEnvDecay,
+            F::AmpEnvSustain,
+            F::AmpEnvRelease,
+            F::AmpPan,
+            F::LfoShape,
+            F::LfoRate,
+            F::LfoTempoSync,
+            F::LfoTempoSyncNote,
+            F::LfoFadeTime,
+            F::LfoKeyTrigger,
+            F::LfoPitchDepth,
+            F::LfoFilterDepth,
+            F::LfoAmpDepth,
+            F::LfoPanDepth,
+            F::ModLfoShape,
+            F::ModLfoRate,
+            F::ModLfoTempoSync,
+            F::ModLfoTempoSyncNote,
+            F::PwShift,
+            F::ModLfoPitchDepth,
+            F::ModLfoFilterDepth,
+            F::ModLfoAmpDepth,
+            F::ModLfoPanDepth,
+            F::AftertouchCutoff,
+            F::AftertouchLevel,
+            F::WaveGain,
+            F::WaveNumber,
+            F::HpfCutoff,
+            F::SuperSawDetune,
+            F::ModLfoRateControl,
+            F::AmpLevelKeyfollow,
+        ];
+        assert_matches_doc(
+            SNS_DOC,
+            "SN Synth Tone Partial",
+            |_| true,
+            &fields,
+            sns_partial_spec,
+        );
     }
 }
