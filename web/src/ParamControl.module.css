@@ -1,0 +1,7 @@
+/* A control with its msec/Hz-vs-note toggle underneath. */
+.synced {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}

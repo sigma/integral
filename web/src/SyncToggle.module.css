@@ -1,0 +1,23 @@
+/* msec/Hz-vs-note toggle, under the knob's value. */
+.sync {
+  display: flex;
+}
+
+.sync button {
+  padding: 0 2px;
+  font-size: 8px;
+  line-height: 10px;
+  color: #888;
+  background: none;
+  border: 1px solid #3a3a5a;
+  cursor: pointer;
+}
+
+.sync button + button {
+  border-left: none;
+}
+
+.sync .syncOn {
+  color: #1a1a2e;
+  background: #8ab;
+}

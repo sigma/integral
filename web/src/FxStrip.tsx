@@ -9,6 +9,7 @@ import fxCss from "./FxStrip.module.css";
 import box from "./PanelBox.module.css";
 import { RouteChip } from "./RouteChip";
 import { SynthSwitch } from "./synth-ui";
+import { SyncToggle } from "./SyncToggle";
 
 interface Props {
   label: string;
@@ -20,32 +21,6 @@ interface Props {
   onToggleSwitch: () => void;
   onParam: (offset: number, value: number) => void;
   onNibParam: (paramIndex: number, value: number) => void;
-}
-
-/** Two-way msec/Hz-vs-note switch; `labels` come from the core. */
-function SyncToggle({
-  labels,
-  noteMode,
-  onChange,
-}: {
-  labels: string[];
-  noteMode: boolean;
-  onChange: (noteMode: boolean) => void;
-}) {
-  return (
-    <span className={fxCss.sync}>
-      {labels.map((l, i) => (
-        <button
-          key={l}
-          className={(i === 1) === noteMode ? fxCss.syncOn : undefined}
-          aria-pressed={(i === 1) === noteMode}
-          onClick={() => onChange(i === 1)}
-        >
-          {l}
-        </button>
-      ))}
-    </span>
-  );
 }
 
 export function FxStrip({

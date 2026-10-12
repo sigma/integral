@@ -7,14 +7,10 @@ import {
   mfx_params,
 } from "../pkg/integral_wasm.js";
 import type { WasmControlSource } from "../pkg/integral_wasm.js";
-import {
-  SynthKnob,
-  SynthFader,
-  SynthSwitch,
-  OutputStrip,
-  ParametricEq,
-} from "./synth-ui";
-import type { EqControl } from "./synth-ui";
+import { SynthKnob, OutputStrip, ParametricEq } from "./synth-ui";
+import type { EqBand, EqControl } from "./synth-ui";
+import { ParamControl, pairParams, type ParamLook, type SpecParam } from "./ParamControl";
+import { OUTPUT_PARAMS, itemParam, resolveSkin, type Skin } from "./mfxSkins";
 import css from "./MfxPanel.module.css";
 import { deviceSpec } from "./deviceSpec";
 import type { MfxHandlers } from "./useMfxHandlers";
@@ -62,366 +58,51 @@ function getMfxControlSources(): WasmControlSource[] {
 }
 
 // ---------------------------------------------------------------------------
-// Param definition helper
+// Spec-driven parameter panel
 // ---------------------------------------------------------------------------
 
-interface ParamDef {
-  index: number;
-  name: string;
-  min: number;
-  max: number;
-  defaultValue: number;
-  formatValue: (v: number) => string;
+function useSpecParams(mfxType: number): SpecParam[] {
+  return useMemo(() => pairParams(mfx_params(mfxType)), [mfxType]);
 }
 
-function useParamDefs(mfxType: number): ParamDef[] {
-  return useMemo(() => {
-    // Kept alive (not freed): formatValue calls back into each def.
-    return mfx_params(mfxType).map((d) => ({
-      index: d.index, name: d.name, min: d.min, max: d.max, defaultValue: d.defaultValue,
-      formatValue: (v: number) => d.formatValue(v),
-    }));
-  }, [mfxType]);
+interface SkinPanelProps {
+  skin: Skin;
+  params: SpecParam[];
+  slots: number[];
+  onNibParam: (slot: number, value: number) => void;
 }
 
-// ---------------------------------------------------------------------------
-// Custom panel sub-props
-// ---------------------------------------------------------------------------
-
-interface CustomPanelProps {
-  params: number[];
-  paramDefs: ParamDef[];
-  onParam: (index: number, value: number) => void;
-}
-
-// ---------------------------------------------------------------------------
-// Type 1: Equalizer
-// ---------------------------------------------------------------------------
-// Params: 0=LowFreq 1=LowGain 2=Mid1Freq 3=Mid1Gain 4=Mid1Q 5=Mid2Freq
-//         6=Mid2Gain 7=Mid2Q 8=HighFreq 9=HighGain 10=Level
-
-function signedGain(v: number): string {
-  return v > 0 ? `+${v}` : String(v);
-}
-
-function EqualizerPanel({ params, paramDefs, onParam }: CustomPanelProps) {
-  const knob = (i: number): EqControl => {
-    const def = paramDefs[i]!;
-    return {
-      value: params[i] ?? def.defaultValue, min: def.min, max: def.max, defaultValue: def.defaultValue,
-      onChange: (v) => onParam(i, v), formatValue: def.formatValue,
+function SkinPanel({ skin, params, slots, onNibParam }: SkinPanelProps) {
+  const byName = new Map(params.map((p) => [p.def.name, p]));
+  const eqControl = (name: string): EqControl | undefined => {
+    const def = byName.get(name)?.def;
+    return def && {
+      value: slots[def.index] ?? def.defaultValue, min: def.min, max: def.max, defaultValue: def.defaultValue,
+      onChange: (v) => onNibParam(def.index, v), formatValue: (v) => def.formatValue(v),
     };
   };
-  return (
-    <ParametricEq
-      bands={[
-        { label: "HI", color: "#c66", gain: knob(9), freq: knob(8) },
-        { label: "MID2", color: "#cc6", gain: knob(6), freq: knob(5), q: knob(7) },
-        { label: "MID1", color: "#6c6", gain: knob(3), freq: knob(2), q: knob(4) },
-        { label: "LO", color: "#66c", gain: knob(1), freq: knob(0) },
-      ]}
-    />
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Type 31: Compressor
-// ---------------------------------------------------------------------------
-// Params: 0=Attack(0-127) 1=Threshold(0-127) 2=PostGain(0-18)
-//         3=LowGain(-15..15) 4=HighGain(-15..15) 5=Level(0-127)
-
-function CompressorPanel({ params, paramDefs, onParam }: CustomPanelProps) {
-  const p = (i: number) => params[i] ?? paramDefs[i]?.defaultValue ?? 0;
+  const bands = (skin.eq ?? []).flatMap((b): EqBand[] => {
+    const gain = eqControl(b.gain), freq = eqControl(b.freq);
+    return gain && freq ? [{ label: b.label, color: b.color, gain, freq, q: b.q ? eqControl(b.q) : undefined }] : [];
+  });
   return (
     <div className={css.customLayout}>
-      <div className={css.customRow}>
-        <SynthKnob label="Lo Gain" value={p(3)} min={-15} max={15} defaultValue={0}
-          onChange={(v) => onParam(3, v)} formatValue={signedGain} color="#6ae"
-          title="Low Gain" />
-        <SynthKnob label="Hi Gain" value={p(4)} min={-15} max={15} defaultValue={0}
-          onChange={(v) => onParam(4, v)} formatValue={signedGain} color="#6ae"
-          title="High Gain" />
-      </div>
-      <div className={css.customRow}>
-        <SynthFader label="Atk" value={p(0)} min={0} max={127} defaultValue={64}
-          onChange={(v) => onParam(0, v)} formatValue={(v) => String(v)} compact
-          title="Attack" />
-        <SynthFader label="Thr" value={p(1)} min={0} max={127} defaultValue={64}
-          onChange={(v) => onParam(1, v)} formatValue={(v) => String(v)} compact
-          title="Threshold" />
-        <SynthFader label="Gain" value={p(2)} min={0} max={18} defaultValue={0}
-          onChange={(v) => onParam(2, v)} formatValue={(v) => `+${v}dB`} compact
-          title="Post Gain (Make-up)" />
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Type 22: Chorus
-// ---------------------------------------------------------------------------
-// Params: 0=FilterType(0-2) 1=CutoffFreq(200-8000) 2=PreDelay(0-1000)
-//         3=Rate(0-127) 4=Depth(0-127) 5=Phase(0-180)
-//         6=LowGain(-15..15) 7=HighGain(-15..15) 8=Balance(0-100) 9=Level(0-127)
-
-const CHORUS_FILTER_OPTIONS = [
-  { value: 0, label: "OFF" },
-  { value: 1, label: "LPF" },
-  { value: 2, label: "HPF" },
-];
-
-function ChorusPanel({ params, paramDefs, onParam }: CustomPanelProps) {
-  const p = (i: number) => params[i] ?? paramDefs[i]?.defaultValue ?? 0;
-  return (
-    <div className={css.customLayout}>
-      <div className={css.customRow}>
-        <SynthSwitch label="Filter" value={p(0)} options={CHORUS_FILTER_OPTIONS}
-          onChange={(v) => onParam(0, v)} vertical={true} />
-        <SynthKnob label="Cutoff" value={p(1)} min={200} max={8000} defaultValue={800}
-          onChange={(v) => onParam(1, v)} formatValue={(v) => `${v}`} color="#ea6" />
-      </div>
-      <div className={css.customRow}>
-        <SynthKnob label="Rate" value={p(3)} min={0} max={127} defaultValue={64}
-          onChange={(v) => onParam(3, v)} formatValue={(v) => String(v)} color="#6ae" />
-        <SynthKnob label="Depth" value={p(4)} min={0} max={127} defaultValue={64}
-          onChange={(v) => onParam(4, v)} formatValue={(v) => String(v)} color="#6ae" />
-      </div>
-      <div className={css.customRow}>
-        <SynthKnob label="Pre Dly" value={p(2)} min={0} max={1000} defaultValue={0}
-          onChange={(v) => onParam(2, v)} formatValue={(v) => `${(v / 10).toFixed(1)}`} color="#a8e"
-          title="Pre Delay" />
-        <SynthKnob label="Phase" value={p(5)} min={0} max={180} defaultValue={0}
-          onChange={(v) => onParam(5, v)} formatValue={(v) => `${v}\u00B0`} color="#ea6" />
-      </div>
-      <div className={css.customRow}>
-        <SynthKnob label="Balance" value={p(8)} min={0} max={100} defaultValue={50}
-          onChange={(v) => onParam(8, v)} formatValue={(v) => `D${100 - v}:E${v}`} color="#c8a"
-          title="Dry/Effect Balance" />
-      </div>
-      <div className={css.customRow}>
-        <SynthKnob label="Lo Gain" value={p(6)} min={-15} max={15} defaultValue={0}
-          onChange={(v) => onParam(6, v)} formatValue={signedGain} color="#6ae"
-          title="Low Gain" />
-        <SynthKnob label="Hi Gain" value={p(7)} min={-15} max={15} defaultValue={0}
-          onChange={(v) => onParam(7, v)} formatValue={signedGain} color="#6ae"
-          title="High Gain" />
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Type 28/29: Overdrive / Distortion
-// ---------------------------------------------------------------------------
-// Params: 0=Drive(0-127) 1=Tone(0-127) 2=AmpSw(0-1) 3=AmpType(0-3)
-//         4=LowGain(-15..15) 5=HighGain(-15..15) 6=Pan(-64..63) 7=Level(0-127)
-
-const AMP_TYPE_OPTIONS = [
-  { value: 0, label: "Small" },
-  { value: 1, label: "Built-In" },
-  { value: 2, label: "2-Stack" },
-  { value: 3, label: "3-Stack" },
-];
-
-function OverdrivePanel({ params, paramDefs, onParam }: CustomPanelProps) {
-  const p = (i: number) => params[i] ?? paramDefs[i]?.defaultValue ?? 0;
-  return (
-    <div className={css.customLayout}>
-      <div className={css.customRow}>
-        <SynthKnob label="Drive" value={p(0)} min={0} max={127} defaultValue={64}
-          onChange={(v) => onParam(0, v)} formatValue={(v) => String(v)} color="#f64" />
-        <SynthKnob label="Tone" value={p(1)} min={0} max={127} defaultValue={64}
-          onChange={(v) => onParam(1, v)} formatValue={(v) => String(v)} color="#ea6" />
-      </div>
-      <div className={css.customRow}>
-        <SynthSwitch label="Amp" value={p(2)}
-          options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
-          onChange={(v) => onParam(2, v)} />
-        <SynthSwitch label="Type" value={p(3)} options={AMP_TYPE_OPTIONS}
-          onChange={(v) => onParam(3, v)} vertical={true} title="Amp Type" />
-      </div>
-      <div className={css.customRow}>
-        <SynthKnob label="Pan" value={p(6)} min={-64} max={63} defaultValue={0}
-          onChange={(v) => onParam(6, v)} formatValue={(v) => v === 0 ? "C" : v < 0 ? `L${-v}` : `R${v}`} color="#c8a" />
-      </div>
-      <div className={css.customRow}>
-        <SynthKnob label="Lo Gain" value={p(4)} min={-15} max={15} defaultValue={0}
-          onChange={(v) => onParam(4, v)} formatValue={signedGain} color="#6ae" title="Low Gain" />
-        <SynthKnob label="Hi Gain" value={p(5)} min={-15} max={15} defaultValue={0}
-          onChange={(v) => onParam(5, v)} formatValue={signedGain} color="#6ae" title="High Gain" />
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Type 34: Delay
-// ---------------------------------------------------------------------------
-// Params: 0=DelayLeft(0-1300) 1=DelayRight(0-1300) 2=PhaseL(0-1)
-//         3=PhaseR(0-1) 4=FeedbackMode(0-1) 5=Feedback(-98..98)
-//         6=HFDamp(200-8000) 7=LowGain(-15..15) 8=HighGain(-15..15)
-//         9=Balance(0-100) 10=Level(0-127)
-
-const FB_MODE_OPTIONS = [{ value: 0, label: "Normal" }, { value: 1, label: "Cross" }];
-
-function DelayPanel({ params, paramDefs, onParam }: CustomPanelProps) {
-  const p = (i: number) => params[i] ?? paramDefs[i]?.defaultValue ?? 0;
-  return (
-    <div className={css.customLayout}>
-      <div className={css.customRow}>
-        <SynthSwitch label="Ph L" value={p(2)}
-          options={[{ value: 0, label: "NOR" }, { value: 1, label: "INV" }]}
-          onChange={(v) => onParam(2, v)} title="Phase Left" />
-        <SynthSwitch label="Ph R" value={p(3)}
-          options={[{ value: 0, label: "NOR" }, { value: 1, label: "INV" }]}
-          onChange={(v) => onParam(3, v)} title="Phase Right" />
-        <SynthSwitch label="FB" value={p(4)} options={FB_MODE_OPTIONS}
-          onChange={(v) => onParam(4, v)} title="Feedback Mode" />
-      </div>
-      <div className={css.customRow}>
-        <SynthKnob label="Fdbk" value={p(5)} min={-98} max={98} defaultValue={0}
-          onChange={(v) => onParam(5, v)} formatValue={(v) => `${v}%`} color="#e86"
-          title="Feedback" />
-        <SynthKnob label="HF Damp" value={p(6)} min={200} max={8000} defaultValue={8000}
-          onChange={(v) => onParam(6, v)} formatValue={(v) => `${v}`} color="#ea6" />
-        <SynthKnob label="Balance" value={p(9)} min={0} max={100} defaultValue={50}
-          onChange={(v) => onParam(9, v)} formatValue={(v) => `D${100 - v}:E${v}`} color="#c8a"
-          title="Dry/Effect Balance" />
-      </div>
-      <div className={css.customRow}>
-        <SynthKnob label="Lo Gain" value={p(7)} min={-15} max={15} defaultValue={0}
-          onChange={(v) => onParam(7, v)} formatValue={signedGain} color="#6ae" title="Low Gain" />
-        <SynthKnob label="Hi Gain" value={p(8)} min={-15} max={15} defaultValue={0}
-          onChange={(v) => onParam(8, v)} formatValue={signedGain} color="#6ae" title="High Gain" />
-      </div>
-      <div className={css.customRow}>
-        <SynthFader label="Time L" value={p(0)} min={0} max={1300} defaultValue={200}
-          onChange={(v) => onParam(0, v)} formatValue={(v) => `${v}ms`} compact
-          title="Delay Time Left" />
-        <SynthFader label="Time R" value={p(1)} min={0} max={1300} defaultValue={200}
-          onChange={(v) => onParam(1, v)} formatValue={(v) => `${v}ms`} compact
-          title="Delay Time Right" />
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Generic fallback (grid of knobs/switches)
-// ---------------------------------------------------------------------------
-
-/** Names that are always grouped into the "tone EQ" row. */
-const TONE_EQ_NAMES = new Set(["Low Gain", "High Gain"]);
-/** Names handled by the shared output section. */
-const OUTPUT_NAMES = new Set(["Level"]);
-/** Names rendered near the output (balance/mix). */
-const BALANCE_NAMES = new Set(["Balance", "Mix"]);
-
-function GenericPanel({ params, paramDefs, onParam }: CustomPanelProps) {
-  // Partition params into: main, switches, toneEq, balance
-  const main: ParamDef[] = [];
-  const switches: ParamDef[] = [];
-  const toneEq: ParamDef[] = [];
-  const balance: ParamDef[] = [];
-
-  for (const def of paramDefs) {
-    if (OUTPUT_NAMES.has(def.name)) continue;
-    if (TONE_EQ_NAMES.has(def.name)) { toneEq.push(def); continue; }
-    if (BALANCE_NAMES.has(def.name)) { balance.push(def); continue; }
-    const range = def.max - def.min;
-    if (range <= 1) { switches.push(def); continue; }
-    main.push(def);
-  }
-
-  // Render main knobs in rows of 2
-  const mainRows: ParamDef[][] = [];
-  for (let j = 0; j < main.length; j += 2) {
-    mainRows.push(main.slice(j, j + 2));
-  }
-
-  const renderKnob = (def: ParamDef, color: string) => {
-    const val = params[def.index] ?? def.defaultValue;
-    return (
-      <SynthKnob
-        key={def.index}
-        label={def.name}
-        value={val}
-        min={def.min}
-        max={def.max}
-        defaultValue={def.defaultValue}
-        onChange={(v) => onParam(def.index, v)}
-        formatValue={def.formatValue}
-        color={color}
-      />
-    );
-  };
-
-  return (
-    <div className={css.customLayout}>
-      {/* Switches row */}
-      {switches.length > 0 && (
-        <div className={css.customRow}>
-          {switches.map((def) => {
-            const val = params[def.index] ?? def.defaultValue;
+      {bands.length > 0 && <ParametricEq bands={bands} />}
+      {skin.rows.map((row, ri) => (
+        <div key={ri} className={css.customRow}>
+          {row.items.map((item) => {
+            const param = byName.get(itemParam(item));
+            if (!param) return null;
+            const look: ParamLook = typeof item === "string" ? {} : item;
             return (
-              <SynthSwitch
-                key={def.index}
-                label={def.name}
-                value={val}
-                options={[
-                  { value: def.min, label: def.formatValue(def.min) },
-                  { value: def.max, label: def.formatValue(def.max) },
-                ]}
-                onChange={(v) => onParam(def.index, v)}
-              />
+              <ParamControl key={param.def.index} param={param} slots={slots} onNibParam={onNibParam}
+                look={{ ...look, color: look.color ?? row.color }} />
             );
           })}
         </div>
-      )}
-      {/* Main knobs in rows of 2 */}
-      {mainRows.map((row, ri) => (
-        <div key={ri} className={css.customRow}>
-          {row.map((item) => renderKnob(item, "#c8a"))}
-        </div>
       ))}
-      {/* Balance/Mix */}
-      {balance.length > 0 && (
-        <div className={css.customRow}>
-          {balance.map((item) => renderKnob(item, "#c8a"))}
-        </div>
-      )}
-      {/* Tone EQ row (Lo Gain / Hi Gain) */}
-      {toneEq.length > 0 && (
-        <div className={css.customRow}>
-          {toneEq.map((item) => renderKnob(item, "#6ae"))}
-        </div>
-      )}
     </div>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Custom panel dispatcher
-// ---------------------------------------------------------------------------
-
-function TypePanel({ mfxType, params, paramDefs, onParam }: CustomPanelProps & { mfxType: number }) {
-  switch (mfxType) {
-    case 1:
-      return <EqualizerPanel params={params} paramDefs={paramDefs} onParam={onParam} />;
-    case 22:
-      return <ChorusPanel params={params} paramDefs={paramDefs} onParam={onParam} />;
-    case 28:
-    case 29:
-      return <OverdrivePanel params={params} paramDefs={paramDefs} onParam={onParam} />;
-    case 31:
-      return <CompressorPanel params={params} paramDefs={paramDefs} onParam={onParam} />;
-    case 34:
-      return <DelayPanel params={params} paramDefs={paramDefs} onParam={onParam} />;
-    default:
-      return paramDefs.length > 0
-        ? <GenericPanel params={params} paramDefs={paramDefs} onParam={onParam} />
-        : null;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -434,8 +115,9 @@ export function MfxPanel({
   onHeaderParam,
   onNibParam,
 }: Props) {
-  const paramDefs = useParamDefs(mfx.mfxType);
-  const levelParamIndex = paramDefs.find((d) => d.name === "Level")?.index ?? -1;
+  const params = useSpecParams(mfx.mfxType);
+  const skin = useMemo(() => resolveSkin(mfx.mfxType, params), [mfx.mfxType, params]);
+  const levelParamIndex = params.find((p) => OUTPUT_PARAMS.has(p.def.name))?.def.index ?? -1;
 
   return (
     <div className={css.mfxPanel}>
@@ -455,13 +137,8 @@ export function MfxPanel({
           </select>
         </div>
 
-        {/* Type-specific or generic parameter panel */}
-        <TypePanel
-          mfxType={mfx.mfxType}
-          params={mfx.params}
-          paramDefs={paramDefs}
-          onParam={onNibParam}
-        />
+        {/* Spec-driven parameter panel, laid out by the type's skin */}
+        <SkinPanel skin={skin} params={params} slots={mfx.params} onNibParam={onNibParam} />
 
         {/* Output section — sends + level, like a mixer channel strip */}
         <div className={css.mfxOutput}>
@@ -505,7 +182,7 @@ export function MfxPanel({
                     title="Destination"
                   >
                     <option value={0}>OFF</option>
-                    {paramDefs.map((def) => (
+                    {params.map(({ def }) => (
                       <option key={def.index} value={def.index}>{def.name}</option>
                     ))}
                   </select>

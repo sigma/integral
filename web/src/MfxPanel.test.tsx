@@ -52,3 +52,35 @@ describe("MfxPanel Control Source", () => {
     expect(values).toContain(33);
   });
 });
+
+describe("MfxPanel params", () => {
+  function typePanel(mfxType: number, params: number[]) {
+    const onNibParam = vi.fn();
+    const mfx: MfxState = { mfxType, chorusSend: 0, reverbSend: 0, controls: [], params };
+    const { container } = render(
+      <MfxPanel mfx={mfx} onTypeChange={vi.fn()} onHeaderParam={vi.fn()} onNibParam={onNibParam} />,
+    );
+    return { container, onNibParam };
+  }
+
+  it("formats stored values through the spec", () => {
+    // Chorus Low Gain is slot 8; stored 15 is 0 dB.
+    const params = Array<number>(32).fill(0);
+    params[8] = 15;
+    const { container } = typePanel(22, params);
+    const knob = container.querySelector('[title="Low Gain"]');
+    expect(knob?.textContent).toContain("+0dB");
+  });
+
+  it("edits the note slot of a delay time in note mode", () => {
+    // Delay Left: switch at slot 0, msec at 1, note at 2.
+    const params = Array<number>(32).fill(0);
+    params[0] = 1;
+    params[2] = 12;
+    const { container, onNibParam } = typePanel(34, params);
+    expect(container.querySelector('[title="Delay Left"]')?.textContent).toContain("1/4");
+    const ms = [...container.querySelectorAll("button")].find((b) => b.textContent === "ms");
+    act(() => ms?.click());
+    expect(onNibParam).toHaveBeenCalledWith(0, 0);
+  });
+});
