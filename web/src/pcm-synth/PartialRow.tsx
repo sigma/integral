@@ -215,7 +215,7 @@ function pairLayout(
       edges.push({ from: lastBlock.upper, to: ring }, { from: lastBlock.lower, to: ring });
       if (join.lowerDry) {
         // Partial 2 (4) also goes in dry, summed with the ring's product.
-        edges.push({ from: ring, to: node, glyph: "+" }, { from: lastBlock.lower, to: node, glyph: "+" });
+        edges.push({ from: ring, to: node, glyph: "+" }, { from: lastBlock.lower, to: node, glyph: "+", around: ring });
       } else {
         edges.push({ from: ring, to: node });
       }

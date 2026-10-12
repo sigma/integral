@@ -7,6 +7,8 @@ export interface Edge {
   to: string;
   /** Drawn where the edge meets its target: + (mix), B (booster), R (ring mod). */
   glyph?: string;
+  /** A box the edge must not cross: it runs level until past it, then bends. */
+  around?: string;
 }
 
 /** A box's edges, relative to the overlay. */
@@ -23,12 +25,15 @@ const GLYPH_R = 7;
 /**
  * The curve of an edge from `from`'s right side to `to`'s left side (straight
  * when they line up). With a glyph, the curve ends at the glyph, left of the
- * target.
+ * target. With `around`, it runs level until past that box, then bends in the
+ * room left before the target.
  */
-export function arrowPath(from: Box, to: Box, glyph?: boolean): string {
+export function arrowPath(from: Box, to: Box, glyph?: boolean, around?: Box): string {
   const endX = glyph ? to.left - GLYPH_GAP - GLYPH_R : to.left;
-  const bend = (from.right + endX) / 2;
-  return `M ${from.right} ${from.mid} C ${bend} ${from.mid} ${bend} ${to.mid} ${endX} ${to.mid}`;
+  const start = around ? Math.max(from.right, around.right) : from.right;
+  const bend = (start + endX) / 2;
+  const level = start > from.right ? ` H ${start}` : "";
+  return `M ${from.right} ${from.mid}${level} C ${bend} ${from.mid} ${bend} ${to.mid} ${endX} ${to.mid}`;
 }
 
 interface Drawing {
@@ -68,7 +73,7 @@ export function SignalArrows({ edges }: { edges: Edge[] }) {
         const from = box(e.from);
         const to = box(e.to);
         if (!from || !to) continue;
-        next.curves.push(arrowPath(from, to, !!e.glyph));
+        next.curves.push(arrowPath(from, to, !!e.glyph, (e.around && box(e.around)) || undefined));
         if (e.glyph && !glyphed.has(e.to)) {
           glyphed.add(e.to);
           const x = to.left - GLYPH_GAP;
