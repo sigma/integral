@@ -299,9 +299,26 @@ no Integra reverb.
    38 XV types 41-90 with a target and corpus dumps (237 distinct MFX blocks), only 52, 78,
    79, 80 and 88 keep every Parameter 1-32 within the target type's stored ranges in every
    block. Every other type breaks a range, including the "same" types 53 OVERDRIVE 2 and
-   54 DISTORTION 2 (Parameter 3 in every block), so the hypothesis fails for most types.
-   Types 45, 56, 63, 67, 82, 83 and 85 have no corpus dumps. The five that fit are marked
-   `copy` in the JSON and convert verbatim; the rest take the target type's defaults.
+   54 DISTORTION 2, so the hypothesis fails for most types. Types 45, 56, 63, 67, 82, 83 and
+   85 have no corpus dumps.
+
+   An in-range fit can be a coincidence, so each fitting type was also checked against
+   controls (Parameters shifted 1-2 slots, other INTEGRA-7 types) and the XV-5050 manual
+   (X1, PDF pp. 76-103):
+
+   | XV | Blocks | Shifted fits | Other types that fit | Manual | Verdict |
+   |----|--------|--------------|----------------------|--------|---------|
+   | 52 SPEAKER SIMULATOR | 1 | 1 | 4 | same 5 Parameters, order and 16 speakers as the target | copy 1-5 |
+   | 78 GUITAR AMP SIMULATOR | 19 | 0 | 0 | same Parameters; the manual lists Presence, Bright before Bass-Treble and Level before Pan, but the dumps only fit the INTEGRA-7 order (Bright = 64 otherwise) | copy 1-17 |
+   | 79 STEREO OVERDRIVE | 2 | 0 | 4 | 7 Parameters, **no Pan**: Drive … High Gain, Level | 1-6 copy, Level → 8, Pan centre |
+   | 80 STEREO DISTORTION | 6 | 0 | 4 | as 79 | as 79 |
+   | 88 STEREO SPECTRUM | 1 | 0 | 3 | same 8 bands, Q list and Level | copy 1-10 |
+
+   The manual's order is not always the stored order (78; and 53/54 dumps hold Pan at
+   Parameter 3, where their manual lists it last). For 79/80, slot 7 varies like a level
+   (80-127), not a pan, so Level sits in slot 7 and a straight copy would put it on the
+   target's Pan. The JSON's `copy_slots` records each verdict; every other XV 41-90 type
+   takes the target type's defaults. Still unverified on hardware ([#219](https://github.com/sigma/integral/issues/219)).
 2. **JV note values.** J2 says Step Rate also accepts notes, but J1 gives raw 0-125, which the
    126-entry Hz table already fills. The note order for the 200-1000 ms delays (raw 116-125)
    is assumed equal to XV list \*1. Settle both against corpus Patches that use notes.

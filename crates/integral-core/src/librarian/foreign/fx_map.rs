@@ -94,8 +94,9 @@ struct XvEffect {
     class: Class,
     /// The INTEGRA-7 MFX type, 0 for none.
     target: u8,
-    /// Whether its Parameters are laid out as the target's, so they copy.
-    copy: bool,
+    /// The MFX Parameter number each XV Parameter 1… copies to; empty
+    /// when the layout is unknown.
+    copy: &'static [u8],
 }
 
 include!(concat!(env!("OUT_DIR"), "/foreign_fx_map_data.rs"));
@@ -147,16 +148,15 @@ pub(super) fn convert(
             jv_slots(e, source, report),
             e.class == Class::Substitute,
         )),
-        // XV 41–90 copy only where every corpus dump fits the target's
-        // ranges (`copy` in the map); the rest take the target's defaults.
-        // In-range values don't prove the layout, so only a `same` type
-        // that copies counts as faithful.
+        // XV 41–90 copy only the Parameters the corpus and the manual place
+        // (`copy_slots` in the map); the rest take the target's defaults.
+        // Only a `same` type that copies counts as faithful.
         Some(Entry::Xv(e)) if e.class != Class::None => {
-            let slots = match e.copy {
-                true => *source,
-                false => default_slots(e.target).expect("a mapped type"),
-            };
-            Some((e.target, slots, !(e.copy && e.class == Class::Same)))
+            let mut slots = default_slots(e.target).expect("a mapped type");
+            for (&value, &n) in source.iter().zip(e.copy) {
+                slots[usize::from(n) - 1] = value;
+            }
+            Some((e.target, slots, e.copy.is_empty() || e.class != Class::Same))
         }
         _ => None,
     };
@@ -333,20 +333,20 @@ mod tests {
 
     #[test]
     fn every_row_writes_a_slot_its_target_type_has() {
-        for (i, e) in JV_EFX.iter().enumerate().filter(|(_, e)| e.target != 0) {
-            let def = mfx_type_def(e.target).expect("an MFX type");
-            let slots: Vec<u8> = def
-                .params
+        // MFX Parameter numbers of `mfx_type`'s parameters and sync slots.
+        let slots = |mfx_type: u8| -> Vec<u8> {
+            let def = mfx_type_def(mfx_type).expect("an MFX type");
+            def.params
                 .iter()
                 .flat_map(|p| {
                     let sync = p.sync.map(|s| [s.switch_index, s.note_index]);
-                    [Some(p.index)]
-                        .into_iter()
-                        .chain(sync.into_iter().flatten().map(Some))
+                    [p.index].into_iter().chain(sync.into_iter().flatten())
                 })
-                .flatten()
                 .map(|slot| slot + 1)
-                .collect();
+                .collect()
+        };
+        for (i, e) in JV_EFX.iter().enumerate().filter(|(_, e)| e.target != 0) {
+            let slots = slots(e.target);
             let written = e
                 .rows
                 .iter()
@@ -355,6 +355,12 @@ mod tests {
             // `mfx_params` leaves out.
             for n in written {
                 assert!(slots.contains(&n), "EFX type {}: Parameter {n}", i + 1);
+            }
+        }
+        for (i, e) in XV_MFX.iter().enumerate().filter(|(_, e)| e.target != 0) {
+            let slots = slots(e.target);
+            for n in e.copy {
+                assert!(slots.contains(n), "MFX type {}: Parameter {n}", i + 41);
             }
         }
     }

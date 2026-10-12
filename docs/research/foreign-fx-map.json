@@ -1,5 +1,5 @@
 {
-  "_about": "Companion data for docs/research/foreign-fx-map.md. 'integra_params' are MFX Parameter numbers n (1-32) of the PCM Synth Tone MFX block, taken from Roland INTEGRA-7 Editor model_excmap_mfx.js leaf order minus the four CTRL_ASGN leaves. 'jv_prm' is EFX Parameter n (Patch Common 00 0D + n - 1), from the JV-1010 Owner's Manual MIDI Implementation, 'Correspondence of the EFX algorithm and Exclusive Address'. JV raw type r = XV MFX type r + 1 by name and parameter list. Roland's own JV->XV conversions (https://github.com/sigma/integral/issues/206, map-check-roland-pairs.md) confirm the type numbering and show that XV types 1-40 store the JV EFX parameters verbatim: XV MFX Parameter n = JV EFX Parameter n, same raw value, Parameters 13-32 = 0. An XV Patch with MFX type 1-40 therefore converts with these same rows (jv_prm = XV Parameter n). 'roland_pairs' gives the evidence per type; 'confidence' grades the JV/XV source side (type and raw parameter identity). The Integra side (integra_params, conv) cannot be checked from the pairs and keeps the grades in foreign-fx-map.md. The XV 41-90 encoding is still unverified. XV 41-90 'copy': the corpus check (xv-mfx-fit-check.py) found every Parameter 1-32 of every corpus block of the type within the target type's stored ranges, so the converter copies them verbatim; every other XV 41-90 type gets the target type's defaults.",
+  "_about": "Companion data for docs/research/foreign-fx-map.md. 'integra_params' are MFX Parameter numbers n (1-32) of the PCM Synth Tone MFX block, taken from Roland INTEGRA-7 Editor model_excmap_mfx.js leaf order minus the four CTRL_ASGN leaves. 'jv_prm' is EFX Parameter n (Patch Common 00 0D + n - 1), from the JV-1010 Owner's Manual MIDI Implementation, 'Correspondence of the EFX algorithm and Exclusive Address'. JV raw type r = XV MFX type r + 1 by name and parameter list. Roland's own JV->XV conversions (https://github.com/sigma/integral/issues/206, map-check-roland-pairs.md) confirm the type numbering and show that XV types 1-40 store the JV EFX parameters verbatim: XV MFX Parameter n = JV EFX Parameter n, same raw value, Parameters 13-32 = 0. An XV Patch with MFX type 1-40 therefore converts with these same rows (jv_prm = XV Parameter n). 'roland_pairs' gives the evidence per type; 'confidence' grades the JV/XV source side (type and raw parameter identity). The Integra side (integra_params, conv) cannot be checked from the pairs and keeps the grades in foreign-fx-map.md. The XV 41-90 encoding is still unverified. XV 41-90 'copy_slots': XV MFX Parameter n lands on Integra MFX Parameter copy_slots[n-1]; the other Integra Parameters keep the target type's defaults. Listed only for types the corpus check (xv-mfx-fit-check.py) and the XV-5050 manual both support (foreign-fx-map.md, Unresolved 1); every other XV 41-90 type gets the target type's defaults.",
   "conversions": {
     "copy": "target raw = source raw",
     "drop": "no Integra equivalent: list in the Conversion report. A drop row's 'neutral' is the value that loses nothing (centre pan): the converter reports the parameter only when it differs.",
@@ -5508,7 +5508,13 @@
       "integra": "8 SPEAKER SIMULATOR",
       "class": "same",
       "notes": "same 16 speaker types, Mic Setting 1-3",
-      "copy": true
+      "copy_slots": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
     },
     {
       "xv_type": 53,
@@ -5691,7 +5697,25 @@
       "integra": "30 GUITAR AMP SIMULATOR",
       "class": "rescaled",
       "notes": "same 14 amp types and 16 speaker types",
-      "copy": true
+      "copy_slots": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
     },
     {
       "xv_type": 79,
@@ -5699,7 +5723,15 @@
       "integra": "28 OVERDRIVE",
       "class": "same",
       "notes": "Pan absent in source: centre",
-      "copy": true
+      "copy_slots": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8
+      ]
     },
     {
       "xv_type": 80,
@@ -5707,7 +5739,15 @@
       "integra": "29 DISTORTION",
       "class": "same",
       "notes": "as 79",
-      "copy": true
+      "copy_slots": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8
+      ]
     },
     {
       "xv_type": 81,
@@ -5764,7 +5804,18 @@
       "integra": "2 SPECTRUM",
       "class": "same",
       "notes": "same eight bands and Q list",
-      "copy": true
+      "copy_slots": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
     },
     {
       "xv_type": 89,

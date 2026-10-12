@@ -4,9 +4,14 @@
 For every distinct XV MFX block (Model 00 10, DT1 at `aa bb 02 00`) of a
 type 41-90 found in the `.syx`/`.mid` files under CORPUS, read Parameters
 1-32 and test each target slot against its stored range in
-`mfx-param-layout.csv`. A type whose every block fits is marked `copy` in
-`foreign-fx-map.json` (see `foreign-fx-map.md`, Unresolved 1). In-range
-values don't prove the layout; an out-of-range one disproves it.
+`mfx-param-layout.csv`. In-range values don't prove the layout; an
+out-of-range one disproves it. A type whose every block fits is checked
+against the XV-5050 manual before it gets `copy_slots` in
+`foreign-fx-map.json` (see `foreign-fx-map.md`, Unresolved 1).
+
+Controls, for each type that fits: how many blocks still fit with the
+Parameters shifted 1 or 2 slots either way, and how many other INTEGRA-7
+types every block also fits. A fit that survives those may be coincidental.
 
 Usage: xv-mfx-fit-check.py CORPUS
 """
@@ -76,26 +81,40 @@ def blocks(corpus):
     return found
 
 
+def parameters(block):
+    """MFX Parameters 1-32 of a block, as stored values."""
+    return [
+        (block[PARAMS + 4 * i] << 12 | block[PARAMS + 4 * i + 1] << 8
+         | block[PARAMS + 4 * i + 2] << 4 | block[PARAMS + 4 * i + 3]) - 32768
+        for i in range(32)
+    ]
+
+
+def fits(params, limits, shift=0):
+    """Whether every slot of `limits` holds a value in range, shifted."""
+    def value(n):
+        i = n - 1 + shift
+        return params[i] if 0 <= i < len(params) else 0
+    return all(lo <= value(n) <= hi for n, (lo, hi) in limits.items())
+
+
 def main(corpus):
     limits, types = ranges(), targets()
-    stats = collections.defaultdict(lambda: [0, 0])
+    per_type = collections.defaultdict(list)
     for block in blocks(corpus):
-        target, _ = types[block[0]]
-        if target is None:
-            continue
-        params = [
-            (block[PARAMS + 4 * i] << 12 | block[PARAMS + 4 * i + 1] << 8
-             | block[PARAMS + 4 * i + 2] << 4 | block[PARAMS + 4 * i + 3]) - 32768
-            for i in range(32)
-        ]
-        fits = all(lo <= params[n - 1] <= hi for n, (lo, hi) in limits[target].items())
-        stats[block[0]][0] += 1
-        stats[block[0]][1] += fits
-    for xv in sorted(stats):
+        if types[block[0]][0] is not None:
+            per_type[block[0]].append(parameters(block))
+    for xv in sorted(per_type):
         target, name = types[xv]
-        total, fit = stats[xv]
-        print(f"{xv:3} {name:22} -> {target:3}  blocks {total:4}  fit {fit:4}")
-    missing = sorted(t for t, (g, _) in types.items() if g and t not in stats)
+        params = per_type[xv]
+        fit = sum(fits(p, limits[target]) for p in params)
+        line = f"{xv:3} {name:22} -> {target:3}  blocks {len(params):4}  fit {fit:4}"
+        if fit == len(params):
+            shifted = sum(fits(p, limits[target], s) for p in params for s in (-2, -1, 1, 2))
+            others = [t for t in limits if t != target and all(fits(p, limits[t]) for p in params)]
+            line += f"  shifted fits {shifted}  other types {others}"
+        print(line)
+    missing = sorted(t for t, (g, _) in types.items() if g and t not in per_type)
     print("no corpus data:", missing)
 
 
