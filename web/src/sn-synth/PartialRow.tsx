@@ -50,7 +50,7 @@ export function PartialRow({
 
   return (
     <div className={css.partialRow}>
-      <PartialPowerButton label={`Voice ${idx + 1}`} isOn={isOn} onToggle={onToggle} />
+      <PartialPowerButton label={`Partial ${idx + 1}`} isOn={isOn} onToggle={onToggle} />
 
       {/* OSC */}
       <div className={dimClass}>
@@ -72,8 +72,8 @@ export function PartialRow({
         {partial && <ModLfoPanel partial={partial} onChange={setP} />}
       </div>
 
-      {/* LFO + Aftertouch */}
-      <div className={dimClass}>
+      {/* LFO + Aftertouch: the row's end, where its arrow into the MFX leaves */}
+      <div className={dimClass} data-node={`out-${idx}`}>
         {partial && <LfoPanel partial={partial} onChange={setP} />}
       </div>
     </div>

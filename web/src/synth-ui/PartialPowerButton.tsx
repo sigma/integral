@@ -1,7 +1,7 @@
 import css from "./PartialPowerButton.module.css";
 
 interface Props {
-  /** Read bottom to top, e.g. "Voice 1". */
+  /** Read bottom to top, e.g. "Partial 1". */
   label: string;
   isOn: boolean;
   onToggle: () => void;

@@ -7,6 +7,7 @@ import {
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import { MfxPanel } from "./MfxPanel";
+import { SignalArrows } from "./synth-ui/SignalArrows";
 import { useMfxHandlers } from "./useMfxHandlers";
 import type { MfxState } from "./MfxPanel";
 import css from "./SnSynthEditor.module.css";
@@ -133,7 +134,7 @@ export function SnSynthEditor({ partIndex, service }: Props) {
             );
           })}
         </div>
-        <div className={css.mfxSidebar}>
+        <div className={css.mfxSidebar} data-node="mfx">
           {mfx && (
             <MfxPanel
               mfx={mfx}
@@ -141,6 +142,8 @@ export function SnSynthEditor({ partIndex, service }: Props) {
             />
           )}
         </div>
+        {/* Every partial is summed into the MFX. */}
+        <SignalArrows edges={tone.partials.map((_, i) => ({ from: `out-${i}`, to: "mfx", glyph: "+" }))} />
       </div>
     </div>
   );

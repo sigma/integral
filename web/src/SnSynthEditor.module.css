@@ -75,6 +75,7 @@
 
 /* Stretch, so the MFX panel ends level with the last partial row. */
 .mainArea {
+  position: relative;
   display: flex;
   gap: 8px;
 }
@@ -106,9 +107,11 @@
   opacity: 0.4;
 }
 
+/* Room for the partials' arrows to converge on the MFX at its + */
 .mfxSidebar {
   flex-shrink: 0;
   display: flex;
+  margin-left: 48px;
 }
 
 /* Fixed-width area for wave selectors so knobs don't shift */
