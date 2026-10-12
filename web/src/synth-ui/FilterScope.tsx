@@ -1,4 +1,4 @@
-import { ScopeScreen, sampled } from "./ScopeScreen";
+import { ScopeScreen } from "./ScopeScreen";
 
 /** Plotted gain range, in dB: 0 dB sits a third of the way down. */
 const TOP_DB = 18;
@@ -44,13 +44,28 @@ export function FilterScope({
   // shortcut: a generic 2-pole response with cutoff spread over 8 octaves and Q 0.7-12, a picture of the settings; not the device's measured curves or slopes.
   const fc = Math.min(127, Math.max(0, cutoff)) / 127;
   const q = Math.SQRT1_2 + (11.3 * Math.min(127, Math.max(0, resonance))) / 127;
-  const y = (x: number) => {
-    const db = 20 * Math.log10(Math.max(gain(2 ** (8 * (x - fc)), q), 1e-6));
-    return (TOP_DB - Math.min(TOP_DB, Math.max(BOTTOM_DB, db))) / (TOP_DB - BOTTOM_DB);
-  };
+  const db = (x: number) => 20 * Math.log10(Math.max(gain(2 ** (8 * (x - fc)), q), 1e-6));
+  const y = (d: number) => (TOP_DB - Math.min(TOP_DB, Math.max(BOTTOM_DB, d))) / (TOP_DB - BOTTOM_DB);
+  // Frequencies cut below the floor draw nothing: the trace runs down to the
+  // floor and stops, then starts again where the response comes back up.
+  const n = 200;
+  let path = "";
+  let above = false;
+  let prev = 0;
+  for (let i = 0; i <= n; i++) {
+    const x = i / n;
+    const d = db(x);
+    if (d >= BOTTOM_DB) {
+      path += `${above ? "L" : i ? `M ${prev} ${y(BOTTOM_DB)} L` : "M"} ${x} ${y(d)} `;
+    } else if (above) {
+      path += `L ${x} ${y(BOTTOM_DB)} `;
+    }
+    above = d >= BOTTOM_DB;
+    prev = x;
+  }
   return (
     <ScopeScreen className={className}>
-      <path d={sampled(200, y)} fill="none" stroke="#68c" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      <path d={path.trim()} fill="none" stroke="#68c" strokeWidth="2" vectorEffect="non-scaling-stroke" />
     </ScopeScreen>
   );
 }

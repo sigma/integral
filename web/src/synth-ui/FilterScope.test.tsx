@@ -36,6 +36,8 @@ describe("FilterScope", () => {
     expect(yAt(pathOf("LPF"), 0)).toBeLessThan(yAt(pathOf("LPF"), 1));
     expect(pathOf("LPF", 100)).not.toEqual(pathOf("LPF", 20));
     expect(pathOf("LPF", 64, 127)).not.toEqual(pathOf("LPF", 64, 0));
+    // fully cut frequencies draw nothing: a low cutoff low-pass stops short of the right edge
+    expect(pathOf("LPF", 10).endsWith(" 1 1")).toBe(false);
     // LPF2 and LPF3 ignore Resonance
     expect(pathOf("LPF2", 64, 127)).toEqual(pathOf("LPF2", 64, 0));
   });
