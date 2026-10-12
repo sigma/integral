@@ -112,7 +112,7 @@ fn plan(
     opts: &ImportOptions,
 ) -> Result<ImportPlan> {
     let pack = &read.pack;
-    let mut plan = plan_read(read, Origin::of(pack), names, loaded);
+    let mut plan = plan_read(read, Origin::of(read), names, loaded);
     if !opts.only.is_empty() {
         let only = opts
             .only
@@ -268,7 +268,7 @@ impl Report<'_> {
     }
 
     fn text_plan(&self) -> String {
-        let kind = self.format.label(Origin::of(self.pack));
+        let kind = self.format.label(self.plan.origin());
         let mut out = format!(
             "{} ({kind}, {} {}):\n",
             self.file.display(),
@@ -771,14 +771,14 @@ mod tests {
 
     #[test]
     fn backup_entries_keep_their_slots() {
-        let pack = Pack {
+        let read = read_of(Pack {
             entries: vec![
                 entry(ChunkType::SnSynthTone, Some(2)),
                 entry(ChunkType::SnSynthTone, Some(5)),
             ],
-        };
-        assert_eq!(Origin::of(&pack), Origin::Backup);
-        let plan = plan(&read_of(pack), &names(), None, &opts(&[]).unwrap()).unwrap();
+        });
+        assert_eq!(Origin::of(&read), Origin::Backup);
+        let plan = plan(&read, &names(), None, &opts(&[]).unwrap()).unwrap();
         assert_eq!(plan.placements(), [Placement::User(2), Placement::Unplaced]);
     }
 

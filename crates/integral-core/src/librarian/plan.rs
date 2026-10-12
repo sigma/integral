@@ -26,7 +26,7 @@ use crate::expansion_slots::ExpansionSlots;
 use crate::expansions::{Expansion, expansion_of_bank};
 use crate::svd::ChunkType;
 
-use super::foreign::{ConversionItem, FileItem, PackRead, SourceModel};
+use super::foreign::{ConversionItem, FileItem, PackFormat, PackRead, SourceModel};
 use super::pack::{Pack, ToneRef, user_memory};
 
 /// What kind of file a [`Pack`] was read from.
@@ -37,12 +37,19 @@ pub enum Origin {
     Sound,
     /// A full backup: each entry goes back to its original slot.
     Backup,
+    /// A SysEx or MIDI dump: entries fill free slots as from a sound
+    /// export, but a Studio Set Part's User tone is the device's User slot,
+    /// not a Pack position. It is kept as is.
+    Dump,
 }
 
 impl Origin {
-    /// The origin of `pack`: only a backup gives its entries a slot.
-    pub fn of(pack: &Pack) -> Self {
-        if pack.entries.iter().any(|e| e.slot().is_some()) {
+    /// The origin of a Pack read from a file: a SysEx or MIDI file is a
+    /// dump; otherwise only a backup gives its entries a slot.
+    pub fn of(read: &PackRead) -> Self {
+        if matches!(read.format, PackFormat::Sysex | PackFormat::Midi) {
+            Self::Dump
+        } else if read.pack.entries.iter().any(|e| e.slot().is_some()) {
             Self::Backup
         } else {
             Self::Sound
@@ -218,7 +225,7 @@ pub struct ImportPlan {
 /// isn't loaded gets a warning too, whether converted or native.
 ///
 /// A lone tone, or a lone Studio Set that references no tone of the Pack,
-/// goes to Temporary.
+/// goes to Temporary. A dump's Studio Set references no tone of the Pack.
 ///
 /// The plan's reports are empty: [`plan_read`] plans a Pack with the
 /// reports of its reading.
@@ -236,6 +243,7 @@ pub fn plan_import(
     for (set, entry) in pack.entries.iter().enumerate() {
         for (part, tone_ref) in (0..).zip(entry.tone_refs()) {
             let warning = match tone_ref {
+                ToneRef::Pack { .. } if origin == Origin::Dump => None,
                 ToneRef::Pack { kind, index } => {
                     let tone = (0..kinds.len())
                         .filter(|&i| kinds[i] == kind)
@@ -285,10 +293,13 @@ pub fn plan_import(
     }
 
     let single = match pack.entries.as_slice() {
-        [entry] => !entry
-            .tone_refs()
-            .iter()
-            .any(|r| matches!(r, ToneRef::Pack { .. })),
+        [entry] => {
+            origin == Origin::Dump
+                || !entry
+                    .tone_refs()
+                    .iter()
+                    .any(|r| matches!(r, ToneRef::Pack { .. }))
+        }
         _ => false,
     };
     let mut plan = ImportPlan {
@@ -356,6 +367,11 @@ fn free_slots(kinds: &[ChunkType], slot_names: &[CatalogEntry]) -> Vec<(ChunkTyp
 }
 
 impl ImportPlan {
+    /// What kind of file the Pack was read from.
+    pub fn origin(&self) -> Origin {
+        self.origin
+    }
+
     /// Where each entry goes, indexed like the Pack's entries.
     pub fn placements(&self) -> &[Placement] {
         &self.placements
@@ -459,7 +475,7 @@ impl ImportPlan {
             Origin::Backup => {
                 self.slots[entry].filter(|s| self.free.contains(&(kind, *s)) && !taken.contains(s))
             }
-            Origin::Sound => self
+            Origin::Sound | Origin::Dump => self
                 .free
                 .iter()
                 .filter(|&&(k, _)| k == kind)
@@ -836,6 +852,23 @@ mod tests {
     #[test]
     fn lone_set_without_pack_tones_goes_to_temporary() {
         let plan = plan_of(&pack(vec![set_with(&[(0, SRX05)])]), Origin::Sound, &[]);
+        assert_eq!(plan.placements(), [Placement::Temporary]);
+    }
+
+    #[test]
+    fn a_dumped_set_keeps_its_device_references() {
+        // A Studio Set dumped from the device, Part 3 on User SN-S tone 2.
+        let set = set_with(&[(2, sns_ref(1))]);
+        let memory = user_memory(SET).unwrap();
+        let syx: Vec<u8> = (memory.blocks(memory.temporary_base(0)))
+            .zip(set.blocks())
+            .flat_map(|((address, _), data)| crate::sysex::build_dt1(0x10, &address, data))
+            .collect();
+        let read = Pack::read(&syx).unwrap();
+        assert_eq!(Origin::of(&read), Origin::Dump);
+
+        let plan = plan_read(&read, Origin::Dump, &names(SET, &["INIT STUDIO"]), None);
+        assert_eq!(plan.warnings().count(), 0, "no broken reference");
         assert_eq!(plan.placements(), [Placement::Temporary]);
     }
 

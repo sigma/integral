@@ -62,7 +62,7 @@ impl PackFormat {
     /// file is a sound export or a backup.
     pub fn label(self, origin: Origin) -> &'static str {
         match (self, origin) {
-            (Self::Svd, Origin::Sound) => "sound export",
+            (Self::Svd, Origin::Sound | Origin::Dump) => "sound export",
             (Self::Svd, Origin::Backup) => "backup",
             (Self::XvSvd, _) => "XV SVD file",
             (Self::Sysex, _) => "SysEx dump",

@@ -48,7 +48,7 @@ use thiserror::Error;
 
 use super::foreign::studio_set_fx;
 use super::pack::{Pack, PackEntry, ToneRef, user_memory};
-use super::plan::{ImportPlan, Placement};
+use super::plan::{ImportPlan, Origin, Placement};
 use super::reader::{BlockData, BlockReader};
 use crate::address::{self, Address, DataSize};
 use crate::device_spec::{INTEGRA7, USER_MEMORY, UserMemorySpec};
@@ -205,7 +205,11 @@ impl PackImport {
             };
             let target = memory.bank_select(slot).ok_or(ImportError::PlanMismatch)?;
             let job = if entry.kind() == ChunkType::StudioSet {
-                let set = relink(pack, placements, entry);
+                // A dump's Parts play the device's User slots: nothing to relink.
+                let set = match plan.origin() {
+                    Origin::Dump => entry.clone(),
+                    Origin::Sound | Origin::Backup => relink(pack, placements, entry),
+                };
                 Job {
                     entry: i,
                     sends: dt1s(memory, address::STUDIO_SET, &set),
@@ -773,6 +777,23 @@ mod tests {
         // Part 1 played Tone B (Pack position 2): it stays on User slot 2.
         assert_eq!(device.stored_bank(0), [95, 0, 1]);
         assert_eq!(device.stored_bank(1), [95, 0, 9]);
+    }
+
+    #[test]
+    fn a_dump_keeps_its_device_references() {
+        let pack = pack();
+        let mut plan = plan_import(&pack, Origin::Dump, &[], None);
+        for (entry, slot) in [(0, 4), (1, 9), (2, 129), (3, 0)] {
+            plan.assign(entry, slot).unwrap();
+        }
+        plan.exclude(4).unwrap();
+        let mut device = Device::new();
+        let mut import = PackImport::new(0x10, &pack, &plan, PART, false).unwrap();
+        device.run(&mut import);
+
+        // The Parts still play User slots 2 and 1, as on the dumping device.
+        assert_eq!(device.stored_bank(0), [95, 0, 1]);
+        assert_eq!(device.stored_bank(1), [95, 0, 0]);
     }
 
     #[test]

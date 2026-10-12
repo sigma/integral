@@ -186,7 +186,7 @@ impl WasmPack {
     /// dump (`.syx`, `.mid`).
     pub fn read(bytes: &[u8]) -> Result<WasmPack, JsError> {
         let read = Pack::read(bytes).map_err(js_err)?;
-        let origin = Origin::of(&read.pack);
+        let origin = Origin::of(&read);
         Ok(Self { read, origin })
     }
 
