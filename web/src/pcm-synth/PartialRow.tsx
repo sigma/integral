@@ -15,6 +15,7 @@ import { routingOf, type Block, type Side } from "./structureRouting";
 import { knobRange, switchOptions } from "../fieldSpec";
 import { VelocityCurveSelect } from "../synth-ui/VelocityCurveSelect";
 import { LfoScope } from "../synth-ui/LfoScope";
+import { TimeOrNoteKnob } from "./TimeOrNoteKnob";
 import { FilterScope } from "../synth-ui/FilterScope";
 import css from "../PcmSynthEditor.module.css";
 import type { PartialParamHandler, PartialSetter, PcmSynthPartial } from "./types";
@@ -659,7 +660,7 @@ function Lfo1Section({
             shape={pcms_partial_spec(PcmsPartialField.Lfo1Waveform).formatValue(partial.lfo1Waveform)}
             steps={partial.lfoStepValues} smooth={partial.lfoStepType === 1} />
           <div className={css.knobGrid}>
-            <SynthKnob label="Rate" value={partial.lfo1Rate} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1Rate))}
+            <TimeOrNoteKnob label="Rate" field={PcmsPartialField.Lfo1Rate} value={partial.lfo1Rate}
               onChange={set(PcmsPartialField.Lfo1Rate, "lfo1Rate")} color="#a6f"
               title="LFO speed" />
             <SynthKnob label="Detune" value={partial.lfo1RateDetune} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1RateDetune))}
@@ -737,7 +738,7 @@ function Lfo2Section({
             shape={pcms_partial_spec(PcmsPartialField.Lfo2Waveform).formatValue(partial.lfo2Waveform)}
             steps={partial.lfoStepValues} smooth={partial.lfoStepType === 1} />
           <div className={css.knobGrid}>
-            <SynthKnob label="Rate" value={partial.lfo2Rate} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2Rate))}
+            <TimeOrNoteKnob label="Rate" field={PcmsPartialField.Lfo2Rate} value={partial.lfo2Rate}
               onChange={set(PcmsPartialField.Lfo2Rate, "lfo2Rate")} color="#a6f"
               title="LFO speed" />
             <SynthKnob label="Detune" value={partial.lfo2RateDetune} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2RateDetune))}
@@ -928,7 +929,7 @@ function OutputSection({
           options={switchOptions(pcms_partial_spec(PcmsPartialField.DelayMode))}
           onChange={set(PcmsPartialField.DelayMode, "delayMode")} led={false}
           title="Partial delay mode — when sound starts relative to note-on" />
-        <SynthKnob label="Delay" value={partial.delayTime} {...knobRange(pcms_partial_spec(PcmsPartialField.DelayTime))}
+        <TimeOrNoteKnob label="Delay" field={PcmsPartialField.DelayTime} value={partial.delayTime}
           onChange={set(PcmsPartialField.DelayTime, "delayTime")} color="#6c8"
           title="Delay time before this partial sounds" />
       </div>
