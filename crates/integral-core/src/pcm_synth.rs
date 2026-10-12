@@ -1118,7 +1118,7 @@ impl Default for PcmSynthPartial {
             tva_env_t4_velocity_sens: 64,
             tva_env_time_keyfollow: 64,
             tva_env_time: [0; 4],
-            tva_env_level: [0; 3],
+            tva_env_level: [127; 3], // full level until release (not yet checked on the device: #250)
 
             // LFO1
             lfo1_waveform: 0,
