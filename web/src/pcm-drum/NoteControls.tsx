@@ -30,6 +30,7 @@ import {
 } from "./types";
 import { knobRange } from "../fieldSpec";
 import { VelocityCurveSelect } from "../synth-ui/VelocityCurveSelect";
+import { FilterScope } from "../synth-ui/FilterScope";
 import { deviceSpec } from "../deviceSpec";
 import { WavePicker, type ExpansionMarking } from "../WavePicker";
 import { waveSourceOf } from "../waveCatalog";
@@ -351,6 +352,8 @@ function TvfSection({
 }) {
   return (
     <SectionPanel label="FILTER" accentColor="#68c">
+      <FilterScope className={css.filterScope} cutoff={note.tvfCutoffFrequency} resonance={note.tvfResonance}
+        type={FILTER_TYPE_OPTIONS[note.tvfFilterType]?.label ?? ""} />
       <div className={css.filterGrid}>
         <SynthKnob label="Depth" value={note.tvfEnvDepth} min={1} max={127} defaultValue={64} center={64}
           onChange={set(PcmdPartialField.TvfEnvDepth, "tvfEnvDepth")} formatValue={(v) => signedFmt(v, 64)} color="#68c"

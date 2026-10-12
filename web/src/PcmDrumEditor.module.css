@@ -65,6 +65,11 @@
   align-items: stretch;
 }
 
+/* The filter's response, one knob row tall, across the FILTER box */
+.filterScope {
+  height: 44px;
+}
+
 .knobRow {
   display: flex;
   gap: 4px;
