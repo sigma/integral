@@ -137,7 +137,7 @@
 .mfxSidebar {
   flex-shrink: 0;
   align-self: center;
-  margin-left: 28px;
+  margin-left: 56px;
 }
 
 /* ----------------------------------------------------------------
@@ -152,7 +152,7 @@
   position: relative;
   display: grid;
   grid-template-rows: auto auto;
-  gap: 8px 28px;
+  gap: 8px 56px;
   align-items: stretch;
   overflow-x: auto;
   padding-bottom: 2px;
