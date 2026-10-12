@@ -254,10 +254,8 @@
    Step LFO grid
    ---------------------------------------------------------------- */
 
-/* Same scope screen as the envelope shapes; its mid graticule line is zero. */
+/* One cycle of the step pattern, drawn by the LFO scope; its mid graticule line is zero. */
 .stepViz {
-  composes: screen from "./synth-ui/Scope.module.css";
-  display: block;
   height: 40px;
 }
 

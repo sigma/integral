@@ -79,7 +79,8 @@ export function LfoScope({
   const y = shape === "STEP" && steps ? stepShape(steps, smooth) : SHAPES[shape];
   if (!y) return null;
   // shortcut: 1 to 8 cycles across the screen, a visual cue only; not the device's rate in Hz.
-  const cycles = 1 + (7 * Math.min(127, Math.max(0, rate))) / 127;
+  // CHAOS runs at its own pace: the device ignores Rate for it.
+  const cycles = shape === "CHS" ? 3 : 1 + (7 * Math.min(127, Math.max(0, rate))) / 127;
   return (
     <ScopeScreen className={className}>
       <path d={sampled(400, (x) => y(x * cycles))} fill="none" stroke="#a6f" strokeWidth="2"

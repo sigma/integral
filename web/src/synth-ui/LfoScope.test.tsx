@@ -29,5 +29,7 @@ describe("LfoScope", () => {
 
   it("fits more cycles as the rate rises", () => {
     expect(pathOf("SIN", 127)).not.toEqual(pathOf("SIN", 0));
+    // except CHAOS, whose rate the device ignores
+    expect(pathOf("CHS", 127)).toEqual(pathOf("CHS", 0));
   });
 });

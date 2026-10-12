@@ -443,9 +443,6 @@ function Lfo1Section({
             <SynthKnob label="Dly KF" value={partial.lfo1DelayTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1DelayTimeKeyfollow))}
               onChange={set(PcmsPartialField.Lfo1DelayTimeKeyfollow, "lfo1DelayTimeKeyfollow")} color="#a6f"
               title="Delay time key tracking — higher keys = shorter delay" />
-            <SynthKnob label="Fade In" value={partial.lfo1FadeTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1FadeTime))}
-              onChange={set(PcmsPartialField.Lfo1FadeTime, "lfo1FadeTime")} color="#a6f"
-              title="Time for LFO to reach full depth after delay" />
             <SynthKnob label="Offset" value={partial.lfo1Offset} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1Offset))}
               onChange={set(PcmsPartialField.Lfo1Offset, "lfo1Offset")} color="#a6f"
               title="DC offset of the LFO waveform" />
@@ -457,6 +454,9 @@ function Lfo1Section({
           options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1FadeMode))}
           onChange={set(PcmsPartialField.Lfo1FadeMode, "lfo1FadeMode")} led={false}
           title="Fade behavior: fade in on note-on, fade out, or on key-off" />
+        <SynthKnob label="Fade T" value={partial.lfo1FadeTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1FadeTime))}
+          onChange={set(PcmsPartialField.Lfo1FadeTime, "lfo1FadeTime")} color="#a6f"
+          title="Fade time — how long the fade set by Fade takes (in or out)" />
         <SynthSwitch label="Key Trig" value={partial.lfo1KeyTrigger} options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1KeyTrigger))}
           onChange={set(PcmsPartialField.Lfo1KeyTrigger, "lfo1KeyTrigger")}
           title="Reset LFO phase on each new note" />
@@ -513,9 +513,6 @@ function Lfo2Section({
             <SynthKnob label="Dly KF" value={partial.lfo2DelayTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2DelayTimeKeyfollow))}
               onChange={set(PcmsPartialField.Lfo2DelayTimeKeyfollow, "lfo2DelayTimeKeyfollow")} color="#a6f"
               title="Delay time key tracking — higher keys = shorter delay" />
-            <SynthKnob label="Fade In" value={partial.lfo2FadeTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2FadeTime))}
-              onChange={set(PcmsPartialField.Lfo2FadeTime, "lfo2FadeTime")} color="#a6f"
-              title="Time for LFO to reach full depth after delay" />
             <SynthKnob label="Offset" value={partial.lfo2Offset} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2Offset))}
               onChange={set(PcmsPartialField.Lfo2Offset, "lfo2Offset")} color="#a6f"
               title="DC offset of the LFO waveform" />
@@ -527,6 +524,9 @@ function Lfo2Section({
           options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2FadeMode))}
           onChange={set(PcmsPartialField.Lfo2FadeMode, "lfo2FadeMode")} led={false}
           title="Fade behavior: fade in on note-on, fade out, or on key-off" />
+        <SynthKnob label="Fade T" value={partial.lfo2FadeTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2FadeTime))}
+          onChange={set(PcmsPartialField.Lfo2FadeTime, "lfo2FadeTime")} color="#a6f"
+          title="Fade time — how long the fade set by Fade takes (in or out)" />
         <SynthSwitch label="Key Trig" value={partial.lfo2KeyTrigger} options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2KeyTrigger))}
           onChange={set(PcmsPartialField.Lfo2KeyTrigger, "lfo2KeyTrigger")}
           title="Reset LFO phase on each new note" />
@@ -566,28 +566,6 @@ function StepLfoSection({
   const smooth = partial.lfoStepType === 1;
   const dimStyle = dimmed ? { opacity: 0.35 } : undefined;
 
-  // Step pattern in a 0..1 box, y = 0 at the top
-  const stepW = 1 / 16;
-  const yFor = (v: number) => 1 - ((v ?? 64) - 1) / 126;
-
-  let vizPath = "";
-  if (smooth) {
-    // Smooth: line through center of each step
-    vizPath = steps.map((v, i) => {
-      const x = (i + 0.5) * stepW;
-      const y = yFor(v);
-      return i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
-    }).join(" ");
-  } else {
-    // Staircase: horizontal bars per step
-    vizPath = steps.map((v, i) => {
-      const x1 = i * stepW;
-      const x2 = x1 + stepW;
-      const y = yFor(v);
-      return `${i === 0 ? "M" : "L"} ${x1} ${y} L ${x2} ${y}`;
-    }).join(" ");
-  }
-
   return (
     <div style={dimStyle}>
     <SectionPanel label="STEP LFO" accentColor="#a6f">
@@ -597,10 +575,7 @@ function StepLfoSection({
           onChange={set(PcmsPartialField.LfoStepType, "lfoStepType")}
           title="Step shape: STEP = hard jumps, SMOOTH = interpolated transitions. Set LFO1 or LFO2 waveform to STEP to use this pattern." />
       </div>
-      {/* Step pattern visualizer */}
-      <svg className={css.stepViz} viewBox="-0.05 -0.15 1.1 1.3" preserveAspectRatio="none">
-        <path d={vizPath} fill="none" stroke="#a6f" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      </svg>
+      <LfoScope className={css.stepViz} shape="STEP" rate={0} steps={steps} smooth={smooth} />
       <div className={css.stepGrid}>
         {Array.from({ length: 16 }, (_, i) => (
           <SynthFader
