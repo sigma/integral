@@ -794,7 +794,7 @@ function ControlSection({
   set: PartialSetter;
 }) {
   return (
-    <SectionPanel label={numbered("CONTROL", n, " ")} accentColor="#6c8">
+    <SectionPanel label={numbered("CTRL", n, " ")} accentColor="#6c8">
       <SynthSwitch label="Env Mode" value={partial.envMode} vertical
         options={switchOptions(pcms_partial_spec(PcmsPartialField.EnvMode))}
         onChange={set(PcmsPartialField.EnvMode, "envMode")} led={false}

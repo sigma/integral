@@ -56,7 +56,7 @@ describe("PartialGrid", () => {
     expect(spans("AMP 1")).toEqual(["1"]);
     expect(spans("AMP 2")).toEqual(["1 / span 2"]);
     expect(spans("OUTPUT 2")).toEqual(["1 / span 2"]);
-    expect(spans("CONTROL 1")).toEqual(["1"]);
+    expect(spans("CTRL 1")).toEqual(["1"]);
     // LFO depth faders name the box they target.
     expect(container.querySelector('[role="slider"][aria-label="FLT 1"]')).not.toBeNull();
     expect(container.querySelector('[role="slider"][aria-label="FLT 2"]')).not.toBeNull();
