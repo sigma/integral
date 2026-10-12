@@ -384,14 +384,14 @@ function TvaSection({
             onChange: set(PcmsPartialField.TvaEnvTime, "tvaEnvTime", 3), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvTime)),
           }]}
           levels={[
-            { at: 0, text: "0" },
+            { label: "L0", at: 0, text: "0" },
             { label: "L1", value: partial.tvaEnvLevel[0] ?? 127,
               onChange: set(PcmsPartialField.TvaEnvLevel, "tvaEnvLevel", 0), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvLevel)), },
             { label: "L2", value: partial.tvaEnvLevel[1] ?? 127,
               onChange: set(PcmsPartialField.TvaEnvLevel, "tvaEnvLevel", 1), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvLevel)), },
             { label: "L3", value: partial.tvaEnvLevel[2] ?? 0,
               onChange: set(PcmsPartialField.TvaEnvLevel, "tvaEnvLevel", 2), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvLevel)), },
-            { at: 0, text: "0" },
+            { label: "L4", at: 0, text: "0" },
           ]}
         />
       </div>

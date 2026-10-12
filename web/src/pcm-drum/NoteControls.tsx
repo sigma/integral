@@ -466,14 +466,14 @@ function TvaSection({
           onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 3),
         }]}
         levels={[
-          { at: 0, text: "0" },
+          { label: "L0", at: 0, text: "0" },
           { label: "L1", value: note.tvaEnvLevel[0] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 0) },
           { label: "L2", value: note.tvaEnvLevel[1] ?? 127, min: 0, max: 127, defaultValue: 127,
             onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 1) },
           { label: "L3", value: note.tvaEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
             onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 2) },
-          { at: 0, text: "0" },
+          { label: "L4", at: 0, text: "0" },
         ]}
       />
     </SectionPanel>

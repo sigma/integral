@@ -17,6 +17,8 @@ interface Props {
   hideLabel?: boolean;
   /** Full name for tooltip. Defaults to label. */
   title?: string;
+  /** Shown but not editable (a value the device fixes). */
+  readOnly?: boolean;
 }
 
 const TRACK_HEIGHT = 100;
@@ -37,6 +39,7 @@ export function SynthFader({
   trackHeight,
   hideLabel,
   title,
+  readOnly,
 }: Props) {
   const trackH = trackHeight ?? (compact ? TRACK_HEIGHT_COMPACT : TRACK_HEIGHT);
   const dragging = useRef(false);
@@ -81,6 +84,22 @@ export function SynthFader({
     onChange(defaultValue);
   }, [defaultValue, onChange]);
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+      e.preventDefault();
+      onChange(Math.min(max, value + (e.shiftKey ? 10 : 1)));
+    } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      onChange(Math.max(min, value - (e.shiftKey ? 10 : 1)));
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      onChange(max);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      onChange(min);
+    }
+  };
+
   const ticks = [];
   for (let i = 0; i < TICK_COUNT; i++) {
     const y = (i / (TICK_COUNT - 1)) * trackH;
@@ -93,7 +112,7 @@ export function SynthFader({
   const display = formatValue ? formatValue(value) : String(value);
 
   return (
-    <div className={`${css.fader} ${compact ? css.compact : ""}`} title={title ?? label}>
+    <div className={`${css.fader} ${compact ? css.compact : ""} ${readOnly ? css.readOnly : ""}`} title={title ?? label}>
       {/* Label zone — fixed height so faders align across groups */}
       {!hideLabel && (
         <div className={css.labelZone} style={{ height: FADER_LABEL_HEIGHT }}>
@@ -111,25 +130,16 @@ export function SynthFader({
         aria-valuemax={max}
         aria-label={label}
         aria-orientation="vertical"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onDoubleClick={handleDoubleClick}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowUp" || e.key === "ArrowRight") {
-            e.preventDefault();
-            onChange(Math.min(max, value + (e.shiftKey ? 10 : 1)));
-          } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
-            e.preventDefault();
-            onChange(Math.max(min, value - (e.shiftKey ? 10 : 1)));
-          } else if (e.key === "Home") {
-            e.preventDefault();
-            onChange(max);
-          } else if (e.key === "End") {
-            e.preventDefault();
-            onChange(min);
-          }
-        }}
+        aria-readonly={readOnly}
+        {...(readOnly
+          ? {}
+          : {
+              onPointerDown: handlePointerDown,
+              onPointerMove: handlePointerMove,
+              onPointerUp: handlePointerUp,
+              onDoubleClick: handleDoubleClick,
+              onKeyDown: handleKeyDown,
+            })}
       >
         <div className={css.ruler}>{ticks}</div>
         <div className={css.track}>

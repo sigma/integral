@@ -4,8 +4,9 @@ import css from "./BreakpointEnvelope.module.css";
 
 type Stage = Omit<ComponentProps<typeof SynthFader>, "compact">;
 
-/** A level the device fixes: `at` is its normalized height (0–1), `text` its marker. */
+/** A level the device fixes, shown as a read-only fader: `at` is its normalized height (0–1), `text` its value. */
 interface FixedLevel {
+  label: string;
   at: number;
   text: string;
 }
@@ -32,7 +33,7 @@ const HOLD = 0.6;
 /**
  * Breakpoint envelope: L0 → T1 → L1 → … → L(n-1) (held) → Tn → Ln.
  * Levels sit on top, times below between them, linked by a line in stage
- * order wherever both ends are faders.
+ * order. Levels the device fixes show as read-only faders.
  */
 export function BreakpointEnvelope({ times, levels, compact }: Props) {
   // Grid of half-fader columns: level i centered on column line 2i+1,
@@ -55,8 +56,8 @@ export function BreakpointEnvelope({ times, levels, compact }: Props) {
   let link = "";
   times.forEach((_, i) => {
     const t = 2 * i + 2;
-    if (!isFixed(levels[i]!)) link += ` M ${t - 1} 0 C ${t - 1} 0.5 ${t} 0.5 ${t} 1`;
-    if (!isFixed(levels[i + 1]!)) link += ` M ${t} 1 C ${t} 0.5 ${t + 1} 0.5 ${t + 1} 0`;
+    link += ` M ${t - 1} 0 C ${t - 1} 0.5 ${t} 0.5 ${t} 1`;
+    link += ` M ${t} 1 C ${t} 0.5 ${t + 1} 0.5 ${t + 1} 0`;
   });
 
   return (
@@ -67,17 +68,16 @@ export function BreakpointEnvelope({ times, levels, compact }: Props) {
       {levels.map((l, i) => (
         <div key={`l${i}`} className={css.level} style={{ gridColumn: `${2 * i + 1} / span 2` }}>
           {isFixed(l) ? (
-            <span className={css.fixedLevel} title="Fixed by the device">{l.text}</span>
+            <SynthFader label={l.label} value={l.at} min={0} max={1} defaultValue={l.at} onChange={() => {}}
+              formatValue={() => l.text} title={`${l.label}: fixed by the device`} compact={compact} readOnly />
           ) : (
             <SynthFader {...l} compact={compact} />
           )}
         </div>
       ))}
-      {link && (
-        <svg className={css.link} viewBox={`0 0 ${cols} 1`} preserveAspectRatio="none">
-          <path d={link} fill="none" stroke="#555" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-        </svg>
-      )}
+      <svg className={css.link} viewBox={`0 0 ${cols} 1`} preserveAspectRatio="none">
+        <path d={link} fill="none" stroke="#555" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+      </svg>
       {times.map((t, i) => (
         <div key={`t${i}`} className={css.time} style={{ gridColumn: `${2 * i + 2} / span 2` }}>
           <SynthFader {...t} compact={compact} />

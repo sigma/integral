@@ -103,3 +103,12 @@
   min-width: 28px;
   margin-top: 2px;
 }
+
+/* A value the device fixes: shown for the picture, not editable */
+.readOnly {
+  opacity: 0.45;
+}
+
+.readOnly .trackArea {
+  cursor: default;
+}
