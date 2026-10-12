@@ -99,20 +99,20 @@ describe("WavePicker", () => {
 
   it("pairs R with L's Stereo partner", () => {
     const { container, onChange } = picker({ l: 1 });
-    const pair = button(container, "pair");
+    const pair = button(container, "Pair");
     expect(pair.disabled).toBe(false);
     click(pair);
     expect(onChange).toHaveBeenCalledWith("r", 2);
   });
 
-  it("disables pair when L has no Stereo partner", () => {
+  it("disables Pair when L has no Stereo partner", () => {
     const { container } = picker({ l: 2 });
-    expect(button(container, "pair").disabled).toBe(true);
+    expect(button(container, "Pair").disabled).toBe(true);
   });
 
   it("clears R to OFF", () => {
     const { container, onChange } = picker({ l: 1, r: 2 });
-    click(button(container, "×"));
+    click(button(container, "Clear R"));
     expect(onChange).toHaveBeenCalledWith("r", 0);
   });
 
@@ -179,7 +179,7 @@ describe("PCM Synth partial wiring", () => {
       waveNumberR: 0,
     });
     pickWave(container, 0, 2);
-    click(button(container, "pair"));
+    click(button(container, "Pair"));
     expect(onParam.mock.calls).toEqual([
       [PcmsPartialField.WaveNumberL, "waveNumberL", 0, 2],
       [PcmsPartialField.WaveNumberR, "waveNumberR", 0, 2],
@@ -227,7 +227,7 @@ describe("PCM Drum WMT wiring", () => {
     expect(nameButton(container, 0).textContent).toBe("0001 StGrand pA L");
 
     pickWave(container, 0, 2);
-    click(button(container, "×"));
+    click(button(container, "Clear R"));
     click(button(container, "INT ▾"));
     const srx07 = [...document.body.querySelectorAll('[role="option"]')].find((o) =>
       o.textContent?.startsWith("SRX-07 "),
@@ -256,7 +256,7 @@ describe("SN Synth OSC PCM Wave wiring", () => {
     // Just the name: no group label, steppers, dropdown, R, pair or marker.
     expect(container.querySelector('[aria-label="Next Wave"]')).toBeNull();
     expect(container.querySelector('[aria-haspopup="listbox"]')).toBeNull();
-    expect(container.textContent).not.toContain("pair");
+    expect(container.querySelector('[aria-label="Pair"]')).toBeNull();
 
     click(name);
     const second = [...document.body.querySelectorAll('[role="option"]')].find((o) =>

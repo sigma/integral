@@ -108,7 +108,8 @@ export function WavePicker({
         {stereo && (
           <button
             type="button"
-            className={`${css.button} ${r !== 0 && r === partner ? css.buttonOn : ""}`}
+            className={`${css.button} ${css.iconButton} ${r !== 0 && r === partner ? css.buttonOn : ""}`}
+            aria-label="Pair"
             disabled={partner === null}
             title={
               partner === null
@@ -117,7 +118,11 @@ export function WavePicker({
             }
             onClick={() => partner !== null && onChange("r", partner)}
           >
-            pair
+            <svg className={css.icon} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
+              <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+            </svg>
           </button>
         )}
       </WaveRow>
@@ -130,7 +135,8 @@ export function WavePicker({
         >
           <button
             type="button"
-            className={css.button}
+            className={`${css.button} ${css.iconButton}`}
+            aria-label="Clear R"
             title="R = OFF (mono)"
             disabled={r === 0}
             onClick={() => onChange("r", 0)}
@@ -172,6 +178,7 @@ function WaveRow({
         type="button"
         ref={anchor}
         className={css.collapsed}
+        title={name}
         disabled={!source}
         onClick={() => setOpen((v) => !v)}
       >
