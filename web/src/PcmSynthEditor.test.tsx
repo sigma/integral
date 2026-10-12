@@ -32,4 +32,22 @@ describe("PcmSynthEditor", () => {
       { address: [...pcms_partial_address(PART, 0).slice(0, 3), 15], data: [1] },
     ]);
   });
+
+  it("takes knob ranges from the core field specs", async () => {
+    const { service } = fakeToneService(new WasmDeviceState(0x10));
+    const { container } = render(
+      <PcmSynthEditor partIndex={PART} service={service} />,
+    );
+    await act(async () => {});
+
+    const range = (label: string) => {
+      const s = slider(container, label);
+      return [s.getAttribute("aria-valuemin"), s.getAttribute("aria-valuemax")].map(Number);
+    };
+    // Each disagreed with the MIDI Implementation while ranges lived in TSX.
+    expect(range("Up")).toEqual([0, 48]);
+    expect(range("Bias Lvl")).toEqual([54, 74]);
+    expect(range("1")).toEqual([28, 100]);
+    expect(range("Random")).toEqual([0, 30]);
+  });
 });

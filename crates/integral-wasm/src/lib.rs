@@ -5,8 +5,8 @@ use integral_core::catalog;
 use integral_core::device::DeviceState;
 use integral_core::sysex;
 use integral_core::{
-    fx_params, mfx, mfx_params, param_registry, params, pcm_drum, pcm_synth, sn_acoustic, sn_drum,
-    sn_synth, tone_banks, user_write,
+    field_spec, fx_params, mfx, mfx_params, param_registry, params, pcm_drum, pcm_synth,
+    sn_acoustic, sn_drum, sn_synth, tone_banks, user_write,
 };
 use wasm_bindgen::prelude::*;
 
@@ -2002,9 +2002,15 @@ impl WasmFieldSpec {
     pub fn format_value(&self, value: i32) -> String {
         self.format.format(value)
     }
+
+    /// The raw value a knob centres on, for signed formats.
+    #[wasm_bindgen(getter)]
+    pub fn center(&self) -> Option<i32> {
+        self.format.center()
+    }
 }
 
-fn wrap_field_spec(spec: param_registry::FieldSpec) -> WasmFieldSpec {
+fn wrap_field_spec(spec: field_spec::FieldSpec) -> WasmFieldSpec {
     WasmFieldSpec {
         min: spec.min,
         max: spec.max,
@@ -2013,18 +2019,29 @@ fn wrap_field_spec(spec: param_registry::FieldSpec) -> WasmFieldSpec {
     }
 }
 
-/// Spec of a PCM Synth Tone Partial field; `undefined` for fields not
-/// specified yet.
+/// Spec of a PCM Synth Tone Common field.
 #[wasm_bindgen]
-pub fn pcms_partial_spec(field: PcmsPartialField) -> Option<WasmFieldSpec> {
-    param_registry::pcms_partial_spec(field.into()).map(wrap_field_spec)
+pub fn pcms_common_spec(field: PcmsCommonField) -> WasmFieldSpec {
+    wrap_field_spec(field_spec::pcms_common_spec(field.into()))
+}
+
+/// Spec of a PCM Synth Tone PMT field.
+#[wasm_bindgen]
+pub fn pcms_pmt_spec(field: PcmsPmtField) -> WasmFieldSpec {
+    wrap_field_spec(field_spec::pcms_pmt_spec(field.into()))
+}
+
+/// Spec of a PCM Synth Tone Partial field.
+#[wasm_bindgen]
+pub fn pcms_partial_spec(field: PcmsPartialField) -> WasmFieldSpec {
+    wrap_field_spec(field_spec::pcms_partial_spec(field.into()))
 }
 
 /// Spec of a PCM Drum Kit Partial field; `undefined` for fields not
 /// specified yet.
 #[wasm_bindgen]
 pub fn pcmd_partial_spec(field: PcmdPartialField) -> Option<WasmFieldSpec> {
-    param_registry::pcmd_partial_spec(field.into()).map(wrap_field_spec)
+    field_spec::pcmd_partial_spec(field.into()).map(wrap_field_spec)
 }
 
 /// Returns chorus parameter definitions for the given type index.

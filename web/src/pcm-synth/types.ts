@@ -253,19 +253,3 @@ export const ENV_MODE_NAMES = ["NO-SUS", "SUSTAIN"];
 
 export const DELAY_MODE_NAMES = ["NORMAL", "HOLD", "KEY-OFF-NORMAL", "KEY-OFF-DECAY"];
 
-export function signedFmt(raw: number, center: number): string {
-  const v = raw - center;
-  return v > 0 ? `+${v}` : String(v);
-}
-
-export function panFmt(v: number): string {
-  if (v === 64) return "C";
-  if (v < 64) return `L${64 - v}`;
-  return `${v - 64}R`;
-}
-
-export function noteName(midi: number): string {
-  const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-  const oct = Math.floor(midi / 12) - 1;
-  return `${names[midi % 12]}${oct}`;
-}

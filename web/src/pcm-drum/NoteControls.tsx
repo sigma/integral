@@ -291,7 +291,7 @@ function PitchEnvSection({
   return (
     <SectionPanel label="PITCH ENV" accentColor="#fc8">
       <div className={css.knobRow}>
-        <SynthKnob label="Depth" value={note.pitchEnvDepth} center={64}
+        <SynthKnob label="Depth" value={note.pitchEnvDepth}
           {...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvDepth))}
           onChange={set(PcmdPartialField.PitchEnvDepth, "pitchEnvDepth")} color="#fc8"
           title="Pitch envelope depth (-12 to +12)" />
