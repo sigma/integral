@@ -108,15 +108,3 @@
   padding: 12px 0;
 }
 
-.instNumberRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 4px 0;
-}
-
-.instNumberLabel {
-  font-size: 12px;
-  color: #aaa;
-}
-

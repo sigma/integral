@@ -18,9 +18,8 @@ describe("SnDrumEditor", () => {
     const { service, sentDt1s } = fakeToneService(new WasmDeviceState(0x10));
     const { container } = render(<SnDrumEditor partIndex={PART} service={service} />);
     await act(async () => {});
-    // The editor opens on key 36 (C2, kick drum).
+    // The editor opens on key 36 (C2, kick drum): the Note edit below goes there.
     const key = 36;
-    expect(container.textContent).toContain(`Key ${key}`);
 
     arrowUp(slider(container, "Amb Lv"));
     arrowUp(slider(container, "Attack"));

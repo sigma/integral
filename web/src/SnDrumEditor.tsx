@@ -28,7 +28,6 @@ import { useMfxHandlers } from "./useMfxHandlers";
 import type { MfxState } from "./MfxPanel";
 import { DrumKeyGrid } from "./DrumKeyGrid";
 import { useKeyPrefetch } from "./useKeyPrefetch";
-import { noteName } from "./pcm-drum/types";
 import css from "./SnDrumEditor.module.css";
 
 // ---------------------------------------------------------------------------
@@ -314,7 +313,6 @@ export function SnDrumEditor({ partIndex, service }: Props) {
               <div className={css.noteLoadingPlaceholder}>Loading note data...</div>
             ) : noteData ? (
               <NoteControls
-                keyNumber={selectedKey}
                 note={noteData}
                 onChange={setNoteParam}
               />
@@ -374,11 +372,9 @@ function KitLevels({
 // ---------------------------------------------------------------------------
 
 function NoteControls({
-  keyNumber,
   note,
   onChange,
 }: {
-  keyNumber: number;
   note: SnDrumNote;
   onChange: NoteParamHandler;
 }) {
@@ -388,36 +384,14 @@ function NoteControls({
       onChange(field, key, v);
   return (
     <>
-      <div className={css.instNumberRow}>
-        <span className={css.instNumberLabel}>
-          Key {keyNumber} ({noteName(keyNumber)})
-        </span>
+      <div className={css.noteControls}>
+        <SectionPanel label="TONE" accentColor="#fc8">
         <WavePicker
           source={sndInstSource()}
           stereo={false}
           l={note.instNumber}
           onChange={(_side, n) => onChange(SndNoteField.InstNumber, "instNumber", n)}
         />
-        <SynthSelect label="Out" value={note.outputAssign}
-          options={OUTPUT_ASSIGN_OPTIONS}
-          onChange={set(SndNoteField.OutputAssign, "outputAssign")} />
-      </div>
-      <div className={css.noteControls}>
-        {/* Strip: Pan + Sends + Level — reuses the shared OutputStrip */}
-        <SectionPanel label="LEVEL / PAN" accentColor="#8cf">
-          <OutputStrip
-            pan={note.pan} onPanChange={set(SndNoteField.Pan, "pan")} panFormat={panFmt}
-            fx1={note.chorusSend} fx2={note.reverbSend}
-            level={note.level}
-            onFx1Change={set(SndNoteField.ChorusSend, "chorusSend")}
-            onFx2Change={set(SndNoteField.ReverbSend, "reverbSend")}
-            onLevelChange={set(SndNoteField.Level, "level")}
-            trackHeight={LEVEL_TRACK_HEIGHT}
-          />
-        </SectionPanel>
-
-        {/* Tone shaping */}
-        <SectionPanel label="TONE" accentColor="#fc8">
           <div className={css.knobRow}>
             <SynthKnob label="Attack" value={note.attack} min={0} max={100} defaultValue={100}
               onChange={set(SndNoteField.Attack, "attack")} formatValue={(v) => `${v}%`} color="#fc8" />
@@ -441,6 +415,20 @@ function NoteControls({
             <SynthSelect label="Output" value={note.outputAssign} options={OUTPUT_ASSIGN_OPTIONS}
               onChange={set(SndNoteField.OutputAssign, "outputAssign")} />
           </div>
+        </SectionPanel>
+
+        {/* Tone shaping */}
+        {/* Strip: Pan + Sends + Level — reuses the shared OutputStrip */}
+        <SectionPanel label="LEVEL / PAN" accentColor="#8cf">
+          <OutputStrip
+            pan={note.pan} onPanChange={set(SndNoteField.Pan, "pan")} panFormat={panFmt}
+            fx1={note.chorusSend} fx2={note.reverbSend}
+            level={note.level}
+            onFx1Change={set(SndNoteField.ChorusSend, "chorusSend")}
+            onFx2Change={set(SndNoteField.ReverbSend, "reverbSend")}
+            onLevelChange={set(SndNoteField.Level, "level")}
+            trackHeight={LEVEL_TRACK_HEIGHT}
+          />
         </SectionPanel>
       </div>
     </>
