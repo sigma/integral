@@ -344,19 +344,19 @@ function TvaSection({
             title="Alternate pan depth — successive notes alternate left and right; L/R sets which side comes first. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
           <SynthKnob label="Bias Lvl" value={partial.tvaBiasLevel} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasLevel))}
             onChange={set(PcmsPartialField.TvaBiasLevel, "tvaBiasLevel")} color="#6c8"
-            title="Level bias amount — attenuates volume away from the bias key" />
+            title="Bias level — how steeply volume changes with distance from the bias key; the sign sets whether it rises or falls" />
           <SynthKnob label="Bias Key" value={partial.tvaBiasPosition} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasPosition))}
             onChange={set(PcmsPartialField.TvaBiasPosition, "tvaBiasPosition")} color="#6c8"
-            title="Bias center key — volume is loudest here, attenuated away" />
+            title="Bias key — the pivot key the volume change is measured from" />
+          <SynthSwitch label="Bias Dir" value={partial.tvaBiasDirection} vertical
+            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaBiasDirection))}
+            onChange={set(PcmsPartialField.TvaBiasDirection, "tvaBiasDirection")} led={false}
+            title="Bias direction — which keys the change applies to: below, above or both sides of the bias key, or a slope across all keys" />
         </div>
-        <SynthSwitch label="Bias Dir" value={partial.tvaBiasDirection} vertical
-          options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaBiasDirection))}
-          onChange={set(PcmsPartialField.TvaBiasDirection, "tvaBiasDirection")} led={false}
-          title="Bias direction — which side of the center key is attenuated" />
       </div>
       <div className={css.envBlock}>
         <div className={css.panelRow}>
-          <VelocityCurveSelect label="Vel Curve" value={partial.tvaLevelVelocityCurve}
+          <VelocityCurveSelect label="Vel Crv" value={partial.tvaLevelVelocityCurve}
             options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaLevelVelocityCurve))}
             onChange={set(PcmsPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} color="#6c8" title="Velocity response curve shape" />
         </div>
@@ -435,20 +435,18 @@ function Lfo1Section({
           <SynthKnob label="Delay" value={partial.lfo1DelayTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1DelayTime))}
             onChange={set(PcmsPartialField.Lfo1DelayTime, "lfo1DelayTime")} color="#a6f"
             title="Time before LFO starts after note-on" />
+          <SynthKnob label="Dly KF" value={partial.lfo1DelayTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1DelayTimeKeyfollow))}
+            onChange={set(PcmsPartialField.Lfo1DelayTimeKeyfollow, "lfo1DelayTimeKeyfollow")} color="#a6f"
+            title="Delay time key tracking — higher keys = shorter delay" />
           <SynthKnob label="Fade In" value={partial.lfo1FadeTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1FadeTime))}
             onChange={set(PcmsPartialField.Lfo1FadeTime, "lfo1FadeTime")} color="#a6f"
             title="Time for LFO to reach full depth after delay" />
+          <SynthKnob label="Offset" value={partial.lfo1Offset} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1Offset))}
+            onChange={set(PcmsPartialField.Lfo1Offset, "lfo1Offset")} color="#a6f"
+            title="DC offset of the LFO waveform" />
         </div>
       </div>
       <div className={css.panelRow}>
-        <SynthSwitch label="Offset" value={partial.lfo1Offset} vertical
-          options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1Offset))}
-          onChange={set(PcmsPartialField.Lfo1Offset, "lfo1Offset")} led={false}
-          title="DC offset of the LFO waveform" />
-        <SynthSwitch label="Dly KF" value={partial.lfo1DelayTimeKeyfollow}
-          options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1DelayTimeKeyfollow))}
-          onChange={set(PcmsPartialField.Lfo1DelayTimeKeyfollow, "lfo1DelayTimeKeyfollow")}
-          title="Delay time key tracking — higher keys = shorter delay" />
         <SynthSwitch label="Fade" value={partial.lfo1FadeMode} vertical
           options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1FadeMode))}
           onChange={set(PcmsPartialField.Lfo1FadeMode, "lfo1FadeMode")} led={false}
@@ -502,20 +500,18 @@ function Lfo2Section({
           <SynthKnob label="Delay" value={partial.lfo2DelayTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2DelayTime))}
             onChange={set(PcmsPartialField.Lfo2DelayTime, "lfo2DelayTime")} color="#a6f"
             title="Time before LFO starts after note-on" />
+          <SynthKnob label="Dly KF" value={partial.lfo2DelayTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2DelayTimeKeyfollow))}
+            onChange={set(PcmsPartialField.Lfo2DelayTimeKeyfollow, "lfo2DelayTimeKeyfollow")} color="#a6f"
+            title="Delay time key tracking — higher keys = shorter delay" />
           <SynthKnob label="Fade In" value={partial.lfo2FadeTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2FadeTime))}
             onChange={set(PcmsPartialField.Lfo2FadeTime, "lfo2FadeTime")} color="#a6f"
             title="Time for LFO to reach full depth after delay" />
+          <SynthKnob label="Offset" value={partial.lfo2Offset} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2Offset))}
+            onChange={set(PcmsPartialField.Lfo2Offset, "lfo2Offset")} color="#a6f"
+            title="DC offset of the LFO waveform" />
         </div>
       </div>
       <div className={css.panelRow}>
-        <SynthSwitch label="Offset" value={partial.lfo2Offset} vertical
-          options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2Offset))}
-          onChange={set(PcmsPartialField.Lfo2Offset, "lfo2Offset")} led={false}
-          title="DC offset of the LFO waveform" />
-        <SynthSwitch label="Dly KF" value={partial.lfo2DelayTimeKeyfollow}
-          options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2DelayTimeKeyfollow))}
-          onChange={set(PcmsPartialField.Lfo2DelayTimeKeyfollow, "lfo2DelayTimeKeyfollow")}
-          title="Delay time key tracking — higher keys = shorter delay" />
         <SynthSwitch label="Fade" value={partial.lfo2FadeMode} vertical
           options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2FadeMode))}
           onChange={set(PcmsPartialField.Lfo2FadeMode, "lfo2FadeMode")} led={false}
