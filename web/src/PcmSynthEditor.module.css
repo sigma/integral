@@ -307,25 +307,6 @@
   gap: 2px;
 }
 
-/* A V-Curve select above a scope of its curve */
-.curveSelect {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 52px;
-}
-
-.curveSelect select {
-  width: 100%;
-}
-
-.curveScope {
-  composes: screen from "./synth-ui/Scope.module.css";
-  display: block;
-  height: 22px;
-  margin-bottom: 0;
-}
-
 /* Envelope knobs and their envelope, sunk together to the panel bottom */
 .envBlock {
   margin-top: auto;

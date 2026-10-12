@@ -29,6 +29,7 @@ import {
   ALT_PAN_OPTIONS,
 } from "./types";
 import { knobRange } from "../fieldSpec";
+import { VelocityCurveSelect } from "../synth-ui/VelocityCurveSelect";
 import { deviceSpec } from "../deviceSpec";
 import { WavePicker, type ExpansionMarking } from "../WavePicker";
 import { waveSourceOf } from "../waveCatalog";
@@ -367,12 +368,12 @@ function TvfSection({
           options={FILTER_TYPE_OPTIONS}
           onChange={set(PcmdPartialField.TvfFilterType, "tvfFilterType")} title="Filter type" />
         <div className={css.stack}>
-          <SynthSelect label="Vel Crv" value={note.tvfCutoffVelocityCurve}
+          <VelocityCurveSelect label="Vel Crv" value={note.tvfCutoffVelocityCurve}
             options={VELOCITY_CURVE_OPTIONS}
-            onChange={set(PcmdPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} />
-          <SynthSelect label="Env Crv" value={note.tvfEnvVelocityCurve}
+            onChange={set(PcmdPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} color="#68c" />
+          <VelocityCurveSelect label="Env Crv" value={note.tvfEnvVelocityCurve}
             options={VELOCITY_CURVE_OPTIONS}
-            onChange={set(PcmdPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} />
+            onChange={set(PcmdPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} color="#68c" />
         </div>
         <div className={css.stack}>
           <SynthKnob label="Cutoff" value={note.tvfCutoffFrequency} min={0} max={127} defaultValue={127}
@@ -437,9 +438,9 @@ function TvaSection({
   return (
     <SectionPanel label="AMP" accentColor="#6c8">
       <div className={css.knobRow}>
-        <SynthSelect label="Vel Crv" value={note.tvaLevelVelocityCurve}
+        <VelocityCurveSelect label="Vel Crv" value={note.tvaLevelVelocityCurve}
           options={VELOCITY_CURVE_OPTIONS}
-          onChange={set(PcmdPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} />
+          onChange={set(PcmdPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} color="#6c8" />
         <SynthKnob label="Vel Sns" value={note.tvaLevelVelocitySens} min={1} max={127} defaultValue={64} center={64}
           onChange={set(PcmdPartialField.TvaLevelVelocitySens, "tvaLevelVelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
           title="Amplitude velocity sensitivity" />

@@ -13,7 +13,7 @@ import { SignalArrows, type Edge } from "../synth-ui/SignalArrows";
 import { PcmsPartialField, PcmsPmtField, pcms_partial_spec, pcms_pmt_spec } from "../../pkg/integral_wasm.js";
 import { routingOf, type Block, type Side } from "./structureRouting";
 import { knobRange, switchOptions } from "../fieldSpec";
-import { VelocityCurveSelect } from "./VelocityCurveSelect";
+import { VelocityCurveSelect } from "../synth-ui/VelocityCurveSelect";
 import { LfoScope } from "../synth-ui/LfoScope";
 import { FilterScope } from "../synth-ui/FilterScope";
 import css from "../PcmSynthEditor.module.css";
