@@ -234,7 +234,8 @@ impl Model for MixerData {
 }
 
 impl MixerData {
-    /// Create a new MixerData with initial state from the device.
+    /// Create a new MixerData and start reading the mixer state from the
+    /// device; the refresh timer shows the replies as they arrive.
     fn new(shared: Arc<SharedState>) -> Self {
         let default_strip = ChannelStripData {
             label: String::new(),
@@ -289,7 +290,7 @@ impl MixerData {
             selected_tone_pc: 0,
             shared,
         };
-        data.refresh_from_device();
+        data.edit_device(DeviceState::load_mixer);
         data
     }
 
@@ -663,9 +664,10 @@ impl View for FxStrip {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use integral_core::address::Address;
+    use integral_core::address::{Address, DataSize};
     use integral_core::params::{self, part};
     use integral_core::sysex;
+    use std::collections::HashMap;
     use std::sync::Mutex;
 
     const DEV_ID: u8 = 0x10;
@@ -677,11 +679,33 @@ mod tests {
     }
 
     impl Harness {
+        /// Open the mixer on a device that answers every read with zeros.
         fn new() -> Self {
+            Self::open(&HashMap::new())
+        }
+
+        /// Open the mixer on a device answering each read from `memory` (a
+        /// block's bytes by start address, zeros elsewhere), until the load
+        /// is over.
+        fn open(memory: &HashMap<Address, Vec<u8>>) -> Self {
             let data = MixerData::new(Arc::new(SharedState {
                 device: Mutex::new(DeviceState::new(DEV_ID)),
             }));
-            Self { data, now_ms: 0.0 }
+            let mut h = Self { data, now_ms: 0.0 };
+            while h.has_pending() {
+                h.now_ms += 100.0;
+                let mut dev = h.data.shared.device.lock().unwrap();
+                let Some(rq1) = dev.drain(h.now_ms) else {
+                    continue;
+                };
+                let address = Address::new(rq1[7], rq1[8], rq1[9], rq1[10]);
+                let size = DataSize::new(rq1[11], rq1[12], rq1[13], rq1[14]).value();
+                let data =
+                    (memory.get(&address).cloned()).unwrap_or_else(|| vec![0; size as usize]);
+                dev.handle_dt1(&address, &data, h.now_ms);
+            }
+            h.data.refresh_from_device();
+            h
         }
 
         fn strip(&mut self, target: StripTarget, edit: StripEdit) {
@@ -707,6 +731,27 @@ mod tests {
             let dt1 = sysex::parse_dt1(&msg).unwrap();
             (dt1.address, dt1.data)
         }
+    }
+
+    #[test]
+    fn opening_shows_the_device_state() {
+        let mut dump = vec![0; params::PART_MIXER_SIZE.value() as usize];
+        dump[0x27] = 127; // Chorus send
+        let h = Harness::open(&HashMap::from([
+            (params::SYSTEM_MASTER_LEVEL, vec![90]),
+            (params::EXT_PART_LEVEL, vec![55]),
+            (params::part_address(2, part::RECEIVE_CHANNEL), dump),
+            (params::chorus_address(chorus::TYPE), vec![2, 100, 0, 1]),
+            (params::REVERB_SWITCH, vec![1]),
+            (params::DRUM_COMP_EQ_SWITCH, vec![1, 9, 1, 2, 3, 4, 5, 6]),
+        ]));
+        assert_eq!(h.data.master_strip.volume, 90);
+        assert_eq!(h.data.ext_strip.volume, 55);
+        assert_eq!(h.data.strips[2].fx1_send, 1.0);
+        assert_eq!((h.data.chorus.fx_type, h.data.chorus.level), (2, 100));
+        assert_eq!(h.data.chorus.output, 1);
+        assert!(h.data.reverb.enabled && h.data.comp_eq_enabled);
+        assert_eq!(h.data.comp_eq_strips[5].route, 6);
     }
 
     #[test]
