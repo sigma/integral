@@ -5,15 +5,13 @@
 //! queues the requests and applies the replies.
 
 use crate::address::{Address, DataSize};
+use crate::device_spec::INTEGRA7;
 use crate::factory_catalog;
 use crate::params::{self, part};
 use crate::parse_helpers::parse_ascii_name_len;
 use crate::state::parse as state_parse;
 use crate::state::{MixerState, PartState};
 use crate::svd::DRUMS_CATEGORY;
-
-/// Number of mixer parts.
-const NUM_PARTS: u8 = 16;
 
 /// A piece of mixer state read with one RQ1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,7 +82,7 @@ impl MixerBlock {
     /// [`apply`](Self::apply)).
     pub fn initial() -> Vec<Self> {
         use MixerBlock::*;
-        let parts = |block: fn(u8) -> Self| (0..NUM_PARTS).map(block);
+        let parts = |block: fn(u8) -> Self| (0..INTEGRA7.part_count).map(block);
         [StudioSetName, StudioSetPc, MasterLevel, SoloPart]
             .into_iter()
             .chain(parts(Part))
@@ -124,9 +122,16 @@ impl MixerBlock {
         )
     }
 
-    /// Whether this block reads `part`'s tone name or category.
+    /// Whether this block reads `part`'s tone: its dump (bank and PC), its
+    /// name, category or Comp+EQ block.
     pub fn reads_tone_of(self, part: u8) -> bool {
-        matches!(self, Self::ToneName { part: p, .. } | Self::ToneCategory { part: p, .. } if p == part)
+        match self {
+            Self::Part(p) => p == part,
+            Self::CompEq { part: p, .. }
+            | Self::ToneName { part: p, .. }
+            | Self::ToneCategory { part: p, .. } => p == part,
+            _ => false,
+        }
     }
 
     /// The address and size of the RQ1 that reads this block, or `None`

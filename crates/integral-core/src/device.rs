@@ -528,14 +528,27 @@ impl DeviceState {
         let pc_addr = params::part_address(part, part::TONE_PC);
         self.send_dt1(&pc_addr, &[pc]);
 
+        // Reads of the old tone would undo the change: read the new one,
+        // after the change is sent.
         let stale: Vec<_> = (self.mixer_reads.iter())
             .filter(|r| r.block.reads_tone_of(part))
-            .map(|r| r.address)
+            .map(|r| (r.block, r.address))
             .collect();
-        for address in stale {
-            self.drop_mixer_read(&address);
+        for (_, address) in &stale {
+            self.drop_mixer_read(address);
         }
-        self.queue_mixer_reads(MixerBlock::tone_reads(part, msb));
+        let mut reads = if stale.iter().any(|(b, _)| *b == MixerBlock::Part(part)) {
+            vec![MixerBlock::Part(part)]
+        } else {
+            MixerBlock::tone_reads(part, msb).to_vec()
+        };
+        if stale
+            .iter()
+            .any(|(b, _)| matches!(b, MixerBlock::CompEq { .. }))
+        {
+            reads.push(MixerBlock::CompEq { part, msb });
+        }
+        self.queue_mixer_reads(reads);
     }
 
     /// Set a part's Temporary tone name (ASCII, truncated or space-padded
@@ -2258,6 +2271,19 @@ mod tests {
         let mut fresh = DeviceState::new(0x10);
         fresh.load_mixer();
         assert_eq!(first, drain_until(&mut fresh, 0.0, 1_000.0));
+    }
+
+    #[test]
+    fn a_tone_change_during_a_load_reads_the_part_after_the_change() {
+        let mut dev = DeviceState::new(0x10);
+        dev.load_mixer();
+        dev.change_part_tone(3, 87, 0, 3);
+        let sent = drain_until(&mut dev, 0.0, 10_000.0);
+        let dump = params::part_address(3, part::RECEIVE_CHANNEL);
+        let dump = sysex::build_rq1(0x10, &dump, &params::PART_MIXER_SIZE);
+        let pc = sysex::build_dt1(0x10, &params::part_address(3, part::TONE_PC), &[3]);
+        let at = |m: &Vec<u8>| sent.iter().position(|s| s == m).unwrap();
+        assert!(at(&dump) > at(&pc), "the dump shows the new tone");
     }
 
     #[test]
