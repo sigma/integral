@@ -169,6 +169,19 @@
   gap: 8px;
 }
 
+/* Two knobs on top, three below: keeps the lower row level with the other panels'. */
+.knobGrid3 {
+  grid-template-columns: repeat(3, auto);
+}
+
+.knobGrid3 > :nth-child(-n + 2) {
+  grid-row: 1;
+}
+
+.knobGrid3 > :nth-child(n + 3) {
+  grid-row: 2;
+}
+
 /* Push knobs to the right in section top rows */
 .knobsRight {
   margin-left: auto;

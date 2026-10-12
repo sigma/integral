@@ -203,7 +203,7 @@ function FilterPanel({
         <SynthSwitch label="Slope" value={partial.filterSlope} vertical
           options={FILTER_SLOPE_NAMES.map((l, i) => ({ value: i, label: l }))}
           onChange={(v) => onChange(SnsPartialField.FilterSlope, v)} led={false} />
-        <div className={`${css.oscKnobGrid} ${css.knobsRight}`}>
+        <div className={`${css.oscKnobGrid} ${css.knobGrid3} ${css.knobsRight}`}>
           <SynthKnob label="Cutoff" value={partial.filterCutoff} min={0} max={127} defaultValue={127}
             onChange={(v) => onChange(SnsPartialField.FilterCutoff, v)} formatValue={(v) => String(v)} color="#68c" />
           <SynthKnob label="Reso" value={partial.filterResonance} min={0} max={127} defaultValue={0}
@@ -212,6 +212,8 @@ function FilterPanel({
             onChange={(v) => onChange(SnsPartialField.FilterKeyfollow, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c" />
           <SynthKnob label="Vel Sns" value={partial.filterEnvVelSens} min={1} max={127} defaultValue={64} center={64}
             onChange={(v) => onChange(SnsPartialField.FilterEnvVelSens, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c" />
+          <SynthKnob label="Aft Cut" value={partial.aftertouchCutoff} min={1} max={127} defaultValue={64} center={64}
+            onChange={(v) => onChange(SnsPartialField.AftertouchCutoff, v)} formatValue={(v) => signedFmt(v, 64)} color="#68c" />
         </div>
       </div>
       <FaderGroup>
@@ -251,13 +253,15 @@ function AmpPanel({
         <SynthSwitch label="Gain" value={partial.waveGain} vertical
           options={WAVE_GAIN_NAMES.map((l, i) => ({ value: i, label: l }))}
           onChange={(v) => onChange(SnsPartialField.WaveGain, v)} led={false} />
-        <div className={`${css.oscKnobGrid} ${css.knobsRight}`}>
+        <div className={`${css.oscKnobGrid} ${css.knobGrid3} ${css.knobsRight}`}>
           <SynthKnob label="Level" value={partial.ampLevel} min={0} max={127} defaultValue={127}
             onChange={(v) => onChange(SnsPartialField.AmpLevel, v)} formatValue={(v) => String(v)} color="#6c8" />
           <SynthKnob label="Pan" value={partial.ampPan} min={0} max={127} defaultValue={64} center={64}
             onChange={(v) => onChange(SnsPartialField.AmpPan, v)} formatValue={panFmt} color="#6c8" />
           <SynthKnob label="Vel Sns" value={partial.ampVelSens} min={1} max={127} defaultValue={64} center={64}
             onChange={(v) => onChange(SnsPartialField.AmpVelSens, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8" />
+          <SynthKnob label="Aft Lvl" value={partial.aftertouchLevel} min={1} max={127} defaultValue={64} center={64}
+            onChange={(v) => onChange(SnsPartialField.AftertouchLevel, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8" />
           <SynthKnob label="KeyF" value={partial.ampLevelKeyfollow} min={54} max={74} defaultValue={64} center={64}
             onChange={(v) => onChange(SnsPartialField.AmpLevelKeyfollow, v)} formatValue={(v) => signedFmt(v, 64)} color="#6c8" />
         </div>
@@ -327,7 +331,7 @@ function ModLfoPanel({
 }
 
 // ---------------------------------------------------------------------------
-// LFO Panel (includes Aftertouch at bottom)
+// LFO Panel
 // ---------------------------------------------------------------------------
 
 function LfoPanel({
@@ -361,10 +365,6 @@ function LfoPanel({
             onChange={(v) => onChange(SnsPartialField.LfoRate, v)} formatValue={(v) => String(v)} color="#a6f" />
           <SynthKnob label="Fade" value={partial.lfoFadeTime} min={0} max={127} defaultValue={0}
             onChange={(v) => onChange(SnsPartialField.LfoFadeTime, v)} formatValue={(v) => String(v)} color="#a6f" />
-          <SynthKnob label="Aft Cut" value={partial.aftertouchCutoff} min={1} max={127} defaultValue={64} center={64}
-            onChange={(v) => onChange(SnsPartialField.AftertouchCutoff, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cc" />
-          <SynthKnob label="Aft Lvl" value={partial.aftertouchLevel} min={1} max={127} defaultValue={64} center={64}
-            onChange={(v) => onChange(SnsPartialField.AftertouchLevel, v)} formatValue={(v) => signedFmt(v, 64)} color="#8cc" />
         </div>
       </div>
       <FaderGroup>
