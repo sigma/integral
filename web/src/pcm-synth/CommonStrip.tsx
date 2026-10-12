@@ -3,10 +3,9 @@ import {
   SynthSwitch,
 } from "../synth-ui";
 import { PcmsCommonField, pcms_common_spec } from "../../pkg/integral_wasm.js";
-import { knobRange } from "../fieldSpec";
+import { knobRange, switchOptions } from "../fieldSpec";
 import css from "../PcmSynthEditor.module.css";
 import type { CommonParamHandler, PcmSynthCommon } from "./types";
-import { ON_OFF_OPTIONS } from "./types";
 
 export function CommonStrip({
   common,
@@ -24,7 +23,7 @@ export function CommonStrip({
       {/* Mono/Poly */}
       <div className={css.commonGroup}>
         <SynthSwitch label="MONO" value={common.monoPoly}
-          options={[{ value: 0, label: "MONO" }, { value: 1, label: "POLY" }]}
+          options={switchOptions(pcms_common_spec(PcmsCommonField.MonoPoly))}
           onChange={set(PcmsCommonField.MonoPoly, "monoPoly")} vertical title="Voice mode: monophonic or polyphonic" />
       </div>
 
@@ -34,7 +33,7 @@ export function CommonStrip({
       <div className={css.commonGroup}>
         <span className={css.groupLabel}>PORTAMENTO</span>
         <div className={css.groupRow}>
-          <SynthSwitch label="SW" value={common.portamentoSwitch} options={ON_OFF_OPTIONS}
+          <SynthSwitch label="SW" value={common.portamentoSwitch} options={switchOptions(pcms_common_spec(PcmsCommonField.PortamentoSwitch))}
             onChange={set(PcmsCommonField.PortamentoSwitch, "portamentoSwitch")} title="Portamento on/off — smooth pitch glide between notes" />
           <SynthKnob label="Time" value={common.portamentoTime} {...knobRange(pcms_common_spec(PcmsCommonField.PortamentoTime))}
             onChange={set(PcmsCommonField.PortamentoTime, "portamentoTime")} color="#8cf"
@@ -84,7 +83,7 @@ export function CommonStrip({
 
       <div className={css.commonDivider} />
 
-      <SynthSwitch label="LEGATO" value={common.legatoSwitch} options={ON_OFF_OPTIONS}
+      <SynthSwitch label="LEGATO" value={common.legatoSwitch} options={switchOptions(pcms_common_spec(PcmsCommonField.LegatoSwitch))}
         onChange={set(PcmsCommonField.LegatoSwitch, "legatoSwitch")} title="Legato — overlapping notes share the same voice" />
 
       <div className={css.commonDivider} />

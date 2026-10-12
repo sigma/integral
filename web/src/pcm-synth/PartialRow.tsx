@@ -10,24 +10,16 @@ import {
   OutputStrip,
 } from "../synth-ui";
 import { PcmsPartialField, pcms_partial_spec } from "../../pkg/integral_wasm.js";
-import { knobRange } from "../fieldSpec";
+import { knobRange, switchOptions } from "../fieldSpec";
 import css from "../PcmSynthEditor.module.css";
 import type { PartialParamHandler, PartialSetter, PcmSynthPartial } from "./types";
 import { WavePicker, type ExpansionMarking } from "../WavePicker";
 import { waveSourceOf } from "../waveCatalog";
-import {
-  ON_OFF_OPTIONS,
-  WAVE_GAIN_NAMES,
-  FILTER_TYPE_NAMES,
-  LFO_WAVEFORM_NAMES,
-  LFO_WAVEFORM_STEP,
-  LFO_OFFSET_NAMES,
-  LFO_FADE_MODE_NAMES,
-  VELOCITY_CURVE_NAMES,
-  BIAS_DIR_NAMES,
-  ENV_MODE_NAMES,
-  DELAY_MODE_NAMES,
-} from "./types";
+
+/** Whether an LFO Waveform value is STEP, the one that plays the Step LFO. */
+function isStepWaveform(waveform: number): boolean {
+  return pcms_partial_spec(PcmsPartialField.Lfo1Waveform).formatValue(waveform) === "STEP";
+}
 
 export function PartialRow({
   idx,
@@ -62,7 +54,7 @@ export function PartialRow({
           <Lfo1Section partial={partial} set={set} />
           <Lfo2Section partial={partial} set={set} />
           <StepLfoSection partial={partial} set={set}
-            dimmed={partial.lfo1Waveform !== LFO_WAVEFORM_STEP && partial.lfo2Waveform !== LFO_WAVEFORM_STEP} />
+            dimmed={!isStepWaveform(partial.lfo1Waveform) && !isStepWaveform(partial.lfo2Waveform)} />
           <OutputSection partial={partial} set={set} />
         </>
       ) : (
@@ -91,11 +83,11 @@ function WaveSection({
       <div className={css.waveControls}>
         <div className={css.switchColumn}>
           <SynthSwitch label="Gain" value={partial.waveGain}
-            options={WAVE_GAIN_NAMES.map((l, i) => ({ value: i, label: l }))}
+            options={switchOptions(pcms_partial_spec(PcmsPartialField.WaveGain))}
             onChange={set(PcmsPartialField.WaveGain, "waveGain")} title="Wave output gain" />
-          <SynthSwitch label="Tempo" value={partial.waveTempoSync} options={ON_OFF_OPTIONS}
+          <SynthSwitch label="Tempo" value={partial.waveTempoSync} options={switchOptions(pcms_partial_spec(PcmsPartialField.WaveTempoSync))}
             onChange={set(PcmsPartialField.WaveTempoSync, "waveTempoSync")} title="Sync wave playback to song tempo" />
-          <SynthSwitch label="FXM" value={partial.waveFxmSwitch} options={ON_OFF_OPTIONS}
+          <SynthSwitch label="FXM" value={partial.waveFxmSwitch} options={switchOptions(pcms_partial_spec(PcmsPartialField.WaveFxmSwitch))}
             onChange={set(PcmsPartialField.WaveFxmSwitch, "waveFxmSwitch")} title="Frequency Cross Modulation" />
         </div>
         <div className={`${css.knobGrid} ${css.knobGrid3}`}>
@@ -253,14 +245,14 @@ function TvfSection({
           onChange={set(PcmsPartialField.TvfEnvT4VelocitySens, "tvfEnvT4VelocitySens")} color="#68c"
           title="Filter envelope Time 4 velocity sensitivity — release velocity changes the release time" />
         <SynthSwitch label="Type" value={partial.tvfFilterType} vertical
-          options={FILTER_TYPE_NAMES.map((l, i) => ({ value: i, label: l }))}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfFilterType))}
           onChange={set(PcmsPartialField.TvfFilterType, "tvfFilterType")} title="Filter type" />
         <div className={css.stack}>
           <SynthSelect label="Vel Crv" value={partial.tvfCutoffVelocityCurve}
-            options={VELOCITY_CURVE_NAMES.map((l, i) => ({ value: i, label: l }))}
+            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocityCurve))}
             onChange={set(PcmsPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} title="Cutoff velocity response curve shape" />
           <SynthSelect label="Env Crv" value={partial.tvfEnvVelocityCurve}
-            options={VELOCITY_CURVE_NAMES.map((l, i) => ({ value: i, label: l }))}
+            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfEnvVelocityCurve))}
             onChange={set(PcmsPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} title="Envelope velocity response curve shape" />
         </div>
         <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffKeyfollow))}
@@ -352,7 +344,7 @@ function TvaSection({
       </div>
       <div className={css.panelRow}>
         <SynthSelect label="Vel Curve" value={partial.tvaLevelVelocityCurve}
-          options={VELOCITY_CURVE_NAMES.map((l, i) => ({ value: i, label: l }))}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaLevelVelocityCurve))}
           onChange={set(PcmsPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} title="Velocity response curve shape" />
         <SynthKnob label="Bias Lvl" value={partial.tvaBiasLevel} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasLevel))}
           onChange={set(PcmsPartialField.TvaBiasLevel, "tvaBiasLevel")} color="#6c8"
@@ -361,7 +353,7 @@ function TvaSection({
           onChange={set(PcmsPartialField.TvaBiasPosition, "tvaBiasPosition")} color="#6c8"
           title="Bias center key — volume is loudest here, attenuated away" />
         <SynthSwitch label="Bias Dir" value={partial.tvaBiasDirection} vertical
-          options={BIAS_DIR_NAMES.map((l, i) => ({ value: i, label: l }))}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaBiasDirection))}
           onChange={set(PcmsPartialField.TvaBiasDirection, "tvaBiasDirection")} led={false}
           title="Bias direction — which side of the center key is attenuated" />
       </div>
@@ -410,7 +402,7 @@ function Lfo1Section({
     <SectionPanel label="LFO1" accentColor="#a6f">
       <div className={css.panelRow}>
         <SynthSwitch label="Wave" value={partial.lfo1Waveform} vertical
-          options={LFO_WAVEFORM_NAMES.map((l, i) => ({ value: i, label: l }))}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1Waveform))}
           onChange={set(PcmsPartialField.Lfo1Waveform, "lfo1Waveform")} title="LFO waveform shape" />
         <div className={`${css.knobGrid} ${css.knobsRight}`}>
           <SynthKnob label="Rate" value={partial.lfo1Rate} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1Rate))}
@@ -429,18 +421,18 @@ function Lfo1Section({
       </div>
       <div className={css.panelRow}>
         <SynthSwitch label="Offset" value={partial.lfo1Offset} vertical
-          options={LFO_OFFSET_NAMES.map((l, i) => ({ value: i, label: l }))}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1Offset))}
           onChange={set(PcmsPartialField.Lfo1Offset, "lfo1Offset")} led={false}
           title="DC offset of the LFO waveform" />
         <SynthSwitch label="Dly KF" value={partial.lfo1DelayTimeKeyfollow}
-          options={ON_OFF_OPTIONS}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1DelayTimeKeyfollow))}
           onChange={set(PcmsPartialField.Lfo1DelayTimeKeyfollow, "lfo1DelayTimeKeyfollow")}
           title="Delay time key tracking — higher keys = shorter delay" />
         <SynthSwitch label="Fade" value={partial.lfo1FadeMode} vertical
-          options={LFO_FADE_MODE_NAMES.map((l, i) => ({ value: i, label: l }))}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1FadeMode))}
           onChange={set(PcmsPartialField.Lfo1FadeMode, "lfo1FadeMode")} led={false}
           title="Fade behavior: fade in on note-on, fade out, or on key-off" />
-        <SynthSwitch label="Key Trig" value={partial.lfo1KeyTrigger} options={ON_OFF_OPTIONS}
+        <SynthSwitch label="Key Trig" value={partial.lfo1KeyTrigger} options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1KeyTrigger))}
           onChange={set(PcmsPartialField.Lfo1KeyTrigger, "lfo1KeyTrigger")}
           title="Reset LFO phase on each new note" />
       </div>
@@ -477,7 +469,7 @@ function Lfo2Section({
     <SectionPanel label="LFO2" accentColor="#a6f">
       <div className={css.panelRow}>
         <SynthSwitch label="Wave" value={partial.lfo2Waveform} vertical
-          options={LFO_WAVEFORM_NAMES.map((l, i) => ({ value: i, label: l }))}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2Waveform))}
           onChange={set(PcmsPartialField.Lfo2Waveform, "lfo2Waveform")} title="LFO waveform shape" />
         <div className={`${css.knobGrid} ${css.knobsRight}`}>
           <SynthKnob label="Rate" value={partial.lfo2Rate} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2Rate))}
@@ -496,18 +488,18 @@ function Lfo2Section({
       </div>
       <div className={css.panelRow}>
         <SynthSwitch label="Offset" value={partial.lfo2Offset} vertical
-          options={LFO_OFFSET_NAMES.map((l, i) => ({ value: i, label: l }))}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2Offset))}
           onChange={set(PcmsPartialField.Lfo2Offset, "lfo2Offset")} led={false}
           title="DC offset of the LFO waveform" />
         <SynthSwitch label="Dly KF" value={partial.lfo2DelayTimeKeyfollow}
-          options={ON_OFF_OPTIONS}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2DelayTimeKeyfollow))}
           onChange={set(PcmsPartialField.Lfo2DelayTimeKeyfollow, "lfo2DelayTimeKeyfollow")}
           title="Delay time key tracking — higher keys = shorter delay" />
         <SynthSwitch label="Fade" value={partial.lfo2FadeMode} vertical
-          options={LFO_FADE_MODE_NAMES.map((l, i) => ({ value: i, label: l }))}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2FadeMode))}
           onChange={set(PcmsPartialField.Lfo2FadeMode, "lfo2FadeMode")} led={false}
           title="Fade behavior: fade in on note-on, fade out, or on key-off" />
-        <SynthSwitch label="Key Trig" value={partial.lfo2KeyTrigger} options={ON_OFF_OPTIONS}
+        <SynthSwitch label="Key Trig" value={partial.lfo2KeyTrigger} options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2KeyTrigger))}
           onChange={set(PcmsPartialField.Lfo2KeyTrigger, "lfo2KeyTrigger")}
           title="Reset LFO phase on each new note" />
       </div>
@@ -573,7 +565,7 @@ function StepLfoSection({
     <SectionPanel label="STEP LFO" accentColor="#a6f">
       <div className={css.panelRow}>
         <SynthSwitch label="Shape" value={partial.lfoStepType}
-          options={[{ value: 0, label: "STEP" }, { value: 1, label: "SMOOTH" }]}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.LfoStepType))}
           onChange={set(PcmsPartialField.LfoStepType, "lfoStepType")}
           title="Step shape: STEP = hard jumps, SMOOTH = interpolated transitions. Set LFO1 or LFO2 waveform to STEP to use this pattern." />
       </div>
@@ -612,11 +604,11 @@ function OutputSection({
     <SectionPanel label="OUTPUT" accentColor="#6c8">
       <div className={css.panelRow}>
         <SynthSwitch label="Env Mode" value={partial.envMode} vertical
-          options={ENV_MODE_NAMES.map((l, i) => ({ value: i, label: l }))}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.EnvMode))}
           onChange={set(PcmsPartialField.EnvMode, "envMode")} led={false}
           title="Envelope mode: NO-SUS plays once, SUSTAIN holds at sustain level" />
         <SynthSwitch label="Delay" value={partial.delayMode} vertical
-          options={DELAY_MODE_NAMES.map((l, i) => ({ value: i, label: l }))}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.DelayMode))}
           onChange={set(PcmsPartialField.DelayMode, "delayMode")} led={false}
           title="Partial delay mode — when sound starts relative to note-on" />
         <SynthKnob label="Delay" value={partial.delayTime} {...knobRange(pcms_partial_spec(PcmsPartialField.DelayTime))}
@@ -624,13 +616,13 @@ function OutputSection({
           title="Delay time before this partial sounds" />
       </div>
       <div className={css.panelRow}>
-        <SynthSwitch label="Bender" value={partial.receiveBender} options={ON_OFF_OPTIONS}
+        <SynthSwitch label="Bender" value={partial.receiveBender} options={switchOptions(pcms_partial_spec(PcmsPartialField.ReceiveBender))}
           onChange={set(PcmsPartialField.ReceiveBender, "receiveBender")}
           title="Respond to pitch bend" />
-        <SynthSwitch label="Express" value={partial.receiveExpression} options={ON_OFF_OPTIONS}
+        <SynthSwitch label="Express" value={partial.receiveExpression} options={switchOptions(pcms_partial_spec(PcmsPartialField.ReceiveExpression))}
           onChange={set(PcmsPartialField.ReceiveExpression, "receiveExpression")}
           title="Respond to expression pedal (CC11)" />
-        <SynthSwitch label="Hold" value={partial.receiveHold1} options={ON_OFF_OPTIONS}
+        <SynthSwitch label="Hold" value={partial.receiveHold1} options={switchOptions(pcms_partial_spec(PcmsPartialField.ReceiveHold1))}
           onChange={set(PcmsPartialField.ReceiveHold1, "receiveHold1")}
           title="Respond to sustain pedal (CC64)" />
       </div>

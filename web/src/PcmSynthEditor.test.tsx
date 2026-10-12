@@ -6,6 +6,7 @@ import {
   pcms_partial_address,
 } from "../pkg/integral_wasm.js";
 import { PcmSynthEditor } from "./PcmSynthEditor";
+import { PmtStrip } from "./pcm-synth/PmtStrip";
 import { cleanup, render } from "./test/dom";
 import { arrowUp, fakeToneService, slider } from "./test/toneService";
 
@@ -49,5 +50,15 @@ describe("PcmSynthEditor", () => {
     expect(range("Bias Lvl")).toEqual([54, 74]);
     expect(range("1")).toEqual([28, 100]);
     expect(range("Random")).toEqual([0, 30]);
+  });
+
+  it("labels switch and select options from the core field specs", () => {
+    const pmt = { structureType12: 0, booster12: 0, structureType34: 0, booster34: 0, pmtVelocityControl: 0, partialEntries: [] };
+    const { container } = render(<PmtStrip pmt={pmt} onChange={() => {}} />);
+    // The first select is Structure 1 & 2; it read "1: Independent"… from a TS table.
+    const structure = container.querySelector("select")!;
+    expect([...structure.querySelectorAll("option")].map((o) => o.textContent)).toEqual(
+      ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+    );
   });
 });

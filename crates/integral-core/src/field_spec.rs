@@ -265,7 +265,8 @@ pub fn pcms_partial_spec(field: PcmsPartialField) -> FieldSpec {
         F::Lfo1Waveform | F::Lfo2Waveform => LFO_WAVEFORM,
         F::Lfo1Offset | F::Lfo2Offset => LFO_OFFSET,
         F::Lfo1FadeMode | F::Lfo2FadeMode => FADE_MODE,
-        F::LfoStepType => shape(0, 1, Raw),
+        // The doc shows only 0-1; the names are the editor's.
+        F::LfoStepType => shape(0, 1, Named(&["STEP", "SMOOTH"])),
         F::LfoStep => shape(28, 100, SignedCenter(64)),
     };
     spec(field, init, shape)
