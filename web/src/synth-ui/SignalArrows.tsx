@@ -7,7 +7,7 @@ export interface Edge {
   to: string;
   /** Drawn where the edge meets its target: + (mix), B (booster), R (ring mod). */
   glyph?: string;
-  /** A box the edge must not cross: it runs level until past it, then bends. */
+  /** A box the edge must not cross: it passes under it (over it, coming from above). */
   around?: string;
 }
 
@@ -15,6 +15,7 @@ export interface Edge {
 export interface Box {
   left: number;
   right: number;
+  top: number;
   mid: number;
   bottom: number;
 }
@@ -29,8 +30,8 @@ const GLYPH_R = 7;
 /**
  * The curve of an edge from `from`'s right side to `to`'s left side (straight
  * when they line up). With a glyph, the curve ends at the glyph, left of the
- * target. With `around`, it passes just under that box: two smooth S-curves,
- * through a point below the box's centre.
+ * target. With `around`, it passes just under that box (just over it, when
+ * coming from above it): two smooth S-curves through a point by the box's centre.
  */
 export function arrowPath(from: Box, to: Box, glyph?: boolean, around?: Box): string {
   const endX = glyph ? to.left - GLYPH_GAP - GLYPH_R : to.left;
@@ -40,7 +41,9 @@ export function arrowPath(from: Box, to: Box, glyph?: boolean, around?: Box): st
   };
   if (around) {
     const wx = (around.left + around.right) / 2;
-    const wy = Math.min(from.mid, around.bottom + AROUND_GAP);
+    const wy = from.mid > around.mid
+      ? Math.min(from.mid, around.bottom + AROUND_GAP)
+      : Math.max(from.mid, around.top - AROUND_GAP);
     return `M ${from.right} ${from.mid}${s(from.right, from.mid, wx, wy)}${s(wx, wy, endX, to.mid)}`;
   }
   return `M ${from.right} ${from.mid}${s(from.right, from.mid, endX, to.mid)}`;
@@ -75,7 +78,7 @@ export function SignalArrows({ edges }: { edges: Edge[] }) {
         const r = el.getBoundingClientRect();
         const left = r.left - origin.left + root.scrollLeft;
         const top = r.top - origin.top + root.scrollTop;
-        return { left, right: left + r.width, mid: top + r.height / 2, bottom: top + r.height };
+        return { left, right: left + r.width, top, mid: top + r.height / 2, bottom: top + r.height };
       };
       const next: Drawing = { curves: [], glyphs: [] };
       const glyphed = new Set<string>();

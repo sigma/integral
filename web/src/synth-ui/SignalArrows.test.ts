@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { arrowPath } from "./SignalArrows";
 
 describe("arrowPath", () => {
-  const box = (left: number, mid: number) => ({ left, right: left + 100, mid, bottom: mid + 20 });
+  const box = (left: number, mid: number) => ({ left, right: left + 100, top: mid - 20, mid, bottom: mid + 20 });
 
   it("curves between boxes at different heights", () => {
     expect(arrowPath(box(0, 50), box(200, 100))).toBe("M 100 50 C 150 50 150 100 200 100");
@@ -14,6 +14,13 @@ describe("arrowPath", () => {
 
   it("ends at the glyph left of the target, even in line", () => {
     expect(arrowPath(box(0, 50), box(200, 50), true)).toBe("M 100 50 C 138.5 50 138.5 50 177 50");
+  });
+
+  it("curves just over a box it must go around, coming from above", () => {
+    const block = box(150, 300);
+    expect(arrowPath(box(0, 50), box(400, 400), false, block)).toBe(
+      "M 100 50 C 150 50 150 270 200 270 C 300 270 300 400 400 400",
+    );
   });
 
   it("curves just under a box it must go around", () => {

@@ -211,6 +211,15 @@ function pairLayout(
   }
 
   const join = routing.join;
+  /**
+   * A lane's edge into the join. A lane with nothing before the join leaves
+   * from its head, so it goes around the other lane's blocks in that column.
+   */
+  const intoJoin = (side: Side, to: string): Edge => {
+    const other = side === "upper" ? "lower" : "upper";
+    const skips = lastBlock[side].includes("-head-") && lastBlock[other].includes("-pre-");
+    return { from: lastBlock[side], to, around: skips ? lastBlock[other] : undefined };
+  };
   if (join) {
     let column = PATH_COLUMN + (preColumn ? 1 : 0);
     const node = `out-${first + 1}`;
@@ -222,7 +231,7 @@ function pairLayout(
           <RingSection pair={number} />
         </div>
       ));
-      edges.push({ from: lastBlock.upper, to: ring }, { from: lastBlock.lower, to: ring });
+      edges.push(intoJoin("upper", ring), intoJoin("lower", ring));
       if (join.lowerDry) {
         // Partial 2 (4) also goes in dry, summed with the ring's product.
         edges.push({ from: ring, to: node, glyph: "+" }, { from: lastBlock.lower, to: node, glyph: "+", around: ring });
@@ -231,7 +240,7 @@ function pairLayout(
       }
     } else {
       // Summed: type 4's booster then opens the merged block.
-      edges.push({ from: lastBlock.upper, to: node, glyph: "+" }, { from: lastBlock.lower, to: node, glyph: "+" });
+      edges.push({ ...intoJoin("upper", node), glyph: "+" }, { ...intoJoin("lower", node), glyph: "+" });
     }
     // After the join: one block, centred on both lanes, ending in the pair's single output.
     place(node, "both", column, [
