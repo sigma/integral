@@ -858,6 +858,18 @@ impl DeviceState {
         true
     }
 
+    /// Drop `part`'s cached SN Synth Tone and read it again, as
+    /// [`load_sns_tone`](Self::load_sns_tone) does. Editors call this on
+    /// open, so a tone edited on the device's front panel since, or a read
+    /// that ran out of retries, is read anew.
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < 16.
+    pub fn reload_sns_tone(&mut self, part: u8) {
+        self.invalidate_sns_tone(part);
+        self.load_sns_tone(part);
+    }
+
     /// `part`'s cached SN Synth Tone, or `None` until every block of it has
     /// arrived (see [`load_sns_tone`](Self::load_sns_tone)).
     pub fn sns_tone(&self, part: u8) -> Option<SnSynthTone> {
@@ -2070,6 +2082,36 @@ mod tests {
             assert_eq!(sent.iter().filter(|m| **m == request).count(), tries);
         }
         assert_eq!(dev.sns_tone(0), None);
+    }
+
+    #[test]
+    fn reload_reads_the_same_tone_again() {
+        let mut dev = loading_sns(2);
+        drain_until(&mut dev, 0.0, 200.0);
+        for block in SnsBlock::ALL {
+            dev.handle_dt1(&block.address(2), &sns_reply(block, 1), 0.0);
+        }
+        assert!(dev.sns_tone(2).is_some());
+
+        // Edited on the front panel since: the editor reopens.
+        dev.reload_sns_tone(2);
+        assert_eq!(dev.sns_tone(2), None, "the stale copy is dropped");
+        assert_eq!(
+            drain_until(&mut dev, 300.0, 600.0),
+            SnsBlock::ALL.map(|b| sns_request(2, b)).to_vec()
+        );
+    }
+
+    #[test]
+    fn reload_asks_again_once_retries_are_used_up() {
+        let mut dev = loading_sns(0);
+        drain_until(&mut dev, 0.0, 60_000.0);
+        assert!(drain_until(&mut dev, 60_000.0, 70_000.0).is_empty());
+        dev.reload_sns_tone(0);
+        assert_eq!(
+            sns_requests_in(&drain_until(&mut dev, 70_000.0, 70_500.0), 0),
+            SnsBlock::ALL.len()
+        );
     }
 
     #[test]

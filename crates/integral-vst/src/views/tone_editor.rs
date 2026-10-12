@@ -303,7 +303,7 @@ impl Model for ToneEditorData {
     fn event(&mut self, _cx: &mut EventContext, event: &mut Event) {
         event.map(|e, _| {
             if let ToneEditorEvent::Refresh = e {
-                self.refresh_from_device();
+                self.refresh_from_device(false);
                 return;
             }
             let shared = Arc::clone(&self.shared);
@@ -338,12 +338,15 @@ impl ToneEditorData {
             sns_loaded: false,
             shared,
         };
-        data.refresh_from_device();
+        // Read the tone afresh: it may have been edited on the device.
+        data.refresh_from_device(true);
         data
     }
 
-    /// Read current state from the device and update the view snapshot.
-    fn refresh_from_device(&mut self) {
+    /// Read current state from the device and update the view snapshot,
+    /// starting to read the SN-S tone if it isn't cached, or again if
+    /// `reload`.
+    fn refresh_from_device(&mut self, reload: bool) {
         let shared = Arc::clone(&self.shared);
         let Ok(mut dev) = shared.device.lock() else {
             return;
@@ -366,7 +369,10 @@ impl ToneEditorData {
             return;
         }
         let part = idx as u8;
-        if dev.load_sns_tone(part) {
+        if reload {
+            dev.reload_sns_tone(part);
+        }
+        if reload || dev.load_sns_tone(part) {
             let rq = dev.build_mfx_request(part, ToneType::SnSynth);
             dev.send_raw(&format!("mfx-{part}"), rq);
         }

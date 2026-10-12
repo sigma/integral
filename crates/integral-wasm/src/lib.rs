@@ -2407,14 +2407,14 @@ impl WasmDeviceState {
         self.inner.mixer_loading()
     }
 
-    /// Start reading a part's SN-S tone into the core cache, unless it is
-    /// already read or being read for the part's current tone. Returns
-    /// whether a new read started. Lost replies are requested again by
+    /// Drop a part's cached SN-S tone and read it again from the device,
+    /// e.g. when its editor opens. Lost replies are requested again by
     /// `drain`.
-    #[wasm_bindgen(js_name = loadSnsTone)]
-    pub fn load_sns_tone(&mut self, part: u8) -> Result<bool, JsError> {
+    #[wasm_bindgen(js_name = reloadSnsTone)]
+    pub fn reload_sns_tone(&mut self, part: u8) -> Result<(), JsError> {
         check_part(part)?;
-        Ok(self.inner.load_sns_tone(part))
+        self.inner.reload_sns_tone(part);
+        Ok(())
     }
 
     /// A part's cached SN-S tone (`{ common, partials }`), or `null` until

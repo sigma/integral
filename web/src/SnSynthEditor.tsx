@@ -32,13 +32,14 @@ export function SnSynthEditor({ partIndex, service }: Props) {
   const [mfx, setMfx] = useState<MfxState | null>(null);
 
   // The tone lives in the core cache, which reads it from the device (and
-  // asks again for lost replies): show it, and show it again on each reply.
+  // asks again for lost replies): read it afresh on open, in case it was
+  // edited on the device, and show it again on each reply.
   const readTone = useCallback(() => {
     setTone(service.device.snsTone(partIndex) as SnSynthTone | null);
   }, [partIndex, service]);
 
   useEffect(() => {
-    service.device.loadSnsTone(partIndex);
+    service.device.reloadSnsTone(partIndex);
     readTone();
     const unsubscribe = service.onDt1(readTone);
     return () => {
