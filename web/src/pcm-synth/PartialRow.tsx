@@ -53,6 +53,9 @@ const JOIN_GLYPHS = { mix: "+", booster: "B", ring: "R" } as const;
  * PITCH and CONTROL, then the blocks before the join; blocks after the join,
  * and a merged pair's single OUTPUT (the lower partial's), span both rows.
  */
+/** The outer grid column holding each pair's path sub-grid, after power, LFOs and heads. */
+const PATH_COLUMN = 4;
+
 /** One pair of partials (1 & 2, or 3 & 4) and its Structure. */
 export interface Pair {
   /** Index (0-based) of the pair's upper partial: 0 or 2. */
@@ -123,17 +126,23 @@ function pairLayout(
   };
 
   const cells: ReactNode[] = [];
+  /** Blocks after the WAVE column: the pair's own path, on its own sub-grid. */
+  const path: ReactNode[] = [];
   const edges: Edge[] = [];
   /**
    * Place a block at `column`: in its partial's row, or centred across both
    * rows once the lanes have merged. `node` names it for the arrows.
    */
   const place = (node: string, row: Side | "both", column: number, content: ReactNode, block = true) => {
-    cells.push(
+    // Shared columns (power, LFOs, heads) sit on the outer grid's rows; the
+    // path columns on the pair's sub-grid, whose two rows are the pair's.
+    const inPath = column >= PATH_COLUMN;
+    const rowOf = (r: number) => (inPath ? r : rowBase + r);
+    (inPath ? path : cells).push(
       <div key={node} data-node={node} className={`${block ? css.block : css.pairCell} ${row === "both" ? css.mergedCell : ""}`}
         style={{
-          gridColumn: column,
-          gridRow: row === "both" ? `${rowBase + 1} / span 2` : rowBase + (row === "upper" ? 1 : 2),
+          gridColumn: inPath ? column - PATH_COLUMN + 1 : column,
+          gridRow: row === "both" ? `${rowOf(1)} / span 2` : rowOf(row === "upper" ? 1 : 2),
         }}>
         {content}
       </div>,
@@ -189,6 +198,11 @@ function pairLayout(
     edges.push({ from: lastBlock.upper, to: node, glyph }, { from: lastBlock.lower, to: node, glyph });
   }
 
+  cells.push(
+    <div key={`${first}-path`} className={css.pairPath} style={{ gridColumn: PATH_COLUMN, gridRow: `${rowBase + 1} / span 2` }}>
+      {path}
+    </div>,
+  );
   return { cells, edges };
 }
 

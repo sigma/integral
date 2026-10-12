@@ -125,12 +125,16 @@
   align-items: flex-start;
 }
 
-/* No flex: 1, so the MFX sidebar sits right next to the partials. */
+/*
+ * No flex: 1, so the MFX sidebar sits right next to the partials; no
+ * shrinking either, so the partials are never clipped (the editor scrolls)
+ * and the arrows into MFX always start on a visible OUTPUT.
+ */
 .partialRows {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 0;
+  flex-shrink: 0;
 }
 
 /* Centred on the partial lanes, with room for their arrows to converge on it */
@@ -156,8 +160,19 @@
   gap: 8px 56px;
   justify-content: start;
   place-items: stretch start;
-  overflow-x: auto;
   padding-bottom: 2px;
+}
+
+/*
+ * A pair's path after its heads: its own columns (so one pair's wide blocks
+ * don't push the other's along), its rows the pair's two rows of the grid.
+ */
+.pairPath {
+  display: grid;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  column-gap: 56px;
+  place-items: stretch start;
 }
 
 .pairCell {
