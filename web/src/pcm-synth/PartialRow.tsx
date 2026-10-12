@@ -2,7 +2,6 @@ import {
   SynthKnob,
   SynthFader,
   SynthSwitch,
-  SynthSelect,
   SectionPanel,
   PartialPowerButton,
   BreakpointEnvelope,
@@ -11,6 +10,7 @@ import {
 } from "../synth-ui";
 import { PcmsPartialField, pcms_partial_spec } from "../../pkg/integral_wasm.js";
 import { knobRange, switchOptions } from "../fieldSpec";
+import { VelocityCurveSelect } from "./VelocityCurveSelect";
 import css from "../PcmSynthEditor.module.css";
 import type { PartialParamHandler, PartialSetter, PcmSynthPartial } from "./types";
 import { WavePicker, type ExpansionMarking } from "../WavePicker";
@@ -258,12 +258,12 @@ function TvfSection({
       </div>
       <div className={css.envBlock}>
         <div className={css.panelRow}>
-          <SynthSelect label="Vel Crv" value={partial.tvfCutoffVelocityCurve}
+          <VelocityCurveSelect label="Vel Crv" value={partial.tvfCutoffVelocityCurve}
             options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocityCurve))}
-            onChange={set(PcmsPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} title="Cutoff velocity response curve shape" />
-          <SynthSelect label="Env Crv" value={partial.tvfEnvVelocityCurve}
+            onChange={set(PcmsPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} color="#68c" title="Cutoff velocity response curve shape" />
+          <VelocityCurveSelect label="Env Crv" value={partial.tvfEnvVelocityCurve}
             options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfEnvVelocityCurve))}
-            onChange={set(PcmsPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} title="Envelope velocity response curve shape" />
+            onChange={set(PcmsPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} color="#68c" title="Envelope velocity response curve shape" />
         </div>
         <div className={css.panelRow}>
           <SynthKnob label="Depth" value={partial.tvfEnvDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvDepth))}
@@ -347,9 +347,9 @@ function TvaSection({
             title="Bias center key — volume is loudest here, attenuated away" />
         </div>
         <div className={css.stack}>
-          <SynthSelect label="Vel Curve" value={partial.tvaLevelVelocityCurve}
+          <VelocityCurveSelect label="Vel Curve" value={partial.tvaLevelVelocityCurve}
             options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaLevelVelocityCurve))}
-            onChange={set(PcmsPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} title="Velocity response curve shape" />
+            onChange={set(PcmsPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} color="#6c8" title="Velocity response curve shape" />
           <SynthSwitch label="Bias Dir" value={partial.tvaBiasDirection} vertical
             options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaBiasDirection))}
             onChange={set(PcmsPartialField.TvaBiasDirection, "tvaBiasDirection")} led={false}

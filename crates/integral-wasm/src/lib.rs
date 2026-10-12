@@ -2044,6 +2044,13 @@ pub fn pcmd_partial_spec(field: PcmdPartialField) -> Option<WasmFieldSpec> {
     field_spec::pcmd_partial_spec(field.into()).map(wrap_field_spec)
 }
 
+/// How strongly velocity `v` (0.0-1.0) acts under V-Curve `curve` (0 =
+/// FIXED, 1-7), from 0.0 to 1.0.
+#[wasm_bindgen]
+pub fn velocity_curve(curve: u8, v: f64) -> f64 {
+    integral_core::velocity_curve::velocity_curve(curve, v)
+}
+
 /// Returns chorus parameter definitions for the given type index.
 #[wasm_bindgen]
 pub fn chorus_params(chorus_type: u8) -> Vec<WasmFxParamDef> {

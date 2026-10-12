@@ -52,4 +52,5 @@ pub mod sysex;
 pub mod tone_banks;
 pub mod tone_catalog;
 pub mod user_write;
+pub mod velocity_curve;
 pub mod waves;
