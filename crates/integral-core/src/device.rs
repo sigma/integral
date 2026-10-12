@@ -21,7 +21,7 @@
 
 use std::collections::HashMap;
 
-use crate::address::Address;
+use crate::address::{Address, DataSize};
 use crate::block_field::{BlockField, FieldIndexError};
 use crate::device_spec::KeyOutOfRange;
 use thiserror::Error;
@@ -29,8 +29,8 @@ use thiserror::Error;
 use crate::expansion_load::{self, LoadAction, LoadMachine, LoadOutcome, LoadPlan};
 use crate::expansion_slots::{self, ExpansionSlots};
 use crate::expansions::Expansion;
-use crate::factory_catalog;
 use crate::midi_bridge::RequestTracker;
+use crate::mixer_load::{self, MixerBlock};
 use crate::params::{self, ToneType, part};
 use crate::parse_helpers::encode_ascii_name;
 use crate::pcm_synth::{PcmsCommonField, PcmsPartialField, PcmsPmtField};
@@ -46,12 +46,12 @@ const THROTTLE_MS: f64 = 40.0;
 /// Duration to suppress incoming DT1 echoes after a local send (ms).
 const ECHO_SUPPRESS_MS: f64 = 150.0;
 
-/// How long an SN Synth block request waits for its reply before it is
-/// sent again (ms).
-const SNS_REPLY_TIMEOUT_MS: f64 = 2000.0;
+/// How long a tracked read (SN Synth or mixer block) waits for its reply
+/// before it is sent again (ms).
+const REPLY_TIMEOUT_MS: f64 = 2000.0;
 
-/// How many times an unanswered SN Synth block request is sent again.
-const SNS_MAX_RETRIES: u8 = 2;
+/// How many times an unanswered tracked read is sent again.
+const MAX_RETRIES: u8 = 2;
 
 // ---------------------------------------------------------------------------
 // Send queue
@@ -73,6 +73,19 @@ struct SnsToneLoad {
     tone: (u8, u8, u8),
     blocks: SnSynthToneBlocks,
     retries: [u8; SnsBlock::ALL.len()],
+}
+
+/// A mixer block being read from the device.
+struct MixerRead {
+    block: MixerBlock,
+    address: Address,
+    retries: u8,
+}
+
+/// The request tracker key of the mixer read at `address`; distinct from
+/// SN Synth block keys, whose Common block starts at a tone name address.
+fn mixer_request_key(address: &Address) -> String {
+    format!("mixer:{address}")
 }
 
 /// The request tracker key of `part`'s `block` request.
@@ -102,7 +115,9 @@ pub struct DeviceState {
     load: Option<LoadMachine>,
     /// Each part's SN Synth Tone, by part index, once a load started.
     sns_tones: HashMap<u8, SnsToneLoad>,
-    /// Sent SN Synth block requests awaiting their reply.
+    /// Mixer blocks being read (see [`load_mixer`](Self::load_mixer)).
+    mixer_reads: Vec<MixerRead>,
+    /// Sent SN Synth block and mixer requests awaiting their reply.
     requests: RequestTracker,
 }
 
@@ -129,6 +144,7 @@ impl DeviceState {
             expansion_slots: None,
             load: None,
             sns_tones: HashMap::new(),
+            mixer_reads: Vec::new(),
             requests: RequestTracker::new(),
         }
     }
@@ -303,8 +319,9 @@ impl DeviceState {
     /// Drain the next outbound message if the throttle window has elapsed.
     ///
     /// `now_ms` is a monotonic timestamp in milliseconds. Before draining,
-    /// SN Synth block requests whose reply timed out are queued again (see
-    /// [`load_sns_tone`](Self::load_sns_tone)).
+    /// SN Synth block and mixer requests whose reply timed out are queued
+    /// again (see [`load_sns_tone`](Self::load_sns_tone) and
+    /// [`load_mixer`](Self::load_mixer)).
     ///
     /// Returns `None` if the queue is empty, the throttle hasn't elapsed, or
     /// an Expansion load holds the queue.
@@ -312,7 +329,7 @@ impl DeviceState {
         if self.load.is_some() {
             return None;
         }
-        self.retry_sns_requests(now_ms);
+        self.retry_requests(now_ms);
         if self.queue.is_empty() || now_ms - self.last_send_time < THROTTLE_MS {
             return None;
         }
@@ -361,7 +378,7 @@ impl DeviceState {
     /// Returns `true` if the state was changed.
     pub fn handle_dt1(&mut self, address: &Address, data: &[u8], now_ms: f64) -> bool {
         // A block reply is never an echo of a single-parameter edit.
-        if self.handle_sns_block(address, data) {
+        if self.handle_sns_block(address, data) || self.handle_mixer_reply(address, data) {
             return true;
         }
         if self.is_suppressed(address, now_ms) {
@@ -501,14 +518,7 @@ impl DeviceState {
     /// Debug-asserts that `part` < 16.
     pub fn change_part_tone(&mut self, part: u8, msb: u8, lsb: u8, pc: u8) {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
-        let p = &mut self.state.parts[part as usize];
-        p.tone_bank_msb = msb;
-        p.tone_bank_lsb = lsb;
-        p.tone_pc = pc;
-        // The factory name until the device's own name is read back.
-        p.tone_name = factory_catalog::factory_tone(msb, lsb, pc)
-            .map(|t| t.name.to_string())
-            .unwrap_or_default();
+        mixer_load::set_tone(&mut self.state.parts[part as usize], msb, lsb, pc);
         self.invalidate_sns_tone(part);
 
         let msb_addr = params::part_address(part, part::TONE_BANK_MSB);
@@ -517,6 +527,15 @@ impl DeviceState {
         self.send_dt1(&lsb_addr, &[lsb]);
         let pc_addr = params::part_address(part, part::TONE_PC);
         self.send_dt1(&pc_addr, &[pc]);
+
+        let stale: Vec<_> = (self.mixer_reads.iter())
+            .filter(|r| r.block.reads_tone_of(part))
+            .map(|r| r.address)
+            .collect();
+        for address in stale {
+            self.drop_mixer_read(&address);
+        }
+        self.queue_mixer_reads(MixerBlock::tone_reads(part, msb));
     }
 
     /// Set a part's Temporary tone name (ASCII, truncated or space-padded
@@ -877,33 +896,39 @@ impl DeviceState {
         }
     }
 
-    /// Queue again the SN Synth block requests whose reply timed out, while
-    /// retries remain and the part's tone hasn't changed.
-    fn retry_sns_requests(&mut self, now_ms: f64) {
-        for key in self.requests.expire_old(now_ms, SNS_REPLY_TIMEOUT_MS) {
-            let Some((part, block)) = self.sns_tones.keys().find_map(|&part| {
-                SnsBlock::ALL
-                    .into_iter()
-                    .find(|&block| sns_request_key(part, block) == key)
-                    .map(|block| (part, block))
-            }) else {
-                continue;
-            };
-            let tone = self.part_tone(part);
-            let Some(load) = self.sns_tones.get_mut(&part) else {
-                continue;
-            };
-            if load.tone != tone {
-                self.invalidate_sns_tone(part);
-                continue;
-            }
-            let retries = &mut load.retries[block.index()];
-            if load.blocks.has(block) || *retries >= SNS_MAX_RETRIES {
-                continue;
-            }
-            *retries += 1;
-            self.queue_sns_request(part, block);
+    /// Queue again the requests whose reply timed out, while retries remain.
+    fn retry_requests(&mut self, now_ms: f64) {
+        for key in self.requests.expire_old(now_ms, REPLY_TIMEOUT_MS) {
+            self.retry_sns_request(&key);
+            self.retry_mixer_read(&key);
         }
+    }
+
+    /// Queue again the SN Synth block request of tracker key `key`, if it is
+    /// one, while retries remain and the part's tone hasn't changed.
+    fn retry_sns_request(&mut self, key: &str) {
+        let Some((part, block)) = self.sns_tones.keys().find_map(|&part| {
+            SnsBlock::ALL
+                .into_iter()
+                .find(|&block| sns_request_key(part, block) == key)
+                .map(|block| (part, block))
+        }) else {
+            return;
+        };
+        let tone = self.part_tone(part);
+        let Some(load) = self.sns_tones.get_mut(&part) else {
+            return;
+        };
+        if load.tone != tone {
+            self.invalidate_sns_tone(part);
+            return;
+        }
+        let retries = &mut load.retries[block.index()];
+        if load.blocks.has(block) || *retries >= MAX_RETRIES {
+            return;
+        }
+        *retries += 1;
+        self.queue_sns_request(part, block);
     }
 
     /// Store an SN Synth block reply in the cache of a part being read.
@@ -918,6 +943,104 @@ impl DeviceState {
             }
         }
         false
+    }
+
+    // -----------------------------------------------------------------------
+    // Mixer load
+    // -----------------------------------------------------------------------
+
+    /// Start reading the whole mixer state from the device, dropping any
+    /// read in progress.
+    ///
+    /// Replies update [`state`](Self::state) as they arrive, through
+    /// [`handle_dt1`](Self::handle_dt1). Requests whose reply doesn't arrive
+    /// within a timeout are sent again by [`drain`](Self::drain), a bounded
+    /// number of times.
+    pub fn load_mixer(&mut self) {
+        for read in std::mem::take(&mut self.mixer_reads) {
+            self.drop_mixer_read(&read.address);
+        }
+        self.queue_mixer_reads(MixerBlock::initial());
+    }
+
+    /// Whether a mixer load still waits for a block the mixer can't be shown
+    /// without (see [`MixerBlock::is_primary`]).
+    pub fn mixer_loading(&self) -> bool {
+        self.mixer_reads.iter().any(|r| r.block.is_primary())
+    }
+
+    /// Queue the RQ1 of each block that has something to read.
+    fn queue_mixer_reads(&mut self, blocks: impl IntoIterator<Item = MixerBlock>) {
+        for block in blocks {
+            let Some((address, size)) = block.request() else {
+                continue;
+            };
+            self.drop_mixer_read(&address);
+            self.mixer_reads.push(MixerRead {
+                block,
+                address,
+                retries: 0,
+            });
+            self.queue_mixer_request(&address, &size);
+        }
+    }
+
+    /// Queue the RQ1 of the mixer read at `address`, unless it is queued
+    /// already.
+    fn queue_mixer_request(&mut self, address: &Address, size: &DataSize) {
+        let key = mixer_request_key(address);
+        if self.queue.iter().any(|m| m.key == key) {
+            return;
+        }
+        let bytes = sysex::build_rq1(self.device_id, address, size);
+        self.queue.push(QueuedMessage {
+            key,
+            bytes,
+            tracked: true,
+        });
+    }
+
+    /// Forget the mixer read at `address` and its outstanding request.
+    fn drop_mixer_read(&mut self, address: &Address) {
+        self.mixer_reads.retain(|r| r.address != *address);
+        let key = mixer_request_key(address);
+        self.requests.cancel(&key);
+        self.queue.retain(|m| m.key != key);
+    }
+
+    /// Queue again the mixer read of tracker key `key`, if it is one, while
+    /// retries remain; else give it up.
+    fn retry_mixer_read(&mut self, key: &str) {
+        let Some(i) = (self.mixer_reads.iter()).position(|r| mixer_request_key(&r.address) == key)
+        else {
+            return;
+        };
+        let read = &mut self.mixer_reads[i];
+        if read.retries >= MAX_RETRIES {
+            self.mixer_reads.remove(i);
+            return;
+        }
+        read.retries += 1;
+        let (address, size) = read.block.request().expect("a queued read has a request");
+        self.queue_mixer_request(&address, &size);
+    }
+
+    /// Apply a reply to a pending mixer read, queueing the reads it makes
+    /// possible. Returns whether `address` and `data` were such a reply.
+    fn handle_mixer_reply(&mut self, address: &Address, data: &[u8]) -> bool {
+        let Some(i) = self.mixer_reads.iter().position(|r| {
+            r.address == *address
+                && r.block
+                    .request()
+                    .is_some_and(|(_, size)| size.value() as usize == data.len())
+        }) else {
+            return false;
+        };
+        let read = self.mixer_reads.remove(i);
+        self.requests.cancel(&mixer_request_key(address));
+        let next = read.block.apply(&mut self.state, data);
+        self.queue_mixer_reads(next);
+        true
     }
 
     // -----------------------------------------------------------------------
@@ -1445,10 +1568,18 @@ mod tests {
     }
 
     #[test]
-    fn change_part_tone_enqueues_three_messages() {
+    fn change_part_tone_sends_the_tone_then_reads_its_name_and_category() {
         let mut dev = DeviceState::new(0x10);
         dev.change_part_tone(0, 89, 64, 12);
-        assert_eq!(dev.queue.len(), 3);
+        let name = params::tone_name_address(0, ToneType::SnAcoustic);
+        let category = params::tone_category_address(0, 89).unwrap();
+        let sent = drain_until(&mut dev, 0.0, 1_000.0);
+        assert_eq!(sent.len(), 5);
+        assert_eq!(
+            sent[3],
+            sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE)
+        );
+        assert_eq!(sent[4], sysex::build_rq1(0x10, &category, &DataSize::ONE));
         assert_eq!(dev.state().parts[0].tone_bank_msb, 89);
         assert_eq!(dev.state().parts[0].tone_bank_lsb, 64);
         assert_eq!(dev.state().parts[0].tone_pc, 12);
@@ -1467,7 +1598,7 @@ mod tests {
     fn rename_tone_writes_padded_name_for_tone_type() {
         let mut dev = DeviceState::new(0x10);
         dev.change_part_tone(1, 95, 0, 0); // SN Synth
-        let _ = (dev.drain(0.0), dev.drain(100.0), dev.drain(200.0));
+        drain_until(&mut dev, 0.0, 200.0); // Tone change, name and category reads
         assert!(dev.rename_tone(1, "My Pad"));
         assert_eq!(dev.state().parts[1].tone_name, "My Pad");
         let addr = params::tone_name_address(1, ToneType::SnSynth);
@@ -1818,6 +1949,12 @@ mod tests {
         data
     }
 
+    /// How many of `sent` are SN Synth block requests for `part`.
+    fn sns_requests_in(sent: &[Vec<u8>], part: u8) -> usize {
+        let requests = SnsBlock::ALL.map(|b| sns_request(part, b));
+        sent.iter().filter(|m| requests.contains(m)).count()
+    }
+
     /// Everything `dev` sends from `from_ms` until `until_ms`, draining
     /// every 10 ms; `now` ends at `until_ms`.
     fn drain_until(dev: &mut DeviceState, from_ms: f64, until_ms: f64) -> Vec<Vec<u8>> {
@@ -1911,9 +2048,9 @@ mod tests {
 
         // Partial 2's request went out at 80 ms; nothing is resent before
         // its reply times out.
-        assert!(drain_until(&mut dev, 300.0, 80.0 + SNS_REPLY_TIMEOUT_MS - 10.0).is_empty());
+        assert!(drain_until(&mut dev, 300.0, 80.0 + REPLY_TIMEOUT_MS - 10.0).is_empty());
         assert_eq!(
-            drain_until(&mut dev, 80.0 + SNS_REPLY_TIMEOUT_MS, 3000.0),
+            drain_until(&mut dev, 80.0 + REPLY_TIMEOUT_MS, 3000.0),
             vec![sns_request(3, lost)]
         );
 
@@ -1926,7 +2063,7 @@ mod tests {
     fn sns_retries_are_bounded() {
         let mut dev = loading_sns(0);
         let sent = drain_until(&mut dev, 0.0, 60_000.0);
-        let tries = 1 + SNS_MAX_RETRIES as usize;
+        let tries = 1 + MAX_RETRIES as usize;
         assert_eq!(sent.len(), SnsBlock::ALL.len() * tries);
         for block in SnsBlock::ALL {
             let request = sns_request(0, block);
@@ -1941,13 +2078,16 @@ mod tests {
         let mut dev = loading_sns(0);
         dev.change_part_tone(0, 87, 0, 0);
         let sent = drain_until(&mut dev, 0.0, 60_000.0);
-        assert_eq!(sent.len(), 3, "only the tone change goes out: {sent:?}");
+        assert_eq!(sns_requests_in(&sent, 0), 0, "no SN Synth read goes out");
 
         // Sent, awaiting replies.
         let mut dev = loading_sns(0);
         drain_until(&mut dev, 0.0, 200.0);
         dev.change_part_tone(0, 87, 0, 0);
-        assert_eq!(drain_until(&mut dev, 200.0, 60_000.0).len(), 3);
+        assert_eq!(
+            sns_requests_in(&drain_until(&mut dev, 200.0, 60_000.0), 0),
+            0
+        );
         assert_eq!(dev.sns_tone(0), None);
 
         // Changed behind the cache's back (a part dump): the timed-out
@@ -1957,5 +2097,135 @@ mod tests {
         dev.state_mut().parts[0].tone_pc = 4;
         assert!(drain_until(&mut dev, 200.0, 60_000.0).is_empty());
         assert!(dev.load_sns_tone(0));
+    }
+
+    // -- Mixer load ---------------------------------------------------------
+
+    /// Answer every RQ1 `dev` sends until `until_ms` from `memory` (a
+    /// block's bytes by start address, zeros elsewhere), draining every
+    /// 10 ms. Returns the addresses read.
+    fn serve(
+        dev: &mut DeviceState,
+        memory: &HashMap<Address, Vec<u8>>,
+        until_ms: f64,
+    ) -> Vec<Address> {
+        let mut read = Vec::new();
+        let mut now = 0.0;
+        while now <= until_ms {
+            if let Some(msg) = dev.drain(now)
+                && msg[6] == 0x11
+            {
+                let address = Address::new(msg[7], msg[8], msg[9], msg[10]);
+                let size = DataSize::new(msg[11], msg[12], msg[13], msg[14]).value();
+                let data = memory
+                    .get(&address)
+                    .cloned()
+                    .unwrap_or_else(|| vec![0; size as usize]);
+                dev.handle_dt1(&address, &data, now);
+                read.push(address);
+            }
+            now += 10.0;
+        }
+        read
+    }
+
+    /// A part mixer dump playing tone `msb`/`lsb`/`pc` at `level`.
+    fn part_dump(msb: u8, lsb: u8, pc: u8, level: u8) -> Vec<u8> {
+        let mut data = vec![0; params::PART_MIXER_SIZE.value() as usize];
+        data[0x06..0x0A].copy_from_slice(&[msb, lsb, pc, level]);
+        data[0x27] = 33; // Chorus send
+        data[0x29] = 4; // Output assign
+        data
+    }
+
+    #[test]
+    fn load_mixer_reads_the_device_state() {
+        // Part 3 plays User PCM tone 5; part 10 an SN-D kit using Comp+EQ.
+        let memory = HashMap::from([
+            (params::SYSTEM_MASTER_LEVEL, vec![90]),
+            (params::STUDIO_SET_NAME, b"My Set          ".to_vec()),
+            (
+                params::part_address(2, part::RECEIVE_CHANNEL),
+                part_dump(87, 0, 5, 77),
+            ),
+            (
+                params::part_address(9, part::RECEIVE_CHANNEL),
+                part_dump(88, 64, 0, 100),
+            ),
+            (
+                params::tone_name_address(2, ToneType::PcmSynth),
+                b"User Lead   ".to_vec(),
+            ),
+            (params::tone_category_address(2, 87).unwrap(), vec![7]),
+            (
+                params::chorus_address(params::chorus::TYPE),
+                vec![2, 100, 0, 1],
+            ),
+            (params::REVERB_SWITCH, vec![1]),
+            (params::reverb_address(params::reverb::TYPE), vec![3, 80, 2]),
+            (params::EXT_PART_LEVEL, vec![55]),
+            (params::DRUM_COMP_EQ_SWITCH, vec![1, 9, 1, 2, 3, 4, 5, 6]),
+        ]);
+        let mut dev = DeviceState::new(0x10);
+        dev.load_mixer();
+        assert!(dev.mixer_loading());
+
+        let read = serve(&mut dev, &memory, 10_000.0);
+
+        assert!(!dev.mixer_loading());
+        let s = dev.state();
+        assert_eq!((s.master_level, s.studio_set_name.as_str()), (90, "My Set"));
+        let p = &s.parts[2];
+        assert_eq!((p.tone_bank_msb, p.tone_pc, p.level), (87, 5, 77));
+        assert_eq!((p.chorus_send, p.output_assign), (33, 4));
+        assert_eq!((p.tone_name.as_str(), p.tone_category), ("User Lead", 7));
+        assert_eq!(s.parts[9].tone_category, crate::svd::DRUMS_CATEGORY);
+        assert_eq!(
+            (s.chorus.fx_type, s.chorus.level, s.chorus.output),
+            (2, 100, 1)
+        );
+        assert!(s.reverb.enabled);
+        assert_eq!(
+            (s.reverb.fx_type, s.reverb.level, s.reverb.output),
+            (3, 80, 2)
+        );
+        assert_eq!(s.ext_level, 55);
+        assert_eq!(s.drum_comp_eq.output_assigns, [1, 2, 3, 4, 5, 6]);
+        let kit = params::comp_eq_block_address_for_bank(9, 88).unwrap();
+        assert!(read.contains(&kit), "reads the Comp+EQ part's kit block");
+        assert_eq!(read.last(), Some(&kit), "the kit block is read last");
+    }
+
+    #[test]
+    fn load_mixer_stops_loading_once_retries_are_used_up() {
+        let mut dev = DeviceState::new(0x10);
+        dev.load_mixer();
+        let sent = drain_until(&mut dev, 0.0, 60_000.0);
+        assert!(!dev.mixer_loading());
+        let master = sysex::build_rq1(0x10, &params::SYSTEM_MASTER_LEVEL, &DataSize::ONE);
+        let tries = sent.iter().filter(|m| **m == master).count();
+        assert_eq!(tries, 1 + usize::from(MAX_RETRIES));
+    }
+
+    #[test]
+    fn load_mixer_again_restarts_the_read() {
+        let mut dev = DeviceState::new(0x10);
+        dev.load_mixer();
+        dev.load_mixer();
+        let first = drain_until(&mut dev, 0.0, 1_000.0);
+        let mut fresh = DeviceState::new(0x10);
+        fresh.load_mixer();
+        assert_eq!(first, drain_until(&mut fresh, 0.0, 1_000.0));
+    }
+
+    #[test]
+    fn change_part_tone_reads_the_new_tone_name() {
+        let name = params::tone_name_address(0, ToneType::PcmSynth);
+        let memory = HashMap::from([(name, b"User Bass   ".to_vec())]);
+        let mut dev = DeviceState::new(0x10);
+        dev.change_part_tone(0, 87, 0, 3);
+        assert!(serve(&mut dev, &memory, 1_000.0).contains(&name));
+        assert_eq!(dev.state().parts[0].tone_name, "User Bass");
+        assert!(!dev.mixer_loading(), "a tone read alone isn't a mixer load");
     }
 }
