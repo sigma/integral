@@ -284,11 +284,6 @@
   justify-items: center;
 }
 
-/* Three knobs over L2-L4 (AMP) */
-.envKnobsTail > :first-child {
-  grid-column-start: 3;
-}
-
 /* Vertical pair of controls (e.g. a knob above its velocity sens) */
 .stack {
   display: flex;

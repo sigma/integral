@@ -330,15 +330,9 @@ function TvaSection({
     <SectionPanel label="AMP" accentColor="#6c8">
       <div className={css.panelRow}>
         <div className={`${css.knobGrid} ${css.knobGrid3}`}>
-          <SynthKnob label="Level" value={partial.level} {...knobRange(pcms_partial_spec(PcmsPartialField.Level))}
-            onChange={set(PcmsPartialField.Level, "level")} color="#6c8"
-            title="Partial volume level" />
           <SynthKnob label="Pan" value={partial.pan} {...knobRange(pcms_partial_spec(PcmsPartialField.Pan))}
             onChange={set(PcmsPartialField.Pan, "pan")} color="#6c8"
             title="Partial stereo panning" />
-          <SynthKnob label="Vel Sns" value={partial.tvaLevelVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaLevelVelocitySens))}
-            onChange={set(PcmsPartialField.TvaLevelVelocitySens, "tvaLevelVelocitySens")} color="#6c8"
-            title="Volume velocity sensitivity — harder keys = louder" />
           <SynthKnob label="Bias Lvl" value={partial.tvaBiasLevel} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasLevel))}
             onChange={set(PcmsPartialField.TvaBiasLevel, "tvaBiasLevel")} color="#6c8"
             title="Level bias amount — attenuates volume away from the bias key" />
@@ -346,18 +340,24 @@ function TvaSection({
             onChange={set(PcmsPartialField.TvaBiasPosition, "tvaBiasPosition")} color="#6c8"
             title="Bias center key — volume is loudest here, attenuated away" />
         </div>
-        <div className={css.stack}>
+        <SynthSwitch label="Bias Dir" value={partial.tvaBiasDirection} vertical
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaBiasDirection))}
+          onChange={set(PcmsPartialField.TvaBiasDirection, "tvaBiasDirection")} led={false}
+          title="Bias direction — which side of the center key is attenuated" />
+      </div>
+      <div className={css.envBlock}>
+        <div className={css.panelRow}>
           <VelocityCurveSelect label="Vel Curve" value={partial.tvaLevelVelocityCurve}
             options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaLevelVelocityCurve))}
             onChange={set(PcmsPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} color="#6c8" title="Velocity response curve shape" />
-          <SynthSwitch label="Bias Dir" value={partial.tvaBiasDirection} vertical
-            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaBiasDirection))}
-            onChange={set(PcmsPartialField.TvaBiasDirection, "tvaBiasDirection")} led={false}
-            title="Bias direction — which side of the center key is attenuated" />
         </div>
-      </div>
-      <div className={css.envBlock}>
-        <div className={`${css.envKnobs} ${css.envKnobsTail}`}>
+        <div className={css.envKnobs}>
+          <SynthKnob label="Level" value={partial.level} {...knobRange(pcms_partial_spec(PcmsPartialField.Level))}
+            onChange={set(PcmsPartialField.Level, "level")} color="#6c8"
+            title="Partial volume level" />
+          <SynthKnob label="Vel Sns" value={partial.tvaLevelVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaLevelVelocitySens))}
+            onChange={set(PcmsPartialField.TvaLevelVelocitySens, "tvaLevelVelocitySens")} color="#6c8"
+            title="Volume velocity sensitivity — harder keys = louder" />
           <SynthKnob label="Key Trk" value={partial.tvaEnvTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvTimeKeyfollow))}
             onChange={set(PcmsPartialField.TvaEnvTimeKeyfollow, "tvaEnvTimeKeyfollow")} color="#6c8"
             title="Envelope time key tracking — higher keys = faster envelope" />
