@@ -261,7 +261,8 @@ pub fn pcms_partial_spec(field: PcmsPartialField) -> FieldSpec {
             VELOCITY_CURVE
         }
         F::TvaBiasPosition => shape(0, 127, Note),
-        F::TvaBiasDirection => shape(0, 3, Named(&["LOWER", "UPPER", "LOWER&UPPER", "ALL"])),
+        // The doc spells them LOWER, UPPER, LOWER&UPPER.
+        F::TvaBiasDirection => shape(0, 3, Named(&["LO", "UP", "LO&UP", "ALL"])),
         F::Lfo1Waveform | F::Lfo2Waveform => LFO_WAVEFORM,
         F::Lfo1Offset | F::Lfo2Offset => LFO_OFFSET,
         F::Lfo1FadeMode | F::Lfo2FadeMode => FADE_MODE,

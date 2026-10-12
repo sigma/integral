@@ -329,31 +329,29 @@ function TvaSection({
 }) {
   return (
     <SectionPanel label="AMP" accentColor="#6c8">
-      <div className={css.panelRow}>
-        <div className={`${css.knobGrid} ${css.knobGrid4}`}>
-          <SynthKnob label="Pan" value={partial.pan} {...knobRange(pcms_partial_spec(PcmsPartialField.Pan))}
-            onChange={set(PcmsPartialField.Pan, "pan")} color="#6c8"
-            title="Partial stereo panning" />
-          <SynthKnob label="Pan KF" value={partial.panKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.PanKeyfollow))}
-            onChange={set(PcmsPartialField.PanKeyfollow, "panKeyfollow")} color="#6c8"
-            title="Pan keyfollow — notes above C4 pan right (+) or left (−). When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
-          <SynthKnob label="Rnd Pan" value={partial.randomPanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.RandomPanDepth))}
-            onChange={set(PcmsPartialField.RandomPanDepth, "randomPanDepth")} color="#6c8"
-            title="Random pan depth — each note lands at a random position. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
-          <SynthKnob label="Alt Pan" value={partial.alternatePanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.AlternatePanDepth))}
-            onChange={set(PcmsPartialField.AlternatePanDepth, "alternatePanDepth")} color="#6c8"
-            title="Alternate pan depth — successive notes alternate left and right; L/R sets which side comes first. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
-          <SynthKnob label="Bias Lvl" value={partial.tvaBiasLevel} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasLevel))}
-            onChange={set(PcmsPartialField.TvaBiasLevel, "tvaBiasLevel")} color="#6c8"
-            title="Bias level — how steeply volume changes with distance from the bias key; the sign sets whether it rises or falls" />
-          <SynthKnob label="Bias Key" value={partial.tvaBiasPosition} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasPosition))}
-            onChange={set(PcmsPartialField.TvaBiasPosition, "tvaBiasPosition")} color="#6c8"
-            title="Bias key — the pivot key the volume change is measured from" />
-          <SynthSwitch label="Bias Dir" value={partial.tvaBiasDirection} vertical
-            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaBiasDirection))}
-            onChange={set(PcmsPartialField.TvaBiasDirection, "tvaBiasDirection")} led={false}
-            title="Bias direction — which keys the change applies to: below, above or both sides of the bias key, or a slope across all keys" />
-        </div>
+      <div className={css.ampTop}>
+        <SynthKnob label="Pan" value={partial.pan} {...knobRange(pcms_partial_spec(PcmsPartialField.Pan))}
+          onChange={set(PcmsPartialField.Pan, "pan")} color="#6c8"
+          title="Partial stereo panning" />
+        <SynthKnob label="Pan KF" value={partial.panKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.PanKeyfollow))}
+          onChange={set(PcmsPartialField.PanKeyfollow, "panKeyfollow")} color="#6c8"
+          title="Pan keyfollow — notes above C4 pan right (+) or left (−). When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
+        <SynthKnob label="Rnd Pan" value={partial.randomPanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.RandomPanDepth))}
+          onChange={set(PcmsPartialField.RandomPanDepth, "randomPanDepth")} color="#6c8"
+          title="Random pan depth — each note lands at a random position. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
+        <SynthKnob label="Alt Pan" value={partial.alternatePanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.AlternatePanDepth))}
+          onChange={set(PcmsPartialField.AlternatePanDepth, "alternatePanDepth")} color="#6c8"
+          title="Alternate pan depth — successive notes alternate left and right; L/R sets which side comes first. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
+        <SynthKnob label="Bias Lvl" value={partial.tvaBiasLevel} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasLevel))}
+          onChange={set(PcmsPartialField.TvaBiasLevel, "tvaBiasLevel")} color="#6c8"
+          title="Bias level — how steeply volume changes with distance from the bias key; the sign sets whether it rises or falls" />
+        <SynthKnob label="Bias Key" value={partial.tvaBiasPosition} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasPosition))}
+          onChange={set(PcmsPartialField.TvaBiasPosition, "tvaBiasPosition")} color="#6c8"
+          title="Bias key — the pivot key the volume change is measured from" />
+        <SynthSwitch label="Bias Dir" value={partial.tvaBiasDirection} vertical
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaBiasDirection))}
+          onChange={set(PcmsPartialField.TvaBiasDirection, "tvaBiasDirection")} led={false}
+          title="Bias direction — which keys the change applies to: below, above or both sides of the bias key, or a slope across all keys" />
       </div>
       <div className={css.envBlock}>
         <div className={css.panelRow}>
@@ -569,13 +567,13 @@ function StepLfoSection({
   return (
     <div style={dimStyle}>
     <SectionPanel label="STEP LFO" accentColor="#a6f">
+      <LfoScope className={css.stepViz} shape="STEP" rate={0} steps={steps} smooth={smooth} />
       <div className={css.panelRow}>
         <SynthSwitch label="Shape" value={partial.lfoStepType}
           options={switchOptions(pcms_partial_spec(PcmsPartialField.LfoStepType))}
           onChange={set(PcmsPartialField.LfoStepType, "lfoStepType")}
           title="Step shape: STEP = hard jumps, SMOOTH = interpolated transitions. Set LFO1 or LFO2 waveform to STEP to use this pattern." />
       </div>
-      <LfoScope className={css.stepViz} shape="STEP" rate={0} steps={steps} smooth={smooth} />
       <div className={css.stepGrid}>
         {Array.from({ length: 16 }, (_, i) => (
           <SynthFader

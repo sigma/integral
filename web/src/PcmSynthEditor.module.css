@@ -179,9 +179,6 @@
   grid-template-columns: repeat(3, auto);
 }
 
-.knobGrid4 {
-  grid-template-columns: repeat(4, auto);
-}
 
 .knobsRight {
   margin-left: auto;
@@ -296,6 +293,23 @@
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   justify-items: center;
+}
+
+/*
+ * AMP's top controls on the same 5 columns as its envelope knobs: the pan
+ * knobs over columns 2-5, Bias Lvl and Bias Key over 3 and 4, Bias Dir at 5.
+ */
+.ampTop {
+  composes: envKnobs;
+  row-gap: 6px;
+}
+
+.ampTop > :nth-child(1) {
+  grid-column-start: 2;
+}
+
+.ampTop > :nth-child(5) {
+  grid-column-start: 3;
 }
 
 /* Vertical pair of controls (e.g. a knob above its velocity sens) */
