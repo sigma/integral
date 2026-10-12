@@ -209,15 +209,15 @@
   gap: 6px;
 }
 
-/* LFO: the waveform scope beside the Wave switch, the knobs pushed below it */
-.lfoRight {
+/* A scope beside a tall selector (LFO Wave, Filter Type), its knobs pushed below it */
+.scopeColumn {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin-left: auto;
 }
 
-.lfoScope {
+.scopeBox {
   height: 44px;
 }
 

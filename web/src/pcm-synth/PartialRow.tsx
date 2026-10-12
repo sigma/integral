@@ -12,6 +12,7 @@ import { PcmsPartialField, pcms_partial_spec } from "../../pkg/integral_wasm.js"
 import { knobRange, switchOptions } from "../fieldSpec";
 import { VelocityCurveSelect } from "./VelocityCurveSelect";
 import { LfoScope } from "../synth-ui/LfoScope";
+import { FilterScope } from "../synth-ui/FilterScope";
 import css from "../PcmSynthEditor.module.css";
 import type { PartialParamHandler, PartialSetter, PcmSynthPartial } from "./types";
 import { WavePicker, type ExpansionMarking } from "../WavePicker";
@@ -237,25 +238,32 @@ function TvfSection({
         <SynthSwitch label="Type" value={partial.tvfFilterType} vertical
           options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfFilterType))}
           onChange={set(PcmsPartialField.TvfFilterType, "tvfFilterType")} title="Filter type" />
-        <div className={css.stack}>
-          <SynthKnob label="Cutoff" value={partial.tvfCutoffFrequency} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffFrequency))}
-            onChange={set(PcmsPartialField.TvfCutoffFrequency, "tvfCutoffFrequency")} color="#68c"
-            title="Filter cutoff frequency" />
-          <SynthKnob label="Cut Vel" value={partial.tvfCutoffVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocitySens))}
-            onChange={set(PcmsPartialField.TvfCutoffVelocitySens, "tvfCutoffVelocitySens")} color="#68c"
-            title="Cutoff velocity sensitivity — harder keys = higher cutoff" />
+        <div className={css.scopeColumn}>
+          <FilterScope className={css.scopeBox}
+            type={pcms_partial_spec(PcmsPartialField.TvfFilterType).formatValue(partial.tvfFilterType)}
+            cutoff={partial.tvfCutoffFrequency} resonance={partial.tvfResonance} />
+          <div className={css.panelRow}>
+            <div className={css.stack}>
+              <SynthKnob label="Cutoff" value={partial.tvfCutoffFrequency} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffFrequency))}
+                onChange={set(PcmsPartialField.TvfCutoffFrequency, "tvfCutoffFrequency")} color="#68c"
+                title="Filter cutoff frequency" />
+              <SynthKnob label="Cut Vel" value={partial.tvfCutoffVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocitySens))}
+                onChange={set(PcmsPartialField.TvfCutoffVelocitySens, "tvfCutoffVelocitySens")} color="#68c"
+                title="Cutoff velocity sensitivity — harder keys = higher cutoff" />
+            </div>
+            <div className={css.stack}>
+              <SynthKnob label="Reso" value={partial.tvfResonance} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfResonance))}
+                onChange={set(PcmsPartialField.TvfResonance, "tvfResonance")} color="#68c"
+                title="Filter resonance — emphasis at the cutoff frequency" />
+              <SynthKnob label="Res Vel" value={partial.tvfResonanceVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfResonanceVelocitySens))}
+                onChange={set(PcmsPartialField.TvfResonanceVelocitySens, "tvfResonanceVelocitySens")} color="#68c"
+                title="Resonance velocity sensitivity — harder keys = more resonance" />
+            </div>
+            <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffKeyfollow))}
+              onChange={set(PcmsPartialField.TvfCutoffKeyfollow, "tvfCutoffKeyfollow")} color="#68c"
+              title="Cutoff key tracking — higher keys = higher cutoff" />
+          </div>
         </div>
-        <div className={css.stack}>
-          <SynthKnob label="Reso" value={partial.tvfResonance} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfResonance))}
-            onChange={set(PcmsPartialField.TvfResonance, "tvfResonance")} color="#68c"
-            title="Filter resonance — emphasis at the cutoff frequency" />
-          <SynthKnob label="Res Vel" value={partial.tvfResonanceVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfResonanceVelocitySens))}
-            onChange={set(PcmsPartialField.TvfResonanceVelocitySens, "tvfResonanceVelocitySens")} color="#68c"
-            title="Resonance velocity sensitivity — harder keys = more resonance" />
-        </div>
-        <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffKeyfollow))}
-          onChange={set(PcmsPartialField.TvfCutoffKeyfollow, "tvfCutoffKeyfollow")} color="#68c"
-          title="Cutoff key tracking — higher keys = higher cutoff" />
       </div>
       <div className={css.envBlock}>
         <div className={css.panelRow}>
@@ -424,8 +432,8 @@ function Lfo1Section({
         <SynthSwitch label="Wave" value={partial.lfo1Waveform} vertical
           options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1Waveform))}
           onChange={set(PcmsPartialField.Lfo1Waveform, "lfo1Waveform")} title="LFO waveform shape" />
-        <div className={css.lfoRight}>
-          <LfoScope className={css.lfoScope} rate={partial.lfo1Rate}
+        <div className={css.scopeColumn}>
+          <LfoScope className={css.scopeBox} rate={partial.lfo1Rate}
             shape={pcms_partial_spec(PcmsPartialField.Lfo1Waveform).formatValue(partial.lfo1Waveform)}
             steps={partial.lfoStepValues} smooth={partial.lfoStepType === 1} />
           <div className={css.knobGrid}>
@@ -494,8 +502,8 @@ function Lfo2Section({
         <SynthSwitch label="Wave" value={partial.lfo2Waveform} vertical
           options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2Waveform))}
           onChange={set(PcmsPartialField.Lfo2Waveform, "lfo2Waveform")} title="LFO waveform shape" />
-        <div className={css.lfoRight}>
-          <LfoScope className={css.lfoScope} rate={partial.lfo2Rate}
+        <div className={css.scopeColumn}>
+          <LfoScope className={css.scopeBox} rate={partial.lfo2Rate}
             shape={pcms_partial_spec(PcmsPartialField.Lfo2Waveform).formatValue(partial.lfo2Waveform)}
             steps={partial.lfoStepValues} smooth={partial.lfoStepType === 1} />
           <div className={css.knobGrid}>
