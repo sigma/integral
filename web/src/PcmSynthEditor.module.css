@@ -217,14 +217,14 @@
   margin-left: auto;
 }
 
-/* A scope filling the rest of a row, as tall as the selector beside it */
-.scopeFill {
-  flex: 1;
-  align-self: stretch;
-}
-
 .scopeBox {
   height: 44px;
+}
+
+/* A scope filling the rest of a row's width, one knob row tall */
+.scopeFill {
+  composes: scopeBox;
+  flex: 1;
 }
 
 /* ----------------------------------------------------------------
