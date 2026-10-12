@@ -10,7 +10,7 @@ use std::sync::OnceLock;
 
 use crate::block_field::BlockField;
 use crate::param_registry::ParamFormat;
-use crate::pcm_drum::PcmdPartialField;
+use crate::pcm_drum::{self, PcmdCommonField, PcmdPartialField, PcmdWmtField};
 use crate::pcm_synth::{self, PcmsCommon2Field, PcmsCommonField, PcmsPartialField, PcmsPmtField};
 
 /// Range, default and display format of a tone block field, looked up by
@@ -77,6 +77,22 @@ const LFO_WAVEFORM: Shape = shape(
     ]),
 );
 const LFO_OFFSET: Shape = shape(0, 4, Named(&["-100", "-50", "0", "+50", "+100"]));
+const PAN: Shape = shape(0, 127, Pan);
+/// Alternate Pan Depth, L63 to 63R.
+const ALTERNATE_PAN_DEPTH: Shape = shape(1, 127, Pan);
+const VELOCITY_RANGE: Shape = shape(1, 127, Raw);
+const OFF_ON_REVERSE: Shape = shape(0, 2, Named(&["OFF", "ON", "REVERSE"]));
+const ENV_MODE: Shape = shape(0, 1, Named(&["NO-SUS", "SUSTAIN"]));
+const WAVE_GROUP_TYPE: Shape = shape(0, 3, Named(&["INT", "SRX", "---", "---"]));
+const WAVE_NUMBER: Shape = shape(0, 16384, Raw);
+const WAVE_GAIN: Shape = shape(0, 3, Named(&["-6dB", "0dB", "+6dB", "+12dB"]));
+const WAVE_FXM_COLOR: Shape = shape(0, 3, Named(&["1", "2", "3", "4"]));
+const WAVE_FXM_DEPTH: Shape = shape(0, 16, Raw);
+const FILTER_TYPE: Shape = shape(
+    0,
+    6,
+    Named(&["OFF", "LPF", "BPF", "HPF", "PKG", "LPF2", "LPF3"]),
+);
 
 /// Cents for each Random Pitch Depth value (0-30), shared by PCM Synth
 /// Tone and PCM Drum Kit partials.
@@ -118,7 +134,7 @@ pub fn pcms_common_spec(field: PcmsCommonField) -> FieldSpec {
     use PcmsCommonField as F;
     let shape = match field {
         F::ToneLevel | F::AnalogFeel | F::PortamentoTime => RAW_127,
-        F::TonePan => shape(0, 127, Pan),
+        F::TonePan => PAN,
         F::TonePriority => shape(0, 1, Named(&["LAST", "LOUDEST"])),
         F::CoarseTune => COARSE_TUNE,
         F::FineTune => FINE_TUNE,
@@ -165,7 +181,7 @@ pub fn pcms_pmt_spec(field: PcmsPmtField) -> FieldSpec {
         F::PartialSwitch => ON_OFF,
         F::KeyRangeLower | F::KeyRangeUpper => shape(0, 127, Note),
         F::KeyFadeLower | F::KeyFadeUpper | F::VelocityFadeLower | F::VelocityFadeUpper => RAW_127,
-        F::VelocityRangeLower | F::VelocityRangeUpper => shape(1, 127, Raw),
+        F::VelocityRangeLower | F::VelocityRangeUpper => VELOCITY_RANGE,
     };
     spec(field, init, shape)
 }
@@ -196,8 +212,8 @@ pub fn pcms_partial_spec(field: PcmsPartialField) -> FieldSpec {
         F::CoarseTune => COARSE_TUNE,
         F::FineTune => FINE_TUNE,
         F::RandomPitchDepth => RANDOM_PITCH_DEPTH,
-        F::Pan => shape(0, 127, Pan),
-        F::AlternatePanDepth => shape(1, 127, Pan),
+        F::Pan => PAN,
+        F::AlternatePanDepth => ALTERNATE_PAN_DEPTH,
         F::RandomPanDepth => shape(0, 63, Raw),
         F::PanKeyfollow
         | F::PitchEnvTimeKeyfollow
@@ -207,7 +223,7 @@ pub fn pcms_partial_spec(field: PcmsPartialField) -> FieldSpec {
         | F::Lfo1DelayTimeKeyfollow
         | F::Lfo2DelayTimeKeyfollow => KEYFOLLOW_100,
         F::WavePitchKeyfollow | F::TvfCutoffKeyfollow => KEYFOLLOW_200,
-        F::EnvMode => shape(0, 1, Named(&["NO-SUS", "SUSTAIN"])),
+        F::EnvMode => ENV_MODE,
         F::DelayMode => shape(
             0,
             3,
@@ -223,13 +239,13 @@ pub fn pcms_partial_spec(field: PcmsPartialField) -> FieldSpec {
         | F::Lfo1KeyTrigger
         | F::Lfo2KeyTrigger => ON_OFF,
         F::Control1Switch | F::Control2Switch | F::Control3Switch | F::Control4Switch => {
-            shape(0, 2, Named(&["OFF", "ON", "REVERSE"]))
+            OFF_ON_REVERSE
         }
-        F::WaveGroupType => shape(0, 3, Named(&["INT", "SRX", "---", "---"])),
-        F::WaveGroupId | F::WaveNumberL | F::WaveNumberR => shape(0, 16384, Raw),
-        F::WaveGain => shape(0, 3, Named(&["-6dB", "0dB", "+6dB", "+12dB"])),
-        F::WaveFxmColor => shape(0, 3, Named(&["1", "2", "3", "4"])),
-        F::WaveFxmDepth => shape(0, 16, Raw),
+        F::WaveGroupType => WAVE_GROUP_TYPE,
+        F::WaveGroupId | F::WaveNumberL | F::WaveNumberR => WAVE_NUMBER,
+        F::WaveGain => WAVE_GAIN,
+        F::WaveFxmColor => WAVE_FXM_COLOR,
+        F::WaveFxmDepth => WAVE_FXM_DEPTH,
         F::PitchEnvDepth => PITCH_ENV_DEPTH,
         F::PitchEnvVelocitySens
         | F::PitchEnvT1VelocitySens
@@ -252,11 +268,7 @@ pub fn pcms_partial_spec(field: PcmsPartialField) -> FieldSpec {
         | F::Lfo2TvfDepth
         | F::Lfo2TvaDepth
         | F::Lfo2PanDepth => SIGNED_63,
-        F::TvfFilterType => shape(
-            0,
-            6,
-            Named(&["OFF", "LPF", "BPF", "HPF", "PKG", "LPF2", "LPF3"]),
-        ),
+        F::TvfFilterType => FILTER_TYPE,
         F::TvfCutoffVelocityCurve | F::TvfEnvVelocityCurve | F::TvaLevelVelocityCurve => {
             VELOCITY_CURVE
         }
@@ -294,31 +306,112 @@ pub fn pcms_common2_spec(field: PcmsCommon2Field) -> FieldSpec {
     }
 }
 
-/// The spec of a PCM Drum Kit Partial field, for the fields specified so
-/// far; `None` for the rest.
-pub fn pcmd_partial_spec(field: PcmdPartialField) -> Option<FieldSpec> {
-    let Shape { min, max, format } = match field {
-        PcmdPartialField::RandomPitchDepth => RANDOM_PITCH_DEPTH,
-        PcmdPartialField::PitchEnvDepth => PITCH_ENV_DEPTH,
-        _ => return None,
+/// The spec of a PCM Drum Kit Common field.
+pub fn pcmd_common_spec(field: PcmdCommonField) -> FieldSpec {
+    static INIT: OnceLock<Vec<u8>> = OnceLock::new();
+    let init = INIT.get_or_init(|| pcm_drum::encode_pcmd_common(&Default::default()));
+    let shape = match field {
+        PcmdCommonField::KitLevel => RAW_127,
     };
-    Some(FieldSpec {
-        min,
-        max,
-        // shortcut: the PCM-S INIT values, until PCM Drum Kit fields get their own specs (#245).
-        default: match field {
-            PcmdPartialField::PitchEnvDepth => 64,
-            _ => 0,
-        },
-        format,
-    })
+    spec(field, init, shape)
+}
+
+/// The INIT PCM Drum Kit Partial block, which holds both the WMT and the
+/// other Partial fields.
+fn pcmd_partial_init() -> &'static [u8] {
+    static INIT: OnceLock<Vec<u8>> = OnceLock::new();
+    INIT.get_or_init(|| pcm_drum::encode_pcmd_partial(&Default::default()))
+}
+
+/// The spec of a PCM Drum Kit WMT field.
+pub fn pcmd_wmt_spec(field: PcmdWmtField) -> FieldSpec {
+    use PcmdWmtField as F;
+    let shape = match field {
+        F::Switch | F::WaveFxmSwitch | F::WaveTempoSync | F::RandomPanSwitch => ON_OFF,
+        F::WaveGroupType => WAVE_GROUP_TYPE,
+        F::WaveGroupId | F::WaveNumberL | F::WaveNumberR => WAVE_NUMBER,
+        F::WaveGain => WAVE_GAIN,
+        F::WaveFxmColor => WAVE_FXM_COLOR,
+        F::WaveFxmDepth => WAVE_FXM_DEPTH,
+        F::CoarseTune => COARSE_TUNE,
+        F::FineTune => FINE_TUNE,
+        F::Pan => PAN,
+        F::AlternatePanSwitch => OFF_ON_REVERSE,
+        F::Level | F::VelocityFadeLower | F::VelocityFadeUpper => RAW_127,
+        F::VelocityRangeLower | F::VelocityRangeUpper => VELOCITY_RANGE,
+    };
+    spec(field, pcmd_partial_init(), shape)
+}
+
+/// The spec of a PCM Drum Kit Partial field outside the WMT layers.
+pub fn pcmd_partial_spec(field: PcmdPartialField) -> FieldSpec {
+    use PcmdPartialField as F;
+    let shape = match field {
+        F::AssignType => shape(0, 1, Named(&["MULTI", "SINGLE"])),
+        F::MuteGroup => shape(
+            0,
+            31,
+            Named(&[
+                "OFF", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14",
+                "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28",
+                "29", "30", "31",
+            ]),
+        ),
+        F::Level
+        | F::OutputLevel
+        | F::ChorusSend
+        | F::ReverbSend
+        | F::TvfCutoffFrequency
+        | F::TvfResonance
+        | F::PitchEnvTime
+        | F::TvfEnvTime
+        | F::TvfEnvLevel
+        | F::TvaEnvTime
+        | F::TvaEnvLevel => RAW_127,
+        F::CoarseTune => shape(0, 127, Note),
+        F::FineTune => FINE_TUNE,
+        F::RandomPitchDepth => RANDOM_PITCH_DEPTH,
+        F::Pan => PAN,
+        F::RandomPanDepth => shape(0, 63, Raw),
+        F::AlternatePanDepth => ALTERNATE_PAN_DEPTH,
+        F::EnvMode => ENV_MODE,
+        // The doc spells them COMP+EQ1 to COMP+EQ6.
+        F::OutputAssign => shape(
+            0,
+            6,
+            Named(&["PART", "C+EQ1", "C+EQ2", "C+EQ3", "C+EQ4", "C+EQ5", "C+EQ6"]),
+        ),
+        F::PitchBendRange => shape(0, 48, Raw),
+        F::ReceiveExpression | F::ReceiveHold1 | F::OneShotMode => ON_OFF,
+        F::WmtVelocityControl => shape(0, 2, Named(&["OFF", "ON", "RANDOM"])),
+        F::PitchEnvDepth => PITCH_ENV_DEPTH,
+        F::PitchEnvVelocitySens
+        | F::PitchEnvT1VelocitySens
+        | F::PitchEnvT4VelocitySens
+        | F::PitchEnvLevel
+        | F::TvfCutoffVelocitySens
+        | F::TvfResonanceVelocitySens
+        | F::TvfEnvDepth
+        | F::TvfEnvVelocitySens
+        | F::TvfEnvT1VelocitySens
+        | F::TvfEnvT4VelocitySens
+        | F::TvaLevelVelocitySens
+        | F::TvaEnvT1VelocitySens
+        | F::TvaEnvT4VelocitySens => SIGNED_63,
+        F::TvfFilterType => FILTER_TYPE,
+        F::TvfCutoffVelocityCurve | F::TvfEnvVelocityCurve | F::TvaLevelVelocityCurve => {
+            VELOCITY_CURVE
+        }
+    };
+    spec(field, pcmd_partial_init(), shape)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const DOC: &str = include_str!("../../../docs/midi/06-pcm-synth-tone.md");
+    const PCMS_DOC: &str = include_str!("../../../docs/midi/06-pcm-synth-tone.md");
+    const PCMD_DOC: &str = include_str!("../../../docs/midi/07-pcm-drum-kit.md");
 
     /// A documented parameter: its byte position in the block and its range.
     struct DocRow {
@@ -328,13 +421,19 @@ mod tests {
         max: i32,
     }
 
-    /// The parameter rows of the `## <heading>` section of the PCM Synth
-    /// Tone doc. Cells are split on `|`; reserves, `...` rows and rows
-    /// matching `skip` are left out.
-    fn doc_rows(heading: &str, skip: &str) -> Vec<DocRow> {
-        let section = DOC
+    /// The parameter rows of the `## <heading>` section of `doc`, whose
+    /// heading may go on with an `(offset ...)`. Cells are split on `|`;
+    /// reserves, unnamed rows, `...` rows and rows `keep` rejects are left
+    /// out.
+    fn doc_rows(doc: &str, heading: &str, keep: impl Fn(&str) -> bool) -> Vec<DocRow> {
+        let section = doc
             .split("\n## ")
-            .find(|s| s.lines().next() == Some(heading))
+            .find(|s| {
+                s.lines().next().is_some_and(|l| {
+                    l.strip_prefix(heading)
+                        .is_some_and(|rest| rest.is_empty() || rest.starts_with(" ("))
+                })
+            })
             .unwrap_or_else(|| panic!("no section {heading}"));
         section
             .lines()
@@ -342,13 +441,16 @@ mod tests {
             .filter_map(|line| {
                 let cells: Vec<&str> = line.trim_matches('|').split('|').map(str::trim).collect();
                 let name = cells[2];
-                if name.starts_with("(reserve)") || (!skip.is_empty() && name.starts_with(skip)) {
+                if name.starts_with('(') || !keep(name) {
                     return None;
                 }
                 let offset = cells[0].split('`').nth(1).unwrap();
                 let [hi, lo] = [0, 1]
                     .map(|i| usize::from_str_radix(offset.split(' ').nth(i).unwrap(), 16).unwrap());
-                let (min, max) = cells[3].split_once(" - ").unwrap();
+                // The PCM Synth doc separates the range with " - ", the PCM Drum doc with " -- ".
+                let (min, max) = (cells[3].split_once(" -- "))
+                    .or_else(|| cells[3].split_once(" - "))
+                    .unwrap();
                 Some(DocRow {
                     name: name.to_string(),
                     position: hi * 128 + lo,
@@ -361,12 +463,13 @@ mod tests {
 
     /// Check every documented row against the field covering its position.
     fn assert_matches_doc<F: BlockField>(
+        doc: &str,
         heading: &str,
-        skip: &str,
+        keep: impl Fn(&str) -> bool,
         fields: &[F],
         spec_of: impl Fn(F) -> FieldSpec,
     ) {
-        let rows = doc_rows(heading, skip);
+        let rows = doc_rows(doc, heading, keep);
         assert!(!rows.is_empty(), "{heading}: no rows");
         for row in rows {
             let field = fields
@@ -442,8 +545,9 @@ mod tests {
             F::MatrixControlSens4,
         ];
         assert_matches_doc(
+            PCMS_DOC,
             "PCM Synth Tone Common",
-            "PCM Synth Tone Name",
+            |name| !name.starts_with("PCM Synth Tone Name"),
             &fields,
             pcms_common_spec,
         );
@@ -469,8 +573,9 @@ mod tests {
             F::VelocityFadeUpper,
         ];
         assert_matches_doc(
+            PCMS_DOC,
             "PCM Synth Tone PMT (Partial Mix Table)",
-            "",
+            |_| true,
             &fields,
             pcms_pmt_spec,
         );
@@ -573,7 +678,13 @@ mod tests {
             F::LfoStepType,
             F::LfoStep,
         ];
-        assert_matches_doc("PCM Synth Tone Partial", "", &fields, pcms_partial_spec);
+        assert_matches_doc(
+            PCMS_DOC,
+            "PCM Synth Tone Partial",
+            |_| true,
+            &fields,
+            pcms_partial_spec,
+        );
     }
 
     #[test]
@@ -586,7 +697,13 @@ mod tests {
             F::TfxSwitch,
             F::PhraseNumber,
         ];
-        assert_matches_doc("PCM Synth Tone Common 2", "", &fields, pcms_common2_spec);
+        assert_matches_doc(
+            PCMS_DOC,
+            "PCM Synth Tone Common 2",
+            |_| true,
+            &fields,
+            pcms_common2_spec,
+        );
     }
 
     #[test]
@@ -611,6 +728,116 @@ mod tests {
         assert_eq!(center(PcmsPartialField::Level), None);
     }
 
+    /// Whether a PCM Drum Kit Partial row is a WMT layer's (`WMT1 Wave
+    /// Switch`), not `WMT Velocity Control`.
+    fn is_wmt_layer_row(name: &str) -> bool {
+        name.strip_prefix("WMT")
+            .is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_digit()))
+    }
+
+    #[test]
+    fn pcmd_common_specs_match_the_doc() {
+        assert_matches_doc(
+            PCMD_DOC,
+            "PCM Drum Kit Common",
+            |name| !name.starts_with("Kit Name"),
+            &[PcmdCommonField::KitLevel],
+            pcmd_common_spec,
+        );
+    }
+
+    #[test]
+    fn pcmd_wmt_specs_match_the_doc() {
+        use PcmdWmtField as F;
+        let fields = [
+            F::Switch,
+            F::WaveGroupType,
+            F::WaveGroupId,
+            F::WaveNumberL,
+            F::WaveNumberR,
+            F::WaveGain,
+            F::WaveFxmSwitch,
+            F::WaveFxmColor,
+            F::WaveFxmDepth,
+            F::WaveTempoSync,
+            F::CoarseTune,
+            F::FineTune,
+            F::Pan,
+            F::RandomPanSwitch,
+            F::AlternatePanSwitch,
+            F::Level,
+            F::VelocityRangeLower,
+            F::VelocityRangeUpper,
+            F::VelocityFadeLower,
+            F::VelocityFadeUpper,
+        ];
+        assert_matches_doc(
+            PCMD_DOC,
+            "PCM Drum Kit Partial",
+            is_wmt_layer_row,
+            &fields,
+            pcmd_wmt_spec,
+        );
+    }
+
+    #[test]
+    fn pcmd_partial_specs_match_the_doc() {
+        use PcmdPartialField as F;
+        let fields = [
+            F::AssignType,
+            F::MuteGroup,
+            F::Level,
+            F::CoarseTune,
+            F::FineTune,
+            F::RandomPitchDepth,
+            F::Pan,
+            F::RandomPanDepth,
+            F::AlternatePanDepth,
+            F::EnvMode,
+            F::OutputLevel,
+            F::ChorusSend,
+            F::ReverbSend,
+            F::OutputAssign,
+            F::PitchBendRange,
+            F::ReceiveExpression,
+            F::ReceiveHold1,
+            F::WmtVelocityControl,
+            F::PitchEnvDepth,
+            F::PitchEnvVelocitySens,
+            F::PitchEnvT1VelocitySens,
+            F::PitchEnvT4VelocitySens,
+            F::PitchEnvTime,
+            F::PitchEnvLevel,
+            F::TvfFilterType,
+            F::TvfCutoffFrequency,
+            F::TvfCutoffVelocityCurve,
+            F::TvfCutoffVelocitySens,
+            F::TvfResonance,
+            F::TvfResonanceVelocitySens,
+            F::TvfEnvDepth,
+            F::TvfEnvVelocityCurve,
+            F::TvfEnvVelocitySens,
+            F::TvfEnvT1VelocitySens,
+            F::TvfEnvT4VelocitySens,
+            F::TvfEnvTime,
+            F::TvfEnvLevel,
+            F::TvaLevelVelocityCurve,
+            F::TvaLevelVelocitySens,
+            F::TvaEnvT1VelocitySens,
+            F::TvaEnvT4VelocitySens,
+            F::TvaEnvTime,
+            F::TvaEnvLevel,
+            F::OneShotMode,
+        ];
+        assert_matches_doc(
+            PCMD_DOC,
+            "PCM Drum Kit Partial",
+            |name| !name.starts_with("Partial Name") && !is_wmt_layer_row(name),
+            &fields,
+            pcmd_partial_spec,
+        );
+    }
+
     #[test]
     fn pcm_drum_shares_the_pitch_specs() {
         for (d, s) in [
@@ -623,7 +850,7 @@ mod tests {
                 PcmsPartialField::PitchEnvDepth,
             ),
         ] {
-            assert_eq!(pcmd_partial_spec(d), Some(pcms_partial_spec(s)));
+            assert_eq!(pcmd_partial_spec(d), pcms_partial_spec(s));
         }
     }
 }

@@ -1169,7 +1169,10 @@ impl DeviceState {
 
     /// Set a part's PCM Drum Kit Level (0–127).
     pub fn set_pcmd_kit_level(&mut self, part: u8, value: u8) {
-        let addr = crate::pcm_drum::pcmd_common_param_address(part, crate::pcm_drum::KIT_LEVEL);
+        let addr = crate::pcm_drum::pcmd_common_param_address(
+            part,
+            crate::pcm_drum::PcmdCommonField::KitLevel as u8,
+        );
         self.send_dt1(&addr, &[value]);
     }
 

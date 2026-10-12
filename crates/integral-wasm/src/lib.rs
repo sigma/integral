@@ -351,6 +351,16 @@ mirror_core_enum!(ToneType <=> params::ToneType {
     PcmDrum,
 });
 
+/// A field of the PCM Drum Kit Common block (mirrors [`pcm_drum::PcmdCommonField`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PcmdCommonField {
+    /// See [`pcm_drum::PcmdCommonField::KitLevel`].
+    KitLevel,
+}
+
+mirror_core_enum!(PcmdCommonField <=> pcm_drum::PcmdCommonField { KitLevel });
+
 /// A field of a PCM Drum Kit WMT layer (mirrors [`pcm_drum::PcmdWmtField`]).
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2037,11 +2047,22 @@ pub fn pcms_partial_spec(field: PcmsPartialField) -> WasmFieldSpec {
     wrap_field_spec(field_spec::pcms_partial_spec(field.into()))
 }
 
-/// Spec of a PCM Drum Kit Partial field; `undefined` for fields not
-/// specified yet.
+/// Spec of a PCM Drum Kit Common field.
 #[wasm_bindgen]
-pub fn pcmd_partial_spec(field: PcmdPartialField) -> Option<WasmFieldSpec> {
-    field_spec::pcmd_partial_spec(field.into()).map(wrap_field_spec)
+pub fn pcmd_common_spec(field: PcmdCommonField) -> WasmFieldSpec {
+    wrap_field_spec(field_spec::pcmd_common_spec(field.into()))
+}
+
+/// Spec of a PCM Drum Kit WMT field.
+#[wasm_bindgen]
+pub fn pcmd_wmt_spec(field: PcmdWmtField) -> WasmFieldSpec {
+    wrap_field_spec(field_spec::pcmd_wmt_spec(field.into()))
+}
+
+/// Spec of a PCM Drum Kit Partial field outside the WMT layers.
+#[wasm_bindgen]
+pub fn pcmd_partial_spec(field: PcmdPartialField) -> WasmFieldSpec {
+    wrap_field_spec(field_spec::pcmd_partial_spec(field.into()))
 }
 
 /// How strongly velocity `v` (0.0-1.0) acts under V-Curve `curve` (0 =

@@ -269,8 +269,20 @@ pub const fn pcmd_common_address(part_index: u8) -> Address {
     pcmd_base(part_index)
 }
 
-/// PCM Drum Kit Common offset of Kit Level (0–127).
-pub const KIT_LEVEL: u8 = 0x0C;
+/// A field of the PCM Drum Kit Common block. The discriminant is the
+/// field's byte position within the block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PcmdCommonField {
+    /// Kit Level.
+    KitLevel = 0x0C,
+}
+
+impl BlockField for PcmdCommonField {
+    fn position(self) -> usize {
+        self as usize
+    }
+}
 
 /// Compute the absolute address for a single PCM Drum Kit Common parameter.
 pub const fn pcmd_common_param_address(part_index: u8, offset: u8) -> Address {
@@ -715,7 +727,7 @@ pub fn parse_pcmd_common(data: &[u8]) -> Result<PcmDrumCommon, crate::ToneParseE
     }
     let mut c = PcmDrumCommon::default();
     c.kit_name = parse_ascii_name(data);
-    c.kit_level = data[usize::from(KIT_LEVEL)];
+    c.kit_level = PcmdCommonField::KitLevel.byte(data);
     Ok(c)
 }
 
@@ -833,7 +845,7 @@ const PARTIAL_RESERVE_64: usize = 0x80 + 0x42;
 /// [`parse_pcmd_common`]. The bytes after Kit Level get the `INIT RHYTHM`
 /// values.
 pub fn encode_pcmd_common(c: &PcmDrumCommon) -> Vec<u8> {
-    let mut data = encode_ascii_name(&c.kit_name, usize::from(KIT_LEVEL));
+    let mut data = encode_ascii_name(&c.kit_name, PcmdCommonField::KitLevel.position());
     data.push(c.kit_level);
     data.extend_from_slice(&INIT_COMMON_TAIL);
     data
@@ -976,7 +988,7 @@ mod tests {
 
     #[test]
     fn pcmd_common_param_address_kit_level() {
-        let addr = pcmd_common_param_address(0, KIT_LEVEL);
+        let addr = pcmd_common_param_address(0, PcmdCommonField::KitLevel as u8);
         assert_eq!(addr, Address::new(0x19, 0x10, 0x00, 0x0C));
     }
 
@@ -1206,7 +1218,10 @@ mod tests {
         let block = encode_pcmd_common(&common);
         assert_eq!(block.len(), PCMD_COMMON_SIZE);
         assert_eq!(parse_pcmd_common(&block).unwrap(), common);
-        assert_eq!(&block[usize::from(KIT_LEVEL) + 1..], [0, 7, 8, 0, 13]);
+        assert_eq!(
+            &block[PcmdCommonField::KitLevel.position() + 1..],
+            [0, 7, 8, 0, 13]
+        );
 
         let mut partial = PcmDrumPartial {
             partial_name: "Kick".into(),

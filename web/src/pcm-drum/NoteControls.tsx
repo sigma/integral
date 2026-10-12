@@ -7,7 +7,12 @@ import {
   BreakpointEnvelope,
   OutputStrip,
 } from "../synth-ui";
-import { PcmdPartialField, PcmdWmtField, pcmd_partial_spec } from "../../pkg/integral_wasm.js";
+import {
+  PcmdPartialField,
+  PcmdWmtField,
+  pcmd_partial_spec,
+  pcmd_wmt_spec,
+} from "../../pkg/integral_wasm.js";
 import type {
   PartialParamHandler,
   PartialSetter,
@@ -15,20 +20,7 @@ import type {
   PcmDrumWmt,
   WmtParamHandler,
 } from "./types";
-import {
-  noteName,
-  panFmt,
-  signedFmt,
-  WAVE_GAIN_OPTIONS,
-  FILTER_TYPE_OPTIONS,
-  VELOCITY_CURVE_OPTIONS,
-  ASSIGN_TYPE_OPTIONS,
-  ENV_MODE_OPTIONS,
-  OUTPUT_ASSIGN_OPTIONS,
-  WMT_VELOCITY_CTRL_OPTIONS,
-  ALT_PAN_OPTIONS,
-} from "./types";
-import { knobRange } from "../fieldSpec";
+import { knobRange, switchOptions } from "../fieldSpec";
 import { VelocityCurveSelect } from "../synth-ui/VelocityCurveSelect";
 import { FilterScope } from "../synth-ui/FilterScope";
 import { deviceSpec } from "../deviceSpec";
@@ -87,7 +79,8 @@ export function NoteControls({
         {/* LEVEL / PAN */}
         <SectionPanel label="LEVEL / PAN" accentColor="#8cf">
           <OutputStrip
-            pan={note.pan} onPanChange={set(PcmdPartialField.Pan, "pan")} panFormat={panFmt}
+            pan={note.pan} onPanChange={set(PcmdPartialField.Pan, "pan")}
+            panFormat={(v) => pcmd_partial_spec(PcmdPartialField.Pan).formatValue(v)}
             fx1={note.chorusSend} fx2={note.reverbSend}
             level={note.outputLevel}
             onFx1Change={set(PcmdPartialField.ChorusSend, "chorusSend")}
@@ -131,7 +124,7 @@ function WmtSection({
       {/* Velocity Control */}
       <div className={css.knobRow}>
         <SynthSelect label="Vel Ctrl" value={note.wmtVelocityControl}
-          options={WMT_VELOCITY_CTRL_OPTIONS}
+          options={switchOptions(pcmd_partial_spec(PcmdPartialField.WmtVelocityControl))}
           onChange={set(PcmdPartialField.WmtVelocityControl, "wmtVelocityControl")} />
       </div>
 
@@ -155,11 +148,11 @@ function WmtSection({
       {/* Layer controls */}
       <div className={css.wmtLayer}>
         <SynthSwitch label="Switch" value={wmt.wmtSwitch}
-          options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
+          options={switchOptions(pcmd_wmt_spec(PcmdWmtField.Switch))}
           onChange={setWmt(PcmdWmtField.Switch, "wmtSwitch")}
           title="Wave layer switch" />
         <SynthSelect label="Gain" value={wmt.waveGain}
-          options={WAVE_GAIN_OPTIONS}
+          options={switchOptions(pcmd_wmt_spec(PcmdWmtField.WaveGain))}
           onChange={setWmt(PcmdWmtField.WaveGain, "waveGain")} />
       </div>
 
@@ -167,68 +160,68 @@ function WmtSection({
 
       <div className={css.wmtLayer}>
         <SynthSwitch label="FXM" value={wmt.waveFxmSwitch}
-          options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
+          options={switchOptions(pcmd_wmt_spec(PcmdWmtField.WaveFxmSwitch))}
           onChange={setWmt(PcmdWmtField.WaveFxmSwitch, "waveFxmSwitch")}
           title="FXM Switch" />
-        <SynthKnob label="Color" value={wmt.waveFxmColor} min={0} max={3} defaultValue={0}
+        <SynthKnob label="Color" value={wmt.waveFxmColor} {...knobRange(pcmd_wmt_spec(PcmdWmtField.WaveFxmColor))}
           onChange={setWmt(PcmdWmtField.WaveFxmColor, "waveFxmColor")}
-          formatValue={(v) => String(v + 1)} color="#ea6"
-          title="FXM Color (1-4)" />
-        <SynthKnob label="Depth" value={wmt.waveFxmDepth} min={0} max={16} defaultValue={0}
+          color="#ea6"
+          title="FXM Color" />
+        <SynthKnob label="Depth" value={wmt.waveFxmDepth} {...knobRange(pcmd_wmt_spec(PcmdWmtField.WaveFxmDepth))}
           onChange={setWmt(PcmdWmtField.WaveFxmDepth, "waveFxmDepth")}
-          formatValue={(v) => String(v)} color="#ea6"
+          color="#ea6"
           title="FXM Depth" />
       </div>
 
       <div className={css.wmtLayer}>
-        <SynthKnob label="Coarse" value={wmt.coarseTune} min={16} max={112} defaultValue={64} center={64}
+        <SynthKnob label="Coarse" value={wmt.coarseTune} {...knobRange(pcmd_wmt_spec(PcmdWmtField.CoarseTune))}
           onChange={setWmt(PcmdWmtField.CoarseTune, "coarseTune")}
-          formatValue={(v) => signedFmt(v, 64)} color="#fc8"
-          title="Coarse Tune (-48 to +48)" />
-        <SynthKnob label="Fine" value={wmt.fineTune} min={14} max={114} defaultValue={64} center={64}
+          color="#fc8"
+          title="Coarse Tune" />
+        <SynthKnob label="Fine" value={wmt.fineTune} {...knobRange(pcmd_wmt_spec(PcmdWmtField.FineTune))}
           onChange={setWmt(PcmdWmtField.FineTune, "fineTune")}
-          formatValue={(v) => signedFmt(v, 64)} color="#fc8"
-          title="Fine Tune (-50 to +50)" />
-        <SynthKnob label="Pan" value={wmt.pan} min={0} max={127} defaultValue={64} center={64}
+          color="#fc8"
+          title="Fine Tune" />
+        <SynthKnob label="Pan" value={wmt.pan} {...knobRange(pcmd_wmt_spec(PcmdWmtField.Pan))}
           onChange={setWmt(PcmdWmtField.Pan, "pan")}
-          formatValue={panFmt} color="#8cf"
+          color="#8cf"
           title="Wave Pan" />
-        <SynthKnob label="Level" value={wmt.level} min={0} max={127} defaultValue={127}
+        <SynthKnob label="Level" value={wmt.level} {...knobRange(pcmd_wmt_spec(PcmdWmtField.Level))}
           onChange={setWmt(PcmdWmtField.Level, "level")}
-          formatValue={(v) => String(v)} color="#8cf"
+          color="#8cf"
           title="Wave Level" />
       </div>
 
       <div className={css.wmtLayer}>
         <SynthSwitch label="Rnd Pan" value={wmt.randomPanSwitch}
-          options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
+          options={switchOptions(pcmd_wmt_spec(PcmdWmtField.RandomPanSwitch))}
           onChange={setWmt(PcmdWmtField.RandomPanSwitch, "randomPanSwitch")}
           title="Random Pan Switch" />
         <SynthSelect label="Alt Pan" value={wmt.alternatePanSwitch}
-          options={ALT_PAN_OPTIONS}
+          options={switchOptions(pcmd_wmt_spec(PcmdWmtField.AlternatePanSwitch))}
           onChange={setWmt(PcmdWmtField.AlternatePanSwitch, "alternatePanSwitch")} />
         <SynthSwitch label="T.Sync" value={wmt.waveTempoSync}
-          options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
+          options={switchOptions(pcmd_wmt_spec(PcmdWmtField.WaveTempoSync))}
           onChange={setWmt(PcmdWmtField.WaveTempoSync, "waveTempoSync")}
           title="Tempo Sync" />
       </div>
 
       <div className={css.wmtLayer}>
-        <SynthKnob label="Vel Lo" value={wmt.velocityRangeLower} min={1} max={127} defaultValue={1}
+        <SynthKnob label="Vel Lo" value={wmt.velocityRangeLower} {...knobRange(pcmd_wmt_spec(PcmdWmtField.VelocityRangeLower))}
           onChange={setWmt(PcmdWmtField.VelocityRangeLower, "velocityRangeLower")}
-          formatValue={(v) => String(v)} color="#a6f"
+          color="#a6f"
           title="Velocity Range Lower" />
-        <SynthKnob label="Vel Hi" value={wmt.velocityRangeUpper} min={1} max={127} defaultValue={127}
+        <SynthKnob label="Vel Hi" value={wmt.velocityRangeUpper} {...knobRange(pcmd_wmt_spec(PcmdWmtField.VelocityRangeUpper))}
           onChange={setWmt(PcmdWmtField.VelocityRangeUpper, "velocityRangeUpper")}
-          formatValue={(v) => String(v)} color="#a6f"
+          color="#a6f"
           title="Velocity Range Upper" />
-        <SynthKnob label="Fade Lo" value={wmt.velocityFadeLower} min={0} max={127} defaultValue={0}
+        <SynthKnob label="Fade Lo" value={wmt.velocityFadeLower} {...knobRange(pcmd_wmt_spec(PcmdWmtField.VelocityFadeLower))}
           onChange={setWmt(PcmdWmtField.VelocityFadeLower, "velocityFadeLower")}
-          formatValue={(v) => String(v)} color="#a6f"
+          color="#a6f"
           title="Velocity Fade Width Lower" />
-        <SynthKnob label="Fade Hi" value={wmt.velocityFadeUpper} min={0} max={127} defaultValue={0}
+        <SynthKnob label="Fade Hi" value={wmt.velocityFadeUpper} {...knobRange(pcmd_wmt_spec(PcmdWmtField.VelocityFadeUpper))}
           onChange={setWmt(PcmdWmtField.VelocityFadeUpper, "velocityFadeUpper")}
-          formatValue={(v) => String(v)} color="#a6f"
+          color="#a6f"
           title="Velocity Fade Width Upper" />
       </div>
     </SectionPanel>
@@ -288,43 +281,43 @@ function PitchEnvSection({
           <SynthKnob label="Depth" value={note.pitchEnvDepth}
             {...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvDepth))}
             onChange={set(PcmdPartialField.PitchEnvDepth, "pitchEnvDepth")} color="#fc8"
-            title="Pitch envelope depth (-12 to +12)" />
-          <SynthKnob label="Vel Sns" value={note.pitchEnvVelocitySens} min={1} max={127} defaultValue={64} center={64}
-            onChange={set(PcmdPartialField.PitchEnvVelocitySens, "pitchEnvVelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
+            title="Pitch envelope depth" />
+          <SynthKnob label="Vel Sns" value={note.pitchEnvVelocitySens} {...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvVelocitySens))}
+            onChange={set(PcmdPartialField.PitchEnvVelocitySens, "pitchEnvVelocitySens")} color="#fc8"
             title="Pitch envelope velocity sensitivity" />
-          <SynthKnob label="T1 Vel" value={note.pitchEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
-            onChange={set(PcmdPartialField.PitchEnvT1VelocitySens, "pitchEnvT1VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
+          <SynthKnob label="T1 Vel" value={note.pitchEnvT1VelocitySens} {...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvT1VelocitySens))}
+            onChange={set(PcmdPartialField.PitchEnvT1VelocitySens, "pitchEnvT1VelocitySens")} color="#fc8"
             title="Pitch envelope Time 1 velocity sensitivity" />
-          <SynthKnob label="T4 Vel" value={note.pitchEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
-            onChange={set(PcmdPartialField.PitchEnvT4VelocitySens, "pitchEnvT4VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
+          <SynthKnob label="T4 Vel" value={note.pitchEnvT4VelocitySens} {...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvT4VelocitySens))}
+            onChange={set(PcmdPartialField.PitchEnvT4VelocitySens, "pitchEnvT4VelocitySens")} color="#fc8"
             title="Pitch envelope Time 4 velocity sensitivity" />
         </div>
         <BreakpointEnvelope
           compact
           times={[{
-            label: "T1", value: note.pitchEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 0),
+            label: "T1", value: note.pitchEnvTime[0] ?? 0,
+            onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 0), ...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvTime)),
           }, {
-            label: "T2", value: note.pitchEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 1),
+            label: "T2", value: note.pitchEnvTime[1] ?? 0,
+            onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 1), ...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvTime)),
           }, {
-            label: "T3", value: note.pitchEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 2),
+            label: "T3", value: note.pitchEnvTime[2] ?? 0,
+            onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 2), ...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvTime)),
           }, {
-            label: "T4", value: note.pitchEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 3),
+            label: "T4", value: note.pitchEnvTime[3] ?? 0,
+            onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 3), ...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvTime)),
           }]}
           levels={[
-            { label: "L0", value: note.pitchEnvLevel[0] ?? 64, min: 1, max: 127, defaultValue: 64,
-              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 0), formatValue: (v) => signedFmt(v, 64) },
-            { label: "L1", value: note.pitchEnvLevel[1] ?? 64, min: 1, max: 127, defaultValue: 64,
-              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 1), formatValue: (v) => signedFmt(v, 64) },
-            { label: "L2", value: note.pitchEnvLevel[2] ?? 64, min: 1, max: 127, defaultValue: 64,
-              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 2), formatValue: (v) => signedFmt(v, 64) },
-            { label: "L3", value: note.pitchEnvLevel[3] ?? 64, min: 1, max: 127, defaultValue: 64,
-              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 3), formatValue: (v) => signedFmt(v, 64) },
-            { label: "L4", value: note.pitchEnvLevel[4] ?? 64, min: 1, max: 127, defaultValue: 64,
-              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 4), formatValue: (v) => signedFmt(v, 64) },
+            { label: "L0", value: note.pitchEnvLevel[0] ?? 64,
+              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 0), ...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvLevel)) },
+            { label: "L1", value: note.pitchEnvLevel[1] ?? 64,
+              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 1), ...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvLevel)) },
+            { label: "L2", value: note.pitchEnvLevel[2] ?? 64,
+              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 2), ...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvLevel)) },
+            { label: "L3", value: note.pitchEnvLevel[3] ?? 64,
+              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 3), ...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvLevel)) },
+            { label: "L4", value: note.pitchEnvLevel[4] ?? 64,
+              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 4), ...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvLevel)) },
           ]}
         />
       </div>
@@ -346,77 +339,77 @@ function TvfSection({
   return (
     <SectionPanel label="FILTER" accentColor="#68c">
       <FilterScope className={css.filterScope} cutoff={note.tvfCutoffFrequency} resonance={note.tvfResonance}
-        type={FILTER_TYPE_OPTIONS[note.tvfFilterType]?.label ?? ""} />
+        type={pcmd_partial_spec(PcmdPartialField.TvfFilterType).formatValue(note.tvfFilterType)} />
       <div className={css.filterGrid}>
         <SynthSwitch label="Type" value={note.tvfFilterType} vertical
-          options={FILTER_TYPE_OPTIONS}
+          options={switchOptions(pcmd_partial_spec(PcmdPartialField.TvfFilterType))}
           onChange={set(PcmdPartialField.TvfFilterType, "tvfFilterType")} title="Filter type" />
         <div className={css.stack}>
           <VelocityCurveSelect label="Vel Crv" value={note.tvfCutoffVelocityCurve}
-            options={VELOCITY_CURVE_OPTIONS}
+            options={switchOptions(pcmd_partial_spec(PcmdPartialField.TvfCutoffVelocityCurve))}
             onChange={set(PcmdPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} color="#68c" />
           <VelocityCurveSelect label="Env Crv" value={note.tvfEnvVelocityCurve}
-            options={VELOCITY_CURVE_OPTIONS}
+            options={switchOptions(pcmd_partial_spec(PcmdPartialField.TvfEnvVelocityCurve))}
             onChange={set(PcmdPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} color="#68c" />
         </div>
         <div className={css.stack}>
-          <SynthKnob label="Cutoff" value={note.tvfCutoffFrequency} min={0} max={127} defaultValue={127}
-            onChange={set(PcmdPartialField.TvfCutoffFrequency, "tvfCutoffFrequency")} formatValue={(v) => String(v)} color="#68c"
+          <SynthKnob label="Cutoff" value={note.tvfCutoffFrequency} {...knobRange(pcmd_partial_spec(PcmdPartialField.TvfCutoffFrequency))}
+            onChange={set(PcmdPartialField.TvfCutoffFrequency, "tvfCutoffFrequency")} color="#68c"
             title="Filter cutoff frequency" />
-          <SynthKnob label="Cut Vel" value={note.tvfCutoffVelocitySens} min={1} max={127} defaultValue={64} center={64}
-            onChange={set(PcmdPartialField.TvfCutoffVelocitySens, "tvfCutoffVelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+          <SynthKnob label="Cut Vel" value={note.tvfCutoffVelocitySens} {...knobRange(pcmd_partial_spec(PcmdPartialField.TvfCutoffVelocitySens))}
+            onChange={set(PcmdPartialField.TvfCutoffVelocitySens, "tvfCutoffVelocitySens")} color="#68c"
             title="Cutoff velocity sensitivity" />
         </div>
         <div className={css.stack}>
-          <SynthKnob label="Reso" value={note.tvfResonance} min={0} max={127} defaultValue={0}
-            onChange={set(PcmdPartialField.TvfResonance, "tvfResonance")} formatValue={(v) => String(v)} color="#68c"
+          <SynthKnob label="Reso" value={note.tvfResonance} {...knobRange(pcmd_partial_spec(PcmdPartialField.TvfResonance))}
+            onChange={set(PcmdPartialField.TvfResonance, "tvfResonance")} color="#68c"
             title="Filter resonance" />
-          <SynthKnob label="Res Vel" value={note.tvfResonanceVelocitySens} min={1} max={127} defaultValue={64} center={64}
-            onChange={set(PcmdPartialField.TvfResonanceVelocitySens, "tvfResonanceVelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+          <SynthKnob label="Res Vel" value={note.tvfResonanceVelocitySens} {...knobRange(pcmd_partial_spec(PcmdPartialField.TvfResonanceVelocitySens))}
+            onChange={set(PcmdPartialField.TvfResonanceVelocitySens, "tvfResonanceVelocitySens")} color="#68c"
             title="Resonance velocity sensitivity" />
         </div>
       </div>
       <div className={css.envBlock}>
         <div className={css.knobRow}>
-          <SynthKnob label="Depth" value={note.tvfEnvDepth} min={1} max={127} defaultValue={64} center={64}
-            onChange={set(PcmdPartialField.TvfEnvDepth, "tvfEnvDepth")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+          <SynthKnob label="Depth" value={note.tvfEnvDepth} {...knobRange(pcmd_partial_spec(PcmdPartialField.TvfEnvDepth))}
+            onChange={set(PcmdPartialField.TvfEnvDepth, "tvfEnvDepth")} color="#68c"
             title="Filter envelope depth" />
-          <SynthKnob label="Vel Sns" value={note.tvfEnvVelocitySens} min={1} max={127} defaultValue={64} center={64}
-            onChange={set(PcmdPartialField.TvfEnvVelocitySens, "tvfEnvVelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+          <SynthKnob label="Vel Sns" value={note.tvfEnvVelocitySens} {...knobRange(pcmd_partial_spec(PcmdPartialField.TvfEnvVelocitySens))}
+            onChange={set(PcmdPartialField.TvfEnvVelocitySens, "tvfEnvVelocitySens")} color="#68c"
             title="Envelope velocity sensitivity" />
-          <SynthKnob label="T1 Vel" value={note.tvfEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
-            onChange={set(PcmdPartialField.TvfEnvT1VelocitySens, "tvfEnvT1VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+          <SynthKnob label="T1 Vel" value={note.tvfEnvT1VelocitySens} {...knobRange(pcmd_partial_spec(PcmdPartialField.TvfEnvT1VelocitySens))}
+            onChange={set(PcmdPartialField.TvfEnvT1VelocitySens, "tvfEnvT1VelocitySens")} color="#68c"
             title="Filter envelope Time 1 velocity sensitivity" />
-          <SynthKnob label="T4 Vel" value={note.tvfEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
-            onChange={set(PcmdPartialField.TvfEnvT4VelocitySens, "tvfEnvT4VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+          <SynthKnob label="T4 Vel" value={note.tvfEnvT4VelocitySens} {...knobRange(pcmd_partial_spec(PcmdPartialField.TvfEnvT4VelocitySens))}
+            onChange={set(PcmdPartialField.TvfEnvT4VelocitySens, "tvfEnvT4VelocitySens")} color="#68c"
             title="Filter envelope Time 4 velocity sensitivity" />
         </div>
         <BreakpointEnvelope
           compact
           times={[{
-            label: "T1", value: note.tvfEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 0),
+            label: "T1", value: note.tvfEnvTime[0] ?? 0,
+            onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 0), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvfEnvTime)),
           }, {
-            label: "T2", value: note.tvfEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 1),
+            label: "T2", value: note.tvfEnvTime[1] ?? 0,
+            onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 1), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvfEnvTime)),
           }, {
-            label: "T3", value: note.tvfEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 2),
+            label: "T3", value: note.tvfEnvTime[2] ?? 0,
+            onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 2), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvfEnvTime)),
           }, {
-            label: "T4", value: note.tvfEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 3),
+            label: "T4", value: note.tvfEnvTime[3] ?? 0,
+            onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 3), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvfEnvTime)),
           }]}
           levels={[
-            { label: "L0", value: note.tvfEnvLevel[0] ?? 0, min: 0, max: 127, defaultValue: 0,
-              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 0) },
-            { label: "L1", value: note.tvfEnvLevel[1] ?? 0, min: 0, max: 127, defaultValue: 0,
-              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 1) },
-            { label: "L2", value: note.tvfEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
-              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 2) },
-            { label: "L3", value: note.tvfEnvLevel[3] ?? 0, min: 0, max: 127, defaultValue: 0,
-              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 3) },
-            { label: "L4", value: note.tvfEnvLevel[4] ?? 0, min: 0, max: 127, defaultValue: 0,
-              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 4) },
+            { label: "L0", value: note.tvfEnvLevel[0] ?? 0,
+              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 0), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvfEnvLevel)) },
+            { label: "L1", value: note.tvfEnvLevel[1] ?? 0,
+              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 1), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvfEnvLevel)) },
+            { label: "L2", value: note.tvfEnvLevel[2] ?? 0,
+              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 2), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvfEnvLevel)) },
+            { label: "L3", value: note.tvfEnvLevel[3] ?? 0,
+              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 3), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvfEnvLevel)) },
+            { label: "L4", value: note.tvfEnvLevel[4] ?? 0,
+              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 4), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvfEnvLevel)) },
           ]}
         />
       </div>
@@ -440,41 +433,41 @@ function TvaSection({
       <div className={css.envBlock}>
         <div className={css.knobRow}>
           <VelocityCurveSelect label="Vel Crv" value={note.tvaLevelVelocityCurve}
-            options={VELOCITY_CURVE_OPTIONS}
+            options={switchOptions(pcmd_partial_spec(PcmdPartialField.TvaLevelVelocityCurve))}
             onChange={set(PcmdPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} color="#6c8" />
-          <SynthKnob label="Vel Sns" value={note.tvaLevelVelocitySens} min={1} max={127} defaultValue={64} center={64}
-            onChange={set(PcmdPartialField.TvaLevelVelocitySens, "tvaLevelVelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
+          <SynthKnob label="Vel Sns" value={note.tvaLevelVelocitySens} {...knobRange(pcmd_partial_spec(PcmdPartialField.TvaLevelVelocitySens))}
+            onChange={set(PcmdPartialField.TvaLevelVelocitySens, "tvaLevelVelocitySens")} color="#6c8"
             title="Amplitude velocity sensitivity" />
-          <SynthKnob label="T1 Vel" value={note.tvaEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
-            onChange={set(PcmdPartialField.TvaEnvT1VelocitySens, "tvaEnvT1VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
+          <SynthKnob label="T1 Vel" value={note.tvaEnvT1VelocitySens} {...knobRange(pcmd_partial_spec(PcmdPartialField.TvaEnvT1VelocitySens))}
+            onChange={set(PcmdPartialField.TvaEnvT1VelocitySens, "tvaEnvT1VelocitySens")} color="#6c8"
             title="Amp envelope Time 1 velocity sensitivity" />
-          <SynthKnob label="T4 Vel" value={note.tvaEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
-            onChange={set(PcmdPartialField.TvaEnvT4VelocitySens, "tvaEnvT4VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
+          <SynthKnob label="T4 Vel" value={note.tvaEnvT4VelocitySens} {...knobRange(pcmd_partial_spec(PcmdPartialField.TvaEnvT4VelocitySens))}
+            onChange={set(PcmdPartialField.TvaEnvT4VelocitySens, "tvaEnvT4VelocitySens")} color="#6c8"
             title="Amp envelope Time 4 velocity sensitivity" />
         </div>
         <BreakpointEnvelope
           compact
           times={[{
-            label: "T1", value: note.tvaEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 0),
+            label: "T1", value: note.tvaEnvTime[0] ?? 0,
+            onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 0), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvaEnvTime)),
           }, {
-            label: "T2", value: note.tvaEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 1),
+            label: "T2", value: note.tvaEnvTime[1] ?? 0,
+            onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 1), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvaEnvTime)),
           }, {
-            label: "T3", value: note.tvaEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 2),
+            label: "T3", value: note.tvaEnvTime[2] ?? 0,
+            onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 2), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvaEnvTime)),
           }, {
-            label: "T4", value: note.tvaEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 3),
+            label: "T4", value: note.tvaEnvTime[3] ?? 0,
+            onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 3), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvaEnvTime)),
           }]}
           levels={[
             { label: "L0", at: 0, text: "0" },
-            { label: "L1", value: note.tvaEnvLevel[0] ?? 127, min: 0, max: 127, defaultValue: 127,
-              onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 0) },
-            { label: "L2", value: note.tvaEnvLevel[1] ?? 127, min: 0, max: 127, defaultValue: 127,
-              onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 1) },
-            { label: "L3", value: note.tvaEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
-              onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 2) },
+            { label: "L1", value: note.tvaEnvLevel[0] ?? 0,
+              onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 0), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvaEnvLevel)) },
+            { label: "L2", value: note.tvaEnvLevel[1] ?? 0,
+              onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 1), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvaEnvLevel)) },
+            { label: "L3", value: note.tvaEnvLevel[2] ?? 0,
+              onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 2), ...knobRange(pcmd_partial_spec(PcmdPartialField.TvaEnvLevel)) },
             { label: "L4", at: 0, text: "0" },
           ]}
         />
@@ -494,58 +487,53 @@ function MiscSection({
   note: PcmDrumPartial;
   set: PartialSetter;
 }) {
-  const muteGroupOptions = [{ value: 0, label: "OFF" }];
-  for (let i = 1; i <= 31; i++) {
-    muteGroupOptions.push({ value: i, label: String(i) });
-  }
-
   return (
     <SectionPanel label="MISC" accentColor="#a6f">
       <div className={css.noteSelects}>
         <SynthSelect label="Assign" value={note.assignType}
-          options={ASSIGN_TYPE_OPTIONS}
+          options={switchOptions(pcmd_partial_spec(PcmdPartialField.AssignType))}
           onChange={set(PcmdPartialField.AssignType, "assignType")} />
         <SynthSelect label="Mute Grp" value={note.muteGroup}
-          options={muteGroupOptions}
+          options={switchOptions(pcmd_partial_spec(PcmdPartialField.MuteGroup))}
           onChange={set(PcmdPartialField.MuteGroup, "muteGroup")} />
         <SynthSelect label="Env Mode" value={note.envMode}
-          options={ENV_MODE_OPTIONS}
+          options={switchOptions(pcmd_partial_spec(PcmdPartialField.EnvMode))}
           onChange={set(PcmdPartialField.EnvMode, "envMode")} />
         <SynthSelect label="Output" value={note.outputAssign}
-          options={OUTPUT_ASSIGN_OPTIONS}
+          options={switchOptions(pcmd_partial_spec(PcmdPartialField.OutputAssign))}
           onChange={set(PcmdPartialField.OutputAssign, "outputAssign")} />
         <SynthSwitch label="1-Shot" value={note.oneShotMode}
-          options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
+          options={switchOptions(pcmd_partial_spec(PcmdPartialField.OneShotMode))}
           onChange={set(PcmdPartialField.OneShotMode, "oneShotMode")}
           title="One Shot Mode" />
       </div>
       <div className={css.knobRow}>
-        <SynthKnob label="PB Rng" value={note.pitchBendRange} min={0} max={48} defaultValue={0}
-          onChange={set(PcmdPartialField.PitchBendRange, "pitchBendRange")} formatValue={(v) => String(v)} color="#a6f"
+        <SynthKnob label="PB Rng" value={note.pitchBendRange} {...knobRange(pcmd_partial_spec(PcmdPartialField.PitchBendRange))}
+          onChange={set(PcmdPartialField.PitchBendRange, "pitchBendRange")} color="#a6f"
           title="Pitch Bend Range" />
-        <SynthKnob label="Level" value={note.level} min={0} max={127} defaultValue={127}
-          onChange={set(PcmdPartialField.Level, "level")} formatValue={(v) => String(v)} color="#a6f"
+        <SynthKnob label="Level" value={note.level} {...knobRange(pcmd_partial_spec(PcmdPartialField.Level))}
+          onChange={set(PcmdPartialField.Level, "level")} color="#a6f"
           title="Partial Level" />
       </div>
       <div className={css.knobRow}>
-        <SynthKnob label="Coarse" value={note.coarseTune} min={0} max={127} defaultValue={64}
-          onChange={set(PcmdPartialField.CoarseTune, "coarseTune")} formatValue={(v) => noteName(v)} color="#fc8"
-          title="Partial Coarse Tune (C-1 to G9)" />
-        <SynthKnob label="Fine" value={note.fineTune} min={14} max={114} defaultValue={64} center={64}
-          onChange={set(PcmdPartialField.FineTune, "fineTune")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
-          title="Partial Fine Tune (-50 to +50)" />
-        <SynthKnob label="Rnd Pit" value={note.randomPitchDepth} 
+        <SynthKnob label="Coarse" value={note.coarseTune} {...knobRange(pcmd_partial_spec(PcmdPartialField.CoarseTune))}
+          onChange={set(PcmdPartialField.CoarseTune, "coarseTune")} color="#fc8"
+          title="Partial Coarse Tune" />
+        <SynthKnob label="Fine" value={note.fineTune} {...knobRange(pcmd_partial_spec(PcmdPartialField.FineTune))}
+          onChange={set(PcmdPartialField.FineTune, "fineTune")} color="#fc8"
+          title="Partial Fine Tune" />
+        <SynthKnob label="Rnd Pit" value={note.randomPitchDepth}
           {...knobRange(pcmd_partial_spec(PcmdPartialField.RandomPitchDepth))}
           onChange={set(PcmdPartialField.RandomPitchDepth, "randomPitchDepth")} color="#fc8"
           title="Random Pitch Depth (cents)" />
       </div>
       <div className={css.miscRow}>
         <SynthSwitch label="RxExpr" value={note.receiveExpression}
-          options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
+          options={switchOptions(pcmd_partial_spec(PcmdPartialField.ReceiveExpression))}
           onChange={set(PcmdPartialField.ReceiveExpression, "receiveExpression")}
           title="Receive Expression" />
         <SynthSwitch label="RxHold" value={note.receiveHold1}
-          options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
+          options={switchOptions(pcmd_partial_spec(PcmdPartialField.ReceiveHold1))}
           onChange={set(PcmdPartialField.ReceiveHold1, "receiveHold1")}
           title="Receive Hold-1" />
       </div>

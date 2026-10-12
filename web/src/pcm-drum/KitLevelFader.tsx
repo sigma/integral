@@ -1,3 +1,5 @@
+import { PcmdCommonField, pcmd_common_spec } from "../../pkg/integral_wasm.js";
+import { knobRange } from "../fieldSpec";
 import { SynthFader } from "../synth-ui";
 import { LEVEL_TRACK_HEIGHT } from "./NoteControls";
 
@@ -10,8 +12,8 @@ export function KitLevelFader({
   onChange: (value: number) => void;
 }) {
   return (
-    <SynthFader label="Kit Lv" value={kitLevel} min={0} max={127} defaultValue={127}
-      onChange={onChange} formatValue={(v) => String(v)} trackHeight={LEVEL_TRACK_HEIGHT}
+    <SynthFader label="Kit Lv" value={kitLevel} {...knobRange(pcmd_common_spec(PcmdCommonField.KitLevel))}
+      onChange={onChange} trackHeight={LEVEL_TRACK_HEIGHT}
       title="Kit Level" />
   );
 }
