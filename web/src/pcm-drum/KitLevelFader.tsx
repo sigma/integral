@@ -1,6 +1,7 @@
 import { SynthFader } from "../synth-ui";
+import { LEVEL_TRACK_HEIGHT } from "./NoteControls";
 
-/** The kit-wide Kit Level, as a bare fader beside the key grid. */
+/** The kit-wide Kit Level: a bare fader left of the key grid, as tall as a key's Level. */
 export function KitLevelFader({
   kitLevel,
   onChange,
@@ -10,7 +11,7 @@ export function KitLevelFader({
 }) {
   return (
     <SynthFader label="Kit Lv" value={kitLevel} min={0} max={127} defaultValue={127}
-      onChange={onChange} formatValue={(v) => String(v)} trackHeight={160}
+      onChange={onChange} formatValue={(v) => String(v)} trackHeight={LEVEL_TRACK_HEIGHT}
       title="Kit Level" />
   );
 }

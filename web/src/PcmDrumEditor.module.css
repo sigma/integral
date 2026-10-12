@@ -43,7 +43,7 @@
    Key grid
    ---------------------------------------------------------------- */
 
-/* The key grid (and its legend), with the kit-wide Kit Level fader to its right */
+/* The kit-wide Kit Level fader, then the key grid and its legend */
 .keyGridRow {
   display: flex;
   gap: 8px;

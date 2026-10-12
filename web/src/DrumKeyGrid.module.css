@@ -62,7 +62,7 @@
 /* The grid, with its output legend in a column to its right */
 .gridWithLegend {
   display: flex;
-  gap: 12px;
+  gap: 24px;
   align-items: flex-start;
 }
 

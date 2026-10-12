@@ -40,6 +40,9 @@ import css from "../PcmDrumEditor.module.css";
 // Per-key note controls
 // ---------------------------------------------------------------------------
 
+/** Track height of a key's Level fader, which the kit's Level fader matches. */
+export const LEVEL_TRACK_HEIGHT = 200;
+
 export function NoteControls({
   keyNumber,
   note,
@@ -104,7 +107,7 @@ export function NoteControls({
             onFx1Change={set(PcmdPartialField.ChorusSend, "chorusSend")}
             onFx2Change={set(PcmdPartialField.ReverbSend, "reverbSend")}
             onLevelChange={set(PcmdPartialField.OutputLevel, "outputLevel")}
-            trackHeight={200}
+            trackHeight={LEVEL_TRACK_HEIGHT}
           />
         </SectionPanel>
       </div>

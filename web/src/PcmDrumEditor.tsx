@@ -243,6 +243,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
         <div className={css.keyEditorArea}>
           <SectionPanel label="DRUM KEY" accentColor="#f93">
             <div className={css.keyGridRow}>
+              {common && <KitLevelFader kitLevel={common.kitLevel} onChange={setKitLevel} />}
               <DrumKeyGrid
                 firstKey={keys.first}
                 lastKey={keys.last}
@@ -251,7 +252,6 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
                 keyOutputAssigns={keyOutputAssigns}
                 offKeys={offKeys}
               />
-              {common && <KitLevelFader kitLevel={common.kitLevel} onChange={setKitLevel} />}
             </div>
             {noteLoading ? (
               <div className={css.noteLoadingPlaceholder}>Loading key data...</div>
