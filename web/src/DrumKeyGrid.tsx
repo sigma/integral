@@ -36,7 +36,7 @@ export function DrumKeyGrid({
   }
 
   return (
-    <>
+    <div className={css.gridWithLegend}>
       <div className={css.keyGrid}>
         {keys.map((k) => {
           const selected = k === selectedKey;
@@ -68,6 +68,6 @@ export function DrumKeyGrid({
           </span>
         ))}
       </div>
-    </>
+    </div>
   );
 }

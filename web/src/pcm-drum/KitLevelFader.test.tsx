@@ -1,19 +1,15 @@
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CommonPanel } from "./CommonPanel";
+import { KitLevelFader } from "./KitLevelFader";
 import { cleanup, render } from "../test/dom";
 
 afterEach(cleanup);
 
-describe("CommonPanel", () => {
+describe("KitLevelFader", () => {
   it("reports Kit Level edits", () => {
     const onKitLevelChange = vi.fn();
     const { container } = render(
-      <CommonPanel
-        common={{ kitName: "Kit", kitLevel: 100 }}
-        common2={null}
-        onKitLevelChange={onKitLevelChange}
-      />,
+      <KitLevelFader kitLevel={100} onChange={onKitLevelChange} />,
     );
     const fader = container.querySelector('[role="slider"][aria-label="Kit Lv"]');
     if (!fader) throw new Error("no Kit Lv fader");

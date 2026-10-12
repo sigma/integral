@@ -59,10 +59,17 @@
   opacity: 0.3;
 }
 
-.legend {
+/* The grid, with its output legend in a column to its right */
+.gridWithLegend {
   display: flex;
   gap: 12px;
-  margin-top: 6px;
+  align-items: flex-start;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   font-size: 11px;
   color: #888;
 }

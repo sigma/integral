@@ -23,12 +23,11 @@ import css from "./PcmDrumEditor.module.css";
 
 import type {
   PcmDrumCommon,
-  PcmDrumCommon2,
   PartialParamHandler,
   PcmDrumPartial,
   WmtParamHandler,
 } from "./pcm-drum/types";
-import { CommonPanel } from "./pcm-drum/CommonPanel";
+import { KitLevelFader } from "./pcm-drum/KitLevelFader";
 import { DrumKeyGrid } from "./DrumKeyGrid";
 import { useKeyPrefetch } from "./useKeyPrefetch";
 import { NoteControls } from "./pcm-drum/NoteControls";
@@ -47,7 +46,6 @@ interface Props {
 export function PcmDrumEditor({ partIndex, service, marking }: Props) {
   const keys = deviceSpec().pcm_drum_keys;
   const [common, setCommon] = useState<PcmDrumCommon | null>(null);
-  const [common2, setCommon2] = useState<PcmDrumCommon2 | null>(null);
   const [mfx, setMfx] = useState<MfxState | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedKey, setSelectedKey] = useState(36); // C2 — kick drum
@@ -72,14 +70,13 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
         const c = service.device.applyPcmdCommon(commonData) as PcmDrumCommon | null;
         if (c) setCommon(c);
 
-        // Common2
+        // Common2: read into core's copy of the kit (the editor shows none of it)
         const c2Data = await service.requestData(
           Array.from(pcmd_common2_address(partIndex)),
           Array.from(pcmd_common2_size()),
         );
         if (cancelled) return;
-        const c2 = service.device.applyPcmdCommon2(c2Data) as PcmDrumCommon2 | null;
-        if (c2) setCommon2(c2);
+        service.device.applyPcmdCommon2(c2Data);
 
         // MFX
         const mfxData = await service.requestData(
@@ -254,9 +251,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
                 keyOutputAssigns={keyOutputAssigns}
                 offKeys={offKeys}
               />
-              {common && (
-                <CommonPanel common={common} common2={common2} onKitLevelChange={setKitLevel} />
-              )}
+              {common && <KitLevelFader kitLevel={common.kitLevel} onChange={setKitLevel} />}
             </div>
             {noteLoading ? (
               <div className={css.noteLoadingPlaceholder}>Loading key data...</div>
