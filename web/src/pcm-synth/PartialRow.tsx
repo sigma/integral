@@ -329,10 +329,19 @@ function TvaSection({
   return (
     <SectionPanel label="AMP" accentColor="#6c8">
       <div className={css.panelRow}>
-        <div className={`${css.knobGrid} ${css.knobGrid3}`}>
+        <div className={`${css.knobGrid} ${css.knobGrid4}`}>
           <SynthKnob label="Pan" value={partial.pan} {...knobRange(pcms_partial_spec(PcmsPartialField.Pan))}
             onChange={set(PcmsPartialField.Pan, "pan")} color="#6c8"
             title="Partial stereo panning" />
+          <SynthKnob label="Pan KF" value={partial.panKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.PanKeyfollow))}
+            onChange={set(PcmsPartialField.PanKeyfollow, "panKeyfollow")} color="#6c8"
+            title="Pan keyfollow — notes above C4 pan right (+) or left (−). When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
+          <SynthKnob label="Rnd Pan" value={partial.randomPanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.RandomPanDepth))}
+            onChange={set(PcmsPartialField.RandomPanDepth, "randomPanDepth")} color="#6c8"
+            title="Random pan depth — each note lands at a random position. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
+          <SynthKnob label="Alt Pan" value={partial.alternatePanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.AlternatePanDepth))}
+            onChange={set(PcmsPartialField.AlternatePanDepth, "alternatePanDepth")} color="#6c8"
+            title="Alternate pan depth — successive notes alternate left and right; L/R sets which side comes first. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
           <SynthKnob label="Bias Lvl" value={partial.tvaBiasLevel} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasLevel))}
             onChange={set(PcmsPartialField.TvaBiasLevel, "tvaBiasLevel")} color="#6c8"
             title="Level bias amount — attenuates volume away from the bias key" />

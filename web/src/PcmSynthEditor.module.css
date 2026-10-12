@@ -179,6 +179,10 @@
   grid-template-columns: repeat(3, auto);
 }
 
+.knobGrid4 {
+  grid-template-columns: repeat(4, auto);
+}
+
 .knobsRight {
   margin-left: auto;
 }
