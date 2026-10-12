@@ -11,6 +11,7 @@
 
 use super::frame::{self, Frame};
 use super::pcm_kit::PcmKit;
+use super::pcm_tone::OUTPUT_TONE;
 use super::report::{ConversionItem, ConversionReport, Location};
 use super::xv::{self, OUTPUT_MFX, Rejected, WaveSource};
 use crate::address::Address;
@@ -67,11 +68,12 @@ struct Rhythm<'a> {
 }
 
 /// The fix rows, in `foreign-rhythm-format.csv` order: kit-wide first, then
-/// per key. Switched-off WMTs are reset last.
+/// per key, except MFX first: the tempo check reads the converted MFX.
+/// Switched-off WMTs are reset last.
 const FIXES: [fn(&mut Rhythm<'_>); 10] = [
+    mfx,
     tempo,
     output_assign,
-    mfx,
     chorus_reverb,
     one_shot_mode,
     tone_sends,
@@ -146,9 +148,24 @@ fn output_assign(r: &mut Rhythm<'_>) {
     r.kit.common()[OUTPUT_ASSIGN] = xv::output_assign(r.common[OUTPUT_ASSIGN], &mut r.report);
 }
 
-/// Rhythm MFX, by the Patch rule ([`xv::mfx_thru`]).
+/// Rhythm MFX, by the Patch rule ([`xv::convert_mfx`]). A playing Rhythm
+/// Tone goes through it when the Rhythm Output Assign, or with TONE the
+/// Tone's own, is MFX.
 fn mfx(r: &mut Rhythm<'_>) {
-    xv::mfx_thru(r.mfx, r.kit.mfx(), &mut r.report);
+    let rhythm_output = r.common[OUTPUT_ASSIGN];
+    let routed: Vec<(Location, bool)> = r
+        .tones
+        .iter()
+        .filter(|(_, tone)| Rhythm::active(tone))
+        .map(|(k, tone)| {
+            let output = match rhythm_output {
+                OUTPUT_TONE => tone[F::OutputAssign as usize],
+                _ => rhythm_output,
+            };
+            (Location::Key(*k), output == OUTPUT_MFX)
+        })
+        .collect();
+    xv::convert_mfx(r.mfx, r.kit.mfx(), &routed, &mut r.report);
 }
 
 /// Rhythm Chorus and Reverb, by the Patch rule ([`xv::chorus_reverb`]).
@@ -181,11 +198,9 @@ fn tone_sends(r: &mut Rhythm<'_>) {
 
 /// Tone Output Assign: MFX, A–D, 1–8 on the XV, PART and COMP+EQ1–6 on the
 /// INTEGRA-7. Copied, output A (1) would land on COMP+EQ1, so every key
-/// gets PART.
+/// gets PART. A Tone that bypassed the MFX goes through it on PART, which
+/// [`mfx`] reports.
 fn tone_output_assign(r: &mut Rhythm<'_>) {
-    // ponytail: with the MFX THRU (#213), PART loses nothing. Once the MFX
-    // converts, a Tone that bypassed it (output ≠ MFX) goes through it on
-    // PART; report that then.
     for (k, _) in &r.tones {
         r.kit.key(*k)[F::OutputAssign as usize] = OUTPUT_PART;
     }

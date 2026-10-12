@@ -12,6 +12,7 @@
 //! Rhythm Set).
 
 use super::frame::{self, Frame};
+use super::fx_map;
 use super::pcm_tone::{self, FULL_LEVEL, OUTPUT_TONE, Output, PcmTone};
 use super::report::{ConversionItem, ConversionReport, EffectFamily, ForeignEffect, Location};
 use super::wave_map::ForeignWaveGroup;
@@ -19,6 +20,7 @@ use super::{Placed, Unit};
 use crate::address::Address;
 use crate::librarian::foreign::report::Skipped;
 use crate::librarian::pack::PackEntry;
+use crate::mfx::{MfxCtrlSlot, MfxHeaderField, mfx_header_offset, parse_mfx_block};
 use crate::parse_helpers::{nibble2, nibble4};
 use crate::svd_convert::unpack_sections;
 use crate::svd_specs::XV_PATCH_SECTIONS;
@@ -134,6 +136,13 @@ const MFX_TYPE: usize = 0x00;
 const MFX_DRY_SEND: usize = 0x01;
 /// MFX: MFX Output Assign.
 const MFX_OUTPUT_ASSIGN: usize = 0x04;
+/// MFX Control 1–4, as reports name them.
+const MFX_CONTROLS: [&str; 4] = [
+    "MFX Control 1",
+    "MFX Control 2",
+    "MFX Control 3",
+    "MFX Control 4",
+];
 /// Chorus and Reverb: Type, then Level.
 const EFFECT_TYPE: usize = 0x00;
 /// Chorus and Reverb: Level.
@@ -218,13 +227,14 @@ struct Patch<'a> {
 }
 
 /// The fix rows, one per XV field that does not copy byte for byte, in
-/// `xv-patch-format.csv` order. Patch Category and Tone Type are read
-/// before them, and the Integra-only fields are filled by [`PcmTone`].
+/// `xv-patch-format.csv` order, except MFX first: the tempo check reads the
+/// converted MFX. Patch Category and Tone Type are read before them, and
+/// the Integra-only fields are filled by [`PcmTone`].
 const FIXES: [fn(&mut Patch<'_>); 8] = [
+    mfx,
     patch_tempo,
     one_shot_mode,
     patch_output_assign,
-    mfx,
     chorus_and_reverb,
     tone_sends,
     receive_pan_mode,
@@ -336,28 +346,37 @@ pub(super) fn output_assign(output: u8, report: &mut ConversionReport) -> u8 {
     OUTPUT_TONE
 }
 
-/// MFX, by [`mfx_thru`].
+/// MFX, by [`convert_mfx`]. A switched-on Tone goes through it when the
+/// Patch Output Assign, or with TONE the Tone's own, is MFX.
 fn mfx(p: &mut Patch<'_>) {
-    mfx_thru(&p.xv[MFX], p.tone.mfx(), &mut p.report);
+    let patch_output = p.xv[COMMON][PATCH_OUTPUT_ASSIGN];
+    let routed: Vec<(Location, bool)> = (0..4)
+        .filter(|&i| p.tone.is_on(i))
+        .map(|i| {
+            let output = match patch_output {
+                OUTPUT_TONE => p.xv[TONE_1 + i][TONE_OUTPUT_ASSIGN],
+                _ => patch_output,
+            };
+            (Location::Partial(i as u8 + 1), output == OUTPUT_MFX)
+        })
+        .collect();
+    convert_mfx(&p.xv[MFX], p.tone.mfx(), &routed, &mut p.report);
 }
 
-/// MFX Type of a Patch or Rhythm MFX block `xv`, copied into `mfx`: THRU
-/// until the effect types are mapped. MFX Output Assign names physical
-/// outputs and is dropped. MFX Dry Send Level has no INTEGRA-7 equivalent;
-/// its reserve gets 127, as INTEGRA-7 tones carry.
-pub(super) fn mfx_thru(xv: &[u8], mfx: &mut [u8], report: &mut ConversionReport) {
-    // ponytail: THRU until the Foreign MFX conversion lands (#213); it then
-    // maps the type and its parameters through the effects rows.
-    let number = xv[MFX_TYPE];
-    if number != 0 {
-        report.push(ConversionItem::EffectDropped {
-            source: ForeignEffect {
-                family: EffectFamily::XvMfx,
-                number,
-            },
-        });
-    }
-    mfx[MFX_TYPE] = 0;
+/// A Patch or Rhythm MFX block `xv`, copied into `mfx`: its type and
+/// parameters go through the effect map when a Tone in `routed` (its
+/// place, and whether it goes through the MFX) uses it, and it is THRU
+/// otherwise. Tones that bypassed the MFX go through it on the INTEGRA-7,
+/// and are reported. Control Assign indexes the XV type's destinations, so
+/// it is set OFF, and a control in use is reported (#236). MFX Output Assign names
+/// physical outputs and is dropped. MFX Dry Send Level has no INTEGRA-7
+/// equivalent; its reserve gets 127, as INTEGRA-7 tones carry.
+pub(super) fn convert_mfx(
+    xv: &[u8],
+    mfx: &mut [u8],
+    routed: &[(Location, bool)],
+    report: &mut ConversionReport,
+) {
     mfx[MFX_OUTPUT_ASSIGN] = 0;
     if xv[MFX_DRY_SEND] != FULL_LEVEL {
         report.push(ConversionItem::ParamDropped {
@@ -366,6 +385,39 @@ pub(super) fn mfx_thru(xv: &[u8], mfx: &mut [u8], report: &mut ConversionReport)
         });
     }
     mfx[MFX_DRY_SEND] = FULL_LEVEL;
+    let number = xv[MFX_TYPE];
+    if number == 0 || !routed.iter().any(|&(_, through)| through) {
+        mfx[MFX_TYPE] = 0;
+        return;
+    }
+    let effect = ForeignEffect {
+        family: EffectFamily::XvMfx,
+        number,
+    };
+    let state = parse_mfx_block(xv);
+    let source = state.params.try_into().expect("32 MFX Parameters");
+    if !fx_map::convert(effect, &source, mfx, report) {
+        return;
+    }
+    for &(at, through) in routed {
+        if !through {
+            report.push(ConversionItem::ParamDropped {
+                at: Some(at),
+                param: "MFX bypass",
+            });
+        }
+    }
+    for (k, (control, name)) in (0..).zip(state.controls.iter().zip(MFX_CONTROLS)) {
+        if control.assign != 0 && control.source != 0 && control.sens != MfxCtrlSlot::default().sens
+        {
+            report.push(ConversionItem::ParamDropped {
+                at: None,
+                param: name,
+            });
+        }
+        let assign = mfx_header_offset(MfxHeaderField::ControlAssign, k).expect("MFX Control 1-4");
+        mfx[usize::from(assign)] = 0;
+    }
 }
 
 /// A Patch or Rhythm effect an INTEGRA-7 tone has no place for: reported

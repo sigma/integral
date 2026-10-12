@@ -795,9 +795,16 @@ mod tests {
             entry["report"],
             json!([
                 {
-                    "type": "effectDropped",
-                    "source": { "family": "xvMfx", "number": 6 },
-                    "message": "MFX type 6 dropped, MFX set to THRU",
+                    "type": "paramDropped",
+                    "at": { "partial": 3 },
+                    "param": "MFX bypass",
+                    "message": "Partial 3: MFX bypass dropped",
+                },
+                {
+                    "type": "paramDropped",
+                    "at": { "partial": 4 },
+                    "param": "MFX bypass",
+                    "message": "Partial 4: MFX bypass dropped",
                 },
                 {
                     "type": "notApplied",
@@ -829,8 +836,9 @@ mod tests {
         assert_eq!(
             united_report(&read, &plan).text_plan(),
             "srx03ap2-001.syx (MIDI file, 1 entry):\n\
-             \x20 pcm-synth:1      United !         -> Temporary Part 1 [lossy · 1]\n\
-             \x20     MFX type 6 dropped, MFX set to THRU\n\
+             \x20 pcm-synth:1      United !         -> Temporary Part 1 [lossy · 2]\n\
+             \x20     Partial 3: MFX bypass dropped\n\
+             \x20     Partial 4: MFX bypass dropped\n\
              \x20     Chorus CHORUS, level 127 not applied; set it in the Studio Set\n\
              \x20     Reverb SRV HALL, level 127 not applied; set it in the Studio Set\n\
              Warning: 1 other message skipped\n"
@@ -846,7 +854,7 @@ mod tests {
         assert!(
             report
                 .text_plan()
-                .contains("United !         -> Temporary Part 1 (JV-1080) [lossy · 1]\n"),
+                .contains("United !         -> Temporary Part 1 (JV-1080) [lossy · 2]\n"),
             "{}",
             report.text_plan()
         );

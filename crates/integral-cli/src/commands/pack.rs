@@ -570,12 +570,12 @@ mod tests {
         let entries = listed(&read.pack, &read.reports, None, None, None);
         assert_eq!(
             render_list(&entries, ListFormat::Text).unwrap(),
-            "pcm-synth:1      United !         Ac.Piano         lossy · 1\n"
+            "pcm-synth:1      United !         Ac.Piano         lossy · 2\n"
         );
         let json = render_list(&entries, ListFormat::Json).unwrap();
         let doc: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(doc[0]["clean"], false);
-        assert_eq!(doc[0]["report"][0]["type"], "effectDropped");
+        assert_eq!(doc[0]["report"][0]["type"], "paramDropped");
 
         let clean = listed(&pack(), &[], None, None, None);
         assert!(clean.iter().all(|e| e.clean && e.report.is_empty()));

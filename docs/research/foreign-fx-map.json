@@ -2,7 +2,7 @@
   "_about": "Companion data for docs/research/foreign-fx-map.md. 'integra_params' are MFX Parameter numbers n (1-32) of the PCM Synth Tone MFX block, taken from Roland INTEGRA-7 Editor model_excmap_mfx.js leaf order minus the four CTRL_ASGN leaves. 'jv_prm' is EFX Parameter n (Patch Common 00 0D + n - 1), from the JV-1010 Owner's Manual MIDI Implementation, 'Correspondence of the EFX algorithm and Exclusive Address'. JV raw type r = XV MFX type r + 1 by name and parameter list. Roland's own JV->XV conversions (https://github.com/sigma/integral/issues/206, map-check-roland-pairs.md) confirm the type numbering and show that XV types 1-40 store the JV EFX parameters verbatim: XV MFX Parameter n = JV EFX Parameter n, same raw value, Parameters 13-32 = 0. An XV Patch with MFX type 1-40 therefore converts with these same rows (jv_prm = XV Parameter n). 'roland_pairs' gives the evidence per type; 'confidence' grades the JV/XV source side (type and raw parameter identity). The Integra side (integra_params, conv) cannot be checked from the pairs and keeps the grades in foreign-fx-map.md. The XV 41-90 encoding is still unverified.",
   "conversions": {
     "copy": "target raw = source raw",
-    "drop": "no Integra equivalent: list in the Conversion report",
+    "drop": "no Integra equivalent: list in the Conversion report. A drop row's 'neutral' is the value that loses nothing (centre pan): the converter reports the parameter only when it differs.",
     "eq_hi_jv": "JV 0-1 (4000/8000 Hz) -> Integra list 2000/4000/8000: target = source + 1",
     "rate_jv": "<x> Rate (sync sw) = 0 (Hz); <x> Rate (Hz) stored = round(20 * jv_rate_hz(i)); jv_rate_hz: i 0-98 -> 0.05*(i+1); 99-118 -> 5.0+0.1*(i-99); 119-125 -> 7.0+0.5*(i-119). Exact: every JV rate is a multiple of 0.05 Hz.",
     "rate_jv_plain": "Integra rotor speed stored 1-200 = Hz*20 (no sync slot): target = round(20 * jv_rate_hz(i)). Exact.",
@@ -502,7 +502,8 @@
           "jv_name": "Output Pan",
           "jv_range": "0-127",
           "conv": "drop",
-          "xv_param": 6
+          "xv_param": 6,
+          "neutral": 64
         },
         {
           "jv_prm": 7,
@@ -688,7 +689,8 @@
           "jv_name": "Output Pan",
           "jv_range": "0-127",
           "conv": "drop",
-          "xv_param": 10
+          "xv_param": 10,
+          "neutral": 64
         },
         {
           "jv_prm": 11,
@@ -1145,7 +1147,8 @@
           "jv_name": "Output Pan",
           "jv_range": "0-127",
           "conv": "drop",
-          "xv_param": 3
+          "xv_param": 3,
+          "neutral": 64
         },
         {
           "jv_prm": 4,
@@ -1272,7 +1275,8 @@
           "jv_name": "Output Pan",
           "jv_range": "0-127",
           "conv": "drop",
-          "xv_param": 4
+          "xv_param": 4,
+          "neutral": 64
         },
         {
           "jv_prm": 5,
@@ -3028,7 +3032,8 @@
           "jv_name": "Output Pan",
           "jv_range": "0-127",
           "conv": "drop",
-          "xv_param": 5
+          "xv_param": 5,
+          "neutral": 64
         },
         {
           "jv_prm": 6,
@@ -3370,7 +3375,8 @@
           "jv_name": "Output Pan",
           "jv_range": "0-127",
           "conv": "drop",
-          "xv_param": 6
+          "xv_param": 6,
+          "neutral": 64
         },
         {
           "jv_prm": 7,

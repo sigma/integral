@@ -15,6 +15,7 @@
 //! Reference: `docs/research/xv-svd-format.md` (SVD routing).
 
 pub mod frame;
+mod fx_map;
 mod integra;
 mod jv;
 mod jv_rhythm;

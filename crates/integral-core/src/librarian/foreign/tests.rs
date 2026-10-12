@@ -292,7 +292,7 @@ mod xv_patches {
     /// An XV Patch of 9 DT1s at `key`: tone 1 on and playing INT Wave 1,
     /// every other byte 0, then `edit`ed. Blocks are Common, MFX, Chorus,
     /// Reverb, TMT and Tones 1–4.
-    fn patch(key: [u8; 2], edit: impl FnOnce(&mut [Vec<u8>])) -> Vec<u8> {
+    pub(super) fn patch(key: [u8; 2], edit: impl FnOnce(&mut [Vec<u8>])) -> Vec<u8> {
         let mut blocks: Vec<Vec<u8>> = [79, 145, 52, 83, 41, 137, 137, 137, 137]
             .into_iter()
             .map(|n| vec![0; n])
@@ -312,7 +312,7 @@ mod xv_patches {
             .collect()
     }
 
-    fn converted(bytes: &[u8]) -> (PackEntry, ConversionReport) {
+    pub(super) fn converted(bytes: &[u8]) -> (PackEntry, ConversionReport) {
         let mut read = read(bytes);
         assert_eq!(read.pack.entries.len(), 1, "{:?}", read.file_report);
         assert!(read.file_report.is_empty(), "{:?}", read.file_report);
@@ -334,8 +334,12 @@ mod xv_patches {
         let mut common = xv[0].clone();
         common.push(0); // Common `00 4F`, a reserve the XV doesn't have
         let mut mfx = xv[1].clone();
-        mfx[0x00] = 0; // MFX Type 6 → THRU
+        mfx[0x00] = 5; // MFX Type 6 ENHANCER → ENHANCER
         mfx[0x04] = 0; // MFX Output Assign (a reserve) cleared
+        // Parameters 1–5 copy; 6–32 take ENHANCER's 0 over stale bytes.
+        for at in (0x11 + 4 * 5..mfx.len()).step_by(4) {
+            mfx[at..at + 4].copy_from_slice(&[8, 0, 0, 0]);
+        }
         let pmt = xv[4].clone();
         let partials: Vec<Vec<u8>> = (0..4)
             .map(|i| {
@@ -391,7 +395,8 @@ mod xv_patches {
         assert_eq!(
             texts,
             [
-                "MFX type 6 dropped, MFX set to THRU",
+                "Partial 3: MFX bypass dropped",
+                "Partial 4: MFX bypass dropped",
                 "Chorus CHORUS, level 127 not applied; set it in the Studio Set",
                 "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
             ]
@@ -605,6 +610,7 @@ mod xv_patches {
 mod jv_patches {
     use super::*;
     use crate::librarian::foreign::wave_map::{ForeignWave, ForeignWaveGroup};
+    use crate::mfx::{encode_mfx_param, parse_mfx_block};
     use crate::parse_helpers::{nibble2, nibble4};
 
     /// User Patches 002 `AwesomeChoir`, 007 `Bright Lead`, 041 `Softpad`
@@ -956,6 +962,12 @@ mod jv_patches {
         let reported = ["Tempo 100 not applied; set it in the Studio Set"];
         assert_eq!(tempo(|b| b[1][0x3C] = 2), reported); // LFO2 External Sync TAP
         assert_eq!(tempo(|b| b[1][0x09] = 3), reported); // Delay Mode CLOCK-SYNC
+        // TRIPLE-TAP-DELAY Left at a note, through the EFX.
+        let note_delay = |b: &mut [Vec<u8>]| {
+            b[0][0x0C..0x0E].copy_from_slice(&[18, 116]);
+            b[1][0x7D] = 1;
+        };
+        assert_eq!(tempo(note_delay), reported);
     }
 
     #[test]
@@ -1027,6 +1039,7 @@ mod jv_patches {
         let (entry, report) = converted(&patch([0x11, 0x00], 0x48, |b| {
             b[0][0x0C] = 5; // EFX ENHANCER
             b[0][0x19] = 1; // EFX Output Assign OUTPUT 1
+            b[0][0x1A] = 100; // EFX Mix Out Send Level
             b[0][0x3E] = 1; // Control 2 HOLD
             b[0][0x3A] = 15; // Control 2 source PLAYMATE
             let t = &mut b[1];
@@ -1042,7 +1055,8 @@ mod jv_patches {
         assert_eq!(
             texts(&report),
             [
-                "EFX type 6 dropped, MFX set to THRU",
+                "Partial 2: EFX bypass dropped",
+                "EFX Mix Out Send Level dropped",
                 "EFX Output Assign OUTPUT 1 not applied; set it in the Studio Set",
                 "Control 2 Hold/Peak dropped",
                 "Partial 1: Control 2 route to CUT (+10) dropped",
@@ -1056,7 +1070,128 @@ mod jv_patches {
         // the Receive Pan Mode reserve at KEY-ON.
         assert_eq!(p[0][0x0D..=0x15], [127, 127, 10, 20, 0, 0, 1, 0, 1]);
         assert_eq!(p[1][0x0D..=0x11], [127, 127, 30, 40, 1]);
+        assert_eq!(entry.blocks()[1][0x00], 5); // MFX ENHANCER
+    }
+
+    /// Where an Output Level lands: `(JV EFX Parameter, MFX Parameter)`.
+    type Level = (usize, usize);
+
+    /// Each JV EFX type (display number), its MFX type, and where its
+    /// Output Level lands (`foreign-fx-map.json`).
+    const EFX_TYPES: [(u8, u8, Option<Level>); 40] = [
+        (1, 1, Some((11, 11))),
+        (2, 28, Some((6, 8))),
+        (3, 29, Some((6, 8))),
+        (4, 9, Some((7, 13))),
+        (5, 2, Some((11, 10))),
+        (6, 5, Some((5, 5))),
+        (7, 6, Some((7, 13))),
+        (8, 19, Some((11, 11))),
+        (9, 31, Some((7, 6))),
+        (10, 32, Some((8, 7))),
+        (11, 25, Some((8, 10))),
+        (12, 26, Some((8, 12))),
+        (13, 27, Some((8, 10))),
+        (14, 22, Some((11, 12))),
+        (15, 23, Some((11, 13))),
+        (16, 24, Some((10, 16))),
+        (17, 34, Some((11, 15))),
+        (18, 35, Some((12, 18))),
+        (19, 36, Some((12, 18))),
+        (20, 37, Some((12, 22))),
+        (21, 40, Some((9, 10))),
+        (22, 44, Some((12, 20))),
+        (23, 43, Some((10, 10))),
+        (24, 0, None),
+        (25, 0, None),
+        (26, 45, Some((8, 9))),
+        (27, 46, Some((8, 10))),
+        (28, 47, Some((7, 9))),
+        (29, 48, Some((8, 9))),
+        (30, 49, Some((8, 10))),
+        (31, 50, Some((7, 9))),
+        (32, 62, Some((8, 9))),
+        (33, 63, Some((8, 10))),
+        (34, 64, Some((8, 9))),
+        (35, 65, Some((10, 13))),
+        (36, 66, Some((10, 14))),
+        (37, 67, Some((10, 14))),
+        (38, 65, Some((10, 13))),
+        (39, 66, Some((10, 14))),
+        (40, 67, Some((10, 14))),
+    ];
+
+    #[test]
+    fn converts_every_efx_type() {
+        for (number, target, level) in EFX_TYPES {
+            let (entry, _) = converted(&patch([0x11, 0x00], 0x48, |b| {
+                b[0][0x0C] = number - 1;
+                if let Some((from, _)) = level {
+                    b[0][0x0C + from] = 100;
+                }
+                b[1][0x7D] = 1; // Output EFX
+            }));
+            let mfx = parse_mfx_block(&entry.blocks()[1]);
+            assert_eq!(mfx.mfx_type, target, "EFX type {number}");
+            if let Some((_, to)) = level {
+                assert_eq!(mfx.params[to - 1], 100, "EFX type {number}");
+            }
+        }
+    }
+
+    #[test]
+    fn leaves_an_efx_no_tone_uses_thru() {
+        let (entry, report) = converted(&patch([0x11, 0x00], 0x48, |b| {
+            b[0][0x0C] = 18; // TRIPLE-TAP-DELAY, every Tone to MIX
+        }));
         assert_eq!(entry.blocks()[1][0x00], 0);
+        assert!(report.is_empty(), "{report:?}");
+    }
+
+    /// `Sirena` of SR-JV80-11 (`Techno2.syx`) and Roland's XV conversion
+    /// of it (`SRJV11PB.mid`), family R02 of `jv-xv-roland-pairs.md`: Patch
+    /// Common `0C`–`20` and the XV MFX block's first 17 bytes. The XV
+    /// stores the 12 JV EFX Parameters verbatim as MFX Parameters 1–12.
+    const SIRENA_JV: [u8; 21] = [
+        0x12, 0x7A, 0x77, 0x7A, 0x22, 0x0E, 0x6E, 0x7F, 0x00, 0x0F, 0x0F, 0x14, 0x7F, 0x00, 0x7F,
+        0x4D, 0x64, 0x02, 0x49, 0x00, 0x3F,
+    ];
+    const SIRENA_XV: [u8; 17] = [
+        0x13, 0x7F, 0x4D, 0x64, 0x00, 0x64, 0x4A, 0x00, 0x40, 0x00, 0x40, 0x00, 0x40, 0x01, 0x02,
+        0x00, 0x00,
+    ];
+
+    #[test]
+    fn a_roland_pair_converts_to_the_same_mfx() {
+        let (jv, jv_report) = converted(&patch([0x11, 0x00], 0x48, |b| {
+            b[0][0x0C..=0x20].copy_from_slice(&SIRENA_JV);
+            b[1][0x7D] = 1; // Output EFX
+        }));
+        let (xv, xv_report) =
+            super::xv_patches::converted(&super::xv_patches::patch([0x30, 0x00], |b| {
+                b[1][..17].copy_from_slice(&SIRENA_XV);
+                for (i, &v) in SIRENA_JV[1..13].iter().enumerate() {
+                    let at = 0x11 + 4 * i;
+                    b[1][at..at + 4].copy_from_slice(&encode_mfx_param(i32::from(v)));
+                }
+                for at in (0x11 + 4 * 12..b[1].len()).step_by(4) {
+                    b[1][at..at + 4].copy_from_slice(&encode_mfx_param(0));
+                }
+            }));
+        assert_eq!(jv.blocks()[1], xv.blocks()[1]);
+        let mfx = parse_mfx_block(&jv.blocks()[1]);
+        assert_eq!(mfx.mfx_type, 36); // 3TAP PAN DELAY
+        // Three note delays (sync on, note), then feedback … level.
+        let delays: Vec<i32> = [0, 2, 3, 5, 6, 8].map(|i| mfx.params[i]).to_vec();
+        assert_eq!(delays, [1, 12, 1, 9, 1, 12]);
+        assert_eq!(mfx.params[9..18], [34, 14, 110, 127, 0, 15, 15, 20, 127]);
+        // SYS-CTRL2 → SYS3 (100), Depth +10, destination dropped.
+        assert_eq!(mfx.controls[0].source, 100);
+        assert_eq!(mfx.controls[0].sens, 74);
+        assert_eq!(mfx.controls[0].assign, 0);
+        assert_eq!(texts(&jv_report), ["EFX Control 1 dropped"]);
+        assert_eq!(xv_report.len(), 1);
+        assert_eq!(xv_report[0].to_string(), "MFX Control 1 dropped");
     }
 
     #[test]
@@ -1582,10 +1717,10 @@ mod xv_rhythms {
         assert_eq!(
             texts(&report),
             [
+                // Output A bypasses the MFX: it is unused, so THRU loses nothing.
+                "MFX Dry Send Level dropped",
                 "Tempo 91 not applied; set it in the Studio Set",
                 "Output Assign A not applied; set it in the Studio Set",
-                "MFX type 7 dropped, MFX set to THRU",
-                "MFX Dry Send Level dropped",
                 "Reverb SRV HALL, level 100 not applied; set it in the Studio Set",
             ]
         );

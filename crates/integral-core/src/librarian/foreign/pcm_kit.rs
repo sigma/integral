@@ -4,6 +4,7 @@
 //! Reference: `docs/midi/07-pcm-drum-kit.md`, `docs/svd/07-pcm-drum.md`
 //! (reserves with content) and `docs/research/foreign-rhythm-format.md`.
 
+use super::fx_map;
 use super::pcm_tone::{self, map_wave_pair};
 use super::report::{ConversionReport, Location};
 use super::wave_map::ForeignWaveGroup;
@@ -79,14 +80,16 @@ impl PcmKit {
         encode_pcmd_wmt(&PcmDrumWmt::default(), &mut self.key(key)[at..]);
     }
 
-    /// Whether a switched-on WMT follows the tempo: Wave Tempo Sync on.
+    /// Whether the kit follows the tempo: a switched-on WMT has Wave Tempo
+    /// Sync on, or the MFX has a rate or delay at a note value.
     pub(super) fn syncs_to_tempo(&self) -> bool {
-        self.blocks[FIRST_PARTIAL..COMMON2].iter().any(|partial| {
-            (0..PCMD_WMT_COUNT).any(|w| {
-                let on = |f| partial[pcmd_wmt_byte(w, f)] != 0;
-                on(PcmdWmtField::Switch) && on(PcmdWmtField::WaveTempoSync)
+        fx_map::syncs_to_tempo(&self.blocks[MFX])
+            || self.blocks[FIRST_PARTIAL..COMMON2].iter().any(|partial| {
+                (0..PCMD_WMT_COUNT).any(|w| {
+                    let on = |f| partial[pcmd_wmt_byte(w, f)] != 0;
+                    on(PcmdWmtField::Switch) && on(PcmdWmtField::WaveTempoSync)
+                })
             })
-        })
     }
 
     /// Write INTEGRA-7 Waves into WMT `wmt` (0-indexed) of `key`: Wave Group

@@ -48,10 +48,8 @@ fn totals_the_fixtures_and_skips_what_is_not_a_pack() {
         totals["unmappedWaves"],
         json!([{ "item": { "group": { "type": "PcmCard", "id": 3 }, "number": 30 }, "count": 1 }])
     );
-    assert_eq!(
-        totals["droppedEffects"],
-        json!([{ "item": { "family": "xvMfx", "number": 6 }, "count": 1 }])
-    );
+    // Every fixture effect converts.
+    assert_eq!(totals["droppedEffects"], json!([]));
     assert_eq!(
         totals["itemKinds"][0],
         json!({ "item": "notApplied", "count": 10 })
@@ -90,7 +88,7 @@ fn totals_the_fixtures_and_skips_what_is_not_a_pack() {
     assert_eq!(united["source"], Value::Null);
     assert_eq!(united["id"], "pcm-synth:1");
     assert_eq!(united["name"], "United !");
-    assert_eq!(united["report"][0]["type"], "effectDropped");
+    assert_eq!(united["report"][0]["type"], "paramDropped");
 }
 
 #[test]
@@ -111,7 +109,6 @@ fn prints_files_and_totals_as_text() {
         text.contains("Entries: 1, clean 0 (0.0%), lossy 1; rejected 0"),
         "{text}"
     );
-    assert!(text.contains("      1  MFX type 6\n"), "{text}");
     assert!(
         text.contains("      1  unknown model: clean 0, lossy 1\n"),
         "{text}"

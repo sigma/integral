@@ -19,7 +19,8 @@ afterAll(() => {
 
 /** The Conversion report of the XV fixture's Patch, as the core words it. */
 const REPORT = [
-  "MFX type 6 dropped, MFX set to THRU",
+  "Partial 3: MFX bypass dropped",
+  "Partial 4: MFX bypass dropped",
   "Chorus CHORUS, level 127 not applied; set it in the Studio Set",
   "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
 ];
@@ -41,7 +42,7 @@ function entries(): ImportEntry[] {
     lossy,
     source,
   });
-  return [entry(0, "United !", REPORT, 1), entry(1, "Tempo", NOT_APPLIED, 0, "JV-1080"), entry(2, "Clean", [], 0)];
+  return [entry(0, "United !", REPORT, 2), entry(1, "Tempo", NOT_APPLIED, 0, "JV-1080"), entry(2, "Clean", [], 0)];
 }
 
 function noop(): void {}
@@ -102,10 +103,10 @@ describe("PackImportPane", () => {
     const badges = [...container.querySelectorAll("button")].filter((b) =>
       b.textContent?.startsWith("lossy"),
     );
-    expect(badges.map((b) => b.textContent)).toEqual(["lossy · 1"]);
+    expect(badges.map((b) => b.textContent)).toEqual(["lossy · 2"]);
     expect(reportItems(container)).toEqual([]);
 
-    const badge = button(container, "lossy · 1");
+    const badge = button(container, "lossy · 2");
     click(badge);
     expect(badge.getAttribute("aria-expanded")).toBe("true");
     expect(reportItems(container)).toEqual(REPORT);

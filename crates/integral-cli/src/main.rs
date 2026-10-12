@@ -269,7 +269,8 @@ enum PackCommand {
         /// Pack files, or directories to search recursively.
         #[arg(required = true)]
         paths: Vec<PathBuf>,
-        /// How many unmapped Waves and dropped effects the totals list.
+        /// How many unmapped Waves and dropped or substituted effects the totals
+        /// list.
         #[arg(long, default_value_t = 10)]
         top: usize,
         #[arg(long, short = 'f', value_enum, default_value_t = OutputFormat::Text)]

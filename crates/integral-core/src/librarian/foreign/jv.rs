@@ -12,6 +12,7 @@
 //! `docs/research/foreign-rhythm-format.md` (JV/XP Rhythm Setup).
 
 use super::frame::{self, Frame};
+use super::fx_map;
 use super::pcm_tone::{self, Output, PcmTone};
 use super::report::{
     ConversionItem, ConversionReport, EffectFamily, ForeignEffect, Location, SourceModel as Model,
@@ -22,6 +23,7 @@ use super::{Converted, Placed, Unit};
 use crate::address::Address;
 use crate::fx_params::FxUnit;
 use crate::librarian::foreign::report::Skipped;
+use crate::mfx::{MFX_PARAM_COUNT, MfxHeaderField, mfx_header_offset};
 use crate::parse_helpers::{encode_nibble2, nibble2};
 
 /// JV/XP Model ID.
@@ -93,6 +95,14 @@ const EFX_TYPE: usize = 0x0C;
 const EFX_LAST_PARAM: usize = 0x18;
 /// Common: EFX Output Assign.
 const EFX_OUTPUT_ASSIGN: usize = 0x19;
+/// Common: EFX Mix Out Send Level, the XV MFX Dry Send Level.
+const EFX_MIX_OUT: usize = 0x1A;
+/// Common: EFX Control Source 1 and 2, each followed by its Depth.
+const EFX_CONTROLS: [(usize, &str); 2] = [(0x1D, "EFX Control 1"), (0x1F, "EFX Control 2")];
+/// The last EFX Control Source, AFT: the list is the Patch one's first 11.
+const EFX_LAST_SOURCE: u8 = 10;
+/// EFX Control Depth 0.
+const NEUTRAL_DEPTH: u8 = 63;
 /// Common: Chorus Level … Chorus Output.
 const CHORUS: core::ops::RangeInclusive<usize> = 0x21..=0x26;
 /// Common: Reverb Type … Delay Feedback.
@@ -438,8 +448,8 @@ use How::{Offset, Table};
 use To::{Common, Mfx, Partial, Pmt, PmtEntry};
 
 /// Patch Common → Common, MFX and PMT (`jv-patch-format.md`, Common table).
-/// EFX Type and Parameters, EFX Mix Out Send Level and EFX Control 1/2 wait
-/// for the effects map: the MFX stays THRU (see [`mfx`]).
+/// EFX Type, Parameters, Mix Out Send Level and Control 1/2 go through the
+/// effect map (see [`mfx`]).
 const COMMON_ROWS: [Row<To>; 15] = [
     copies(0x00, Common(0x00), 12),              // Patch Name 1–12
     copy(0x1B, Mfx(0x02)),                       // EFX Chorus Send Level
@@ -659,17 +669,54 @@ pub(super) fn convert(key: [u8; 2], frames: &[Frame<'_>]) -> Result<Converted, S
     Ok((patch.tone.into_entry(), patch.report, Some(model)))
 }
 
-/// EFX: THRU until the effects map lands. Dropped, and reported, only when
-/// a Tone goes through it and it is not the INIT flat EQ.
+/// EFX → MFX through the effect map, when a Tone goes through it; the MFX
+/// stays THRU otherwise. Tones that bypassed the EFX go through the MFX on
+/// the INTEGRA-7, and are reported, as is a Mix Out Send Level below 127
+/// (the INTEGRA-7 keeps a reserve there). EFX Control Source and Depth 1/2 map to
+/// MFX Control 1/2; their destination is fixed per JV type, so Control
+/// Assign stays OFF and a control in use is reported.
+// ponytail: the map has no per-type destinations yet (#236).
 fn mfx(p: &mut Patch<'_>) {
-    let used = (0..4).any(|i| p.active(i) && p.tones[i][TONE_OUTPUT_ASSIGN] == OUTPUT_EFX);
-    if used && p.common[EFX_TYPE..=EFX_LAST_PARAM] != *init(EFX_TYPE..=EFX_LAST_PARAM) {
-        p.report.push(ConversionItem::EffectDropped {
-            source: ForeignEffect {
-                family: EffectFamily::JvEfx,
-                number: p.common[EFX_TYPE] + 1,
-            },
-        });
+    let bypassed: Vec<usize> = (0..4)
+        .filter(|&i| p.active(i) && p.tones[i][TONE_OUTPUT_ASSIGN] != OUTPUT_EFX)
+        .collect();
+    if (0..4).filter(|&i| p.active(i)).count() == bypassed.len() {
+        return;
+    }
+    let effect = ForeignEffect {
+        family: EffectFamily::JvEfx,
+        number: p.common[EFX_TYPE] + 1,
+    };
+    let mut source = [0; MFX_PARAM_COUNT];
+    for (slot, &v) in source
+        .iter_mut()
+        .zip(&p.common[EFX_TYPE + 1..=EFX_LAST_PARAM])
+    {
+        *slot = i32::from(v);
+    }
+    if !fx_map::convert(effect, &source, p.tone.mfx(), &mut p.report) {
+        return;
+    }
+    for i in bypassed {
+        p.drop_param(Some(i), "EFX bypass");
+    }
+    if p.common[EFX_MIX_OUT] != pcm_tone::FULL_LEVEL {
+        p.drop_param(None, "EFX Mix Out Send Level");
+    }
+    for (k, (at, name)) in (0..).zip(EFX_CONTROLS) {
+        let (source, depth) = (p.common[at], p.common[at + 1]);
+        let mapped = match control_source(source) {
+            ControlSource::To(to) if source <= EFX_LAST_SOURCE => Some(to),
+            ControlSource::Off => Some(0),
+            _ => None,
+        };
+        let at = |field| usize::from(mfx_header_offset(field, k).expect("MFX Control 1/2"));
+        let mfx = p.tone.mfx();
+        mfx[at(MfxHeaderField::ControlSource)] = mapped.unwrap_or(0);
+        mfx[at(MfxHeaderField::ControlSens)] = depth.saturating_add(1).min(0x7F);
+        if source != 0 && depth != NEUTRAL_DEPTH {
+            p.drop_param(None, name);
+        }
     }
 }
 

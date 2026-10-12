@@ -6,6 +6,7 @@
 //! (reserves with content) and `docs/research/xv-patch-format.md` (section 3,
 //! Integra-only parameters).
 
+use super::fx_map;
 use super::report::{ConversionItem, ConversionReport, Location};
 use super::wave_map::{Confidence, ForeignWave, ForeignWaveGroup};
 use crate::librarian::pack::{PackEntry, user_memory};
@@ -166,20 +167,20 @@ impl PcmTone {
         self.blocks[PMT][PMT_SWITCH + PMT_STRIDE * index] != 0
     }
 
-    /// Whether a switched-on partial follows the tempo: Wave Tempo Sync on,
-    /// or an LFO Rate or the Delay Time at a note value.
-    // ponytail: the MFX is not read, as every converted MFX is THRU (#213).
-    // Once it converts, a note-valued MFX delay or rate syncs too.
+    /// Whether the tone follows the tempo: a switched-on partial has Wave
+    /// Tempo Sync on, or an LFO Rate or the Delay Time at a note value, or
+    /// the MFX has a rate or delay at a note value.
     pub(super) fn syncs_to_tempo(&self) -> bool {
-        (0..PCMS_PARTIAL_COUNT)
-            .filter(|&i| self.is_on(i))
-            .map(|i| &self.blocks[PARTIAL_1 + i])
-            .any(|partial| {
-                partial[F::WaveTempoSync as usize] != 0
-                    || [F::Lfo1Rate, F::Lfo2Rate, F::DelayTime]
-                        .into_iter()
-                        .any(|f| nibble2(partial, f as usize) >= FIRST_NOTE)
-            })
+        fx_map::syncs_to_tempo(&self.blocks[MFX])
+            || (0..PCMS_PARTIAL_COUNT)
+                .filter(|&i| self.is_on(i))
+                .map(|i| &self.blocks[PARTIAL_1 + i])
+                .any(|partial| {
+                    partial[F::WaveTempoSync as usize] != 0
+                        || [F::Lfo1Rate, F::Lfo2Rate, F::DelayTime]
+                            .into_iter()
+                            .any(|f| nibble2(partial, f as usize) >= FIRST_NOTE)
+                })
     }
 
     /// Switch partial `index` (0-indexed) off in the PMT.

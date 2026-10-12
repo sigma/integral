@@ -8,7 +8,7 @@
 use core::fmt;
 
 use super::wave_map::{ForeignWave, WaveTarget};
-use crate::waves;
+use crate::{mfx_params, waves};
 
 /// Where in a converted entry a [`ConversionItem`] applies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,6 +67,13 @@ pub enum ConversionItem {
         /// The effect the Patch used.
         source: ForeignEffect,
     },
+    /// The tone's effect, approximated by the closest INTEGRA-7 MFX type.
+    EffectSubstituted {
+        /// The effect the Patch used.
+        source: ForeignEffect,
+        /// The INTEGRA-7 MFX type it became.
+        target: u8,
+    },
     /// A parameter with no INTEGRA-7 equivalent.
     ParamDropped {
         /// Where it was set, or `None` for a tone-wide parameter.
@@ -123,6 +130,13 @@ impl fmt::Display for ConversionItem {
             Self::EffectDropped { source } => {
                 write!(f, "{source} dropped, MFX set to THRU")
             }
+            Self::EffectSubstituted { source, target } => {
+                write!(f, "{source} approximated by MFX type {target}")?;
+                match mfx_params::mfx_type_def(*target) {
+                    Some(def) => write!(f, " ({})", def.name),
+                    None => Ok(()),
+                }
+            }
             Self::ParamDropped {
                 at: Some(at),
                 param,
@@ -173,7 +187,11 @@ impl fmt::Display for ForeignEffect {
             EffectFamily::JvEfx => "EFX",
             EffectFamily::XvMfx => "MFX",
         };
-        write!(f, "{family} type {}", self.number)
+        write!(f, "{family} type {}", self.number)?;
+        match self.name() {
+            Some(name) => write!(f, " ({name})"),
+            None => Ok(()),
+        }
     }
 }
 
@@ -323,6 +341,13 @@ mod tests {
                     number: 2,
                 },
             },
+            ConversionItem::EffectSubstituted {
+                source: ForeignEffect {
+                    family: EffectFamily::XvMfx,
+                    number: 99,
+                },
+                target: 31,
+            },
             ConversionItem::ParamDropped {
                 at: Some(Location::Key(38)),
                 param: "Receive Pan Mode",
@@ -347,7 +372,8 @@ mod tests {
             [
                 "Partial 1: SR-JV80-02 Wave 1 (Vl Sect A) has no INTEGRA-7 Wave",
                 "Key 36 WMT 2: SR-JV80-02 Wave 1 (Vl Sect A) approximated by SRX-06 Wave 29 (Vl Sect A)",
-                "EFX type 2 dropped, MFX set to THRU",
+                "EFX type 2 (OVERDRIVE) dropped, MFX set to THRU",
+                "MFX type 99 approximated by MFX type 31 (Compressor)",
                 "Key 38: Receive Pan Mode dropped",
                 "One Shot Mode dropped",
                 "Partial 4: Control 2 route to CUT (-10) dropped",

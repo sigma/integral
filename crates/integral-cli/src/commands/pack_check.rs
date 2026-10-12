@@ -90,7 +90,8 @@ struct Totals {
     models: Vec<ModelCount>,
     /// The top unmapped Waves, by the number of partials using them.
     unmapped_waves: Vec<Counted<ForeignWave>>,
-    /// The top dropped effects, by the number of tones using them.
+    /// The top dropped or substituted effects, by the number of tones using
+    /// them.
     dropped_effects: Vec<Counted<ForeignEffect>>,
     /// Every Conversion report item kind, most frequent first.
     item_kinds: Vec<Counted<String>>,
@@ -205,7 +206,8 @@ fn kind(item: &ConversionItem) -> String {
         .unwrap_or_default()
 }
 
-/// The totals of `files`, with `top` unmapped Waves and dropped effects.
+/// The totals of `files`, with `top` unmapped Waves and dropped or
+/// substituted effects.
 fn totals(files: &[FileCheck], skipped: &[PathError], unreadable: usize, top: usize) -> Totals {
     let mut waves = HashMap::new();
     let mut effects = HashMap::new();
@@ -237,7 +239,10 @@ fn totals(files: &[FileCheck], skipped: &[PathError], unreadable: usize, top: us
         *kinds.entry(kind(item)).or_default() += 1;
         match item {
             ConversionItem::WaveUnmapped { source, .. } => *waves.entry(*source).or_default() += 1,
-            ConversionItem::EffectDropped { source } => *effects.entry(*source).or_default() += 1,
+            ConversionItem::EffectDropped { source }
+            | ConversionItem::EffectSubstituted { source, .. } => {
+                *effects.entry(*source).or_default() += 1
+            }
             _ => {}
         }
     }
@@ -367,7 +372,7 @@ fn render_text(check: &Check) -> String {
     );
     render_ranked(
         &mut out,
-        "Top dropped effects (tones)",
+        "Top dropped or substituted effects (tones)",
         &t.dropped_effects,
         ToString::to_string,
     );
