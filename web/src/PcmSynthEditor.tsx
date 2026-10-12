@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   pcms_common_address,
   pcms_common_size,
@@ -50,7 +50,6 @@ interface Props {
 export function PcmSynthEditor({ partIndex, service, marking }: Props) {
   const [common, setCommon] = useState<PcmSynthCommon | null>(null);
   const [pmt, setPmt] = useState<PcmSynthPmt | null>(null);
-  const mainRef = useRef<HTMLDivElement>(null);
   const [_common2, setCommon2] = useState<PcmSynthCommon2 | null>(null);
   const [partials, setPartials] = useState<(PcmSynthPartial | null)[]>(() =>
     Array.from({ length: deviceSpec().pcm_synth_partial_count }, () => null),
@@ -205,7 +204,7 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
       {pmt && <PmtStrip pmt={pmt} onChange={setPmtParam} />}
 
       {/* Partial rows + MFX sidebar */}
-      <div ref={mainRef} className={css.mainArea}>
+      <div className={css.mainArea}>
         <div className={css.partialRows}>
           {[0, 2].map((first) => {
             const half = (idx: number): PairPartial => ({
@@ -235,7 +234,7 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
           )}
         </div>
         {/* Every partial output (one per merged pair) feeds the MFX. */}
-        <SignalArrows container={mainRef} edges={[0, 1, 2, 3].map((i) => ({ from: `out-${i}`, to: "mfx" }))} />
+        <SignalArrows edges={[0, 1, 2, 3].map((i) => ({ from: `out-${i}`, to: "mfx" }))} />
       </div>
     </div>
   );

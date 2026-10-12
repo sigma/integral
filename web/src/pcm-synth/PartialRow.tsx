@@ -8,7 +8,7 @@ import {
   FaderGroup,
   OutputStrip,
 } from "../synth-ui";
-import { useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { SignalArrows, type Edge } from "../synth-ui/SignalArrows";
 import { PcmsPartialField, pcms_partial_spec } from "../../pkg/integral_wasm.js";
 import { routingOf, type Block, type Side } from "./structureRouting";
@@ -80,7 +80,6 @@ export function PartialPair({
   /** A box's partial number, shown only once the pair is merged. */
   const nOf = (side: Side) => (merged ? number[side] : undefined);
   const followsFor = (side: Side) => (merged && side === "upper" ? number.lower : undefined);
-  const gridRef = useRef<HTMLDivElement>(null);
 
   /** One box of a block, dimmed with its own partial's power. */
   const box = (key: string, side: Side, content: ReactNode) => (
@@ -169,9 +168,9 @@ export function PartialPair({
   }
 
   return (
-    <div ref={gridRef} className={css.partialPair}>
+    <div className={css.partialPair}>
       {cells}
-      <SignalArrows container={gridRef} edges={edges} />
+      <SignalArrows edges={edges} />
     </div>
   );
 }

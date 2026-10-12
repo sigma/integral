@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState, type RefObject } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import css from "./SignalArrows.module.css";
 
 /** A signal connection from one box to another, by their `data-node` names. */
@@ -37,16 +37,20 @@ interface Drawing {
 }
 
 /**
- * Curved arrows between the boxes of a signal path, over `container`. Boxes
- * are found by their `data-node` attribute; arrows follow layout changes.
+ * Curved arrows between the boxes of a signal path, drawn over its parent
+ * element (which must be positioned). Boxes are found inside the parent by
+ * their `data-node` attribute; arrows follow layout changes.
  */
-export function SignalArrows({ container, edges }: { container: RefObject<HTMLElement | null>; edges: Edge[] }) {
+export function SignalArrows({ edges }: { edges: Edge[] }) {
+  const svgRef = useRef<SVGSVGElement>(null);
   const [drawing, setDrawing] = useState<Drawing>({ curves: [], glyphs: [] });
   const [size, setSize] = useState({ w: 0, h: 0 });
   const key = JSON.stringify(edges);
 
   useLayoutEffect(() => {
-    const root = container.current;
+    // The parent, not a ref passed down: a parent's ref isn't attached yet when
+    // its children's layout effects run.
+    const root = svgRef.current?.parentElement;
     if (!root) return;
     const measure = () => {
       const origin = root.getBoundingClientRect();
@@ -85,10 +89,10 @@ export function SignalArrows({ container, edges }: { container: RefObject<HTMLEl
       observer?.disconnect();
       root.removeEventListener("scroll", measure, true);
     };
-  }, [container, key]);
+  }, [key]);
 
   return (
-    <svg className={css.overlay} width={size.w} height={size.h} aria-hidden="true">
+    <svg ref={svgRef} className={css.overlay} width={size.w} height={size.h} aria-hidden="true">
       <defs>
         <marker id="signal-arrow" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="6" markerHeight="6" orient="auto">
           <path d="M 0 0 L 6 3 L 0 6 z" fill="#888" />
