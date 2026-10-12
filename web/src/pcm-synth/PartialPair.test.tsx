@@ -27,6 +27,8 @@ function layout(structure: number) {
 describe("PartialPair", () => {
   it("keeps independent partials (Structure 1) in their own rows, each with its OUTPUT", () => {
     const { spans, container } = layout(0);
+    // Each row is one partial: no numbers needed.
+    expect(container.textContent).not.toContain("FILTER 1");
     expect(spans("FILTER")).toEqual(["1", "2"]);
     expect(spans("OUTPUT")).toEqual(["1", "2"]);
     expect(container.textContent).not.toContain("Follows");
@@ -35,10 +37,15 @@ describe("PartialPair", () => {
   it("runs a merged pair's blocks after the join across both rows, with one OUTPUT", () => {
     // Structure 2: WG1→TVA1 and WG2 mix, then TVF1 → TVF2 → TVA2.
     const { spans, container } = layout(1);
-    expect(spans("FILTER")).toEqual(["1 / span 2", "1 / span 2"]);
-    expect(spans("AMP")).toEqual(["1", "1 / span 2"]);
-    expect(spans("OUTPUT")).toEqual(["1 / span 2"]);
-    expect(spans("CONTROL")).toEqual(["1", "2"]);
+    expect(spans("FILTER 1")).toEqual(["1 / span 2"]);
+    expect(spans("FILTER 2")).toEqual(["1 / span 2"]);
+    expect(spans("AMP 1")).toEqual(["1"]);
+    expect(spans("AMP 2")).toEqual(["1 / span 2"]);
+    expect(spans("OUTPUT 2")).toEqual(["1 / span 2"]);
+    expect(spans("CONTROL 1")).toEqual(["1"]);
+    // LFO depth faders name the box they target.
+    expect(container.querySelector('[role="slider"][aria-label="FLT 1"]')).not.toBeNull();
+    expect(container.querySelector('[role="slider"][aria-label="FLT 2"]')).not.toBeNull();
     // Partial 1's pan modulation follows partial 2.
     expect(container.querySelector('[title*="Follows partial 2"]')).not.toBeNull();
   });
