@@ -172,11 +172,18 @@ same parameter. The CSV column `same_param_at_slot` records the match for each s
 
 ## Reproducing
 
-Load Roland's files in a Node `vm` context, with stubs for `window.globals` and
-`model_excmap_bank`. Then read `globals.model.option.mfx.table` (R1) and
-`globals.model.stringer[leaf.id].getString(index)` (R3). Our side comes from
-`mfx_params::mfx_type_def(0..68)`. This needs no parsing, since Roland's own code builds
-the tables.
+[`mfx-param-gen.mjs`](mfx-param-gen.mjs) regenerates the per-type tables in `mfx_params.rs`
+(the region between its `BEGIN/END GENERATED` markers):
+
+```sh
+node docs/research/mfx-param-gen.mjs crates/integral-core/src/mfx_params.rs
+rustfmt --edition 2024 crates/integral-core/src/mfx_params.rs
+```
+
+It fetches R1 and R3 from the pinned commit and runs them in a Node `vm` context, so
+Roland's own code builds the tables (no parsing). For each leaf it picks the `FxUnit`
+whose output matches R3's display string for every stored value; anything else becomes a
+name list.
 
 ## Device checks
 
