@@ -140,20 +140,48 @@
    Partial row — one horizontal strip per partial
    ---------------------------------------------------------------- */
 
-.partialRow {
-  display: flex;
+/*
+ * A pair of partials (1 & 2, 3 & 4): two rows on one grid, so blocks after
+ * the Structure's join can span both rows; columns are placed by PartialPair.
+ */
+.partialPair {
+  display: grid;
+  grid-template-rows: auto auto;
   gap: 4px;
   align-items: stretch;
   overflow-x: auto;
   padding-bottom: 2px;
 }
 
-.partialRow > div {
+.pairCell {
   display: flex;
 }
 
-/* Dim the sections but not the power button (the first child), as in SN-S. */
-.partialDimmed > :not(:first-child) {
+.pairCell > * {
+  flex: 1;
+}
+
+/* Dim a switched-off partial's boxes, not its power button. */
+.partialDimmed {
+  opacity: 0.4;
+}
+
+/* Where a merged pair's two paths join: +, B (booster) or R (ring mod) */
+.joinMarker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  border: 1px solid #3a3a5a;
+  border-radius: 6px;
+  background: #1a1a30;
+  color: #ccc;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* A partial 1 (3) setting that follows partial 2 (4) in a merged Structure */
+.follows {
   opacity: 0.4;
 }
 

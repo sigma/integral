@@ -8,7 +8,9 @@ import {
   FaderGroup,
   OutputStrip,
 } from "../synth-ui";
+import type { ReactNode } from "react";
 import { PcmsPartialField, pcms_partial_spec } from "../../pkg/integral_wasm.js";
+import { routingOf, type Block, type Side } from "./structureRouting";
 import { knobRange, switchOptions } from "../fieldSpec";
 import { VelocityCurveSelect } from "./VelocityCurveSelect";
 import { LfoScope } from "../synth-ui/LfoScope";
@@ -23,47 +25,142 @@ function isStepWaveform(waveform: number): boolean {
   return pcms_partial_spec(PcmsPartialField.Lfo1Waveform).formatValue(waveform) === "STEP";
 }
 
-export function PartialRow({
-  idx,
-  partial,
-  isOn,
-  onParam,
-  onSwitch,
-  marking,
-}: {
-  idx: number;
+/** A setting's tooltip, noting when it follows partial `follows` in a merged Structure. */
+function followsTitle(title: string, follows?: number): string {
+  return follows ? `${title}. Follows partial ${follows} in this Structure.` : title;
+}
+
+/** One partial of a pair, with what its row needs. */
+export interface PairPartial {
   partial: PcmSynthPartial | null;
   isOn: boolean;
   onParam: PartialParamHandler;
   /** Sets the Partial's PMT Partial Switch. */
   onSwitch: (value: number) => void;
+}
+
+const JOIN_GLYPHS = { mix: "+", booster: "B", ring: "R" } as const;
+const JOIN_NAMES = { mix: "mixed", booster: "through the booster", ring: "ring modulated" } as const;
+
+/**
+ * A pair of partials (1 & 2, or 3 & 4) laid out along their Structure's
+ * signal path: each row keeps its modulation boxes (LFOs, STEP LFO), WAVE,
+ * PITCH and CONTROL, then the blocks before the join; blocks after the join,
+ * and a merged pair's single OUTPUT (the lower partial's), span both rows.
+ */
+export function PartialPair({
+  first,
+  structure,
+  upper,
+  lower,
+  marking,
+}: {
+  /** Index (0-based) of the pair's upper partial: 0 or 2. */
+  first: number;
+  /** The pair's Structure Type (0-9). */
+  structure: number;
+  upper: PairPartial;
+  lower: PairPartial;
   /** Loaded state of the Expansions behind SRX Wave Groups. */
   marking?: ExpansionMarking;
 }) {
-  const dimClass = isOn ? "" : css.partialDimmed;
-  const set: PartialSetter = (field, key, index = 0) =>
-    (v) => onParam(field, key, index, v);
+  const routing = routingOf(structure);
+  const sides = { upper, lower };
+  const number = { upper: first + 1, lower: first + 2 };
+  const setters = {
+    upper: setterFor(upper.onParam),
+    lower: setterFor(lower.onParam),
+  };
+  const merged = !!routing.join;
 
-  return (
-    <div className={`${css.partialRow} ${dimClass}`}>
-      <PartialPowerButton label={`Partial ${idx + 1}`} isOn={isOn} onToggle={() => onSwitch(isOn ? 0 : 1)} />
-      {partial ? (
-        <>
-          <WaveSection partial={partial} set={set} marking={marking} />
-          <PitchSection partial={partial} set={set} />
-          <TvfSection partial={partial} set={set} />
-          <TvaSection partial={partial} set={set} />
-          <Lfo1Section partial={partial} set={set} />
-          <Lfo2Section partial={partial} set={set} />
-          <StepLfoSection partial={partial} set={set}
-            dimmed={!isStepWaveform(partial.lfo1Waveform) && !isStepWaveform(partial.lfo2Waveform)} />
-          <OutputSection partial={partial} set={set} />
-        </>
-      ) : (
-        <div className={css.loading}>Loading...</div>
-      )}
-    </div>
-  );
+  const cells: ReactNode[] = [];
+  let col = 1;
+  /** Place a cell at `column`, in its partial's row or spanning both. */
+  const place = (key: string, row: Side | "both", column: number, node: ReactNode, dim: boolean) => {
+    cells.push(
+      <div key={key} className={`${css.pairCell} ${dim ? css.partialDimmed : ""}`}
+        style={{ gridColumn: column, gridRow: row === "both" ? "1 / span 2" : row === "upper" ? 1 : 2 }}>
+        {node}
+      </div>,
+    );
+  };
+  const perRow = (key: string, render: (side: Side, p: PcmSynthPartial) => ReactNode) => {
+    for (const side of ["upper", "lower"] as const) {
+      const p = sides[side].partial;
+      if (p) place(`${key}-${side}`, side, col, render(side, p), !sides[side].isOn);
+    }
+    col++;
+  };
+  const block = (b: Block, follows: boolean): ((side: Side, p: PcmSynthPartial) => ReactNode) | null => {
+    if (b.kind === "filter") return (side, p) => <TvfSection partial={p} set={setters[side]} />;
+    if (b.kind === "amp") {
+      return (side, p) => (
+        <TvaSection partial={p} set={setters[side]} follows={follows && side === "upper" ? number.lower : undefined} />
+      );
+    }
+    return null; // WAVE has its own column; the booster is a marker
+  };
+
+  for (const side of ["upper", "lower"] as const) {
+    place(`power-${side}`, side, 1, (
+      <PartialPowerButton label={`Partial ${number[side]}`} isOn={sides[side].isOn}
+        onToggle={() => sides[side].onSwitch(sides[side].isOn ? 0 : 1)} />
+    ), false);
+  }
+  col = 2;
+  const followsFor = (side: Side) => (merged && side === "upper" ? number.lower : undefined);
+  perRow("lfo1", (side, p) => <Lfo1Section partial={p} set={setters[side]} follows={followsFor(side)} />);
+  perRow("lfo2", (side, p) => <Lfo2Section partial={p} set={setters[side]} follows={followsFor(side)} />);
+  perRow("step", (side, p) => (
+    <StepLfoSection partial={p} set={setters[side]}
+      dimmed={!isStepWaveform(p.lfo1Waveform) && !isStepWaveform(p.lfo2Waveform)} />
+  ));
+  perRow("wave", (side, p) => <WaveSection partial={p} set={setters[side]} marking={marking} />);
+  perRow("pitch", (side, p) => <PitchSection partial={p} set={setters[side]} />);
+  perRow("control", (side, p) => <ControlSection partial={p} set={setters[side]} />);
+
+  // Blocks before the join, in each partial's own row (WAVE already placed).
+  const pre = { upper: routing.upper.slice(1), lower: routing.lower.slice(1) };
+  const preColumns = Math.max(pre.upper.length, pre.lower.length);
+  for (let i = 0; i < preColumns; i++) {
+    for (const side of ["upper", "lower"] as const) {
+      const b = pre[side][i];
+      const p = sides[side].partial;
+      const render = b && block(b, merged);
+      if (render && p) place(`pre${i}-${side}`, side, col, render(side, p), !sides[side].isOn);
+    }
+    col++;
+  }
+
+  const join = routing.join;
+  if (join) {
+    const marker = (key: string, glyph: string, title: string) => {
+      place(key, "both", col++, <div className={css.joinMarker} title={title}>{glyph}</div>, false);
+    };
+    marker("join", JOIN_GLYPHS[join.kind], `Partials ${number.upper} and ${number.lower} ${JOIN_NAMES[join.kind]}${
+      join.lowerDry ? `, with partial ${number.lower} also mixed in dry` : ""}`);
+    join.after.forEach((b, i) => {
+      if (b.kind === "booster") {
+        marker(`after${i}`, "B", "Booster: distorts the mix (depth set by Boost in PARTIAL MIX)");
+        return;
+      }
+      const side = b.side;
+      const p = sides[side].partial;
+      const render = block(b, merged);
+      if (render && p) place(`after${i}`, "both", col++, render(side, p), !sides[side].isOn);
+    });
+    // The pair has one output, through the lower partial.
+    const p = lower.partial;
+    if (p) place("output", "both", col, <OutputSection partial={p} set={setters.lower} />, !lower.isOn);
+  } else {
+    perRow("output", (side, p) => <OutputSection partial={p} set={setters[side]} />);
+  }
+
+  return <div className={css.partialPair}>{cells}</div>;
+}
+
+function setterFor(onParam: PartialParamHandler): PartialSetter {
+  return (field, key, index = 0) => (v) => onParam(field, key, index, v);
 }
 
 // ---------------------------------------------------------------------------
@@ -327,9 +424,12 @@ function TvfSection({
 function TvaSection({
   partial,
   set,
+  follows,
 }: {
   partial: PcmSynthPartial;
   set: PartialSetter;
+  /** Partial whose pan settings this one follows (merged Structure). */
+  follows?: number;
 }) {
   return (
     <SectionPanel label="AMP" accentColor="#6c8">
@@ -339,15 +439,21 @@ function TvaSection({
             onChange={set(PcmsPartialField.Pan, "pan")} color="#6c8"
             title="Partial stereo panning" />
         </div>
-        <SynthKnob label="Pan KF" value={partial.panKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.PanKeyfollow))}
-          onChange={set(PcmsPartialField.PanKeyfollow, "panKeyfollow")} color="#6c8"
-          title="Pan keyfollow — notes above C4 pan right (+) or left (−). When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
-        <SynthKnob label="Rnd Pan" value={partial.randomPanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.RandomPanDepth))}
-          onChange={set(PcmsPartialField.RandomPanDepth, "randomPanDepth")} color="#6c8"
-          title="Random pan depth — each note lands at a random position. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
-        <SynthKnob label="Alt Pan" value={partial.alternatePanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.AlternatePanDepth))}
-          onChange={set(PcmsPartialField.AlternatePanDepth, "alternatePanDepth")} color="#6c8"
-          title="Alternate pan depth — successive notes alternate left and right; L/R sets which side comes first. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
+        <div className={follows ? css.follows : undefined}>
+          <SynthKnob label="Pan KF" value={partial.panKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.PanKeyfollow))}
+            onChange={set(PcmsPartialField.PanKeyfollow, "panKeyfollow")} color="#6c8"
+            title={followsTitle("Pan keyfollow — notes above C4 pan right (+) or left (−). When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4.", follows)} />
+        </div>
+        <div className={follows ? css.follows : undefined}>
+          <SynthKnob label="Rnd Pan" value={partial.randomPanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.RandomPanDepth))}
+            onChange={set(PcmsPartialField.RandomPanDepth, "randomPanDepth")} color="#6c8"
+            title={followsTitle("Random pan depth — each note lands at a random position. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4.", follows)} />
+        </div>
+        <div className={follows ? css.follows : undefined}>
+          <SynthKnob label="Alt Pan" value={partial.alternatePanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.AlternatePanDepth))}
+            onChange={set(PcmsPartialField.AlternatePanDepth, "alternatePanDepth")} color="#6c8"
+            title={followsTitle("Alternate pan depth — successive notes alternate left and right; L/R sets which side comes first. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4.", follows)} />
+        </div>
         <VelocityCurveSelect className={css.at2} label="Vel Crv" value={partial.tvaLevelVelocityCurve}
           options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaLevelVelocityCurve))}
           onChange={set(PcmsPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} color="#6c8" title="Velocity response curve shape" />
@@ -418,9 +524,12 @@ function TvaSection({
 function Lfo1Section({
   partial,
   set,
+  follows,
 }: {
   partial: PcmSynthPartial;
   set: PartialSetter;
+  /** Partial whose pan settings this one follows (merged Structure). */
+  follows?: number;
 }) {
   return (
     <SectionPanel label="LFO1" accentColor="#a6f">
@@ -473,9 +582,11 @@ function Lfo1Section({
         <SynthFader label="Amp" value={partial.lfo1TvaDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1TvaDepth))}
           onChange={set(PcmsPartialField.Lfo1TvaDepth, "lfo1TvaDepth")} compact
           title="LFO modulation depth on amplitude (tremolo)" />
-        <SynthFader label="Pan" value={partial.lfo1PanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1PanDepth))}
-          onChange={set(PcmsPartialField.Lfo1PanDepth, "lfo1PanDepth")} compact
-          title="LFO modulation depth on panning (auto-pan)" />
+        <div className={follows ? css.follows : undefined}>
+          <SynthFader label="Pan" value={partial.lfo1PanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1PanDepth))}
+            onChange={set(PcmsPartialField.Lfo1PanDepth, "lfo1PanDepth")} compact
+            title={followsTitle("LFO modulation depth on panning (auto-pan)", follows)} />
+        </div>
       </FaderGroup>
     </SectionPanel>
   );
@@ -488,9 +599,12 @@ function Lfo1Section({
 function Lfo2Section({
   partial,
   set,
+  follows,
 }: {
   partial: PcmSynthPartial;
   set: PartialSetter;
+  /** Partial whose pan settings this one follows (merged Structure). */
+  follows?: number;
 }) {
   return (
     <SectionPanel label="LFO2" accentColor="#a6f">
@@ -543,9 +657,11 @@ function Lfo2Section({
         <SynthFader label="Amp" value={partial.lfo2TvaDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2TvaDepth))}
           onChange={set(PcmsPartialField.Lfo2TvaDepth, "lfo2TvaDepth")} compact
           title="LFO modulation depth on amplitude (tremolo)" />
-        <SynthFader label="Pan" value={partial.lfo2PanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2PanDepth))}
-          onChange={set(PcmsPartialField.Lfo2PanDepth, "lfo2PanDepth")} compact
-          title="LFO modulation depth on panning (auto-pan)" />
+        <div className={follows ? css.follows : undefined}>
+          <SynthFader label="Pan" value={partial.lfo2PanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2PanDepth))}
+            onChange={set(PcmsPartialField.Lfo2PanDepth, "lfo2PanDepth")} compact
+            title={followsTitle("LFO modulation depth on panning (auto-pan)", follows)} />
+        </div>
       </FaderGroup>
     </SectionPanel>
   );
@@ -566,10 +682,11 @@ function StepLfoSection({
 }) {
   const steps = partial.lfoStepValues ?? [];
   const smooth = partial.lfoStepType === 1;
-  const dimStyle = dimmed ? { opacity: 0.35 } : undefined;
+  // A flex wrapper, so the panel still fills its grid cell's height.
+  const wrapStyle = { display: "flex", opacity: dimmed ? 0.35 : undefined };
 
   return (
-    <div style={dimStyle}>
+    <div style={wrapStyle}>
     <SectionPanel label="STEP LFO" accentColor="#a6f">
       <LfoScope className={css.stepViz} shape="STEP" rate={0} steps={steps} smooth={smooth} />
       <div className={css.panelRow}>
@@ -595,6 +712,38 @@ function StepLfoSection({
 }
 
 // ---------------------------------------------------------------------------
+// Control Section: how the partial responds to playing, kept per partial
+// ---------------------------------------------------------------------------
+
+function ControlSection({
+  partial,
+  set,
+}: {
+  partial: PcmSynthPartial;
+  set: PartialSetter;
+}) {
+  return (
+    <SectionPanel label="CONTROL" accentColor="#6c8">
+      <SynthSwitch label="Env Mode" value={partial.envMode} vertical
+        options={switchOptions(pcms_partial_spec(PcmsPartialField.EnvMode))}
+        onChange={set(PcmsPartialField.EnvMode, "envMode")} led={false}
+        title="Envelope mode: NO-SUS plays once, SUSTAIN holds at sustain level" />
+      <div className={css.switchColumn}>
+        <SynthSwitch label="Bender" value={partial.receiveBender} options={switchOptions(pcms_partial_spec(PcmsPartialField.ReceiveBender))}
+          onChange={set(PcmsPartialField.ReceiveBender, "receiveBender")}
+          title="Respond to pitch bend" />
+        <SynthSwitch label="Express" value={partial.receiveExpression} options={switchOptions(pcms_partial_spec(PcmsPartialField.ReceiveExpression))}
+          onChange={set(PcmsPartialField.ReceiveExpression, "receiveExpression")}
+          title="Respond to expression pedal (CC11)" />
+        <SynthSwitch label="Hold" value={partial.receiveHold1} options={switchOptions(pcms_partial_spec(PcmsPartialField.ReceiveHold1))}
+          onChange={set(PcmsPartialField.ReceiveHold1, "receiveHold1")}
+          title="Respond to sustain pedal (CC64)" />
+      </div>
+    </SectionPanel>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Output Section
 // ---------------------------------------------------------------------------
 
@@ -608,10 +757,6 @@ function OutputSection({
   return (
     <SectionPanel label="OUTPUT" accentColor="#6c8">
       <div className={css.panelRow}>
-        <SynthSwitch label="Env Mode" value={partial.envMode} vertical
-          options={switchOptions(pcms_partial_spec(PcmsPartialField.EnvMode))}
-          onChange={set(PcmsPartialField.EnvMode, "envMode")} led={false}
-          title="Envelope mode: NO-SUS plays once, SUSTAIN holds at sustain level" />
         <SynthSwitch label="Delay" value={partial.delayMode} vertical
           options={switchOptions(pcms_partial_spec(PcmsPartialField.DelayMode))}
           onChange={set(PcmsPartialField.DelayMode, "delayMode")} led={false}
@@ -619,17 +764,6 @@ function OutputSection({
         <SynthKnob label="Delay" value={partial.delayTime} {...knobRange(pcms_partial_spec(PcmsPartialField.DelayTime))}
           onChange={set(PcmsPartialField.DelayTime, "delayTime")} color="#6c8"
           title="Delay time before this partial sounds" />
-      </div>
-      <div className={css.panelRow}>
-        <SynthSwitch label="Bender" value={partial.receiveBender} options={switchOptions(pcms_partial_spec(PcmsPartialField.ReceiveBender))}
-          onChange={set(PcmsPartialField.ReceiveBender, "receiveBender")}
-          title="Respond to pitch bend" />
-        <SynthSwitch label="Express" value={partial.receiveExpression} options={switchOptions(pcms_partial_spec(PcmsPartialField.ReceiveExpression))}
-          onChange={set(PcmsPartialField.ReceiveExpression, "receiveExpression")}
-          title="Respond to expression pedal (CC11)" />
-        <SynthSwitch label="Hold" value={partial.receiveHold1} options={switchOptions(pcms_partial_spec(PcmsPartialField.ReceiveHold1))}
-          onChange={set(PcmsPartialField.ReceiveHold1, "receiveHold1")}
-          title="Respond to sustain pedal (CC64)" />
       </div>
       <OutputStrip
         fx1={partial.chorusSend}

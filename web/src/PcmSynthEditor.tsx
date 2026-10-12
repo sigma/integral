@@ -33,7 +33,7 @@ import type {
 } from "./pcm-synth/types";
 import { CommonStrip } from "./pcm-synth/CommonStrip";
 import { PmtStrip } from "./pcm-synth/PmtStrip";
-import { PartialRow } from "./pcm-synth/PartialRow";
+import { PartialPair, type PairPartial } from "./pcm-synth/PartialRow";
 
 // ---------------------------------------------------------------------------
 // Component
@@ -205,18 +205,20 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
       {/* Partial rows + MFX sidebar */}
       <div className={css.mainArea}>
         <div className={css.partialRows}>
-          {partials.map((p, idx) => {
-            const isOn = (partialSwitches[idx] ?? 0) !== 0;
+          {[0, 2].map((first) => {
+            const half = (idx: number): PairPartial => ({
+              partial: partials[idx] ?? null,
+              isOn: (partialSwitches[idx] ?? 0) !== 0,
+              onParam: (...args) => setPartialParam(idx, ...args),
+              onSwitch: (v) => setPmtEntryParam(idx, PcmsPmtField.PartialSwitch, "partialSwitch", v),
+            });
             return (
-              <PartialRow
-                key={idx}
-                idx={idx}
-                partial={p}
-                isOn={isOn}
-                onParam={(...args) => setPartialParam(idx, ...args)}
-                onSwitch={(v) =>
-                  setPmtEntryParam(idx, PcmsPmtField.PartialSwitch, "partialSwitch", v)
-                }
+              <PartialPair
+                key={first}
+                first={first}
+                structure={(first ? pmt?.structureType34 : pmt?.structureType12) ?? 0}
+                upper={half(first)}
+                lower={half(first + 1)}
                 marking={marking}
               />
             );

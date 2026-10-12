@@ -1,13 +1,5 @@
-import { pcms_structure_routing } from "../../pkg/integral_wasm.js";
+import { routingOf, type Block } from "./structureRouting";
 import css from "../PcmSynthEditor.module.css";
-
-type Side = "upper" | "lower";
-type Block = { kind: "wave" | "filter" | "amp"; side: Side } | { kind: "booster" };
-interface Routing {
-  upper: Block[];
-  lower: Block[];
-  join?: { kind: "mix" | "booster" | "ring"; lowerDry: boolean; after: Block[] } | null;
-}
 
 const NAMES = { wave: "WG", filter: "TVF", amp: "TVA" } as const;
 const JOIN_LABELS = { mix: "+", booster: "B", ring: "R" } as const;
@@ -25,7 +17,7 @@ const HEIGHT = 56;
  * joins through a mixer, the booster (B) or the ring modulator (R).
  */
 export function StructureDiagram({ structure, first }: { structure: number; first: number }) {
-  const routing = pcms_structure_routing(structure) as Routing;
+  const routing = routingOf(structure);
   const label = (b: Block) =>
     b.kind === "booster" ? "B" : `${NAMES[b.kind]}${b.side === "upper" ? first : first + 1}`;
 
