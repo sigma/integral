@@ -119,11 +119,11 @@
   align-items: flex-start;
 }
 
+/* No flex: 1, so the MFX sidebar sits right next to the partials. */
 .partialRows {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  flex: 1;
   min-width: 0;
 }
 
@@ -233,6 +233,7 @@
 }
 
 .stepGrid {
+  margin-top: auto;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 2px;

@@ -1,6 +1,8 @@
 /* OutputStrip — sends knobs + level fader, channel-strip style */
 
+/* margin-top: auto sinks the strip to the bottom of a flex-column panel. */
 .strip {
+  margin-top: auto;
   display: flex;
   flex-direction: column;
   align-items: center;

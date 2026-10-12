@@ -1,5 +1,7 @@
-/* flex-end lines a lone fader up with the faders under an envelope curve. */
+/* flex-end lines a lone fader up with the faders under an envelope curve;
+   margin-top: auto sinks the row to the bottom of a flex-column panel. */
 .group {
+  margin-top: auto;
   display: flex;
   gap: 6px;
   align-items: flex-end;
