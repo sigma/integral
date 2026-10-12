@@ -43,9 +43,13 @@
    Key grid
    ---------------------------------------------------------------- */
 
-/* The kit-wide Kit Level fader, then the key grid and its legend */
+/*
+ * The kit-wide Kit Level fader at the left; the key grid and its legend
+ * centred in the box (the empty third column balances the first).
+ */
 .keyGridRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   gap: 8px;
   align-items: stretch;
 }
