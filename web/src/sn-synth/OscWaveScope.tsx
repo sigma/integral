@@ -1,9 +1,6 @@
-import css from "../SnSynthEditor.module.css";
+import { ScopeScreen, sampled } from "./ScopeScreen";
 
-const SINE = Array.from({ length: 65 }, (_, i) => {
-  const x = i / 64;
-  return `${i ? "L" : "M"} ${x} ${0.5 - 0.5 * Math.sin(x * 4 * Math.PI)}`;
-}).join(" ");
+const SINE = sampled(64, (x) => 0.5 - 0.5 * Math.sin(x * 4 * Math.PI));
 
 // Fixed pseudo-random samples (LCG), so the noise trace doesn't flicker between renders.
 const NOISE = (() => {
@@ -42,11 +39,7 @@ function superSaw(detune: number): string {
   // shortcut: spread exaggerated (±25% pitch at 127) so two cycles show it; not the device's real detune curve.
   const spread = (0.25 * Math.min(127, Math.max(0, detune))) / 127;
   const freqs = [-3, -2, -1, 0, 1, 2, 3].map((k) => 2 * (1 + (spread * k) / 3));
-  return Array.from({ length: 401 }, (_, i) => {
-    const x = i / 400;
-    const avg = freqs.reduce((sum, f) => sum + ((x * f) % 1), 0) / freqs.length;
-    return `${i ? "L" : "M"} ${x} ${1 - avg}`;
-  }).join(" ");
+  return sampled(400, (x) => 1 - freqs.reduce((sum, f) => sum + ((x * f) % 1), 0) / freqs.length);
 }
 
 /** Two cycles of each OSC wave, keyed by its OSC_WAVE_NAMES label. */
@@ -81,14 +74,12 @@ export function OscWaveScope({
   const path = isPw ? pulse(pulseWidth, pwShift) : wave === "SP-SAW" ? superSaw(superSawDetune) : SHAPES[wave];
   if (!path) return null;
   return (
-    <div className={css.oscScopeSlot}>
-      <svg className={css.oscScope} viewBox="-0.05 -0.15 1.1 1.3" preserveAspectRatio="none">
-        {isPw && pwmDepth > 0 && (
-          <path d={`${pulse(pulseWidth - pwmDepth, pwShift)} ${pulse(pulseWidth + pwmDepth, pwShift)}`} fill="none"
-            stroke="#fc8" strokeOpacity="0.3" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-        )}
-        <path d={path} fill="none" stroke="#fc8" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      </svg>
-    </div>
+    <ScopeScreen>
+      {isPw && pwmDepth > 0 && (
+        <path d={`${pulse(pulseWidth - pwmDepth, pwShift)} ${pulse(pulseWidth + pwmDepth, pwShift)}`} fill="none"
+          stroke="#fc8" strokeOpacity="0.3" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+      )}
+      <path d={path} fill="none" stroke="#fc8" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    </ScopeScreen>
   );
 }

@@ -119,19 +119,22 @@
   flex-shrink: 0;
 }
 
-/* Two equal rows the height of a knob: the PCM Wave picker (when shown) fills
-   the first, the knobs always sit on the second, level with the lower knob row
-   of the other panels. The min-width reserves the picker's room so the panel
-   doesn't resize when it appears. */
-.oscKnobArea {
+/* Two equal rows the height of a knob: a scope (or the OSC's PCM Wave picker)
+   fills the first, the knobs always sit on the second, level with the lower
+   knob row of the other panels. */
+.scopeKnobArea {
   display: grid;
   grid-template-rows: 1fr 1fr;
   gap: 6px;
-  min-width: 220px;
   margin-left: auto;
 }
 
-.oscKnobRow {
+/* Reserves the PCM Wave picker's room so the panel doesn't resize when it appears. */
+.oscKnobArea {
+  min-width: 220px;
+}
+
+.scopeKnobRow {
   grid-row: 2;
   display: flex;
   gap: 6px;
@@ -139,11 +142,11 @@
 }
 
 /* Fills the knob-height top row without adding to its height. */
-.oscScopeSlot {
+.scopeSlot {
   position: relative;
 }
 
-.oscScope {
+.scope {
   composes: screen from "./synth-ui/Scope.module.css";
   position: absolute;
   inset: 0;

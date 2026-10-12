@@ -13,6 +13,7 @@ import css from "../SnSynthEditor.module.css";
 import type { PartialParamHandler, SnSynthPartial } from "./types";
 import { WavePicker } from "../WavePicker";
 import { OscWaveScope } from "./OscWaveScope";
+import { LfoScope } from "./LfoScope";
 import { snSynthWaveSource } from "../waveCatalog";
 import {
   OSC_WAVE_NAMES,
@@ -137,7 +138,7 @@ function OscPanel({
               onChange={(v) => onChange(SnsPartialField.OscWaveVariation, v)} led={false} />
           )}
         </div>
-        <div className={css.oscKnobArea}>
+        <div className={`${css.scopeKnobArea} ${css.oscKnobArea}`}>
           {isPcm ? (
             <OscPcmWave waveNumber={partial.waveNumber} onChange={onChange} />
           ) : (
@@ -145,7 +146,7 @@ function OscPanel({
               pulseWidth={partial.oscPulseWidth} pwmDepth={partial.oscPwModDepth}
               pwShift={partial.pwShift} superSawDetune={partial.superSawDetune} />
           )}
-          <div className={css.oscKnobRow}>
+          <div className={css.scopeKnobRow}>
             <SynthKnob label="Pitch" value={partial.oscPitch} min={40} max={88} defaultValue={64} center={64}
               onChange={(v) => onChange(SnsPartialField.OscPitch, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8" />
             <SynthKnob label="HPF" value={partial.hpfCutoff} min={0} max={127} defaultValue={0}
@@ -309,11 +310,14 @@ function ModLfoPanel({
             )}
           </div>
         </div>
-        <div className={`${css.oscKnobGrid} ${css.knobsRight}`}>
-          <SynthKnob label="Rate" value={partial.modLfoRate} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(SnsPartialField.ModLfoRate, v)} formatValue={(v) => String(v)} color="#a6f" />
-          <SynthKnob label="Rate Ctrl" value={partial.modLfoRateControl} min={1} max={127} defaultValue={64} center={64}
-            onChange={(v) => onChange(SnsPartialField.ModLfoRateControl, v)} formatValue={(v) => signedFmt(v, 64)} color="#a6f" />
+        <div className={css.scopeKnobArea}>
+          <LfoScope shape={LFO_SHAPE_NAMES[partial.modLfoShape] ?? ""} rate={partial.modLfoRate} />
+          <div className={css.scopeKnobRow}>
+            <SynthKnob label="Rate" value={partial.modLfoRate} min={0} max={127} defaultValue={0}
+              onChange={(v) => onChange(SnsPartialField.ModLfoRate, v)} formatValue={(v) => String(v)} color="#a6f" />
+            <SynthKnob label="Rate Ctrl" value={partial.modLfoRateControl} min={1} max={127} defaultValue={64} center={64}
+              onChange={(v) => onChange(SnsPartialField.ModLfoRateControl, v)} formatValue={(v) => signedFmt(v, 64)} color="#a6f" />
+          </div>
         </div>
       </div>
       <FaderGroup>
@@ -360,11 +364,14 @@ function LfoPanel({
               onChange={(v) => onChange(SnsPartialField.LfoKeyTrigger, v)} />
           </div>
         </div>
-        <div className={`${css.oscKnobGrid} ${css.knobsRight}`}>
-          <SynthKnob label="Rate" value={partial.lfoRate} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(SnsPartialField.LfoRate, v)} formatValue={(v) => String(v)} color="#a6f" />
-          <SynthKnob label="Fade" value={partial.lfoFadeTime} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(SnsPartialField.LfoFadeTime, v)} formatValue={(v) => String(v)} color="#a6f" />
+        <div className={css.scopeKnobArea}>
+          <LfoScope shape={LFO_SHAPE_NAMES[partial.lfoShape] ?? ""} rate={partial.lfoRate} />
+          <div className={css.scopeKnobRow}>
+            <SynthKnob label="Rate" value={partial.lfoRate} min={0} max={127} defaultValue={0}
+              onChange={(v) => onChange(SnsPartialField.LfoRate, v)} formatValue={(v) => String(v)} color="#a6f" />
+            <SynthKnob label="Fade" value={partial.lfoFadeTime} min={0} max={127} defaultValue={0}
+              onChange={(v) => onChange(SnsPartialField.LfoFadeTime, v)} formatValue={(v) => String(v)} color="#a6f" />
+          </div>
         </div>
       </div>
       <FaderGroup>
