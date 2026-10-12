@@ -141,7 +141,8 @@ function OscPanel({
           {isPcm ? (
             <OscPcmWave waveNumber={partial.waveNumber} onChange={onChange} />
           ) : (
-            <OscWaveScope wave={OSC_WAVE_NAMES[partial.oscWave] ?? ""} />
+            <OscWaveScope wave={OSC_WAVE_NAMES[partial.oscWave] ?? ""}
+              pulseWidth={partial.oscPulseWidth} pwmDepth={partial.oscPwModDepth} />
           )}
           <div className={css.oscKnobRow}>
             <SynthKnob label="Pitch" value={partial.oscPitch} min={40} max={88} defaultValue={64} center={64}
