@@ -294,6 +294,14 @@ no Integra reverb.
    the Integra encoding for the same parameter, because the block layout is identical
    (both `00 00 01 11`) and parameter names match. Test: decode XV factory Patch dumps
    whose MFX settings are known, or read a few on hardware.
+
+   **Corpus range check** ([`xv-mfx-fit-check.py`](xv-mfx-fit-check.py), 2026-10-12): of the
+   38 XV types 41-90 with a target and corpus dumps (237 distinct MFX blocks), only 52, 78,
+   79, 80 and 88 keep every Parameter 1-32 within the target type's stored ranges in every
+   block. Every other type breaks a range, including the "same" types 53 OVERDRIVE 2 and
+   54 DISTORTION 2 (Parameter 3 in every block), so the hypothesis fails for most types.
+   Types 45, 56, 63, 67, 82, 83 and 85 have no corpus dumps. The five that fit are marked
+   `copy` in the JSON and convert verbatim; the rest take the target type's defaults.
 2. **JV note values.** J2 says Step Rate also accepts notes, but J1 gives raw 0-125, which the
    126-entry Hz table already fills. The note order for the 200-1000 ms delays (raw 116-125)
    is assumed equal to XV list \*1. Settle both against corpus Patches that use notes.

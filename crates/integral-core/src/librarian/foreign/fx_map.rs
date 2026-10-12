@@ -94,6 +94,8 @@ struct XvEffect {
     class: Class,
     /// The INTEGRA-7 MFX type, 0 for none.
     target: u8,
+    /// Whether its Parameters are laid out as the target's, so they copy.
+    copy: bool,
 }
 
 include!(concat!(env!("OUT_DIR"), "/foreign_fx_map_data.rs"));
@@ -145,16 +147,16 @@ pub(super) fn convert(
             jv_slots(e, source, report),
             e.class == Class::Substitute,
         )),
-        // ponytail: XV 41–90 are read in the INTEGRA-7 encoding, which no
-        // dump has checked (foreign-fx-map.md, Unresolved 1); only the
-        // `same` types count as faithful until it is.
-        Some(Entry::Xv(e)) if e.class == Class::Substitute => Some((
-            e.target,
-            default_slots(e.target).expect("a mapped type"),
-            true,
-        )),
+        // XV 41–90 copy only where every corpus dump fits the target's
+        // ranges (`copy` in the map); the rest take the target's defaults.
+        // In-range values don't prove the layout, so only a `same` type
+        // that copies counts as faithful.
         Some(Entry::Xv(e)) if e.class != Class::None => {
-            Some((e.target, *source, e.class != Class::Same))
+            let slots = match e.copy {
+                true => *source,
+                false => default_slots(e.target).expect("a mapped type"),
+            };
+            Some((e.target, slots, !(e.copy && e.class == Class::Same)))
         }
         _ => None,
     };
@@ -472,29 +474,33 @@ mod tests {
     fn xv_types_convert_with_the_jv_rows_or_verbatim() {
         let params = [0, 69, 115, 50, 10, 127, 100, 90, 15, 15, 80, 127];
         assert_eq!(converted(xv(19), &params), converted(jv(19), &params));
-        // SPEAKER SIMULATOR, the same type: copied, clean.
+        // SPEAKER SIMULATOR, the same type, fits: copied, clean.
         let (same, report) = converted(xv(52), &[3, 40, 50, 127]);
         assert_eq!(
             (same.mfx_type, &same.params[..4]),
             (8, &[3, 40, 50, 127][..])
         );
         assert!(report.is_empty());
-        // MULTI TAP DELAY, rescaled: copied, approximate.
-        let (rescaled, report) = converted(xv(45), &[7, 8]);
+        // GUITAR AMP SIMULATOR, rescaled, fits: copied, approximate.
+        let (rescaled, report) = converted(xv(78), &[1, 7, 8]);
         assert_eq!(
-            (rescaled.mfx_type, &rescaled.params[..2]),
-            (38, &[7, 8][..])
+            (rescaled.mfx_type, &rescaled.params[..3]),
+            (30, &[1, 7, 8][..])
         );
         assert_eq!(
             report,
             [ConversionItem::EffectSubstituted {
-                source: xv(45),
-                target: 38
+                source: xv(78),
+                target: 30
             }]
         );
-        // 3D DELAY, a substitute: the target's defaults.
-        let (substitute, _) = converted(xv(48), &[7, 8]);
-        assert_eq!(substitute.mfx_type, 36);
-        assert_eq!(substitute.params, default_slots(36).unwrap());
+        // SLICER, out of the target's ranges, and 3D DELAY, a substitute:
+        // the target's defaults.
+        for (number, target) in [(58, 18), (48, 36)] {
+            let (mfx, report) = converted(xv(number), &[7, 8]);
+            assert_eq!(mfx.mfx_type, target);
+            assert_eq!(mfx.params, default_slots(target).unwrap());
+            assert_eq!(report.len(), 1);
+        }
     }
 }

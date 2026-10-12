@@ -88,6 +88,10 @@ struct XvEffectEntry {
     class: String,
     /// The Integra type, led by its number (`9 PHASER 1 …`), or `-`.
     integra: String,
+    /// Whether the corpus check found its Parameters in the target's
+    /// layout, so they copy.
+    #[serde(default)]
+    copy: bool,
 }
 
 /// The part of `docs/research/foreign-fx-map.json` the build reads.
@@ -412,10 +416,11 @@ fn generate_foreign_fx_map(map_path: &Path, out_dir: &Path) {
         );
         writeln!(
             out,
-            "    XvEffect {{ name: {:?}, class: {}, target: {} }},",
+            "    XvEffect {{ name: {:?}, class: {}, target: {}, copy: {} }},",
             t.name,
             effect_class(&t.class),
-            target.unwrap_or(0)
+            target.unwrap_or(0),
+            t.copy
         )
         .unwrap();
     }
