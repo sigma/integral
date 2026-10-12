@@ -196,11 +196,6 @@
   flex-shrink: 0;
 }
 
-/* Spacer to align standalone faders with envelope faders */
-.faderWithCurveSpace {
-  padding-top: 28px;
-}
-
 /* ----------------------------------------------------------------
    Depth fader sections (LFO)
    ---------------------------------------------------------------- */

@@ -113,13 +113,6 @@
   flex-shrink: 0;
 }
 
-/* Spacer to align standalone faders with envelope faders.
-   The envelope has a 28px curve row above its faders;
-   standalone faders need matching top padding. */
-.faderWithCurveSpace {
-  padding-top: 28px;
-}
-
 /* Fixed-width area for wave selectors so knobs don't shift */
 .oscSelectors {
   display: flex;

@@ -154,14 +154,10 @@ function OscPanel({
         </div>
       </div>
       <FaderGroup>
-        <div className={css.faderWithCurveSpace}>
-          <SynthFader label="PWM" value={partial.oscPwModDepth} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(SnsPartialField.OscPwModDepth, v)} compact />
-        </div>
-        <div className={css.faderWithCurveSpace}>
-          <SynthFader label="PW" value={partial.oscPulseWidth} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(SnsPartialField.OscPulseWidth, v)} compact />
-        </div>
+        <SynthFader label="PWM" value={partial.oscPwModDepth} min={0} max={127} defaultValue={0}
+          onChange={(v) => onChange(SnsPartialField.OscPwModDepth, v)} compact />
+        <SynthFader label="PW" value={partial.oscPulseWidth} min={0} max={127} defaultValue={0}
+          onChange={(v) => onChange(SnsPartialField.OscPulseWidth, v)} compact />
         <FaderGroupSep />
         <ADSREnvelope
           compact
@@ -171,10 +167,8 @@ function OscPanel({
             onChange: (v) => onChange(SnsPartialField.OscPitchEnvDecay, v) }}
         />
         <FaderGroupSep />
-        <div className={css.faderWithCurveSpace}>
-          <SynthFader label="Dep" value={partial.oscPitchEnvDepth} min={1} max={127} defaultValue={64}
-            onChange={(v) => onChange(SnsPartialField.OscPitchEnvDepth, v)} formatValue={(v) => signedFmt(v, 64)} compact />
-        </div>
+        <SynthFader label="Dep" value={partial.oscPitchEnvDepth} min={1} max={127} defaultValue={64}
+          onChange={(v) => onChange(SnsPartialField.OscPitchEnvDepth, v)} formatValue={(v) => signedFmt(v, 64)} compact />
       </FaderGroup>
     </SectionPanel>
   );
@@ -224,10 +218,8 @@ function FilterPanel({
             onChange: (v) => onChange(SnsPartialField.FilterEnvRelease, v) }}
         />
         <FaderGroupSep />
-        <div className={css.faderWithCurveSpace}>
-          <SynthFader label="Dep" value={partial.filterEnvDepth} min={1} max={127} defaultValue={64}
-            onChange={(v) => onChange(SnsPartialField.FilterEnvDepth, v)} formatValue={(v) => signedFmt(v, 64)} compact />
-        </div>
+        <SynthFader label="Dep" value={partial.filterEnvDepth} min={1} max={127} defaultValue={64}
+          onChange={(v) => onChange(SnsPartialField.FilterEnvDepth, v)} formatValue={(v) => signedFmt(v, 64)} compact />
       </FaderGroup>
     </SectionPanel>
   );

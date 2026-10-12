@@ -1,7 +1,8 @@
+/* flex-end lines a lone fader up with the faders under an envelope curve. */
 .group {
   display: flex;
   gap: 6px;
-  align-items: flex-start;
+  align-items: flex-end;
 }
 
 .sep {
