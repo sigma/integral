@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 import type { WasmFxParamDef } from "../pkg/integral_wasm.js";
-import { SynthFader, SynthKnob, SynthSwitch } from "./synth-ui";
-import { SyncToggle } from "./SyncToggle";
-import css from "./ParamControl.module.css";
+import { SynthFader, SynthKnob, SynthSwitch, SyncedControl } from "./synth-ui";
 
 /** A spec param, paired with its note-mode view when it is tempo-syncable. */
 export interface SpecParam {
@@ -67,13 +65,12 @@ export function ParamControl({ param: { def, note }, slots, onNibParam, look = {
   const sync = def.syncIndex;
   if (!note || sync === undefined) return control;
   return (
-    <div className={css.synced}>
+    <SyncedControl
+      labels={def.syncLabels}
+      noteMode={active === note}
+      onNoteModeChange={(on) => onNibParam(sync, on ? 1 : 0)}
+    >
       {control}
-      <SyncToggle
-        labels={def.syncLabels}
-        noteMode={active === note}
-        onChange={(on) => onNibParam(sync, on ? 1 : 0)}
-      />
-    </div>
+    </SyncedControl>
   );
 }
