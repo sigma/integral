@@ -166,8 +166,8 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
   );
 
   /**
-   * Switch the tone to another instrument, then read Common back: the device
-   * may change more than the two fields (Category, Modify Parameters).
+   * Switch the tone to another instrument, set its Modify Parameters to their
+   * defaults, then read Common back to show what the device ended up with.
    */
   const pickInstrument = useCallback(
     (listNumber: number) => {
@@ -175,6 +175,12 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
       if (!inst) return; // the picker's "(unlisted)" entry
       setCommonParam(SnaCommonField.InstVariation, "instVariation", inst.variation);
       setCommonParam(SnaCommonField.InstNumber, "instNumber", inst.instNumber);
+      // The Modify slots keep the previous instrument's values, which mean
+      // nothing (or silence, for TW Organ's drawbars) to the new one: give it
+      // its defaults.
+      for (const def of parseInstParams(sna_inst_params(inst.variation, inst.instNumber))) {
+        setModifyParam(def.index - 1, def.defaultValue);
+      }
       service
         .requestData(Array.from(sna_common_address(partIndex)), Array.from(sna_common_size()))
         .then((data) => {
@@ -185,7 +191,7 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
           // Timeout: keep the local copy
         });
     },
-    [partIndex, service, setCommonParam],
+    [partIndex, service, setCommonParam, setModifyParam],
   );
 
   // ---------------------------------------------------------------------------

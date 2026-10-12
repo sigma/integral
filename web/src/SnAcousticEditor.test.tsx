@@ -75,11 +75,17 @@ describe("SnAcousticEditor", () => {
     )!;
     click(grand);
 
-    // Concert Grand: Inst Variation 64 (Common `00 20`), Inst Number 0 (`00 21`).
+    // Concert Grand: Inst Variation 64 (Common `00 20`), Inst Number 0 (`00 21`),
+    // then its Modify Parameters' defaults (slot n is Common `00 21` + n).
     const common = [...sna_common_address(PART).slice(0, 3)];
+    const defaults = (sna_inst_params(64, 0) as [number, string, number, number, number][]).map(
+      ([slot, , , , def]) => ({ address: [...common, 0x21 + slot], data: [def] }),
+    );
+    expect(defaults.length).toBeGreaterThan(0);
     expect(sentDt1s()).toEqual([
       { address: [...common, 0x20], data: [64] },
       { address: [...common, 0x21], data: [0] },
+      ...defaults,
     ]);
   });
 });
