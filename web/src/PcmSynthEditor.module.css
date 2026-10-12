@@ -147,14 +147,8 @@
   display: flex;
 }
 
-.partialSwitch {
-  display: flex;
-  align-items: center;
-  padding: 0 4px;
-  flex-shrink: 0;
-}
-
-.partialDimmed {
+/* Dim the sections but not the power button (the first child), as in SN-S. */
+.partialDimmed > :not(:first-child) {
   opacity: 0.4;
 }
 

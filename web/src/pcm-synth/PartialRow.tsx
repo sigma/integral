@@ -4,6 +4,7 @@ import {
   SynthSwitch,
   SynthSelect,
   SectionPanel,
+  PartialPowerButton,
   BreakpointEnvelope,
   FaderGroup,
   OutputStrip,
@@ -53,15 +54,7 @@ export function PartialRow({
 
   return (
     <div className={`${css.partialRow} ${dimClass}`}>
-      {/* Partial switch + label */}
-      <div className={css.partialSwitch}>
-        <SynthSwitch
-          label={`P${idx + 1}`}
-          value={isOn ? 1 : 0}
-          options={[{ value: 0, label: "OFF" }, { value: 1, label: "ON" }]}
-          onChange={onSwitch}
-        />
-      </div>
+      <PartialPowerButton label={`Partial ${idx + 1}`} isOn={isOn} onToggle={() => onSwitch(isOn ? 0 : 1)} />
       {partial ? (
         <>
           <WaveSection partial={partial} set={set} marking={marking} />

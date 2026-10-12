@@ -3,6 +3,7 @@ export { SynthKnob } from "./SynthKnob";
 export { SynthSwitch } from "./SynthSwitch";
 export { SynthSelect } from "./SynthSelect";
 export { SectionPanel } from "./SectionPanel";
+export { PartialPowerButton } from "./PartialPowerButton";
 export { ADSREnvelope } from "./ADSREnvelope";
 export { BreakpointEnvelope } from "./BreakpointEnvelope";
 export { FaderGroup, FaderGroupSep } from "./FaderGroup";
