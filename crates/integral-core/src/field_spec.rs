@@ -160,7 +160,7 @@ pub fn pcms_pmt_spec(field: PcmsPmtField) -> FieldSpec {
             9,
             Named(&["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]),
         ),
-        F::Booster12 | F::Booster34 => shape(0, 3, Named(&["0", "+6", "+12", "+18"])),
+        F::Booster12 | F::Booster34 => shape(0, 3, Named(&["0dB", "+6dB", "+12dB", "+18dB"])),
         F::PmtVelocityControl => shape(0, 3, Named(&["OFF", "ON", "RANDOM", "CYCLE"])),
         F::PartialSwitch => ON_OFF,
         F::KeyRangeLower | F::KeyRangeUpper => shape(0, 127, Note),
