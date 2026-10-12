@@ -54,11 +54,15 @@
    Per-key controls
    ---------------------------------------------------------------- */
 
+/*
+ * The key's boxes share one height (per line, when they wrap), so their
+ * envelopes and the LEVEL strip, which sink to the bottom, line up.
+ */
 .noteControls {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 .knobRow {
