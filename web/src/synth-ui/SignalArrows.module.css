@@ -1,0 +1,8 @@
+/* Drawn over the boxes it connects, without taking their clicks. */
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}

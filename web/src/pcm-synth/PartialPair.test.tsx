@@ -39,7 +39,6 @@ describe("PartialPair", () => {
     expect(spans("AMP")).toEqual(["1", "1 / span 2"]);
     expect(spans("OUTPUT")).toEqual(["1 / span 2"]);
     expect(spans("CONTROL")).toEqual(["1", "2"]);
-    expect(container.querySelector('[title^="Partials 1 and 2 mixed"]')).not.toBeNull();
     // Partial 1's pan modulation follows partial 2.
     expect(container.querySelector('[title*="Follows partial 2"]')).not.toBeNull();
   });
