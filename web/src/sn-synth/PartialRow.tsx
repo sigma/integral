@@ -2,7 +2,6 @@ import {
   SynthKnob,
   SynthFader,
   SynthSwitch,
-  SynthSelect,
   SectionPanel,
   PartialPowerButton,
   ADSREnvelope,
@@ -20,6 +19,7 @@ import type { PartialParamHandler, SnSynthPartial } from "./types";
 import { WavePicker } from "../WavePicker";
 import { OscWaveScope } from "./OscWaveScope";
 import { LfoScope } from "../synth-ui/LfoScope";
+import { SyncedRateKnob } from "./SyncedRateKnob";
 import { snSynthWaveSource } from "../waveCatalog";
 import { knobRange, switchOptions } from "../fieldSpec";
 
@@ -288,21 +288,12 @@ function ModLfoPanel({
           <SynthSwitch label="Shape" value={partial.modLfoShape} vertical
             options={switchOptions(sns_partial_spec(SnsPartialField.ModLfoShape))}
             onChange={(v) => onChange(SnsPartialField.ModLfoShape, v)} led={false} />
-          <div>
-            <SynthSwitch label="T.Sync" value={partial.modLfoTempoSync} options={switchOptions(sns_partial_spec(SnsPartialField.ModLfoTempoSync))}
-              onChange={(v) => onChange(SnsPartialField.ModLfoTempoSync, v)} />
-            {partial.modLfoTempoSync !== 0 && (
-              <SynthSelect label="Note" value={partial.modLfoTempoSyncNote}
-                options={switchOptions(sns_partial_spec(SnsPartialField.ModLfoTempoSyncNote))}
-                onChange={(v) => onChange(SnsPartialField.ModLfoTempoSyncNote, v)} />
-            )}
-          </div>
         </div>
         <div className={css.scopeKnobArea}>
           <LfoScope shape={nameOf(SnsPartialField.ModLfoShape, partial.modLfoShape)} rate={partial.modLfoRate} />
           <div className={css.scopeKnobRow}>
-            <SynthKnob label="Rate" value={partial.modLfoRate} {...knobRange(sns_partial_spec(SnsPartialField.ModLfoRate))}
-              onChange={(v) => onChange(SnsPartialField.ModLfoRate, v)} color="#a6f" />
+            <SyncedRateKnob label="Rate" field={SnsPartialField.ModLfoRate} rate={partial.modLfoRate}
+              tempoSync={partial.modLfoTempoSync} note={partial.modLfoTempoSyncNote} onChange={onChange} color="#a6f" />
             <SynthKnob label="Rate Ctrl" value={partial.modLfoRateControl} {...knobRange(sns_partial_spec(SnsPartialField.ModLfoRateControl))}
               onChange={(v) => onChange(SnsPartialField.ModLfoRateControl, v)} color="#a6f" />
           </div>
@@ -341,13 +332,6 @@ function LfoPanel({
             options={switchOptions(sns_partial_spec(SnsPartialField.LfoShape))}
             onChange={(v) => onChange(SnsPartialField.LfoShape, v)} led={false} />
           <div>
-            <SynthSwitch label="T.Sync" value={partial.lfoTempoSync} options={switchOptions(sns_partial_spec(SnsPartialField.LfoTempoSync))}
-              onChange={(v) => onChange(SnsPartialField.LfoTempoSync, v)} />
-            {partial.lfoTempoSync !== 0 && (
-              <SynthSelect label="Note" value={partial.lfoTempoSyncNote}
-                options={switchOptions(sns_partial_spec(SnsPartialField.LfoTempoSyncNote))}
-                onChange={(v) => onChange(SnsPartialField.LfoTempoSyncNote, v)} />
-            )}
             <SynthSwitch label="KeyTrig" value={partial.lfoKeyTrigger} options={switchOptions(sns_partial_spec(SnsPartialField.LfoKeyTrigger))}
               onChange={(v) => onChange(SnsPartialField.LfoKeyTrigger, v)} />
           </div>
@@ -355,8 +339,8 @@ function LfoPanel({
         <div className={css.scopeKnobArea}>
           <LfoScope shape={nameOf(SnsPartialField.LfoShape, partial.lfoShape)} rate={partial.lfoRate} />
           <div className={css.scopeKnobRow}>
-            <SynthKnob label="Rate" value={partial.lfoRate} {...knobRange(sns_partial_spec(SnsPartialField.LfoRate))}
-              onChange={(v) => onChange(SnsPartialField.LfoRate, v)} color="#a6f" />
+            <SyncedRateKnob label="Rate" field={SnsPartialField.LfoRate} rate={partial.lfoRate}
+              tempoSync={partial.lfoTempoSync} note={partial.lfoTempoSyncNote} onChange={onChange} color="#a6f" />
             <SynthKnob label="Fade" value={partial.lfoFadeTime} {...knobRange(sns_partial_spec(SnsPartialField.LfoFadeTime))}
               onChange={(v) => onChange(SnsPartialField.LfoFadeTime, v)} color="#a6f" />
           </div>
