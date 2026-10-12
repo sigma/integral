@@ -57,7 +57,9 @@ build-wasm:
 
 # build WASM package for web consumption
 pack-wasm:
-    wasm-pack build crates/integral-wasm --target web --out-dir ../../web/pkg
+    wasm-pack build crates/integral-wasm --target web --out-dir ../../target/wasm-pkg
+    # Copy only the files that changed: a running dev server fully reloads on any write to web/pkg.
+    mkdir -p web/pkg && for f in target/wasm-pkg/*; do cmp -s "$f" "web/pkg/${f##*/}" || cp "$f" web/pkg/; done
 
 # run all tests
 test:
