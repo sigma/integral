@@ -90,20 +90,7 @@ function WaveSection({
           <SynthSwitch label="FXM" value={partial.waveFxmSwitch} options={switchOptions(pcms_partial_spec(PcmsPartialField.WaveFxmSwitch))}
             onChange={set(PcmsPartialField.WaveFxmSwitch, "waveFxmSwitch")} title="Frequency Cross Modulation" />
         </div>
-        <div className={`${css.knobGrid} ${css.knobGrid3}`}>
-          <SynthKnob label="Coarse" value={partial.coarseTune} {...knobRange(pcms_partial_spec(PcmsPartialField.CoarseTune))}
-            onChange={set(PcmsPartialField.CoarseTune, "coarseTune")} color="#fc8"
-            title="Coarse tuning (semitones)" />
-          <SynthKnob label="Fine" value={partial.fineTune} {...knobRange(pcms_partial_spec(PcmsPartialField.FineTune))}
-            onChange={set(PcmsPartialField.FineTune, "fineTune")} color="#fc8"
-            title="Fine tuning (cents)" />
-          <SynthKnob label="Random" value={partial.randomPitchDepth}
-            {...knobRange(pcms_partial_spec(PcmsPartialField.RandomPitchDepth))}
-            onChange={set(PcmsPartialField.RandomPitchDepth, "randomPitchDepth")} color="#fc8"
-            title="Random pitch variation on each note (cents)" />
-          <SynthKnob label="Key Trk" value={partial.wavePitchKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.WavePitchKeyfollow))}
-            onChange={set(PcmsPartialField.WavePitchKeyfollow, "wavePitchKeyfollow")} color="#fc8"
-            title="Pitch keyboard tracking" />
+        <div className={css.knobGrid}>
           <SynthKnob label="FXM Col" value={partial.waveFxmColor} {...knobRange(pcms_partial_spec(PcmsPartialField.WaveFxmColor))}
             onChange={set(PcmsPartialField.WaveFxmColor, "waveFxmColor")} color="#fc8"
             title="FXM Color — tonal character" />
@@ -164,53 +151,70 @@ function PitchSection({
   set: PartialSetter;
 }) {
   return (
-    <SectionPanel label="PITCH ENV" accentColor="#fc8">
+    <SectionPanel label="PITCH" accentColor="#fc8">
       <div className={css.panelRow}>
-        <SynthKnob label="Depth" value={partial.pitchEnvDepth}
-          {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvDepth))}
-          onChange={set(PcmsPartialField.PitchEnvDepth, "pitchEnvDepth")} color="#fc8"
-          title="Pitch envelope depth (semitones) — how much the envelope affects pitch" />
-        <SynthKnob label="Vel Sns" value={partial.pitchEnvVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvVelocitySens))}
-          onChange={set(PcmsPartialField.PitchEnvVelocitySens, "pitchEnvVelocitySens")} color="#fc8"
-          title="Velocity sensitivity — how key velocity affects envelope depth" />
-        <SynthKnob label="Key Trk" value={partial.pitchEnvTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvTimeKeyfollow))}
-          onChange={set(PcmsPartialField.PitchEnvTimeKeyfollow, "pitchEnvTimeKeyfollow")} color="#fc8"
-          title="Envelope time key tracking — higher keys = faster envelope" />
-        <SynthKnob label="T1 Vel" value={partial.pitchEnvT1VelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvT1VelocitySens))}
-          onChange={set(PcmsPartialField.PitchEnvT1VelocitySens, "pitchEnvT1VelocitySens")} color="#fc8"
-          title="Pitch envelope Time 1 velocity sensitivity — harder keys change the first stage time" />
-        <SynthKnob label="T4 Vel" value={partial.pitchEnvT4VelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvT4VelocitySens))}
-          onChange={set(PcmsPartialField.PitchEnvT4VelocitySens, "pitchEnvT4VelocitySens")} color="#fc8"
-          title="Pitch envelope Time 4 velocity sensitivity — release velocity changes the release time" />
+        <SynthKnob label="Coarse" value={partial.coarseTune} {...knobRange(pcms_partial_spec(PcmsPartialField.CoarseTune))}
+          onChange={set(PcmsPartialField.CoarseTune, "coarseTune")} color="#fc8"
+          title="Coarse tuning (semitones)" />
+        <SynthKnob label="Fine" value={partial.fineTune} {...knobRange(pcms_partial_spec(PcmsPartialField.FineTune))}
+          onChange={set(PcmsPartialField.FineTune, "fineTune")} color="#fc8"
+          title="Fine tuning (cents)" />
+        <SynthKnob label="Random" value={partial.randomPitchDepth}
+          {...knobRange(pcms_partial_spec(PcmsPartialField.RandomPitchDepth))}
+          onChange={set(PcmsPartialField.RandomPitchDepth, "randomPitchDepth")} color="#fc8"
+          title="Random pitch variation on each note (cents)" />
+        <SynthKnob label="Key Trk" value={partial.wavePitchKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.WavePitchKeyfollow))}
+          onChange={set(PcmsPartialField.WavePitchKeyfollow, "wavePitchKeyfollow")} color="#fc8"
+          title="Pitch keyboard tracking" />
       </div>
-      <BreakpointEnvelope
-        compact
-        times={[{
-          label: "T1", value: partial.pitchEnvTime[0] ?? 0,
-          onChange: set(PcmsPartialField.PitchEnvTime, "pitchEnvTime", 0), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvTime)),
-        }, {
-          label: "T2", value: partial.pitchEnvTime[1] ?? 0,
-          onChange: set(PcmsPartialField.PitchEnvTime, "pitchEnvTime", 1), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvTime)),
-        }, {
-          label: "T3", value: partial.pitchEnvTime[2] ?? 0,
-          onChange: set(PcmsPartialField.PitchEnvTime, "pitchEnvTime", 2), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvTime)),
-        }, {
-          label: "T4", value: partial.pitchEnvTime[3] ?? 0,
-          onChange: set(PcmsPartialField.PitchEnvTime, "pitchEnvTime", 3), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvTime)),
-        }]}
-        levels={[
-          { label: "L0", value: partial.pitchEnvLevel[0] ?? 64,
-            onChange: set(PcmsPartialField.PitchEnvLevel, "pitchEnvLevel", 0), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvLevel)), },
-          { label: "L1", value: partial.pitchEnvLevel[1] ?? 64,
-            onChange: set(PcmsPartialField.PitchEnvLevel, "pitchEnvLevel", 1), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvLevel)), },
-          { label: "L2", value: partial.pitchEnvLevel[2] ?? 64,
-            onChange: set(PcmsPartialField.PitchEnvLevel, "pitchEnvLevel", 2), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvLevel)), },
-          { label: "L3", value: partial.pitchEnvLevel[3] ?? 64,
-            onChange: set(PcmsPartialField.PitchEnvLevel, "pitchEnvLevel", 3), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvLevel)), },
-          { label: "L4", value: partial.pitchEnvLevel[4] ?? 64,
-            onChange: set(PcmsPartialField.PitchEnvLevel, "pitchEnvLevel", 4), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvLevel)), },
-        ]}
-      />
+      <div className={css.envBlock}>
+        <div className={css.panelRow}>
+          <SynthKnob label="Depth" value={partial.pitchEnvDepth}
+            {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvDepth))}
+            onChange={set(PcmsPartialField.PitchEnvDepth, "pitchEnvDepth")} color="#fc8"
+            title="Pitch envelope depth (semitones) — how much the envelope affects pitch" />
+          <SynthKnob label="Vel Sns" value={partial.pitchEnvVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvVelocitySens))}
+            onChange={set(PcmsPartialField.PitchEnvVelocitySens, "pitchEnvVelocitySens")} color="#fc8"
+            title="Velocity sensitivity — how key velocity affects envelope depth" />
+          <SynthKnob label="Key Trk" value={partial.pitchEnvTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvTimeKeyfollow))}
+            onChange={set(PcmsPartialField.PitchEnvTimeKeyfollow, "pitchEnvTimeKeyfollow")} color="#fc8"
+            title="Envelope time key tracking — higher keys = faster envelope" />
+          <SynthKnob label="T1 Vel" value={partial.pitchEnvT1VelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvT1VelocitySens))}
+            onChange={set(PcmsPartialField.PitchEnvT1VelocitySens, "pitchEnvT1VelocitySens")} color="#fc8"
+            title="Pitch envelope Time 1 velocity sensitivity — harder keys change the first stage time" />
+          <SynthKnob label="T4 Vel" value={partial.pitchEnvT4VelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvT4VelocitySens))}
+            onChange={set(PcmsPartialField.PitchEnvT4VelocitySens, "pitchEnvT4VelocitySens")} color="#fc8"
+            title="Pitch envelope Time 4 velocity sensitivity — release velocity changes the release time" />
+        </div>
+        <BreakpointEnvelope
+          compact
+          times={[{
+            label: "T1", value: partial.pitchEnvTime[0] ?? 0,
+            onChange: set(PcmsPartialField.PitchEnvTime, "pitchEnvTime", 0), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvTime)),
+          }, {
+            label: "T2", value: partial.pitchEnvTime[1] ?? 0,
+            onChange: set(PcmsPartialField.PitchEnvTime, "pitchEnvTime", 1), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvTime)),
+          }, {
+            label: "T3", value: partial.pitchEnvTime[2] ?? 0,
+            onChange: set(PcmsPartialField.PitchEnvTime, "pitchEnvTime", 2), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvTime)),
+          }, {
+            label: "T4", value: partial.pitchEnvTime[3] ?? 0,
+            onChange: set(PcmsPartialField.PitchEnvTime, "pitchEnvTime", 3), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvTime)),
+          }]}
+          levels={[
+            { label: "L0", value: partial.pitchEnvLevel[0] ?? 64,
+              onChange: set(PcmsPartialField.PitchEnvLevel, "pitchEnvLevel", 0), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvLevel)), },
+            { label: "L1", value: partial.pitchEnvLevel[1] ?? 64,
+              onChange: set(PcmsPartialField.PitchEnvLevel, "pitchEnvLevel", 1), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvLevel)), },
+            { label: "L2", value: partial.pitchEnvLevel[2] ?? 64,
+              onChange: set(PcmsPartialField.PitchEnvLevel, "pitchEnvLevel", 2), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvLevel)), },
+            { label: "L3", value: partial.pitchEnvLevel[3] ?? 64,
+              onChange: set(PcmsPartialField.PitchEnvLevel, "pitchEnvLevel", 3), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvLevel)), },
+            { label: "L4", value: partial.pitchEnvLevel[4] ?? 64,
+              onChange: set(PcmsPartialField.PitchEnvLevel, "pitchEnvLevel", 4), ...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvLevel)), },
+          ]}
+        />
+      </div>
     </SectionPanel>
   );
 }
@@ -228,36 +232,10 @@ function TvfSection({
 }) {
   return (
     <SectionPanel label="FILTER" accentColor="#68c">
-      <div className={css.filterGrid}>
-        <SynthKnob label="Depth" value={partial.tvfEnvDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvDepth))}
-          onChange={set(PcmsPartialField.TvfEnvDepth, "tvfEnvDepth")} color="#68c"
-          title="Filter envelope depth — how much the envelope sweeps the cutoff" />
-        <SynthKnob label="Vel Sns" value={partial.tvfEnvVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvVelocitySens))}
-          onChange={set(PcmsPartialField.TvfEnvVelocitySens, "tvfEnvVelocitySens")} color="#68c"
-          title="Envelope velocity sensitivity — harder keys = deeper sweep" />
-        <SynthKnob label="Key Trk" value={partial.tvfEnvTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvTimeKeyfollow))}
-          onChange={set(PcmsPartialField.TvfEnvTimeKeyfollow, "tvfEnvTimeKeyfollow")} color="#68c"
-          title="Envelope time key tracking — higher keys = faster envelope" />
-        <SynthKnob label="T1 Vel" value={partial.tvfEnvT1VelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvT1VelocitySens))}
-          onChange={set(PcmsPartialField.TvfEnvT1VelocitySens, "tvfEnvT1VelocitySens")} color="#68c"
-          title="Filter envelope Time 1 velocity sensitivity — harder keys change the first stage time" />
-        <SynthKnob label="T4 Vel" value={partial.tvfEnvT4VelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvT4VelocitySens))}
-          onChange={set(PcmsPartialField.TvfEnvT4VelocitySens, "tvfEnvT4VelocitySens")} color="#68c"
-          title="Filter envelope Time 4 velocity sensitivity — release velocity changes the release time" />
+      <div className={css.panelRow}>
         <SynthSwitch label="Type" value={partial.tvfFilterType} vertical
           options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfFilterType))}
           onChange={set(PcmsPartialField.TvfFilterType, "tvfFilterType")} title="Filter type" />
-        <div className={css.stack}>
-          <SynthSelect label="Vel Crv" value={partial.tvfCutoffVelocityCurve}
-            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocityCurve))}
-            onChange={set(PcmsPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} title="Cutoff velocity response curve shape" />
-          <SynthSelect label="Env Crv" value={partial.tvfEnvVelocityCurve}
-            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfEnvVelocityCurve))}
-            onChange={set(PcmsPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} title="Envelope velocity response curve shape" />
-        </div>
-        <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffKeyfollow))}
-          onChange={set(PcmsPartialField.TvfCutoffKeyfollow, "tvfCutoffKeyfollow")} color="#68c"
-          title="Cutoff key tracking — higher keys = higher cutoff" />
         <div className={css.stack}>
           <SynthKnob label="Cutoff" value={partial.tvfCutoffFrequency} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffFrequency))}
             onChange={set(PcmsPartialField.TvfCutoffFrequency, "tvfCutoffFrequency")} color="#68c"
@@ -274,35 +252,65 @@ function TvfSection({
             onChange={set(PcmsPartialField.TvfResonanceVelocitySens, "tvfResonanceVelocitySens")} color="#68c"
             title="Resonance velocity sensitivity — harder keys = more resonance" />
         </div>
+        <div className={css.stack}>
+          <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffKeyfollow))}
+            onChange={set(PcmsPartialField.TvfCutoffKeyfollow, "tvfCutoffKeyfollow")} color="#68c"
+            title="Cutoff key tracking — higher keys = higher cutoff" />
+          <SynthSelect label="Vel Crv" value={partial.tvfCutoffVelocityCurve}
+            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocityCurve))}
+            onChange={set(PcmsPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} title="Cutoff velocity response curve shape" />
+        </div>
       </div>
-      <BreakpointEnvelope
-        compact
-        times={[{
-          label: "T1", value: partial.tvfEnvTime[0] ?? 0,
-          onChange: set(PcmsPartialField.TvfEnvTime, "tvfEnvTime", 0), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvTime)),
-        }, {
-          label: "T2", value: partial.tvfEnvTime[1] ?? 0,
-          onChange: set(PcmsPartialField.TvfEnvTime, "tvfEnvTime", 1), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvTime)),
-        }, {
-          label: "T3", value: partial.tvfEnvTime[2] ?? 0,
-          onChange: set(PcmsPartialField.TvfEnvTime, "tvfEnvTime", 2), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvTime)),
-        }, {
-          label: "T4", value: partial.tvfEnvTime[3] ?? 0,
-          onChange: set(PcmsPartialField.TvfEnvTime, "tvfEnvTime", 3), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvTime)),
-        }]}
-        levels={[
-          { label: "L0", value: partial.tvfEnvLevel[0] ?? 0,
-            onChange: set(PcmsPartialField.TvfEnvLevel, "tvfEnvLevel", 0), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvLevel)), },
-          { label: "L1", value: partial.tvfEnvLevel[1] ?? 127,
-            onChange: set(PcmsPartialField.TvfEnvLevel, "tvfEnvLevel", 1), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvLevel)), },
-          { label: "L2", value: partial.tvfEnvLevel[2] ?? 127,
-            onChange: set(PcmsPartialField.TvfEnvLevel, "tvfEnvLevel", 2), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvLevel)), },
-          { label: "L3", value: partial.tvfEnvLevel[3] ?? 127,
-            onChange: set(PcmsPartialField.TvfEnvLevel, "tvfEnvLevel", 3), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvLevel)), },
-          { label: "L4", value: partial.tvfEnvLevel[4] ?? 0,
-            onChange: set(PcmsPartialField.TvfEnvLevel, "tvfEnvLevel", 4), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvLevel)), },
-        ]}
-      />
+      <div className={css.envBlock}>
+        <div className={css.panelRow}>
+          <SynthKnob label="Depth" value={partial.tvfEnvDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvDepth))}
+            onChange={set(PcmsPartialField.TvfEnvDepth, "tvfEnvDepth")} color="#68c"
+            title="Filter envelope depth — how much the envelope sweeps the cutoff" />
+          <SynthKnob label="Vel Sns" value={partial.tvfEnvVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvVelocitySens))}
+            onChange={set(PcmsPartialField.TvfEnvVelocitySens, "tvfEnvVelocitySens")} color="#68c"
+            title="Envelope velocity sensitivity — harder keys = deeper sweep" />
+          <SynthSelect label="Env Crv" value={partial.tvfEnvVelocityCurve}
+            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfEnvVelocityCurve))}
+            onChange={set(PcmsPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} title="Envelope velocity response curve shape" />
+          <SynthKnob label="Key Trk" value={partial.tvfEnvTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvTimeKeyfollow))}
+            onChange={set(PcmsPartialField.TvfEnvTimeKeyfollow, "tvfEnvTimeKeyfollow")} color="#68c"
+            title="Envelope time key tracking — higher keys = faster envelope" />
+          <SynthKnob label="T1 Vel" value={partial.tvfEnvT1VelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvT1VelocitySens))}
+            onChange={set(PcmsPartialField.TvfEnvT1VelocitySens, "tvfEnvT1VelocitySens")} color="#68c"
+            title="Filter envelope Time 1 velocity sensitivity — harder keys change the first stage time" />
+          <SynthKnob label="T4 Vel" value={partial.tvfEnvT4VelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvT4VelocitySens))}
+            onChange={set(PcmsPartialField.TvfEnvT4VelocitySens, "tvfEnvT4VelocitySens")} color="#68c"
+            title="Filter envelope Time 4 velocity sensitivity — release velocity changes the release time" />
+        </div>
+        <BreakpointEnvelope
+          compact
+          times={[{
+            label: "T1", value: partial.tvfEnvTime[0] ?? 0,
+            onChange: set(PcmsPartialField.TvfEnvTime, "tvfEnvTime", 0), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvTime)),
+          }, {
+            label: "T2", value: partial.tvfEnvTime[1] ?? 0,
+            onChange: set(PcmsPartialField.TvfEnvTime, "tvfEnvTime", 1), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvTime)),
+          }, {
+            label: "T3", value: partial.tvfEnvTime[2] ?? 0,
+            onChange: set(PcmsPartialField.TvfEnvTime, "tvfEnvTime", 2), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvTime)),
+          }, {
+            label: "T4", value: partial.tvfEnvTime[3] ?? 0,
+            onChange: set(PcmsPartialField.TvfEnvTime, "tvfEnvTime", 3), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvTime)),
+          }]}
+          levels={[
+            { label: "L0", value: partial.tvfEnvLevel[0] ?? 0,
+              onChange: set(PcmsPartialField.TvfEnvLevel, "tvfEnvLevel", 0), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvLevel)), },
+            { label: "L1", value: partial.tvfEnvLevel[1] ?? 127,
+              onChange: set(PcmsPartialField.TvfEnvLevel, "tvfEnvLevel", 1), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvLevel)), },
+            { label: "L2", value: partial.tvfEnvLevel[2] ?? 127,
+              onChange: set(PcmsPartialField.TvfEnvLevel, "tvfEnvLevel", 2), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvLevel)), },
+            { label: "L3", value: partial.tvfEnvLevel[3] ?? 127,
+              onChange: set(PcmsPartialField.TvfEnvLevel, "tvfEnvLevel", 3), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvLevel)), },
+            { label: "L4", value: partial.tvfEnvLevel[4] ?? 0,
+              onChange: set(PcmsPartialField.TvfEnvLevel, "tvfEnvLevel", 4), ...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvLevel)), },
+          ]}
+        />
+      </div>
     </SectionPanel>
   );
 }
@@ -321,7 +329,7 @@ function TvaSection({
   return (
     <SectionPanel label="AMP" accentColor="#6c8">
       <div className={css.panelRow}>
-        <div className={`${css.knobGrid} ${css.knobGrid3} ${css.knobsRight}`}>
+        <div className={`${css.knobGrid} ${css.knobGrid3}`}>
           <SynthKnob label="Level" value={partial.level} {...knobRange(pcms_partial_spec(PcmsPartialField.Level))}
             onChange={set(PcmsPartialField.Level, "level")} color="#6c8"
             title="Partial volume level" />
@@ -331,6 +339,25 @@ function TvaSection({
           <SynthKnob label="Vel Sns" value={partial.tvaLevelVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaLevelVelocitySens))}
             onChange={set(PcmsPartialField.TvaLevelVelocitySens, "tvaLevelVelocitySens")} color="#6c8"
             title="Volume velocity sensitivity — harder keys = louder" />
+          <SynthKnob label="Bias Lvl" value={partial.tvaBiasLevel} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasLevel))}
+            onChange={set(PcmsPartialField.TvaBiasLevel, "tvaBiasLevel")} color="#6c8"
+            title="Level bias amount — attenuates volume away from the bias key" />
+          <SynthKnob label="Bias Key" value={partial.tvaBiasPosition} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasPosition))}
+            onChange={set(PcmsPartialField.TvaBiasPosition, "tvaBiasPosition")} color="#6c8"
+            title="Bias center key — volume is loudest here, attenuated away" />
+        </div>
+        <div className={css.stack}>
+          <SynthSelect label="Vel Curve" value={partial.tvaLevelVelocityCurve}
+            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaLevelVelocityCurve))}
+            onChange={set(PcmsPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} title="Velocity response curve shape" />
+          <SynthSwitch label="Bias Dir" value={partial.tvaBiasDirection} vertical
+            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaBiasDirection))}
+            onChange={set(PcmsPartialField.TvaBiasDirection, "tvaBiasDirection")} led={false}
+            title="Bias direction — which side of the center key is attenuated" />
+        </div>
+      </div>
+      <div className={css.envBlock}>
+        <div className={css.panelRow}>
           <SynthKnob label="Key Trk" value={partial.tvaEnvTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvTimeKeyfollow))}
             onChange={set(PcmsPartialField.TvaEnvTimeKeyfollow, "tvaEnvTimeKeyfollow")} color="#6c8"
             title="Envelope time key tracking — higher keys = faster envelope" />
@@ -341,48 +368,33 @@ function TvaSection({
             onChange={set(PcmsPartialField.TvaEnvT4VelocitySens, "tvaEnvT4VelocitySens")} color="#6c8"
             title="Amp envelope Time 4 velocity sensitivity — release velocity changes the release time" />
         </div>
+        <BreakpointEnvelope
+          compact
+          times={[{
+            label: "T1", value: partial.tvaEnvTime[0] ?? 0,
+            onChange: set(PcmsPartialField.TvaEnvTime, "tvaEnvTime", 0), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvTime)),
+          }, {
+            label: "T2", value: partial.tvaEnvTime[1] ?? 0,
+            onChange: set(PcmsPartialField.TvaEnvTime, "tvaEnvTime", 1), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvTime)),
+          }, {
+            label: "T3", value: partial.tvaEnvTime[2] ?? 0,
+            onChange: set(PcmsPartialField.TvaEnvTime, "tvaEnvTime", 2), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvTime)),
+          }, {
+            label: "T4", value: partial.tvaEnvTime[3] ?? 0,
+            onChange: set(PcmsPartialField.TvaEnvTime, "tvaEnvTime", 3), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvTime)),
+          }]}
+          levels={[
+            { at: 0, text: "0" },
+            { label: "L1", value: partial.tvaEnvLevel[0] ?? 127,
+              onChange: set(PcmsPartialField.TvaEnvLevel, "tvaEnvLevel", 0), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvLevel)), },
+            { label: "L2", value: partial.tvaEnvLevel[1] ?? 127,
+              onChange: set(PcmsPartialField.TvaEnvLevel, "tvaEnvLevel", 1), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvLevel)), },
+            { label: "L3", value: partial.tvaEnvLevel[2] ?? 0,
+              onChange: set(PcmsPartialField.TvaEnvLevel, "tvaEnvLevel", 2), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvLevel)), },
+            { at: 0, text: "0" },
+          ]}
+        />
       </div>
-      <div className={css.panelRow}>
-        <SynthSelect label="Vel Curve" value={partial.tvaLevelVelocityCurve}
-          options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaLevelVelocityCurve))}
-          onChange={set(PcmsPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} title="Velocity response curve shape" />
-        <SynthKnob label="Bias Lvl" value={partial.tvaBiasLevel} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasLevel))}
-          onChange={set(PcmsPartialField.TvaBiasLevel, "tvaBiasLevel")} color="#6c8"
-          title="Level bias amount — attenuates volume away from the bias key" />
-        <SynthKnob label="Bias Key" value={partial.tvaBiasPosition} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasPosition))}
-          onChange={set(PcmsPartialField.TvaBiasPosition, "tvaBiasPosition")} color="#6c8"
-          title="Bias center key — volume is loudest here, attenuated away" />
-        <SynthSwitch label="Bias Dir" value={partial.tvaBiasDirection} vertical
-          options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaBiasDirection))}
-          onChange={set(PcmsPartialField.TvaBiasDirection, "tvaBiasDirection")} led={false}
-          title="Bias direction — which side of the center key is attenuated" />
-      </div>
-      <BreakpointEnvelope
-        compact
-        times={[{
-          label: "T1", value: partial.tvaEnvTime[0] ?? 0,
-          onChange: set(PcmsPartialField.TvaEnvTime, "tvaEnvTime", 0), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvTime)),
-        }, {
-          label: "T2", value: partial.tvaEnvTime[1] ?? 0,
-          onChange: set(PcmsPartialField.TvaEnvTime, "tvaEnvTime", 1), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvTime)),
-        }, {
-          label: "T3", value: partial.tvaEnvTime[2] ?? 0,
-          onChange: set(PcmsPartialField.TvaEnvTime, "tvaEnvTime", 2), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvTime)),
-        }, {
-          label: "T4", value: partial.tvaEnvTime[3] ?? 0,
-          onChange: set(PcmsPartialField.TvaEnvTime, "tvaEnvTime", 3), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvTime)),
-        }]}
-        levels={[
-          { at: 0, text: "0" },
-          { label: "L1", value: partial.tvaEnvLevel[0] ?? 127,
-            onChange: set(PcmsPartialField.TvaEnvLevel, "tvaEnvLevel", 0), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvLevel)), },
-          { label: "L2", value: partial.tvaEnvLevel[1] ?? 127,
-            onChange: set(PcmsPartialField.TvaEnvLevel, "tvaEnvLevel", 1), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvLevel)), },
-          { label: "L3", value: partial.tvaEnvLevel[2] ?? 0,
-            onChange: set(PcmsPartialField.TvaEnvLevel, "tvaEnvLevel", 2), ...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvLevel)), },
-          { at: 0, text: "0" },
-        ]}
-      />
     </SectionPanel>
   );
 }

@@ -252,18 +252,18 @@
   gap: 2px;
 }
 
+/* Envelope knobs and their envelope, sunk together to the panel bottom */
+.envBlock {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 /* Vertical pair of controls (e.g. a knob above its velocity sens) */
 .stack {
   display: flex;
   flex-direction: column;
   gap: 4px;
   align-items: center;
-}
-
-/* Filter controls: two rows sharing columns, so each stack sits under its envelope knob */
-.filterGrid {
-  display: grid;
-  grid-template-columns: repeat(5, auto);
-  gap: 8px;
-  place-items: start center;
 }
