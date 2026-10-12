@@ -62,8 +62,9 @@ Same as Chorus/Reverb: each MFX Parameter is 4 nibbles, `raw16 = a<<12 | b<<8 | 
   [fx-param-layout.md](fx-param-layout.md#value-tables-r3)). The device's default for the
   sync switch is often NOTE: Delay Left/Right both start at NOTE, 1/4.
 - Control Assign 1–4 (`0x0D`–`0x10`): `max` in R1 depends on the type. It is the
-  number of parameters that type can route to MFX Control. `mfx_params.rs` does not
-  model this.
+  number of parameters that type can route to MFX Control. All four share one list per
+  type; the stored value is its index, and 0 is `OFF` (e.g. Delay: `OFF`, `Feedback`,
+  `Balance`). `mfx_params::control_targets` holds the generated lists.
 
 ### Most-used value tables (R3)
 
@@ -215,8 +216,6 @@ against the corrected tables. Each slot's stored value must lie within its
 
 ## Follow-ups
 
-- [#234](https://github.com/sigma/integral/issues/234): Control Assign 1–4 take a
-  per-type destination list (R1 leaves 0–3), not slot numbers.
 - [#235](https://github.com/sigma/integral/issues/235): verify the 9 unseen types and the
   type-56 switch values on the device.
 - Foreign-patch MFX conversion

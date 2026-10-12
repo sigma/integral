@@ -4,6 +4,7 @@ import {
   MfxHeaderField,
   control_source_choices,
   mfx_type_names,
+  mfx_control_targets,
   mfx_params,
 } from "../pkg/integral_wasm.js";
 import type { WasmControlSource } from "../pkg/integral_wasm.js";
@@ -117,6 +118,7 @@ export function MfxPanel({
 }: Props) {
   const params = useSpecParams(mfx.mfxType);
   const skin = useMemo(() => resolveSkin(mfx.mfxType, params), [mfx.mfxType, params]);
+  const controlTargets = useMemo(() => mfx_control_targets(mfx.mfxType), [mfx.mfxType]);
   const levelParamIndex = params.find((p) => OUTPUT_PARAMS.has(p.def.name))?.def.index ?? -1;
 
   return (
@@ -181,9 +183,8 @@ export function MfxPanel({
                     onChange={(e) => onHeaderParam(MfxHeaderField.ControlAssign, slot, Number(e.target.value))}
                     title="Destination"
                   >
-                    <option value={0}>OFF</option>
-                    {params.map(({ def }) => (
-                      <option key={def.index} value={def.index}>{def.name}</option>
+                    {controlTargets.map((name, i) => (
+                      <option key={i} value={i}>{name}</option>
                     ))}
                   </select>
                 </div>

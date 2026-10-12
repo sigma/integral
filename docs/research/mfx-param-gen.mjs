@@ -169,12 +169,29 @@ const consts = T.map((x, id) => {
   }
   return `const ${constName(id)}: &[FxParamDef] = &[\n${lines.join("\n")}\n];\n`;
 });
+/** A JS string list as the items of a Rust `&[&str]` literal. */
+const rsStrs = (list) => list.map((s) => JSON.stringify(s)).join(", ");
 const statics = [...names.values()].map(
-  ({ name, list }) =>
-    `static ${name}: &[&str] = &[${list.map((s) => JSON.stringify(s)).join(", ")}];`,
+  ({ name, list }) => `static ${name}: &[&str] = &[${rsStrs(list)}];`,
 );
+// Control Assign 1-4 (leaves 0-3) pick from one per-type list; value = index.
+const controlTargets = T.map((x) => {
+  const [first, ...rest] = x.leaf
+    .slice(0, 4)
+    .map((l) =>
+      Array.from({ length: l.max - l.min + 1 }, (_, i) => S[l.id].getString(i)),
+    );
+  if (rest.some((l) => l.join() !== first.join()))
+    throw new Error(`${x.desc}: Control Assign lists differ`);
+  return first;
+});
+const controls =
+  "/// Control Assign destinations per type (index = type ID), value = list index.\n" +
+  `static MFX_CONTROL_TARGETS: [&[&str]; ${T.length}] = [\n` +
+  controlTargets.map((l) => `    &[${rsStrs(l)}],`).join("\n") +
+  "\n];\n\n";
 const gen =
-  `${BEGIN}\n\n// Display names for list-valued parameters, index = stored value.\n\n${statics.join("\n")}\n\n` +
+  `${BEGIN}\n\n${controls}// Display names for list-valued parameters, index = stored value.\n\n${statics.join("\n")}\n\n` +
   consts
     .map((c, id) => `// Type ${id}: ${T[id].desc}\n${c}`)
     .join("\n")

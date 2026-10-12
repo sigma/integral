@@ -84,3 +84,27 @@ describe("MfxPanel params", () => {
     expect(onNibParam).toHaveBeenCalledWith(0, 0);
   });
 });
+
+describe("MfxPanel Control Assign", () => {
+  it("offers the type's destinations and writes the picked index", () => {
+    const onHeaderParam = vi.fn();
+    const mfx: MfxState = {
+      mfxType: 34,
+      chorusSend: 0,
+      reverbSend: 0,
+      controls: [{ source: 0, sens: 64, assign: 0 }],
+      params: [],
+    };
+    const { container } = render(
+      <MfxPanel mfx={mfx} onTypeChange={vi.fn()} onHeaderParam={onHeaderParam} onNibParam={vi.fn()} />,
+    );
+    const select = container.querySelector<HTMLSelectElement>('select[title="Destination"]');
+    if (!select) throw new Error("no Destination picker");
+    expect([...select.options].map((o) => o.textContent)).toEqual(["OFF", "Feedback", "Balance"]);
+    act(() => {
+      select.value = "2";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(onHeaderParam).toHaveBeenCalledWith(MfxHeaderField.ControlAssign, 0, 2);
+  });
+});

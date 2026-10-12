@@ -54,11 +54,13 @@ export function useMfxHandlers(
   );
 
   // The device keeps the old slot values on a type change, so the core also
-  // sends the new type's defaults.
+  // sends the new type's defaults and sets the Control Assigns to OFF.
   const onTypeChange = useCallback(
     (type_: number) => {
       const params = [...service.device.setMfxType(partIndex, toneType, type_)];
-      setMfx((prev) => prev ? { ...prev, mfxType: type_, params } : prev);
+      setMfx((prev) => prev
+        ? { ...prev, mfxType: type_, params, controls: prev.controls.map((c) => ({ ...c, assign: 0 })) }
+        : prev);
     },
     [partIndex, toneType, service, setMfx],
   );

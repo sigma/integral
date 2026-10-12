@@ -3206,6 +3206,17 @@ pub fn control_source_choices(kind: ControlSourceKind) -> Vec<WasmControlSource>
         .collect()
 }
 
+/// Returns the MFX Control Assign destinations of the given type: the
+/// stored value is the index, and 0 is `OFF`.
+#[wasm_bindgen]
+pub fn mfx_control_targets(mfx_type: u8) -> Vec<String> {
+    mfx_params::control_targets(mfx_type)
+        .unwrap_or_default()
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
 /// Returns MFX parameter definitions for the given type index.
 #[wasm_bindgen]
 pub fn mfx_params(mfx_type: u8) -> Vec<WasmFxParamDef> {

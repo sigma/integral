@@ -45,7 +45,8 @@ pub enum MfxHeaderField {
     ControlSource,
     /// MFX Control Sens of a control slot.
     ControlSens,
-    /// MFX Control Assign of a control slot (0–16: OFF, param 1–16).
+    /// MFX Control Assign of a control slot: an index into the type's
+    /// destination list ([`crate::mfx_params::control_targets`]), 0 = OFF.
     ControlAssign,
 }
 
@@ -133,7 +134,8 @@ pub struct MfxCtrlSlot {
     pub source: u8,
     /// Sensitivity (raw 1–127, display −63 to +63).
     pub sens: u8,
-    /// Assign target parameter (0=OFF, 1–16=param index).
+    /// Assign destination: an index into the type's list
+    /// ([`crate::mfx_params::control_targets`]), 0 = OFF.
     pub assign: u8,
 }
 

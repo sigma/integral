@@ -729,21 +729,24 @@ impl DeviceState {
 
     /// Change the MFX type of a part's tone of type `tone_type`, and load the
     /// type's default parameters: the device keeps the old slot values when
-    /// only the type byte changes. Returns the new slot values, or `None` for
-    /// an unknown type.
+    /// only the type byte changes. Also sets Control Assign 1–4 to OFF, since
+    /// their values index the old type's destination list. Returns the new
+    /// slot values, or `None` for an unknown type.
     pub fn set_mfx_type(
         &mut self,
         part: u8,
         tone_type: ToneType,
         mfx_type: u8,
     ) -> Option<[i32; crate::mfx::MFX_PARAM_COUNT]> {
+        use crate::mfx::{MfxHeaderField, mfx_header_offset};
         let slots = crate::mfx_params::default_slots(mfx_type)?;
         self.send_dt1(&crate::mfx::mfx_address(part, tone_type, 0), &[mfx_type]);
-        let data: Vec<u8> = slots
-            .iter()
-            .flat_map(|&v| crate::mfx::encode_mfx_param(v))
-            .collect();
-        self.send_dt1(&crate::mfx::mfx_param_address(part, tone_type, 0), &data);
+        // Control Assign 1-4 back to OFF (each type has its own destination
+        // list), then the 32 parameter slots right after them.
+        let mut data = vec![0; MfxHeaderField::ControlAssign.count()];
+        data.extend(slots.iter().flat_map(|&v| crate::mfx::encode_mfx_param(v)));
+        let assign = mfx_header_offset(MfxHeaderField::ControlAssign, 0).ok()?;
+        self.send_dt1(&crate::mfx::mfx_address(part, tone_type, assign), &data);
         Some(slots)
     }
 
@@ -1494,18 +1497,17 @@ mod tests {
         let mut dev = DeviceState::new(0x10);
         let slots = dev.set_mfx_type(0, ToneType::SnSynth, 34).unwrap();
         assert_eq!(slots, crate::mfx_params::default_slots(34).unwrap());
-        // SN-S MFX block at `19 01 02 00`: type at `00`, Parameter 1 at `11`.
+        // SN-S MFX block at `19 01 02 00`: type at `00`, then Control
+        // Assign 1-4 (OFF) at `0D` and the 32 parameters from `11`.
         assert_eq!(
             dev.drain(0.0).unwrap(),
             sysex::build_dt1(0x10, &Address::new(0x19, 0x01, 0x02, 0x00), &[34])
         );
-        let params: Vec<u8> = slots
-            .iter()
-            .flat_map(|&v| crate::mfx::encode_mfx_param(v))
-            .collect();
+        let mut data = vec![0; 4];
+        data.extend(slots.iter().flat_map(|&v| crate::mfx::encode_mfx_param(v)));
         assert_eq!(
             dev.drain(100.0).unwrap(),
-            sysex::build_dt1(0x10, &Address::new(0x19, 0x01, 0x02, 0x11), &params)
+            sysex::build_dt1(0x10, &Address::new(0x19, 0x01, 0x02, 0x0D), &data)
         );
         assert!(dev.set_mfx_type(0, ToneType::SnSynth, 68).is_none());
         assert!(dev.drain(200.0).is_none());
