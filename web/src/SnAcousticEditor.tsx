@@ -18,6 +18,7 @@ import {
   SectionPanel,
   FaderGroup,
   ADSREnvelope,
+  FaderGroupSep,
 } from "./synth-ui";
 import { MfxPanel } from "./MfxPanel";
 import { SignalArrows } from "./synth-ui/SignalArrows";
@@ -337,11 +338,6 @@ function toneBoxes(
     amp: (
         <SectionPanel label="AMP" accentColor="#6c8">
           <div className={css.ampRow}>
-            <FaderGroup>
-              <SynthFader label="Level" value={common.toneLevel} min={0} max={127} defaultValue={127}
-                onChange={set(SnaCommonField.ToneLevel, "toneLevel")} formatValue={(v) => String(v)} compact
-                title="Tone Level" />
-            </FaderGroup>
             <Offset enabled={toneOffsets}>
               <ADSREnvelope
                 compact
@@ -357,6 +353,12 @@ function toneBoxes(
                 }}
               />
             </Offset>
+            <FaderGroupSep />
+            <FaderGroup>
+              <SynthFader label="Level" value={common.toneLevel} min={0} max={127} defaultValue={127}
+                onChange={set(SnaCommonField.ToneLevel, "toneLevel")} formatValue={(v) => String(v)} compact
+                title="Tone Level" />
+            </FaderGroup>
           </div>
         </SectionPanel>
     ),
