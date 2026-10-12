@@ -48,6 +48,8 @@ struct SnaInstEntry {
     bank: String,
     lsb: u8,
     pc: u8,
+    /// `[slot, name]` of each Modify Parameter, where Roland's Editor names them.
+    modify: Vec<(u8, String)>,
 }
 
 /// Generate `SNA_INSTS` from the SN Acoustic instrument list: numbers run 1…N
@@ -77,8 +79,8 @@ fn generate_sn_acoustic_insts(path: &Path, out_dir: &Path) {
         );
         writeln!(
             out,
-            "    SnaInst {{ number: {}, name: {:?}, category: {:?}, bank: {:?}, variation: {}, inst_number: {} }},",
-            e.number, e.name, e.category, e.bank, e.lsb, e.pc
+            "    SnaInst {{ number: {}, name: {:?}, category: {:?}, bank: {:?}, variation: {}, inst_number: {}, modify: &{:?} }},",
+            e.number, e.name, e.category, e.bank, e.lsb, e.pc, e.modify
         )
         .unwrap();
     }

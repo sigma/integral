@@ -2851,23 +2851,32 @@ impl WasmDeviceState {
 // SN-A instrument parameter table (standalone functions)
 // ---------------------------------------------------------------------------
 
-/// Get the instrument-specific parameter definitions for an SN-A category.
-///
-/// Returns a JS array of tuples `[index, name, min, max, default]`, or null
-/// if the category name is not recognized.
+/// The INST page of the SN-A instrument at Inst Variation `variation`, Inst
+/// Number `number`: `"Ac.Piano"`, `"TW Organ"`, or its category for the
+/// generic page; `undefined` for an instrument the list doesn't name.
 #[wasm_bindgen]
-pub fn sna_inst_params_by_category(category: &str) -> JsValue {
-    match integral_core::sna_inst_params::sna_inst_type_by_category(category) {
-        Some(def) => {
-            let params: Vec<(u8, &str, u8, u8, u8)> = def
-                .params
-                .iter()
-                .map(|p| (p.index, p.name, p.min, p.max, p.default_value))
-                .collect();
-            serde_wasm_bindgen::to_value(&params).unwrap_or(JsValue::NULL)
-        }
-        None => JsValue::NULL,
-    }
+pub fn sna_inst_page(variation: u8, number: u8) -> Option<String> {
+    use integral_core::sna_inst_params::{self as p, SnaInstPage};
+    let inst = sn_acoustic::sna_inst(variation, number)?;
+    Some(match p::sna_inst_page(inst) {
+        SnaInstPage::AcPiano => "Ac.Piano".to_string(),
+        SnaInstPage::TwOrgan => "TW Organ".to_string(),
+        SnaInstPage::Generic => inst.category.to_string(),
+    })
+}
+
+/// The Modify Parameters of the SN-A instrument at Inst Variation
+/// `variation`, Inst Number `number`, as a JS array of `[slot, name, min,
+/// max, default]`; empty for an instrument the list doesn't name.
+#[wasm_bindgen]
+pub fn sna_inst_params(variation: u8, number: u8) -> JsValue {
+    let params: Vec<(u8, &str, u8, u8, u8)> = sn_acoustic::sna_inst(variation, number)
+        .map(integral_core::sna_inst_params::sna_inst_params)
+        .unwrap_or_default()
+        .iter()
+        .map(|p| (p.index, p.name, p.min, p.max, p.default_value))
+        .collect();
+    serde_wasm_bindgen::to_value(&params).unwrap_or(JsValue::NULL)
 }
 
 // ---------------------------------------------------------------------------

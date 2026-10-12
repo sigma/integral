@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   WasmDeviceState,
   sna_common_address,
-  sna_inst_params_by_category,
+  sna_inst_params,
 } from "../pkg/integral_wasm.js";
 import { SnAcousticEditor } from "./SnAcousticEditor";
 import { cleanup, click, render } from "./test/dom";
@@ -16,12 +16,21 @@ const PART = 1;
 describe("SnAcousticEditor", () => {
   it("sends a Common and a Modify Parameter edit to their fields", async () => {
     const { service, sentDt1s } = fakeToneService(new WasmDeviceState(0x10));
+    const common0 = [...sna_common_address(PART)];
+    const base = service.requestData.bind(service);
+    // Pure Vintage EP1: Inst Variation 0, Inst Number 4 (Common `00 21`).
+    service.requestData = async (address: number[], size: number[]) => {
+      const data = await base(address, size);
+      if (address.every((b, i) => b === common0[i])) data[0x21] = 4;
+      return data;
+    };
     const { container } = render(<SnAcousticEditor partIndex={PART} service={service} />);
     await act(async () => {});
 
-    // A zeroed Common is Category 0 (Ac.Piano); its first Modify Parameter.
-    const params = sna_inst_params_by_category("Ac.Piano") as [number, string][];
+    // Its first Modify Parameter is Noise Level, at slot 1.
+    const params = sna_inst_params(0, 4) as [number, string][];
     const firstParam = params[0]?.[1] ?? "";
+    expect(firstParam).toBe("Noise Level");
     arrowUp(slider(container, "Cutoff"));
     arrowUp(slider(container, firstParam));
 

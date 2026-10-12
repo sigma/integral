@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, type ReactNode } from "react";
 import {
-  sna_inst_params_by_category,
+  sna_inst_page,
+  sna_inst_params,
   sna_has_portamento_offset,
   sna_has_tone_offsets,
   sna_common_address,
@@ -78,42 +79,6 @@ interface InstParamDef {
 // ---------------------------------------------------------------------------
 
 /** Category index to instrument type name mapping. */
-const CATEGORY_NAMES: string[] = [
-  "Ac.Piano",      // 0
-  "E.Piano",       // 1
-  "Clav",          // 2
-  "Bell/Mallet",   // 3
-  "TW Organ",      // 4
-  "Accordion",     // 5
-  "Harmonica",     // 6
-  "Ac.Guitar",     // 7
-  "Mandolin",      // 8
-  "E.Guitar",      // 9
-  "Ac.Bass",       // 10
-  "E.Bass",        // 11
-  "Strings Solo",  // 12
-  "Strings Ensemble", // 13
-  "Strings Erhu",  // 14
-  "Strings Sarangi", // 15
-  "Harp",          // 16
-  "Sitar",         // 17
-  "Shamisen",      // 18
-  "Koto",          // 19
-  "Taishou Koto",  // 20
-  "Kalimba",       // 21
-  "Vox/Choir",     // 22
-  "Brass",         // 23
-  "Wind",          // 24
-  "Wind Pipes",    // 25
-  "Flute",         // 26
-  "Flute Ethnic",  // 27
-  "Sax",           // 28
-  "Recorder",      // 29
-  "Ocarina",       // 30
-  "Timpani",       // 31
-  "Steel Drums",   // 32
-];
-
 const MONO_POLY_OPTIONS = [{ value: 0, label: "MONO" }, { value: 1, label: "POLY" }];
 
 function signedFmt(raw: number, center: number): string {
@@ -226,13 +191,16 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
   // ---------------------------------------------------------------------------
   // Instrument parameters
   // ---------------------------------------------------------------------------
-  const categoryName = common ? (CATEGORY_NAMES[common.category] ?? null) : null;
+  // The instrument's INST page ("Ac.Piano", "TW Organ", or its category) and
+  // its Modify Parameters, both from core's per-instrument list.
+  const instVariation = common?.instVariation ?? 0;
+  const instNumber = common?.instNumber ?? 0;
+  const categoryName = common ? (sna_inst_page(instVariation, instNumber) ?? null) : null;
 
-  const instParamDefs = useMemo(() => {
-    if (!categoryName) return [];
-    const raw = sna_inst_params_by_category(categoryName);
-    return parseInstParams(raw);
-  }, [categoryName]);
+  const instParamDefs = useMemo(
+    () => parseInstParams(sna_inst_params(instVariation, instNumber)),
+    [instVariation, instNumber],
+  );
 
   const mfxHandlers = useMfxHandlers(service, partIndex, ToneType.SnAcoustic, setMfx);
 

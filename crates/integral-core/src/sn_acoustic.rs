@@ -263,6 +263,10 @@ pub struct SnaInst {
     pub variation: u8,
     /// The Inst Number (Common `00 21`) that selects it.
     pub inst_number: u8,
+    /// `(slot, name)` of its Modify Parameters, where Roland's Editor names
+    /// them; empty for the instruments with a page of their own.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub modify: &'static [(u8, &'static str)],
 }
 
 include!(concat!(env!("OUT_DIR"), "/sn_acoustic_inst_data.rs"));
