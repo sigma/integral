@@ -107,10 +107,13 @@
   opacity: 0.4;
 }
 
-/* Room for the partials' arrows to converge on the MFX at its + */
+/*
+ * The MFX at its own height, centred on the partials, with room for their
+ * arrows to converge on it at its +.
+ */
 .mfxSidebar {
   flex-shrink: 0;
-  display: flex;
+  align-self: center;
   margin-left: 48px;
 }
 
