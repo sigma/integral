@@ -33,10 +33,45 @@
    Main Area: three boxes side by side
    ---------------------------------------------------------------- */
 
+/*
+ * COMMON on top; below it the instrument, vibrato, filter and amp boxes, and
+ * the MFX beside them, centred on that row, with room for the AMP's arrow.
+ */
 .mainArea {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 8px 56px;
+  justify-content: start;
+}
+
+.commonCell {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+}
+
+.toneRow {
+  grid-column: 1;
+  grid-row: 2;
   display: flex;
   gap: 8px;
-  align-items: flex-start;
+  align-items: stretch;
+}
+
+.ampCell {
+  display: flex;
+}
+
+.mfxSidebar {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: center;
+}
+
+/* The filter's response, one knob row tall, across the FILTER box */
+.filterScope {
+  height: 44px;
 }
 
 .panelRow {
