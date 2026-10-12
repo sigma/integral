@@ -258,7 +258,6 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
               <div className={css.noteLoadingPlaceholder}>Loading key data...</div>
             ) : noteData ? (
               <NoteControls
-                keyNumber={selectedKey}
                 note={noteData}
                 onParam={setPartialParam}
                 onWmtParam={setWmtParam}

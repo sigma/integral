@@ -107,18 +107,6 @@
   padding: 12px 0;
 }
 
-.keyHeader {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 4px 0;
-}
-
-.keyLabel {
-  font-size: 12px;
-  color: #aaa;
-}
-
 .partialName {
   font-size: 12px;
   color: #ccc;

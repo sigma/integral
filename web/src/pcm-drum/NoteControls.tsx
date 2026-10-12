@@ -44,13 +44,11 @@ import css from "../PcmDrumEditor.module.css";
 export const LEVEL_TRACK_HEIGHT = 200;
 
 export function NoteControls({
-  keyNumber,
   note,
   onParam,
   onWmtParam,
   marking,
 }: {
-  keyNumber: number;
   note: PcmDrumPartial;
   onParam: PartialParamHandler;
   onWmtParam: WmtParamHandler;
@@ -63,18 +61,6 @@ export function NoteControls({
 
   return (
     <>
-      <div className={css.keyHeader}>
-        <span className={css.keyLabel}>
-          Key {keyNumber} ({noteName(keyNumber)})
-        </span>
-        {note.partialName && (
-          <span className={css.partialName}>{note.partialName}</span>
-        )}
-        <SynthSelect label="Out" value={note.outputAssign}
-          options={OUTPUT_ASSIGN_OPTIONS}
-          onChange={set(PcmdPartialField.OutputAssign, "outputAssign")} />
-      </div>
-
       <div className={css.noteControls}>
         {/* WAVE (WMT) */}
         <WmtSection
@@ -140,6 +126,8 @@ function WmtSection({
 
   return (
     <SectionPanel label="WAVE (WMT)" accentColor="#fc8">
+      {/* The key's partial name, as the kit names it */}
+      {note.partialName && <div className={css.partialName}>{note.partialName}</div>}
       {/* Velocity Control */}
       <div className={css.knobRow}>
         <SynthSelect label="Vel Ctrl" value={note.wmtVelocityControl}
