@@ -8,6 +8,7 @@ import { StructureDiagram } from "./StructureDiagram";
 import css from "../PcmSynthEditor.module.css";
 import type { PcmSynthPmt, PmtParamHandler } from "./types";
 
+/** The partial-mix settings, laid out inside the editor's top strip. */
 export function PmtStrip({
   pmt,
   onChange,
@@ -20,7 +21,7 @@ export function PmtStrip({
     (v: number) =>
       onChange(field, key, v);
   return (
-    <div className={css.pmtStrip}>
+    <>
       <div className={css.commonGroup}>
         <span className={css.groupLabel}>PARTIAL MIX 1&2</span>
         <div className={css.groupRow}>
@@ -51,6 +52,6 @@ export function PmtStrip({
         options={switchOptions(pcms_pmt_spec(PcmsPmtField.PmtVelocityControl))}
         onChange={set(PcmsPmtField.PmtVelocityControl, "pmtVelocityControl")} led={false}
         title="Velocity control — how key velocity selects partials" />
-    </div>
+    </>
   );
 }

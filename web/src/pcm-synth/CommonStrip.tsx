@@ -7,6 +7,7 @@ import { knobRange, switchOptions } from "../fieldSpec";
 import css from "../PcmSynthEditor.module.css";
 import type { CommonParamHandler, PcmSynthCommon } from "./types";
 
+/** The tone-wide settings, laid out inside the editor's top strip. */
 export function CommonStrip({
   common,
   onChange,
@@ -19,7 +20,7 @@ export function CommonStrip({
     (v: number) =>
       onChange(field, key, v);
   return (
-    <div className={css.commonStrip}>
+    <>
       {/* Mono/Poly */}
       <div className={css.commonGroup}>
         <SynthSwitch label="MONO" value={common.monoPoly}
@@ -109,6 +110,6 @@ export function CommonStrip({
             title="Velocity sensitivity offset — shifts velocity response across all partials" />
         </div>
       </div>
-    </div>
+    </>
   );
 }

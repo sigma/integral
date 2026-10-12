@@ -199,9 +199,14 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
         <div className={css.toneName}>{common.toneName || "(unnamed)"}</div>
       )}
 
-      {/* Common + PMT strips */}
-      {common && <CommonStrip common={common} onChange={setCommonParam} />}
-      {pmt && <PmtStrip pmt={pmt} onChange={setPmtParam} />}
+      {/* Tone-wide settings: Common, then the partial mix */}
+      {(common || pmt) && (
+        <div className={css.commonStrip}>
+          {common && <CommonStrip common={common} onChange={setCommonParam} />}
+          {common && pmt && <div className={css.commonDivider} />}
+          {pmt && <PmtStrip pmt={pmt} onChange={setPmtParam} />}
+        </div>
+      )}
 
       {/* Partial rows + MFX sidebar */}
       <div className={css.mainArea}>
