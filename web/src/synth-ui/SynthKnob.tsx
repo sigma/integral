@@ -1,6 +1,7 @@
 import { useDragControl } from "../useDragControl";
 import { MAX_TICKS } from "../EqKnob";
 import css from "./SynthKnob.module.css";
+import { familyColour, familyOfHex, useProto, type Family } from "../familyColourPrototype";
 
 interface Props {
   value: number;
@@ -18,6 +19,8 @@ interface Props {
   title?: string;
   /** Value the LED arc grows from, for relative controls. Default: 0 for signed ranges, else min. */
   center?: number;
+  /** PROTOTYPE (#160): Parameter family; guessed from `color` when absent. */
+  family?: Family;
 }
 
 const ANGLE_MIN = -135;
@@ -38,11 +41,20 @@ export function SynthKnob({
   label,
   onChange,
   formatValue,
-  color = "#fc8",
+  color: colorProp,
   size = "sm",
   title,
   center,
+  family,
 }: Props) {
+  const proto = useProto();
+  const fam = family ?? familyOfHex(colorProp ?? "#fc8", label);
+  const fc = proto ? familyColour(proto, fam) : "";
+  const v = proto?.variant;
+  const color = !proto ? (colorProp ?? "#fc8") : v === "A" || v === "D" ? fc : "#ddd";
+  const pointer = !proto ? color : v === "D" ? fc : v === "B" ? "#fff" : "#ddd";
+  const labelColor = v === "C" || v === "D" ? fc : undefined;
+  const gid = proto && v === "B" ? `kg-${size}-${fam}-${proto.palette}` : `kg-${size}`;
   const svgSize = size === "lg" ? 72 : 52;
   const cx = svgSize / 2;
   const cy = svgSize / 2;
@@ -88,7 +100,7 @@ export function SynthKnob({
 
   return (
     <div className={`${css.knob} ${size === "lg" ? css.lg : ""}`} title={title ?? label}>
-      <span className={css.label}>{label}</span>
+      <span className={css.label} style={labelColor ? { color: labelColor } : undefined}>{label}</span>
       <svg
         className={css.svg}
         viewBox={`0 0 ${svgSize} ${svgSize}`}
@@ -110,12 +122,12 @@ export function SynthKnob({
         {leds}
         {/* Knob body */}
         <defs>
-          <radialGradient id={`kg-${size}`} cx="40%" cy="35%">
-            <stop offset="0%" stopColor="#777" />
-            <stop offset="100%" stopColor="#333" />
+          <radialGradient id={gid} cx="40%" cy="35%">
+            <stop offset="0%" stopColor={gid === `kg-${size}` ? "#777" : `color-mix(in oklab, ${fc} 85%, #fff)`} />
+            <stop offset="100%" stopColor={gid === `kg-${size}` ? "#333" : `color-mix(in oklab, ${fc} 45%, #000)`} />
           </radialGradient>
         </defs>
-        <circle cx={cx} cy={cy} r={knobR} fill={`url(#kg-${size})`} />
+        <circle cx={cx} cy={cy} r={knobR} fill={`url(#${gid})`} />
         <circle cx={cx} cy={cy} r={knobR} fill="none" stroke="#555" strokeWidth="1" />
         {/* Indicator line */}
         <line
@@ -123,12 +135,12 @@ export function SynthKnob({
           y1={cy}
           x2={ix}
           y2={iy}
-          stroke={color}
+          stroke={pointer}
           strokeWidth={size === "lg" ? 2.5 : 2}
           strokeLinecap="round"
         />
       </svg>
-      <span className={css.value}>{display}</span>
+      <span className={css.value} style={v === "C" ? { color: fc } : undefined}>{display}</span>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import type { WasmFxParamDef } from "../pkg/integral_wasm.js";
 import { SynthFader, SynthKnob, SynthSwitch } from "./synth-ui";
 import { SyncToggle } from "./SyncToggle";
 import css from "./ParamControl.module.css";
+import { familyOfName, useProto } from "./familyColourPrototype";
 
 /** A spec param, paired with its note-mode view when it is tempo-syncable. */
 export interface SpecParam {
@@ -40,6 +41,7 @@ interface Props {
 
 /** One control for one spec param; a msec/Hz-vs-note param edits whichever slot its switch selects. */
 export function ParamControl({ param: { def, note }, slots, onNibParam, look = {} }: Props) {
+  const proto = useProto();
   const active = note && def.noteMode(Int32Array.from(slots)) ? note : def;
   const shared = {
     label: look.label ?? def.name,
@@ -61,7 +63,7 @@ export function ParamControl({ param: { def, note }, slots, onNibParam, look = {
   } else if (as === "fader") {
     control = <SynthFader {...shared} {...range} compact />;
   } else {
-    control = <SynthKnob {...shared} {...range} color={look.color} />;
+    control = <SynthKnob {...shared} {...range} color={look.color} family={proto ? familyOfName(def.name) : undefined} />;
   }
 
   const sync = def.syncIndex;

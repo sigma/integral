@@ -13,6 +13,7 @@ import type { EqBand, EqControl } from "./synth-ui";
 import { ParamControl, pairParams, type ParamLook, type SpecParam } from "./ParamControl";
 import { OUTPUT_PARAMS, itemParam, resolveSkin, type Skin } from "./mfxSkins";
 import css from "./MfxPanel.module.css";
+import { eqBandColour, useProto } from "./familyColourPrototype";
 import { deviceSpec } from "./deviceSpec";
 import type { MfxHandlers } from "./useMfxHandlers";
 
@@ -74,6 +75,7 @@ interface SkinPanelProps {
 }
 
 function SkinPanel({ skin, params, slots, onNibParam }: SkinPanelProps) {
+  const proto = useProto();
   const byName = new Map(params.map((p) => [p.def.name, p]));
   const eqControl = (name: string): EqControl | undefined => {
     const def = byName.get(name)?.def;
@@ -85,7 +87,7 @@ function SkinPanel({ skin, params, slots, onNibParam }: SkinPanelProps) {
   const bands = (skin.eq ?? []).flatMap((b): EqBand[] => {
     const gain = eqControl(b.gain), freq = eqControl(b.freq);
     return gain && freq ? [{ label: b.label, color: b.color, gain, freq, q: b.q ? eqControl(b.q) : undefined }] : [];
-  });
+  }).map((b, i, all) => (proto ? { ...b, color: eqBandColour(proto, i, all.length) } : b));
   return (
     <div className={css.customLayout}>
       {bands.length > 0 && <ParametricEq bands={bands} />}
