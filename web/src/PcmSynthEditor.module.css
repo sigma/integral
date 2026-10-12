@@ -174,6 +174,11 @@
   margin-left: auto;
 }
 
+/* Three knobs per row, for panels where height is scarcer than width */
+.knobGrid3 {
+  grid-template-columns: repeat(3, auto);
+}
+
 .knobsRight {
   margin-left: auto;
 }
@@ -220,11 +225,11 @@
    Step LFO grid
    ---------------------------------------------------------------- */
 
+/* Same scope screen as the envelope shapes; its mid graticule line is zero. */
 .stepViz {
+  composes: screen from "./synth-ui/Scope.module.css";
   display: block;
-  background: #0e0e20;
-  border: 1px solid #222240;
-  border-radius: 3px;
+  height: 40px;
 }
 
 .stepGrid {

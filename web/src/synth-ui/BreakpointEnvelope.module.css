@@ -1,5 +1,7 @@
-/* Rows: shape preview, levels, sequence line, times; half-fader columns are set inline. */
+/* Rows: shape preview, levels, sequence line, times; half-fader columns are set inline.
+   margin-top: auto sinks it to the bottom of a flex-column panel. */
 .envelope {
+  margin-top: auto;
   display: inline-grid;
   grid-template-rows: auto auto 16px auto;
 }

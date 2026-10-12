@@ -325,7 +325,7 @@ function TvaSection({
   return (
     <SectionPanel label="AMP" accentColor="#6c8">
       <div className={css.panelRow}>
-        <div className={`${css.knobGrid} ${css.knobsRight}`}>
+        <div className={`${css.knobGrid} ${css.knobGrid3} ${css.knobsRight}`}>
           <SynthKnob label="Level" value={partial.level} min={0} max={127} defaultValue={127}
             onChange={set(PcmsPartialField.Level, "level")} formatValue={(v) => String(v)} color="#6c8"
             title="Partial volume level" />
@@ -542,26 +542,22 @@ function StepLfoSection({
   const smooth = partial.lfoStepType === 1;
   const dimStyle = dimmed ? { opacity: 0.35 } : undefined;
 
-  // Build SVG path for the step visualizer
-  const vizW = 160;
-  const vizH = 40;
-  const pad = 2;
-  const stepW = (vizW - pad * 2) / 16;
-  const yRange = vizH - pad * 2;
-  const yFor = (v: number) => pad + (1 - (((v ?? 64) - 1) / 126)) * yRange;
+  // Step pattern in a 0..1 box, y = 0 at the top
+  const stepW = 1 / 16;
+  const yFor = (v: number) => 1 - ((v ?? 64) - 1) / 126;
 
   let vizPath = "";
   if (smooth) {
     // Smooth: line through center of each step
     vizPath = steps.map((v, i) => {
-      const x = pad + (i + 0.5) * stepW;
+      const x = (i + 0.5) * stepW;
       const y = yFor(v);
       return i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
     }).join(" ");
   } else {
     // Staircase: horizontal bars per step
     vizPath = steps.map((v, i) => {
-      const x1 = pad + i * stepW;
+      const x1 = i * stepW;
       const x2 = x1 + stepW;
       const y = yFor(v);
       return `${i === 0 ? "M" : "L"} ${x1} ${y} L ${x2} ${y}`;
@@ -578,12 +574,8 @@ function StepLfoSection({
           title="Step shape: STEP = hard jumps, SMOOTH = interpolated transitions. Set LFO1 or LFO2 waveform to STEP to use this pattern." />
       </div>
       {/* Step pattern visualizer */}
-      <svg width={vizW} height={vizH} className={css.stepViz}>
-        {/* Center line (zero) */}
-        <line x1={pad} y1={vizH / 2} x2={vizW - pad} y2={vizH / 2}
-          stroke="#333" strokeWidth="1" strokeDasharray="2 2" />
-        {/* Pattern curve */}
-        <path d={vizPath} fill="none" stroke="#a6f" strokeWidth="1.5" />
+      <svg className={css.stepViz} viewBox="-0.05 -0.15 1.1 1.3" preserveAspectRatio="none">
+        <path d={vizPath} fill="none" stroke="#a6f" strokeWidth="2" vectorEffect="non-scaling-stroke" />
       </svg>
       <div className={css.stepGrid}>
         {Array.from({ length: 16 }, (_, i) => (
