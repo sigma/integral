@@ -221,10 +221,18 @@
   height: 44px;
 }
 
-/* A scope filling the rest of a row's width, one knob row tall */
-.scopeFill {
+/* FILTER: the Type switch over L0-L1 for two rows, its response scope over L2-L4 */
+.filterType {
+  grid-column: 1 / span 2;
+  grid-row: 1 / span 2;
+  justify-self: start;
+}
+
+.filterScope {
   composes: scopeBox;
-  flex: 1;
+  grid-column: 3 / span 3;
+  grid-row: 1;
+  justify-self: stretch;
 }
 
 /* ----------------------------------------------------------------

@@ -234,15 +234,15 @@ function TvfSection({
 }) {
   return (
     <SectionPanel label="FILTER" accentColor="#68c">
-      <div className={css.panelRow}>
-        <SynthSwitch label="Type" value={partial.tvfFilterType} vertical
-          options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfFilterType))}
-          onChange={set(PcmsPartialField.TvfFilterType, "tvfFilterType")} title="Filter type" />
-        <FilterScope className={css.scopeFill}
+      <div className={css.envGrid}>
+        <div className={css.filterType}>
+          <SynthSwitch label="Type" value={partial.tvfFilterType} vertical
+            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfFilterType))}
+            onChange={set(PcmsPartialField.TvfFilterType, "tvfFilterType")} title="Filter type" />
+        </div>
+        <FilterScope className={css.filterScope}
           type={pcms_partial_spec(PcmsPartialField.TvfFilterType).formatValue(partial.tvfFilterType)}
           cutoff={partial.tvfCutoffFrequency} resonance={partial.tvfResonance} />
-      </div>
-      <div className={css.envGrid}>
         <div className={css.at3}>
           <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffKeyfollow))}
             onChange={set(PcmsPartialField.TvfCutoffKeyfollow, "tvfCutoffKeyfollow")} color="#68c"
