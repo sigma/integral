@@ -5,12 +5,14 @@
 //! (handled by `params.rs`), 88 per-key Partial blocks, and Common2.
 
 use crate::address::{Address, DataSize};
+use crate::block_field::{BlockField, FieldIndexError};
 use crate::device_spec::{KeyOutOfRange, KeyRange};
 use crate::mfx::MfxState;
 use crate::params;
 use crate::parse_helpers::{
     encode_ascii_name, encode_nibble2, encode_nibble4, nibble2, nibble4, parse_ascii_name,
 };
+use core::fmt::Debug;
 use thiserror::Error;
 
 // ---------------------------------------------------------------------------
@@ -53,15 +55,17 @@ pub const PCMD_KEY_COUNT: usize = (PCMD_LAST_KEY - PCMD_FIRST_KEY + 1) as usize;
 /// Number of bytes per WMT layer in a PCM Drum Kit partial.
 const WMT_LAYER_SIZE: usize = 29;
 
-/// Byte index of each WMT layer within a PCM Drum Kit partial
-/// (WMT1 `00 21`, WMT2 `00 3E`, WMT3 `00 5B`, WMT4 `00 78`).
-const WMT_STARTS: [usize; 4] = [0x21, 0x3E, 0x5B, 0x78];
+/// Byte index of the first WMT layer within a PCM Drum Kit partial; the
+/// others follow [`WMT_LAYER_SIZE`] apart (WMT1 `00 21`, WMT2 `00 3E`,
+/// WMT3 `00 5B`, WMT4 `00 78`).
+const WMT1_START: usize = 0x21;
 
 /// Number of WMT (Wave Mix Table) layers in a PCM Drum Kit partial.
-pub const PCMD_WMT_COUNT: usize = WMT_STARTS.len();
+pub const PCMD_WMT_COUNT: usize = 4;
 
 /// A field of a PCM Drum Kit WMT layer. The discriminant is the field's byte
-/// position within the 29-byte layer.
+/// position within the 29-byte layer; as a [`BlockField`] of the Partial
+/// block it holds one value per WMT layer ([`PCMD_WMT_COUNT`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PcmdWmtField {
@@ -107,19 +111,30 @@ pub enum PcmdWmtField {
     VelocityFadeUpper = 28,
 }
 
-impl PcmdWmtField {
-    /// Whether the field is nibblized across 4 bytes.
-    pub const fn is_nibblized(self) -> bool {
-        matches!(
-            self,
-            Self::WaveGroupId | Self::WaveNumberL | Self::WaveNumberR
-        )
+impl BlockField for PcmdWmtField {
+    fn position(self) -> usize {
+        WMT1_START + self as usize
+    }
+
+    fn count(self) -> usize {
+        PCMD_WMT_COUNT
+    }
+
+    fn width(self) -> usize {
+        match self {
+            Self::WaveGroupId | Self::WaveNumberL | Self::WaveNumberR => 4,
+            _ => 1,
+        }
+    }
+
+    fn stride(self) -> usize {
+        WMT_LAYER_SIZE
     }
 }
 
 /// A per-key field of a PCM Drum Kit Partial outside the WMT layers. The
 /// discriminant is the field's first byte position within the partial;
-/// envelope time and level fields span [`PcmdPartialField::count`] bytes.
+/// envelope time and level fields span [`BlockField::count`] bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PcmdPartialField {
@@ -213,9 +228,12 @@ pub enum PcmdPartialField {
     OneShotMode = 0x80 + 0x41,
 }
 
-impl PcmdPartialField {
-    /// Number of consecutive bytes (envelope steps) the field spans.
-    pub const fn count(self) -> usize {
+impl BlockField for PcmdPartialField {
+    fn position(self) -> usize {
+        self as usize
+    }
+
+    fn count(self) -> usize {
         match self {
             Self::PitchEnvTime | Self::TvfEnvTime | Self::TvaEnvTime => 4,
             Self::PitchEnvLevel | Self::TvfEnvLevel => 5,
@@ -227,21 +245,14 @@ impl PcmdPartialField {
 
 /// Error returned for a PCM Drum Kit Partial field address that doesn't exist.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
-pub enum PcmdFieldError {
+pub enum PcmdFieldError<F: Debug> {
     /// The key is outside the kit's range.
     #[error(transparent)]
     Key(#[from] KeyOutOfRange),
-    /// The WMT index is not below [`PCMD_WMT_COUNT`].
-    #[error("WMT index {0} out of range (0–{max})", max = PCMD_WMT_COUNT - 1)]
-    Wmt(u8),
-    /// The element index is not below the field's [`PcmdPartialField::count`].
-    #[error("{field:?} has no element {index}")]
-    Element {
-        /// The field addressed.
-        field: PcmdPartialField,
-        /// The out-of-range element index.
-        index: u8,
-    },
+    /// The value index (WMT layer, envelope step) is not below the field's
+    /// [`BlockField::count`].
+    #[error(transparent)]
+    Index(#[from] FieldIndexError<F>),
 }
 
 // ---------------------------------------------------------------------------
@@ -283,39 +294,15 @@ pub fn pcmd_partial_address(part_index: u8, key: u8) -> Result<Address, KeyOutOf
     Ok(pcmd_base(part_index).offset([0x00, byte1_add, byte2, 0x00]))
 }
 
-/// Compute the absolute address for a single PCM Drum Kit Partial parameter.
-///
-/// The offset is `u16` because partial blocks are 195 bytes (offsets go up
-/// to `0x0142`). The offset is split into two address bytes.
+/// Compute the absolute address of the byte at `position` (0–194) in the
+/// Partial for a part and key; positions from `0x80` are at offset `01 00`
+/// and up.
 pub fn pcmd_partial_param_address(
     part_index: u8,
     key: u8,
-    offset: u16,
+    position: u8,
 ) -> Result<Address, KeyOutOfRange> {
-    let byte2 = (offset >> 8) as u8;
-    let byte3 = (offset & 0xFF) as u8;
-    Ok(pcmd_partial_address(part_index, key)?.offset([0x00, 0x00, byte2, byte3]))
-}
-
-/// Offset of `field` in WMT `wmt` (0-based) from the start of a Partial
-/// block, in the 2-byte form [`pcmd_partial_param_address`] takes.
-pub fn pcmd_wmt_field_offset(wmt: u8, field: PcmdWmtField) -> Result<u16, PcmdFieldError> {
-    let start = WMT_STARTS
-        .get(wmt as usize)
-        .ok_or(PcmdFieldError::Wmt(wmt))?;
-    Ok(split_offset(start + field as usize))
-}
-
-/// Offset of element `index` (0-based) of `field` from the start of a Partial
-/// block, in the 2-byte form [`pcmd_partial_param_address`] takes.
-pub fn pcmd_partial_field_offset(
-    field: PcmdPartialField,
-    index: u8,
-) -> Result<u16, PcmdFieldError> {
-    if index as usize >= field.count() {
-        return Err(PcmdFieldError::Element { field, index });
-    }
-    Ok(split_offset(field as usize + index as usize))
+    Ok(pcmd_partial_address(part_index, key)?.offset([0x00, 0x00, 0x00, position]))
 }
 
 /// Byte position of `field` in WMT `wmt` (0-based) within a Partial block.
@@ -324,12 +311,8 @@ pub fn pcmd_partial_field_offset(
 ///
 /// If `wmt` is not below [`PCMD_WMT_COUNT`].
 pub const fn pcmd_wmt_byte(wmt: usize, field: PcmdWmtField) -> usize {
-    WMT_STARTS[wmt] + field as usize
-}
-
-/// Split a byte position within a Partial into its 7-bit `hi lo` offset.
-const fn split_offset(linear: usize) -> u16 {
-    (((linear / 128) << 8) | (linear % 128)) as u16
+    assert!(wmt < PCMD_WMT_COUNT, "WMT index out of range");
+    WMT1_START + wmt * WMT_LAYER_SIZE + field as usize
 }
 
 /// Compute the absolute PCM Drum Kit Common2 block address for a part.
@@ -775,8 +758,9 @@ pub fn parse_pcmd_partial(data: &[u8]) -> Result<PcmDrumPartial, crate::TonePars
     p.receive_hold1 = byte(F::ReceiveHold1);
 
     p.wmt_velocity_control = byte(F::WmtVelocityControl);
-    for (i, &start) in WMT_STARTS.iter().enumerate() {
-        p.wmt[i] = parse_pcmd_wmt(&data[start..start + WMT_LAYER_SIZE]);
+    for (i, w) in p.wmt.iter_mut().enumerate() {
+        let start = pcmd_wmt_byte(i, PcmdWmtField::Switch);
+        *w = parse_pcmd_wmt(&data[start..start + WMT_LAYER_SIZE]);
     }
 
     p.pitch_env_depth = byte(F::PitchEnvDepth);
@@ -947,7 +931,8 @@ pub fn encode_pcmd_partial(p: &PcmDrumPartial) -> Vec<u8> {
 
     set(F::OneShotMode, &[p.one_shot_mode]);
 
-    for (w, &start) in p.wmt.iter().zip(&WMT_STARTS) {
+    for (i, w) in p.wmt.iter().enumerate() {
+        let start = pcmd_wmt_byte(i, PcmdWmtField::Switch);
         encode_pcmd_wmt(w, &mut data[start..start + WMT_LAYER_SIZE]);
     }
     data[PARTIAL_RESERVE_64] = 64;
@@ -1028,55 +1013,44 @@ mod tests {
                     range: PCMD_KEYS
                 })
             );
-            assert!(pcmd_partial_param_address(0, key, 0x0021).is_err());
+            assert!(pcmd_partial_param_address(0, key, 0x21).is_err());
         }
     }
 
     #[test]
     fn pcmd_partial_param_address_wmt1_switch() {
-        let addr = pcmd_partial_param_address(0, 21, 0x0021);
+        let addr = pcmd_partial_param_address(0, 21, 0x21);
         assert_eq!(addr, Ok(Address::new(0x19, 0x10, 0x10, 0x21)));
     }
 
     #[test]
-    fn pcmd_wmt_field_offsets_follow_the_midi_implementation() {
+    fn pcmd_wmt_field_positions_follow_the_midi_implementation() {
         // WMT1 Wave Switch `00 21`, WMT4 Wave Number R `01 02`,
         // WMT4 Wave Level `01 10`.
-        assert_eq!(pcmd_wmt_field_offset(0, PcmdWmtField::Switch), Ok(0x0021));
+        assert_eq!(PcmdWmtField::Switch.element_position(0), Ok(0x21));
+        assert_eq!(PcmdWmtField::WaveNumberR.element_position(3), Ok(0x82));
+        assert!(PcmdWmtField::WaveNumberR.is_nibblized());
+        assert_eq!(PcmdWmtField::Level.element_position(3), Ok(0x90));
         assert_eq!(
-            pcmd_wmt_field_offset(3, PcmdWmtField::WaveNumberR),
-            Ok(0x0102)
-        );
-        assert_eq!(pcmd_wmt_field_offset(3, PcmdWmtField::Level), Ok(0x0110));
-        assert_eq!(
-            pcmd_wmt_field_offset(4, PcmdWmtField::Switch),
-            Err(PcmdFieldError::Wmt(4))
+            PcmdWmtField::Switch.element_position(4),
+            Err(FieldIndexError {
+                field: PcmdWmtField::Switch,
+                index: 4
+            })
         );
     }
 
     #[test]
-    fn pcmd_partial_field_offsets_follow_the_midi_implementation() {
+    fn pcmd_partial_field_positions_follow_the_midi_implementation() {
         // Partial Pan `00 12`, TVF Env Time 3 `01 2F`, TVA Env Level 3 `01 40`,
         // One Shot Mode `01 41`.
+        assert_eq!(PcmdPartialField::Pan.element_position(0), Ok(0x12));
+        assert_eq!(PcmdPartialField::TvfEnvTime.element_position(2), Ok(0xAF));
+        assert_eq!(PcmdPartialField::TvaEnvLevel.element_position(2), Ok(0xC0));
+        assert_eq!(PcmdPartialField::OneShotMode.element_position(0), Ok(0xC1));
         assert_eq!(
-            pcmd_partial_field_offset(PcmdPartialField::Pan, 0),
-            Ok(0x0012)
-        );
-        assert_eq!(
-            pcmd_partial_field_offset(PcmdPartialField::TvfEnvTime, 2),
-            Ok(0x012F)
-        );
-        assert_eq!(
-            pcmd_partial_field_offset(PcmdPartialField::TvaEnvLevel, 2),
-            Ok(0x0140)
-        );
-        assert_eq!(
-            pcmd_partial_field_offset(PcmdPartialField::OneShotMode, 0),
-            Ok(0x0141)
-        );
-        assert_eq!(
-            pcmd_partial_field_offset(PcmdPartialField::TvaEnvLevel, 3),
-            Err(PcmdFieldError::Element {
+            PcmdPartialField::TvaEnvLevel.element_position(3),
+            Err(FieldIndexError {
                 field: PcmdPartialField::TvaEnvLevel,
                 index: 3
             })
@@ -1086,7 +1060,7 @@ mod tests {
     #[test]
     fn pcmd_partial_param_address_pitch_env_depth() {
         // Pitch Env Depth at offset 01 15
-        let addr = pcmd_partial_param_address(0, 21, 0x0115);
+        let addr = pcmd_partial_param_address(0, 21, 0x95);
         assert_eq!(addr, Ok(Address::new(0x19, 0x10, 0x11, 0x15)));
     }
 

@@ -792,14 +792,15 @@ mod tests {
 
     #[test]
     fn warns_when_a_drum_kit_plays_waves_of_an_unloaded_expansion() {
+        use crate::block_field::BlockField;
         use crate::parse_helpers::encode_nibble4;
-        use crate::pcm_drum::{PcmdWmtField as F, pcmd_wmt_field_offset};
+        use crate::pcm_drum::PcmdWmtField as F;
 
         let mut kit = entry(ChunkType::PcmDrumKit, None);
         let mut blocks = kit.blocks().to_vec();
         // Key 21's first WMT plays SRX-07 Wave 1; every other WMT is off.
         let key = &mut blocks[3];
-        let at = |field| usize::from(pcmd_wmt_field_offset(0, field).unwrap());
+        let at = |field: F| field.position();
         key[at(F::Switch)] = 1;
         key[at(F::WaveGroupType)] = 1;
         key[at(F::WaveGroupId)..][..4].copy_from_slice(&encode_nibble4(7));

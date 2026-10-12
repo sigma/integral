@@ -1173,34 +1173,8 @@ impl DeviceState {
         self.send_dt1(&addr, &[value]);
     }
 
-    /// Set a single PCM Drum Kit Partial parameter for a part and key.
-    fn set_pcmd_partial_param(
-        &mut self,
-        part: u8,
-        key: u8,
-        offset: u16,
-        value: u8,
-    ) -> Result<(), KeyOutOfRange> {
-        let addr = crate::pcm_drum::pcmd_partial_param_address(part, key, offset)?;
-        self.send_dt1(&addr, &[value]);
-        Ok(())
-    }
-
-    /// Set a nibblized PCM Drum Kit Partial parameter (4 bytes, e.g. wave number).
-    fn set_pcmd_partial_nib_param(
-        &mut self,
-        part: u8,
-        key: u8,
-        offset: u16,
-        value: u16,
-    ) -> Result<(), KeyOutOfRange> {
-        let addr = crate::pcm_drum::pcmd_partial_param_address(part, key, offset)?;
-        self.send_dt1(&addr, &crate::parse_helpers::encode_nibble4(value));
-        Ok(())
-    }
-
-    /// Set a field of WMT `wmt` (0-based) in the Partial for `key`, sent
-    /// nibblized when the field is.
+    /// Set value `wmt` (0-based WMT layer) of a WMT field in the Partial
+    /// for `key`, sent nibblized when the field is.
     pub fn set_pcmd_wmt_param(
         &mut self,
         part: u8,
@@ -1208,13 +1182,10 @@ impl DeviceState {
         wmt: u8,
         field: crate::pcm_drum::PcmdWmtField,
         value: u16,
-    ) -> Result<(), crate::pcm_drum::PcmdFieldError> {
-        let offset = crate::pcm_drum::pcmd_wmt_field_offset(wmt, field)?;
-        if field.is_nibblized() {
-            self.set_pcmd_partial_nib_param(part, key, offset, value)?;
-        } else {
-            self.set_pcmd_partial_param(part, key, offset, value as u8)?;
-        }
+    ) -> Result<(), crate::pcm_drum::PcmdFieldError<crate::pcm_drum::PcmdWmtField>> {
+        let position = field.element_position(wmt)?;
+        let addr = crate::pcm_drum::pcmd_partial_param_address(part, key, position)?;
+        self.send_dt1(&addr, &field.encode(value));
         Ok(())
     }
 
@@ -1227,9 +1198,10 @@ impl DeviceState {
         field: crate::pcm_drum::PcmdPartialField,
         index: u8,
         value: u8,
-    ) -> Result<(), crate::pcm_drum::PcmdFieldError> {
-        let offset = crate::pcm_drum::pcmd_partial_field_offset(field, index)?;
-        self.set_pcmd_partial_param(part, key, offset, value)?;
+    ) -> Result<(), crate::pcm_drum::PcmdFieldError<crate::pcm_drum::PcmdPartialField>> {
+        let position = field.element_position(index)?;
+        let addr = crate::pcm_drum::pcmd_partial_param_address(part, key, position)?;
+        self.send_dt1(&addr, &[value]);
         Ok(())
     }
 
@@ -1834,15 +1806,21 @@ mod tests {
 
     #[test]
     fn pcmd_partial_setters_reject_keys_outside_the_kit() {
-        use crate::pcm_drum::{PCMD_FIRST_KEY, PCMD_LAST_KEY};
+        use crate::pcm_drum::{PCMD_FIRST_KEY, PCMD_LAST_KEY, PcmdPartialField, PcmdWmtField};
         let mut dev = DeviceState::new(0x10);
         for key in [PCMD_FIRST_KEY - 1, PCMD_LAST_KEY + 1] {
-            assert!(dev.set_pcmd_partial_param(0, key, 0x0021, 1).is_err());
-            assert!(dev.set_pcmd_partial_nib_param(0, key, 0x0027, 1).is_err());
+            assert!(
+                dev.set_pcmd_partial_field(0, key, PcmdPartialField::Level, 0, 1)
+                    .is_err()
+            );
+            assert!(
+                dev.set_pcmd_wmt_param(0, key, 0, PcmdWmtField::WaveNumberL, 1)
+                    .is_err()
+            );
         }
         assert!(!dev.has_pending());
         assert!(
-            dev.set_pcmd_partial_param(0, PCMD_FIRST_KEY, 0x0021, 1)
+            dev.set_pcmd_partial_field(0, PCMD_FIRST_KEY, PcmdPartialField::Level, 0, 1)
                 .is_ok()
         );
         assert!(dev.has_pending());
