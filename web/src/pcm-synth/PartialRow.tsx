@@ -252,16 +252,19 @@ function TvfSection({
             onChange={set(PcmsPartialField.TvfResonanceVelocitySens, "tvfResonanceVelocitySens")} color="#68c"
             title="Resonance velocity sensitivity — harder keys = more resonance" />
         </div>
-        <div className={css.stack}>
-          <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffKeyfollow))}
-            onChange={set(PcmsPartialField.TvfCutoffKeyfollow, "tvfCutoffKeyfollow")} color="#68c"
-            title="Cutoff key tracking — higher keys = higher cutoff" />
+        <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffKeyfollow))}
+          onChange={set(PcmsPartialField.TvfCutoffKeyfollow, "tvfCutoffKeyfollow")} color="#68c"
+          title="Cutoff key tracking — higher keys = higher cutoff" />
+      </div>
+      <div className={css.envBlock}>
+        <div className={css.panelRow}>
           <SynthSelect label="Vel Crv" value={partial.tvfCutoffVelocityCurve}
             options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocityCurve))}
             onChange={set(PcmsPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} title="Cutoff velocity response curve shape" />
+          <SynthSelect label="Env Crv" value={partial.tvfEnvVelocityCurve}
+            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfEnvVelocityCurve))}
+            onChange={set(PcmsPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} title="Envelope velocity response curve shape" />
         </div>
-      </div>
-      <div className={css.envBlock}>
         <div className={css.panelRow}>
           <SynthKnob label="Depth" value={partial.tvfEnvDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvDepth))}
             onChange={set(PcmsPartialField.TvfEnvDepth, "tvfEnvDepth")} color="#68c"
@@ -269,9 +272,6 @@ function TvfSection({
           <SynthKnob label="Vel Sns" value={partial.tvfEnvVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvVelocitySens))}
             onChange={set(PcmsPartialField.TvfEnvVelocitySens, "tvfEnvVelocitySens")} color="#68c"
             title="Envelope velocity sensitivity — harder keys = deeper sweep" />
-          <SynthSelect label="Env Crv" value={partial.tvfEnvVelocityCurve}
-            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfEnvVelocityCurve))}
-            onChange={set(PcmsPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} title="Envelope velocity response curve shape" />
           <SynthKnob label="Key Trk" value={partial.tvfEnvTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvTimeKeyfollow))}
             onChange={set(PcmsPartialField.TvfEnvTimeKeyfollow, "tvfEnvTimeKeyfollow")} color="#68c"
             title="Envelope time key tracking — higher keys = faster envelope" />
