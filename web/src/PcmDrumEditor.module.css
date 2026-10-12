@@ -33,10 +33,17 @@
    Main Area: three columns
    ---------------------------------------------------------------- */
 
+/* DRUM KEY, then the MFX centred on it, with room for the arrow between them */
 .mainArea {
+  position: relative;
   display: flex;
-  gap: 8px;
+  gap: 56px;
   align-items: flex-start;
+}
+
+.mfxSidebar {
+  flex-shrink: 0;
+  align-self: center;
 }
 
 /* ----------------------------------------------------------------

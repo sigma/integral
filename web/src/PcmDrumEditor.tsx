@@ -17,6 +17,7 @@ import {
   SectionPanel,
 } from "./synth-ui";
 import { MfxPanel } from "./MfxPanel";
+import { SignalArrows } from "./synth-ui/SignalArrows";
 import { useMfxHandlers } from "./useMfxHandlers";
 import type { MfxState } from "./MfxPanel";
 import css from "./PcmDrumEditor.module.css";
@@ -240,7 +241,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
       )}
 
       <div className={css.mainArea}>
-        <div className={css.keyEditorArea}>
+        <div className={css.keyEditorArea} data-node="drum-key">
           <SectionPanel label="DRUM KEY" accentColor="#f93">
             <div className={css.keyGridRow}>
               {common && <KitLevelFader kitLevel={common.kitLevel} onChange={setKitLevel} />}
@@ -270,11 +271,15 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
         </div>
 
         {mfx && (
-          <MfxPanel
-            mfx={mfx}
-            {...mfxHandlers}
-          />
+          <div className={css.mfxSidebar} data-node="mfx">
+            <MfxPanel
+              mfx={mfx}
+              {...mfxHandlers}
+            />
+          </div>
         )}
+        {/* The kit's keys all feed the MFX. */}
+        <SignalArrows edges={[{ from: "drum-key", to: "mfx" }]} />
       </div>
     </div>
   );
