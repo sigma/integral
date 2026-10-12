@@ -72,6 +72,23 @@ describe("PartialGrid", () => {
   });
 });
 
+describe("PartialGrid ring modulator", () => {
+  it("draws the ring modulator as its own box between the lanes and the merged block", () => {
+    for (const structure of [4, 5, 6, 7, 8, 9]) {
+      const { blocks, spans } = layout(structure);
+      expect(blocks("RING"), `type ${structure + 1}`).toEqual(["0-ring"]);
+      expect(spans("RING")).toEqual(["1 / span 2"]);
+    }
+    expect(layout(1).blocks("RING")).toEqual([]);
+  });
+
+  it("sends partial 2 dry into the mix too, in types 6, 8 and 10", () => {
+    const arrows = (structure: number) => layout(structure).container.querySelectorAll("path[marker-end]").length;
+    // Type 6 over type 5: partial 2's own arrow to the merged block, and the + they meet at.
+    expect(arrows(5) - arrows(4)).toBe(2);
+  });
+});
+
 describe("PartialGrid booster", () => {
   it("shows a BOOST box only where the Structure boosts", () => {
     const boxes = (structure: number) => layout(structure).blocks("BOOST");

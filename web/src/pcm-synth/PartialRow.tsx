@@ -45,9 +45,6 @@ export interface PairPartial {
   onSwitch: (value: number) => void;
 }
 
-/** Where the lanes meet: summed (the booster, when it joins them, is the next box) or ring modulated. */
-const JOIN_GLYPHS = { mix: "+", booster: "+", ring: "R" } as const;
-
 /**
  * A pair of partials (1 & 2, or 3 & 4) laid out along their Structure's
  * signal path: each row keeps its modulation boxes (LFOs, STEP LFO), WAVE,
@@ -205,16 +202,33 @@ function pairLayout(
 
   const join = routing.join;
   if (join) {
-    // After the join: one block, centred on both lanes, ending in the pair's single output.
+    let column = PATH_COLUMN + (preColumn ? 1 : 0);
     const node = `out-${first + 1}`;
-    place(node, "both", PATH_COLUMN + (preColumn ? 1 : 0), [
-      // Type 4 boosts right where the lanes meet: the booster opens the merged block.
+    if (join.kind === "ring") {
+      // The ring modulator: a box of its own, both lanes in, its product out.
+      const ring = `${first}-ring`;
+      place(ring, "both", column++, (
+        <div className={`${css.blockBox} ${upper.isOn || lower.isOn ? "" : css.partialDimmed}`}>
+          <RingSection pair={number} />
+        </div>
+      ));
+      edges.push({ from: lastBlock.upper, to: ring }, { from: lastBlock.lower, to: ring });
+      if (join.lowerDry) {
+        // Partial 2 (4) also goes in dry, summed with the ring's product.
+        edges.push({ from: ring, to: node, glyph: "+" }, { from: lastBlock.lower, to: node, glyph: "+" });
+      } else {
+        edges.push({ from: ring, to: node });
+      }
+    } else {
+      // Summed: type 4's booster then opens the merged block.
+      edges.push({ from: lastBlock.upper, to: node, glyph: "+" }, { from: lastBlock.lower, to: node, glyph: "+" });
+    }
+    // After the join: one block, centred on both lanes, ending in the pair's single output.
+    place(node, "both", column, [
       ...(join.kind === "booster" ? [pathBox({ kind: "booster" }, "boost")] : []),
       ...join.after.map((b, i) => pathBox(b, `after${i}`)),
       outputBox("lower", number.lower),
     ]);
-    const glyph = JOIN_GLYPHS[join.kind] + (join.lowerDry ? "+" : "");
-    edges.push({ from: lastBlock.upper, to: node, glyph }, { from: lastBlock.lower, to: node, glyph });
   }
 
   cells.push(
@@ -851,6 +865,21 @@ function BoosterSection({
     <SectionPanel label="BOOST" accentColor="#e86">
       <SynthKnob label="Boost" value={value} {...knobRange(pcms_pmt_spec(field))} onChange={onChange} color="#e86"
         title={`Booster depth for partials ${pair.upper} & ${pair.lower}: overdrives the signal; higher distorts more`} />
+    </SectionPanel>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Ring Section: the pair's ring modulator, on its signal path (Structure 5-10)
+// ---------------------------------------------------------------------------
+
+function RingSection({ pair }: { pair: { upper: number; lower: number } }) {
+  return (
+    <SectionPanel label="RING" accentColor="#e86">
+      <div className={css.ringProduct}
+        title={`Ring modulator: multiplies partials ${pair.upper} and ${pair.lower}, adding new (often metallic) overtones. No settings; partial ${pair.upper}'s AMP sets its depth.`}>
+        {pair.upper} × {pair.lower}
+      </div>
     </SectionPanel>
   );
 }
