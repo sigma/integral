@@ -136,5 +136,9 @@ R are picked as two separate Wave Numbers.
 The role a parameter plays in shaping the sound, whatever editor or effect it
 sits in: Pitch / Source, Filter / Tone, Amp / Level, Modulation, Time / Space,
 or Common / Global. Controls of one family look alike everywhere.
+A parameter's family is the sound dimension it changes. Anything that
+generates movement (LFOs, step sequencers, envelope followers) is Modulation,
+whatever it targets. Common / Global holds controls with no sound dimension:
+on/off switches and structure selectors.
 _Avoid_: Section (a section is a group of controls on screen), category (a
 Category classifies Tones)
