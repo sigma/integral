@@ -18,6 +18,7 @@ import type { ExpansionMarking } from "./WavePicker";
 import { deviceSpec } from "./deviceSpec";
 import { MfxPanel } from "./MfxPanel";
 import { SignalArrows } from "./synth-ui/SignalArrows";
+import { SectionPanel } from "./synth-ui";
 import { useMfxHandlers } from "./useMfxHandlers";
 import type { MfxState } from "./MfxPanel";
 import css from "./PcmSynthEditor.module.css";
@@ -201,10 +202,14 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
 
       {/* Tone-wide settings: Common, then the partial mix */}
       {(common || pmt) && (
-        <div className={css.commonStrip}>
-          {common && <CommonStrip common={common} onChange={setCommonParam} />}
-          {common && pmt && <div className={css.commonDivider} />}
-          {pmt && <PmtStrip pmt={pmt} onChange={setPmtParam} />}
+        <div className={css.commonPanel}>
+          <SectionPanel label="COMMON" accentColor="#8cf">
+            <div className={css.commonStrip}>
+              {common && <CommonStrip common={common} onChange={setCommonParam} />}
+              {common && pmt && <div className={css.commonDivider} />}
+              {pmt && <PmtStrip pmt={pmt} onChange={setPmtParam} />}
+            </div>
+          </SectionPanel>
         </div>
       )}
 

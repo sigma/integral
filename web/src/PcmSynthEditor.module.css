@@ -36,14 +36,21 @@
    Tone-wide strip: Common settings, then the partial mix (PMT)
    ---------------------------------------------------------------- */
 
+/*
+ * Holds the COMMON panel at its full height: in the editor's scrolling column a
+ * panel (overflow: hidden) could otherwise shrink to nothing but its border.
+ */
+.commonPanel {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+/* Inside the COMMON panel, which draws the frame */
 .commonStrip {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
-  background: #161628;
-  border: 1px solid #2a2a4a;
-  border-radius: 6px;
   flex-wrap: wrap;
 }
 
