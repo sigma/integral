@@ -168,7 +168,7 @@ function PitchSection({
           title="Pitch keyboard tracking" />
       </div>
       <div className={css.envBlock}>
-        <div className={css.panelRow}>
+        <div className={css.envKnobs}>
           <SynthKnob label="Depth" value={partial.pitchEnvDepth}
             {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvDepth))}
             onChange={set(PcmsPartialField.PitchEnvDepth, "pitchEnvDepth")} color="#fc8"
@@ -265,7 +265,7 @@ function TvfSection({
             options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfEnvVelocityCurve))}
             onChange={set(PcmsPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} color="#68c" title="Envelope velocity response curve shape" />
         </div>
-        <div className={css.panelRow}>
+        <div className={css.envKnobs}>
           <SynthKnob label="Depth" value={partial.tvfEnvDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvDepth))}
             onChange={set(PcmsPartialField.TvfEnvDepth, "tvfEnvDepth")} color="#68c"
             title="Filter envelope depth — how much the envelope sweeps the cutoff" />
@@ -357,7 +357,7 @@ function TvaSection({
         </div>
       </div>
       <div className={css.envBlock}>
-        <div className={css.panelRow}>
+        <div className={`${css.envKnobs} ${css.envKnobsTail}`}>
           <SynthKnob label="Key Trk" value={partial.tvaEnvTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvTimeKeyfollow))}
             onChange={set(PcmsPartialField.TvaEnvTimeKeyfollow, "tvaEnvTimeKeyfollow")} color="#6c8"
             title="Envelope time key tracking — higher keys = faster envelope" />

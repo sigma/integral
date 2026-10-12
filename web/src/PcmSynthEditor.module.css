@@ -274,6 +274,21 @@
   gap: 4px;
 }
 
+/*
+ * Envelope knobs: one column per level fader of the 5-level envelope below
+ * (its grid gives each level an equal share), so each knob sits over one.
+ */
+.envKnobs {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  justify-items: center;
+}
+
+/* Three knobs over L2-L4 (AMP) */
+.envKnobsTail > :first-child {
+  grid-column-start: 3;
+}
+
 /* Vertical pair of controls (e.g. a knob above its velocity sens) */
 .stack {
   display: flex;
