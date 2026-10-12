@@ -5,10 +5,9 @@
 }
 
 .curve {
+  composes: screen from "./Scope.module.css";
   grid-column: 1 / -1;
   grid-row: 1;
-  width: 100%;
-  opacity: 0.8;
 }
 
 .level {

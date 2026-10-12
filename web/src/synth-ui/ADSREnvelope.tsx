@@ -17,7 +17,7 @@ function normalize(s: Stage): number {
   return (s.value - s.min) / (s.max - s.min || 1);
 }
 
-const CURVE_H = 28;
+const CURVE_H = 40;
 
 /** A/D or A/D/S/R fader row with the envelope shape drawn above it. */
 export function ADSREnvelope({ attack, decay, sustain, release, compact }: Props) {

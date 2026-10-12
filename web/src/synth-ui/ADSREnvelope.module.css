@@ -1,12 +1,12 @@
 .envelope {
   display: flex;
+  width: fit-content;
   flex-direction: column;
 }
 
 .curve {
+  composes: screen from "./Scope.module.css";
   display: block;
-  width: 100%;
-  opacity: 0.8;
 }
 
 .faders {

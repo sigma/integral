@@ -26,7 +26,7 @@ function normalize(s: Stage | FixedLevel): number {
   return isFixed(s) ? s.at : (s.value - s.min) / (s.max - s.min || 1);
 }
 
-const CURVE_H = 28;
+const CURVE_H = 40;
 const HOLD = 0.6;
 
 /**
