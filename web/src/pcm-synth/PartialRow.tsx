@@ -557,12 +557,14 @@ function TvaSection({
             onChange={set(PcmsPartialField.AlternatePanDepth, "alternatePanDepth")} color="#6c8"
             title={followsTitle("Alternate pan depth — successive notes alternate left and right; L/R sets which side comes first. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4.", follows)} />
         </div>
-        <VelocityCurveSelect className={css.at2} label="Vel Crv" value={partial.tvaLevelVelocityCurve}
+        <VelocityCurveSelect className={css.at1} label="Vel Crv" value={partial.tvaLevelVelocityCurve}
           options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaLevelVelocityCurve))}
           onChange={set(PcmsPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} color="#6c8" title="Velocity response curve shape" />
-        <SynthKnob label="Bias Lvl" value={partial.tvaBiasLevel} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasLevel))}
-          onChange={set(PcmsPartialField.TvaBiasLevel, "tvaBiasLevel")} color="#6c8"
-          title="Bias level — how steeply volume changes with distance from the bias key; the sign sets whether it rises or falls" />
+        <div className={css.at3}>
+          <SynthKnob label="Bias Lvl" value={partial.tvaBiasLevel} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasLevel))}
+            onChange={set(PcmsPartialField.TvaBiasLevel, "tvaBiasLevel")} color="#6c8"
+            title="Bias level — how steeply volume changes with distance from the bias key; the sign sets whether it rises or falls" />
+        </div>
         <SynthKnob label="Bias Key" value={partial.tvaBiasPosition} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasPosition))}
           onChange={set(PcmsPartialField.TvaBiasPosition, "tvaBiasPosition")} color="#6c8"
           title="Bias key — the pivot key the volume change is measured from" />
