@@ -29,6 +29,7 @@ use thiserror::Error;
 use crate::expansion_load::{self, LoadAction, LoadMachine, LoadOutcome, LoadPlan};
 use crate::expansion_slots::{self, ExpansionSlots};
 use crate::expansions::Expansion;
+use crate::factory_catalog;
 use crate::midi_bridge::RequestTracker;
 use crate::params::{self, ToneType, part};
 use crate::parse_helpers::encode_ascii_name;
@@ -504,7 +505,10 @@ impl DeviceState {
         p.tone_bank_msb = msb;
         p.tone_bank_lsb = lsb;
         p.tone_pc = pc;
-        p.tone_name = String::new(); // Clear until re-read.
+        // The factory name until the device's own name is read back.
+        p.tone_name = factory_catalog::factory_tone(msb, lsb, pc)
+            .map(|t| t.name.to_string())
+            .unwrap_or_default();
         self.invalidate_sns_tone(part);
 
         let msb_addr = params::part_address(part, part::TONE_BANK_MSB);
@@ -1448,6 +1452,15 @@ mod tests {
         assert_eq!(dev.state().parts[0].tone_bank_msb, 89);
         assert_eq!(dev.state().parts[0].tone_bank_lsb, 64);
         assert_eq!(dev.state().parts[0].tone_pc, 12);
+    }
+
+    #[test]
+    fn change_part_tone_shows_factory_name_until_read_back() {
+        let mut dev = DeviceState::new(0x10);
+        dev.change_part_tone(0, 89, 64, 0);
+        assert_eq!(dev.state().parts[0].tone_name, "Full Grand 1");
+        dev.change_part_tone(0, 87, 0, 0); // User bank: no factory name
+        assert_eq!(dev.state().parts[0].tone_name, "");
     }
 
     #[test]

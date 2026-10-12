@@ -404,12 +404,6 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
       service.device.changePartTone(part, msb, lsb, pc);
       // Drop the old tone's category until the new one is read back.
       service.device.setPartToneCategory(part, 0);
-
-      // Set factory name instantly for responsive UI.
-      const fName = factoryToneName(msb, lsb, pc);
-      if (fName) {
-        service.device.setPartToneName(part, fName);
-      }
       syncFromRust();
 
       // Re-read actual device name (may differ for user tones).

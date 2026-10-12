@@ -2144,11 +2144,7 @@ pub fn factory_tones_json(msb: u8, lsb: u8) -> String {
 /// Returns the tone name, or an empty string if not found.
 #[wasm_bindgen(js_name = factoryToneName)]
 pub fn factory_tone_name(msb: u8, lsb: u8, pc: u8) -> String {
-    use integral_core::factory_catalog::factory_tones;
-
-    factory_tones(msb, lsb)
-        .iter()
-        .find(|t| t.pc == pc)
+    integral_core::factory_catalog::factory_tone(msb, lsb, pc)
         .map(|t| t.name.to_string())
         .unwrap_or_default()
 }

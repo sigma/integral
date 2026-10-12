@@ -20,6 +20,11 @@ pub struct FactoryTone {
 
 include!(concat!(env!("OUT_DIR"), "/factory_catalog_data.rs"));
 
+/// The factory tone at bank `msb`/`lsb`, program `pc`, if there is one.
+pub fn factory_tone(msb: u8, lsb: u8, pc: u8) -> Option<&'static FactoryTone> {
+    factory_tones(msb, lsb).iter().find(|t| t.pc == pc)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -221,11 +221,10 @@ impl Model for MixerData {
 
         event.map(|e, _| match e {
             ToneSelectorEvent::SelectTone { msb, lsb, pc } => {
-                self.selected_tone_msb = *msb;
-                self.selected_tone_lsb = *lsb;
-                self.selected_tone_pc = *pc;
+                let part = self.selected_part as u8;
+                let (msb, lsb, pc) = (*msb, *lsb, *pc);
+                self.edit_device(|dev| dev.change_part_tone(part, msb, lsb, pc));
                 self.tone_selector_open = false;
-                // TODO: Send SysEx tone change to device.
             }
             ToneSelectorEvent::Close => {
                 self.tone_selector_open = false;
