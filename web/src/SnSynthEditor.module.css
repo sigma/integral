@@ -34,14 +34,11 @@
    Common Controls Strip
    ---------------------------------------------------------------- */
 
+/* Sits inside a SectionPanel, which supplies the frame. */
 .commonStrip {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
-  background: #161628;
-  border: 1px solid #2a2a4a;
-  border-radius: 6px;
   flex-wrap: wrap;
 }
 
