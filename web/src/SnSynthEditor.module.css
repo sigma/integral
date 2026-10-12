@@ -70,17 +70,29 @@
 }
 
 /* ----------------------------------------------------------------
-   Main Grid: 3 partial rows x (SW + 5 sections + MFX)
+   Main area: COMMON, the 3 partial rows, and the MFX
    ---------------------------------------------------------------- */
 
-/* Stretch, so the MFX panel ends level with the last partial row. */
+/*
+ * COMMON on top, the partial rows under it, and the MFX beside the partials,
+ * centred on them: the rows are alike, so that's level with partial 2.
+ */
 .mainArea {
   position: relative;
-  display: flex;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 6px 56px;
+  justify-content: start;
+}
+
+.commonCell {
+  grid-column: 1;
+  grid-row: 1;
 }
 
 .partialRows {
+  grid-column: 1;
+  grid-row: 2;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -107,14 +119,11 @@
   opacity: 0.4;
 }
 
-/*
- * The MFX at its own height, centred on the partials, with room for their
- * arrows to converge on it at its +.
- */
+/* The MFX at its own height; the column gap leaves room for the arrows to meet at its +. */
 .mfxSidebar {
-  flex-shrink: 0;
+  grid-column: 2;
+  grid-row: 2;
   align-self: center;
-  margin-left: 48px;
 }
 
 /* Fixed-width area for wave selectors so knobs don't shift */

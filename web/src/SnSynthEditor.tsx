@@ -113,10 +113,12 @@ export function SnSynthEditor({ partIndex, service }: Props) {
       {/* Tone name */}
       <div className={css.toneName}>{tone.common.toneName || "(unnamed)"}</div>
 
-      {/* Common strip + partial rows, MFX sidebar */}
+      {/* Common strip over the partial rows; the MFX beside the partials */}
       <div className={css.mainArea}>
-        <div className={css.partialRows}>
+        <div className={css.commonCell}>
           <CommonStrip common={tone.common} onChange={setCommonParam} />
+        </div>
+        <div className={css.partialRows}>
           {tone.partials.map((partial, idx) => {
             const isOn = (partialSwitches[idx] ?? 0) !== 0;
             const setP: PartialParamHandler = (field, value) =>
