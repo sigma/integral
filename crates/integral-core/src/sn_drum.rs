@@ -36,6 +36,29 @@ pub const SND_FIRST_KEY: u8 = 27;
 /// Last key number in the SN-D note range.
 pub const SND_LAST_KEY: u8 = 88;
 
+/// An Inst an SN Drum Kit key can play, from Roland's Editor list
+/// (`docs/sn-drum-insts/`). Inst Number 0 (OFF) has no entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct SndInst {
+    /// Inst Number (1…N).
+    pub number: u16,
+    /// Inst name, as in Roland's Editor.
+    pub name: &'static str,
+    /// Roland's category: Kick, Snare, Tom, Hi-Hat, Ride, Crash, Percussion,
+    /// Other or SFX.
+    pub family: &'static str,
+    /// `INT`, or `ExSN6` when the Inst comes from that expansion.
+    pub bank: &'static str,
+}
+
+include!(concat!(env!("OUT_DIR"), "/sn_drum_inst_data.rs"));
+
+/// Every named SN Drum Inst, in Inst Number order.
+pub fn sn_drum_insts() -> &'static [SndInst] {
+    SND_INSTS
+}
+
 /// Highest SN-D Note Inst Number (0 is OFF).
 pub const SND_INST_NUMBER_MAX: u16 = 512;
 
@@ -328,6 +351,22 @@ pub fn parse_snd_note(data: &[u8]) -> Result<SnDrumNote, crate::ToneParseError> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn inst_list_runs_from_studio_kick_within_the_inst_range() {
+        let insts = sn_drum_insts();
+        assert_eq!(insts.len(), 294);
+        assert_eq!(insts[0].name, "Studio Kick");
+        assert_eq!(insts[0].family, "Kick");
+        assert!(
+            insts
+                .iter()
+                .enumerate()
+                .all(|(i, x)| usize::from(x.number) == i + 1)
+        );
+        assert!(insts.last().unwrap().number <= SND_INST_NUMBER_MAX);
+        assert_eq!(insts.iter().filter(|x| x.bank == "ExSN6").count(), 126);
+    }
 
     #[test]
     fn snd_common_address_part1() {

@@ -20,6 +20,8 @@ import {
   OutputStrip,
 } from "./synth-ui";
 import { MfxPanel } from "./MfxPanel";
+import { WavePicker } from "./WavePicker";
+import { sndInstSource } from "./sndInstCatalog";
 import { SignalArrows } from "./synth-ui/SignalArrows";
 import { useMfxHandlers } from "./useMfxHandlers";
 import type { MfxState } from "./MfxPanel";
@@ -373,43 +375,18 @@ function NoteControls({
     (field: SndNoteField, key: Parameters<NoteParamHandler>[1]) =>
     (v: number) =>
       onChange(field, key, v);
-  const [instDraft, setInstDraft] = useState(String(note.instNumber));
-
-  // Sync draft when note changes (key selection)
-  useEffect(() => {
-    setInstDraft(String(note.instNumber));
-  }, [note.instNumber]);
-
-  const commitInstNumber = () => {
-    const n = Number(instDraft);
-    if (Number.isInteger(n) && n >= 0 && n <= deviceSpec().sn_drum_inst_number_max) {
-      onChange(SndNoteField.InstNumber, "instNumber", n);
-      setInstDraft(String(n));
-    } else {
-      // Revert to current value
-      setInstDraft(String(note.instNumber));
-    }
-  };
-
   return (
     <>
       <div className={css.instNumberRow}>
         <span className={css.instNumberLabel}>
           Key {keyNumber} ({noteName(keyNumber)})
         </span>
-        <label className={css.instInputLabel}>
-          Inst #
-          <input
-            className={css.instInput}
-            type="number"
-            min={0}
-            max={deviceSpec().sn_drum_inst_number_max}
-            value={instDraft}
-            onChange={(e) => setInstDraft(e.target.value)}
-            onBlur={commitInstNumber}
-            onKeyDown={(e) => { if (e.key === "Enter") commitInstNumber(); }}
-          />
-        </label>
+        <WavePicker
+          source={sndInstSource()}
+          stereo={false}
+          l={note.instNumber}
+          onChange={(_side, n) => onChange(SndNoteField.InstNumber, "instNumber", n)}
+        />
         <SynthSelect label="Out" value={note.outputAssign}
           options={OUTPUT_ASSIGN_OPTIONS}
           onChange={set(SndNoteField.OutputAssign, "outputAssign")} />

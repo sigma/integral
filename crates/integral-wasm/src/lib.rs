@@ -2077,6 +2077,12 @@ pub fn tone_type_from_bank_msb(msb: u8) -> Option<ToneType> {
     params::tone_type_from_bank_msb(msb).map(Into::into)
 }
 
+/// Every named SN Drum Inst, as a JSON array of `{ number, name, family, bank }`.
+#[wasm_bindgen(js_name = snDrumInstsJson)]
+pub fn sn_drum_insts_json() -> String {
+    serde_json::to_string(sn_drum::sn_drum_insts()).unwrap_or_else(|_| "[]".to_string())
+}
+
 /// Returns chorus parameter definitions for the given type index.
 #[wasm_bindgen]
 pub fn chorus_params(chorus_type: u8) -> Vec<WasmFxParamDef> {
