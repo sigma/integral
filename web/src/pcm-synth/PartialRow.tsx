@@ -250,14 +250,13 @@ function WaveSection({
       <PartialWave partial={partial} set={set} marking={marking} />
       <div className={css.waveControls}>
         <div className={css.switchColumn}>
-          <SynthSwitch label="Gain" value={partial.waveGain}
-            options={switchOptions(pcms_partial_spec(PcmsPartialField.WaveGain))}
-            onChange={set(PcmsPartialField.WaveGain, "waveGain")} title="Wave output gain" />
           <SynthSwitch label="Tempo" value={partial.waveTempoSync} options={switchOptions(pcms_partial_spec(PcmsPartialField.WaveTempoSync))}
             onChange={set(PcmsPartialField.WaveTempoSync, "waveTempoSync")} title="Sync wave playback to song tempo" />
           <SynthSwitch label="FXM" value={partial.waveFxmSwitch} options={switchOptions(pcms_partial_spec(PcmsPartialField.WaveFxmSwitch))}
             onChange={set(PcmsPartialField.WaveFxmSwitch, "waveFxmSwitch")} title="Frequency Cross Modulation" />
         </div>
+        <SynthKnob label="Gain" value={partial.waveGain} {...knobRange(pcms_partial_spec(PcmsPartialField.WaveGain))}
+          onChange={set(PcmsPartialField.WaveGain, "waveGain")} color="#fc8" title="Wave output gain" />
         <div className={css.knobGrid}>
           <SynthKnob label="FXM Col" value={partial.waveFxmColor} {...knobRange(pcms_partial_spec(PcmsPartialField.WaveFxmColor))}
             onChange={set(PcmsPartialField.WaveFxmColor, "waveFxmColor")} color="#fc8"
