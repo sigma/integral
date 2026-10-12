@@ -46,8 +46,7 @@ Per-slot detail is in [`mfx-param-layout.csv`](mfx-param-layout.csv).
 All three Roland files are from
 [integra7-editor-web @ d5b9193](https://github.com/SambaGodschynski/integra7-editor-web/tree/d5b9193874e2a0e3261a231562dff856c685f9fe/js/model)
 (`Copyright 2014 Roland Corporation`). For Chorus and Reverb, #27 found that the same
-files match raw device dumps exactly. This doc has **not** checked the MFX data against the
-device yet; that is step 4 of #30.
+files match raw device dumps exactly. For MFX, see [Device checks](#device-checks).
 
 ## Encoding
 
@@ -179,13 +178,40 @@ Load Roland's files in a Node `vm` context, with stubs for `window.globals` and
 `mfx_params::mfx_type_def(0..68)`. This needs no parsing, since Roland's own code builds
 the tables.
 
-## Next (from #30)
+## Device checks
 
-- Step 3: generate the corrected `mfx_params.rs` from R1/R3, with stored ranges and
-  defaults, and index → display through `FxUnit` tables.
-- Step 4: read-only device dumps to confirm. Priority targets: Delay (sync triples),
-  Rotary 1/2 (Brake), EP AmpSim → Delay (OD block order), and one Gain default (stored
-  15 = 0 dB). Use tones that already have these types; do not switch.
+Read-only RQ1 dumps of the MFX block (`<temporary tone> 00 02 00`, 145 bytes), checked
+against the corrected tables. Each slot's stored value must lie within its
+`stored_min..stored_max`.
+
+- **16 Studio Set parts** as loaded, then **1,257 factory presets**, one at a time, in a
+  writable test part. Categories: Organ, E.Piano, guitars, Vox/Choir, FX, then the
+  rest, until we stopped. 53 presets got no reply, 47 of them while the MIDI session
+  was down.
+- **1,273 blocks covering 59 of the 68 types.** The new layout fits all but 8 blocks.
+  The old tables don't fit 1,143.
+- The 8 misfits:
+  - 7 factory presets of **GuitarAmpSim → Delay (56)** store a delay time (300–600) in
+    slot 11, Delay Switch (0–1). Slots 12–16 fit, so the layout is right, but a switch
+    value above 1 is in the factory data. How the device reads it is open:
+    [#235](https://github.com/sigma/integral/issues/235).
+  - 1 part held values written through the old tables (e.g. 81 in a sync switch).
+- The **Rotary 1 / 2 / 3** findings are confirmed on 28 / 2 / 19 presets, and so are the
+  Delay-family triples. Humanizer is confirmed on 4 presets.
+- **Not seen on the device:** 17 Auto Pan, 33 Gate, 49 Distortion → Flanger, 57–61
+  EP AmpSim → \*, 67 Chorus → Flanger. No scanned factory preset uses them. They rest
+  on R1 alone: [#235](https://github.com/sigma/integral/issues/235).
+- **Writing only the type byte leaves the old slot values.** Writing just the MFX Type
+  of a test part with a DT1 left all 32 slots unchanged, for every type. So a type
+  change must also send the type's defaults (`mfx_params::default_slots`). The
+  readback can't show the device's own defaults either.
+
+## Follow-ups
+
+- [#234](https://github.com/sigma/integral/issues/234): Control Assign 1–4 take a
+  per-type destination list (R1 leaves 0–3), not slot numbers.
+- [#235](https://github.com/sigma/integral/issues/235): verify the 9 unseen types and the
+  type-56 switch values on the device.
 - Foreign-patch MFX conversion
   ([#196](https://github.com/sigma/integral/issues/196)) must take its parameter
   numbers from the corrected table.
