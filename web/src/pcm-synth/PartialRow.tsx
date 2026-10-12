@@ -143,7 +143,7 @@ function pairLayout(
    * Place a block at `column`: in its partial's row, or centred across both
    * rows once the lanes have merged. `node` names it for the arrows.
    */
-  const place = (node: string, row: Side | "both", column: number, content: ReactNode) => {
+  const place = (node: string, row: Side | "both", column: number, content: ReactNode, span = 1) => {
     // Shared columns (power, LFOs, heads) sit on the outer grid's rows; the
     // path columns on the pair's sub-grid, whose two rows are the pair's.
     const inPath = column >= PATH_COLUMN;
@@ -151,7 +151,7 @@ function pairLayout(
     (inPath ? path : cells).push(
       <div key={node} data-node={node} className={`${css.block} ${row === "both" ? css.mergedCell : ""}`}
         style={{
-          gridColumn: inPath ? column - PATH_COLUMN + 1 : column,
+          gridColumn: `${inPath ? column - PATH_COLUMN + 1 : column} / span ${span}`,
           gridRow: row === "both" ? `${rowOf(1)} / span 2` : rowOf(row === "upper" ? 1 : 2),
         }}>
         {content}
@@ -160,7 +160,7 @@ function pairLayout(
   };
 
   const lastBlock: Record<Side, string> = { upper: "", lower: "" };
-  const preColumn = routing.upper.length > 1 || routing.lower.length > 1 || !merged;
+  const preColumn = routing.upper.length > 1 || routing.lower.length > 1;
   for (const side of ["upper", "lower"] as const) {
     const p = sides[side].partial;
     const idx = side === "upper" ? first : first + 1;
@@ -181,21 +181,31 @@ function pairLayout(
       box("step", side, <StepLfoSection partial={p} set={set} n={nOf(side)}
         dimmed={!isStepWaveform(p.lfo1Waveform) && !isStepWaveform(p.lfo2Waveform)} />),
     ]);
-    // The lane's head: the wave and what shapes it, aligned in both rows.
-    const head = `${first}-head-${side}`;
-    place(head, side, HEAD_COLUMN, [
+    const head = [
       box("wave", side, <WaveSection partial={p} set={set} n={nOf(side)} marking={marking} />),
       box("pitch", side, <PitchSection partial={p} set={set} n={nOf(side)} />),
       box("control", side, <ControlSection partial={p} set={set} n={nOf(side)} />),
-    ]);
-    lastBlock[side] = head;
-    // The lane's own blocks before the join; independent lanes end in their OUTPUT.
+    ];
+    if (!merged) {
+      // An independent lane is one straight chain: a single block from WAVE to
+      // OUTPUT, starting in the shared WAVE column and running on over the path's.
+      place(`out-${idx}`, side, HEAD_COLUMN, [
+        ...head,
+        ...routing[side].slice(1).map((b, i) => pathBox(b, `pre${i}`)),
+        outputBox(side),
+      ], 2);
+      continue;
+    }
+    // The lane's head: the wave and what shapes it, aligned in both rows.
+    const headNode = `${first}-head-${side}`;
+    place(headNode, side, HEAD_COLUMN, head);
+    lastBlock[side] = headNode;
+    // The lane's own blocks before the join.
     const pre = routing[side].slice(1).map((b, i) => pathBox(b, `pre${i}`));
-    if (!merged) pre.push(outputBox(side));
     if (pre.length) {
-      const node = merged ? `${first}-pre-${side}` : `out-${idx}`;
+      const node = `${first}-pre-${side}`;
       place(node, side, PATH_COLUMN, pre);
-      edges.push({ from: head, to: node });
+      edges.push({ from: headNode, to: node });
       lastBlock[side] = node;
     }
   }
@@ -231,11 +241,13 @@ function pairLayout(
     ]);
   }
 
-  cells.push(
-    <div key={`${first}-path`} className={css.pairPath} style={{ gridColumn: PATH_COLUMN, gridRow: `${rowBase + 1} / span 2` }}>
-      {path}
-    </div>,
-  );
+  if (path.length) {
+    cells.push(
+      <div key={`${first}-path`} className={css.pairPath} style={{ gridColumn: PATH_COLUMN, gridRow: `${rowBase + 1} / span 2` }}>
+        {path}
+      </div>,
+    );
+  }
   return { cells, edges };
 }
 

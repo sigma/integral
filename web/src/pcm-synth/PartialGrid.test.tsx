@@ -108,17 +108,25 @@ describe("PartialGrid with both pairs", () => {
         { first: 2, structure: 0, upper: half(), lower: half(), ...boost(2) },
       ]} />,
     );
-    const placed = (prefix: string) =>
-      [...container.querySelectorAll<HTMLElement>("[data-node]")]
-        .filter((d) => d.dataset.node!.includes(prefix))
-        .map((d) => `${d.style.gridRow}:${d.style.gridColumn}`);
-    expect(placed("-lfo-")).toEqual(["1:1", "2:1", "3:1", "4:1"]);
-    expect(placed("-head-")).toEqual(["1:2", "2:2", "3:2", "4:2"]);
-    // Each pair's path has its own columns: pair 1-2's merged block follows its
-    // AMP 1 block, whatever the width of pair 3-4's blocks.
+    const nodes = [...container.querySelectorAll<HTMLElement>("[data-node]")];
+    const startColumn = (d: HTMLElement) => d.style.gridColumn.split(" / ")[0];
+    expect(nodes.filter((d) => d.dataset.node!.includes("-lfo-")).map(startColumn)).toEqual(["1", "1", "1", "1"]);
+    // Each partial's WAVE box opens a block starting in column 2: the merged
+    // pair's head blocks, and the independent pair's whole-lane blocks.
+    const waveBlocks = [...container.querySelectorAll("div")]
+      .filter((d) => d.style.borderTopColor && d.firstElementChild?.textContent?.startsWith("WAVE"))
+      .map((d) => d.closest<HTMLElement>("[data-node]")!);
+    expect(waveBlocks.map((d) => `${d.dataset.node}@${startColumn(d)}`)).toEqual([
+      "0-head-upper@2", "0-head-lower@2", "out-2@2", "out-3@2",
+    ]);
+    // Pair 1-2's path has its own columns: its merged block follows AMP 1.
     const node = (name: string) => container.querySelector<HTMLElement>(`[data-node="${name}"]`)!;
-    expect(node("out-1").style.gridColumn).toBe("2");
-    expect(node("out-2").style.gridColumn).toBe("1");
-    expect(node("out-1").parentElement).not.toBe(node("out-2").parentElement);
+    expect(startColumn(node("out-1"))).toBe("2");
+  });
+
+  it("makes an independent lane one block, from WAVE to OUTPUT, with no arrows", () => {
+    const { blocks, container } = layout(0);
+    expect(new Set(["WAVE", "PITCH", "CTRL", "FILTER", "AMP", "OUTPUT"].flatMap(blocks))).toEqual(new Set(["out-0", "out-1"]));
+    expect(container.querySelectorAll("path[marker-end]")).toHaveLength(0);
   });
 });
