@@ -5,8 +5,10 @@ import { cleanup, render } from "../test/dom";
 
 afterEach(cleanup);
 
-function pathsOf(wave: string, pulseWidth = 0, pwmDepth = 0): string[] {
-  const { container } = render(<OscWaveScope wave={wave} pulseWidth={pulseWidth} pwmDepth={pwmDepth} />);
+function pathsOf(wave: string, pulseWidth = 0, pwmDepth = 0, superSawDetune = 0): string[] {
+  const { container } = render(
+    <OscWaveScope wave={wave} pulseWidth={pulseWidth} pwmDepth={pwmDepth} superSawDetune={superSawDetune} />,
+  );
   return [...container.querySelectorAll("path")].map((p) => p.getAttribute("d") ?? "");
 }
 
@@ -33,5 +35,12 @@ describe("OscWaveScope", () => {
     expect(pathsOf("PW-SQR", 64, 0)).toHaveLength(1);
     expect(pathsOf("PW-SQR", 64, 32)).toHaveLength(2);
     expect(pathsOf("SAW", 64, 32)).toHaveLength(1);
+  });
+
+  it("draws SP-SAW as one clean saw at zero detune, reshaped as S-Saw rises", () => {
+    const at = (d: string, x: string) => Number(d.split(` ${x} `)[1]?.split(" ")[0]);
+    const clean = pathsOf("SP-SAW", 0, 0, 0)[0]!;
+    expect(at(clean, "0.25")).toBeCloseTo(0.5); // halfway up the first ramp
+    expect(pathsOf("SP-SAW", 0, 0, 127)[0]).not.toEqual(clean);
   });
 });

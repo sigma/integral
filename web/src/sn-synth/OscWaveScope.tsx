@@ -32,6 +32,21 @@ function pulse(pw: number): string {
   return `M 0 0 H ${high} V 1 H 0.5 V 0 H ${0.5 + high} V 1 H 1`;
 }
 
+/**
+ * Two cycles of the sum of 7 saws spread around the pitch by `detune` (0-127):
+ * one clean saw at 0, a jagged staircase as the saws drift apart.
+ */
+function superSaw(detune: number): string {
+  // shortcut: spread exaggerated (±25% pitch at 127) so two cycles show it; not the device's real detune curve.
+  const spread = (0.25 * Math.min(127, Math.max(0, detune))) / 127;
+  const freqs = [-3, -2, -1, 0, 1, 2, 3].map((k) => 2 * (1 + (spread * k) / 3));
+  return Array.from({ length: 401 }, (_, i) => {
+    const x = i / 400;
+    const avg = freqs.reduce((sum, f) => sum + ((x * f) % 1), 0) / freqs.length;
+    return `${i ? "L" : "M"} ${x} ${1 - avg}`;
+  }).join(" ");
+}
+
 /** Two cycles of each OSC wave, keyed by its OSC_WAVE_NAMES label. */
 const SHAPES: Record<string, string> = {
   SAW: saw(0.5, 0),
@@ -39,25 +54,26 @@ const SHAPES: Record<string, string> = {
   TRI: "M 0 1 L 0.25 0 L 0.5 1 L 0.75 0 L 1 1",
   SINE: SINE,
   NOISE: NOISE,
-  "SP-SAW": [saw(0.5, 0), saw(0.46, 0.1), saw(0.54, 0.3)].join(" "),
 };
 
 /**
  * Scope-style picture of the OSC wave; renders nothing for waves without a
  * fixed shape (PCM). PW-SQR follows the Pulse Width, with faint traces at the
- * extremes the PWM depth swings it to.
+ * extremes the PWM depth swings it to; SP-SAW follows the Super Saw Detune.
  */
 export function OscWaveScope({
   wave,
   pulseWidth,
   pwmDepth,
+  superSawDetune,
 }: {
   wave: string;
   pulseWidth: number;
   pwmDepth: number;
+  superSawDetune: number;
 }) {
   const isPw = wave === "PW-SQR";
-  const path = isPw ? pulse(pulseWidth) : SHAPES[wave];
+  const path = isPw ? pulse(pulseWidth) : wave === "SP-SAW" ? superSaw(superSawDetune) : SHAPES[wave];
   if (!path) return null;
   return (
     <div className={css.oscScopeSlot}>
