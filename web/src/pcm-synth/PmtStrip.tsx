@@ -29,9 +29,6 @@ export function PmtStrip({
             onChange={set(PcmsPmtField.StructureType12, "structureType12")}
             title="How partials 1 & 2 are wired: 1 independent, 2 both filters in series, 3-4 through the booster, 5-10 through the ring modulator" />
           <StructureDiagram structure={pmt.structureType12} first={1} />
-          <SynthSwitch label="Boost" value={pmt.booster12} vertical
-            options={switchOptions(pcms_pmt_spec(PcmsPmtField.Booster12))}
-            onChange={set(PcmsPmtField.Booster12, "booster12")} led={false} title="Booster depth for partials 1 & 2: distorts the pair; acts with Structure 3 and 4 only" />
         </div>
       </div>
 
@@ -45,9 +42,6 @@ export function PmtStrip({
             onChange={set(PcmsPmtField.StructureType34, "structureType34")}
             title="How partials 3 & 4 are wired: 1 independent, 2 both filters in series, 3-4 through the booster, 5-10 through the ring modulator" />
           <StructureDiagram structure={pmt.structureType34} first={3} />
-          <SynthSwitch label="Boost" value={pmt.booster34} vertical
-            options={switchOptions(pcms_pmt_spec(PcmsPmtField.Booster34))}
-            onChange={set(PcmsPmtField.Booster34, "booster34")} led={false} title="Booster depth for partials 3 & 4: distorts the pair; acts with Structure 3 and 4 only" />
         </div>
       </div>
 

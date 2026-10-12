@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { WasmDeviceState, pcms_partial_size } from "../../pkg/integral_wasm.js";
+import { PcmsPmtField, WasmDeviceState, pcms_partial_size } from "../../pkg/integral_wasm.js";
 import { PartialGrid, type PairPartial } from "./PartialRow";
 import type { PcmSynthPartial } from "./types";
 import { cleanup, render } from "../test/dom";
@@ -12,11 +12,18 @@ function partial(): PcmSynthPartial {
   return new WasmDeviceState(0x10).applyPcmsPartial(new Uint8Array(size)) as PcmSynthPartial;
 }
 
+/** A pair's booster props, for the pair starting at partial index `first`. */
+const boost = (first: number) => ({
+  booster: 0,
+  onBooster: () => {},
+  boosterField: first ? PcmsPmtField.Booster34 : PcmsPmtField.Booster12,
+});
+
 const half = (): PairPartial => ({ partial: partial(), isOn: true, onParam: () => {}, onSwitch: () => {} });
 
 function layout(structure: number) {
   const { container } = render(
-    <PartialGrid pairs={[{ first: 0, structure, upper: half(), lower: half() }]} />,
+    <PartialGrid pairs={[{ first: 0, structure, upper: half(), lower: half(), ...boost(0) }]} />,
   );
   // A box is a SectionPanel (it sets its accent as the top border) headed `label`;
   // its block is the nearest element placed on the grid.
@@ -65,12 +72,23 @@ describe("PartialGrid", () => {
   });
 });
 
+describe("PartialGrid booster", () => {
+  it("shows a BOOST box only where the Structure boosts", () => {
+    const boxes = (structure: number) => layout(structure).blocks("BOOST");
+    expect(boxes(0)).toEqual([]);
+    expect(boxes(1)).toEqual([]);
+    // Type 3 between the filters, type 4 where the lanes meet: both in the merged block.
+    expect(boxes(2)).toEqual(["out-1"]);
+    expect(boxes(3)).toEqual(["out-1"]);
+  });
+});
+
 describe("PartialGrid with both pairs", () => {
   it("puts every partial's LFOs and WAVE in shared columns", () => {
     const { container } = render(
       <PartialGrid pairs={[
-        { first: 0, structure: 1, upper: half(), lower: half() },
-        { first: 2, structure: 0, upper: half(), lower: half() },
+        { first: 0, structure: 1, upper: half(), lower: half(), ...boost(0) },
+        { first: 2, structure: 0, upper: half(), lower: half(), ...boost(2) },
       ]} />,
     );
     const placed = (prefix: string) =>

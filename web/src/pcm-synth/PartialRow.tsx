@@ -10,7 +10,7 @@ import {
 } from "../synth-ui";
 import type { ReactNode } from "react";
 import { SignalArrows, type Edge } from "../synth-ui/SignalArrows";
-import { PcmsPartialField, pcms_partial_spec } from "../../pkg/integral_wasm.js";
+import { PcmsPartialField, PcmsPmtField, pcms_partial_spec, pcms_pmt_spec } from "../../pkg/integral_wasm.js";
 import { routingOf, type Block, type Side } from "./structureRouting";
 import { knobRange, switchOptions } from "../fieldSpec";
 import { VelocityCurveSelect } from "./VelocityCurveSelect";
@@ -45,7 +45,8 @@ export interface PairPartial {
   onSwitch: (value: number) => void;
 }
 
-const JOIN_GLYPHS = { mix: "+", booster: "B", ring: "R" } as const;
+/** Where the lanes meet: summed (the booster, when it joins them, is the next box) or ring modulated. */
+const JOIN_GLYPHS = { mix: "+", booster: "+", ring: "R" } as const;
 
 /**
  * A pair of partials (1 & 2, or 3 & 4) laid out along their Structure's
@@ -66,6 +67,11 @@ export interface Pair {
   structure: number;
   upper: PairPartial;
   lower: PairPartial;
+  /** The pair's Booster depth (0-3), and its setter: shown on the path where the Structure boosts. */
+  booster: number;
+  onBooster: (value: number) => void;
+  /** The PMT field for this pair's Booster (Booster 1&2 or 3&4), for its range and labels. */
+  boosterField: PcmsPmtField;
 }
 
 /**
@@ -89,7 +95,7 @@ export function PartialGrid({ pairs, marking }: { pairs: Pair[]; marking?: Expan
  * join, then a merged block centred on both rows, with arrows between blocks.
  */
 function pairLayout(
-  { first, structure, upper, lower }: Pair,
+  { first, structure, upper, lower, booster, onBooster, boosterField }: Pair,
   rowBase: number,
   marking?: ExpansionMarking,
 ): { cells: ReactNode[]; edges: Edge[] } {
@@ -111,7 +117,12 @@ function pairLayout(
   );
   const pathBox = (b: Block, key: string): ReactNode => {
     if (b.kind === "booster") {
-      return <div key={key} className={css.inlineGlyph} title="Booster: distorts the signal (depth set by Boost in PARTIAL MIX)">B</div>;
+      // The booster belongs to the pair; it dims only once both partials are off.
+      return (
+        <div key={key} className={`${css.blockBox} ${upper.isOn || lower.isOn ? "" : css.partialDimmed}`}>
+          <BoosterSection value={booster} onChange={onBooster} field={boosterField} pair={number} />
+        </div>
+      );
     }
     const side = b.side;
     const p = sides[side].partial;
@@ -197,6 +208,8 @@ function pairLayout(
     // After the join: one block, centred on both lanes, ending in the pair's single output.
     const node = `out-${first + 1}`;
     place(node, "both", PATH_COLUMN + (preColumn ? 1 : 0), [
+      // Type 4 boosts right where the lanes meet: the booster opens the merged block.
+      ...(join.kind === "booster" ? [pathBox({ kind: "booster" }, "boost")] : []),
       ...join.after.map((b, i) => pathBox(b, `after${i}`)),
       outputBox("lower", number.lower),
     ]);
@@ -816,6 +829,29 @@ function ControlSection({
           onChange={set(PcmsPartialField.ReceiveHold1, "receiveHold1")}
           title="Respond to sustain pedal (CC64)" />
       </div>
+    </SectionPanel>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Booster Section: the pair's booster, on its signal path (Structure 3 and 4)
+// ---------------------------------------------------------------------------
+
+function BoosterSection({
+  value,
+  onChange,
+  field,
+  pair,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  field: PcmsPmtField;
+  pair: { upper: number; lower: number };
+}) {
+  return (
+    <SectionPanel label="BOOST" accentColor="#e86">
+      <SynthKnob label="Boost" value={value} {...knobRange(pcms_pmt_spec(field))} onChange={onChange} color="#e86"
+        title={`Booster depth for partials ${pair.upper} & ${pair.lower}: overdrives the signal; higher distorts more`} />
     </SectionPanel>
   );
 }

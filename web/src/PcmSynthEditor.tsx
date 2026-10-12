@@ -218,6 +218,12 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
               structure: (first ? pmt?.structureType34 : pmt?.structureType12) ?? 0,
               upper: half(first),
               lower: half(first + 1),
+              booster: (first ? pmt?.booster34 : pmt?.booster12) ?? 0,
+              boosterField: first ? PcmsPmtField.Booster34 : PcmsPmtField.Booster12,
+              onBooster: (v: number) =>
+                first
+                  ? setPmtParam(PcmsPmtField.Booster34, "booster34", v)
+                  : setPmtParam(PcmsPmtField.Booster12, "booster12", v),
             };
           })} />
         </div>

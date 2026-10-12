@@ -195,18 +195,6 @@
   align-self: center;
 }
 
-/* A booster between two boxes of a merged block */
-.inlineGlyph {
-  align-self: center;
-  padding: 0 4px;
-  border: 1px solid #888;
-  border-radius: 6px;
-  background: #1a1a30;
-  color: #ccc;
-  font-size: 11px;
-  font-weight: 700;
-}
-
 /* Dim a switched-off partial's boxes, not its power button. */
 .partialDimmed {
   opacity: 0.4;
