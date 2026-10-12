@@ -19,15 +19,16 @@ describe("arrowPath", () => {
   it("curves just over a box it must go around, coming from above", () => {
     const block = box(150, 300);
     expect(arrowPath(box(0, 50), box(400, 400), false, block)).toBe(
-      "M 100 50 C 150 50 150 270 200 270 C 300 270 300 400 400 400",
+      "M 100 50 C 175 50 175 270 250 270 C 325 270 325 400 400 400",
     );
   });
 
   it("curves just under a box it must go around", () => {
-    // Ring centred at x 200, bottom 95: the edge passes through (200, 105).
+    // Ring's right edge at x 250, bottom 95: the edge passes through (250, 105)
+    // and only rises after it.
     const ring = box(150, 75);
     expect(arrowPath(box(0, 300), box(400, 50), false, ring)).toBe(
-      "M 100 300 C 150 300 150 105 200 105 C 300 105 300 50 400 50",
+      "M 100 300 C 175 300 175 105 250 105 C 325 105 325 50 400 50",
     );
   });
 });

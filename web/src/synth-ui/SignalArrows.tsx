@@ -31,7 +31,8 @@ const GLYPH_R = 7;
  * The curve of an edge from `from`'s right side to `to`'s left side (straight
  * when they line up). With a glyph, the curve ends at the glyph, left of the
  * target. With `around`, it passes just under that box (just over it, when
- * coming from above it): two smooth S-curves through a point by the box's centre.
+ * coming from above it): an S-curve to the box's bottom right corner, so it
+ * clears the whole box, then another into the target.
  */
 export function arrowPath(from: Box, to: Box, glyph?: boolean, around?: Box): string {
   const endX = glyph ? to.left - GLYPH_GAP - GLYPH_R : to.left;
@@ -40,7 +41,7 @@ export function arrowPath(from: Box, to: Box, glyph?: boolean, around?: Box): st
     return ` C ${bend} ${y0} ${bend} ${y1} ${x1} ${y1}`;
   };
   if (around) {
-    const wx = (around.left + around.right) / 2;
+    const wx = around.right;
     const wy = from.mid > around.mid
       ? Math.min(from.mid, around.bottom + AROUND_GAP)
       : Math.max(from.mid, around.top - AROUND_GAP);
