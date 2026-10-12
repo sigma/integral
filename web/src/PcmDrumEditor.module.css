@@ -43,6 +43,13 @@
    Key grid
    ---------------------------------------------------------------- */
 
+/* The key grid, with the kit-wide COMMON (Kit Level) to its right */
+.keyGridRow {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
 .keyEditorArea {
   display: flex;
   flex-direction: column;

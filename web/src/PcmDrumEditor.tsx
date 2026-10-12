@@ -243,20 +243,21 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
       )}
 
       <div className={css.mainArea}>
-        {common && (
-          <CommonPanel common={common} common2={common2} onKitLevelChange={setKitLevel} />
-        )}
-
         <div className={css.keyEditorArea}>
           <SectionPanel label="DRUM KEY" accentColor="#f93">
-            <DrumKeyGrid
-              firstKey={keys.first}
-              lastKey={keys.last}
-              selectedKey={selectedKey}
-              onSelect={handleKeySelect}
-              keyOutputAssigns={keyOutputAssigns}
-              offKeys={offKeys}
-            />
+            <div className={css.keyGridRow}>
+              <DrumKeyGrid
+                firstKey={keys.first}
+                lastKey={keys.last}
+                selectedKey={selectedKey}
+                onSelect={handleKeySelect}
+                keyOutputAssigns={keyOutputAssigns}
+                offKeys={offKeys}
+              />
+              {common && (
+                <CommonPanel common={common} common2={common2} onKitLevelChange={setKitLevel} />
+              )}
+            </div>
             {noteLoading ? (
               <div className={css.noteLoadingPlaceholder}>Loading key data...</div>
             ) : noteData ? (

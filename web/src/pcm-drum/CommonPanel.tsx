@@ -18,7 +18,7 @@ export function CommonPanel({
     <SectionPanel label="COMMON" accentColor="#8cf">
       <FaderGroup>
         <SynthFader label="Kit Lv" value={common.kitLevel} min={0} max={127} defaultValue={127}
-          onChange={onKitLevelChange} formatValue={(v) => String(v)} compact
+          onChange={onKitLevelChange} formatValue={(v) => String(v)} trackHeight={160}
           title="Kit Level" />
       </FaderGroup>
     </SectionPanel>
