@@ -12,6 +12,7 @@ import { SnsPartialField, sns_osc_wave_pcm } from "../../pkg/integral_wasm.js";
 import css from "../SnSynthEditor.module.css";
 import type { PartialParamHandler, SnSynthPartial } from "./types";
 import { WavePicker } from "../WavePicker";
+import { OscWaveScope } from "./OscWaveScope";
 import { snSynthWaveSource } from "../waveCatalog";
 import {
   OSC_WAVE_NAMES,
@@ -137,7 +138,11 @@ function OscPanel({
           )}
         </div>
         <div className={css.oscKnobArea}>
-          {isPcm && <OscPcmWave waveNumber={partial.waveNumber} onChange={onChange} />}
+          {isPcm ? (
+            <OscPcmWave waveNumber={partial.waveNumber} onChange={onChange} />
+          ) : (
+            <OscWaveScope wave={OSC_WAVE_NAMES[partial.oscWave] ?? ""} />
+          )}
           <div className={css.oscKnobRow}>
             <SynthKnob label="Pitch" value={partial.oscPitch} min={40} max={88} defaultValue={64} center={64}
               onChange={(v) => onChange(SnsPartialField.OscPitch, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8" />
