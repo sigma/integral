@@ -292,49 +292,51 @@ function PitchEnvSection({
 }) {
   return (
     <SectionPanel label="PITCH ENV" accentColor="#fc8">
-      <div className={css.knobRow}>
-        <SynthKnob label="Depth" value={note.pitchEnvDepth}
-          {...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvDepth))}
-          onChange={set(PcmdPartialField.PitchEnvDepth, "pitchEnvDepth")} color="#fc8"
-          title="Pitch envelope depth (-12 to +12)" />
-        <SynthKnob label="Vel Sns" value={note.pitchEnvVelocitySens} min={1} max={127} defaultValue={64} center={64}
-          onChange={set(PcmdPartialField.PitchEnvVelocitySens, "pitchEnvVelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
-          title="Pitch envelope velocity sensitivity" />
-        <SynthKnob label="T1 Vel" value={note.pitchEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
-          onChange={set(PcmdPartialField.PitchEnvT1VelocitySens, "pitchEnvT1VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
-          title="Pitch envelope Time 1 velocity sensitivity" />
-        <SynthKnob label="T4 Vel" value={note.pitchEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
-          onChange={set(PcmdPartialField.PitchEnvT4VelocitySens, "pitchEnvT4VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
-          title="Pitch envelope Time 4 velocity sensitivity" />
+      <div className={css.envBlock}>
+        <div className={css.knobRow}>
+          <SynthKnob label="Depth" value={note.pitchEnvDepth}
+            {...knobRange(pcmd_partial_spec(PcmdPartialField.PitchEnvDepth))}
+            onChange={set(PcmdPartialField.PitchEnvDepth, "pitchEnvDepth")} color="#fc8"
+            title="Pitch envelope depth (-12 to +12)" />
+          <SynthKnob label="Vel Sns" value={note.pitchEnvVelocitySens} min={1} max={127} defaultValue={64} center={64}
+            onChange={set(PcmdPartialField.PitchEnvVelocitySens, "pitchEnvVelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
+            title="Pitch envelope velocity sensitivity" />
+          <SynthKnob label="T1 Vel" value={note.pitchEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
+            onChange={set(PcmdPartialField.PitchEnvT1VelocitySens, "pitchEnvT1VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
+            title="Pitch envelope Time 1 velocity sensitivity" />
+          <SynthKnob label="T4 Vel" value={note.pitchEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
+            onChange={set(PcmdPartialField.PitchEnvT4VelocitySens, "pitchEnvT4VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
+            title="Pitch envelope Time 4 velocity sensitivity" />
+        </div>
+        <BreakpointEnvelope
+          compact
+          times={[{
+            label: "T1", value: note.pitchEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
+            onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 0),
+          }, {
+            label: "T2", value: note.pitchEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
+            onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 1),
+          }, {
+            label: "T3", value: note.pitchEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
+            onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 2),
+          }, {
+            label: "T4", value: note.pitchEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
+            onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 3),
+          }]}
+          levels={[
+            { label: "L0", value: note.pitchEnvLevel[0] ?? 64, min: 1, max: 127, defaultValue: 64,
+              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 0), formatValue: (v) => signedFmt(v, 64) },
+            { label: "L1", value: note.pitchEnvLevel[1] ?? 64, min: 1, max: 127, defaultValue: 64,
+              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 1), formatValue: (v) => signedFmt(v, 64) },
+            { label: "L2", value: note.pitchEnvLevel[2] ?? 64, min: 1, max: 127, defaultValue: 64,
+              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 2), formatValue: (v) => signedFmt(v, 64) },
+            { label: "L3", value: note.pitchEnvLevel[3] ?? 64, min: 1, max: 127, defaultValue: 64,
+              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 3), formatValue: (v) => signedFmt(v, 64) },
+            { label: "L4", value: note.pitchEnvLevel[4] ?? 64, min: 1, max: 127, defaultValue: 64,
+              onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 4), formatValue: (v) => signedFmt(v, 64) },
+          ]}
+        />
       </div>
-      <BreakpointEnvelope
-        compact
-        times={[{
-          label: "T1", value: note.pitchEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
-          onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 0),
-        }, {
-          label: "T2", value: note.pitchEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
-          onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 1),
-        }, {
-          label: "T3", value: note.pitchEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
-          onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 2),
-        }, {
-          label: "T4", value: note.pitchEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
-          onChange: set(PcmdPartialField.PitchEnvTime, "pitchEnvTime", 3),
-        }]}
-        levels={[
-          { label: "L0", value: note.pitchEnvLevel[0] ?? 64, min: 1, max: 127, defaultValue: 64,
-            onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 0), formatValue: (v) => signedFmt(v, 64) },
-          { label: "L1", value: note.pitchEnvLevel[1] ?? 64, min: 1, max: 127, defaultValue: 64,
-            onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 1), formatValue: (v) => signedFmt(v, 64) },
-          { label: "L2", value: note.pitchEnvLevel[2] ?? 64, min: 1, max: 127, defaultValue: 64,
-            onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 2), formatValue: (v) => signedFmt(v, 64) },
-          { label: "L3", value: note.pitchEnvLevel[3] ?? 64, min: 1, max: 127, defaultValue: 64,
-            onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 3), formatValue: (v) => signedFmt(v, 64) },
-          { label: "L4", value: note.pitchEnvLevel[4] ?? 64, min: 1, max: 127, defaultValue: 64,
-            onChange: set(PcmdPartialField.PitchEnvLevel, "pitchEnvLevel", 4), formatValue: (v) => signedFmt(v, 64) },
-        ]}
-      />
     </SectionPanel>
   );
 }
@@ -444,46 +446,48 @@ function TvaSection({
 }) {
   return (
     <SectionPanel label="AMP" accentColor="#6c8">
-      <div className={css.knobRow}>
-        <VelocityCurveSelect label="Vel Crv" value={note.tvaLevelVelocityCurve}
-          options={VELOCITY_CURVE_OPTIONS}
-          onChange={set(PcmdPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} color="#6c8" />
-        <SynthKnob label="Vel Sns" value={note.tvaLevelVelocitySens} min={1} max={127} defaultValue={64} center={64}
-          onChange={set(PcmdPartialField.TvaLevelVelocitySens, "tvaLevelVelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
-          title="Amplitude velocity sensitivity" />
-        <SynthKnob label="T1 Vel" value={note.tvaEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
-          onChange={set(PcmdPartialField.TvaEnvT1VelocitySens, "tvaEnvT1VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
-          title="Amp envelope Time 1 velocity sensitivity" />
-        <SynthKnob label="T4 Vel" value={note.tvaEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
-          onChange={set(PcmdPartialField.TvaEnvT4VelocitySens, "tvaEnvT4VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
-          title="Amp envelope Time 4 velocity sensitivity" />
+      <div className={css.envBlock}>
+        <div className={css.knobRow}>
+          <VelocityCurveSelect label="Vel Crv" value={note.tvaLevelVelocityCurve}
+            options={VELOCITY_CURVE_OPTIONS}
+            onChange={set(PcmdPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} color="#6c8" />
+          <SynthKnob label="Vel Sns" value={note.tvaLevelVelocitySens} min={1} max={127} defaultValue={64} center={64}
+            onChange={set(PcmdPartialField.TvaLevelVelocitySens, "tvaLevelVelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
+            title="Amplitude velocity sensitivity" />
+          <SynthKnob label="T1 Vel" value={note.tvaEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
+            onChange={set(PcmdPartialField.TvaEnvT1VelocitySens, "tvaEnvT1VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
+            title="Amp envelope Time 1 velocity sensitivity" />
+          <SynthKnob label="T4 Vel" value={note.tvaEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
+            onChange={set(PcmdPartialField.TvaEnvT4VelocitySens, "tvaEnvT4VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#6c8"
+            title="Amp envelope Time 4 velocity sensitivity" />
+        </div>
+        <BreakpointEnvelope
+          compact
+          times={[{
+            label: "T1", value: note.tvaEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
+            onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 0),
+          }, {
+            label: "T2", value: note.tvaEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
+            onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 1),
+          }, {
+            label: "T3", value: note.tvaEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
+            onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 2),
+          }, {
+            label: "T4", value: note.tvaEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
+            onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 3),
+          }]}
+          levels={[
+            { label: "L0", at: 0, text: "0" },
+            { label: "L1", value: note.tvaEnvLevel[0] ?? 127, min: 0, max: 127, defaultValue: 127,
+              onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 0) },
+            { label: "L2", value: note.tvaEnvLevel[1] ?? 127, min: 0, max: 127, defaultValue: 127,
+              onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 1) },
+            { label: "L3", value: note.tvaEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
+              onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 2) },
+            { label: "L4", at: 0, text: "0" },
+          ]}
+        />
       </div>
-      <BreakpointEnvelope
-        compact
-        times={[{
-          label: "T1", value: note.tvaEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
-          onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 0),
-        }, {
-          label: "T2", value: note.tvaEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
-          onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 1),
-        }, {
-          label: "T3", value: note.tvaEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
-          onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 2),
-        }, {
-          label: "T4", value: note.tvaEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
-          onChange: set(PcmdPartialField.TvaEnvTime, "tvaEnvTime", 3),
-        }]}
-        levels={[
-          { label: "L0", at: 0, text: "0" },
-          { label: "L1", value: note.tvaEnvLevel[0] ?? 127, min: 0, max: 127, defaultValue: 127,
-            onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 0) },
-          { label: "L2", value: note.tvaEnvLevel[1] ?? 127, min: 0, max: 127, defaultValue: 127,
-            onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 1) },
-          { label: "L3", value: note.tvaEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.TvaEnvLevel, "tvaEnvLevel", 2) },
-          { label: "L4", at: 0, text: "0" },
-        ]}
-      />
     </SectionPanel>
   );
 }
