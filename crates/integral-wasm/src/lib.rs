@@ -2089,6 +2089,13 @@ pub fn sn_drum_insts_json() -> String {
     serde_json::to_string(sn_drum::sn_drum_insts()).unwrap_or_else(|_| "[]".to_string())
 }
 
+/// Every SN Acoustic instrument, as a JSON array of `{ number, name, category,
+/// bank, variation, instNumber }`.
+#[wasm_bindgen(js_name = snaInstsJson)]
+pub fn sna_insts_json() -> String {
+    serde_json::to_string(sn_acoustic::sna_insts()).unwrap_or_else(|_| "[]".to_string())
+}
+
 /// Whether an SN-A instrument (Inst Variation, Inst Number) responds to the
 /// Cutoff, Resonance, Attack and Release Offsets.
 #[wasm_bindgen]

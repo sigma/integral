@@ -245,6 +245,41 @@ pub fn parse_sna_common(data: &[u8]) -> Result<SnAcousticCommon, crate::TonePars
     Ok(c)
 }
 
+/// An instrument an SN Acoustic tone can play, from Roland's Editor list
+/// (`docs/sn-acoustic-insts/`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct SnaInst {
+    /// Position in Roland's list (1…N), for pickers; not a device value.
+    pub number: u16,
+    /// Instrument name, as in Roland's Editor.
+    pub name: &'static str,
+    /// Roland's category (Ac.Piano, E.Piano, …).
+    pub category: &'static str,
+    /// `INT`, or the `ExSN1`…`ExSN5` expansion it comes from.
+    pub bank: &'static str,
+    /// The Inst Variation (Common `00 20`) that selects it.
+    pub variation: u8,
+    /// The Inst Number (Common `00 21`) that selects it.
+    pub inst_number: u8,
+}
+
+include!(concat!(env!("OUT_DIR"), "/sn_acoustic_inst_data.rs"));
+
+/// Every SN Acoustic instrument, in Roland's list order.
+pub fn sna_insts() -> &'static [SnaInst] {
+    SNA_INSTS
+}
+
+/// The instrument selected by Inst Variation `variation` and Inst Number
+/// `number`, if the list names one.
+pub fn sna_inst(variation: u8, number: u8) -> Option<&'static SnaInst> {
+    SNA_INSTS
+        .iter()
+        .find(|i| i.variation == variation && i.inst_number == number)
+}
+
 /// Which tone-wide offsets an SN-A instrument responds to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SnaOffsets {
@@ -259,7 +294,7 @@ pub struct SnaOffsets {
 /// and Release Offsets for INT 001 Concert Grand, INT 009 Honky-tonk and
 /// INT 029 TW Organ, and Portamento Time Offset for TW Organ.
 pub fn sna_offsets(variation: u8, number: u8) -> SnaOffsets {
-    // shortcut: Roland's Editor list (sna_inst.js) keys instruments by (lsb, pc): Concert Grand (64, 0), Honky-tonk (64, 8), TW Organ (65, 0); taking lsb as Inst Variation and pc as Inst Number is inferred, not documented; check on the device if these instruments don't dim.
+    // shortcut: Roland's Editor list keys instruments by (lsb, pc): Concert Grand (64, 0), Honky-tonk (64, 8), TW Organ (65, 0); taking lsb as Inst Variation and pc as Inst Number is inferred, not documented (see SnaInst); check on the device if these instruments don't dim.
     match (variation, number) {
         (64, 0) | (64, 8) => SnaOffsets {
             tone: false,
@@ -279,6 +314,18 @@ pub fn sna_offsets(variation: u8, number: u8) -> SnaOffsets {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn instrument_list_names_each_variation_and_number_pair() {
+        assert_eq!(sna_insts().len(), 127);
+        assert_eq!(sna_inst(64, 0).map(|i| i.name), Some("Concert Grand"));
+        assert_eq!(sna_inst(65, 0).map(|i| i.name), Some("TW Organ"));
+        assert_eq!(
+            sna_inst(0, 15).map(|i| (i.name, i.bank)),
+            Some(("Santoor", "ExSN1"))
+        );
+        assert_eq!(sna_inst(127, 127), None);
+    }
 
     #[test]
     fn concert_grand_honky_tonk_and_tw_organ_ignore_the_tone_offsets() {

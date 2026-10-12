@@ -6,7 +6,7 @@ import {
   sna_inst_params_by_category,
 } from "../pkg/integral_wasm.js";
 import { SnAcousticEditor } from "./SnAcousticEditor";
-import { cleanup, render } from "./test/dom";
+import { cleanup, click, render } from "./test/dom";
 import { arrowUp, fakeToneService, slider } from "./test/toneService";
 
 afterEach(cleanup);
@@ -51,5 +51,26 @@ describe("SnAcousticEditor", () => {
     expect(inert("Atk")).toBe(true);
     expect(inert("Port")).toBe(true);
     expect(inert("Level")).toBe(false);
+  });
+
+  it("switches instrument by writing Inst Variation and Inst Number", async () => {
+    const { service, sentDt1s } = fakeToneService(new WasmDeviceState(0x10));
+    const { container } = render(<SnAcousticEditor partIndex={PART} service={service} />);
+    await act(async () => {});
+
+    // The picker's current entry, then Concert Grand (list entry 1) in its popover.
+    const current = [...container.querySelectorAll("button")].find((b) => /^\d{4} /.test(b.textContent ?? ""))!;
+    click(current);
+    const grand = [...document.body.querySelectorAll('[role="option"]')].find((o) =>
+      o.textContent?.startsWith("0001"),
+    )!;
+    click(grand);
+
+    // Concert Grand: Inst Variation 64 (Common `00 20`), Inst Number 0 (`00 21`).
+    const common = [...sna_common_address(PART).slice(0, 3)];
+    expect(sentDt1s()).toEqual([
+      { address: [...common, 0x20], data: [64] },
+      { address: [...common, 0x21], data: [0] },
+    ]);
   });
 });

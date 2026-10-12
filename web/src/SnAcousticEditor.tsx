@@ -21,6 +21,8 @@ import {
   FaderGroupSep,
 } from "./synth-ui";
 import { MfxPanel } from "./MfxPanel";
+import { WavePicker } from "./WavePicker";
+import { snaInstNumberOf, snaInstSource, snaInsts } from "./snaInstCatalog";
 import { SignalArrows } from "./synth-ui/SignalArrows";
 import { FilterScope } from "./synth-ui/FilterScope";
 import { useMfxHandlers } from "./useMfxHandlers";
@@ -198,6 +200,29 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
     [partIndex, service],
   );
 
+  /**
+   * Switch the tone to another instrument, then read Common back: the device
+   * may change more than the two fields (Category, Modify Parameters).
+   */
+  const pickInstrument = useCallback(
+    (listNumber: number) => {
+      const inst = snaInsts()[listNumber - 1];
+      if (!inst) return; // the picker's "(unlisted)" entry
+      setCommonParam(SnaCommonField.InstVariation, "instVariation", inst.variation);
+      setCommonParam(SnaCommonField.InstNumber, "instNumber", inst.instNumber);
+      service
+        .requestData(Array.from(sna_common_address(partIndex)), Array.from(sna_common_size()))
+        .then((data) => {
+          const c = service.device.applySnaCommon(data) as SnAcousticCommon | null;
+          if (c) setCommon(c);
+        })
+        .catch(() => {
+          // Timeout: keep the local copy
+        });
+    },
+    [partIndex, service, setCommonParam],
+  );
+
   // ---------------------------------------------------------------------------
   // Instrument parameters
   // ---------------------------------------------------------------------------
@@ -220,6 +245,14 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
   }
 
   const boxes = common ? toneBoxes(common, setCommonParam) : null;
+  const instPicker = common && (
+    <WavePicker
+      source={snaInstSource()}
+      stereo={false}
+      l={snaInstNumberOf(common.instVariation, common.instNumber)}
+      onChange={(_side, n) => pickInstrument(n)}
+    />
+  );
 
   return (
     <div className={css.editor}>
@@ -233,13 +266,16 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
         <div className={css.mainArea}>
           <div className={css.commonCell}>{boxes!.common}</div>
           <div className={css.toneRow}>
-            {categoryName && (
+            {categoryName ? (
               <InstrumentPanel
+                header={instPicker}
                 categoryName={categoryName}
                 paramDefs={instParamDefs}
                 modifyParams={common.modifyParams}
                 onModify={setModifyParam}
               />
+            ) : (
+              <SectionPanel label="INSTRUMENT" accentColor="#fc8">{instPicker}</SectionPanel>
             )}
             {boxes!.vibrato}
             {boxes!.filter}
@@ -370,11 +406,14 @@ function toneBoxes(
 // ---------------------------------------------------------------------------
 
 function InstrumentPanel({
+  header,
   categoryName,
   paramDefs,
   modifyParams,
   onModify,
 }: {
+  /** Shown first in the box: the instrument picker. */
+  header?: ReactNode;
   categoryName: string;
   paramDefs: InstParamDef[];
   modifyParams: number[];
@@ -389,15 +428,15 @@ function InstrumentPanel({
   switch (categoryName) {
     case "TW Organ":
       return (
-        <TWOrganPanel paramDefs={paramDefs} modifyParams={modifyParams} onChangeParam={setModParam} />
+        <TWOrganPanel header={header} paramDefs={paramDefs} modifyParams={modifyParams} onChangeParam={setModParam} />
       );
     case "Ac.Piano":
       return (
-        <AcPianoPanel paramDefs={paramDefs} modifyParams={modifyParams} onChangeParam={setModParam} />
+        <AcPianoPanel header={header} paramDefs={paramDefs} modifyParams={modifyParams} onChangeParam={setModParam} />
       );
     default:
       return (
-        <GenericInstPanel
+        <GenericInstPanel header={header}
           categoryName={categoryName}
           paramDefs={paramDefs}
           modifyParams={modifyParams}
@@ -412,11 +451,14 @@ function InstrumentPanel({
 // ---------------------------------------------------------------------------
 
 function GenericInstPanel({
+  header,
   categoryName,
   paramDefs,
   modifyParams,
   onChangeParam,
 }: {
+  /** Shown first in the box: the instrument picker. */
+  header?: ReactNode;
   categoryName: string;
   paramDefs: InstParamDef[];
   modifyParams: number[];
@@ -424,6 +466,7 @@ function GenericInstPanel({
 }) {
   return (
     <SectionPanel label={categoryName} accentColor="#fc8">
+      {header}
       <div className={css.instParamGrid}>
         {paramDefs.map((def) => {
           const val = modifyParams[def.index - 1] ?? def.defaultValue;
@@ -470,10 +513,13 @@ const HARMONIC_BAR_LABELS = [
 ];
 
 function TWOrganPanel({
+  header,
   paramDefs,
   modifyParams,
   onChangeParam,
 }: {
+  /** Shown first in the box: the instrument picker. */
+  header?: ReactNode;
   paramDefs: InstParamDef[];
   modifyParams: number[];
   onChangeParam: (paramIndex: number, value: number) => void;
@@ -484,6 +530,7 @@ function TWOrganPanel({
 
   return (
     <SectionPanel label="TW Organ" accentColor="#fc8">
+      {header}
       {/* Harmonic bars */}
       <FaderGroup>
         {barDefs.map((def, i) => (
@@ -543,16 +590,20 @@ function TWOrganPanel({
 // ---------------------------------------------------------------------------
 
 function AcPianoPanel({
+  header,
   paramDefs,
   modifyParams,
   onChangeParam,
 }: {
+  /** Shown first in the box: the instrument picker. */
+  header?: ReactNode;
   paramDefs: InstParamDef[];
   modifyParams: number[];
   onChangeParam: (paramIndex: number, value: number) => void;
 }) {
   return (
     <SectionPanel label="Ac.Piano" accentColor="#8cf">
+      {header}
       <div className={css.instParamGrid}>
         {paramDefs.map((def) => {
           const val = modifyParams[def.index - 1] ?? def.defaultValue;
