@@ -217,6 +217,12 @@
   margin-left: auto;
 }
 
+/* A scope filling the rest of a row, as tall as the selector beside it */
+.scopeFill {
+  flex: 1;
+  align-self: stretch;
+}
+
 .scopeBox {
   height: 44px;
 }
@@ -268,12 +274,17 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  width: 52px;
+}
+
+.curveSelect select {
+  width: 100%;
 }
 
 .curveScope {
   composes: screen from "./synth-ui/Scope.module.css";
   display: block;
-  height: 28px;
+  height: 22px;
   margin-bottom: 0;
 }
 
@@ -286,30 +297,31 @@
 }
 
 /*
- * Envelope knobs: one column per level fader of the 5-level envelope below
- * (its grid gives each level an equal share), so each knob sits over one.
+ * Controls laid out on the 5 level faders of the envelope below (its grid
+ * gives each level an equal share), so each sits over one; the .atN classes
+ * start a control at column N, the next ones follow it.
  */
-.envKnobs {
+.envGrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   justify-items: center;
-}
-
-/*
- * AMP's top controls on the same 5 columns as its envelope knobs: the pan
- * knobs over columns 2-5, Bias Lvl and Bias Key over 3 and 4, Bias Dir at 5.
- */
-.ampTop {
-  composes: envKnobs;
   row-gap: 6px;
 }
 
-.ampTop > :nth-child(1) {
+.at1 {
+  grid-column-start: 1;
+}
+
+.at2 {
   grid-column-start: 2;
 }
 
-.ampTop > :nth-child(5) {
+.at3 {
   grid-column-start: 3;
+}
+
+.at4 {
+  grid-column-start: 4;
 }
 
 /* Vertical pair of controls (e.g. a knob above its velocity sens) */

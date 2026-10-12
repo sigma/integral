@@ -170,7 +170,7 @@ function PitchSection({
           title="Pitch keyboard tracking" />
       </div>
       <div className={css.envBlock}>
-        <div className={css.envKnobs}>
+        <div className={css.envGrid}>
           <SynthKnob label="Depth" value={partial.pitchEnvDepth}
             {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvDepth))}
             onChange={set(PcmsPartialField.PitchEnvDepth, "pitchEnvDepth")} color="#fc8"
@@ -238,43 +238,39 @@ function TvfSection({
         <SynthSwitch label="Type" value={partial.tvfFilterType} vertical
           options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfFilterType))}
           onChange={set(PcmsPartialField.TvfFilterType, "tvfFilterType")} title="Filter type" />
-        <div className={css.scopeColumn}>
-          <FilterScope className={css.scopeBox}
-            type={pcms_partial_spec(PcmsPartialField.TvfFilterType).formatValue(partial.tvfFilterType)}
-            cutoff={partial.tvfCutoffFrequency} resonance={partial.tvfResonance} />
-          <div className={css.panelRow}>
-            <div className={css.stack}>
-              <SynthKnob label="Cutoff" value={partial.tvfCutoffFrequency} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffFrequency))}
-                onChange={set(PcmsPartialField.TvfCutoffFrequency, "tvfCutoffFrequency")} color="#68c"
-                title="Filter cutoff frequency" />
-              <SynthKnob label="Cut Vel" value={partial.tvfCutoffVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocitySens))}
-                onChange={set(PcmsPartialField.TvfCutoffVelocitySens, "tvfCutoffVelocitySens")} color="#68c"
-                title="Cutoff velocity sensitivity — harder keys = higher cutoff" />
-            </div>
-            <div className={css.stack}>
-              <SynthKnob label="Reso" value={partial.tvfResonance} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfResonance))}
-                onChange={set(PcmsPartialField.TvfResonance, "tvfResonance")} color="#68c"
-                title="Filter resonance — emphasis at the cutoff frequency" />
-              <SynthKnob label="Res Vel" value={partial.tvfResonanceVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfResonanceVelocitySens))}
-                onChange={set(PcmsPartialField.TvfResonanceVelocitySens, "tvfResonanceVelocitySens")} color="#68c"
-                title="Resonance velocity sensitivity — harder keys = more resonance" />
-            </div>
-            <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffKeyfollow))}
-              onChange={set(PcmsPartialField.TvfCutoffKeyfollow, "tvfCutoffKeyfollow")} color="#68c"
-              title="Cutoff key tracking — higher keys = higher cutoff" />
-          </div>
+        <FilterScope className={css.scopeFill}
+          type={pcms_partial_spec(PcmsPartialField.TvfFilterType).formatValue(partial.tvfFilterType)}
+          cutoff={partial.tvfCutoffFrequency} resonance={partial.tvfResonance} />
+      </div>
+      <div className={css.envGrid}>
+        <div className={css.at3}>
+          <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffKeyfollow))}
+            onChange={set(PcmsPartialField.TvfCutoffKeyfollow, "tvfCutoffKeyfollow")} color="#68c"
+            title="Cutoff key tracking — higher keys = higher cutoff" />
         </div>
+        <SynthKnob label="Cutoff" value={partial.tvfCutoffFrequency} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffFrequency))}
+          onChange={set(PcmsPartialField.TvfCutoffFrequency, "tvfCutoffFrequency")} color="#68c"
+          title="Filter cutoff frequency" />
+        <SynthKnob label="Reso" value={partial.tvfResonance} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfResonance))}
+          onChange={set(PcmsPartialField.TvfResonance, "tvfResonance")} color="#68c"
+          title="Filter resonance — emphasis at the cutoff frequency" />
+        <VelocityCurveSelect className={css.at1} label="Vel Crv" value={partial.tvfCutoffVelocityCurve}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocityCurve))}
+          onChange={set(PcmsPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} color="#68c" title="Cutoff velocity response curve shape" />
+        <VelocityCurveSelect label="Env Crv" value={partial.tvfEnvVelocityCurve}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfEnvVelocityCurve))}
+          onChange={set(PcmsPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} color="#68c" title="Envelope velocity response curve shape" />
+        <div className={css.at4}>
+          <SynthKnob label="Cut Vel" value={partial.tvfCutoffVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocitySens))}
+            onChange={set(PcmsPartialField.TvfCutoffVelocitySens, "tvfCutoffVelocitySens")} color="#68c"
+            title="Cutoff velocity sensitivity — harder keys = higher cutoff" />
+        </div>
+        <SynthKnob label="Res Vel" value={partial.tvfResonanceVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfResonanceVelocitySens))}
+          onChange={set(PcmsPartialField.TvfResonanceVelocitySens, "tvfResonanceVelocitySens")} color="#68c"
+          title="Resonance velocity sensitivity — harder keys = more resonance" />
       </div>
       <div className={css.envBlock}>
-        <div className={css.panelRow}>
-          <VelocityCurveSelect label="Vel Crv" value={partial.tvfCutoffVelocityCurve}
-            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocityCurve))}
-            onChange={set(PcmsPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} color="#68c" title="Cutoff velocity response curve shape" />
-          <VelocityCurveSelect label="Env Crv" value={partial.tvfEnvVelocityCurve}
-            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfEnvVelocityCurve))}
-            onChange={set(PcmsPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} color="#68c" title="Envelope velocity response curve shape" />
-        </div>
-        <div className={css.envKnobs}>
+        <div className={css.envGrid}>
           <SynthKnob label="Depth" value={partial.tvfEnvDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvDepth))}
             onChange={set(PcmsPartialField.TvfEnvDepth, "tvfEnvDepth")} color="#68c"
             title="Filter envelope depth — how much the envelope sweeps the cutoff" />
@@ -337,10 +333,12 @@ function TvaSection({
 }) {
   return (
     <SectionPanel label="AMP" accentColor="#6c8">
-      <div className={css.ampTop}>
-        <SynthKnob label="Pan" value={partial.pan} {...knobRange(pcms_partial_spec(PcmsPartialField.Pan))}
-          onChange={set(PcmsPartialField.Pan, "pan")} color="#6c8"
-          title="Partial stereo panning" />
+      <div className={css.envGrid}>
+        <div className={css.at2}>
+          <SynthKnob label="Pan" value={partial.pan} {...knobRange(pcms_partial_spec(PcmsPartialField.Pan))}
+            onChange={set(PcmsPartialField.Pan, "pan")} color="#6c8"
+            title="Partial stereo panning" />
+        </div>
         <SynthKnob label="Pan KF" value={partial.panKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.PanKeyfollow))}
           onChange={set(PcmsPartialField.PanKeyfollow, "panKeyfollow")} color="#6c8"
           title="Pan keyfollow — notes above C4 pan right (+) or left (−). When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
@@ -350,6 +348,9 @@ function TvaSection({
         <SynthKnob label="Alt Pan" value={partial.alternatePanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.AlternatePanDepth))}
           onChange={set(PcmsPartialField.AlternatePanDepth, "alternatePanDepth")} color="#6c8"
           title="Alternate pan depth — successive notes alternate left and right; L/R sets which side comes first. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4." />
+        <VelocityCurveSelect className={css.at2} label="Vel Crv" value={partial.tvaLevelVelocityCurve}
+          options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaLevelVelocityCurve))}
+          onChange={set(PcmsPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} color="#6c8" title="Velocity response curve shape" />
         <SynthKnob label="Bias Lvl" value={partial.tvaBiasLevel} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasLevel))}
           onChange={set(PcmsPartialField.TvaBiasLevel, "tvaBiasLevel")} color="#6c8"
           title="Bias level — how steeply volume changes with distance from the bias key; the sign sets whether it rises or falls" />
@@ -362,12 +363,7 @@ function TvaSection({
           title="Bias direction — which keys the change applies to: below, above or both sides of the bias key, or a slope across all keys" />
       </div>
       <div className={css.envBlock}>
-        <div className={css.panelRow}>
-          <VelocityCurveSelect label="Vel Crv" value={partial.tvaLevelVelocityCurve}
-            options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaLevelVelocityCurve))}
-            onChange={set(PcmsPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} color="#6c8" title="Velocity response curve shape" />
-        </div>
-        <div className={css.envKnobs}>
+        <div className={css.envGrid}>
           <SynthKnob label="Level" value={partial.level} {...knobRange(pcms_partial_spec(PcmsPartialField.Level))}
             onChange={set(PcmsPartialField.Level, "level")} color="#6c8"
             title="Partial volume level" />
