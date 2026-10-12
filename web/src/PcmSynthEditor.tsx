@@ -240,8 +240,8 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
             />
           )}
         </div>
-        {/* Every partial output (one per merged pair) feeds the MFX. */}
-        <SignalArrows edges={[0, 1, 2, 3].map((i) => ({ from: `out-${i}`, to: "mfx" }))} />
+        {/* Every partial output (one per merged pair) is summed into the MFX. */}
+        <SignalArrows edges={[0, 1, 2, 3].map((i) => ({ from: `out-${i}`, to: "mfx", glyph: "+" }))} />
       </div>
     </div>
   );
