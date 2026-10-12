@@ -125,6 +125,7 @@ export class SequencerEngine {
   /** The selected Part's Track, where Step input writes. */
   setTrack(track: number): void {
     this.track = track;
+    this.changed();
   }
 
   setArmed(armed: boolean): void {
@@ -269,14 +270,18 @@ export class SequencerEngine {
     }
   }
 
+  /** Read the view, first clamping the Cursor into the selected Track's length. */
   private read(): SequencerView {
+    const tracks = this.seq.tracks() as TrackView[];
+    const length = tracks[this.track]?.length ?? 1;
+    this.cursor = Math.min(this.cursor, length - 1);
     return {
       playing: this.seq.isPlaying(),
       bpm: this.seq.bpm(),
       cursor: this.cursor,
       armed: this.armed,
       defaultVelocity: this.defaultVelocity,
-      tracks: this.seq.tracks() as TrackView[],
+      tracks,
     };
   }
 

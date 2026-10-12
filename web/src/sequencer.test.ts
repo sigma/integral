@@ -46,3 +46,37 @@ describe("SequencerEngine with no device", () => {
     expect(other.getSnapshot().tracks).toEqual(engine.getSnapshot().tracks);
   });
 });
+
+describe("SequencerEngine Cursor", () => {
+  it("stays inside a shorter Track after switching Part", () => {
+    const engine = new SequencerEngine();
+    engine.edit((seq) => seq.setTrackLength(1, 8));
+    engine.setCursor(12);
+    engine.setTrack(1);
+    expect(engine.getSnapshot().cursor).toBe(7);
+  });
+
+  it("stays inside the Track after lowering its length", () => {
+    const engine = new SequencerEngine();
+    engine.setCursor(12);
+    engine.edit((seq) => seq.setTrackLength(0, 8));
+    expect(engine.getSnapshot().cursor).toBe(7);
+  });
+
+  it("clamps a click past the Track's length to its last Step", () => {
+    const engine = new SequencerEngine();
+    engine.edit((seq) => seq.setTrackLength(0, 8));
+    engine.setCursor(20);
+    expect(engine.getSnapshot().cursor).toBe(7);
+  });
+
+  it("never writes Step input past the Track's length", () => {
+    const engine = new SequencerEngine();
+    engine.setCursor(12);
+    engine.setArmed(true);
+    engine.edit((seq) => seq.setTrackLength(0, 8));
+    engine.noteDown(60);
+    engine.noteUp(60);
+    expect(engine.getSnapshot().tracks[0]?.steps.map((s) => s.step)).toEqual([7]);
+  });
+});
