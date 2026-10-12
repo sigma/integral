@@ -178,10 +178,18 @@
   align-items: center;
 }
 
-/* Filter controls: two rows sharing columns, so each stack sits under its envelope knob */
+/* Envelope knobs and their envelope, sunk together to the box's bottom */
+.envBlock {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Filter controls in one row: Type, the curves, then the cutoff and resonance stacks */
 .filterGrid {
   display: grid;
-  grid-template-columns: repeat(4, auto);
+  grid-auto-flow: column;
   gap: 8px;
   place-items: start center;
 }

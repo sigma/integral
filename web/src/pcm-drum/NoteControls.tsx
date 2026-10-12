@@ -355,18 +355,6 @@ function TvfSection({
       <FilterScope className={css.filterScope} cutoff={note.tvfCutoffFrequency} resonance={note.tvfResonance}
         type={FILTER_TYPE_OPTIONS[note.tvfFilterType]?.label ?? ""} />
       <div className={css.filterGrid}>
-        <SynthKnob label="Depth" value={note.tvfEnvDepth} min={1} max={127} defaultValue={64} center={64}
-          onChange={set(PcmdPartialField.TvfEnvDepth, "tvfEnvDepth")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
-          title="Filter envelope depth" />
-        <SynthKnob label="Vel Sns" value={note.tvfEnvVelocitySens} min={1} max={127} defaultValue={64} center={64}
-          onChange={set(PcmdPartialField.TvfEnvVelocitySens, "tvfEnvVelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
-          title="Envelope velocity sensitivity" />
-        <SynthKnob label="T1 Vel" value={note.tvfEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
-          onChange={set(PcmdPartialField.TvfEnvT1VelocitySens, "tvfEnvT1VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
-          title="Filter envelope Time 1 velocity sensitivity" />
-        <SynthKnob label="T4 Vel" value={note.tvfEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
-          onChange={set(PcmdPartialField.TvfEnvT4VelocitySens, "tvfEnvT4VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
-          title="Filter envelope Time 4 velocity sensitivity" />
         <SynthSwitch label="Type" value={note.tvfFilterType} vertical
           options={FILTER_TYPE_OPTIONS}
           onChange={set(PcmdPartialField.TvfFilterType, "tvfFilterType")} title="Filter type" />
@@ -395,34 +383,50 @@ function TvfSection({
             title="Resonance velocity sensitivity" />
         </div>
       </div>
-      <BreakpointEnvelope
-        compact
-        times={[{
-          label: "T1", value: note.tvfEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
-          onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 0),
-        }, {
-          label: "T2", value: note.tvfEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
-          onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 1),
-        }, {
-          label: "T3", value: note.tvfEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
-          onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 2),
-        }, {
-          label: "T4", value: note.tvfEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
-          onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 3),
-        }]}
-        levels={[
-          { label: "L0", value: note.tvfEnvLevel[0] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 0) },
-          { label: "L1", value: note.tvfEnvLevel[1] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 1) },
-          { label: "L2", value: note.tvfEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 2) },
-          { label: "L3", value: note.tvfEnvLevel[3] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 3) },
-          { label: "L4", value: note.tvfEnvLevel[4] ?? 0, min: 0, max: 127, defaultValue: 0,
-            onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 4) },
-        ]}
-      />
+      <div className={css.envBlock}>
+        <div className={css.knobRow}>
+          <SynthKnob label="Depth" value={note.tvfEnvDepth} min={1} max={127} defaultValue={64} center={64}
+            onChange={set(PcmdPartialField.TvfEnvDepth, "tvfEnvDepth")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+            title="Filter envelope depth" />
+          <SynthKnob label="Vel Sns" value={note.tvfEnvVelocitySens} min={1} max={127} defaultValue={64} center={64}
+            onChange={set(PcmdPartialField.TvfEnvVelocitySens, "tvfEnvVelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+            title="Envelope velocity sensitivity" />
+          <SynthKnob label="T1 Vel" value={note.tvfEnvT1VelocitySens} min={1} max={127} defaultValue={64} center={64}
+            onChange={set(PcmdPartialField.TvfEnvT1VelocitySens, "tvfEnvT1VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+            title="Filter envelope Time 1 velocity sensitivity" />
+          <SynthKnob label="T4 Vel" value={note.tvfEnvT4VelocitySens} min={1} max={127} defaultValue={64} center={64}
+            onChange={set(PcmdPartialField.TvfEnvT4VelocitySens, "tvfEnvT4VelocitySens")} formatValue={(v) => signedFmt(v, 64)} color="#68c"
+            title="Filter envelope Time 4 velocity sensitivity" />
+        </div>
+        <BreakpointEnvelope
+          compact
+          times={[{
+            label: "T1", value: note.tvfEnvTime[0] ?? 0, min: 0, max: 127, defaultValue: 0,
+            onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 0),
+          }, {
+            label: "T2", value: note.tvfEnvTime[1] ?? 0, min: 0, max: 127, defaultValue: 0,
+            onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 1),
+          }, {
+            label: "T3", value: note.tvfEnvTime[2] ?? 0, min: 0, max: 127, defaultValue: 0,
+            onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 2),
+          }, {
+            label: "T4", value: note.tvfEnvTime[3] ?? 0, min: 0, max: 127, defaultValue: 0,
+            onChange: set(PcmdPartialField.TvfEnvTime, "tvfEnvTime", 3),
+          }]}
+          levels={[
+            { label: "L0", value: note.tvfEnvLevel[0] ?? 0, min: 0, max: 127, defaultValue: 0,
+              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 0) },
+            { label: "L1", value: note.tvfEnvLevel[1] ?? 0, min: 0, max: 127, defaultValue: 0,
+              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 1) },
+            { label: "L2", value: note.tvfEnvLevel[2] ?? 0, min: 0, max: 127, defaultValue: 0,
+              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 2) },
+            { label: "L3", value: note.tvfEnvLevel[3] ?? 0, min: 0, max: 127, defaultValue: 0,
+              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 3) },
+            { label: "L4", value: note.tvfEnvLevel[4] ?? 0, min: 0, max: 127, defaultValue: 0,
+              onChange: set(PcmdPartialField.TvfEnvLevel, "tvfEnvLevel", 4) },
+          ]}
+        />
+      </div>
     </SectionPanel>
   );
 }
