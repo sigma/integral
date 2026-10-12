@@ -3191,56 +3191,10 @@ pub fn control_source_choices(kind: ControlSourceKind) -> Vec<WasmControlSource>
         .collect()
 }
 
-/// Get the number of parameters for a given MFX type.
+/// Returns MFX parameter definitions for the given type index.
 #[wasm_bindgen]
-pub fn mfx_type_param_count(mfx_type: u8) -> u32 {
-    mfx_params::mfx_type_def(mfx_type)
-        .map(|d| d.params.len() as u32)
-        .unwrap_or(0)
-}
-
-/// Get MFX parameter definition by type and parameter index (0-based).
-/// Returns null if type or index is invalid.
-#[wasm_bindgen]
-pub struct WasmMfxParamDef {
-    #[wasm_bindgen(readonly)]
-    pub index: u8,
-    #[wasm_bindgen(readonly)]
-    pub min: i32,
-    #[wasm_bindgen(readonly)]
-    pub max: i32,
-    #[wasm_bindgen(readonly, js_name = defaultValue)]
-    pub default_value: i32,
-    name: String,
-    unit: fx_params::FxUnit,
-}
-
-#[wasm_bindgen]
-impl WasmMfxParamDef {
-    #[wasm_bindgen(getter)]
-    pub fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    /// Format a stored value for display.
-    #[wasm_bindgen(js_name = formatValue)]
-    pub fn format_value(&self, value: i32) -> String {
-        self.unit.format(value)
-    }
-}
-
-#[wasm_bindgen]
-pub fn mfx_param_def(mfx_type: u8, param_idx: u32) -> Option<WasmMfxParamDef> {
-    let def = mfx_params::mfx_type_def(mfx_type)?;
-    let p = def.params.get(param_idx as usize)?;
-    Some(WasmMfxParamDef {
-        index: p.index,
-        min: p.min,
-        max: p.max,
-        default_value: p.default_value,
-        name: p.name.to_string(),
-        unit: p.unit,
-    })
+pub fn mfx_params(mfx_type: u8) -> Vec<WasmFxParamDef> {
+    mfx_params::mfx_type_def(mfx_type).map_or_else(Vec::new, |d| wrap_fx_params(d.params))
 }
 
 // ---------------------------------------------------------------------------

@@ -4,8 +4,7 @@ import {
   MfxHeaderField,
   control_source_choices,
   mfx_type_names,
-  mfx_type_param_count,
-  mfx_param_def,
+  mfx_params,
 } from "../pkg/integral_wasm.js";
 import type { WasmControlSource } from "../pkg/integral_wasm.js";
 import {
@@ -77,19 +76,11 @@ interface ParamDef {
 
 function useParamDefs(mfxType: number): ParamDef[] {
   return useMemo(() => {
-    const count = mfx_type_param_count(mfxType);
-    const defs: ParamDef[] = [];
-    for (let i = 0; i < count; i++) {
-      const d = mfx_param_def(mfxType, i);
-      if (d) {
-        // Kept alive (not freed): formatValue calls back into it.
-        defs.push({
-          index: d.index, name: d.name, min: d.min, max: d.max, defaultValue: d.defaultValue,
-          formatValue: (v) => d.formatValue(v),
-        });
-      }
-    }
-    return defs;
+    // Kept alive (not freed): formatValue calls back into each def.
+    return mfx_params(mfxType).map((d) => ({
+      index: d.index, name: d.name, min: d.min, max: d.max, defaultValue: d.defaultValue,
+      formatValue: (v: number) => d.formatValue(v),
+    }));
   }, [mfxType]);
 }
 
@@ -328,39 +319,38 @@ const BALANCE_NAMES = new Set(["Balance", "Mix"]);
 
 function GenericPanel({ params, paramDefs, onParam }: CustomPanelProps) {
   // Partition params into: main, switches, toneEq, balance
-  const main: { def: ParamDef; i: number }[] = [];
-  const switches: { def: ParamDef; i: number }[] = [];
-  const toneEq: { def: ParamDef; i: number }[] = [];
-  const balance: { def: ParamDef; i: number }[] = [];
+  const main: ParamDef[] = [];
+  const switches: ParamDef[] = [];
+  const toneEq: ParamDef[] = [];
+  const balance: ParamDef[] = [];
 
-  for (let i = 0; i < paramDefs.length; i++) {
-    const def = paramDefs[i]!;
+  for (const def of paramDefs) {
     if (OUTPUT_NAMES.has(def.name)) continue;
-    if (TONE_EQ_NAMES.has(def.name)) { toneEq.push({ def, i }); continue; }
-    if (BALANCE_NAMES.has(def.name)) { balance.push({ def, i }); continue; }
+    if (TONE_EQ_NAMES.has(def.name)) { toneEq.push(def); continue; }
+    if (BALANCE_NAMES.has(def.name)) { balance.push(def); continue; }
     const range = def.max - def.min;
-    if (range <= 1) { switches.push({ def, i }); continue; }
-    main.push({ def, i });
+    if (range <= 1) { switches.push(def); continue; }
+    main.push(def);
   }
 
   // Render main knobs in rows of 2
-  const mainRows: { def: ParamDef; i: number }[][] = [];
+  const mainRows: ParamDef[][] = [];
   for (let j = 0; j < main.length; j += 2) {
     mainRows.push(main.slice(j, j + 2));
   }
 
-  const renderKnob = (item: { def: ParamDef; i: number }, color: string) => {
-    const val = params[item.i] ?? item.def.defaultValue;
+  const renderKnob = (def: ParamDef, color: string) => {
+    const val = params[def.index] ?? def.defaultValue;
     return (
       <SynthKnob
-        key={item.def.index}
-        label={item.def.name}
+        key={def.index}
+        label={def.name}
         value={val}
-        min={item.def.min}
-        max={item.def.max}
-        defaultValue={item.def.defaultValue}
-        onChange={(v) => onParam(item.i, v)}
-        formatValue={(v) => String(v)}
+        min={def.min}
+        max={def.max}
+        defaultValue={def.defaultValue}
+        onChange={(v) => onParam(def.index, v)}
+        formatValue={def.formatValue}
         color={color}
       />
     );
@@ -371,18 +361,18 @@ function GenericPanel({ params, paramDefs, onParam }: CustomPanelProps) {
       {/* Switches row */}
       {switches.length > 0 && (
         <div className={css.customRow}>
-          {switches.map((item) => {
-            const val = params[item.i] ?? item.def.defaultValue;
+          {switches.map((def) => {
+            const val = params[def.index] ?? def.defaultValue;
             return (
               <SynthSwitch
-                key={item.def.index}
-                label={item.def.name}
+                key={def.index}
+                label={def.name}
                 value={val}
                 options={[
-                  { value: item.def.min, label: "OFF" },
-                  { value: item.def.max, label: "ON" },
+                  { value: def.min, label: def.formatValue(def.min) },
+                  { value: def.max, label: def.formatValue(def.max) },
                 ]}
-                onChange={(v) => onParam(item.i, v)}
+                onChange={(v) => onParam(def.index, v)}
               />
             );
           })}
@@ -445,7 +435,7 @@ export function MfxPanel({
   onNibParam,
 }: Props) {
   const paramDefs = useParamDefs(mfx.mfxType);
-  const levelParamIndex = paramDefs.findIndex((d) => d.name === "Level");
+  const levelParamIndex = paramDefs.find((d) => d.name === "Level")?.index ?? -1;
 
   return (
     <div className={css.mfxPanel}>

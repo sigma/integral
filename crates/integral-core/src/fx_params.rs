@@ -79,6 +79,23 @@ pub enum FxUnit {
     EqHighFreq,
     /// EQ band Q: index into [`EQ_Q`].
     EqQ,
+    /// Rate in 0.01 Hz steps from 0.10 Hz at stored 1.
+    StepRateHz,
+    /// Pan: `L64`–`0`–`63R`, centre at 64.
+    Pan,
+    /// Dry/wet balance: `D100:0W`–`D0:100W`.
+    Balance,
+    /// Linear `(v − offset) × step` with a unit suffix; signed when `offset > 0`.
+    Offset {
+        /// Stored value shown as 0.
+        offset: i32,
+        /// Display step per stored step.
+        step: i32,
+        /// Unit suffix, e.g. `dB`.
+        suffix: &'static str,
+    },
+    /// Name list, index = stored value.
+    Names(&'static [&'static str]),
 }
 
 /// EQ low band frequencies.
@@ -110,10 +127,10 @@ pub static FREQ_HZ: &[u16] = &[
 ];
 
 /// Switch labels for msec/note times.
-const SYNC_MS: [&str; 2] = ["ms", "♪"];
+pub(crate) const SYNC_MS: [&str; 2] = ["ms", "♪"];
 
 /// Switch labels for Hz/note rates.
-const SYNC_HZ: [&str; 2] = ["Hz", "♪"];
+pub(crate) const SYNC_HZ: [&str; 2] = ["Hz", "♪"];
 
 /// Highest note index.
 const NOTE_MAX: i32 = NOTE_NAMES.len() as i32 - 1;
@@ -169,6 +186,26 @@ impl FxUnit {
             FxUnit::EqLowFreq => label(EQ_LOW_FREQ, v),
             FxUnit::EqHighFreq => label(EQ_HIGH_FREQ, v),
             FxUnit::EqQ => label(EQ_Q, v),
+            FxUnit::StepRateHz => format!("{:.2}Hz", (v + 9) as f64 * 0.01),
+            FxUnit::Pan => match v - 64 {
+                p if p < 0 => format!("L{}", -p),
+                0 => "0".to_string(),
+                p => format!("{p}R"),
+            },
+            FxUnit::Balance => format!("D{}:{v}W", 100 - v),
+            FxUnit::Offset {
+                offset,
+                step,
+                suffix,
+            } => {
+                let d = (v - offset) * step;
+                if offset > 0 {
+                    format!("{d:+}{suffix}")
+                } else {
+                    format!("{d}{suffix}")
+                }
+            }
+            FxUnit::Names(names) => label(names, v),
         }
     }
 }
@@ -216,7 +253,7 @@ impl fmt::Display for FxParamDef {
     }
 }
 
-const fn param(
+pub(crate) const fn param(
     index: u8,
     name: &'static str,
     min: i32,
@@ -238,7 +275,7 @@ const fn param(
 impl FxParamDef {
     /// Make this a tempo-syncable parameter: switch at `index − 1`, value at
     /// `index`, note at `index + 1` (the only layout the device uses).
-    const fn synced(self, note_default: i32, labels: [&'static str; 2]) -> FxParamDef {
+    pub(crate) const fn synced(self, note_default: i32, labels: [&'static str; 2]) -> FxParamDef {
         FxParamDef {
             sync: Some(FxSync {
                 switch_index: self.index - 1,

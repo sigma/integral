@@ -1,27 +1,15 @@
 //! MFX (Multi-Effects) parameter definitions for all 68 INTEGRA-7 effect types.
 //!
-//! Each MFX type has a unique set of parameters (up to 32). This module
-//! provides the parameter metadata needed to build UI controls and validate
-//! SysEx values.
+//! Each MFX type has a unique set of parameters in up to 32 nibblized slots.
+//! Values are stored slot values (raw − 32768), as read from the device.
+//!
+//! The per-type tables were generated from Roland's INTEGRA-7 Editor model
+//! (`model_excmap_mfx.js` and `model_stringer.js`); see
+//! `docs/research/mfx-param-layout.md`. Each tempo-syncable parameter is one
+//! [`FxParamDef`] spanning three slots (switch, value, note). Hidden slots
+//! are left out.
 
-use crate::fx_params::FxUnit;
-
-/// Definition of a single MFX parameter.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MfxParamDef {
-    /// Parameter number (1-32) within the MFX block.
-    pub index: u8,
-    /// Human-readable name.
-    pub name: &'static str,
-    /// Minimum value (inclusive).
-    pub min: i32,
-    /// Maximum value (inclusive).
-    pub max: i32,
-    /// Default value.
-    pub default_value: i32,
-    /// Display unit/format hint.
-    pub unit: FxUnit,
-}
+use crate::fx_params::{FxParamDef, FxUnit, SYNC_HZ, SYNC_MS, param};
 
 /// Definition of an MFX effect type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,6275 +20,1416 @@ pub struct MfxTypeDef {
     pub name: &'static str,
     /// Effect category.
     pub category: &'static str,
-    /// Parameter definitions for this type.
-    pub params: &'static [MfxParamDef],
+    /// Parameter definitions for this type, in slot order.
+    pub params: &'static [FxParamDef],
 }
 
-// ---------------------------------------------------------------------------
-// Type 0: Thru
-// ---------------------------------------------------------------------------
-
-const MFX_00_THRU: &[MfxParamDef] = &[];
-
-// ---------------------------------------------------------------------------
-// Type 1: Equalizer
-// ---------------------------------------------------------------------------
-
-const MFX_01_EQUALIZER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Low Freq",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::EqLowFreq,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Decibels,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Mid1 Freq",
-        min: 200,
-        max: 8000,
-        default_value: 1000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Mid1 Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Decibels,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Mid1 Q",
-        min: 0,
-        max: 4,
-        default_value: 2,
-        unit: FxUnit::EqQ,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Mid2 Freq",
-        min: 200,
-        max: 8000,
-        default_value: 2000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Mid2 Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Decibels,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Mid2 Q",
-        min: 0,
-        max: 4,
-        default_value: 2,
-        unit: FxUnit::EqQ,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "High Freq",
-        min: 0,
-        max: 2,
-        default_value: 1,
-        unit: FxUnit::EqHighFreq,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Decibels,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 2: Spectrum
-// ---------------------------------------------------------------------------
-
-const MFX_02_SPECTRUM: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Band1 (250Hz)",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Band2 (500Hz)",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Band3 (1000Hz)",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Band4 (1250Hz)",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Band5 (2000Hz)",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Band6 (3150Hz)",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Band7 (4000Hz)",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Band8 (8000Hz)",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Q",
-        min: 0,
-        max: 4,
-        default_value: 2,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 3: Low Boost
-// ---------------------------------------------------------------------------
-
-const MFX_03_LOW_BOOST: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Boost Freq",
-        min: 50,
-        max: 125,
-        default_value: 80,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Boost Gain",
-        min: 0,
-        max: 12,
-        default_value: 6,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Boost Width",
-        min: 0,
-        max: 2,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 4: Step Filter
-// ---------------------------------------------------------------------------
-
-const MFX_04_STEP_FILTER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Step 01",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Step 02",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Step 03",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Step 04",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Step 05",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Step 06",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Step 07",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Step 08",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Step 09",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Step 10",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Step 11",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Step 12",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Step 13",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Step 14",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 15,
-        name: "Step 15",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 16,
-        name: "Step 16",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 17,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 18,
-        name: "Attack",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 19,
-        name: "Filter Type",
-        min: 0,
-        max: 3,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 20,
-        name: "Filter Slope",
-        min: 0,
-        max: 2,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 21,
-        name: "Filter Resonance",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 22,
-        name: "Filter Gain",
-        min: 0,
-        max: 12,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 23,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 5: Enhancer
-// ---------------------------------------------------------------------------
-
-const MFX_05_ENHANCER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Sens",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Mix",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 6: Auto Wah
-// ---------------------------------------------------------------------------
-
-const MFX_06_AUTO_WAH: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Filter Type",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Manual",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Peak",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Sens",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Polarity",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Phase",
-        min: 0,
-        max: 180,
-        default_value: 0,
-        unit: FxUnit::Degrees,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 7: Humanizer
-// ---------------------------------------------------------------------------
-
-const MFX_07_HUMANIZER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Drive Sw",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Drive",
-        min: 0,
-        max: 127,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Vowel1",
-        min: 0,
-        max: 4,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Vowel2",
-        min: 0,
-        max: 4,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Manual",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Input Sync Sw",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Input Sync Threshold",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Pan",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 8: Speaker Simulator
-// ---------------------------------------------------------------------------
-
-const MFX_08_SPEAKER_SIM: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Type",
-        min: 0,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Mic Setting",
-        min: 0,
-        max: 2,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Mic Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Direct Level",
-        min: 0,
-        max: 127,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 9: Phaser 1
-// ---------------------------------------------------------------------------
-
-const MFX_09_PHASER1: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Mode",
-        min: 0,
-        max: 2,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Manual",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Polarity",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Resonance",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Cross Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Mix",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 10: Phaser 2
-// ---------------------------------------------------------------------------
-
-const MFX_10_PHASER2: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Rate",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Color",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 11: Phaser 3
-// ---------------------------------------------------------------------------
-
-const MFX_11_PHASER3: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Speed",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 12: Step Phaser
-// ---------------------------------------------------------------------------
-
-const MFX_12_STEP_PHASER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Mode",
-        min: 0,
-        max: 2,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Manual",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Polarity",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Resonance",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Cross Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Step Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Mix",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 13: Multi Stage Phaser
-// ---------------------------------------------------------------------------
-
-const MFX_13_MULTI_STAGE_PHASER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Mode",
-        min: 0,
-        max: 5,
-        default_value: 2,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Manual",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Resonance",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Mix",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Pan",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 14: Infinite Phaser
-// ---------------------------------------------------------------------------
-
-const MFX_14_INFINITE_PHASER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Mode",
-        min: 0,
-        max: 3,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Speed",
-        min: -100,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Resonance",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Mix",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Pan",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 15: Ring Modulator
-// ---------------------------------------------------------------------------
-
-const MFX_15_RING_MOD: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Frequency",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Sens",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Polarity",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 16: Tremolo
-// ---------------------------------------------------------------------------
-
-const MFX_16_TREMOLO: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Mod Wave",
-        min: 0,
-        max: 4,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 17: Auto Pan
-// ---------------------------------------------------------------------------
-
-const MFX_17_AUTO_PAN: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Mod Wave",
-        min: 0,
-        max: 4,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 18: Slicer
-// ---------------------------------------------------------------------------
-
-const MFX_18_SLICER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Step 01",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Step 02",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Step 03",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Step 04",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Step 05",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Step 06",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Step 07",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Step 08",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Step 09",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Step 10",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Step 11",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Step 12",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Step 13",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Step 14",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 15,
-        name: "Step 15",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 16,
-        name: "Step 16",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 17,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 18,
-        name: "Attack",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 19,
-        name: "Input Sync Sw",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 20,
-        name: "Input Sync Threshold",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 21,
-        name: "Mode",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 22,
-        name: "Shuffle",
-        min: 0,
-        max: 127,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 23,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 19: Rotary 1
-// ---------------------------------------------------------------------------
-
-const MFX_19_ROTARY1: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Speed",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Brake",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Woofer Slow Speed",
-        min: 0,
-        max: 127,
-        default_value: 20,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Woofer Fast Speed",
-        min: 0,
-        max: 127,
-        default_value: 100,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Woofer Acceleration",
-        min: 0,
-        max: 15,
-        default_value: 8,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Woofer Level",
-        min: 0,
-        max: 127,
-        default_value: 100,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Tweeter Slow Speed",
-        min: 0,
-        max: 127,
-        default_value: 25,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Tweeter Fast Speed",
-        min: 0,
-        max: 127,
-        default_value: 110,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Tweeter Acceleration",
-        min: 0,
-        max: 15,
-        default_value: 8,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Tweeter Level",
-        min: 0,
-        max: 127,
-        default_value: 100,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Separation",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 20: Rotary 2
-// ---------------------------------------------------------------------------
-
-const MFX_20_ROTARY2: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Speed",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Woofer Slow Speed",
-        min: 0,
-        max: 127,
-        default_value: 20,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Woofer Fast Speed",
-        min: 0,
-        max: 127,
-        default_value: 100,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Woofer Trans Up",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Woofer Trans Down",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Woofer Level",
-        min: 0,
-        max: 127,
-        default_value: 100,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Tweeter Slow Speed",
-        min: 0,
-        max: 127,
-        default_value: 25,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Tweeter Fast Speed",
-        min: 0,
-        max: 127,
-        default_value: 110,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Tweeter Trans Up",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Tweeter Trans Down",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Tweeter Level",
-        min: 0,
-        max: 127,
-        default_value: 100,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Spread",
-        min: 0,
-        max: 10,
-        default_value: 5,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 15,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 21: Rotary 3
-// ---------------------------------------------------------------------------
-
-const MFX_21_ROTARY3: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Speed",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Brake",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "OD Switch",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "OD Gain",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "OD Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "OD Level",
-        min: 0,
-        max: 127,
-        default_value: 100,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Woofer Slow Speed",
-        min: 0,
-        max: 127,
-        default_value: 20,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Woofer Fast Speed",
-        min: 0,
-        max: 127,
-        default_value: 100,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Woofer Trans Up",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Woofer Trans Down",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Woofer Level",
-        min: 0,
-        max: 127,
-        default_value: 100,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Tweeter Slow Speed",
-        min: 0,
-        max: 127,
-        default_value: 25,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Tweeter Fast Speed",
-        min: 0,
-        max: 127,
-        default_value: 110,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Tweeter Trans Up",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 15,
-        name: "Tweeter Trans Down",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 16,
-        name: "Tweeter Level",
-        min: 0,
-        max: 127,
-        default_value: 100,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 17,
-        name: "Spread",
-        min: 0,
-        max: 10,
-        default_value: 5,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 18,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 19,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 20,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 22: Chorus
-// ---------------------------------------------------------------------------
-
-const MFX_22_CHORUS: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Filter Type",
-        min: 0,
-        max: 2,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Cutoff Freq",
-        min: 200,
-        max: 8000,
-        default_value: 800,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Phase",
-        min: 0,
-        max: 180,
-        default_value: 0,
-        unit: FxUnit::Degrees,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 23: Flanger
-// ---------------------------------------------------------------------------
-
-const MFX_23_FLANGER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Filter Type",
-        min: 0,
-        max: 2,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Cutoff Freq",
-        min: 200,
-        max: 8000,
-        default_value: 800,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Phase",
-        min: 0,
-        max: 180,
-        default_value: 0,
-        unit: FxUnit::Degrees,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 24: Step Flanger
-// ---------------------------------------------------------------------------
-
-const MFX_24_STEP_FLANGER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Filter Type",
-        min: 0,
-        max: 2,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Cutoff Freq",
-        min: 200,
-        max: 8000,
-        default_value: 800,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Phase",
-        min: 0,
-        max: 180,
-        default_value: 0,
-        unit: FxUnit::Degrees,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Step Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 25: Hexa-Chorus
-// ---------------------------------------------------------------------------
-
-const MFX_25_HEXA_CHORUS: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Pre Delay Deviation",
-        min: 0,
-        max: 20,
-        default_value: 10,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Depth Deviation",
-        min: -20,
-        max: 20,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Pan Deviation",
-        min: 0,
-        max: 20,
-        default_value: 10,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 26: Tremolo Chorus
-// ---------------------------------------------------------------------------
-
-const MFX_26_TREMOLO_CHORUS: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Chorus Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Chorus Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Tremolo Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Tremolo Separation",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Tremolo Phase",
-        min: 0,
-        max: 180,
-        default_value: 0,
-        unit: FxUnit::Degrees,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 27: Space-D
-// ---------------------------------------------------------------------------
-
-const MFX_27_SPACE_D: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Phase",
-        min: 0,
-        max: 180,
-        default_value: 0,
-        unit: FxUnit::Degrees,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 28: Overdrive
-// ---------------------------------------------------------------------------
-
-const MFX_28_OVERDRIVE: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Tone",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Amp Sw",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Amp Type",
-        min: 0,
-        max: 3,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Pan",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 29: Distortion (same params as Overdrive)
-// ---------------------------------------------------------------------------
-
-const MFX_29_DISTORTION: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Tone",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Amp Sw",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Amp Type",
-        min: 0,
-        max: 3,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Pan",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 30: Guitar Amp Simulator
-// ---------------------------------------------------------------------------
-
-const MFX_30_GUITAR_AMP_SIM: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Amp Sw",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Amp Type",
-        min: 0,
-        max: 13,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Amp Volume",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Amp Master",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Amp Gain",
-        min: 0,
-        max: 2,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Amp Bass",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Amp Middle",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Amp Treble",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Amp Presence",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Amp Bright",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Speaker Sw",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Speaker Type",
-        min: 0,
-        max: 15,
-        default_value: 3,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Mic Setting",
-        min: 0,
-        max: 2,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Mic Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 15,
-        name: "Direct Level",
-        min: 0,
-        max: 127,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 16,
-        name: "Pan",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 17,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 31: Compressor
-// ---------------------------------------------------------------------------
-
-const MFX_31_COMPRESSOR: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Attack",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Threshold",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Post Gain",
-        min: 0,
-        max: 18,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 32: Limiter
-// ---------------------------------------------------------------------------
-
-const MFX_32_LIMITER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Release",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Threshold",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Ratio",
-        min: 0,
-        max: 3,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Post Gain",
-        min: 0,
-        max: 18,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 33: Gate
-// ---------------------------------------------------------------------------
-
-const MFX_33_GATE: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Threshold",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Mode",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Attack",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Hold",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Release",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 34: Delay
-// ---------------------------------------------------------------------------
-
-const MFX_34_DELAY: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Delay Left",
-        min: 0,
-        max: 1300,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Delay Right",
-        min: 0,
-        max: 1300,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Phase Left",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Phase Right",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Feedback Mode",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 35: Modulation Delay
-// ---------------------------------------------------------------------------
-
-const MFX_35_MOD_DELAY: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Delay Left",
-        min: 0,
-        max: 1300,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Delay Right",
-        min: 0,
-        max: 1300,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Feedback Mode",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Phase",
-        min: 0,
-        max: 180,
-        default_value: 0,
-        unit: FxUnit::Degrees,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 36: 3Tap Pan Delay
-// ---------------------------------------------------------------------------
-
-const MFX_36_3TAP_PAN_DELAY: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Delay Left",
-        min: 0,
-        max: 2600,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Delay Right",
-        min: 0,
-        max: 2600,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Delay Center",
-        min: 0,
-        max: 2600,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Center Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Left Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Right Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Center Level",
-        min: 0,
-        max: 127,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 37: 4Tap Pan Delay
-// ---------------------------------------------------------------------------
-
-const MFX_37_4TAP_PAN_DELAY: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Delay 1 Time",
-        min: 0,
-        max: 2600,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Delay 2 Time",
-        min: 0,
-        max: 2600,
-        default_value: 400,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Delay 3 Time",
-        min: 0,
-        max: 2600,
-        default_value: 600,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Delay 4 Time",
-        min: 0,
-        max: 2600,
-        default_value: 800,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Delay 1 Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Delay 1 Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Delay 2 Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Delay 3 Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Delay 4 Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 38: Multi Tap Delay
-// ---------------------------------------------------------------------------
-
-const MFX_38_MULTI_TAP_DELAY: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Delay 1 Time",
-        min: 0,
-        max: 2600,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Delay 2 Time",
-        min: 0,
-        max: 2600,
-        default_value: 400,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Delay 3 Time",
-        min: 0,
-        max: 2600,
-        default_value: 600,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Delay 4 Time",
-        min: 0,
-        max: 2600,
-        default_value: 800,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Delay 1 Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Delay 1 Pan",
-        min: -64,
-        max: 63,
-        default_value: -32,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Delay 2 Pan",
-        min: -64,
-        max: 63,
-        default_value: 32,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Delay 3 Pan",
-        min: -64,
-        max: 63,
-        default_value: -32,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Delay 4 Pan",
-        min: -64,
-        max: 63,
-        default_value: 32,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Delay 1 Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Delay 2 Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Delay 3 Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Delay 4 Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 15,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 16,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 17,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 18,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 39: Reverse Delay
-// ---------------------------------------------------------------------------
-
-const MFX_39_REVERSE_DELAY: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Threshold",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Rev Delay Time",
-        min: 0,
-        max: 1300,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Rev Delay Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Rev Delay HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Rev Delay Pan",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Rev Delay Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Delay 1 Time",
-        min: 0,
-        max: 1300,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Delay 2 Time",
-        min: 0,
-        max: 1300,
-        default_value: 400,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Delay 3 Time",
-        min: 0,
-        max: 1300,
-        default_value: 600,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Delay 3 Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Delay HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Delay 1 Pan",
-        min: -64,
-        max: 63,
-        default_value: -32,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Delay 2 Pan",
-        min: -64,
-        max: 63,
-        default_value: 32,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Delay 1 Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 15,
-        name: "Delay 2 Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 16,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 17,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 18,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 19,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 40: Time Ctrl Delay
-// ---------------------------------------------------------------------------
-
-const MFX_40_TIME_CTRL_DELAY: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Delay Time",
-        min: 0,
-        max: 1300,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Acceleration",
-        min: 0,
-        max: 15,
-        default_value: 8,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 41: LOFI Compress
-// ---------------------------------------------------------------------------
-
-const MFX_41_LOFI_COMPRESS: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Pre Filt Type",
-        min: 0,
-        max: 5,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "LoFi Type",
-        min: 0,
-        max: 8,
-        default_value: 4,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "PostFilt Type",
-        min: 0,
-        max: 2,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "PostFilt Cof",
-        min: 200,
-        max: 8000,
-        default_value: 4000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 42: Bit Crasher
-// ---------------------------------------------------------------------------
-
-const MFX_42_BIT_CRASHER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Sample Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Bit Down",
-        min: 0,
-        max: 20,
-        default_value: 10,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Filter",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 43: Pitch Shifter
-// ---------------------------------------------------------------------------
-
-const MFX_43_PITCH_SHIFTER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Coarse",
-        min: -24,
-        max: 12,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Fine",
-        min: -100,
-        max: 100,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Delay Time",
-        min: 0,
-        max: 1300,
-        default_value: 0,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 44: 2Voice Pitch Shifter
-// ---------------------------------------------------------------------------
-
-const MFX_44_2VOICE_PITCH_SHIFTER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Pitch1 Coarse",
-        min: -24,
-        max: 12,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Pitch1 Fine",
-        min: -100,
-        max: 100,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Pitch1 Delay",
-        min: 0,
-        max: 1300,
-        default_value: 0,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Pitch1 Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Pitch1 Pan",
-        min: -64,
-        max: 63,
-        default_value: -32,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Pitch1 Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Pitch2 Coarse",
-        min: -24,
-        max: 12,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Pitch2 Fine",
-        min: -100,
-        max: 100,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Pitch2 Delay",
-        min: 0,
-        max: 1300,
-        default_value: 0,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Pitch2 Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Pitch2 Pan",
-        min: -64,
-        max: 63,
-        default_value: 32,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Pitch2 Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 15,
-        name: "Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 16,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 45: Overdrive -> Chorus
-// ---------------------------------------------------------------------------
-
-const MFX_45_OD_CHORUS: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Overdrive Pan",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Chorus Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Chorus Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Chorus Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Chorus Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 46: Overdrive -> Flanger
-// ---------------------------------------------------------------------------
-
-const MFX_46_OD_FLANGER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Overdrive Pan",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Flanger Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Flanger Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Flanger Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Flanger Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Flanger Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 47: Overdrive -> Delay
-// ---------------------------------------------------------------------------
-
-const MFX_47_OD_DELAY: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Overdrive Pan",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Delay Time",
-        min: 0,
-        max: 2600,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Delay Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Delay HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Delay Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 48: Distortion -> Chorus (same params as 45)
-// ---------------------------------------------------------------------------
-
-const MFX_48_DIST_CHORUS: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Distortion Pan",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Chorus Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Chorus Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Chorus Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Chorus Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 49: Distortion -> Flanger (same params as 46)
-// ---------------------------------------------------------------------------
-
-const MFX_49_DIST_FLANGER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Distortion Pan",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Flanger Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Flanger Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Flanger Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Flanger Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Flanger Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 50: Distortion -> Delay (same params as 47)
-// ---------------------------------------------------------------------------
-
-const MFX_50_DIST_DELAY: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Distortion Pan",
-        min: -64,
-        max: 63,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Delay Time",
-        min: 0,
-        max: 2600,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Delay Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Delay HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Delay Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 51: OD/DS -> TouchWah
-// ---------------------------------------------------------------------------
-
-const MFX_51_ODDS_TOUCHWAH: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Drive Switch",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Drive Type",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Tone",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Amp Sw",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Amp Type",
-        min: 0,
-        max: 3,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Touch Wah Switch",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Touch Wah Filter Type",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Touch Wah Polarity",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Touch Wah Sens",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Touch Wah Manual",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Touch Wah Peak",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Touch Wah Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 15,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 16,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 52: OD/DS -> AutoWah
-// ---------------------------------------------------------------------------
-
-const MFX_52_ODDS_AUTOWAH: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Drive Switch",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Drive Type",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Tone",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Amp Sw",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Amp Type",
-        min: 0,
-        max: 3,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Auto Wah Switch",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Auto Wah Filter Type",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Auto Wah Manual",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Auto Wah Peak",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Auto Wah Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Auto Wah Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Auto Wah Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Low Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 15,
-        name: "High Gain",
-        min: -15,
-        max: 15,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 16,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 53: GuitarAmpSim -> Chorus
-// ---------------------------------------------------------------------------
-
-const MFX_53_GUITARAMP_CHORUS: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Amp Sw",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Amp Type",
-        min: 0,
-        max: 13,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Amp Volume",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Amp Master",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Amp Gain",
-        min: 0,
-        max: 2,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Amp Bass",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Amp Middle",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Amp Treble",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Speaker Sw",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Speaker Type",
-        min: 0,
-        max: 15,
-        default_value: 3,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Chorus Switch",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Chorus Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Chorus Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Chorus Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 15,
-        name: "Chorus Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 16,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 54: GuitarAmpSim -> Flanger
-// ---------------------------------------------------------------------------
-
-const MFX_54_GUITARAMP_FLANGER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Amp Sw",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Amp Type",
-        min: 0,
-        max: 13,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Amp Volume",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Amp Master",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Amp Gain",
-        min: 0,
-        max: 2,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Amp Bass",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Amp Middle",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Amp Treble",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Speaker Sw",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Speaker Type",
-        min: 0,
-        max: 15,
-        default_value: 3,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Flanger Switch",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Flanger Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Flanger Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Flanger Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 15,
-        name: "Flanger Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 16,
-        name: "Flanger Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 17,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 55: GuitarAmpSim -> Phaser
-// ---------------------------------------------------------------------------
-
-const MFX_55_GUITARAMP_PHASER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Amp Sw",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Amp Type",
-        min: 0,
-        max: 13,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Amp Volume",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Amp Master",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Amp Gain",
-        min: 0,
-        max: 2,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Amp Bass",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Amp Middle",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Amp Treble",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Speaker Sw",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Speaker Type",
-        min: 0,
-        max: 15,
-        default_value: 3,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Phaser Switch",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Phaser Manual",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Phaser Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Phaser Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 15,
-        name: "Phaser Resonance",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 16,
-        name: "Phaser Mix",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 17,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 56: GuitarAmpSim -> Delay
-// ---------------------------------------------------------------------------
-
-const MFX_56_GUITARAMP_DELAY: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Amp Sw",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Amp Type",
-        min: 0,
-        max: 13,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Amp Volume",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Amp Master",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Amp Gain",
-        min: 0,
-        max: 2,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Amp Bass",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Amp Middle",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Amp Treble",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Speaker Sw",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Speaker Type",
-        min: 0,
-        max: 15,
-        default_value: 3,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Delay Switch",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Delay Time",
-        min: 0,
-        max: 2600,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Delay Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Delay HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 15,
-        name: "Delay Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 16,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 57: EP AmpSim -> Tremolo
-// ---------------------------------------------------------------------------
-
-const MFX_57_EPAMP_TREMOLO: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Type",
-        min: 0,
-        max: 2,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Bass",
-        min: -50,
-        max: 50,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Treble",
-        min: -50,
-        max: 50,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "OD Switch",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "OD Gain",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "OD Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Tremolo Switch",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Tremolo Mod Wave",
-        min: 0,
-        max: 4,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Tremolo Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Tremolo Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Speaker Type",
-        min: 0,
-        max: 4,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 58: EP AmpSim -> Chorus
-// ---------------------------------------------------------------------------
-
-const MFX_58_EPAMP_CHORUS: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Type",
-        min: 0,
-        max: 2,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Bass",
-        min: -50,
-        max: 50,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Treble",
-        min: -50,
-        max: 50,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "OD Switch",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "OD Gain",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "OD Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Chorus Switch",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Chorus Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Chorus Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Chorus Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Chorus Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Speaker Type",
-        min: 0,
-        max: 4,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 59: EP AmpSim -> Flanger
-// ---------------------------------------------------------------------------
-
-const MFX_59_EPAMP_FLANGER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Type",
-        min: 0,
-        max: 2,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Bass",
-        min: -50,
-        max: 50,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Treble",
-        min: -50,
-        max: 50,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "OD Switch",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "OD Gain",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "OD Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Flanger Switch",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Flanger Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Flanger Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Flanger Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Flanger Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Flanger Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Speaker Type",
-        min: 0,
-        max: 4,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 60: EP AmpSim -> Phaser
-// ---------------------------------------------------------------------------
-
-const MFX_60_EPAMP_PHASER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Type",
-        min: 0,
-        max: 2,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Bass",
-        min: -50,
-        max: 50,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Treble",
-        min: -50,
-        max: 50,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "OD Switch",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "OD Gain",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "OD Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Phaser Switch",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Phaser Manual",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Phaser Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Phaser Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Phaser Resonance",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Phaser Mix",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Speaker Type",
-        min: 0,
-        max: 4,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 14,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 61: EP AmpSim -> Delay
-// ---------------------------------------------------------------------------
-
-const MFX_61_EPAMP_DELAY: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Type",
-        min: 0,
-        max: 2,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Bass",
-        min: -50,
-        max: 50,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Treble",
-        min: -50,
-        max: 50,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "OD Switch",
-        min: 0,
-        max: 1,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "OD Gain",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "OD Drive",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Delay Switch",
-        min: 0,
-        max: 1,
-        default_value: 1,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Delay Time",
-        min: 0,
-        max: 2600,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Delay Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Delay HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 11,
-        name: "Delay Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 12,
-        name: "Speaker Type",
-        min: 0,
-        max: 4,
-        default_value: 0,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 13,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 62: Enhancer -> Chorus
-// ---------------------------------------------------------------------------
-
-const MFX_62_ENHANCER_CHORUS: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Enhancer Sens",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Enhancer Mix",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Chorus Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Chorus Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Chorus Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Chorus Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 63: Enhancer -> Flanger
-// ---------------------------------------------------------------------------
-
-const MFX_63_ENHANCER_FLANGER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Enhancer Sens",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Enhancer Mix",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Flanger Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Flanger Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Flanger Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Flanger Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Flanger Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 64: Enhancer -> Delay
-// ---------------------------------------------------------------------------
-
-const MFX_64_ENHANCER_DELAY: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Enhancer Sens",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Enhancer Mix",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Delay Time",
-        min: 0,
-        max: 2600,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Delay Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Delay HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Delay Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 65: Chorus -> Delay
-// ---------------------------------------------------------------------------
-
-const MFX_65_CHORUS_DELAY: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Chorus Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Chorus Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Chorus Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Chorus Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Delay Time",
-        min: 0,
-        max: 2600,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Delay Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Delay HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Delay Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 66: Flanger -> Delay
-// ---------------------------------------------------------------------------
-
-const MFX_66_FLANGER_DELAY: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Flanger Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Flanger Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Flanger Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Flanger Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Flanger Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Delay Time",
-        min: 0,
-        max: 2600,
-        default_value: 200,
-        unit: FxUnit::Millis,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Delay Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Delay HF Damp",
-        min: 200,
-        max: 8000,
-        default_value: 8000,
-        unit: FxUnit::Hz,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Delay Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
-];
-
-// ---------------------------------------------------------------------------
-// Type 67: Chorus -> Flanger
-// ---------------------------------------------------------------------------
-
-const MFX_67_CHORUS_FLANGER: &[MfxParamDef] = &[
-    MfxParamDef {
-        index: 1,
-        name: "Chorus Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 2,
-        name: "Chorus Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 3,
-        name: "Chorus Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 4,
-        name: "Chorus Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 5,
-        name: "Flanger Pre Delay",
-        min: 0,
-        max: 1000,
-        default_value: 0,
-        unit: FxUnit::MillisTenths,
-    },
-    MfxParamDef {
-        index: 6,
-        name: "Flanger Rate",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 7,
-        name: "Flanger Depth",
-        min: 0,
-        max: 127,
-        default_value: 64,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 8,
-        name: "Flanger Feedback",
-        min: -98,
-        max: 98,
-        default_value: 0,
-        unit: FxUnit::Percent,
-    },
-    MfxParamDef {
-        index: 9,
-        name: "Flanger Balance",
-        min: 0,
-        max: 100,
-        default_value: 50,
-        unit: FxUnit::Plain,
-    },
-    MfxParamDef {
-        index: 10,
-        name: "Level",
-        min: 0,
-        max: 127,
-        default_value: 127,
-        unit: FxUnit::Plain,
-    },
+/// −15 dB … +15 dB, 0 dB at stored 15.
+const GAIN_DB: FxUnit = FxUnit::Offset {
+    offset: 15,
+    step: 1,
+    suffix: "dB",
+};
+
+// Display names for list-valued parameters, index = stored value.
+
+static BOOST_FREQ: &[&str] = &[
+    "50Hz", "56Hz", "63Hz", "71Hz", "80Hz", "90Hz", "100Hz", "112Hz", "125Hz",
+];
+static BOOST_WIDTH: &[&str] = &["WIDE", "MID", "NARROW"];
+static STEPFIL_FILT_TYPE: &[&str] = &["LPF", "BPF", "HPF", "NOTCH"];
+static WAH_MODE: &[&str] = &["LPF", "BPF"];
+static WAH_POLARITY: &[&str] = &["UP", "DOWN"];
+static OFF_ON: &[&str] = &["OFF", "ON"];
+static FORMANT_VOWEL1: &[&str] = &["a", "e", "i", "o", "u"];
+static SPSIM_SP_TYPE: &[&str] = &[
+    "SMALL 1",
+    "SMALL 2",
+    "MIDDLE",
+    "JC-120",
+    "BUILT-IN 1",
+    "BUILT-IN 2",
+    "BUILT-IN 3",
+    "BUILT-IN 4",
+    "BUILT-IN 5",
+    "BG STACK 1",
+    "BG STACK 2",
+    "MS STACK 1",
+    "MS STACK 2",
+    "METAL STACK",
+    "2-STACK",
+    "3-STACK",
+];
+static STPH_POLARITY: &[&str] = &["INVERSE", "SYNCHRO"];
+static PHA2_COLOR: &[&str] = &["1", "2"];
+static TRE_MOD_WAVE: &[&str] = &["TRI", "SQR", "SIN", "SAW1", "SAW2"];
+static SLICER_MODE: &[&str] = &["LEGATO", "SLASH"];
+static ROT_SPEED: &[&str] = &["SLOW", "FAST"];
+static STCHO_FILT: &[&str] = &["OFF", "LPF", "HPF"];
+static VSOD_AMP_TYPE: &[&str] = &["SMALL", "BUILT-IN", "2-STACK", "3-STACK"];
+static GAMPSIM_AMP_TYPE: &[&str] = &[
+    "JC-120",
+    "CLEAN TWIN",
+    "MATCH DRIVE",
+    "BG LEAD",
+    "MS1959I",
+    "MS1959II",
+    "MS1959I+II",
+    "SLDN LEAD",
+    "METAL 5150",
+    "METAL LEAD",
+    "OD-1",
+    "OD-2 TURBO",
+    "DISTORTION",
+    "FUZZ",
+];
+static GAMPSIM_AMP_GAIN: &[&str] = &["Low", "Middle", "High"];
+static LIMIT_RATIO: &[&str] = &["1.5:1", "2:1", "4:1", "100:1"];
+static GATE_MODE: &[&str] = &["GATE", "DUCK"];
+static STDLY_PHS_L: &[&str] = &["NORMAL", "INVERSE"];
+static STDLY_FBK_MODE: &[&str] = &["NORMAL", "CROSS"];
+static ODTW_DRIVE_TYPE: &[&str] = &["OVERDRIVE", "DISTORTION"];
+static ODTW_TWAH_POLA: &[&str] = &["DOWN", "UP"];
+static EPTRM_TYPE: &[&str] = &["OLDCASE", "NEWCASE", "WURLY"];
+static EPTRM_SPEAKER_TYPE: &[&str] = &["LINE", "OLD", "NEW", "WURLY", "TWIN"];
+
+// Type 0: THRU
+const MFX_00_THRU: &[FxParamDef] = &[];
+
+// Type 1: EQUALIZER
+const MFX_01_EQUALIZER: &[FxParamDef] = &[
+    param(0, "Low Freq", 0, 1, 1, FxUnit::EqLowFreq),
+    param(1, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(2, "Mid1 Freq", 0, 16, 7, FxUnit::Freq),
+    param(3, "Mid1 Gain", 0, 30, 15, GAIN_DB),
+    param(4, "Mid1 Q", 0, 4, 0, FxUnit::EqQ),
+    param(5, "Mid2 Freq", 0, 16, 10, FxUnit::Freq),
+    param(6, "Mid2 Gain", 0, 30, 15, GAIN_DB),
+    param(7, "Mid2 Q", 0, 4, 0, FxUnit::EqQ),
+    param(8, "High Freq", 0, 2, 1, FxUnit::EqHighFreq),
+    param(9, "High Gain", 0, 30, 15, GAIN_DB),
+    param(10, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 2: SPECTRUM
+const MFX_02_SPECTRUM: &[FxParamDef] = &[
+    param(0, "Band1 (250Hz)", 0, 30, 15, GAIN_DB),
+    param(1, "Band2 (500Hz)", 0, 30, 15, GAIN_DB),
+    param(2, "Band3 (1000Hz)", 0, 30, 15, GAIN_DB),
+    param(3, "Band4 (1250Hz)", 0, 30, 15, GAIN_DB),
+    param(4, "Band5 (2000Hz)", 0, 30, 15, GAIN_DB),
+    param(5, "Band6 (3150Hz)", 0, 30, 15, GAIN_DB),
+    param(6, "Band7 (4000Hz)", 0, 30, 15, GAIN_DB),
+    param(7, "Band8 (8000Hz)", 0, 30, 15, GAIN_DB),
+    param(8, "Q", 0, 4, 0, FxUnit::EqQ),
+    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 3: LOW BOOST
+const MFX_03_LOW_BOOST: &[FxParamDef] = &[
+    param(0, "Boost Frequency", 0, 8, 4, FxUnit::Names(BOOST_FREQ)),
+    param(1, "Boost Gain", 0, 12, 6, FxUnit::Decibels),
+    param(2, "Boost Width", 0, 2, 0, FxUnit::Names(BOOST_WIDTH)),
+    param(3, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(4, "High Gain", 0, 30, 15, GAIN_DB),
+    param(5, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 4: STEP FILTER
+const MFX_04_STEP_FILTER: &[FxParamDef] = &[
+    param(0, "Step 01", 0, 127, 60, FxUnit::Plain),
+    param(1, "Step 02", 0, 127, 30, FxUnit::Plain),
+    param(2, "Step 03", 0, 127, 60, FxUnit::Plain),
+    param(3, "Step 04", 0, 127, 30, FxUnit::Plain),
+    param(4, "Step 05", 0, 127, 60, FxUnit::Plain),
+    param(5, "Step 06", 0, 127, 30, FxUnit::Plain),
+    param(6, "Step 07", 0, 127, 60, FxUnit::Plain),
+    param(7, "Step 08", 0, 127, 30, FxUnit::Plain),
+    param(8, "Step 09", 0, 127, 60, FxUnit::Plain),
+    param(9, "Step 10", 0, 127, 60, FxUnit::Plain),
+    param(10, "Step 11", 0, 127, 30, FxUnit::Plain),
+    param(11, "Step 12", 0, 127, 60, FxUnit::Plain),
+    param(12, "Step 13", 0, 127, 60, FxUnit::Plain),
+    param(13, "Step 14", 0, 127, 30, FxUnit::Plain),
+    param(14, "Step 15", 0, 127, 60, FxUnit::Plain),
+    param(15, "Step 16", 0, 127, 30, FxUnit::Plain),
+    param(17, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(19, "Attack", 0, 127, 50, FxUnit::Plain),
+    param(20, "Filter Type", 0, 3, 2, FxUnit::Names(STEPFIL_FILT_TYPE)),
+    param(
+        21,
+        "Filter Slope",
+        0,
+        2,
+        2,
+        FxUnit::Offset {
+            offset: -1,
+            step: -12,
+            suffix: "dB",
+        },
+    ),
+    param(22, "Filter Resonance", 0, 127, 40, FxUnit::Plain),
+    param(23, "Filter Gain", 0, 12, 0, FxUnit::Decibels),
+    param(24, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 5: ENHANCER
+const MFX_05_ENHANCER: &[FxParamDef] = &[
+    param(0, "Sens", 0, 127, 64, FxUnit::Plain),
+    param(1, "Mix", 0, 127, 64, FxUnit::Plain),
+    param(2, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(3, "High Gain", 0, 30, 15, GAIN_DB),
+    param(4, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 6: AUTO WAH
+const MFX_06_AUTO_WAH: &[FxParamDef] = &[
+    param(0, "Filter Type", 0, 1, 1, FxUnit::Names(WAH_MODE)),
+    param(1, "Manual", 0, 127, 60, FxUnit::Plain),
+    param(2, "Peak", 0, 127, 40, FxUnit::Plain),
+    param(3, "Sens", 0, 127, 0, FxUnit::Plain),
+    param(4, "Polarity", 0, 1, 0, FxUnit::Names(WAH_POLARITY)),
+    param(6, "Rate", 1, 200, 40, FxUnit::RateHz).synced(12, SYNC_HZ),
+    param(8, "Depth", 0, 127, 60, FxUnit::Plain),
+    param(9, "Phase", 0, 90, 0, FxUnit::DegreesX2),
+    param(10, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(11, "High Gain", 0, 30, 15, GAIN_DB),
+    param(12, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 7: HUMANIZER
+const MFX_07_HUMANIZER: &[FxParamDef] = &[
+    param(0, "Drive Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(1, "Drive", 0, 127, 127, FxUnit::Plain),
+    param(2, "Vowel1", 0, 4, 4, FxUnit::Names(FORMANT_VOWEL1)),
+    param(3, "Vowel2", 0, 4, 0, FxUnit::Names(FORMANT_VOWEL1)),
+    param(5, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(7, "Depth", 0, 127, 127, FxUnit::Plain),
+    param(8, "Input Sync Sw", 0, 1, 0, FxUnit::Names(OFF_ON)),
+    param(9, "Input Sync Threshold", 0, 127, 60, FxUnit::Plain),
+    param(10, "Manual", 0, 100, 50, FxUnit::Plain),
+    param(11, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(12, "High Gain", 0, 30, 15, GAIN_DB),
+    param(13, "Pan", 0, 127, 64, FxUnit::Pan),
+    param(14, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 8: SPEAKER SIMULATOR
+const MFX_08_SPEAKER_SIM: &[FxParamDef] = &[
+    param(0, "Speaker Type", 0, 15, 6, FxUnit::Names(SPSIM_SP_TYPE)),
+    param(
+        1,
+        "Mic Setting",
+        0,
+        2,
+        1,
+        FxUnit::Offset {
+            offset: -1,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(2, "Mic Level", 0, 127, 127, FxUnit::Plain),
+    param(3, "Direct Level", 0, 127, 0, FxUnit::Plain),
+    param(4, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 9: PHASER 1
+const MFX_09_PHASER1: &[FxParamDef] = &[
+    param(
+        0,
+        "Mode",
+        0,
+        2,
+        2,
+        FxUnit::Offset {
+            offset: -1,
+            step: 4,
+            suffix: "-STAGE",
+        },
+    ),
+    param(1, "Manual", 0, 127, 64, FxUnit::Plain),
+    param(3, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(5, "Depth", 0, 127, 40, FxUnit::Plain),
+    param(6, "Polarity", 0, 1, 1, FxUnit::Names(STPH_POLARITY)),
+    param(7, "Resonance", 0, 127, 40, FxUnit::Plain),
+    param(8, "Cross Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
+    param(9, "Mix", 0, 127, 127, FxUnit::Plain),
+    param(10, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(11, "High Gain", 0, 30, 15, GAIN_DB),
+    param(12, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 10: PHASER 2
+const MFX_10_PHASER2: &[FxParamDef] = &[
+    param(0, "Rate", 0, 100, 50, FxUnit::Plain),
+    param(1, "Color", 0, 1, 0, FxUnit::Names(PHA2_COLOR)),
+    param(2, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(3, "High Gain", 0, 30, 15, GAIN_DB),
+    param(4, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 11: PHASER 3
+const MFX_11_PHASER3: &[FxParamDef] = &[
+    param(0, "Speed", 0, 100, 50, FxUnit::Plain),
+    param(1, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(2, "High Gain", 0, 30, 15, GAIN_DB),
+    param(3, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 12: STEP PHASER
+const MFX_12_STEP_PHASER: &[FxParamDef] = &[
+    param(
+        0,
+        "Mode",
+        0,
+        2,
+        2,
+        FxUnit::Offset {
+            offset: -1,
+            step: 4,
+            suffix: "-STAGE",
+        },
+    ),
+    param(1, "Manual", 0, 127, 64, FxUnit::Plain),
+    param(3, "Rate", 1, 200, 30, FxUnit::RateHz).synced(13, SYNC_HZ),
+    param(5, "Depth", 0, 127, 40, FxUnit::Plain),
+    param(6, "Polarity", 0, 1, 1, FxUnit::Names(STPH_POLARITY)),
+    param(7, "Resonance", 0, 127, 40, FxUnit::Plain),
+    param(8, "Cross Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
+    param(10, "Step Rate", 1, 200, 80, FxUnit::StepRateHz).synced(6, SYNC_HZ),
+    param(12, "Mix", 0, 127, 127, FxUnit::Plain),
+    param(13, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(14, "High Gain", 0, 30, 15, GAIN_DB),
+    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 13: MULTI STAGE PHASER
+const MFX_13_MULTI_STAGE_PHASER: &[FxParamDef] = &[
+    param(
+        0,
+        "Mode",
+        0,
+        5,
+        5,
+        FxUnit::Offset {
+            offset: -1,
+            step: 4,
+            suffix: "-STAGE",
+        },
+    ),
+    param(1, "Manual", 0, 127, 60, FxUnit::Plain),
+    param(3, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(5, "Depth", 0, 127, 40, FxUnit::Plain),
+    param(6, "Resonance", 0, 127, 40, FxUnit::Plain),
+    param(7, "Mix", 0, 127, 127, FxUnit::Plain),
+    param(8, "Pan", 0, 127, 64, FxUnit::Pan),
+    param(9, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(10, "High Gain", 0, 30, 15, GAIN_DB),
+    param(11, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 14: INFINITE PHASER
+const MFX_14_INFINITE_PHASER: &[FxParamDef] = &[
+    param(
+        0,
+        "Mode",
+        0,
+        3,
+        3,
+        FxUnit::Offset {
+            offset: -1,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(
+        1,
+        "Speed",
+        0,
+        200,
+        140,
+        FxUnit::Offset {
+            offset: 100,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(2, "Resonance", 0, 127, 80, FxUnit::Plain),
+    param(3, "Mix", 0, 127, 127, FxUnit::Plain),
+    param(4, "Pan", 0, 127, 64, FxUnit::Pan),
+    param(5, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(6, "High Gain", 0, 30, 15, GAIN_DB),
+    param(7, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 15: RING MODULATOR
+const MFX_15_RING_MOD: &[FxParamDef] = &[
+    param(0, "Frequency", 0, 127, 60, FxUnit::Plain),
+    param(1, "Sens", 0, 127, 0, FxUnit::Plain),
+    param(2, "Polarity", 0, 1, 0, FxUnit::Names(WAH_POLARITY)),
+    param(3, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(4, "High Gain", 0, 30, 15, GAIN_DB),
+    param(5, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(6, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 16: TREMOLO
+const MFX_16_TREMOLO: &[FxParamDef] = &[
+    param(0, "Mod Wave", 0, 4, 0, FxUnit::Names(TRE_MOD_WAVE)),
+    param(2, "Rate", 1, 200, 80, FxUnit::RateHz).synced(9, SYNC_HZ),
+    param(4, "Depth", 0, 127, 96, FxUnit::Plain),
+    param(5, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(6, "High Gain", 0, 30, 15, GAIN_DB),
+    param(7, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 17: AUTO PAN
+const MFX_17_AUTO_PAN: &[FxParamDef] = &[
+    param(0, "Mod Wave", 0, 4, 0, FxUnit::Names(TRE_MOD_WAVE)),
+    param(2, "Rate", 1, 200, 80, FxUnit::RateHz).synced(9, SYNC_HZ),
+    param(4, "Depth", 0, 127, 96, FxUnit::Plain),
+    param(5, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(6, "High Gain", 0, 30, 15, GAIN_DB),
+    param(7, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 18: SLICER
+const MFX_18_SLICER: &[FxParamDef] = &[
+    param(0, "Step 01", 0, 127, 127, FxUnit::Plain),
+    param(1, "Step 02", 0, 127, 0, FxUnit::Plain),
+    param(2, "Step 03", 0, 127, 30, FxUnit::Plain),
+    param(3, "Step 04", 0, 127, 127, FxUnit::Plain),
+    param(4, "Step 05", 0, 127, 127, FxUnit::Plain),
+    param(5, "Step 06", 0, 127, 0, FxUnit::Plain),
+    param(6, "Step 07", 0, 127, 30, FxUnit::Plain),
+    param(7, "Step 08", 0, 127, 0, FxUnit::Plain),
+    param(8, "Step 09", 0, 127, 127, FxUnit::Plain),
+    param(9, "Step 10", 0, 127, 0, FxUnit::Plain),
+    param(10, "Step 11", 0, 127, 30, FxUnit::Plain),
+    param(11, "Step 12", 0, 127, 127, FxUnit::Plain),
+    param(12, "Step 13", 0, 127, 0, FxUnit::Plain),
+    param(13, "Step 14", 0, 127, 0, FxUnit::Plain),
+    param(14, "Step 15", 0, 127, 30, FxUnit::Plain),
+    param(15, "Step 16", 0, 127, 0, FxUnit::Plain),
+    param(17, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(19, "Attack", 0, 127, 50, FxUnit::Plain),
+    param(20, "Input Sync Sw", 0, 1, 0, FxUnit::Names(OFF_ON)),
+    param(21, "Input Sync Threshold", 0, 127, 60, FxUnit::Plain),
+    param(22, "Mode", 0, 1, 0, FxUnit::Names(SLICER_MODE)),
+    param(23, "Shuffle", 0, 127, 0, FxUnit::Plain),
+    param(24, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 19: ROTARY 1
+const MFX_19_ROTARY1: &[FxParamDef] = &[
+    param(0, "Speed", 0, 1, 0, FxUnit::Names(ROT_SPEED)),
+    param(1, "Woofer Slow Speed", 1, 200, 40, FxUnit::RateHz),
+    param(2, "Woofer Fast Speed", 1, 200, 160, FxUnit::RateHz),
+    param(3, "Woofer Acceleration", 0, 15, 10, FxUnit::Plain),
+    param(4, "Woofer Level", 0, 127, 127, FxUnit::Plain),
+    param(5, "Tweeter Slow Speed", 1, 200, 40, FxUnit::RateHz),
+    param(6, "Tweeter Fast Speed", 1, 200, 160, FxUnit::RateHz),
+    param(7, "Tweeter Acceleration", 0, 15, 10, FxUnit::Plain),
+    param(8, "Tweeter Level", 0, 127, 127, FxUnit::Plain),
+    param(9, "Separation", 0, 127, 127, FxUnit::Plain),
+    param(10, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 20: ROTARY 2
+const MFX_20_ROTARY2: &[FxParamDef] = &[
+    param(0, "Speed", 0, 1, 0, FxUnit::Names(ROT_SPEED)),
+    param(1, "Brake", 0, 1, 0, FxUnit::Names(OFF_ON)),
+    param(2, "Woofer Slow Speed", 1, 200, 40, FxUnit::RateHz),
+    param(3, "Woofer Fast Speed", 1, 200, 160, FxUnit::RateHz),
+    param(4, "Woofer Trans Up", 0, 127, 64, FxUnit::Plain),
+    param(5, "Woofer Trans Down", 0, 127, 64, FxUnit::Plain),
+    param(6, "Woofer Level", 0, 127, 127, FxUnit::Plain),
+    param(7, "Tweeter Slow Speed", 1, 200, 40, FxUnit::RateHz),
+    param(8, "Tweeter Fast Speed", 1, 200, 160, FxUnit::RateHz),
+    param(9, "Tweeter Trans Up", 0, 127, 64, FxUnit::Plain),
+    param(10, "Tweeter Trans Down", 0, 127, 64, FxUnit::Plain),
+    param(11, "Tweeter Level", 0, 127, 127, FxUnit::Plain),
+    param(12, "Spread", 0, 10, 10, FxUnit::Plain),
+    param(13, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(14, "High Gain", 0, 30, 15, GAIN_DB),
+    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 21: ROTARY 3
+const MFX_21_ROTARY3: &[FxParamDef] = &[
+    param(0, "Speed", 0, 1, 0, FxUnit::Names(ROT_SPEED)),
+    param(1, "Brake", 0, 1, 0, FxUnit::Names(OFF_ON)),
+    param(2, "Woofer Slow Speed", 1, 200, 40, FxUnit::RateHz),
+    param(3, "Woofer Fast Speed", 1, 200, 160, FxUnit::RateHz),
+    param(4, "Woofer Trans Up", 0, 127, 64, FxUnit::Plain),
+    param(5, "Woofer Trans Down", 0, 127, 64, FxUnit::Plain),
+    param(6, "Woofer Level", 0, 127, 127, FxUnit::Plain),
+    param(7, "Tweeter Slow Speed", 1, 200, 40, FxUnit::RateHz),
+    param(8, "Tweeter Fast Speed", 1, 200, 160, FxUnit::RateHz),
+    param(9, "Tweeter Trans Up", 0, 127, 64, FxUnit::Plain),
+    param(10, "Tweeter Trans Down", 0, 127, 64, FxUnit::Plain),
+    param(11, "Tweeter Level", 0, 127, 127, FxUnit::Plain),
+    param(12, "Spread", 0, 10, 10, FxUnit::Plain),
+    param(13, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(14, "High Gain", 0, 30, 15, GAIN_DB),
+    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+    param(16, "OD Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(17, "OD Gain", 0, 127, 80, FxUnit::Plain),
+    param(18, "OD Drive", 0, 127, 100, FxUnit::Plain),
+    param(19, "OD Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 22: CHORUS
+const MFX_22_CHORUS: &[FxParamDef] = &[
+    param(0, "Filter Type", 0, 2, 2, FxUnit::Names(STCHO_FILT)),
+    param(1, "Cutoff Freq", 0, 16, 6, FxUnit::Freq),
+    param(2, "Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(6, "Depth", 0, 127, 30, FxUnit::Plain),
+    param(7, "Phase", 0, 90, 90, FxUnit::DegreesX2),
+    param(8, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(9, "High Gain", 0, 30, 15, GAIN_DB),
+    param(10, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(11, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 23: FLANGER
+const MFX_23_FLANGER: &[FxParamDef] = &[
+    param(0, "Filter Type", 0, 2, 2, FxUnit::Names(STCHO_FILT)),
+    param(1, "Cutoff Freq", 0, 16, 6, FxUnit::Freq),
+    param(2, "Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(6, "Depth", 0, 127, 40, FxUnit::Plain),
+    param(7, "Phase", 0, 90, 90, FxUnit::DegreesX2),
+    param(8, "Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
+    param(9, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(10, "High Gain", 0, 30, 15, GAIN_DB),
+    param(11, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(12, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 24: STEP FLANGER
+const MFX_24_STEP_FLANGER: &[FxParamDef] = &[
+    param(0, "Filter Type", 0, 2, 2, FxUnit::Names(STCHO_FILT)),
+    param(1, "Cutoff Freq", 0, 16, 6, FxUnit::Freq),
+    param(2, "Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Rate", 1, 200, 30, FxUnit::RateHz).synced(13, SYNC_HZ),
+    param(6, "Depth", 0, 127, 40, FxUnit::Plain),
+    param(7, "Phase", 0, 90, 90, FxUnit::DegreesX2),
+    param(8, "Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
+    param(10, "Step Rate", 1, 200, 80, FxUnit::StepRateHz).synced(6, SYNC_HZ),
+    param(12, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(13, "High Gain", 0, 30, 15, GAIN_DB),
+    param(14, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 25: HEXA-CHORUS
+const MFX_25_HEXA_CHORUS: &[FxParamDef] = &[
+    param(0, "Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(2, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Depth", 0, 127, 30, FxUnit::Plain),
+    param(5, "Pre Delay Deviation", 0, 20, 0, FxUnit::Plain),
+    param(
+        6,
+        "Depth Deviation",
+        0,
+        40,
+        20,
+        FxUnit::Offset {
+            offset: 20,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(7, "Pan Deviation", 0, 20, 20, FxUnit::Plain),
+    param(8, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 26: TREMOLO CHORUS
+const MFX_26_TREMOLO_CHORUS: &[FxParamDef] = &[
+    param(0, "Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(2, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Chorus Depth", 0, 127, 50, FxUnit::Plain),
+    param(6, "Tremolo Rate", 1, 200, 40, FxUnit::RateHz).synced(12, SYNC_HZ),
+    param(8, "Tremolo Separation", 0, 127, 127, FxUnit::Plain),
+    param(9, "Tremolo Phase", 0, 90, 90, FxUnit::DegreesX2),
+    param(10, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(11, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 27: SPACE-D
+const MFX_27_SPACE_D: &[FxParamDef] = &[
+    param(0, "Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(2, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Depth", 0, 127, 30, FxUnit::Plain),
+    param(5, "Phase", 0, 90, 90, FxUnit::DegreesX2),
+    param(6, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(7, "High Gain", 0, 30, 15, GAIN_DB),
+    param(8, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 28: OVERDRIVE
+const MFX_28_OVERDRIVE: &[FxParamDef] = &[
+    param(0, "Drive", 0, 127, 127, FxUnit::Plain),
+    param(1, "Tone", 0, 127, 50, FxUnit::Plain),
+    param(2, "Amp Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(3, "Amp Type", 0, 3, 0, FxUnit::Names(VSOD_AMP_TYPE)),
+    param(4, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(5, "High Gain", 0, 30, 15, GAIN_DB),
+    param(6, "Pan", 0, 127, 64, FxUnit::Pan),
+    param(7, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 29: DISTORTION
+const MFX_29_DISTORTION: &[FxParamDef] = &[
+    param(0, "Drive", 0, 127, 127, FxUnit::Plain),
+    param(1, "Tone", 0, 127, 50, FxUnit::Plain),
+    param(2, "Amp Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(3, "Amp Type", 0, 3, 3, FxUnit::Names(VSOD_AMP_TYPE)),
+    param(4, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(5, "High Gain", 0, 30, 15, GAIN_DB),
+    param(6, "Pan", 0, 127, 64, FxUnit::Pan),
+    param(7, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 30: GUITAR AMP SIMULATOR
+const MFX_30_GUITAR_AMP_SIM: &[FxParamDef] = &[
+    param(0, "Pre Amp Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(1, "Pre Amp Type", 0, 13, 1, FxUnit::Names(GAMPSIM_AMP_TYPE)),
+    param(2, "Pre Amp Volume", 0, 127, 80, FxUnit::Plain),
+    param(3, "Pre Amp Master", 0, 127, 100, FxUnit::Plain),
+    param(4, "Pre Amp Gain", 0, 2, 1, FxUnit::Names(GAMPSIM_AMP_GAIN)),
+    param(5, "Pre Amp Bass", 0, 127, 64, FxUnit::Plain),
+    param(6, "Pre Amp Middle", 0, 127, 64, FxUnit::Plain),
+    param(7, "Pre Amp Treble", 0, 127, 64, FxUnit::Plain),
+    param(8, "Pre Amp Presence", 0, 127, 0, FxUnit::Plain),
+    param(9, "Pre Amp Bright", 0, 1, 0, FxUnit::Names(OFF_ON)),
+    param(10, "Speaker Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(11, "Speaker Type", 0, 15, 4, FxUnit::Names(SPSIM_SP_TYPE)),
+    param(
+        12,
+        "Mic Setting",
+        0,
+        2,
+        1,
+        FxUnit::Offset {
+            offset: -1,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(13, "Mic Level", 0, 127, 127, FxUnit::Plain),
+    param(14, "Direct Level", 0, 127, 0, FxUnit::Plain),
+    param(15, "Pan", 0, 127, 64, FxUnit::Pan),
+    param(16, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 31: COMPRESSOR
+const MFX_31_COMPRESSOR: &[FxParamDef] = &[
+    param(0, "Attack", 0, 127, 20, FxUnit::Plain),
+    param(1, "Threshold", 0, 127, 64, FxUnit::Plain),
+    param(2, "Post Gain", 0, 18, 6, FxUnit::Decibels),
+    param(3, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(4, "High Gain", 0, 30, 15, GAIN_DB),
+    param(5, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 32: LIMITER
+const MFX_32_LIMITER: &[FxParamDef] = &[
+    param(0, "Release", 0, 127, 32, FxUnit::Plain),
+    param(1, "Threshold", 0, 127, 64, FxUnit::Plain),
+    param(2, "Ratio", 0, 3, 2, FxUnit::Names(LIMIT_RATIO)),
+    param(3, "Post Gain", 0, 18, 6, FxUnit::Decibels),
+    param(4, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(5, "High Gain", 0, 30, 15, GAIN_DB),
+    param(6, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 33: GATE
+const MFX_33_GATE: &[FxParamDef] = &[
+    param(0, "Threshold", 0, 127, 70, FxUnit::Plain),
+    param(1, "Mode", 0, 1, 0, FxUnit::Names(GATE_MODE)),
+    param(2, "Attack", 0, 127, 8, FxUnit::Plain),
+    param(3, "Hold", 0, 127, 0, FxUnit::Plain),
+    param(4, "Release", 0, 127, 16, FxUnit::Plain),
+    param(5, "Balance", 0, 100, 100, FxUnit::Balance),
+    param(6, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 34: DELAY
+const MFX_34_DELAY: &[FxParamDef] = &[
+    param(1, "Delay Left", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(4, "Delay Right", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(6, "Phase Left", 0, 1, 0, FxUnit::Names(STDLY_PHS_L)),
+    param(7, "Phase Right", 0, 1, 0, FxUnit::Names(STDLY_PHS_L)),
+    param(8, "Feedback Mode", 0, 1, 0, FxUnit::Names(STDLY_FBK_MODE)),
+    param(9, "Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
+    param(10, "HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(11, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(12, "High Gain", 0, 30, 15, GAIN_DB),
+    param(13, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(14, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 35: MODULATION DELAY
+const MFX_35_MOD_DELAY: &[FxParamDef] = &[
+    param(1, "Delay Left", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(4, "Delay Right", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(6, "Feedback Mode", 0, 1, 0, FxUnit::Names(STDLY_FBK_MODE)),
+    param(7, "Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
+    param(8, "HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(10, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(12, "Depth", 0, 127, 20, FxUnit::Plain),
+    param(13, "Phase", 0, 90, 90, FxUnit::DegreesX2),
+    param(14, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(15, "High Gain", 0, 30, 15, GAIN_DB),
+    param(16, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(17, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 36: 3TAP PAN DELAY
+const MFX_36_3TAP_PAN_DELAY: &[FxParamDef] = &[
+    param(1, "Delay Left", 0, 2600, 400, FxUnit::Millis).synced(10, SYNC_MS),
+    param(4, "Delay Right", 0, 2600, 800, FxUnit::Millis).synced(13, SYNC_MS),
+    param(7, "Delay Center", 0, 2600, 1200, FxUnit::Millis).synced(15, SYNC_MS),
+    param(9, "Center Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
+    param(10, "HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(11, "Left Level ", 0, 127, 127, FxUnit::Plain),
+    param(12, "Right Level", 0, 127, 127, FxUnit::Plain),
+    param(13, "Center Level", 0, 127, 127, FxUnit::Plain),
+    param(14, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(15, "High Gain", 0, 30, 15, GAIN_DB),
+    param(16, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(17, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 37: 4TAP PAN DELAY
+const MFX_37_4TAP_PAN_DELAY: &[FxParamDef] = &[
+    param(1, "Delay 1 Time", 0, 2600, 1200, FxUnit::Millis).synced(15, SYNC_MS),
+    param(4, "Delay 2 Time", 0, 2600, 900, FxUnit::Millis).synced(14, SYNC_MS),
+    param(7, "Delay 3 Time", 0, 2600, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(10, "Delay 4 Time", 0, 2600, 300, FxUnit::Millis).synced(9, SYNC_MS),
+    param(12, "Delay 1 Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
+    param(13, "HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(14, "Delay 1 Level", 0, 127, 127, FxUnit::Plain),
+    param(15, "Delay 2 Level", 0, 127, 127, FxUnit::Plain),
+    param(16, "Delay 3 Level", 0, 127, 127, FxUnit::Plain),
+    param(17, "Delay 4 Level", 0, 127, 127, FxUnit::Plain),
+    param(18, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(19, "High Gain", 0, 30, 15, GAIN_DB),
+    param(20, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(21, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 38: MULTI TAP DELAY
+const MFX_38_MULTI_TAP_DELAY: &[FxParamDef] = &[
+    param(1, "Delay 1 Time", 0, 2600, 1200, FxUnit::Millis).synced(15, SYNC_MS),
+    param(4, "Delay 2 Time", 0, 2600, 900, FxUnit::Millis).synced(14, SYNC_MS),
+    param(7, "Delay 3 Time", 0, 2600, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(10, "Delay 4 Time", 0, 2600, 300, FxUnit::Millis).synced(9, SYNC_MS),
+    param(12, "Delay 1 Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
+    param(13, "HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(14, "Delay 1 Pan", 0, 127, 0, FxUnit::Pan),
+    param(15, "Delay 2 Pan", 0, 127, 127, FxUnit::Pan),
+    param(16, "Delay 3 Pan", 0, 127, 32, FxUnit::Pan),
+    param(17, "Delay 4 Pan", 0, 127, 96, FxUnit::Pan),
+    param(18, "Delay 1 Level", 0, 127, 127, FxUnit::Plain),
+    param(19, "Delay 2 Level", 0, 127, 127, FxUnit::Plain),
+    param(20, "Delay 3 Level", 0, 127, 127, FxUnit::Plain),
+    param(21, "Delay 4 Level", 0, 127, 127, FxUnit::Plain),
+    param(22, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(23, "High Gain", 0, 30, 15, GAIN_DB),
+    param(24, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(25, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 39: REVERSE DELAY
+const MFX_39_REVERSE_DELAY: &[FxParamDef] = &[
+    param(0, "Threshold", 0, 127, 30, FxUnit::Plain),
+    param(2, "Rev Delay Time", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(4, "Rev Delay Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
+    param(5, "Rev Delay HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(6, "Rev Delay Pan", 0, 127, 64, FxUnit::Pan),
+    param(7, "Rev Delay Level", 0, 127, 127, FxUnit::Plain),
+    param(9, "Delay 1 Time", 0, 1300, 300, FxUnit::Millis).synced(9, SYNC_MS),
+    param(12, "Delay 2 Time", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(15, "Delay 3 Time", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(17, "Delay 3 Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
+    param(18, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(19, "Delay 1 Pan", 0, 127, 0, FxUnit::Pan),
+    param(20, "Delay 2 Pan", 0, 127, 127, FxUnit::Pan),
+    param(21, "Delay 1 Level", 0, 127, 0, FxUnit::Plain),
+    param(22, "Delay 2 Level", 0, 127, 0, FxUnit::Plain),
+    param(23, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(24, "High Gain", 0, 30, 15, GAIN_DB),
+    param(25, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(26, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 40: TIME CTRL DELAY
+const MFX_40_TIME_CTRL_DELAY: &[FxParamDef] = &[
+    param(1, "Delay Time", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(3, "Acceleration", 0, 15, 10, FxUnit::Plain),
+    param(4, "Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
+    param(5, "HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(6, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(7, "High Gain", 0, 30, 15, GAIN_DB),
+    param(8, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 41: LOFI COMPRESS
+const MFX_41_LOFI_COMPRESS: &[FxParamDef] = &[
+    param(
+        0,
+        "Pre Filter Type",
+        0,
+        5,
+        1,
+        FxUnit::Offset {
+            offset: -1,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(
+        1,
+        "LoFi Type",
+        0,
+        8,
+        4,
+        FxUnit::Offset {
+            offset: -1,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(2, "Post Filter Type", 0, 2, 1, FxUnit::Names(STCHO_FILT)),
+    param(3, "Post Filter Cutoff", 0, 16, 13, FxUnit::Freq),
+    param(4, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(5, "High Gain", 0, 30, 15, GAIN_DB),
+    param(6, "Balance", 0, 100, 100, FxUnit::Balance),
+    param(7, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 42: BIT CRASHER
+const MFX_42_BIT_CRASHER: &[FxParamDef] = &[
+    param(0, "Sample Rate", 0, 127, 80, FxUnit::Plain),
+    param(1, "Bit Down", 0, 20, 16, FxUnit::Plain),
+    param(2, "Filter", 0, 127, 127, FxUnit::Plain),
+    param(3, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(4, "High Gain", 0, 30, 15, GAIN_DB),
+    param(5, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 43: PITCH SHIFTER
+const MFX_43_PITCH_SHIFTER: &[FxParamDef] = &[
+    param(
+        0,
+        "Coarse",
+        0,
+        36,
+        24,
+        FxUnit::Offset {
+            offset: 24,
+            step: 1,
+            suffix: "semi",
+        },
+    ),
+    param(
+        1,
+        "Fine",
+        0,
+        100,
+        50,
+        FxUnit::Offset {
+            offset: 50,
+            step: 2,
+            suffix: "cent",
+        },
+    ),
+    param(3, "Delay Time", 0, 1300, 0, FxUnit::Millis).synced(12, SYNC_MS),
+    param(5, "Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
+    param(6, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(7, "High Gain", 0, 30, 15, GAIN_DB),
+    param(8, "Balance", 0, 100, 100, FxUnit::Balance),
+    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 44: 2VOICE PITCH SHIFTER
+const MFX_44_2VOICE_PITCH_SHIFTER: &[FxParamDef] = &[
+    param(
+        0,
+        "Pitch1 Coarse",
+        0,
+        36,
+        28,
+        FxUnit::Offset {
+            offset: 24,
+            step: 1,
+            suffix: "semi",
+        },
+    ),
+    param(
+        1,
+        "Pitch1 Fine",
+        0,
+        100,
+        50,
+        FxUnit::Offset {
+            offset: 50,
+            step: 2,
+            suffix: "cent",
+        },
+    ),
+    param(3, "Pitch1 Delay", 0, 1300, 300, FxUnit::Millis).synced(9, SYNC_MS),
+    param(5, "Pitch1 Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
+    param(6, "Pitch1 Pan", 0, 127, 64, FxUnit::Pan),
+    param(7, "Pitch1 Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        8,
+        "Pitch2 Coarse",
+        0,
+        36,
+        31,
+        FxUnit::Offset {
+            offset: 24,
+            step: 1,
+            suffix: "semi",
+        },
+    ),
+    param(
+        9,
+        "Pitch2 Fine",
+        0,
+        100,
+        50,
+        FxUnit::Offset {
+            offset: 50,
+            step: 2,
+            suffix: "cent",
+        },
+    ),
+    param(11, "Pitch2 Delay", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(13, "Pitch2 Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
+    param(14, "Pitch2 Pan", 0, 127, 64, FxUnit::Pan),
+    param(15, "Pitch2 Level", 0, 127, 127, FxUnit::Plain),
+    param(16, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(17, "High Gain", 0, 30, 15, GAIN_DB),
+    param(18, "Balance", 0, 100, 50, FxUnit::Balance),
+    param(19, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 45: OD->CHORUS
+const MFX_45_OD_CHORUS: &[FxParamDef] = &[
+    param(0, "Overdrive Drive", 0, 127, 64, FxUnit::Plain),
+    param(1, "Overdrive Pan", 0, 127, 64, FxUnit::Pan),
+    param(2, "Chorus Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(6, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
+    param(7, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
+    param(8, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 46: OD->FLANGER
+const MFX_46_OD_FLANGER: &[FxParamDef] = &[
+    param(0, "Overdrive Drive", 0, 127, 64, FxUnit::Plain),
+    param(1, "Overdrive Pan", 0, 127, 64, FxUnit::Pan),
+    param(2, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Flanger Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(6, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
+    param(7, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
+    param(8, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
+    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 47: OD->DELAY
+const MFX_47_OD_DELAY: &[FxParamDef] = &[
+    param(0, "Overdrive Drive", 0, 127, 64, FxUnit::Plain),
+    param(1, "Overdrive Pan", 0, 127, 64, FxUnit::Pan),
+    param(3, "Delay Time", 0, 2600, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(5, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
+    param(6, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(7, "Delay Balance", 0, 100, 50, FxUnit::Balance),
+    param(8, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 48: DS->CHORUS
+const MFX_48_DIST_CHORUS: &[FxParamDef] = &[
+    param(0, "Distortion Drive", 0, 127, 127, FxUnit::Plain),
+    param(1, "Distortion Pan", 0, 127, 64, FxUnit::Pan),
+    param(2, "Chorus Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(6, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
+    param(7, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
+    param(8, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 49: DS->FLANGER
+const MFX_49_DIST_FLANGER: &[FxParamDef] = &[
+    param(0, "Distortion Drive", 0, 127, 127, FxUnit::Plain),
+    param(1, "Distortion Pan", 0, 127, 64, FxUnit::Pan),
+    param(2, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Flanger Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(6, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
+    param(7, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
+    param(8, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
+    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 50: DS->DELAY
+const MFX_50_DIST_DELAY: &[FxParamDef] = &[
+    param(0, "Distortion Drive", 0, 127, 127, FxUnit::Plain),
+    param(1, "Distortion Pan", 0, 127, 64, FxUnit::Pan),
+    param(3, "Delay Time", 0, 2600, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(5, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
+    param(6, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(7, "Delay Balance", 0, 100, 50, FxUnit::Balance),
+    param(8, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 51: OD/DS->TWAH
+const MFX_51_ODDS_TOUCHWAH: &[FxParamDef] = &[
+    param(0, "Drive Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(1, "Drive Type", 0, 1, 0, FxUnit::Names(ODTW_DRIVE_TYPE)),
+    param(2, "Drive", 0, 127, 50, FxUnit::Plain),
+    param(3, "Tone", 0, 127, 50, FxUnit::Plain),
+    param(4, "Amp Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(5, "Amp Type", 0, 3, 0, FxUnit::Names(VSOD_AMP_TYPE)),
+    param(6, "TWah Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(7, "TWah Mode", 0, 1, 1, FxUnit::Names(WAH_MODE)),
+    param(8, "TWah Polarity", 0, 1, 0, FxUnit::Names(ODTW_TWAH_POLA)),
+    param(9, "TWah Sens", 0, 127, 50, FxUnit::Plain),
+    param(10, "TWah Manual", 0, 127, 30, FxUnit::Plain),
+    param(11, "TWah Peak", 0, 127, 50, FxUnit::Plain),
+    param(12, "TWah Balance", 0, 100, 100, FxUnit::Balance),
+    param(13, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(14, "High Gain", 0, 30, 15, GAIN_DB),
+    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 52: OD/DS->AWAH
+const MFX_52_ODDS_AUTOWAH: &[FxParamDef] = &[
+    param(0, "Drive Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(1, "Drive Type", 0, 1, 0, FxUnit::Names(ODTW_DRIVE_TYPE)),
+    param(2, "Drive", 0, 127, 50, FxUnit::Plain),
+    param(3, "Tone", 0, 127, 50, FxUnit::Plain),
+    param(4, "Amp Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(5, "Amp Type", 0, 3, 0, FxUnit::Names(VSOD_AMP_TYPE)),
+    param(6, "AutoWah Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(7, "AutoWah Mode", 0, 1, 1, FxUnit::Names(WAH_MODE)),
+    param(8, "AutoWah Manual", 0, 127, 60, FxUnit::Plain),
+    param(9, "AutoWah Peak", 0, 127, 50, FxUnit::Plain),
+    param(11, "AutoWah Rate", 1, 200, 10, FxUnit::RateHz).synced(11, SYNC_HZ),
+    param(13, "AutoWah Depth", 0, 127, 30, FxUnit::Plain),
+    param(14, "AutoWah Balance", 0, 100, 100, FxUnit::Balance),
+    param(15, "Low Gain", 0, 30, 15, GAIN_DB),
+    param(16, "High Gain", 0, 30, 15, GAIN_DB),
+    param(17, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 53: GTAMPSIM->CHORUS
+const MFX_53_GUITARAMP_CHORUS: &[FxParamDef] = &[
+    param(0, "Pre Amp Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(1, "Pre Amp Type", 0, 13, 1, FxUnit::Names(GAMPSIM_AMP_TYPE)),
+    param(2, "Pre Amp Volume", 0, 127, 80, FxUnit::Plain),
+    param(3, "Pre Amp Master", 0, 127, 100, FxUnit::Plain),
+    param(4, "Pre Amp Gain", 0, 2, 1, FxUnit::Names(GAMPSIM_AMP_GAIN)),
+    param(5, "Pre Amp Bass", 0, 127, 64, FxUnit::Plain),
+    param(6, "Pre Amp Middle", 0, 127, 64, FxUnit::Plain),
+    param(7, "Pre Amp Treble", 0, 127, 64, FxUnit::Plain),
+    param(8, "Speaker Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(9, "Speaker Type", 0, 15, 4, FxUnit::Names(SPSIM_SP_TYPE)),
+    param(10, "Chorus Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(11, "Chorus Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(12, "Chorus Rate", 1, 200, 10, FxUnit::RateHz),
+    param(13, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
+    param(14, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
+    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 54: GTAMPSIM->FLANGER
+const MFX_54_GUITARAMP_FLANGER: &[FxParamDef] = &[
+    param(0, "Pre Amp Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(1, "Pre Amp Type", 0, 13, 1, FxUnit::Names(GAMPSIM_AMP_TYPE)),
+    param(2, "Pre Amp Volume", 0, 127, 80, FxUnit::Plain),
+    param(3, "Pre Amp Master", 0, 127, 100, FxUnit::Plain),
+    param(4, "Pre Amp Gain", 0, 2, 1, FxUnit::Names(GAMPSIM_AMP_GAIN)),
+    param(5, "Pre Amp Bass", 0, 127, 64, FxUnit::Plain),
+    param(6, "Pre Amp Middle", 0, 127, 64, FxUnit::Plain),
+    param(7, "Pre Amp Treble", 0, 127, 64, FxUnit::Plain),
+    param(8, "Speaker Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(9, "Speaker Type", 0, 15, 4, FxUnit::Names(SPSIM_SP_TYPE)),
+    param(10, "Flanger Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(11, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(12, "Flanger Rate", 1, 200, 10, FxUnit::RateHz),
+    param(13, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
+    param(14, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
+    param(15, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
+    param(16, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 55: GTAMPSIM->PHASER
+const MFX_55_GUITARAMP_PHASER: &[FxParamDef] = &[
+    param(0, "Pre Amp Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(1, "Pre Amp Type", 0, 13, 1, FxUnit::Names(GAMPSIM_AMP_TYPE)),
+    param(2, "Pre Amp Volume", 0, 127, 80, FxUnit::Plain),
+    param(3, "Pre Amp Master", 0, 127, 100, FxUnit::Plain),
+    param(4, "Pre Amp Gain", 0, 2, 1, FxUnit::Names(GAMPSIM_AMP_GAIN)),
+    param(5, "Pre Amp Bass", 0, 127, 64, FxUnit::Plain),
+    param(6, "Pre Amp Middle", 0, 127, 64, FxUnit::Plain),
+    param(7, "Pre Amp Treble", 0, 127, 64, FxUnit::Plain),
+    param(8, "Speaker Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(9, "Speaker Type", 0, 15, 4, FxUnit::Names(SPSIM_SP_TYPE)),
+    param(10, "Phaser Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(11, "Phaser Rate", 1, 200, 10, FxUnit::RateHz),
+    param(12, "Phaser Manual", 0, 127, 60, FxUnit::Plain),
+    param(13, "Phaser Depth", 0, 127, 40, FxUnit::Plain),
+    param(14, "Phaser Resonance", 0, 127, 80, FxUnit::Plain),
+    param(15, "Phaser Mix", 0, 127, 127, FxUnit::Plain),
+    param(16, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 56: GTAMPSIM->DELAY
+const MFX_56_GUITARAMP_DELAY: &[FxParamDef] = &[
+    param(0, "Pre Amp Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(1, "Pre Amp Type", 0, 13, 1, FxUnit::Names(GAMPSIM_AMP_TYPE)),
+    param(2, "Pre Amp Volume", 0, 127, 80, FxUnit::Plain),
+    param(3, "Pre Amp Master", 0, 127, 100, FxUnit::Plain),
+    param(4, "Pre Amp Gain", 0, 2, 1, FxUnit::Names(GAMPSIM_AMP_GAIN)),
+    param(5, "Pre Amp Bass", 0, 127, 64, FxUnit::Plain),
+    param(6, "Pre Amp Middle", 0, 127, 64, FxUnit::Plain),
+    param(7, "Pre Amp Treble", 0, 127, 64, FxUnit::Plain),
+    param(8, "Speaker Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(9, "Speaker Type", 0, 15, 4, FxUnit::Names(SPSIM_SP_TYPE)),
+    param(10, "Delay Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(11, "Delay Time", 0, 1300, 600, FxUnit::Millis),
+    param(12, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
+    param(13, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(14, "Delay Balance", 0, 100, 50, FxUnit::Balance),
+    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 57: EP->TREMOLO
+const MFX_57_EPAMP_TREMOLO: &[FxParamDef] = &[
+    param(0, "Type", 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
+    param(
+        1,
+        "Bass",
+        0,
+        100,
+        50,
+        FxUnit::Offset {
+            offset: 50,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(
+        2,
+        "Treble",
+        0,
+        100,
+        50,
+        FxUnit::Offset {
+            offset: 50,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(3, "Tremolo Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(5, "Tremolo Speed", 1, 200, 25, FxUnit::RateHz).synced(11, SYNC_HZ),
+    param(7, "Tremolo Depth", 0, 127, 50, FxUnit::Plain),
+    param(
+        8,
+        "Tremolo Duty",
+        0,
+        20,
+        8,
+        FxUnit::Offset {
+            offset: 10,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(
+        9,
+        "Speaker Type",
+        0,
+        4,
+        1,
+        FxUnit::Names(EPTRM_SPEAKER_TYPE),
+    ),
+    param(10, "OD Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(11, "OD Gain", 0, 127, 32, FxUnit::Plain),
+    param(12, "OD Drive", 0, 127, 0, FxUnit::Plain),
+    param(13, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 58: EP->CHORUS
+const MFX_58_EPAMP_CHORUS: &[FxParamDef] = &[
+    param(0, "Type", 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
+    param(
+        1,
+        "Bass",
+        0,
+        100,
+        50,
+        FxUnit::Offset {
+            offset: 50,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(
+        2,
+        "Treble",
+        0,
+        100,
+        50,
+        FxUnit::Offset {
+            offset: 50,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(3, "Chorus Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(4, "Chorus Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(6, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(11, SYNC_HZ),
+    param(8, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
+    param(9, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
+    param(
+        10,
+        "Speaker Type",
+        0,
+        4,
+        1,
+        FxUnit::Names(EPTRM_SPEAKER_TYPE),
+    ),
+    param(11, "OD Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(12, "OD Gain", 0, 127, 32, FxUnit::Plain),
+    param(13, "OD Drive", 0, 127, 0, FxUnit::Plain),
+    param(14, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 59: EP->FLANGER
+const MFX_59_EPAMP_FLANGER: &[FxParamDef] = &[
+    param(0, "Type", 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
+    param(
+        1,
+        "Bass",
+        0,
+        100,
+        50,
+        FxUnit::Offset {
+            offset: 50,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(
+        2,
+        "Treble",
+        0,
+        100,
+        50,
+        FxUnit::Offset {
+            offset: 50,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(3, "Flanger Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(4, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(6, "Flanger Rate", 1, 200, 10, FxUnit::RateHz).synced(11, SYNC_HZ),
+    param(8, "Flanger Depth", 0, 127, 30, FxUnit::Plain),
+    param(9, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
+    param(10, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
+    param(
+        11,
+        "Speaker Type",
+        0,
+        4,
+        1,
+        FxUnit::Names(EPTRM_SPEAKER_TYPE),
+    ),
+    param(12, "OD Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(13, "OD Gain", 0, 127, 32, FxUnit::Plain),
+    param(14, "OD Drive", 0, 127, 0, FxUnit::Plain),
+    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 60: EP->PHASER
+const MFX_60_EPAMP_PHASER: &[FxParamDef] = &[
+    param(0, "Type", 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
+    param(
+        1,
+        "Bass",
+        0,
+        100,
+        50,
+        FxUnit::Offset {
+            offset: 50,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(
+        2,
+        "Treble",
+        0,
+        100,
+        50,
+        FxUnit::Offset {
+            offset: 50,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(3, "Phaser Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(5, "Phaser Rate", 1, 200, 10, FxUnit::RateHz).synced(11, SYNC_HZ),
+    param(7, "Phaser Manual", 0, 127, 60, FxUnit::Plain),
+    param(8, "Phaser Depth", 0, 127, 40, FxUnit::Plain),
+    param(9, "Phaser Resonance", 0, 127, 80, FxUnit::Plain),
+    param(10, "Phaser Mix", 0, 127, 127, FxUnit::Plain),
+    param(
+        11,
+        "Speaker Type",
+        0,
+        4,
+        1,
+        FxUnit::Names(EPTRM_SPEAKER_TYPE),
+    ),
+    param(12, "OD Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(13, "OD Gain", 0, 127, 32, FxUnit::Plain),
+    param(14, "OD Drive", 0, 127, 0, FxUnit::Plain),
+    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 61: EP->DELAY
+const MFX_61_EPAMP_DELAY: &[FxParamDef] = &[
+    param(0, "Type", 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
+    param(
+        1,
+        "Bass",
+        0,
+        100,
+        50,
+        FxUnit::Offset {
+            offset: 50,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(
+        2,
+        "Treble",
+        0,
+        100,
+        50,
+        FxUnit::Offset {
+            offset: 50,
+            step: 1,
+            suffix: "",
+        },
+    ),
+    param(3, "Delay Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(5, "Delay Time", 0, 1300, 600, FxUnit::Millis).synced(11, SYNC_MS),
+    param(7, "Delay Acceleration", 0, 15, 10, FxUnit::Plain),
+    param(8, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
+    param(9, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(10, "Delay Balance", 0, 100, 50, FxUnit::Balance),
+    param(
+        11,
+        "Speaker Type",
+        0,
+        4,
+        1,
+        FxUnit::Names(EPTRM_SPEAKER_TYPE),
+    ),
+    param(12, "OD Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(13, "OD Gain", 0, 127, 32, FxUnit::Plain),
+    param(14, "OD Drive", 0, 127, 0, FxUnit::Plain),
+    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 62: ENHANCER->CHORUS
+const MFX_62_ENHANCER_CHORUS: &[FxParamDef] = &[
+    param(0, "Enhancer Sens", 0, 127, 64, FxUnit::Plain),
+    param(1, "Enhancer Mix", 0, 127, 64, FxUnit::Plain),
+    param(2, "Chorus Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(6, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
+    param(7, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
+    param(8, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 63: ENHANCER->FLANGER
+const MFX_63_ENHANCER_FLANGER: &[FxParamDef] = &[
+    param(0, "Enhancer Sens", 0, 127, 64, FxUnit::Plain),
+    param(1, "Enhancer Mix", 0, 127, 64, FxUnit::Plain),
+    param(2, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Flanger Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(6, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
+    param(7, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
+    param(8, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
+    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 64: ENHANCER->DELAY
+const MFX_64_ENHANCER_DELAY: &[FxParamDef] = &[
+    param(0, "Enhancer Sens", 0, 127, 64, FxUnit::Plain),
+    param(1, "Enhancer Mix", 0, 127, 64, FxUnit::Plain),
+    param(3, "Delay Time", 0, 2600, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(5, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
+    param(6, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(7, "Delay Balance", 0, 100, 50, FxUnit::Balance),
+    param(8, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 65: CHORUS->DELAY
+const MFX_65_CHORUS_DELAY: &[FxParamDef] = &[
+    param(0, "Chorus Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(2, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
+    param(5, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
+    param(7, "Delay Time", 0, 2600, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(9, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
+    param(10, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(11, "Delay Balance", 0, 100, 50, FxUnit::Balance),
+    param(12, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 66: FLANGER->DELAY
+const MFX_66_FLANGER_DELAY: &[FxParamDef] = &[
+    param(0, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(2, "Flanger Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
+    param(5, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
+    param(6, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
+    param(8, "Delay Time", 0, 2600, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(10, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
+    param(11, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
+    param(12, "Delay Balance", 0, 100, 50, FxUnit::Balance),
+    param(13, "Level", 0, 127, 127, FxUnit::Plain),
+];
+
+// Type 67: CHORUS->FLANGER
+const MFX_67_CHORUS_FLANGER: &[FxParamDef] = &[
+    param(0, "Chorus Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(2, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
+    param(5, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
+    param(6, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
+    param(8, "Flanger Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(10, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
+    param(11, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
+    param(12, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
+    param(13, "Level", 0, 127, 127, FxUnit::Plain),
 ];
 
 // ---------------------------------------------------------------------------
@@ -6945,10 +2074,22 @@ mod tests {
         assert_eq!(
             shown,
             [
-                "200Hz", "+0dB", "1000Hz", "+0dB", "2.0", "2000Hz", "+0dB", "2.0", "4kHz", "+0dB",
+                "400Hz", "+0dB", "1000Hz", "+0dB", "0.5", "2000Hz", "+0dB", "0.5", "4kHz", "+0dB",
                 "127"
             ]
         );
+    }
+
+    #[test]
+    fn delay_times_span_sync_triples() {
+        let def = mfx_type_def(34).unwrap();
+        let left = &def.params[0];
+        assert_eq!((left.name, left.index), ("Delay Left", 1));
+        let sync = left.sync.unwrap();
+        assert_eq!((sync.switch_index, sync.note_index), (0, 2));
+        assert_eq!(def.params[1].index, 4);
+        let level = def.params.last().unwrap();
+        assert_eq!((level.name, level.index), ("Level", 14));
     }
 
     #[test]
@@ -6972,26 +2113,28 @@ mod tests {
     }
 
     #[test]
-    fn param_indices_start_at_1_and_are_sequential() {
-        for def in MFX_TYPE_DEFS.iter() {
-            if def.params.is_empty() {
-                continue;
+    fn params_occupy_distinct_slots_in_order() {
+        for def in MFX_TYPE_DEFS {
+            let mut slots: Vec<u8> = Vec::new();
+            for p in def.params {
+                if let Some(s) = p.sync {
+                    slots.push(s.switch_index);
+                }
+                slots.push(p.index);
+                if let Some(s) = p.sync {
+                    slots.push(s.note_index);
+                }
             }
-            assert_eq!(
-                def.params[0].index, 1,
-                "first param of {} should be 1",
+            assert!(
+                slots.windows(2).all(|w| w[0] < w[1]),
+                "{}: slots {slots:?}",
                 def.name
             );
-            for (i, p) in def.params.iter().enumerate() {
-                assert_eq!(
-                    p.index as usize,
-                    i + 1,
-                    "param index mismatch in {}: expected {}, got {}",
-                    def.name,
-                    i + 1,
-                    p.index,
-                );
-            }
+            assert!(
+                slots
+                    .last()
+                    .is_none_or(|&s| (s as usize) < crate::mfx::MFX_PARAM_COUNT)
+            );
         }
     }
 }
