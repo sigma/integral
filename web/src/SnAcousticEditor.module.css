@@ -109,3 +109,11 @@
 .offsetDisabled {
   opacity: 0.35;
 }
+
+/* Knobs stacked in one column (VIB) */
+.knobColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}

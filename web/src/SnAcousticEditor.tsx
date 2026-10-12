@@ -303,8 +303,8 @@ function toneBoxes(
         </SectionPanel>
     ),
     vibrato: (
-        <SectionPanel label="VIBRATO" accentColor="#a6f">
-          <div className={css.panelRow}>
+        <SectionPanel label="VIB" accentColor="#a6f">
+          <div className={css.knobColumn}>
             <SynthKnob label="Rate" value={common.vibratoRate} min={0} max={127} defaultValue={64} center={64}
               onChange={set(SnaCommonField.VibratoRate, "vibratoRate")} formatValue={offset} color="#a6f"
               title="Vibrato Rate (offset)" />
