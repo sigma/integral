@@ -17,11 +17,10 @@ import {
   SynthFader,
   SynthSelect,
   SectionPanel,
-  FaderGroup,
-  FaderGroupSep,
   OutputStrip,
 } from "./synth-ui";
 import { MfxPanel } from "./MfxPanel";
+import { SignalArrows } from "./synth-ui/SignalArrows";
 import { useMfxHandlers } from "./useMfxHandlers";
 import type { MfxState } from "./MfxPanel";
 import { DrumKeyGrid } from "./DrumKeyGrid";
@@ -284,19 +283,20 @@ export function SnDrumEditor({ partIndex, service }: Props) {
         <div className={css.kitName}>{common.kitName || "(unnamed kit)"}</div>
       )}
 
-      {/* Three areas side by side: Common | Key Editor | MFX */}
+      {/* The key editor (kit levels beside the key grid), then the MFX it feeds */}
       <div className={css.mainArea}>
-        {common && <CommonPanel common={common} onChange={setCommonParam} />}
-
-        <div className={css.keyEditorArea}>
+        <div className={css.keyEditorArea} data-node="drum-key">
           <SectionPanel label="DRUM INST" accentColor="#f93">
-            <DrumKeyGrid
-              firstKey={keys.first}
-              lastKey={keys.last}
-              selectedKey={selectedKey}
-              onSelect={handleKeySelect}
-              keyOutputAssigns={keyOutputAssigns}
-            />
+            <div className={css.keyGridRow}>
+              {common ? <KitLevels common={common} onChange={setCommonParam} /> : <div />}
+              <DrumKeyGrid
+                firstKey={keys.first}
+                lastKey={keys.last}
+                selectedKey={selectedKey}
+                onSelect={handleKeySelect}
+                keyOutputAssigns={keyOutputAssigns}
+              />
+            </div>
             {noteLoading ? (
               <div className={css.noteLoadingPlaceholder}>Loading note data...</div>
             ) : noteData ? (
@@ -312,21 +312,28 @@ export function SnDrumEditor({ partIndex, service }: Props) {
         </div>
 
         {mfx && (
-          <MfxPanel
-            mfx={mfx}
-            {...mfxHandlers}
-          />
+          <div className={css.mfxSidebar} data-node="mfx">
+            <MfxPanel
+              mfx={mfx}
+              {...mfxHandlers}
+            />
+          </div>
         )}
+        {/* The kit's keys all feed the MFX. */}
+        <SignalArrows edges={[{ from: "drum-key", to: "mfx" }]} />
       </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Common Controls Panel
+// Kit levels: bare faders left of the key grid, as tall as a key's Level
 // ---------------------------------------------------------------------------
 
-function CommonPanel({
+/** Track height of a key's Level fader, which the kit's level faders match. */
+const LEVEL_TRACK_HEIGHT = 250;
+
+function KitLevels({
   common,
   onChange,
 }: {
@@ -338,17 +345,14 @@ function CommonPanel({
     (v: number) =>
       onChange(field, key, v);
   return (
-    <SectionPanel label="COMMON" accentColor="#8cf">
-      <FaderGroup>
-        <SynthFader label="Kit Lv" value={common.kitLevel} min={0} max={127} defaultValue={127}
-          onChange={set(SndCommonField.KitLevel, "kitLevel")} formatValue={(v) => String(v)} compact
-          title="Kit Level" />
-        <FaderGroupSep />
-        <SynthFader label="Amb Lv" value={common.ambienceLevel} min={0} max={127} defaultValue={64}
-          onChange={set(SndCommonField.AmbienceLevel, "ambienceLevel")} formatValue={(v) => String(v)} compact
-          title="Ambience Level" />
-      </FaderGroup>
-    </SectionPanel>
+    <div className={css.kitLevels}>
+      <SynthFader label="Kit Lv" value={common.kitLevel} min={0} max={127} defaultValue={127}
+        onChange={set(SndCommonField.KitLevel, "kitLevel")} formatValue={(v) => String(v)}
+        trackHeight={LEVEL_TRACK_HEIGHT} title="Kit Level" />
+      <SynthFader label="Amb Lv" value={common.ambienceLevel} min={0} max={127} defaultValue={64}
+        onChange={set(SndCommonField.AmbienceLevel, "ambienceLevel")} formatValue={(v) => String(v)}
+        trackHeight={LEVEL_TRACK_HEIGHT} title="Ambience Level" />
+    </div>
   );
 }
 
@@ -420,7 +424,7 @@ function NoteControls({
             onFx1Change={set(SndNoteField.ChorusSend, "chorusSend")}
             onFx2Change={set(SndNoteField.ReverbSend, "reverbSend")}
             onLevelChange={set(SndNoteField.Level, "level")}
-            trackHeight={250}
+            trackHeight={LEVEL_TRACK_HEIGHT}
           />
         </SectionPanel>
 
