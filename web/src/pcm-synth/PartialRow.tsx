@@ -53,8 +53,10 @@ const JOIN_GLYPHS = { mix: "+", booster: "B", ring: "R" } as const;
  * PITCH and CONTROL, then the blocks before the join; blocks after the join,
  * and a merged pair's single OUTPUT (the lower partial's), span both rows.
  */
-/** The outer grid column holding each pair's path sub-grid, after power, LFOs and heads. */
-const PATH_COLUMN = 4;
+/** Outer grid columns: power + LFOs, lane heads, then each pair's path sub-grid. */
+const LFO_COLUMN = 1;
+const HEAD_COLUMN = 2;
+const PATH_COLUMN = 3;
 
 /** One pair of partials (1 & 2, or 3 & 4) and its Structure. */
 export interface Pair {
@@ -133,13 +135,13 @@ function pairLayout(
    * Place a block at `column`: in its partial's row, or centred across both
    * rows once the lanes have merged. `node` names it for the arrows.
    */
-  const place = (node: string, row: Side | "both", column: number, content: ReactNode, block = true) => {
+  const place = (node: string, row: Side | "both", column: number, content: ReactNode) => {
     // Shared columns (power, LFOs, heads) sit on the outer grid's rows; the
     // path columns on the pair's sub-grid, whose two rows are the pair's.
     const inPath = column >= PATH_COLUMN;
     const rowOf = (r: number) => (inPath ? r : rowBase + r);
     (inPath ? path : cells).push(
-      <div key={node} data-node={node} className={`${block ? css.block : css.pairCell} ${row === "both" ? css.mergedCell : ""}`}
+      <div key={node} data-node={node} className={`${css.block} ${row === "both" ? css.mergedCell : ""}`}
         style={{
           gridColumn: inPath ? column - PATH_COLUMN + 1 : column,
           gridRow: row === "both" ? `${rowOf(1)} / span 2` : rowOf(row === "upper" ? 1 : 2),
@@ -154,14 +156,18 @@ function pairLayout(
   for (const side of ["upper", "lower"] as const) {
     const p = sides[side].partial;
     const idx = side === "upper" ? first : first + 1;
-    place(`${first}-power-${side}`, side, 1, (
-      <PartialPowerButton label={`Partial ${number[side]}`} isOn={sides[side].isOn}
+    const power = (
+      <PartialPowerButton key="power" label={`Partial ${number[side]}`} isOn={sides[side].isOn}
         onToggle={() => sides[side].onSwitch(sides[side].isOn ? 0 : 1)} />
-    ), false);
-    if (!p) continue;
+    );
+    if (!p) {
+      place(`${first}-lfo-${side}`, side, LFO_COLUMN, [power]);
+      continue;
+    }
     const set = setters[side];
-    // Modulation sources: detached from the signal path, no arrows.
-    place(`${first}-lfo-${side}`, side, 2, [
+    // The power label, then the modulation sources: detached from the signal path, no arrows.
+    place(`${first}-lfo-${side}`, side, LFO_COLUMN, [
+      power,
       box("lfo1", side, <Lfo1Section partial={p} set={set} n={nOf(side)} follows={followsFor(side)} />),
       box("lfo2", side, <Lfo2Section partial={p} set={set} n={nOf(side)} follows={followsFor(side)} />),
       box("step", side, <StepLfoSection partial={p} set={set} n={nOf(side)}
@@ -169,7 +175,7 @@ function pairLayout(
     ]);
     // The lane's head: the wave and what shapes it, aligned in both rows.
     const head = `${first}-head-${side}`;
-    place(head, side, 3, [
+    place(head, side, HEAD_COLUMN, [
       box("wave", side, <WaveSection partial={p} set={set} n={nOf(side)} marking={marking} />),
       box("pitch", side, <PitchSection partial={p} set={set} n={nOf(side)} />),
       box("control", side, <ControlSection partial={p} set={set} n={nOf(side)} />),
@@ -180,7 +186,7 @@ function pairLayout(
     if (!merged) pre.push(outputBox(side));
     if (pre.length) {
       const node = merged ? `${first}-pre-${side}` : `out-${idx}`;
-      place(node, side, 4, pre);
+      place(node, side, PATH_COLUMN, pre);
       edges.push({ from: head, to: node });
       lastBlock[side] = node;
     }
@@ -190,7 +196,7 @@ function pairLayout(
   if (join) {
     // After the join: one block, centred on both lanes, ending in the pair's single output.
     const node = `out-${first + 1}`;
-    place(node, "both", preColumn ? 5 : 4, [
+    place(node, "both", PATH_COLUMN + (preColumn ? 1 : 0), [
       ...join.after.map((b, i) => pathBox(b, `after${i}`)),
       outputBox("lower", number.lower),
     ]);

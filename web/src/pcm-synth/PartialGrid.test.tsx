@@ -77,8 +77,8 @@ describe("PartialGrid with both pairs", () => {
       [...container.querySelectorAll<HTMLElement>("[data-node]")]
         .filter((d) => d.dataset.node!.includes(prefix))
         .map((d) => `${d.style.gridRow}:${d.style.gridColumn}`);
-    expect(placed("-lfo-")).toEqual(["1:2", "2:2", "3:2", "4:2"]);
-    expect(placed("-head-")).toEqual(["1:3", "2:3", "3:3", "4:3"]);
+    expect(placed("-lfo-")).toEqual(["1:1", "2:1", "3:1", "4:1"]);
+    expect(placed("-head-")).toEqual(["1:2", "2:2", "3:2", "4:2"]);
     // Each pair's path has its own columns: pair 1-2's merged block follows its
     // AMP 1 block, whatever the width of pair 3-4's blocks.
     const node = (name: string) => container.querySelector<HTMLElement>(`[data-node="${name}"]`)!;

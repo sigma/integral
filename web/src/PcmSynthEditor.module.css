@@ -175,10 +175,6 @@
   place-items: stretch start;
 }
 
-.pairCell {
-  display: flex;
-}
-
 /* A block of the signal path: boxes side by side, all as tall as the block */
 .block {
   display: flex;
