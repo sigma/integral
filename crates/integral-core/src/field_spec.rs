@@ -9,7 +9,8 @@
 use std::sync::OnceLock;
 
 use crate::block_field::BlockField;
-use crate::param_registry::ParamFormat;
+use crate::fx_params::{NOTE_NAMES, SYNC_HZ, SYNC_MS};
+use crate::param_registry::{NOTE_FROM, ParamFormat};
 use crate::pcm_drum::{self, PcmdCommonField, PcmdPartialField, PcmdWmtField};
 use crate::pcm_synth::{self, PcmsCommon2Field, PcmsCommonField, PcmsPartialField, PcmsPmtField};
 use crate::sn_acoustic::{self, SnaCommonField};
@@ -602,6 +603,66 @@ pub fn snd_note_spec(field: SndNoteField) -> FieldSpec {
     spec(field, init, shape)
 }
 
+/// A field whose low values are a free rate or time and whose values from
+/// `note_from` up are tempo-synced notes ([`ParamFormat::TimeOrNote`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InRangeSync {
+    /// Labels of the free/note toggle, e.g. `["Hz", "♪"]`.
+    pub labels: [&'static str; 2],
+    /// First note value.
+    pub note_from: i32,
+    /// Value written when switching to note mode (1/4).
+    pub note_default: i32,
+}
+
+/// A rate field whose tempo-synced note lives in a separate field,
+/// selected by an on/off switch field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FieldSync<F> {
+    /// Labels of the free/note toggle, e.g. `["Hz", "♪"]`.
+    pub labels: [&'static str; 2],
+    /// The switch: 1 = note mode.
+    pub switch: F,
+    /// The note field.
+    pub note: F,
+}
+
+/// How a PCM Synth Tone Partial rate or time field follows the tempo, if
+/// it can.
+pub fn pcms_partial_sync(field: PcmsPartialField) -> Option<InRangeSync> {
+    if pcms_partial_spec(field).format != ParamFormat::TimeOrNote {
+        return None;
+    }
+    let quarter = NOTE_NAMES
+        .iter()
+        .position(|n| *n == "1/4")
+        .expect("1/4 is a note value") as i32;
+    Some(InRangeSync {
+        labels: if field == PcmsPartialField::DelayTime {
+            SYNC_MS
+        } else {
+            SYNC_HZ
+        },
+        note_from: NOTE_FROM,
+        note_default: NOTE_FROM + quarter,
+    })
+}
+
+/// How an SN Synth Tone Partial rate field follows the tempo, if it can.
+pub fn sns_partial_sync(field: SnsPartialField) -> Option<FieldSync<SnsPartialField>> {
+    use SnsPartialField as F;
+    let (switch, note) = match field {
+        F::LfoRate => (F::LfoTempoSync, F::LfoTempoSyncNote),
+        F::ModLfoRate => (F::ModLfoTempoSync, F::ModLfoTempoSyncNote),
+        _ => return None,
+    };
+    Some(FieldSync {
+        labels: SYNC_HZ,
+        switch,
+        note,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -925,6 +986,41 @@ mod tests {
         assert_eq!(center(PcmsPartialField::PitchEnvTimeKeyfollow), Some(64));
         assert_eq!(center(PcmsPartialField::Pan), Some(64));
         assert_eq!(center(PcmsPartialField::Level), None);
+    }
+
+    #[test]
+    fn pcms_rates_and_delay_sync_in_range() {
+        let lfo = pcms_partial_sync(PcmsPartialField::Lfo1Rate).unwrap();
+        assert_eq!(lfo.labels, SYNC_HZ);
+        assert_eq!(lfo.note_from, 128);
+        let quarter = pcms_partial_spec(PcmsPartialField::Lfo1Rate)
+            .format
+            .format(lfo.note_default);
+        assert_eq!(quarter, "1/4");
+        assert_eq!(pcms_partial_sync(PcmsPartialField::Lfo2Rate), Some(lfo));
+        assert_eq!(
+            pcms_partial_sync(PcmsPartialField::DelayTime)
+                .unwrap()
+                .labels,
+            SYNC_MS
+        );
+        assert_eq!(pcms_partial_sync(PcmsPartialField::Lfo1DelayTime), None);
+    }
+
+    #[test]
+    fn sns_lfo_rates_sync_through_their_fields() {
+        use SnsPartialField as F;
+        let sync = sns_partial_sync(F::LfoRate).unwrap();
+        assert_eq!(
+            (sync.switch, sync.note),
+            (F::LfoTempoSync, F::LfoTempoSyncNote)
+        );
+        let sync = sns_partial_sync(F::ModLfoRate).unwrap();
+        assert_eq!(
+            (sync.switch, sync.note),
+            (F::ModLfoTempoSync, F::ModLfoTempoSyncNote)
+        );
+        assert_eq!(sns_partial_sync(F::LfoPitchDepth), None);
     }
 
     /// Whether a PCM Drum Kit Partial row is a WMT layer's (`WMT1 Wave

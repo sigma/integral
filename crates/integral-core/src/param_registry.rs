@@ -31,11 +31,15 @@ pub enum ParamFormat {
     },
     /// MIDI note name, `C-1` (0) to `G9` (127).
     Note,
-    /// 0-127 as a number, then the tempo-synced note values from 128.
+    /// 0-127 as a number, then the tempo-synced note values from
+    /// [`NOTE_FROM`].
     TimeOrNote,
     /// The value as a percentage (`100` -> "100%").
     Percent,
 }
+
+/// First raw value of the note range in a [`ParamFormat::TimeOrNote`] field.
+pub const NOTE_FROM: i32 = 128;
 
 /// Logical grouping for a parameter.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -146,7 +150,7 @@ impl ParamFormat {
                     value.div_euclid(12) - 1
                 )
             }
-            ParamFormat::TimeOrNote => match value.checked_sub(128) {
+            ParamFormat::TimeOrNote => match value.checked_sub(NOTE_FROM) {
                 Some(i) if i >= 0 => crate::fx_params::NOTE_NAMES
                     .get(i as usize)
                     .map_or_else(|| value.to_string(), |n| n.to_string()),

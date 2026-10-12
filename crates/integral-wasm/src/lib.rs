@@ -2083,6 +2083,68 @@ pub fn sns_partial_spec(field: SnsPartialField) -> WasmFieldSpec {
     wrap_field_spec(field_spec::sns_partial_spec(field.into()))
 }
 
+/// A field whose values from `noteFrom` up are tempo-synced notes.
+#[wasm_bindgen]
+pub struct WasmInRangeSync {
+    labels: [&'static str; 2],
+    /// First note value.
+    #[wasm_bindgen(readonly, js_name = noteFrom)]
+    pub note_from: i32,
+    /// Value written when switching to note mode.
+    #[wasm_bindgen(readonly, js_name = noteDefault)]
+    pub note_default: i32,
+}
+
+#[wasm_bindgen]
+impl WasmInRangeSync {
+    /// Labels of the free/note toggle.
+    #[wasm_bindgen(getter)]
+    pub fn labels(&self) -> Vec<String> {
+        self.labels.iter().map(|l| l.to_string()).collect()
+    }
+}
+
+/// How a PCM Synth Tone Partial rate or time field follows the tempo.
+#[wasm_bindgen]
+pub fn pcms_partial_sync(field: PcmsPartialField) -> Option<WasmInRangeSync> {
+    field_spec::pcms_partial_sync(field.into()).map(|s| WasmInRangeSync {
+        labels: s.labels,
+        note_from: s.note_from,
+        note_default: s.note_default,
+    })
+}
+
+/// An SN Synth Tone Partial rate whose note lives in a separate field.
+#[wasm_bindgen]
+pub struct WasmSnsPartialSync {
+    labels: [&'static str; 2],
+    /// The switch field: 1 = note mode.
+    #[wasm_bindgen(readonly, js_name = switchField)]
+    pub switch: SnsPartialField,
+    /// The note field.
+    #[wasm_bindgen(readonly, js_name = noteField)]
+    pub note: SnsPartialField,
+}
+
+#[wasm_bindgen]
+impl WasmSnsPartialSync {
+    /// Labels of the free/note toggle.
+    #[wasm_bindgen(getter)]
+    pub fn labels(&self) -> Vec<String> {
+        self.labels.iter().map(|l| l.to_string()).collect()
+    }
+}
+
+/// How an SN Synth Tone Partial rate field follows the tempo.
+#[wasm_bindgen]
+pub fn sns_partial_sync(field: SnsPartialField) -> Option<WasmSnsPartialSync> {
+    field_spec::sns_partial_sync(field.into()).map(|s| WasmSnsPartialSync {
+        labels: s.labels,
+        switch: s.switch.into(),
+        note: s.note.into(),
+    })
+}
+
 /// Spec of a PCM Drum Kit Common field.
 #[wasm_bindgen]
 pub fn pcmd_common_spec(field: PcmdCommonField) -> WasmFieldSpec {
