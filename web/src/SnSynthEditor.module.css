@@ -152,6 +152,13 @@
   margin-left: auto;
 }
 
+/* Shape selector with its sync switches stacked below it (LFO panels) */
+.switchColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* Push knobs to the right in section top rows */
 .knobsRight {
   margin-left: auto;

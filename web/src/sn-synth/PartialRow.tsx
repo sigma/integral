@@ -282,17 +282,19 @@ function ModLfoPanel({
   return (
     <SectionPanel label="MOD LFO" accentColor="#a6f">
       <div className={css.panelRow}>
-        <SynthSwitch label="Shape" value={partial.modLfoShape} vertical
-          options={LFO_SHAPE_NAMES.map((l, i) => ({ value: i, label: l }))}
-          onChange={(v) => onChange(SnsPartialField.ModLfoShape, v)} led={false} />
-        <div>
-          <SynthSwitch label="T.Sync" value={partial.modLfoTempoSync} options={ON_OFF_OPTIONS}
-            onChange={(v) => onChange(SnsPartialField.ModLfoTempoSync, v)} />
-          {partial.modLfoTempoSync !== 0 && (
-            <SynthSelect label="Note" value={partial.modLfoTempoSyncNote}
-              options={TEMPO_SYNC_NOTE_NAMES.map((l, i) => ({ value: i, label: l }))}
-              onChange={(v) => onChange(SnsPartialField.ModLfoTempoSyncNote, v)} />
-          )}
+        <div className={css.switchColumn}>
+          <SynthSwitch label="Shape" value={partial.modLfoShape} vertical
+            options={LFO_SHAPE_NAMES.map((l, i) => ({ value: i, label: l }))}
+            onChange={(v) => onChange(SnsPartialField.ModLfoShape, v)} led={false} />
+          <div>
+            <SynthSwitch label="T.Sync" value={partial.modLfoTempoSync} options={ON_OFF_OPTIONS}
+              onChange={(v) => onChange(SnsPartialField.ModLfoTempoSync, v)} />
+            {partial.modLfoTempoSync !== 0 && (
+              <SynthSelect label="Note" value={partial.modLfoTempoSyncNote}
+                options={TEMPO_SYNC_NOTE_NAMES.map((l, i) => ({ value: i, label: l }))}
+                onChange={(v) => onChange(SnsPartialField.ModLfoTempoSyncNote, v)} />
+            )}
+          </div>
         </div>
         <div className={`${css.oscKnobGrid} ${css.knobsRight}`}>
           <SynthKnob label="Rate" value={partial.modLfoRate} min={0} max={127} defaultValue={0}
@@ -331,19 +333,21 @@ function LfoPanel({
   return (
     <SectionPanel label="LFO" accentColor="#a6f">
       <div className={css.panelRow}>
-        <SynthSwitch label="Shape" value={partial.lfoShape} vertical
-          options={LFO_SHAPE_NAMES.map((l, i) => ({ value: i, label: l }))}
-          onChange={(v) => onChange(SnsPartialField.LfoShape, v)} led={false} />
-        <div>
-          <SynthSwitch label="T.Sync" value={partial.lfoTempoSync} options={ON_OFF_OPTIONS}
-            onChange={(v) => onChange(SnsPartialField.LfoTempoSync, v)} />
-          {partial.lfoTempoSync !== 0 && (
-            <SynthSelect label="Note" value={partial.lfoTempoSyncNote}
-              options={TEMPO_SYNC_NOTE_NAMES.map((l, i) => ({ value: i, label: l }))}
-              onChange={(v) => onChange(SnsPartialField.LfoTempoSyncNote, v)} />
-          )}
-          <SynthSwitch label="KeyTrig" value={partial.lfoKeyTrigger} options={ON_OFF_OPTIONS}
-            onChange={(v) => onChange(SnsPartialField.LfoKeyTrigger, v)} />
+        <div className={css.switchColumn}>
+          <SynthSwitch label="Shape" value={partial.lfoShape} vertical
+            options={LFO_SHAPE_NAMES.map((l, i) => ({ value: i, label: l }))}
+            onChange={(v) => onChange(SnsPartialField.LfoShape, v)} led={false} />
+          <div>
+            <SynthSwitch label="T.Sync" value={partial.lfoTempoSync} options={ON_OFF_OPTIONS}
+              onChange={(v) => onChange(SnsPartialField.LfoTempoSync, v)} />
+            {partial.lfoTempoSync !== 0 && (
+              <SynthSelect label="Note" value={partial.lfoTempoSyncNote}
+                options={TEMPO_SYNC_NOTE_NAMES.map((l, i) => ({ value: i, label: l }))}
+                onChange={(v) => onChange(SnsPartialField.LfoTempoSyncNote, v)} />
+            )}
+            <SynthSwitch label="KeyTrig" value={partial.lfoKeyTrigger} options={ON_OFF_OPTIONS}
+              onChange={(v) => onChange(SnsPartialField.LfoKeyTrigger, v)} />
+          </div>
         </div>
         <div className={`${css.oscKnobGrid} ${css.knobsRight}`}>
           <SynthKnob label="Rate" value={partial.lfoRate} min={0} max={127} defaultValue={0}
