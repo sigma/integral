@@ -1,4 +1,4 @@
-import { ScopeScreen, sampled } from "./ScopeScreen";
+import { ScopeScreen, sampled } from "../synth-ui/ScopeScreen";
 
 const SINE = sampled(64, (x) => 0.5 - 0.5 * Math.sin(x * 4 * Math.PI));
 

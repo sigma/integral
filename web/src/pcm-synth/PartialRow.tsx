@@ -11,6 +11,7 @@ import {
 import { PcmsPartialField, pcms_partial_spec } from "../../pkg/integral_wasm.js";
 import { knobRange, switchOptions } from "../fieldSpec";
 import { VelocityCurveSelect } from "./VelocityCurveSelect";
+import { LfoScope } from "../synth-ui/LfoScope";
 import css from "../PcmSynthEditor.module.css";
 import type { PartialParamHandler, PartialSetter, PcmSynthPartial } from "./types";
 import { WavePicker, type ExpansionMarking } from "../WavePicker";
@@ -425,25 +426,30 @@ function Lfo1Section({
         <SynthSwitch label="Wave" value={partial.lfo1Waveform} vertical
           options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1Waveform))}
           onChange={set(PcmsPartialField.Lfo1Waveform, "lfo1Waveform")} title="LFO waveform shape" />
-        <div className={`${css.knobGrid} ${css.knobsRight}`}>
-          <SynthKnob label="Rate" value={partial.lfo1Rate} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1Rate))}
-            onChange={set(PcmsPartialField.Lfo1Rate, "lfo1Rate")} color="#a6f"
-            title="LFO speed" />
-          <SynthKnob label="Detune" value={partial.lfo1RateDetune} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1RateDetune))}
-            onChange={set(PcmsPartialField.Lfo1RateDetune, "lfo1RateDetune")} color="#a6f"
-            title="Rate randomization — adds organic variation" />
-          <SynthKnob label="Delay" value={partial.lfo1DelayTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1DelayTime))}
-            onChange={set(PcmsPartialField.Lfo1DelayTime, "lfo1DelayTime")} color="#a6f"
-            title="Time before LFO starts after note-on" />
-          <SynthKnob label="Dly KF" value={partial.lfo1DelayTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1DelayTimeKeyfollow))}
-            onChange={set(PcmsPartialField.Lfo1DelayTimeKeyfollow, "lfo1DelayTimeKeyfollow")} color="#a6f"
-            title="Delay time key tracking — higher keys = shorter delay" />
-          <SynthKnob label="Fade In" value={partial.lfo1FadeTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1FadeTime))}
-            onChange={set(PcmsPartialField.Lfo1FadeTime, "lfo1FadeTime")} color="#a6f"
-            title="Time for LFO to reach full depth after delay" />
-          <SynthKnob label="Offset" value={partial.lfo1Offset} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1Offset))}
-            onChange={set(PcmsPartialField.Lfo1Offset, "lfo1Offset")} color="#a6f"
-            title="DC offset of the LFO waveform" />
+        <div className={css.lfoRight}>
+          <LfoScope className={css.lfoScope} rate={partial.lfo1Rate}
+            shape={pcms_partial_spec(PcmsPartialField.Lfo1Waveform).formatValue(partial.lfo1Waveform)}
+            steps={partial.lfoStepValues} smooth={partial.lfoStepType === 1} />
+          <div className={css.knobGrid}>
+            <SynthKnob label="Rate" value={partial.lfo1Rate} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1Rate))}
+              onChange={set(PcmsPartialField.Lfo1Rate, "lfo1Rate")} color="#a6f"
+              title="LFO speed" />
+            <SynthKnob label="Detune" value={partial.lfo1RateDetune} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1RateDetune))}
+              onChange={set(PcmsPartialField.Lfo1RateDetune, "lfo1RateDetune")} color="#a6f"
+              title="Rate randomization — adds organic variation" />
+            <SynthKnob label="Delay" value={partial.lfo1DelayTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1DelayTime))}
+              onChange={set(PcmsPartialField.Lfo1DelayTime, "lfo1DelayTime")} color="#a6f"
+              title="Time before LFO starts after note-on" />
+            <SynthKnob label="Dly KF" value={partial.lfo1DelayTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1DelayTimeKeyfollow))}
+              onChange={set(PcmsPartialField.Lfo1DelayTimeKeyfollow, "lfo1DelayTimeKeyfollow")} color="#a6f"
+              title="Delay time key tracking — higher keys = shorter delay" />
+            <SynthKnob label="Fade In" value={partial.lfo1FadeTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1FadeTime))}
+              onChange={set(PcmsPartialField.Lfo1FadeTime, "lfo1FadeTime")} color="#a6f"
+              title="Time for LFO to reach full depth after delay" />
+            <SynthKnob label="Offset" value={partial.lfo1Offset} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1Offset))}
+              onChange={set(PcmsPartialField.Lfo1Offset, "lfo1Offset")} color="#a6f"
+              title="DC offset of the LFO waveform" />
+          </div>
         </div>
       </div>
       <div className={css.panelRow}>
@@ -490,25 +496,30 @@ function Lfo2Section({
         <SynthSwitch label="Wave" value={partial.lfo2Waveform} vertical
           options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2Waveform))}
           onChange={set(PcmsPartialField.Lfo2Waveform, "lfo2Waveform")} title="LFO waveform shape" />
-        <div className={`${css.knobGrid} ${css.knobsRight}`}>
-          <SynthKnob label="Rate" value={partial.lfo2Rate} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2Rate))}
-            onChange={set(PcmsPartialField.Lfo2Rate, "lfo2Rate")} color="#a6f"
-            title="LFO speed" />
-          <SynthKnob label="Detune" value={partial.lfo2RateDetune} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2RateDetune))}
-            onChange={set(PcmsPartialField.Lfo2RateDetune, "lfo2RateDetune")} color="#a6f"
-            title="Rate randomization — adds organic variation" />
-          <SynthKnob label="Delay" value={partial.lfo2DelayTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2DelayTime))}
-            onChange={set(PcmsPartialField.Lfo2DelayTime, "lfo2DelayTime")} color="#a6f"
-            title="Time before LFO starts after note-on" />
-          <SynthKnob label="Dly KF" value={partial.lfo2DelayTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2DelayTimeKeyfollow))}
-            onChange={set(PcmsPartialField.Lfo2DelayTimeKeyfollow, "lfo2DelayTimeKeyfollow")} color="#a6f"
-            title="Delay time key tracking — higher keys = shorter delay" />
-          <SynthKnob label="Fade In" value={partial.lfo2FadeTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2FadeTime))}
-            onChange={set(PcmsPartialField.Lfo2FadeTime, "lfo2FadeTime")} color="#a6f"
-            title="Time for LFO to reach full depth after delay" />
-          <SynthKnob label="Offset" value={partial.lfo2Offset} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2Offset))}
-            onChange={set(PcmsPartialField.Lfo2Offset, "lfo2Offset")} color="#a6f"
-            title="DC offset of the LFO waveform" />
+        <div className={css.lfoRight}>
+          <LfoScope className={css.lfoScope} rate={partial.lfo2Rate}
+            shape={pcms_partial_spec(PcmsPartialField.Lfo2Waveform).formatValue(partial.lfo2Waveform)}
+            steps={partial.lfoStepValues} smooth={partial.lfoStepType === 1} />
+          <div className={css.knobGrid}>
+            <SynthKnob label="Rate" value={partial.lfo2Rate} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2Rate))}
+              onChange={set(PcmsPartialField.Lfo2Rate, "lfo2Rate")} color="#a6f"
+              title="LFO speed" />
+            <SynthKnob label="Detune" value={partial.lfo2RateDetune} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2RateDetune))}
+              onChange={set(PcmsPartialField.Lfo2RateDetune, "lfo2RateDetune")} color="#a6f"
+              title="Rate randomization — adds organic variation" />
+            <SynthKnob label="Delay" value={partial.lfo2DelayTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2DelayTime))}
+              onChange={set(PcmsPartialField.Lfo2DelayTime, "lfo2DelayTime")} color="#a6f"
+              title="Time before LFO starts after note-on" />
+            <SynthKnob label="Dly KF" value={partial.lfo2DelayTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2DelayTimeKeyfollow))}
+              onChange={set(PcmsPartialField.Lfo2DelayTimeKeyfollow, "lfo2DelayTimeKeyfollow")} color="#a6f"
+              title="Delay time key tracking — higher keys = shorter delay" />
+            <SynthKnob label="Fade In" value={partial.lfo2FadeTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2FadeTime))}
+              onChange={set(PcmsPartialField.Lfo2FadeTime, "lfo2FadeTime")} color="#a6f"
+              title="Time for LFO to reach full depth after delay" />
+            <SynthKnob label="Offset" value={partial.lfo2Offset} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2Offset))}
+              onChange={set(PcmsPartialField.Lfo2Offset, "lfo2Offset")} color="#a6f"
+              title="DC offset of the LFO waveform" />
+          </div>
         </div>
       </div>
       <div className={css.panelRow}>

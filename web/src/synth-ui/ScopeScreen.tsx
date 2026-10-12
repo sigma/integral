@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
-import css from "../SnSynthEditor.module.css";
+import css from "./Scope.module.css";
 
 /**
  * Oscilloscope screen filling its grid cell without adding to its height.
  * Children are SVG traces in a 0..1 box, y = 0 at the top.
  */
-export function ScopeScreen({ children }: { children: ReactNode }) {
+export function ScopeScreen({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={css.scopeSlot}>
-      <svg className={css.scope} viewBox="-0.05 -0.15 1.1 1.3" preserveAspectRatio="none">
+    <div className={`${css.slot} ${className ?? ""}`}>
+      <svg className={css.fill} viewBox="-0.05 -0.15 1.1 1.3" preserveAspectRatio="none">
         {children}
       </svg>
     </div>

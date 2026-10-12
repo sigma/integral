@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import { velocity_curve } from "../../pkg/integral_wasm.js";
 import { SynthSelect } from "../synth-ui";
-import { sampled } from "../sn-synth/ScopeScreen";
+import { sampled } from "../synth-ui/ScopeScreen";
 import css from "../PcmSynthEditor.module.css";
 
 /** A V-Curve select, with a scope drawing the selected curve (velocity across, effect up). */

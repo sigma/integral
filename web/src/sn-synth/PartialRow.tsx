@@ -14,7 +14,7 @@ import css from "../SnSynthEditor.module.css";
 import type { PartialParamHandler, SnSynthPartial } from "./types";
 import { WavePicker } from "../WavePicker";
 import { OscWaveScope } from "./OscWaveScope";
-import { LfoScope } from "./LfoScope";
+import { LfoScope } from "../synth-ui/LfoScope";
 import { snSynthWaveSource } from "../waveCatalog";
 import {
   OSC_WAVE_NAMES,

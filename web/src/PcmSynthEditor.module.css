@@ -212,6 +212,18 @@
   gap: 6px;
 }
 
+/* LFO: the waveform scope beside the Wave switch, the knobs pushed below it */
+.lfoRight {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.lfoScope {
+  height: 44px;
+}
+
 /* ----------------------------------------------------------------
    Depth fader sections (LFO)
    ---------------------------------------------------------------- */

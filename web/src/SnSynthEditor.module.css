@@ -147,19 +147,6 @@
   justify-content: flex-end;
 }
 
-/* Fills the knob-height top row without adding to its height. */
-.scopeSlot {
-  position: relative;
-}
-
-.scope {
-  composes: screen from "./synth-ui/Scope.module.css";
-  position: absolute;
-  inset: 0;
-  height: 100%;
-  margin-bottom: 0;
-}
-
 .hiddenKnob {
   visibility: hidden;
 }
