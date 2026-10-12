@@ -727,6 +727,26 @@ impl DeviceState {
         Ok(())
     }
 
+    /// Change the MFX type of a part's tone of type `tone_type`, and load the
+    /// type's default parameters: the device keeps the old slot values when
+    /// only the type byte changes. Returns the new slot values, or `None` for
+    /// an unknown type.
+    pub fn set_mfx_type(
+        &mut self,
+        part: u8,
+        tone_type: ToneType,
+        mfx_type: u8,
+    ) -> Option<[i32; crate::mfx::MFX_PARAM_COUNT]> {
+        let slots = crate::mfx_params::default_slots(mfx_type)?;
+        self.send_dt1(&crate::mfx::mfx_address(part, tone_type, 0), &[mfx_type]);
+        let data: Vec<u8> = slots
+            .iter()
+            .flat_map(|&v| crate::mfx::encode_mfx_param(v))
+            .collect();
+        self.send_dt1(&crate::mfx::mfx_param_address(part, tone_type, 0), &data);
+        Some(slots)
+    }
+
     /// Set a nibblized MFX effect parameter (0-based index) of a part's tone
     /// of type `tone_type`.
     pub fn set_mfx_nib_param(
@@ -1467,6 +1487,28 @@ mod tests {
             dev.drain(100.0).unwrap(),
             sysex::build_dt1(0x10, &Address::new(0x19, 0x10, 0x02, 0x10), &[7])
         );
+    }
+
+    #[test]
+    fn set_mfx_type_also_sends_the_types_defaults() {
+        let mut dev = DeviceState::new(0x10);
+        let slots = dev.set_mfx_type(0, ToneType::SnSynth, 34).unwrap();
+        assert_eq!(slots, crate::mfx_params::default_slots(34).unwrap());
+        // SN-S MFX block at `19 01 02 00`: type at `00`, Parameter 1 at `11`.
+        assert_eq!(
+            dev.drain(0.0).unwrap(),
+            sysex::build_dt1(0x10, &Address::new(0x19, 0x01, 0x02, 0x00), &[34])
+        );
+        let params: Vec<u8> = slots
+            .iter()
+            .flat_map(|&v| crate::mfx::encode_mfx_param(v))
+            .collect();
+        assert_eq!(
+            dev.drain(100.0).unwrap(),
+            sysex::build_dt1(0x10, &Address::new(0x19, 0x01, 0x02, 0x11), &params)
+        );
+        assert!(dev.set_mfx_type(0, ToneType::SnSynth, 68).is_none());
+        assert!(dev.drain(200.0).is_none());
     }
 
     #[test]

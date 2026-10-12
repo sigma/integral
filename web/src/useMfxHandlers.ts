@@ -53,9 +53,14 @@ export function useMfxHandlers(
     [partIndex, toneType, service, setMfx],
   );
 
+  // The device keeps the old slot values on a type change, so the core also
+  // sends the new type's defaults.
   const onTypeChange = useCallback(
-    (type_: number) => onHeaderParam(MfxHeaderField.Type, 0, type_),
-    [onHeaderParam],
+    (type_: number) => {
+      const params = [...service.device.setMfxType(partIndex, toneType, type_)];
+      setMfx((prev) => prev ? { ...prev, mfxType: type_, params } : prev);
+    },
+    [partIndex, toneType, service, setMfx],
   );
 
   const onNibParam = useCallback(

@@ -10,6 +10,7 @@
 //! are left out.
 
 use crate::fx_params::{FxParamDef, FxUnit, SYNC_HZ, SYNC_MS, param};
+use crate::mfx::MFX_PARAM_COUNT;
 
 /// Definition of an MFX effect type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -153,7 +154,9 @@ const MFX_04_STEP_FILTER: &[FxParamDef] = &[
     param(13, "Step 14", 0, 127, 30, FxUnit::Plain),
     param(14, "Step 15", 0, 127, 60, FxUnit::Plain),
     param(15, "Step 16", 0, 127, 30, FxUnit::Plain),
-    param(17, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(17, "Rate", 1, 200, 10, FxUnit::RateHz)
+        .synced(18, SYNC_HZ)
+        .note_by_default(),
     param(19, "Attack", 0, 127, 50, FxUnit::Plain),
     param(20, "Filter Type", 0, 3, 2, FxUnit::Names(STEPFIL_FILT_TYPE)),
     param(
@@ -189,7 +192,9 @@ const MFX_06_AUTO_WAH: &[FxParamDef] = &[
     param(2, "Peak", 0, 127, 40, FxUnit::Plain),
     param(3, "Sens", 0, 127, 0, FxUnit::Plain),
     param(4, "Polarity", 0, 1, 0, FxUnit::Names(WAH_POLARITY)),
-    param(6, "Rate", 1, 200, 40, FxUnit::RateHz).synced(12, SYNC_HZ),
+    param(6, "Rate", 1, 200, 40, FxUnit::RateHz)
+        .synced(12, SYNC_HZ)
+        .note_by_default(),
     param(8, "Depth", 0, 127, 60, FxUnit::Plain),
     param(9, "Phase", 0, 90, 0, FxUnit::DegreesX2),
     param(10, "Low Gain", 0, 30, 15, GAIN_DB),
@@ -203,7 +208,9 @@ const MFX_07_HUMANIZER: &[FxParamDef] = &[
     param(1, "Drive", 0, 127, 127, FxUnit::Plain),
     param(2, "Vowel1", 0, 4, 4, FxUnit::Names(FORMANT_VOWEL1)),
     param(3, "Vowel2", 0, 4, 0, FxUnit::Names(FORMANT_VOWEL1)),
-    param(5, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(5, "Rate", 1, 200, 10, FxUnit::RateHz)
+        .synced(18, SYNC_HZ)
+        .note_by_default(),
     param(7, "Depth", 0, 127, 127, FxUnit::Plain),
     param(8, "Input Sync Sw", 0, 1, 0, FxUnit::Names(OFF_ON)),
     param(9, "Input Sync Threshold", 0, 127, 60, FxUnit::Plain),
@@ -249,7 +256,9 @@ const MFX_09_PHASER1: &[FxParamDef] = &[
         },
     ),
     param(1, "Manual", 0, 127, 64, FxUnit::Plain),
-    param(3, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(3, "Rate", 1, 200, 10, FxUnit::RateHz)
+        .synced(18, SYNC_HZ)
+        .note_by_default(),
     param(5, "Depth", 0, 127, 40, FxUnit::Plain),
     param(6, "Polarity", 0, 1, 1, FxUnit::Names(STPH_POLARITY)),
     param(7, "Resonance", 0, 127, 40, FxUnit::Plain),
@@ -292,12 +301,16 @@ const MFX_12_STEP_PHASER: &[FxParamDef] = &[
         },
     ),
     param(1, "Manual", 0, 127, 64, FxUnit::Plain),
-    param(3, "Rate", 1, 200, 30, FxUnit::RateHz).synced(13, SYNC_HZ),
+    param(3, "Rate", 1, 200, 30, FxUnit::RateHz)
+        .synced(13, SYNC_HZ)
+        .note_by_default(),
     param(5, "Depth", 0, 127, 40, FxUnit::Plain),
     param(6, "Polarity", 0, 1, 1, FxUnit::Names(STPH_POLARITY)),
     param(7, "Resonance", 0, 127, 40, FxUnit::Plain),
     param(8, "Cross Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
-    param(10, "Step Rate", 1, 200, 80, FxUnit::StepRateHz).synced(6, SYNC_HZ),
+    param(10, "Step Rate", 1, 200, 80, FxUnit::StepRateHz)
+        .synced(6, SYNC_HZ)
+        .note_by_default(),
     param(12, "Mix", 0, 127, 127, FxUnit::Plain),
     param(13, "Low Gain", 0, 30, 15, GAIN_DB),
     param(14, "High Gain", 0, 30, 15, GAIN_DB),
@@ -319,7 +332,9 @@ const MFX_13_MULTI_STAGE_PHASER: &[FxParamDef] = &[
         },
     ),
     param(1, "Manual", 0, 127, 60, FxUnit::Plain),
-    param(3, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(3, "Rate", 1, 200, 10, FxUnit::RateHz)
+        .synced(18, SYNC_HZ)
+        .note_by_default(),
     param(5, "Depth", 0, 127, 40, FxUnit::Plain),
     param(6, "Resonance", 0, 127, 40, FxUnit::Plain),
     param(7, "Mix", 0, 127, 127, FxUnit::Plain),
@@ -377,7 +392,9 @@ const MFX_15_RING_MOD: &[FxParamDef] = &[
 // Type 16: TREMOLO
 const MFX_16_TREMOLO: &[FxParamDef] = &[
     param(0, "Mod Wave", 0, 4, 0, FxUnit::Names(TRE_MOD_WAVE)),
-    param(2, "Rate", 1, 200, 80, FxUnit::RateHz).synced(9, SYNC_HZ),
+    param(2, "Rate", 1, 200, 80, FxUnit::RateHz)
+        .synced(9, SYNC_HZ)
+        .note_by_default(),
     param(4, "Depth", 0, 127, 96, FxUnit::Plain),
     param(5, "Low Gain", 0, 30, 15, GAIN_DB),
     param(6, "High Gain", 0, 30, 15, GAIN_DB),
@@ -387,7 +404,9 @@ const MFX_16_TREMOLO: &[FxParamDef] = &[
 // Type 17: AUTO PAN
 const MFX_17_AUTO_PAN: &[FxParamDef] = &[
     param(0, "Mod Wave", 0, 4, 0, FxUnit::Names(TRE_MOD_WAVE)),
-    param(2, "Rate", 1, 200, 80, FxUnit::RateHz).synced(9, SYNC_HZ),
+    param(2, "Rate", 1, 200, 80, FxUnit::RateHz)
+        .synced(9, SYNC_HZ)
+        .note_by_default(),
     param(4, "Depth", 0, 127, 96, FxUnit::Plain),
     param(5, "Low Gain", 0, 30, 15, GAIN_DB),
     param(6, "High Gain", 0, 30, 15, GAIN_DB),
@@ -412,7 +431,9 @@ const MFX_18_SLICER: &[FxParamDef] = &[
     param(13, "Step 14", 0, 127, 0, FxUnit::Plain),
     param(14, "Step 15", 0, 127, 30, FxUnit::Plain),
     param(15, "Step 16", 0, 127, 0, FxUnit::Plain),
-    param(17, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(17, "Rate", 1, 200, 10, FxUnit::RateHz)
+        .synced(18, SYNC_HZ)
+        .note_by_default(),
     param(19, "Attack", 0, 127, 50, FxUnit::Plain),
     param(20, "Input Sync Sw", 0, 1, 0, FxUnit::Names(OFF_ON)),
     param(21, "Input Sync Threshold", 0, 127, 60, FxUnit::Plain),
@@ -499,7 +520,9 @@ const MFX_23_FLANGER: &[FxParamDef] = &[
     param(0, "Filter Type", 0, 2, 2, FxUnit::Names(STCHO_FILT)),
     param(1, "Cutoff Freq", 0, 16, 6, FxUnit::Freq),
     param(2, "Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Rate", 1, 200, 10, FxUnit::RateHz)
+        .synced(18, SYNC_HZ)
+        .note_by_default(),
     param(6, "Depth", 0, 127, 40, FxUnit::Plain),
     param(7, "Phase", 0, 90, 90, FxUnit::DegreesX2),
     param(8, "Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
@@ -514,11 +537,15 @@ const MFX_24_STEP_FLANGER: &[FxParamDef] = &[
     param(0, "Filter Type", 0, 2, 2, FxUnit::Names(STCHO_FILT)),
     param(1, "Cutoff Freq", 0, 16, 6, FxUnit::Freq),
     param(2, "Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Rate", 1, 200, 30, FxUnit::RateHz).synced(13, SYNC_HZ),
+    param(4, "Rate", 1, 200, 30, FxUnit::RateHz)
+        .synced(13, SYNC_HZ)
+        .note_by_default(),
     param(6, "Depth", 0, 127, 40, FxUnit::Plain),
     param(7, "Phase", 0, 90, 90, FxUnit::DegreesX2),
     param(8, "Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
-    param(10, "Step Rate", 1, 200, 80, FxUnit::StepRateHz).synced(6, SYNC_HZ),
+    param(10, "Step Rate", 1, 200, 80, FxUnit::StepRateHz)
+        .synced(6, SYNC_HZ)
+        .note_by_default(),
     param(12, "Low Gain", 0, 30, 15, GAIN_DB),
     param(13, "High Gain", 0, 30, 15, GAIN_DB),
     param(14, "Balance", 0, 100, 50, FxUnit::Balance),
@@ -662,8 +689,12 @@ const MFX_33_GATE: &[FxParamDef] = &[
 
 // Type 34: DELAY
 const MFX_34_DELAY: &[FxParamDef] = &[
-    param(1, "Delay Left", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
-    param(4, "Delay Right", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(1, "Delay Left", 0, 1300, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
+    param(4, "Delay Right", 0, 1300, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
     param(6, "Phase Left", 0, 1, 0, FxUnit::Names(STDLY_PHS_L)),
     param(7, "Phase Right", 0, 1, 0, FxUnit::Names(STDLY_PHS_L)),
     param(8, "Feedback Mode", 0, 1, 0, FxUnit::Names(STDLY_FBK_MODE)),
@@ -677,8 +708,12 @@ const MFX_34_DELAY: &[FxParamDef] = &[
 
 // Type 35: MODULATION DELAY
 const MFX_35_MOD_DELAY: &[FxParamDef] = &[
-    param(1, "Delay Left", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
-    param(4, "Delay Right", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(1, "Delay Left", 0, 1300, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
+    param(4, "Delay Right", 0, 1300, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
     param(6, "Feedback Mode", 0, 1, 0, FxUnit::Names(STDLY_FBK_MODE)),
     param(7, "Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
     param(8, "HF Damp", 0, 17, 17, FxUnit::Freq),
@@ -693,9 +728,15 @@ const MFX_35_MOD_DELAY: &[FxParamDef] = &[
 
 // Type 36: 3TAP PAN DELAY
 const MFX_36_3TAP_PAN_DELAY: &[FxParamDef] = &[
-    param(1, "Delay Left", 0, 2600, 400, FxUnit::Millis).synced(10, SYNC_MS),
-    param(4, "Delay Right", 0, 2600, 800, FxUnit::Millis).synced(13, SYNC_MS),
-    param(7, "Delay Center", 0, 2600, 1200, FxUnit::Millis).synced(15, SYNC_MS),
+    param(1, "Delay Left", 0, 2600, 400, FxUnit::Millis)
+        .synced(10, SYNC_MS)
+        .note_by_default(),
+    param(4, "Delay Right", 0, 2600, 800, FxUnit::Millis)
+        .synced(13, SYNC_MS)
+        .note_by_default(),
+    param(7, "Delay Center", 0, 2600, 1200, FxUnit::Millis)
+        .synced(15, SYNC_MS)
+        .note_by_default(),
     param(9, "Center Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
     param(10, "HF Damp", 0, 17, 17, FxUnit::Freq),
     param(11, "Left Level ", 0, 127, 127, FxUnit::Plain),
@@ -709,10 +750,18 @@ const MFX_36_3TAP_PAN_DELAY: &[FxParamDef] = &[
 
 // Type 37: 4TAP PAN DELAY
 const MFX_37_4TAP_PAN_DELAY: &[FxParamDef] = &[
-    param(1, "Delay 1 Time", 0, 2600, 1200, FxUnit::Millis).synced(15, SYNC_MS),
-    param(4, "Delay 2 Time", 0, 2600, 900, FxUnit::Millis).synced(14, SYNC_MS),
-    param(7, "Delay 3 Time", 0, 2600, 600, FxUnit::Millis).synced(12, SYNC_MS),
-    param(10, "Delay 4 Time", 0, 2600, 300, FxUnit::Millis).synced(9, SYNC_MS),
+    param(1, "Delay 1 Time", 0, 2600, 1200, FxUnit::Millis)
+        .synced(15, SYNC_MS)
+        .note_by_default(),
+    param(4, "Delay 2 Time", 0, 2600, 900, FxUnit::Millis)
+        .synced(14, SYNC_MS)
+        .note_by_default(),
+    param(7, "Delay 3 Time", 0, 2600, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
+    param(10, "Delay 4 Time", 0, 2600, 300, FxUnit::Millis)
+        .synced(9, SYNC_MS)
+        .note_by_default(),
     param(12, "Delay 1 Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
     param(13, "HF Damp", 0, 17, 17, FxUnit::Freq),
     param(14, "Delay 1 Level", 0, 127, 127, FxUnit::Plain),
@@ -727,10 +776,18 @@ const MFX_37_4TAP_PAN_DELAY: &[FxParamDef] = &[
 
 // Type 38: MULTI TAP DELAY
 const MFX_38_MULTI_TAP_DELAY: &[FxParamDef] = &[
-    param(1, "Delay 1 Time", 0, 2600, 1200, FxUnit::Millis).synced(15, SYNC_MS),
-    param(4, "Delay 2 Time", 0, 2600, 900, FxUnit::Millis).synced(14, SYNC_MS),
-    param(7, "Delay 3 Time", 0, 2600, 600, FxUnit::Millis).synced(12, SYNC_MS),
-    param(10, "Delay 4 Time", 0, 2600, 300, FxUnit::Millis).synced(9, SYNC_MS),
+    param(1, "Delay 1 Time", 0, 2600, 1200, FxUnit::Millis)
+        .synced(15, SYNC_MS)
+        .note_by_default(),
+    param(4, "Delay 2 Time", 0, 2600, 900, FxUnit::Millis)
+        .synced(14, SYNC_MS)
+        .note_by_default(),
+    param(7, "Delay 3 Time", 0, 2600, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
+    param(10, "Delay 4 Time", 0, 2600, 300, FxUnit::Millis)
+        .synced(9, SYNC_MS)
+        .note_by_default(),
     param(12, "Delay 1 Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
     param(13, "HF Damp", 0, 17, 17, FxUnit::Freq),
     param(14, "Delay 1 Pan", 0, 127, 0, FxUnit::Pan),
@@ -750,14 +807,22 @@ const MFX_38_MULTI_TAP_DELAY: &[FxParamDef] = &[
 // Type 39: REVERSE DELAY
 const MFX_39_REVERSE_DELAY: &[FxParamDef] = &[
     param(0, "Threshold", 0, 127, 30, FxUnit::Plain),
-    param(2, "Rev Delay Time", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(2, "Rev Delay Time", 0, 1300, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
     param(4, "Rev Delay Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
     param(5, "Rev Delay HF Damp", 0, 17, 17, FxUnit::Freq),
     param(6, "Rev Delay Pan", 0, 127, 64, FxUnit::Pan),
     param(7, "Rev Delay Level", 0, 127, 127, FxUnit::Plain),
-    param(9, "Delay 1 Time", 0, 1300, 300, FxUnit::Millis).synced(9, SYNC_MS),
-    param(12, "Delay 2 Time", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
-    param(15, "Delay 3 Time", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(9, "Delay 1 Time", 0, 1300, 300, FxUnit::Millis)
+        .synced(9, SYNC_MS)
+        .note_by_default(),
+    param(12, "Delay 2 Time", 0, 1300, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
+    param(15, "Delay 3 Time", 0, 1300, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
     param(17, "Delay 3 Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
     param(18, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
     param(19, "Delay 1 Pan", 0, 127, 0, FxUnit::Pan),
@@ -886,7 +951,9 @@ const MFX_44_2VOICE_PITCH_SHIFTER: &[FxParamDef] = &[
             suffix: "cent",
         },
     ),
-    param(3, "Pitch1 Delay", 0, 1300, 300, FxUnit::Millis).synced(9, SYNC_MS),
+    param(3, "Pitch1 Delay", 0, 1300, 300, FxUnit::Millis)
+        .synced(9, SYNC_MS)
+        .note_by_default(),
     param(5, "Pitch1 Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
     param(6, "Pitch1 Pan", 0, 127, 64, FxUnit::Pan),
     param(7, "Pitch1 Level", 0, 127, 127, FxUnit::Plain),
@@ -914,7 +981,9 @@ const MFX_44_2VOICE_PITCH_SHIFTER: &[FxParamDef] = &[
             suffix: "cent",
         },
     ),
-    param(11, "Pitch2 Delay", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(11, "Pitch2 Delay", 0, 1300, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
     param(13, "Pitch2 Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
     param(14, "Pitch2 Pan", 0, 127, 64, FxUnit::Pan),
     param(15, "Pitch2 Level", 0, 127, 127, FxUnit::Plain),
@@ -940,7 +1009,9 @@ const MFX_46_OD_FLANGER: &[FxParamDef] = &[
     param(0, "Overdrive Drive", 0, 127, 64, FxUnit::Plain),
     param(1, "Overdrive Pan", 0, 127, 64, FxUnit::Pan),
     param(2, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Flanger Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Flanger Rate", 1, 200, 10, FxUnit::RateHz)
+        .synced(18, SYNC_HZ)
+        .note_by_default(),
     param(6, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
     param(7, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
     param(8, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
@@ -951,7 +1022,9 @@ const MFX_46_OD_FLANGER: &[FxParamDef] = &[
 const MFX_47_OD_DELAY: &[FxParamDef] = &[
     param(0, "Overdrive Drive", 0, 127, 64, FxUnit::Plain),
     param(1, "Overdrive Pan", 0, 127, 64, FxUnit::Pan),
-    param(3, "Delay Time", 0, 2600, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(3, "Delay Time", 0, 2600, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
     param(5, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
     param(6, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
     param(7, "Delay Balance", 0, 100, 50, FxUnit::Balance),
@@ -974,7 +1047,9 @@ const MFX_49_DIST_FLANGER: &[FxParamDef] = &[
     param(0, "Distortion Drive", 0, 127, 127, FxUnit::Plain),
     param(1, "Distortion Pan", 0, 127, 64, FxUnit::Pan),
     param(2, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Flanger Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Flanger Rate", 1, 200, 10, FxUnit::RateHz)
+        .synced(18, SYNC_HZ)
+        .note_by_default(),
     param(6, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
     param(7, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
     param(8, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
@@ -985,7 +1060,9 @@ const MFX_49_DIST_FLANGER: &[FxParamDef] = &[
 const MFX_50_DIST_DELAY: &[FxParamDef] = &[
     param(0, "Distortion Drive", 0, 127, 127, FxUnit::Plain),
     param(1, "Distortion Pan", 0, 127, 64, FxUnit::Pan),
-    param(3, "Delay Time", 0, 2600, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(3, "Delay Time", 0, 2600, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
     param(5, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
     param(6, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
     param(7, "Delay Balance", 0, 100, 50, FxUnit::Balance),
@@ -1373,7 +1450,9 @@ const MFX_63_ENHANCER_FLANGER: &[FxParamDef] = &[
     param(0, "Enhancer Sens", 0, 127, 64, FxUnit::Plain),
     param(1, "Enhancer Mix", 0, 127, 64, FxUnit::Plain),
     param(2, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Flanger Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Flanger Rate", 1, 200, 10, FxUnit::RateHz)
+        .synced(18, SYNC_HZ)
+        .note_by_default(),
     param(6, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
     param(7, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
     param(8, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
@@ -1384,7 +1463,9 @@ const MFX_63_ENHANCER_FLANGER: &[FxParamDef] = &[
 const MFX_64_ENHANCER_DELAY: &[FxParamDef] = &[
     param(0, "Enhancer Sens", 0, 127, 64, FxUnit::Plain),
     param(1, "Enhancer Mix", 0, 127, 64, FxUnit::Plain),
-    param(3, "Delay Time", 0, 2600, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(3, "Delay Time", 0, 2600, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
     param(5, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
     param(6, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
     param(7, "Delay Balance", 0, 100, 50, FxUnit::Balance),
@@ -1397,7 +1478,9 @@ const MFX_65_CHORUS_DELAY: &[FxParamDef] = &[
     param(2, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
     param(4, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
     param(5, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
-    param(7, "Delay Time", 0, 2600, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(7, "Delay Time", 0, 2600, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
     param(9, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
     param(10, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
     param(11, "Delay Balance", 0, 100, 50, FxUnit::Balance),
@@ -1407,11 +1490,15 @@ const MFX_65_CHORUS_DELAY: &[FxParamDef] = &[
 // Type 66: FLANGER->DELAY
 const MFX_66_FLANGER_DELAY: &[FxParamDef] = &[
     param(0, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(2, "Flanger Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(2, "Flanger Rate", 1, 200, 10, FxUnit::RateHz)
+        .synced(18, SYNC_HZ)
+        .note_by_default(),
     param(4, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
     param(5, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
     param(6, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
-    param(8, "Delay Time", 0, 2600, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(8, "Delay Time", 0, 2600, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .note_by_default(),
     param(10, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
     param(11, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
     param(12, "Delay Balance", 0, 100, 50, FxUnit::Balance),
@@ -1425,7 +1512,9 @@ const MFX_67_CHORUS_FLANGER: &[FxParamDef] = &[
     param(4, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
     param(5, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
     param(6, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(8, "Flanger Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(8, "Flanger Rate", 1, 200, 10, FxUnit::RateHz)
+        .synced(18, SYNC_HZ)
+        .note_by_default(),
     param(10, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
     param(11, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
     param(12, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
@@ -1924,6 +2013,23 @@ pub fn mfx_type_def(mfx_type: u8) -> Option<&'static MfxTypeDef> {
     MFX_TYPE_DEFS.get(mfx_type as usize)
 }
 
+/// The stored values a type starts with, one per nibblized slot: each
+/// parameter's default, its sync switch and note defaults, and 0 elsewhere.
+///
+/// The device keeps the old slot values when only the type byte changes, so
+/// a type change must send these too.
+pub fn default_slots(mfx_type: u8) -> Option<[i32; MFX_PARAM_COUNT]> {
+    let mut slots = [0; MFX_PARAM_COUNT];
+    for p in mfx_type_def(mfx_type)?.params {
+        slots[p.index as usize] = p.default_value;
+        if let Some(s) = p.sync {
+            slots[s.switch_index as usize] = s.switch_default;
+            slots[s.note_index as usize] = s.note_default;
+        }
+    }
+    Some(slots)
+}
+
 // ---------------------------------------------------------------------------
 // Control Sources
 // ---------------------------------------------------------------------------
@@ -2093,6 +2199,16 @@ mod tests {
     }
 
     #[test]
+    fn delay_defaults_start_in_note_mode() {
+        // Roland's Delay defaults: Left/Right in NOTE mode at 1/4, 600 ms.
+        let slots = default_slots(34).unwrap();
+        assert_eq!(&slots[..6], &[1, 600, 12, 1, 600, 12]);
+        assert_eq!(slots[14], 127);
+        assert!(slots[15..].iter().all(|&v| v == 0));
+        assert!(default_slots(68).is_none());
+    }
+
+    #[test]
     fn type_ids_match_indices() {
         for (i, def) in MFX_TYPE_DEFS.iter().enumerate() {
             assert_eq!(def.id as usize, i, "type {} id mismatch", def.name);
@@ -2130,11 +2246,7 @@ mod tests {
                 "{}: slots {slots:?}",
                 def.name
             );
-            assert!(
-                slots
-                    .last()
-                    .is_none_or(|&s| (s as usize) < crate::mfx::MFX_PARAM_COUNT)
-            );
+            assert!(slots.last().is_none_or(|&s| (s as usize) < MFX_PARAM_COUNT));
         }
     }
 }

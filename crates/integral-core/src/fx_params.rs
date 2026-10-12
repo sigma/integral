@@ -36,6 +36,8 @@ pub struct FxSync {
     pub note_index: u8,
     /// Default note index.
     pub note_default: i32,
+    /// Default switch position: 0 = own slot, 1 = note.
+    pub switch_default: i32,
     /// Switch position labels: `[own slot, note]`, e.g. `["ms", "♪"]`.
     pub labels: [&'static str; 2],
 }
@@ -281,9 +283,24 @@ impl FxParamDef {
                 switch_index: self.index - 1,
                 note_index: self.index + 1,
                 note_default,
+                switch_default: 0,
                 labels,
             }),
             ..self
+        }
+    }
+
+    /// Make a tempo-syncable parameter start in note mode.
+    pub(crate) const fn note_by_default(self) -> FxParamDef {
+        match self.sync {
+            Some(sync) => FxParamDef {
+                sync: Some(FxSync {
+                    switch_default: 1,
+                    ..sync
+                }),
+                ..self
+            },
+            None => self,
         }
     }
 }
@@ -474,6 +491,7 @@ mod tests {
                 switch_index: 3,
                 note_index: 5,
                 note_default: 18,
+                switch_default: 0,
                 labels: ["Hz", "♪"],
             })
         );

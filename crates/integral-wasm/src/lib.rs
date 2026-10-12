@@ -3099,6 +3099,21 @@ impl WasmDeviceState {
             .set_mfx_header_param(part, tone_type.into(), field.into(), index, value)?)
     }
 
+    /// Change the MFX type of the part's tone of type `tone_type` and load
+    /// the type's default parameters. Returns the new slot values.
+    #[wasm_bindgen(js_name = setMfxType)]
+    pub fn set_mfx_type(
+        &mut self,
+        part: u8,
+        tone_type: ToneType,
+        mfx_type: u8,
+    ) -> Result<Vec<i32>, JsError> {
+        self.inner
+            .set_mfx_type(part, tone_type.into(), mfx_type)
+            .map(Vec::from)
+            .ok_or_else(|| JsError::new(&format!("unknown MFX type {mfx_type}")))
+    }
+
     /// Set a nibblized MFX parameter (0-based index) of the part's tone of
     /// type `tone_type`.
     #[wasm_bindgen(js_name = setMfxNibParam)]
