@@ -1052,7 +1052,9 @@ export class IntegraService {
 
   /**
    * Store `pack` into User memory as `plan` says, borrowing Part `part`
-   * (0-indexed) to store tones. Resolves with each entry's status once the
+   * (0-indexed) to store tones. With `applyEffects`, a lone entry loaded
+   * into Temporary also sets the Temporary Studio Set's Chorus and Reverb.
+   * Resolves with each entry's status once the
    * borrowed Temporary areas are restored; refresh mixer state then.
    * `onProgress` hears each entry's status as the import goes.
    */
@@ -1060,6 +1062,7 @@ export class IntegraService {
     pack: Pack,
     plan: ImportPlan,
     part: number,
+    applyEffects: boolean,
     signal?: AbortSignal,
     onProgress?: (statuses: ImportStatus[]) => void,
   ): Promise<PackImportResult> {
@@ -1067,7 +1070,7 @@ export class IntegraService {
     if (this.device.expansionLoadTarget()) {
       throw new Error("An Expansion load is in progress");
     }
-    const machine = new PackImport(this.deviceId, pack, plan, part);
+    const machine = new PackImport(this.deviceId, pack, plan, part, applyEffects);
     const throttle = frameThrottle(() => onProgress?.(machine.progress()));
     this.writing = true;
     try {

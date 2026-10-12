@@ -259,7 +259,7 @@ flowchart LR
 
 | Source | Integra Studio Set | Class |
 |--------|--------------------|-------|
-| JV Patch Chorus (Rate, Depth, Pre-Delay, Feedback, Level 0-127; Output MIX/REV/MIX+REV) | GM2 Chorus (Rate, Depth, Delay, Feedback, Level 0-127) + Chorus Output Select MAIN/REV/MAIN+REV | substitute (raw copy is plausible; the curves are unpublished) |
+| JV Patch Chorus (Rate, Depth, Pre-Delay, Feedback, Level 0-127; Output MIX/REV/MIX+REV) | Chorus type 1 Chorus + Chorus Output Select MAIN/REV/MAIN+REV, as Roland's JV → XV CHORUS route ([`map-check-roland-pairs.md`](map-check-roland-pairs.md)); GM2 Chorus was the first guess | rescaled (Rate and Pre-Delay raw onto the XV tables, filter OFF) |
 | XV Chorus type 1 CHORUS / 2 DELAY | Chorus type 1 Chorus / 2 Delay: same parameter set (X1 p. 102 vs [`fx-param-layout.md`](fx-param-layout.md)) | rescaled (XV-5080 Delay 200-1000 ms, XV-5050 0-1000 ms, both within Integra 0-1000) |
 | XV-5050 Chorus type 3 GM2 CHORUS | GM2 Chorus | same |
 | JV Reverb ROOM1-HALL2 (Time 0-127, HF Damp list) and XV REVERB type 1 | Room 1/2, Hall 1/2 (Time 0.1-10 s, HF Damp 0-100 linear) or GM2 Reverb (Character, Time 0-127) | substitute: neither curve is published |

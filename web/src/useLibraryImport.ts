@@ -48,6 +48,8 @@ export interface ImportEntry {
   report: string[];
   /** How many of its report items are lossy: 0 when clean. */
   lossy: number;
+  /** Its report holds a Chorus or Reverb an audition can apply. */
+  effects: boolean;
   /** The model a Foreign patch was made on, when its bytes tell. */
   source: string | null;
 }
@@ -109,8 +111,12 @@ export interface UseLibraryImportResult {
   busy: boolean;
   /** Imported (or importing): the plan can't change until reopened. */
   locked: boolean;
-  /** Import, first downloading the slots it overwrites if `undo`. */
-  start: (undo: boolean) => void;
+  /**
+   * Import, first downloading the slots it overwrites if `undo`. With
+   * `applyEffects`, a lone entry loaded into Temporary also sets the
+   * Temporary Studio Set's Chorus and Reverb.
+   */
+  start: (undo: boolean, applyEffects: boolean) => void;
   cancel: () => void;
 }
 
@@ -124,6 +130,8 @@ interface Opened {
   reports: string[][];
   /** Lossy items per Conversion report, indexed like `entries`. */
   lossy: Uint32Array;
+  /** Entries with a Chorus or Reverb an audition can apply. */
+  effects: ReadonlySet<number>;
   /** Source models, indexed like `entries`. */
   sources: (string | null)[];
   fileReport: string[];
@@ -250,6 +258,7 @@ export function useLibraryImport(
             label: pack.label,
             reports: plan.reports(),
             lossy: plan.lossyCounts(),
+            effects: new Set(plan.withEffects()),
             sources: plan.sources(),
             fileReport: plan.fileReport(),
           }),
@@ -307,6 +316,7 @@ export function useLibraryImport(
               placement: view.placements[index] ?? "unplaced",
               report: opened.reports[index] ?? [],
               lossy: opened.lossy[index] ?? 0,
+              effects: opened.effects.has(index),
               source: opened.sources[index] ?? null,
             };
           })
@@ -367,7 +377,7 @@ export function useLibraryImport(
   const { reload } = mixer;
 
   const start = useCallback(
-    (undo: boolean) => {
+    (undo: boolean, applyEffects: boolean) => {
       const current = openedRef.current;
       if (!service || !current || locked) return;
       const controller = new AbortController();
@@ -428,6 +438,7 @@ export function useLibraryImport(
             current.pack,
             current.plan,
             part,
+            applyEffects,
             signal,
             (statuses) => setRun((r) => r && { ...r, statuses }),
           );

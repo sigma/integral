@@ -17,6 +17,7 @@ use super::pcm_tone::{self, Output, PcmTone};
 use super::report::{
     ConversionItem, ConversionReport, EffectFamily, ForeignEffect, Location, SourceModel as Model,
 };
+use super::studio_set_fx::{StudioSetEffect, jv_chorus, jv_reverb};
 use super::wave_map::ForeignWaveGroup;
 use super::xv::CATEGORIES;
 use super::{Converted, Placed, Unit};
@@ -612,8 +613,9 @@ impl Patch<'_> {
         });
     }
 
-    fn not_applied(&mut self, what: String) {
-        self.report.push(ConversionItem::NotApplied { what });
+    fn not_applied(&mut self, what: String, settings: Option<StudioSetEffect>) {
+        self.report
+            .push(ConversionItem::NotApplied { what, settings });
     }
 }
 
@@ -751,23 +753,32 @@ fn studio_set(p: &mut Patch<'_>) {
     if c[CHORUS] != *init(CHORUS) {
         let [level, rate, depth, pre_delay, feedback, output] =
             c[CHORUS].try_into().expect("6 Chorus bytes");
-        p.not_applied(format!(
-            "Chorus level {level}, rate {rate}, depth {depth}, pre-delay {pre_delay}, \
-             feedback {feedback}, output {}",
-            named(&CHORUS_OUTPUTS, output)
-        ));
+        p.not_applied(
+            format!(
+                "Chorus level {level}, rate {rate}, depth {depth}, pre-delay {pre_delay}, \
+                 feedback {feedback}, output {}",
+                named(&CHORUS_OUTPUTS, output)
+            ),
+            Some(jv_chorus([level, rate, depth, pre_delay, feedback, output])),
+        );
     }
     if c[REVERB] != *init(REVERB) {
         let [kind, level, time, damp, feedback] = c[REVERB].try_into().expect("5 Reverb bytes");
-        p.not_applied(format!(
-            "Reverb {}, level {level}, time {time}, HF damp {}, feedback {feedback}",
-            named(&REVERB_TYPES, kind),
-            FxUnit::Freq.format(damp.into())
-        ));
+        p.not_applied(
+            format!(
+                "Reverb {}, level {level}, time {time}, HF damp {}, feedback {feedback}",
+                named(&REVERB_TYPES, kind),
+                FxUnit::Freq.format(damp.into())
+            ),
+            jv_reverb(kind, level, time),
+        );
     }
     let output = c[EFX_OUTPUT_ASSIGN];
     if output != 0 {
-        p.not_applied(format!("EFX Output Assign {}", named(&EFX_OUTPUTS, output)));
+        p.not_applied(
+            format!("EFX Output Assign {}", named(&EFX_OUTPUTS, output)),
+            None,
+        );
     }
 }
 
@@ -988,7 +999,7 @@ fn tempo(p: &mut Patch<'_>) {
     let tempo = nibble2(p.common, PATCH_TEMPO);
     let clock_patch = p.model == Model::Jv1080 || p.common[CLOCK_SOURCE] == CLOCK_PATCH;
     if clock_patch && tempo != INIT_TEMPO && p.tone.syncs_to_tempo() {
-        p.not_applied(format!("Tempo {tempo}"));
+        p.not_applied(format!("Tempo {tempo}"), None);
     }
 }
 
@@ -1038,11 +1049,14 @@ fn sends(p: &mut Patch<'_>) {
         let [chorus, reverb] = TONE_SENDS.map(|at| tone[at]);
         pcm_tone::write_sends(p.tone.partial(i), routed, chorus, reverb);
         if p.active(i) && output > OUTPUT_EFX {
-            p.not_applied(format!(
-                "Partial {} Output Assign {}",
-                i + 1,
-                named(&TONE_OUTPUTS, output)
-            ));
+            p.not_applied(
+                format!(
+                    "Partial {} Output Assign {}",
+                    i + 1,
+                    named(&TONE_OUTPUTS, output)
+                ),
+                None,
+            );
         }
     }
 }

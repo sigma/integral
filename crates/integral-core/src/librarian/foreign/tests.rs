@@ -4,9 +4,10 @@ use super::*;
 use crate::address::Address;
 use crate::device_spec::INTEGRA7;
 use crate::librarian::pack::{PackEntry, user_memory};
+use crate::params::{self, chorus, reverb};
 use crate::parse_helpers::encode_ascii_name;
 use crate::svd::{ChunkType, SvdError};
-use crate::sysex::build_dt1;
+use crate::sysex::{self, build_dt1};
 
 const SNS: ChunkType = ChunkType::SnSynthTone;
 const SNA: ChunkType = ChunkType::SnAcousticTone;
@@ -50,6 +51,74 @@ fn only_entry(read: &PackRead) -> &PackEntry {
 
 fn skipped(kind: Skipped, count: usize) -> FileItem {
     FileItem::Skipped { kind, count }
+}
+
+/// The messages that load the lone entry of `bytes` into Temporary, with or
+/// without its Chorus and Reverb.
+fn audition(bytes: &[u8], apply_effects: bool) -> Vec<Vec<u8>> {
+    use crate::librarian::import::{ImportAction, PackImport};
+    use crate::librarian::plan::plan_read;
+
+    let read = read(bytes);
+    let plan = plan_read(&read, Origin::Sound, &[], None);
+    let mut import = PackImport::new(0x10, &read.pack, &plan, 0, apply_effects).unwrap();
+    let mut sent = Vec::new();
+    loop {
+        match import.next_action() {
+            ImportAction::Send(message) => sent.push(message),
+            ImportAction::Done(report) => {
+                assert_eq!(report.error, None);
+                return sent;
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+}
+
+/// Whether DT1 `message` writes the Temporary Studio Set's Chorus or
+/// Reverb.
+fn sets_chorus_or_reverb(message: &[u8]) -> bool {
+    sysex::parse_dt1(message).is_ok_and(|dt1| {
+        [params::CHORUS_BASE, params::REVERB_BASE]
+            .iter()
+            .any(|base| dt1.address.0[..3] == base.0[..3])
+    })
+}
+
+/// The DT1s an audition adds to the Temporary Studio Set: Chorus Type and
+/// Level, Output Select and Parameters, then Reverb Type and Level and
+/// Parameters 2–9 (Parameter 1 is hidden).
+fn effect_dt1s(
+    chorus: [u8; 3],
+    chorus_params: &[i32],
+    reverb: [u8; 2],
+    reverb_params: &[i32],
+) -> Vec<Vec<u8>> {
+    let nibs = |params: &[i32]| -> Vec<u8> {
+        params
+            .iter()
+            .flat_map(|&v| crate::state::parse::encode_nib_param(v))
+            .collect()
+    };
+    vec![
+        build_dt1(0x10, &params::chorus_address(chorus::TYPE), &chorus[..2]),
+        build_dt1(
+            0x10,
+            &params::chorus_address(chorus::OUTPUT_SELECT),
+            &chorus[2..],
+        ),
+        build_dt1(
+            0x10,
+            &params::chorus_address(chorus::PARAM_BASE),
+            &nibs(chorus_params),
+        ),
+        build_dt1(0x10, &params::reverb_address(reverb::TYPE), &reverb),
+        build_dt1(
+            0x10,
+            &params::reverb_address(reverb::PARAM_BASE + 4), // Parameter 2
+            &nibs(reverb_params),
+        ),
+    ]
 }
 
 #[test]
@@ -273,6 +342,7 @@ mod xv_patches {
     use super::*;
     use crate::librarian::foreign::wave_map::{ForeignWave, ForeignWaveGroup};
     use crate::parse_helpers::nibble4;
+    use crate::state::parse::encode_nib_param;
     use crate::svd_convert::pack_sections;
     use crate::svd_specs::XV_PATCH_SECTIONS;
 
@@ -604,6 +674,29 @@ mod xv_patches {
         let (entry, report) = converted(&patch([0x30, 0x7F], |_| {}));
         assert_eq!(entry.name(), "Byte Built");
         assert!(report.is_empty(), "{report:?}");
+    }
+
+    #[test]
+    fn an_audition_applies_the_chorus_and_reverb() {
+        let bytes = patch([0x30, 0x00], |b| {
+            // CHORUS, level 80, MAIN+REV: Rate, Depth, Pre-Delay, Feedback,
+            // Filter LPF, Cutoff 630 Hz, Phase 90°.
+            b[2][..4].copy_from_slice(&[1, 80, 0, 2]);
+            for (k, v) in [20, 100, 30, 10, 1, 5, 45].into_iter().enumerate() {
+                b[2][4 + 4 * k..8 + 4 * k].copy_from_slice(&encode_nib_param(v));
+            }
+            b[3][..2].copy_from_slice(&[4, 70]); // SRV PLATE, level 70
+        });
+        let plain = audition(&bytes, false);
+        let expected = effect_dt1s(
+            [1, 80, 2],
+            // Rate 1.05 Hz in 1/20 Hz, the Rate note at its default.
+            &[1, 5, 30, 0, 21, 18, 100, 45, 10],
+            [5, 70], // Plate, its defaults
+            &[0, 26, 127, 127, 50, 50, 127, 64],
+        );
+        assert!(plain.iter().all(|m| !sets_chorus_or_reverb(m)));
+        assert_eq!(audition(&bytes, true), [plain, expected].concat());
     }
 }
 
@@ -1192,6 +1285,38 @@ mod jv_patches {
         assert_eq!(texts(&jv_report), ["EFX Control 1 dropped"]);
         assert_eq!(xv_report.len(), 1);
         assert_eq!(xv_report[0].to_string(), "MFX Control 1 dropped");
+    }
+
+    #[test]
+    fn an_audition_applies_the_chorus_and_reverb() {
+        let effects = |reverb: [u8; 5]| {
+            patch([0x11, 0x00], 0x48, |b| {
+                // Level 100, Rate, Depth, Pre-Delay, Feedback, output REV.
+                b[0][0x21..0x27].copy_from_slice(&[100, 10, 64, 20, 30, 1]);
+                b[0][0x27..0x2C].copy_from_slice(&reverb);
+            })
+        };
+        let hall = effects([4, 90, 64, 13, 0]); // HALL1, level 90, time 64
+        let plain = audition(&hall, false);
+        let expected = effect_dt1s(
+            [1, 100, 1],
+            // Roland's JV → XV route: CHORUS, filter OFF, Phase 180°. Rate
+            // 0.55 Hz in 1/20 Hz, the Rate note at its default.
+            &[0, 7, 20, 0, 11, 18, 64, 90, 30],
+            [3, 90], // Hall 1
+            &[0, 50, 127, 127, 50, 50, 127, 64],
+        );
+        assert!(plain.iter().all(|m| !sets_chorus_or_reverb(m)));
+        assert_eq!(audition(&hall, true), [plain, expected.clone()].concat());
+        // DELAY has no INTEGRA-7 reverb: reported, not applied.
+        let delay = effects([6, 90, 64, 13, 0]);
+        let (_, report) = converted(&delay);
+        assert!(texts(&report)[1].starts_with("Reverb DELAY"));
+        let applied: Vec<_> = audition(&delay, true)
+            .into_iter()
+            .filter(|m| sets_chorus_or_reverb(m))
+            .collect();
+        assert_eq!(applied, expected[..3]);
     }
 
     #[test]

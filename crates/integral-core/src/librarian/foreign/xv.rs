@@ -15,6 +15,7 @@ use super::frame::{self, Frame};
 use super::fx_map;
 use super::pcm_tone::{self, FULL_LEVEL, OUTPUT_TONE, Output, PcmTone};
 use super::report::{ConversionItem, ConversionReport, EffectFamily, ForeignEffect, Location};
+use super::studio_set_fx::{StudioSetEffect, xv_chorus, xv_reverb};
 use super::wave_map::ForeignWaveGroup;
 use super::{Placed, Unit};
 use crate::address::Address;
@@ -314,6 +315,7 @@ pub(super) fn tempo(clock_source: u8, tempo: u16, synced: bool, report: &mut Con
     if synced && clock_source == CLOCK_PATCH && tempo != DEFAULT_TEMPO {
         report.push(ConversionItem::NotApplied {
             what: format!("Tempo {tempo}"),
+            settings: None,
         });
     }
 }
@@ -341,6 +343,7 @@ pub(super) fn output_assign(output: u8, report: &mut ConversionReport) -> u8 {
     if output != OUTPUT_TONE {
         report.push(ConversionItem::NotApplied {
             what: format!("Output Assign {}", named(&OUTPUTS, output)),
+            settings: None,
         });
     }
     OUTPUT_TONE
@@ -421,12 +424,19 @@ pub(super) fn convert_mfx(
 }
 
 /// A Patch or Rhythm effect an INTEGRA-7 tone has no place for: reported
-/// when it sounds.
-fn studio_set_effect(block: &[u8], label: &str, types: &[&str], report: &mut ConversionReport) {
+/// when it sounds, with the Studio Set `settings` it converts to.
+fn studio_set_effect(
+    block: &[u8],
+    label: &str,
+    types: &[&str],
+    settings: fn(&[u8]) -> Option<StudioSetEffect>,
+    report: &mut ConversionReport,
+) {
     let (kind, level) = (block[EFFECT_TYPE], block[EFFECT_LEVEL]);
     if kind != 0 && level != 0 {
         report.push(ConversionItem::NotApplied {
             what: format!("{label} {}, level {level}", named(types, kind)),
+            settings: settings(block),
         });
     }
 }
@@ -439,8 +449,8 @@ fn chorus_and_reverb(p: &mut Patch<'_>) {
 /// A Patch or Rhythm Chorus and Reverb block: they live in the Studio Set
 /// on the INTEGRA-7.
 pub(super) fn chorus_reverb(chorus: &[u8], reverb: &[u8], report: &mut ConversionReport) {
-    studio_set_effect(chorus, "Chorus", &CHORUS_TYPES, report);
-    studio_set_effect(reverb, "Reverb", &REVERB_TYPES, report);
+    studio_set_effect(chorus, "Chorus", &CHORUS_TYPES, xv_chorus, report);
+    studio_set_effect(reverb, "Reverb", &REVERB_TYPES, xv_reverb, report);
 }
 
 /// Tone Chorus/Reverb Send Levels: an XV Tone holds a pair for when it goes

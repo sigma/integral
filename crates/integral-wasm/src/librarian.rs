@@ -12,7 +12,7 @@ use integral_core::catalog::CatalogEntry;
 use integral_core::device_spec::INTEGRA7;
 use integral_core::expansion_slots::ExpansionSlots;
 use integral_core::librarian::export::{self, ExportAction, ExportSource, PackExport};
-use integral_core::librarian::foreign::{PackFormat, PackRead, lossy_count};
+use integral_core::librarian::foreign::{PackFormat, PackRead, lossy_count, studio_set_fx};
 use integral_core::librarian::import::{ImportAction, PackImport};
 use integral_core::librarian::pack::{Pack, ToneRef};
 use integral_core::librarian::plan::{self, ImportPlan, Origin};
@@ -297,6 +297,15 @@ impl WasmImportPlan {
         self.inner.unplaced().collect()
     }
 
+    /// Entries whose Conversion report holds a Chorus or Reverb an
+    /// audition can apply to the Temporary Studio Set.
+    #[wasm_bindgen(js_name = withEffects)]
+    pub fn with_effects(&self) -> Vec<usize> {
+        (0..self.inner.placements().len())
+            .filter(|&i| studio_set_fx::applies_effects(self.inner.report(i)))
+            .collect()
+    }
+
     /// Entries whose destination is a User slot that isn't free.
     pub fn overwrites(&self) -> Vec<usize> {
         self.inner.overwrites().collect()
@@ -550,16 +559,18 @@ pub struct WasmPackImport {
 #[wasm_bindgen(js_class = PackImport)]
 impl WasmPackImport {
     /// Prepare importing `pack` as `plan` says, borrowing Part `part`
-    /// (0-indexed) to store tones.
+    /// (0-indexed) to store tones. With `apply_effects`, a lone entry loaded
+    /// into Temporary also sets the Temporary Studio Set's Chorus and Reverb.
     #[wasm_bindgen(constructor)]
     pub fn new(
         device_id: u8,
         pack: &WasmPack,
         plan: &WasmImportPlan,
         part: u8,
+        apply_effects: bool,
     ) -> Result<WasmPackImport, JsError> {
         Ok(Self {
-            inner: PackImport::new(device_id, &pack.read.pack, &plan.inner, part)
+            inner: PackImport::new(device_id, &pack.read.pack, &plan.inner, part, apply_effects)
                 .map_err(js_err)?,
         })
     }

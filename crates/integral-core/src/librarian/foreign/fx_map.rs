@@ -254,7 +254,7 @@ fn apply(row: &ParamRow, v: i32, slots: &mut Slots) -> bool {
 
 /// A JV rate (0–125) in 1/20 Hz: 0.05–5 Hz by 0.05, to 7 Hz by 0.1, to
 /// 10 Hz by 0.5.
-fn rate_20ths(v: i32) -> Option<i32> {
+pub(super) fn rate_20ths(v: i32) -> Option<i32> {
     match v {
         0..99 => Some(v + 1),
         99..119 => Some(100 + 2 * (v - 99)),

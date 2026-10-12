@@ -22,6 +22,7 @@ mod jv_rhythm;
 mod pcm_kit;
 mod pcm_tone;
 pub mod report;
+pub mod studio_set_fx;
 pub mod wave_map;
 mod xv;
 mod xv_rhythm;

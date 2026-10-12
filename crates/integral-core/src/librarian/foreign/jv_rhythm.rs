@@ -206,6 +206,7 @@ fn outputs(p: &mut Kit<'_>, k: u8, note: &[u8]) {
     } else if output > OUTPUT_EFX {
         p.report.push(ConversionItem::NotApplied {
             what: format!("Key {k} Output Assign {}", jv::named(&TONE_OUTPUTS, output)),
+            settings: None,
         });
     }
 }

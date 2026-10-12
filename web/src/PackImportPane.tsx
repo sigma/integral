@@ -32,6 +32,7 @@ function temporaryLabel(type: LibraryType, part: number): string {
 export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onFocus, busy }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [undo, setUndo] = useState(true);
+  const [applyEffects, setApplyEffects] = useState(false);
   /** The last entry ticked or unticked: ⇧-click spans from it. */
   const [anchor, setAnchor] = useState<number | null>(null);
   const { file, entries, run, locked } = imp;
@@ -65,7 +66,7 @@ export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onF
 
   const startImport = (): void => {
     setConfirming(false);
-    imp.start(undo);
+    imp.start(undo, applyEffects);
   };
 
   return (
@@ -86,6 +87,7 @@ export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onF
               e.target.value = "";
               if (picked) {
                 setConfirming(false);
+                setApplyEffects(false);
                 imp.open(picked);
               }
             }}
@@ -186,7 +188,20 @@ export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onF
                       {run && <EntryStatus status={run.statuses[entry.index]} />}
                       <span className={css.destination}>
                         {entry.placement === "temporary" ? (
-                          temporaryLabel(entry.type, runPart)
+                          <>
+                            {temporaryLabel(entry.type, runPart)}
+                            {entry.effects && (
+                              <label className={css.check}>
+                                <input
+                                  type="checkbox"
+                                  checked={applyEffects}
+                                  disabled={locked}
+                                  onChange={(e) => setApplyEffects(e.target.checked)}
+                                />
+                                Apply its Chorus/Reverb to the Temporary Studio Set
+                              </label>
+                            )}
+                          </>
                         ) : imp.focused === entry.index &&
                           !locked &&
                           entry.placement !== "excluded" &&

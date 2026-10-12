@@ -46,6 +46,7 @@ use std::collections::VecDeque;
 
 use thiserror::Error;
 
+use super::foreign::studio_set_fx;
 use super::pack::{Pack, PackEntry, ToneRef, user_memory};
 use super::plan::{ImportPlan, Placement};
 use super::reader::{BlockData, BlockReader};
@@ -82,6 +83,9 @@ pub enum ImportError {
     /// The host cancelled the import.
     #[error("import cancelled")]
     Cancelled,
+    /// Effects apply only to a single entry loaded into Temporary.
+    #[error("effects apply only to a single entry loaded into Temporary")]
+    EffectsNeedTemporary,
 }
 
 /// Where an entry stands.
@@ -162,12 +166,15 @@ pub struct PackImport {
 
 impl PackImport {
     /// Prepare importing `pack` as `plan` says, borrowing Part `part`
-    /// (0-indexed; the selected Part) to store tones.
+    /// (0-indexed; the selected Part) to store tones. With `apply_effects`,
+    /// a single entry loaded into Temporary also sets the Temporary Studio
+    /// Set's Chorus and Reverb from its Conversion report.
     pub fn new(
         device_id: u8,
         pack: &Pack,
         plan: &ImportPlan,
         part: u8,
+        apply_effects: bool,
     ) -> Result<Self, ImportError> {
         let placements = plan.placements();
         if placements.len() != pack.entries.len() {
@@ -221,6 +228,15 @@ impl PackImport {
             jobs.push(job);
         }
         jobs.sort_by_key(|j| pack.entries[j.entry].kind() == ChunkType::StudioSet);
+        if apply_effects {
+            match jobs.as_mut_slice() {
+                [job] if job.write.is_none() => job.sends.extend(studio_set_fx::report_dt1s(
+                    device_id,
+                    plan.report(job.entry),
+                )),
+                _ => return Err(ImportError::EffectsNeedTemporary),
+            }
+        }
 
         let set_memory = user_memory(ChunkType::StudioSet).expect("Studio Sets have a layout");
         let set_blocks: Vec<(Address, DataSize)> = set_memory.blocks(address::STUDIO_SET).collect();
@@ -694,7 +710,7 @@ mod tests {
         let pack = pack();
         let mut device = Device::new();
         let before = device.mem.clone();
-        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART).unwrap();
+        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART, false).unwrap();
         let report = device.run(&mut import);
 
         use EntryStatus::*;
@@ -751,7 +767,7 @@ mod tests {
         let mut plan = plan(&pack);
         plan.exclude(2).unwrap();
         let mut device = Device::new();
-        let mut import = PackImport::new(0x10, &pack, &plan, PART).unwrap();
+        let mut import = PackImport::new(0x10, &pack, &plan, PART, false).unwrap();
         device.run(&mut import);
 
         // Part 1 played Tone B (Pack position 2): it stays on User slot 2.
@@ -769,7 +785,7 @@ mod tests {
         plan.assign(1, 1).unwrap();
         let mut device = Device::new();
         let before = device.mem.clone();
-        let mut import = PackImport::new(0x10, &pack, &plan, PART).unwrap();
+        let mut import = PackImport::new(0x10, &pack, &plan, PART, false).unwrap();
         device.run(&mut import);
 
         let reads: Vec<_> = device
@@ -791,7 +807,7 @@ mod tests {
         let pack = pack();
         let mut device = Device::new();
         let before = device.mem.clone();
-        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART).unwrap();
+        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART, false).unwrap();
         while device.writes().is_empty() {
             assert!(device.step(&mut import).is_none());
         }
@@ -816,7 +832,7 @@ mod tests {
         let pack = pack();
         let mut device = Device::new();
         let before = device.mem.clone();
-        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART).unwrap();
+        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART, false).unwrap();
         while !matches!(device.events.last(), Some(Event::Dt1(..))) {
             device.step(&mut import);
         }
@@ -831,7 +847,7 @@ mod tests {
     fn cancel_during_snapshot_sends_nothing() {
         let pack = pack();
         let mut device = Device::new();
-        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART).unwrap();
+        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART, false).unwrap();
         device.step(&mut import);
         import.cancel();
         let report = device.run(&mut import);
@@ -845,7 +861,7 @@ mod tests {
         let mut device = Device::new();
         device.writes = false;
         let before = device.mem.clone();
-        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART).unwrap();
+        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART, false).unwrap();
         let report = device.run(&mut import);
 
         use EntryStatus::*;
@@ -866,7 +882,7 @@ mod tests {
         let pcms = user_memory(PCMS).unwrap();
         let (common2, _) = pcms.blocks(pcms.temporary_base(1)).last().unwrap();
         device.mem.remove(&common2.value());
-        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART).unwrap();
+        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART, false).unwrap();
         let report = device.run(&mut import);
 
         assert_eq!(report.error, Some(ImportError::Snapshot(common2)));
@@ -887,7 +903,7 @@ mod tests {
         let plan = plan_import(&pack, Origin::Sound, &[], None);
         assert_eq!(plan.placements(), [Placement::Temporary]);
         let mut device = Device::new();
-        let mut import = PackImport::new(0x10, &pack, &plan, PART).unwrap();
+        let mut import = PackImport::new(0x10, &pack, &plan, PART, false).unwrap();
         let report = device.run(&mut import);
 
         assert_eq!(report.statuses, [EntryStatus::Loaded]);
@@ -918,7 +934,7 @@ mod tests {
         };
         let plan = plan_import(&pack, Origin::Sound, &[], None);
         let mut device = Device::new();
-        let mut import = PackImport::new(0x10, &pack, &plan, PART).unwrap();
+        let mut import = PackImport::new(0x10, &pack, &plan, PART, false).unwrap();
         let report = device.run(&mut import);
 
         assert_eq!(report.statuses, [EntryStatus::Loaded]);
@@ -943,20 +959,25 @@ mod tests {
         let pack = pack();
         let plan = plan_import(&pack, Origin::Sound, &[], None);
         assert_eq!(
-            PackImport::new(0x10, &pack, &plan, PART).err(),
+            PackImport::new(0x10, &pack, &plan, PART, false).err(),
             Some(ImportError::Unplaced(vec![0, 1, 2, 3, 4]))
         );
         let ready = self::plan(&pack);
         assert_eq!(
-            PackImport::new(0x10, &pack, &ready, 16).err(),
+            PackImport::new(0x10, &pack, &ready, 16, false).err(),
             Some(ImportError::InvalidPart(16))
         );
         let other = Pack {
             entries: vec![entry(SNS, "A", 0)],
         };
         assert_eq!(
-            PackImport::new(0x10, &other, &ready, PART).err(),
+            PackImport::new(0x10, &other, &ready, PART, false).err(),
             Some(ImportError::PlanMismatch)
+        );
+        // Effects apply only to an audition.
+        assert_eq!(
+            PackImport::new(0x10, &pack, &ready, PART, true).err(),
+            Some(ImportError::EffectsNeedTemporary)
         );
     }
 
@@ -978,7 +999,7 @@ mod tests {
         let mut plan = plan_import(&pack, Origin::Sound, &[], None);
         plan.exclude(0).unwrap();
         plan.exclude(1).unwrap();
-        let mut import = PackImport::new(0x10, &pack, &plan, PART).unwrap();
+        let mut import = PackImport::new(0x10, &pack, &plan, PART, false).unwrap();
         assert!(matches!(import.next_action(), ImportAction::Done(r) if r.error.is_none()));
     }
 }

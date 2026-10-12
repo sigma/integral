@@ -40,6 +40,8 @@ function entries(): ImportEntry[] {
     placement: { user: index },
     report,
     lossy,
+    // Only the XV fixture's Patch has a Chorus/Reverb to apply.
+    effects: report === REPORT,
     source,
   });
   return [entry(0, "United !", REPORT, 2), entry(1, "Tempo", NOT_APPLIED, 0, "JV-1080"), entry(2, "Clean", [], 0)];
@@ -47,18 +49,31 @@ function entries(): ImportEntry[] {
 
 function noop(): void {}
 
-/** The pane on an opened file, showing reports as the hook does. */
-function Opened({ warnings }: { warnings: string[] }) {
+/** The pane on an opened file, showing reports as the hook does. With
+ * `audition`, only the lossy tone, loaded into Temporary. */
+function Opened({
+  warnings,
+  audition = false,
+  start = noop,
+}: {
+  warnings: string[];
+  audition?: boolean;
+  start?: UseLibraryImportResult["start"];
+}) {
   const [reportShown, setReportShown] = useState<ReadonlySet<number>>(new Set());
   const imp: UseLibraryImportResult = {
     file: { name: "dump.syx", label: pack.label },
     opening: false,
     openError: null,
-    entries: entries(),
+    entries: audition
+      ? entries()
+          .slice(0, 1)
+          .map((e) => ({ ...e, placement: "temporary" as const }))
+      : entries(),
     warnings,
     unplaced: 0,
     overwrites: [],
-    temporary: false,
+    temporary: audition,
     focused: null,
     focus: noop,
     reportShown,
@@ -70,7 +85,7 @@ function Opened({ warnings }: { warnings: string[] }) {
     run: null,
     busy: false,
     locked: false,
-    start: noop,
+    start,
     cancel: noop,
   };
   const type = libraryType("pcm-synth");
@@ -142,5 +157,28 @@ describe("PackImportPane", () => {
     const { container } = render(<Opened warnings={fileReport} />);
     const warnings = [...container.querySelectorAll("li")].map((li) => li.textContent);
     expect(warnings).toContain("1 other message skipped");
+  });
+
+  it("applies a Foreign patch's Chorus/Reverb on audition only when ticked", () => {
+    const starts: boolean[] = [];
+    const start = (_undo: boolean, applyEffects: boolean): void => {
+      starts.push(applyEffects);
+    };
+    expect(
+      render(<Opened warnings={[]} />).container.textContent,
+    ).not.toContain("Apply its Chorus/Reverb");
+    cleanup();
+
+    const { container } = render(<Opened warnings={[]} audition start={start} />);
+    const box = [...container.querySelectorAll<HTMLInputElement>("input[type=checkbox]")].find((b) =>
+      b.parentElement?.textContent?.includes("Apply its Chorus/Reverb to the Temporary Studio Set"),
+    );
+    if (!box) throw new Error("no Chorus/Reverb checkbox");
+    expect(box.checked).toBe(false);
+    const load = button(container, "Load into Part 1");
+    click(load);
+    click(box);
+    click(load);
+    expect(starts).toEqual([false, true]);
   });
 });

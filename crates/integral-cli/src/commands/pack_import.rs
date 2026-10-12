@@ -48,6 +48,10 @@ pub struct ImportOptions {
     #[arg(long, value_name = "N", default_value_t = 1,
           value_parser = clap::value_parser!(u8).range(1..=i64::from(INTEGRA7.part_count)))]
     part: u8,
+    /// Also apply a lone Foreign patch's Chorus and Reverb to the Temporary
+    /// Studio Set. Only for a single entry loaded into Temporary.
+    #[arg(long)]
+    apply_effects: bool,
     /// Print the plan and stop. Only reads from the device.
     #[arg(long)]
     dry_run: bool,
@@ -133,6 +137,9 @@ fn plan(
         }
         plan.assign(i, slot - 1)
             .with_context(|| format!("--to {id}={slot}"))?;
+    }
+    if opts.apply_effects && plan.placements() != [Placement::Temporary] {
+        bail!("--apply-effects: only a single entry loaded into Temporary takes effects");
     }
     Ok(plan)
 }
@@ -547,7 +554,13 @@ fn store(
             report.undo = Some(path);
         }
     }
-    let mut import = PackImport::new(dev.device_id(), report.pack, report.plan, opts.part - 1)?;
+    let mut import = PackImport::new(
+        dev.device_id(),
+        report.pack,
+        report.plan,
+        opts.part - 1,
+        opts.apply_effects,
+    )?;
     let (statuses, error) = drive(dev, throttle, &mut import, report);
     report.statuses = Some(statuses);
     report.error = error;
@@ -746,6 +759,14 @@ mod tests {
 
         assert!(plan_with(&["--to", "pcm-drum:1=33"]).is_err());
         assert!(plan_with(&["--only", "sn-synth:1", "--to", "pcm-drum:1=5"]).is_err());
+        // Effects apply only to a lone entry, loaded into Temporary.
+        assert!(plan_with(&["--apply-effects"]).is_err());
+        let lone = read_of(Pack {
+            entries: vec![entry(ChunkType::PcmSynthTone, None)],
+        });
+        let apply = opts(&["--apply-effects"]).unwrap();
+        let audition = plan(&lone, &[], None, &apply).unwrap();
+        assert_eq!(audition.placements(), [Placement::Temporary]);
     }
 
     #[test]
