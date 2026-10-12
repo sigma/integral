@@ -45,15 +45,19 @@
   justify-content: start;
 }
 
+/* As wide as the row of boxes under it */
 .commonCell {
   grid-column: 1;
   grid-row: 1;
-  justify-self: start;
+  display: flex;
+  flex-direction: column;
 }
 
+/* At its own height (not the MFX's), centred against the MFX */
 .toneRow {
   grid-column: 1;
   grid-row: 2;
+  align-self: center;
   display: flex;
   gap: 8px;
   align-items: stretch;
