@@ -91,22 +91,38 @@ function WaveSection({
   return (
     <SectionPanel label="WAVE" accentColor="#fc8">
       <PartialWave partial={partial} set={set} marking={marking} />
-      <SynthSwitch label="Gain" value={partial.waveGain}
-        options={WAVE_GAIN_NAMES.map((l, i) => ({ value: i, label: l }))}
-        onChange={set(PcmsPartialField.WaveGain, "waveGain")} title="Wave output gain" />
-      <SynthKnob label="Key Trk" value={partial.wavePitchKeyfollow} min={44} max={84} defaultValue={64} center={64}
-        onChange={set(PcmsPartialField.WavePitchKeyfollow, "wavePitchKeyfollow")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
-        title="Pitch keyboard tracking" />
-      <SynthSwitch label="Tempo" value={partial.waveTempoSync} options={ON_OFF_OPTIONS}
-        onChange={set(PcmsPartialField.WaveTempoSync, "waveTempoSync")} title="Sync wave playback to song tempo" />
-      <SynthSwitch label="FXM" value={partial.waveFxmSwitch} options={ON_OFF_OPTIONS}
-        onChange={set(PcmsPartialField.WaveFxmSwitch, "waveFxmSwitch")} title="Frequency Cross Modulation" />
-      <SynthKnob label="FXM Col" value={partial.waveFxmColor} min={0} max={3} defaultValue={0}
-        onChange={set(PcmsPartialField.WaveFxmColor, "waveFxmColor")} formatValue={(v) => String(v + 1)} color="#fc8"
-        title="FXM Color — tonal character" />
-      <SynthKnob label="FXM Dpt" value={partial.waveFxmDepth} min={0} max={16} defaultValue={0}
-        onChange={set(PcmsPartialField.WaveFxmDepth, "waveFxmDepth")} formatValue={(v) => String(v)} color="#fc8"
-        title="FXM Depth — intensity" />
+      <div className={css.waveControls}>
+        <div className={css.switchColumn}>
+          <SynthSwitch label="Gain" value={partial.waveGain}
+            options={WAVE_GAIN_NAMES.map((l, i) => ({ value: i, label: l }))}
+            onChange={set(PcmsPartialField.WaveGain, "waveGain")} title="Wave output gain" />
+          <SynthSwitch label="Tempo" value={partial.waveTempoSync} options={ON_OFF_OPTIONS}
+            onChange={set(PcmsPartialField.WaveTempoSync, "waveTempoSync")} title="Sync wave playback to song tempo" />
+          <SynthSwitch label="FXM" value={partial.waveFxmSwitch} options={ON_OFF_OPTIONS}
+            onChange={set(PcmsPartialField.WaveFxmSwitch, "waveFxmSwitch")} title="Frequency Cross Modulation" />
+        </div>
+        <div className={`${css.knobGrid} ${css.knobGrid3}`}>
+          <SynthKnob label="Coarse" value={partial.coarseTune} min={16} max={112} defaultValue={64} center={64}
+            onChange={set(PcmsPartialField.CoarseTune, "coarseTune")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
+            title="Coarse tuning (semitones)" />
+          <SynthKnob label="Fine" value={partial.fineTune} min={14} max={114} defaultValue={64} center={64}
+            onChange={set(PcmsPartialField.FineTune, "fineTune")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
+            title="Fine tuning (cents)" />
+          <SynthKnob label="Random" value={partial.randomPitchDepth}
+            {...knobRange(pcms_partial_spec(PcmsPartialField.RandomPitchDepth))}
+            onChange={set(PcmsPartialField.RandomPitchDepth, "randomPitchDepth")} color="#fc8"
+            title="Random pitch variation on each note (cents)" />
+          <SynthKnob label="Key Trk" value={partial.wavePitchKeyfollow} min={44} max={84} defaultValue={64} center={64}
+            onChange={set(PcmsPartialField.WavePitchKeyfollow, "wavePitchKeyfollow")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
+            title="Pitch keyboard tracking" />
+          <SynthKnob label="FXM Col" value={partial.waveFxmColor} min={0} max={3} defaultValue={0}
+            onChange={set(PcmsPartialField.WaveFxmColor, "waveFxmColor")} formatValue={(v) => String(v + 1)} color="#fc8"
+            title="FXM Color — tonal character" />
+          <SynthKnob label="FXM Dpt" value={partial.waveFxmDepth} min={0} max={16} defaultValue={0}
+            onChange={set(PcmsPartialField.WaveFxmDepth, "waveFxmDepth")} formatValue={(v) => String(v)} color="#fc8"
+            title="FXM Depth — intensity" />
+        </div>
+      </div>
     </SectionPanel>
   );
 }
@@ -160,18 +176,6 @@ function PitchSection({
 }) {
   return (
     <SectionPanel label="PITCH ENV" accentColor="#fc8">
-      <div className={css.panelRow}>
-        <SynthKnob label="Coarse" value={partial.coarseTune} min={16} max={112} defaultValue={64} center={64}
-          onChange={set(PcmsPartialField.CoarseTune, "coarseTune")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
-          title="Coarse tuning (semitones)" />
-        <SynthKnob label="Fine" value={partial.fineTune} min={14} max={114} defaultValue={64} center={64}
-          onChange={set(PcmsPartialField.FineTune, "fineTune")} formatValue={(v) => signedFmt(v, 64)} color="#fc8"
-          title="Fine tuning (cents)" />
-        <SynthKnob label="Random" value={partial.randomPitchDepth}
-          {...knobRange(pcms_partial_spec(PcmsPartialField.RandomPitchDepth))}
-          onChange={set(PcmsPartialField.RandomPitchDepth, "randomPitchDepth")} color="#fc8"
-          title="Random pitch variation on each note (cents)" />
-      </div>
       <div className={css.panelRow}>
         <SynthKnob label="Depth" value={partial.pitchEnvDepth} center={64}
           {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvDepth))}

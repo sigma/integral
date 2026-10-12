@@ -195,6 +195,19 @@
   flex-shrink: 0;
 }
 
+/* WAVE box: switches in a column, pitch and FXM knobs beside them */
+.waveControls {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.switchColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* ----------------------------------------------------------------
    Depth fader sections (LFO)
    ---------------------------------------------------------------- */
