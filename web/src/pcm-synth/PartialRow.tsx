@@ -53,22 +53,41 @@ const JOIN_GLYPHS = { mix: "+", booster: "B", ring: "R" } as const;
  * PITCH and CONTROL, then the blocks before the join; blocks after the join,
  * and a merged pair's single OUTPUT (the lower partial's), span both rows.
  */
-export function PartialPair({
-  first,
-  structure,
-  upper,
-  lower,
-  marking,
-}: {
+/** One pair of partials (1 & 2, or 3 & 4) and its Structure. */
+export interface Pair {
   /** Index (0-based) of the pair's upper partial: 0 or 2. */
   first: number;
   /** The pair's Structure Type (0-9). */
   structure: number;
   upper: PairPartial;
   lower: PairPartial;
-  /** Loaded state of the Expansions behind SRX Wave Groups. */
-  marking?: ExpansionMarking;
-}) {
+}
+
+/**
+ * The partials, a pair at a time, on one grid: the LFO and WAVE columns line
+ * up across all partials, and each pair's path follows its Structure.
+ */
+export function PartialGrid({ pairs, marking }: { pairs: Pair[]; marking?: ExpansionMarking }) {
+  const laid = pairs.map((pair, i) => pairLayout(pair, 2 * i, marking));
+  return (
+    <div className={css.partialGrid}>
+      {laid.flatMap((l) => l.cells)}
+      <SignalArrows edges={laid.flatMap((l) => l.edges)} />
+    </div>
+  );
+}
+
+/**
+ * A pair's blocks along its Structure's signal path, on grid rows
+ * `rowBase + 1` (upper partial) and `rowBase + 2` (lower): the detached LFO
+ * blocks, each lane's head (WAVE, PITCH, CONTROL), its blocks before the
+ * join, then a merged block centred on both rows, with arrows between blocks.
+ */
+function pairLayout(
+  { first, structure, upper, lower }: Pair,
+  rowBase: number,
+  marking?: ExpansionMarking,
+): { cells: ReactNode[]; edges: Edge[] } {
   const routing = routingOf(structure);
   const sides = { upper, lower };
   const number = { upper: first + 1, lower: first + 2 };
@@ -112,7 +131,10 @@ export function PartialPair({
   const place = (node: string, row: Side | "both", column: number, content: ReactNode, block = true) => {
     cells.push(
       <div key={node} data-node={node} className={`${block ? css.block : css.pairCell} ${row === "both" ? css.mergedCell : ""}`}
-        style={{ gridColumn: column, gridRow: row === "both" ? "1 / span 2" : row === "upper" ? 1 : 2 }}>
+        style={{
+          gridColumn: column,
+          gridRow: row === "both" ? `${rowBase + 1} / span 2` : rowBase + (row === "upper" ? 1 : 2),
+        }}>
         {content}
       </div>,
     );
@@ -167,12 +189,7 @@ export function PartialPair({
     edges.push({ from: lastBlock.upper, to: node, glyph }, { from: lastBlock.lower, to: node, glyph });
   }
 
-  return (
-    <div className={css.partialPair}>
-      {cells}
-      <SignalArrows edges={edges} />
-    </div>
-  );
+  return { cells, edges };
 }
 
 function setterFor(onParam: PartialParamHandler): PartialSetter {

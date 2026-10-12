@@ -145,15 +145,17 @@
    ---------------------------------------------------------------- */
 
 /*
- * A pair of partials (1 & 2, 3 & 4): two rows on one grid, so blocks after
- * the Structure's join can span both rows; columns are placed by PartialPair.
+ * All partials on one grid, two rows per pair (1 & 2, 3 & 4), so the LFO and
+ * WAVE columns line up across partials and a merged pair's blocks can span its
+ * two rows. Columns and cells take their content's width (no stretching), so
+ * the arrows start and end on the blocks themselves.
  */
-.partialPair {
+.partialGrid {
   position: relative;
   display: grid;
-  grid-template-rows: auto auto;
   gap: 8px 56px;
-  align-items: stretch;
+  justify-content: start;
+  place-items: stretch start;
   overflow-x: auto;
   padding-bottom: 2px;
 }

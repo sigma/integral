@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { WasmDeviceState, pcms_partial_size } from "../../pkg/integral_wasm.js";
-import { PartialPair, type PairPartial } from "./PartialRow";
+import { PartialGrid, type PairPartial } from "./PartialRow";
 import type { PcmSynthPartial } from "./types";
 import { cleanup, render } from "../test/dom";
 
@@ -15,7 +15,9 @@ function partial(): PcmSynthPartial {
 const half = (): PairPartial => ({ partial: partial(), isOn: true, onParam: () => {}, onSwitch: () => {} });
 
 function layout(structure: number) {
-  const { container } = render(<PartialPair first={0} structure={structure} upper={half()} lower={half()} />);
+  const { container } = render(
+    <PartialGrid pairs={[{ first: 0, structure, upper: half(), lower: half() }]} />,
+  );
   // A box is a SectionPanel (it sets its accent as the top border) headed `label`;
   // its block is the nearest element placed on the grid.
   const panels = (label: string) =>
@@ -29,7 +31,7 @@ function layout(structure: number) {
   return { container, spans, blocks };
 }
 
-describe("PartialPair", () => {
+describe("PartialGrid", () => {
   it("keeps independent partials (Structure 1) in their own rows, each with its OUTPUT", () => {
     const { spans, container } = layout(0);
     // Each row is one partial: no numbers needed.
@@ -60,5 +62,22 @@ describe("PartialPair", () => {
     expect(container.querySelector('[role="slider"][aria-label="FLT 2"]')).not.toBeNull();
     // Partial 1's pan modulation follows partial 2.
     expect(container.querySelector('[title*="Follows partial 2"]')).not.toBeNull();
+  });
+});
+
+describe("PartialGrid with both pairs", () => {
+  it("puts every partial's LFOs and WAVE in shared columns", () => {
+    const { container } = render(
+      <PartialGrid pairs={[
+        { first: 0, structure: 1, upper: half(), lower: half() },
+        { first: 2, structure: 0, upper: half(), lower: half() },
+      ]} />,
+    );
+    const placed = (prefix: string) =>
+      [...container.querySelectorAll<HTMLElement>("[data-node]")]
+        .filter((d) => d.dataset.node!.includes(prefix))
+        .map((d) => `${d.style.gridRow}:${d.style.gridColumn}`);
+    expect(placed("-lfo-")).toEqual(["1:2", "2:2", "3:2", "4:2"]);
+    expect(placed("-head-")).toEqual(["1:3", "2:3", "3:3", "4:3"]);
   });
 });
