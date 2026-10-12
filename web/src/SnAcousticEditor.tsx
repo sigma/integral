@@ -1,6 +1,8 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, type ReactNode } from "react";
 import {
   sna_inst_params_by_category,
+  sna_has_portamento_offset,
+  sna_has_tone_offsets,
   sna_common_address,
   sna_common_size,
   sna_mfx_address,
@@ -247,6 +249,15 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
 // Tone-wide boxes: COMMON, VIBRATO, FILTER, AMP, ENV
 // ---------------------------------------------------------------------------
 
+/** Offset controls, shown disabled when the instrument ignores them. */
+function Offset({ enabled, children }: { enabled: boolean; children: ReactNode }) {
+  return enabled ? <>{children}</> : (
+    <div className={css.offsetDisabled} inert title="This instrument ignores these offsets">
+      {children}
+    </div>
+  );
+}
+
 function CommonPanels({
   common,
   onChange,
@@ -259,6 +270,9 @@ function CommonPanels({
     (v: number) =>
       onChange(field, key, v);
   const offset = (v: number) => signedFmt(v, 64);
+  // Some instruments ignore some offsets (Parameter Guide): show them disabled.
+  const toneOffsets = sna_has_tone_offsets(common.instVariation, common.instNumber);
+  const portamento = sna_has_portamento_offset(common.instVariation, common.instNumber);
   return (
     <>
       <SectionPanel label="COMMON" accentColor="#8cf">
@@ -268,9 +282,11 @@ function CommonPanels({
           <SynthKnob label="Oct" value={common.octaveShift} min={61} max={67} defaultValue={64} center={64}
             onChange={set(SnaCommonField.OctaveShift, "octaveShift")} formatValue={offset} color="#8cf"
             title="Octave Shift" />
-          <SynthKnob label="Port" value={common.portamentoTimeOffset} min={0} max={127} defaultValue={64} center={64}
-            onChange={set(SnaCommonField.PortamentoTimeOffset, "portamentoTimeOffset")} formatValue={offset} color="#8cf"
-            title="Portamento Time Offset" />
+          <Offset enabled={portamento}>
+            <SynthKnob label="Port" value={common.portamentoTimeOffset} min={0} max={127} defaultValue={64} center={64}
+              onChange={set(SnaCommonField.PortamentoTimeOffset, "portamentoTimeOffset")} formatValue={offset} color="#8cf"
+              title="Portamento Time Offset" />
+          </Offset>
         </div>
       </SectionPanel>
 
@@ -289,39 +305,43 @@ function CommonPanels({
       </SectionPanel>
 
       <SectionPanel label="FILTER" accentColor="#68c">
-        <div className={css.panelRow}>
-          <SynthKnob label="Cutoff" value={common.cutoffOffset} min={0} max={127} defaultValue={64} center={64}
-            onChange={set(SnaCommonField.CutoffOffset, "cutoffOffset")} formatValue={offset} color="#68c"
-            title="Cutoff Offset" />
-          <SynthKnob label="Reso" value={common.resonanceOffset} min={0} max={127} defaultValue={64} center={64}
-            onChange={set(SnaCommonField.ResonanceOffset, "resonanceOffset")} formatValue={offset} color="#68c"
-            title="Resonance Offset" />
-        </div>
+        <Offset enabled={toneOffsets}>
+          <div className={css.panelRow}>
+            <SynthKnob label="Cutoff" value={common.cutoffOffset} min={0} max={127} defaultValue={64} center={64}
+              onChange={set(SnaCommonField.CutoffOffset, "cutoffOffset")} formatValue={offset} color="#68c"
+              title="Cutoff Offset" />
+            <SynthKnob label="Reso" value={common.resonanceOffset} min={0} max={127} defaultValue={64} center={64}
+              onChange={set(SnaCommonField.ResonanceOffset, "resonanceOffset")} formatValue={offset} color="#68c"
+              title="Resonance Offset" />
+          </div>
+        </Offset>
       </SectionPanel>
 
       <SectionPanel label="AMP" accentColor="#6c8">
-        <FaderGroup>
-          <SynthFader label="Level" value={common.toneLevel} min={0} max={127} defaultValue={127}
-            onChange={set(SnaCommonField.ToneLevel, "toneLevel")} formatValue={(v) => String(v)} compact
-            title="Tone Level" />
-        </FaderGroup>
+        <div className={css.ampRow}>
+          <FaderGroup>
+            <SynthFader label="Level" value={common.toneLevel} min={0} max={127} defaultValue={127}
+              onChange={set(SnaCommonField.ToneLevel, "toneLevel")} formatValue={(v) => String(v)} compact
+              title="Tone Level" />
+          </FaderGroup>
+          <Offset enabled={toneOffsets}>
+            <ADSREnvelope
+              compact
+              attack={{
+                label: "Atk", value: common.attackTimeOffset, min: 0, max: 127, defaultValue: 64,
+                onChange: set(SnaCommonField.AttackTimeOffset, "attackTimeOffset"), formatValue: offset,
+                title: "Attack Time Offset",
+              }}
+              release={{
+                label: "Rel", value: common.releaseTimeOffset, min: 0, max: 127, defaultValue: 64,
+                onChange: set(SnaCommonField.ReleaseTimeOffset, "releaseTimeOffset"), formatValue: offset,
+                title: "Release Time Offset",
+              }}
+            />
+          </Offset>
+        </div>
       </SectionPanel>
 
-      <SectionPanel label="ENV" accentColor="#6c8">
-        <ADSREnvelope
-          compact
-          attack={{
-            label: "Atk", value: common.attackTimeOffset, min: 0, max: 127, defaultValue: 64,
-            onChange: set(SnaCommonField.AttackTimeOffset, "attackTimeOffset"), formatValue: offset,
-            title: "Attack Time Offset",
-          }}
-          release={{
-            label: "Rel", value: common.releaseTimeOffset, min: 0, max: 127, defaultValue: 64,
-            onChange: set(SnaCommonField.ReleaseTimeOffset, "releaseTimeOffset"), formatValue: offset,
-            title: "Release Time Offset",
-          }}
-        />
-      </SectionPanel>
     </>
   );
 }

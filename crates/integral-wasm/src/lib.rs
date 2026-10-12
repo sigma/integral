@@ -2089,6 +2089,20 @@ pub fn sn_drum_insts_json() -> String {
     serde_json::to_string(sn_drum::sn_drum_insts()).unwrap_or_else(|_| "[]".to_string())
 }
 
+/// Whether an SN-A instrument (Inst Variation, Inst Number) responds to the
+/// Cutoff, Resonance, Attack and Release Offsets.
+#[wasm_bindgen]
+pub fn sna_has_tone_offsets(variation: u8, number: u8) -> bool {
+    sn_acoustic::sna_offsets(variation, number).tone
+}
+
+/// Whether an SN-A instrument (Inst Variation, Inst Number) responds to the
+/// Portamento Time Offset.
+#[wasm_bindgen]
+pub fn sna_has_portamento_offset(variation: u8, number: u8) -> bool {
+    sn_acoustic::sna_offsets(variation, number).portamento
+}
+
 /// Returns chorus parameter definitions for the given type index.
 #[wasm_bindgen]
 pub fn chorus_params(chorus_type: u8) -> Vec<WasmFxParamDef> {

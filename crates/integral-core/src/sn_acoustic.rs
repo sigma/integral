@@ -245,9 +245,71 @@ pub fn parse_sna_common(data: &[u8]) -> Result<SnAcousticCommon, crate::TonePars
     Ok(c)
 }
 
+/// Which tone-wide offsets an SN-A instrument responds to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SnaOffsets {
+    /// Cutoff, Resonance, Attack Time and Release Time Offsets.
+    pub tone: bool,
+    /// Portamento Time Offset.
+    pub portamento: bool,
+}
+
+/// The offsets the instrument at Inst Variation `variation`, Inst Number
+/// `number` responds to. The Parameter Guide hides Cutoff, Resonance, Attack
+/// and Release Offsets for INT 001 Concert Grand, INT 009 Honky-tonk and
+/// INT 029 TW Organ, and Portamento Time Offset for TW Organ.
+pub fn sna_offsets(variation: u8, number: u8) -> SnaOffsets {
+    // shortcut: Roland's Editor list (sna_inst.js) keys instruments by (lsb, pc): Concert Grand (64, 0), Honky-tonk (64, 8), TW Organ (65, 0); taking lsb as Inst Variation and pc as Inst Number is inferred, not documented; check on the device if these instruments don't dim.
+    match (variation, number) {
+        (64, 0) | (64, 8) => SnaOffsets {
+            tone: false,
+            portamento: true,
+        },
+        (65, 0) => SnaOffsets {
+            tone: false,
+            portamento: false,
+        },
+        _ => SnaOffsets {
+            tone: true,
+            portamento: true,
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn concert_grand_honky_tonk_and_tw_organ_ignore_the_tone_offsets() {
+        let all = SnaOffsets {
+            tone: true,
+            portamento: true,
+        };
+        assert_eq!(
+            sna_offsets(64, 0),
+            SnaOffsets {
+                tone: false,
+                portamento: true
+            }
+        );
+        assert_eq!(
+            sna_offsets(64, 8),
+            SnaOffsets {
+                tone: false,
+                portamento: true
+            }
+        );
+        assert_eq!(
+            sna_offsets(65, 0),
+            SnaOffsets {
+                tone: false,
+                portamento: false
+            }
+        );
+        assert_eq!(sna_offsets(64, 1), all); // Grand Piano1
+        assert_eq!(sna_offsets(0, 4), all); // Pure Vintage EP1
+    }
 
     #[test]
     fn sna_common_address_part1() {

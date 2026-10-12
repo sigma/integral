@@ -58,3 +58,15 @@
   padding-top: 4px;
 }
 
+
+/* AMP: the Level fader beside its envelope */
+.ampRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+/* Offsets the instrument ignores: shown, but not editable */
+.offsetDisabled {
+  opacity: 0.35;
+}

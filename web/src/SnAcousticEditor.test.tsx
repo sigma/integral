@@ -32,4 +32,24 @@ describe("SnAcousticEditor", () => {
       { address: [...common, 34], data: [1] },
     ]);
   });
+
+  it("disables the offsets the selected instrument ignores (TW Organ)", async () => {
+    const { service } = fakeToneService(new WasmDeviceState(0x10));
+    const common = [...sna_common_address(PART)];
+    const base = service.requestData.bind(service);
+    // TW Organ: Inst Variation 65, Inst Number 0 (Common `00 20`, `00 21`).
+    service.requestData = async (address: number[], size: number[]) => {
+      const data = await base(address, size);
+      if (address.every((b, i) => b === common[i])) data[0x20] = 65;
+      return data;
+    };
+    const { container } = render(<SnAcousticEditor partIndex={PART} service={service} />);
+    await act(async () => {});
+
+    const inert = (label: string) => slider(container, label).closest("[inert]") !== null;
+    expect(inert("Cutoff")).toBe(true);
+    expect(inert("Atk")).toBe(true);
+    expect(inert("Port")).toBe(true);
+    expect(inert("Level")).toBe(false);
+  });
 });
