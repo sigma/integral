@@ -13,6 +13,7 @@ use crate::param_registry::ParamFormat;
 use crate::pcm_drum::{self, PcmdCommonField, PcmdPartialField, PcmdWmtField};
 use crate::pcm_synth::{self, PcmsCommon2Field, PcmsCommonField, PcmsPartialField, PcmsPmtField};
 use crate::sn_acoustic::{self, SnaCommonField};
+use crate::sn_drum::{self, SND_INST_NUMBER_MAX, SndCommonField, SndNoteField};
 use crate::sn_synth::{self, SnsCommonField, SnsPartialField};
 
 /// Range, default and display format of a tone block field, looked up by
@@ -85,6 +86,12 @@ const ALTERNATE_PAN_DEPTH: Shape = shape(1, 127, Pan);
 const VELOCITY_RANGE: Shape = shape(1, 127, Raw);
 const OFF_ON_REVERSE: Shape = shape(0, 2, Named(&["OFF", "ON", "REVERSE"]));
 const MONO_POLY: Shape = shape(0, 1, Named(&["MONO", "POLY"]));
+/// A drum key's Output Assign; the doc spells them COMP+EQ1 to COMP+EQ6.
+const DRUM_OUTPUT_ASSIGN: Shape = shape(
+    0,
+    6,
+    Named(&["PART", "C+EQ1", "C+EQ2", "C+EQ3", "C+EQ4", "C+EQ5", "C+EQ6"]),
+);
 const PORTAMENTO_MODE: Shape = shape(0, 1, Named(&["NORMAL", "LEGATO"]));
 const PHRASE_NUMBER: Shape = shape(0, 65535, Raw);
 const ENV_MODE: Shape = shape(0, 1, Named(&["NO-SUS", "SUSTAIN"]));
@@ -380,12 +387,7 @@ pub fn pcmd_partial_spec(field: PcmdPartialField) -> FieldSpec {
         F::RandomPanDepth => shape(0, 63, Raw),
         F::AlternatePanDepth => ALTERNATE_PAN_DEPTH,
         F::EnvMode => ENV_MODE,
-        // The doc spells them COMP+EQ1 to COMP+EQ6.
-        F::OutputAssign => shape(
-            0,
-            6,
-            Named(&["PART", "C+EQ1", "C+EQ2", "C+EQ3", "C+EQ4", "C+EQ5", "C+EQ6"]),
-        ),
+        F::OutputAssign => DRUM_OUTPUT_ASSIGN,
         F::PitchBendRange => shape(0, 48, Raw),
         F::ReceiveExpression | F::ReceiveHold1 | F::OneShotMode => ON_OFF,
         F::WmtVelocityControl => shape(0, 2, Named(&["OFF", "ON", "RANDOM"])),
@@ -553,6 +555,53 @@ pub fn sna_common_spec(field: SnaCommonField) -> FieldSpec {
     spec(field, init, shape)
 }
 
+/// The spec of an SN Drum Kit Common field.
+pub fn snd_common_spec(field: SndCommonField) -> FieldSpec {
+    static INIT: OnceLock<Vec<u8>> = OnceLock::new();
+    let init = INIT.get_or_init(|| sn_drum::encode_snd_common(&Default::default()));
+    use SndCommonField as F;
+    let shape = match field {
+        F::KitLevel | F::AmbienceLevel | F::PhraseNumber => RAW_127,
+        F::TfxSwitch => ON_OFF,
+    };
+    spec(field, init, shape)
+}
+
+/// The spec of an SN Drum Kit Note field.
+pub fn snd_note_spec(field: SndNoteField) -> FieldSpec {
+    static INIT: OnceLock<Vec<u8>> = OnceLock::new();
+    let init = INIT.get_or_init(|| sn_drum::encode_snd_note(&Default::default()));
+    use SndNoteField as F;
+    let shape = match field {
+        F::InstNumber => shape(0, SND_INST_NUMBER_MAX.into(), Raw),
+        F::Level | F::ChorusSend | F::ReverbSend | F::StereoWidth => RAW_127,
+        F::Pan => PAN,
+        // -1200 to +1200 cents.
+        F::Tune => shape(
+            8,
+            248,
+            ParamFormat::SignedStep {
+                center: 128,
+                step: 10,
+            },
+        ),
+        F::Attack => shape(0, 100, ParamFormat::Percent),
+        // -63 to 0.
+        F::Decay => shape(1, 64, SignedCenter(64)),
+        F::Brilliance => shape(49, 76, SignedCenter(64)),
+        F::Variation => shape(
+            0,
+            7,
+            Named(&[
+                "OFF", "FLAM1", "FLAM2", "FLAM3", "BUZZ1", "BUZZ2", "BUZZ3", "ROLL",
+            ]),
+        ),
+        F::DynamicRange => shape(0, 63, Raw),
+        F::OutputAssign => DRUM_OUTPUT_ASSIGN,
+    };
+    spec(field, init, shape)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -561,6 +610,7 @@ mod tests {
     const PCMD_DOC: &str = include_str!("../../../docs/midi/07-pcm-drum-kit.md");
     const SNS_DOC: &str = include_str!("../../../docs/midi/08-supernatural-synth-tone.md");
     const SNA_DOC: &str = include_str!("../../../docs/midi/09-supernatural-acoustic-tone.md");
+    const SND_DOC: &str = include_str!("../../../docs/midi/10-supernatural-drum-kit.md");
 
     /// A documented parameter: its byte position in the block and its range.
     struct DocRow {
@@ -1139,5 +1189,50 @@ mod tests {
             &fields,
             sna_common_spec,
         );
+    }
+
+    #[test]
+    fn snd_common_specs_match_the_doc() {
+        use SndCommonField as F;
+        assert_matches_doc(
+            SND_DOC,
+            "SN Drum Kit Common",
+            |name| !name.starts_with("Kit Name"),
+            &[F::KitLevel, F::AmbienceLevel, F::PhraseNumber, F::TfxSwitch],
+            snd_common_spec,
+        );
+    }
+
+    #[test]
+    fn snd_note_specs_match_the_doc() {
+        use SndNoteField as F;
+        let fields = [
+            F::InstNumber,
+            F::Level,
+            F::Pan,
+            F::ChorusSend,
+            F::ReverbSend,
+            F::Tune,
+            F::Attack,
+            F::Decay,
+            F::Brilliance,
+            F::Variation,
+            F::DynamicRange,
+            F::StereoWidth,
+            F::OutputAssign,
+        ];
+        assert_matches_doc(
+            SND_DOC,
+            "SN Drum Kit Note",
+            |_| true,
+            &fields,
+            snd_note_spec,
+        );
+        let fmt = |f: SndNoteField, v| snd_note_spec(f).format.format(v);
+        assert_eq!(fmt(F::Tune, 8), "-1200");
+        assert_eq!(fmt(F::Tune, 248), "+1200");
+        assert_eq!(fmt(F::Attack, 100), "100%");
+        assert_eq!(fmt(F::Decay, 1), "-63");
+        assert_eq!(fmt(F::Brilliance, 49), "-15");
     }
 }

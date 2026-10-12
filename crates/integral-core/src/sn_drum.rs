@@ -9,7 +9,7 @@ use crate::block_field::BlockField;
 use crate::device_spec::{KeyOutOfRange, KeyRange};
 use crate::mfx::MfxState;
 use crate::params;
-use crate::parse_helpers::parse_ascii_name;
+use crate::parse_helpers::{encode_ascii_name, parse_ascii_name};
 
 // ---------------------------------------------------------------------------
 // Address constants
@@ -23,6 +23,9 @@ pub const SND_COMMON_BLOCK_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x14
 
 /// SN-D Common parse size in bytes.
 pub const SND_COMMON_SIZE: usize = 0x14;
+
+/// Length of the Kit Name (`00 00`–`00 0B`).
+const SND_NAME_LEN: usize = 12;
 
 /// SN-D Note block size (19 bytes).
 pub const SND_NOTE_BLOCK_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x13);
@@ -388,6 +391,40 @@ pub fn parse_snd_note(data: &[u8]) -> Result<SnDrumNote, crate::ToneParseError> 
     Ok(n)
 }
 
+/// Encode an SN Drum Kit Common block (0x14 bytes), the inverse of
+/// [`parse_snd_common`]. The reserves get 0.
+pub fn encode_snd_common(c: &SnDrumCommon) -> Vec<u8> {
+    let mut data = encode_ascii_name(&c.kit_name, SND_NAME_LEN);
+    data.resize(SND_COMMON_SIZE, 0);
+    use SndCommonField as F;
+    F::KitLevel.set_byte(&mut data, c.kit_level);
+    F::AmbienceLevel.set_byte(&mut data, c.ambience_level);
+    F::PhraseNumber.set_byte(&mut data, c.phrase_number);
+    F::TfxSwitch.set_byte(&mut data, c.tfx_switch);
+    data
+}
+
+/// Encode an SN Drum Kit Note block (0x13 bytes), the inverse of
+/// [`parse_snd_note`].
+pub fn encode_snd_note(n: &SnDrumNote) -> Vec<u8> {
+    let mut data = vec![0; SND_NOTE_SIZE];
+    use SndNoteField as F;
+    F::InstNumber.set_nibbles(&mut data, n.inst_number);
+    F::Level.set_byte(&mut data, n.level);
+    F::Pan.set_byte(&mut data, n.pan);
+    F::ChorusSend.set_byte(&mut data, n.chorus_send);
+    F::ReverbSend.set_byte(&mut data, n.reverb_send);
+    F::Tune.set_nibbles(&mut data, n.tune);
+    F::Attack.set_byte(&mut data, n.attack);
+    F::Decay.set_byte(&mut data, n.decay);
+    F::Brilliance.set_byte(&mut data, n.brilliance);
+    F::Variation.set_byte(&mut data, n.variation);
+    F::DynamicRange.set_byte(&mut data, n.dynamic_range);
+    F::StereoWidth.set_byte(&mut data, n.stereo_width);
+    F::OutputAssign.set_byte(&mut data, n.output_assign);
+    data
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -585,5 +622,25 @@ mod tests {
             stereo_width: F::StereoWidth,
             output_assign: F::OutputAssign,
         });
+    }
+
+    #[test]
+    fn encoders_invert_the_parsers() {
+        use crate::block_field::test_support::positional_block;
+        let mut c = parse_snd_common(&positional_block(SND_COMMON_SIZE)).unwrap();
+        c.kit_name = "INIT KIT".into();
+        let block = encode_snd_common(&c);
+        assert_eq!(block.len(), SND_COMMON_SIZE);
+        assert_eq!(parse_snd_common(&block).unwrap(), c);
+
+        // Shifted by one, so the field at position 0 (Inst Number) is not 0.
+        let shifted: Vec<u8> = positional_block(SND_NOTE_SIZE)
+            .iter()
+            .map(|b| b + 1)
+            .collect();
+        let n = parse_snd_note(&shifted).unwrap();
+        let block = encode_snd_note(&n);
+        assert_eq!(block.len(), SND_NOTE_SIZE);
+        assert_eq!(parse_snd_note(&block).unwrap(), n);
     }
 }

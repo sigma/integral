@@ -33,6 +33,8 @@ pub enum ParamFormat {
     Note,
     /// 0-127 as a number, then the tempo-synced note values from 128.
     TimeOrNote,
+    /// The value as a percentage (`100` -> "100%").
+    Percent,
 }
 
 /// Logical grouping for a parameter.
@@ -150,6 +152,7 @@ impl ParamFormat {
                     .map_or_else(|| value.to_string(), |n| n.to_string()),
                 _ => value.to_string(),
             },
+            ParamFormat::Percent => format!("{value}%"),
         }
     }
 }

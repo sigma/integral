@@ -8,6 +8,8 @@ import {
   mfx_block_size,
   SndCommonField,
   SndNoteField,
+  snd_common_spec,
+  snd_note_spec,
   ToneType,
   sn_drum_inst_supports_variation,
 } from "../pkg/integral_wasm.js";
@@ -21,6 +23,7 @@ import {
   OutputStrip,
 } from "./synth-ui";
 import { MfxPanel } from "./MfxPanel";
+import { knobRange, switchOptions } from "./fieldSpec";
 import { WavePicker } from "./WavePicker";
 import { sndInstSource } from "./sndInstCatalog";
 import { SignalArrows } from "./synth-ui/SignalArrows";
@@ -83,46 +86,9 @@ type NoteParamHandler = (field: SndNoteField, key: keyof SnDrumNote, value: numb
  */
 function variationOptions(note: { instNumber: number; variation: number }) {
   const ok = (v: number) => sn_drum_inst_supports_variation(note.instNumber, v);
-  return VARIATION_OPTIONS.filter((o) => ok(o.value) || o.value === note.variation).map((o) =>
+  return switchOptions(snd_note_spec(SndNoteField.Variation))
+    .filter((o) => ok(o.value) || o.value === note.variation).map((o) =>
     ok(o.value) ? o : { ...o, label: `${o.label} (n/a)` });
-}
-
-const VARIATION_OPTIONS = [
-  { value: 0, label: "OFF" },
-  { value: 1, label: "FLAM1" },
-  { value: 2, label: "FLAM2" },
-  { value: 3, label: "FLAM3" },
-  { value: 4, label: "BUZZ1" },
-  { value: 5, label: "BUZZ2" },
-  { value: 6, label: "BUZZ3" },
-  { value: 7, label: "ROLL" },
-];
-
-const OUTPUT_ASSIGN_OPTIONS = [
-  { value: 0, label: "PART" },
-  { value: 1, label: "C+EQ1" },
-  { value: 2, label: "C+EQ2" },
-  { value: 3, label: "C+EQ3" },
-  { value: 4, label: "C+EQ4" },
-  { value: 5, label: "C+EQ5" },
-  { value: 6, label: "C+EQ6" },
-];
-
-function panFmt(raw: number): string {
-  if (raw === 64) return "C";
-  if (raw < 64) return `L${64 - raw}`;
-  return `${raw - 64}R`;
-}
-
-function decayFmt(raw: number): string {
-  // raw 1–64, display -63 to 0
-  return String(raw - 64);
-}
-
-function brillianceFmt(raw: number): string {
-  // raw 49–76, display -15 to +12
-  const v = raw - 64;
-  return v > 0 ? `+${v}` : String(v);
 }
 
 // ---------------------------------------------------------------------------
@@ -357,11 +323,11 @@ function KitLevels({
       onChange(field, key, v);
   return (
     <div className={css.kitLevels}>
-      <SynthFader label="Kit Lv" value={common.kitLevel} min={0} max={127} defaultValue={127}
-        onChange={set(SndCommonField.KitLevel, "kitLevel")} formatValue={(v) => String(v)}
+      <SynthFader label="Kit Lv" value={common.kitLevel} {...knobRange(snd_common_spec(SndCommonField.KitLevel))}
+        onChange={set(SndCommonField.KitLevel, "kitLevel")}
         trackHeight={LEVEL_TRACK_HEIGHT} title="Kit Level" />
-      <SynthFader label="Amb Lv" value={common.ambienceLevel} min={0} max={127} defaultValue={64}
-        onChange={set(SndCommonField.AmbienceLevel, "ambienceLevel")} formatValue={(v) => String(v)}
+      <SynthFader label="Amb Lv" value={common.ambienceLevel} {...knobRange(snd_common_spec(SndCommonField.AmbienceLevel))}
+        onChange={set(SndCommonField.AmbienceLevel, "ambienceLevel")}
         trackHeight={LEVEL_TRACK_HEIGHT} title="Ambience Level" />
     </div>
   );
@@ -393,26 +359,26 @@ function NoteControls({
           onChange={(_side, n) => onChange(SndNoteField.InstNumber, "instNumber", n)}
         />
           <div className={css.knobRow}>
-            <SynthKnob label="Attack" value={note.attack} min={0} max={100} defaultValue={100}
-              onChange={set(SndNoteField.Attack, "attack")} formatValue={(v) => `${v}%`} color="#fc8" />
-            <SynthKnob label="Decay" value={note.decay} min={1} max={64} defaultValue={64}
-              onChange={set(SndNoteField.Decay, "decay")} formatValue={decayFmt} color="#fc8" />
-            <SynthKnob label="Brill" value={note.brilliance} min={49} max={76} defaultValue={64} center={64}
-              onChange={set(SndNoteField.Brilliance, "brilliance")} formatValue={brillianceFmt} color="#fc8"
+            <SynthKnob label="Attack" value={note.attack} {...knobRange(snd_note_spec(SndNoteField.Attack))}
+              onChange={set(SndNoteField.Attack, "attack")} color="#fc8" />
+            <SynthKnob label="Decay" value={note.decay} {...knobRange(snd_note_spec(SndNoteField.Decay))}
+              onChange={set(SndNoteField.Decay, "decay")} color="#fc8" />
+            <SynthKnob label="Brill" value={note.brilliance} {...knobRange(snd_note_spec(SndNoteField.Brilliance))}
+              onChange={set(SndNoteField.Brilliance, "brilliance")} color="#fc8"
               title="Brilliance" />
           </div>
           <div className={css.knobRow}>
-            <SynthKnob label="DynRng" value={note.dynamicRange} min={0} max={63} defaultValue={63}
-              onChange={set(SndNoteField.DynamicRange, "dynamicRange")} formatValue={(v) => String(v)} color="#a6f"
+            <SynthKnob label="DynRng" value={note.dynamicRange} {...knobRange(snd_note_spec(SndNoteField.DynamicRange))}
+              onChange={set(SndNoteField.DynamicRange, "dynamicRange")} color="#a6f"
               title="Dynamic Range" />
-            <SynthKnob label="Width" value={note.stereoWidth} min={0} max={127} defaultValue={64}
-              onChange={set(SndNoteField.StereoWidth, "stereoWidth")} formatValue={(v) => String(v)} color="#a6f"
+            <SynthKnob label="Width" value={note.stereoWidth} {...knobRange(snd_note_spec(SndNoteField.StereoWidth))}
+              onChange={set(SndNoteField.StereoWidth, "stereoWidth")} color="#a6f"
               title="Stereo Width" />
           </div>
           <div className={css.noteSelects}>
             <SynthSelect label="Variation" value={note.variation} options={variationOptions(note)}
               onChange={set(SndNoteField.Variation, "variation")} />
-            <SynthSelect label="Output" value={note.outputAssign} options={OUTPUT_ASSIGN_OPTIONS}
+            <SynthSelect label="Output" value={note.outputAssign} options={switchOptions(snd_note_spec(SndNoteField.OutputAssign))}
               onChange={set(SndNoteField.OutputAssign, "outputAssign")} />
           </div>
         </SectionPanel>
@@ -421,7 +387,7 @@ function NoteControls({
         {/* Strip: Pan + Sends + Level — reuses the shared OutputStrip */}
         <SectionPanel label="LEVEL / PAN" accentColor="#8cf">
           <OutputStrip
-            pan={note.pan} onPanChange={set(SndNoteField.Pan, "pan")} panFormat={panFmt}
+            pan={note.pan} onPanChange={set(SndNoteField.Pan, "pan")} panFormat={(v) => snd_note_spec(SndNoteField.Pan).formatValue(v)}
             fx1={note.chorusSend} fx2={note.reverbSend}
             level={note.level}
             onFx1Change={set(SndNoteField.ChorusSend, "chorusSend")}

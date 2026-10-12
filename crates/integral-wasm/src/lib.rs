@@ -2053,6 +2053,18 @@ pub fn pcms_partial_spec(field: PcmsPartialField) -> WasmFieldSpec {
     wrap_field_spec(field_spec::pcms_partial_spec(field.into()))
 }
 
+/// Spec of an SN Drum Kit Common field.
+#[wasm_bindgen]
+pub fn snd_common_spec(field: SndCommonField) -> WasmFieldSpec {
+    wrap_field_spec(field_spec::snd_common_spec(field.into()))
+}
+
+/// Spec of an SN Drum Kit Note field.
+#[wasm_bindgen]
+pub fn snd_note_spec(field: SndNoteField) -> WasmFieldSpec {
+    wrap_field_spec(field_spec::snd_note_spec(field.into()))
+}
+
 /// Spec of an SN Acoustic Tone Common field.
 #[wasm_bindgen]
 pub fn sna_common_spec(field: SnaCommonField) -> WasmFieldSpec {
