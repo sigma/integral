@@ -5,9 +5,10 @@ import { cleanup, render } from "../test/dom";
 
 afterEach(cleanup);
 
-function pathsOf(wave: string, pulseWidth = 0, pwmDepth = 0, superSawDetune = 0): string[] {
+function pathsOf(wave: string, pulseWidth = 0, pwmDepth = 0, superSawDetune = 0, pwShift = 127): string[] {
   const { container } = render(
-    <OscWaveScope wave={wave} pulseWidth={pulseWidth} pwmDepth={pwmDepth} superSawDetune={superSawDetune} />,
+    <OscWaveScope wave={wave} pulseWidth={pulseWidth} pwmDepth={pwmDepth} pwShift={pwShift}
+      superSawDetune={superSawDetune} />,
   );
   return [...container.querySelectorAll("path")].map((p) => p.getAttribute("d") ?? "");
 }
@@ -42,5 +43,10 @@ describe("OscWaveScope", () => {
     const clean = pathsOf("SP-SAW", 0, 0, 0)[0]!;
     expect(at(clean, "0.25")).toBeCloseTo(0.5); // halfway up the first ramp
     expect(pathsOf("SP-SAW", 0, 0, 127)[0]).not.toEqual(clean);
+  });
+
+  it("pulls PW-SQR back to a square as PW Shift drops", () => {
+    expect(pathsOf("PW-SQR", 127, 0, 0, 0)).toEqual([pathOf("SQR")]);
+    expect(pathsOf("PW-SQR", 127, 0, 0, 64)[0]).not.toEqual(pathsOf("PW-SQR", 127, 0, 0, 127)[0]);
   });
 });

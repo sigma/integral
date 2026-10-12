@@ -25,10 +25,12 @@ function saw(period: number, phase: number): string {
 /**
  * Two cycles of a pulse, high for `pw` (0-127) of each: 0 is a 50% square and
  * higher values thin the pulse (JD-Xi Parameter Guide, "Pulse width").
+ * `shift` (0-127) scales the whole PW range; 127 leaves it as is.
  */
-function pulse(pw: number): string {
-  // shortcut: assumes 127 thins the pulse to 5%; measure the device's real minimum if it matters.
-  const high = 0.25 - (0.225 * Math.min(127, Math.max(0, pw))) / 127;
+function pulse(pw: number, shift: number): string {
+  // shortcut: assumes 127 thins the pulse to 5%, and that PW Shift scales the PW range linearly; neither mapping is documented, measure the device if it matters.
+  const clamp = (v: number) => Math.min(127, Math.max(0, v)) / 127;
+  const high = 0.25 - 0.225 * clamp(pw) * clamp(shift);
   return `M 0 0 H ${high} V 1 H 0.5 V 0 H ${0.5 + high} V 1 H 1`;
 }
 
@@ -59,27 +61,30 @@ const SHAPES: Record<string, string> = {
 /**
  * Scope-style picture of the OSC wave; renders nothing for waves without a
  * fixed shape (PCM). PW-SQR follows the Pulse Width, with faint traces at the
- * extremes the PWM depth swings it to; SP-SAW follows the Super Saw Detune.
+ * extremes the PWM depth swings it to, both scaled by PW Shift; SP-SAW follows
+ * the Super Saw Detune.
  */
 export function OscWaveScope({
   wave,
   pulseWidth,
   pwmDepth,
+  pwShift,
   superSawDetune,
 }: {
   wave: string;
   pulseWidth: number;
   pwmDepth: number;
+  pwShift: number;
   superSawDetune: number;
 }) {
   const isPw = wave === "PW-SQR";
-  const path = isPw ? pulse(pulseWidth) : wave === "SP-SAW" ? superSaw(superSawDetune) : SHAPES[wave];
+  const path = isPw ? pulse(pulseWidth, pwShift) : wave === "SP-SAW" ? superSaw(superSawDetune) : SHAPES[wave];
   if (!path) return null;
   return (
     <div className={css.oscScopeSlot}>
       <svg className={css.oscScope} viewBox="-0.05 -0.15 1.1 1.3" preserveAspectRatio="none">
         {isPw && pwmDepth > 0 && (
-          <path d={`${pulse(pulseWidth - pwmDepth)} ${pulse(pulseWidth + pwmDepth)}`} fill="none"
+          <path d={`${pulse(pulseWidth - pwmDepth, pwShift)} ${pulse(pulseWidth + pwmDepth, pwShift)}`} fill="none"
             stroke="#fc8" strokeOpacity="0.3" strokeWidth="1" vectorEffect="non-scaling-stroke" />
         )}
         <path d={path} fill="none" stroke="#fc8" strokeWidth="2" vectorEffect="non-scaling-stroke" />

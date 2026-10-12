@@ -143,7 +143,7 @@ function OscPanel({
           ) : (
             <OscWaveScope wave={OSC_WAVE_NAMES[partial.oscWave] ?? ""}
               pulseWidth={partial.oscPulseWidth} pwmDepth={partial.oscPwModDepth}
-              superSawDetune={partial.superSawDetune} />
+              pwShift={partial.pwShift} superSawDetune={partial.superSawDetune} />
           )}
           <div className={css.oscKnobRow}>
             <SynthKnob label="Pitch" value={partial.oscPitch} min={40} max={88} defaultValue={64} center={64}
@@ -165,6 +165,8 @@ function OscPanel({
           onChange={(v) => onChange(SnsPartialField.OscPwModDepth, v)} compact />
         <SynthFader label="PW" value={partial.oscPulseWidth} min={0} max={127} defaultValue={0}
           onChange={(v) => onChange(SnsPartialField.OscPulseWidth, v)} compact />
+        <SynthFader label="Shift" value={partial.pwShift} min={0} max={127} defaultValue={127}
+          onChange={(v) => onChange(SnsPartialField.PwShift, v)} compact />
         <FaderGroupSep />
         <ADSREnvelope
           compact
@@ -306,8 +308,6 @@ function ModLfoPanel({
         <div className={`${css.oscKnobGrid} ${css.knobsRight}`}>
           <SynthKnob label="Rate" value={partial.modLfoRate} min={0} max={127} defaultValue={0}
             onChange={(v) => onChange(SnsPartialField.ModLfoRate, v)} formatValue={(v) => String(v)} color="#a6f" />
-          <SynthKnob label="PW Shft" value={partial.pwShift} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(SnsPartialField.PwShift, v)} formatValue={(v) => String(v)} color="#a6f" />
           <SynthKnob label="Rate Ctrl" value={partial.modLfoRateControl} min={1} max={127} defaultValue={64} center={64}
             onChange={(v) => onChange(SnsPartialField.ModLfoRateControl, v)} formatValue={(v) => signedFmt(v, 64)} color="#a6f" />
         </div>
