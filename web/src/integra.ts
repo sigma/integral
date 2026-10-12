@@ -14,45 +14,6 @@
 import {
   build_rq1,
   parse_dt1,
-  part_eq_address,
-  part_eq_size,
-  master_eq_address,
-  master_eq_size,
-  master_eq_switch_address,
-  chorus_core_address,
-  chorus_params_address,
-  chorus_params_size,
-  decode_chorus_params,
-  chorus_switch_address,
-  chorus_core_size,
-  reverb_core_address,
-  reverb_params_address,
-  reverb_params_size,
-  decode_reverb_params,
-  reverb_switch_address,
-  reverb_core_size,
-  ext_part_level_address,
-  drum_comp_eq_common_address,
-  drum_comp_eq_common_size,
-  comp_eq_block_address,
-  comp_eq_block_size,
-  surround_common_address,
-  surround_common_size,
-  part_surround_address,
-  part_surround_size,
-  ext_part_mute_address,
-  setup_studio_set_pc_address,
-  studio_set_name_address,
-  studio_set_name_size,
-  master_level_address,
-  single_byte_size,
-  solo_part_address,
-  tone_name_address,
-  tone_name_size,
-  tone_category_address,
-  is_drum_kit_bank,
-  part_mixer_size,
-  part_receive_channel_address,
   build_studio_set_catalog_request,
   build_tone_catalog_request,
   parse_catalog_entry,
@@ -76,7 +37,6 @@ import {
   type LibrarianAction,
 } from "../pkg/integral_wasm.js";
 import type { MidiPortPair } from "./midi";
-import { DRUMS_CATEGORY } from "./categories";
 
 // ---------------------------------------------------------------------------
 // MIDI protocol constants
@@ -415,34 +375,12 @@ export class IntegraService {
   // EQ parameters
   // -----------------------------------------------------------------------
 
-  async requestPartEq(part: number): Promise<Uint8Array> {
-    return this.requestData(
-      Array.from(part_eq_address(part)),
-      Array.from(part_eq_size()),
-    );
-  }
-
   setPartEqParam(part: number, paramOffset: number, value: number): void {
     this.device.setPartEqParam(part, paramOffset, value);
   }
 
-  async requestMasterEq(): Promise<Uint8Array> {
-    return this.requestData(
-      Array.from(master_eq_address()),
-      Array.from(master_eq_size()),
-    );
-  }
-
   setMasterEqParam(paramOffset: number, value: number): void {
     this.device.setMasterEqParam(paramOffset, value);
-  }
-
-  async requestMasterEqSwitch(): Promise<boolean> {
-    const data = await this.requestData(
-      Array.from(master_eq_switch_address()),
-      Array.from(single_byte_size()),
-    );
-    return data[0] === 1;
   }
 
   setMasterEqSwitch(_enabled: boolean): void {
@@ -452,21 +390,6 @@ export class IntegraService {
   // -----------------------------------------------------------------------
   // Chorus (FX1)
   // -----------------------------------------------------------------------
-
-  async requestChorusCore(): Promise<Uint8Array> {
-    return this.requestData(
-      Array.from(chorus_core_address()),
-      Array.from(chorus_core_size()),
-    );
-  }
-
-  async requestChorusSwitch(): Promise<boolean> {
-    const data = await this.requestData(
-      Array.from(chorus_switch_address()),
-      Array.from(single_byte_size()),
-    );
-    return data[0] === 1;
-  }
 
   setChorusSwitch(_enabled: boolean): void {
     this.device.toggleChorusSwitch();
@@ -480,32 +403,9 @@ export class IntegraService {
     this.device.setChorusNibParam(paramIndex, value);
   }
 
-  async requestChorusParams(): Promise<number[]> {
-    const data = await this.requestData(
-      Array.from(chorus_params_address()),
-      Array.from(chorus_params_size()),
-    );
-    return Array.from(decode_chorus_params(data));
-  }
-
   // -----------------------------------------------------------------------
   // Reverb (FX2)
   // -----------------------------------------------------------------------
-
-  async requestReverbCore(): Promise<Uint8Array> {
-    return this.requestData(
-      Array.from(reverb_core_address()),
-      Array.from(reverb_core_size()),
-    );
-  }
-
-  async requestReverbSwitch(): Promise<boolean> {
-    const data = await this.requestData(
-      Array.from(reverb_switch_address()),
-      Array.from(single_byte_size()),
-    );
-    return data[0] === 1;
-  }
 
   setReverbSwitch(_enabled: boolean): void {
     this.device.toggleReverbSwitch();
@@ -519,33 +419,9 @@ export class IntegraService {
     this.device.setReverbNibParam(paramIndex, value);
   }
 
-  async requestReverbParams(): Promise<number[]> {
-    const data = await this.requestData(
-      Array.from(reverb_params_address()),
-      Array.from(reverb_params_size()),
-    );
-    return Array.from(decode_reverb_params(data));
-  }
-
   // -----------------------------------------------------------------------
   // Ext Part
   // -----------------------------------------------------------------------
-
-  async requestExtPartLevel(): Promise<number> {
-    const data = await this.requestData(
-      Array.from(ext_part_level_address()),
-      Array.from(single_byte_size()),
-    );
-    return data[0]!;
-  }
-
-  async requestExtPartMute(): Promise<boolean> {
-    const data = await this.requestData(
-      Array.from(ext_part_mute_address()),
-      Array.from(single_byte_size()),
-    );
-    return data[0] === 1;
-  }
 
   setExtPartLevel(value: number): void {
     this.device.setExtLevel(value);
@@ -559,125 +435,13 @@ export class IntegraService {
   // Drum Comp+EQ
   // -----------------------------------------------------------------------
 
-  /** Read Drum Comp+EQ common params: switch, part and the 6 output assigns. */
-  async requestDrumCompEqCommon(): Promise<{ enabled: boolean; part: number; outputAssigns: number[] }> {
-    const data = await this.requestData(
-      Array.from(drum_comp_eq_common_address()),
-      Array.from(drum_comp_eq_common_size()),
-    );
-    return {
-      enabled: data[0] === 1,
-      part: data[1] ?? 9,
-      outputAssigns: [data[2] ?? 0, data[3] ?? 0, data[4] ?? 0, data[5] ?? 0, data[6] ?? 0, data[7] ?? 0],
-    };
-  }
-
-  /**
-   * Read the full Comp+EQ block of part `partIndex`'s tone (bank MSB
-   * `bankMsb`), or null if that tone isn't a drum kit (only they have one).
-   */
-  async requestCompEqBlock(partIndex: number, bankMsb: number): Promise<Uint8Array | null> {
-    const address = comp_eq_block_address(partIndex, bankMsb);
-    if (address.length === 0) return null;
-    return this.requestData(Array.from(address), Array.from(comp_eq_block_size()));
-  }
-
   // -----------------------------------------------------------------------
   // Motional Surround
   // -----------------------------------------------------------------------
 
-  /** Read the Motional Surround common block. */
-  async requestSurroundCommon(): Promise<Uint8Array> {
-    return this.requestData(
-      Array.from(surround_common_address()),
-      Array.from(surround_common_size()),
-    );
-  }
-
-  /** Read per-part surround params: L-R, F-B, Width and Ambience Send. */
-  async requestPartSurround(part: number): Promise<{ lr: number; fb: number; width: number; ambienceSend: number }> {
-    // L-R, (reserved), F-B, (reserved), Width, Ambience Send.
-    const data = await this.requestData(
-      Array.from(part_surround_address(part)),
-      Array.from(part_surround_size()),
-    );
-    return {
-      lr: data[0] ?? 64,
-      fb: data[2] ?? 64,
-      width: data[4] ?? 16,
-      ambienceSend: data[5] ?? 0,
-    };
-  }
-
   // -----------------------------------------------------------------------
   // Request helpers (read from device)
   // -----------------------------------------------------------------------
-
-  async requestStudioSetPC(): Promise<number> {
-    const data = await this.requestData(
-      Array.from(setup_studio_set_pc_address()),
-      Array.from(single_byte_size()),
-    );
-    return data[0]!;
-  }
-
-  async requestSoloPart(): Promise<number> {
-    const data = await this.requestData(
-      Array.from(solo_part_address()),
-      Array.from(single_byte_size()),
-    );
-    return data[0]!;
-  }
-
-  async requestStudioSetName(): Promise<string> {
-    const data = await this.requestData(
-      Array.from(studio_set_name_address()),
-      Array.from(studio_set_name_size()),
-    );
-    return String.fromCharCode(...data).trimEnd();
-  }
-
-  async requestPartMixerState(part: number): Promise<Uint8Array> {
-    return this.requestData(
-      Array.from(part_receive_channel_address(part)),
-      Array.from(part_mixer_size()),
-    );
-  }
-
-  async requestMasterLevel(): Promise<number> {
-    const data = await this.requestData(
-      Array.from(master_level_address()),
-      Array.from(single_byte_size()),
-    );
-    return data[0]!;
-  }
-
-  /** Read the Tone Category stored in the part's current tone (0 if unknown). */
-  async requestToneCategory(part: number, bankMsb: number): Promise<number> {
-    if (is_drum_kit_bank(bankMsb)) return DRUMS_CATEGORY;
-    const addr = tone_category_address(part, bankMsb);
-    if (addr.length === 0) return 0;
-    try {
-      const data = await this.requestData(Array.from(addr), Array.from(single_byte_size()));
-      return data[0] ?? 0;
-    } catch {
-      return 0;
-    }
-  }
-
-  async requestToneName(part: number, bankMsb: number): Promise<string> {
-    const addr = tone_name_address(part, bankMsb);
-    if (addr.length === 0) return "";
-    try {
-      const data = await this.requestData(
-        Array.from(addr),
-        Array.from(tone_name_size()),
-      );
-      return String.fromCharCode(...data).trimEnd();
-    } catch {
-      return "";
-    }
-  }
 
   // -----------------------------------------------------------------------
   // Catalog queries (stay in TS — event-driven with timeouts)

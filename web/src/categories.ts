@@ -44,9 +44,6 @@ export const CATEGORIES: Record<number, string> = {
   48: "Combination",
 };
 
-/** Category of every drum kit: drum kits carry no Tone Category byte. */
-export const DRUMS_CATEGORY = 46;
-
 /** Ordered list of defined category IDs (excluding 0 = "No assign"). */
 export const CATEGORY_IDS: number[] = Object.keys(CATEGORIES)
   .map(Number)

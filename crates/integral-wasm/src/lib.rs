@@ -3,11 +3,10 @@
 use integral_core::address::{Address, DataSize};
 use integral_core::catalog;
 use integral_core::device::DeviceState;
-use integral_core::state::parse as state_parse;
 use integral_core::sysex;
 use integral_core::{
-    fx_params, mfx, mfx_params, param_registry, params, params::part, pcm_drum, pcm_synth,
-    sn_acoustic, sn_drum, sn_synth, tone_banks, user_write,
+    fx_params, mfx, mfx_params, param_registry, params, pcm_drum, pcm_synth, sn_acoustic, sn_drum,
+    sn_synth, tone_banks, user_write,
 };
 use wasm_bindgen::prelude::*;
 
@@ -238,88 +237,11 @@ fn addr_to_vec(addr: Address) -> Vec<u8> {
     addr.as_bytes().to_vec()
 }
 
-/// Returns the address for System Master Level.
-#[wasm_bindgen]
-pub fn master_level_address() -> Vec<u8> {
-    addr_to_vec(params::SYSTEM_MASTER_LEVEL)
-}
-
-/// Returns the address for Studio Set Name (first of 16 bytes).
-#[wasm_bindgen]
-pub fn studio_set_name_address() -> Vec<u8> {
-    addr_to_vec(params::STUDIO_SET_NAME)
-}
-
-/// Returns the address for Setup Studio Set Program Change.
-#[wasm_bindgen]
-pub fn setup_studio_set_pc_address() -> Vec<u8> {
-    addr_to_vec(params::SETUP_STUDIO_SET_PC)
-}
-
-/// Returns the address for a part's Receive Channel.
-#[wasm_bindgen]
-pub fn part_receive_channel_address(part_index: u8) -> Vec<u8> {
-    addr_to_vec(params::part_address(part_index, part::RECEIVE_CHANNEL))
-}
-
-/// Returns the RQ1 size for reading all mixer-relevant part parameters in one request.
-/// Covers from Receive Channel (offset 00) through Reverb Send (offset 28).
-#[wasm_bindgen]
-pub fn part_mixer_size() -> Vec<u8> {
-    params::PART_MIXER_SIZE.as_bytes().to_vec()
-}
-
-/// Returns the RQ1 size for reading the Studio Set name (16 bytes).
-#[wasm_bindgen]
-pub fn studio_set_name_size() -> Vec<u8> {
-    params::STUDIO_SET_NAME_SIZE.as_bytes().to_vec()
-}
-
-/// Returns the address of the Solo Part param.
-#[wasm_bindgen]
-pub fn solo_part_address() -> Vec<u8> {
-    addr_to_vec(params::SOLO_PART)
-}
-
-/// Returns the RQ1 size for a single byte parameter.
-#[wasm_bindgen]
-pub fn single_byte_size() -> Vec<u8> {
-    params::SINGLE_BYTE_SIZE.as_bytes().to_vec()
-}
-
-/// Returns the address for reading a tone name, given a part and bank MSB.
-///
-/// The bank MSB determines the tone type (PCM Synth, SN Acoustic, etc.)
-/// which determines the address block to read from.
-/// Returns null (empty vec) if the bank MSB doesn't map to a known type.
-#[wasm_bindgen]
-pub fn tone_name_address(part_index: u8, bank_msb: u8) -> Vec<u8> {
-    match params::tone_type_from_bank_msb(bank_msb) {
-        Some(tt) => addr_to_vec(params::tone_name_address(part_index, tt)),
-        None => vec![],
-    }
-}
-
-/// Returns the address of the Tone Category byte for a part's current tone,
-/// or an empty vec for drum kits and unknown banks (no category byte).
-#[wasm_bindgen]
-pub fn tone_category_address(part_index: u8, bank_msb: u8) -> Vec<u8> {
-    params::tone_category_address(part_index, bank_msb)
-        .map(addr_to_vec)
-        .unwrap_or_default()
-}
-
 /// Whether a bank MSB selects a drum kit, the only tone type that can feed
 /// the Drum Comp+EQ units.
 #[wasm_bindgen]
 pub fn is_drum_kit_bank(bank_msb: u8) -> bool {
     params::is_drum_kit_bank(bank_msb)
-}
-
-/// Returns the RQ1 size for reading a tone name (12 bytes).
-#[wasm_bindgen]
-pub fn tone_name_size() -> Vec<u8> {
-    params::TONE_NAME_SIZE.as_bytes().to_vec()
 }
 
 // ---------------------------------------------------------------------------
@@ -1820,176 +1742,17 @@ pub fn parse_write_reply(addr: &[u8], data: &[u8]) -> Option<WriteReply> {
 // EQ addresses
 // ---------------------------------------------------------------------------
 
-/// Returns the address of part `part_index`'s EQ params (the switch, first).
-#[wasm_bindgen]
-pub fn part_eq_address(part_index: u8) -> Vec<u8> {
-    addr_to_vec(params::part_eq_address(part_index, params::part_eq::SWITCH))
-}
-
 // ---------------------------------------------------------------------------
 // Chorus / Reverb addresses
 // ---------------------------------------------------------------------------
-
-/// Returns the address of the Chorus core params (the type, first).
-#[wasm_bindgen]
-pub fn chorus_core_address() -> Vec<u8> {
-    addr_to_vec(params::chorus_address(params::chorus::TYPE))
-}
-
-/// Returns the address of the first nibblized Chorus parameter.
-#[wasm_bindgen]
-pub fn chorus_params_address() -> Vec<u8> {
-    addr_to_vec(params::chorus_address(params::chorus::PARAM_BASE))
-}
-
-/// Returns the RQ1 size for reading all nibblized Chorus parameters.
-#[wasm_bindgen]
-pub fn chorus_params_size() -> Vec<u8> {
-    params::CHORUS_PARAMS_SIZE.as_bytes().to_vec()
-}
-
-/// Decodes the nibblized Chorus parameters read at [`chorus_params_address`].
-#[wasm_bindgen]
-pub fn decode_chorus_params(data: &[u8]) -> Vec<i32> {
-    state_parse::decode_nib_params(data, params::CHORUS_PARAM_COUNT)
-}
-
-#[wasm_bindgen]
-pub fn chorus_switch_address() -> Vec<u8> {
-    addr_to_vec(params::CHORUS_SWITCH)
-}
-
-#[wasm_bindgen]
-pub fn chorus_core_size() -> Vec<u8> {
-    params::CHORUS_CORE_SIZE.as_bytes().to_vec()
-}
-
-/// Returns the address of the Reverb core params (the type, first).
-#[wasm_bindgen]
-pub fn reverb_core_address() -> Vec<u8> {
-    addr_to_vec(params::reverb_address(params::reverb::TYPE))
-}
-
-/// Returns the address of the first nibblized Reverb parameter.
-#[wasm_bindgen]
-pub fn reverb_params_address() -> Vec<u8> {
-    addr_to_vec(params::reverb_address(params::reverb::PARAM_BASE))
-}
-
-/// Returns the RQ1 size for reading all nibblized Reverb parameters.
-#[wasm_bindgen]
-pub fn reverb_params_size() -> Vec<u8> {
-    params::REVERB_PARAMS_SIZE.as_bytes().to_vec()
-}
-
-/// Decodes the nibblized Reverb parameters read at [`reverb_params_address`].
-#[wasm_bindgen]
-pub fn decode_reverb_params(data: &[u8]) -> Vec<i32> {
-    state_parse::decode_nib_params(data, params::REVERB_PARAM_COUNT)
-}
-
-#[wasm_bindgen]
-pub fn reverb_switch_address() -> Vec<u8> {
-    addr_to_vec(params::REVERB_SWITCH)
-}
-
-#[wasm_bindgen]
-pub fn reverb_core_size() -> Vec<u8> {
-    params::REVERB_CORE_SIZE.as_bytes().to_vec()
-}
 
 // ---------------------------------------------------------------------------
 // Drum Comp+EQ and Motional Surround addresses
 // ---------------------------------------------------------------------------
 
-/// Returns the address of the Drum Comp/EQ common params (the switch, first).
-#[wasm_bindgen]
-pub fn drum_comp_eq_common_address() -> Vec<u8> {
-    addr_to_vec(params::DRUM_COMP_EQ_SWITCH)
-}
-
-/// Returns the RQ1 size for reading the Drum Comp/EQ common params.
-#[wasm_bindgen]
-pub fn drum_comp_eq_common_size() -> Vec<u8> {
-    params::DRUM_COMP_EQ_COMMON_SIZE.as_bytes().to_vec()
-}
-
-/// Returns the address of the Comp+EQ block of part `part_index`'s tone
-/// (bank MSB `bank_msb`), or empty if that tone isn't a drum kit.
-#[wasm_bindgen]
-pub fn comp_eq_block_address(part_index: u8, bank_msb: u8) -> Vec<u8> {
-    params::comp_eq_block_address_for_bank(part_index, bank_msb)
-        .map(addr_to_vec)
-        .unwrap_or_default()
-}
-
-/// Returns the RQ1 size for reading a whole Comp+EQ block.
-#[wasm_bindgen]
-pub fn comp_eq_block_size() -> Vec<u8> {
-    params::COMP_EQ_BLOCK_SIZE.as_bytes().to_vec()
-}
-
-/// Returns the address of the Motional Surround common block.
-#[wasm_bindgen]
-pub fn surround_common_address() -> Vec<u8> {
-    addr_to_vec(params::SURROUND_BASE)
-}
-
-/// Returns the RQ1 size for reading the Motional Surround common block.
-#[wasm_bindgen]
-pub fn surround_common_size() -> Vec<u8> {
-    params::SURROUND_COMMON_SIZE.as_bytes().to_vec()
-}
-
-/// Returns the address of part `part_index`'s surround params (L-R, first).
-#[wasm_bindgen]
-pub fn part_surround_address(part_index: u8) -> Vec<u8> {
-    addr_to_vec(params::part_address(part_index, params::part_surround::LR))
-}
-
-/// Returns the RQ1 size for reading a part's surround params.
-#[wasm_bindgen]
-pub fn part_surround_size() -> Vec<u8> {
-    params::PART_SURROUND_SIZE.as_bytes().to_vec()
-}
-
 // ---------------------------------------------------------------------------
 // Ext Part addresses
 // ---------------------------------------------------------------------------
-
-#[wasm_bindgen]
-pub fn ext_part_level_address() -> Vec<u8> {
-    addr_to_vec(params::EXT_PART_LEVEL)
-}
-
-#[wasm_bindgen]
-pub fn ext_part_mute_address() -> Vec<u8> {
-    addr_to_vec(params::EXT_PART_MUTE)
-}
-
-/// Returns the RQ1 size for reading all Part EQ parameters (8 bytes).
-#[wasm_bindgen]
-pub fn part_eq_size() -> Vec<u8> {
-    params::PART_EQ_SIZE.as_bytes().to_vec()
-}
-
-/// Returns the address of the Master EQ params (Low Freq, first).
-#[wasm_bindgen]
-pub fn master_eq_address() -> Vec<u8> {
-    addr_to_vec(params::master_eq_address(params::master_eq::LOW_FREQ))
-}
-
-/// Returns the RQ1 size for reading all Master EQ parameters (7 bytes).
-#[wasm_bindgen]
-pub fn master_eq_size() -> Vec<u8> {
-    params::MASTER_EQ_SIZE.as_bytes().to_vec()
-}
-
-/// Returns the address for the Master EQ Switch.
-#[wasm_bindgen]
-pub fn master_eq_switch_address() -> Vec<u8> {
-    addr_to_vec(params::MASTER_EQ_SWITCH)
-}
 
 // ---------------------------------------------------------------------------
 // Tone bank definitions
@@ -2137,16 +1900,6 @@ pub fn factory_tones_json(msb: u8, lsb: u8) -> String {
         })
         .collect();
     serde_json::to_string(&entries).unwrap_or_else(|_| "[]".to_string())
-}
-
-/// Look up a single factory tone name by bank and PC.
-///
-/// Returns the tone name, or an empty string if not found.
-#[wasm_bindgen(js_name = factoryToneName)]
-pub fn factory_tone_name(msb: u8, lsb: u8, pc: u8) -> String {
-    integral_core::factory_catalog::factory_tone(msb, lsb, pc)
-        .map(|t| t.name.to_string())
-        .unwrap_or_default()
 }
 
 // ---------------------------------------------------------------------------
@@ -2530,142 +2283,6 @@ impl WasmDeviceState {
 
     // -- Direct state mutation (for load responses) ------------------------
 
-    /// Patch the mixer state with a parsed part dump.
-    #[wasm_bindgen(js_name = applyPartDump)]
-    pub fn apply_part_dump(&mut self, part: u8, data: &[u8]) -> Result<(), JsError> {
-        check_part(part)?;
-        let parsed = state_parse::parse_part_dump(data);
-        let p = &mut self.inner.state_mut().parts[part as usize];
-        p.receive_channel = parsed.receive_channel;
-        p.tone_bank_msb = parsed.tone_bank_msb;
-        p.tone_bank_lsb = parsed.tone_bank_lsb;
-        p.tone_pc = parsed.tone_pc;
-        p.level = parsed.level;
-        p.pan = parsed.pan;
-        p.muted = parsed.muted;
-        p.chorus_send = parsed.chorus_send;
-        p.reverb_send = parsed.reverb_send;
-        Ok(())
-    }
-
-    /// Patch the part EQ with a parsed dump.
-    #[wasm_bindgen(js_name = applyPartEqDump)]
-    pub fn apply_part_eq_dump(&mut self, part: u8, data: &[u8]) -> Result<(), JsError> {
-        check_part(part)?;
-        let eq = state_parse::parse_part_eq_dump(data);
-        self.inner.state_mut().parts[part as usize].eq = eq;
-        Ok(())
-    }
-
-    /// Patch the master EQ with a parsed dump.
-    #[wasm_bindgen(js_name = applyMasterEqDump)]
-    pub fn apply_master_eq_dump(&mut self, data: &[u8]) {
-        let eq = state_parse::parse_master_eq_dump(data);
-        // Preserve the enabled flag (read separately).
-        let enabled = self.inner.state().master_eq.enabled;
-        self.inner.state_mut().master_eq = eq;
-        self.inner.state_mut().master_eq.enabled = enabled;
-    }
-
-    /// Set master EQ enabled state.
-    #[wasm_bindgen(js_name = setMasterEqEnabled)]
-    pub fn set_master_eq_enabled(&mut self, enabled: bool) {
-        self.inner.state_mut().master_eq.enabled = enabled;
-    }
-
-    /// Set the studio set name.
-    #[wasm_bindgen(js_name = setStudioSetName)]
-    pub fn set_studio_set_name(&mut self, name: &str) {
-        self.inner.state_mut().studio_set_name = name.to_string();
-    }
-
-    /// Set the studio set PC.
-    #[wasm_bindgen(js_name = setStudioSetPc)]
-    pub fn set_studio_set_pc(&mut self, pc: u8) {
-        self.inner.state_mut().studio_set_pc = pc;
-    }
-
-    /// Set the master level.
-    #[wasm_bindgen(js_name = applyMasterLevel)]
-    pub fn apply_master_level(&mut self, value: u8) {
-        self.inner.state_mut().master_level = value;
-    }
-
-    /// Set a part's tone name.
-    #[wasm_bindgen(js_name = setPartToneCategory)]
-    pub fn set_part_tone_category(&mut self, part: u8, category: u8) -> Result<(), JsError> {
-        check_part(part)?;
-        self.inner.state_mut().parts[part as usize].tone_category = category;
-        Ok(())
-    }
-
-    #[wasm_bindgen(js_name = setPartToneName)]
-    pub fn set_part_tone_name(&mut self, part: u8, name: &str) -> Result<(), JsError> {
-        check_part(part)?;
-        self.inner.state_mut().parts[part as usize].tone_name = name.to_string();
-        Ok(())
-    }
-
-    /// Set chorus state from core bytes.
-    #[wasm_bindgen(js_name = applyChorusCore)]
-    pub fn apply_chorus_core(&mut self, data: &[u8]) {
-        let out = usize::from(params::chorus::OUTPUT_SELECT);
-        if data.len() > out {
-            let fx = &mut self.inner.state_mut().chorus;
-            fx.fx_type = data[usize::from(params::chorus::TYPE)];
-            fx.level = data[usize::from(params::chorus::LEVEL)];
-            fx.output = data[out];
-        }
-    }
-
-    /// Set chorus enabled.
-    #[wasm_bindgen(js_name = setChorusEnabled)]
-    pub fn set_chorus_enabled(&mut self, enabled: bool) {
-        self.inner.state_mut().chorus.enabled = enabled;
-    }
-
-    /// Set chorus params from decoded nib values.
-    #[wasm_bindgen(js_name = applyChorusParams)]
-    pub fn apply_chorus_params(&mut self, params: Vec<i32>) {
-        self.inner.state_mut().chorus.params = params;
-    }
-
-    /// Set reverb state from core bytes.
-    #[wasm_bindgen(js_name = applyReverbCore)]
-    pub fn apply_reverb_core(&mut self, data: &[u8]) {
-        let out = usize::from(params::reverb::OUTPUT_ASSIGN);
-        if data.len() > out {
-            let fx = &mut self.inner.state_mut().reverb;
-            fx.fx_type = data[usize::from(params::reverb::TYPE)];
-            fx.level = data[usize::from(params::reverb::LEVEL)];
-            fx.output = data[out];
-        }
-    }
-
-    /// Set reverb enabled.
-    #[wasm_bindgen(js_name = setReverbEnabled)]
-    pub fn set_reverb_enabled(&mut self, enabled: bool) {
-        self.inner.state_mut().reverb.enabled = enabled;
-    }
-
-    /// Set reverb params from decoded nib values.
-    #[wasm_bindgen(js_name = applyReverbParams)]
-    pub fn apply_reverb_params(&mut self, params: Vec<i32>) {
-        self.inner.state_mut().reverb.params = params;
-    }
-
-    /// Set ext part level.
-    #[wasm_bindgen(js_name = applyExtLevel)]
-    pub fn apply_ext_level(&mut self, value: u8) {
-        self.inner.state_mut().ext_level = value;
-    }
-
-    /// Set ext part muted.
-    #[wasm_bindgen(js_name = applyExtMuted)]
-    pub fn apply_ext_muted(&mut self, muted: bool) {
-        self.inner.state_mut().ext_muted = muted;
-    }
-
     // -- Drum Comp+EQ --------------------------------------------------
 
     #[wasm_bindgen(js_name = setDrumCompEqSwitch)]
@@ -2695,24 +2312,6 @@ impl WasmDeviceState {
         check_comp_eq_unit(unit)?;
         self.inner.set_comp_eq_param(unit, param_offset, value);
         Ok(())
-    }
-
-    /// Apply a parsed 84-byte Comp+EQ block dump to the state.
-    #[wasm_bindgen(js_name = applyCompEqBlock)]
-    pub fn apply_comp_eq_block(&mut self, data: &[u8]) {
-        let units = state_parse::parse_comp_eq_block(data);
-        self.inner.state_mut().drum_comp_eq.units = units;
-    }
-
-    /// Apply Studio Set common Comp+EQ settings.
-    #[wasm_bindgen(js_name = applyDrumCompEqCommon)]
-    pub fn apply_drum_comp_eq_common(&mut self, enabled: bool, part: u8, output_assigns: &[u8]) {
-        let dce = &mut self.inner.state_mut().drum_comp_eq;
-        dce.enabled = enabled;
-        dce.part = part;
-        for (i, &v) in output_assigns.iter().take(6).enumerate() {
-            dce.output_assigns[i] = v;
-        }
     }
 
     // -- Motional Surround -------------------------------------------------
@@ -2761,35 +2360,6 @@ impl WasmDeviceState {
         Ok(())
     }
 
-    /// Apply a parsed 13-byte Motional Surround common dump.
-    #[wasm_bindgen(js_name = applySurroundCommon)]
-    pub fn apply_surround_common(&mut self, data: &[u8]) {
-        let parsed = state_parse::parse_surround_common(data);
-        // Preserve per-part data (loaded separately).
-        let parts = self.inner.state().surround.parts.clone();
-        self.inner.state_mut().surround = parsed;
-        self.inner.state_mut().surround.parts = parts;
-    }
-
-    /// Set per-part surround positioning directly.
-    #[wasm_bindgen(js_name = applyPartSurround)]
-    pub fn apply_part_surround(
-        &mut self,
-        part: u8,
-        lr: u8,
-        fb: u8,
-        width: u8,
-        ambience_send: u8,
-    ) -> Result<(), JsError> {
-        check_part(part)?;
-        let ps = &mut self.inner.state_mut().surround.parts[part as usize];
-        ps.lr = lr;
-        ps.fb = fb;
-        ps.width = width;
-        ps.ambience_send = ambience_send;
-        Ok(())
-    }
-
     // -- SN-S Tone Edit ----------------------------------------------------
 
     /// Set an SN-S Common field, sent nibblized when the field is.
@@ -2820,6 +2390,21 @@ impl WasmDeviceState {
         self.inner
             .set_sns_partial_param(part, partial, field.into(), value);
         Ok(())
+    }
+
+    /// Start reading the whole mixer state from the device, dropping any
+    /// read in progress. Replies update the state as they arrive; lost
+    /// replies are requested again by `drain`.
+    #[wasm_bindgen(js_name = loadMixer)]
+    pub fn load_mixer(&mut self) {
+        self.inner.load_mixer();
+    }
+
+    /// Whether a mixer load still waits for a block the mixer can't be
+    /// shown without.
+    #[wasm_bindgen(js_name = mixerLoading)]
+    pub fn mixer_loading(&self) -> bool {
+        self.inner.mixer_loading()
     }
 
     /// Start reading a part's SN-S tone into the core cache, unless it is
@@ -3242,27 +2827,4 @@ pub fn format_mixer_param(id: &str, value: i32) -> String {
     param_registry::lookup(&PARAMS, id)
         .map(|def| param_registry::format_value(def, value))
         .unwrap_or_else(|| value.to_string())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn fx_core_reads_output_at_its_own_offset() {
-        let mut dev = WasmDeviceState::new(0x10);
-        // Chorus: type, level, reserved, Output Select.
-        dev.apply_chorus_core(&[1, 100, 0, 2]);
-        // Reverb: type, level, Output Assign.
-        dev.apply_reverb_core(&[3, 90, 1]);
-        let s = dev.inner.state();
-        assert_eq!(
-            (s.chorus.fx_type, s.chorus.level, s.chorus.output),
-            (1, 100, 2)
-        );
-        assert_eq!(
-            (s.reverb.fx_type, s.reverb.level, s.reverb.output),
-            (3, 90, 1)
-        );
-    }
 }

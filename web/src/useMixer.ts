@@ -3,15 +3,14 @@
  *
  * State management, echo suppression, and send queuing are delegated to
  * the Rust `WasmDeviceState` (via `service.device`).  This hook:
- * - Orchestrates the initial device read sequence (RQ1 requests)
- * - Applies RQ1 responses to the Rust state
+ * - Starts the Rust mixer load (RQ1 requests and their replies)
  * - Syncs Rust state into React state for rendering
  * - Forwards user actions to the Rust setters
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { IntegraService } from "./integra";
-import { factoryToneName, type SurroundField } from "../pkg/integral_wasm.js";
+import type { SurroundField } from "../pkg/integral_wasm.js";
 import {
   defaultMixerState,
   type MixerState,
@@ -95,15 +94,18 @@ export interface UseMixerResult {
   preview: () => void;
 }
 
+/** How often a running mixer load is checked for reads given up on (ms). */
+const LOAD_POLL_MS = 250;
+
 export function useMixer(service: IntegraService | null): UseMixerResult {
   const [state, setState] = useState<MixerState>(defaultMixerState);
   const stateRef = useRef(state);
   stateRef.current = state;
-  const loadGenRef = useRef(0);
+  const loadPollRef = useRef(0);
   const rafId = useRef(0);
 
   // Sync Rust DeviceState → React state.
-  // Preserves UI-only fields (selectedPart, loading, studioSetNames).
+  // Preserves UI-only fields (selectedPart, studioSetNames).
   // Debounced via requestAnimationFrame so multiple rapid calls within one
   // frame coalesce into a single state read.
   const syncFromRust = useCallback(() => {
@@ -113,6 +115,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
       // readState() returns a plain JS object matching the Rust MixerState
       // shape (camelCase fields via serde rename).
       const rs = service.device.readState() as RustMixerState;
+      const loading = service.device.mixerLoading();
       setState((prev) => ({
         studioSetName: rs.studioSetName ?? "",
         studioSetPC: rs.studioSetPC ?? 0,
@@ -129,8 +132,12 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
         previewPart: rs.previewPart ?? 0,
         // UI-only fields preserved from React state.
         selectedPart: prev.selectedPart,
-        loading: prev.loading,
-        studioSetNames: prev.studioSetNames,
+        loading,
+        // The current Studio Set's name is known once the load is done.
+        studioSetNames:
+          prev.loading && !loading && rs.studioSetName
+            ? new Map([...prev.studioSetNames, [rs.studioSetPC, rs.studioSetName]])
+            : prev.studioSetNames,
       }));
     });
   }, [service]);
@@ -145,6 +152,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     return () => {
       unsub();
       cancelAnimationFrame(rafId.current);
+      clearInterval(loadPollRef.current);
     };
   }, [service, syncFromRust]);
 
@@ -153,149 +161,16 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   // -----------------------------------------------------------------------
 
   const loadState = useCallback(
-    async (svc: IntegraService) => {
-      const gen = ++loadGenRef.current;
-      const isCurrent = () => loadGenRef.current === gen;
-      const dev = svc.device;
-
+    (svc: IntegraService) => {
+      clearInterval(loadPollRef.current);
+      svc.device.loadMixer();
       setState((prev) => ({ ...prev, loading: true }));
-
-      try {
-        const [name, studioSetPC, masterLevel, soloPart] = await Promise.all([
-          svc.requestStudioSetName(),
-          svc.requestStudioSetPC(),
-          svc.requestMasterLevel(),
-          svc.requestSoloPart(),
-        ]);
-
-        if (!isCurrent()) return;
-
-        dev.setStudioSetName(name);
-        dev.setStudioSetPc(studioSetPC);
-        dev.applyMasterLevel(masterLevel);
-        dev.setSoloPart(soloPart);
-
-        for (let i = 0; i < 16; i++) {
-          try {
-            const dump = await svc.requestPartMixerState(i);
-            dev.applyPartDump(i, dump);
-          } catch (e) {
-            console.warn(`[mixer] Part ${i + 1} failed:`, e);
-          }
-        }
-
-        if (!isCurrent()) return;
-
-        setState((prev) => ({
-          ...prev,
-          loading: false,
-          studioSetNames: new Map([...prev.studioSetNames, [studioSetPC, name]]),
-        }));
+      // Replies sync through onDt1; this also notices reads given up on.
+      loadPollRef.current = window.setInterval(() => {
+        if (svc.device.mixerLoading()) return;
+        clearInterval(loadPollRef.current);
         syncFromRust();
-
-        // Set factory tone names instantly (no MIDI needed).
-        const rs0 = dev.readState() as RustMixerState;
-        for (let i = 0; i < 16; i++) {
-          const p = rs0.parts?.[i];
-          if (!p) continue;
-          const fName = factoryToneName(p.toneBankMsb, p.toneBankLsb, p.tonePC);
-          if (fName) dev.setPartToneName(i, fName);
-        }
-        syncFromRust();
-
-        // Secondary loads — serialized to avoid overwhelming the device.
-        // Each request waits for the previous one to complete before sending.
-        const seq = async (label: string, fn: () => Promise<void>) => {
-          if (!isCurrent()) return;
-          try { await fn(); } catch (e) { console.warn(`[mixer] ${label}:`, e); }
-          if (isCurrent()) syncFromRust();
-        };
-
-        // Tone names and categories from device (user tones aren't in the factory tables).
-        for (let i = 0; i < 16; i++) {
-          const msb = rs0.parts?.[i]?.toneBankMsb;
-          if (msb === undefined) continue;
-          await seq(`tone name ${i + 1}`, async () => {
-            const toneName = await svc.requestToneName(i, msb);
-            if (toneName) dev.setPartToneName(i, toneName);
-            dev.setPartToneCategory(i, await svc.requestToneCategory(i, msb));
-          });
-        }
-
-        // Part EQ
-        for (let i = 0; i < 16; i++) {
-          await seq(`part ${i + 1} EQ`, async () => {
-            const eqData = await svc.requestPartEq(i);
-            dev.applyPartEqDump(i, eqData);
-          });
-        }
-
-        // Master EQ
-        await seq("master EQ", async () => {
-          const [eqData, enabled] = await Promise.all([
-            svc.requestMasterEq(), svc.requestMasterEqSwitch(),
-          ]);
-          dev.applyMasterEqDump(eqData);
-          dev.setMasterEqEnabled(enabled);
-        });
-
-        // Ext Part
-        await seq("ext part", async () => {
-          const [level, muted] = await Promise.all([
-            svc.requestExtPartLevel(), svc.requestExtPartMute(),
-          ]);
-          dev.applyExtLevel(level);
-          dev.applyExtMuted(muted);
-        });
-
-        // Chorus
-        await seq("chorus", async () => {
-          const [core, enabled, params] = await Promise.all([
-            svc.requestChorusCore(), svc.requestChorusSwitch(), svc.requestChorusParams(),
-          ]);
-          dev.applyChorusCore(core);
-          dev.setChorusEnabled(enabled);
-          dev.applyChorusParams(Int32Array.from(params));
-        });
-
-        // Reverb
-        await seq("reverb", async () => {
-          const [core, enabled, params] = await Promise.all([
-            svc.requestReverbCore(), svc.requestReverbSwitch(), svc.requestReverbParams(),
-          ]);
-          dev.applyReverbCore(core);
-          dev.setReverbEnabled(enabled);
-          dev.applyReverbParams(Int32Array.from(params));
-        });
-
-        // Motional Surround
-        await seq("surround common", async () => {
-          const data = await svc.requestSurroundCommon();
-          dev.applySurroundCommon(data);
-        });
-        for (let i = 0; i < 16; i++) {
-          await seq(`surround part ${i + 1}`, async () => {
-            const { lr, fb, width, ambienceSend } = await svc.requestPartSurround(i);
-            dev.applyPartSurround(i, lr, fb, width, ambienceSend);
-          });
-        }
-
-        // Drum Comp+EQ
-        await seq("drum comp+eq", async () => {
-          const { enabled, part, outputAssigns } = await svc.requestDrumCompEqCommon();
-          dev.applyDrumCompEqCommon(enabled, part, new Uint8Array(outputAssigns));
-          if (enabled) {
-            const partMsb = (dev.readState() as RustMixerState).parts?.[part]?.toneBankMsb;
-            // Only a drum kit has a Comp+EQ block.
-            const blockData =
-              partMsb === undefined ? null : await svc.requestCompEqBlock(part, partMsb);
-            if (blockData) dev.applyCompEqBlock(blockData);
-          }
-        });
-
-      } catch {
-        setState((prev) => ({ ...prev, loading: false }));
-      }
+      }, LOAD_POLL_MS);
     },
     [syncFromRust],
   );
@@ -401,20 +276,9 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   const changePartTone = useCallback(
     (part: number, msb: number, lsb: number, pc: number) => {
       if (!service) return;
+      // Core reads the new tone's name and category back.
       service.device.changePartTone(part, msb, lsb, pc);
-      // Drop the old tone's category until the new one is read back.
-      service.device.setPartToneCategory(part, 0);
       syncFromRust();
-
-      // Re-read actual device name (may differ for user tones).
-      setTimeout(() => {
-        void (async () => {
-          const toneName = await service.requestToneName(part, msb);
-          if (toneName) service.device.setPartToneName(part, toneName);
-          service.device.setPartToneCategory(part, await service.requestToneCategory(part, msb));
-          syncFromRust();
-        })();
-      }, 300);
     },
     [service, syncFromRust],
   );
