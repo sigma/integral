@@ -21,9 +21,12 @@ Editor. Inst Number 0 (OFF) is not stored.
 - **type** — Roland's category: Kick, Snare, Tom, Hi-Hat, Ride, Crash,
   Percussion, Other or SFX.
 - **bank** — `INT`, or `ExSN6` when the Inst comes from that expansion.
-- **width**, **amb**, **vari** — kept as in the source, where present:
-  whether the Inst has Stereo Width and Ambience, and its Variations
-  (e.g. `Flam/Buzz/Roll`). The editor doesn't use them yet.
+- **vari** — the Variation families the Inst supports, where present, slash-
+  separated: `Flam` (FLAM1-3), `Buzz` (BUZZ1-3), `Roll` (ROLL), e.g.
+  `Flam/Buzz/Roll`. The build splits it into families (failing on an unknown
+  one), which limit the editor's Variation list.
+- **width**, **amb** — kept as in the source, where present: whether the Inst
+  has Stereo Width and Ambience. The editor doesn't use them yet.
 
 ## Source
 

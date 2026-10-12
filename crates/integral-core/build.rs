@@ -33,6 +33,9 @@ struct SndInstEntry {
     #[serde(rename = "type")]
     family: String,
     bank: String,
+    /// The Variations the Inst supports: absent, `Flam/Buzz` or `Flam/Buzz/Roll`.
+    #[serde(default)]
+    vari: Option<String>,
 }
 
 /// Generate `SND_INSTS` from the SN Drum Inst list: Inst Numbers must run 1…N.
@@ -52,9 +55,25 @@ fn generate_sn_drum_insts(path: &Path, out_dir: &Path) {
             i + 1,
             "insts.json: Inst Numbers must run 1…N"
         );
+        // The Variation families the Inst supports, from `Flam/Buzz/Roll`-style lists.
+        let mut families = [false; 3];
+        for family in e.vari.iter().flat_map(|v| v.split('/')) {
+            let i = ["Flam", "Buzz", "Roll"]
+                .iter()
+                .position(|&f| f == family)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "insts.json: Inst {} has unknown Variation {family}",
+                        e.number
+                    )
+                });
+            families[i] = true;
+        }
+        let [flam, buzz, roll] = families;
         writeln!(
             out,
-            "    SndInst {{ number: {}, name: {:?}, family: {:?}, bank: {:?} }},",
+            "    SndInst {{ number: {}, name: {:?}, family: {:?}, bank: {:?}, \
+             variations: SndVariations {{ flam: {flam}, buzz: {buzz}, roll: {roll} }} }},",
             e.number, e.name, e.family, e.bank
         )
         .unwrap();

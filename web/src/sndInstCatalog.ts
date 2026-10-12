@@ -11,7 +11,13 @@ interface SndInst {
   bank: string;
 }
 
+let insts: SndInst[] | null = null;
 let source: WaveSource | null = null;
+
+function allInsts(): SndInst[] {
+  insts ??= JSON.parse(snDrumInstsJson()) as SndInst[];
+  return insts;
+}
 
 /**
  * The SN Drum Insts as a single-list source for the Wave picker: picked by
@@ -19,8 +25,7 @@ let source: WaveSource | null = null;
  */
 export function sndInstSource(): WaveSource {
   if (source) return source;
-  const insts = JSON.parse(snDrumInstsJson()) as SndInst[];
-  const waves: Wave[] = insts.map(({ number, name, family }) => ({ number, name, family }));
+  const waves: Wave[] = allInsts().map(({ number, name, family }) => ({ number, name, family }));
   source = {
     id: "Insts",
     params: null,

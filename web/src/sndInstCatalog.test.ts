@@ -8,10 +8,8 @@ describe("sndInstSource", () => {
     expect(source.name(1)).toBe("Studio Kick");
     expect(source.name(294)).toBe("Telephone 3");
     expect(source.name(295)).toBeNull();
-    expect(source.families).toEqual(
-      ["Kick", "Snare", "Tom", "Hi-Hat", "Ride", "Crash", "Percussion", "Other", "SFX"].filter((f) =>
-        source.families.includes(f)),
+    expect([...source.families].sort()).toEqual(
+      ["Crash", "Hi-Hat", "Kick", "Other", "Percussion", "Ride", "SFX", "Snare", "Tom"],
     );
-    expect(source.families).toContain("Kick");
   });
 });

@@ -2077,7 +2077,13 @@ pub fn tone_type_from_bank_msb(msb: u8) -> Option<ToneType> {
     params::tone_type_from_bank_msb(msb).map(Into::into)
 }
 
-/// Every named SN Drum Inst, as a JSON array of `{ number, name, family, bank }`.
+/// Whether SN Drum Inst `inst` supports Note Variation `variation` (OFF always).
+#[wasm_bindgen]
+pub fn sn_drum_inst_supports_variation(inst: u16, variation: u8) -> bool {
+    sn_drum::inst_supports_variation(inst, variation)
+}
+
+/// Every named SN Drum Inst, as a JSON array of `{ number, name, family, bank, variations }`.
 #[wasm_bindgen(js_name = snDrumInstsJson)]
 pub fn sn_drum_insts_json() -> String {
     serde_json::to_string(sn_drum::sn_drum_insts()).unwrap_or_else(|_| "[]".to_string())

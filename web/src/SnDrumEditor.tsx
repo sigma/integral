@@ -9,6 +9,7 @@ import {
   SndCommonField,
   SndNoteField,
   ToneType,
+  sn_drum_inst_supports_variation,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import { deviceSpec } from "./deviceSpec";
@@ -76,6 +77,16 @@ type NoteParamHandler = (field: SndNoteField, key: keyof SnDrumNote, value: numb
 // ---------------------------------------------------------------------------
 // Display helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * The Variations a key's Inst supports. A value the Inst doesn't support
+ * (left over from another Inst) stays listed, marked, so it isn't hidden.
+ */
+function variationOptions(note: { instNumber: number; variation: number }) {
+  const ok = (v: number) => sn_drum_inst_supports_variation(note.instNumber, v);
+  return VARIATION_OPTIONS.filter((o) => ok(o.value) || o.value === note.variation).map((o) =>
+    ok(o.value) ? o : { ...o, label: `${o.label} (n/a)` });
+}
 
 const VARIATION_OPTIONS = [
   { value: 0, label: "OFF" },
@@ -425,7 +436,7 @@ function NoteControls({
               title="Stereo Width" />
           </div>
           <div className={css.noteSelects}>
-            <SynthSelect label="Variation" value={note.variation} options={VARIATION_OPTIONS}
+            <SynthSelect label="Variation" value={note.variation} options={variationOptions(note)}
               onChange={set(SndNoteField.Variation, "variation")} />
             <SynthSelect label="Output" value={note.outputAssign} options={OUTPUT_ASSIGN_OPTIONS}
               onChange={set(SndNoteField.OutputAssign, "outputAssign")} />

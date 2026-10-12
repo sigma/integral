@@ -40,6 +40,7 @@ pub const SND_LAST_KEY: u8 = 88;
 /// (`docs/sn-drum-insts/`). Inst Number 0 (OFF) has no entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct SndInst {
     /// Inst Number (1…N).
     pub number: u16,
@@ -50,6 +51,45 @@ pub struct SndInst {
     pub family: &'static str,
     /// `INT`, or `ExSN6` when the Inst comes from that expansion.
     pub bank: &'static str,
+    /// The Variation families the Inst supports.
+    pub variations: SndVariations,
+}
+
+/// The Variation families an SN Drum Inst supports (`Flam/Buzz/Roll` in
+/// Roland's list).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct SndVariations {
+    /// FLAM1-3.
+    pub flam: bool,
+    /// BUZZ1-3.
+    pub buzz: bool,
+    /// ROLL.
+    pub roll: bool,
+}
+
+impl SndVariations {
+    /// Whether Note Variation `value` (0 OFF, 1-3 FLAM1-3, 4-6 BUZZ1-3,
+    /// 7 ROLL) is available: OFF always is.
+    pub fn supports(self, value: u8) -> bool {
+        match value {
+            0 => true,
+            1..=3 => self.flam,
+            4..=6 => self.buzz,
+            7 => self.roll,
+            _ => false,
+        }
+    }
+}
+
+/// Whether Inst `inst` supports Note Variation `variation`. OFF is always
+/// supported; an unknown Inst (or OFF) supports nothing else.
+pub fn inst_supports_variation(inst: u16, variation: u8) -> bool {
+    let variations = usize::from(inst)
+        .checked_sub(1)
+        .and_then(|i| SND_INSTS.get(i))
+        .map_or_else(SndVariations::default, |x| x.variations);
+    variations.supports(variation)
 }
 
 include!(concat!(env!("OUT_DIR"), "/sn_drum_inst_data.rs"));
@@ -366,6 +406,27 @@ mod tests {
         );
         assert!(insts.last().unwrap().number <= SND_INST_NUMBER_MAX);
         assert_eq!(insts.iter().filter(|x| x.bank == "ExSN6").count(), 126);
+    }
+
+    #[test]
+    fn insts_support_the_variation_families_they_list() {
+        let inst = |name: &str| {
+            sn_drum_insts()
+                .iter()
+                .find(|x| x.name == name)
+                .unwrap()
+                .number
+        };
+        // Studio Kick: Flam/Buzz. Studio Sn: Flam/Buzz/Roll. Telephone 3: none.
+        let supported = |n| {
+            (0..8)
+                .filter(|&v| inst_supports_variation(n, v))
+                .collect::<Vec<u8>>()
+        };
+        assert_eq!(supported(inst("Studio Kick")), [0, 1, 2, 3, 4, 5, 6]);
+        assert_eq!(supported(inst("Studio Sn")), [0, 1, 2, 3, 4, 5, 6, 7]);
+        assert_eq!(supported(inst("Telephone 3")), [0]);
+        assert_eq!(supported(0), [0]);
     }
 
     #[test]
