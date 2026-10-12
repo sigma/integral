@@ -481,6 +481,14 @@ pub fn tone_type_from_bank_msb(msb: u8) -> Option<ToneType> {
     }
 }
 
+/// Whether a tone from bank `msb` can be edited. The GM2 (120/121) and
+/// ExPCM (96/97) banks can't: "You can't edit the sounds of the GM2 bank or
+/// the ExPCM bank" (INTEGRA-7 Owner's Manual), and the device doesn't
+/// answer reads of their Temporary Tone.
+pub fn is_editable_bank(msb: u8) -> bool {
+    tone_type_from_bank_msb(msb).is_some() && !matches!(msb, 96 | 97 | 120 | 121)
+}
+
 /// Whether a bank MSB selects a drum kit (SN-D or PCM-D).
 ///
 /// Only drum kits can route keys to the Drum Comp+EQ units, so the Comp+EQ
@@ -533,6 +541,16 @@ pub const PART_MIXER_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x2A);
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gm2_and_expcm_banks_are_not_editable() {
+        for msb in [86, 87, 88, 89, 92, 93, 95] {
+            assert!(is_editable_bank(msb), "MSB {msb}");
+        }
+        for msb in [96, 97, 120, 121, 0, 85] {
+            assert!(!is_editable_bank(msb), "MSB {msb}");
+        }
+    }
     use crate::address::Address;
 
     #[test]

@@ -2063,6 +2063,20 @@ pub fn pcms_structure_routing(structure: u8) -> Result<JsValue, JsError> {
     serde_wasm_bindgen::to_value(&routing).map_err(|e| JsError::new(&e.to_string()))
 }
 
+/// Whether a tone from bank `msb` can be edited (not GM2 or ExPCM, for
+/// instance); see [`params::is_editable_bank`].
+#[wasm_bindgen]
+pub fn is_editable_bank(msb: u8) -> bool {
+    params::is_editable_bank(msb)
+}
+
+/// The tone type a Bank Select MSB selects (whose Temporary Tone block an
+/// editor reads), or `undefined` for an MSB that isn't a tone bank.
+#[wasm_bindgen]
+pub fn tone_type_from_bank_msb(msb: u8) -> Option<ToneType> {
+    params::tone_type_from_bank_msb(msb).map(Into::into)
+}
+
 /// Returns chorus parameter definitions for the given type index.
 #[wasm_bindgen]
 pub fn chorus_params(chorus_type: u8) -> Vec<WasmFxParamDef> {

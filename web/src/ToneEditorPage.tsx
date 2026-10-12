@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { ToneType, is_editable_bank, tone_type_from_bank_msb } from "../pkg/integral_wasm.js";
 import { SnSynthEditor } from "./SnSynthEditor";
 import { SnAcousticEditor } from "./SnAcousticEditor";
 import { SnDrumEditor } from "./SnDrumEditor";
@@ -8,17 +9,6 @@ import type { IntegraService } from "./integra";
 import type { UseMixerResult } from "./useMixer";
 import type { ExpansionMarking } from "./WavePicker";
 import css from "./ToneEditorPage.module.css";
-
-// Bank MSB to tone type mapping
-const TONE_TYPE_LABELS: Record<number, string> = {
-  86: "PCM Drum",
-  87: "PCM Synth",
-  88: "SN-D (Drums)",
-  89: "SN-A (Acoustic)",
-  95: "SN-S (Synth)",
-  96: "ExPCM",
-  97: "ExPCM",
-};
 
 interface Props {
   mixer: UseMixerResult;
@@ -31,13 +21,10 @@ interface Props {
 export function ToneEditorPage({ mixer, service, marking, onBack }: Props) {
   const partIndex = mixer.state.selectedPart;
   const part = mixer.state.parts[partIndex]!;
-  const bankMsb = part.toneBankMsb;
-  const toneType = TONE_TYPE_LABELS[bankMsb] ?? `Unknown (MSB ${bankMsb})`;
-  const isPcmd = bankMsb === 86;
-  const isPcms = bankMsb === 87;
-  const isSns = bankMsb === 95;
-  const isSna = bankMsb === 89;
-  const isSnd = bankMsb === 88;
+  // Preset, User and SRX tones load into one of the five Temporary Tone
+  // types; core knows which from the bank, and which banks can't be edited.
+  const msb = part.toneBankMsb;
+  const toneType = is_editable_bank(msb) ? tone_type_from_bank_msb(msb) : undefined;
 
   return (
     <div className={css.page}>
@@ -48,19 +35,21 @@ export function ToneEditorPage({ mixer, service, marking, onBack }: Props) {
       </div>
       {/* Keyed on tone identity so a new tone pick remounts and re-reads the editor. */}
       <Fragment key={`${part.toneBankMsb}-${part.toneBankLsb}-${part.tonePC}`}>
-        {isPcmd ? (
+        {toneType === ToneType.PcmDrum ? (
           <PcmDrumEditor partIndex={partIndex} service={service} marking={marking} />
-        ) : isPcms ? (
+        ) : toneType === ToneType.PcmSynth ? (
           <PcmSynthEditor partIndex={partIndex} service={service} marking={marking} />
-        ) : isSns ? (
+        ) : toneType === ToneType.SnSynth ? (
           <SnSynthEditor partIndex={partIndex} service={service} />
-        ) : isSna ? (
+        ) : toneType === ToneType.SnAcoustic ? (
           <SnAcousticEditor partIndex={partIndex} service={service} />
-        ) : isSnd ? (
+        ) : toneType === ToneType.SnDrum ? (
           <SnDrumEditor partIndex={partIndex} service={service} />
         ) : (
           <div className={css.placeholder}>
-            Tone editor for {toneType} is not yet implemented.
+            {tone_type_from_bank_msb(msb) === undefined
+              ? `Bank MSB ${msb} isn't a tone bank, so there's no tone to edit.`
+              : "The INTEGRA-7 can't edit GM2 or ExPCM tones. Pick a Preset, User or SRX tone to edit it."}
           </div>
         )}
       </Fragment>
