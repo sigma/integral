@@ -33,13 +33,27 @@
   justify-items: center;
 }
 
+/* Controls on the left, macros on the right; both fill the panel's height. */
+.columns {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+}
+
+.mainColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* margin-top: auto pins the output (and its Level fader) to the panel's bottom. */
 .mfxOutput {
+  margin-top: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
   border-top: 1px solid #222240;
-  margin-top: 4px;
   padding-top: 6px;
 }
 
@@ -56,9 +70,8 @@
 
 /* Macros section */
 .macroSection {
-  border-top: 1px solid #222240;
-  margin-top: 4px;
-  padding-top: 4px;
+  border-left: 1px solid #222240;
+  padding-left: 8px;
 }
 
 .macroHeader {

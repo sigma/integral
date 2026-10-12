@@ -73,10 +73,10 @@
    Main Grid: 3 partial rows x (SW + 5 sections + MFX)
    ---------------------------------------------------------------- */
 
+/* Stretch, so the MFX panel ends level with the last partial row. */
 .mainArea {
   display: flex;
   gap: 8px;
-  align-items: flex-start;
 }
 
 .partialRows {
@@ -108,6 +108,7 @@
 
 .mfxSidebar {
   flex-shrink: 0;
+  display: flex;
 }
 
 /* Fixed-width area for wave selectors so knobs don't shift */
