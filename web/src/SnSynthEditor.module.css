@@ -129,9 +129,27 @@
   flex-shrink: 0;
 }
 
-/* The PCM Wave picker needs its full width; the knobs wrap to the next row */
-.oscSelectorsPcm {
-  width: auto;
+/* Two equal rows the height of a knob: the PCM Wave picker (when shown) fills
+   the first, the knobs always sit on the second, level with the lower knob row
+   of the other panels. The min-width reserves the picker's room so the panel
+   doesn't resize when it appears. */
+.oscKnobArea {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
+  min-width: 220px;
+  margin-left: auto;
+}
+
+.oscKnobRow {
+  grid-row: 2;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.hiddenKnob {
+  visibility: hidden;
 }
 
 .oscKnobGrid {

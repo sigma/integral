@@ -126,7 +126,7 @@ function OscPanel({
   return (
     <SectionPanel label="OSC" accentColor="#fc8">
       <div className={css.panelRow}>
-        <div className={`${css.oscSelectors} ${isPcm ? css.oscSelectorsPcm : ""}`}>
+        <div className={css.oscSelectors}>
           <SynthSwitch label="Wave" value={partial.oscWave} vertical
             options={OSC_WAVE_NAMES.map((l, i) => ({ value: i, label: l }))}
             onChange={(v) => onChange(SnsPartialField.OscWave, v)} led={false} />
@@ -135,19 +135,22 @@ function OscPanel({
               options={OSC_VARIATION_NAMES.map((l, i) => ({ value: i, label: l }))}
               onChange={(v) => onChange(SnsPartialField.OscWaveVariation, v)} led={false} />
           )}
-          {isPcm && <OscPcmWave waveNumber={partial.waveNumber} onChange={onChange} />}
         </div>
-        <div className={css.oscKnobGrid}>
-          <SynthKnob label="Pitch" value={partial.oscPitch} min={40} max={88} defaultValue={64} center={64}
-            onChange={(v) => onChange(SnsPartialField.OscPitch, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8" />
-          <SynthKnob label="HPF" value={partial.hpfCutoff} min={0} max={127} defaultValue={0}
-            onChange={(v) => onChange(SnsPartialField.HpfCutoff, v)} formatValue={(v) => String(v)} color="#fc8" />
-          <SynthKnob label="Detune" value={partial.oscDetune} min={14} max={114} defaultValue={64} center={64}
-            onChange={(v) => onChange(SnsPartialField.OscDetune, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8" />
-          {isSuperSaw && (
-            <SynthKnob label="S-Saw" value={partial.superSawDetune} min={0} max={127} defaultValue={0}
-              onChange={(v) => onChange(SnsPartialField.SuperSawDetune, v)} formatValue={(v) => String(v)} color="#fc8" />
-          )}
+        <div className={css.oscKnobArea}>
+          {isPcm && <OscPcmWave waveNumber={partial.waveNumber} onChange={onChange} />}
+          <div className={css.oscKnobRow}>
+            <SynthKnob label="Pitch" value={partial.oscPitch} min={40} max={88} defaultValue={64} center={64}
+              onChange={(v) => onChange(SnsPartialField.OscPitch, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8" />
+            <SynthKnob label="HPF" value={partial.hpfCutoff} min={0} max={127} defaultValue={0}
+              onChange={(v) => onChange(SnsPartialField.HpfCutoff, v)} formatValue={(v) => String(v)} color="#fc8" />
+            <SynthKnob label="Detune" value={partial.oscDetune} min={14} max={114} defaultValue={64} center={64}
+              onChange={(v) => onChange(SnsPartialField.OscDetune, v)} formatValue={(v) => signedFmt(v, 64)} color="#fc8" />
+            {/* Hidden, not removed, so it keeps its room and the panel's width */}
+            <div className={isSuperSaw ? undefined : css.hiddenKnob}>
+              <SynthKnob label="S-Saw" value={partial.superSawDetune} min={0} max={127} defaultValue={0}
+                onChange={(v) => onChange(SnsPartialField.SuperSawDetune, v)} formatValue={(v) => String(v)} color="#fc8" />
+            </div>
+          </div>
         </div>
       </div>
       <FaderGroup>
