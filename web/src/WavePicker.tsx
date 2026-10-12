@@ -1,10 +1,9 @@
 /**
  * Picks the Wave of a PCM Synth partial, a PCM Drum WMT or an SN Synth OSC.
  *
- * In stereo mode: a Wave Group dropdown and two independent rows,
- * `L ‹ name ›` and `R ‹ name ›`, with a "pair" shortcut on L, a clear (×)
- * on R and a warning when L is OFF but R isn't. Otherwise a single, larger
- * name button in the given group, without the group label or steppers.
+ * In stereo mode: a Wave Group dropdown and two independent rows, `L name`
+ * and `R name`, with a "pair" shortcut on L, a clear (×) on R and a warning
+ * when L is OFF but R isn't. Otherwise a single name in the given group.
  * Clicking a name opens a popover with search, family chips and an OFF
  * entry. Names, families and Stereo pairs come from core.
  */
@@ -103,7 +102,6 @@ export function WavePicker({
       <WaveRow
         side={stereo ? "L" : null}
         source={source}
-        groupLabel={groupLabel}
         number={l}
         onPick={(n) => onChange("l", n)}
       >
@@ -127,8 +125,7 @@ export function WavePicker({
         <WaveRow
           side="R"
           source={source}
-          groupLabel={groupLabel}
-          number={r}
+            number={r}
           onPick={(n) => onChange("r", n)}
         >
           <button
@@ -151,63 +148,35 @@ export function WavePicker({
   );
 }
 
-/**
- * One `‹ group name ›` stepper for a stereo side, or the bare name when
- * `side` is null; clicking the name opens the popover.
- */
+/** One Wave's number and name; clicking it opens the popover. */
 function WaveRow({
   side,
   source,
-  groupLabel,
   number,
   onPick,
   children,
 }: {
   side: "L" | "R" | null;
   source: WaveSource | null;
-  groupLabel: string;
   number: number;
   onPick: (number: number) => void;
   children?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const anchor = useRef<HTMLButtonElement>(null);
-  const count = source?.waves.length ?? 0;
   const name = source?.name(number) ?? "?";
   return (
     <div className={css.row}>
       {side && <span className={css.side}>{side}</span>}
-      {side && (
-        <button
-          type="button"
-          className={css.button}
-          aria-label="Previous Wave"
-          disabled={number <= 0}
-          onClick={() => onPick(number - 1)}
-        >
-          ‹
-        </button>
-      )}
       <button
         type="button"
         ref={anchor}
-        className={`${css.collapsed} ${side ? "" : css.collapsedSingle}`}
+        className={css.collapsed}
         disabled={!source}
         onClick={() => setOpen((v) => !v)}
       >
-        {side ? `${groupLabel} ${pad4(number)} ${name}` : `${pad4(number)} ${name}`}
+        {`${pad4(number)} ${name}`}
       </button>
-      {side && (
-        <button
-          type="button"
-          className={css.button}
-          aria-label="Next Wave"
-          disabled={number >= count}
-          onClick={() => onPick(number + 1)}
-        >
-          ›
-        </button>
-      )}
       {children}
       {open && source && (
         <WavePopover

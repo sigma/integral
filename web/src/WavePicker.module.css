@@ -22,9 +22,9 @@
 
 .collapsed {
   flex: 1;
-  padding: 3px 6px;
+  padding: 5px 8px;
   font-family: monospace;
-  font-size: 11px;
+  font-size: 12px;
   color: #4dff4d;
   text-align: left;
   white-space: pre;
@@ -36,11 +36,6 @@
 
 .collapsed:hover:enabled {
   border-color: #4dff4d;
-}
-
-.collapsedSingle {
-  padding: 5px 8px;
-  font-size: 12px;
 }
 
 .collapsed:disabled {

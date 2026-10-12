@@ -38,10 +38,19 @@ function picker(props: {
 /** The collapsed `group number name` button of row `index` (0 = L). */
 function nameButton(container: HTMLElement, index: number): HTMLButtonElement {
   const found = [...container.querySelectorAll("button")].filter((b) =>
-    /^\S+ \d{4} /.test(b.textContent ?? ""),
+    /^\d{4} /.test(b.textContent ?? ""),
   )[index];
   if (!found) throw new Error(`no name button ${index}`);
   return found;
+}
+
+/** Pick Wave `number` from row `index`'s popover. */
+function pickWave(container: HTMLElement, index: number, number: number): void {
+  click(nameButton(container, index));
+  const option = [...document.body.querySelectorAll('[role="option"]')].find((o) =>
+    o.textContent?.startsWith(String(number).padStart(4, "0")),
+  );
+  click(option!);
 }
 
 function searchBox(): HTMLInputElement {
@@ -51,30 +60,11 @@ function searchBox(): HTMLInputElement {
 }
 
 describe("WavePicker", () => {
-  it("shows group, padded Wave Number and name on each row", () => {
+  it("shows the padded Wave Number and name on each row, the group once", () => {
     const { container } = picker({ l: 1, r: 2 });
-    expect(nameButton(container, 0).textContent).toBe("INT 0001 StGrand pA L");
-    expect(nameButton(container, 1).textContent).toBe("INT 0002 StGrand pA R");
-  });
-
-  it("steps through the group's Waves down to OFF", () => {
-    const { container, onChange } = picker({ l: 1 });
-    const [prevL, prevR] = [...container.querySelectorAll('[aria-label="Previous Wave"]')];
-    const [nextL] = [...container.querySelectorAll('[aria-label="Next Wave"]')];
-    click(nextL!);
-    click(prevL!);
-    expect(onChange.mock.calls).toEqual([
-      ["l", 2],
-      ["l", 0],
-    ]);
-    // R is OFF: nothing below it.
-    expect((prevR as HTMLButtonElement).disabled).toBe(true);
-  });
-
-  it("can't step past the group's last Wave", () => {
-    const { container } = picker({ l: INT.waves.length });
-    const nextL = container.querySelector('[aria-label="Next Wave"]');
-    expect((nextL as HTMLButtonElement).disabled).toBe(true);
+    expect(nameButton(container, 0).textContent).toBe("0001 StGrand pA L");
+    expect(nameButton(container, 1).textContent).toBe("0002 StGrand pA R");
+    expect(button(container, "INT ▾")).toBeTruthy();
   });
 
   it("searches names by substring, case-insensitively", () => {
@@ -188,7 +178,7 @@ describe("PCM Synth partial wiring", () => {
       waveNumberL: 1,
       waveNumberR: 0,
     });
-    click(container.querySelector('[aria-label="Next Wave"]')!);
+    pickWave(container, 0, 2);
     click(button(container, "pair"));
     expect(onParam.mock.calls).toEqual([
       [PcmsPartialField.WaveNumberL, "waveNumberL", 0, 2],
@@ -221,7 +211,8 @@ describe("PCM Synth partial wiring", () => {
       waveNumberL: 5,
       waveNumberR: 0,
     });
-    expect(container.textContent).toContain("Type 2 ID 0 0005 ?");
+    expect(button(container, "Type 2 ID 0 ▾")).toBeTruthy();
+    expect(container.textContent).toContain("0005 ?");
   });
 });
 
@@ -233,9 +224,9 @@ describe("PCM Drum WMT wiring", () => {
     const { container, rerender } = render(
       <WmtWave wmt={kick} index={2} onWmtParam={onWmtParam} />,
     );
-    expect(nameButton(container, 0).textContent).toBe("INT 0001 StGrand pA L");
+    expect(nameButton(container, 0).textContent).toBe("0001 StGrand pA L");
 
-    click(container.querySelector('[aria-label="Next Wave"]')!);
+    pickWave(container, 0, 2);
     click(button(container, "×"));
     click(button(container, "INT ▾"));
     const srx07 = [...document.body.querySelectorAll('[role="option"]')].find((o) =>
@@ -251,8 +242,8 @@ describe("PCM Drum WMT wiring", () => {
 
     // Another key: its own group and Waves.
     rerender(<WmtWave wmt={snare} index={2} onWmtParam={onWmtParam} />);
-    expect(nameButton(container, 0).textContent).toBe(`SRX-07 0003 ${SRX07.name(3)}`);
-    expect(nameButton(container, 1).textContent).toBe("SRX-07 0000 OFF");
+    expect(nameButton(container, 0).textContent).toBe(`0003 ${SRX07.name(3)}`);
+    expect(nameButton(container, 1).textContent).toBe("0000 OFF");
   });
 });
 
