@@ -650,6 +650,88 @@ Probed on our device 2026-10-11 with `raw-send`/`raw-read` on Parts 15 and
 16 using PCM Synth User slots, with `monitor` running
 ([#183](https://github.com/sigma/integral/issues/183)).
 
+## 7. Initialize (Studio Set, Sound Ctrl, Part, Tone, Partial)
+
+### Purpose
+
+Reset part of the Temporary area to the device's INIT values: the
+front-panel Studio Set Init, Sound Ctrl Init, Part Init, Tone Init and Partial
+Init. The MIDI Implementation documents no equivalent.
+
+### Request Format
+
+An RQ1 whose 4-byte size field carries the target instead of a size, with a
+standard Roland checksum:
+
+```
+F0 41 <dev> 00 00 64 11 0F 00 18 <TT> 7F 7F <PP> <NN> <checksum> F7
+```
+
+| Init            | `TT` | `PP`           | `NN`                 | Resets                                                        |
+|-----------------|------|----------------|----------------------|---------------------------------------------------------------|
+| Studio Set      | `00` | `00`           | `00`                 | Studio Set Common and all 16 Parts; every Part's tone reloads |
+| Sound Ctrl      | `08` | `00`           | `00`                 | Part `00 13`–`00 1A` (offsets) on **all 16 Parts**            |
+| Part            | `10` | Part, 0-based  | `00`                 | That Part's Studio Set Part block; its tone reloads           |
+| Tone            | `20` | Part, 0-based  | `00`                 | That Part's Temporary tone                                    |
+| Partial         | `30` | Part, 0-based  | Partial, 0-based     | One partial of that Part's Temporary tone                     |
+
+### Response
+
+Two DT1s with 4 data bytes, all `00`:
+
+```
+F0 41 <dev> 00 00 64 12 0F 00 18 01 00 00 00 00 <checksum> F7   (init started)
+F0 41 <dev> 00 00 64 12 0F 00 18 02 00 00 00 00 <checksum> F7   (init finished)
+```
+
+Nothing else follows: the device announces none of the reset values. Read the
+affected blocks back after `0F 00 18 02`.
+
+### Behavior
+
+- **Studio Set Init** names the set `INIT STUDIO` and restores Common to the
+  `INIT STUDIO` image (Common `00 10`–`00 17` = `7F 10 10 10 01 01 01 01`,
+  `00 38` = `00`, Tone Control 1–4 Source = `01 61 02 04`, Tempo = 120). Each
+  Part gets the same values as Part Init, with Part 10 on PCM Drum Kit
+  `56 40 00` instead of the piano.
+- **Sound Ctrl Init** has no Part byte and resets the eight offsets on every
+  Part at once. It touches no other Part field.
+- **Part Init** resets the Part block. Receive Channel came out as the
+  Part's own channel, which it already was; whether a changed one survives
+  wasn't checked. The tone becomes SN
+  Acoustic `59 40 00` (Full Grand 1), Chorus Send `00`, Reverb Send `14`,
+  Motional Surround L-R `40` and F-B `4A`. Other Parts are left alone.
+- **Tone Init** names the tone `INIT TONE` and keeps its type: a PCM Synth
+  tone stays PCM Synth. The Part's tone reference (`00 06`–`00 08`) is left
+  alone, so the Part still points at the slot it pointed at.
+- **Partial Init** resets one partial. Other partials and the tone Common
+  are left alone.
+- **Init gives the same data as an unwritten User slot.** After Tone Init
+  on each of the five tone types, and after Studio Set Init, the Temporary
+  blocks matched the INIT entries of `librarian/init.svd` byte for byte. That
+  file was read from unwritten User slots.
+- **Reserves are reset, not preserved.** Part Init and Studio Set Init put
+  the writable reserves back to their INIT values: Part `00 26` = `7F`,
+  `00 45` and `00 47` = `40`, Common `00 10` = `7F`, `00 14` = `01`. A
+  client that wrote defaults itself would have to match these.
+- **Some reserves ignore writes.** A DT1 of `05` to Part `00 02`, of `05` to
+  Common `00 17`, or of `30` to Common `00 38` left the old value. Part
+  `00 26`, `00 45`, `00 47` and Common `00 10`, `00 14` accepted the write.
+
+### Open
+
+- Partial Init on an SN Drum or PCM Drum kit (`NN` = key index) wasn't tried.
+- Out-of-range `PP` or `NN`, and the delay between `01` and `02`, weren't
+  checked.
+- Whether Part Init and Studio Set Init keep a changed Receive Channel.
+
+### Discovery
+
+Message format from Roland's Editor JavaScript (`REQ_INITIALIZE`,
+`INIT_FIXED_DATA` in `scene_base_midi_controller.js`). Every `TT` verified on
+our device 2026-10-13 with `raw-rq1`/`raw-read`, on a Temporary Studio Set
+with nothing saved ([#282](https://github.com/sigma/integral/issues/282)).
+
 ---
 
 ## Future Investigation
