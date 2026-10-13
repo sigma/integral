@@ -11,6 +11,7 @@ import {
   snd_common_spec,
   snd_note_spec,
   ToneType,
+  ParameterFamily,
   sn_drum_inst_supports_variation,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
@@ -23,7 +24,7 @@ import {
   OutputStrip,
 } from "./synth-ui";
 import { MfxPanel } from "./MfxPanel";
-import { knobRange, switchOptions } from "./fieldSpec";
+import { knobProps, knobRange, switchOptions } from "./fieldSpec";
 import { WavePicker } from "./WavePicker";
 import { sndInstSource } from "./sndInstCatalog";
 import { SignalArrows } from "./synth-ui/SignalArrows";
@@ -351,7 +352,7 @@ function NoteControls({
   return (
     <>
       <div className={css.noteControls}>
-        <SectionPanel label="TONE" accentColor="#fc8">
+        <SectionPanel label="TONE" family={ParameterFamily.Pitch}>
         <WavePicker
           source={sndInstSource()}
           stereo={false}
@@ -359,20 +360,20 @@ function NoteControls({
           onChange={(_side, n) => onChange(SndNoteField.InstNumber, "instNumber", n)}
         />
           <div className={css.knobRow}>
-            <SynthKnob label="Attack" value={note.attack} {...knobRange(snd_note_spec(SndNoteField.Attack))}
-              onChange={set(SndNoteField.Attack, "attack")} color="#fc8" />
-            <SynthKnob label="Decay" value={note.decay} {...knobRange(snd_note_spec(SndNoteField.Decay))}
-              onChange={set(SndNoteField.Decay, "decay")} color="#fc8" />
-            <SynthKnob label="Brill" value={note.brilliance} {...knobRange(snd_note_spec(SndNoteField.Brilliance))}
-              onChange={set(SndNoteField.Brilliance, "brilliance")} color="#fc8"
+            <SynthKnob label="Attack" value={note.attack} {...knobProps(snd_note_spec(SndNoteField.Attack))}
+              onChange={set(SndNoteField.Attack, "attack")} />
+            <SynthKnob label="Decay" value={note.decay} {...knobProps(snd_note_spec(SndNoteField.Decay))}
+              onChange={set(SndNoteField.Decay, "decay")} />
+            <SynthKnob label="Brill" value={note.brilliance} {...knobProps(snd_note_spec(SndNoteField.Brilliance))}
+              onChange={set(SndNoteField.Brilliance, "brilliance")}
               title="Brilliance" />
           </div>
           <div className={css.knobRow}>
-            <SynthKnob label="DynRng" value={note.dynamicRange} {...knobRange(snd_note_spec(SndNoteField.DynamicRange))}
-              onChange={set(SndNoteField.DynamicRange, "dynamicRange")} color="#a6f"
+            <SynthKnob label="DynRng" value={note.dynamicRange} {...knobProps(snd_note_spec(SndNoteField.DynamicRange))}
+              onChange={set(SndNoteField.DynamicRange, "dynamicRange")}
               title="Dynamic Range" />
-            <SynthKnob label="Width" value={note.stereoWidth} {...knobRange(snd_note_spec(SndNoteField.StereoWidth))}
-              onChange={set(SndNoteField.StereoWidth, "stereoWidth")} color="#a6f"
+            <SynthKnob label="Width" value={note.stereoWidth} {...knobProps(snd_note_spec(SndNoteField.StereoWidth))}
+              onChange={set(SndNoteField.StereoWidth, "stereoWidth")}
               title="Stereo Width" />
           </div>
           <div className={css.noteSelects}>
@@ -385,10 +386,13 @@ function NoteControls({
 
         {/* Tone shaping */}
         {/* Strip: Pan + Sends + Level — reuses the shared OutputStrip */}
-        <SectionPanel label="LEVEL / PAN" accentColor="#8cf">
+        <SectionPanel label="LEVEL / PAN" family={ParameterFamily.Amp}>
           <OutputStrip
             pan={note.pan} onPanChange={set(SndNoteField.Pan, "pan")} panFormat={(v) => snd_note_spec(SndNoteField.Pan).formatValue(v)}
+            panFamily={snd_note_spec(SndNoteField.Pan).family}
             fx1={note.chorusSend} fx2={note.reverbSend}
+            fx1Family={snd_note_spec(SndNoteField.ChorusSend).family}
+            fx2Family={snd_note_spec(SndNoteField.ReverbSend).family}
             level={note.level}
             onFx1Change={set(SndNoteField.ChorusSend, "chorusSend")}
             onFx2Change={set(SndNoteField.ReverbSend, "reverbSend")}

@@ -4,8 +4,12 @@ import {
   WasmDeviceState,
   sna_common_address,
   sna_inst_params,
+  sna_common_spec,
+  ParameterFamily,
+  SnaCommonField,
 } from "../pkg/integral_wasm.js";
 import { SnAcousticEditor } from "./SnAcousticEditor";
+import { familyVar } from "./synth-ui";
 import { cleanup, click, render } from "./test/dom";
 import { arrowUp, fakeToneService, slider } from "./test/toneService";
 
@@ -87,5 +91,17 @@ describe("SnAcousticEditor", () => {
       { address: [...common, 0x21], data: [0] },
       ...defaults,
     ]);
+  });
+
+  it("lights a knob in its field's family, not its section's", async () => {
+    const { service } = fakeToneService(new WasmDeviceState(0x10));
+    const { container } = render(<SnAcousticEditor partIndex={PART} service={service} />);
+    await act(async () => {});
+
+    // Octave Shift sits in COMMON (Common) but its spec says Pitch.
+    const family = sna_common_spec(SnaCommonField.OctaveShift).family;
+    expect(family).toBe(ParameterFamily.Pitch);
+    const fills = [...slider(container, "Oct").querySelectorAll("circle")].map((c) => c.style.fill);
+    expect(fills).toContain(familyVar(family));
   });
 });

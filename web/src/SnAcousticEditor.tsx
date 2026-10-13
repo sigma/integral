@@ -11,6 +11,7 @@ import {
   mfx_block_size,
   SnaCommonField,
   ToneType,
+  ParameterFamily,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import {
@@ -23,7 +24,7 @@ import {
   FaderGroupSep,
 } from "./synth-ui";
 import { MfxPanel } from "./MfxPanel";
-import { knobRange, switchOptions } from "./fieldSpec";
+import { knobProps, knobRange, switchOptions } from "./fieldSpec";
 import { WavePicker } from "./WavePicker";
 import { snaInstNumberOf, snaInstSource, snaInsts } from "./snaInstCatalog";
 import { SignalArrows } from "./synth-ui/SignalArrows";
@@ -79,6 +80,11 @@ interface InstParamDef {
 // ---------------------------------------------------------------------------
 // Display helpers
 // ---------------------------------------------------------------------------
+
+/** The family every Modify Parameter knob shows, from its Common field spec. */
+function modifyParamFamily(): ParameterFamily {
+  return sna_common_spec(SnaCommonField.ModifyParameter).family;
+}
 
 /** Parse the raw tuple array from WASM into structured InstParamDef[]. */
 function parseInstParams(raw: unknown): InstParamDef[] {
@@ -243,7 +249,7 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
                 onModify={setModifyParam}
               />
             ) : (
-              <SectionPanel label="INSTRUMENT" accentColor="#fc8">{instPicker}</SectionPanel>
+              <SectionPanel label="INSTRUMENT" family={ParameterFamily.Pitch}>{instPicker}</SectionPanel>
             )}
             {boxes!.vibrato}
             {boxes!.filter}
@@ -292,55 +298,55 @@ function toneBoxes(
   const portamento = sna_has_portamento_offset(common.instVariation, common.instNumber);
   return {
     common: (
-        <SectionPanel label="COMMON" accentColor="#8cf">
+        <SectionPanel label="COMMON" family={ParameterFamily.Common}>
           <div className={css.panelRow}>
             <SynthSwitch label="Mono/Poly" value={common.monoPoly} options={switchOptions(sna_common_spec(SnaCommonField.MonoPoly))}
               onChange={set(SnaCommonField.MonoPoly, "monoPoly")} />
-            <SynthKnob label="Oct" value={common.octaveShift} {...knobRange(sna_common_spec(SnaCommonField.OctaveShift))}
-              onChange={set(SnaCommonField.OctaveShift, "octaveShift")} color="#8cf"
+            <SynthKnob label="Oct" value={common.octaveShift} {...knobProps(sna_common_spec(SnaCommonField.OctaveShift))}
+              onChange={set(SnaCommonField.OctaveShift, "octaveShift")}
               title="Octave Shift" />
             <Offset enabled={portamento}>
-              <SynthKnob label="Port" value={common.portamentoTimeOffset} {...knobRange(sna_common_spec(SnaCommonField.PortamentoTimeOffset))}
-                onChange={set(SnaCommonField.PortamentoTimeOffset, "portamentoTimeOffset")} color="#8cf"
+              <SynthKnob label="Port" value={common.portamentoTimeOffset} {...knobProps(sna_common_spec(SnaCommonField.PortamentoTimeOffset))}
+                onChange={set(SnaCommonField.PortamentoTimeOffset, "portamentoTimeOffset")}
                 title="Portamento Time Offset" />
             </Offset>
           </div>
         </SectionPanel>
     ),
     vibrato: (
-        <SectionPanel label="VIB" accentColor="#a6f">
+        <SectionPanel label="VIB" family={ParameterFamily.Modulation}>
           <div className={css.knobColumn}>
-            <SynthKnob label="Rate" value={common.vibratoRate} {...knobRange(sna_common_spec(SnaCommonField.VibratoRate))}
-              onChange={set(SnaCommonField.VibratoRate, "vibratoRate")} color="#a6f"
+            <SynthKnob label="Rate" value={common.vibratoRate} {...knobProps(sna_common_spec(SnaCommonField.VibratoRate))}
+              onChange={set(SnaCommonField.VibratoRate, "vibratoRate")}
               title="Vibrato Rate (offset)" />
-            <SynthKnob label="Depth" value={common.vibratoDepth} {...knobRange(sna_common_spec(SnaCommonField.VibratoDepth))}
-              onChange={set(SnaCommonField.VibratoDepth, "vibratoDepth")} color="#a6f"
+            <SynthKnob label="Depth" value={common.vibratoDepth} {...knobProps(sna_common_spec(SnaCommonField.VibratoDepth))}
+              onChange={set(SnaCommonField.VibratoDepth, "vibratoDepth")}
               title="Vibrato Depth (offset)" />
-            <SynthKnob label="Delay" value={common.vibratoDelay} {...knobRange(sna_common_spec(SnaCommonField.VibratoDelay))}
-              onChange={set(SnaCommonField.VibratoDelay, "vibratoDelay")} color="#a6f"
+            <SynthKnob label="Delay" value={common.vibratoDelay} {...knobProps(sna_common_spec(SnaCommonField.VibratoDelay))}
+              onChange={set(SnaCommonField.VibratoDelay, "vibratoDelay")}
               title="Vibrato Delay (offset)" />
           </div>
         </SectionPanel>
     ),
     filter: (
-        <SectionPanel label="FILTER" accentColor="#68c">
+        <SectionPanel label="FILTER" family={ParameterFamily.Filter}>
           {/* shortcut: SN-A never exposes its filter type; this draws a low-pass moved by the offsets, to show their direction, not the instrument's real filter. */}
           <FilterScope className={css.filterScope} type="LPF" cutoff={common.cutoffOffset}
             resonance={Math.max(0, common.resonanceOffset - resonanceCenter) * 2} />
           <Offset enabled={toneOffsets}>
             <div className={css.panelRow}>
-              <SynthKnob label="Cutoff" value={common.cutoffOffset} {...knobRange(sna_common_spec(SnaCommonField.CutoffOffset))}
-                onChange={set(SnaCommonField.CutoffOffset, "cutoffOffset")} color="#68c"
+              <SynthKnob label="Cutoff" value={common.cutoffOffset} {...knobProps(sna_common_spec(SnaCommonField.CutoffOffset))}
+                onChange={set(SnaCommonField.CutoffOffset, "cutoffOffset")}
                 title="Cutoff Offset" />
-              <SynthKnob label="Reso" value={common.resonanceOffset} {...knobRange(sna_common_spec(SnaCommonField.ResonanceOffset))}
-                onChange={set(SnaCommonField.ResonanceOffset, "resonanceOffset")} color="#68c"
+              <SynthKnob label="Reso" value={common.resonanceOffset} {...knobProps(sna_common_spec(SnaCommonField.ResonanceOffset))}
+                onChange={set(SnaCommonField.ResonanceOffset, "resonanceOffset")}
                 title="Resonance Offset" />
             </div>
           </Offset>
         </SectionPanel>
     ),
     amp: (
-        <SectionPanel label="AMP" accentColor="#6c8">
+        <SectionPanel label="AMP" family={ParameterFamily.Amp}>
           <div className={css.ampRow}>
             <Offset enabled={toneOffsets}>
               <ADSREnvelope
@@ -433,7 +439,7 @@ function GenericInstPanel({
   onChangeParam: (paramIndex: number, value: number) => void;
 }) {
   return (
-    <SectionPanel label={categoryName} accentColor="#fc8">
+    <SectionPanel label={categoryName} family={ParameterFamily.Pitch}>
       {header}
       <div className={css.instParamGrid}>
         {paramDefs.map((def) => {
@@ -463,7 +469,7 @@ function GenericInstPanel({
               defaultValue={def.defaultValue}
               onChange={(v) => onChangeParam(def.index, v)}
               formatValue={(v) => String(v)}
-              color="#fc8"
+              family={modifyParamFamily()}
             />
           );
         })}
@@ -497,7 +503,7 @@ function TWOrganPanel({
   const percDefs = paramDefs.filter((d) => d.index >= 10);
 
   return (
-    <SectionPanel label="TW Organ" accentColor="#fc8">
+    <SectionPanel label="TW Organ" family={ParameterFamily.Pitch}>
       {header}
       {/* Harmonic bars */}
       <FaderGroup>
@@ -544,7 +550,7 @@ function TWOrganPanel({
               defaultValue={def.defaultValue}
               onChange={(v) => onChangeParam(def.index, v)}
               formatValue={(v) => String(v)}
-              color="#fc8"
+              family={modifyParamFamily()}
             />
           );
         })}
@@ -570,7 +576,7 @@ function AcPianoPanel({
   onChangeParam: (paramIndex: number, value: number) => void;
 }) {
   return (
-    <SectionPanel label="Ac.Piano" accentColor="#8cf">
+    <SectionPanel label="Ac.Piano" family={ParameterFamily.Pitch}>
       {header}
       <div className={css.instParamGrid}>
         {paramDefs.map((def) => {
@@ -585,7 +591,7 @@ function AcPianoPanel({
               defaultValue={def.defaultValue}
               onChange={(v) => onChangeParam(def.index, v)}
               formatValue={(v) => String(v)}
-              color="#8cf"
+              family={modifyParamFamily()}
             />
           );
         })}
