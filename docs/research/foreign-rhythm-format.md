@@ -326,7 +326,8 @@ checksum-valid sets.
    (`01 41`). The Integra ignores its Common `00 10`. On the device, a temporary kit sent by
    DT1 with `00 10` ON and `01 41` OFF cuts on release, and the reverse plays through
    ([#231](https://github.com/sigma/integral/issues/231)). Recalling a kit saved with `00 10` ON
-   was not tested. Write the per-key byte only.
+   is not tested yet ([#274](https://github.com/sigma/integral/issues/274)). Write the per-key
+   byte only.
 4. **Partial Output Assign PART and the MFX.** The JV Rhythm Setup has no EFX, and most XV kits
    use output A with MFX THRU, so PART loses nothing for them. Where an XV MFX was set but tones
    bypassed it (output A), PART puts them through the MFX. Report it. Fixing it would be a
