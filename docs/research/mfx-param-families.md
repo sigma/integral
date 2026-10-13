@@ -42,7 +42,8 @@ non-delay Feedback (cluster 8), which moved from M to F.
    Rate/Delay counts as one control). Comp+EQ comes from R3.
 2. **Classify.** A throwaway script did this in three steps:
    - It removed a *stage prefix* (`Chorus `, `Flanger `, `Delay `, `OD `, `Amp `, `Enhancer `,
-     `Touch Wah `, `Auto Wah `, `TWah `, `AutoWah `, `Pre Amp `, `Overdrive `, `Distortion `, `Pitch1 `, `Woofer `, `Tweeter `, …). For example,
+     `Touch Wah `, `Auto Wah `, `TWah `, `AutoWah `, `Pre Amp `, `Overdrive `, `Distortion `, `Pitch1 `, `Pitch2 `, `Delay 1 `–`Delay 4 `,
+     `Mid1 `, `Mid2 `, `Boost `, `Woofer `, `Tweeter `, …). For example,
      `Flanger Rate` became `Rate` and `Delay HF Damp` became `HF Damp`.
    - It looked up the remaining base name in an exact-name rule table.
    - It applied per-type overrides wherever the same name means different things in different
@@ -92,10 +93,10 @@ times the rule fires across the 67 types. Exceptions are listed in the next sect
 | Family | Firm rules | Ambiguous rules (decision shown) |
 |---|---|---|
 | **P** | Coarse (3), Fine (3) | Sample Rate, Bit Down |
-| **F** | High Gain (37), Low Gain (37), Bass (10), Treble (10), Filter Type (5), Middle (5), Tone (4), Cutoff Freq (3), Freq (2), Gain (3, Boost/Mid EQ), Peak (3), Q (2), Band1–8, Bright, Presence, Filter Slope, High Freq, Low Freq, Pre Filter Type, Post Filter Type, Post Filter Cutoff, Mode (2, wah LPF/BPF), Vowel1/2, Width (Boost) | Drive (17, incl. OD Drive), HF Damp (15), Speaker Type (11), Manual (8), Resonance (6), Mic Setting (2), Filter Resonance, Feedback in a Flanger stage (7), Cross Feedback (2) |
-| **A** | Level (87, incl. every `X Level`), Master (5), Threshold (3), Direct Level (2), Mic Level (2), Post Gain (2), Left/Right/Center Level | Balance (41), Mix (2) |
+| **F** | High Gain (37), Low Gain (37), Bass (10), Treble (10), Filter Type (5), Middle (5), Tone (4), Cutoff Freq (3), Freq (2), Gain (3, Boost/Mid EQ), Peak (3), Q (2), Band1–8, Bright, Presence, Filter Slope, High Freq, Low Freq, Pre Filter Type, Post Filter Type, Post Filter Cutoff, Mode (2, wah LPF/BPF), Vowel1/2, Width (Boost), Filter, Filter Gain | Drive (17, incl. OD Drive), HF Damp (15), Speaker Type (11), Manual (8), Resonance (6), Mic Setting (2), Filter Resonance, Feedback in a Flanger stage (7), Cross Feedback (2) |
+| **A** | Level (87, incl. every `X Level`), Master (5), Threshold (3), Direct Level (2), Mic Level (2), Post Gain (2), Left/Right/Center Level, Volume, Ratio | Balance (41), Mix (2) |
 | **M** | Rate (35), Depth (32), Slow Speed (6), Fast Speed (6), Phase (5, LFO L/R phase in °), Trans Up/Down (8), Mod Wave (2), Acceleration (2, Rotary), Step Rate (2), Depth Deviation, Shuffle, Duty | Polarity (5), Speed (3, Rotary SLOW/FAST), Brake (2), Input Sync Sw/Threshold (4), Step 01–16 (32) |
-| **T** | Pre Delay (20), Feedback in a delay stage (14), Time / Delay Time / Delay N Time (21), Delay Left/Right/Center (7), Feedback Mode (2), Spread (2), Center Feedback, Pre Delay Deviation | Pan (21, incl. every `X Pan`), Pan Deviation, Phase Left/Right |
+| **T** | Pre Delay (20), Feedback in a delay stage (14), Time / Delay Time / Delay N Time (21), Delay Left/Right/Center (7), Feedback Mode (2), Spread (2), Center Feedback, Pre Delay Deviation, Delay | Pan (21, incl. every `X Pan`), Pan Deviation, Phase Left/Right |
 | **C** | Switch (17), Sw (9), Speaker Sw (5), Drive Switch/Sw (3) | — |
 
 ## Per-type exceptions (MFX)

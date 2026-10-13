@@ -88,8 +88,7 @@ const STAGES = [
   "Mid2",
   "Boost",
 ];
-// Doc § Rules (MFX), by family. Additions not named in the doc's rule table
-// follow its appendix: Volume and Ratio (A), Filter, Filter Gain (F), Delay (T).
+// Doc § Rules (MFX), by family.
 const RULES = Object.fromEntries(
   Object.entries({
     [P]: ["Coarse", "Fine", "Sample Rate", "Bit Down"],
