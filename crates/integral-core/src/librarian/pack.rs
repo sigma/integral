@@ -348,11 +348,27 @@ impl Pack {
         Ok(SvdFile::sound(entries).write())
     }
 
+    /// `count` entries of type `kind` holding its INIT data, as an
+    /// unwritten User slot does.
+    pub fn init(kind: ChunkType, count: usize) -> Result<Self, PackError> {
+        let init = Self::from_svd(INIT_SVD)?
+            .entries
+            .into_iter()
+            .find(|e| e.kind == kind)
+            .ok_or(PackError::UnsupportedType(kind))?;
+        Ok(Self {
+            entries: vec![init; count],
+        })
+    }
+
     /// Entries of type `kind`, in Pack position order.
     pub fn of_kind(&self, kind: ChunkType) -> impl Iterator<Item = &PackEntry> {
         self.entries.iter().filter(move |e| e.kind == kind)
     }
 }
+
+/// One INIT entry of every type: a sound export of unwritten User slots.
+const INIT_SVD: &[u8] = include_bytes!("init.svd");
 
 /// The codec of each supported type.
 fn codec(kind: ChunkType) -> Result<&'static SvdToneSpec, PackError> {
@@ -387,6 +403,56 @@ mod tests {
     use crate::svd::SvdChunk;
 
     const SNS: ChunkType = ChunkType::SnSynthTone;
+
+    #[test]
+    fn init_holds_every_type() {
+        for kind in SOUND_CHUNKS {
+            let pack = Pack::init(kind, 2).unwrap();
+            assert_eq!(pack.entries.len(), 2);
+            let memory = user_memory(kind).unwrap();
+            assert!(
+                memory
+                    .init_names
+                    .contains(&pack.entries[0].name().trim_end())
+            );
+        }
+    }
+
+    /// The shipped INIT data matches the blocks read from unwritten User
+    /// slots on the device.
+    #[test]
+    fn init_matches_the_device_fixtures() {
+        macro_rules! fixture {
+            ($name:literal) => {
+                include_bytes!(concat!("../../tests/fixtures/init/", $name)).as_slice()
+            };
+        }
+        let types: [(ChunkType, &[&[u8]]); 2] = [
+            (
+                ChunkType::PcmSynthTone,
+                &[
+                    fixture!("pcm-synth-common.bin"),
+                    fixture!("pcm-synth-pmt.bin"),
+                    fixture!("pcm-synth-partial.bin"),
+                ],
+            ),
+            (
+                SNS,
+                &[
+                    fixture!("sn-synth-common.bin"),
+                    fixture!("sn-synth-partial-1.bin"),
+                    fixture!("sn-synth-partial-2.bin"),
+                    fixture!("sn-synth-partial-3.bin"),
+                ],
+            ),
+        ];
+        for (kind, fixtures) in types {
+            let pack = Pack::init(kind, 1).unwrap();
+            for fixture in fixtures {
+                assert!(pack.entries[0].blocks().iter().any(|b| b == fixture));
+            }
+        }
+    }
 
     /// Blocks of a synthetic entry named `name`, decoded from an all-zero
     /// SVD entry so that every value round-trips.
