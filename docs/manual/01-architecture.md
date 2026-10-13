@@ -116,7 +116,7 @@ flowchart TD
 > - Temporary Tone (Part 1-16): `19 00 00 00` through `1C 60 00 00`
 > - System Common: `02 00 00 00`
 > - Setup: `01 00 00 00`
-> - User Studio Set storage (undocumented): `10 00 00 00` / `20 NN 00 00` ([undocumented](../midi/99-undocumented.md))
+> - User memory (undocumented): Studio Sets at `2F NN 00 00`, tones and kits at `30`–`6E` ([undocumented](../midi/99-undocumented.md#2-user-memory-address-space))
 > - Preset/User name catalog (undocumented): `0F 00 03 02` ([undocumented](../midi/99-undocumented.md))
 
 ### Important behavior
