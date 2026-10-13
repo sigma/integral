@@ -36,6 +36,7 @@ import {
   type ImportStatus,
   type LibrarianAction,
 } from "../pkg/integral_wasm.js";
+import { studioSetType } from "./librarian";
 import type { MidiPortPair } from "./midi";
 
 // ---------------------------------------------------------------------------
@@ -102,7 +103,10 @@ export interface PackExportProgress {
  * Call `report` at most once per animation frame after `schedule`, so
  * progress isn't rebuilt for every incoming packet.
  */
-function frameThrottle(report: () => void): { schedule: () => void; cancel: () => void } {
+function frameThrottle(report: () => void): {
+  schedule: () => void;
+  cancel: () => void;
+} {
   let frame: number | undefined;
   return {
     schedule: () => {
@@ -210,7 +214,11 @@ export class IntegraService {
    * Queue a raw SysEx request and call `onSent` once it leaves the queue.
    * Returns a function that drops `onSent` if it hasn't run yet.
    */
-  private queueRaw(key: string, bytes: Uint8Array, onSent: () => void): () => void {
+  private queueRaw(
+    key: string,
+    bytes: Uint8Array,
+    onSent: () => void,
+  ): () => void {
     const hook: SentHook = { bytes, onSent };
     this.sentHooks.push(hook);
     this.device.sendRaw(key, bytes);
@@ -220,7 +228,11 @@ export class IntegraService {
   }
 
   private sendSysex(msg: Uint8Array): void {
-    console.log(`[midi-out] ${Array.from(msg).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+    console.log(
+      `[midi-out] ${Array.from(msg)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join(" ")}`,
+    );
     this.port.output.send(msg);
   }
 
@@ -234,7 +246,9 @@ export class IntegraService {
         return await this.requestDataOnce(address, size);
       } catch (e) {
         if (attempt < MAX_RETRIES) {
-          console.warn(`[midi] retry ${attempt + 1}/${MAX_RETRIES} for ${addressKey(address)}`);
+          console.warn(
+            `[midi] retry ${attempt + 1}/${MAX_RETRIES} for ${addressKey(address)}`,
+          );
         } else {
           throw e;
         }
@@ -244,7 +258,10 @@ export class IntegraService {
     throw new Error("unreachable");
   }
 
-  private requestDataOnce(address: number[], size: number[]): Promise<Uint8Array> {
+  private requestDataOnce(
+    address: number[],
+    size: number[],
+  ): Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
       const bytes = new Uint8Array(
         build_rq1(
@@ -309,9 +326,7 @@ export class IntegraService {
     const key = addressKey(Array.from(addr));
 
     // Resolve pending RQ1 requests.
-    const reqIdx = this.pendingRequests.findIndex(
-      (r) => r.addressKey === key,
-    );
+    const reqIdx = this.pendingRequests.findIndex((r) => r.addressKey === key);
     if (reqIdx >= 0) {
       const req = this.pendingRequests[reqIdx]!;
       if (req.timer) clearTimeout(req.timer);
@@ -449,9 +464,8 @@ export class IntegraService {
 
   async requestStudioSetNames(): Promise<Map<number, string>> {
     const names = new Map<number, string>();
-    const msg = new Uint8Array(
-      build_studio_set_catalog_request(this.deviceId),
-    );
+    const studioSetMsb = studioSetType().bankMsb;
+    const msg = new Uint8Array(build_studio_set_catalog_request(this.deviceId));
 
     return new Promise((resolve) => {
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -484,7 +498,10 @@ export class IntegraService {
 
         const data = new Uint8Array(parsed.data());
         const entry = parse_catalog_entry(data);
-        if (entry) {
+        // Other catalog reads may be in flight: take only Studio Set entries.
+        if (entry && entry.bank_msb !== studioSetMsb) {
+          entry.free();
+        } else if (entry) {
           names.set(entry.pc, entry.name());
           entry.free();
           if (names.size >= 64) {
@@ -502,10 +519,7 @@ export class IntegraService {
         );
       };
 
-      this.port.input.addEventListener(
-        "midimessage",
-        handler as EventListener,
-      );
+      this.port.input.addEventListener("midimessage", handler as EventListener);
 
       // Timeouts start once the request leaves the queue.
       const cancelSent = this.queueRaw("catalog", msg, () => {
@@ -558,7 +572,10 @@ export class IntegraService {
 
         const data = new Uint8Array(parsed.data());
         const entry = parse_catalog_entry(data);
-        if (entry) {
+        // Other catalog reads may be in flight: take only this bank's entries.
+        if (entry && (entry.bank_msb !== msb || entry.bank_lsb !== lsb)) {
+          entry.free();
+        } else if (entry) {
           entries.push({
             msb: entry.bank_msb,
             lsb: entry.bank_lsb,
@@ -581,16 +598,17 @@ export class IntegraService {
         );
       };
 
-      this.port.input.addEventListener(
-        "midimessage",
-        handler as EventListener,
-      );
+      this.port.input.addEventListener("midimessage", handler as EventListener);
 
       // Timeouts start once the request leaves the queue.
-      const cancelSent = this.queueRaw(`tone-catalog:${msb}:${lsb}:${start}`, msg, () => {
-        absoluteTimeout = setTimeout(done, 5000);
-        resetTimeout();
-      });
+      const cancelSent = this.queueRaw(
+        `tone-catalog:${msb}:${lsb}:${start}`,
+        msg,
+        () => {
+          absoluteTimeout = setTimeout(done, 5000);
+          resetTimeout();
+        },
+      );
     });
   }
 
@@ -608,9 +626,16 @@ export class IntegraService {
   // -----------------------------------------------------------------------
 
   /** Save a part's Temporary tone into the user slot (msb, lsb, pc). */
-  saveToneToUser(part: number, msb: number, lsb: number, pc: number): Promise<void> {
+  saveToneToUser(
+    part: number,
+    msb: number,
+    lsb: number,
+    pc: number,
+  ): Promise<void> {
     return this.writeToUser(
-      new Uint8Array(build_tone_write_request(this.deviceId, part, msb, lsb, pc)),
+      new Uint8Array(
+        build_tone_write_request(this.deviceId, part, msb, lsb, pc),
+      ),
       (r) => r.part === part && r.msb === msb && r.lsb === lsb && r.pc === pc,
     );
   }
@@ -795,7 +820,10 @@ export class IntegraService {
   ): Promise<Pack> {
     const machine = new PackExport(this.deviceId, sources);
     const report = (): void =>
-      onProgress?.({ progress: machine.progress(), autoIncluded: machine.autoIncluded() });
+      onProgress?.({
+        progress: machine.progress(),
+        autoIncluded: machine.autoIncluded(),
+      });
     const throttle = frameThrottle(report);
     try {
       const error = await this.runLibrarian(
@@ -834,7 +862,13 @@ export class IntegraService {
     if (this.device.expansionLoadTarget()) {
       throw new Error("An Expansion load is in progress");
     }
-    const machine = new PackImport(this.deviceId, pack, plan, part, applyEffects);
+    const machine = new PackImport(
+      this.deviceId,
+      pack,
+      plan,
+      part,
+      applyEffects,
+    );
     const throttle = frameThrottle(() => onProgress?.(machine.progress()));
     this.writing = true;
     try {
@@ -950,13 +984,21 @@ export class IntegraService {
 
   sendNoteOn(channel: number, note: number, velocity: number): void {
     this.port.output.send(
-      new Uint8Array([NOTE_ON | (channel & CHANNEL_MASK), note & DATA_MASK, velocity & DATA_MASK]),
+      new Uint8Array([
+        NOTE_ON | (channel & CHANNEL_MASK),
+        note & DATA_MASK,
+        velocity & DATA_MASK,
+      ]),
     );
   }
 
   sendNoteOff(channel: number, note: number): void {
     this.port.output.send(
-      new Uint8Array([NOTE_OFF | (channel & CHANNEL_MASK), note & DATA_MASK, 0]),
+      new Uint8Array([
+        NOTE_OFF | (channel & CHANNEL_MASK),
+        note & DATA_MASK,
+        0,
+      ]),
     );
   }
 
