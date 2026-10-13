@@ -1,4 +1,4 @@
-import { mixerParamsJson } from "../pkg/integral_wasm.js";
+import { mixerParamsJson, type ParameterFamily } from "../pkg/integral_wasm.js";
 
 interface ParamDef {
   id: string;
@@ -6,6 +6,8 @@ interface ParamDef {
   min: number;
   max: number;
   default_value: number;
+  /** The parameter's role in shaping the sound; picks its colour. */
+  family: ParameterFamily;
 }
 
 let cachedParams: Map<string, ParamDef> | null = null;

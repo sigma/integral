@@ -3120,13 +3120,30 @@ pub fn mfx_params(mfx_type: u8) -> Vec<WasmFxParamDef> {
 // Parameter registry JSON
 // ---------------------------------------------------------------------------
 
+/// A mixer `ParamDef` as serialized for JS, its family as [`ParameterFamily`].
+#[derive(serde::Serialize)]
+struct MixerParamJson<'a> {
+    #[serde(flatten)]
+    def: &'a param_registry::ParamDef,
+    /// The [`ParameterFamily`] discriminant, so JS compares it to the enum.
+    family: u8,
+}
+
 /// Return all mixer parameter definitions as a JSON string.
 ///
-/// Returns a JSON array of `ParamDef` objects.
+/// Returns a JSON array of `ParamDef` objects. Each carries `family`, a
+/// [`ParameterFamily`] value.
 #[wasm_bindgen(js_name = mixerParamsJson)]
 pub fn mixer_params_json() -> String {
     let params = param_registry::mixer_params();
-    serde_json::to_string(&params).unwrap_or_else(|_| "[]".to_string())
+    let json: Vec<_> = params
+        .iter()
+        .map(|def| MixerParamJson {
+            def,
+            family: ParameterFamily::from(def.family) as u8,
+        })
+        .collect();
+    serde_json::to_string(&json).unwrap_or_else(|_| "[]".to_string())
 }
 
 /// Format a raw value of the mixer parameter `id` for display.
@@ -3139,4 +3156,22 @@ pub fn format_mixer_param(id: &str, value: i32) -> String {
     param_registry::lookup(&PARAMS, id)
         .map(|def| param_registry::format_value(def, value))
         .unwrap_or_else(|| value.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mixer_params_json_carries_family_as_wasm_enum() {
+        let defs: Vec<serde_json::Value> = serde_json::from_str(&mixer_params_json()).unwrap();
+        let family = |id: &str| {
+            defs.iter()
+                .find(|d| d["id"] == id)
+                .map(|d| d["family"].clone())
+                .unwrap()
+        };
+        assert_eq!(family("eq.low_gain"), ParameterFamily::Filter as u8);
+        assert_eq!(family("comp.threshold"), ParameterFamily::Amp as u8);
+    }
 }

@@ -6,6 +6,8 @@ use std::fmt::Write;
 use std::sync::{Mutex, OnceLock};
 
 use crate::device_spec::{INTEGRA7, MIDI_CHANNELS};
+use crate::family::ParameterFamily;
+use crate::state::CompEqUnit;
 
 /// How a parameter value should be displayed.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,6 +59,8 @@ pub enum ParamGroup {
     Reverb,
     /// Mixer 3-band EQ, shared by parts, master and Drum Comp+EQ units.
     Eq,
+    /// Compressor of a Drum Comp+EQ unit, shared by all units.
+    Comp,
     /// Global / top-level.
     Global,
 }
@@ -80,6 +84,11 @@ pub struct ParamDef {
     pub default: i32,
     /// Display format.
     pub format: ParamFormat,
+    /// The parameter's role in shaping the sound (ADR 0002).
+    ///
+    /// Not serialized here: the wasm layer emits it as its mirror enum.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub family: ParameterFamily,
 }
 
 /// Format a raw parameter value according to the parameter's [`ParamFormat`].
@@ -206,7 +215,7 @@ fn channel_names() -> &'static [&'static str] {
 ///
 /// This includes per-part parameters ([`DeviceSpec::part_count`] parts x 7
 /// params each), master, external input, chorus, reverb, the solo-part
-/// selector and the shared mixer EQ bands.
+/// selector, the shared mixer EQ bands and the Drum Comp+EQ compressor.
 ///
 /// [`DeviceSpec::part_count`]: crate::device_spec::DeviceSpec::part_count
 pub fn mixer_params() -> Vec<ParamDef> {
@@ -215,8 +224,8 @@ pub fn mixer_params() -> Vec<ParamDef> {
 
 /// [`mixer_params`] for an arbitrary part count.
 fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
-    // 7 per part + 1 master + 2 ext + 4 chorus + 4 reverb + 1 solo + 7 EQ
-    let mut params = Vec::with_capacity(usize::from(part_count) * 7 + 19);
+    // 7 per part + 1 master + 2 ext + 4 chorus + 4 reverb + 1 solo + 7 EQ + 6 Comp
+    let mut params = Vec::with_capacity(usize::from(part_count) * 7 + 25);
 
     let spec = &INTEGRA7;
     let last = |names: &[&str]| names.len() as i32 - 1;
@@ -240,6 +249,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
             max: 127,
             default: 100,
             format: ParamFormat::Raw,
+            family: ParameterFamily::Amp,
         });
         params.push(ParamDef {
             id: pan_id,
@@ -249,6 +259,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
             max: 127,
             default: 64,
             format: ParamFormat::SignedCenter(64),
+            family: ParameterFamily::Time,
         });
         params.push(ParamDef {
             id: mute_id,
@@ -258,6 +269,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
             max: 1,
             default: 0,
             format: ParamFormat::OnOff,
+            family: ParameterFamily::Common,
         });
         params.push(ParamDef {
             id: chorus_send_id,
@@ -267,6 +279,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
             max: 127,
             default: 0,
             format: ParamFormat::Raw,
+            family: ParameterFamily::Amp,
         });
         params.push(ParamDef {
             id: reverb_send_id,
@@ -276,6 +289,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
             max: 127,
             default: 0,
             format: ParamFormat::Raw,
+            family: ParameterFamily::Amp,
         });
         params.push(ParamDef {
             id: output_assign_id,
@@ -285,6 +299,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
             max: last(spec.output_assigns),
             default: 0,
             format: ParamFormat::Named(spec.output_assigns),
+            family: ParameterFamily::Common,
         });
         params.push(ParamDef {
             id: receive_channel_id,
@@ -294,6 +309,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
             max: last(channel_names),
             default: i32::from(i),
             format: ParamFormat::Named(channel_names),
+            family: ParameterFamily::Common,
         });
     }
 
@@ -306,6 +322,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
         max: 127,
         default: 100,
         format: ParamFormat::Raw,
+        family: ParameterFamily::Amp,
     });
 
     // Ext
@@ -317,6 +334,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
         max: 127,
         default: 100,
         format: ParamFormat::Raw,
+        family: ParameterFamily::Amp,
     });
     params.push(ParamDef {
         id: "ext.mute",
@@ -326,6 +344,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
         max: 1,
         default: 0,
         format: ParamFormat::OnOff,
+        family: ParameterFamily::Common,
     });
 
     // Chorus
@@ -337,6 +356,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
         max: 1,
         default: 1,
         format: ParamFormat::OnOff,
+        family: ParameterFamily::Common,
     });
     params.push(ParamDef {
         id: "chorus.type",
@@ -346,6 +366,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
         max: last(spec.chorus_type_names),
         default: 0,
         format: ParamFormat::Named(spec.chorus_type_names),
+        family: ParameterFamily::Common,
     });
     params.push(ParamDef {
         id: "chorus.level",
@@ -355,6 +376,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
         max: 127,
         default: 0,
         format: ParamFormat::Raw,
+        family: ParameterFamily::Amp,
     });
     params.push(ParamDef {
         id: "chorus.output",
@@ -364,6 +386,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
         max: last(spec.chorus_output_names),
         default: 0,
         format: ParamFormat::Named(spec.chorus_output_names),
+        family: ParameterFamily::Common,
     });
 
     // Reverb
@@ -375,6 +398,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
         max: 1,
         default: 1,
         format: ParamFormat::OnOff,
+        family: ParameterFamily::Common,
     });
     params.push(ParamDef {
         id: "reverb.type",
@@ -384,6 +408,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
         max: last(spec.reverb_type_names),
         default: 0,
         format: ParamFormat::Named(spec.reverb_type_names),
+        family: ParameterFamily::Common,
     });
     params.push(ParamDef {
         id: "reverb.level",
@@ -393,6 +418,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
         max: 127,
         default: 0,
         format: ParamFormat::Raw,
+        family: ParameterFamily::Amp,
     });
     params.push(ParamDef {
         id: "reverb.output",
@@ -402,6 +428,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
         max: last(spec.reverb_output_names),
         default: 0,
         format: ParamFormat::Named(spec.reverb_output_names),
+        family: ParameterFamily::Common,
     });
 
     // Solo part
@@ -413,6 +440,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
         max: i32::from(part_count),
         default: 0,
         format: ParamFormat::Raw,
+        family: ParameterFamily::Common,
     });
 
     // Mixer EQ: part, master and Drum Comp+EQ units share these ranges.
@@ -424,6 +452,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
     static EQ_HIGH_FREQ_NAMES: &[&str] = &["2.0k", "4.0k", "8.0k"];
     static EQ_Q_NAMES: &[&str] = &["0.5", "1.0", "2.0", "4.0", "8.0"];
 
+    // Gains and frequencies all shape the spectrum.
     let eq = |id, name, max, default, format| ParamDef {
         id,
         name,
@@ -432,6 +461,7 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
         max,
         default,
         format,
+        family: ParameterFamily::Filter,
     };
     let gain = || ParamFormat::SignedCenter(15);
     params.push(eq(
@@ -466,6 +496,67 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
     ));
     params.push(eq("eq.high_gain", "High Gain", 30, 15, gain()));
 
+    // Drum Comp+EQ compressor: every unit shares these ranges and defaults.
+    let unit = CompEqUnit::default();
+    let comp = |id, name, max, default, format, family| ParamDef {
+        id,
+        name,
+        group: ParamGroup::Comp,
+        min: 0,
+        max,
+        default,
+        format,
+        family,
+    };
+    params.push(comp(
+        "comp.switch",
+        "Comp Switch",
+        1,
+        i32::from(unit.comp_switch),
+        ParamFormat::OnOff,
+        ParameterFamily::Common,
+    ));
+    params.push(comp(
+        "comp.attack",
+        "Attack",
+        last(spec.comp_attack_times),
+        i32::from(unit.comp_attack),
+        ParamFormat::Named(spec.comp_attack_times),
+        ParameterFamily::Amp,
+    ));
+    params.push(comp(
+        "comp.release",
+        "Release",
+        last(spec.comp_release_times),
+        i32::from(unit.comp_release),
+        ParamFormat::Named(spec.comp_release_times),
+        ParameterFamily::Amp,
+    ));
+    params.push(comp(
+        "comp.threshold",
+        "Threshold",
+        127,
+        i32::from(unit.comp_threshold),
+        ParamFormat::Raw,
+        ParameterFamily::Amp,
+    ));
+    params.push(comp(
+        "comp.ratio",
+        "Ratio",
+        last(spec.comp_ratios),
+        i32::from(unit.comp_ratio),
+        ParamFormat::Named(spec.comp_ratios),
+        ParameterFamily::Amp,
+    ));
+    params.push(comp(
+        "comp.output_gain",
+        "Output Gain",
+        24,
+        i32::from(unit.comp_output_gain),
+        ParamFormat::SignedCenter(0),
+        ParameterFamily::Amp,
+    ));
+
     params
 }
 
@@ -481,14 +572,15 @@ mod tests {
     #[test]
     fn mixer_param_count() {
         let params = mixer_params();
-        // 16 parts * 7 params + 1 master + 2 ext + 4 chorus + 4 reverb + 1 solo + 7 EQ = 131
-        assert_eq!(params.len(), 131);
+        // 16 parts * 7 params + 1 master + 2 ext + 4 chorus + 4 reverb + 1 solo + 7 EQ
+        // + 6 Comp = 137
+        assert_eq!(params.len(), 137);
     }
 
     #[test]
     fn part_count_drives_mixer_params() {
         let params = mixer_params_for(4);
-        assert_eq!(params.len(), 4 * 7 + 19);
+        assert_eq!(params.len(), 4 * 7 + 25);
         assert!(lookup(&params, "part.3.level").is_some());
         assert!(lookup(&params, "part.4.level").is_none());
         let rx = lookup(&params, "part.3.receive_channel").unwrap();
@@ -553,5 +645,42 @@ mod tests {
         let gain = lookup(&params, "eq.mid_gain").unwrap();
         assert_eq!(format_value(gain, 0), "-15");
         assert_eq!(format_value(gain, 30), "+15");
+    }
+
+    #[test]
+    fn eq_gains_are_filter() {
+        let params = mixer_params();
+        for id in ["eq.low_gain", "eq.mid_gain", "eq.high_gain"] {
+            assert_eq!(
+                lookup(&params, id).unwrap().family,
+                ParameterFamily::Filter,
+                "{id}"
+            );
+        }
+    }
+
+    #[test]
+    fn comp_threshold_is_amp() {
+        let params = mixer_params();
+        let threshold = lookup(&params, "comp.threshold").unwrap();
+        assert_eq!(threshold.family, ParameterFamily::Amp);
+        assert_eq!(
+            lookup(&params, "comp.switch").unwrap().family,
+            ParameterFamily::Common
+        );
+    }
+
+    #[test]
+    fn comp_named_tables_cover_their_range() {
+        let params = mixer_params();
+        for id in ["comp.attack", "comp.release", "comp.ratio"] {
+            let def = lookup(&params, id).unwrap();
+            let ParamFormat::Named(names) = def.format else {
+                panic!("{id} should be named");
+            };
+            assert_eq!(names.len() as i32, def.max - def.min + 1, "{id}");
+        }
+        let ratio = lookup(&params, "comp.ratio").unwrap();
+        assert_eq!(format_value(ratio, ratio.max), "inf:1");
     }
 }

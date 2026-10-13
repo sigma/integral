@@ -7,7 +7,7 @@ import box from "./PanelBox.module.css";
 import { TransferCurve } from "./TransferCurve";
 import { ADSREnvelope } from "./synth-ui";
 import { defaultPartState, type PartState, type EqState, type CompEqUnit } from "./types";
-import { paramMeta } from "./paramDefaults";
+import { paramFormatter, paramMeta } from "./paramDefaults";
 import { CATEGORIES, lookupToneCategory } from "./categories";
 import { categoryIcon, stripIcon } from "./categoryIcons";
 import { is_drum_kit_bank } from "../pkg/integral_wasm.js";
@@ -21,9 +21,11 @@ const hide: React.CSSProperties = { visibility: "hidden", pointerEvents: "none" 
 
 type Variant = "part" | "ext" | "master" | "comp-eq";
 
-/** Numeric ratio for a `comp_ratios` index ("inf:1" is a limiter). */
+const formatCompRatio = paramFormatter("comp.ratio");
+
+/** Numeric ratio for a `comp.ratio` value ("inf:1" is a limiter). */
 function ratioOf(i: number): number {
-  const r = parseFloat(deviceSpec().comp_ratios[i] ?? "1");
+  const r = parseFloat(formatCompRatio(i));
   return Number.isNaN(r) ? Infinity : r;
 }
 
@@ -122,7 +124,12 @@ function ChannelStripInner({
   onOutputAssignChange,
 }: Props) {
   const p = part ?? defaultPartState();
-  const spec = deviceSpec();
+  // Drum Comp+EQ compressor ranges, shared by every unit.
+  const attack = paramMeta("comp.attack");
+  const release = paramMeta("comp.release");
+  const threshold = paramMeta("comp.threshold");
+  const ratio = paramMeta("comp.ratio");
+  const outputGain = paramMeta("comp.output_gain");
   const isCompEq = variant === "comp-eq";
   const isPart = variant === "part";
   const showEq = variant !== "ext";
@@ -209,25 +216,26 @@ function ChannelStripInner({
               {/* Curve plots table index, not ms: the tables are non-linear. */}
               <ADSREnvelope
                 compact
-                attack={{ label: "Atk", value: compEqUnit?.compAttack ?? 10, min: 0, max: spec.comp_attack_times.length - 1,
-                  defaultValue: 10, onChange: (v) => onCompEqParam?.(0x01, v),
-                  formatValue: (v) => spec.comp_attack_times[v] ?? String(v) }}
-                decay={{ label: "Rel", value: compEqUnit?.compRelease ?? 10, min: 0, max: spec.comp_release_times.length - 1,
-                  defaultValue: 10, onChange: (v) => onCompEqParam?.(0x02, v),
-                  formatValue: (v) => spec.comp_release_times[v] ?? String(v) }}
+                attack={{ label: "Atk", value: compEqUnit?.compAttack ?? attack.defaultValue, min: attack.min, max: attack.max,
+                  defaultValue: attack.defaultValue, onChange: (v) => onCompEqParam?.(0x01, v),
+                  formatValue: paramFormatter("comp.attack") }}
+                decay={{ label: "Rel", value: compEqUnit?.compRelease ?? release.defaultValue, min: release.min, max: release.max,
+                  defaultValue: release.defaultValue, onChange: (v) => onCompEqParam?.(0x02, v),
+                  formatValue: paramFormatter("comp.release") }}
               />
               <TransferCurve
-                threshold={compEqUnit?.compThreshold ?? 127}
-                ratio={ratioOf(compEqUnit?.compRatio ?? 0)}
-                max={127}
+                threshold={compEqUnit?.compThreshold ?? threshold.defaultValue}
+                ratio={ratioOf(compEqUnit?.compRatio ?? ratio.defaultValue)}
+                max={threshold.max}
               />
               <div className={css.sends}>
-                <EqKnob label="Thr" value={compEqUnit?.compThreshold ?? 127} min={0} max={127} defaultValue={127}
+                <EqKnob label="Thr" value={compEqUnit?.compThreshold ?? threshold.defaultValue} min={threshold.min}
+                  max={threshold.max} defaultValue={threshold.defaultValue}
                   onChange={(v) => onCompEqParam?.(0x03, v)}
-                  formatValue={(v) => String(v)} color="#c96" />
-                <EqKnob label="Ratio" value={compEqUnit?.compRatio ?? 0} min={0} max={spec.comp_ratios.length - 1}
-                  defaultValue={0} onChange={(v) => onCompEqParam?.(0x04, v)}
-                  formatValue={(v) => spec.comp_ratios[v] ?? String(v)} color="#c96" />
+                  formatValue={paramFormatter("comp.threshold")} color="#c96" />
+                <EqKnob label="Ratio" value={compEqUnit?.compRatio ?? ratio.defaultValue} min={ratio.min} max={ratio.max}
+                  defaultValue={ratio.defaultValue} onChange={(v) => onCompEqParam?.(0x04, v)}
+                  formatValue={formatCompRatio} color="#c96" />
               </div>
             </div>
           )}
@@ -320,8 +328,9 @@ function ChannelStripInner({
           {faderLabel}
         </span>
         {isCompEq ? (
-          <VolumeFader value={compEqUnit?.compOutputGain ?? 0} onChange={(v) => onCompEqParam?.(0x05, v)}
-            min={0} max={24} defaultValue={0} formatValue={(v) => `+${v}dB`} label="Gain" />
+          <VolumeFader value={compEqUnit?.compOutputGain ?? outputGain.defaultValue} onChange={(v) => onCompEqParam?.(0x05, v)}
+            min={outputGain.min} max={outputGain.max} defaultValue={outputGain.defaultValue}
+            formatValue={(v) => `+${v}dB`} label="Gain" />
         ) : (
           <VolumeFader value={faderValue} onChange={onLevelChange ?? noop} />
         )}
