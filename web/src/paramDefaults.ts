@@ -1,21 +1,25 @@
-import { formatMixerParam, mixerParamsJson } from "../pkg/integral_wasm.js";
+import { formatMixerParam, mixerParamsJson, type ParameterFamily } from "../pkg/integral_wasm.js";
 
 interface ParamMeta {
   name: string;
   min: number;
   max: number;
   defaultValue: number;
+  /** The parameter's role in shaping the sound; absent for an unknown id. */
+  family?: ParameterFamily;
 }
 
 let registry: Map<string, ParamMeta> | null = null;
 
 function getRegistry(): Map<string, ParamMeta> {
   if (!registry) {
-    const defs: Array<{ id: string; name: string; min: number; max: number; default_value: number }> =
+    const defs: Array<{
+      id: string; name: string; min: number; max: number; default_value: number; family: ParameterFamily;
+    }> =
       JSON.parse(mixerParamsJson());
     registry = new Map<string, ParamMeta>();
     for (const d of defs) {
-      registry.set(d.id, { name: d.name, min: d.min, max: d.max, defaultValue: d.default_value });
+      registry.set(d.id, { name: d.name, min: d.min, max: d.max, defaultValue: d.default_value, family: d.family });
     }
   }
   return registry;

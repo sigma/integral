@@ -9,16 +9,14 @@ import { isSwitch, type ParamLook, type SpecParam } from "./ParamControl";
 /** A param by its spec name, optionally with a look. */
 export type SkinItem = string | ({ param: string } & ParamLook);
 
-/** A row of controls; `color` is the default for its items. */
+/** A row of controls. */
 export interface SkinRow {
   items: SkinItem[];
-  color?: string;
 }
 
 /** One band of the parametric EQ display. */
 export interface EqBandSkin {
   label: string;
-  color: string;
   gain: string;
   freq: string;
   q?: string;
@@ -40,14 +38,13 @@ const TONE_ROW: SkinRow = {
     { param: "Low Gain", label: "Lo Gain" },
     { param: "High Gain", label: "Hi Gain" },
   ],
-  color: "#6ae",
 };
 
 const DRIVE: Skin = {
   rows: [
-    { items: [{ param: "Drive", color: "#f64" }, { param: "Tone", color: "#ea6" }] },
+    { items: ["Drive", "Tone"] },
     { items: [{ param: "Amp Sw", label: "Amp" }, { param: "Amp Type", label: "Type" }] },
-    { items: ["Pan"], color: "#c8a" },
+    { items: ["Pan"] },
     TONE_ROW,
   ],
 };
@@ -56,19 +53,19 @@ const DRIVE: Skin = {
 export const MFX_SKINS: Record<number, Skin> = {
   1: {
     eq: [
-      { label: "HI", color: "#c66", gain: "High Gain", freq: "High Freq" },
-      { label: "MID2", color: "#cc6", gain: "Mid2 Gain", freq: "Mid2 Freq", q: "Mid2 Q" },
-      { label: "MID1", color: "#6c6", gain: "Mid1 Gain", freq: "Mid1 Freq", q: "Mid1 Q" },
-      { label: "LO", color: "#66c", gain: "Low Gain", freq: "Low Freq" },
+      { label: "HI", gain: "High Gain", freq: "High Freq" },
+      { label: "MID2", gain: "Mid2 Gain", freq: "Mid2 Freq", q: "Mid2 Q" },
+      { label: "MID1", gain: "Mid1 Gain", freq: "Mid1 Freq", q: "Mid1 Q" },
+      { label: "LO", gain: "Low Gain", freq: "Low Freq" },
     ],
     rows: [],
   },
   22: {
     rows: [
-      { items: [{ param: "Filter Type", label: "Filter" }, { param: "Cutoff Freq", label: "Cutoff" }], color: "#ea6" },
-      { items: ["Rate", "Depth"], color: "#6ae" },
-      { items: [{ param: "Pre Delay", label: "Pre Dly", color: "#a8e" }, { param: "Phase", color: "#ea6" }] },
-      { items: ["Balance"], color: "#c8a" },
+      { items: [{ param: "Filter Type", label: "Filter" }, { param: "Cutoff Freq", label: "Cutoff" }] },
+      { items: ["Rate", "Depth"] },
+      { items: [{ param: "Pre Delay", label: "Pre Dly" }, "Phase"] },
+      { items: ["Balance"] },
       TONE_ROW,
     ],
   },
@@ -97,9 +94,9 @@ export const MFX_SKINS: Record<number, Skin> = {
       },
       {
         items: [
-          { param: "Feedback", label: "Fdbk", color: "#e86" },
-          { param: "HF Damp", color: "#ea6" },
-          { param: "Balance", color: "#c8a" },
+          { param: "Feedback", label: "Fdbk" },
+          "HF Damp",
+          "Balance",
         ],
       },
       TONE_ROW,
@@ -137,9 +134,9 @@ export function defaultRows(params: SpecParam[]): SkinRow[] {
   const knobs = others.filter((p) => !isSwitch(p.def));
   const rows: SkinRow[] = [];
   if (switches.length > 0) rows.push({ items: names(switches) });
-  for (let i = 0; i < knobs.length; i += 2) rows.push({ items: names(knobs.slice(i, i + 2)), color: "#c8a" });
-  if (balance.length > 0) rows.push({ items: names(balance), color: "#c8a" });
-  if (toneEq.length > 0) rows.push({ items: names(toneEq), color: "#6ae" });
+  for (let i = 0; i < knobs.length; i += 2) rows.push({ items: names(knobs.slice(i, i + 2)) });
+  if (balance.length > 0) rows.push({ items: names(balance) });
+  if (toneEq.length > 0) rows.push({ items: names(toneEq) });
   return rows;
 }
 

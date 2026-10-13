@@ -232,10 +232,10 @@ function ChannelStripInner({
                 <EqKnob label="Thr" value={compEqUnit?.compThreshold ?? threshold.defaultValue} min={threshold.min}
                   max={threshold.max} defaultValue={threshold.defaultValue}
                   onChange={(v) => onCompEqParam?.(0x03, v)}
-                  formatValue={paramFormatter("comp.threshold")} color="#c96" />
+                  formatValue={paramFormatter("comp.threshold")} family={threshold.family} />
                 <EqKnob label="Ratio" value={compEqUnit?.compRatio ?? ratio.defaultValue} min={ratio.min} max={ratio.max}
                   defaultValue={ratio.defaultValue} onChange={(v) => onCompEqParam?.(0x04, v)}
-                  formatValue={formatCompRatio} color="#c96" />
+                  formatValue={formatCompRatio} family={ratio.family} />
               </div>
             </div>
           )}

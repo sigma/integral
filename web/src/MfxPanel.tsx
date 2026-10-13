@@ -2,7 +2,9 @@ import { useMemo } from "react";
 import {
   ControlSourceKind,
   MfxHeaderField,
+  ParameterFamily,
   control_source_choices,
+  mfxHeaderFamily,
   mfx_type_names,
   mfx_control_targets,
   mfx_params,
@@ -84,7 +86,8 @@ function SkinPanel({ skin, params, slots, onNibParam }: SkinPanelProps) {
   };
   const bands = (skin.eq ?? []).flatMap((b): EqBand[] => {
     const gain = eqControl(b.gain), freq = eqControl(b.freq);
-    return gain && freq ? [{ label: b.label, color: b.color, gain, freq, q: b.q ? eqControl(b.q) : undefined }] : [];
+    const family = byName.get(b.gain)?.def.family;
+    return gain && freq ? [{ label: b.label, family, gain, freq, q: b.q ? eqControl(b.q) : undefined }] : [];
   });
   return (
     <div className={css.customLayout}>
@@ -96,8 +99,7 @@ function SkinPanel({ skin, params, slots, onNibParam }: SkinPanelProps) {
             if (!param) return null;
             const look: ParamLook = typeof item === "string" ? {} : item;
             return (
-              <ParamControl key={param.def.index} param={param} slots={slots} onNibParam={onNibParam}
-                look={{ ...look, color: look.color ?? row.color }} />
+              <ParamControl key={param.def.index} param={param} slots={slots} onNibParam={onNibParam} look={look} />
             );
           })}
         </div>
@@ -122,7 +124,7 @@ export function MfxPanel({
   const levelParamIndex = params.find((p) => OUTPUT_PARAMS.has(p.def.name))?.def.index ?? -1;
 
   return (
-    <SectionPanel label="MFX" accentColor="#4ce0e0">
+    <SectionPanel label="MFX" family={ParameterFamily.Common}>
       <div className={css.columns}>
         <div className={css.mainColumn}>
           {/* Type selector */}
@@ -149,6 +151,8 @@ export function MfxPanel({
               level={levelParamIndex >= 0 ? (mfx.params[levelParamIndex] ?? 127) : 127}
               onFx1Change={(v) => onHeaderParam(MfxHeaderField.ChorusSend, 0, v)}
               onFx2Change={(v) => onHeaderParam(MfxHeaderField.ReverbSend, 0, v)}
+              fx1Family={mfxHeaderFamily(MfxHeaderField.ChorusSend)}
+              fx2Family={mfxHeaderFamily(MfxHeaderField.ReverbSend)}
               onLevelChange={levelParamIndex >= 0 ? (v) => onNibParam(levelParamIndex, v) : () => {}}
               trackHeight={250}
             />
@@ -198,7 +202,7 @@ export function MfxPanel({
                   center={64}
                   onChange={(v) => onHeaderParam(MfxHeaderField.ControlSens, slot, v)}
                   formatValue={(v) => String(v - 64)}
-                  color="#8ac"
+                  family={mfxHeaderFamily(MfxHeaderField.ControlSens)}
                   title={`Macro ${slot + 1} Depth`}
                 />
               </div>

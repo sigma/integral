@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mfx_params, mfx_type_names } from "../pkg/integral_wasm.js";
-import { MFX_SKINS, skinParams } from "./mfxSkins";
+import { MFX_SKINS, defaultRows, skinParams } from "./mfxSkins";
+import { pairParams } from "./ParamControl";
 
 describe("MFX skins", () => {
   it("name only params the spec has", () => {
@@ -8,6 +9,16 @@ describe("MFX skins", () => {
       const names = new Set(mfx_params(Number(type)).map((d) => d.name));
       for (const name of skinParams(skin)) expect(names, `type ${type}`).toContain(name);
     }
+  });
+
+  it("are layout only: no colours", () => {
+    const layouts = [
+      ...Object.values(MFX_SKINS),
+      ...mfx_type_names().map((_, type) => ({ rows: defaultRows(pairParams(mfx_params(type))) })),
+    ];
+    const keys = (o: object): string[] =>
+      Object.entries(o).flatMap(([k, v]) => [k, ...(typeof v === "object" && v !== null ? keys(v) : [])]);
+    for (const skin of layouts) expect(keys(skin)).not.toContain("color");
   });
 
   it("can address every param by name", () => {

@@ -70,6 +70,7 @@ export function FxStrip({
                   defaultValue={active.defaultValue}
                   onChange={(v) => onNibParam(active.index, v)}
                   formatValue={(v) => active.formatValue(v)}
+                  family={def.family}
                   addon={
                     note && sync !== undefined && (
                       <SyncToggle

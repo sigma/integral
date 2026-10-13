@@ -33,18 +33,18 @@ export function EqSection({ eq, onToggleSwitch, onParam, paramBase = 1, style }:
       style={style}
       bands={[
         {
-          label: "HI", color: "#c66",
+          label: "HI", family: paramMeta("eq.high_gain").family,
           gain: knob(eq.highGain, "high_gain", 6, "dB"),
           freq: knob(eq.highFreq, "high_freq", 5),
         },
         {
-          label: "MID", color: "#6c6",
+          label: "MID", family: paramMeta("eq.mid_gain").family,
           gain: knob(eq.midGain, "mid_gain", 3, "dB"),
           freq: knob(eq.midFreq, "mid_freq", 2),
           q: knob(eq.midQ, "mid_q", 4),
         },
         {
-          label: "LO", color: "#66c",
+          label: "LO", family: paramMeta("eq.low_gain").family,
           gain: knob(eq.lowGain, "low_gain", 1, "dB"),
           freq: knob(eq.lowFreq, "low_freq", 0),
         },

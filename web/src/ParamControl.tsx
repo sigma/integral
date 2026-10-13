@@ -8,10 +8,9 @@ export interface SpecParam {
   note: WasmFxParamDef | undefined;
 }
 
-/** How a skin draws a param. Range, format and slots always come from the spec. */
+/** How a skin draws a param. Range, format, slots and colour always come from the spec. */
 export interface ParamLook {
   label?: string;
-  color?: string;
   as?: "knob" | "fader" | "switch";
 }
 
@@ -59,7 +58,7 @@ export function ParamControl({ param: { def, note }, slots, onNibParam, look = {
   } else if (as === "fader") {
     control = <SynthFader {...shared} {...range} compact />;
   } else {
-    control = <SynthKnob {...shared} {...range} color={look.color} />;
+    control = <SynthKnob {...shared} {...range} family={def.family} />;
   }
 
   const sync = def.syncIndex;

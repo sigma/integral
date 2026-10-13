@@ -1,6 +1,7 @@
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MfxHeaderField } from "../pkg/integral_wasm.js";
+import { MfxHeaderField, mfx_params, mfxHeaderFamily } from "../pkg/integral_wasm.js";
+import { familyVar } from "./synth-ui";
 import { MfxPanel, type MfxState } from "./MfxPanel";
 import { cleanup, render } from "./test/dom";
 
@@ -72,6 +73,14 @@ describe("MfxPanel params", () => {
     expect(knob?.textContent).toContain("+0dB");
   });
 
+  it("colours a knob by its def's family", () => {
+    const def = mfx_params(22).find((d) => d.name === "Rate");
+    if (!def) throw new Error("no Rate");
+    const { container } = typePanel(22, Array<number>(32).fill(127));
+    const fills = [...container.querySelectorAll('[title="Rate"] circle')].map((c) => (c as SVGElement).style.fill);
+    expect(fills).toContain(familyVar(def.family));
+  });
+
   it("edits the note slot of a delay time in note mode", () => {
     // Delay Left: switch at slot 0, msec at 1, note at 2.
     const params = Array<number>(32).fill(0);
@@ -106,5 +115,24 @@ describe("MfxPanel Control Assign", () => {
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(onHeaderParam).toHaveBeenCalledWith(MfxHeaderField.ControlAssign, 0, 2);
+  });
+});
+
+describe("MfxPanel Control Sens", () => {
+  it("takes its family from the core", () => {
+    const mfx: MfxState = {
+      mfxType: 0,
+      chorusSend: 0,
+      reverbSend: 0,
+      controls: [{ source: 0, sens: 127, assign: 0 }],
+      params: [],
+    };
+    const { container } = render(
+      <MfxPanel mfx={mfx} onTypeChange={vi.fn()} onHeaderParam={vi.fn()} onNibParam={vi.fn()} />,
+    );
+    const fills = [...container.querySelectorAll('[title="Macro 1 Depth"] circle')].map(
+      (c) => (c as SVGElement).style.fill,
+    );
+    expect(fills).toContain(familyVar(mfxHeaderFamily(MfxHeaderField.ControlSens)));
   });
 });
