@@ -5,6 +5,8 @@
 
 use std::fmt;
 
+use crate::family::ParameterFamily::{self, Amp, Filter, Modulation, Time};
+
 /// Definition of a single FX parameter.
 ///
 /// Values are the stored slot values (raw − 32768), as read from the device.
@@ -22,6 +24,8 @@ pub struct FxParamDef {
     pub default_value: i32,
     /// Display unit/format hint.
     pub unit: FxUnit,
+    /// The role the parameter plays in shaping the sound.
+    pub family: ParameterFamily,
     /// Tempo sync: set when a msec/Hz-vs-note switch picks between this slot
     /// and a note slot.
     pub sync: Option<FxSync>,
@@ -255,9 +259,11 @@ impl fmt::Display for FxParamDef {
     }
 }
 
+/// A plain (not tempo-syncable) parameter definition.
 pub(crate) const fn param(
     index: u8,
     name: &'static str,
+    family: ParameterFamily,
     min: i32,
     max: i32,
     default_value: i32,
@@ -270,6 +276,7 @@ pub(crate) const fn param(
         max,
         default_value,
         unit,
+        family,
         sync: None,
     }
 }
@@ -310,34 +317,42 @@ impl FxParamDef {
 // ---------------------------------------------------------------------------
 
 const CHORUS_CHORUS: &[FxParamDef] = &[
-    param(0, "Filter", 0, 2, 2, FxUnit::FilterType),
-    param(1, "Cutoff", 0, FREQ_MAX, 6, FxUnit::Freq),
-    param(2, "PreDly", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
-    param(6, "Depth", 0, 127, 30, FxUnit::Plain),
-    param(7, "Phase", 0, 90, 90, FxUnit::DegreesX2),
-    param(8, "Fdbk", 0, 127, 0, FxUnit::Plain),
+    param(0, "Filter", Filter, 0, 2, 2, FxUnit::FilterType),
+    param(1, "Cutoff", Filter, 0, FREQ_MAX, 6, FxUnit::Freq),
+    param(2, "PreDly", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(6, "Depth", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(7, "Phase", Modulation, 0, 90, 90, FxUnit::DegreesX2),
+    param(8, "Fdbk", Filter, 0, 127, 0, FxUnit::Plain),
 ];
 
 const CHORUS_DELAY: &[FxParamDef] = &[
-    param(1, "Dly L", 0, 1000, 200, FxUnit::Millis).synced(7, SYNC_MS),
-    param(4, "Dly R", 0, 1000, 400, FxUnit::Millis).synced(10, SYNC_MS),
-    param(7, "Dly C", 0, 1000, 600, FxUnit::Millis).synced(12, SYNC_MS),
-    param(9, "C Fdbk", 0, 98, 59, FxUnit::FeedbackPercent),
-    param(10, "HFDamp", 0, FREQ_MAX + 1, FREQ_MAX + 1, FxUnit::Freq),
-    param(11, "Lv L", 0, 127, 127, FxUnit::Plain),
-    param(12, "Lv R", 0, 127, 127, FxUnit::Plain),
-    param(13, "Lv C", 0, 127, 127, FxUnit::Plain),
+    param(1, "Dly L", Time, 0, 1000, 200, FxUnit::Millis).synced(7, SYNC_MS),
+    param(4, "Dly R", Time, 0, 1000, 400, FxUnit::Millis).synced(10, SYNC_MS),
+    param(7, "Dly C", Time, 0, 1000, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(9, "C Fdbk", Time, 0, 98, 59, FxUnit::FeedbackPercent),
+    param(
+        10,
+        "HFDamp",
+        Filter,
+        0,
+        FREQ_MAX + 1,
+        FREQ_MAX + 1,
+        FxUnit::Freq,
+    ),
+    param(11, "Lv L", Amp, 0, 127, 127, FxUnit::Plain),
+    param(12, "Lv R", Amp, 0, 127, 127, FxUnit::Plain),
+    param(13, "Lv C", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 const CHORUS_GM2: &[FxParamDef] = &[
-    param(0, "PreLPF", 0, 7, 0, FxUnit::Plain),
-    param(1, "Level", 0, 127, 64, FxUnit::Plain),
-    param(2, "Fdbk", 0, 127, 8, FxUnit::Plain),
-    param(3, "Delay", 0, 127, 80, FxUnit::Plain),
-    param(4, "Rate", 0, 127, 3, FxUnit::Plain),
-    param(5, "Depth", 0, 127, 19, FxUnit::Plain),
-    param(6, "→Rev", 0, 127, 0, FxUnit::Plain),
+    param(0, "PreLPF", Filter, 0, 7, 0, FxUnit::Plain),
+    param(1, "Level", Amp, 0, 127, 64, FxUnit::Plain),
+    param(2, "Fdbk", Filter, 0, 127, 8, FxUnit::Plain),
+    param(3, "Delay", Time, 0, 127, 80, FxUnit::Plain),
+    param(4, "Rate", Modulation, 0, 127, 3, FxUnit::Plain),
+    param(5, "Depth", Modulation, 0, 127, 19, FxUnit::Plain),
+    param(6, "→Rev", Amp, 0, 127, 0, FxUnit::Plain),
 ];
 
 /// Chorus parameter definitions indexed by chorus type (0=OFF, 1=Chorus,
@@ -364,19 +379,19 @@ pub static CHORUS_TYPE_NAMES: &[&str] = &["OFF", "Chorus", "Delay", "GM2 Cho"];
 // ponytail: one table for five types; Roland's inits differ per type (Time 9
 // for Rooms, Pre Delay 20 for Plate). Split it if per-type reset matters.
 const REVERB_ROOM_HALL_PLATE: &[FxParamDef] = &[
-    param(1, "PreDly", 0, 100, 0, FxUnit::Millis),
-    param(2, "Time", 1, 100, 26, FxUnit::SecondsTenths),
-    param(3, "Densty", 0, 127, 127, FxUnit::Plain),
-    param(4, "Diffus", 0, 127, 127, FxUnit::Plain),
-    param(5, "LFDamp", 0, 100, 50, FxUnit::Plain),
-    param(6, "HFDamp", 0, 100, 50, FxUnit::Plain),
-    param(7, "Spread", 0, 127, 127, FxUnit::Plain),
-    param(8, "Tone", 0, 127, 64, FxUnit::Plain),
+    param(1, "PreDly", Time, 0, 100, 0, FxUnit::Millis),
+    param(2, "Time", Time, 1, 100, 26, FxUnit::SecondsTenths),
+    param(3, "Densty", Time, 0, 127, 127, FxUnit::Plain),
+    param(4, "Diffus", Time, 0, 127, 127, FxUnit::Plain),
+    param(5, "LFDamp", Filter, 0, 100, 50, FxUnit::Plain),
+    param(6, "HFDamp", Filter, 0, 100, 50, FxUnit::Plain),
+    param(7, "Spread", Time, 0, 127, 127, FxUnit::Plain),
+    param(8, "Tone", Filter, 0, 127, 64, FxUnit::Plain),
 ];
 
 const REVERB_GM2: &[FxParamDef] = &[
-    param(0, "Char", 0, 5, 4, FxUnit::Plain),
-    param(3, "Time", 0, 127, 64, FxUnit::Plain),
+    param(0, "Char", Time, 0, 5, 4, FxUnit::Plain),
+    param(3, "Time", Time, 0, 127, 64, FxUnit::Plain),
 ];
 
 /// Reverb parameter definitions indexed by reverb type (0=OFF, 1–5=Room/Hall/Plate,

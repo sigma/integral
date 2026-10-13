@@ -8,7 +8,9 @@
 //
 // It replaces the text between the BEGIN/END GENERATED markers in that file.
 // Roland's files are fetched from a pinned commit and run as-is in a `vm`
-// context, so their own code builds the tables (no parsing).
+// context, so their own code builds the tables (no parsing). Each param's
+// Parameter family is emitted as a bare `ParameterFamily` variant, which
+// mfx_params.rs imports.
 import fs from "node:fs";
 import vm from "node:vm";
 
@@ -43,6 +45,202 @@ const constName = (id) =>
     .split(/[^A-Z0-9]+/)
     .filter(Boolean)
     .join("_")}`;
+
+// Parameter families, from docs/research/mfx-param-families.md (decisions in
+// #159). A label resolves in this order: a per-type exception (by the label or
+// its base name), a stage rule, a rule on the whole label, a rule on the base
+// name. The base name is the label minus one stage prefix, e.g.
+// `Flanger Feedback` -> `Feedback`. An unclassified label fails the run.
+const [P, F, A, M, Ti, C] = [
+  "Pitch",
+  "Filter",
+  "Amp",
+  "Modulation",
+  "Time",
+  "Common",
+];
+// Doc § Method, step 2: stage prefixes of combination types and of multi-stage
+// types (Rotary woofer/tweeter, delay taps, EQ bands). Longest match wins.
+const STAGES = [
+  "Chorus",
+  "Flanger",
+  "Phaser",
+  "Tremolo",
+  "Enhancer",
+  "Delay",
+  "Delay 1",
+  "Delay 2",
+  "Delay 3",
+  "Delay 4",
+  "Rev Delay",
+  "Overdrive",
+  "Distortion",
+  "OD",
+  "Amp",
+  "Pre Amp",
+  "TWah",
+  "AutoWah",
+  "Woofer",
+  "Tweeter",
+  "Pitch1",
+  "Pitch2",
+  "Mid1",
+  "Mid2",
+  "Boost",
+];
+// Doc § Rules (MFX), by family. Additions not named in the doc's rule table
+// follow its appendix: Volume and Ratio (A), Filter, Filter Gain (F), Delay (T).
+const RULES = Object.fromEntries(
+  Object.entries({
+    [P]: ["Coarse", "Fine", "Sample Rate", "Bit Down"],
+    [F]: [
+      "High Gain",
+      "Low Gain",
+      "Bass",
+      "Treble",
+      "Filter",
+      "Filter Type",
+      "Filter Gain",
+      "Middle",
+      "Tone",
+      "Cutoff Freq",
+      "Freq",
+      "Gain",
+      "Peak",
+      "Q",
+      ...Array.from({ length: 8 }, (_, i) => `Band${i + 1}`),
+      "Bright",
+      "Presence",
+      "Filter Slope",
+      "High Freq",
+      "Low Freq",
+      "Pre Filter Type",
+      "Post Filter Type",
+      "Post Filter Cutoff",
+      "Mode",
+      "Vowel1",
+      "Vowel2",
+      "Width",
+      "Drive",
+      "HF Damp",
+      "Speaker Type",
+      "Manual",
+      "Resonance",
+      "Mic Setting",
+      "Filter Resonance",
+      "Cross Feedback",
+    ],
+    [A]: [
+      "Level",
+      "Master",
+      "Volume",
+      "Threshold",
+      "Ratio",
+      "Direct Level",
+      "Mic Level",
+      "Post Gain",
+      "Left Level",
+      "Right Level",
+      "Center Level",
+      "Balance",
+      "Mix",
+    ],
+    [M]: [
+      "Rate",
+      "Depth",
+      "Slow Speed",
+      "Fast Speed",
+      "Phase",
+      "Trans Up",
+      "Trans Down",
+      "Mod Wave",
+      "Acceleration",
+      "Step Rate",
+      "Depth Deviation",
+      "Shuffle",
+      "Duty",
+      "Polarity",
+      "Speed",
+      "Brake",
+      "Input Sync Sw",
+      "Input Sync Threshold",
+      ...Array.from(
+        { length: 16 },
+        (_, i) => `Step ${String(i + 1).padStart(2, "0")}`,
+      ),
+    ],
+    [Ti]: [
+      "Pre Delay",
+      "Feedback",
+      "Time",
+      "Delay",
+      "Delay Time",
+      "Delay Left",
+      "Delay Right",
+      "Delay Center",
+      "Feedback Mode",
+      "Spread",
+      "Center Feedback",
+      "Pre Delay Deviation",
+      "Pan",
+      "Pan Deviation",
+      "Phase Left",
+      "Phase Right",
+    ],
+    [C]: ["Switch", "Sw", "Speaker Sw", "Drive Switch", "Drive Sw"],
+  }).flatMap(([fam, names]) => names.map((n) => [n, fam])),
+);
+// Doc § Rules (MFX): Feedback in a Flanger stage is comb resonance (cluster 8).
+const STAGE_RULES = { Flanger: { Feedback: F } };
+// Doc § Per-type exceptions (MFX): [label or base name, type IDs, family].
+const EXCEPTIONS = [
+  ["Acceleration", [40, 61], Ti], // Time Ctrl Delay, EP AmpSim -> Delay
+  ["Amp Type", [28, 29, 51, 52], F],
+  ["Boost Frequency", [3], F], // Low Boost
+  ["Attack", [31, 33], A], // Compressor, Gate
+  ["Attack", [4, 18], M], // Step Filter, Slicer
+  ["Color", [10], M], // Phaser 2
+  ["Drive Type", [51, 52], F],
+  ["Feedback", [23, 24], F], // Flanger, Step Flanger
+  ["Feedback", [43, 44], Ti], // Pitch Shifter, 2Voice Pitch Shifter
+  ["Frequency", [15], P], // Ring Modulator
+  ["Hold", [33], A], // Gate
+  ["LoFi Type", [41], P],
+  ["Manual", [7], F], // Humanizer
+  ["Mix", [5, 9, 12, 13, 14, 62, 63, 64], A], // Enhancer, phasers
+  ["Mode", [33], C], // Gate
+  ["Mode", [14], M], // Infinite Phaser
+  ["Mode", [9, 12, 13], C], // Phaser 1, Step Phaser, Multi Stage Phaser
+  ["Mode", [18], M], // Slicer
+  ["OD Gain", [21, 57, 58, 59, 60, 61], F],
+  ["Pre Amp Gain", [30, 53, 54, 55, 56], F],
+  ["Pre Amp Type", [30, 53, 54, 55, 56], F],
+  ["Release", [32, 33], A], // Limiter, Gate
+  ["Sens", [6, 15, 51], M], // Auto Wah, Ring Modulator, TWah
+  ["Sens", [5, 62, 63, 64], F], // Enhancer
+  ["Separation", [19, 26], Ti], // Rotary 1, Tremolo Chorus
+  ["Speed", [11, 14, 57], M], // LFO speed, not the Rotary SLOW/FAST switch
+  ["Threshold", [39], Ti], // Reverse Delay
+  ["Type", [57, 58, 59, 60, 61], F], // EP AmpSim voicing
+];
+/** The `ParameterFamily` variant of `label` in MFX type `id`. */
+function familyOf(id, label) {
+  const stage = STAGES.filter((s) => label.startsWith(`${s} `)).sort(
+    (a, b) => b.length - a.length,
+  )[0];
+  const base = stage ? label.slice(stage.length + 1) : label;
+  // Band labels carry their frequency: `Band1 (250Hz)`.
+  const bare = base.split(" (")[0];
+  const fam =
+    EXCEPTIONS.find(
+      ([n, ids]) => (n === label || n === base) && ids.includes(id),
+    )?.[2] ??
+    STAGE_RULES[stage]?.[base] ??
+    RULES[label] ??
+    RULES[bare];
+  if (!fam) throw new Error(`no family for type ${id} "${label}"`);
+  return fam;
+}
 
 // The candidates below mirror FxUnit::format in fx_params.rs, to pick the unit
 // whose output matches Roland's display string for every stored value.
@@ -151,7 +349,7 @@ const consts = T.map((x, id) => {
     if (m && m[2] === "sync sw") continue;
     if (m && m[2] === "note") continue;
     const st = (v) => v - 32768;
-    let line = `    param(${k}, ${JSON.stringify(label)}, ${st(l.min)}, ${st(l.max)}, ${st(l.init)}, ${unitFor(l, disp)})`;
+    let line = `    param(${k}, ${JSON.stringify(label)}, ${familyOf(id, label)}, ${st(l.min)}, ${st(l.max)}, ${st(l.init)}, ${unitFor(l, disp)})`;
     if (m) {
       const sw = leaves[k - 1],
         note = leaves[k + 1];

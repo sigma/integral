@@ -9,6 +9,7 @@
 //! [`FxParamDef`] spanning three slots (switch, value, note). Hidden slots
 //! are left out.
 
+use crate::family::ParameterFamily::{Amp, Common, Filter, Modulation, Pitch, Time};
 use crate::fx_params::{FxParamDef, FxUnit, SYNC_HZ, SYNC_MS, param};
 use crate::mfx::MFX_PARAM_COUNT;
 
@@ -353,69 +354,94 @@ const MFX_00_THRU: &[FxParamDef] = &[];
 
 // Type 1: EQUALIZER
 const MFX_01_EQUALIZER: &[FxParamDef] = &[
-    param(0, "Low Freq", 0, 1, 1, FxUnit::EqLowFreq),
-    param(1, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(2, "Mid1 Freq", 0, 16, 7, FxUnit::Freq),
-    param(3, "Mid1 Gain", 0, 30, 15, GAIN_DB),
-    param(4, "Mid1 Q", 0, 4, 0, FxUnit::EqQ),
-    param(5, "Mid2 Freq", 0, 16, 10, FxUnit::Freq),
-    param(6, "Mid2 Gain", 0, 30, 15, GAIN_DB),
-    param(7, "Mid2 Q", 0, 4, 0, FxUnit::EqQ),
-    param(8, "High Freq", 0, 2, 1, FxUnit::EqHighFreq),
-    param(9, "High Gain", 0, 30, 15, GAIN_DB),
-    param(10, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Low Freq", Filter, 0, 1, 1, FxUnit::EqLowFreq),
+    param(1, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(2, "Mid1 Freq", Filter, 0, 16, 7, FxUnit::Freq),
+    param(3, "Mid1 Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(4, "Mid1 Q", Filter, 0, 4, 0, FxUnit::EqQ),
+    param(5, "Mid2 Freq", Filter, 0, 16, 10, FxUnit::Freq),
+    param(6, "Mid2 Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(7, "Mid2 Q", Filter, 0, 4, 0, FxUnit::EqQ),
+    param(8, "High Freq", Filter, 0, 2, 1, FxUnit::EqHighFreq),
+    param(9, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(10, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 2: SPECTRUM
 const MFX_02_SPECTRUM: &[FxParamDef] = &[
-    param(0, "Band1 (250Hz)", 0, 30, 15, GAIN_DB),
-    param(1, "Band2 (500Hz)", 0, 30, 15, GAIN_DB),
-    param(2, "Band3 (1000Hz)", 0, 30, 15, GAIN_DB),
-    param(3, "Band4 (1250Hz)", 0, 30, 15, GAIN_DB),
-    param(4, "Band5 (2000Hz)", 0, 30, 15, GAIN_DB),
-    param(5, "Band6 (3150Hz)", 0, 30, 15, GAIN_DB),
-    param(6, "Band7 (4000Hz)", 0, 30, 15, GAIN_DB),
-    param(7, "Band8 (8000Hz)", 0, 30, 15, GAIN_DB),
-    param(8, "Q", 0, 4, 0, FxUnit::EqQ),
-    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Band1 (250Hz)", Filter, 0, 30, 15, GAIN_DB),
+    param(1, "Band2 (500Hz)", Filter, 0, 30, 15, GAIN_DB),
+    param(2, "Band3 (1000Hz)", Filter, 0, 30, 15, GAIN_DB),
+    param(3, "Band4 (1250Hz)", Filter, 0, 30, 15, GAIN_DB),
+    param(4, "Band5 (2000Hz)", Filter, 0, 30, 15, GAIN_DB),
+    param(5, "Band6 (3150Hz)", Filter, 0, 30, 15, GAIN_DB),
+    param(6, "Band7 (4000Hz)", Filter, 0, 30, 15, GAIN_DB),
+    param(7, "Band8 (8000Hz)", Filter, 0, 30, 15, GAIN_DB),
+    param(8, "Q", Filter, 0, 4, 0, FxUnit::EqQ),
+    param(9, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 3: LOW BOOST
 const MFX_03_LOW_BOOST: &[FxParamDef] = &[
-    param(0, "Boost Frequency", 0, 8, 4, FxUnit::Names(BOOST_FREQ)),
-    param(1, "Boost Gain", 0, 12, 6, FxUnit::Decibels),
-    param(2, "Boost Width", 0, 2, 0, FxUnit::Names(BOOST_WIDTH)),
-    param(3, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(4, "High Gain", 0, 30, 15, GAIN_DB),
-    param(5, "Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        0,
+        "Boost Frequency",
+        Filter,
+        0,
+        8,
+        4,
+        FxUnit::Names(BOOST_FREQ),
+    ),
+    param(1, "Boost Gain", Filter, 0, 12, 6, FxUnit::Decibels),
+    param(
+        2,
+        "Boost Width",
+        Filter,
+        0,
+        2,
+        0,
+        FxUnit::Names(BOOST_WIDTH),
+    ),
+    param(3, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(4, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(5, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 4: STEP FILTER
 const MFX_04_STEP_FILTER: &[FxParamDef] = &[
-    param(0, "Step 01", 0, 127, 60, FxUnit::Plain),
-    param(1, "Step 02", 0, 127, 30, FxUnit::Plain),
-    param(2, "Step 03", 0, 127, 60, FxUnit::Plain),
-    param(3, "Step 04", 0, 127, 30, FxUnit::Plain),
-    param(4, "Step 05", 0, 127, 60, FxUnit::Plain),
-    param(5, "Step 06", 0, 127, 30, FxUnit::Plain),
-    param(6, "Step 07", 0, 127, 60, FxUnit::Plain),
-    param(7, "Step 08", 0, 127, 30, FxUnit::Plain),
-    param(8, "Step 09", 0, 127, 60, FxUnit::Plain),
-    param(9, "Step 10", 0, 127, 60, FxUnit::Plain),
-    param(10, "Step 11", 0, 127, 30, FxUnit::Plain),
-    param(11, "Step 12", 0, 127, 60, FxUnit::Plain),
-    param(12, "Step 13", 0, 127, 60, FxUnit::Plain),
-    param(13, "Step 14", 0, 127, 30, FxUnit::Plain),
-    param(14, "Step 15", 0, 127, 60, FxUnit::Plain),
-    param(15, "Step 16", 0, 127, 30, FxUnit::Plain),
-    param(17, "Rate", 1, 200, 10, FxUnit::RateHz)
+    param(0, "Step 01", Modulation, 0, 127, 60, FxUnit::Plain),
+    param(1, "Step 02", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(2, "Step 03", Modulation, 0, 127, 60, FxUnit::Plain),
+    param(3, "Step 04", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(4, "Step 05", Modulation, 0, 127, 60, FxUnit::Plain),
+    param(5, "Step 06", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(6, "Step 07", Modulation, 0, 127, 60, FxUnit::Plain),
+    param(7, "Step 08", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(8, "Step 09", Modulation, 0, 127, 60, FxUnit::Plain),
+    param(9, "Step 10", Modulation, 0, 127, 60, FxUnit::Plain),
+    param(10, "Step 11", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(11, "Step 12", Modulation, 0, 127, 60, FxUnit::Plain),
+    param(12, "Step 13", Modulation, 0, 127, 60, FxUnit::Plain),
+    param(13, "Step 14", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(14, "Step 15", Modulation, 0, 127, 60, FxUnit::Plain),
+    param(15, "Step 16", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(17, "Rate", Modulation, 1, 200, 10, FxUnit::RateHz)
         .synced(18, SYNC_HZ)
         .note_by_default(),
-    param(19, "Attack", 0, 127, 50, FxUnit::Plain),
-    param(20, "Filter Type", 0, 3, 2, FxUnit::Names(STEPFIL_FILT_TYPE)),
+    param(19, "Attack", Modulation, 0, 127, 50, FxUnit::Plain),
+    param(
+        20,
+        "Filter Type",
+        Filter,
+        0,
+        3,
+        2,
+        FxUnit::Names(STEPFIL_FILT_TYPE),
+    ),
     param(
         21,
         "Filter Slope",
+        Filter,
         0,
         2,
         2,
@@ -425,62 +451,95 @@ const MFX_04_STEP_FILTER: &[FxParamDef] = &[
             suffix: "dB",
         },
     ),
-    param(22, "Filter Resonance", 0, 127, 40, FxUnit::Plain),
-    param(23, "Filter Gain", 0, 12, 0, FxUnit::Decibels),
-    param(24, "Level", 0, 127, 127, FxUnit::Plain),
+    param(22, "Filter Resonance", Filter, 0, 127, 40, FxUnit::Plain),
+    param(23, "Filter Gain", Filter, 0, 12, 0, FxUnit::Decibels),
+    param(24, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 5: ENHANCER
 const MFX_05_ENHANCER: &[FxParamDef] = &[
-    param(0, "Sens", 0, 127, 64, FxUnit::Plain),
-    param(1, "Mix", 0, 127, 64, FxUnit::Plain),
-    param(2, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(3, "High Gain", 0, 30, 15, GAIN_DB),
-    param(4, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Sens", Filter, 0, 127, 64, FxUnit::Plain),
+    param(1, "Mix", Amp, 0, 127, 64, FxUnit::Plain),
+    param(2, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(3, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(4, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 6: AUTO WAH
 const MFX_06_AUTO_WAH: &[FxParamDef] = &[
-    param(0, "Filter Type", 0, 1, 1, FxUnit::Names(WAH_MODE)),
-    param(1, "Manual", 0, 127, 60, FxUnit::Plain),
-    param(2, "Peak", 0, 127, 40, FxUnit::Plain),
-    param(3, "Sens", 0, 127, 0, FxUnit::Plain),
-    param(4, "Polarity", 0, 1, 0, FxUnit::Names(WAH_POLARITY)),
-    param(6, "Rate", 1, 200, 40, FxUnit::RateHz)
+    param(0, "Filter Type", Filter, 0, 1, 1, FxUnit::Names(WAH_MODE)),
+    param(1, "Manual", Filter, 0, 127, 60, FxUnit::Plain),
+    param(2, "Peak", Filter, 0, 127, 40, FxUnit::Plain),
+    param(3, "Sens", Modulation, 0, 127, 0, FxUnit::Plain),
+    param(
+        4,
+        "Polarity",
+        Modulation,
+        0,
+        1,
+        0,
+        FxUnit::Names(WAH_POLARITY),
+    ),
+    param(6, "Rate", Modulation, 1, 200, 40, FxUnit::RateHz)
         .synced(12, SYNC_HZ)
         .note_by_default(),
-    param(8, "Depth", 0, 127, 60, FxUnit::Plain),
-    param(9, "Phase", 0, 90, 0, FxUnit::DegreesX2),
-    param(10, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(11, "High Gain", 0, 30, 15, GAIN_DB),
-    param(12, "Level", 0, 127, 127, FxUnit::Plain),
+    param(8, "Depth", Modulation, 0, 127, 60, FxUnit::Plain),
+    param(9, "Phase", Modulation, 0, 90, 0, FxUnit::DegreesX2),
+    param(10, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(11, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(12, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 7: HUMANIZER
 const MFX_07_HUMANIZER: &[FxParamDef] = &[
-    param(0, "Drive Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(1, "Drive", 0, 127, 127, FxUnit::Plain),
-    param(2, "Vowel1", 0, 4, 4, FxUnit::Names(FORMANT_VOWEL1)),
-    param(3, "Vowel2", 0, 4, 0, FxUnit::Names(FORMANT_VOWEL1)),
-    param(5, "Rate", 1, 200, 10, FxUnit::RateHz)
+    param(0, "Drive Sw", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(1, "Drive", Filter, 0, 127, 127, FxUnit::Plain),
+    param(2, "Vowel1", Filter, 0, 4, 4, FxUnit::Names(FORMANT_VOWEL1)),
+    param(3, "Vowel2", Filter, 0, 4, 0, FxUnit::Names(FORMANT_VOWEL1)),
+    param(5, "Rate", Modulation, 1, 200, 10, FxUnit::RateHz)
         .synced(18, SYNC_HZ)
         .note_by_default(),
-    param(7, "Depth", 0, 127, 127, FxUnit::Plain),
-    param(8, "Input Sync Sw", 0, 1, 0, FxUnit::Names(OFF_ON)),
-    param(9, "Input Sync Threshold", 0, 127, 60, FxUnit::Plain),
-    param(10, "Manual", 0, 100, 50, FxUnit::Plain),
-    param(11, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(12, "High Gain", 0, 30, 15, GAIN_DB),
-    param(13, "Pan", 0, 127, 64, FxUnit::Pan),
-    param(14, "Level", 0, 127, 127, FxUnit::Plain),
+    param(7, "Depth", Modulation, 0, 127, 127, FxUnit::Plain),
+    param(
+        8,
+        "Input Sync Sw",
+        Modulation,
+        0,
+        1,
+        0,
+        FxUnit::Names(OFF_ON),
+    ),
+    param(
+        9,
+        "Input Sync Threshold",
+        Modulation,
+        0,
+        127,
+        60,
+        FxUnit::Plain,
+    ),
+    param(10, "Manual", Filter, 0, 100, 50, FxUnit::Plain),
+    param(11, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(12, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(13, "Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(14, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 8: SPEAKER SIMULATOR
 const MFX_08_SPEAKER_SIMULATOR: &[FxParamDef] = &[
-    param(0, "Speaker Type", 0, 15, 6, FxUnit::Names(SPSIM_SP_TYPE)),
+    param(
+        0,
+        "Speaker Type",
+        Filter,
+        0,
+        15,
+        6,
+        FxUnit::Names(SPSIM_SP_TYPE),
+    ),
     param(
         1,
         "Mic Setting",
+        Filter,
         0,
         2,
         1,
@@ -490,9 +549,9 @@ const MFX_08_SPEAKER_SIMULATOR: &[FxParamDef] = &[
             suffix: "",
         },
     ),
-    param(2, "Mic Level", 0, 127, 127, FxUnit::Plain),
-    param(3, "Direct Level", 0, 127, 0, FxUnit::Plain),
-    param(4, "Level", 0, 127, 127, FxUnit::Plain),
+    param(2, "Mic Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(3, "Direct Level", Amp, 0, 127, 0, FxUnit::Plain),
+    param(4, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 9: PHASER 1
@@ -500,6 +559,7 @@ const MFX_09_PHASER_1: &[FxParamDef] = &[
     param(
         0,
         "Mode",
+        Common,
         0,
         2,
         2,
@@ -509,35 +569,51 @@ const MFX_09_PHASER_1: &[FxParamDef] = &[
             suffix: "-STAGE",
         },
     ),
-    param(1, "Manual", 0, 127, 64, FxUnit::Plain),
-    param(3, "Rate", 1, 200, 10, FxUnit::RateHz)
+    param(1, "Manual", Filter, 0, 127, 64, FxUnit::Plain),
+    param(3, "Rate", Modulation, 1, 200, 10, FxUnit::RateHz)
         .synced(18, SYNC_HZ)
         .note_by_default(),
-    param(5, "Depth", 0, 127, 40, FxUnit::Plain),
-    param(6, "Polarity", 0, 1, 1, FxUnit::Names(STPH_POLARITY)),
-    param(7, "Resonance", 0, 127, 40, FxUnit::Plain),
-    param(8, "Cross Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
-    param(9, "Mix", 0, 127, 127, FxUnit::Plain),
-    param(10, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(11, "High Gain", 0, 30, 15, GAIN_DB),
-    param(12, "Level", 0, 127, 127, FxUnit::Plain),
+    param(5, "Depth", Modulation, 0, 127, 40, FxUnit::Plain),
+    param(
+        6,
+        "Polarity",
+        Modulation,
+        0,
+        1,
+        1,
+        FxUnit::Names(STPH_POLARITY),
+    ),
+    param(7, "Resonance", Filter, 0, 127, 40, FxUnit::Plain),
+    param(
+        8,
+        "Cross Feedback",
+        Filter,
+        0,
+        98,
+        49,
+        FxUnit::FeedbackPercent,
+    ),
+    param(9, "Mix", Amp, 0, 127, 127, FxUnit::Plain),
+    param(10, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(11, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(12, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 10: PHASER 2
 const MFX_10_PHASER_2: &[FxParamDef] = &[
-    param(0, "Rate", 0, 100, 50, FxUnit::Plain),
-    param(1, "Color", 0, 1, 0, FxUnit::Names(PHA2_COLOR)),
-    param(2, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(3, "High Gain", 0, 30, 15, GAIN_DB),
-    param(4, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Rate", Modulation, 0, 100, 50, FxUnit::Plain),
+    param(1, "Color", Modulation, 0, 1, 0, FxUnit::Names(PHA2_COLOR)),
+    param(2, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(3, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(4, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 11: PHASER 3
 const MFX_11_PHASER_3: &[FxParamDef] = &[
-    param(0, "Speed", 0, 100, 50, FxUnit::Plain),
-    param(1, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(2, "High Gain", 0, 30, 15, GAIN_DB),
-    param(3, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Speed", Modulation, 0, 100, 50, FxUnit::Plain),
+    param(1, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(2, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(3, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 12: STEP PHASER
@@ -545,6 +621,7 @@ const MFX_12_STEP_PHASER: &[FxParamDef] = &[
     param(
         0,
         "Mode",
+        Common,
         0,
         2,
         2,
@@ -554,21 +631,37 @@ const MFX_12_STEP_PHASER: &[FxParamDef] = &[
             suffix: "-STAGE",
         },
     ),
-    param(1, "Manual", 0, 127, 64, FxUnit::Plain),
-    param(3, "Rate", 1, 200, 30, FxUnit::RateHz)
+    param(1, "Manual", Filter, 0, 127, 64, FxUnit::Plain),
+    param(3, "Rate", Modulation, 1, 200, 30, FxUnit::RateHz)
         .synced(13, SYNC_HZ)
         .note_by_default(),
-    param(5, "Depth", 0, 127, 40, FxUnit::Plain),
-    param(6, "Polarity", 0, 1, 1, FxUnit::Names(STPH_POLARITY)),
-    param(7, "Resonance", 0, 127, 40, FxUnit::Plain),
-    param(8, "Cross Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
-    param(10, "Step Rate", 1, 200, 80, FxUnit::StepRateHz)
+    param(5, "Depth", Modulation, 0, 127, 40, FxUnit::Plain),
+    param(
+        6,
+        "Polarity",
+        Modulation,
+        0,
+        1,
+        1,
+        FxUnit::Names(STPH_POLARITY),
+    ),
+    param(7, "Resonance", Filter, 0, 127, 40, FxUnit::Plain),
+    param(
+        8,
+        "Cross Feedback",
+        Filter,
+        0,
+        98,
+        49,
+        FxUnit::FeedbackPercent,
+    ),
+    param(10, "Step Rate", Modulation, 1, 200, 80, FxUnit::StepRateHz)
         .synced(6, SYNC_HZ)
         .note_by_default(),
-    param(12, "Mix", 0, 127, 127, FxUnit::Plain),
-    param(13, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(14, "High Gain", 0, 30, 15, GAIN_DB),
-    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+    param(12, "Mix", Amp, 0, 127, 127, FxUnit::Plain),
+    param(13, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(14, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(15, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 13: MULTI STAGE PHASER
@@ -576,6 +669,7 @@ const MFX_13_MULTI_STAGE_PHASER: &[FxParamDef] = &[
     param(
         0,
         "Mode",
+        Common,
         0,
         5,
         5,
@@ -585,17 +679,17 @@ const MFX_13_MULTI_STAGE_PHASER: &[FxParamDef] = &[
             suffix: "-STAGE",
         },
     ),
-    param(1, "Manual", 0, 127, 60, FxUnit::Plain),
-    param(3, "Rate", 1, 200, 10, FxUnit::RateHz)
+    param(1, "Manual", Filter, 0, 127, 60, FxUnit::Plain),
+    param(3, "Rate", Modulation, 1, 200, 10, FxUnit::RateHz)
         .synced(18, SYNC_HZ)
         .note_by_default(),
-    param(5, "Depth", 0, 127, 40, FxUnit::Plain),
-    param(6, "Resonance", 0, 127, 40, FxUnit::Plain),
-    param(7, "Mix", 0, 127, 127, FxUnit::Plain),
-    param(8, "Pan", 0, 127, 64, FxUnit::Pan),
-    param(9, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(10, "High Gain", 0, 30, 15, GAIN_DB),
-    param(11, "Level", 0, 127, 127, FxUnit::Plain),
+    param(5, "Depth", Modulation, 0, 127, 40, FxUnit::Plain),
+    param(6, "Resonance", Filter, 0, 127, 40, FxUnit::Plain),
+    param(7, "Mix", Amp, 0, 127, 127, FxUnit::Plain),
+    param(8, "Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(9, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(10, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(11, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 14: INFINITE PHASER
@@ -603,6 +697,7 @@ const MFX_14_INFINITE_PHASER: &[FxParamDef] = &[
     param(
         0,
         "Mode",
+        Modulation,
         0,
         3,
         3,
@@ -615,6 +710,7 @@ const MFX_14_INFINITE_PHASER: &[FxParamDef] = &[
     param(
         1,
         "Speed",
+        Modulation,
         0,
         200,
         140,
@@ -624,197 +720,382 @@ const MFX_14_INFINITE_PHASER: &[FxParamDef] = &[
             suffix: "",
         },
     ),
-    param(2, "Resonance", 0, 127, 80, FxUnit::Plain),
-    param(3, "Mix", 0, 127, 127, FxUnit::Plain),
-    param(4, "Pan", 0, 127, 64, FxUnit::Pan),
-    param(5, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(6, "High Gain", 0, 30, 15, GAIN_DB),
-    param(7, "Level", 0, 127, 127, FxUnit::Plain),
+    param(2, "Resonance", Filter, 0, 127, 80, FxUnit::Plain),
+    param(3, "Mix", Amp, 0, 127, 127, FxUnit::Plain),
+    param(4, "Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(5, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(6, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(7, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 15: RING MODULATOR
 const MFX_15_RING_MODULATOR: &[FxParamDef] = &[
-    param(0, "Frequency", 0, 127, 60, FxUnit::Plain),
-    param(1, "Sens", 0, 127, 0, FxUnit::Plain),
-    param(2, "Polarity", 0, 1, 0, FxUnit::Names(WAH_POLARITY)),
-    param(3, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(4, "High Gain", 0, 30, 15, GAIN_DB),
-    param(5, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(6, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Frequency", Pitch, 0, 127, 60, FxUnit::Plain),
+    param(1, "Sens", Modulation, 0, 127, 0, FxUnit::Plain),
+    param(
+        2,
+        "Polarity",
+        Modulation,
+        0,
+        1,
+        0,
+        FxUnit::Names(WAH_POLARITY),
+    ),
+    param(3, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(4, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(5, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(6, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 16: TREMOLO
 const MFX_16_TREMOLO: &[FxParamDef] = &[
-    param(0, "Mod Wave", 0, 4, 0, FxUnit::Names(TRE_MOD_WAVE)),
-    param(2, "Rate", 1, 200, 80, FxUnit::RateHz)
+    param(
+        0,
+        "Mod Wave",
+        Modulation,
+        0,
+        4,
+        0,
+        FxUnit::Names(TRE_MOD_WAVE),
+    ),
+    param(2, "Rate", Modulation, 1, 200, 80, FxUnit::RateHz)
         .synced(9, SYNC_HZ)
         .note_by_default(),
-    param(4, "Depth", 0, 127, 96, FxUnit::Plain),
-    param(5, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(6, "High Gain", 0, 30, 15, GAIN_DB),
-    param(7, "Level", 0, 127, 127, FxUnit::Plain),
+    param(4, "Depth", Modulation, 0, 127, 96, FxUnit::Plain),
+    param(5, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(6, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(7, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 17: AUTO PAN
 const MFX_17_AUTO_PAN: &[FxParamDef] = &[
-    param(0, "Mod Wave", 0, 4, 0, FxUnit::Names(TRE_MOD_WAVE)),
-    param(2, "Rate", 1, 200, 80, FxUnit::RateHz)
+    param(
+        0,
+        "Mod Wave",
+        Modulation,
+        0,
+        4,
+        0,
+        FxUnit::Names(TRE_MOD_WAVE),
+    ),
+    param(2, "Rate", Modulation, 1, 200, 80, FxUnit::RateHz)
         .synced(9, SYNC_HZ)
         .note_by_default(),
-    param(4, "Depth", 0, 127, 96, FxUnit::Plain),
-    param(5, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(6, "High Gain", 0, 30, 15, GAIN_DB),
-    param(7, "Level", 0, 127, 127, FxUnit::Plain),
+    param(4, "Depth", Modulation, 0, 127, 96, FxUnit::Plain),
+    param(5, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(6, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(7, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 18: SLICER
 const MFX_18_SLICER: &[FxParamDef] = &[
-    param(0, "Step 01", 0, 127, 127, FxUnit::Plain),
-    param(1, "Step 02", 0, 127, 0, FxUnit::Plain),
-    param(2, "Step 03", 0, 127, 30, FxUnit::Plain),
-    param(3, "Step 04", 0, 127, 127, FxUnit::Plain),
-    param(4, "Step 05", 0, 127, 127, FxUnit::Plain),
-    param(5, "Step 06", 0, 127, 0, FxUnit::Plain),
-    param(6, "Step 07", 0, 127, 30, FxUnit::Plain),
-    param(7, "Step 08", 0, 127, 0, FxUnit::Plain),
-    param(8, "Step 09", 0, 127, 127, FxUnit::Plain),
-    param(9, "Step 10", 0, 127, 0, FxUnit::Plain),
-    param(10, "Step 11", 0, 127, 30, FxUnit::Plain),
-    param(11, "Step 12", 0, 127, 127, FxUnit::Plain),
-    param(12, "Step 13", 0, 127, 0, FxUnit::Plain),
-    param(13, "Step 14", 0, 127, 0, FxUnit::Plain),
-    param(14, "Step 15", 0, 127, 30, FxUnit::Plain),
-    param(15, "Step 16", 0, 127, 0, FxUnit::Plain),
-    param(17, "Rate", 1, 200, 10, FxUnit::RateHz)
+    param(0, "Step 01", Modulation, 0, 127, 127, FxUnit::Plain),
+    param(1, "Step 02", Modulation, 0, 127, 0, FxUnit::Plain),
+    param(2, "Step 03", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(3, "Step 04", Modulation, 0, 127, 127, FxUnit::Plain),
+    param(4, "Step 05", Modulation, 0, 127, 127, FxUnit::Plain),
+    param(5, "Step 06", Modulation, 0, 127, 0, FxUnit::Plain),
+    param(6, "Step 07", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(7, "Step 08", Modulation, 0, 127, 0, FxUnit::Plain),
+    param(8, "Step 09", Modulation, 0, 127, 127, FxUnit::Plain),
+    param(9, "Step 10", Modulation, 0, 127, 0, FxUnit::Plain),
+    param(10, "Step 11", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(11, "Step 12", Modulation, 0, 127, 127, FxUnit::Plain),
+    param(12, "Step 13", Modulation, 0, 127, 0, FxUnit::Plain),
+    param(13, "Step 14", Modulation, 0, 127, 0, FxUnit::Plain),
+    param(14, "Step 15", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(15, "Step 16", Modulation, 0, 127, 0, FxUnit::Plain),
+    param(17, "Rate", Modulation, 1, 200, 10, FxUnit::RateHz)
         .synced(18, SYNC_HZ)
         .note_by_default(),
-    param(19, "Attack", 0, 127, 50, FxUnit::Plain),
-    param(20, "Input Sync Sw", 0, 1, 0, FxUnit::Names(OFF_ON)),
-    param(21, "Input Sync Threshold", 0, 127, 60, FxUnit::Plain),
-    param(22, "Mode", 0, 1, 0, FxUnit::Names(SLICER_MODE)),
-    param(23, "Shuffle", 0, 127, 0, FxUnit::Plain),
-    param(24, "Level", 0, 127, 127, FxUnit::Plain),
+    param(19, "Attack", Modulation, 0, 127, 50, FxUnit::Plain),
+    param(
+        20,
+        "Input Sync Sw",
+        Modulation,
+        0,
+        1,
+        0,
+        FxUnit::Names(OFF_ON),
+    ),
+    param(
+        21,
+        "Input Sync Threshold",
+        Modulation,
+        0,
+        127,
+        60,
+        FxUnit::Plain,
+    ),
+    param(22, "Mode", Modulation, 0, 1, 0, FxUnit::Names(SLICER_MODE)),
+    param(23, "Shuffle", Modulation, 0, 127, 0, FxUnit::Plain),
+    param(24, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 19: ROTARY 1
 const MFX_19_ROTARY_1: &[FxParamDef] = &[
-    param(0, "Speed", 0, 1, 0, FxUnit::Names(ROT_SPEED)),
-    param(1, "Woofer Slow Speed", 1, 200, 40, FxUnit::RateHz),
-    param(2, "Woofer Fast Speed", 1, 200, 160, FxUnit::RateHz),
-    param(3, "Woofer Acceleration", 0, 15, 10, FxUnit::Plain),
-    param(4, "Woofer Level", 0, 127, 127, FxUnit::Plain),
-    param(5, "Tweeter Slow Speed", 1, 200, 40, FxUnit::RateHz),
-    param(6, "Tweeter Fast Speed", 1, 200, 160, FxUnit::RateHz),
-    param(7, "Tweeter Acceleration", 0, 15, 10, FxUnit::Plain),
-    param(8, "Tweeter Level", 0, 127, 127, FxUnit::Plain),
-    param(9, "Separation", 0, 127, 127, FxUnit::Plain),
-    param(10, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Speed", Modulation, 0, 1, 0, FxUnit::Names(ROT_SPEED)),
+    param(
+        1,
+        "Woofer Slow Speed",
+        Modulation,
+        1,
+        200,
+        40,
+        FxUnit::RateHz,
+    ),
+    param(
+        2,
+        "Woofer Fast Speed",
+        Modulation,
+        1,
+        200,
+        160,
+        FxUnit::RateHz,
+    ),
+    param(
+        3,
+        "Woofer Acceleration",
+        Modulation,
+        0,
+        15,
+        10,
+        FxUnit::Plain,
+    ),
+    param(4, "Woofer Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(
+        5,
+        "Tweeter Slow Speed",
+        Modulation,
+        1,
+        200,
+        40,
+        FxUnit::RateHz,
+    ),
+    param(
+        6,
+        "Tweeter Fast Speed",
+        Modulation,
+        1,
+        200,
+        160,
+        FxUnit::RateHz,
+    ),
+    param(
+        7,
+        "Tweeter Acceleration",
+        Modulation,
+        0,
+        15,
+        10,
+        FxUnit::Plain,
+    ),
+    param(8, "Tweeter Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(9, "Separation", Time, 0, 127, 127, FxUnit::Plain),
+    param(10, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 20: ROTARY 2
 const MFX_20_ROTARY_2: &[FxParamDef] = &[
-    param(0, "Speed", 0, 1, 0, FxUnit::Names(ROT_SPEED)),
-    param(1, "Brake", 0, 1, 0, FxUnit::Names(OFF_ON)),
-    param(2, "Woofer Slow Speed", 1, 200, 40, FxUnit::RateHz),
-    param(3, "Woofer Fast Speed", 1, 200, 160, FxUnit::RateHz),
-    param(4, "Woofer Trans Up", 0, 127, 64, FxUnit::Plain),
-    param(5, "Woofer Trans Down", 0, 127, 64, FxUnit::Plain),
-    param(6, "Woofer Level", 0, 127, 127, FxUnit::Plain),
-    param(7, "Tweeter Slow Speed", 1, 200, 40, FxUnit::RateHz),
-    param(8, "Tweeter Fast Speed", 1, 200, 160, FxUnit::RateHz),
-    param(9, "Tweeter Trans Up", 0, 127, 64, FxUnit::Plain),
-    param(10, "Tweeter Trans Down", 0, 127, 64, FxUnit::Plain),
-    param(11, "Tweeter Level", 0, 127, 127, FxUnit::Plain),
-    param(12, "Spread", 0, 10, 10, FxUnit::Plain),
-    param(13, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(14, "High Gain", 0, 30, 15, GAIN_DB),
-    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Speed", Modulation, 0, 1, 0, FxUnit::Names(ROT_SPEED)),
+    param(1, "Brake", Modulation, 0, 1, 0, FxUnit::Names(OFF_ON)),
+    param(
+        2,
+        "Woofer Slow Speed",
+        Modulation,
+        1,
+        200,
+        40,
+        FxUnit::RateHz,
+    ),
+    param(
+        3,
+        "Woofer Fast Speed",
+        Modulation,
+        1,
+        200,
+        160,
+        FxUnit::RateHz,
+    ),
+    param(4, "Woofer Trans Up", Modulation, 0, 127, 64, FxUnit::Plain),
+    param(
+        5,
+        "Woofer Trans Down",
+        Modulation,
+        0,
+        127,
+        64,
+        FxUnit::Plain,
+    ),
+    param(6, "Woofer Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(
+        7,
+        "Tweeter Slow Speed",
+        Modulation,
+        1,
+        200,
+        40,
+        FxUnit::RateHz,
+    ),
+    param(
+        8,
+        "Tweeter Fast Speed",
+        Modulation,
+        1,
+        200,
+        160,
+        FxUnit::RateHz,
+    ),
+    param(9, "Tweeter Trans Up", Modulation, 0, 127, 64, FxUnit::Plain),
+    param(
+        10,
+        "Tweeter Trans Down",
+        Modulation,
+        0,
+        127,
+        64,
+        FxUnit::Plain,
+    ),
+    param(11, "Tweeter Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(12, "Spread", Time, 0, 10, 10, FxUnit::Plain),
+    param(13, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(14, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(15, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 21: ROTARY 3
 const MFX_21_ROTARY_3: &[FxParamDef] = &[
-    param(0, "Speed", 0, 1, 0, FxUnit::Names(ROT_SPEED)),
-    param(1, "Brake", 0, 1, 0, FxUnit::Names(OFF_ON)),
-    param(2, "Woofer Slow Speed", 1, 200, 40, FxUnit::RateHz),
-    param(3, "Woofer Fast Speed", 1, 200, 160, FxUnit::RateHz),
-    param(4, "Woofer Trans Up", 0, 127, 64, FxUnit::Plain),
-    param(5, "Woofer Trans Down", 0, 127, 64, FxUnit::Plain),
-    param(6, "Woofer Level", 0, 127, 127, FxUnit::Plain),
-    param(7, "Tweeter Slow Speed", 1, 200, 40, FxUnit::RateHz),
-    param(8, "Tweeter Fast Speed", 1, 200, 160, FxUnit::RateHz),
-    param(9, "Tweeter Trans Up", 0, 127, 64, FxUnit::Plain),
-    param(10, "Tweeter Trans Down", 0, 127, 64, FxUnit::Plain),
-    param(11, "Tweeter Level", 0, 127, 127, FxUnit::Plain),
-    param(12, "Spread", 0, 10, 10, FxUnit::Plain),
-    param(13, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(14, "High Gain", 0, 30, 15, GAIN_DB),
-    param(15, "Level", 0, 127, 127, FxUnit::Plain),
-    param(16, "OD Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(17, "OD Gain", 0, 127, 80, FxUnit::Plain),
-    param(18, "OD Drive", 0, 127, 100, FxUnit::Plain),
-    param(19, "OD Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Speed", Modulation, 0, 1, 0, FxUnit::Names(ROT_SPEED)),
+    param(1, "Brake", Modulation, 0, 1, 0, FxUnit::Names(OFF_ON)),
+    param(
+        2,
+        "Woofer Slow Speed",
+        Modulation,
+        1,
+        200,
+        40,
+        FxUnit::RateHz,
+    ),
+    param(
+        3,
+        "Woofer Fast Speed",
+        Modulation,
+        1,
+        200,
+        160,
+        FxUnit::RateHz,
+    ),
+    param(4, "Woofer Trans Up", Modulation, 0, 127, 64, FxUnit::Plain),
+    param(
+        5,
+        "Woofer Trans Down",
+        Modulation,
+        0,
+        127,
+        64,
+        FxUnit::Plain,
+    ),
+    param(6, "Woofer Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(
+        7,
+        "Tweeter Slow Speed",
+        Modulation,
+        1,
+        200,
+        40,
+        FxUnit::RateHz,
+    ),
+    param(
+        8,
+        "Tweeter Fast Speed",
+        Modulation,
+        1,
+        200,
+        160,
+        FxUnit::RateHz,
+    ),
+    param(9, "Tweeter Trans Up", Modulation, 0, 127, 64, FxUnit::Plain),
+    param(
+        10,
+        "Tweeter Trans Down",
+        Modulation,
+        0,
+        127,
+        64,
+        FxUnit::Plain,
+    ),
+    param(11, "Tweeter Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(12, "Spread", Time, 0, 10, 10, FxUnit::Plain),
+    param(13, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(14, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(15, "Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(16, "OD Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(17, "OD Gain", Filter, 0, 127, 80, FxUnit::Plain),
+    param(18, "OD Drive", Filter, 0, 127, 100, FxUnit::Plain),
+    param(19, "OD Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 22: CHORUS
 const MFX_22_CHORUS: &[FxParamDef] = &[
-    param(0, "Filter Type", 0, 2, 2, FxUnit::Names(STCHO_FILT)),
-    param(1, "Cutoff Freq", 0, 16, 6, FxUnit::Freq),
-    param(2, "Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
-    param(6, "Depth", 0, 127, 30, FxUnit::Plain),
-    param(7, "Phase", 0, 90, 90, FxUnit::DegreesX2),
-    param(8, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(9, "High Gain", 0, 30, 15, GAIN_DB),
-    param(10, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(11, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Filter Type", Filter, 0, 2, 2, FxUnit::Names(STCHO_FILT)),
+    param(1, "Cutoff Freq", Filter, 0, 16, 6, FxUnit::Freq),
+    param(2, "Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(6, "Depth", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(7, "Phase", Modulation, 0, 90, 90, FxUnit::DegreesX2),
+    param(8, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(9, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(10, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(11, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 23: FLANGER
 const MFX_23_FLANGER: &[FxParamDef] = &[
-    param(0, "Filter Type", 0, 2, 2, FxUnit::Names(STCHO_FILT)),
-    param(1, "Cutoff Freq", 0, 16, 6, FxUnit::Freq),
-    param(2, "Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Rate", 1, 200, 10, FxUnit::RateHz)
+    param(0, "Filter Type", Filter, 0, 2, 2, FxUnit::Names(STCHO_FILT)),
+    param(1, "Cutoff Freq", Filter, 0, 16, 6, FxUnit::Freq),
+    param(2, "Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Rate", Modulation, 1, 200, 10, FxUnit::RateHz)
         .synced(18, SYNC_HZ)
         .note_by_default(),
-    param(6, "Depth", 0, 127, 40, FxUnit::Plain),
-    param(7, "Phase", 0, 90, 90, FxUnit::DegreesX2),
-    param(8, "Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
-    param(9, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(10, "High Gain", 0, 30, 15, GAIN_DB),
-    param(11, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(12, "Level", 0, 127, 127, FxUnit::Plain),
+    param(6, "Depth", Modulation, 0, 127, 40, FxUnit::Plain),
+    param(7, "Phase", Modulation, 0, 90, 90, FxUnit::DegreesX2),
+    param(8, "Feedback", Filter, 0, 98, 79, FxUnit::FeedbackPercent),
+    param(9, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(10, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(11, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(12, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 24: STEP FLANGER
 const MFX_24_STEP_FLANGER: &[FxParamDef] = &[
-    param(0, "Filter Type", 0, 2, 2, FxUnit::Names(STCHO_FILT)),
-    param(1, "Cutoff Freq", 0, 16, 6, FxUnit::Freq),
-    param(2, "Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Rate", 1, 200, 30, FxUnit::RateHz)
+    param(0, "Filter Type", Filter, 0, 2, 2, FxUnit::Names(STCHO_FILT)),
+    param(1, "Cutoff Freq", Filter, 0, 16, 6, FxUnit::Freq),
+    param(2, "Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Rate", Modulation, 1, 200, 30, FxUnit::RateHz)
         .synced(13, SYNC_HZ)
         .note_by_default(),
-    param(6, "Depth", 0, 127, 40, FxUnit::Plain),
-    param(7, "Phase", 0, 90, 90, FxUnit::DegreesX2),
-    param(8, "Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
-    param(10, "Step Rate", 1, 200, 80, FxUnit::StepRateHz)
+    param(6, "Depth", Modulation, 0, 127, 40, FxUnit::Plain),
+    param(7, "Phase", Modulation, 0, 90, 90, FxUnit::DegreesX2),
+    param(8, "Feedback", Filter, 0, 98, 79, FxUnit::FeedbackPercent),
+    param(10, "Step Rate", Modulation, 1, 200, 80, FxUnit::StepRateHz)
         .synced(6, SYNC_HZ)
         .note_by_default(),
-    param(12, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(13, "High Gain", 0, 30, 15, GAIN_DB),
-    param(14, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+    param(12, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(13, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(14, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(15, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 25: HEXA-CHORUS
 const MFX_25_HEXA_CHORUS: &[FxParamDef] = &[
-    param(0, "Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(2, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
-    param(4, "Depth", 0, 127, 30, FxUnit::Plain),
-    param(5, "Pre Delay Deviation", 0, 20, 0, FxUnit::Plain),
+    param(0, "Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(2, "Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Depth", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(5, "Pre Delay Deviation", Time, 0, 20, 0, FxUnit::Plain),
     param(
         6,
         "Depth Deviation",
+        Modulation,
         0,
         40,
         20,
@@ -824,76 +1105,101 @@ const MFX_25_HEXA_CHORUS: &[FxParamDef] = &[
             suffix: "",
         },
     ),
-    param(7, "Pan Deviation", 0, 20, 20, FxUnit::Plain),
-    param(8, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+    param(7, "Pan Deviation", Time, 0, 20, 20, FxUnit::Plain),
+    param(8, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(9, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 26: TREMOLO CHORUS
 const MFX_26_TREMOLO_CHORUS: &[FxParamDef] = &[
-    param(0, "Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(2, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
-    param(4, "Chorus Depth", 0, 127, 50, FxUnit::Plain),
-    param(6, "Tremolo Rate", 1, 200, 40, FxUnit::RateHz).synced(12, SYNC_HZ),
-    param(8, "Tremolo Separation", 0, 127, 127, FxUnit::Plain),
-    param(9, "Tremolo Phase", 0, 90, 90, FxUnit::DegreesX2),
-    param(10, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(11, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(2, "Chorus Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Chorus Depth", Modulation, 0, 127, 50, FxUnit::Plain),
+    param(6, "Tremolo Rate", Modulation, 1, 200, 40, FxUnit::RateHz).synced(12, SYNC_HZ),
+    param(8, "Tremolo Separation", Time, 0, 127, 127, FxUnit::Plain),
+    param(9, "Tremolo Phase", Modulation, 0, 90, 90, FxUnit::DegreesX2),
+    param(10, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(11, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 27: SPACE-D
 const MFX_27_SPACE_D: &[FxParamDef] = &[
-    param(0, "Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(2, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
-    param(4, "Depth", 0, 127, 30, FxUnit::Plain),
-    param(5, "Phase", 0, 90, 90, FxUnit::DegreesX2),
-    param(6, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(7, "High Gain", 0, 30, 15, GAIN_DB),
-    param(8, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(2, "Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Depth", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(5, "Phase", Modulation, 0, 90, 90, FxUnit::DegreesX2),
+    param(6, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(7, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(8, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(9, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 28: OVERDRIVE
 const MFX_28_OVERDRIVE: &[FxParamDef] = &[
-    param(0, "Drive", 0, 127, 127, FxUnit::Plain),
-    param(1, "Tone", 0, 127, 50, FxUnit::Plain),
-    param(2, "Amp Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(3, "Amp Type", 0, 3, 0, FxUnit::Names(VSOD_AMP_TYPE)),
-    param(4, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(5, "High Gain", 0, 30, 15, GAIN_DB),
-    param(6, "Pan", 0, 127, 64, FxUnit::Pan),
-    param(7, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Drive", Filter, 0, 127, 127, FxUnit::Plain),
+    param(1, "Tone", Filter, 0, 127, 50, FxUnit::Plain),
+    param(2, "Amp Sw", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(3, "Amp Type", Filter, 0, 3, 0, FxUnit::Names(VSOD_AMP_TYPE)),
+    param(4, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(5, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(6, "Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(7, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 29: DISTORTION
 const MFX_29_DISTORTION: &[FxParamDef] = &[
-    param(0, "Drive", 0, 127, 127, FxUnit::Plain),
-    param(1, "Tone", 0, 127, 50, FxUnit::Plain),
-    param(2, "Amp Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(3, "Amp Type", 0, 3, 3, FxUnit::Names(VSOD_AMP_TYPE)),
-    param(4, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(5, "High Gain", 0, 30, 15, GAIN_DB),
-    param(6, "Pan", 0, 127, 64, FxUnit::Pan),
-    param(7, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Drive", Filter, 0, 127, 127, FxUnit::Plain),
+    param(1, "Tone", Filter, 0, 127, 50, FxUnit::Plain),
+    param(2, "Amp Sw", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(3, "Amp Type", Filter, 0, 3, 3, FxUnit::Names(VSOD_AMP_TYPE)),
+    param(4, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(5, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(6, "Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(7, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 30: GUITAR AMP SIMULATOR
 const MFX_30_GUITAR_AMP_SIMULATOR: &[FxParamDef] = &[
-    param(0, "Pre Amp Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(1, "Pre Amp Type", 0, 13, 1, FxUnit::Names(GAMPSIM_AMP_TYPE)),
-    param(2, "Pre Amp Volume", 0, 127, 80, FxUnit::Plain),
-    param(3, "Pre Amp Master", 0, 127, 100, FxUnit::Plain),
-    param(4, "Pre Amp Gain", 0, 2, 1, FxUnit::Names(GAMPSIM_AMP_GAIN)),
-    param(5, "Pre Amp Bass", 0, 127, 64, FxUnit::Plain),
-    param(6, "Pre Amp Middle", 0, 127, 64, FxUnit::Plain),
-    param(7, "Pre Amp Treble", 0, 127, 64, FxUnit::Plain),
-    param(8, "Pre Amp Presence", 0, 127, 0, FxUnit::Plain),
-    param(9, "Pre Amp Bright", 0, 1, 0, FxUnit::Names(OFF_ON)),
-    param(10, "Speaker Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(11, "Speaker Type", 0, 15, 4, FxUnit::Names(SPSIM_SP_TYPE)),
+    param(0, "Pre Amp Sw", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(
+        1,
+        "Pre Amp Type",
+        Filter,
+        0,
+        13,
+        1,
+        FxUnit::Names(GAMPSIM_AMP_TYPE),
+    ),
+    param(2, "Pre Amp Volume", Amp, 0, 127, 80, FxUnit::Plain),
+    param(3, "Pre Amp Master", Amp, 0, 127, 100, FxUnit::Plain),
+    param(
+        4,
+        "Pre Amp Gain",
+        Filter,
+        0,
+        2,
+        1,
+        FxUnit::Names(GAMPSIM_AMP_GAIN),
+    ),
+    param(5, "Pre Amp Bass", Filter, 0, 127, 64, FxUnit::Plain),
+    param(6, "Pre Amp Middle", Filter, 0, 127, 64, FxUnit::Plain),
+    param(7, "Pre Amp Treble", Filter, 0, 127, 64, FxUnit::Plain),
+    param(8, "Pre Amp Presence", Filter, 0, 127, 0, FxUnit::Plain),
+    param(9, "Pre Amp Bright", Filter, 0, 1, 0, FxUnit::Names(OFF_ON)),
+    param(10, "Speaker Sw", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(
+        11,
+        "Speaker Type",
+        Filter,
+        0,
+        15,
+        4,
+        FxUnit::Names(SPSIM_SP_TYPE),
+    ),
     param(
         12,
         "Mic Setting",
+        Filter,
         0,
         2,
         1,
@@ -903,202 +1209,258 @@ const MFX_30_GUITAR_AMP_SIMULATOR: &[FxParamDef] = &[
             suffix: "",
         },
     ),
-    param(13, "Mic Level", 0, 127, 127, FxUnit::Plain),
-    param(14, "Direct Level", 0, 127, 0, FxUnit::Plain),
-    param(15, "Pan", 0, 127, 64, FxUnit::Pan),
-    param(16, "Level", 0, 127, 127, FxUnit::Plain),
+    param(13, "Mic Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(14, "Direct Level", Amp, 0, 127, 0, FxUnit::Plain),
+    param(15, "Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(16, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 31: COMPRESSOR
 const MFX_31_COMPRESSOR: &[FxParamDef] = &[
-    param(0, "Attack", 0, 127, 20, FxUnit::Plain),
-    param(1, "Threshold", 0, 127, 64, FxUnit::Plain),
-    param(2, "Post Gain", 0, 18, 6, FxUnit::Decibels),
-    param(3, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(4, "High Gain", 0, 30, 15, GAIN_DB),
-    param(5, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Attack", Amp, 0, 127, 20, FxUnit::Plain),
+    param(1, "Threshold", Amp, 0, 127, 64, FxUnit::Plain),
+    param(2, "Post Gain", Amp, 0, 18, 6, FxUnit::Decibels),
+    param(3, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(4, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(5, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 32: LIMITER
 const MFX_32_LIMITER: &[FxParamDef] = &[
-    param(0, "Release", 0, 127, 32, FxUnit::Plain),
-    param(1, "Threshold", 0, 127, 64, FxUnit::Plain),
-    param(2, "Ratio", 0, 3, 2, FxUnit::Names(LIMIT_RATIO)),
-    param(3, "Post Gain", 0, 18, 6, FxUnit::Decibels),
-    param(4, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(5, "High Gain", 0, 30, 15, GAIN_DB),
-    param(6, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Release", Amp, 0, 127, 32, FxUnit::Plain),
+    param(1, "Threshold", Amp, 0, 127, 64, FxUnit::Plain),
+    param(2, "Ratio", Amp, 0, 3, 2, FxUnit::Names(LIMIT_RATIO)),
+    param(3, "Post Gain", Amp, 0, 18, 6, FxUnit::Decibels),
+    param(4, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(5, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(6, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 33: GATE
 const MFX_33_GATE: &[FxParamDef] = &[
-    param(0, "Threshold", 0, 127, 70, FxUnit::Plain),
-    param(1, "Mode", 0, 1, 0, FxUnit::Names(GATE_MODE)),
-    param(2, "Attack", 0, 127, 8, FxUnit::Plain),
-    param(3, "Hold", 0, 127, 0, FxUnit::Plain),
-    param(4, "Release", 0, 127, 16, FxUnit::Plain),
-    param(5, "Balance", 0, 100, 100, FxUnit::Balance),
-    param(6, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Threshold", Amp, 0, 127, 70, FxUnit::Plain),
+    param(1, "Mode", Common, 0, 1, 0, FxUnit::Names(GATE_MODE)),
+    param(2, "Attack", Amp, 0, 127, 8, FxUnit::Plain),
+    param(3, "Hold", Amp, 0, 127, 0, FxUnit::Plain),
+    param(4, "Release", Amp, 0, 127, 16, FxUnit::Plain),
+    param(5, "Balance", Amp, 0, 100, 100, FxUnit::Balance),
+    param(6, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 34: DELAY
 const MFX_34_DELAY: &[FxParamDef] = &[
-    param(1, "Delay Left", 0, 1300, 600, FxUnit::Millis)
+    param(1, "Delay Left", Time, 0, 1300, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(4, "Delay Right", 0, 1300, 600, FxUnit::Millis)
+    param(4, "Delay Right", Time, 0, 1300, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(6, "Phase Left", 0, 1, 0, FxUnit::Names(STDLY_PHS_L)),
-    param(7, "Phase Right", 0, 1, 0, FxUnit::Names(STDLY_PHS_L)),
-    param(8, "Feedback Mode", 0, 1, 0, FxUnit::Names(STDLY_FBK_MODE)),
-    param(9, "Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
-    param(10, "HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(11, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(12, "High Gain", 0, 30, 15, GAIN_DB),
-    param(13, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(14, "Level", 0, 127, 127, FxUnit::Plain),
+    param(6, "Phase Left", Time, 0, 1, 0, FxUnit::Names(STDLY_PHS_L)),
+    param(7, "Phase Right", Time, 0, 1, 0, FxUnit::Names(STDLY_PHS_L)),
+    param(
+        8,
+        "Feedback Mode",
+        Time,
+        0,
+        1,
+        0,
+        FxUnit::Names(STDLY_FBK_MODE),
+    ),
+    param(9, "Feedback", Time, 0, 98, 59, FxUnit::FeedbackPercent),
+    param(10, "HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(11, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(12, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(13, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(14, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 35: MODULATION DELAY
 const MFX_35_MODULATION_DELAY: &[FxParamDef] = &[
-    param(1, "Delay Left", 0, 1300, 600, FxUnit::Millis)
+    param(1, "Delay Left", Time, 0, 1300, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(4, "Delay Right", 0, 1300, 600, FxUnit::Millis)
+    param(4, "Delay Right", Time, 0, 1300, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(6, "Feedback Mode", 0, 1, 0, FxUnit::Names(STDLY_FBK_MODE)),
-    param(7, "Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
-    param(8, "HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(10, "Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
-    param(12, "Depth", 0, 127, 20, FxUnit::Plain),
-    param(13, "Phase", 0, 90, 90, FxUnit::DegreesX2),
-    param(14, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(15, "High Gain", 0, 30, 15, GAIN_DB),
-    param(16, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(17, "Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        6,
+        "Feedback Mode",
+        Time,
+        0,
+        1,
+        0,
+        FxUnit::Names(STDLY_FBK_MODE),
+    ),
+    param(7, "Feedback", Time, 0, 98, 59, FxUnit::FeedbackPercent),
+    param(8, "HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(10, "Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(12, "Depth", Modulation, 0, 127, 20, FxUnit::Plain),
+    param(13, "Phase", Modulation, 0, 90, 90, FxUnit::DegreesX2),
+    param(14, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(15, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(16, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(17, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 36: 3TAP PAN DELAY
 const MFX_36_3TAP_PAN_DELAY: &[FxParamDef] = &[
-    param(1, "Delay Left", 0, 2600, 400, FxUnit::Millis)
+    param(1, "Delay Left", Time, 0, 2600, 400, FxUnit::Millis)
         .synced(10, SYNC_MS)
         .note_by_default(),
-    param(4, "Delay Right", 0, 2600, 800, FxUnit::Millis)
+    param(4, "Delay Right", Time, 0, 2600, 800, FxUnit::Millis)
         .synced(13, SYNC_MS)
         .note_by_default(),
-    param(7, "Delay Center", 0, 2600, 1200, FxUnit::Millis)
+    param(7, "Delay Center", Time, 0, 2600, 1200, FxUnit::Millis)
         .synced(15, SYNC_MS)
         .note_by_default(),
-    param(9, "Center Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
-    param(10, "HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(11, "Left Level", 0, 127, 127, FxUnit::Plain),
-    param(12, "Right Level", 0, 127, 127, FxUnit::Plain),
-    param(13, "Center Level", 0, 127, 127, FxUnit::Plain),
-    param(14, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(15, "High Gain", 0, 30, 15, GAIN_DB),
-    param(16, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(17, "Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        9,
+        "Center Feedback",
+        Time,
+        0,
+        98,
+        59,
+        FxUnit::FeedbackPercent,
+    ),
+    param(10, "HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(11, "Left Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(12, "Right Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(13, "Center Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(14, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(15, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(16, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(17, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 37: 4TAP PAN DELAY
 const MFX_37_4TAP_PAN_DELAY: &[FxParamDef] = &[
-    param(1, "Delay 1 Time", 0, 2600, 1200, FxUnit::Millis)
+    param(1, "Delay 1 Time", Time, 0, 2600, 1200, FxUnit::Millis)
         .synced(15, SYNC_MS)
         .note_by_default(),
-    param(4, "Delay 2 Time", 0, 2600, 900, FxUnit::Millis)
+    param(4, "Delay 2 Time", Time, 0, 2600, 900, FxUnit::Millis)
         .synced(14, SYNC_MS)
         .note_by_default(),
-    param(7, "Delay 3 Time", 0, 2600, 600, FxUnit::Millis)
+    param(7, "Delay 3 Time", Time, 0, 2600, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(10, "Delay 4 Time", 0, 2600, 300, FxUnit::Millis)
+    param(10, "Delay 4 Time", Time, 0, 2600, 300, FxUnit::Millis)
         .synced(9, SYNC_MS)
         .note_by_default(),
-    param(12, "Delay 1 Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
-    param(13, "HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(14, "Delay 1 Level", 0, 127, 127, FxUnit::Plain),
-    param(15, "Delay 2 Level", 0, 127, 127, FxUnit::Plain),
-    param(16, "Delay 3 Level", 0, 127, 127, FxUnit::Plain),
-    param(17, "Delay 4 Level", 0, 127, 127, FxUnit::Plain),
-    param(18, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(19, "High Gain", 0, 30, 15, GAIN_DB),
-    param(20, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(21, "Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        12,
+        "Delay 1 Feedback",
+        Time,
+        0,
+        98,
+        59,
+        FxUnit::FeedbackPercent,
+    ),
+    param(13, "HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(14, "Delay 1 Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(15, "Delay 2 Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(16, "Delay 3 Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(17, "Delay 4 Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(18, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(19, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(20, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(21, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 38: MULTI TAP DELAY
 const MFX_38_MULTI_TAP_DELAY: &[FxParamDef] = &[
-    param(1, "Delay 1 Time", 0, 2600, 1200, FxUnit::Millis)
+    param(1, "Delay 1 Time", Time, 0, 2600, 1200, FxUnit::Millis)
         .synced(15, SYNC_MS)
         .note_by_default(),
-    param(4, "Delay 2 Time", 0, 2600, 900, FxUnit::Millis)
+    param(4, "Delay 2 Time", Time, 0, 2600, 900, FxUnit::Millis)
         .synced(14, SYNC_MS)
         .note_by_default(),
-    param(7, "Delay 3 Time", 0, 2600, 600, FxUnit::Millis)
+    param(7, "Delay 3 Time", Time, 0, 2600, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(10, "Delay 4 Time", 0, 2600, 300, FxUnit::Millis)
+    param(10, "Delay 4 Time", Time, 0, 2600, 300, FxUnit::Millis)
         .synced(9, SYNC_MS)
         .note_by_default(),
-    param(12, "Delay 1 Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
-    param(13, "HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(14, "Delay 1 Pan", 0, 127, 0, FxUnit::Pan),
-    param(15, "Delay 2 Pan", 0, 127, 127, FxUnit::Pan),
-    param(16, "Delay 3 Pan", 0, 127, 32, FxUnit::Pan),
-    param(17, "Delay 4 Pan", 0, 127, 96, FxUnit::Pan),
-    param(18, "Delay 1 Level", 0, 127, 127, FxUnit::Plain),
-    param(19, "Delay 2 Level", 0, 127, 127, FxUnit::Plain),
-    param(20, "Delay 3 Level", 0, 127, 127, FxUnit::Plain),
-    param(21, "Delay 4 Level", 0, 127, 127, FxUnit::Plain),
-    param(22, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(23, "High Gain", 0, 30, 15, GAIN_DB),
-    param(24, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(25, "Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        12,
+        "Delay 1 Feedback",
+        Time,
+        0,
+        98,
+        59,
+        FxUnit::FeedbackPercent,
+    ),
+    param(13, "HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(14, "Delay 1 Pan", Time, 0, 127, 0, FxUnit::Pan),
+    param(15, "Delay 2 Pan", Time, 0, 127, 127, FxUnit::Pan),
+    param(16, "Delay 3 Pan", Time, 0, 127, 32, FxUnit::Pan),
+    param(17, "Delay 4 Pan", Time, 0, 127, 96, FxUnit::Pan),
+    param(18, "Delay 1 Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(19, "Delay 2 Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(20, "Delay 3 Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(21, "Delay 4 Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(22, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(23, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(24, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(25, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 39: REVERSE DELAY
 const MFX_39_REVERSE_DELAY: &[FxParamDef] = &[
-    param(0, "Threshold", 0, 127, 30, FxUnit::Plain),
-    param(2, "Rev Delay Time", 0, 1300, 600, FxUnit::Millis)
+    param(0, "Threshold", Time, 0, 127, 30, FxUnit::Plain),
+    param(2, "Rev Delay Time", Time, 0, 1300, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(4, "Rev Delay Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
-    param(5, "Rev Delay HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(6, "Rev Delay Pan", 0, 127, 64, FxUnit::Pan),
-    param(7, "Rev Delay Level", 0, 127, 127, FxUnit::Plain),
-    param(9, "Delay 1 Time", 0, 1300, 300, FxUnit::Millis)
+    param(
+        4,
+        "Rev Delay Feedback",
+        Time,
+        0,
+        98,
+        49,
+        FxUnit::FeedbackPercent,
+    ),
+    param(5, "Rev Delay HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(6, "Rev Delay Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(7, "Rev Delay Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(9, "Delay 1 Time", Time, 0, 1300, 300, FxUnit::Millis)
         .synced(9, SYNC_MS)
         .note_by_default(),
-    param(12, "Delay 2 Time", 0, 1300, 600, FxUnit::Millis)
+    param(12, "Delay 2 Time", Time, 0, 1300, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(15, "Delay 3 Time", 0, 1300, 600, FxUnit::Millis)
+    param(15, "Delay 3 Time", Time, 0, 1300, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(17, "Delay 3 Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
-    param(18, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(19, "Delay 1 Pan", 0, 127, 0, FxUnit::Pan),
-    param(20, "Delay 2 Pan", 0, 127, 127, FxUnit::Pan),
-    param(21, "Delay 1 Level", 0, 127, 0, FxUnit::Plain),
-    param(22, "Delay 2 Level", 0, 127, 0, FxUnit::Plain),
-    param(23, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(24, "High Gain", 0, 30, 15, GAIN_DB),
-    param(25, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(26, "Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        17,
+        "Delay 3 Feedback",
+        Time,
+        0,
+        98,
+        49,
+        FxUnit::FeedbackPercent,
+    ),
+    param(18, "Delay HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(19, "Delay 1 Pan", Time, 0, 127, 0, FxUnit::Pan),
+    param(20, "Delay 2 Pan", Time, 0, 127, 127, FxUnit::Pan),
+    param(21, "Delay 1 Level", Amp, 0, 127, 0, FxUnit::Plain),
+    param(22, "Delay 2 Level", Amp, 0, 127, 0, FxUnit::Plain),
+    param(23, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(24, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(25, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(26, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 40: TIME CTRL DELAY
 const MFX_40_TIME_CTRL_DELAY: &[FxParamDef] = &[
-    param(1, "Delay Time", 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
-    param(3, "Acceleration", 0, 15, 10, FxUnit::Plain),
-    param(4, "Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
-    param(5, "HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(6, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(7, "High Gain", 0, 30, 15, GAIN_DB),
-    param(8, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+    param(1, "Delay Time", Time, 0, 1300, 600, FxUnit::Millis).synced(12, SYNC_MS),
+    param(3, "Acceleration", Time, 0, 15, 10, FxUnit::Plain),
+    param(4, "Feedback", Time, 0, 98, 59, FxUnit::FeedbackPercent),
+    param(5, "HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(6, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(7, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(8, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(9, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 41: LOFI COMPRESS
@@ -1106,6 +1468,7 @@ const MFX_41_LOFI_COMPRESS: &[FxParamDef] = &[
     param(
         0,
         "Pre Filter Type",
+        Filter,
         0,
         5,
         1,
@@ -1118,6 +1481,7 @@ const MFX_41_LOFI_COMPRESS: &[FxParamDef] = &[
     param(
         1,
         "LoFi Type",
+        Pitch,
         0,
         8,
         4,
@@ -1127,22 +1491,30 @@ const MFX_41_LOFI_COMPRESS: &[FxParamDef] = &[
             suffix: "",
         },
     ),
-    param(2, "Post Filter Type", 0, 2, 1, FxUnit::Names(STCHO_FILT)),
-    param(3, "Post Filter Cutoff", 0, 16, 13, FxUnit::Freq),
-    param(4, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(5, "High Gain", 0, 30, 15, GAIN_DB),
-    param(6, "Balance", 0, 100, 100, FxUnit::Balance),
-    param(7, "Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        2,
+        "Post Filter Type",
+        Filter,
+        0,
+        2,
+        1,
+        FxUnit::Names(STCHO_FILT),
+    ),
+    param(3, "Post Filter Cutoff", Filter, 0, 16, 13, FxUnit::Freq),
+    param(4, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(5, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(6, "Balance", Amp, 0, 100, 100, FxUnit::Balance),
+    param(7, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 42: BIT CRASHER
 const MFX_42_BIT_CRASHER: &[FxParamDef] = &[
-    param(0, "Sample Rate", 0, 127, 80, FxUnit::Plain),
-    param(1, "Bit Down", 0, 20, 16, FxUnit::Plain),
-    param(2, "Filter", 0, 127, 127, FxUnit::Plain),
-    param(3, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(4, "High Gain", 0, 30, 15, GAIN_DB),
-    param(5, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Sample Rate", Pitch, 0, 127, 80, FxUnit::Plain),
+    param(1, "Bit Down", Pitch, 0, 20, 16, FxUnit::Plain),
+    param(2, "Filter", Filter, 0, 127, 127, FxUnit::Plain),
+    param(3, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(4, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(5, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 43: PITCH SHIFTER
@@ -1150,6 +1522,7 @@ const MFX_43_PITCH_SHIFTER: &[FxParamDef] = &[
     param(
         0,
         "Coarse",
+        Pitch,
         0,
         36,
         24,
@@ -1162,6 +1535,7 @@ const MFX_43_PITCH_SHIFTER: &[FxParamDef] = &[
     param(
         1,
         "Fine",
+        Pitch,
         0,
         100,
         50,
@@ -1171,12 +1545,12 @@ const MFX_43_PITCH_SHIFTER: &[FxParamDef] = &[
             suffix: "cent",
         },
     ),
-    param(3, "Delay Time", 0, 1300, 0, FxUnit::Millis).synced(12, SYNC_MS),
-    param(5, "Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
-    param(6, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(7, "High Gain", 0, 30, 15, GAIN_DB),
-    param(8, "Balance", 0, 100, 100, FxUnit::Balance),
-    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+    param(3, "Delay Time", Time, 0, 1300, 0, FxUnit::Millis).synced(12, SYNC_MS),
+    param(5, "Feedback", Time, 0, 98, 49, FxUnit::FeedbackPercent),
+    param(6, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(7, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(8, "Balance", Amp, 0, 100, 100, FxUnit::Balance),
+    param(9, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 44: 2VOICE PITCH SHIFTER
@@ -1184,6 +1558,7 @@ const MFX_44_2VOICE_PITCH_SHIFTER: &[FxParamDef] = &[
     param(
         0,
         "Pitch1 Coarse",
+        Pitch,
         0,
         36,
         28,
@@ -1196,6 +1571,7 @@ const MFX_44_2VOICE_PITCH_SHIFTER: &[FxParamDef] = &[
     param(
         1,
         "Pitch1 Fine",
+        Pitch,
         0,
         100,
         50,
@@ -1205,15 +1581,24 @@ const MFX_44_2VOICE_PITCH_SHIFTER: &[FxParamDef] = &[
             suffix: "cent",
         },
     ),
-    param(3, "Pitch1 Delay", 0, 1300, 300, FxUnit::Millis)
+    param(3, "Pitch1 Delay", Time, 0, 1300, 300, FxUnit::Millis)
         .synced(9, SYNC_MS)
         .note_by_default(),
-    param(5, "Pitch1 Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
-    param(6, "Pitch1 Pan", 0, 127, 64, FxUnit::Pan),
-    param(7, "Pitch1 Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        5,
+        "Pitch1 Feedback",
+        Time,
+        0,
+        98,
+        49,
+        FxUnit::FeedbackPercent,
+    ),
+    param(6, "Pitch1 Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(7, "Pitch1 Level", Amp, 0, 127, 127, FxUnit::Plain),
     param(
         8,
         "Pitch2 Coarse",
+        Pitch,
         0,
         36,
         31,
@@ -1226,6 +1611,7 @@ const MFX_44_2VOICE_PITCH_SHIFTER: &[FxParamDef] = &[
     param(
         9,
         "Pitch2 Fine",
+        Pitch,
         0,
         100,
         50,
@@ -1235,222 +1621,399 @@ const MFX_44_2VOICE_PITCH_SHIFTER: &[FxParamDef] = &[
             suffix: "cent",
         },
     ),
-    param(11, "Pitch2 Delay", 0, 1300, 600, FxUnit::Millis)
+    param(11, "Pitch2 Delay", Time, 0, 1300, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(13, "Pitch2 Feedback", 0, 98, 49, FxUnit::FeedbackPercent),
-    param(14, "Pitch2 Pan", 0, 127, 64, FxUnit::Pan),
-    param(15, "Pitch2 Level", 0, 127, 127, FxUnit::Plain),
-    param(16, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(17, "High Gain", 0, 30, 15, GAIN_DB),
-    param(18, "Balance", 0, 100, 50, FxUnit::Balance),
-    param(19, "Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        13,
+        "Pitch2 Feedback",
+        Time,
+        0,
+        98,
+        49,
+        FxUnit::FeedbackPercent,
+    ),
+    param(14, "Pitch2 Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(15, "Pitch2 Level", Amp, 0, 127, 127, FxUnit::Plain),
+    param(16, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(17, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(18, "Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(19, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 45: OD->CHORUS
 const MFX_45_OD_CHORUS: &[FxParamDef] = &[
-    param(0, "Overdrive Drive", 0, 127, 64, FxUnit::Plain),
-    param(1, "Overdrive Pan", 0, 127, 64, FxUnit::Pan),
-    param(2, "Chorus Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
-    param(6, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
-    param(7, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
-    param(8, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Overdrive Drive", Filter, 0, 127, 64, FxUnit::Plain),
+    param(1, "Overdrive Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(2, "Chorus Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Chorus Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(6, "Chorus Depth", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(7, "Chorus Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(8, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 46: OD->FLANGER
 const MFX_46_OD_FLANGER: &[FxParamDef] = &[
-    param(0, "Overdrive Drive", 0, 127, 64, FxUnit::Plain),
-    param(1, "Overdrive Pan", 0, 127, 64, FxUnit::Pan),
-    param(2, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Flanger Rate", 1, 200, 10, FxUnit::RateHz)
+    param(0, "Overdrive Drive", Filter, 0, 127, 64, FxUnit::Plain),
+    param(1, "Overdrive Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(2, "Flanger Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Flanger Rate", Modulation, 1, 200, 10, FxUnit::RateHz)
         .synced(18, SYNC_HZ)
         .note_by_default(),
-    param(6, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
-    param(7, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
-    param(8, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
-    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+    param(6, "Flanger Depth", Modulation, 0, 127, 40, FxUnit::Plain),
+    param(
+        7,
+        "Flanger Feedback",
+        Filter,
+        0,
+        98,
+        79,
+        FxUnit::FeedbackPercent,
+    ),
+    param(8, "Flanger Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(9, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 47: OD->DELAY
 const MFX_47_OD_DELAY: &[FxParamDef] = &[
-    param(0, "Overdrive Drive", 0, 127, 64, FxUnit::Plain),
-    param(1, "Overdrive Pan", 0, 127, 64, FxUnit::Pan),
-    param(3, "Delay Time", 0, 2600, 600, FxUnit::Millis)
+    param(0, "Overdrive Drive", Filter, 0, 127, 64, FxUnit::Plain),
+    param(1, "Overdrive Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(3, "Delay Time", Time, 0, 2600, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(5, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
-    param(6, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(7, "Delay Balance", 0, 100, 50, FxUnit::Balance),
-    param(8, "Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        5,
+        "Delay Feedback",
+        Time,
+        0,
+        98,
+        59,
+        FxUnit::FeedbackPercent,
+    ),
+    param(6, "Delay HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(7, "Delay Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(8, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 48: DS->CHORUS
 const MFX_48_DS_CHORUS: &[FxParamDef] = &[
-    param(0, "Distortion Drive", 0, 127, 127, FxUnit::Plain),
-    param(1, "Distortion Pan", 0, 127, 64, FxUnit::Pan),
-    param(2, "Chorus Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
-    param(6, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
-    param(7, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
-    param(8, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Distortion Drive", Filter, 0, 127, 127, FxUnit::Plain),
+    param(1, "Distortion Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(2, "Chorus Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Chorus Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(6, "Chorus Depth", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(7, "Chorus Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(8, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 49: DS->FLANGER
 const MFX_49_DS_FLANGER: &[FxParamDef] = &[
-    param(0, "Distortion Drive", 0, 127, 127, FxUnit::Plain),
-    param(1, "Distortion Pan", 0, 127, 64, FxUnit::Pan),
-    param(2, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Flanger Rate", 1, 200, 10, FxUnit::RateHz)
+    param(0, "Distortion Drive", Filter, 0, 127, 127, FxUnit::Plain),
+    param(1, "Distortion Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(2, "Flanger Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Flanger Rate", Modulation, 1, 200, 10, FxUnit::RateHz)
         .synced(18, SYNC_HZ)
         .note_by_default(),
-    param(6, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
-    param(7, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
-    param(8, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
-    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+    param(6, "Flanger Depth", Modulation, 0, 127, 40, FxUnit::Plain),
+    param(
+        7,
+        "Flanger Feedback",
+        Filter,
+        0,
+        98,
+        79,
+        FxUnit::FeedbackPercent,
+    ),
+    param(8, "Flanger Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(9, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 50: DS->DELAY
 const MFX_50_DS_DELAY: &[FxParamDef] = &[
-    param(0, "Distortion Drive", 0, 127, 127, FxUnit::Plain),
-    param(1, "Distortion Pan", 0, 127, 64, FxUnit::Pan),
-    param(3, "Delay Time", 0, 2600, 600, FxUnit::Millis)
+    param(0, "Distortion Drive", Filter, 0, 127, 127, FxUnit::Plain),
+    param(1, "Distortion Pan", Time, 0, 127, 64, FxUnit::Pan),
+    param(3, "Delay Time", Time, 0, 2600, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(5, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
-    param(6, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(7, "Delay Balance", 0, 100, 50, FxUnit::Balance),
-    param(8, "Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        5,
+        "Delay Feedback",
+        Time,
+        0,
+        98,
+        59,
+        FxUnit::FeedbackPercent,
+    ),
+    param(6, "Delay HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(7, "Delay Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(8, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 51: OD/DS->TWAH
 const MFX_51_OD_DS_TWAH: &[FxParamDef] = &[
-    param(0, "Drive Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(1, "Drive Type", 0, 1, 0, FxUnit::Names(ODTW_DRIVE_TYPE)),
-    param(2, "Drive", 0, 127, 50, FxUnit::Plain),
-    param(3, "Tone", 0, 127, 50, FxUnit::Plain),
-    param(4, "Amp Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(5, "Amp Type", 0, 3, 0, FxUnit::Names(VSOD_AMP_TYPE)),
-    param(6, "TWah Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(7, "TWah Mode", 0, 1, 1, FxUnit::Names(WAH_MODE)),
-    param(8, "TWah Polarity", 0, 1, 0, FxUnit::Names(ODTW_TWAH_POLA)),
-    param(9, "TWah Sens", 0, 127, 50, FxUnit::Plain),
-    param(10, "TWah Manual", 0, 127, 30, FxUnit::Plain),
-    param(11, "TWah Peak", 0, 127, 50, FxUnit::Plain),
-    param(12, "TWah Balance", 0, 100, 100, FxUnit::Balance),
-    param(13, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(14, "High Gain", 0, 30, 15, GAIN_DB),
-    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Drive Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(
+        1,
+        "Drive Type",
+        Filter,
+        0,
+        1,
+        0,
+        FxUnit::Names(ODTW_DRIVE_TYPE),
+    ),
+    param(2, "Drive", Filter, 0, 127, 50, FxUnit::Plain),
+    param(3, "Tone", Filter, 0, 127, 50, FxUnit::Plain),
+    param(4, "Amp Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(5, "Amp Type", Filter, 0, 3, 0, FxUnit::Names(VSOD_AMP_TYPE)),
+    param(6, "TWah Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(7, "TWah Mode", Filter, 0, 1, 1, FxUnit::Names(WAH_MODE)),
+    param(
+        8,
+        "TWah Polarity",
+        Modulation,
+        0,
+        1,
+        0,
+        FxUnit::Names(ODTW_TWAH_POLA),
+    ),
+    param(9, "TWah Sens", Modulation, 0, 127, 50, FxUnit::Plain),
+    param(10, "TWah Manual", Filter, 0, 127, 30, FxUnit::Plain),
+    param(11, "TWah Peak", Filter, 0, 127, 50, FxUnit::Plain),
+    param(12, "TWah Balance", Amp, 0, 100, 100, FxUnit::Balance),
+    param(13, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(14, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(15, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 52: OD/DS->AWAH
 const MFX_52_OD_DS_AWAH: &[FxParamDef] = &[
-    param(0, "Drive Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(1, "Drive Type", 0, 1, 0, FxUnit::Names(ODTW_DRIVE_TYPE)),
-    param(2, "Drive", 0, 127, 50, FxUnit::Plain),
-    param(3, "Tone", 0, 127, 50, FxUnit::Plain),
-    param(4, "Amp Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(5, "Amp Type", 0, 3, 0, FxUnit::Names(VSOD_AMP_TYPE)),
-    param(6, "AutoWah Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(7, "AutoWah Mode", 0, 1, 1, FxUnit::Names(WAH_MODE)),
-    param(8, "AutoWah Manual", 0, 127, 60, FxUnit::Plain),
-    param(9, "AutoWah Peak", 0, 127, 50, FxUnit::Plain),
-    param(11, "AutoWah Rate", 1, 200, 10, FxUnit::RateHz).synced(11, SYNC_HZ),
-    param(13, "AutoWah Depth", 0, 127, 30, FxUnit::Plain),
-    param(14, "AutoWah Balance", 0, 100, 100, FxUnit::Balance),
-    param(15, "Low Gain", 0, 30, 15, GAIN_DB),
-    param(16, "High Gain", 0, 30, 15, GAIN_DB),
-    param(17, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Drive Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(
+        1,
+        "Drive Type",
+        Filter,
+        0,
+        1,
+        0,
+        FxUnit::Names(ODTW_DRIVE_TYPE),
+    ),
+    param(2, "Drive", Filter, 0, 127, 50, FxUnit::Plain),
+    param(3, "Tone", Filter, 0, 127, 50, FxUnit::Plain),
+    param(4, "Amp Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(5, "Amp Type", Filter, 0, 3, 0, FxUnit::Names(VSOD_AMP_TYPE)),
+    param(6, "AutoWah Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(7, "AutoWah Mode", Filter, 0, 1, 1, FxUnit::Names(WAH_MODE)),
+    param(8, "AutoWah Manual", Filter, 0, 127, 60, FxUnit::Plain),
+    param(9, "AutoWah Peak", Filter, 0, 127, 50, FxUnit::Plain),
+    param(11, "AutoWah Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(11, SYNC_HZ),
+    param(13, "AutoWah Depth", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(14, "AutoWah Balance", Amp, 0, 100, 100, FxUnit::Balance),
+    param(15, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(16, "High Gain", Filter, 0, 30, 15, GAIN_DB),
+    param(17, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 53: GTAMPSIM->CHORUS
 const MFX_53_GTAMPSIM_CHORUS: &[FxParamDef] = &[
-    param(0, "Pre Amp Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(1, "Pre Amp Type", 0, 13, 1, FxUnit::Names(GAMPSIM_AMP_TYPE)),
-    param(2, "Pre Amp Volume", 0, 127, 80, FxUnit::Plain),
-    param(3, "Pre Amp Master", 0, 127, 100, FxUnit::Plain),
-    param(4, "Pre Amp Gain", 0, 2, 1, FxUnit::Names(GAMPSIM_AMP_GAIN)),
-    param(5, "Pre Amp Bass", 0, 127, 64, FxUnit::Plain),
-    param(6, "Pre Amp Middle", 0, 127, 64, FxUnit::Plain),
-    param(7, "Pre Amp Treble", 0, 127, 64, FxUnit::Plain),
-    param(8, "Speaker Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(9, "Speaker Type", 0, 15, 4, FxUnit::Names(SPSIM_SP_TYPE)),
-    param(10, "Chorus Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(11, "Chorus Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(12, "Chorus Rate", 1, 200, 10, FxUnit::RateHz),
-    param(13, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
-    param(14, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
-    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Pre Amp Sw", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(
+        1,
+        "Pre Amp Type",
+        Filter,
+        0,
+        13,
+        1,
+        FxUnit::Names(GAMPSIM_AMP_TYPE),
+    ),
+    param(2, "Pre Amp Volume", Amp, 0, 127, 80, FxUnit::Plain),
+    param(3, "Pre Amp Master", Amp, 0, 127, 100, FxUnit::Plain),
+    param(
+        4,
+        "Pre Amp Gain",
+        Filter,
+        0,
+        2,
+        1,
+        FxUnit::Names(GAMPSIM_AMP_GAIN),
+    ),
+    param(5, "Pre Amp Bass", Filter, 0, 127, 64, FxUnit::Plain),
+    param(6, "Pre Amp Middle", Filter, 0, 127, 64, FxUnit::Plain),
+    param(7, "Pre Amp Treble", Filter, 0, 127, 64, FxUnit::Plain),
+    param(8, "Speaker Sw", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(
+        9,
+        "Speaker Type",
+        Filter,
+        0,
+        15,
+        4,
+        FxUnit::Names(SPSIM_SP_TYPE),
+    ),
+    param(10, "Chorus Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(11, "Chorus Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(12, "Chorus Rate", Modulation, 1, 200, 10, FxUnit::RateHz),
+    param(13, "Chorus Depth", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(14, "Chorus Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(15, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 54: GTAMPSIM->FLANGER
 const MFX_54_GTAMPSIM_FLANGER: &[FxParamDef] = &[
-    param(0, "Pre Amp Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(1, "Pre Amp Type", 0, 13, 1, FxUnit::Names(GAMPSIM_AMP_TYPE)),
-    param(2, "Pre Amp Volume", 0, 127, 80, FxUnit::Plain),
-    param(3, "Pre Amp Master", 0, 127, 100, FxUnit::Plain),
-    param(4, "Pre Amp Gain", 0, 2, 1, FxUnit::Names(GAMPSIM_AMP_GAIN)),
-    param(5, "Pre Amp Bass", 0, 127, 64, FxUnit::Plain),
-    param(6, "Pre Amp Middle", 0, 127, 64, FxUnit::Plain),
-    param(7, "Pre Amp Treble", 0, 127, 64, FxUnit::Plain),
-    param(8, "Speaker Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(9, "Speaker Type", 0, 15, 4, FxUnit::Names(SPSIM_SP_TYPE)),
-    param(10, "Flanger Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(11, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(12, "Flanger Rate", 1, 200, 10, FxUnit::RateHz),
-    param(13, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
-    param(14, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
-    param(15, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
-    param(16, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Pre Amp Sw", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(
+        1,
+        "Pre Amp Type",
+        Filter,
+        0,
+        13,
+        1,
+        FxUnit::Names(GAMPSIM_AMP_TYPE),
+    ),
+    param(2, "Pre Amp Volume", Amp, 0, 127, 80, FxUnit::Plain),
+    param(3, "Pre Amp Master", Amp, 0, 127, 100, FxUnit::Plain),
+    param(
+        4,
+        "Pre Amp Gain",
+        Filter,
+        0,
+        2,
+        1,
+        FxUnit::Names(GAMPSIM_AMP_GAIN),
+    ),
+    param(5, "Pre Amp Bass", Filter, 0, 127, 64, FxUnit::Plain),
+    param(6, "Pre Amp Middle", Filter, 0, 127, 64, FxUnit::Plain),
+    param(7, "Pre Amp Treble", Filter, 0, 127, 64, FxUnit::Plain),
+    param(8, "Speaker Sw", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(
+        9,
+        "Speaker Type",
+        Filter,
+        0,
+        15,
+        4,
+        FxUnit::Names(SPSIM_SP_TYPE),
+    ),
+    param(10, "Flanger Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(11, "Flanger Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(12, "Flanger Rate", Modulation, 1, 200, 10, FxUnit::RateHz),
+    param(13, "Flanger Depth", Modulation, 0, 127, 40, FxUnit::Plain),
+    param(
+        14,
+        "Flanger Feedback",
+        Filter,
+        0,
+        98,
+        79,
+        FxUnit::FeedbackPercent,
+    ),
+    param(15, "Flanger Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(16, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 55: GTAMPSIM->PHASER
 const MFX_55_GTAMPSIM_PHASER: &[FxParamDef] = &[
-    param(0, "Pre Amp Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(1, "Pre Amp Type", 0, 13, 1, FxUnit::Names(GAMPSIM_AMP_TYPE)),
-    param(2, "Pre Amp Volume", 0, 127, 80, FxUnit::Plain),
-    param(3, "Pre Amp Master", 0, 127, 100, FxUnit::Plain),
-    param(4, "Pre Amp Gain", 0, 2, 1, FxUnit::Names(GAMPSIM_AMP_GAIN)),
-    param(5, "Pre Amp Bass", 0, 127, 64, FxUnit::Plain),
-    param(6, "Pre Amp Middle", 0, 127, 64, FxUnit::Plain),
-    param(7, "Pre Amp Treble", 0, 127, 64, FxUnit::Plain),
-    param(8, "Speaker Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(9, "Speaker Type", 0, 15, 4, FxUnit::Names(SPSIM_SP_TYPE)),
-    param(10, "Phaser Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(11, "Phaser Rate", 1, 200, 10, FxUnit::RateHz),
-    param(12, "Phaser Manual", 0, 127, 60, FxUnit::Plain),
-    param(13, "Phaser Depth", 0, 127, 40, FxUnit::Plain),
-    param(14, "Phaser Resonance", 0, 127, 80, FxUnit::Plain),
-    param(15, "Phaser Mix", 0, 127, 127, FxUnit::Plain),
-    param(16, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Pre Amp Sw", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(
+        1,
+        "Pre Amp Type",
+        Filter,
+        0,
+        13,
+        1,
+        FxUnit::Names(GAMPSIM_AMP_TYPE),
+    ),
+    param(2, "Pre Amp Volume", Amp, 0, 127, 80, FxUnit::Plain),
+    param(3, "Pre Amp Master", Amp, 0, 127, 100, FxUnit::Plain),
+    param(
+        4,
+        "Pre Amp Gain",
+        Filter,
+        0,
+        2,
+        1,
+        FxUnit::Names(GAMPSIM_AMP_GAIN),
+    ),
+    param(5, "Pre Amp Bass", Filter, 0, 127, 64, FxUnit::Plain),
+    param(6, "Pre Amp Middle", Filter, 0, 127, 64, FxUnit::Plain),
+    param(7, "Pre Amp Treble", Filter, 0, 127, 64, FxUnit::Plain),
+    param(8, "Speaker Sw", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(
+        9,
+        "Speaker Type",
+        Filter,
+        0,
+        15,
+        4,
+        FxUnit::Names(SPSIM_SP_TYPE),
+    ),
+    param(10, "Phaser Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(11, "Phaser Rate", Modulation, 1, 200, 10, FxUnit::RateHz),
+    param(12, "Phaser Manual", Filter, 0, 127, 60, FxUnit::Plain),
+    param(13, "Phaser Depth", Modulation, 0, 127, 40, FxUnit::Plain),
+    param(14, "Phaser Resonance", Filter, 0, 127, 80, FxUnit::Plain),
+    param(15, "Phaser Mix", Amp, 0, 127, 127, FxUnit::Plain),
+    param(16, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 56: GTAMPSIM->DELAY
 const MFX_56_GTAMPSIM_DELAY: &[FxParamDef] = &[
-    param(0, "Pre Amp Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(1, "Pre Amp Type", 0, 13, 1, FxUnit::Names(GAMPSIM_AMP_TYPE)),
-    param(2, "Pre Amp Volume", 0, 127, 80, FxUnit::Plain),
-    param(3, "Pre Amp Master", 0, 127, 100, FxUnit::Plain),
-    param(4, "Pre Amp Gain", 0, 2, 1, FxUnit::Names(GAMPSIM_AMP_GAIN)),
-    param(5, "Pre Amp Bass", 0, 127, 64, FxUnit::Plain),
-    param(6, "Pre Amp Middle", 0, 127, 64, FxUnit::Plain),
-    param(7, "Pre Amp Treble", 0, 127, 64, FxUnit::Plain),
-    param(8, "Speaker Sw", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(9, "Speaker Type", 0, 15, 4, FxUnit::Names(SPSIM_SP_TYPE)),
-    param(10, "Delay Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(11, "Delay Time", 0, 1300, 600, FxUnit::Millis),
-    param(12, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
-    param(13, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(14, "Delay Balance", 0, 100, 50, FxUnit::Balance),
-    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Pre Amp Sw", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(
+        1,
+        "Pre Amp Type",
+        Filter,
+        0,
+        13,
+        1,
+        FxUnit::Names(GAMPSIM_AMP_TYPE),
+    ),
+    param(2, "Pre Amp Volume", Amp, 0, 127, 80, FxUnit::Plain),
+    param(3, "Pre Amp Master", Amp, 0, 127, 100, FxUnit::Plain),
+    param(
+        4,
+        "Pre Amp Gain",
+        Filter,
+        0,
+        2,
+        1,
+        FxUnit::Names(GAMPSIM_AMP_GAIN),
+    ),
+    param(5, "Pre Amp Bass", Filter, 0, 127, 64, FxUnit::Plain),
+    param(6, "Pre Amp Middle", Filter, 0, 127, 64, FxUnit::Plain),
+    param(7, "Pre Amp Treble", Filter, 0, 127, 64, FxUnit::Plain),
+    param(8, "Speaker Sw", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(
+        9,
+        "Speaker Type",
+        Filter,
+        0,
+        15,
+        4,
+        FxUnit::Names(SPSIM_SP_TYPE),
+    ),
+    param(10, "Delay Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(11, "Delay Time", Time, 0, 1300, 600, FxUnit::Millis),
+    param(
+        12,
+        "Delay Feedback",
+        Time,
+        0,
+        98,
+        59,
+        FxUnit::FeedbackPercent,
+    ),
+    param(13, "Delay HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(14, "Delay Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(15, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 57: EP->TREMOLO
 const MFX_57_EP_TREMOLO: &[FxParamDef] = &[
-    param(0, "Type", 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
+    param(0, "Type", Filter, 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
     param(
         1,
         "Bass",
+        Filter,
         0,
         100,
         50,
@@ -1463,6 +2026,7 @@ const MFX_57_EP_TREMOLO: &[FxParamDef] = &[
     param(
         2,
         "Treble",
+        Filter,
         0,
         100,
         50,
@@ -1472,12 +2036,13 @@ const MFX_57_EP_TREMOLO: &[FxParamDef] = &[
             suffix: "",
         },
     ),
-    param(3, "Tremolo Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(5, "Tremolo Speed", 1, 200, 25, FxUnit::RateHz).synced(11, SYNC_HZ),
-    param(7, "Tremolo Depth", 0, 127, 50, FxUnit::Plain),
+    param(3, "Tremolo Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(5, "Tremolo Speed", Modulation, 1, 200, 25, FxUnit::RateHz).synced(11, SYNC_HZ),
+    param(7, "Tremolo Depth", Modulation, 0, 127, 50, FxUnit::Plain),
     param(
         8,
         "Tremolo Duty",
+        Modulation,
         0,
         20,
         8,
@@ -1490,23 +2055,25 @@ const MFX_57_EP_TREMOLO: &[FxParamDef] = &[
     param(
         9,
         "Speaker Type",
+        Filter,
         0,
         4,
         1,
         FxUnit::Names(EPTRM_SPEAKER_TYPE),
     ),
-    param(10, "OD Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(11, "OD Gain", 0, 127, 32, FxUnit::Plain),
-    param(12, "OD Drive", 0, 127, 0, FxUnit::Plain),
-    param(13, "Level", 0, 127, 127, FxUnit::Plain),
+    param(10, "OD Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(11, "OD Gain", Filter, 0, 127, 32, FxUnit::Plain),
+    param(12, "OD Drive", Filter, 0, 127, 0, FxUnit::Plain),
+    param(13, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 58: EP->CHORUS
 const MFX_58_EP_CHORUS: &[FxParamDef] = &[
-    param(0, "Type", 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
+    param(0, "Type", Filter, 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
     param(
         1,
         "Bass",
+        Filter,
         0,
         100,
         50,
@@ -1519,6 +2086,7 @@ const MFX_58_EP_CHORUS: &[FxParamDef] = &[
     param(
         2,
         "Treble",
+        Filter,
         0,
         100,
         50,
@@ -1528,31 +2096,33 @@ const MFX_58_EP_CHORUS: &[FxParamDef] = &[
             suffix: "",
         },
     ),
-    param(3, "Chorus Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(4, "Chorus Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(6, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(11, SYNC_HZ),
-    param(8, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
-    param(9, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
+    param(3, "Chorus Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(4, "Chorus Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(6, "Chorus Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(11, SYNC_HZ),
+    param(8, "Chorus Depth", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(9, "Chorus Balance", Amp, 0, 100, 50, FxUnit::Balance),
     param(
         10,
         "Speaker Type",
+        Filter,
         0,
         4,
         1,
         FxUnit::Names(EPTRM_SPEAKER_TYPE),
     ),
-    param(11, "OD Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(12, "OD Gain", 0, 127, 32, FxUnit::Plain),
-    param(13, "OD Drive", 0, 127, 0, FxUnit::Plain),
-    param(14, "Level", 0, 127, 127, FxUnit::Plain),
+    param(11, "OD Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(12, "OD Gain", Filter, 0, 127, 32, FxUnit::Plain),
+    param(13, "OD Drive", Filter, 0, 127, 0, FxUnit::Plain),
+    param(14, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 59: EP->FLANGER
 const MFX_59_EP_FLANGER: &[FxParamDef] = &[
-    param(0, "Type", 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
+    param(0, "Type", Filter, 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
     param(
         1,
         "Bass",
+        Filter,
         0,
         100,
         50,
@@ -1565,6 +2135,7 @@ const MFX_59_EP_FLANGER: &[FxParamDef] = &[
     param(
         2,
         "Treble",
+        Filter,
         0,
         100,
         50,
@@ -1574,32 +2145,42 @@ const MFX_59_EP_FLANGER: &[FxParamDef] = &[
             suffix: "",
         },
     ),
-    param(3, "Flanger Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(4, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(6, "Flanger Rate", 1, 200, 10, FxUnit::RateHz).synced(11, SYNC_HZ),
-    param(8, "Flanger Depth", 0, 127, 30, FxUnit::Plain),
-    param(9, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
-    param(10, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
+    param(3, "Flanger Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(4, "Flanger Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(6, "Flanger Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(11, SYNC_HZ),
+    param(8, "Flanger Depth", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(
+        9,
+        "Flanger Feedback",
+        Filter,
+        0,
+        98,
+        79,
+        FxUnit::FeedbackPercent,
+    ),
+    param(10, "Flanger Balance", Amp, 0, 100, 50, FxUnit::Balance),
     param(
         11,
         "Speaker Type",
+        Filter,
         0,
         4,
         1,
         FxUnit::Names(EPTRM_SPEAKER_TYPE),
     ),
-    param(12, "OD Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(13, "OD Gain", 0, 127, 32, FxUnit::Plain),
-    param(14, "OD Drive", 0, 127, 0, FxUnit::Plain),
-    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+    param(12, "OD Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(13, "OD Gain", Filter, 0, 127, 32, FxUnit::Plain),
+    param(14, "OD Drive", Filter, 0, 127, 0, FxUnit::Plain),
+    param(15, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 60: EP->PHASER
 const MFX_60_EP_PHASER: &[FxParamDef] = &[
-    param(0, "Type", 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
+    param(0, "Type", Filter, 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
     param(
         1,
         "Bass",
+        Filter,
         0,
         100,
         50,
@@ -1612,6 +2193,7 @@ const MFX_60_EP_PHASER: &[FxParamDef] = &[
     param(
         2,
         "Treble",
+        Filter,
         0,
         100,
         50,
@@ -1621,32 +2203,34 @@ const MFX_60_EP_PHASER: &[FxParamDef] = &[
             suffix: "",
         },
     ),
-    param(3, "Phaser Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(5, "Phaser Rate", 1, 200, 10, FxUnit::RateHz).synced(11, SYNC_HZ),
-    param(7, "Phaser Manual", 0, 127, 60, FxUnit::Plain),
-    param(8, "Phaser Depth", 0, 127, 40, FxUnit::Plain),
-    param(9, "Phaser Resonance", 0, 127, 80, FxUnit::Plain),
-    param(10, "Phaser Mix", 0, 127, 127, FxUnit::Plain),
+    param(3, "Phaser Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(5, "Phaser Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(11, SYNC_HZ),
+    param(7, "Phaser Manual", Filter, 0, 127, 60, FxUnit::Plain),
+    param(8, "Phaser Depth", Modulation, 0, 127, 40, FxUnit::Plain),
+    param(9, "Phaser Resonance", Filter, 0, 127, 80, FxUnit::Plain),
+    param(10, "Phaser Mix", Amp, 0, 127, 127, FxUnit::Plain),
     param(
         11,
         "Speaker Type",
+        Filter,
         0,
         4,
         1,
         FxUnit::Names(EPTRM_SPEAKER_TYPE),
     ),
-    param(12, "OD Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(13, "OD Gain", 0, 127, 32, FxUnit::Plain),
-    param(14, "OD Drive", 0, 127, 0, FxUnit::Plain),
-    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+    param(12, "OD Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(13, "OD Gain", Filter, 0, 127, 32, FxUnit::Plain),
+    param(14, "OD Drive", Filter, 0, 127, 0, FxUnit::Plain),
+    param(15, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 61: EP->DELAY
 const MFX_61_EP_DELAY: &[FxParamDef] = &[
-    param(0, "Type", 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
+    param(0, "Type", Filter, 0, 2, 0, FxUnit::Names(EPTRM_TYPE)),
     param(
         1,
         "Bass",
+        Filter,
         0,
         100,
         50,
@@ -1659,6 +2243,7 @@ const MFX_61_EP_DELAY: &[FxParamDef] = &[
     param(
         2,
         "Treble",
+        Filter,
         0,
         100,
         50,
@@ -1668,111 +2253,168 @@ const MFX_61_EP_DELAY: &[FxParamDef] = &[
             suffix: "",
         },
     ),
-    param(3, "Delay Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(5, "Delay Time", 0, 1300, 600, FxUnit::Millis).synced(11, SYNC_MS),
-    param(7, "Delay Acceleration", 0, 15, 10, FxUnit::Plain),
-    param(8, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
-    param(9, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(10, "Delay Balance", 0, 100, 50, FxUnit::Balance),
+    param(3, "Delay Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(5, "Delay Time", Time, 0, 1300, 600, FxUnit::Millis).synced(11, SYNC_MS),
+    param(7, "Delay Acceleration", Time, 0, 15, 10, FxUnit::Plain),
+    param(
+        8,
+        "Delay Feedback",
+        Time,
+        0,
+        98,
+        59,
+        FxUnit::FeedbackPercent,
+    ),
+    param(9, "Delay HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(10, "Delay Balance", Amp, 0, 100, 50, FxUnit::Balance),
     param(
         11,
         "Speaker Type",
+        Filter,
         0,
         4,
         1,
         FxUnit::Names(EPTRM_SPEAKER_TYPE),
     ),
-    param(12, "OD Switch", 0, 1, 1, FxUnit::Names(OFF_ON)),
-    param(13, "OD Gain", 0, 127, 32, FxUnit::Plain),
-    param(14, "OD Drive", 0, 127, 0, FxUnit::Plain),
-    param(15, "Level", 0, 127, 127, FxUnit::Plain),
+    param(12, "OD Switch", Common, 0, 1, 1, FxUnit::Names(OFF_ON)),
+    param(13, "OD Gain", Filter, 0, 127, 32, FxUnit::Plain),
+    param(14, "OD Drive", Filter, 0, 127, 0, FxUnit::Plain),
+    param(15, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 62: ENHANCER->CHORUS
 const MFX_62_ENHANCER_CHORUS: &[FxParamDef] = &[
-    param(0, "Enhancer Sens", 0, 127, 64, FxUnit::Plain),
-    param(1, "Enhancer Mix", 0, 127, 64, FxUnit::Plain),
-    param(2, "Chorus Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
-    param(6, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
-    param(7, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
-    param(8, "Level", 0, 127, 127, FxUnit::Plain),
+    param(0, "Enhancer Sens", Filter, 0, 127, 64, FxUnit::Plain),
+    param(1, "Enhancer Mix", Amp, 0, 127, 64, FxUnit::Plain),
+    param(2, "Chorus Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Chorus Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(6, "Chorus Depth", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(7, "Chorus Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(8, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 63: ENHANCER->FLANGER
 const MFX_63_ENHANCER_FLANGER: &[FxParamDef] = &[
-    param(0, "Enhancer Sens", 0, 127, 64, FxUnit::Plain),
-    param(1, "Enhancer Mix", 0, 127, 64, FxUnit::Plain),
-    param(2, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(4, "Flanger Rate", 1, 200, 10, FxUnit::RateHz)
+    param(0, "Enhancer Sens", Filter, 0, 127, 64, FxUnit::Plain),
+    param(1, "Enhancer Mix", Amp, 0, 127, 64, FxUnit::Plain),
+    param(2, "Flanger Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(4, "Flanger Rate", Modulation, 1, 200, 10, FxUnit::RateHz)
         .synced(18, SYNC_HZ)
         .note_by_default(),
-    param(6, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
-    param(7, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
-    param(8, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
-    param(9, "Level", 0, 127, 127, FxUnit::Plain),
+    param(6, "Flanger Depth", Modulation, 0, 127, 40, FxUnit::Plain),
+    param(
+        7,
+        "Flanger Feedback",
+        Filter,
+        0,
+        98,
+        79,
+        FxUnit::FeedbackPercent,
+    ),
+    param(8, "Flanger Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(9, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 64: ENHANCER->DELAY
 const MFX_64_ENHANCER_DELAY: &[FxParamDef] = &[
-    param(0, "Enhancer Sens", 0, 127, 64, FxUnit::Plain),
-    param(1, "Enhancer Mix", 0, 127, 64, FxUnit::Plain),
-    param(3, "Delay Time", 0, 2600, 600, FxUnit::Millis)
+    param(0, "Enhancer Sens", Filter, 0, 127, 64, FxUnit::Plain),
+    param(1, "Enhancer Mix", Amp, 0, 127, 64, FxUnit::Plain),
+    param(3, "Delay Time", Time, 0, 2600, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(5, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
-    param(6, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(7, "Delay Balance", 0, 100, 50, FxUnit::Balance),
-    param(8, "Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        5,
+        "Delay Feedback",
+        Time,
+        0,
+        98,
+        59,
+        FxUnit::FeedbackPercent,
+    ),
+    param(6, "Delay HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(7, "Delay Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(8, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 65: CHORUS->DELAY
 const MFX_65_CHORUS_DELAY: &[FxParamDef] = &[
-    param(0, "Chorus Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(2, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
-    param(4, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
-    param(5, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
-    param(7, "Delay Time", 0, 2600, 600, FxUnit::Millis)
+    param(0, "Chorus Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(2, "Chorus Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Chorus Depth", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(5, "Chorus Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(7, "Delay Time", Time, 0, 2600, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(9, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
-    param(10, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(11, "Delay Balance", 0, 100, 50, FxUnit::Balance),
-    param(12, "Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        9,
+        "Delay Feedback",
+        Time,
+        0,
+        98,
+        59,
+        FxUnit::FeedbackPercent,
+    ),
+    param(10, "Delay HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(11, "Delay Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(12, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 66: FLANGER->DELAY
 const MFX_66_FLANGER_DELAY: &[FxParamDef] = &[
-    param(0, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(2, "Flanger Rate", 1, 200, 10, FxUnit::RateHz)
+    param(0, "Flanger Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(2, "Flanger Rate", Modulation, 1, 200, 10, FxUnit::RateHz)
         .synced(18, SYNC_HZ)
         .note_by_default(),
-    param(4, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
-    param(5, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
-    param(6, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
-    param(8, "Delay Time", 0, 2600, 600, FxUnit::Millis)
+    param(4, "Flanger Depth", Modulation, 0, 127, 40, FxUnit::Plain),
+    param(
+        5,
+        "Flanger Feedback",
+        Filter,
+        0,
+        98,
+        79,
+        FxUnit::FeedbackPercent,
+    ),
+    param(6, "Flanger Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(8, "Delay Time", Time, 0, 2600, 600, FxUnit::Millis)
         .synced(12, SYNC_MS)
         .note_by_default(),
-    param(10, "Delay Feedback", 0, 98, 59, FxUnit::FeedbackPercent),
-    param(11, "Delay HF Damp", 0, 17, 17, FxUnit::Freq),
-    param(12, "Delay Balance", 0, 100, 50, FxUnit::Balance),
-    param(13, "Level", 0, 127, 127, FxUnit::Plain),
+    param(
+        10,
+        "Delay Feedback",
+        Time,
+        0,
+        98,
+        59,
+        FxUnit::FeedbackPercent,
+    ),
+    param(11, "Delay HF Damp", Filter, 0, 17, 17, FxUnit::Freq),
+    param(12, "Delay Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(13, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // Type 67: CHORUS->FLANGER
 const MFX_67_CHORUS_FLANGER: &[FxParamDef] = &[
-    param(0, "Chorus Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(2, "Chorus Rate", 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
-    param(4, "Chorus Depth", 0, 127, 30, FxUnit::Plain),
-    param(5, "Chorus Balance", 0, 100, 50, FxUnit::Balance),
-    param(6, "Flanger Pre Delay", 0, 125, 20, FxUnit::PreDelay),
-    param(8, "Flanger Rate", 1, 200, 10, FxUnit::RateHz)
+    param(0, "Chorus Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(2, "Chorus Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
+    param(4, "Chorus Depth", Modulation, 0, 127, 30, FxUnit::Plain),
+    param(5, "Chorus Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(6, "Flanger Pre Delay", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(8, "Flanger Rate", Modulation, 1, 200, 10, FxUnit::RateHz)
         .synced(18, SYNC_HZ)
         .note_by_default(),
-    param(10, "Flanger Depth", 0, 127, 40, FxUnit::Plain),
-    param(11, "Flanger Feedback", 0, 98, 79, FxUnit::FeedbackPercent),
-    param(12, "Flanger Balance", 0, 100, 50, FxUnit::Balance),
-    param(13, "Level", 0, 127, 127, FxUnit::Plain),
+    param(10, "Flanger Depth", Modulation, 0, 127, 40, FxUnit::Plain),
+    param(
+        11,
+        "Flanger Feedback",
+        Filter,
+        0,
+        98,
+        79,
+        FxUnit::FeedbackPercent,
+    ),
+    param(12, "Flanger Balance", Amp, 0, 100, 50, FxUnit::Balance),
+    param(13, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
 
 // END GENERATED
@@ -2520,5 +3162,27 @@ mod tests {
             );
             assert!(slots.last().is_none_or(|&s| (s as usize) < MFX_PARAM_COUNT));
         }
+    }
+
+    /// The family of `name` in MFX type `ty`.
+    fn family(ty: u8, name: &str) -> crate::family::ParameterFamily {
+        let def = mfx_type_def(ty).unwrap();
+        def.params
+            .iter()
+            .find(|p| p.name == name)
+            .unwrap_or_else(|| panic!("{}: no {name}", def.name))
+            .family
+    }
+
+    /// One param per ambiguous cluster decided in #159.
+    #[test]
+    fn params_carry_their_family() {
+        assert_eq!(family(23, "Feedback"), Filter); // Flanger
+        assert_eq!(family(18, "Step 01"), Modulation); // Slicer
+        assert_eq!(family(34, "Feedback"), Time); // Delay
+        assert_eq!(family(38, "Delay 1 Pan"), Time); // Multi Tap Delay
+        assert_eq!(family(42, "Sample Rate"), Pitch); // Bit Crasher
+        assert_eq!(family(34, "Balance"), Amp); // Delay
+        assert_eq!(family(30, "Pre Amp Sw"), Common); // Guitar Amp Simulator
     }
 }

@@ -1508,6 +1508,12 @@ mirror_core_enum!(MfxHeaderField <=> mfx::MfxHeaderField {
     ControlAssign,
 });
 
+/// Returns the Parameter family of an MFX header field.
+#[wasm_bindgen(js_name = mfxHeaderFamily)]
+pub fn mfx_header_family(field: MfxHeaderField) -> ParameterFamily {
+    mfx::MfxHeaderField::from(field).family().into()
+}
+
 /// Returns the address of part `part_index`'s PCM Synth MFX block.
 #[wasm_bindgen]
 pub fn pcms_mfx_address(part_index: u8) -> Vec<u8> {
@@ -1980,6 +1986,12 @@ impl WasmFxParamDef {
     #[wasm_bindgen(getter)]
     pub fn name(&self) -> String {
         self.inner.name.to_string()
+    }
+
+    /// The parameter's Parameter family.
+    #[wasm_bindgen(getter)]
+    pub fn family(&self) -> ParameterFamily {
+        self.inner.family.into()
     }
 
     /// Format a stored value for display.

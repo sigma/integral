@@ -6,6 +6,7 @@
 //! sends, 4 control source slots, and up to 32 nibblized parameters.
 
 use crate::address::{Address, DataSize};
+use crate::family::ParameterFamily;
 use crate::params::ToneType;
 use thiserror::Error;
 
@@ -57,6 +58,19 @@ impl MfxHeaderField {
         match self {
             Self::Type | Self::ChorusSend | Self::ReverbSend => 1,
             Self::ControlSource | Self::ControlSens | Self::ControlAssign => MFX_CONTROL_COUNT,
+        }
+    }
+
+    /// The field's Parameter family (`docs/research/mfx-param-families.md`):
+    /// the Control 1-4 Source, Sens and Assign route modulation, the sends
+    /// set levels, and the Type selects structure.
+    pub const fn family(self) -> ParameterFamily {
+        match self {
+            Self::Type => ParameterFamily::Common,
+            Self::ChorusSend | Self::ReverbSend => ParameterFamily::Amp,
+            Self::ControlSource | Self::ControlSens | Self::ControlAssign => {
+                ParameterFamily::Modulation
+            }
         }
     }
 
@@ -231,6 +245,14 @@ pub fn encode_mfx_param(value: i32) -> [u8; 4] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn control_sens_is_modulation() {
+        assert_eq!(
+            MfxHeaderField::ControlSens.family(),
+            ParameterFamily::Modulation
+        );
+    }
 
     #[test]
     fn default_control_sens_is_neutral() {
