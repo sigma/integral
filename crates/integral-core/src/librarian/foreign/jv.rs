@@ -888,10 +888,14 @@ fn matrix_controls(p: &mut Patch<'_>) {
         }
     }
     let common = p.tone.common();
-    for (m, mc) in mcs.iter().enumerate() {
+    // Unused Matrix Controls and slots are OFF, not INIT TONE's routes.
+    for m in 0..MATRIX_COUNT {
         let base = MATRIX_CONTROLS + MATRIX_STRIDE * m;
-        common[base] = mc.source;
-        for (j, &(dest, sens)) in mc.slots.iter().enumerate() {
+        let mc = mcs.get(m);
+        common[base] = mc.map_or(0, |mc| mc.source);
+        for j in 0..SLOTS {
+            let slot = mc.and_then(|mc| mc.slots.get(j).copied());
+            let (dest, sens) = slot.unwrap_or((0, SENS_ZERO));
             common[base + 1 + 2 * j..base + 3 + 2 * j].copy_from_slice(&[dest, sens]);
         }
     }

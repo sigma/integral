@@ -670,7 +670,7 @@ impl Default for PcmSynthCommon {
             portamento_mode: 0,
             portamento_type: 0,
             portamento_start: 0,
-            portamento_time: 0,
+            portamento_time: 20,
             cutoff_offset: 64,        // 0
             resonance_offset: 64,     // 0
             attack_time_offset: 64,   // 0
@@ -680,10 +680,26 @@ impl Default for PcmSynthCommon {
             pitch_bend_range_up: 2,
             pitch_bend_range_down: 2,
             matrix_controls: vec![
-                MatrixControl::default(),
-                MatrixControl::default(),
-                MatrixControl::default(),
-                MatrixControl::default(),
+                MatrixControl {
+                    source: 98, // VELOCITY
+                    destinations: [9, 0, 0, 0],
+                    sensitivities: [74, 64, 64, 64],
+                },
+                MatrixControl {
+                    source: 99, // KEYFOLLOW
+                    destinations: [4, 2, 0, 0],
+                    ..MatrixControl::default()
+                },
+                MatrixControl {
+                    source: 100, // TEMPO
+                    destinations: [4, 2, 0, 0],
+                    ..MatrixControl::default()
+                },
+                MatrixControl {
+                    source: 101, // LFO1
+                    destinations: [4, 2, 0, 0],
+                    ..MatrixControl::default()
+                },
             ],
         }
     }
@@ -751,20 +767,19 @@ pub struct PcmSynthPmt {
 }
 
 impl Default for PcmSynthPmt {
-    #[allow(clippy::derivable_impls)]
     fn default() -> Self {
+        let off = || PmtPartialEntry {
+            partial_switch: 0,
+            ..PmtPartialEntry::default()
+        };
         Self {
             structure_type_12: 0,
             booster_12: 0,
             structure_type_34: 0,
             booster_34: 0,
-            pmt_velocity_control: 0,
-            partial_entries: [
-                PmtPartialEntry::default(),
-                PmtPartialEntry::default(),
-                PmtPartialEntry::default(),
-                PmtPartialEntry::default(),
-            ],
+            pmt_velocity_control: 1, // ON
+            // INIT TONE plays Partial 1 only.
+            partial_entries: [PmtPartialEntry::default(), off(), off(), off()],
         }
     }
 }
@@ -1055,32 +1070,32 @@ impl Default for PcmSynthPartial {
 
             // Output
             output_level: 127,
-            chorus_send: 0,
-            reverb_send: 0,
+            chorus_send: 127,
+            reverb_send: 127,
 
             // Receive switches
             receive_bender: 1,
             receive_expression: 1,
             receive_hold1: 1,
-            redamper_switch: 1,
+            redamper_switch: 0,
 
             // Partial control switches
-            control1_switches: [0; 4],
-            control2_switches: [0; 4],
-            control3_switches: [0; 4],
-            control4_switches: [0; 4],
+            control1_switches: [1; 4],
+            control2_switches: [1; 4],
+            control3_switches: [1; 4],
+            control4_switches: [1; 4],
 
             // Wave
             wave_group_type: 0,
             wave_group_id: 1, // INT, as `WaveGroup::Int.params()` writes
-            wave_number_l: 0,
+            wave_number_l: 1,
             wave_number_r: 0,
             wave_gain: 1, // 0 dB
             wave_fxm_switch: 0,
             wave_fxm_color: 0,
             wave_fxm_depth: 0,
             wave_tempo_sync: 0,
-            wave_pitch_keyfollow: 64, // 0
+            wave_pitch_keyfollow: 74, // +100
 
             // Pitch Envelope
             pitch_env_depth: 64,            // 0
@@ -1088,42 +1103,42 @@ impl Default for PcmSynthPartial {
             pitch_env_t1_velocity_sens: 64, // 0
             pitch_env_t4_velocity_sens: 64, // 0
             pitch_env_time_keyfollow: 64,   // 0
-            pitch_env_time: [0; 4],
-            pitch_env_level: [64; 5], // all center
+            pitch_env_time: [40, 80, 40, 0],
+            pitch_env_level: [64, 34, 94, 64, 64],
 
             // TVF
             tvf_filter_type: 1, // LPF
             tvf_cutoff_frequency: 127,
             tvf_cutoff_keyfollow: 64, // 0
-            tvf_cutoff_velocity_curve: 0,
+            tvf_cutoff_velocity_curve: 1,
             tvf_cutoff_velocity_sens: 64,
             tvf_resonance: 0,
             tvf_resonance_velocity_sens: 64,
             tvf_env_depth: 64,
-            tvf_env_velocity_curve: 0,
+            tvf_env_velocity_curve: 1,
             tvf_env_velocity_sens: 64,
             tvf_env_t1_velocity_sens: 64,
             tvf_env_t4_velocity_sens: 64,
             tvf_env_time_keyfollow: 64,
-            tvf_env_time: [0; 4],
-            tvf_env_level: [0; 5],
+            tvf_env_time: [0, 10, 10, 64],
+            tvf_env_level: [0, 127, 127, 127, 0],
 
             // TVA
             tva_bias_level: 64,
-            tva_bias_position: 64,
-            tva_bias_direction: 0,
-            tva_level_velocity_curve: 0,
-            tva_level_velocity_sens: 64,
+            tva_bias_position: 60,
+            tva_bias_direction: 3,
+            tva_level_velocity_curve: 1,
+            tva_level_velocity_sens: 96,
             tva_env_t1_velocity_sens: 64,
             tva_env_t4_velocity_sens: 64,
             tva_env_time_keyfollow: 64,
-            tva_env_time: [0; 4],
-            tva_env_level: [127; 3], // full level until release (not yet checked on the device: #250)
+            tva_env_time: [0, 10, 10, 10],
+            tva_env_level: [127; 3],
 
             // LFO1
-            lfo1_waveform: 0,
-            lfo1_rate: 0,
-            lfo1_offset: 0,
+            lfo1_waveform: 1,
+            lfo1_rate: 92,
+            lfo1_offset: 2,
             lfo1_rate_detune: 0,
             lfo1_delay_time: 0,
             lfo1_delay_time_keyfollow: 64,
@@ -1136,9 +1151,9 @@ impl Default for PcmSynthPartial {
             lfo1_pan_depth: 64,
 
             // LFO2
-            lfo2_waveform: 0,
-            lfo2_rate: 0,
-            lfo2_offset: 0,
+            lfo2_waveform: 1,
+            lfo2_rate: 92,
+            lfo2_offset: 2,
             lfo2_rate_detune: 0,
             lfo2_delay_time: 0,
             lfo2_delay_time_keyfollow: 64,
@@ -1648,6 +1663,26 @@ pub fn encode_pcms_partial(p: &PcmSynthPartial) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The INIT TONE blocks, read from an unwritten User slot (`31 7D xx 00`)
+    /// on the device.
+    #[test]
+    fn defaults_match_the_device_init_tone() {
+        let common = parse_pcms_common(include_bytes!(
+            "../tests/fixtures/init/pcm-synth-common.bin"
+        ));
+        let pmt = parse_pcms_pmt(include_bytes!("../tests/fixtures/init/pcm-synth-pmt.bin"));
+        let partial = parse_pcms_partial(include_bytes!(
+            "../tests/fixtures/init/pcm-synth-partial.bin"
+        ));
+        let init = PcmSynthCommon {
+            tone_name: "INIT TONE".into(),
+            ..PcmSynthCommon::default()
+        };
+        assert_eq!(common.unwrap(), init);
+        assert_eq!(pmt.unwrap(), PcmSynthPmt::default());
+        assert_eq!(partial.unwrap(), PcmSynthPartial::default());
+    }
 
     #[test]
     fn encoders_invert_the_parsers() {

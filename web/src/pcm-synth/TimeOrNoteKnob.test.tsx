@@ -40,7 +40,7 @@ describe("TimeOrNoteKnob", () => {
     cleanup();
     const note = knob(PcmsPartialField.Lfo1Rate, 140);
     click(note.button("Hz"));
-    expect(note.writes).toEqual([0]);
+    expect(note.writes).toEqual([92]); // INIT TONE's LFO1 Rate
   });
 
   it("labels the partial Delay in ms", () => {
