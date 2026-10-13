@@ -23,8 +23,8 @@ Terms follow `CONTEXT.md` (**Foreign patch**, **Conversion report**, **Wave**, *
   157 Rhythm Tone parameters, **149 copy byte for byte**, 5 need a table and 3 have no target.
   The Integra Partial is 2 bytes longer (`0x143` vs `0x141`). It adds a per-key **One Shot
   Mode** at `01 41`, which the XV keeps once per kit in Common `00 10`. The Integra's unnamed
-  Common bytes `00 0D`/`00 0E`/`00 10`/`00 11` are the XV Clock Source, Rhythm Tempo (120),
-  One Shot Mode and Output Assign (13).
+  Common bytes `00 0D`/`00 0E`/`00 10`/`00 11` sit where the XV keeps Clock Source, Rhythm
+  Tempo (120), One Shot Mode and Output Assign (13). The Integra ignores `00 10`.
 - **One trap breaks the byte copy:** Tone Output Assign `00 1B`. On the XV it is MFX, A–D, 1–8
   (0–12). On the Integra it is PART, COMP+EQ1–6 (0–6). In the corpus **98.6 % of XV Rhythm
   Tones are on output A (1)**. Copied unchanged, they would all land on COMP+EQ1. Write 0 (PART).
@@ -190,7 +190,7 @@ Notes in the corpus.
 | `0C` | Rhythm Level | Kit Level | identical |
 | `0D` | Rhythm Clock Source (RHYTHM, SYSTEM) | unnamed | none: copy verbatim (corpus: always 0) |
 | `0E`# | Rhythm Tempo (20–250) | unnamed # | none: copy verbatim. Integra `INIT RHYTHM` holds 120 here, the XV default. |
-| `10` | One Shot Mode | unnamed | **table**: copy, and also write it to every key's Partial `01 41` One Shot Mode |
+| `10` | One Shot Mode | unnamed | **table**: write it to every key's Partial `01 41` One Shot Mode; Common `00 10` keeps INIT's 0 (the Integra ignores it) |
 | `11` | Rhythm Output Assign (MFX, A–D, 1–8, TONE) | reserve (always 13) | none: copy verbatim (corpus: always 13 = TONE) |
 
 ### MFX, Chorus, Reverb
@@ -225,7 +225,8 @@ This is the same pattern as the Patch ([#193](https://github.com/sigma/integral/
 **So, is it byte-identical?** The layout is: same blocks, offsets, widths and ranges. A
 byte-for-byte copy is *not* safe, because of Tone Output Assign. Apart from that, a converter
 copies the Common, MFX and Tone blocks, then patches 5 kinds of field (`00 1B`, the four Group
-Types, the sends when Output Assign = MFX, and One Shot into `01 41`). It drops Chorus and
+Types, the sends when Output Assign = MFX, and One Shot into `01 41`, with Common `00 10` back
+to INIT's 0). It drops Chorus and
 Reverb, and fills Comp/EQ (all OFF) and Common 2 (long name, Phrase Number 0, TFX Switch).
 
 ## 4. Roland's own JV → XV conversion
@@ -322,7 +323,10 @@ checksum-valid sets.
    ([#207](https://github.com/sigma/integral/issues/207)). Copy the ID verbatim. The SRX ID is the board number, which settles #193's open doubt 3
    for SRX.
 3. **One Shot Mode.** It is per kit on the XV (Common `00 10`) and per key on the Integra
-   (`01 41`). Whether the Integra still reads its Common `00 10` is unknown; write both.
+   (`01 41`). The Integra ignores its Common `00 10`. On the device, a temporary kit sent by
+   DT1 with `00 10` ON and `01 41` OFF cuts on release, and the reverse plays through
+   ([#231](https://github.com/sigma/integral/issues/231)). Recalling a kit saved with `00 10` ON
+   was not tested. Write the per-key byte only.
 4. **Partial Output Assign PART and the MFX.** The JV Rhythm Setup has no EFX, and most XV kits
    use output A with MFX THRU, so PART loses nothing for them. Where an XV MFX was set but tones
    bypassed it (output A), PART puts them through the MFX. Report it. Fixing it would be a

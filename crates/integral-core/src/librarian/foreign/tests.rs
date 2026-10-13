@@ -1811,7 +1811,8 @@ mod xv_rhythms {
         for key in 36..=40 {
             assert_eq!(partial(&entry, key)[F::OneShotMode as usize], 1);
         }
-        assert_eq!(entry.blocks()[0][0x10], 1);
+        // The INTEGRA-7 ignores Common `00 10`: it keeps the INIT value.
+        assert_eq!(entry.blocks()[0][0x10], 0);
         assert_eq!(
             texts(&report),
             [

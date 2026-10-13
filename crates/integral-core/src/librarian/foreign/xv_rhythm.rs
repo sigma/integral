@@ -18,7 +18,8 @@ use crate::address::Address;
 use crate::librarian::pack::PackEntry;
 use crate::parse_helpers::{nibble2, nibble4};
 use crate::pcm_drum::{
-    PCMD_KEYS, PCMD_WMT_COUNT, PcmdPartialField as F, PcmdWmtField, pcmd_wmt_byte,
+    PCMD_KEYS, PCMD_WMT_COUNT, PcmDrumCommon, PcmdPartialField as F, PcmdWmtField,
+    encode_pcmd_common, pcmd_wmt_byte,
 };
 
 /// A Rhythm block: its offset (address bytes 1–2, 7-bit, below the slot
@@ -174,12 +175,14 @@ fn chorus_reverb(r: &mut Rhythm<'_>) {
 }
 
 /// One Shot Mode: once per kit on the XV, per key on the INTEGRA-7. The
-/// Common byte stays too.
+/// INTEGRA-7 ignores the Common byte (a temporary kit tested on the device,
+/// #231), so it gets the INIT value back.
 fn one_shot_mode(r: &mut Rhythm<'_>) {
     let one_shot = r.common[ONE_SHOT_MODE];
     for (k, _) in &r.tones {
         r.kit.key(*k)[F::OneShotMode as usize] = one_shot;
     }
+    r.kit.common()[ONE_SHOT_MODE] = encode_pcmd_common(&PcmDrumCommon::default())[ONE_SHOT_MODE];
 }
 
 /// Tone Chorus/Reverb Send Levels: an XV Tone holds a pair for when it goes
