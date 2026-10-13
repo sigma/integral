@@ -5,7 +5,7 @@ use integral_core::catalog;
 use integral_core::device::DeviceState;
 use integral_core::sysex;
 use integral_core::{
-    field_spec, fx_params, mfx, mfx_params, param_registry, params, pcm_drum, pcm_synth,
+    family, field_spec, fx_params, mfx, mfx_params, param_registry, params, pcm_drum, pcm_synth,
     sn_acoustic, sn_drum, sn_synth, tone_banks, user_write,
 };
 use wasm_bindgen::prelude::*;
@@ -350,6 +350,40 @@ mirror_core_enum!(ToneType <=> params::ToneType {
     SnDrum,
     PcmDrum,
 });
+
+/// The role a parameter plays in shaping the sound (mirrors
+/// [`family::ParameterFamily`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ParameterFamily {
+    /// Pitch / Source.
+    Pitch,
+    /// Filter / Tone.
+    Filter,
+    /// Amp / Level.
+    Amp,
+    /// Modulation.
+    Modulation,
+    /// Time / Space.
+    Time,
+    /// Common / Global.
+    Common,
+}
+
+mirror_core_enum!(ParameterFamily <=> family::ParameterFamily {
+    Pitch,
+    Filter,
+    Amp,
+    Modulation,
+    Time,
+    Common,
+});
+
+/// Returns a family's palette colour as a CSS hex string, `#rrggbb`.
+#[wasm_bindgen(js_name = familyColour)]
+pub fn family_colour(family: ParameterFamily) -> String {
+    family::ParameterFamily::from(family).colour().to_string()
+}
 
 /// A field of the PCM Drum Kit Common block (mirrors [`pcm_drum::PcmdCommonField`]).
 #[wasm_bindgen]

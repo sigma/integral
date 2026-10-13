@@ -26,6 +26,7 @@ pub mod expansion_load;
 pub mod expansion_slots;
 pub mod expansions;
 pub mod factory_catalog;
+pub mod family;
 pub mod field_spec;
 pub mod fx_params;
 pub mod librarian;
