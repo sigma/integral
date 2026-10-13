@@ -464,7 +464,7 @@ export class IntegraService {
 
   async requestStudioSetNames(): Promise<Map<number, string>> {
     const names = new Map<number, string>();
-    const studioSetMsb = studioSetType().bankMsb;
+    const { bankMsb: studioSetMsb, slotCount } = studioSetType();
     const msg = new Uint8Array(build_studio_set_catalog_request(this.deviceId));
 
     return new Promise((resolve) => {
@@ -504,7 +504,7 @@ export class IntegraService {
         } else if (entry) {
           names.set(entry.pc, entry.name());
           entry.free();
-          if (names.size >= 64) {
+          if (names.size >= slotCount) {
             done();
             return;
           }

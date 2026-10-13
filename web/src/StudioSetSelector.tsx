@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { studioSetType } from "./librarian";
 import css from "./StudioSetSelector.module.css";
 
 interface Props {
@@ -68,7 +69,7 @@ export function StudioSetSelector({
       </button>
       {open && (
         <div className={css.dropdown} ref={dropdownRef}>
-          {Array.from({ length: 64 }, (_, i) => {
+          {Array.from({ length: studioSetType().slotCount }, (_, i) => {
             const name = names.get(i);
             const isSelected = i === currentPC;
             return (
