@@ -2043,6 +2043,7 @@ pub struct WasmFieldSpec {
     #[wasm_bindgen(readonly, js_name = defaultValue)]
     pub default_value: i32,
     format: param_registry::ParamFormat,
+    family: family::ParameterFamily,
 }
 
 #[wasm_bindgen]
@@ -2058,6 +2059,12 @@ impl WasmFieldSpec {
     pub fn center(&self) -> Option<i32> {
         self.format.center()
     }
+
+    /// The field's Parameter family.
+    #[wasm_bindgen(getter)]
+    pub fn family(&self) -> ParameterFamily {
+        self.family.into()
+    }
 }
 
 fn wrap_field_spec(spec: field_spec::FieldSpec) -> WasmFieldSpec {
@@ -2066,6 +2073,7 @@ fn wrap_field_spec(spec: field_spec::FieldSpec) -> WasmFieldSpec {
         max: spec.max,
         default_value: spec.default,
         format: spec.format,
+        family: spec.family,
     }
 }
 

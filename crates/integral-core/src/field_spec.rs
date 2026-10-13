@@ -9,6 +9,7 @@
 use std::sync::OnceLock;
 
 use crate::block_field::BlockField;
+use crate::family::ParameterFamily;
 use crate::fx_params::{NOTE_NAMES, SYNC_HZ, SYNC_MS};
 use crate::param_registry::{NOTE_FROM, ParamFormat};
 use crate::pcm_drum::{self, PcmdCommonField, PcmdPartialField, PcmdWmtField};
@@ -30,6 +31,9 @@ pub struct FieldSpec {
     pub default: i32,
     /// Display format.
     pub format: ParamFormat,
+    /// The sound dimension the field changes. A field's family starts from
+    /// its section in the editors; the exceptions are noted beside them.
+    pub family: ParameterFamily,
 }
 
 /// Range and format of a field; [`FieldSpec`] adds its default.
@@ -131,12 +135,18 @@ fn value_in<F: BlockField>(field: F, block: &[u8]) -> i32 {
     }
 }
 
-fn spec<F: BlockField>(field: F, block: &[u8], Shape { min, max, format }: Shape) -> FieldSpec {
+fn spec<F: BlockField>(
+    field: F,
+    block: &[u8],
+    Shape { min, max, format }: Shape,
+    family: ParameterFamily,
+) -> FieldSpec {
     FieldSpec {
         min,
         max,
         default: value_in(field, block),
         format,
+        family,
     }
 }
 
@@ -175,7 +185,7 @@ pub fn pcms_common_spec(field: PcmsCommonField) -> FieldSpec {
         | F::MatrixControlSens3
         | F::MatrixControlSens4 => SIGNED_63,
     };
-    spec(field, init, shape)
+    spec(field, init, shape, pcms_common_family(field))
 }
 
 /// The spec of a PCM Synth Tone PMT field.
@@ -196,7 +206,7 @@ pub fn pcms_pmt_spec(field: PcmsPmtField) -> FieldSpec {
         F::KeyFadeLower | F::KeyFadeUpper | F::VelocityFadeLower | F::VelocityFadeUpper => RAW_127,
         F::VelocityRangeLower | F::VelocityRangeUpper => VELOCITY_RANGE,
     };
-    spec(field, init, shape)
+    spec(field, init, shape, pcms_pmt_family(field))
 }
 
 /// The spec of a PCM Synth Tone Partial field.
@@ -295,7 +305,7 @@ pub fn pcms_partial_spec(field: PcmsPartialField) -> FieldSpec {
         F::LfoStepType => shape(0, 1, Named(&["STEP", "SMOOTH"])),
         F::LfoStep => shape(28, 100, SignedCenter(64)),
     };
-    spec(field, init, shape)
+    spec(field, init, shape, pcms_partial_family(field))
 }
 
 /// The spec of a PCM Synth Tone Common 2 field.
@@ -316,6 +326,7 @@ pub fn pcms_common2_spec(field: PcmsCommon2Field) -> FieldSpec {
         max,
         default,
         format,
+        family: pcms_common2_family(field),
     }
 }
 
@@ -326,7 +337,7 @@ pub fn pcmd_common_spec(field: PcmdCommonField) -> FieldSpec {
     let shape = match field {
         PcmdCommonField::KitLevel => RAW_127,
     };
-    spec(field, init, shape)
+    spec(field, init, shape, pcmd_common_family(field))
 }
 
 /// The INIT PCM Drum Kit Partial block, which holds both the WMT and the
@@ -353,7 +364,7 @@ pub fn pcmd_wmt_spec(field: PcmdWmtField) -> FieldSpec {
         F::Level | F::VelocityFadeLower | F::VelocityFadeUpper => RAW_127,
         F::VelocityRangeLower | F::VelocityRangeUpper => VELOCITY_RANGE,
     };
-    spec(field, pcmd_partial_init(), shape)
+    spec(field, pcmd_partial_init(), shape, pcmd_wmt_family(field))
 }
 
 /// The spec of a PCM Drum Kit Partial field outside the WMT layers.
@@ -411,7 +422,12 @@ pub fn pcmd_partial_spec(field: PcmdPartialField) -> FieldSpec {
             VELOCITY_CURVE
         }
     };
-    spec(field, pcmd_partial_init(), shape)
+    spec(
+        field,
+        pcmd_partial_init(),
+        shape,
+        pcmd_partial_family(field),
+    )
 }
 
 /// The spec of an SN Synth Tone Common field.
@@ -441,7 +457,7 @@ pub fn sns_common_spec(field: SnsCommonField) -> FieldSpec {
         F::PhraseNumber => PHRASE_NUMBER,
         F::UnisonSize => shape(0, 3, Named(&["2", "4", "6", "8"])),
     };
-    spec(field, init, shape)
+    spec(field, init, shape, sns_common_family(field))
 }
 
 /// SN Synth Tone LFO shapes.
@@ -524,7 +540,7 @@ pub fn sns_partial_spec(field: SnsPartialField) -> FieldSpec {
         F::WaveGain => WAVE_GAIN,
         F::WaveNumber => WAVE_NUMBER,
     };
-    spec(field, init, shape)
+    spec(field, init, shape, sns_partial_family(field))
 }
 
 /// The spec of an SN Acoustic Tone Common field.
@@ -553,7 +569,7 @@ pub fn sna_common_spec(field: SnaCommonField) -> FieldSpec {
         // Each instrument gives its Modify Parameters their own ranges (`sna_inst_params`).
         F::ModifyParameter => RAW_127,
     };
-    spec(field, init, shape)
+    spec(field, init, shape, sna_common_family(field))
 }
 
 /// The spec of an SN Drum Kit Common field.
@@ -565,7 +581,7 @@ pub fn snd_common_spec(field: SndCommonField) -> FieldSpec {
         F::KitLevel | F::AmbienceLevel | F::PhraseNumber => RAW_127,
         F::TfxSwitch => ON_OFF,
     };
-    spec(field, init, shape)
+    spec(field, init, shape, snd_common_family(field))
 }
 
 /// The spec of an SN Drum Kit Note field.
@@ -600,7 +616,427 @@ pub fn snd_note_spec(field: SndNoteField) -> FieldSpec {
         F::DynamicRange => shape(0, 63, Raw),
         F::OutputAssign => DRUM_OUTPUT_ASSIGN,
     };
-    spec(field, init, shape)
+    spec(field, init, shape, snd_note_family(field))
+}
+
+// Each `*_family` function below starts every field from its section in the
+// web editor and notes the fields whose family differs (`CONTEXT.md`,
+// **Parameter family**): Pan is Time, LFO fields are Modulation, envelope
+// times and velocity sensitivities follow what they shape, on/off switches
+// and structure selectors are Common.
+
+/// The family of a PCM Synth Tone Common field (section COMMON).
+fn pcms_common_family(field: PcmsCommonField) -> ParameterFamily {
+    use ParameterFamily::*;
+    use PcmsCommonField as F;
+    match field {
+        F::TonePriority
+        | F::MonoPoly
+        | F::LegatoSwitch
+        | F::LegatoRetrigger
+        | F::PortamentoSwitch
+        | F::PortamentoMode
+        | F::PortamentoType
+        | F::PortamentoStart
+        | F::PmtControlSwitch => Common,
+        // Modulation routing, like the MFX Control Source/Sens/Assign.
+        F::MatrixControlSource
+        | F::MatrixControlDestination1
+        | F::MatrixControlDestination2
+        | F::MatrixControlDestination3
+        | F::MatrixControlDestination4
+        | F::MatrixControlSens1
+        | F::MatrixControlSens2
+        | F::MatrixControlSens3
+        | F::MatrixControlSens4 => Modulation,
+        // Exceptions.
+        F::CoarseTune
+        | F::FineTune
+        | F::OctaveShift
+        | F::StretchTuneDepth
+        | F::PitchBendRangeUp
+        | F::PitchBendRangeDown
+        | F::PortamentoTime => Pitch,
+        F::CutoffOffset | F::ResonanceOffset => Filter,
+        F::ToneLevel | F::AttackTimeOffset | F::ReleaseTimeOffset | F::VelocitySensOffset => Amp,
+        F::AnalogFeel => Modulation,
+        F::TonePan => Time,
+    }
+}
+
+/// The family of a PCM Synth Tone PMT field (section COMMON).
+fn pcms_pmt_family(field: PcmsPmtField) -> ParameterFamily {
+    use ParameterFamily::*;
+    use PcmsPmtField as F;
+    match field {
+        F::StructureType12
+        | F::StructureType34
+        | F::PmtVelocityControl
+        | F::PartialSwitch
+        | F::KeyRangeLower
+        | F::KeyRangeUpper
+        | F::KeyFadeLower
+        | F::KeyFadeUpper
+        | F::VelocityRangeLower
+        | F::VelocityRangeUpper
+        | F::VelocityFadeLower
+        | F::VelocityFadeUpper => Common,
+        // Exception: the Booster drives the pair into distortion, like an
+        // effect's Drive.
+        F::Booster12 | F::Booster34 => Filter,
+    }
+}
+
+/// The family of a PCM Synth Tone Partial field.
+fn pcms_partial_family(field: PcmsPartialField) -> ParameterFamily {
+    use ParameterFamily::*;
+    use PcmsPartialField as F;
+    match field {
+        // WAVE and PITCH.
+        F::WaveGroupType
+        | F::WaveGroupId
+        | F::WaveNumberL
+        | F::WaveNumberR
+        | F::WaveFxmColor
+        | F::WaveFxmDepth
+        | F::CoarseTune
+        | F::FineTune
+        | F::RandomPitchDepth
+        | F::WavePitchKeyfollow
+        | F::PitchEnvDepth
+        | F::PitchEnvVelocitySens
+        | F::PitchEnvTimeKeyfollow
+        | F::PitchEnvT1VelocitySens
+        | F::PitchEnvT4VelocitySens
+        | F::PitchEnvTime
+        | F::PitchEnvLevel => Pitch,
+        // WAVE exceptions.
+        F::WaveGain => Amp,
+        F::WaveFxmSwitch | F::WaveTempoSync => Common,
+        // FILTER.
+        F::TvfFilterType
+        | F::TvfCutoffKeyfollow
+        | F::TvfCutoffFrequency
+        | F::TvfResonance
+        | F::TvfCutoffVelocityCurve
+        | F::TvfEnvVelocityCurve
+        | F::TvfCutoffVelocitySens
+        | F::TvfResonanceVelocitySens
+        | F::TvfEnvDepth
+        | F::TvfEnvVelocitySens
+        | F::TvfEnvTimeKeyfollow
+        | F::TvfEnvT1VelocitySens
+        | F::TvfEnvT4VelocitySens
+        | F::TvfEnvTime
+        | F::TvfEnvLevel => Filter,
+        // AMP.
+        F::Level
+        | F::TvaLevelVelocityCurve
+        | F::TvaLevelVelocitySens
+        | F::TvaBiasLevel
+        | F::TvaBiasPosition
+        | F::TvaBiasDirection
+        | F::TvaEnvTimeKeyfollow
+        | F::TvaEnvT1VelocitySens
+        | F::TvaEnvT4VelocitySens
+        | F::TvaEnvTime
+        | F::TvaEnvLevel => Amp,
+        // AMP exceptions.
+        F::Pan | F::PanKeyfollow | F::RandomPanDepth | F::AlternatePanDepth => Time,
+        // LFO1, LFO2 and STEP LFO.
+        F::Lfo1Waveform
+        | F::Lfo1Rate
+        | F::Lfo1RateDetune
+        | F::Lfo1Offset
+        | F::Lfo1DelayTime
+        | F::Lfo1DelayTimeKeyfollow
+        | F::Lfo1FadeMode
+        | F::Lfo1FadeTime
+        | F::Lfo1KeyTrigger
+        | F::Lfo1PitchDepth
+        | F::Lfo1TvfDepth
+        | F::Lfo1TvaDepth
+        | F::Lfo1PanDepth
+        | F::Lfo2Waveform
+        | F::Lfo2Rate
+        | F::Lfo2RateDetune
+        | F::Lfo2Offset
+        | F::Lfo2DelayTime
+        | F::Lfo2DelayTimeKeyfollow
+        | F::Lfo2FadeMode
+        | F::Lfo2FadeTime
+        | F::Lfo2KeyTrigger
+        | F::Lfo2PitchDepth
+        | F::Lfo2TvfDepth
+        | F::Lfo2TvaDepth
+        | F::Lfo2PanDepth
+        | F::LfoStepType
+        | F::LfoStep => Modulation,
+        // CTRL, and the switches no editor shows yet.
+        F::EnvMode
+        | F::ReceiveBender
+        | F::ReceiveExpression
+        | F::ReceiveHold1
+        | F::RedamperSwitch
+        | F::Control1Switch
+        | F::Control2Switch
+        | F::Control3Switch
+        | F::Control4Switch => Common,
+        // OUTPUT.
+        F::ChorusSend | F::ReverbSend | F::OutputLevel => Amp,
+        // OUTPUT exceptions: the partial's delay before it sounds.
+        F::DelayMode | F::DelayTime => Time,
+    }
+}
+
+/// The family of a PCM Synth Tone Common 2 field: the category and the
+/// preview phrase, none of which changes the sound.
+fn pcms_common2_family(field: PcmsCommon2Field) -> ParameterFamily {
+    use PcmsCommon2Field as F;
+    match field {
+        F::ToneCategory | F::ToneNumber | F::PhraseOctaveShift | F::TfxSwitch | F::PhraseNumber => {
+            ParameterFamily::Common
+        }
+    }
+}
+
+/// The family of a PCM Drum Kit Common field (section DRUM KEY).
+fn pcmd_common_family(field: PcmdCommonField) -> ParameterFamily {
+    match field {
+        // Exception.
+        PcmdCommonField::KitLevel => ParameterFamily::Amp,
+    }
+}
+
+/// The family of a PCM Drum Kit WMT field (section WAVE).
+fn pcmd_wmt_family(field: PcmdWmtField) -> ParameterFamily {
+    use ParameterFamily::*;
+    use PcmdWmtField as F;
+    match field {
+        F::WaveGroupType
+        | F::WaveGroupId
+        | F::WaveNumberL
+        | F::WaveNumberR
+        | F::WaveFxmColor
+        | F::WaveFxmDepth
+        | F::CoarseTune
+        | F::FineTune => Pitch,
+        // Exceptions.
+        F::WaveGain | F::Level => Amp,
+        F::Pan | F::AlternatePanSwitch => Time,
+        F::Switch
+        | F::WaveFxmSwitch
+        | F::WaveTempoSync
+        | F::RandomPanSwitch
+        | F::VelocityRangeLower
+        | F::VelocityRangeUpper
+        | F::VelocityFadeLower
+        | F::VelocityFadeUpper => Common,
+    }
+}
+
+/// The family of a PCM Drum Kit Partial field outside the WMT layers.
+fn pcmd_partial_family(field: PcmdPartialField) -> ParameterFamily {
+    use ParameterFamily::*;
+    use PcmdPartialField as F;
+    match field {
+        // LEVEL / PAN.
+        F::ChorusSend | F::ReverbSend | F::OutputLevel => Amp,
+        // LEVEL / PAN exception, and the pan depths no editor shows yet.
+        F::Pan | F::RandomPanDepth | F::AlternatePanDepth => Time,
+        // PITCH ENV.
+        F::PitchEnvDepth
+        | F::PitchEnvVelocitySens
+        | F::PitchEnvT1VelocitySens
+        | F::PitchEnvT4VelocitySens
+        | F::PitchEnvTime
+        | F::PitchEnvLevel => Pitch,
+        // FILTER.
+        F::TvfFilterType
+        | F::TvfCutoffVelocityCurve
+        | F::TvfEnvVelocityCurve
+        | F::TvfCutoffFrequency
+        | F::TvfCutoffVelocitySens
+        | F::TvfResonance
+        | F::TvfResonanceVelocitySens
+        | F::TvfEnvDepth
+        | F::TvfEnvVelocitySens
+        | F::TvfEnvT1VelocitySens
+        | F::TvfEnvT4VelocitySens
+        | F::TvfEnvTime
+        | F::TvfEnvLevel => Filter,
+        // AMP.
+        F::TvaLevelVelocityCurve
+        | F::TvaLevelVelocitySens
+        | F::TvaEnvT1VelocitySens
+        | F::TvaEnvT4VelocitySens
+        | F::TvaEnvTime
+        | F::TvaEnvLevel => Amp,
+        // MISC; WMT Velocity Control sits in WAVE.
+        F::AssignType
+        | F::MuteGroup
+        | F::EnvMode
+        | F::OutputAssign
+        | F::OneShotMode
+        | F::ReceiveExpression
+        | F::ReceiveHold1
+        | F::WmtVelocityControl => Common,
+        // MISC exceptions.
+        F::PitchBendRange | F::CoarseTune | F::FineTune | F::RandomPitchDepth => Pitch,
+        F::Level => Amp,
+    }
+}
+
+/// The family of an SN Synth Tone Common field (section COMMON).
+fn sns_common_family(field: SnsCommonField) -> ParameterFamily {
+    use ParameterFamily::*;
+    use SnsCommonField as F;
+    match field {
+        F::ToneCategory
+        | F::PortamentoSwitch
+        | F::PortamentoMode
+        | F::MonoSwitch
+        | F::LegatoSwitch
+        | F::UnisonSwitch
+        | F::UnisonSize
+        | F::RingSwitch
+        | F::Partial1Switch
+        | F::Partial1Select
+        | F::Partial2Switch
+        | F::Partial2Select
+        | F::Partial3Switch
+        | F::Partial3Select
+        | F::TfxSwitch
+        | F::PhraseNumber
+        | F::PhraseOctaveShift => Common,
+        // Exceptions. Wave Shape is Partial 1 modulating Partial 2's pitch
+        // at audio rate: a source, not movement.
+        F::PortamentoTime
+        | F::OctaveShift
+        | F::PitchBendRangeUp
+        | F::PitchBendRangeDown
+        | F::WaveShape => Pitch,
+        F::ToneLevel => Amp,
+        F::AnalogFeel => Modulation,
+    }
+}
+
+/// The family of an SN Synth Tone Partial field.
+fn sns_partial_family(field: SnsPartialField) -> ParameterFamily {
+    use ParameterFamily::*;
+    use SnsPartialField as F;
+    match field {
+        // OSC.
+        F::OscWave
+        | F::OscWaveVariation
+        | F::WaveNumber
+        | F::OscPitch
+        | F::OscDetune
+        | F::OscPulseWidth
+        | F::PwShift
+        | F::SuperSawDetune
+        | F::OscPitchEnvAttack
+        | F::OscPitchEnvDecay
+        | F::OscPitchEnvDepth => Pitch,
+        // OSC exceptions: PW Mod Depth is the LFO's depth on pulse width.
+        F::HpfCutoff => Filter,
+        F::OscPwModDepth => Modulation,
+        // FILTER.
+        F::FilterMode
+        | F::FilterSlope
+        | F::FilterCutoff
+        | F::FilterResonance
+        | F::FilterKeyfollow
+        | F::FilterEnvVelSens
+        | F::AftertouchCutoff
+        | F::FilterEnvAttack
+        | F::FilterEnvDecay
+        | F::FilterEnvSustain
+        | F::FilterEnvRelease
+        | F::FilterEnvDepth => Filter,
+        // AMP.
+        F::WaveGain
+        | F::AmpLevel
+        | F::AmpVelSens
+        | F::AftertouchLevel
+        | F::AmpLevelKeyfollow
+        | F::AmpEnvAttack
+        | F::AmpEnvDecay
+        | F::AmpEnvSustain
+        | F::AmpEnvRelease => Amp,
+        // AMP exception.
+        F::AmpPan => Time,
+        // LFO and MOD LFO.
+        F::LfoShape
+        | F::LfoRate
+        | F::LfoTempoSync
+        | F::LfoTempoSyncNote
+        | F::LfoFadeTime
+        | F::LfoKeyTrigger
+        | F::LfoPitchDepth
+        | F::LfoFilterDepth
+        | F::LfoAmpDepth
+        | F::LfoPanDepth
+        | F::ModLfoShape
+        | F::ModLfoRate
+        | F::ModLfoTempoSync
+        | F::ModLfoTempoSyncNote
+        | F::ModLfoRateControl
+        | F::ModLfoPitchDepth
+        | F::ModLfoFilterDepth
+        | F::ModLfoAmpDepth
+        | F::ModLfoPanDepth => Modulation,
+    }
+}
+
+/// The family of an SN Acoustic Tone Common field.
+fn sna_common_family(field: SnaCommonField) -> ParameterFamily {
+    use ParameterFamily::*;
+    use SnaCommonField as F;
+    match field {
+        // INSTRUMENT.
+        F::InstNumber | F::InstVariation | F::ModifyParameter => Pitch,
+        // COMMON, and the category and phrase no editor shows.
+        F::MonoPoly | F::Category | F::PhraseNumber | F::PhraseOctaveShift | F::TfxSwitch => Common,
+        // COMMON exceptions.
+        F::OctaveShift | F::PortamentoTimeOffset => Pitch,
+        // VIB.
+        F::VibratoRate | F::VibratoDepth | F::VibratoDelay => Modulation,
+        // FILTER.
+        F::CutoffOffset | F::ResonanceOffset => Filter,
+        // AMP.
+        F::AttackTimeOffset | F::ReleaseTimeOffset | F::ToneLevel => Amp,
+    }
+}
+
+/// The family of an SN Drum Kit Common field (section DRUM INST).
+fn snd_common_family(field: SndCommonField) -> ParameterFamily {
+    use ParameterFamily::*;
+    use SndCommonField as F;
+    match field {
+        F::PhraseNumber | F::TfxSwitch => Common,
+        // Exceptions.
+        F::KitLevel | F::AmbienceLevel => Amp,
+    }
+}
+
+/// The family of an SN Drum Kit Note field.
+fn snd_note_family(field: SndNoteField) -> ParameterFamily {
+    use ParameterFamily::*;
+    use SndNoteField as F;
+    match field {
+        // TONE.
+        F::InstNumber | F::Tune | F::Variation => Pitch,
+        // TONE exceptions.
+        F::Attack | F::Decay | F::DynamicRange => Amp,
+        F::Brilliance => Filter,
+        F::StereoWidth => Time,
+        F::OutputAssign => Common,
+        // LEVEL / PAN.
+        F::Level | F::ChorusSend | F::ReverbSend => Amp,
+        // LEVEL / PAN exception.
+        F::Pan => Time,
+    }
 }
 
 /// A field whose low values are a free rate or time and whose values from
@@ -1021,6 +1457,68 @@ mod tests {
             (F::ModLfoTempoSync, F::ModLfoTempoSyncNote)
         );
         assert_eq!(sns_partial_sync(F::LfoPitchDepth), None);
+    }
+
+    #[test]
+    fn every_engine_classifies_one_field_per_family() {
+        use ParameterFamily::*;
+        let pcms = [
+            pcms_partial_spec(PcmsPartialField::CoarseTune).family,
+            pcms_partial_spec(PcmsPartialField::TvfCutoffFrequency).family,
+            pcms_partial_spec(PcmsPartialField::Level).family,
+            pcms_partial_spec(PcmsPartialField::Lfo1Rate).family,
+            pcms_partial_spec(PcmsPartialField::DelayTime).family,
+            pcms_pmt_spec(PcmsPmtField::StructureType12).family,
+        ];
+        assert_eq!(pcms, ParameterFamily::ALL);
+        let pcmd = [
+            pcmd_wmt_spec(PcmdWmtField::WaveNumberL).family,
+            pcmd_partial_spec(PcmdPartialField::TvfResonance).family,
+            pcmd_common_spec(PcmdCommonField::KitLevel).family,
+            // PCM Drum Kits have no LFO.
+            pcmd_partial_spec(PcmdPartialField::AlternatePanDepth).family,
+            pcmd_partial_spec(PcmdPartialField::MuteGroup).family,
+        ];
+        assert_eq!(pcmd, [Pitch, Filter, Amp, Time, Common]);
+        let sns = [
+            sns_partial_spec(SnsPartialField::OscPitch).family,
+            sns_partial_spec(SnsPartialField::FilterCutoff).family,
+            sns_partial_spec(SnsPartialField::AmpLevel).family,
+            sns_partial_spec(SnsPartialField::ModLfoRate).family,
+            sns_partial_spec(SnsPartialField::AmpPan).family,
+            sns_common_spec(SnsCommonField::MonoSwitch).family,
+        ];
+        assert_eq!(sns, ParameterFamily::ALL);
+        let sna = [
+            sna_common_spec(SnaCommonField::InstNumber).family,
+            sna_common_spec(SnaCommonField::CutoffOffset).family,
+            sna_common_spec(SnaCommonField::ToneLevel).family,
+            sna_common_spec(SnaCommonField::VibratoDepth).family,
+            // SN Acoustic Tones have no pan: no Time / Space field.
+            sna_common_spec(SnaCommonField::MonoPoly).family,
+        ];
+        assert_eq!(sna, [Pitch, Filter, Amp, Modulation, Common]);
+        let snd = [
+            snd_note_spec(SndNoteField::Tune).family,
+            snd_note_spec(SndNoteField::Brilliance).family,
+            snd_note_spec(SndNoteField::Level).family,
+            // SN Drum Kits have no LFO.
+            snd_note_spec(SndNoteField::StereoWidth).family,
+            snd_common_spec(SndCommonField::TfxSwitch).family,
+        ];
+        assert_eq!(snd, [Pitch, Filter, Amp, Time, Common]);
+    }
+
+    #[test]
+    fn pan_is_time_and_lfo_depth_is_modulation() {
+        assert_eq!(
+            pcms_partial_spec(PcmsPartialField::Pan).family,
+            ParameterFamily::Time
+        );
+        assert_eq!(
+            pcms_partial_spec(PcmsPartialField::Lfo1PitchDepth).family,
+            ParameterFamily::Modulation
+        );
     }
 
     /// Whether a PCM Drum Kit Partial row is a WMT layer's (`WMT1 Wave
