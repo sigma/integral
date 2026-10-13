@@ -141,7 +141,7 @@ const NOTE_MAX: i32 = NOTE_NAMES.len() as i32 - 1;
 const FREQ_MAX: i32 = FREQ_HZ.len() as i32 - 1;
 
 /// Chorus pre delay index → tenths of a millisecond.
-fn pre_delay_tenths(v: i32) -> i32 {
+pub(crate) fn pre_delay_tenths(v: i32) -> i32 {
     match v {
         ..50 => v,
         50..60 => 50 + (v - 50) * 5,

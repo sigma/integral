@@ -260,12 +260,35 @@ flowchart LR
 | Source | Integra Studio Set | Class |
 |--------|--------------------|-------|
 | JV Patch Chorus (Rate, Depth, Pre-Delay, Feedback, Level 0-127; Output MIX/REV/MIX+REV) | Chorus type 1 Chorus + Chorus Output Select MAIN/REV/MAIN+REV, as Roland's JV → XV CHORUS route ([`map-check-roland-pairs.md`](map-check-roland-pairs.md)); GM2 Chorus was the first guess | rescaled (Rate and Pre-Delay raw onto the XV tables, filter OFF) |
-| XV Chorus type 1 CHORUS / 2 DELAY | Chorus type 1 Chorus / 2 Delay: same parameter set (X1 p. 102 vs [`fx-param-layout.md`](fx-param-layout.md)) | rescaled (XV-5080 Delay 200-1000 ms, XV-5050 0-1000 ms, both within Integra 0-1000) |
+| XV Chorus type 1 CHORUS / 2 DELAY | Chorus type 1 Chorus / 2 Delay: same parameter set (X1 p. 102 vs [`fx-param-layout.md`](fx-param-layout.md)) | rescaled (XV-5080 Delay 200-1000 ms, XV-5050 0-1000 ms, both within Integra 0-1000; layouts below) |
 | XV-5050 Chorus type 3 GM2 CHORUS | GM2 Chorus | same |
 | JV Reverb ROOM1-HALL2 (Time 0-127, HF Damp list) and XV REVERB type 1 | Room 1/2, Hall 1/2 (Time 0.1-10 s, HF Damp 0-100 linear) or GM2 Reverb (Character, Time 0-127) | substitute: neither curve is published |
 | JV/XV Reverb DELAY, PAN-DELAY | none in Integra Reverb (Chorus type Delay is the only delay) | none |
 | XV SRV ROOM/HALL/PLATE (Size, High Cut, LF/HF Damp Freq+Gain) | Room/Hall/Plate (Density, Diffusion, LF/HF Damp 0-100, Spread, Tone) | substitute |
 | XV-5050 Reverb type 5 GM2 REVERB | GM2 Reverb | same |
+
+### XV Chorus/Reverb Parameter layouts
+
+X1 (PDF pp. 102-103) gives each type's Parameters and display ranges, but not their stored
+order or encoding. Both come from the corpus: every distinct XV Chorus and Reverb block
+under `~/Downloads/integral-corpus/` (2026-10-13), Parameters decoded like the MFX's.
+
+| XV type | Blocks | Parameters as stored | Onto the Integra slots ([`fx-param-layout.md`](fx-param-layout.md)) |
+|---------|--------|----------------------|------------------------------------------|
+| Chorus 2 DELAY | 90 | 1-3 Delay L/R/C: 0-1000 = ms, 1001-1022 = the 22 notes of list \*1 (top values 1010 = 1/8, 1013 = 1/4). 4 Feedback 0-98 (`FB_PCT`, top 59 = +20 %). 5 HF Damp 0-17 (`FREQ_BYPASS`, top 17 = BYPASS). 6-8 Level L/R/C | each delay sets its msec/NOTE switch and its msec or note slot; the other keeps its default. 4-8 copy to slots 10-14 |
+| Chorus 3 GM2 CHORUS | 1 | 0, 64, 8, 80, 3, 19, 0: the Integra GM2 Chorus inits in its order (Pre-LPF, Level, Feedback, Delay, Rate, Depth, Send Level to Reverb), not X1's (Level first) | copy 1-7 |
+| Reverb 2-4 SRV ROOM/HALL/PLATE | 70 / 224 / 49 | 1 Pre Delay 0-125 (`PREDELAY_CHO`). 2 Time 0-127. 3 Size 0-7 (1-8). 4 High Cut (frequency list, corpus 0-20). 5 Density, 6 Diffusion 0-127. 7 LF Damp, 9 HF Damp (frequency lists, corpus 0-19 and 0-5). 8 LF and 10 HF Damp Gain 0-36 (36 = 0 dB) | Pre Delay in ms (0-100), Time as the JV reverb's (linear onto 0.1-10 s), Density and Diffusion copy. Size and High Cut have no counterpart. The damps keep their defaults: the I1 Room/Hall/Plate LF/HF Damp is a bare 0-100 ("adjusts the high-frequency portion"), so which way it damps is unknown |
+| Reverb 5 GM2 REVERB | 1 | 4, 0, 64, 64, 0: GS order (Character, Pre-LPF, Level, Time, Delay Feedback), not X1's (Level first) | Character to slot 1 (out of the Integra 0-5, it keeps its default), Time to slot 4. Hidden slots 2-3 stay |
+
+The GM2 orders rest on one block each, at the GM2 inits, so they are taken from the GS/GM2
+order the blocks agree with. The Chorus block fits the Integra layout in Parameters 1-7; its
+Parameter 8 holds 127, unexplained and dropped. The Reverb block can't tell Level from Time
+(both 64), so Time at Parameter 4 is the GS order's, not the corpus's; recheck on a Patch
+that moves them.
+
+**JV/XV REVERB HF Damp** (200-8000 Hz list or BYPASS) keeps the Room/Hall default 50, for the
+same reason as the SRV damps: no rule onto the Integra 0-100 holds until the device shows
+which way it damps (Unresolved 3).
 
 ## Corpus weight
 
@@ -323,8 +346,8 @@ no Integra reverb.
    126-entry Hz table already fills. The note order for the 200-1000 ms delays (raw 116-125)
    is assumed equal to XV list \*1. Settle both against corpus Patches that use notes.
 3. **Unpublished curves.** JV Patch Chorus/Reverb 0-127 knobs, Integra Phaser Manual
-   0-127, Integra Reverb HF Damp 0-100, and Level Balance crossfade law. Settle these by
-   listening on the device.
+   0-127, XV Reverb Time 0-127, Integra Reverb LF/HF Damp 0-100 (even its direction), and
+   Level Balance crossfade law. Settle these by listening on the device.
 4. **Compressor.** The Integra Compressor has a hidden 7th leaf (`MFX_COMP_RATIO`, 0-2,
    `desc: ''`, I2), like the hidden reverb level in [`fx-param-layout.md`](fx-param-layout.md).
    Its function is unknown. Preserve the init value.

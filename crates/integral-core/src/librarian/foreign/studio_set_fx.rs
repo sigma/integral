@@ -7,7 +7,7 @@
 
 use super::fx_map::rate_20ths;
 use crate::address::Address;
-use crate::fx_params::{FxParamDef, chorus_params, reverb_params};
+use crate::fx_params::{FxParamDef, NOTE_NAMES, chorus_params, pre_delay_tenths, reverb_params};
 use crate::params::{self, CHORUS_PARAM_COUNT, REVERB_PARAM_COUNT, chorus, reverb};
 use crate::state::parse::{decode_nib_params, encode_nib_param};
 use crate::sysex;
@@ -69,6 +69,46 @@ impl StudioSetEffect {
         }
     }
 
+    /// Chorus type `kind` at `level`, every parameter at its default, with
+    /// Output Select `select` when the INTEGRA-7 has it.
+    fn chorus(kind: u8, level: u8, select: u8) -> Self {
+        Self {
+            output_select: Some(select).filter(|&o| o <= 2),
+            ..Self::new(FxBlock::Chorus, kind, level)
+        }
+    }
+
+    /// Set the tempo-syncable time whose msec slot is `index` from an XV
+    /// time: 0–1000 ms, then the notes of [`NOTE_NAMES`] (X1 note \*1).
+    fn set_time(&mut self, index: u8, xv: i32) {
+        let Some(def) = self.block.defs(self.kind).iter().find(|d| d.index == index) else {
+            return;
+        };
+        let (Some(sync), Some(note)) = (def.sync, def.note_param()) else {
+            return;
+        };
+        let notes = 1001..1001 + NOTE_NAMES.len() as i32;
+        let (switch, def, value) = if notes.contains(&xv) {
+            (1, &note, xv - notes.start)
+        } else {
+            (0, def, xv)
+        };
+        if (def.min..=def.max).contains(&value) {
+            self.params[usize::from(sync.switch_index)] = Some(switch);
+            self.params[usize::from(def.index)] = Some(value);
+        }
+    }
+
+    /// Set Room/Hall/Plate Time (slot 3) from a 0–127 Time.
+    fn set_reverb_time(&mut self, time: i32) {
+        // shortcut: the JV and XV Time curves are unpublished, so Time scales
+        // linearly onto 0.1–10 s; settle by ear (foreign-fx-map.md,
+        // Unresolved 3).
+        if (0..=127).contains(&time) {
+            self.set(2, 1 + time * 99 / 127);
+        }
+    }
+
     /// The DT1s that write these settings: Type and Level, Chorus Output
     /// Select, then each run of parameter slots. Output Assign is left as
     /// it is.
@@ -125,8 +165,7 @@ impl FxBlock {
 /// XV CHORUS type 1 Parameters 1–7 (Rate, Depth, Pre-Delay, Feedback,
 /// Filter Type, Cutoff Freq, Phase) onto INTEGRA-7 Chorus type 1.
 fn chorus_type_1(level: u8, output_select: u8, xv: &[i32]) -> StudioSetEffect {
-    let mut fx = StudioSetEffect::new(FxBlock::Chorus, 1, level);
-    fx.output_select = Some(output_select).filter(|&o| o <= 2);
+    let mut fx = StudioSetEffect::chorus(1, level, output_select);
     // Integra slots of Parameters 1–7; Rate converts to 1/20 Hz.
     for (&value, slot) in xv.iter().zip([4, 6, 2, 8, 0, 1, 7]) {
         let value = if slot == 4 {
@@ -153,12 +192,12 @@ fn reverb_type_1(level: u8, xv: &[i32]) -> Option<StudioSetEffect> {
         _ => return None,
     };
     let mut fx = StudioSetEffect::new(FxBlock::Reverb, kind, level);
-    // shortcut: the JV Time and HF Damp curves are unpublished, so Time
-    // scales linearly onto 0.1–10 s and HF Damp keeps its default; settle by
-    // ear (foreign-fx-map.md, Unresolved 3).
-    if let Some(&time) = xv.get(1).filter(|t| (0..=127).contains(*t)) {
-        fx.set(2, 1 + time * 99 / 127);
+    if let Some(&time) = xv.get(1) {
+        fx.set_reverb_time(time);
     }
+    // shortcut: HF Damp keeps its default, since which way the INTEGRA-7's
+    // 0–100 damps is unpublished; convert it once the device shows
+    // (foreign-fx-map.md, Unresolved 3).
     Some(fx)
 }
 
@@ -178,45 +217,82 @@ pub(super) fn jv_reverb(kind: u8, level: u8, time: u8) -> Option<StudioSetEffect
 
 /// An XV Patch or Rhythm Chorus block (Type, Level, Output Assign, Output
 /// Select, Parameters 1–12): the INTEGRA-7 Chorus layout, 8 Parameters
-/// short.
+/// short. Parameter orders are the corpus's (foreign-fx-map.md, Chorus
+/// and Reverb).
 pub(super) fn xv_chorus(block: &[u8]) -> Option<StudioSetEffect> {
     let at = |offset: u8| usize::from(offset);
     let (level, select) = (block[at(chorus::LEVEL)], block[at(chorus::OUTPUT_SELECT)]);
     let xv = decode_nib_params(&block[at(chorus::PARAM_BASE)..], 12);
-    // shortcut: the XV DELAY and GM2 CHORUS layouts are unverified, so they
-    // keep the INTEGRA-7 type's defaults; copy them once checked.
-    match block[at(chorus::TYPE)] {
-        0 => Some(StudioSetEffect::new(FxBlock::Chorus, 0, level)),
-        1 => Some(chorus_type_1(level, select, &xv)),
-        kind @ (2 | 3) => {
-            let mut fx = StudioSetEffect::new(FxBlock::Chorus, kind, level);
-            fx.output_select = Some(select).filter(|&o| o <= 2);
-            Some(fx)
+    let fx = match block[at(chorus::TYPE)] {
+        0 => StudioSetEffect::new(FxBlock::Chorus, 0, level),
+        1 => chorus_type_1(level, select, &xv),
+        // DELAY: Delay L/R/C, Feedback, HF Damp, Level L/R/C.
+        2 => {
+            let mut fx = StudioSetEffect::chorus(2, level, select);
+            for (&value, slot) in xv.iter().zip([1, 4, 7]) {
+                fx.set_time(slot, value);
+            }
+            for (&value, slot) in xv[3..8].iter().zip(9..) {
+                fx.set(slot, value);
+            }
+            fx
         }
-        _ => None,
-    }
+        // GM2 CHORUS: Pre-LPF, Level, Feedback, Delay, Rate, Depth, Send
+        // Level to Reverb, as on the INTEGRA-7.
+        3 => {
+            let mut fx = StudioSetEffect::chorus(3, level, select);
+            for (&value, slot) in xv[..7].iter().zip(0..) {
+                fx.set(slot, value);
+            }
+            fx
+        }
+        _ => return None,
+    };
+    Some(fx)
 }
 
 /// An XV Patch or Rhythm Reverb block (Type, Level, Output Assign,
 /// Parameters 1–20): the INTEGRA-7 Reverb layout, 4 Parameters short.
-/// SRV ROOM/HALL/PLATE and GM2 REVERB keep the INTEGRA-7 type's defaults:
-/// their parameters differ or are unverified.
+/// Parameter orders are the corpus's (foreign-fx-map.md, Chorus and
+/// Reverb).
 pub(super) fn xv_reverb(block: &[u8]) -> Option<StudioSetEffect> {
     let at = |offset: u8| usize::from(offset);
     let level = block[at(reverb::LEVEL)];
-    let kind = match block[at(reverb::TYPE)] {
-        0 => 0,
-        1 => {
-            let xv = decode_nib_params(&block[at(reverb::PARAM_BASE)..], 2);
-            return reverb_type_1(level, &xv);
+    let xv = decode_nib_params(&block[at(reverb::PARAM_BASE)..], 10);
+    let fx = match block[at(reverb::TYPE)] {
+        0 => StudioSetEffect::new(FxBlock::Reverb, 0, level),
+        1 => return reverb_type_1(level, &xv),
+        // SRV ROOM/HALL/PLATE: Pre Delay, Time, Size, High Cut, Density,
+        // Diffusion, LF Damp and Gain, HF Damp and Gain. Size and High Cut
+        // have no INTEGRA-7 counterpart.
+        // shortcut: the damps keep their defaults, since which way the
+        // INTEGRA-7's 0–100 damps is unpublished; convert them once the
+        // device shows.
+        srv @ 2..=4 => {
+            let kind = [1, 3, 5][usize::from(srv - 2)];
+            let mut fx = StudioSetEffect::new(FxBlock::Reverb, kind, level);
+            if (0..=125).contains(&xv[0]) {
+                fx.set(1, (pre_delay_tenths(xv[0]) + 5) / 10);
+            }
+            fx.set_reverb_time(xv[1]);
+            fx.set(3, xv[4]);
+            fx.set(4, xv[5]);
+            fx
         }
-        2 => 1,
-        3 => 3,
-        4 => 5,
-        5 => 6,
+        // GM2 REVERB: Character, Pre-LPF, Level, Time, Delay Feedback.
+        // Only Character and Time have an INTEGRA-7 slot.
+        // shortcut: the order is GS's, which one corpus block at the inits
+        // can't tell from Time before Level; recheck on a Patch that moves
+        // them.
+        5 => {
+            let mut fx = StudioSetEffect::new(FxBlock::Reverb, 6, level);
+            fx.set(0, xv[0]);
+            fx.set(3, xv[3]);
+            fx
+        }
         _ => return None,
     };
-    Some(StudioSetEffect::new(FxBlock::Reverb, kind, level))
+    Some(fx)
 }
 
 /// The DT1s that apply each of `effects` to the Temporary Studio Set.
@@ -228,20 +304,100 @@ pub fn effects_dt1s(device_id: u8, effects: &[StudioSetEffect]) -> Vec<Vec<u8>> 
 mod tests {
     use super::*;
 
+    /// An XV Chorus or Reverb block of `len` bytes: `head` (Type, Level, …),
+    /// then Parameters from offset `base`.
+    fn xv_block(len: usize, head: &[u8], base: u8, params: &[i32]) -> Vec<u8> {
+        let mut block = vec![0; len];
+        block[..head.len()].copy_from_slice(head);
+        for (k, &v) in params.iter().enumerate() {
+            let at = usize::from(base) + 4 * k;
+            block[at..at + 4].copy_from_slice(&encode_nib_param(v));
+        }
+        block
+    }
+
+    fn nibs(values: &[i32]) -> Vec<u8> {
+        values.iter().flat_map(|&v| encode_nib_param(v)).collect()
+    }
+
+    fn chorus_at(offset: u8, data: &[u8]) -> Vec<u8> {
+        sysex::build_dt1(0x10, &params::chorus_address(offset), data)
+    }
+
+    fn reverb_at(offset: u8, data: &[u8]) -> Vec<u8> {
+        sysex::build_dt1(0x10, &params::reverb_address(offset), data)
+    }
+
+    #[test]
+    fn xv_delay_times_are_msec_or_notes() {
+        // Delay L 1/8, R 250 ms, C 1/4, Feedback +40 %, HF Damp BYPASS,
+        // Levels L/R/C.
+        let xv = [1010, 250, 1013, 69, 17, 100, 110, 120];
+        let block = xv_block(52, &[2, 90, 0, 1], chorus::PARAM_BASE, &xv);
+        assert_eq!(
+            xv_chorus(&block).unwrap().dt1s(0x10),
+            [
+                chorus_at(chorus::TYPE, &[2, 90]),
+                chorus_at(chorus::OUTPUT_SELECT, &[1]),
+                // Each delay is sync switch, msec, note; the unused one keeps
+                // its default.
+                chorus_at(
+                    chorus::PARAM_BASE,
+                    &nibs(&[1, 200, 9, 0, 250, 10, 1, 600, 12, 69, 17, 100, 110, 120])
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn xv_gm2_chorus_copies() {
+        let xv = [2, 100, 20, 90, 5, 30, 40];
+        let block = xv_block(52, &[3, 80, 0, 2], chorus::PARAM_BASE, &xv);
+        assert_eq!(
+            xv_chorus(&block).unwrap().dt1s(0x10),
+            [
+                chorus_at(chorus::TYPE, &[3, 80]),
+                chorus_at(chorus::OUTPUT_SELECT, &[2]),
+                chorus_at(chorus::PARAM_BASE, &nibs(&xv)),
+            ]
+        );
+    }
+
+    #[test]
+    fn xv_srv_reverbs_copy_what_has_a_counterpart() {
+        // Pre Delay 20 ms, Time 127, Size 4, High Cut, Density 90,
+        // Diffusion 80, LF and HF Damp and their gains.
+        let xv = [70, 127, 3, 19, 90, 80, 10, 20, 2, 10];
+        for (srv, kind) in [(2, 1), (3, 3), (4, 5)] {
+            let block = xv_block(83, &[srv, 100, 0], reverb::PARAM_BASE, &xv);
+            assert_eq!(
+                xv_reverb(&block).unwrap().dt1s(0x10),
+                [
+                    reverb_at(reverb::TYPE, &[kind, 100]),
+                    // From slot 2: the hidden slot 1 stays. Damps keep
+                    // their defaults.
+                    reverb_at(
+                        reverb::PARAM_BASE + 4,
+                        &nibs(&[20, 100, 90, 80, 50, 50, 127, 64])
+                    ),
+                ],
+                "SRV type {srv}"
+            );
+        }
+    }
+
     #[test]
     fn hidden_slots_are_left_as_they_are() {
-        // XV GM2 REVERB → GM2 Reverb: Character at slot 1 and Time at slot
-        // 4, around the two hidden slots.
-        let mut block = vec![0; 83];
-        block[..2].copy_from_slice(&[5, 64]);
-        let dt1s = xv_reverb(&block).unwrap().dt1s(0x10);
-        let at = |a: u8, data: &[u8]| sysex::build_dt1(0x10, &params::reverb_address(a), data);
+        // XV GM2 REVERB (Character, Pre-LPF, Level, Time, Delay Feedback) →
+        // GM2 Reverb: Character at slot 1 and Time at slot 4, around the
+        // two hidden slots.
+        let block = xv_block(83, &[5, 64, 0], reverb::PARAM_BASE, &[2, 3, 90, 100, 0]);
         assert_eq!(
-            dt1s,
+            xv_reverb(&block).unwrap().dt1s(0x10),
             [
-                at(0x00, &[6, 64]),
-                at(0x03, &encode_nib_param(4)),
-                at(0x0F, &encode_nib_param(64)),
+                reverb_at(reverb::TYPE, &[6, 64]),
+                reverb_at(0x03, &encode_nib_param(2)),
+                reverb_at(0x0F, &encode_nib_param(100)),
             ]
         );
     }

@@ -1670,6 +1670,7 @@ mod xv_rhythms {
         PCMD_WMT_COUNT, PcmDrumPartial, PcmdPartialField as F, PcmdWmtField as W,
         encode_pcmd_partial, pcmd_wmt_byte,
     };
+    use crate::state::parse::encode_nib_param;
 
     /// User Rhythm 2.
     const USER_2: [u8; 2] = [0x40, 0x10];
@@ -1899,6 +1900,41 @@ mod xv_rhythms {
                 "Output Assign A lives in the Studio Set",
                 "Reverb SRV HALL, level 100 lives in the Studio Set",
             ]
+        );
+    }
+
+    #[test]
+    fn an_audition_applies_the_chorus_and_reverb() {
+        let bytes = kit(USER_2, [36], |commons, _| {
+            // GM2 CHORUS, level 80, REV: Parameters 1–7.
+            commons[2][..4].copy_from_slice(&[3, 80, 0, 1]);
+            for (k, v) in [2, 100, 20, 90, 5, 30, 40].into_iter().enumerate() {
+                commons[2][4 + 4 * k..8 + 4 * k].copy_from_slice(&encode_nib_param(v));
+            }
+            commons[3][..2].copy_from_slice(&[2, 70]); // SRV ROOM, level 70
+        });
+        let applied: Vec<_> = audition(&bytes, true)
+            .into_iter()
+            .filter(|m| sets_chorus_or_reverb(m))
+            .collect();
+        let at = |address, data: &[u8]| build_dt1(0x10, &address, data);
+        let nibs = |values: &[i32]| -> Vec<u8> {
+            values.iter().flat_map(|&v| encode_nib_param(v)).collect()
+        };
+        assert_eq!(
+            applied[..3],
+            [
+                at(params::chorus_address(chorus::TYPE), &[3, 80]),
+                at(params::chorus_address(chorus::OUTPUT_SELECT), &[1]),
+                at(
+                    params::chorus_address(chorus::PARAM_BASE),
+                    &nibs(&[2, 100, 20, 90, 5, 30, 40])
+                ),
+            ]
+        );
+        assert_eq!(
+            applied[3],
+            at(params::reverb_address(reverb::TYPE), &[1, 70])
         );
     }
 
