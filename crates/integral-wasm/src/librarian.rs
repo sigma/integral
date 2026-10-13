@@ -190,18 +190,6 @@ impl WasmPack {
         Ok(Self { read, origin })
     }
 
-    /// `count` entries of type `kind` holding its INIT data, as an
-    /// unwritten User slot does.
-    pub fn init(kind: &str, count: usize) -> Result<WasmPack, JsError> {
-        let kind = ChunkType::from_cli_name(kind)
-            .ok_or_else(|| JsError::new(&format!("Unknown Librarian type {kind}")))?;
-        let pack = Pack::init(kind, count).map_err(js_err)?;
-        Ok(Self {
-            read: PackRead::native(PackFormat::Svd, pack, vec![]),
-            origin: Origin::Sound,
-        })
-    }
-
     /// The sound-export SVD file.
     #[wasm_bindgen(js_name = toSvd)]
     pub fn to_svd(&self) -> Result<Vec<u8>, JsError> {
