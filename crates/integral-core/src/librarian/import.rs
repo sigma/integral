@@ -29,6 +29,12 @@
 //! 4. **Restores** the snapshot by DT1: Studio Set blocks first (their
 //!    Bank Selects reload the Parts' tones), then the tones over them.
 //!
+//! [`PackImport::reinit`] stores INIT into User slots the same way, but
+//! sends the device's Init instead of DT1ing data
+//! (`docs/midi/99-undocumented.md` §7): for a tone it selects the slot on
+//! the borrowed Part and sends Tone Init, for a Studio Set it sends Studio
+//! Set Init. It awaits "Init finished" before the write request.
+//!
 //! A plan whose only entry goes to Temporary ([`plan_import`] sends
 //! nothing else there) loads it there (a tone into
 //! the borrowed Part, selecting User slot 1 of its type first) and stops:
@@ -52,6 +58,7 @@ use super::plan::{ImportPlan, Origin, Placement};
 use super::reader::{BlockData, BlockReader};
 use crate::address::{self, Address, DataSize};
 use crate::device_spec::{INTEGRA7, USER_MEMORY, UserMemorySpec};
+use crate::initialize::{InitTarget, build_init_request, is_init_finished};
 use crate::params::{self, part};
 use crate::svd::ChunkType;
 use crate::sysex;
@@ -77,9 +84,13 @@ pub enum ImportError {
     /// A snapshot block didn't arrive whole; nothing was sent.
     #[error("snapshot: no complete reply for the block at {0}")]
     Snapshot(Address),
-    /// No "write finished" for this entry within [`WRITE_TIMEOUT_MS`].
+    /// No "Init finished" or "write finished" for this entry within
+    /// [`WRITE_TIMEOUT_MS`].
     #[error("entry {0}: the device didn't confirm the write")]
     WriteTimeout(usize),
+    /// There is no User slot of this number.
+    #[error("no User slot {}", .0 + 1)]
+    InvalidSlot(u16),
     /// The host cancelled the import.
     #[error("import cancelled")]
     Cancelled,
@@ -127,7 +138,8 @@ pub enum ImportAction {
     /// the reply timeout elapses.
     Wait,
     /// Feed DT1s to [`PackImport::on_write_reply`] until it returns `true`,
-    /// or call [`PackImport::on_timeout`] after `timeout_ms`.
+    /// or call [`PackImport::on_timeout`] after `timeout_ms`. Awaits an Init
+    /// as well as a write.
     AwaitWrite {
         /// How long to wait for "write finished", in ms.
         timeout_ms: f64,
@@ -140,7 +152,19 @@ pub enum ImportAction {
 struct Job {
     entry: usize,
     sends: Vec<Vec<u8>>,
+    /// Whether `sends` ends with an Init to await.
+    init: bool,
     write: Option<(BankSelect, WriteSource)>,
+}
+
+/// A write request: the slot and what to store in it.
+type Write = (BankSelect, WriteSource);
+
+/// The device reply the import waits for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Awaiting {
+    Init,
+    Write,
 }
 
 /// Stores a [`Pack`] into User memory. Pure: the host does the I/O.
@@ -153,9 +177,10 @@ pub struct PackImport {
     jobs: VecDeque<Job>,
     /// Messages to send before anything else.
     outbox: VecDeque<Vec<u8>>,
-    /// The job being sent, and its write once requested.
-    current: Option<(usize, Option<(BankSelect, WriteSource)>)>,
-    awaiting: bool,
+    /// The job being sent, whether its Init is still to await, and its
+    /// write.
+    current: Option<(usize, bool, Option<Write>)>,
+    awaiting: Option<Awaiting>,
     /// The snapshot read in flight; `tones` once Part tones are read.
     reader: Option<(BlockReader, bool)>,
     /// Blocks read, in restore order; `None` when nothing is borrowed.
@@ -213,19 +238,16 @@ impl PackImport {
                 Job {
                     entry: i,
                     sends: dt1s(memory, address::STUDIO_SET, &set),
+                    init: false,
                     write: write.then_some((target, WriteSource::StudioSet)),
                 }
             } else {
-                let select = sysex::build_dt1(
-                    device_id,
-                    &params::part_address(part, part::TONE_BANK_MSB),
-                    &[target.msb, target.lsb, target.pc],
-                );
-                let mut sends = vec![select];
+                let mut sends = vec![select(device_id, part, target)];
                 sends.extend(dt1s(memory, memory.temporary_base(part), entry));
                 Job {
                     entry: i,
                     sends,
+                    init: false,
                     write: write.then_some((target, WriteSource::Part(part))),
                 }
             };
@@ -242,11 +264,75 @@ impl PackImport {
             }
         }
 
-        let set_memory = user_memory(ChunkType::StudioSet).expect("Studio Sets have a layout");
-        let set_blocks: Vec<(Address, DataSize)> = set_memory.blocks(address::STUDIO_SET).collect();
         let stores_sets = jobs
             .iter()
             .any(|j| j.write.is_some() && pack.entries[j.entry].kind() == ChunkType::StudioSet);
+        let statuses = placements
+            .iter()
+            .map(|&p| match p {
+                Placement::Excluded => EntryStatus::Excluded,
+                _ => EntryStatus::Pending,
+            })
+            .collect();
+        Ok(Self::start(device_id, statuses, jobs, stores_sets, part))
+    }
+
+    /// Prepare storing INIT into the User `slots` (0-indexed) of type
+    /// `kind`, borrowing Part `part` (0-indexed) to store tones. Statuses
+    /// are indexed like `slots`.
+    pub fn reinit(
+        device_id: u8,
+        kind: ChunkType,
+        slots: &[u16],
+        part: u8,
+    ) -> Result<Self, ImportError> {
+        let memory = user_memory(kind).ok_or(ImportError::PlanMismatch)?;
+        if part >= INTEGRA7.part_count {
+            return Err(ImportError::InvalidPart(part));
+        }
+        let stores_sets = kind == ChunkType::StudioSet;
+        let jobs = slots
+            .iter()
+            .enumerate()
+            .map(|(i, &slot)| {
+                let target = memory
+                    .bank_select(slot)
+                    .ok_or(ImportError::InvalidSlot(slot))?;
+                let (sends, source) = if stores_sets {
+                    let init = build_init_request(device_id, InitTarget::StudioSet);
+                    (vec![init], WriteSource::StudioSet)
+                } else {
+                    // Tone Init keeps the tone's type: select one of the right type first.
+                    let init = build_init_request(device_id, InitTarget::Tone(part));
+                    (
+                        vec![select(device_id, part, target), init],
+                        WriteSource::Part(part),
+                    )
+                };
+                Ok(Job {
+                    entry: i,
+                    sends,
+                    init: true,
+                    write: Some((target, source)),
+                })
+            })
+            .collect::<Result<_, _>>()?;
+        let statuses = vec![EntryStatus::Pending; slots.len()];
+        Ok(Self::start(device_id, statuses, jobs, stores_sets, part))
+    }
+
+    /// An import of `jobs`, snapshotting what they borrow: the whole
+    /// Temporary Studio Set and every Part's tone if they store Studio
+    /// Sets, else Part `part`'s block and tone.
+    fn start(
+        device_id: u8,
+        statuses: Vec<EntryStatus>,
+        jobs: Vec<Job>,
+        stores_sets: bool,
+        part: u8,
+    ) -> Self {
+        let set_memory = user_memory(ChunkType::StudioSet).expect("Studio Sets have a layout");
+        let set_blocks: Vec<(Address, DataSize)> = set_memory.blocks(address::STUDIO_SET).collect();
         let (parts, blocks) = if stores_sets {
             ((0..INTEGRA7.part_count).collect(), set_blocks)
         } else {
@@ -256,25 +342,19 @@ impl PackImport {
         };
         let borrows = jobs.iter().any(|j| j.write.is_some());
 
-        Ok(Self {
+        Self {
             device_id,
-            statuses: placements
-                .iter()
-                .map(|&p| match p {
-                    Placement::Excluded => EntryStatus::Excluded,
-                    _ => EntryStatus::Pending,
-                })
-                .collect(),
+            statuses,
             parts,
             jobs: jobs.into(),
             outbox: VecDeque::new(),
             current: None,
-            awaiting: false,
+            awaiting: None,
             reader: borrows.then(|| (BlockReader::new(device_id, blocks), false)),
             snapshot: borrows.then(Vec::new),
             error: None,
             done: false,
-        })
+        }
     }
 
     /// Each entry's status, indexed like the Pack's entries.
@@ -294,9 +374,11 @@ impl PackImport {
         if self.reader.take().is_some() {
             self.snapshot = None;
         }
-        if !self.awaiting
-            && let Some((entry, _)) = self.current.take()
+        // An awaited Init is dropped: its slot is left unstored.
+        if self.awaiting != Some(Awaiting::Write)
+            && let Some((entry, ..)) = self.current.take()
         {
+            self.awaiting = None;
             self.outbox.clear();
             self.statuses[entry] = EntryStatus::Pending;
         }
@@ -321,7 +403,7 @@ impl PackImport {
                 self.finish_read();
                 continue;
             }
-            if self.awaiting {
+            if self.awaiting.is_some() {
                 return ImportAction::AwaitWrite {
                     timeout_ms: WRITE_TIMEOUT_MS,
                 };
@@ -329,10 +411,15 @@ impl PackImport {
             if let Some(msg) = self.outbox.pop_front() {
                 return ImportAction::Send(msg);
             }
-            if let Some((entry, write)) = self.current {
+            if let Some((entry, init, write)) = self.current {
+                if init {
+                    self.current = Some((entry, false, write));
+                    self.awaiting = Some(Awaiting::Init);
+                    continue;
+                }
                 match write {
                     Some((target, source)) => {
-                        self.awaiting = true;
+                        self.awaiting = Some(Awaiting::Write);
                         return ImportAction::Send(build_write_request(
                             self.device_id,
                             target,
@@ -349,7 +436,7 @@ impl PackImport {
             if let Some(job) = self.jobs.pop_front() {
                 self.statuses[job.entry] = EntryStatus::Storing;
                 self.outbox = job.sends.into();
-                self.current = Some((job.entry, job.write));
+                self.current = Some((job.entry, job.init, job.write));
                 continue;
             }
             if let Some(snapshot) = self.snapshot.take() {
@@ -371,33 +458,40 @@ impl PackImport {
             .is_some_and(|(reader, _)| reader.on_dt1(address, data))
     }
 
-    /// Feed an incoming DT1 while awaiting a write. Returns `true` if it
-    /// was the awaited "write finished".
+    /// Feed an incoming DT1 while awaiting an Init or a write. Returns
+    /// `true` if it was the awaited "Init finished" or "write finished".
     pub fn on_write_reply(&mut self, address: &Address, data: &[u8]) -> bool {
-        let Some((entry, Some((target, source)))) = self.current else {
+        if self.awaiting == Some(Awaiting::Init) {
+            let finished = is_init_finished(address, data);
+            if finished {
+                self.awaiting = None;
+            }
+            return finished;
+        }
+        let Some((entry, _, Some((target, source)))) = self.current else {
             return false;
         };
-        let finished = self.awaiting
+        let finished = self.awaiting == Some(Awaiting::Write)
             && parse_write_reply(address, data).is_some_and(|r| {
                 r.phase == WritePhase::Finished && r.target == target && r.source == source
             });
         if finished {
             self.statuses[entry] = EntryStatus::Stored;
             self.current = None;
-            self.awaiting = false;
+            self.awaiting = None;
         }
         finished
     }
 
     /// The host's timeout elapsed: stop waiting for the current snapshot
-    /// block, or give up on the awaited write and stop.
+    /// block, or give up on the awaited Init or write and stop.
     pub fn on_timeout(&mut self) {
         if let Some((reader, _)) = &mut self.reader {
             reader.on_timeout();
-        } else if self.awaiting
-            && let Some((entry, _)) = self.current.take()
+        } else if self.awaiting.is_some()
+            && let Some((entry, ..)) = self.current.take()
         {
-            self.awaiting = false;
+            self.awaiting = None;
             self.statuses[entry] = EntryStatus::Failed;
             self.error.get_or_insert(ImportError::WriteTimeout(entry));
             self.jobs.clear();
@@ -442,6 +536,16 @@ impl PackImport {
         }
         self.reader = Some((BlockReader::new(self.device_id, blocks), true));
     }
+}
+
+/// The DT1 that points Part `part` at the User slot `target`, so the Part
+/// plays a tone of its type.
+fn select(device_id: u8, part: u8, target: BankSelect) -> Vec<u8> {
+    sysex::build_dt1(
+        device_id,
+        &params::part_address(part, part::TONE_BANK_MSB),
+        &[target.msb, target.lsb, target.pc],
+    )
 }
 
 /// `set` with each Part that selects a tone of the Pack pointed at the User
@@ -505,6 +609,7 @@ mod tests {
         Read(Address),
         Dt1(Address, Vec<u8>),
         Write(BankSelect, WriteSource),
+        Init(InitTarget),
     }
 
     /// Byte-addressed Temporary memory; `writes` says whether the device
@@ -582,6 +687,12 @@ mod tests {
                         None => import.on_timeout(),
                     }
                 }
+                ImportAction::Send(msg) if msg[6] == 0x11 && msg[9] == 0x18 => {
+                    self.events.push(Event::Init(match msg[10] {
+                        0x00 => InitTarget::StudioSet,
+                        _ => InitTarget::Tone(msg[13]),
+                    }));
+                }
                 ImportAction::Send(msg) if msg[6] == 0x11 => {
                     let source = match msg[14] {
                         0x7F => WriteSource::StudioSet,
@@ -599,6 +710,17 @@ mod tests {
                 }
                 ImportAction::AwaitWrite { timeout_ms } => {
                     assert_eq!(timeout_ms, WRITE_TIMEOUT_MS);
+                    if let Some(Event::Init(_)) = self.events.last() {
+                        let started = Address::new(0x0F, 0x00, 0x18, 0x01);
+                        let finished = Address::new(0x0F, 0x00, 0x18, 0x02);
+                        assert!(!import.on_write_reply(&started, &[0; 4]));
+                        if self.writes {
+                            assert!(import.on_write_reply(&finished, &[0; 4]));
+                        } else {
+                            import.on_timeout();
+                        }
+                        return None;
+                    }
                     let Some(&Event::Write(t, s)) = self.events.last() else {
                         panic!("awaiting a write that wasn't requested");
                     };
@@ -893,6 +1015,105 @@ mod tests {
         assert_eq!(report.error, Some(ImportError::WriteTimeout(1)));
         assert_eq!(device.writes().len(), 1);
         assert!(device.restored(&before));
+    }
+
+    /// The events after the snapshot reads.
+    fn after_snapshot(device: &Device) -> &[Event] {
+        let reads = device
+            .events
+            .iter()
+            .take_while(|e| matches!(e, Event::Read(_)))
+            .count();
+        &device.events[reads..]
+    }
+
+    #[test]
+    fn reinit_tones_select_the_slot_init_then_write() {
+        let mut device = Device::new();
+        let before = device.mem.clone();
+        let mut import = PackImport::reinit(0x10, SNS, &[9, 129], PART).unwrap();
+        let report = device.run(&mut import);
+
+        assert_eq!(report.statuses, [EntryStatus::Stored; 2]);
+        assert_eq!(report.error, None);
+        let select = params::part_address(PART, part::TONE_BANK_MSB);
+        assert_eq!(
+            after_snapshot(&device)[..6],
+            [
+                Event::Dt1(select, vec![95, 0, 9]),
+                Event::Init(InitTarget::Tone(PART)),
+                Event::Write(bank(95, 0, 9), WriteSource::Part(PART)),
+                Event::Dt1(select, vec![95, 1, 1]),
+                Event::Init(InitTarget::Tone(PART)),
+                Event::Write(bank(95, 1, 1), WriteSource::Part(PART)),
+            ]
+        );
+        assert!(device.restored(&before));
+    }
+
+    #[test]
+    fn reinit_sets_snapshot_everything_and_init_the_studio_set() {
+        let mut device = Device::new();
+        let before = device.mem.clone();
+        let mut import = PackImport::reinit(0x10, SET, &[4], PART).unwrap();
+        let report = device.run(&mut import);
+
+        assert_eq!(report.statuses, [EntryStatus::Stored]);
+        let count = |kind: ChunkType| {
+            let m = user_memory(kind).unwrap();
+            m.blocks(m.temporary_base(0)).count()
+        };
+        let reads = device.events.len() - after_snapshot(&device).len();
+        assert_eq!(reads, count(SET) + 2 * count(SNS) + count(PCMS));
+        assert_eq!(
+            after_snapshot(&device)[..2],
+            [
+                Event::Init(InitTarget::StudioSet),
+                Event::Write(bank(85, 0, 4), WriteSource::StudioSet),
+            ]
+        );
+        assert!(device.restored(&before));
+    }
+
+    #[test]
+    fn reinit_cancel_during_init_drops_the_slot() {
+        let mut device = Device::new();
+        let before = device.mem.clone();
+        let mut import = PackImport::reinit(0x10, SNS, &[9, 10], PART).unwrap();
+        while !matches!(device.events.last(), Some(Event::Init(_))) {
+            device.step(&mut import);
+        }
+        import.cancel();
+        let report = device.run(&mut import);
+        assert_eq!(report.statuses, [EntryStatus::Pending; 2]);
+        assert_eq!(report.error, Some(ImportError::Cancelled));
+        assert!(device.writes().is_empty());
+        assert!(device.restored(&before));
+    }
+
+    #[test]
+    fn reinit_unconfirmed_init_fails_the_slot() {
+        let mut device = Device::new();
+        device.writes = false;
+        let mut import = PackImport::reinit(0x10, SNS, &[9, 10], PART).unwrap();
+        let report = device.run(&mut import);
+        use EntryStatus::*;
+        assert_eq!(report.statuses, [Failed, Pending]);
+        assert_eq!(report.error, Some(ImportError::WriteTimeout(0)));
+        assert!(device.writes().is_empty());
+    }
+
+    #[test]
+    fn reinit_rejects_missing_slots_and_parts() {
+        let err = |r: Result<PackImport, ImportError>| r.err();
+        assert_eq!(
+            err(PackImport::reinit(0x10, SNS, &[512], PART)),
+            Some(ImportError::InvalidSlot(512))
+        );
+        assert_eq!(
+            err(PackImport::reinit(0x10, SNS, &[0], 16)),
+            Some(ImportError::InvalidPart(16))
+        );
     }
 
     #[test]
