@@ -70,6 +70,9 @@ pub mod chorus {
     pub const TYPE: u8 = 0x00;
     /// Chorus Level (0–127).
     pub const LEVEL: u8 = 0x01;
+    /// Chorus Output Assign (0–3 = A–D). The MIDI Implementation lists this
+    /// offset as reserved; the device stores 0–3 here (#29).
+    pub const OUTPUT_ASSIGN: u8 = 0x02;
     /// Chorus Output Select (0=MAIN, 1=REV, 2=MAIN+REV).
     pub const OUTPUT_SELECT: u8 = 0x03;
     /// First nibblized parameter offset (Param 1 at 0x04, each is 4 bytes).
@@ -81,7 +84,7 @@ pub const fn chorus_address(param_offset: u8) -> Address {
     CHORUS_BASE.offset([0x00, 0x00, 0x00, param_offset])
 }
 
-/// Size for reading Chorus core params (type + level + reserved + output = 4 bytes).
+/// Size for reading Chorus core params (type + level + output assign + output select = 4 bytes).
 pub const CHORUS_CORE_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x04);
 
 /// Number of nibblized Chorus parameters (Param 1–20).
@@ -620,6 +623,10 @@ mod tests {
         assert_eq!(
             chorus_address(chorus::LEVEL),
             Address::new(0x18, 0x00, 0x04, 0x01)
+        );
+        assert_eq!(
+            chorus_address(chorus::OUTPUT_ASSIGN),
+            Address::new(0x18, 0x00, 0x04, 0x02)
         );
         assert_eq!(
             chorus_address(chorus::OUTPUT_SELECT),

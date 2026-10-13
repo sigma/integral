@@ -21,8 +21,12 @@ Base address: `18 00 04 00`. Switch at `18 00 00 41`.
 |--------|-----------|-------|---------|
 | `00` | Chorus Type | 0-3 | OFF, Chorus, Delay, GM2 Chorus |
 | `01` | Chorus Level | 0-127 | 0-127 |
-| `02` | (reserved) | — | — |
+| `02` | Chorus Output Assign | 0-3 | A, B, C, D |
 | `03` | Chorus Output Select | 0-2 | MAIN, REV, MAIN+REV |
+
+The MIDI Implementation lists `02` as reserved. The Parameter Guide and
+Roland's editor treat it as Output Assign. The device agrees: it stores 0-3
+and reads back 0 for anything higher.
 
 ### Type 00: OFF
 
