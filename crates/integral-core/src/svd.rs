@@ -254,9 +254,6 @@ impl ChunkType {
 
 include!(concat!(env!("OUT_DIR"), "/tone_category_data.rs"));
 
-/// Category of every drum kit: drum kits carry no Tone Category byte.
-pub const DRUMS_CATEGORY: u8 = 46;
-
 impl fmt::Display for ChunkType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.label())
@@ -637,11 +634,6 @@ impl SvdFile {
 mod tests {
     use super::*;
     use std::path::Path;
-
-    #[test]
-    fn drums_category_is_named_drums() {
-        assert_eq!(tone_category_name(DRUMS_CATEGORY), Some("Drums"));
-    }
 
     #[test]
     fn chunk_type_roundtrip() {

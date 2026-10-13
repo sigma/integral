@@ -554,7 +554,8 @@ fn load_category_map(sounds_dir: &Path) -> HashMap<String, u8> {
         .collect();
 
     // Aliases from the sound list PDF (different spelling).
-    map.insert("Drum".to_string(), 46);
+    let drums = map["Drums"];
+    map.insert("Drum".to_string(), drums);
     map
 }
 
@@ -733,4 +734,16 @@ fn main() {
     writeln!(cat_out, "        _ => None,").unwrap();
     writeln!(cat_out, "    }}").unwrap();
     writeln!(cat_out, "}}").unwrap();
+
+    let drums = cat_entries
+        .iter()
+        .find_map(|(val, name)| (name == "Drums").then_some(*val))
+        .expect("categories.json: no Drums entry");
+    writeln!(cat_out).unwrap();
+    writeln!(
+        cat_out,
+        "/// Category of every drum kit: drum kits carry no Tone Category byte."
+    )
+    .unwrap();
+    writeln!(cat_out, "pub const DRUMS_CATEGORY: u8 = {drums};").unwrap();
 }
