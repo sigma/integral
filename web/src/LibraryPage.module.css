@@ -31,11 +31,11 @@
   composes: foot from "./PackPane.module.css";
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
 }
 
 .hint {
   composes: hint from "./PackPane.module.css";
+  flex: 1;
 }
 
 .empty {
@@ -44,6 +44,10 @@
 
 .primary {
   composes: primary from "./PackPane.module.css";
+}
+
+.button {
+  composes: button from "./PackPane.module.css";
 }
 
 .tabs {

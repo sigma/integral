@@ -1,0 +1,53 @@
+.overlay {
+  composes: overlay from "./SaveDialog.module.css";
+}
+
+.modal {
+  composes: modal from "./SaveDialog.module.css";
+}
+
+.header {
+  composes: header from "./SaveDialog.module.css";
+}
+
+.title {
+  composes: title from "./SaveDialog.module.css";
+}
+
+.closeButton {
+  composes: closeButton from "./SaveDialog.module.css";
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  font-size: 12px;
+  color: #c0c0e0;
+}
+
+.list {
+  composes: overwrites from "./PackPane.module.css";
+}
+
+.check {
+  composes: check from "./PackPane.module.css";
+}
+
+.footer {
+  composes: footer from "./SaveDialog.module.css";
+}
+
+.status {
+  composes: status from "./SaveDialog.module.css";
+  color: #888;
+}
+
+.error {
+  composes: error from "./SaveDialog.module.css";
+}
+
+.footerButton {
+  composes: footerButton from "./SaveDialog.module.css";
+}

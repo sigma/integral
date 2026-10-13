@@ -329,6 +329,7 @@ export function App() {
           {activeTab === "library" && (
             <ErrorBoundary section="Library">
               <LibraryPage
+                service={service}
                 mixer={mixer}
                 catalog={catalog}
                 libraryExport={libraryExport}

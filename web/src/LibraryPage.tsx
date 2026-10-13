@@ -7,7 +7,9 @@ import {
   selectSlot,
 } from "./librarian";
 import { PackExportPane } from "./PackExportPane";
+import type { IntegraService } from "./integra";
 import { PackImportPane } from "./PackImportPane";
+import { ReinitDialog } from "./ReinitDialog";
 import { SlotRow } from "./SlotRow";
 import type { ToneCatalog } from "./toneCatalog";
 import type { UseLibraryExportResult } from "./useLibraryExport";
@@ -17,6 +19,7 @@ import { useUserSlots } from "./useUserSlots";
 import css from "./LibraryPage.module.css";
 
 interface Props {
+  service: IntegraService | null;
   mixer: UseMixerResult;
   catalog: ToneCatalog;
   libraryExport: UseLibraryExportResult;
@@ -29,12 +32,13 @@ type Mode = "export" | "import";
  * The Library: the device's User memory on the left; on the right, the
  * Pack being exported or the Pack file being imported.
  */
-export function LibraryPage({ mixer, catalog, libraryExport, libraryImport: imp }: Props) {
+export function LibraryPage({ service, mixer, catalog, libraryExport, libraryImport: imp }: Props) {
   const types = libraryTypes();
   const [kind, setKind] = useState(() => types[0]?.kind ?? "");
   const type = libraryType(kind);
   const [mode, setMode] = useState<Mode>(() => (imp.file ? "import" : "export"));
   const [selection, setSelection] = useState(NO_SELECTION);
+  const [reiniting, setReiniting] = useState(false);
   const { slots, loading } = useUserSlots(type, catalog, mixer);
   const selected = slots.filter((s) => selection.slots.has(s.slot));
   const exporting = libraryExport.run?.phase === "reading";
@@ -113,14 +117,13 @@ export function LibraryPage({ mixer, catalog, libraryExport, libraryImport: imp 
                 key={slot.key}
                 slot={slot}
                 active={
-                  importing
-                    ? focused?.type.kind === kind && focusedSlot === slot.slot
-                    : selection.slots.has(slot.slot)
+                  selection.slots.has(slot.slot) ||
+                  (importing && focused?.type.kind === kind && focusedSlot === slot.slot)
                 }
                 className={`${free ? css.free : ""} ${target}`}
                 onClick={(e) => {
-                  if (importing) {
-                    if (placing) imp.assign(placing.index, slot.slot);
+                  if (placing) {
+                    imp.assign(placing.index, slot.slot);
                     return;
                   }
                   setSelection((sel) =>
@@ -137,35 +140,49 @@ export function LibraryPage({ mixer, catalog, libraryExport, libraryImport: imp 
           })}
         </div>
         <footer className={css.foot}>
-          {importing ? (
-            <span className={css.hint}>
-              {placing
-                ? `Click a slot to place “${placing.info.name}”.`
-                : "Highlighted slots receive an entry. Select an entry on the right, then click a slot to place it."}
-            </span>
-          ) : (
-            <>
-              <span className={css.hint}>
-                {selected.length} selected · click, ⇧-click range, ⌘-click toggle
-              </span>
-              <button
-                className={css.primary}
-                disabled={selected.length === 0 || exporting}
-                onClick={() => {
-                  libraryExport.add(
-                    selected.map((s) => ({
-                      source: { source: "user", kind, slot: s.slot },
-                      name: s.name,
-                    })),
-                  );
-                  setSelection(NO_SELECTION);
-                }}
-              >
-                Add to Pack →
-              </button>
-            </>
+          <span className={css.hint}>
+            {placing
+              ? `Click a slot to place “${placing.info.name}”.`
+              : importing && imp.file && selected.length === 0
+                ? "Highlighted slots receive an entry. Select an entry on the right, then click a slot to place it."
+                : `${selected.length} selected · click, ⇧-click range, ⌘-click toggle`}
+          </span>
+          <button
+            className={css.button}
+            disabled={!service || selected.length === 0 || imp.busy || exporting}
+            title="Clear the selected slots back to INIT"
+            onClick={() => setReiniting(true)}
+          >
+            Re-init…
+          </button>
+          {!importing && (
+            <button
+              className={css.primary}
+              disabled={selected.length === 0 || exporting}
+              onClick={() => {
+                libraryExport.add(
+                  selected.map((s) => ({
+                    source: { source: "user", kind, slot: s.slot },
+                    name: s.name,
+                  })),
+                );
+                setSelection(NO_SELECTION);
+              }}
+            >
+              Add to Pack →
+            </button>
           )}
         </footer>
+        {reiniting && service && (
+          <ReinitDialog
+            service={service}
+            mixer={mixer}
+            catalog={catalog}
+            type={type}
+            slots={selected}
+            onClose={() => setReiniting(false)}
+          />
+        )}
       </section>
       <section className={css.pane}>
         <div className={css.tabs}>

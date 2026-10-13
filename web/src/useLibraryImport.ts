@@ -3,6 +3,7 @@ import {
   Pack,
   planImport,
   type CatalogName,
+  type ExportSource,
   type ImportPlan,
   type ImportStatus,
   type ImportWarning,
@@ -158,17 +159,18 @@ function message(e: unknown): string {
 }
 
 /**
- * Read a Pack file (SVD, .syx or .mid) and plan its import against the User
- * slot names (tones from `catalog`, Studio Sets from `loadStudioSetNames`) and
- * the loaded Expansions. The caller owns (and frees) both.
+ * Plan importing `pack` against the User slot names (tones from `catalog`,
+ * Studio Sets from `loadStudioSetNames`) and the loaded Expansions, entry `i`
+ * going to slot `into[i]` when given. Takes `pack`; the caller owns (and
+ * frees) both.
  */
-async function planImportFromFile(
+export async function planPackImport(
   service: IntegraService,
   catalog: ToneCatalog,
   loadStudioSetNames: () => Promise<Map<number, string>>,
-  bytes: Uint8Array,
+  pack: Pack,
+  into: number[],
 ): Promise<{ pack: Pack; plan: ImportPlan }> {
-  const pack = Pack.read(bytes);
   try {
     const kinds = new Set(pack.entries().map((e) => e.kind));
     const names: CatalogName[] = [];
@@ -185,10 +187,40 @@ async function planImportFromFile(
       }
     }
     const slots = await service.readExpansionSlots();
-    return { pack, plan: planImport(pack, names, slots) };
+    const plan = planImport(pack, names, slots);
+    into.forEach((slot, i) => plan.assign(i, slot));
+    return { pack, plan };
   } catch (e) {
     pack.free();
     throw e;
+  }
+}
+
+/** Read `sources` from the device and download them as the undo Pack `file`. */
+export async function downloadUndo(
+  service: IntegraService,
+  file: string,
+  sources: ExportSource[],
+  signal: AbortSignal,
+): Promise<void> {
+  const pack = await service.exportPack(sources, signal);
+  try {
+    downloadFile(file, pack.toSvd());
+  } finally {
+    pack.free();
+  }
+}
+
+/** Reload the User slot names of `kinds`, after storing into them. */
+export function refreshNames(
+  kinds: Iterable<string>,
+  catalog: ToneCatalog | null,
+  loadStudioSetNames: (force: boolean) => Promise<Map<number, string>>,
+): void {
+  for (const kind of new Set(kinds)) {
+    const { bank } = libraryType(kind);
+    if (bank) catalog?.refresh(bank);
+    else void loadStudioSetNames(true);
   }
 }
 
@@ -247,7 +279,13 @@ export function useLibraryImport(
       file
         .arrayBuffer()
         .then((buffer) =>
-          planImportFromFile(service, catalog, loadStudioSetNames, new Uint8Array(buffer)),
+          planPackImport(
+            service,
+            catalog,
+            loadStudioSetNames,
+            Pack.read(new Uint8Array(buffer)),
+            [],
+          ),
         )
         .then(({ pack, plan }) =>
           replace({
@@ -406,32 +444,18 @@ export function useLibraryImport(
         undoFile,
       });
 
-      const exportUndo = async (): Promise<void> => {
-        if (!undoFile) return;
-        const pack = await service.exportPack(undoSources, signal);
-        try {
-          downloadFile(undoFile, pack.toSvd());
-        } finally {
-          pack.free();
-        }
-      };
       const refresh = (statuses: ImportStatus[]): void => {
         reload();
-        const stored = new Set(
-          current.entries
-            .filter((_, i) => statuses[i] === "stored")
-            .map((e) => e.kind),
+        refreshNames(
+          current.entries.filter((_, i) => statuses[i] === "stored").map((e) => e.kind),
+          catalog,
+          loadStudioSetNames,
         );
-        for (const kind of stored) {
-          const { bank } = libraryType(kind);
-          if (bank) catalog?.refresh(bank);
-          else void loadStudioSetNames(true);
-        }
       };
 
       void (async () => {
         try {
-          await exportUndo();
+          if (undoFile) await downloadUndo(service, undoFile, undoSources, signal);
           if (signal.aborted) throw new Error("import cancelled");
           setRun((r) => r && { ...r, phase: "importing" });
           const result = await service.importPack(
