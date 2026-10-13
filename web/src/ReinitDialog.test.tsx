@@ -1,6 +1,6 @@
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ExportSource, ImportPlan, Pack, Placement } from "../pkg/integral_wasm.js";
+import type { ExportSource } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import { libraryType } from "./librarian";
 import { ReinitDialog } from "./ReinitDialog";
@@ -23,16 +23,14 @@ async function settle(): Promise<void> {
 describe("ReinitDialog", () => {
   it("exports the used slots, then stores INIT into every selected slot", async () => {
     const exported: ExportSource[][] = [];
-    let placements: Placement[] = [];
+    let reinit: unknown[] = [];
     const service = {
-      readExpansionSlots: async () => undefined,
       exportPack: async (sources: ExportSource[]) => {
         exported.push(sources);
         return { toSvd: () => new Uint8Array(), free: () => {} };
       },
-      importPack: async (pack: Pack, plan: ImportPlan) => {
-        placements = plan.placements();
-        expect(pack.entries().map((e) => e.name.trimEnd())).toEqual(["INIT TONE", "INIT TONE"]);
+      reinitSlots: async (kind: string, slots: number[], part: number) => {
+        reinit = [kind, slots, part];
         return { statuses: ["stored", "stored"], error: undefined };
       },
     } as unknown as IntegraService;
@@ -62,7 +60,7 @@ describe("ReinitDialog", () => {
     await settle();
 
     expect(exported).toEqual([[{ source: "user", kind: "sn-synth", slot: 3 }]]);
-    expect(placements).toEqual([{ user: 3 }, { user: 7 }]);
+    expect(reinit).toEqual(["sn-synth", [3, 7], 2]);
     expect(refresh).toHaveBeenCalled();
     expect(container.textContent).toContain("Re-initialized 2/2 slots.");
   });

@@ -160,16 +160,14 @@ function message(e: unknown): string {
 
 /**
  * Plan importing `pack` against the User slot names (tones from `catalog`,
- * Studio Sets from `loadStudioSetNames`) and the loaded Expansions, entry `i`
- * going to slot `into[i]` when given. Takes `pack`; the caller owns (and
- * frees) both.
+ * Studio Sets from `loadStudioSetNames`) and the loaded Expansions. Takes
+ * `pack`; the caller owns (and frees) both.
  */
-export async function planPackImport(
+async function planPackImport(
   service: IntegraService,
   catalog: ToneCatalog,
   loadStudioSetNames: () => Promise<Map<number, string>>,
   pack: Pack,
-  into: number[],
 ): Promise<{ pack: Pack; plan: ImportPlan }> {
   try {
     const kinds = new Set(pack.entries().map((e) => e.kind));
@@ -187,9 +185,7 @@ export async function planPackImport(
       }
     }
     const slots = await service.readExpansionSlots();
-    const plan = planImport(pack, names, slots);
-    into.forEach((slot, i) => plan.assign(i, slot));
-    return { pack, plan };
+    return { pack, plan: planImport(pack, names, slots) };
   } catch (e) {
     pack.free();
     throw e;
@@ -284,7 +280,6 @@ export function useLibraryImport(
             catalog,
             loadStudioSetNames,
             Pack.read(new Uint8Array(buffer)),
-            [],
           ),
         )
         .then(({ pack, plan }) =>

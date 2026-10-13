@@ -588,6 +588,22 @@ impl WasmPackImport {
         })
     }
 
+    /// Prepare storing INIT into the User `slots` (0-indexed) of type
+    /// `kind` through the device's Init, borrowing Part `part` (0-indexed)
+    /// to store tones. Progress is indexed like `slots`.
+    pub fn reinit(
+        device_id: u8,
+        kind: &str,
+        slots: &[u16],
+        part: u8,
+    ) -> Result<WasmPackImport, JsError> {
+        let kind = ChunkType::from_cli_name(kind)
+            .ok_or_else(|| JsError::new(&format!("Unknown Librarian type {kind}")))?;
+        Ok(Self {
+            inner: PackImport::reinit(device_id, kind, slots, part).map_err(js_err)?,
+        })
+    }
+
     /// The next step. On `Done`, refresh mixer state: the Temporary areas
     /// changed.
     #[wasm_bindgen(js_name = nextAction)]

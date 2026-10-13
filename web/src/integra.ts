@@ -858,17 +858,44 @@ export class IntegraService {
     signal?: AbortSignal,
     onProgress?: (statuses: ImportStatus[]) => void,
   ): Promise<PackImportResult> {
+    return this.runImport(
+      () => new PackImport(this.deviceId, pack, plan, part, applyEffects),
+      signal,
+      onProgress,
+    );
+  }
+
+  /**
+   * Store INIT into the User `slots` (0-indexed) of type `kind` through the
+   * device's Init, borrowing Part `part` (0-indexed) to store tones.
+   * Resolves like `importPack`, statuses indexed like `slots`.
+   */
+  async reinitSlots(
+    kind: string,
+    slots: number[],
+    part: number,
+    signal?: AbortSignal,
+    onProgress?: (statuses: ImportStatus[]) => void,
+  ): Promise<PackImportResult> {
+    return this.runImport(
+      () =>
+        PackImport.reinit(this.deviceId, kind, Uint16Array.from(slots), part),
+      signal,
+      onProgress,
+    );
+  }
+
+  /** Drive the import `create` makes to its end, then free it. */
+  private async runImport(
+    create: () => PackImport,
+    signal?: AbortSignal,
+    onProgress?: (statuses: ImportStatus[]) => void,
+  ): Promise<PackImportResult> {
     if (this.writing) throw new Error("A save is still in progress");
     if (this.device.expansionLoadTarget()) {
       throw new Error("An Expansion load is in progress");
     }
-    const machine = new PackImport(
-      this.deviceId,
-      pack,
-      plan,
-      part,
-      applyEffects,
-    );
+    const machine = create();
     const throttle = frameThrottle(() => onProgress?.(machine.progress()));
     this.writing = true;
     try {

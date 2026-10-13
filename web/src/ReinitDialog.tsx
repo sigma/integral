@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Pack } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import { isFree, packFileBase, PACK_EXTENSION, slotLabel, type LibraryType } from "./librarian";
 import { ProgressBar } from "./PackPane";
 import type { ToneCatalog } from "./toneCatalog";
-import { downloadUndo, planPackImport, refreshNames } from "./useLibraryImport";
+import { downloadUndo, refreshNames } from "./useLibraryImport";
 import type { UseMixerResult } from "./useMixer";
 import type { UserSlot } from "./userSlots";
 import css from "./ReinitDialog.module.css";
@@ -26,8 +25,8 @@ type Phase =
   | { kind: "done"; stored: number; error?: string };
 
 /**
- * Modal that confirms clearing User slots back to INIT, then stores INIT
- * data into them as an import does, showing its progress.
+ * Modal that confirms clearing User slots back to INIT, then has the device
+ * store INIT into them, showing its progress.
  */
 export function ReinitDialog({ service, mixer, catalog, type, slots, onClose }: Props) {
   const [phase, setPhase] = useState<Phase>({ kind: "confirm" });
@@ -60,34 +59,21 @@ export function ReinitDialog({ service, mixer, catalog, type, slots, onClose }: 
         await downloadUndo(service, undoFile, sources, signal);
       }
       setPhase({ kind: "storing", done: 0 });
-      const { pack, plan } = await planPackImport(
-        service,
-        catalog,
-        loadStudioSetNames,
-        Pack.init(type.kind, slots.length),
+      const result = await service.reinitSlots(
+        type.kind,
         slots.map((s) => s.slot),
+        mixer.state.selectedPart,
+        signal,
+        (statuses) =>
+          setPhase({
+            kind: "storing",
+            done: statuses.filter((s) => s === "stored" || s === "failed").length,
+          }),
       );
-      try {
-        const result = await service.importPack(
-          pack,
-          plan,
-          mixer.state.selectedPart,
-          false,
-          signal,
-          (statuses) =>
-            setPhase({
-              kind: "storing",
-              done: statuses.filter((s) => s === "stored" || s === "failed").length,
-            }),
-        );
-        const stored = result.statuses.filter((s) => s === "stored").length;
-        setPhase({ kind: "done", stored, error: result.error });
-        mixer.reload();
-        if (stored > 0) refreshNames([type.kind], catalog, loadStudioSetNames);
-      } finally {
-        pack.free();
-        plan.free();
-      }
+      const stored = result.statuses.filter((s) => s === "stored").length;
+      setPhase({ kind: "done", stored, error: result.error });
+      mixer.reload();
+      if (stored > 0) refreshNames([type.kind], catalog, loadStudioSetNames);
     } catch (e) {
       setPhase({ kind: "done", stored: 0, error: e instanceof Error ? e.message : String(e) });
     }
