@@ -6,7 +6,6 @@
 //! `docs/research/fx-param-layout.md`.
 
 use super::fx_map::rate_20ths;
-use super::report::ConversionItem;
 use crate::address::Address;
 use crate::fx_params::{FxParamDef, chorus_params, reverb_params};
 use crate::params::{self, CHORUS_PARAM_COUNT, REVERB_PARAM_COUNT, chorus, reverb};
@@ -187,6 +186,7 @@ pub(super) fn xv_chorus(block: &[u8]) -> Option<StudioSetEffect> {
     // shortcut: the XV DELAY and GM2 CHORUS layouts are unverified, so they
     // keep the INTEGRA-7 type's defaults; copy them once checked.
     match block[at(chorus::TYPE)] {
+        0 => Some(StudioSetEffect::new(FxBlock::Chorus, 0, level)),
         1 => Some(chorus_type_1(level, select, &xv)),
         kind @ (2 | 3) => {
             let mut fx = StudioSetEffect::new(FxBlock::Chorus, kind, level);
@@ -205,6 +205,7 @@ pub(super) fn xv_reverb(block: &[u8]) -> Option<StudioSetEffect> {
     let at = |offset: u8| usize::from(offset);
     let level = block[at(reverb::LEVEL)];
     let kind = match block[at(reverb::TYPE)] {
+        0 => 0,
         1 => {
             let xv = decode_nib_params(&block[at(reverb::PARAM_BASE)..], 2);
             return reverb_type_1(level, &xv);
@@ -218,32 +219,9 @@ pub(super) fn xv_reverb(block: &[u8]) -> Option<StudioSetEffect> {
     Some(StudioSetEffect::new(FxBlock::Reverb, kind, level))
 }
 
-/// Whether `report` holds a Chorus or Reverb an audition can apply.
-pub fn applies_effects(report: &[ConversionItem]) -> bool {
-    report.iter().any(|item| {
-        matches!(
-            item,
-            ConversionItem::NotApplied {
-                settings: Some(_),
-                ..
-            }
-        )
-    })
-}
-
-/// The DT1s that apply each Chorus and Reverb of `report` to the Temporary
-/// Studio Set. Its `NotApplied` items with no INTEGRA-7 type add none.
-pub fn report_dt1s(device_id: u8, report: &[ConversionItem]) -> Vec<Vec<u8>> {
-    report
-        .iter()
-        .filter_map(|item| match item {
-            ConversionItem::NotApplied {
-                settings: Some(fx), ..
-            } => Some(fx.dt1s(device_id)),
-            _ => None,
-        })
-        .flatten()
-        .collect()
+/// The DT1s that apply each of `effects` to the Temporary Studio Set.
+pub fn effects_dt1s(device_id: u8, effects: &[StudioSetEffect]) -> Vec<Vec<u8>> {
+    effects.iter().flat_map(|fx| fx.dt1s(device_id)).collect()
 }
 
 #[cfg(test)]

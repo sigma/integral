@@ -26,6 +26,7 @@ use crate::expansion_slots::ExpansionSlots;
 use crate::expansions::{Expansion, expansion_of_bank};
 use crate::svd::ChunkType;
 
+use super::foreign::studio_set_fx::StudioSetEffect;
 use super::foreign::{ConversionItem, FileItem, PackFormat, PackRead, SourceModel};
 use super::pack::{Pack, ToneRef, user_memory};
 
@@ -209,6 +210,8 @@ pub struct ImportPlan {
     reports: Vec<Vec<ConversionItem>>,
     /// The model each entry was made on, when its bytes tell.
     sources: Vec<Option<SourceModel>>,
+    /// The Studio Set Chorus and Reverb of each entry's Foreign patch.
+    effects: Vec<Vec<StudioSetEffect>>,
     /// What the file held that is not in the Pack.
     file_report: Vec<FileItem>,
 }
@@ -312,6 +315,7 @@ pub fn plan_import(
         pack_refs,
         reports: vec![Vec::new(); pack.entries.len()],
         sources: vec![None; pack.entries.len()],
+        effects: vec![Vec::new(); pack.entries.len()],
         file_report: Vec::new(),
     };
     if single {
@@ -337,6 +341,8 @@ pub fn plan_read(
     plan.reports.resize(read.pack.entries.len(), Vec::new());
     plan.sources.clone_from(&read.sources);
     plan.sources.resize(read.pack.entries.len(), None);
+    plan.effects.clone_from(&read.effects);
+    plan.effects.resize(read.pack.entries.len(), Vec::new());
     plan.file_report.clone_from(&read.file_report);
     plan
 }
@@ -396,6 +402,13 @@ impl ImportPlan {
     /// out of range.
     pub fn report(&self, entry: usize) -> &[ConversionItem] {
         self.reports.get(entry).map_or(&[], Vec::as_slice)
+    }
+
+    /// The Studio Set Chorus and Reverb `entry`'s Foreign patch converts
+    /// to, for an audition to apply. Empty for a native entry or an index
+    /// out of range.
+    pub fn effects(&self, entry: usize) -> &[StudioSetEffect] {
+        self.effects.get(entry).map_or(&[], Vec::as_slice)
     }
 
     /// The model `entry` was made on, when its bytes tell.

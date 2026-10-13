@@ -21,12 +21,12 @@ afterAll(() => {
 const REPORT = [
   "Partial 3: MFX bypass dropped",
   "Partial 4: MFX bypass dropped",
-  "Chorus CHORUS, level 127 not applied; set it in the Studio Set",
-  "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
+  "Chorus CHORUS, level 127 lives in the Studio Set",
+  "Reverb SRV HALL, level 127 lives in the Studio Set",
 ];
 
 /** Settings a clean conversion leaves to the Studio Set. */
-const NOT_APPLIED = ["Tempo 90 not applied; set it in the Studio Set"];
+const NOT_APPLIED = ["Tempo 90 lives in the Studio Set"];
 
 /** A converted lossy tone, a clean one with Studio Set items, then a clean
  * one: all go to User slots. */

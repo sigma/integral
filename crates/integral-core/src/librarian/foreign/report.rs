@@ -7,7 +7,6 @@
 
 use core::fmt;
 
-use super::studio_set_fx::StudioSetEffect;
 use super::wave_map::{ForeignWave, WaveTarget};
 use crate::{mfx_params, waves};
 
@@ -98,10 +97,6 @@ pub enum ConversionItem {
     NotApplied {
         /// The setting and its value, e.g. `Reverb SRV HALL, level 127`.
         what: String,
-        /// For a Chorus or Reverb with an INTEGRA-7 type, the Temporary
-        /// Studio Set settings an audition can apply.
-        #[cfg_attr(feature = "serde", serde(skip))]
-        settings: Option<StudioSetEffect>,
     },
 }
 
@@ -156,9 +151,7 @@ impl fmt::Display for ConversionItem {
                 f,
                 "Partial {partial}: Control {control} route to {destination} ({sens:+}) dropped"
             ),
-            Self::NotApplied { what, .. } => {
-                write!(f, "{what} not applied; set it in the Studio Set")
-            }
+            Self::NotApplied { what } => write!(f, "{what} lives in the Studio Set"),
         }
     }
 }
@@ -369,7 +362,6 @@ mod tests {
             },
             ConversionItem::NotApplied {
                 what: "Reverb SRV HALL, level 127".into(),
-                settings: None,
             },
         ];
         let texts: Vec<String> = items.iter().map(ToString::to_string).collect();
@@ -383,7 +375,7 @@ mod tests {
                 "Key 38: Receive Pan Mode dropped",
                 "One Shot Mode dropped",
                 "Partial 4: Control 2 route to CUT (-10) dropped",
-                "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
+                "Reverb SRV HALL, level 127 lives in the Studio Set",
             ]
         );
     }
@@ -399,7 +391,6 @@ mod tests {
     fn only_not_applied_items_leave_an_entry_clean() {
         let not_applied = ConversionItem::NotApplied {
             what: "Tempo 90".into(),
-            settings: None,
         };
         let dropped = ConversionItem::ParamDropped {
             at: None,

@@ -467,8 +467,8 @@ mod xv_patches {
             [
                 "Partial 3: MFX bypass dropped",
                 "Partial 4: MFX bypass dropped",
-                "Chorus CHORUS, level 127 not applied; set it in the Studio Set",
-                "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
+                "Chorus CHORUS, level 127 lives in the Studio Set",
+                "Reverb SRV HALL, level 127 lives in the Studio Set",
             ]
         );
     }
@@ -625,10 +625,10 @@ mod xv_patches {
         assert_eq!(
             texts,
             [
-                "Tempo 110 not applied; set it in the Studio Set",
+                "Tempo 110 lives in the Studio Set",
                 "One Shot Mode dropped",
-                "Output Assign A not applied; set it in the Studio Set",
-                "Reverb REVERB, level 90 not applied; set it in the Studio Set",
+                "Output Assign A lives in the Studio Set",
+                "Reverb REVERB, level 90 lives in the Studio Set",
                 "Partial 1: Receive Pan Mode dropped",
             ]
         );
@@ -646,7 +646,7 @@ mod xv_patches {
         assert!(tempo(|_| {}).is_empty());
         // Tone 2 syncs, but is off.
         assert!(tempo(|b| b[6][0x38] = 1).is_empty());
-        let reported = ["Tempo 110 not applied; set it in the Studio Set"];
+        let reported = ["Tempo 110 lives in the Studio Set"];
         assert_eq!(
             tempo(|b| b[5][0x6E..0x70].copy_from_slice(&[0x08, 0x02])),
             reported
@@ -697,6 +697,34 @@ mod xv_patches {
         );
         assert!(plain.iter().all(|m| !sets_chorus_or_reverb(m)));
         assert_eq!(audition(&bytes, true), [plain, expected].concat());
+    }
+
+    #[test]
+    fn an_audition_applies_a_chorus_that_is_off_and_a_silent_reverb() {
+        let bytes = patch([0x30, 0x00], |b| {
+            b[2][..2].copy_from_slice(&[0, 80]); // Chorus OFF, level 80
+            b[3][..2].copy_from_slice(&[3, 0]); // SRV HALL, level 0
+        });
+        let (_, report) = converted(&bytes);
+        assert!(report.is_empty(), "{report:?}");
+        assert!(
+            audition(&bytes, false)
+                .iter()
+                .all(|m| !sets_chorus_or_reverb(m))
+        );
+        let applied: Vec<_> = audition(&bytes, true)
+            .into_iter()
+            .filter(|m| sets_chorus_or_reverb(m))
+            .collect();
+        let at = |address, data: &[u8]| build_dt1(0x10, &address, data);
+        assert_eq!(
+            applied[0],
+            at(params::chorus_address(chorus::TYPE), &[0, 80])
+        );
+        assert_eq!(
+            applied[1],
+            at(params::reverb_address(reverb::TYPE), &[3, 0])
+        );
     }
 }
 
@@ -801,7 +829,7 @@ mod jv_patches {
                 .iter()
                 .all(|e| e.kind() == ChunkType::PcmSynthTone && e.category() == Some(0))
         );
-        let studio = " not applied; set it in the Studio Set";
+        let studio = " lives in the Studio Set";
         let reports: Vec<Vec<String>> = read.reports.iter().map(texts).collect();
         assert_eq!(
             reports,
@@ -1012,7 +1040,7 @@ mod jv_patches {
             texts(&report),
             [
                 "Partial 1: Delay Mode KEY-INTERVAL dropped",
-                "Tempo 100 not applied; set it in the Studio Set",
+                "Tempo 100 lives in the Studio Set",
             ]
         );
         // XP: Clock Source SEQUENCER, so the Patch Tempo is unused.
@@ -1052,7 +1080,7 @@ mod jv_patches {
         assert!(tempo(|_| {}).is_empty());
         // Tone 2 syncs, but is off.
         assert!(tempo(|b| b[2][0x3C] = 2).is_empty());
-        let reported = ["Tempo 100 not applied; set it in the Studio Set"];
+        let reported = ["Tempo 100 lives in the Studio Set"];
         assert_eq!(tempo(|b| b[1][0x3C] = 2), reported); // LFO2 External Sync TAP
         assert_eq!(tempo(|b| b[1][0x09] = 3), reported); // Delay Mode CLOCK-SYNC
         // TRIPLE-TAP-DELAY Left at a note, through the EFX.
@@ -1150,12 +1178,12 @@ mod jv_patches {
             [
                 "Partial 2: EFX bypass dropped",
                 "EFX Mix Out Send Level dropped",
-                "EFX Output Assign OUTPUT 1 not applied; set it in the Studio Set",
+                "EFX Output Assign OUTPUT 1 lives in the Studio Set",
                 "Control 2 Hold/Peak dropped",
                 "Partial 1: Control 2 route to CUT (+10) dropped",
                 "Partial 1: Volume Control Switch dropped",
                 "Partial 1: Pan Control Switch dropped",
-                "Partial 2 Output Assign OUTPUT 1 not applied; set it in the Studio Set",
+                "Partial 2 Output Assign OUTPUT 1 lives in the Studio Set",
             ]
         );
         let p = &entry.blocks()[3..5];
@@ -1317,6 +1345,28 @@ mod jv_patches {
             .filter(|m| sets_chorus_or_reverb(m))
             .collect();
         assert_eq!(applied, expected[..3]);
+    }
+
+    #[test]
+    fn an_audition_applies_the_init_chorus_and_reverb() {
+        let bytes = patch([0x11, 0x00], 0x48, |_| {});
+        assert!(
+            audition(&bytes, false)
+                .iter()
+                .all(|m| !sets_chorus_or_reverb(m))
+        );
+        let expected = effect_dt1s(
+            [1, 127, 0],
+            // Rate 3 in 1/20 Hz, Depth 80, the rest at Roland's JV → XV values.
+            &[0, 7, 0, 0, 4, 18, 80, 90, 0],
+            [3, 127], // STAGE1 → Hall 1, time 90
+            &[0, 71, 127, 127, 50, 50, 127, 64],
+        );
+        let applied: Vec<_> = audition(&bytes, true)
+            .into_iter()
+            .filter(|m| sets_chorus_or_reverb(m))
+            .collect();
+        assert_eq!(applied, expected);
     }
 
     #[test]
@@ -1581,7 +1631,7 @@ mod jv_rhythms {
             texts,
             [
                 "Key 40: Pan Control Switch dropped",
-                "Key 42 Output Assign OUTPUT 1 not applied; set it in the Studio Set",
+                "Key 42 Output Assign OUTPUT 1 lives in the Studio Set",
                 "Key 43 WMT 1: PCM card 3 Wave 1 has no INTEGRA-7 Wave",
                 "Key 44 WMT 1: SR-JV80-06 Wave 1 has no INTEGRA-7 Wave",
                 "Output Assign EFX dropped",
@@ -1845,9 +1895,9 @@ mod xv_rhythms {
             [
                 // Output A bypasses the MFX: it is unused, so THRU loses nothing.
                 "MFX Dry Send Level dropped",
-                "Tempo 91 not applied; set it in the Studio Set",
-                "Output Assign A not applied; set it in the Studio Set",
-                "Reverb SRV HALL, level 100 not applied; set it in the Studio Set",
+                "Tempo 91 lives in the Studio Set",
+                "Output Assign A lives in the Studio Set",
+                "Reverb SRV HALL, level 100 lives in the Studio Set",
             ]
         );
     }
@@ -1861,7 +1911,7 @@ mod xv_rhythms {
             });
             texts(&converted(&bytes).1)
         };
-        assert_eq!(tempo(0), ["Tempo 91 not applied; set it in the Studio Set"]);
+        assert_eq!(tempo(0), ["Tempo 91 lives in the Studio Set"]);
         // WMT2 is off.
         assert!(tempo(1).is_empty());
     }

@@ -40,6 +40,7 @@ pub use report::{
     ConversionItem, ConversionReport, EffectFamily, FileItem, ForeignEffect, Location, Skipped,
     SourceModel, lossy_count,
 };
+use studio_set_fx::StudioSetEffect;
 
 /// First bytes of a Standard MIDI File.
 const SMF_MAGIC: &[u8] = b"MThd";
@@ -85,6 +86,10 @@ pub struct PackRead {
     /// The model each entry was made on, when its bytes tell, indexed like
     /// `pack.entries`.
     pub sources: Vec<Option<SourceModel>>,
+    /// The Studio Set Chorus and Reverb each entry's Foreign patch converts
+    /// to, for an audition to apply, indexed like `pack.entries`. Empty for
+    /// a native entry.
+    pub effects: Vec<Vec<StudioSetEffect>>,
 }
 
 impl PackRead {
@@ -92,12 +97,14 @@ impl PackRead {
     fn native(format: PackFormat, pack: Pack, file_report: Vec<FileItem>) -> Self {
         let reports = vec![ConversionReport::new(); pack.entries.len()];
         let sources = vec![None; pack.entries.len()];
+        let effects = vec![Vec::new(); pack.entries.len()];
         Self {
             format,
             pack,
             file_report,
             reports,
             sources,
+            effects,
         }
     }
 }
@@ -132,8 +139,27 @@ impl Pack {
     }
 }
 
-/// A converted unit, with the model it was made on when its bytes tell.
-type Converted = (PackEntry, ConversionReport, Option<SourceModel>);
+/// A converted unit.
+struct Converted {
+    entry: PackEntry,
+    report: ConversionReport,
+    /// The Studio Set Chorus and Reverb it converts to.
+    effects: Vec<StudioSetEffect>,
+    /// The model it was made on, when its bytes tell.
+    source: Option<SourceModel>,
+}
+
+impl Converted {
+    /// A unit with no Studio Set effects, of an unknown model.
+    fn new(entry: PackEntry, report: ConversionReport) -> Self {
+        Self {
+            entry,
+            report,
+            effects: Vec::new(),
+            source: None,
+        }
+    }
+}
 
 /// Pack entries as units convert, with the tally of what was dropped.
 struct Collector {
@@ -162,18 +188,14 @@ impl Collector {
 
     /// Add a converted unit, unless an earlier one is byte-identical, or
     /// count it skipped.
-    fn add(&mut self, converted: Result<(PackEntry, ConversionReport), Skipped>) {
-        self.add_from(converted.map(|(entry, report)| (entry, report, None)));
-    }
-
-    /// [`add`](Self::add) a unit made on a known model.
-    fn add_from(&mut self, converted: Result<Converted, Skipped>) {
+    fn add(&mut self, converted: Result<Converted, Skipped>) {
         match converted {
-            Ok((entry, ..)) if self.read.pack.entries.contains(&entry) => self.duplicates += 1,
-            Ok((entry, report, source)) => {
-                self.read.pack.entries.push(entry);
-                self.read.reports.push(report);
-                self.read.sources.push(source);
+            Ok(c) if self.read.pack.entries.contains(&c.entry) => self.duplicates += 1,
+            Ok(c) => {
+                self.read.pack.entries.push(c.entry);
+                self.read.reports.push(c.report);
+                self.read.sources.push(c.source);
+                self.read.effects.push(c.effects);
             }
             Err(kind) => self.skip(kind, 1),
         }
@@ -374,14 +396,14 @@ fn read_sysex(bytes: &[u8], format: PackFormat, mut unreadable: bool) -> PackRea
         if let Source::Jv(unit) = source
             && unit.kind == Skipped::Patch
         {
-            collector.add_from(jv::convert(unit.key, &frames));
+            collector.add(jv::convert(unit.key, &frames));
             continue;
         }
         collector.add(match source {
             Source::Integra(i) => {
                 let frames = frames.iter().map(|f| (Address(f.address), f.data));
                 integra::assemble(&areas[i], frames)
-                    .map(|entry| (entry, ConversionReport::new()))
+                    .map(|entry| Converted::new(entry, ConversionReport::new()))
                     .ok_or(Skipped::Incomplete)
             }
             Source::Xv(unit) if unit.kind == Skipped::Patch => {
@@ -392,6 +414,7 @@ fn read_sysex(bytes: &[u8], format: PackFormat, mut unreadable: bool) -> PackRea
             }
             Source::Jv(unit) if unit.kind == Skipped::Rhythm => {
                 jv_rhythm::convert(unit.key, &frames)
+                    .map(|(entry, report)| Converted::new(entry, report))
             }
             Source::Jv(unit) | Source::Xv(unit) => Err(unit.kind),
         });

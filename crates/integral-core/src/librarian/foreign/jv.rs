@@ -576,6 +576,7 @@ struct Patch<'a> {
     /// The INTEGRA-7 Tone Category.
     category: u8,
     report: ConversionReport,
+    effects: Vec<StudioSetEffect>,
 }
 
 impl Patch<'_> {
@@ -613,9 +614,8 @@ impl Patch<'_> {
         });
     }
 
-    fn not_applied(&mut self, what: String, settings: Option<StudioSetEffect>) {
-        self.report
-            .push(ConversionItem::NotApplied { what, settings });
+    fn not_applied(&mut self, what: String) {
+        self.report.push(ConversionItem::NotApplied { what });
     }
 }
 
@@ -658,6 +658,7 @@ pub(super) fn convert(key: [u8; 2], frames: &[Frame<'_>]) -> Result<Converted, S
         tone: PcmTone::init(),
         category: 0,
         report: ConversionReport::new(),
+        effects: Vec::new(),
     };
     patch.apply(&COMMON_ROWS, patch.common, 0);
     for i in 0..4 {
@@ -668,7 +669,11 @@ pub(super) fn convert(key: [u8; 2], frames: &[Frame<'_>]) -> Result<Converted, S
         code(&mut patch);
     }
     patch.tone.fill_common2(patch.category);
-    Ok((patch.tone.into_entry(), patch.report, Some(model)))
+    Ok(Converted {
+        effects: patch.effects,
+        source: Some(model),
+        ..Converted::new(patch.tone.into_entry(), patch.report)
+    })
 }
 
 /// EFX → MFX through the effect map, when a Tone goes through it; the MFX
@@ -747,38 +752,33 @@ pub(super) fn named(names: &[&str], value: u8) -> String {
 }
 
 /// Patch Chorus, Reverb and EFX Output Assign: they live in the Studio Set
-/// on the INTEGRA-7. Reported when they differ from the JV INIT.
+/// on the INTEGRA-7. Reported when they differ from the JV INIT; the
+/// Chorus and Reverb convert to Studio Set settings either way.
 fn studio_set(p: &mut Patch<'_>) {
     let c = p.common;
+    let [level, rate, depth, pre_delay, feedback, output] =
+        c[CHORUS].try_into().expect("6 Chorus bytes");
+    p.effects
+        .push(jv_chorus([level, rate, depth, pre_delay, feedback, output]));
     if c[CHORUS] != *init(CHORUS) {
-        let [level, rate, depth, pre_delay, feedback, output] =
-            c[CHORUS].try_into().expect("6 Chorus bytes");
-        p.not_applied(
-            format!(
-                "Chorus level {level}, rate {rate}, depth {depth}, pre-delay {pre_delay}, \
-                 feedback {feedback}, output {}",
-                named(&CHORUS_OUTPUTS, output)
-            ),
-            Some(jv_chorus([level, rate, depth, pre_delay, feedback, output])),
-        );
+        p.not_applied(format!(
+            "Chorus level {level}, rate {rate}, depth {depth}, pre-delay {pre_delay}, \
+             feedback {feedback}, output {}",
+            named(&CHORUS_OUTPUTS, output)
+        ));
     }
+    let [kind, level, time, damp, feedback] = c[REVERB].try_into().expect("5 Reverb bytes");
+    p.effects.extend(jv_reverb(kind, level, time));
     if c[REVERB] != *init(REVERB) {
-        let [kind, level, time, damp, feedback] = c[REVERB].try_into().expect("5 Reverb bytes");
-        p.not_applied(
-            format!(
-                "Reverb {}, level {level}, time {time}, HF damp {}, feedback {feedback}",
-                named(&REVERB_TYPES, kind),
-                FxUnit::Freq.format(damp.into())
-            ),
-            jv_reverb(kind, level, time),
-        );
+        p.not_applied(format!(
+            "Reverb {}, level {level}, time {time}, HF damp {}, feedback {feedback}",
+            named(&REVERB_TYPES, kind),
+            FxUnit::Freq.format(damp.into())
+        ));
     }
     let output = c[EFX_OUTPUT_ASSIGN];
     if output != 0 {
-        p.not_applied(
-            format!("EFX Output Assign {}", named(&EFX_OUTPUTS, output)),
-            None,
-        );
+        p.not_applied(format!("EFX Output Assign {}", named(&EFX_OUTPUTS, output)));
     }
 }
 
@@ -1003,7 +1003,7 @@ fn tempo(p: &mut Patch<'_>) {
     let tempo = nibble2(p.common, PATCH_TEMPO);
     let clock_patch = p.model == Model::Jv1080 || p.common[CLOCK_SOURCE] == CLOCK_PATCH;
     if clock_patch && tempo != INIT_TEMPO && p.tone.syncs_to_tempo() {
-        p.not_applied(format!("Tempo {tempo}"), None);
+        p.not_applied(format!("Tempo {tempo}"));
     }
 }
 
@@ -1053,14 +1053,11 @@ fn sends(p: &mut Patch<'_>) {
         let [chorus, reverb] = TONE_SENDS.map(|at| tone[at]);
         pcm_tone::write_sends(p.tone.partial(i), routed, chorus, reverb);
         if p.active(i) && output > OUTPUT_EFX {
-            p.not_applied(
-                format!(
-                    "Partial {} Output Assign {}",
-                    i + 1,
-                    named(&TONE_OUTPUTS, output)
-                ),
-                None,
-            );
+            p.not_applied(format!(
+                "Partial {} Output Assign {}",
+                i + 1,
+                named(&TONE_OUTPUTS, output)
+            ));
         }
     }
 }

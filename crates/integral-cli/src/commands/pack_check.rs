@@ -426,6 +426,7 @@ mod tests {
             pack: Pack::default(),
             reports: vec![],
             sources: vec![],
+            effects: vec![],
         };
         let file = check_file(Path::new("x.syx"), read);
         assert_eq!((file.entries, file.rejected), (0, 5));
@@ -460,7 +461,6 @@ mod tests {
     fn names_item_kinds_by_their_json_tag() {
         let item = ConversionItem::NotApplied {
             what: "Tempo 90".into(),
-            settings: None,
         };
         assert_eq!(kind(&item), "notApplied");
     }

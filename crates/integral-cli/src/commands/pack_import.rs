@@ -682,6 +682,7 @@ mod tests {
             file_report: vec![],
             reports: vec![],
             sources: vec![],
+            effects: vec![],
         }
     }
 
@@ -830,12 +831,12 @@ mod tests {
                 {
                     "type": "notApplied",
                     "what": "Chorus CHORUS, level 127",
-                    "message": "Chorus CHORUS, level 127 not applied; set it in the Studio Set",
+                    "message": "Chorus CHORUS, level 127 lives in the Studio Set",
                 },
                 {
                     "type": "notApplied",
                     "what": "Reverb SRV HALL, level 127",
-                    "message": "Reverb SRV HALL, level 127 not applied; set it in the Studio Set",
+                    "message": "Reverb SRV HALL, level 127 lives in the Studio Set",
                 },
             ])
         );
@@ -860,8 +861,8 @@ mod tests {
              \x20 pcm-synth:1      United !         -> Temporary Part 1 [lossy · 2]\n\
              \x20     Partial 3: MFX bypass dropped\n\
              \x20     Partial 4: MFX bypass dropped\n\
-             \x20     Chorus CHORUS, level 127 not applied; set it in the Studio Set\n\
-             \x20     Reverb SRV HALL, level 127 not applied; set it in the Studio Set\n\
+             \x20     Chorus CHORUS, level 127 lives in the Studio Set\n\
+             \x20     Reverb SRV HALL, level 127 lives in the Studio Set\n\
              Warning: 1 other message skipped\n"
         );
     }

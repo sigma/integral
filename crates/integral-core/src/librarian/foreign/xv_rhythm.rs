@@ -9,13 +9,14 @@
 //! Reference: `docs/research/foreign-rhythm-format.md` (section 3) and its
 //! per-field `foreign-rhythm-format.csv`.
 
+use super::Converted;
 use super::frame::{self, Frame};
 use super::pcm_kit::PcmKit;
 use super::pcm_tone::OUTPUT_TONE;
 use super::report::{ConversionItem, ConversionReport, Location};
+use super::studio_set_fx::StudioSetEffect;
 use super::xv::{self, OUTPUT_MFX, Rejected, WaveSource};
 use crate::address::Address;
-use crate::librarian::pack::PackEntry;
 use crate::parse_helpers::{nibble2, nibble4};
 use crate::pcm_drum::{
     PCMD_KEYS, PCMD_WMT_COUNT, PcmDrumCommon, PcmdPartialField as F, PcmdWmtField,
@@ -66,6 +67,7 @@ struct Rhythm<'a> {
     tones: Vec<(u8, Vec<u8>)>,
     kit: PcmKit,
     report: ConversionReport,
+    effects: Vec<StudioSetEffect>,
 }
 
 /// The fix rows, in `foreign-rhythm-format.csv` order: kit-wide first, then
@@ -86,10 +88,7 @@ const FIXES: [fn(&mut Rhythm<'_>); 10] = [
 
 /// Convert the Rhythm Set whose frames share address byte `key[0]` and the
 /// slot bits `key[1]`. Its Common, MFX, Chorus and Reverb are needed.
-pub(super) fn convert(
-    key: [u8; 2],
-    frames: &[Frame<'_>],
-) -> Result<(PackEntry, ConversionReport), Rejected> {
+pub(super) fn convert(key: [u8; 2], frames: &[Frame<'_>]) -> Result<Converted, Rejected> {
     let dt1s = || frames.iter().map(|f| (Address(f.address), f.data));
     let assemble = |(offset, size): Block| {
         let [hi, lo] = [(offset >> 7) as u8, (offset & 0x7F) as u8];
@@ -114,6 +113,7 @@ pub(super) fn convert(
         tones,
         kit: PcmKit::init(),
         report: ConversionReport::new(),
+        effects: Vec::new(),
     };
     rhythm.kit.common().copy_from_slice(&common);
     rhythm.kit.mfx()[..mfx.len()].copy_from_slice(&mfx);
@@ -123,7 +123,10 @@ pub(super) fn convert(
     for fix in FIXES {
         fix(&mut rhythm);
     }
-    Ok((rhythm.kit.into_entry(), rhythm.report))
+    Ok(Converted {
+        effects: rhythm.effects,
+        ..Converted::new(rhythm.kit.into_entry(), rhythm.report)
+    })
 }
 
 impl Rhythm<'_> {
@@ -171,7 +174,7 @@ fn mfx(r: &mut Rhythm<'_>) {
 
 /// Rhythm Chorus and Reverb, by the Patch rule ([`xv::chorus_reverb`]).
 fn chorus_reverb(r: &mut Rhythm<'_>) {
-    xv::chorus_reverb(r.chorus, r.reverb, &mut r.report);
+    xv::chorus_reverb(r.chorus, r.reverb, &mut r.report, &mut r.effects);
 }
 
 /// One Shot Mode: once per kit on the XV, per key on the INTEGRA-7. The

@@ -234,9 +234,9 @@ impl PackImport {
         jobs.sort_by_key(|j| pack.entries[j.entry].kind() == ChunkType::StudioSet);
         if apply_effects {
             match jobs.as_mut_slice() {
-                [job] if job.write.is_none() => job.sends.extend(studio_set_fx::report_dt1s(
+                [job] if job.write.is_none() => job.sends.extend(studio_set_fx::effects_dt1s(
                     device_id,
-                    plan.report(job.entry),
+                    plan.effects(job.entry),
                 )),
                 _ => return Err(ImportError::EffectsNeedTemporary),
             }

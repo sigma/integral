@@ -17,10 +17,9 @@ use super::pcm_tone::{self, FULL_LEVEL, OUTPUT_TONE, Output, PcmTone};
 use super::report::{ConversionItem, ConversionReport, EffectFamily, ForeignEffect, Location};
 use super::studio_set_fx::{StudioSetEffect, xv_chorus, xv_reverb};
 use super::wave_map::ForeignWaveGroup;
-use super::{Placed, Unit};
+use super::{Converted, Placed, Unit};
 use crate::address::Address;
 use crate::librarian::foreign::report::Skipped;
-use crate::librarian::pack::PackEntry;
 use crate::mfx::{MfxCtrlSlot, MfxHeaderField, mfx_header_offset, parse_mfx_block};
 use crate::parse_helpers::{nibble2, nibble4};
 use crate::svd_convert::unpack_sections;
@@ -225,6 +224,7 @@ struct Patch<'a> {
     xv: &'a [Vec<u8>],
     tone: PcmTone,
     report: ConversionReport,
+    effects: Vec<StudioSetEffect>,
 }
 
 /// The fix rows, one per XV field that does not copy byte for byte, in
@@ -243,10 +243,7 @@ const FIXES: [fn(&mut Patch<'_>); 8] = [
 ];
 
 /// Convert the Patch whose frames share address bytes `key`.
-pub(super) fn convert(
-    key: [u8; 2],
-    frames: &[Frame<'_>],
-) -> Result<(PackEntry, ConversionReport), Rejected> {
+pub(super) fn convert(key: [u8; 2], frames: &[Frame<'_>]) -> Result<Converted, Rejected> {
     let layout = BLOCKS.map(|([c, d], size)| (Address::new(key[0], key[1], c, d).value(), size));
     let dt1s = || frames.iter().map(|f| (Address(f.address), f.data));
     // A Multi-Partial Patch is rejected as such even with blocks missing.
@@ -261,13 +258,13 @@ pub(super) fn convert(
 /// Convert the Patch decoded from an XV `.svd` entry: its leading
 /// [`XV_PATCH_SECTIONS`] bytes hold the 9 blocks. Split Key data after them
 /// is ignored, since only Multi-Partial Patches use it.
-pub(super) fn convert_svd(entry: &[u8]) -> Result<(PackEntry, ConversionReport), Rejected> {
+pub(super) fn convert_svd(entry: &[u8]) -> Result<Converted, Rejected> {
     let xv = unpack_sections(entry, &XV_PATCH_SECTIONS).map_err(|_| Rejected::Incomplete)?;
     convert_blocks(&xv)
 }
 
 /// Convert a Patch from its 9 blocks, in [`BLOCKS`] order.
-fn convert_blocks(xv: &[Vec<u8>]) -> Result<(PackEntry, ConversionReport), Rejected> {
+fn convert_blocks(xv: &[Vec<u8>]) -> Result<Converted, Rejected> {
     debug_assert!(xv.iter().map(Vec::len).eq(BLOCKS.map(|(_, size)| size)));
     if xv[COMMON][TONE_TYPE] == MULTI_PARTIAL {
         return Err(Rejected::MultiPartial);
@@ -282,11 +279,15 @@ fn convert_blocks(xv: &[Vec<u8>]) -> Result<(PackEntry, ConversionReport), Rejec
         tone: PcmTone::new(&xv[COMMON], &xv[MFX], &xv[TMT], tones, category),
         xv,
         report: ConversionReport::new(),
+        effects: Vec::new(),
     };
     for fix in FIXES {
         fix(&mut patch);
     }
-    Ok((patch.tone.into_entry(), patch.report))
+    Ok(Converted {
+        effects: patch.effects,
+        ..Converted::new(patch.tone.into_entry(), patch.report)
+    })
 }
 
 /// The name of `value` in `names`, or the raw value.
@@ -315,7 +316,6 @@ pub(super) fn tempo(clock_source: u8, tempo: u16, synced: bool, report: &mut Con
     if synced && clock_source == CLOCK_PATCH && tempo != DEFAULT_TEMPO {
         report.push(ConversionItem::NotApplied {
             what: format!("Tempo {tempo}"),
-            settings: None,
         });
     }
 }
@@ -343,7 +343,6 @@ pub(super) fn output_assign(output: u8, report: &mut ConversionReport) -> u8 {
     if output != OUTPUT_TONE {
         report.push(ConversionItem::NotApplied {
             what: format!("Output Assign {}", named(&OUTPUTS, output)),
-            settings: None,
         });
     }
     OUTPUT_TONE
@@ -424,33 +423,40 @@ pub(super) fn convert_mfx(
 }
 
 /// A Patch or Rhythm effect an INTEGRA-7 tone has no place for: reported
-/// when it sounds, with the Studio Set `settings` it converts to.
+/// when it sounds. The Studio Set `settings` it converts to go to `effects`
+/// whether it sounds or not.
 fn studio_set_effect(
     block: &[u8],
     label: &str,
     types: &[&str],
     settings: fn(&[u8]) -> Option<StudioSetEffect>,
     report: &mut ConversionReport,
+    effects: &mut Vec<StudioSetEffect>,
 ) {
     let (kind, level) = (block[EFFECT_TYPE], block[EFFECT_LEVEL]);
     if kind != 0 && level != 0 {
         report.push(ConversionItem::NotApplied {
             what: format!("{label} {}, level {level}", named(types, kind)),
-            settings: settings(block),
         });
     }
+    effects.extend(settings(block));
 }
 
 /// Patch Chorus and Reverb, by [`chorus_reverb`].
 fn chorus_and_reverb(p: &mut Patch<'_>) {
-    chorus_reverb(&p.xv[CHORUS], &p.xv[REVERB], &mut p.report);
+    chorus_reverb(&p.xv[CHORUS], &p.xv[REVERB], &mut p.report, &mut p.effects);
 }
 
 /// A Patch or Rhythm Chorus and Reverb block: they live in the Studio Set
 /// on the INTEGRA-7.
-pub(super) fn chorus_reverb(chorus: &[u8], reverb: &[u8], report: &mut ConversionReport) {
-    studio_set_effect(chorus, "Chorus", &CHORUS_TYPES, xv_chorus, report);
-    studio_set_effect(reverb, "Reverb", &REVERB_TYPES, xv_reverb, report);
+pub(super) fn chorus_reverb(
+    chorus: &[u8],
+    reverb: &[u8],
+    report: &mut ConversionReport,
+    effects: &mut Vec<StudioSetEffect>,
+) {
+    studio_set_effect(chorus, "Chorus", &CHORUS_TYPES, xv_chorus, report, effects);
+    studio_set_effect(reverb, "Reverb", &REVERB_TYPES, xv_reverb, report, effects);
 }
 
 /// Tone Chorus/Reverb Send Levels: an XV Tone holds a pair for when it goes

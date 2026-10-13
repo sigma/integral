@@ -12,7 +12,7 @@ use integral_core::catalog::CatalogEntry;
 use integral_core::device_spec::INTEGRA7;
 use integral_core::expansion_slots::ExpansionSlots;
 use integral_core::librarian::export::{self, ExportAction, ExportSource, PackExport};
-use integral_core::librarian::foreign::{PackFormat, PackRead, lossy_count, studio_set_fx};
+use integral_core::librarian::foreign::{PackFormat, PackRead, lossy_count};
 use integral_core::librarian::import::{ImportAction, PackImport};
 use integral_core::librarian::pack::{Pack, ToneRef};
 use integral_core::librarian::plan::{self, ImportPlan, Origin};
@@ -297,12 +297,12 @@ impl WasmImportPlan {
         self.inner.unplaced().collect()
     }
 
-    /// Entries whose Conversion report holds a Chorus or Reverb an
-    /// audition can apply to the Temporary Studio Set.
+    /// Entries whose Foreign patch has a Chorus or Reverb an audition can
+    /// apply to the Temporary Studio Set.
     #[wasm_bindgen(js_name = withEffects)]
     pub fn with_effects(&self) -> Vec<usize> {
         (0..self.inner.placements().len())
-            .filter(|&i| studio_set_fx::applies_effects(self.inner.report(i)))
+            .filter(|&i| !self.inner.effects(i).is_empty())
             .collect()
     }
 
@@ -509,6 +509,7 @@ impl WasmPackExport {
                 file_report: vec![],
                 reports: vec![],
                 sources: vec![],
+                effects: vec![],
             },
             origin: Origin::Sound,
         })
