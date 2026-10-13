@@ -53,58 +53,60 @@ export function ExpansionsPage({ expansions, staging }: Props) {
 
   return (
     <div className={css.page}>
-      <div className={css.slotStrip}>
-        {slotNames.map((name, i) => {
-          const value = shown?.[i];
-          const changed = changedSlots.includes(i);
-          return (
-            <button
-              key={name}
-              className={`${css.slot} ${selectedSlot === i ? css.slotSelected : ""} ${changed ? css.slotStaged : ""}`}
-              onClick={() => staging.selectSlot(i)}
-              disabled={slots === null}
-            >
-              <span className={css.slotName}>Slot {name}</span>
-              <span className={css.slotValue}>
-                {value === undefined ? "?" : slotLabel(value)}
-              </span>
-              <span className={css.slotTitle}>
-                {value !== undefined && expansionByLoadValue(value)?.title}
-                {changed && slots && (
-                  <em className={css.was}> (was {slotLabel(slots[i]!)})</em>
-                )}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {slots === null && (
-        <div className={css.hint}>
-          Expansion slots unknown: no answer from the INTEGRA-7. Nothing can be
-          staged until they are read.
+      <div className={css.side}>
+        <div className={css.slotGrid}>
+          {slotNames.map((name, i) => {
+            const value = shown?.[i];
+            const changed = changedSlots.includes(i);
+            return (
+              <button
+                key={name}
+                className={`${css.slot} ${selectedSlot === i ? css.slotSelected : ""} ${changed ? css.slotStaged : ""}`}
+                onClick={() => staging.selectSlot(i)}
+                disabled={slots === null}
+              >
+                <span className={css.slotName}>Slot {name}</span>
+                <span className={css.slotValue}>
+                  {value === undefined ? "?" : slotLabel(value)}
+                </span>
+                <span className={css.slotTitle}>
+                  {value !== undefined && expansionByLoadValue(value)?.title}
+                  {changed && slots && (
+                    <em className={css.was}> (was {slotLabel(slots[i]!)})</em>
+                  )}
+                </span>
+              </button>
+            );
+          })}
         </div>
-      )}
-      <LoadNotice notice={staging.notice} />
 
-      {changedSlots.length > 0 && (
-        <div className={css.applyBar}>
-          <span className={css.applyNote}>
-            All sound stops while loading (~5 s per Expansion).
-          </span>
-          {staging.confirming && (
-            <span className={css.warn}>
-              Parts {staging.confirming.join(", ")} will go silent.
+        {slots === null && (
+          <div className={css.hint}>
+            Expansion slots unknown: no answer from the INTEGRA-7. Nothing can
+            be staged until they are read.
+          </div>
+        )}
+        <LoadNotice notice={staging.notice} />
+
+        {changedSlots.length > 0 && (
+          <div className={css.applyBar}>
+            <span className={css.applyNote}>
+              All sound stops while loading (~5 s per Expansion).
             </span>
-          )}
-          <button className={css.primary} onClick={staging.apply}>
-            {staging.confirming ? "Load anyway" : "Apply"}
-          </button>
-          <button className={css.secondary} onClick={staging.discard}>
-            Discard
-          </button>
-        </div>
-      )}
+            {staging.confirming && (
+              <span className={css.warn}>
+                Parts {staging.confirming.join(", ")} will go silent.
+              </span>
+            )}
+            <button className={css.primary} onClick={staging.apply}>
+              {staging.confirming ? "Load anyway" : "Apply"}
+            </button>
+            <button className={css.secondary} onClick={staging.discard}>
+              Discard
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className={css.catalog}>
         <div className={css.hint}>
@@ -171,15 +173,15 @@ function CatalogRow({
       {parts.length > 0 && (
         <span className={css.tag}>Parts {parts.join(", ")}</span>
       )}
-      {expansion && slots && (
-        loadedAt >= 0 ? (
+      {expansion &&
+        slots &&
+        (loadedAt >= 0 ? (
           <LoadedMarker>
             loaded · {loadedSlots(loadedAt, expansion.slotCost)}
           </LoadedMarker>
         ) : (
           <NotLoadedMarker expansion={expansion.name} />
-        )
-      )}
+        ))}
     </button>
   );
 }
@@ -187,7 +189,9 @@ function CatalogRow({
 /** "B", or "A–D" for an Expansion taking several slots from `first`. */
 function loadedSlots(first: number, cost: number): string {
   const names = expansionSlotNames();
-  return cost > 1 ? `${names[first]}–${names[first + cost - 1]}` : names[first]!;
+  return cost > 1
+    ? `${names[first]}–${names[first + cost - 1]}`
+    : names[first]!;
 }
 
 /** Tells how the last load ended when it didn't load what was staged. */

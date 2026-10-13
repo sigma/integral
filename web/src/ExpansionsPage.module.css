@@ -1,29 +1,40 @@
 .page {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 24px;
   flex: 1;
   min-height: 0;
   padding: 16px 24px;
   color: #e0e0e0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Slot strip: one card per Expansion slot */
+/* Side column: slot tiles, notices, apply bar */
 
-.slotStrip {
-  display: grid;
-  grid-auto-columns: 1fr;
-  grid-auto-flow: column;
-  gap: 8px;
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 320px;
   flex-shrink: 0;
+}
+
+/* Slot grid: one square tile per Expansion slot, 2x2 */
+
+.slotGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
 }
 
 .slot {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  justify-content: center;
   gap: 2px;
+  aspect-ratio: 1;
   padding: 10px 12px;
   color: #e0e0e0;
   text-align: left;
@@ -132,6 +143,8 @@
 
 .catalog {
   flex: 1;
+  max-width: 560px;
+  align-self: stretch;
   min-height: 0;
   overflow-y: auto;
 }
