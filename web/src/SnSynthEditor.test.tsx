@@ -1,8 +1,14 @@
 import { act } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { WasmDeviceState } from "../pkg/integral_wasm.js";
+import {
+  ParameterFamily,
+  SnsPartialField,
+  WasmDeviceState,
+  sns_partial_spec,
+} from "../pkg/integral_wasm.js";
 import { SnSynthEditor } from "./SnSynthEditor";
 import type { IntegraService } from "./integra";
+import { familyVar } from "./synth-ui";
 import { cleanup, render } from "./test/dom";
 import { dt1Drainer } from "./test/toneService";
 
@@ -48,26 +54,31 @@ function fakeService() {
   return { device, service, sentRequests, reply };
 }
 
+/** Render the editor and answer its reads; Common is named "Lead" with Tone Level 100. */
+function loadedEditor() {
+  const { device, service, sentRequests, reply } = fakeService();
+  const { container } = render(<SnSynthEditor partIndex={PART} service={service} />);
+  expect(container.textContent).toContain("Loading SN-S tone data");
+
+  // Common and 3 Partials, each read once.
+  const requests = sentRequests();
+  expect(requests).toHaveLength(4);
+  for (const [i, { address, size }] of requests.entries()) {
+    const data = new Uint8Array(size);
+    if (i === 0) {
+      data.set(new TextEncoder().encode("Lead"));
+      data[0x0c] = 100; // Tone Level
+    }
+    expect(container.textContent).toContain("Loading SN-S tone data");
+    reply(address, data);
+  }
+  expect(container.textContent).toContain("Lead");
+  return { device, container, requests };
+}
+
 describe("SnSynthEditor", () => {
   it("shows the tone the core read, and edits to it", () => {
-    const { device, service, sentRequests, reply } = fakeService();
-    const { container } = render(<SnSynthEditor partIndex={PART} service={service} />);
-    expect(container.textContent).toContain("Loading SN-S tone data");
-
-    // Common and 3 Partials, each read once.
-    const requests = sentRequests();
-    expect(requests).toHaveLength(4);
-    for (const [i, { address, size }] of requests.entries()) {
-      const data = new Uint8Array(size);
-      if (i === 0) {
-        data.set(new TextEncoder().encode("Lead"));
-        data[0x0c] = 100; // Tone Level
-      }
-      expect(container.textContent).toContain("Loading SN-S tone data");
-      reply(address, data);
-    }
-    expect(container.textContent).toContain("Lead");
-
+    const { device, container, requests } = loadedEditor();
     const level = container.querySelector('[role="slider"][aria-label="Tone Level"]');
     if (!level) throw new Error("no Tone Level knob");
     expect(level.getAttribute("aria-valuenow")).toBe("100");
@@ -81,5 +92,17 @@ describe("SnSynthEditor", () => {
     expect(sentDt1s()).toEqual([
       { address: [...requests[0]!.address.slice(0, 3), 12], data: [101] },
     ]);
+  });
+
+  it("lights each knob in its field's family, not its section's", () => {
+    const { container } = loadedEditor();
+    // Pan sits in AMP, but its spec makes it Time.
+    const panFamily = sns_partial_spec(SnsPartialField.AmpPan).family;
+    expect(panFamily).toBe(ParameterFamily.Time);
+    const pan = container.querySelector('[role="slider"][aria-label="Pan"]');
+    if (!pan) throw new Error("no Pan knob");
+    const fills = [...pan.querySelectorAll("circle")].map((c) => c.style.fill);
+    expect(fills).toContain(familyVar(panFamily));
+    expect(fills).not.toContain(familyVar(ParameterFamily.Amp));
   });
 });

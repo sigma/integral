@@ -9,6 +9,7 @@ import {
   FaderGroupSep,
 } from "../synth-ui";
 import {
+  ParameterFamily,
   SnsPartialField,
   sns_osc_wave_pcm,
   sns_osc_wave_super_saw,
@@ -21,7 +22,7 @@ import { OscWaveScope } from "./OscWaveScope";
 import { LfoScope } from "../synth-ui/LfoScope";
 import { SyncedRateKnob } from "./SyncedRateKnob";
 import { snSynthWaveSource } from "../waveCatalog";
-import { knobRange, switchOptions } from "../fieldSpec";
+import { knobProps, knobRange, switchOptions } from "../fieldSpec";
 
 /** The display name of `value` of a Partial field, as core formats it. */
 const nameOf = (field: SnsPartialField, value: number) => sns_partial_spec(field).formatValue(value);
@@ -112,7 +113,7 @@ function OscPanel({
   const hasVariation = !isPcm && !isSuperSaw;
 
   return (
-    <SectionPanel label="OSC" accentColor="#fc8">
+    <SectionPanel label="OSC" family={ParameterFamily.Pitch}>
       <div className={css.panelRow}>
         <div className={css.oscSelectors}>
           <SynthSwitch label="Wave" value={partial.oscWave} vertical
@@ -135,16 +136,16 @@ function OscPanel({
               pwShift={partial.pwShift} superSawDetune={partial.superSawDetune} />
           )}
           <div className={css.scopeKnobRow}>
-            <SynthKnob label="Pitch" value={partial.oscPitch} {...knobRange(sns_partial_spec(SnsPartialField.OscPitch))}
-              onChange={(v) => onChange(SnsPartialField.OscPitch, v)} color="#fc8" />
-            <SynthKnob label="HPF" value={partial.hpfCutoff} {...knobRange(sns_partial_spec(SnsPartialField.HpfCutoff))}
-              onChange={(v) => onChange(SnsPartialField.HpfCutoff, v)} color="#fc8" />
-            <SynthKnob label="Detune" value={partial.oscDetune} {...knobRange(sns_partial_spec(SnsPartialField.OscDetune))}
-              onChange={(v) => onChange(SnsPartialField.OscDetune, v)} color="#fc8" />
+            <SynthKnob label="Pitch" value={partial.oscPitch} {...knobProps(sns_partial_spec(SnsPartialField.OscPitch))}
+              onChange={(v) => onChange(SnsPartialField.OscPitch, v)} />
+            <SynthKnob label="HPF" value={partial.hpfCutoff} {...knobProps(sns_partial_spec(SnsPartialField.HpfCutoff))}
+              onChange={(v) => onChange(SnsPartialField.HpfCutoff, v)} />
+            <SynthKnob label="Detune" value={partial.oscDetune} {...knobProps(sns_partial_spec(SnsPartialField.OscDetune))}
+              onChange={(v) => onChange(SnsPartialField.OscDetune, v)} />
             {/* Hidden, not removed, so it keeps its room and the panel's width */}
             <div className={isSuperSaw ? undefined : css.hiddenKnob}>
-              <SynthKnob label="S-Saw" value={partial.superSawDetune} {...knobRange(sns_partial_spec(SnsPartialField.SuperSawDetune))}
-                onChange={(v) => onChange(SnsPartialField.SuperSawDetune, v)} color="#fc8" />
+              <SynthKnob label="S-Saw" value={partial.superSawDetune} {...knobProps(sns_partial_spec(SnsPartialField.SuperSawDetune))}
+                onChange={(v) => onChange(SnsPartialField.SuperSawDetune, v)} />
             </div>
           </div>
         </div>
@@ -184,7 +185,7 @@ function FilterPanel({
   onChange: PartialParamHandler;
 }) {
   return (
-    <SectionPanel label="FILTER" accentColor="#68c">
+    <SectionPanel label="FILTER" family={ParameterFamily.Filter}>
       <div className={css.panelRow}>
         <SynthSwitch label="Mode" value={partial.filterMode} vertical
           options={switchOptions(sns_partial_spec(SnsPartialField.FilterMode))}
@@ -193,16 +194,16 @@ function FilterPanel({
           options={switchOptions(sns_partial_spec(SnsPartialField.FilterSlope))}
           onChange={(v) => onChange(SnsPartialField.FilterSlope, v)} led={false} />
         <div className={`${css.oscKnobGrid} ${css.knobGrid3} ${css.knobsRight}`}>
-          <SynthKnob label="Cutoff" value={partial.filterCutoff} {...knobRange(sns_partial_spec(SnsPartialField.FilterCutoff))}
-            onChange={(v) => onChange(SnsPartialField.FilterCutoff, v)} color="#68c" />
-          <SynthKnob label="Reso" value={partial.filterResonance} {...knobRange(sns_partial_spec(SnsPartialField.FilterResonance))}
-            onChange={(v) => onChange(SnsPartialField.FilterResonance, v)} color="#68c" />
-          <SynthKnob label="KeyF" value={partial.filterKeyfollow} {...knobRange(sns_partial_spec(SnsPartialField.FilterKeyfollow))}
-            onChange={(v) => onChange(SnsPartialField.FilterKeyfollow, v)} color="#68c" />
-          <SynthKnob label="Vel Sns" value={partial.filterEnvVelSens} {...knobRange(sns_partial_spec(SnsPartialField.FilterEnvVelSens))}
-            onChange={(v) => onChange(SnsPartialField.FilterEnvVelSens, v)} color="#68c" />
-          <SynthKnob label="Aft Cut" value={partial.aftertouchCutoff} {...knobRange(sns_partial_spec(SnsPartialField.AftertouchCutoff))}
-            onChange={(v) => onChange(SnsPartialField.AftertouchCutoff, v)} color="#68c" />
+          <SynthKnob label="Cutoff" value={partial.filterCutoff} {...knobProps(sns_partial_spec(SnsPartialField.FilterCutoff))}
+            onChange={(v) => onChange(SnsPartialField.FilterCutoff, v)} />
+          <SynthKnob label="Reso" value={partial.filterResonance} {...knobProps(sns_partial_spec(SnsPartialField.FilterResonance))}
+            onChange={(v) => onChange(SnsPartialField.FilterResonance, v)} />
+          <SynthKnob label="KeyF" value={partial.filterKeyfollow} {...knobProps(sns_partial_spec(SnsPartialField.FilterKeyfollow))}
+            onChange={(v) => onChange(SnsPartialField.FilterKeyfollow, v)} />
+          <SynthKnob label="Vel Sns" value={partial.filterEnvVelSens} {...knobProps(sns_partial_spec(SnsPartialField.FilterEnvVelSens))}
+            onChange={(v) => onChange(SnsPartialField.FilterEnvVelSens, v)} />
+          <SynthKnob label="Aft Cut" value={partial.aftertouchCutoff} {...knobProps(sns_partial_spec(SnsPartialField.AftertouchCutoff))}
+            onChange={(v) => onChange(SnsPartialField.AftertouchCutoff, v)} />
         </div>
       </div>
       <FaderGroup>
@@ -237,22 +238,22 @@ function AmpPanel({
   onChange: PartialParamHandler;
 }) {
   return (
-    <SectionPanel label="AMP" accentColor="#6c8">
+    <SectionPanel label="AMP" family={ParameterFamily.Amp}>
       <div className={css.panelRow}>
         <SynthSwitch label="Gain" value={partial.waveGain} vertical
           options={switchOptions(sns_partial_spec(SnsPartialField.WaveGain))}
           onChange={(v) => onChange(SnsPartialField.WaveGain, v)} led={false} />
         <div className={`${css.oscKnobGrid} ${css.knobGrid3} ${css.knobsRight}`}>
-          <SynthKnob label="Level" value={partial.ampLevel} {...knobRange(sns_partial_spec(SnsPartialField.AmpLevel))}
-            onChange={(v) => onChange(SnsPartialField.AmpLevel, v)} color="#6c8" />
-          <SynthKnob label="Pan" value={partial.ampPan} {...knobRange(sns_partial_spec(SnsPartialField.AmpPan))}
-            onChange={(v) => onChange(SnsPartialField.AmpPan, v)} color="#6c8" />
-          <SynthKnob label="Vel Sns" value={partial.ampVelSens} {...knobRange(sns_partial_spec(SnsPartialField.AmpVelSens))}
-            onChange={(v) => onChange(SnsPartialField.AmpVelSens, v)} color="#6c8" />
-          <SynthKnob label="Aft Lvl" value={partial.aftertouchLevel} {...knobRange(sns_partial_spec(SnsPartialField.AftertouchLevel))}
-            onChange={(v) => onChange(SnsPartialField.AftertouchLevel, v)} color="#6c8" />
-          <SynthKnob label="KeyF" value={partial.ampLevelKeyfollow} {...knobRange(sns_partial_spec(SnsPartialField.AmpLevelKeyfollow))}
-            onChange={(v) => onChange(SnsPartialField.AmpLevelKeyfollow, v)} color="#6c8" />
+          <SynthKnob label="Level" value={partial.ampLevel} {...knobProps(sns_partial_spec(SnsPartialField.AmpLevel))}
+            onChange={(v) => onChange(SnsPartialField.AmpLevel, v)} />
+          <SynthKnob label="Pan" value={partial.ampPan} {...knobProps(sns_partial_spec(SnsPartialField.AmpPan))}
+            onChange={(v) => onChange(SnsPartialField.AmpPan, v)} />
+          <SynthKnob label="Vel Sns" value={partial.ampVelSens} {...knobProps(sns_partial_spec(SnsPartialField.AmpVelSens))}
+            onChange={(v) => onChange(SnsPartialField.AmpVelSens, v)} />
+          <SynthKnob label="Aft Lvl" value={partial.aftertouchLevel} {...knobProps(sns_partial_spec(SnsPartialField.AftertouchLevel))}
+            onChange={(v) => onChange(SnsPartialField.AftertouchLevel, v)} />
+          <SynthKnob label="KeyF" value={partial.ampLevelKeyfollow} {...knobProps(sns_partial_spec(SnsPartialField.AmpLevelKeyfollow))}
+            onChange={(v) => onChange(SnsPartialField.AmpLevelKeyfollow, v)} />
         </div>
       </div>
       <ADSREnvelope
@@ -282,7 +283,7 @@ function ModLfoPanel({
   onChange: PartialParamHandler;
 }) {
   return (
-    <SectionPanel label="MOD LFO" accentColor="#a6f">
+    <SectionPanel label="MOD LFO" family={ParameterFamily.Modulation}>
       <div className={css.panelRow}>
         <div className={css.switchColumn}>
           <SynthSwitch label="Shape" value={partial.modLfoShape} vertical
@@ -293,9 +294,9 @@ function ModLfoPanel({
           <LfoScope shape={nameOf(SnsPartialField.ModLfoShape, partial.modLfoShape)} rate={partial.modLfoRate} />
           <div className={css.scopeKnobRow}>
             <SyncedRateKnob label="Rate" field={SnsPartialField.ModLfoRate} rate={partial.modLfoRate}
-              tempoSync={partial.modLfoTempoSync} note={partial.modLfoTempoSyncNote} onChange={onChange} color="#a6f" />
-            <SynthKnob label="Rate Ctrl" value={partial.modLfoRateControl} {...knobRange(sns_partial_spec(SnsPartialField.ModLfoRateControl))}
-              onChange={(v) => onChange(SnsPartialField.ModLfoRateControl, v)} color="#a6f" />
+              tempoSync={partial.modLfoTempoSync} note={partial.modLfoTempoSyncNote} onChange={onChange} />
+            <SynthKnob label="Rate Ctrl" value={partial.modLfoRateControl} {...knobProps(sns_partial_spec(SnsPartialField.ModLfoRateControl))}
+              onChange={(v) => onChange(SnsPartialField.ModLfoRateControl, v)} />
           </div>
         </div>
       </div>
@@ -325,7 +326,7 @@ function LfoPanel({
   onChange: PartialParamHandler;
 }) {
   return (
-    <SectionPanel label="LFO" accentColor="#a6f">
+    <SectionPanel label="LFO" family={ParameterFamily.Modulation}>
       <div className={css.panelRow}>
         <div className={css.switchColumn}>
           <SynthSwitch label="Shape" value={partial.lfoShape} vertical
@@ -340,9 +341,9 @@ function LfoPanel({
           <LfoScope shape={nameOf(SnsPartialField.LfoShape, partial.lfoShape)} rate={partial.lfoRate} />
           <div className={css.scopeKnobRow}>
             <SyncedRateKnob label="Rate" field={SnsPartialField.LfoRate} rate={partial.lfoRate}
-              tempoSync={partial.lfoTempoSync} note={partial.lfoTempoSyncNote} onChange={onChange} color="#a6f" />
-            <SynthKnob label="Fade" value={partial.lfoFadeTime} {...knobRange(sns_partial_spec(SnsPartialField.LfoFadeTime))}
-              onChange={(v) => onChange(SnsPartialField.LfoFadeTime, v)} color="#a6f" />
+              tempoSync={partial.lfoTempoSync} note={partial.lfoTempoSyncNote} onChange={onChange} />
+            <SynthKnob label="Fade" value={partial.lfoFadeTime} {...knobProps(sns_partial_spec(SnsPartialField.LfoFadeTime))}
+              onChange={(v) => onChange(SnsPartialField.LfoFadeTime, v)} />
           </div>
         </div>
       </div>
