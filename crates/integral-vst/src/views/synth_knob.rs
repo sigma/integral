@@ -1,24 +1,39 @@
-//! A circular synth-style knob with LED arc, gradient body, and indicator line.
+//! A circular synth-style knob with LED arc, body, and indicator line.
 //!
 //! Mirrors the `SynthKnob` React component from `web/src/synth-ui/SynthKnob.tsx`.
-//! The knob displays 21 LED dots in an arc from -135deg to +135deg, a metallic
-//! gradient body, and a colored indicator line rotating with the current value.
+//! The knob displays 21 LED dots in an arc from -135deg to +135deg around the
+//! body, and an indicator line rotating with the current value. The lit LEDs
+//! take the colour of the knob's Parameter family; the body, pointer and
+//! unlit LEDs stay neutral (theme CSS).
 
+use std::f32::consts::PI;
+
+use integral_core::family::ParameterFamily;
 use nih_plug_vizia::vizia::prelude::*;
+use nih_plug_vizia::vizia::vg;
 
-use super::NormCallback;
+use super::{NormCallback, family_colour};
 
 /// Number of LED dots in the arc surrounding the knob.
-/// Used when canvas drawing is implemented for the LED arc.
-const _LED_COUNT: usize = 21;
+const LED_COUNT: usize = 21;
 
 /// Arc start angle in degrees (measured clockwise from top).
-/// Used when canvas drawing is implemented for the indicator line.
-const _ANGLE_MIN: f32 = -135.0;
+const ANGLE_MIN: f32 = -135.0;
 
 /// Arc end angle in degrees (measured clockwise from top).
-/// Used when canvas drawing is implemented for the indicator line.
-const _ANGLE_MAX: f32 = 135.0;
+const ANGLE_MAX: f32 = 135.0;
+
+/// Face geometry, as fractions of the face's side (the web's 52px viewport):
+/// knob body radius, LED ring radius, LED dot radius and pointer width.
+const KNOB_RADIUS: f32 = 17.0 / 52.0;
+/// See [`KNOB_RADIUS`].
+const LED_RING_RADIUS: f32 = 23.0 / 52.0;
+/// See [`KNOB_RADIUS`].
+const LED_RADIUS: f32 = 1.5 / 52.0;
+/// See [`KNOB_RADIUS`].
+const POINTER_WIDTH: f32 = 2.0 / 52.0;
+/// See [`KNOB_RADIUS`]: the gap between the pointer's tip and the rim.
+const POINTER_INSET: f32 = 3.0 / 52.0;
 
 /// When shift-dragging, one pixel of mouse movement corresponds to this fraction
 /// of the full value range, giving finer control.
@@ -49,7 +64,7 @@ pub enum SynthKnobEvent {
 ///     cx.emit(MyEvent::SetCutoff(val));
 /// })
 /// .label("CUTOFF")
-/// .color("#fc8")
+/// .family(ParameterFamily::Filter)
 /// .knob_size(KnobSize::Large);
 /// ```
 #[derive(Lens)]
@@ -69,11 +84,9 @@ pub struct SynthKnob {
     /// Callback invoked when the value changes.
     #[lens(ignore)]
     on_change: NormCallback,
-    /// Accent color for LEDs and indicator (CSS color string).
-    /// Will be used when canvas drawing is implemented.
+    /// Parameter family colouring the lit LEDs; neutral when `None`.
     #[lens(ignore)]
-    #[allow(dead_code)]
-    accent_color: String,
+    family: Option<ParameterFamily>,
     /// Size variant.
     /// Will be used when canvas drawing is implemented.
     #[lens(ignore)]
@@ -100,7 +113,7 @@ impl SynthKnob {
             drag_start_y: 0.0,
             drag_start_value: 0.0,
             on_change: Some(Box::new(on_change)),
-            accent_color: "#fc8".to_string(),
+            family: None,
             size: KnobSize::Small,
         }
         .build(cx, move |cx| {
@@ -109,24 +122,21 @@ impl SynthKnob {
                 .class("synth-knob__label")
                 .hoverable(false);
 
-            // Knob body container
-            Element::new(cx).class("synth-knob__body").hoverable(false);
-
-            // Value display below the knob
             Binding::new(cx, value_lens, |cx, val| {
                 let v = val.get(cx);
+                // LED arc, body and pointer
+                KnobFace { value: v }
+                    .build(cx, |_| {})
+                    .class("synth-knob__face")
+                    .hoverable(false);
+
+                // Value display below the knob
                 let display = format!("{:.0}", v * 100.0);
                 Label::new(cx, &display)
                     .class("synth-knob__value")
                     .hoverable(false);
             });
         })
-    }
-
-    /// Compute the angle for a normalized value.
-    /// Used when canvas drawing is implemented for the indicator line.
-    fn _value_to_angle(norm: f32) -> f32 {
-        _ANGLE_MIN + norm * (_ANGLE_MAX - _ANGLE_MIN)
     }
 
     /// Clamp and update the value, invoking the callback.
@@ -142,8 +152,8 @@ impl SynthKnob {
 pub trait SynthKnobExt {
     /// Set the label text displayed above the knob.
     fn label(self, text: &str) -> Self;
-    /// Set the accent color for LEDs and indicator (e.g. `"#fc8"`).
-    fn color(self, color: &str) -> Self;
+    /// Colour the lit LEDs by `family`, from the core palette.
+    fn family(self, family: ParameterFamily) -> Self;
     /// Set the size variant.
     fn knob_size(self, size: KnobSize) -> Self;
 }
@@ -156,8 +166,8 @@ impl SynthKnobExt for Handle<'_, SynthKnob> {
         self
     }
 
-    fn color(self, _color: &str) -> Self {
-        self
+    fn family(self, family: ParameterFamily) -> Self {
+        self.modify(|knob| knob.family = Some(family))
     }
 
     fn knob_size(self, _size: KnobSize) -> Self {
@@ -216,5 +226,100 @@ impl View for SynthKnob {
             }
             _ => {}
         });
+    }
+}
+
+/// The drawn part of a [`SynthKnob`]: LED arc, body and pointer.
+///
+/// The lit LEDs take the enclosing knob's family colour; everything else
+/// comes from the theme: `background-color` and `border-color` paint the
+/// body, `color` the pointer (and the lit LEDs of a knob with no family),
+/// and `outline-color` the unlit LEDs.
+struct KnobFace {
+    /// Normalized value in [0.0, 1.0].
+    value: f32,
+}
+
+/// The angle (radians, clockwise from the positive x axis) of normalized
+/// value `norm` on the knob's arc.
+fn value_to_radians(norm: f32) -> f32 {
+    (ANGLE_MIN + norm * (ANGLE_MAX - ANGLE_MIN) - 90.0) * PI / 180.0
+}
+
+/// Whether LED `index` of [`LED_COUNT`] is lit at normalized value `norm`:
+/// the arc is lit from its start up to the value.
+fn led_lit(index: usize, norm: f32) -> bool {
+    index as f32 <= norm * (LED_COUNT - 1) as f32
+}
+
+impl View for KnobFace {
+    fn draw(&self, cx: &mut DrawContext, canvas: &mut Canvas) {
+        let bounds = cx.bounds();
+        let side = bounds.w.min(bounds.h);
+        if side < 1.0 {
+            return;
+        }
+        let (x0, y0) = (bounds.x + bounds.w / 2.0, bounds.y + bounds.h / 2.0);
+        let pointer: vg::Color = cx.font_color().into();
+        let lit = cx
+            .data::<SynthKnob>()
+            .and_then(|knob| knob.family)
+            .map_or(pointer, |family| family_colour(family).into());
+        let unlit: vg::Color = cx.outline_color().into();
+
+        // LED arc
+        let norm = self.value.clamp(0.0, 1.0);
+        for i in 0..LED_COUNT {
+            let angle = value_to_radians(i as f32 / (LED_COUNT - 1) as f32);
+            let r = side * LED_RING_RADIUS;
+            let mut dot = vg::Path::new();
+            dot.circle(
+                x0 + r * angle.cos(),
+                y0 + r * angle.sin(),
+                side * LED_RADIUS,
+            );
+            let colour = if led_lit(i, norm) { lit } else { unlit };
+            canvas.fill_path(&dot, &vg::Paint::color(colour));
+        }
+
+        // Body
+        let knob_r = side * KNOB_RADIUS;
+        let mut body = vg::Path::new();
+        body.circle(x0, y0, knob_r);
+        canvas.fill_path(&body, &vg::Paint::color(cx.background_color().into()));
+        let mut rim = vg::Paint::color(cx.border_color().into());
+        rim.set_line_width(cx.logical_to_physical(1.0));
+        canvas.stroke_path(&body, &rim);
+
+        // Pointer
+        let angle = value_to_radians(norm);
+        let r = knob_r - side * POINTER_INSET;
+        let mut line = vg::Path::new();
+        line.move_to(x0, y0);
+        line.line_to(x0 + r * angle.cos(), y0 + r * angle.sin());
+        let mut paint = vg::Paint::color(pointer);
+        paint.set_line_width(side * POINTER_WIDTH);
+        paint.set_line_cap(vg::LineCap::Round);
+        canvas.stroke_path(&line, &paint);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn arc_runs_from_min_to_max_angle_through_top() {
+        assert!((value_to_radians(0.0) - (-225.0f32).to_radians()).abs() < 1e-5);
+        assert!((value_to_radians(0.5) - (-90.0f32).to_radians()).abs() < 1e-5);
+        assert!((value_to_radians(1.0) - 45.0f32.to_radians()).abs() < 1e-5);
+    }
+
+    #[test]
+    fn leds_light_from_start_to_value() {
+        let lit = |norm| (0..LED_COUNT).filter(|&i| led_lit(i, norm)).count();
+        assert_eq!(lit(0.0), 1);
+        assert_eq!(lit(0.5), LED_COUNT / 2 + 1);
+        assert_eq!(lit(1.0), LED_COUNT);
     }
 }

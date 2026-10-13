@@ -10,6 +10,8 @@ use std::time::Duration;
 
 use integral_core::device::DeviceState;
 use integral_core::device_spec::INTEGRA7;
+use integral_core::family::ParameterFamily;
+use integral_core::field_spec::{FieldSpec, sns_common_spec, sns_partial_spec};
 use integral_core::params::{ToneType, tone_type_from_bank_msb};
 use integral_core::sn_synth::{
     self, SnSynthCommon, SnSynthPartial, SnsCommonField, SnsPartialField,
@@ -21,7 +23,7 @@ use nih_plug_vizia::vizia::prelude::*;
 use crate::SharedState;
 use crate::editor::{EditorEvent, PageTab};
 
-use super::{SectionPanel, SynthKnob, SynthKnobExt, SynthSwitch, WavePicker};
+use super::{SectionPanel, SectionPanelExt, SynthKnob, SynthKnobExt, SynthSwitch, WavePicker};
 
 /// Refresh interval for reading device state (milliseconds).
 const REFRESH_INTERVAL_MS: u64 = 100;
@@ -62,6 +64,26 @@ pub(crate) fn bank_label(bank_msb: u8, bank_lsb: u8) -> &'static str {
         .map(|e| e.name)
         .or_else(|| group_of(bank).map(|group| group.label))
         .unwrap_or_else(|| tone_type_label(bank_msb))
+}
+
+/// `raw` normalized to `spec`'s range, 0.0 at its minimum and 1.0 at its maximum.
+fn to_norm(spec: &FieldSpec, raw: impl Into<i32>) -> f32 {
+    (raw.into() - spec.min) as f32 / (spec.max - spec.min).max(1) as f32
+}
+
+/// The raw value of `spec` at normalized position `norm`.
+fn from_norm(spec: &FieldSpec, norm: f32) -> i32 {
+    spec.min + (norm.clamp(0.0, 1.0) * (spec.max - spec.min) as f32).round() as i32
+}
+
+/// An SN-S Common field's raw value, normalized to its range.
+fn common_norm(field: SnsCommonField, raw: u8) -> f32 {
+    to_norm(&sns_common_spec(field), raw)
+}
+
+/// An SN-S Partial field's raw value, normalized to its range.
+fn partial_norm(field: SnsPartialField, raw: u8) -> f32 {
+    to_norm(&sns_partial_spec(field), raw)
 }
 
 // ---------------------------------------------------------------------------
@@ -138,52 +160,35 @@ pub struct SnSynthCommonView {
 }
 
 impl Default for SnSynthCommonView {
+    /// The view of the core's INIT SnSynthCommon.
     fn default() -> Self {
-        Self {
-            tone_name: String::new(),
-            tone_level: 1.0,
-            portamento_switch: 0,
-            portamento_time: 0.0,
-            mono_switch: 0,
-            octave_shift: 0.5,
-            bend_range_up: 2.0 / 24.0,
-            bend_range_down: 2.0 / 24.0,
-            partial1_switch: 1,
-            partial2_switch: 0,
-            partial3_switch: 0,
-            ring_switch: 0,
-            unison_switch: 0,
-            unison_size: 0.0,
-            portamento_mode: 0,
-            legato_switch: 0,
-            analog_feel: 0.0,
-            wave_shape: 0.0,
-        }
+        Self::from_core(&SnSynthCommon::default())
     }
 }
 
 impl SnSynthCommonView {
     /// Populate from a parsed [`SnSynthCommon`].
     fn from_core(c: &SnSynthCommon) -> Self {
+        use SnsCommonField as C;
         Self {
             tone_name: c.tone_name.clone(),
-            tone_level: c.tone_level as f32 / 127.0,
+            tone_level: common_norm(C::ToneLevel, c.tone_level),
             portamento_switch: c.portamento_switch as usize,
-            portamento_time: c.portamento_time as f32 / 127.0,
+            portamento_time: common_norm(C::PortamentoTime, c.portamento_time),
             mono_switch: c.mono_switch as usize,
-            octave_shift: (c.octave_shift as f32 - 61.0) / 6.0,
-            bend_range_up: c.pitch_bend_range_up as f32 / 24.0,
-            bend_range_down: c.pitch_bend_range_down as f32 / 24.0,
+            octave_shift: common_norm(C::OctaveShift, c.octave_shift),
+            bend_range_up: common_norm(C::PitchBendRangeUp, c.pitch_bend_range_up),
+            bend_range_down: common_norm(C::PitchBendRangeDown, c.pitch_bend_range_down),
             partial1_switch: c.partial1_switch as usize,
             partial2_switch: c.partial2_switch as usize,
             partial3_switch: c.partial3_switch as usize,
             ring_switch: if c.ring_switch >= 1 { 1 } else { 0 },
             unison_switch: c.unison_switch as usize,
-            unison_size: c.unison_size as f32 / 3.0,
+            unison_size: common_norm(C::UnisonSize, c.unison_size),
             portamento_mode: c.portamento_mode as usize,
             legato_switch: c.legato_switch as usize,
-            analog_feel: c.analog_feel as f32 / 127.0,
-            wave_shape: c.wave_shape as f32 / 127.0,
+            analog_feel: common_norm(C::AnalogFeel, c.analog_feel),
+            wave_shape: common_norm(C::WaveShape, c.wave_shape),
         }
     }
 }
@@ -232,54 +237,36 @@ pub struct SnSynthPartialView {
 }
 
 impl Default for SnSynthPartialView {
+    /// The view of the core's INIT SnSynthPartial.
     fn default() -> Self {
-        Self {
-            osc_wave: 0,
-            wave_number: 0,
-            filter_cutoff: 1.0,
-            filter_resonance: 0.0,
-            amp_level: 1.0,
-            amp_pan: 0.5,
-            osc_pitch: 0.5,
-            osc_detune: 0.5,
-            filter_mode: 1,
-            amp_env_attack: 0.0,
-            amp_env_decay: 0.0,
-            amp_env_sustain: 1.0,
-            amp_env_release: 0.0,
-            filter_env_attack: 0.0,
-            filter_env_decay: 0.0,
-            filter_env_sustain: 0.0,
-            filter_env_release: 0.0,
-            filter_env_depth: 0.5,
-            amp_vel_sens: 0.5,
-        }
+        Self::from_core(&SnSynthPartial::default())
     }
 }
 
 impl SnSynthPartialView {
     /// Populate from a parsed [`SnSynthPartial`].
     fn from_core(p: &SnSynthPartial) -> Self {
+        use SnsPartialField as P;
         Self {
             osc_wave: p.osc_wave as usize,
             wave_number: p.wave_number,
-            filter_cutoff: p.filter_cutoff as f32 / 127.0,
-            filter_resonance: p.filter_resonance as f32 / 127.0,
-            amp_level: p.amp_level as f32 / 127.0,
-            amp_pan: p.amp_pan as f32 / 127.0,
-            osc_pitch: (p.osc_pitch as f32 - 40.0) / 48.0,
-            osc_detune: (p.osc_detune as f32 - 14.0) / 100.0,
+            filter_cutoff: partial_norm(P::FilterCutoff, p.filter_cutoff),
+            filter_resonance: partial_norm(P::FilterResonance, p.filter_resonance),
+            amp_level: partial_norm(P::AmpLevel, p.amp_level),
+            amp_pan: partial_norm(P::AmpPan, p.amp_pan),
+            osc_pitch: partial_norm(P::OscPitch, p.osc_pitch),
+            osc_detune: partial_norm(P::OscDetune, p.osc_detune),
             filter_mode: p.filter_mode as usize,
-            amp_env_attack: p.amp_env_attack as f32 / 127.0,
-            amp_env_decay: p.amp_env_decay as f32 / 127.0,
-            amp_env_sustain: p.amp_env_sustain as f32 / 127.0,
-            amp_env_release: p.amp_env_release as f32 / 127.0,
-            filter_env_attack: p.filter_env_attack as f32 / 127.0,
-            filter_env_decay: p.filter_env_decay as f32 / 127.0,
-            filter_env_sustain: p.filter_env_sustain as f32 / 127.0,
-            filter_env_release: p.filter_env_release as f32 / 127.0,
-            filter_env_depth: (p.filter_env_depth as f32 - 1.0) / 126.0,
-            amp_vel_sens: (p.amp_vel_sens as f32 - 1.0) / 126.0,
+            amp_env_attack: partial_norm(P::AmpEnvAttack, p.amp_env_attack),
+            amp_env_decay: partial_norm(P::AmpEnvDecay, p.amp_env_decay),
+            amp_env_sustain: partial_norm(P::AmpEnvSustain, p.amp_env_sustain),
+            amp_env_release: partial_norm(P::AmpEnvRelease, p.amp_env_release),
+            filter_env_attack: partial_norm(P::FilterEnvAttack, p.filter_env_attack),
+            filter_env_decay: partial_norm(P::FilterEnvDecay, p.filter_env_decay),
+            filter_env_sustain: partial_norm(P::FilterEnvSustain, p.filter_env_sustain),
+            filter_env_release: partial_norm(P::FilterEnvRelease, p.filter_env_release),
+            filter_env_depth: partial_norm(P::FilterEnvDepth, p.filter_env_depth),
+            amp_vel_sens: partial_norm(P::AmpVelSens, p.amp_vel_sens),
         }
     }
 }
@@ -526,117 +513,32 @@ fn build_sns_common_section(cx: &mut Context) {
 
         // -- Knob rows --
         HStack::new(cx, |cx| {
-            // Tone Level
-            SynthKnob::new(
+            let common = ToneEditorData::sns_common;
+            use SnSynthCommonView as V;
+            use SnsCommonField as F;
+            sns_common_knob(cx, common.then(V::tone_level), F::ToneLevel, "Level");
+            sns_common_knob(cx, common.then(V::wave_shape), F::WaveShape, "WaveShape");
+            sns_common_knob(cx, common.then(V::analog_feel), F::AnalogFeel, "AnalogFeel");
+            sns_common_knob(
                 cx,
-                ToneEditorData::sns_common.then(SnSynthCommonView::tone_level),
-                |cx, val| {
-                    let raw = (val * 127.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(
-                        SnsCommonField::ToneLevel,
-                        raw,
-                    ));
-                },
-            )
-            .label("Level");
-
-            // Wave Shape
-            SynthKnob::new(
+                common.then(V::portamento_time),
+                F::PortamentoTime,
+                "Porta Time",
+            );
+            sns_common_knob(
                 cx,
-                ToneEditorData::sns_common.then(SnSynthCommonView::wave_shape),
-                |cx, val| {
-                    let raw = (val * 127.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(
-                        SnsCommonField::WaveShape,
-                        raw,
-                    ));
-                },
-            )
-            .label("WaveShape");
-
-            // Analog Feel
-            SynthKnob::new(
+                common.then(V::bend_range_up),
+                F::PitchBendRangeUp,
+                "BendUp",
+            );
+            sns_common_knob(
                 cx,
-                ToneEditorData::sns_common.then(SnSynthCommonView::analog_feel),
-                |cx, val| {
-                    let raw = (val * 127.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(
-                        SnsCommonField::AnalogFeel,
-                        raw,
-                    ));
-                },
-            )
-            .label("AnalogFeel");
-
-            // Portamento Time
-            SynthKnob::new(
-                cx,
-                ToneEditorData::sns_common.then(SnSynthCommonView::portamento_time),
-                |cx, val| {
-                    let raw = (val * 127.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(
-                        SnsCommonField::PortamentoTime,
-                        raw,
-                    ));
-                },
-            )
-            .label("Porta Time");
-
-            // Bend Range Up
-            SynthKnob::new(
-                cx,
-                ToneEditorData::sns_common.then(SnSynthCommonView::bend_range_up),
-                |cx, val| {
-                    let raw = (val * 24.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(
-                        SnsCommonField::PitchBendRangeUp,
-                        raw,
-                    ));
-                },
-            )
-            .label("BendUp");
-
-            // Bend Range Down
-            SynthKnob::new(
-                cx,
-                ToneEditorData::sns_common.then(SnSynthCommonView::bend_range_down),
-                |cx, val| {
-                    let raw = (val * 24.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(
-                        SnsCommonField::PitchBendRangeDown,
-                        raw,
-                    ));
-                },
-            )
-            .label("BendDown");
-
-            // Octave Shift
-            SynthKnob::new(
-                cx,
-                ToneEditorData::sns_common.then(SnSynthCommonView::octave_shift),
-                |cx, val| {
-                    let raw = (val * 6.0 + 61.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(
-                        SnsCommonField::OctaveShift,
-                        raw,
-                    ));
-                },
-            )
-            .label("OctShift");
-
-            // Unison Size
-            SynthKnob::new(
-                cx,
-                ToneEditorData::sns_common.then(SnSynthCommonView::unison_size),
-                |cx, val| {
-                    let raw = (val * 3.0).round() as u8;
-                    cx.emit(ToneEditorEvent::SetSnsCommon(
-                        SnsCommonField::UnisonSize,
-                        raw,
-                    ));
-                },
-            )
-            .label("UniSize");
+                common.then(V::bend_range_down),
+                F::PitchBendRangeDown,
+                "BendDown",
+            );
+            sns_common_knob(cx, common.then(V::octave_shift), F::OctaveShift, "OctShift");
+            sns_common_knob(cx, common.then(V::unison_size), F::UnisonSize, "UniSize");
         })
         .class("tone-editor__knob-row");
 
@@ -741,7 +643,8 @@ fn build_sns_common_section(cx: &mut Context) {
             });
         })
         .class("tone-editor__switch-row");
-    });
+    })
+    .family(ParameterFamily::Common);
 }
 
 /// Build a single SN-S Partial section.
@@ -819,233 +722,125 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
 
         // Knob row: key partial parameters
         HStack::new(cx, |cx| {
-            let partial_idx_u8 = partial_idx as u8;
-
-            // OSC Pitch
-            let pitch_lens = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::osc_pitch);
-            SynthKnob::new(cx, pitch_lens, move |cx, val| {
-                let raw = (val * 48.0 + 40.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::OscPitch,
-                    raw.into(),
-                ));
-            })
-            .label("Pitch");
-
-            // OSC Detune
-            let detune_lens = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::osc_detune);
-            SynthKnob::new(cx, detune_lens, move |cx, val| {
-                let raw = (val * 100.0 + 14.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::OscDetune,
-                    raw.into(),
-                ));
-            })
-            .label("Detune");
-
-            // Filter Cutoff
-            let cutoff_lens = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::filter_cutoff);
-            SynthKnob::new(cx, cutoff_lens, move |cx, val| {
-                let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::FilterCutoff,
-                    raw.into(),
-                ));
-            })
-            .label("Cutoff");
-
-            // Filter Resonance
-            let reso_lens = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::filter_resonance);
-            SynthKnob::new(cx, reso_lens, move |cx, val| {
-                let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::FilterResonance,
-                    raw.into(),
-                ));
-            })
-            .label("Reso");
-
-            // Amp Level
-            let level_lens = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::amp_level);
-            SynthKnob::new(cx, level_lens, move |cx, val| {
-                let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::AmpLevel,
-                    raw.into(),
-                ));
-            })
-            .label("Level");
-
-            // Amp Pan
-            let pan_lens = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::amp_pan);
-            SynthKnob::new(cx, pan_lens, move |cx, val| {
-                let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::AmpPan,
-                    raw.into(),
-                ));
-            })
-            .label("Pan");
-
-            // Amp Vel Sens
-            let vel_lens = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::amp_vel_sens);
-            SynthKnob::new(cx, vel_lens, move |cx, val| {
-                let raw = (val * 126.0 + 1.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::AmpVelSens,
-                    raw.into(),
-                ));
-            })
-            .label("VelSns");
+            use SnSynthPartialView as V;
+            use SnsPartialField as F;
+            sns_partial_knob(cx, partial_idx, V::osc_pitch, F::OscPitch, "Pitch");
+            sns_partial_knob(cx, partial_idx, V::osc_detune, F::OscDetune, "Detune");
+            sns_partial_knob(cx, partial_idx, V::filter_cutoff, F::FilterCutoff, "Cutoff");
+            sns_partial_knob(
+                cx,
+                partial_idx,
+                V::filter_resonance,
+                F::FilterResonance,
+                "Reso",
+            );
+            sns_partial_knob(cx, partial_idx, V::amp_level, F::AmpLevel, "Level");
+            sns_partial_knob(cx, partial_idx, V::amp_pan, F::AmpPan, "Pan");
+            sns_partial_knob(cx, partial_idx, V::amp_vel_sens, F::AmpVelSens, "VelSns");
         })
         .class("tone-editor__knob-row");
 
         // Envelope row: Filter ADSR + Amp ADSR
         HStack::new(cx, |cx| {
-            let partial_idx_u8 = partial_idx as u8;
-
-            // Filter Env
-            let f_a = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::filter_env_attack);
-            SynthKnob::new(cx, f_a, move |cx, val| {
-                let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::FilterEnvAttack,
-                    raw.into(),
-                ));
-            })
-            .label("F.Atk");
-
-            let f_d = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::filter_env_decay);
-            SynthKnob::new(cx, f_d, move |cx, val| {
-                let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::FilterEnvDecay,
-                    raw.into(),
-                ));
-            })
-            .label("F.Dec");
-
-            let f_s = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::filter_env_sustain);
-            SynthKnob::new(cx, f_s, move |cx, val| {
-                let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::FilterEnvSustain,
-                    raw.into(),
-                ));
-            })
-            .label("F.Sus");
-
-            let f_r = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::filter_env_release);
-            SynthKnob::new(cx, f_r, move |cx, val| {
-                let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::FilterEnvRelease,
-                    raw.into(),
-                ));
-            })
-            .label("F.Rel");
-
-            let f_dep = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::filter_env_depth);
-            SynthKnob::new(cx, f_dep, move |cx, val| {
-                let raw = (val * 126.0 + 1.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::FilterEnvDepth,
-                    raw.into(),
-                ));
-            })
-            .label("F.Dep");
-
-            // Amp Env
-            let a_a = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::amp_env_attack);
-            SynthKnob::new(cx, a_a, move |cx, val| {
-                let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::AmpEnvAttack,
-                    raw.into(),
-                ));
-            })
-            .label("A.Atk");
-
-            let a_d = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::amp_env_decay);
-            SynthKnob::new(cx, a_d, move |cx, val| {
-                let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::AmpEnvDecay,
-                    raw.into(),
-                ));
-            })
-            .label("A.Dec");
-
-            let a_s = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::amp_env_sustain);
-            SynthKnob::new(cx, a_s, move |cx, val| {
-                let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::AmpEnvSustain,
-                    raw.into(),
-                ));
-            })
-            .label("A.Sus");
-
-            let a_r = ToneEditorData::sns_partials
-                .map(move |p| p[partial_idx].clone())
-                .then(SnSynthPartialView::amp_env_release);
-            SynthKnob::new(cx, a_r, move |cx, val| {
-                let raw = (val * 127.0).round() as u8;
-                cx.emit(ToneEditorEvent::SetSnsPartial(
-                    partial_idx_u8,
-                    SnsPartialField::AmpEnvRelease,
-                    raw.into(),
-                ));
-            })
-            .label("A.Rel");
+            use SnSynthPartialView as V;
+            use SnsPartialField as F;
+            sns_partial_knob(
+                cx,
+                partial_idx,
+                V::filter_env_attack,
+                F::FilterEnvAttack,
+                "F.Atk",
+            );
+            sns_partial_knob(
+                cx,
+                partial_idx,
+                V::filter_env_decay,
+                F::FilterEnvDecay,
+                "F.Dec",
+            );
+            sns_partial_knob(
+                cx,
+                partial_idx,
+                V::filter_env_sustain,
+                F::FilterEnvSustain,
+                "F.Sus",
+            );
+            sns_partial_knob(
+                cx,
+                partial_idx,
+                V::filter_env_release,
+                F::FilterEnvRelease,
+                "F.Rel",
+            );
+            sns_partial_knob(
+                cx,
+                partial_idx,
+                V::filter_env_depth,
+                F::FilterEnvDepth,
+                "F.Dep",
+            );
+            sns_partial_knob(cx, partial_idx, V::amp_env_attack, F::AmpEnvAttack, "A.Atk");
+            sns_partial_knob(cx, partial_idx, V::amp_env_decay, F::AmpEnvDecay, "A.Dec");
+            sns_partial_knob(
+                cx,
+                partial_idx,
+                V::amp_env_sustain,
+                F::AmpEnvSustain,
+                "A.Sus",
+            );
+            sns_partial_knob(
+                cx,
+                partial_idx,
+                V::amp_env_release,
+                F::AmpEnvRelease,
+                "A.Rel",
+            );
         })
         .class("tone-editor__knob-row");
     });
+}
+
+/// A knob for SN-S Common `field`, ranged and coloured by its core spec.
+fn sns_common_knob(
+    cx: &mut Context,
+    lens: impl Lens<Target = f32>,
+    field: SnsCommonField,
+    label: &str,
+) {
+    let spec = sns_common_spec(field);
+    let family = spec.family;
+    SynthKnob::new(cx, lens, move |cx, val| {
+        let raw = from_norm(&spec, val) as u8;
+        cx.emit(ToneEditorEvent::SetSnsCommon(field, raw));
+    })
+    .label(label)
+    .family(family);
+}
+
+/// A knob for Partial `partial_idx`'s SN-S `field`, shown through
+/// `view_lens`, ranged and coloured by its core spec.
+fn sns_partial_knob(
+    cx: &mut Context,
+    partial_idx: usize,
+    view_lens: impl Lens<Source = SnSynthPartialView, Target = f32>,
+    field: SnsPartialField,
+    label: &str,
+) {
+    let spec = sns_partial_spec(field);
+    let family = spec.family;
+    let lens = ToneEditorData::sns_partials
+        .map(move |p| p[partial_idx].clone())
+        .then(view_lens);
+    SynthKnob::new(cx, lens, move |cx, val| {
+        let raw = from_norm(&spec, val) as u16;
+        cx.emit(ToneEditorEvent::SetSnsPartial(
+            partial_idx as u8,
+            field,
+            raw,
+        ));
+    })
+    .label(label)
+    .family(family);
 }
 
 #[cfg(test)]
@@ -1059,6 +854,19 @@ mod tests {
         assert_eq!(bank_label(87, 0), "PCM Synth");
         // The editor placeholder still names the tone type.
         assert_eq!(tone_type_label(97), "PCM Synth");
+    }
+
+    #[test]
+    fn knob_values_round_trip_through_the_spec_range() {
+        let octave = sns_common_spec(SnsCommonField::OctaveShift);
+        assert_eq!(common_norm(SnsCommonField::OctaveShift, 61), 0.0);
+        assert_eq!(common_norm(SnsCommonField::OctaveShift, 67), 1.0);
+        assert_eq!(from_norm(&octave, 0.5), 64);
+        let depth = sns_partial_spec(SnsPartialField::FilterEnvDepth);
+        for raw in 1..=127u8 {
+            let norm = partial_norm(SnsPartialField::FilterEnvDepth, raw);
+            assert_eq!(from_norm(&depth, norm), i32::from(raw));
+        }
     }
 
     #[test]

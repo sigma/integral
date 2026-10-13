@@ -4,6 +4,7 @@
 //! providing a consistent dark-themed control surface aesthetic across both
 //! the web and VST plugin interfaces.
 
+use integral_core::family::ParameterFamily;
 use nih_plug_vizia::vizia::prelude::*;
 
 /// Type alias for a boxed value-change callback taking a normalized `f32`.
@@ -14,6 +15,12 @@ pub(crate) type MidiCallback = Option<Box<dyn Fn(&mut EventContext, u8)>>;
 
 /// Type alias for a boxed value-change callback taking a `usize` (index).
 pub(crate) type IndexCallback = Option<Box<dyn Fn(&mut EventContext, usize)>>;
+
+/// The colour of a Parameter family, from the core palette.
+pub(crate) fn family_colour(family: ParameterFamily) -> Color {
+    let rgb = family.colour();
+    Color::rgb(rgb.0, rgb.1, rgb.2)
+}
 
 mod channel_strip;
 mod envelope;

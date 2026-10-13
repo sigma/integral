@@ -23,16 +23,19 @@ synth-knob {
     child-space: 0;
 }
 
-.synth-knob__body {
+/* Drawn by the knob: background and border paint the body, color the
+   pointer, outline-color the unlit LEDs. Lit LEDs take the Parameter family
+   colour from the core palette. */
+.synth-knob__face {
     width: 52px;
     height: 52px;
-    border-radius: 50%;
     background-color: #444;
-    border-width: 1px;
     border-color: #555;
+    color: #ddd;
+    outline-color: #2a2a3a;
 }
 
-synth-knob.lg .synth-knob__body {
+synth-knob.lg .synth-knob__face {
     width: 72px;
     height: 72px;
 }
@@ -315,12 +318,24 @@ section-panel {
     overflow: hidden;
 }
 
+/* The top bar and header underline are drawn in the section's Parameter
+   family colour (core palette); background-color is their neutral fallback. */
+.section-panel__top {
+    width: 100%;
+    height: 3px;
+    background-color: #2a2a4a;
+}
+
+.section-panel__underline {
+    width: 100%;
+    height: 1px;
+    background-color: #2a2a4a;
+}
+
 .section-panel__header {
     color: #ddd;
     font-size: 10;
     background-color: #1a1a30;
-    border-color: #2a2a4a;
-    border-width: 0 0 1px;
     child-left: 8px;
     child-right: 8px;
     child-top: 4px;
