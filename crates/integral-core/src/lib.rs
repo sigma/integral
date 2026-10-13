@@ -29,6 +29,7 @@ pub mod factory_catalog;
 pub mod family;
 pub mod field_spec;
 pub mod fx_params;
+pub mod initialize;
 pub mod librarian;
 pub mod mfx;
 pub mod mfx_params;
