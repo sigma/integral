@@ -94,7 +94,7 @@ pub struct PackRead {
 
 impl PackRead {
     /// A Pack of native entries: every Conversion report is empty.
-    fn native(format: PackFormat, pack: Pack, file_report: Vec<FileItem>) -> Self {
+    pub fn native(format: PackFormat, pack: Pack, file_report: Vec<FileItem>) -> Self {
         let reports = vec![ConversionReport::new(); pack.entries.len()];
         let sources = vec![None; pack.entries.len()];
         let effects = vec![Vec::new(); pack.entries.len()];
