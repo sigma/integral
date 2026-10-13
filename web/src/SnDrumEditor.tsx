@@ -265,7 +265,7 @@ export function SnDrumEditor({ partIndex, service }: Props) {
       {/* The key editor (kit levels beside the key grid), then the MFX it feeds */}
       <div className={css.mainArea}>
         <div className={css.keyEditorArea} data-node="drum-key">
-          <SectionPanel label="DRUM INST" accentColor="#f93">
+          <SectionPanel label="DRUM INST" sectionColour="drum">
             <div className={css.keyGridRow}>
               {common ? <KitLevels common={common} onChange={setCommonParam} /> : <div />}
               <DrumKeyGrid
@@ -388,8 +388,10 @@ function NoteControls({
         {/* Strip: Pan + Sends + Level — reuses the shared OutputStrip */}
         <SectionPanel label="LEVEL / PAN" family={ParameterFamily.Amp}>
           <OutputStrip
-            pan={note.pan} onPanChange={set(SndNoteField.Pan, "pan")} panFormat={(v) => snd_note_spec(SndNoteField.Pan).formatValue(v)}
-            panFamily={snd_note_spec(SndNoteField.Pan).family}
+            pan={{
+              value: note.pan, onChange: set(SndNoteField.Pan, "pan"),
+              format: (v) => snd_note_spec(SndNoteField.Pan).formatValue(v), family: snd_note_spec(SndNoteField.Pan).family,
+            }}
             fx1={note.chorusSend} fx2={note.reverbSend}
             fx1Family={snd_note_spec(SndNoteField.ChorusSend).family}
             fx2Family={snd_note_spec(SndNoteField.ReverbSend).family}

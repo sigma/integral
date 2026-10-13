@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { ParameterFamily } from "../../pkg/integral_wasm.js";
 import { VelocityCurveSelect } from "./VelocityCurveSelect";
 import { cleanup, render } from "../test/dom";
 
@@ -8,7 +9,7 @@ const OPTIONS = ["FIXED", "1", "2", "3", "4", "5", "6", "7"].map((label, value) 
 
 function curvePath(value: number): string {
   const { container } = render(
-    <VelocityCurveSelect label="Vel Crv" value={value} options={OPTIONS} onChange={() => {}} color="#68c" />,
+    <VelocityCurveSelect label="Vel Crv" value={value} options={OPTIONS} onChange={() => {}} family={ParameterFamily.Filter} />,
   );
   const d = container.querySelector("path")!.getAttribute("d")!;
   cleanup();

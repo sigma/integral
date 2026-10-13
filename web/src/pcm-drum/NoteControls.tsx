@@ -80,9 +80,11 @@ export function NoteControls({
         {/* LEVEL / PAN */}
         <SectionPanel label="LEVEL / PAN" family={ParameterFamily.Amp}>
           <OutputStrip
-            pan={note.pan} onPanChange={set(PcmdPartialField.Pan, "pan")}
-            panFormat={(v) => pcmd_partial_spec(PcmdPartialField.Pan).formatValue(v)}
-            panFamily={pcmd_partial_spec(PcmdPartialField.Pan).family}
+            pan={{
+              value: note.pan, onChange: set(PcmdPartialField.Pan, "pan"),
+              format: (v) => pcmd_partial_spec(PcmdPartialField.Pan).formatValue(v),
+              family: pcmd_partial_spec(PcmdPartialField.Pan).family,
+            }}
             fx1Family={pcmd_partial_spec(PcmdPartialField.ChorusSend).family}
             fx2Family={pcmd_partial_spec(PcmdPartialField.ReverbSend).family}
             fx1={note.chorusSend} fx2={note.reverbSend}
@@ -341,10 +343,10 @@ function TvfSection({
         <div className={css.stack}>
           <VelocityCurveSelect label="Vel Crv" value={note.tvfCutoffVelocityCurve}
             options={switchOptions(pcmd_partial_spec(PcmdPartialField.TvfCutoffVelocityCurve))}
-            onChange={set(PcmdPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} color="#68c" />
+            onChange={set(PcmdPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} family={pcmd_partial_spec(PcmdPartialField.TvfCutoffVelocityCurve).family} />
           <VelocityCurveSelect label="Env Crv" value={note.tvfEnvVelocityCurve}
             options={switchOptions(pcmd_partial_spec(PcmdPartialField.TvfEnvVelocityCurve))}
-            onChange={set(PcmdPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} color="#68c" />
+            onChange={set(PcmdPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} family={pcmd_partial_spec(PcmdPartialField.TvfEnvVelocityCurve).family} />
         </div>
         <div className={css.stack}>
           <SynthKnob label="Cutoff" value={note.tvfCutoffFrequency} {...knobProps(pcmd_partial_spec(PcmdPartialField.TvfCutoffFrequency))}
@@ -428,7 +430,7 @@ function TvaSection({
         <div className={css.knobRow}>
           <VelocityCurveSelect label="Vel Crv" value={note.tvaLevelVelocityCurve}
             options={switchOptions(pcmd_partial_spec(PcmdPartialField.TvaLevelVelocityCurve))}
-            onChange={set(PcmdPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} color="#6c8" />
+            onChange={set(PcmdPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} family={pcmd_partial_spec(PcmdPartialField.TvaLevelVelocityCurve).family} />
           <SynthKnob label="Vel Sns" value={note.tvaLevelVelocitySens} {...knobProps(pcmd_partial_spec(PcmdPartialField.TvaLevelVelocitySens))}
             onChange={set(PcmdPartialField.TvaLevelVelocitySens, "tvaLevelVelocitySens")}
             title="Amplitude velocity sensitivity" />

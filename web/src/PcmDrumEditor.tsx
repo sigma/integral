@@ -242,7 +242,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
 
       <div className={css.mainArea}>
         <div className={css.keyEditorArea} data-node="drum-key">
-          <SectionPanel label="DRUM KEY" accentColor="#f93">
+          <SectionPanel label="DRUM KEY" sectionColour="drum">
             <div className={css.keyGridRow}>
               {common && <KitLevelFader kitLevel={common.kitLevel} onChange={setKitLevel} />}
               <DrumKeyGrid

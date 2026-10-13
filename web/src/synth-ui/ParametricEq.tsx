@@ -18,9 +18,7 @@ export interface EqControl {
 /** One EQ band: gain and frequency, plus Q for peaking bands. */
 export interface EqBand {
   label: string;
-  /** Knob colour, when `family` is absent. */
-  color?: string;
-  /** Parameter family colouring the band's knobs. */
+  /** Parameter family colouring the band's knobs; neutral when absent. */
   family?: ParameterFamily;
   gain: EqControl;
   freq: EqControl;
@@ -158,7 +156,7 @@ export function ParametricEq({ bands, enabled = true, onToggleSwitch, style }: P
               ref={(el) => { slotRefs.current[i] = el; }}
               style={{ gridColumn: (i % 2) + 1, gridRow: i + 1 }}
             >
-              {s.control && <EqKnob label={s.label} color={bands[s.band]!.color} family={bands[s.band]!.family} {...s.control} />}
+              {s.control && <EqKnob label={s.label} family={bands[s.band]!.family} {...s.control} />}
             </div>
           ))}
         </div>

@@ -17,21 +17,20 @@ const knob = {
 describe("SynthKnob", () => {
   it("lights its LEDs in its family's colour and keeps the pointer neutral", () => {
     const { container } = render(
-      <SynthKnob {...knob} color="#fc8" family={ParameterFamily.Filter} />,
+      <SynthKnob {...knob} family={ParameterFamily.Filter} />,
     );
     const fills = [...container.querySelectorAll("circle")].map(
       (c) => c.style.fill,
     );
     expect(fills).toContain("var(--family-filter)");
-    expect(fills).not.toContain("#fc8");
     expect(container.querySelector("line")!.style.stroke).toBe("");
   });
 
-  it("falls back to `color` without a family", () => {
-    const { container } = render(<SynthKnob {...knob} color="red" />);
-    expect(
-      [...container.querySelectorAll("circle")].map((c) => c.style.fill),
-    ).toContain("red");
-    expect(container.querySelector("line")!.style.stroke).toBe("red");
+  it("takes its colour only from a family, never a literal", () => {
+    // Type-level checks: tsc fails if either line stops being an error.
+    // @ts-expect-error -- a knob has no colour prop
+    void (<SynthKnob {...knob} family={ParameterFamily.Filter} color="#fff" />);
+    // @ts-expect-error -- a knob needs a family
+    void (<SynthKnob {...knob} />);
   });
 });

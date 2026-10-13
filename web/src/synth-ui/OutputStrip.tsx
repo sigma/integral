@@ -3,6 +3,15 @@ import { SynthKnob } from "./SynthKnob";
 import { SynthFader } from "./SynthFader";
 import css from "./OutputStrip.module.css";
 
+/** The optional pan knob (0–127, center=64), coloured by its field spec's family. */
+export interface OutputPan {
+  value: number;
+  onChange: (v: number) => void;
+  format?: (v: number) => string;
+  /** Parameter family of the pan knob, from the caller's field spec. */
+  family: ParameterFamily;
+}
+
 interface Props {
   /** FX1 (chorus) send level 0–127. */
   fx1: number;
@@ -15,16 +24,12 @@ interface Props {
   onLevelChange: (v: number) => void;
   /** Level fader track height in px. Defaults to 150. */
   trackHeight?: number;
-  /** Optional pan knob (0–127, center=64). Shown above sends when provided. */
-  pan?: number;
-  onPanChange?: (v: number) => void;
-  panFormat?: (v: number) => string;
-  /** Parameter family of the pan knob, from the caller's field spec. */
-  panFamily?: ParameterFamily;
+  /** Optional pan knob, shown above sends when provided. */
+  pan?: OutputPan;
   /** Parameter family of the FX1 send knob, from the caller's field spec. */
-  fx1Family?: ParameterFamily;
+  fx1Family: ParameterFamily;
   /** Parameter family of the FX2 send knob, from the caller's field spec. */
-  fx2Family?: ParameterFamily;
+  fx2Family: ParameterFamily;
 }
 
 export function OutputStrip({
@@ -36,24 +41,21 @@ export function OutputStrip({
   onLevelChange,
   trackHeight = 150,
   pan,
-  onPanChange,
-  panFormat,
-  panFamily,
   fx1Family,
   fx2Family,
 }: Props) {
   return (
     <div className={css.strip}>
-      {pan !== undefined && onPanChange && (
-        <SynthKnob label="Pan" value={pan} min={0} max={127} defaultValue={64} center={64}
-          onChange={onPanChange} formatValue={panFormat ?? ((v) => String(v))} color="#8cf" family={panFamily} />
+      {pan && (
+        <SynthKnob label="Pan" value={pan.value} min={0} max={127} defaultValue={64} center={64}
+          onChange={pan.onChange} formatValue={pan.format ?? ((v) => String(v))} family={pan.family} />
       )}
       <div className={css.sends}>
         <SynthKnob label="FX1" value={fx1} min={0} max={127} defaultValue={0}
-          onChange={onFx1Change} formatValue={(v) => String(v)} color="#668" family={fx1Family}
+          onChange={onFx1Change} formatValue={(v) => String(v)} family={fx1Family}
           title="Chorus Send Level" />
         <SynthKnob label="FX2" value={fx2} min={0} max={127} defaultValue={0}
-          onChange={onFx2Change} formatValue={(v) => String(v)} color="#686" family={fx2Family}
+          onChange={onFx2Change} formatValue={(v) => String(v)} family={fx2Family}
           title="Reverb Send Level" />
       </div>
       <div className={css.fader}>

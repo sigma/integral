@@ -463,10 +463,10 @@ function TvfSection({
           title="Filter resonance — emphasis at the cutoff frequency" />
         <VelocityCurveSelect className={css.at1} label="Vel Crv" value={partial.tvfCutoffVelocityCurve}
           options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocityCurve))}
-          onChange={set(PcmsPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} color="#68c" title="Cutoff velocity response curve shape" />
+          onChange={set(PcmsPartialField.TvfCutoffVelocityCurve, "tvfCutoffVelocityCurve")} family={pcms_partial_spec(PcmsPartialField.TvfCutoffVelocityCurve).family} title="Cutoff velocity response curve shape" />
         <VelocityCurveSelect label="Env Crv" value={partial.tvfEnvVelocityCurve}
           options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfEnvVelocityCurve))}
-          onChange={set(PcmsPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} color="#68c" title="Envelope velocity response curve shape" />
+          onChange={set(PcmsPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} family={pcms_partial_spec(PcmsPartialField.TvfEnvVelocityCurve).family} title="Envelope velocity response curve shape" />
         <div className={css.at4}>
           <SynthKnob label="Cut Vel" value={partial.tvfCutoffVelocitySens} {...knobProps(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocitySens))}
             onChange={set(PcmsPartialField.TvfCutoffVelocitySens, "tvfCutoffVelocitySens")}
@@ -569,7 +569,7 @@ function TvaSection({
         </div>
         <VelocityCurveSelect className={css.at1} label="Vel Crv" value={partial.tvaLevelVelocityCurve}
           options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaLevelVelocityCurve))}
-          onChange={set(PcmsPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} color="#6c8" title="Velocity response curve shape" />
+          onChange={set(PcmsPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} family={pcms_partial_spec(PcmsPartialField.TvaLevelVelocityCurve).family} title="Velocity response curve shape" />
         <div className={css.at3}>
           <SynthKnob label="Bias Lvl" value={partial.tvaBiasLevel} {...knobProps(pcms_partial_spec(PcmsPartialField.TvaBiasLevel))}
             onChange={set(PcmsPartialField.TvaBiasLevel, "tvaBiasLevel")}

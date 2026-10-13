@@ -1,24 +1,43 @@
 import type { ReactNode } from "react";
 import type { ParameterFamily } from "../../pkg/integral_wasm.js";
-import { accentColour } from "./family";
+import { familyVar } from "./family";
 import css from "./SectionPanel.module.css";
 
-interface Props {
-  label: string;
-  /** Top border and header underline colour, when `family` is absent. Default: "#fc8". */
-  accentColor?: string;
-  /** Parameter family: colours the top border and header underline. */
-  family?: ParameterFamily;
-  children: ReactNode;
-}
+/**
+ * Section colours outside the Parameter family palette, by name. Sections
+ * pick one by name, so no colour literal can reach a panel.
+ */
+const SECTION_COLOURS = {
+  /** Per-key drum sections (DRUM KEY, DRUM INST). */
+  drum: "#f93",
+} as const;
 
-export function SectionPanel({
-  label,
-  accentColor = "#fc8",
-  family,
-  children,
-}: Props) {
-  const accent = accentColour(family, accentColor);
+/** A named section colour that is not a Parameter family. */
+export type SectionColour = keyof typeof SECTION_COLOURS;
+
+type Accent =
+  | {
+      /** Parameter family: colours the top border and header underline. */
+      family: ParameterFamily;
+      sectionColour?: never;
+    }
+  | {
+      family?: never;
+      /** A non-family section colour, for sections no family describes. */
+      sectionColour: SectionColour;
+    };
+
+type Props = Accent & {
+  label: string;
+  children: ReactNode;
+};
+
+export function SectionPanel(props: Props) {
+  const { label, children } = props;
+  const accent =
+    props.family === undefined
+      ? SECTION_COLOURS[props.sectionColour]
+      : familyVar(props.family);
   return (
     <div className={css.panel} style={{ borderTopColor: accent }}>
       <div className={css.header} style={{ borderBottomColor: accent }}>
