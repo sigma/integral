@@ -38,3 +38,7 @@
 .lg .value {
   font-size: 10px;
 }
+
+.pointer {
+  stroke: #ddd;
+}

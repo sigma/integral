@@ -9,6 +9,7 @@ import {
   type DeviceIdentity,
 } from "./midi";
 import { IntegraService } from "./integra";
+import { installFamilyPalette } from "./synth-ui/family";
 import { useMixer } from "./useMixer";
 import { useExpansions } from "./useExpansions";
 import { useExpansionStaging } from "./useExpansionStaging";
@@ -84,6 +85,7 @@ export function App() {
         if (!cancelled) setMidiError("Failed to load WASM module.");
         return;
       }
+      installFamilyPalette(document.documentElement);
       // Load the Pattern before any device connects.
       setSequencer(sequencerEngine());
 

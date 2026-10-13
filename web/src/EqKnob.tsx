@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
+import type { ParameterFamily } from "../pkg/integral_wasm.js";
+import { accentColour } from "./synth-ui/family";
 import { useDragControl } from "./useDragControl";
 import css from "./EqKnob.module.css";
 
@@ -9,7 +11,10 @@ interface Props {
   defaultValue: number;
   onChange: (value: number) => void;
   formatValue: (value: number) => string;
+  /** Cap and selected-tick colour, when `family` is absent. Default: "#888". */
   color?: string;
+  /** Parameter family: colours the cap and the selected tick. */
+  family?: ParameterFamily;
   label?: string;
   /** Extra control below the value, out of the layout flow (e.g. a mode toggle). */
   addon?: ReactNode;
@@ -32,9 +37,12 @@ export function EqKnob({
   onChange,
   formatValue,
   color = "#888",
+  family,
   label,
   addon,
 }: Props) {
+  const accent = accentColour(family, color);
+  const gradientId = useId();
   const range = max - min;
   const pxPerStep = range > 0 ? Math.max(3, Math.min(8, 100 / range)) : 5;
 
@@ -62,8 +70,8 @@ export function EqKnob({
       >
         <circle cx="22" cy="22" r="19" fill="none" stroke="#3a3a5a" strokeWidth="1" />
         <defs>
-          <radialGradient id={`eqKnobGrad-${color}`} cx="40%" cy="35%">
-            <stop offset="0%" stopColor={color} />
+          <radialGradient id={gradientId} cx="40%" cy="35%">
+            <stop offset="0%" style={{ stopColor: accent }} />
             <stop offset="100%" stopColor="#222" />
           </radialGradient>
         </defs>
@@ -74,12 +82,12 @@ export function EqKnob({
             y1="1"
             x2="22"
             y2="5"
-            stroke={v === value ? color : "#556"}
+            style={{ stroke: v === value ? accent : "#556" }}
             strokeWidth={v === value ? 1.5 : 1}
             transform={`rotate(${valueToAngle(v, min, max)} 22 22)`}
           />
         ))}
-        <circle cx="22" cy="22" r="16" fill={`url(#eqKnobGrad-${color})`} />
+        <circle cx="22" cy="22" r="16" fill={`url(#${gradientId})`} />
         <line
           x1="22"
           y1="22"

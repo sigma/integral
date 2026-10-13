@@ -11,3 +11,4 @@ export { FaderGroup, FaderGroupSep } from "./FaderGroup";
 export { OutputStrip } from "./OutputStrip";
 export { ParametricEq } from "./ParametricEq";
 export type { EqBand, EqControl } from "./ParametricEq";
+export { FAMILIES, accentColour, familyProperty, familyVar, installFamilyPalette } from "./family";

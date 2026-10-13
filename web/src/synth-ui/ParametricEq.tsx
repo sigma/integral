@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import type { ParameterFamily } from "../../pkg/integral_wasm.js";
 import { EqKnob } from "../EqKnob";
 import box from "../PanelBox.module.css";
 import css from "./ParametricEq.module.css";
@@ -17,7 +18,10 @@ export interface EqControl {
 /** One EQ band: gain and frequency, plus Q for peaking bands. */
 export interface EqBand {
   label: string;
-  color: string;
+  /** Knob colour, when `family` is absent. */
+  color?: string;
+  /** Parameter family colouring the band's knobs. */
+  family?: ParameterFamily;
   gain: EqControl;
   freq: EqControl;
   q?: EqControl;
@@ -154,7 +158,7 @@ export function ParametricEq({ bands, enabled = true, onToggleSwitch, style }: P
               ref={(el) => { slotRefs.current[i] = el; }}
               style={{ gridColumn: (i % 2) + 1, gridRow: i + 1 }}
             >
-              {s.control && <EqKnob label={s.label} color={bands[s.band]!.color} {...s.control} />}
+              {s.control && <EqKnob label={s.label} color={bands[s.band]!.color} family={bands[s.band]!.family} {...s.control} />}
             </div>
           ))}
         </div>

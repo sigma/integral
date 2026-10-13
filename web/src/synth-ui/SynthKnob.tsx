@@ -1,5 +1,7 @@
 import { useDragControl } from "../useDragControl";
 import { MAX_TICKS } from "../EqKnob";
+import type { ParameterFamily } from "../../pkg/integral_wasm.js";
+import { accentColour } from "./family";
 import css from "./SynthKnob.module.css";
 
 interface Props {
@@ -10,8 +12,10 @@ interface Props {
   label: string;
   onChange: (value: number) => void;
   formatValue?: (v: number) => string;
-  /** Accent color for the LED arc. Default: "#fc8" (orange). */
+  /** Accent color for the LED arc and pointer, when `family` is absent. Default: "#fc8" (orange). */
   color?: string;
+  /** Parameter family: colours the lit LEDs only; pointer, label and value stay neutral. */
+  family?: ParameterFamily;
   /** "sm" = 44px, "lg" = 64px. Default: "sm". */
   size?: "sm" | "lg";
   /** Full name for tooltip. Defaults to label. */
@@ -42,7 +46,9 @@ export function SynthKnob({
   size = "sm",
   title,
   center,
+  family,
 }: Props) {
+  const lit = accentColour(family, color);
   const svgSize = size === "lg" ? 72 : 52;
   const cx = svgSize / 2;
   const cy = svgSize / 2;
@@ -73,7 +79,7 @@ export function SynthKnob({
         cx={lx}
         cy={ly}
         r={size === "lg" ? 2.2 : 1.5}
-        fill={isLit ? color : "#2a2a3a"}
+        style={{ fill: isLit ? lit : "#2a2a3a" }}
       />,
     );
   }
@@ -123,7 +129,8 @@ export function SynthKnob({
           y1={cy}
           x2={ix}
           y2={iy}
-          stroke={color}
+          className={css.pointer}
+          style={family === undefined ? { stroke: color } : undefined}
           strokeWidth={size === "lg" ? 2.5 : 2}
           strokeLinecap="round"
         />
