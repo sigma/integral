@@ -341,9 +341,9 @@ impl Default for SnSynthCommon {
     fn default() -> Self {
         Self {
             tone_name: String::new(),
-            tone_level: 127,
+            tone_level: 100,
             portamento_switch: 0,
-            portamento_time: 0,
+            portamento_time: 20,
             mono_switch: 0,
             octave_shift: 64, // 0
             pitch_bend_range_up: 2,
@@ -355,16 +355,16 @@ impl Default for SnSynthCommon {
             partial3_switch: 0,
             partial3_select: 0,
             ring_switch: 0,
-            tfx_switch: 0,
+            tfx_switch: 1,
             unison_switch: 0,
-            portamento_mode: 0,
-            legato_switch: 0,
+            portamento_mode: 1,
+            legato_switch: 1,
             analog_feel: 0,
             wave_shape: 0,
             tone_category: 0,
             phrase_number: 0,
             phrase_octave_shift: 64, // 0
-            unison_size: 0,
+            unison_size: 3,
         }
     }
 }
@@ -498,27 +498,27 @@ impl Default for SnSynthPartial {
             osc_pitch_env_decay: 0,
             osc_pitch_env_depth: 64, // 0
             filter_mode: 1,          // LPF
-            filter_slope: 0,
+            filter_slope: 1,
             filter_cutoff: 127,
             filter_keyfollow: 64, // 0
             filter_env_vel_sens: 64,
             filter_resonance: 0,
             filter_env_attack: 0,
-            filter_env_decay: 0,
+            filter_env_decay: 36,
             filter_env_sustain: 0,
             filter_env_release: 0,
             filter_env_depth: 64,
-            amp_level: 127,
-            amp_vel_sens: 64,
+            amp_level: 100,
+            amp_vel_sens: 83,
             amp_env_attack: 0,
             amp_env_decay: 0,
             amp_env_sustain: 127,
             amp_env_release: 0,
             amp_pan: 64,
             lfo_shape: 0,
-            lfo_rate: 0,
+            lfo_rate: 81,
             lfo_tempo_sync: 0,
-            lfo_tempo_sync_note: 0,
+            lfo_tempo_sync_note: 17,
             lfo_fade_time: 0,
             lfo_key_trigger: 0,
             lfo_pitch_depth: 64,
@@ -526,28 +526,28 @@ impl Default for SnSynthPartial {
             lfo_amp_depth: 64,
             lfo_pan_depth: 64,
             mod_lfo_shape: 0,
-            mod_lfo_rate: 0,
+            mod_lfo_rate: 88,
             mod_lfo_tempo_sync: 0,
-            mod_lfo_tempo_sync_note: 0,
+            mod_lfo_tempo_sync_note: 17,
             pw_shift: 127, // the full PW range; 0 holds PW-SQR at a square
-            mod_lfo_pitch_depth: 64,
+            mod_lfo_pitch_depth: 80,
             mod_lfo_filter_depth: 64,
             mod_lfo_amp_depth: 64,
             mod_lfo_pan_depth: 64,
-            aftertouch_cutoff: 64,
-            aftertouch_level: 64,
+            aftertouch_cutoff: 73,
+            aftertouch_level: 74,
             wave_gain: 1, // 0 dB
-            wave_number: 0,
+            wave_number: 45,
             hpf_cutoff: 0,
             super_saw_detune: 0,
-            mod_lfo_rate_control: 64,
+            mod_lfo_rate_control: 82,
             amp_level_keyfollow: 64,
         }
     }
 }
 
 /// An SN Synth Tone's Common and Partial parameters (its MFX is read apart).
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct SnSynthTone {
@@ -555,6 +555,19 @@ pub struct SnSynthTone {
     pub common: SnSynthCommon,
     /// Per-partial parameters.
     pub partials: [SnSynthPartial; SNS_PARTIAL_COUNT],
+}
+
+impl Default for SnSynthTone {
+    /// INIT TONE: Partials 1–3 play SAW, SQR and PCM.
+    fn default() -> Self {
+        Self {
+            common: SnSynthCommon::default(),
+            partials: [0, 1, 7].map(|osc_wave| SnSynthPartial {
+                osc_wave,
+                ..SnSynthPartial::default()
+            }),
+        }
+    }
 }
 
 /// A block of an SN Synth Tone read with one RQ1: its Common or a Partial.
@@ -878,6 +891,25 @@ pub fn encode_sns_partial(p: &SnSynthPartial) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The INIT TONE blocks, read from an unwritten User slot (`53 7F xx 00`)
+    /// on the device.
+    #[test]
+    fn default_matches_the_device_init_tone() {
+        let partials = [
+            include_bytes!("../tests/fixtures/init/sn-synth-partial-1.bin"),
+            include_bytes!("../tests/fixtures/init/sn-synth-partial-2.bin"),
+            include_bytes!("../tests/fixtures/init/sn-synth-partial-3.bin"),
+        ];
+        let init = SnSynthTone {
+            common: parse_sns_common(include_bytes!("../tests/fixtures/init/sn-synth-common.bin"))
+                .unwrap(),
+            partials: partials.map(|p| parse_sns_partial(p).unwrap()),
+        };
+        let mut ours = SnSynthTone::default();
+        ours.common.tone_name = "INIT TONE".into();
+        assert_eq!(init, ours);
+    }
 
     #[test]
     fn sns_common_address_part1() {
