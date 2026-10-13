@@ -10,6 +10,7 @@ import {
   mfx_block_size,
   pcms_partial_address,
   pcms_partial_size,
+  ParameterFamily,
   PcmsPmtField,
   ToneType,
 } from "../pkg/integral_wasm.js";
@@ -203,7 +204,7 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
       {/* Tone-wide settings: Common, then the partial mix */}
       {(common || pmt) && (
         <div className={css.commonPanel}>
-          <SectionPanel label="COMMON" accentColor="#8cf">
+          <SectionPanel label="COMMON" family={ParameterFamily.Common}>
             <div className={css.commonStrip}>
               {common && <CommonStrip common={common} onChange={setCommonParam} />}
               {common && pmt && <div className={css.commonDivider} />}

@@ -3,7 +3,7 @@ import {
   SynthSwitch,
 } from "../synth-ui";
 import { PcmsCommonField, pcms_common_spec } from "../../pkg/integral_wasm.js";
-import { knobRange, switchOptions } from "../fieldSpec";
+import { knobProps, switchOptions } from "../fieldSpec";
 import css from "../PcmSynthEditor.module.css";
 import type { CommonParamHandler, PcmSynthCommon } from "./types";
 
@@ -36,8 +36,8 @@ export function CommonStrip({
         <div className={css.groupRow}>
           <SynthSwitch label="SW" value={common.portamentoSwitch} options={switchOptions(pcms_common_spec(PcmsCommonField.PortamentoSwitch))}
             onChange={set(PcmsCommonField.PortamentoSwitch, "portamentoSwitch")} title="Portamento on/off — smooth pitch glide between notes" />
-          <SynthKnob label="Time" value={common.portamentoTime} {...knobRange(pcms_common_spec(PcmsCommonField.PortamentoTime))}
-            onChange={set(PcmsCommonField.PortamentoTime, "portamentoTime")} color="#8cf"
+          <SynthKnob label="Time" value={common.portamentoTime} {...knobProps(pcms_common_spec(PcmsCommonField.PortamentoTime))}
+            onChange={set(PcmsCommonField.PortamentoTime, "portamentoTime")}
             title="Portamento time — speed of pitch glide" />
         </div>
       </div>
@@ -48,11 +48,11 @@ export function CommonStrip({
       <div className={css.commonGroup}>
         <span className={css.groupLabel}>BEND RANGE</span>
         <div className={css.groupRow}>
-          <SynthKnob label="Down" value={common.pitchBendRangeDown} {...knobRange(pcms_common_spec(PcmsCommonField.PitchBendRangeDown))}
-            onChange={set(PcmsCommonField.PitchBendRangeDown, "pitchBendRangeDown")} color="#8cf"
+          <SynthKnob label="Down" value={common.pitchBendRangeDown} {...knobProps(pcms_common_spec(PcmsCommonField.PitchBendRangeDown))}
+            onChange={set(PcmsCommonField.PitchBendRangeDown, "pitchBendRangeDown")}
             title="Pitch bend range down (semitones)" />
-          <SynthKnob label="Up" value={common.pitchBendRangeUp} {...knobRange(pcms_common_spec(PcmsCommonField.PitchBendRangeUp))}
-            onChange={set(PcmsCommonField.PitchBendRangeUp, "pitchBendRangeUp")} color="#8cf"
+          <SynthKnob label="Up" value={common.pitchBendRangeUp} {...knobProps(pcms_common_spec(PcmsCommonField.PitchBendRangeUp))}
+            onChange={set(PcmsCommonField.PitchBendRangeUp, "pitchBendRangeUp")}
             title="Pitch bend range up (semitones)" />
         </div>
       </div>
@@ -60,26 +60,26 @@ export function CommonStrip({
       <div className={css.commonDivider} />
 
       {/* Standalone params */}
-      <SynthKnob label="Level" value={common.toneLevel} {...knobRange(pcms_common_spec(PcmsCommonField.ToneLevel))}
-        onChange={set(PcmsCommonField.ToneLevel, "toneLevel")} color="#8cf"
+      <SynthKnob label="Level" value={common.toneLevel} {...knobProps(pcms_common_spec(PcmsCommonField.ToneLevel))}
+        onChange={set(PcmsCommonField.ToneLevel, "toneLevel")}
         title="Overall tone volume" />
-      <SynthKnob label="Pan" value={common.tonePan} {...knobRange(pcms_common_spec(PcmsCommonField.TonePan))}
-        onChange={set(PcmsCommonField.TonePan, "tonePan")} color="#8cf"
+      <SynthKnob label="Pan" value={common.tonePan} {...knobProps(pcms_common_spec(PcmsCommonField.TonePan))}
+        onChange={set(PcmsCommonField.TonePan, "tonePan")}
         title="Stereo panning position" />
-      <SynthKnob label="Coarse" value={common.coarseTune} {...knobRange(pcms_common_spec(PcmsCommonField.CoarseTune))}
-        onChange={set(PcmsCommonField.CoarseTune, "coarseTune")} color="#8cf"
+      <SynthKnob label="Coarse" value={common.coarseTune} {...knobProps(pcms_common_spec(PcmsCommonField.CoarseTune))}
+        onChange={set(PcmsCommonField.CoarseTune, "coarseTune")}
         title="Coarse tuning (semitones)" />
-      <SynthKnob label="Fine" value={common.fineTune} {...knobRange(pcms_common_spec(PcmsCommonField.FineTune))}
-        onChange={set(PcmsCommonField.FineTune, "fineTune")} color="#8cf"
+      <SynthKnob label="Fine" value={common.fineTune} {...knobProps(pcms_common_spec(PcmsCommonField.FineTune))}
+        onChange={set(PcmsCommonField.FineTune, "fineTune")}
         title="Fine tuning (cents)" />
 
       <div className={css.commonDivider} />
 
-      <SynthKnob label="Octave" value={common.octaveShift} {...knobRange(pcms_common_spec(PcmsCommonField.OctaveShift))}
-        onChange={set(PcmsCommonField.OctaveShift, "octaveShift")} color="#8cf"
+      <SynthKnob label="Octave" value={common.octaveShift} {...knobProps(pcms_common_spec(PcmsCommonField.OctaveShift))}
+        onChange={set(PcmsCommonField.OctaveShift, "octaveShift")}
         title="Octave shift (-3 to +3)" />
-      <SynthKnob label="Analog" value={common.analogFeel} {...knobRange(pcms_common_spec(PcmsCommonField.AnalogFeel))}
-        onChange={set(PcmsCommonField.AnalogFeel, "analogFeel")} color="#8cf"
+      <SynthKnob label="Analog" value={common.analogFeel} {...knobProps(pcms_common_spec(PcmsCommonField.AnalogFeel))}
+        onChange={set(PcmsCommonField.AnalogFeel, "analogFeel")}
         title="Analog Feel — adds subtle pitch/timing randomness like vintage synths" />
 
       <div className={css.commonDivider} />
@@ -93,20 +93,20 @@ export function CommonStrip({
       <div className={css.commonGroup}>
         <span className={css.groupLabel}>OFFSETS</span>
         <div className={css.groupRow}>
-          <SynthKnob label="Cutoff" value={common.cutoffOffset} {...knobRange(pcms_common_spec(PcmsCommonField.CutoffOffset))}
-            onChange={set(PcmsCommonField.CutoffOffset, "cutoffOffset")} color="#68c"
+          <SynthKnob label="Cutoff" value={common.cutoffOffset} {...knobProps(pcms_common_spec(PcmsCommonField.CutoffOffset))}
+            onChange={set(PcmsCommonField.CutoffOffset, "cutoffOffset")}
             title="Filter cutoff offset — shifts cutoff across all partials" />
-          <SynthKnob label="Reso" value={common.resonanceOffset} {...knobRange(pcms_common_spec(PcmsCommonField.ResonanceOffset))}
-            onChange={set(PcmsCommonField.ResonanceOffset, "resonanceOffset")} color="#68c"
+          <SynthKnob label="Reso" value={common.resonanceOffset} {...knobProps(pcms_common_spec(PcmsCommonField.ResonanceOffset))}
+            onChange={set(PcmsCommonField.ResonanceOffset, "resonanceOffset")}
             title="Resonance offset — shifts resonance across all partials" />
-          <SynthKnob label="Attack" value={common.attackTimeOffset} {...knobRange(pcms_common_spec(PcmsCommonField.AttackTimeOffset))}
-            onChange={set(PcmsCommonField.AttackTimeOffset, "attackTimeOffset")} color="#6c8"
+          <SynthKnob label="Attack" value={common.attackTimeOffset} {...knobProps(pcms_common_spec(PcmsCommonField.AttackTimeOffset))}
+            onChange={set(PcmsCommonField.AttackTimeOffset, "attackTimeOffset")}
             title="Attack time offset — shifts envelope attack across all partials" />
-          <SynthKnob label="Release" value={common.releaseTimeOffset} {...knobRange(pcms_common_spec(PcmsCommonField.ReleaseTimeOffset))}
-            onChange={set(PcmsCommonField.ReleaseTimeOffset, "releaseTimeOffset")} color="#6c8"
+          <SynthKnob label="Release" value={common.releaseTimeOffset} {...knobProps(pcms_common_spec(PcmsCommonField.ReleaseTimeOffset))}
+            onChange={set(PcmsCommonField.ReleaseTimeOffset, "releaseTimeOffset")}
             title="Release time offset — shifts envelope release across all partials" />
-          <SynthKnob label="Velocity" value={common.velocitySensOffset} {...knobRange(pcms_common_spec(PcmsCommonField.VelocitySensOffset))}
-            onChange={set(PcmsCommonField.VelocitySensOffset, "velocitySensOffset")} color="#c8a"
+          <SynthKnob label="Velocity" value={common.velocitySensOffset} {...knobProps(pcms_common_spec(PcmsCommonField.VelocitySensOffset))}
+            onChange={set(PcmsCommonField.VelocitySensOffset, "velocitySensOffset")}
             title="Velocity sensitivity offset — shifts velocity response across all partials" />
         </div>
       </div>

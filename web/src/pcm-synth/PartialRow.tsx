@@ -10,9 +10,9 @@ import {
 } from "../synth-ui";
 import type { ReactNode } from "react";
 import { SignalArrows, type Edge } from "../synth-ui/SignalArrows";
-import { PcmsPartialField, PcmsPmtField, pcms_partial_spec, pcms_pmt_spec } from "../../pkg/integral_wasm.js";
+import { ParameterFamily, PcmsPartialField, PcmsPmtField, pcms_partial_spec, pcms_pmt_spec } from "../../pkg/integral_wasm.js";
 import { routingOf, type Block, type Side } from "./structureRouting";
-import { knobRange, switchOptions } from "../fieldSpec";
+import { knobProps, knobRange, switchOptions } from "../fieldSpec";
 import { VelocityCurveSelect } from "../synth-ui/VelocityCurveSelect";
 import { LfoScope } from "../synth-ui/LfoScope";
 import { TimeOrNoteKnob } from "./TimeOrNoteKnob";
@@ -282,7 +282,7 @@ function WaveSection({
   marking?: ExpansionMarking;
 }) {
   return (
-    <SectionPanel label={numbered("WAVE", n, " ")} accentColor="#fc8">
+    <SectionPanel label={numbered("WAVE", n, " ")} family={ParameterFamily.Pitch}>
       <PartialWave partial={partial} set={set} marking={marking} />
       <div className={css.waveControls}>
         <div className={css.switchColumn}>
@@ -291,14 +291,14 @@ function WaveSection({
           <SynthSwitch label="FXM" value={partial.waveFxmSwitch} options={switchOptions(pcms_partial_spec(PcmsPartialField.WaveFxmSwitch))}
             onChange={set(PcmsPartialField.WaveFxmSwitch, "waveFxmSwitch")} title="Frequency Cross Modulation" />
         </div>
-        <SynthKnob label="Gain" value={partial.waveGain} {...knobRange(pcms_partial_spec(PcmsPartialField.WaveGain))}
-          onChange={set(PcmsPartialField.WaveGain, "waveGain")} color="#fc8" title="Wave output gain" />
+        <SynthKnob label="Gain" value={partial.waveGain} {...knobProps(pcms_partial_spec(PcmsPartialField.WaveGain))}
+          onChange={set(PcmsPartialField.WaveGain, "waveGain")} title="Wave output gain" />
         <div className={css.knobGrid}>
-          <SynthKnob label="FXM Col" value={partial.waveFxmColor} {...knobRange(pcms_partial_spec(PcmsPartialField.WaveFxmColor))}
-            onChange={set(PcmsPartialField.WaveFxmColor, "waveFxmColor")} color="#fc8"
+          <SynthKnob label="FXM Col" value={partial.waveFxmColor} {...knobProps(pcms_partial_spec(PcmsPartialField.WaveFxmColor))}
+            onChange={set(PcmsPartialField.WaveFxmColor, "waveFxmColor")}
             title="FXM Color — tonal character" />
-          <SynthKnob label="FXM Dpt" value={partial.waveFxmDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.WaveFxmDepth))}
-            onChange={set(PcmsPartialField.WaveFxmDepth, "waveFxmDepth")} color="#fc8"
+          <SynthKnob label="FXM Dpt" value={partial.waveFxmDepth} {...knobProps(pcms_partial_spec(PcmsPartialField.WaveFxmDepth))}
+            onChange={set(PcmsPartialField.WaveFxmDepth, "waveFxmDepth")}
             title="FXM Depth — intensity" />
         </div>
       </div>
@@ -357,39 +357,39 @@ function PitchSection({
   set: PartialSetter;
 }) {
   return (
-    <SectionPanel label={numbered("PITCH", n, " ")} accentColor="#fc8">
+    <SectionPanel label={numbered("PITCH", n, " ")} family={ParameterFamily.Pitch}>
       <div className={css.panelRow}>
-        <SynthKnob label="Coarse" value={partial.coarseTune} {...knobRange(pcms_partial_spec(PcmsPartialField.CoarseTune))}
-          onChange={set(PcmsPartialField.CoarseTune, "coarseTune")} color="#fc8"
+        <SynthKnob label="Coarse" value={partial.coarseTune} {...knobProps(pcms_partial_spec(PcmsPartialField.CoarseTune))}
+          onChange={set(PcmsPartialField.CoarseTune, "coarseTune")}
           title="Coarse tuning (semitones)" />
-        <SynthKnob label="Fine" value={partial.fineTune} {...knobRange(pcms_partial_spec(PcmsPartialField.FineTune))}
-          onChange={set(PcmsPartialField.FineTune, "fineTune")} color="#fc8"
+        <SynthKnob label="Fine" value={partial.fineTune} {...knobProps(pcms_partial_spec(PcmsPartialField.FineTune))}
+          onChange={set(PcmsPartialField.FineTune, "fineTune")}
           title="Fine tuning (cents)" />
         <SynthKnob label="Random" value={partial.randomPitchDepth}
-          {...knobRange(pcms_partial_spec(PcmsPartialField.RandomPitchDepth))}
-          onChange={set(PcmsPartialField.RandomPitchDepth, "randomPitchDepth")} color="#fc8"
+          {...knobProps(pcms_partial_spec(PcmsPartialField.RandomPitchDepth))}
+          onChange={set(PcmsPartialField.RandomPitchDepth, "randomPitchDepth")}
           title="Random pitch variation on each note (cents)" />
-        <SynthKnob label="Key Trk" value={partial.wavePitchKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.WavePitchKeyfollow))}
-          onChange={set(PcmsPartialField.WavePitchKeyfollow, "wavePitchKeyfollow")} color="#fc8"
+        <SynthKnob label="Key Trk" value={partial.wavePitchKeyfollow} {...knobProps(pcms_partial_spec(PcmsPartialField.WavePitchKeyfollow))}
+          onChange={set(PcmsPartialField.WavePitchKeyfollow, "wavePitchKeyfollow")}
           title="Pitch keyboard tracking" />
       </div>
       <div className={css.envBlock}>
         <div className={css.envGrid}>
           <SynthKnob label="Depth" value={partial.pitchEnvDepth}
-            {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvDepth))}
-            onChange={set(PcmsPartialField.PitchEnvDepth, "pitchEnvDepth")} color="#fc8"
+            {...knobProps(pcms_partial_spec(PcmsPartialField.PitchEnvDepth))}
+            onChange={set(PcmsPartialField.PitchEnvDepth, "pitchEnvDepth")}
             title="Pitch envelope depth (semitones) — how much the envelope affects pitch" />
-          <SynthKnob label="Vel Sns" value={partial.pitchEnvVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvVelocitySens))}
-            onChange={set(PcmsPartialField.PitchEnvVelocitySens, "pitchEnvVelocitySens")} color="#fc8"
+          <SynthKnob label="Vel Sns" value={partial.pitchEnvVelocitySens} {...knobProps(pcms_partial_spec(PcmsPartialField.PitchEnvVelocitySens))}
+            onChange={set(PcmsPartialField.PitchEnvVelocitySens, "pitchEnvVelocitySens")}
             title="Velocity sensitivity — how key velocity affects envelope depth" />
-          <SynthKnob label="Key Trk" value={partial.pitchEnvTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvTimeKeyfollow))}
-            onChange={set(PcmsPartialField.PitchEnvTimeKeyfollow, "pitchEnvTimeKeyfollow")} color="#fc8"
+          <SynthKnob label="Key Trk" value={partial.pitchEnvTimeKeyfollow} {...knobProps(pcms_partial_spec(PcmsPartialField.PitchEnvTimeKeyfollow))}
+            onChange={set(PcmsPartialField.PitchEnvTimeKeyfollow, "pitchEnvTimeKeyfollow")}
             title="Envelope time key tracking — higher keys = faster envelope" />
-          <SynthKnob label="T1 Vel" value={partial.pitchEnvT1VelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvT1VelocitySens))}
-            onChange={set(PcmsPartialField.PitchEnvT1VelocitySens, "pitchEnvT1VelocitySens")} color="#fc8"
+          <SynthKnob label="T1 Vel" value={partial.pitchEnvT1VelocitySens} {...knobProps(pcms_partial_spec(PcmsPartialField.PitchEnvT1VelocitySens))}
+            onChange={set(PcmsPartialField.PitchEnvT1VelocitySens, "pitchEnvT1VelocitySens")}
             title="Pitch envelope Time 1 velocity sensitivity — harder keys change the first stage time" />
-          <SynthKnob label="T4 Vel" value={partial.pitchEnvT4VelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.PitchEnvT4VelocitySens))}
-            onChange={set(PcmsPartialField.PitchEnvT4VelocitySens, "pitchEnvT4VelocitySens")} color="#fc8"
+          <SynthKnob label="T4 Vel" value={partial.pitchEnvT4VelocitySens} {...knobProps(pcms_partial_spec(PcmsPartialField.PitchEnvT4VelocitySens))}
+            onChange={set(PcmsPartialField.PitchEnvT4VelocitySens, "pitchEnvT4VelocitySens")}
             title="Pitch envelope Time 4 velocity sensitivity — release velocity changes the release time" />
         </div>
         <BreakpointEnvelope
@@ -440,7 +440,7 @@ function TvfSection({
   set: PartialSetter;
 }) {
   return (
-    <SectionPanel label={numbered("FILTER", n, " ")} accentColor="#68c">
+    <SectionPanel label={numbered("FILTER", n, " ")} family={ParameterFamily.Filter}>
       <div className={css.envGrid}>
         <div className={css.filterType}>
           <SynthSwitch label="Type" value={partial.tvfFilterType} vertical
@@ -451,15 +451,15 @@ function TvfSection({
           type={pcms_partial_spec(PcmsPartialField.TvfFilterType).formatValue(partial.tvfFilterType)}
           cutoff={partial.tvfCutoffFrequency} resonance={partial.tvfResonance} />
         <div className={css.at3}>
-          <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffKeyfollow))}
-            onChange={set(PcmsPartialField.TvfCutoffKeyfollow, "tvfCutoffKeyfollow")} color="#68c"
+          <SynthKnob label="Key Trk" value={partial.tvfCutoffKeyfollow} {...knobProps(pcms_partial_spec(PcmsPartialField.TvfCutoffKeyfollow))}
+            onChange={set(PcmsPartialField.TvfCutoffKeyfollow, "tvfCutoffKeyfollow")}
             title="Cutoff key tracking — higher keys = higher cutoff" />
         </div>
-        <SynthKnob label="Cutoff" value={partial.tvfCutoffFrequency} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffFrequency))}
-          onChange={set(PcmsPartialField.TvfCutoffFrequency, "tvfCutoffFrequency")} color="#68c"
+        <SynthKnob label="Cutoff" value={partial.tvfCutoffFrequency} {...knobProps(pcms_partial_spec(PcmsPartialField.TvfCutoffFrequency))}
+          onChange={set(PcmsPartialField.TvfCutoffFrequency, "tvfCutoffFrequency")}
           title="Filter cutoff frequency" />
-        <SynthKnob label="Reso" value={partial.tvfResonance} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfResonance))}
-          onChange={set(PcmsPartialField.TvfResonance, "tvfResonance")} color="#68c"
+        <SynthKnob label="Reso" value={partial.tvfResonance} {...knobProps(pcms_partial_spec(PcmsPartialField.TvfResonance))}
+          onChange={set(PcmsPartialField.TvfResonance, "tvfResonance")}
           title="Filter resonance — emphasis at the cutoff frequency" />
         <VelocityCurveSelect className={css.at1} label="Vel Crv" value={partial.tvfCutoffVelocityCurve}
           options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocityCurve))}
@@ -468,30 +468,30 @@ function TvfSection({
           options={switchOptions(pcms_partial_spec(PcmsPartialField.TvfEnvVelocityCurve))}
           onChange={set(PcmsPartialField.TvfEnvVelocityCurve, "tvfEnvVelocityCurve")} color="#68c" title="Envelope velocity response curve shape" />
         <div className={css.at4}>
-          <SynthKnob label="Cut Vel" value={partial.tvfCutoffVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocitySens))}
-            onChange={set(PcmsPartialField.TvfCutoffVelocitySens, "tvfCutoffVelocitySens")} color="#68c"
+          <SynthKnob label="Cut Vel" value={partial.tvfCutoffVelocitySens} {...knobProps(pcms_partial_spec(PcmsPartialField.TvfCutoffVelocitySens))}
+            onChange={set(PcmsPartialField.TvfCutoffVelocitySens, "tvfCutoffVelocitySens")}
             title="Cutoff velocity sensitivity — harder keys = higher cutoff" />
         </div>
-        <SynthKnob label="Res Vel" value={partial.tvfResonanceVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfResonanceVelocitySens))}
-          onChange={set(PcmsPartialField.TvfResonanceVelocitySens, "tvfResonanceVelocitySens")} color="#68c"
+        <SynthKnob label="Res Vel" value={partial.tvfResonanceVelocitySens} {...knobProps(pcms_partial_spec(PcmsPartialField.TvfResonanceVelocitySens))}
+          onChange={set(PcmsPartialField.TvfResonanceVelocitySens, "tvfResonanceVelocitySens")}
           title="Resonance velocity sensitivity — harder keys = more resonance" />
       </div>
       <div className={css.envBlock}>
         <div className={css.envGrid}>
-          <SynthKnob label="Depth" value={partial.tvfEnvDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvDepth))}
-            onChange={set(PcmsPartialField.TvfEnvDepth, "tvfEnvDepth")} color="#68c"
+          <SynthKnob label="Depth" value={partial.tvfEnvDepth} {...knobProps(pcms_partial_spec(PcmsPartialField.TvfEnvDepth))}
+            onChange={set(PcmsPartialField.TvfEnvDepth, "tvfEnvDepth")}
             title="Filter envelope depth — how much the envelope sweeps the cutoff" />
-          <SynthKnob label="Vel Sns" value={partial.tvfEnvVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvVelocitySens))}
-            onChange={set(PcmsPartialField.TvfEnvVelocitySens, "tvfEnvVelocitySens")} color="#68c"
+          <SynthKnob label="Vel Sns" value={partial.tvfEnvVelocitySens} {...knobProps(pcms_partial_spec(PcmsPartialField.TvfEnvVelocitySens))}
+            onChange={set(PcmsPartialField.TvfEnvVelocitySens, "tvfEnvVelocitySens")}
             title="Envelope velocity sensitivity — harder keys = deeper sweep" />
-          <SynthKnob label="Key Trk" value={partial.tvfEnvTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvTimeKeyfollow))}
-            onChange={set(PcmsPartialField.TvfEnvTimeKeyfollow, "tvfEnvTimeKeyfollow")} color="#68c"
+          <SynthKnob label="Key Trk" value={partial.tvfEnvTimeKeyfollow} {...knobProps(pcms_partial_spec(PcmsPartialField.TvfEnvTimeKeyfollow))}
+            onChange={set(PcmsPartialField.TvfEnvTimeKeyfollow, "tvfEnvTimeKeyfollow")}
             title="Envelope time key tracking — higher keys = faster envelope" />
-          <SynthKnob label="T1 Vel" value={partial.tvfEnvT1VelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvT1VelocitySens))}
-            onChange={set(PcmsPartialField.TvfEnvT1VelocitySens, "tvfEnvT1VelocitySens")} color="#68c"
+          <SynthKnob label="T1 Vel" value={partial.tvfEnvT1VelocitySens} {...knobProps(pcms_partial_spec(PcmsPartialField.TvfEnvT1VelocitySens))}
+            onChange={set(PcmsPartialField.TvfEnvT1VelocitySens, "tvfEnvT1VelocitySens")}
             title="Filter envelope Time 1 velocity sensitivity — harder keys change the first stage time" />
-          <SynthKnob label="T4 Vel" value={partial.tvfEnvT4VelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvfEnvT4VelocitySens))}
-            onChange={set(PcmsPartialField.TvfEnvT4VelocitySens, "tvfEnvT4VelocitySens")} color="#68c"
+          <SynthKnob label="T4 Vel" value={partial.tvfEnvT4VelocitySens} {...knobProps(pcms_partial_spec(PcmsPartialField.TvfEnvT4VelocitySens))}
+            onChange={set(PcmsPartialField.TvfEnvT4VelocitySens, "tvfEnvT4VelocitySens")}
             title="Filter envelope Time 4 velocity sensitivity — release velocity changes the release time" />
         </div>
         <BreakpointEnvelope
@@ -545,38 +545,38 @@ function TvaSection({
   follows?: number;
 }) {
   return (
-    <SectionPanel label={numbered("AMP", n, " ")} accentColor="#6c8">
+    <SectionPanel label={numbered("AMP", n, " ")} family={ParameterFamily.Amp}>
       <div className={css.envGrid}>
         <div className={css.at2}>
-          <SynthKnob label="Pan" value={partial.pan} {...knobRange(pcms_partial_spec(PcmsPartialField.Pan))}
-            onChange={set(PcmsPartialField.Pan, "pan")} color="#6c8"
+          <SynthKnob label="Pan" value={partial.pan} {...knobProps(pcms_partial_spec(PcmsPartialField.Pan))}
+            onChange={set(PcmsPartialField.Pan, "pan")}
             title="Partial stereo panning" />
         </div>
         <div className={follows ? css.follows : undefined}>
-          <SynthKnob label="Pan KF" value={partial.panKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.PanKeyfollow))}
-            onChange={set(PcmsPartialField.PanKeyfollow, "panKeyfollow")} color="#6c8"
+          <SynthKnob label="Pan KF" value={partial.panKeyfollow} {...knobProps(pcms_partial_spec(PcmsPartialField.PanKeyfollow))}
+            onChange={set(PcmsPartialField.PanKeyfollow, "panKeyfollow")}
             title={followsTitle("Pan keyfollow — notes above C4 pan right (+) or left (−). When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4.", follows)} />
         </div>
         <div className={follows ? css.follows : undefined}>
-          <SynthKnob label="Rnd Pan" value={partial.randomPanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.RandomPanDepth))}
-            onChange={set(PcmsPartialField.RandomPanDepth, "randomPanDepth")} color="#6c8"
+          <SynthKnob label="Rnd Pan" value={partial.randomPanDepth} {...knobProps(pcms_partial_spec(PcmsPartialField.RandomPanDepth))}
+            onChange={set(PcmsPartialField.RandomPanDepth, "randomPanDepth")}
             title={followsTitle("Random pan depth — each note lands at a random position. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4.", follows)} />
         </div>
         <div className={follows ? css.follows : undefined}>
-          <SynthKnob label="Alt Pan" value={partial.alternatePanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.AlternatePanDepth))}
-            onChange={set(PcmsPartialField.AlternatePanDepth, "alternatePanDepth")} color="#6c8"
+          <SynthKnob label="Alt Pan" value={partial.alternatePanDepth} {...knobProps(pcms_partial_spec(PcmsPartialField.AlternatePanDepth))}
+            onChange={set(PcmsPartialField.AlternatePanDepth, "alternatePanDepth")}
             title={followsTitle("Alternate pan depth — successive notes alternate left and right; L/R sets which side comes first. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4.", follows)} />
         </div>
         <VelocityCurveSelect className={css.at1} label="Vel Crv" value={partial.tvaLevelVelocityCurve}
           options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaLevelVelocityCurve))}
           onChange={set(PcmsPartialField.TvaLevelVelocityCurve, "tvaLevelVelocityCurve")} color="#6c8" title="Velocity response curve shape" />
         <div className={css.at3}>
-          <SynthKnob label="Bias Lvl" value={partial.tvaBiasLevel} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasLevel))}
-            onChange={set(PcmsPartialField.TvaBiasLevel, "tvaBiasLevel")} color="#6c8"
+          <SynthKnob label="Bias Lvl" value={partial.tvaBiasLevel} {...knobProps(pcms_partial_spec(PcmsPartialField.TvaBiasLevel))}
+            onChange={set(PcmsPartialField.TvaBiasLevel, "tvaBiasLevel")}
             title="Bias level — how steeply volume changes with distance from the bias key; the sign sets whether it rises or falls" />
         </div>
-        <SynthKnob label="Bias Key" value={partial.tvaBiasPosition} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaBiasPosition))}
-          onChange={set(PcmsPartialField.TvaBiasPosition, "tvaBiasPosition")} color="#6c8"
+        <SynthKnob label="Bias Key" value={partial.tvaBiasPosition} {...knobProps(pcms_partial_spec(PcmsPartialField.TvaBiasPosition))}
+          onChange={set(PcmsPartialField.TvaBiasPosition, "tvaBiasPosition")}
           title="Bias key — the pivot key the volume change is measured from" />
         <SynthSwitch label="Bias Dir" value={partial.tvaBiasDirection} vertical
           options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaBiasDirection))}
@@ -585,20 +585,20 @@ function TvaSection({
       </div>
       <div className={css.envBlock}>
         <div className={css.envGrid}>
-          <SynthKnob label="Level" value={partial.level} {...knobRange(pcms_partial_spec(PcmsPartialField.Level))}
-            onChange={set(PcmsPartialField.Level, "level")} color="#6c8"
+          <SynthKnob label="Level" value={partial.level} {...knobProps(pcms_partial_spec(PcmsPartialField.Level))}
+            onChange={set(PcmsPartialField.Level, "level")}
             title="Partial volume level" />
-          <SynthKnob label="Vel Sns" value={partial.tvaLevelVelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaLevelVelocitySens))}
-            onChange={set(PcmsPartialField.TvaLevelVelocitySens, "tvaLevelVelocitySens")} color="#6c8"
+          <SynthKnob label="Vel Sns" value={partial.tvaLevelVelocitySens} {...knobProps(pcms_partial_spec(PcmsPartialField.TvaLevelVelocitySens))}
+            onChange={set(PcmsPartialField.TvaLevelVelocitySens, "tvaLevelVelocitySens")}
             title="Volume velocity sensitivity — harder keys = louder" />
-          <SynthKnob label="Key Trk" value={partial.tvaEnvTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvTimeKeyfollow))}
-            onChange={set(PcmsPartialField.TvaEnvTimeKeyfollow, "tvaEnvTimeKeyfollow")} color="#6c8"
+          <SynthKnob label="Key Trk" value={partial.tvaEnvTimeKeyfollow} {...knobProps(pcms_partial_spec(PcmsPartialField.TvaEnvTimeKeyfollow))}
+            onChange={set(PcmsPartialField.TvaEnvTimeKeyfollow, "tvaEnvTimeKeyfollow")}
             title="Envelope time key tracking — higher keys = faster envelope" />
-          <SynthKnob label="T1 Vel" value={partial.tvaEnvT1VelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvT1VelocitySens))}
-            onChange={set(PcmsPartialField.TvaEnvT1VelocitySens, "tvaEnvT1VelocitySens")} color="#6c8"
+          <SynthKnob label="T1 Vel" value={partial.tvaEnvT1VelocitySens} {...knobProps(pcms_partial_spec(PcmsPartialField.TvaEnvT1VelocitySens))}
+            onChange={set(PcmsPartialField.TvaEnvT1VelocitySens, "tvaEnvT1VelocitySens")}
             title="Amp envelope Time 1 velocity sensitivity — harder keys change the first stage time" />
-          <SynthKnob label="T4 Vel" value={partial.tvaEnvT4VelocitySens} {...knobRange(pcms_partial_spec(PcmsPartialField.TvaEnvT4VelocitySens))}
-            onChange={set(PcmsPartialField.TvaEnvT4VelocitySens, "tvaEnvT4VelocitySens")} color="#6c8"
+          <SynthKnob label="T4 Vel" value={partial.tvaEnvT4VelocitySens} {...knobProps(pcms_partial_spec(PcmsPartialField.TvaEnvT4VelocitySens))}
+            onChange={set(PcmsPartialField.TvaEnvT4VelocitySens, "tvaEnvT4VelocitySens")}
             title="Amp envelope Time 4 velocity sensitivity — release velocity changes the release time" />
         </div>
         <BreakpointEnvelope
@@ -650,7 +650,7 @@ function Lfo1Section({
   follows?: number;
 }) {
   return (
-    <SectionPanel label={numbered("LFO1", n, " · ")} accentColor="#a6f">
+    <SectionPanel label={numbered("LFO1", n, " · ")} family={ParameterFamily.Modulation}>
       <div className={css.panelRow}>
         <SynthSwitch label="Wave" value={partial.lfo1Waveform} vertical
           options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1Waveform))}
@@ -661,19 +661,19 @@ function Lfo1Section({
             steps={partial.lfoStepValues} smooth={partial.lfoStepType === 1} />
           <div className={css.knobGrid}>
             <TimeOrNoteKnob label="Rate" field={PcmsPartialField.Lfo1Rate} value={partial.lfo1Rate}
-              onChange={set(PcmsPartialField.Lfo1Rate, "lfo1Rate")} color="#a6f"
+              onChange={set(PcmsPartialField.Lfo1Rate, "lfo1Rate")}
               title="LFO speed" />
-            <SynthKnob label="Detune" value={partial.lfo1RateDetune} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1RateDetune))}
-              onChange={set(PcmsPartialField.Lfo1RateDetune, "lfo1RateDetune")} color="#a6f"
+            <SynthKnob label="Detune" value={partial.lfo1RateDetune} {...knobProps(pcms_partial_spec(PcmsPartialField.Lfo1RateDetune))}
+              onChange={set(PcmsPartialField.Lfo1RateDetune, "lfo1RateDetune")}
               title="Rate randomization — adds organic variation" />
-            <SynthKnob label="Delay" value={partial.lfo1DelayTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1DelayTime))}
-              onChange={set(PcmsPartialField.Lfo1DelayTime, "lfo1DelayTime")} color="#a6f"
+            <SynthKnob label="Delay" value={partial.lfo1DelayTime} {...knobProps(pcms_partial_spec(PcmsPartialField.Lfo1DelayTime))}
+              onChange={set(PcmsPartialField.Lfo1DelayTime, "lfo1DelayTime")}
               title="Time before LFO starts after note-on" />
-            <SynthKnob label="Dly KF" value={partial.lfo1DelayTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1DelayTimeKeyfollow))}
-              onChange={set(PcmsPartialField.Lfo1DelayTimeKeyfollow, "lfo1DelayTimeKeyfollow")} color="#a6f"
+            <SynthKnob label="Dly KF" value={partial.lfo1DelayTimeKeyfollow} {...knobProps(pcms_partial_spec(PcmsPartialField.Lfo1DelayTimeKeyfollow))}
+              onChange={set(PcmsPartialField.Lfo1DelayTimeKeyfollow, "lfo1DelayTimeKeyfollow")}
               title="Delay time key tracking — higher keys = shorter delay" />
-            <SynthKnob label="Offset" value={partial.lfo1Offset} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1Offset))}
-              onChange={set(PcmsPartialField.Lfo1Offset, "lfo1Offset")} color="#a6f"
+            <SynthKnob label="Offset" value={partial.lfo1Offset} {...knobProps(pcms_partial_spec(PcmsPartialField.Lfo1Offset))}
+              onChange={set(PcmsPartialField.Lfo1Offset, "lfo1Offset")}
               title="DC offset of the LFO waveform" />
           </div>
         </div>
@@ -683,8 +683,8 @@ function Lfo1Section({
           options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1FadeMode))}
           onChange={set(PcmsPartialField.Lfo1FadeMode, "lfo1FadeMode")} led={false}
           title="Fade behavior: fade in on note-on, fade out, or on key-off" />
-        <SynthKnob label="Fade T" value={partial.lfo1FadeTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1FadeTime))}
-          onChange={set(PcmsPartialField.Lfo1FadeTime, "lfo1FadeTime")} color="#a6f"
+        <SynthKnob label="Fade T" value={partial.lfo1FadeTime} {...knobProps(pcms_partial_spec(PcmsPartialField.Lfo1FadeTime))}
+          onChange={set(PcmsPartialField.Lfo1FadeTime, "lfo1FadeTime")}
           title="Fade time — how long the fade set by Fade takes (in or out)" />
         <SynthSwitch label="Key Trig" value={partial.lfo1KeyTrigger} options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo1KeyTrigger))}
           onChange={set(PcmsPartialField.Lfo1KeyTrigger, "lfo1KeyTrigger")}
@@ -728,7 +728,7 @@ function Lfo2Section({
   follows?: number;
 }) {
   return (
-    <SectionPanel label={numbered("LFO2", n, " · ")} accentColor="#a6f">
+    <SectionPanel label={numbered("LFO2", n, " · ")} family={ParameterFamily.Modulation}>
       <div className={css.panelRow}>
         <SynthSwitch label="Wave" value={partial.lfo2Waveform} vertical
           options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2Waveform))}
@@ -739,19 +739,19 @@ function Lfo2Section({
             steps={partial.lfoStepValues} smooth={partial.lfoStepType === 1} />
           <div className={css.knobGrid}>
             <TimeOrNoteKnob label="Rate" field={PcmsPartialField.Lfo2Rate} value={partial.lfo2Rate}
-              onChange={set(PcmsPartialField.Lfo2Rate, "lfo2Rate")} color="#a6f"
+              onChange={set(PcmsPartialField.Lfo2Rate, "lfo2Rate")}
               title="LFO speed" />
-            <SynthKnob label="Detune" value={partial.lfo2RateDetune} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2RateDetune))}
-              onChange={set(PcmsPartialField.Lfo2RateDetune, "lfo2RateDetune")} color="#a6f"
+            <SynthKnob label="Detune" value={partial.lfo2RateDetune} {...knobProps(pcms_partial_spec(PcmsPartialField.Lfo2RateDetune))}
+              onChange={set(PcmsPartialField.Lfo2RateDetune, "lfo2RateDetune")}
               title="Rate randomization — adds organic variation" />
-            <SynthKnob label="Delay" value={partial.lfo2DelayTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2DelayTime))}
-              onChange={set(PcmsPartialField.Lfo2DelayTime, "lfo2DelayTime")} color="#a6f"
+            <SynthKnob label="Delay" value={partial.lfo2DelayTime} {...knobProps(pcms_partial_spec(PcmsPartialField.Lfo2DelayTime))}
+              onChange={set(PcmsPartialField.Lfo2DelayTime, "lfo2DelayTime")}
               title="Time before LFO starts after note-on" />
-            <SynthKnob label="Dly KF" value={partial.lfo2DelayTimeKeyfollow} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2DelayTimeKeyfollow))}
-              onChange={set(PcmsPartialField.Lfo2DelayTimeKeyfollow, "lfo2DelayTimeKeyfollow")} color="#a6f"
+            <SynthKnob label="Dly KF" value={partial.lfo2DelayTimeKeyfollow} {...knobProps(pcms_partial_spec(PcmsPartialField.Lfo2DelayTimeKeyfollow))}
+              onChange={set(PcmsPartialField.Lfo2DelayTimeKeyfollow, "lfo2DelayTimeKeyfollow")}
               title="Delay time key tracking — higher keys = shorter delay" />
-            <SynthKnob label="Offset" value={partial.lfo2Offset} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2Offset))}
-              onChange={set(PcmsPartialField.Lfo2Offset, "lfo2Offset")} color="#a6f"
+            <SynthKnob label="Offset" value={partial.lfo2Offset} {...knobProps(pcms_partial_spec(PcmsPartialField.Lfo2Offset))}
+              onChange={set(PcmsPartialField.Lfo2Offset, "lfo2Offset")}
               title="DC offset of the LFO waveform" />
           </div>
         </div>
@@ -761,8 +761,8 @@ function Lfo2Section({
           options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2FadeMode))}
           onChange={set(PcmsPartialField.Lfo2FadeMode, "lfo2FadeMode")} led={false}
           title="Fade behavior: fade in on note-on, fade out, or on key-off" />
-        <SynthKnob label="Fade T" value={partial.lfo2FadeTime} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2FadeTime))}
-          onChange={set(PcmsPartialField.Lfo2FadeTime, "lfo2FadeTime")} color="#a6f"
+        <SynthKnob label="Fade T" value={partial.lfo2FadeTime} {...knobProps(pcms_partial_spec(PcmsPartialField.Lfo2FadeTime))}
+          onChange={set(PcmsPartialField.Lfo2FadeTime, "lfo2FadeTime")}
           title="Fade time — how long the fade set by Fade takes (in or out)" />
         <SynthSwitch label="Key Trig" value={partial.lfo2KeyTrigger} options={switchOptions(pcms_partial_spec(PcmsPartialField.Lfo2KeyTrigger))}
           onChange={set(PcmsPartialField.Lfo2KeyTrigger, "lfo2KeyTrigger")}
@@ -811,7 +811,7 @@ function StepLfoSection({
 
   return (
     <div style={wrapStyle}>
-    <SectionPanel label={numbered("STEP LFO", n, " · ")} accentColor="#a6f">
+    <SectionPanel label={numbered("STEP LFO", n, " · ")} family={ParameterFamily.Modulation}>
       <LfoScope className={css.stepViz} shape="STEP" rate={0} steps={steps} smooth={smooth} />
       <div className={css.panelRow}>
         <SynthSwitch label="Shape" value={partial.lfoStepType}
@@ -850,7 +850,7 @@ function ControlSection({
   set: PartialSetter;
 }) {
   return (
-    <SectionPanel label={numbered("CTRL", n, " ")} accentColor="#6c8">
+    <SectionPanel label={numbered("CTRL", n, " ")} family={ParameterFamily.Common}>
       <SynthSwitch label="Env Mode" value={partial.envMode} vertical
         options={switchOptions(pcms_partial_spec(PcmsPartialField.EnvMode))}
         onChange={set(PcmsPartialField.EnvMode, "envMode")} led={false}
@@ -886,8 +886,8 @@ function BoosterSection({
   pair: { upper: number; lower: number };
 }) {
   return (
-    <SectionPanel label="BOOST" accentColor="#e86">
-      <SynthKnob label="Boost" value={value} {...knobRange(pcms_pmt_spec(field))} onChange={onChange} color="#e86"
+    <SectionPanel label="BOOST" family={ParameterFamily.Filter}>
+      <SynthKnob label="Boost" value={value} {...knobProps(pcms_pmt_spec(field))} onChange={onChange}
         title={`Booster depth for partials ${pair.upper} & ${pair.lower}: overdrives the signal; higher distorts more`} />
     </SectionPanel>
   );
@@ -899,7 +899,7 @@ function BoosterSection({
 
 function RingSection({ pair }: { pair: { upper: number; lower: number } }) {
   return (
-    <SectionPanel label="RING" accentColor="#e86">
+    <SectionPanel label="RING" family={ParameterFamily.Filter}>
       <div className={css.ringProduct}
         title={`Ring modulator: multiplies partials ${pair.upper} and ${pair.lower}, adding new (often metallic) overtones. No settings; partial ${pair.upper}'s AMP sets its depth.`}>
         {pair.upper} × {pair.lower}
@@ -923,14 +923,14 @@ function OutputSection({
   set: PartialSetter;
 }) {
   return (
-    <SectionPanel label={numbered("OUTPUT", n, " ")} accentColor="#6c8">
+    <SectionPanel label={numbered("OUTPUT", n, " ")} family={ParameterFamily.Amp}>
       <div className={css.panelRow}>
         <SynthSwitch label="Delay" value={partial.delayMode} vertical
           options={switchOptions(pcms_partial_spec(PcmsPartialField.DelayMode))}
           onChange={set(PcmsPartialField.DelayMode, "delayMode")} led={false}
           title="Partial delay mode — when sound starts relative to note-on" />
         <TimeOrNoteKnob label="Delay" field={PcmsPartialField.DelayTime} value={partial.delayTime}
-          onChange={set(PcmsPartialField.DelayTime, "delayTime")} color="#6c8"
+          onChange={set(PcmsPartialField.DelayTime, "delayTime")}
           title="Delay time before this partial sounds" />
       </div>
       <OutputStrip
@@ -940,6 +940,8 @@ function OutputSection({
         onFx1Change={set(PcmsPartialField.ChorusSend, "chorusSend")}
         onFx2Change={set(PcmsPartialField.ReverbSend, "reverbSend")}
         onLevelChange={set(PcmsPartialField.OutputLevel, "outputLevel")}
+        fx1Family={pcms_partial_spec(PcmsPartialField.ChorusSend).family}
+        fx2Family={pcms_partial_spec(PcmsPartialField.ReverbSend).family}
         trackHeight={150}
       />
     </SectionPanel>

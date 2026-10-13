@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { PcmsPmtField, WasmDeviceState, pcms_partial_size } from "../../pkg/integral_wasm.js";
+import {
+  ParameterFamily,
+  PcmsPartialField,
+  PcmsPmtField,
+  WasmDeviceState,
+  pcms_partial_size,
+  pcms_partial_spec,
+} from "../../pkg/integral_wasm.js";
+import { familyVar } from "../synth-ui";
 import { PartialGrid, type PairPartial } from "./PartialRow";
 import type { PcmSynthPartial } from "./types";
 import { cleanup, render } from "../test/dom";
@@ -128,5 +136,19 @@ describe("PartialGrid with both pairs", () => {
     const { blocks, container } = layout(0);
     expect(new Set(["WAVE", "PITCH", "CTRL", "FILTER", "AMP", "OUTPUT"].flatMap(blocks))).toEqual(new Set(["out-0", "out-1"]));
     expect(container.querySelectorAll("path[marker-end]")).toHaveLength(0);
+  });
+});
+
+describe("PartialGrid families", () => {
+  it("colours a knob by its field's family, which may differ from its box's", () => {
+    const { container } = layout(0);
+    const amp = [...container.querySelectorAll<HTMLElement>("div")].find(
+      (d) => d.style.borderTopColor && d.firstElementChild?.textContent === "AMP",
+    )!;
+    expect(amp.style.borderTopColor).toBe(familyVar(ParameterFamily.Amp));
+    const pan = amp.querySelector('[role="slider"][aria-label="Pan"]')!;
+    const lit = [...pan.querySelectorAll("circle")].map((c) => c.style.fill);
+    expect(lit).toContain(familyVar(pcms_partial_spec(PcmsPartialField.Pan).family));
+    expect(pcms_partial_spec(PcmsPartialField.Pan).family).toBe(ParameterFamily.Time);
   });
 });
