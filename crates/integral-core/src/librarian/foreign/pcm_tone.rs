@@ -26,12 +26,11 @@ const PMT_SWITCH: usize = 0x05;
 /// PMT: bytes per partial entry.
 const PMT_STRIDE: usize = 9;
 
-/// Partial: Chorus Send Level, read by the INTEGRA-7.
-const CHORUS_SEND: usize = 0x0F;
-/// Partial: Reverb Send Level, read by the INTEGRA-7.
-const REVERB_SEND: usize = 0x10;
-/// Partial: reserves that keep the unused send pair (the XV "(MFX)" sends).
-const UNUSED_SENDS: [usize; 2] = [0x0D, 0x0E];
+/// Partial: Chorus and Reverb Send Level, read by the INTEGRA-7 (the XV
+/// "(non MFX)" pair).
+const SENDS: [usize; 2] = [0x0F, 0x10];
+/// Partial: reserves that keep the XV "(MFX)" send pair.
+const MFX_SENDS: [usize; 2] = [0x0D, 0x0E];
 /// Partial: reserve that keeps whether the partial went through the MFX.
 const OUTPUT: usize = 0x11;
 /// Partial: Wave Group Type.
@@ -212,20 +211,31 @@ pub(super) enum Output {
     Mix,
 }
 
-/// Write the send levels a partial used on its source into the Partial
-/// Chorus and Reverb Send Levels. The reserves that held the other pair are
-/// set to 127, the value Roland stores for an unused pair, and the output
-/// reserve keeps the routing (0 = MFX, 1 = MIX).
-pub(super) fn write_sends(partial: &mut [u8], output: Output, chorus: u8, reverb: u8) {
-    partial[CHORUS_SEND] = chorus;
-    partial[REVERB_SEND] = reverb;
-    for at in UNUSED_SENDS {
-        partial[at] = UNUSED_SEND_LEVEL;
-    }
+/// Write a Foreign partial's routing into the output reserve (0 = MFX,
+/// 1 = MIX).
+pub(super) fn write_output(partial: &mut [u8], output: Output) {
     partial[OUTPUT] = match output {
         Output::Mfx => 0,
         Output::Mix => 1,
     };
+}
+
+/// Write a JV partial's send levels where Roland's JV → XV conversion puts
+/// them: in the XV pair its output picks, the other pair at 127. The
+/// INTEGRA-7 reads only the "(non MFX)" pair, so an EFX partial plays with
+/// 127/127, as in Roland's own ports (`docs/research/foreign-patch-levels.md`).
+pub(super) fn write_sends(partial: &mut [u8], output: Output, chorus: u8, reverb: u8) {
+    let (used, unused) = match output {
+        Output::Mfx => (MFX_SENDS, SENDS),
+        Output::Mix => (SENDS, MFX_SENDS),
+    };
+    for (at, level) in used.into_iter().zip([chorus, reverb]) {
+        partial[at] = level;
+    }
+    for at in unused {
+        partial[at] = UNUSED_SEND_LEVEL;
+    }
+    write_output(partial, output);
 }
 
 /// The Wave Group Type, Group ID and Wave Numbers L and R of a partial.
@@ -397,10 +407,10 @@ mod tests {
     }
 
     #[test]
-    fn sends_keep_the_used_pair() {
+    fn sends_go_in_the_pair_the_output_picks() {
         let mut partial = [0u8; 154];
         write_sends(&mut partial, Output::Mfx, 10, 20);
-        assert_eq!(partial[0x0D..=0x11], [127, 127, 10, 20, 0]);
+        assert_eq!(partial[0x0D..=0x11], [10, 20, 127, 127, 0]);
         write_sends(&mut partial, Output::Mix, 30, 40);
         assert_eq!(partial[0x0D..=0x11], [127, 127, 30, 40, 1]);
     }

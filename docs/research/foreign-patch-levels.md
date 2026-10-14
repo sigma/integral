@@ -25,17 +25,21 @@ Part 1 and the Temporary Studio Set were restored afterwards; a read-back matche
      bypasses the tone's MFX. The value comes from `PcmSynthCommon2::default()`
      (`crates/integral-core/src/librarian/foreign/pcm_tone.rs`, `fn common2`). For MFX-dependent
      Patches the effect is large: JV "Dist Gtr 1" is −11 dB with the MFX bypassed.
-  2. **Partial Chorus/Reverb Send take the wrong XV pair.** Roland's ports put the XV
-     "(MFX)" send pair (Tone `00 0D`/`00 0E`, usually 127/127) into Partial Chorus/Reverb Send
-     `00 0F`/`00 10`. They zero the reserves or keep the old values there. The converter copies
-     the "(non MFX)" pair byte for byte, often 0/0. This settles open doubt 2 of
-     [`xv-patch-format.md`](xv-patch-format.md) in favour of its recommendation. With the Part
-     sends at 75/85, a preset gains +4.0–4.5 dB from Chorus/Reverb. A conversion with sends 0/0
-     gains nothing.
+  2. **Partial Chorus/Reverb Send take the wrong XV pair.** Roland's ports copy the XV
+     "(non MFX)" send pair (Tone `00 0F`/`00 10`) byte for byte into Partial Chorus/Reverb Send
+     `00 0F`/`00 10`, whatever the Tone Output Assign. All 15 XV-5080 pairs match this (checked
+     against `XV 5080 All.syx` after this survey). An MFX Tone's "(non MFX)" pair is usually
+     127/127. The converter instead picked the pair the Output Assign selects, so MFX Tones got
+     the "(MFX)" pair, often 0/0. This settles open doubt 2 of
+     [`xv-patch-format.md`](xv-patch-format.md) *against* its recommendation: the byte-for-byte
+     copy is right. (An earlier version of this note had the two pairs swapped.) JV Patches follow
+     Roland's JV → XV placement: an EFX Tone's sends go in the "(MFX)" pair, so its Integra port
+     plays with 127/127. With the Part sends at 75/85, a preset gains +4.0–4.5 dB from
+     Chorus/Reverb. A conversion with sends 0/0 gains nothing.
 - **Cause B (Integra presets voiced hotter) is refuted.** With TFX ON and the same sends, a
   faithful conversion is about 3 dB *louder* than Roland's port.
 - **The opt-in `--apply-effects` adds ≤ 0.4 dB to "United !"** on its own, because the Partial
-  sends it feeds are 0–50. With the "(MFX)" pair in the Partial sends, it adds +5.0 dB.
+  sends it feeds are 0–50. With the "(non MFX)" pair in the Partial sends, it adds +5.0 dB.
 
 ## Method
 
@@ -165,9 +169,9 @@ Deep Strings −6.2, Dist Gtr 1 −13.0 dB.
 | Part sends 75/85, Test Set Chorus/Reverb | −33.4 |
 | Part sends 75/85, `--apply-effects` (Chorus CHORUS 127, Reverb SRV HALL 127) | −33.0 |
 | as above, TFX ON | −32.1 |
-| as above, Partial sends 127/127 (the "(MFX)" pair) | −27.0 |
+| as above, Partial sends 127/127 (the "(non MFX)" pair) | −27.0 |
 | Part sends 0, TFX ON, Partial sends 127/127 | −32.0 |
 
 Its converted Partial sends are 0,30/0,30/50,80/0,80 and its MFX sends are 0/20, so the Patch's
-own Chorus and Reverb barely reach the Studio Set. With the "(MFX)" pair the wet signal is +5.0
+own Chorus and Reverb barely reach the Studio Set. With the "(non MFX)" pair the wet signal is +5.0
 dB.

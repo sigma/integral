@@ -49,8 +49,6 @@ const ONE_SHOT_MODE: usize = 0x10;
 /// Common: Rhythm Output Assign.
 const OUTPUT_ASSIGN: usize = 0x11;
 
-/// Tone: Chorus and Reverb Send Level (MFX).
-const MFX_SENDS: [usize; 2] = [0x17, 0x18];
 /// Tone: Tone Receive Pan Mode, CONTINUOUS or KEY-ON.
 const RECEIVE_PAN_MODE: usize = 0x1F;
 /// Partial Output Assign PART.
@@ -73,13 +71,12 @@ struct Rhythm<'a> {
 /// The fix rows, in `foreign-rhythm-format.csv` order: kit-wide first, then
 /// per key, except MFX first: the tempo check reads the converted MFX.
 /// Switched-off WMTs are reset last.
-const FIXES: [fn(&mut Rhythm<'_>); 10] = [
+const FIXES: [fn(&mut Rhythm<'_>); 9] = [
     mfx,
     tempo,
     output_assign,
     chorus_reverb,
     one_shot_mode,
-    tone_sends,
     tone_output_assign,
     receive_pan_mode,
     wave_group,
@@ -186,20 +183,6 @@ fn one_shot_mode(r: &mut Rhythm<'_>) {
         r.kit.key(*k)[F::OneShotMode as usize] = one_shot;
     }
     r.kit.common()[ONE_SHOT_MODE] = encode_pcmd_common(&PcmDrumCommon::default())[ONE_SHOT_MODE];
-}
-
-/// Tone Chorus/Reverb Send Levels: an XV Tone holds a pair for when it goes
-/// through the MFX and a pair for when it doesn't, and its Output Assign
-/// picks one. The INTEGRA-7 reads the second, so an MFX Tone's pair goes
-/// there. The first stays in its reserves.
-fn tone_sends(r: &mut Rhythm<'_>) {
-    for (k, tone) in &r.tones {
-        if tone[F::OutputAssign as usize] == OUTPUT_MFX {
-            let partial = r.kit.key(*k);
-            partial[F::ChorusSend as usize] = tone[MFX_SENDS[0]];
-            partial[F::ReverbSend as usize] = tone[MFX_SENDS[1]];
-        }
-    }
 }
 
 /// Tone Output Assign: MFX, A–D, 1–8 on the XV, PART and COMP+EQ1–6 on the

@@ -186,10 +186,11 @@ is used when Tone Output Assign = MFX; the "(non MFX)" pair is used when it is A
 The panel shows one "Chorus Send Level" and switches between them (P1 pp. 24–26). The
 Integra kept the "(non MFX)" offsets as its Partial sends and turned the "(MFX)" offsets into
 reserves, which still hold 53, 60, 72 or 127 in real Integra tones. A byte-for-byte copy is
-therefore the documented, offset-faithful mapping. A *sound*-faithful reader would instead take
-the pair that the XV Output Assign selected. **Recommendation:** when Tone Output Assign = MFX
-(the common case), write the "(MFX)" pair into Integra `00 0F`/`00 10`, keep both originals in
-the reserves, and report it if the pairs differ. Settle this with a device check (open doubt 2).
+therefore the documented, offset-faithful mapping. **Settled: copy byte for byte.** In all 15
+XV-5080 factory Patches that the INTEGRA-7 ships as presets, the Integra Partial sends equal the
+XV "(non MFX)" pair, whatever the Tone Output Assign
+([`foreign-patch-levels.md`](foreign-patch-levels.md), #297). An earlier recommendation to write
+the "(MFX)" pair for MFX Tones was wrong.
 
 ## 3. Integra-only parameters (reverse direction)
 
@@ -289,10 +290,8 @@ browsing.
 
 1. **Category numbering** is inferred from list order and three data points. *Check:* one real
    XV dump per category, or the XV-5080 Patch List PDF next to a factory-bank dump.
-2. **Which send pair the Integra uses.** The Integra's Partial Chorus/Reverb Send sit at the XV
-   "(non MFX)" offsets, but every Integra partial appears to pass through the tone MFX. *Check:* on the
-   Integra, set Partial `00 0D` to 0 and `00 0F` to 127 (and the reverse), and listen for
-   chorus on a dry tone with MFX THRU.
+2. **Which send pair the Integra uses.** *Settled:* the "(non MFX)" pair, copied byte for byte
+   (see the note on the two pairs above, and #297).
 3. **XV Wave Group ID values** are undocumented in all five manuals. INT is settled: real XV dumps
    store 1 ([`map-check-roland-pairs.md`](map-check-roland-pairs.md), #207). Still open:
    SRX = board number (as on the Integra) or slot, SR-JV80 = board number 1–19. *Check:* a
@@ -314,4 +313,4 @@ browsing.
   identity for the XV-5080.
 - **Medium**: the meaning of the Integra reserves (backed by the values observed in P6), and
   the INT Wave identity for the other four models (name presence only).
-- **Low**: the category numbering, XV Wave Group ID values, and the send-pair choice (open doubts 1–3).
+- **Low**: the category numbering and XV Wave Group ID values (open doubts 1 and 3).

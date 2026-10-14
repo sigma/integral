@@ -218,10 +218,10 @@ xv->integra,Patch Tone,00 08,Tone Env Mode,0 - 1,Partial,00 08,Partial Env Mode,
 xv->integra,Patch Tone,00 09,Tone Delay Mode,0 - 3,Partial,00 09,Partial Delay Mode,0 - 3,identical,
 xv->integra,Patch Tone,00 0A,Tone Delay Time,0 - 149,Partial,00 0A,Partial Delay Time,0 - 149,identical,
 xv->integra,Patch Tone,00 0C,Tone Dry Send Level,0 - 127,Partial,00 0C,Partial Output Level,0 - 127,identical,XV Tone Dry Send Level -> Integra Partial Output Level
-xv->integra,Patch Tone,00 0D,Tone Chorus Send Level (MFX),0 - 127,Partial,00 0D,(reserve) <*>,--,no equivalent,Chorus send used when Tone Output Assign = MFX; Integra reserve (real tones carry 53/60/72/127 here). See open doubt
-xv->integra,Patch Tone,00 0E,Tone Reverb Send Level (MFX),0 - 127,Partial,00 0E,(reserve) <*>,--,no equivalent,Reverb send used when Tone Output Assign = MFX; Integra reserve. See open doubt
-xv->integra,Patch Tone,00 0F,Tone Chorus Send Level (non MFX),0 - 127,Partial,00 0F,Partial Chorus Send Level,0 - 127,identical,"XV ""(non MFX)"" chorus send sits where Integra puts Partial Chorus Send Level. See open doubt"
-xv->integra,Patch Tone,00 10,Tone Reverb Send Level (non MFX),0 - 127,Partial,00 10,Partial Reverb Send Level,0 - 127,identical,"XV ""(non MFX)"" reverb send sits where Integra puts Partial Reverb Send Level. See open doubt"
+xv->integra,Patch Tone,00 0D,Tone Chorus Send Level (MFX),0 - 127,Partial,00 0D,(reserve) <*>,--,no equivalent,Chorus send used when Tone Output Assign = MFX; Integra reserve (real tones carry 53/60/72/127 here); kept byte for byte (#297)
+xv->integra,Patch Tone,00 0E,Tone Reverb Send Level (MFX),0 - 127,Partial,00 0E,(reserve) <*>,--,no equivalent,Reverb send used when Tone Output Assign = MFX; Integra reserve, kept byte for byte (#297)
+xv->integra,Patch Tone,00 0F,Tone Chorus Send Level (non MFX),0 - 127,Partial,00 0F,Partial Chorus Send Level,0 - 127,identical,"XV ""(non MFX)"" chorus send sits where Integra puts Partial Chorus Send Level; copied whatever the Output Assign, as Roland's ports do (#297)"
+xv->integra,Patch Tone,00 10,Tone Reverb Send Level (non MFX),0 - 127,Partial,00 10,Partial Reverb Send Level,0 - 127,identical,"XV ""(non MFX)"" reverb send sits where Integra puts Partial Reverb Send Level; copied whatever the Output Assign, as Roland's ports do (#297)"
 xv->integra,Patch Tone,00 11,Tone Output Assign,0 - 12,Partial,00 11,(reserve) <*>,--,no equivalent,Tone Output Assign (MFX/A-D/1-8); Integra reserve holds 0 or 1
 xv->integra,Patch Tone,00 12,Tone Receive Bender,0 - 1,Partial,00 12,Partial Receive Bender,0 - 1,identical,
 xv->integra,Patch Tone,00 13,Tone Receive Expression,0 - 1,Partial,00 13,Partial Receive Expression,0 - 1,identical,

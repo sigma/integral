@@ -417,14 +417,15 @@ mod xv_patches {
                 p.push(0); // LFO Step Type
                 p.extend([64; 16]); // LFO Steps 1–16
                 match i {
-                    // SRX-03 Waves through the MFX: Wave Group Type SRX, and
-                    // the "(MFX)" sends 0/30 become the sends.
+                    // SRX-03 Waves through the MFX: Wave Group Type SRX. The
+                    // sends copy byte for byte, as in Roland's ports: the
+                    // INTEGRA-7 reads the "(non MFX)" pair 127/127, and the
+                    // "(MFX)" pair 0/30 stays in the reserves.
                     0 | 1 => {
                         p[0x27] = 1;
-                        p[0x0D..=0x11].copy_from_slice(&[127, 127, 0, 30, 0]);
+                        assert_eq!(p[0x0D..=0x11], [0, 30, 127, 127, 0]);
                     }
-                    // INT Waves to output A: the "(non MFX)" sends stay,
-                    // and the unused pair already holds 127.
+                    // INT Waves to output A.
                     2 => assert_eq!(p[0x0D..=0x11], [127, 127, 50, 80, 1]),
                     _ => assert_eq!(p[0x0D..=0x11], [127, 127, 0, 80, 1]),
                 }
@@ -1193,8 +1194,10 @@ mod jv_patches {
         );
         let p = &entry.blocks()[3..5];
         // Sends, output reserve, Receive Bender/Expression/Hold-1, then
-        // the Receive Pan Mode reserve at KEY-ON.
-        assert_eq!(p[0][0x0D..=0x15], [127, 127, 10, 20, 0, 0, 1, 0, 1]);
+        // the Receive Pan Mode reserve at KEY-ON. As in Roland's ports, an
+        // EFX partial keeps its sends in the "(MFX)" reserves and plays with
+        // 127/127; a MIX partial plays with its own.
+        assert_eq!(p[0][0x0D..=0x15], [10, 20, 127, 127, 0, 0, 1, 0, 1]);
         assert_eq!(p[1][0x0D..=0x11], [127, 127, 30, 40, 1]);
         assert_eq!(entry.blocks()[1][0x00], 5); // MFX ENHANCER
     }
@@ -1847,8 +1850,9 @@ mod xv_rhythms {
         let (entry, report) = converted(&bytes);
         let wave = |key, f| nibble4(partial(&entry, key), pcmd_wmt_byte(0, f));
         let group_type = |key| partial(&entry, key)[pcmd_wmt_byte(0, W::WaveGroupType)];
-        // An MFX Tone's sends go where the INTEGRA-7 reads them.
-        assert_eq!(partial(&entry, 36)[0x17..=0x1B], [11, 12, 11, 12, 0]);
+        // The sends copy byte for byte, as in Roland's Patch ports: the
+        // INTEGRA-7 reads the "(non MFX)" pair, whatever the output.
+        assert_eq!(partial(&entry, 36)[0x17..=0x1B], [11, 12, 13, 14, 0]);
         assert_eq!(partial(&entry, 37)[0x17..=0x1B], [11, 12, 13, 14, 0]);
         assert_eq!(
             (

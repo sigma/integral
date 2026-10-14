@@ -210,8 +210,8 @@ All offsets match. The machine diff found differences only in these rows:
 | Offset | XV | Integra | Status | Conversion |
 |---|---|---|---|---|
 | `00 16` | Tone Dry Send Level | Partial Output Level | identical | copy |
-| `00 17`, `00 18` | Tone Chorus/Reverb Send Level (MFX path) | reserve | none | Copy verbatim. If Tone Output Assign = MFX, write this pair into `00 19`/`00 1A`. |
-| `00 19`, `00 1A` | Tone Chorus/Reverb Send Level (non MFX) | Partial Chorus/Reverb Send | identical | copy (the right pair when Output Assign is A–D/1–8) |
+| `00 17`, `00 18` | Tone Chorus/Reverb Send Level (MFX path) | reserve | none | Copy verbatim. |
+| `00 19`, `00 1A` | Tone Chorus/Reverb Send Level (non MFX) | Partial Chorus/Reverb Send | identical | copy, whatever the Output Assign, as Roland's Patch ports do (#297) |
 | `00 1B` | Tone Output Assign (MFX, A–D, 1–8; 0–12) | Partial Output Assign (PART, COMP+EQ1–6; 0–6) | **table** | Write 0 (PART). Report a bypassed MFX when Output Assign ≠ MFX and MFX Type ≠ THRU. |
 | `00 1F` | Tone Receive Pan Mode | reserve | none | Copy verbatim; report KEY-ON. |
 | `00 22`, `00 3F`, `00 5C`, `00 79` | WMT1–4 Wave Group Type (INT-WAVE, SRJV80-EXP, SRX-EXP, SAMPLE) | (INT, SRX, —, —) | **table** | 0 → 0, 2 → 1. 1 (SR-JV80) goes through `jv-wave-map.json`, else OFF. 3 (SAMPLE) → OFF. |

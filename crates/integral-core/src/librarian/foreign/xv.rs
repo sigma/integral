@@ -147,10 +147,6 @@ const MFX_CONTROLS: [&str; 4] = [
 const EFFECT_TYPE: usize = 0x00;
 /// Chorus and Reverb: Level.
 const EFFECT_LEVEL: usize = 0x01;
-/// Tone: Chorus and Reverb Send Level (MFX).
-const MFX_SENDS: [usize; 2] = [0x0D, 0x0E];
-/// Tone: Chorus and Reverb Send Level (non MFX).
-const MIX_SENDS: [usize; 2] = [0x0F, 0x10];
 /// Tone: Tone Output Assign.
 const TONE_OUTPUT_ASSIGN: usize = 0x11;
 /// Tone: Tone Receive Pan Mode, CONTINUOUS or KEY-ON.
@@ -237,7 +233,7 @@ const FIXES: [fn(&mut Patch<'_>); 8] = [
     one_shot_mode,
     patch_output_assign,
     chorus_and_reverb,
-    tone_sends,
+    tone_output,
     receive_pan_mode,
     wave_group,
 ];
@@ -459,19 +455,17 @@ pub(super) fn chorus_reverb(
     studio_set_effect(reverb, "Reverb", &REVERB_TYPES, xv_reverb, report, effects);
 }
 
-/// Tone Chorus/Reverb Send Levels: an XV Tone holds a pair for when it goes
-/// through the MFX and a pair for when it doesn't, and its Output Assign
-/// picks one. The INTEGRA-7 reads one pair, so it gets the picked one.
-fn tone_sends(p: &mut Patch<'_>) {
+/// Tone Output Assign, kept in the output reserve. The sends copy byte for
+/// byte: the INTEGRA-7 reads the "(non MFX)" pair, whatever the output, as
+/// in Roland's own ports (`docs/research/foreign-patch-levels.md`).
+fn tone_output(p: &mut Patch<'_>) {
     for i in 0..4 {
-        let tone = &p.xv[TONE_1 + i];
-        let (output, [chorus, reverb]) = if tone[TONE_OUTPUT_ASSIGN] == OUTPUT_MFX {
-            (Output::Mfx, MFX_SENDS)
+        let output = if p.xv[TONE_1 + i][TONE_OUTPUT_ASSIGN] == OUTPUT_MFX {
+            Output::Mfx
         } else {
-            (Output::Mix, MIX_SENDS)
+            Output::Mix
         };
-        let (chorus, reverb) = (tone[chorus], tone[reverb]);
-        pcm_tone::write_sends(p.tone.partial(i), output, chorus, reverb);
+        pcm_tone::write_output(p.tone.partial(i), output);
     }
 }
 
