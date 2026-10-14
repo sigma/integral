@@ -11,7 +11,7 @@ mod midi;
 
 use commands::expansion::OutputFormat;
 use commands::pack::{ListFormat, UserSlots};
-use commands::pack_import::ImportOptions;
+use commands::pack_import::{ImportOptions, ReinitOptions};
 use integral_core::device_spec::INTEGRA7;
 use midi::DEFAULT_PORT_PATTERN;
 
@@ -295,6 +295,23 @@ enum PackCommand {
         #[command(flatten)]
         options: ImportOptions,
     },
+    /// Store INIT into User slots, e.g. `pcm-synth 113` or `sn-synth 1-4`.
+    /// Prints the slots' names and asks first; exports the used ones to an
+    /// undo file.
+    ///
+    /// Exit status: 0 every slot stored; 1 error before anything was
+    /// stored; 2 partial store.
+    Reinit {
+        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
+        port: String,
+        #[arg(long, default_value_t = 2.0)]
+        timeout: f64,
+        /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
+        #[arg(long, value_parser = parse_device_id)]
+        device_id: Option<u8>,
+        #[command(flatten)]
+        options: ReinitOptions,
+    },
 }
 
 /// Parse a hex device ID string (e.g. "10" -> 0x10).
@@ -452,6 +469,26 @@ fn main() -> Result<()> {
                 device_id,
                 Duration::from_secs_f64(timeout),
                 &file,
+                &options,
+            )?;
+            if code != 0 {
+                std::process::exit(code.into());
+            }
+            Ok(())
+        }
+        Cli::Pack {
+            command:
+                PackCommand::Reinit {
+                    port,
+                    timeout,
+                    device_id,
+                    options,
+                },
+        } => {
+            let code = commands::pack_import::reinit(
+                &port,
+                device_id,
+                Duration::from_secs_f64(timeout),
                 &options,
             )?;
             if code != 0 {

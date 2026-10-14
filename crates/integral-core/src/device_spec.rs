@@ -186,6 +186,11 @@ impl UserMemorySpec {
         })
     }
 
+    /// Whether a slot named `name` is free: it holds INIT.
+    pub fn is_free(&self, name: &str) -> bool {
+        self.init_names.contains(&name.trim_end())
+    }
+
     /// Base of the Temporary area this type loads into, for Part `part`
     /// (0-indexed; ignored for the Studio Set).
     pub fn temporary_base(&self, part: u8) -> Address {

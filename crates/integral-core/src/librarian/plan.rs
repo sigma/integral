@@ -362,7 +362,7 @@ fn free_slots(kinds: &[ChunkType], slot_names: &[CatalogEntry]) -> Vec<(ChunkTyp
             slot_names
                 .iter()
                 .filter(|e| e.bank_msb == memory.bank_msb)
-                .filter(|e| memory.init_names.contains(&e.name.trim_end()))
+                .filter(|e| memory.is_free(&e.name))
                 .map(|e| (kind, u16::from(e.bank_lsb) * 128 + u16::from(e.pc)))
                 .filter(|&(_, s)| s < memory.slot_count),
         );

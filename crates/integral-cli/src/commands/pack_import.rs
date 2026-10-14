@@ -4,6 +4,9 @@
 //! reads what the plan needs (User slot names, loaded Expansions), prints
 //! the plan, and drives the import. Planning only reads: [`store`], the only
 //! place that writes to the device, runs after the `--dry-run` return.
+//!
+//! `pack reinit` reuses the same reads, undo export and driver to store
+//! INIT into chosen User slots.
 
 use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
@@ -28,7 +31,8 @@ use serde_json::{Value, json};
 
 use super::expansion::{OutputFormat, read_slots};
 use super::pack::{
-    Throttle, entry_id, lossy_marker, read_pack, report_json, run_export, warn_file_report,
+    Throttle, entry_id, lossy_marker, parse_slots, read_pack, report_json, run_export, type_parser,
+    warn_file_report,
 };
 use crate::device::IntegraDevice;
 
@@ -67,6 +71,41 @@ pub struct ImportOptions {
     no_undo: bool,
     #[arg(long, short = 'f', value_enum, default_value_t = OutputFormat::Text)]
     format: OutputFormat,
+}
+
+/// `pack reinit` options.
+#[derive(Debug, Clone, Args)]
+pub struct ReinitOptions {
+    /// The User memory type.
+    #[arg(value_parser = type_parser())]
+    r#type: String,
+    /// The User slots, e.g. 113 or 1-4,7.
+    slots: String,
+    /// The Part borrowed to store tones; restored afterwards.
+    #[arg(long, value_name = "N", default_value_t = 1,
+          value_parser = clap::value_parser!(u8).range(1..=i64::from(INTEGRA7.part_count)))]
+    part: u8,
+    /// Re-init without asking.
+    #[arg(long, short = 'y')]
+    yes: bool,
+    /// Where to export the used slots first (default:
+    /// UNDO-reinit-<type>-<unix time>.SVD in the current directory).
+    #[arg(long, value_name = "PATH", conflicts_with = "no_undo")]
+    undo_file: Option<PathBuf>,
+    /// Don't export the used slots first.
+    #[arg(long)]
+    no_undo: bool,
+}
+
+impl ReinitOptions {
+    /// The type, and its picked slots (0-indexed), sorted, each once.
+    fn slots(&self) -> Result<(ChunkType, Vec<u16>)> {
+        let kind = ChunkType::from_cli_name(&self.r#type).expect("type_parser takes only types");
+        let mut slots = parse_slots(&self.slots, spec(kind).slot_count).map_err(|e| anyhow!(e))?;
+        slots.sort_unstable();
+        slots.dedup();
+        Ok((kind, slots))
+    }
 }
 
 fn parse_to(s: &str) -> Result<(String, u16), String> {
@@ -164,21 +203,15 @@ fn name_requests(device_id: u8, kinds: &[ChunkType]) -> Vec<(Vec<u8>, usize)> {
     requests
 }
 
-/// Read the User slot names of the types in `pack`.
+/// Read the User slot names of `kinds`.
 fn read_names(
     dev: &mut IntegraDevice,
     throttle: &mut Throttle,
-    pack: &Pack,
+    kinds: &[ChunkType],
 ) -> Result<Vec<CatalogEntry>> {
-    let mut kinds = Vec::new();
-    for e in &pack.entries {
-        if !kinds.contains(&e.kind()) {
-            kinds.push(e.kind());
-        }
-    }
     let msbs: Vec<u8> = kinds.iter().map(|&k| spec(k).bank_msb).collect();
     let mut names = Vec::new();
-    for (request, count) in name_requests(dev.device_id(), &kinds) {
+    for (request, count) in name_requests(dev.device_id(), kinds) {
         throttle.send(dev, request)?;
         let mut got = 0;
         while got < count {
@@ -394,64 +427,60 @@ fn exit_code(statuses: &[EntryStatus]) -> u8 {
     }
 }
 
-/// Ask before overwriting used slots: a y/N prompt on a TTY, else refuse.
-fn confirm_overwrites(count: usize) -> Result<()> {
+/// Ask `question` with a y/N prompt on a TTY; elsewhere refuse with
+/// `refusal`. `what` names the cancelled command.
+fn confirm(question: &str, refusal: &str, what: &str) -> Result<()> {
     if !std::io::stdin().is_terminal() {
-        bail!("the import overwrites {count} used slots; pass --yes to import anyway");
+        bail!("{refusal}");
     }
-    eprint!("Overwrite {count} used slots? [y/N] ");
+    eprint!("{question} [y/N] ");
     std::io::stderr().flush()?;
     let mut line = String::new();
     std::io::stdin().read_line(&mut line)?;
     match line.trim().to_ascii_lowercase().as_str() {
         "y" | "yes" => Ok(()),
-        _ => bail!("import cancelled"),
+        _ => bail!("{what} cancelled"),
     }
+}
+
+/// `UNDO-<stem>-<unix time>.SVD`.
+fn undo_name(stem: &str) -> String {
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    format!("UNDO-{stem}-{secs}.SVD")
 }
 
 /// `UNDO-<stem>-<unix time>.SVD` next to `file`.
 fn default_undo_path(file: &Path) -> PathBuf {
     let stem = file.file_stem().unwrap_or_default().to_string_lossy();
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |d| d.as_secs());
-    file.with_file_name(format!("UNDO-{stem}-{secs}.SVD"))
+    file.with_file_name(undo_name(&stem))
 }
 
-/// Export the slots `plan` overwrites to `path`.
+/// Export `sources` to `path`.
 fn export_undo(
     dev: &mut IntegraDevice,
     throttle: &mut Throttle,
-    pack: &Pack,
-    plan: &ImportPlan,
+    sources: Vec<ExportSource>,
     path: &Path,
 ) -> Result<()> {
     if path.exists() {
         bail!("{} exists; pick another --undo-file", path.display());
     }
-    let sources: Vec<ExportSource> = plan
-        .overwrites()
-        .filter_map(|i| match plan.placements()[i] {
-            Placement::User(slot) => Some(ExportSource::User {
-                kind: pack.entries[i].kind(),
-                slot,
-            }),
-            _ => None,
-        })
-        .collect();
     let mut export = PackExport::new(dev.device_id(), sources)?;
     let undo = run_export(dev, throttle, &mut export)?;
     std::fs::write(path, undo.to_svd()?)
         .with_context(|| format!("failed to write {}", path.display()))
 }
 
-/// Run `import` to its end, printing one line per entry as it finishes.
-/// Returns the final statuses, and the error that stopped it, if any.
+/// Run `import` to its end, printing `<status> <line(i)>` as entry `i`
+/// finishes. Returns the final statuses, and the error that stopped it, if
+/// any.
 fn drive(
     dev: &mut IntegraDevice,
     throttle: &mut Throttle,
     import: &mut PackImport,
-    report: &Report,
+    line: &dyn Fn(usize) -> String,
 ) -> (Vec<EntryStatus>, Option<String>) {
     let mut seen = import.progress().to_vec();
     let mut deadline = Instant::now();
@@ -465,14 +494,7 @@ fn drive(
                         EntryStatus::Stored | EntryStatus::Loaded | EntryStatus::Failed
                     )
                 {
-                    let e = &report.pack.entries[i];
-                    let dest = destination(e.kind(), report.plan.placements()[i], report.part);
-                    eprintln!(
-                        "{} {} {} -> {dest}",
-                        status_name(now),
-                        entry_id(report.pack, i),
-                        e.name()
-                    );
+                    eprintln!("{} {}", status_name(now), line(i));
                 }
                 *was = now;
             }
@@ -541,14 +563,31 @@ fn store(
     let overwrites = report.plan.overwrites().count();
     if overwrites > 0 {
         if !opts.yes {
-            confirm_overwrites(overwrites)?;
+            confirm(
+                &format!("Overwrite {overwrites} used slots?"),
+                &format!(
+                    "the import overwrites {overwrites} used slots; pass --yes to import anyway"
+                ),
+                "import",
+            )?;
         }
         if !opts.no_undo {
             let path = opts
                 .undo_file
                 .clone()
                 .unwrap_or_else(|| default_undo_path(report.file));
-            export_undo(dev, throttle, report.pack, report.plan, &path)
+            let (pack, plan) = (report.pack, report.plan);
+            let sources = plan
+                .overwrites()
+                .filter_map(|i| match plan.placements()[i] {
+                    Placement::User(slot) => Some(ExportSource::User {
+                        kind: pack.entries[i].kind(),
+                        slot,
+                    }),
+                    _ => None,
+                })
+                .collect();
+            export_undo(dev, throttle, sources, &path)
                 .context("undo export failed; nothing was stored")?;
             eprintln!("Saved the overwritten slots to {}", path.display());
             report.undo = Some(path);
@@ -561,7 +600,12 @@ fn store(
         opts.part - 1,
         opts.apply_effects,
     )?;
-    let (statuses, error) = drive(dev, throttle, &mut import, report);
+    let line = |i: usize| {
+        let e = &report.pack.entries[i];
+        let dest = destination(e.kind(), report.plan.placements()[i], report.part);
+        format!("{} {} -> {dest}", entry_id(report.pack, i), e.name())
+    };
+    let (statuses, error) = drive(dev, throttle, &mut import, &line);
     report.statuses = Some(statuses);
     report.error = error;
     Ok(())
@@ -587,7 +631,13 @@ pub fn import(
 
     let mut dev = IntegraDevice::connect_detecting(port_pattern, device_id, timeout)?.quiet();
     let mut throttle = Throttle::new(dev.device_id());
-    let names = read_names(&mut dev, &mut throttle, pack).context("could not read slot names")?;
+    let mut kinds = Vec::new();
+    for e in &pack.entries {
+        if !kinds.contains(&e.kind()) {
+            kinds.push(e.kind());
+        }
+    }
+    let names = read_names(&mut dev, &mut throttle, &kinds).context("could not read slot names")?;
     let loaded = read_slots(&mut dev)
         .inspect_err(|e| eprintln!("Warning: {e:#}; Expansion checks skipped"))
         .ok();
@@ -643,6 +693,68 @@ pub fn import(
         println!("{:#}", report.json(result));
     }
     Ok(code)
+}
+
+/// `pack reinit`: print the picked slots' names, confirm, export the used
+/// ones, and store INIT into them all.
+///
+/// Returns the exit code, as [`import`] does.
+pub fn reinit(
+    port_pattern: &str,
+    device_id: Option<u8>,
+    timeout: Duration,
+    opts: &ReinitOptions,
+) -> Result<u8> {
+    let (kind, slots) = opts.slots()?;
+    let memory = spec(kind);
+    let mut dev = IntegraDevice::connect_detecting(port_pattern, device_id, timeout)?.quiet();
+    let mut throttle = Throttle::new(dev.device_id());
+    let names =
+        read_names(&mut dev, &mut throttle, &[kind]).context("could not read slot names")?;
+
+    let name = |slot| slot_name(&names, kind, slot);
+    println!("{} slots to re-init:", kind.cli_name());
+    for &slot in &slots {
+        println!("  User {:<4} {}", slot + 1, name(slot).unwrap_or("?"));
+    }
+    // An unread name counts as used.
+    let used: Vec<u16> = slots
+        .iter()
+        .copied()
+        .filter(|&s| !name(s).is_some_and(|n| memory.is_free(n)))
+        .collect();
+    if !opts.yes {
+        let n = slots.len();
+        confirm(
+            &format!("Re-init {n} slots ({} used)?", used.len()),
+            &format!("the re-init overwrites {n} slots; pass --yes to re-init anyway"),
+            "re-init",
+        )?;
+    }
+    if !used.is_empty() && !opts.no_undo {
+        let path = opts
+            .undo_file
+            .clone()
+            .unwrap_or_else(|| undo_name(&format!("reinit-{}", kind.cli_name())).into());
+        let sources = used
+            .iter()
+            .map(|&slot| ExportSource::User { kind, slot })
+            .collect();
+        export_undo(&mut dev, &mut throttle, sources, &path)
+            .context("undo export failed; nothing was stored")?;
+        eprintln!("Saved the used slots to {}", path.display());
+    }
+
+    let mut import = PackImport::reinit(dev.device_id(), kind, &slots, opts.part - 1)?;
+    let line = |i: usize| format!("INIT -> User {}", slots[i] + 1);
+    let (statuses, error) = drive(&mut dev, &mut throttle, &mut import, &line);
+    for (&slot, &s) in slots.iter().zip(&statuses) {
+        println!("User {:<4} {}", slot + 1, status_name(s));
+    }
+    if let Some(e) = error {
+        println!("Error: {e}");
+    }
+    Ok(exit_code(&statuses))
 }
 
 #[cfg(test)]
@@ -725,6 +837,48 @@ mod tests {
             &["--undo-file", "u.svd", "--no-undo"],
         ] {
             assert!(opts(bad).is_err(), "{bad:?}");
+        }
+    }
+
+    fn reinit_opts(args: &[&str]) -> Result<ReinitOptions, clap::Error> {
+        #[derive(Parser)]
+        struct Cli {
+            #[command(flatten)]
+            opts: ReinitOptions,
+        }
+        Cli::try_parse_from(std::iter::once("t").chain(args.iter().copied())).map(|c| c.opts)
+    }
+
+    #[test]
+    fn parses_reinit_slots_and_ranges() {
+        let slots = |args: &[&str]| reinit_opts(args).unwrap().slots().unwrap();
+        assert_eq!(
+            slots(&["pcm-synth", "113"]),
+            (ChunkType::PcmSynthTone, vec![112])
+        );
+        assert_eq!(
+            slots(&["sn-synth", "1-4"]),
+            (ChunkType::SnSynthTone, vec![0, 1, 2, 3])
+        );
+        // Sorted, each slot once.
+        assert_eq!(slots(&["studio-set", "9,2-3,3"]).1, [1, 2, 8]);
+        let o = reinit_opts(&["sn-synth", "1"]).unwrap();
+        assert_eq!((o.part, o.yes, o.no_undo), (1, false, false));
+
+        for bad in [
+            &["bogus", "1"][..],
+            &["sn-synth"],
+            &["sn-synth", "1", "--part", "17"],
+            &["sn-synth", "1", "--undo-file", "u.svd", "--no-undo"],
+        ] {
+            assert!(reinit_opts(bad).is_err(), "{bad:?}");
+        }
+        for bad in [
+            &["sn-synth", "0"][..],
+            &["sn-synth", "4-2"],
+            &["pcm-drum", "33"],
+        ] {
+            assert!(reinit_opts(bad).unwrap().slots().is_err(), "{bad:?}");
         }
     }
 

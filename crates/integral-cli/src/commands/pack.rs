@@ -46,7 +46,7 @@ pub fn type_parser() -> PossibleValuesParser {
 }
 
 /// Parse `5,7-9` into 0-indexed slots, each within `1..=count`.
-fn parse_slots(list: &str, count: u16) -> Result<Vec<u16>, String> {
+pub(crate) fn parse_slots(list: &str, count: u16) -> Result<Vec<u16>, String> {
     let mut slots = Vec::new();
     for item in list.split(',').map(str::trim) {
         let (lo, hi) = item.split_once('-').unwrap_or((item, item));
