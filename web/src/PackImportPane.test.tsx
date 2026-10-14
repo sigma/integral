@@ -55,10 +55,12 @@ function Opened({
   warnings,
   audition = false,
   start = noop,
+  surroundOn = false,
 }: {
   warnings: string[];
   audition?: boolean;
   start?: UseLibraryImportResult["start"];
+  surroundOn?: boolean;
 }) {
   const [reportShown, setReportShown] = useState<ReadonlySet<number>>(new Set());
   const imp: UseLibraryImportResult = {
@@ -97,6 +99,7 @@ function Opened({
       part={0}
       onFocus={noop}
       busy={false}
+      surroundOn={surroundOn}
     />
   );
 }
@@ -180,5 +183,25 @@ describe("PackImportPane", () => {
     click(box);
     click(load);
     expect(starts).toEqual([false, true]);
+  });
+
+  it("warns that Motional Surround mutes the applied Reverb", () => {
+    const muted = "Motional Surround is ON";
+    const tick = (container: HTMLElement): void => {
+      const box = [...container.querySelectorAll<HTMLInputElement>("input[type=checkbox]")].find(
+        (b) => b.parentElement?.textContent?.includes("Apply its Chorus/Reverb"),
+      );
+      if (!box) throw new Error("no Chorus/Reverb checkbox");
+      click(box);
+    };
+    const off = render(<Opened warnings={[]} audition />).container;
+    tick(off);
+    expect(off.textContent).not.toContain(muted);
+    cleanup();
+
+    const { container } = render(<Opened warnings={[]} audition surroundOn />);
+    expect(container.textContent).not.toContain(muted);
+    tick(container);
+    expect(container.textContent).toContain(muted);
   });
 });

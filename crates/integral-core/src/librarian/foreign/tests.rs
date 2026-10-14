@@ -76,18 +76,20 @@ fn audition(bytes: &[u8], apply_effects: bool) -> Vec<Vec<u8>> {
 }
 
 /// Whether DT1 `message` writes the Temporary Studio Set's Chorus or
-/// Reverb.
+/// Reverb, or switches one.
 fn sets_chorus_or_reverb(message: &[u8]) -> bool {
     sysex::parse_dt1(message).is_ok_and(|dt1| {
         [params::CHORUS_BASE, params::REVERB_BASE]
             .iter()
             .any(|base| dt1.address.0[..3] == base.0[..3])
+            || [params::CHORUS_SWITCH, params::REVERB_SWITCH].contains(&dt1.address)
     })
 }
 
 /// The DT1s an audition adds to the Temporary Studio Set: Chorus Type and
 /// Level, Output Select and Parameters, then Reverb Type and Level and
-/// Parameters 2–9 (Parameter 1 is hidden).
+/// Parameters 2–9 (Parameter 1 is hidden). Each ends by switching its
+/// effect on, so a Studio Set with the switch OFF still plays it.
 fn effect_dt1s(
     chorus: [u8; 3],
     chorus_params: &[i32],
@@ -112,12 +114,14 @@ fn effect_dt1s(
             &params::chorus_address(chorus::PARAM_BASE),
             &nibs(chorus_params),
         ),
+        build_dt1(0x10, &params::CHORUS_SWITCH, &[1]),
         build_dt1(0x10, &params::reverb_address(reverb::TYPE), &reverb),
         build_dt1(
             0x10,
             &params::reverb_address(reverb::PARAM_BASE + 4), // Parameter 2
             &nibs(reverb_params),
         ),
+        build_dt1(0x10, &params::REVERB_SWITCH, &[1]),
     ]
 }
 
@@ -724,8 +728,10 @@ mod xv_patches {
             applied[0],
             at(params::chorus_address(chorus::TYPE), &[0, 80])
         );
+        // The Type OFF is what silences it; its Switch goes ON all the same.
+        assert_eq!(applied[1], at(params::CHORUS_SWITCH, &[1]));
         assert_eq!(
-            applied[1],
+            applied[2],
             at(params::reverb_address(reverb::TYPE), &[3, 0])
         );
     }
@@ -1352,7 +1358,7 @@ mod jv_patches {
             .into_iter()
             .filter(|m| sets_chorus_or_reverb(m))
             .collect();
-        assert_eq!(applied, expected[..3]);
+        assert_eq!(applied, expected[..4]);
     }
 
     #[test]
@@ -1945,8 +1951,9 @@ mod xv_rhythms {
                 ),
             ]
         );
+        assert_eq!(applied[3], at(params::CHORUS_SWITCH, &[1]));
         assert_eq!(
-            applied[3],
+            applied[4],
             at(params::reverb_address(reverb::TYPE), &[1, 70])
         );
     }

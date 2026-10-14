@@ -592,6 +592,15 @@ pub fn import(
         .inspect_err(|e| eprintln!("Warning: {e:#}; Expansion checks skipped"))
         .ok();
     let plan = plan(&read, &names, loaded.as_ref(), opts)?;
+    if opts.apply_effects && !plan.effects(0).is_empty() {
+        match dev.read_surround_enabled() {
+            Ok(true) => eprintln!(
+                "Warning: Motional Surround is ON, which mutes the applied Reverb; switch it off to hear it"
+            ),
+            Ok(false) => {}
+            Err(e) => eprintln!("Warning: {e:#}; Motional Surround check skipped"),
+        }
+    }
 
     let text = opts.format == OutputFormat::Text;
     let mut report = Report {

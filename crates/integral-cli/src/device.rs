@@ -11,6 +11,7 @@ use anyhow::{Context, Result};
 use integral_core::address::{Address, DataSize};
 use integral_core::params;
 use integral_core::state::PartState;
+use integral_core::state::parse::parse_surround_common;
 use integral_core::sysex;
 use midir::MidiOutputConnection;
 
@@ -109,6 +110,12 @@ impl IntegraDevice {
     pub fn read_master_level(&mut self) -> Result<u8> {
         let data = self.request_data(&params::SYSTEM_MASTER_LEVEL, &params::SINGLE_BYTE_SIZE)?;
         Ok(data[0])
+    }
+
+    /// Read whether the Studio Set's Motional Surround is ON.
+    pub fn read_surround_enabled(&mut self) -> Result<bool> {
+        let data = self.request_data(&params::SURROUND_BASE, &params::SURROUND_COMMON_SIZE)?;
+        Ok(parse_surround_common(&data).enabled)
     }
 
     /// Read the mixer state for a part (0-indexed `part_index`).

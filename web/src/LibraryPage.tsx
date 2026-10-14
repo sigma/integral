@@ -207,6 +207,7 @@ export function LibraryPage({ service, mixer, catalog, libraryExport, libraryImp
             part={mixer.state.selectedPart}
             onFocus={focusEntry}
             busy={exporting}
+            surroundOn={mixer.state.surround.enabled}
           />
         ) : (
           <PackExportPane libraryExport={libraryExport} mixer={mixer} busy={imp.busy} />

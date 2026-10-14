@@ -21,6 +21,8 @@ interface Props {
   onFocus: (entry: ImportEntry) => void;
   /** An export is running: the device is busy. */
   busy: boolean;
+  /** Motional Surround is ON: it mutes the Studio Set Reverb. */
+  surroundOn: boolean;
 }
 
 /** Where an entry in Temporary goes. */
@@ -29,7 +31,15 @@ function temporaryLabel(type: LibraryType, part: number): string {
 }
 
 /** The Pack pane once a file is opened: entries, destinations, import. */
-export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onFocus, busy }: Props) {
+export function PackImportPane({
+  libraryImport: imp,
+  slots,
+  slotsType,
+  part,
+  onFocus,
+  busy,
+  surroundOn,
+}: Props) {
   const [confirming, setConfirming] = useState(false);
   const [undo, setUndo] = useState(true);
   const [applyEffects, setApplyEffects] = useState(false);
@@ -200,6 +210,12 @@ export function PackImportPane({ libraryImport: imp, slots, slotsType, part, onF
                                 />
                                 Apply its Chorus/Reverb to the Temporary Studio Set
                               </label>
+                            )}
+                            {entry.effects && applyEffects && surroundOn && (
+                              <span className={css.error}>
+                                Motional Surround is ON, which mutes the applied Reverb; switch it
+                                off to hear it
+                              </span>
                             )}
                           </>
                         ) : imp.focused === entry.index &&

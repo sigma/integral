@@ -110,13 +110,25 @@ impl StudioSetEffect {
     }
 
     /// The DT1s that write these settings: Type and Level, Chorus Output
-    /// Select, then each run of parameter slots. Output Assign is left as
+    /// Select, each run of parameter slots, then the effect's Switch ON so
+    /// a Studio Set with it OFF still plays it. Output Assign is left as
     /// it is.
     pub fn dt1s(&self, device_id: u8) -> Vec<Vec<u8>> {
-        let (address, type_at, param_base): (fn(u8) -> Address, u8, u8) = match self.block {
-            FxBlock::Chorus => (params::chorus_address, chorus::TYPE, chorus::PARAM_BASE),
-            FxBlock::Reverb => (params::reverb_address, reverb::TYPE, reverb::PARAM_BASE),
-        };
+        let (address, type_at, param_base, switch): (fn(u8) -> Address, u8, u8, Address) =
+            match self.block {
+                FxBlock::Chorus => (
+                    params::chorus_address,
+                    chorus::TYPE,
+                    chorus::PARAM_BASE,
+                    params::CHORUS_SWITCH,
+                ),
+                FxBlock::Reverb => (
+                    params::reverb_address,
+                    reverb::TYPE,
+                    reverb::PARAM_BASE,
+                    params::REVERB_SWITCH,
+                ),
+            };
         let mut out = vec![sysex::build_dt1(
             device_id,
             &address(type_at),
@@ -142,6 +154,7 @@ impl StudioSetEffect {
             }
             slot += run.len() + 1;
         }
+        out.push(sysex::build_dt1(device_id, &switch, &[1]));
         out
     }
 }
@@ -328,6 +341,11 @@ mod tests {
         sysex::build_dt1(0x10, &params::reverb_address(offset), data)
     }
 
+    /// The DT1 that switches `address`'s effect on.
+    fn on(address: Address) -> Vec<u8> {
+        sysex::build_dt1(0x10, &address, &[1])
+    }
+
     #[test]
     fn xv_delay_times_are_msec_or_notes() {
         // Delay L 1/8, R 250 ms, C 1/4, Feedback +40 %, HF Damp BYPASS,
@@ -345,6 +363,7 @@ mod tests {
                     chorus::PARAM_BASE,
                     &nibs(&[1, 200, 9, 0, 250, 10, 1, 600, 12, 69, 17, 100, 110, 120])
                 ),
+                on(params::CHORUS_SWITCH),
             ]
         );
     }
@@ -359,6 +378,7 @@ mod tests {
                 chorus_at(chorus::TYPE, &[3, 80]),
                 chorus_at(chorus::OUTPUT_SELECT, &[2]),
                 chorus_at(chorus::PARAM_BASE, &nibs(&xv)),
+                on(params::CHORUS_SWITCH),
             ]
         );
     }
@@ -380,6 +400,7 @@ mod tests {
                         reverb::PARAM_BASE + 4,
                         &nibs(&[20, 100, 90, 80, 50, 50, 127, 64])
                     ),
+                    on(params::REVERB_SWITCH),
                 ],
                 "SRV type {srv}"
             );
@@ -398,6 +419,7 @@ mod tests {
                 reverb_at(reverb::TYPE, &[6, 64]),
                 reverb_at(0x03, &encode_nib_param(2)),
                 reverb_at(0x0F, &encode_nib_param(100)),
+                on(params::REVERB_SWITCH),
             ]
         );
     }
