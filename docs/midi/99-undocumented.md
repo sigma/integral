@@ -734,6 +734,74 @@ with nothing saved ([#282](https://github.com/sigma/integral/issues/282)).
 
 ---
 
+## 8. System Common Reserves and Persistence
+
+### Purpose
+
+The MIDI Implementation documents System Common `02 00 00 00` with size `2F`.
+It marks the last byte, `00 2E`, as a reserve. It also marks Studio Set Common
+`00 4B` as a reserve. Roland's Editor JavaScript names both bytes
+([docs/research/system-settings-sysex.md](../research/system-settings-sysex.md)).
+This section records how they behave on the device, and whether a System edit
+survives a power cycle.
+
+### `02 00 00 2E`: USB Audio Sampling Rate
+
+| Value | Panel (SYSTEM > SOUND, Sampling Rate) |
+|-------|----------------------------------------|
+| `00`  | 44.1 kHz                               |
+| `01`  | 48 kHz                                 |
+
+- RQ1 reads the byte. On its own it reads 1 byte, and as part of the whole
+  block it is the 47th byte.
+- A DT1 changes the panel setting, despite the `<*>` mark.
+- A panel edit changes the byte. It is a normal, two-way System parameter.
+- `02` (96 kHz, per the editor) wasn't written. Whether the USB audio clock
+  itself follows wasn't checked: that needs a USB audio host.
+
+### `18 00 00 4B`: Ext Part Source Select
+
+| Value | Panel (SYSTEM > SOUND, Ext Part Source Select) |
+|-------|-----------------------------------------------|
+| `00`  | USB AUDIO                                     |
+| `01`  | INPUT                                         |
+
+- RQ1 reads the byte, and a DT1 changes the panel setting.
+- **A panel edit does not change the byte.** After a DT1 of `01`, setting USB
+  AUDIO on the panel left `01`. After a DT1 of `00`, setting INPUT on the panel
+  left `00`. No System Common byte changed either.
+- So the panel setting lives in a System store with no address. A DT1 to
+  `00 4B` overwrites it, but reading `00 4B` returns the last value written
+  over SysEx (or the Studio Set's own value), not what the panel shows. A
+  client can set this switch but can't read it reliably.
+- Whether the panel switch and the byte track each other again after a Studio
+  Set change wasn't checked.
+
+### Nothing past `02 00 00 2E`
+
+- An RQ1 for 1 byte at `02 00 00 2F`, `00 30`, `00 40`, `00 01 00`, `00 02 00`,
+  `00 7F 00`, `02 01 00 00`, `02 02 00 00` or `02 7F 00 00` gets no reply.
+- An RQ1 at `02 00 00 00` for 64 bytes returns only the 47-byte block. An RQ1
+  at `00 2E` for 2 bytes returns 1. The device clips a read at the end of the
+  block.
+
+### System edits are volatile
+
+A DT1 of System Tempo `00 26` = `07 09` (121) read back, and the panel showed
+121. After a power cycle without a panel save, it read `07 08` (120) again. No
+SysEx System Write is known, so System edits made over SysEx last only until
+power-off. To keep them, the user has to save on the panel ([SHIFT] + [EDIT] in
+the SYSTEM screen).
+
+### Discovery
+
+Probed on our device on 2026-10-14 with `raw-read` and `raw-send`, checking
+each value on the panel ([#283](https://github.com/sigma/integral/issues/283)).
+Every value was put back afterwards: `00 2E` = `00`, `00 4B` = `00`, and
+Tempo = 120.
+
+---
+
 ## Future Investigation
 
 - **Expansion board tone catalogs**: SRX, ExSN, ExPCM tones at `0F 00 04 02`
