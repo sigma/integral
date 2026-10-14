@@ -434,6 +434,8 @@ mod xv_patches {
         let mut common2 = b"United !        ".to_vec();
         common2.extend([1, 0, 0, 64]); // Ac.Piano, Tone Number 0, Phrase Oct 0
         common2.resize(60, 0);
+        // TFX Switch ON: the XV has no switch, its MFX always runs.
+        common2[crate::pcm_synth::PcmsCommon2Field::TfxSwitch as usize] = 1;
         let expected = [vec![common, mfx, pmt], partials, vec![common2]].concat();
 
         assert_eq!(entry.kind(), ChunkType::PcmSynthTone);
@@ -829,6 +831,9 @@ mod jv_patches {
                 .iter()
                 .all(|e| e.kind() == ChunkType::PcmSynthTone && e.category() == Some(0))
         );
+        // TFX Switch ON, or the converted MFX is bypassed.
+        let tfx = crate::pcm_synth::PcmsCommon2Field::TfxSwitch as usize;
+        assert!(read.pack.entries.iter().all(|e| e.blocks()[7][tfx] == 1));
         let studio = " lives in the Studio Set";
         let reports: Vec<Vec<String>> = read.reports.iter().map(texts).collect();
         assert_eq!(
@@ -1474,6 +1479,8 @@ mod jv_rhythms {
         assert_eq!(entry.kind(), ChunkType::PcmDrumKit);
         assert_eq!(entry.name(), "Byte Kit");
         assert_eq!(&entry.blocks()[91][..16], b"Byte Kit        ");
+        let tfx = usize::from(crate::pcm_drum::COMMON2_TFX_SWITCH);
+        assert_eq!(entry.blocks()[91][tfx], 1, "TFX Switch ON");
         assert!(report.is_empty(), "{report:?}");
         for key in 21..=108u8 {
             let p = partial(&entry, key);
@@ -1772,6 +1779,8 @@ mod xv_rhythms {
         assert_eq!(entry.kind(), ChunkType::PcmDrumKit);
         assert_eq!(entry.name(), "XV Byte Kit");
         let blocks = entry.blocks();
+        let tfx = usize::from(crate::pcm_drum::COMMON2_TFX_SWITCH);
+        assert_eq!(blocks[91][tfx], 1, "TFX Switch ON");
         assert_eq!(blocks[0], commons()[0]);
         assert_eq!(blocks[1], commons()[1]);
         for key in 21..=108u8 {

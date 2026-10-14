@@ -332,7 +332,8 @@ fn common2(common: &[u8], category: u8) -> Vec<u8> {
     block[..LONG_NAME_LEN].copy_from_slice(&encode_ascii_name(&name, LONG_NAME_LEN));
     block[TONE_CATEGORY] = category;
     block[PHRASE_OCTAVE_SHIFT] = init.phrase_octave_shift;
-    block[TFX_SWITCH] = init.tfx_switch;
+    // A Foreign patch has no TFX Switch: its MFX always runs.
+    block[TFX_SWITCH] = 1;
     let numbers = [init.tone_number, init.phrase_number];
     for ((at, len), value) in NIBBLIZED.into_iter().zip(numbers) {
         block[at..at + len].copy_from_slice(&encode_nibble4(value)[4 - len..]);
@@ -364,9 +365,10 @@ mod tests {
         assert_eq!(&common2[..LONG_NAME_LEN], b"AAAAAAAAAAAA    ");
         assert_eq!(common2[TONE_CATEGORY], 5);
         assert_eq!(common2[PHRASE_OCTAVE_SHIFT], 64);
+        assert_eq!(common2[TFX_SWITCH], 1);
         assert_eq!(
             common2.iter().filter(|&&b| b != 0).count(),
-            LONG_NAME_LEN + 2
+            LONG_NAME_LEN + 3
         );
         assert_eq!(tone.into_entry().kind(), ChunkType::PcmSynthTone);
     }

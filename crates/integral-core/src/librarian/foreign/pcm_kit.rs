@@ -40,9 +40,11 @@ pub(super) struct PcmKit {
 
 impl PcmKit {
     /// An INIT kit: every block holds the state defaults (MFX THRU, Comp/EQ
-    /// off, every WMT off), and the reserves what INTEGRA-7 kits carry.
+    /// off, every WMT off) except TFX Switch ON, since a Foreign kit's MFX
+    /// always runs, and the reserves what INTEGRA-7 kits carry.
     pub(super) fn init() -> Self {
-        let state = PcmDrumKitState::default();
+        let mut state = PcmDrumKitState::default();
+        state.common2.tfx_switch = 1;
         let partial = encode_pcmd_partial(&PcmDrumPartial::default());
         let mut blocks = vec![
             encode_pcmd_common(&state.common),
@@ -180,7 +182,9 @@ mod tests {
             PcmDrumPartial::default()
         );
         assert_eq!(&blocks[COMMON2][..LONG_NAME_LEN], b"Init            ");
-        assert_eq!(parse_pcmd_common2(&blocks[COMMON2]).unwrap(), state.common2);
+        let mut common2 = state.common2;
+        common2.tfx_switch = 1;
+        assert_eq!(parse_pcmd_common2(&blocks[COMMON2]).unwrap(), common2);
     }
 
     #[test]
