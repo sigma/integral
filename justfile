@@ -81,6 +81,10 @@ clean:
 ping *ARGS:
     cargo run -p integral-cli -- ping {{ARGS}}
 
+# bridge the INTEGRA-7 wireless link to a virtual MIDI port
+bridge *ARGS:
+    cargo run -p integral-cli -- bridge {{ARGS}}
+
 # monitor the MIDI traffic
 monitor *ARGS:
     cargo run -p integral-cli -- monitor {{ARGS}}

@@ -160,6 +160,7 @@ The `justfile` provides standard targets. Run `just` to list them.
 | `just check` | Full pre-commit: fmt-check + lint + lint-web + lint-css + build + build-wasm + test + test-web |
 | `just clean` | Remove build artifacts |
 | `just ping` | Ping the INTEGRA-7 device |
+| `just bridge` | Bridge the wireless link to the `INTEGRA-7 (Wireless)` port |
 | `just run` | Run standalone VST binary (native app) |
 | `just dev-web` | Start web dev server (pack WASM + Vite) |
 

@@ -39,6 +39,7 @@ Run `just` for the full list. Key targets:
 | `just fmt` | Format all code (Rust + Nix) |
 | `just check` | Full pre-commit gate: fmt, lint, build, WASM, test |
 | `just ping` | Ping the Integra-7 via SysEx Identity Request |
+| `just bridge` | Expose the Integra-7's wireless LAN link as the MIDI port `INTEGRA-7 (Wireless)` |
 | `just pack-wasm` | Build the WASM package for the web app |
 | `just dev-web` | Start the Vite dev server |
 | `just build-web` | Production web build (includes WASM pack) |
