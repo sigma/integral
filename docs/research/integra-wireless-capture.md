@@ -122,8 +122,73 @@ reply before sending the next RQ1, about 50 ms apart.
   `08 08 08 08`. A reader that drops CIN 0 packets loses nothing seen here.
 - **Non-SysEx packets** from the INTEGRA-7: CIN C (1), D (6) and F (8). These
   are probably MIDI output from the preview.
-- **Multi-client behaviour, reconnect after a dropped link, and the
-  USB-MIDI Thru interaction** were not tested.
+- **Multi-client behaviour and reconnects:** covered by the probe below. The
+  USB-MIDI Thru interaction is not worth testing: Thru could at most echo
+  SysEx out of MIDI OUT, which does not touch the wireless session.
+
+## Probe from a non-Roland client
+
+Research for [#302](https://github.com/sigma/integral/issues/302). A throwaway
+Python client (since discarded) talked to the same INTEGRA-7 (system 1.21,
+`192.168.1.32`) over the same Wi-Fi. It sent RQ1, the Identity Request, and one
+DT1 test that wrote a block and then restored it.
+
+**Answer:** the INTEGRA-7 accepts a client it has never seen. It does no check
+of any kind. The [feasibility verdict](https://github.com/sigma/integral/issues/169)
+stands.
+
+- **Session:** connect to 23847, read the `01` greeting, then send heartbeats.
+  The first RQ1 got its DT1 in 53 ms. The reply matched the editor capture
+  byte for byte: `F0 41 10 00 00 64 12 18 00 20 06 5F 40 26 7D F7`.
+- **Device ID:** the Identity Request `F0 7E 7F 06 01 F7` works over the link.
+  The reply is `F0 7E 10 06 02 41 64 02 00 00 00 00 00 00 F7`, so the device
+  ID stays discoverable.
+- **Liveness timeout: about 3 s.** The INTEGRA-7 sends a heartbeat every
+  1.0 s. A client that sends nothing is closed (FIN) 3.0–3.9 s after connect,
+  right after the third unanswered heartbeat. Any inbound frame counts as
+  liveness: RQ1 traffic every 0.5 s with no heartbeat kept the link up. A client
+  can run its own heartbeat clock instead of echoing. A heartbeat every 1.0,
+  2.0 or 2.9 s kept the link up for 10 s each.
+- **Reconnect:** works at once after a FIN close or a RST close. Five
+  connections in a row, about 0.5 s apart, each got a fresh greeting and a
+  DT1 reply. Reconnect plus the first reply took 50 ms. No session state
+  carries over, and there is no cool-down.
+- **Second client:** the TCP connect succeeds, but the second client gets no
+  greeting, no heartbeats and no replies. It is not closed either: it waits.
+  Once the first client leaves, the second gets its greeting at once and is
+  served. So the device serves one session at a time and queues the rest.
+  A shipped client that connects but gets no greeting within a few seconds
+  should report "in use by another editor".
+- **Throttle: still needed.** Sixteen RQ1s back to back (Part 1–16 tone):
+
+  | Gap between RQ1s | Replies |
+  |------------------|---------|
+  | 0 ms (one frame each, or all 16 in one frame) | 8/16 |
+  | 5 ms | 13/16 |
+  | 10, 20, 30, 50 ms | 16/16 |
+  | wait for each reply (editor style) | 16/16, 68 ms each |
+
+  Excess requests are dropped silently: no error, no late reply. The 20 ms
+  rule from the MIDI Implementation applies over Wi-Fi unchanged. Packing many
+  SysEx messages into one `02` frame is legal, but it does not bypass the limit.
+- **Large replies:** an RQ1 for 77 bytes (the whole Part 1 block) came back as
+  one 90-byte DT1. An RQ1 spanning `18 00 00 00` + `00 00 10 00` came back as 5
+  DT1s, split by the device, as on MIDI.
+- **Large writes:** a full-block DT1 works. The whole Part 1 SN-S MFX block
+  (`19 01 02 00`, 145 bytes) went out as one 158-byte DT1 in one `02` frame
+  with a 216-byte body. That is 8 times the editor's largest frame. A change to
+  the last byte landed, and read-back matched. Writing the original back
+  restored the block. The largest block in the address map is the 195-byte PCM
+  Drum Kit key (`00 00 01 43`). That gives a 208-byte DT1, so no single-block
+  DT1 reaches the 256-byte limit. No part held a PCM drum kit, so that size
+  was not sent. A DT1 over 256 bytes was not tried: Integral never sends one
+  (the librarian asserts `<= 256`).
+- **Stray packets:** one CIN F packet `0F D6 9C 04` arrived with no preview
+  playing. CIN 0 `00 00 00 07` packets still prefix some replies. Their
+  meaning is still unknown; dropping both loses nothing.
+- **Network MIDI was down** during the probe (`just ping` over "Network
+  Integra" had no response), so the wireless link worked with no other MIDI
+  path in use.
 
 ## Teardown
 
