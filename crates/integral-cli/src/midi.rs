@@ -26,26 +26,62 @@ pub fn find_port_by_name<T: midir::MidiIO>(midi_io: &T, pattern: &str) -> Option
     })
 }
 
-/// Open MIDI input+output connections and return (conn_in_guard, conn_out, rx).
-pub fn open_midi(
-    port_pattern: &str,
-) -> Result<(
+/// How long to wait for an Identity Reply when choosing between ports.
+const PORT_PROBE_TIMEOUT: Duration = Duration::from_millis(500);
+
+/// An open input+output pair: (conn_in_guard, conn_out, rx).
+type MidiConnection = (
     midir::MidiInputConnection<()>,
     midir::MidiOutputConnection,
     mpsc::Receiver<Vec<u8>>,
-)> {
+);
+
+/// Open MIDI input+output connections and return (conn_in_guard, conn_out, rx).
+///
+/// When several ports match `port_pattern` (e.g. a dead network session
+/// next to the wireless Bridge), use the first that answers an Identity
+/// Request, falling back to the first match.
+pub fn open_midi(port_pattern: &str) -> Result<MidiConnection> {
+    let midi_out = MidiOutput::new("integral-out").context("failed to create MIDI output")?;
+    let pattern_lower = port_pattern.to_lowercase();
+    let names: Vec<String> = midi_out
+        .ports()
+        .iter()
+        .filter_map(|port| midi_out.port_name(port).ok())
+        .filter(|name| name.to_lowercase().contains(&pattern_lower))
+        .collect();
+    if names.len() > 1 {
+        for name in &names {
+            let Ok((conn_in, mut conn_out, rx)) = connect(name) else {
+                continue;
+            };
+            conn_out
+                .send(&sysex::identity_request())
+                .context("failed to send identity request")?;
+            if await_identity(&rx, PORT_PROBE_TIMEOUT)?.is_some() {
+                eprintln!("Using MIDI port: {name}");
+                return Ok((conn_in, conn_out, rx));
+            }
+        }
+        eprintln!("No port matching '{port_pattern}' answered; trying the first.");
+    }
+    let name = names
+        .first()
+        .with_context(|| format!("no MIDI output port matching '{port_pattern}'"))?;
+    let connection = connect(name)?;
+    eprintln!("Using MIDI port: {name}");
+    Ok(connection)
+}
+
+/// Connect to the output port named `name` and the input port matching it.
+fn connect(name: &str) -> Result<MidiConnection> {
     let midi_out = MidiOutput::new("integral-out").context("failed to create MIDI output")?;
     let midi_in = MidiInput::new("integral-in").context("failed to create MIDI input")?;
 
-    let out_port = find_port_by_name(&midi_out, port_pattern)
-        .with_context(|| format!("no MIDI output port matching '{port_pattern}'"))?;
-    let in_port = find_port_by_name(&midi_in, port_pattern)
-        .with_context(|| format!("no MIDI input port matching '{port_pattern}'"))?;
-
-    let port_name = midi_out
-        .port_name(&out_port)
-        .unwrap_or_else(|_| port_pattern.to_string());
-    eprintln!("Using MIDI port: {port_name}");
+    let out_port = find_port_by_name(&midi_out, name)
+        .with_context(|| format!("no MIDI output port matching '{name}'"))?;
+    let in_port = find_port_by_name(&midi_in, name)
+        .with_context(|| format!("no MIDI input port matching '{name}'"))?;
 
     let (tx, rx) = mpsc::channel::<Vec<u8>>();
 
@@ -166,35 +202,38 @@ pub fn detect_device_id(
     conn_out
         .send(&sysex::identity_request())
         .context("failed to send identity request")?;
-
-    let deadline = std::time::Instant::now() + timeout;
-    loop {
-        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
-        if remaining.is_zero() {
+    match await_identity(rx, timeout)? {
+        Some(identity) => {
+            eprintln!("Detected device ID: 0x{:02X}", identity.device_id);
+            Ok(identity.device_id)
+        }
+        None => {
             eprintln!(
                 "Warning: no identity reply received, using default device ID 0x{:02X}",
                 DEFAULT_DEVICE_ID
             );
-            return Ok(DEFAULT_DEVICE_ID);
+            Ok(DEFAULT_DEVICE_ID)
         }
+    }
+}
+
+/// Wait up to `timeout` for an Identity Reply on `rx`, skipping other
+/// messages. `None` when none arrives.
+fn await_identity(
+    rx: &mpsc::Receiver<Vec<u8>>,
+    timeout: Duration,
+) -> Result<Option<sysex::DeviceIdentity>> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
         match rx.recv_timeout(remaining) {
             Ok(data) => {
                 if let Ok(identity) = sysex::parse_identity_reply(&data) {
-                    eprintln!("Detected device ID: 0x{:02X}", identity.device_id);
-                    return Ok(identity.device_id);
+                    return Ok(Some(identity));
                 }
-                // Not an identity reply, keep waiting.
             }
-            Err(mpsc::RecvTimeoutError::Timeout) => {
-                eprintln!(
-                    "Warning: no identity reply received, using default device ID 0x{:02X}",
-                    DEFAULT_DEVICE_ID
-                );
-                return Ok(DEFAULT_DEVICE_ID);
-            }
-            Err(mpsc::RecvTimeoutError::Disconnected) => {
-                bail!("MIDI input disconnected");
-            }
+            Err(mpsc::RecvTimeoutError::Timeout) => return Ok(None),
+            Err(mpsc::RecvTimeoutError::Disconnected) => bail!("MIDI input disconnected"),
         }
     }
 }
@@ -246,6 +285,20 @@ mod tests {
         );
         let err = complete(&MFX, data).unwrap_err().to_string();
         assert!(err.contains("4..6 missing"), "{err}");
+    }
+
+    #[test]
+    fn awaits_identity_past_other_messages() {
+        let reply = [
+            0xF0, 0x7E, 0x10, 0x06, 0x02, 0x41, 0x64, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0xF7,
+        ];
+        let (tx, rx) = mpsc::channel();
+        tx.send(vec![0x90, 0x3C, 0x64]).unwrap();
+        tx.send(reply.to_vec()).unwrap();
+        let identity = await_identity(&rx, TIMEOUT).unwrap().unwrap();
+        assert_eq!(identity.device_id, 0x10);
+        assert!(await_identity(&rx, TIMEOUT).unwrap().is_none());
     }
 
     #[test]

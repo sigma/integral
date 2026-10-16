@@ -9,7 +9,6 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use integral_core::params;
 use integral_core::sysex;
-use midir::MidiOutput;
 
 use super::tone_waves;
 use crate::device::IntegraDevice;
@@ -91,12 +90,7 @@ pub fn write_param(
     part: u8,
     value: u8,
 ) -> Result<()> {
-    let midi_out = MidiOutput::new("integral-out").context("failed to create MIDI output")?;
-    let out_port = midi::find_port_by_name(&midi_out, port_pattern)
-        .with_context(|| format!("no MIDI output port matching '{port_pattern}'"))?;
-    let mut conn_out = midi_out
-        .connect(&out_port, "integral-out")
-        .map_err(|e| anyhow::anyhow!("failed to connect MIDI output: {e}"))?;
+    let (_conn_in, mut conn_out, _rx) = midi::open_midi(port_pattern)?;
 
     let p = part - 1;
     let (addr, display) = match what {
