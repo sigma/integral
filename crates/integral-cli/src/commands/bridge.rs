@@ -11,44 +11,40 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow, bail};
-use integral_core::wireless::{self, DeviceInfo, Event, Session};
+use integral_core::wireless::{self, DeviceInfo, Event, Reconnect, Session};
 use midir::os::unix::{VirtualInput, VirtualOutput};
 use midir::{MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 
-/// How long discovery keeps probing before giving up.
-const DISCOVERY_WINDOW: Duration = Duration::from_secs(5);
-/// Interval between discovery probes, and between reconnect attempts.
-const RETRY_INTERVAL: Duration = Duration::from_secs(1);
-/// Failed attempts on a discovered address before rediscovering it.
-const REDISCOVER_AFTER: u32 = 3;
+const PROBE_INTERVAL: Duration = Duration::from_millis(wireless::PROBE_INTERVAL_MS);
+const DISCOVERY_WINDOW: Duration = Duration::from_millis(wireless::DISCOVERY_WINDOW_MS);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Run the Bridge forever (until Ctrl-C, whose process exit closes the TCP
 /// connection and removes the port).
 ///
 /// With `host`, connect there and never rediscover; otherwise find the
-/// device by RDDP and rediscover after [`REDISCOVER_AFTER`] failed attempts.
+/// device by RDDP and rediscover it per [`Reconnect`].
 pub fn bridge(host: Option<IpAddr>) -> Result<()> {
     let mut addr = match host {
         Some(ip) => ip,
         None => discover()?,
     };
     let start = Instant::now();
-    let mut failures = 0;
+    let now = || start.elapsed().as_millis() as u64;
+    let mut reconnect = Reconnect::new(host.is_none());
     loop {
         let mut went_up = false;
         if let Err(e) = run_session(addr, start, &mut went_up) {
             eprintln!("Session with {addr} failed: {e:#}");
         }
-        failures = if went_up { 0 } else { failures + 1 };
-        if host.is_none() && failures >= REDISCOVER_AFTER {
-            failures = 0;
+        let next = reconnect.after_attempt(went_up, now());
+        thread::sleep(Duration::from_millis(next.at.saturating_sub(now())));
+        if next.rediscover {
             match discover() {
                 Ok(ip) => addr = ip,
                 Err(e) => eprintln!("Rediscovery failed, keeping {addr}: {e:#}"),
             }
         }
-        thread::sleep(RETRY_INTERVAL);
     }
 }
 
@@ -72,7 +68,7 @@ fn discover() -> Result<IpAddr> {
             }
             udp.send_to(&probe, (Ipv4Addr::BROADCAST, wireless::DISCOVERY_PORT))
                 .context("RDDP probe")?;
-            next_probe += RETRY_INTERVAL;
+            next_probe += PROBE_INTERVAL;
         }
         match listener.accept() {
             Ok((stream, peer)) => match read_rddp_reply(stream) {
@@ -110,7 +106,7 @@ fn discover() -> Result<IpAddr> {
 fn read_rddp_reply(stream: TcpStream) -> Result<DeviceInfo> {
     // Accepted sockets inherit the listener's non-blocking mode on BSDs.
     stream.set_nonblocking(false)?;
-    stream.set_read_timeout(Some(RETRY_INTERVAL))?;
+    stream.set_read_timeout(Some(PROBE_INTERVAL))?;
     let mut reply = Vec::new();
     stream.take(256).read_to_end(&mut reply)?;
     Ok(wireless::parse_rddp_reply(&reply)?)

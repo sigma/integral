@@ -28,6 +28,18 @@ pub const LIVENESS_TIMEOUT_MS: u64 = 3000;
 /// another editor, in ms.
 pub const IN_USE_AFTER_MS: u64 = 5000;
 
+/// Interval between RDDP probes, in ms.
+pub const PROBE_INTERVAL_MS: u64 = 1000;
+
+/// How long discovery keeps probing before giving up, in ms.
+pub const DISCOVERY_WINDOW_MS: u64 = 5000;
+
+/// Wait between connection attempts, in ms.
+pub const RECONNECT_INTERVAL_MS: u64 = 1000;
+
+/// Failed attempts on a discovered address before rediscovering it.
+pub const REDISCOVER_AFTER: u32 = 3;
+
 const RDDP_MAGIC: &[u8; 6] = b"RDDPv1";
 
 const FRAME_HEARTBEAT: u8 = 0x00;
@@ -471,6 +483,53 @@ impl Session {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Reconnect
+// ---------------------------------------------------------------------------
+
+/// The next connection attempt, decided by [`Reconnect::after_attempt`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NextAttempt {
+    /// Time (ms) to start it.
+    pub at: u64,
+    /// Run discovery first: the device may have moved.
+    pub rediscover: bool,
+}
+
+/// Retry policy across sessions: retry every [`RECONNECT_INTERVAL_MS`],
+/// forever; rediscover a discovered address after [`REDISCOVER_AFTER`]
+/// attempts in a row that never got greeted.
+#[derive(Debug)]
+pub struct Reconnect {
+    discovered: bool,
+    failures: u32,
+}
+
+impl Reconnect {
+    /// Policy for an address that came from discovery (`true`) or from the
+    /// user (`false`, never rediscovered).
+    pub fn new(discovered: bool) -> Self {
+        Self {
+            discovered,
+            failures: 0,
+        }
+    }
+
+    /// Record how an attempt ended at `now` (`went_up`: it got the
+    /// greeting) and plan the next one.
+    pub fn after_attempt(&mut self, went_up: bool, now: u64) -> NextAttempt {
+        self.failures = if went_up { 0 } else { self.failures + 1 };
+        let rediscover = self.discovered && self.failures >= REDISCOVER_AFTER;
+        if rediscover {
+            self.failures = 0;
+        }
+        NextAttempt {
+            at: now + RECONNECT_INTERVAL_MS,
+            rediscover,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -727,6 +786,31 @@ mod tests {
         assert_eq!(
             s.receive(&[0x09, 0x00, 0x00, 0x01, 0xFF], 20),
             [Event::Skipped { kind: 9, len: 1 }]
+        );
+    }
+
+    #[test]
+    fn reconnects_a_second_after_each_attempt() {
+        let mut r = Reconnect::new(false);
+        let mut now = 0;
+        for went_up in [false, true, false, false, false, false] {
+            let next = r.after_attempt(went_up, now);
+            assert_eq!(next.at, now + 1000);
+            assert!(!next.rediscover, "a --host address is never rediscovered");
+            now = next.at + 2500;
+        }
+    }
+
+    #[test]
+    fn rediscovers_after_three_failures_in_a_row() {
+        let mut r = Reconnect::new(true);
+        let plan: Vec<bool> = [false, false, true, false, false, false, false, false, false]
+            .into_iter()
+            .map(|went_up| r.after_attempt(went_up, 0).rediscover)
+            .collect();
+        assert_eq!(
+            plan,
+            [false, false, false, false, false, true, false, false, true]
         );
     }
 }
