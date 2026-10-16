@@ -1,5 +1,7 @@
 //! CLI command implementations.
 
+#[cfg(unix)]
+pub mod bridge;
 pub mod dump;
 pub mod expansion;
 pub mod monitor;

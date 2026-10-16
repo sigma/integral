@@ -57,3 +57,4 @@ pub mod tone_catalog;
 pub mod user_write;
 pub mod velocity_curve;
 pub mod waves;
+pub mod wireless;
