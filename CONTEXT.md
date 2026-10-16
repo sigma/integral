@@ -142,3 +142,16 @@ whatever it targets. Common / Global holds controls with no sound dimension:
 on/off switches and structure selectors.
 _Avoid_: Section (a section is a group of controls on screen), category (a
 Category classifies Tones)
+
+## Connection
+
+**Wireless link**:
+A session with the INTEGRA-7 through its USB wireless LAN adapter, with no
+MIDI interface in between. The device serves one wireless link at a time;
+other clients wait until it ends.
+_Avoid_: Wi-Fi MIDI, network MIDI (that is RTP-MIDI through an interface)
+
+**Bridge**:
+The helper that holds a Wireless link and shows it to other apps as an
+ordinary MIDI port, present only while the link is up.
+_Avoid_: Proxy, daemon
