@@ -183,8 +183,23 @@ const REVERB_TYPES: [&str; 6] = [
     "GM2 REVERB",
 ];
 
-/// The tempo a Patch or Rhythm that doesn't use one carries.
+/// The tempo a Patch or Rhythm that doesn't use one carries: the INIT
+/// value, cited with [`INIT_EFFECT`].
 pub(super) const DEFAULT_TEMPO: u16 = 120;
+
+/// The Chorus and Reverb Type and Level of the XV INIT PATCH: CHORUS and
+/// REVERB, both at full level. Every Patch carries them until its author
+/// touches the effect, so they are not worth reporting.
+///
+/// No manual lists these values. They are Roland's `INIT PATCH` as an
+/// XV-format bank in the foreign-patch corpus dumps it: 64 byte-identical
+/// slots (User Patches 065–128 of `XV-5080_JVXP_banks.zip`'s
+/// `JV1000-User.syx`, in the Roland-XV Yahoo Group mirror). The same slots
+/// carry Tempo 120 over Clock Source PATCH and Output Assign TONE, so
+/// [`DEFAULT_TEMPO`] and [`OUTPUT_TONE`] are INIT values too. No INIT
+/// Rhythm Set is in the corpus, but its Chorus and Reverb blocks have the
+/// same layout, so these values gate a Rhythm's as well.
+const INIT_EFFECT: u8 = 1;
 
 /// INTEGRA-7 Tone Category of each XV Patch Category, in the XV-5080's list
 /// order (0 = NO ASSIGN … 38 = CMB). From `xv-patch-format.md`, section 6.
@@ -334,7 +349,8 @@ fn patch_output_assign(p: &mut Patch<'_>) {
 
 /// A Patch or Rhythm Output Assign: set in the Studio Set Part on the
 /// INTEGRA-7. Returns what its reserve gets: TONE, which INTEGRA-7 tones
-/// always carry.
+/// always carry and the INIT PATCH carries too (see [`INIT_EFFECT`]), so
+/// anything else is reported.
 pub(super) fn output_assign(output: u8, report: &mut ConversionReport) -> u8 {
     if output != OUTPUT_TONE {
         report.push(ConversionItem::NotApplied {
@@ -419,8 +435,12 @@ pub(super) fn convert_mfx(
 }
 
 /// A Patch or Rhythm effect an INTEGRA-7 tone has no place for: reported
-/// when it sounds. The Studio Set `settings` it converts to go to `effects`
-/// whether it sounds or not.
+/// when it sounds and is not the INIT PATCH's own Chorus/Reverb
+/// ([`INIT_EFFECT`] at full level), which a Patch carries whether its
+/// author touched the effect or not. The report covers Type and Level; a
+/// Patch that reworked an otherwise INIT effect's parameters stays
+/// unreported, as one that kept the INIT tempo does. The Studio Set
+/// `settings` it converts to go to `effects` whether it sounds or not.
 fn studio_set_effect(
     block: &[u8],
     label: &str,
@@ -430,7 +450,8 @@ fn studio_set_effect(
     effects: &mut Vec<StudioSetEffect>,
 ) {
     let (kind, level) = (block[EFFECT_TYPE], block[EFFECT_LEVEL]);
-    if kind != 0 && level != 0 {
+    let at_init = kind == INIT_EFFECT && level == FULL_LEVEL;
+    if kind != 0 && level != 0 && !at_init {
         report.push(ConversionItem::NotApplied {
             what: format!("{label} {}, level {level}", named(types, kind)),
         });

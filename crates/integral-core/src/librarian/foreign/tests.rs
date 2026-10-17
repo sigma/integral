@@ -478,7 +478,8 @@ mod xv_patches {
             [
                 "Partial 3: MFX bypass dropped",
                 "Partial 4: MFX bypass dropped",
-                "Chorus CHORUS, level 127 lives in the Studio Set",
+                // The Chorus is the INIT PATCH's own (CHORUS at 127), so
+                // only the Reverb differs from it.
                 "Reverb SRV HALL, level 127 lives in the Studio Set",
             ]
         );
@@ -678,6 +679,64 @@ mod xv_patches {
             })
             .is_empty()
         );
+    }
+
+    #[test]
+    fn reports_effects_only_when_they_leave_their_init_values() {
+        // Tempo 90 over PATCH, Chorus and Reverb as the INIT PATCH carries
+        // them (CHORUS and REVERB at 127, the corpus's `JV1000-User.syx`
+        // INIT slots): nothing the author chose, so nothing to report.
+        let bytes = patch([0x30, 0x00], |b| {
+            b[0][0x1F..0x21].copy_from_slice(&[0x05, 0x0A]); // Tempo 90
+            b[2][..2].copy_from_slice(&[1, 127]);
+            b[3][..2].copy_from_slice(&[1, 127]);
+        });
+        let (_, report) = converted(&bytes);
+        assert!(report.is_empty(), "{report:?}");
+        // An LFO at a note value puts that Tempo to work, and it is
+        // reported.
+        let bytes = patch([0x30, 0x00], |b| {
+            b[0][0x1F..0x21].copy_from_slice(&[0x05, 0x0A]); // Tempo 90
+            b[2][..2].copy_from_slice(&[1, 127]);
+            b[3][..2].copy_from_slice(&[1, 127]);
+            b[5][0x6E..0x70].copy_from_slice(&[0x08, 0x02]); // LFO1 Rate 1/16
+        });
+        let (_, report) = converted(&bytes);
+        assert_eq!(
+            report.iter().map(ToString::to_string).collect::<Vec<_>>(),
+            ["Tempo 90 lives in the Studio Set"]
+        );
+        // A different effect Type or Level leaves the INIT values and is
+        // reported.
+        for (block, at, expect) in [
+            (
+                2usize,
+                [2u8, 127u8],
+                "Chorus DELAY, level 127 lives in the Studio Set",
+            ),
+            (
+                2,
+                [1, 100],
+                "Chorus CHORUS, level 100 lives in the Studio Set",
+            ),
+            (
+                3,
+                [2, 127],
+                "Reverb SRV ROOM, level 127 lives in the Studio Set",
+            ),
+        ] {
+            let bytes = patch([0x30, 0x00], |b| {
+                b[2][..2].copy_from_slice(&[1, 127]);
+                b[3][..2].copy_from_slice(&[1, 127]);
+                b[block][..2].copy_from_slice(&at);
+            });
+            let (_, report) = converted(&bytes);
+            assert_eq!(
+                report.iter().map(ToString::to_string).collect::<Vec<_>>(),
+                [expect],
+                "block {block}, {at:02X?}"
+            );
+        }
     }
 
     #[test]

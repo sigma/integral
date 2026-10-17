@@ -192,6 +192,15 @@ XV "(non MFX)" pair, whatever the Tone Output Assign
 ([`foreign-patch-levels.md`](foreign-patch-levels.md), #297). An earlier recommendation to write
 the "(MFX)" pair for MFX Tones was wrong.
 
+\* **The INIT PATCH's values gate the report.** No manual lists them, but a corpus bank of an
+XV-family unit dumps 64 byte-identical INIT PATCH slots (User Patches 065–128 of
+`XV-5080_JVXP_banks.zip`'s `JV1000-User.syx`, in the Roland-XV Yahoo Group mirror). They carry
+Chorus **CHORUS** and Reverb **REVERB**, both at **level 127**, Tempo **120** over Clock Source
+**PATCH**, and Output Assign **TONE**. A conversion reports Chorus, Reverb, Tempo and Output
+Assign only when they differ from these values (`xv.rs` `INIT_EFFECT`, #227), and Tempo only
+when a switched-on tone syncs to it. The corpus holds no INIT Rhythm Set; its Chorus and Reverb
+blocks share the Patch layout, so the same values gate a Rhythm's.
+
 ## 3. Integra-only parameters (reverse direction)
 
 An XV Patch has nothing for these. The reader must fill them:

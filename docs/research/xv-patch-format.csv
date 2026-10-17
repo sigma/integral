@@ -30,7 +30,7 @@ xv->integra,Patch Common,00 1B,Portamento Type,0 - 1,Common,00 1B,Portamento Typ
 xv->integra,Patch Common,00 1C,Portamento Start,0 - 1,Common,00 1C,Portamento Start,0 - 1,identical,
 xv->integra,Patch Common,00 1D,Portamento Time,0 - 127,Common,00 1D,Portamento Time,0 - 127,identical,
 xv->integra,Patch Common,00 1E,Patch Clock Source,0 - 1,Common,00 1E,(reserve) <*>,--,no equivalent,Integra tempo comes from the Studio Set; byte may be carried in reserve
-xv->integra,Patch Common,00 1F,Patch Tempo,20 - 250,Common,00 1F,(reserve) <*>,--,no equivalent,"Patch Tempo; Integra reserve `00 1F` holds the same 8-bit value (120 seen); carry verbatim, report if Clock Source = PATCH"
+xv->integra,Patch Common,00 1F,Patch Tempo,20 - 250,Common,00 1F,(reserve) <*>,--,no equivalent,"Patch Tempo; Integra reserve `00 1F` holds the same 8-bit value (120 seen); carry verbatim, report if Clock Source = PATCH, a switched-on tone syncs to it, and it differs from the INIT 120 (#227)"
 xv->integra,Patch Common,00 21,One Shot Mode,0 - 1,Common,00 21,(reserve) <*>,--,no equivalent,One Shot Mode; carry in reserve
 xv->integra,Patch Common,00 22,Cutoff Offset,1 - 127,Common,00 22,Cutoff Offset,1 - 127,identical,
 xv->integra,Patch Common,00 23,Resonance Offset,1 - 127,Common,00 23,Resonance Offset,1 - 127,identical,
@@ -126,8 +126,8 @@ xv->integra,Patch Common MFX,01 01,MFX Parameter 29,12768 - 52768,Common MFX,01 
 xv->integra,Patch Common MFX,01 05,MFX Parameter 30,12768 - 52768,Common MFX,01 05,MFX Parameter 30,12768 - 52768,identical,layout identical; meaning depends on MFX Type (#196)
 xv->integra,Patch Common MFX,01 09,MFX Parameter 31,12768 - 52768,Common MFX,01 09,MFX Parameter 31,12768 - 52768,identical,layout identical; meaning depends on MFX Type (#196)
 xv->integra,Patch Common MFX,01 0D,MFX Parameter 32,12768 - 52768,Common MFX,01 0D,MFX Parameter 32,12768 - 52768,identical,layout identical; meaning depends on MFX Type (#196)
-xv->integra,Patch Common Chorus,00 00,Chorus Type,0 - 2,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196
-xv->integra,Patch Common Chorus,00 01,Chorus Level,0 - 127,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196
+xv->integra,Patch Common Chorus,00 00,Chorus Type,0 - 2,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196; reported when it sounds and differs from the INIT PATCH's CHORUS (#227)
+xv->integra,Patch Common Chorus,00 01,Chorus Level,0 - 127,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196; reported when it sounds and differs from the INIT level 127 (#227)
 xv->integra,Patch Common Chorus,00 02,Chorus Output Assign,0 - 3,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196
 xv->integra,Patch Common Chorus,00 03,Chorus Output Select,0 - 2,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196
 xv->integra,Patch Common Chorus,00 04,Chorus Parameter 1,12768 - 52768,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196
@@ -142,8 +142,8 @@ xv->integra,Patch Common Chorus,00 24,Chorus Parameter 9,12768 - 52768,,,,,no eq
 xv->integra,Patch Common Chorus,00 28,Chorus Parameter 10,12768 - 52768,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196
 xv->integra,Patch Common Chorus,00 2C,Chorus Parameter 11,12768 - 52768,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196
 xv->integra,Patch Common Chorus,00 30,Chorus Parameter 12,12768 - 52768,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196
-xv->integra,Patch Common Reverb,00 00,Reverb Type,0 - 4,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196
-xv->integra,Patch Common Reverb,00 01,Reverb Level,0 - 127,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196
+xv->integra,Patch Common Reverb,00 00,Reverb Type,0 - 4,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196; reported when it sounds and differs from the INIT PATCH's REVERB (#227)
+xv->integra,Patch Common Reverb,00 01,Reverb Level,0 - 127,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196; reported when it sounds and differs from the INIT level 127 (#227)
 xv->integra,Patch Common Reverb,00 02,Reverb Output Assign,0 - 3,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196
 xv->integra,Patch Common Reverb,00 03,Reverb Parameter 1,12768 - 52768,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196
 xv->integra,Patch Common Reverb,00 07,Reverb Parameter 2,12768 - 52768,,,,,no equivalent,no tone-level Chorus/Reverb on the Integra; see #196
