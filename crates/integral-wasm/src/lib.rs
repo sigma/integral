@@ -2719,6 +2719,16 @@ impl WasmDeviceState {
         self.inner.mixer_loading()
     }
 
+    /// The mixer blocks whose read gave up, as human-readable labels.
+    #[wasm_bindgen(js_name = mixerFailedBlocks)]
+    pub fn mixer_failed_blocks(&self) -> Vec<String> {
+        self.inner
+            .mixer_failed_blocks()
+            .iter()
+            .map(|block| block.label())
+            .collect()
+    }
+
     /// Drop a part's cached SN-S tone and read it again from the device,
     /// e.g. when its editor opens. Lost replies are requested again by
     /// `drain`.

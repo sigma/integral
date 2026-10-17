@@ -116,6 +116,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
       // shape (camelCase fields via serde rename).
       const rs = service.device.readState() as RustMixerState;
       const loading = service.device.mixerLoading();
+      const failedBlocks = service.device.mixerFailedBlocks();
       setState((prev) => ({
         studioSetName: rs.studioSetName ?? "",
         studioSetPC: rs.studioSetPC ?? 0,
@@ -133,6 +134,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
         // UI-only fields preserved from React state.
         selectedPart: prev.selectedPart,
         loading,
+        failedBlocks,
         // The current Studio Set's name is known once the load is done.
         studioSetNames:
           prev.loading && !loading && rs.studioSetName

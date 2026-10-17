@@ -1,5 +1,6 @@
 import { ChannelStrip } from "./ChannelStrip";
 import { FxStrip } from "./FxStrip";
+import { MixerLoadWarning } from "./MixerLoadWarning";
 // CompEqPanel replaced by ChannelStrip variant="comp-eq"
 import { chorus_params, reverb_params } from "../pkg/integral_wasm.js";
 import { deviceSpec } from "./deviceSpec";
@@ -22,6 +23,9 @@ export function MixerPage({ mixer, expansions }: Props) {
         <div className={css.loading}>Loading mixer state from device...</div>
       ) : (
         <div className={css.mixerArea}>
+          {state.failedBlocks.length > 0 && (
+            <MixerLoadWarning failed={state.failedBlocks} onRetry={mixer.reload} />
+          )}
           <div className={css.channels}>
             {state.parts.map((part, i) => (
               <ChannelStrip

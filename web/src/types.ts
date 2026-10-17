@@ -221,6 +221,11 @@ export interface MixerState {
   previewPart: number;
   /** Whether initial state is still loading from the device. */
   loading: boolean;
+  /**
+   * Labels of the mixer blocks whose read gave up on the last load
+   * (from `WasmDeviceState.mixerFailedBlocks()`).
+   */
+  failedBlocks: string[];
   /** All 64 Studio Set names (indexed 0–63). Populated via catalog query. */
   studioSetNames: Map<number, string>;
 }
@@ -262,6 +267,7 @@ export function defaultMixerState(): MixerState {
     drumCompEq: defaultDrumCompEqState(),
     previewPart: 0,
     loading: true,
+    failedBlocks: [],
     studioSetNames: new Map(),
   };
 }
