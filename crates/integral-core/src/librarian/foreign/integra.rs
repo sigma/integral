@@ -17,6 +17,9 @@ pub(super) struct Area {
     base: Address,
     /// Address value one past the last block.
     end: u32,
+    /// The User slot this area is, if it is one. It is the source address
+    /// the entry was dumped from, for Studio Set Parts to relink to.
+    slot: Option<u16>,
 }
 
 /// Every Temporary area (each Part's, for tones) and User slot of every
@@ -32,9 +35,10 @@ pub(super) fn areas() -> Vec<Area> {
         } else {
             1
         };
-        let temporary = (0..parts).map(|p| memory.temporary_base(p));
-        let user = (0..memory.slot_count).filter_map(|s| memory.user_address(s));
-        for base in temporary.chain(user) {
+        let temporary = (0..parts).map(|p| (memory.temporary_base(p), None));
+        let user = (0..memory.slot_count)
+            .filter_map(|s| memory.user_address(s).map(|base| (base, Some(s))));
+        for (base, slot) in temporary.chain(user) {
             let end = memory
                 .blocks(base)
                 .map(|(a, size)| a.value() + size.value())
@@ -45,6 +49,7 @@ pub(super) fn areas() -> Vec<Area> {
                 memory,
                 base,
                 end,
+                slot,
             });
         }
     }
@@ -76,5 +81,5 @@ pub(super) fn assemble<'a>(
         .map(|(a, size)| (a.value(), size.value() as usize))
         .collect();
     let blocks = frame::assemble(&layout, frames)?;
-    PackEntry::new(area.kind, None, blocks).ok()
+    PackEntry::new(area.kind, area.slot, blocks).ok()
 }

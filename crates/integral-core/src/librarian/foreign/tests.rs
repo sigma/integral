@@ -165,8 +165,12 @@ fn reads_user_slots_like_temporary() {
     let kit = blocks(kind, "User Kit", 0);
     let user = read(&dump(kind, memory.user_address(31).unwrap(), &kit));
     let temp = read(&dump(kind, temporary(kind, 9), &kit));
-    assert_eq!(user, temp);
-    assert_eq!(only_entry(&user).slot(), None);
+    // A Temporary dump has no source; a User one records its slot.
+    let user_entry = only_entry(&user);
+    assert_eq!(user_entry.slot(), Some(31));
+    let slotless = PackEntry::new(kind, None, user_entry.blocks().to_vec()).unwrap();
+    assert_eq!(slotless, *only_entry(&temp));
+    assert_eq!(only_entry(&temp).slot(), None);
 }
 
 #[test]
