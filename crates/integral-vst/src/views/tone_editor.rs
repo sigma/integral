@@ -800,6 +800,12 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
     });
 }
 
+/// The normalized centre of `spec`'s LED arc, when its format is signed
+/// around a value (e.g. pan 64); the arc then lights from that LED.
+fn spec_center(spec: &FieldSpec) -> Option<f32> {
+    spec.format.center().map(|center| to_norm(spec, center))
+}
+
 /// A knob for SN-S Common `field`, ranged and coloured by its core spec.
 fn sns_common_knob(
     cx: &mut Context,
@@ -809,12 +815,14 @@ fn sns_common_knob(
 ) {
     let spec = sns_common_spec(field);
     let family = spec.family;
+    let center = spec_center(&spec);
     SynthKnob::new(cx, lens, move |cx, val| {
         let raw = from_norm(&spec, val) as u8;
         cx.emit(ToneEditorEvent::SetSnsCommon(field, raw));
     })
     .label(label)
-    .family(family);
+    .family(family)
+    .center(center);
 }
 
 /// A knob for Partial `partial_idx`'s SN-S `field`, shown through
@@ -828,6 +836,7 @@ fn sns_partial_knob(
 ) {
     let spec = sns_partial_spec(field);
     let family = spec.family;
+    let center = spec_center(&spec);
     let lens = ToneEditorData::sns_partials
         .map(move |p| p[partial_idx].clone())
         .then(view_lens);
@@ -840,7 +849,8 @@ fn sns_partial_knob(
         ));
     })
     .label(label)
-    .family(family);
+    .family(family)
+    .center(center);
 }
 
 #[cfg(test)]
