@@ -36,12 +36,31 @@ pub enum ParamFormat {
     /// 0-127 as a number, then the tempo-synced note values from
     /// [`NOTE_FROM`].
     TimeOrNote,
+    /// A PCM Synth Tone LFO1/LFO2 rate as Hz
+    /// ([`docs/research/lfo-rates.md`], ±3% device scatter), then the
+    /// tempo-synced note values from [`NOTE_FROM`].
+    ///
+    /// [`docs/research/lfo-rates.md`]: crate::lfo_rates
+    PcmLfoRate,
+    /// An SN Synth Tone LFO / Modulation LFO rate as Hz
+    /// ([`docs/research/lfo-rates.md`], ±3% device scatter; rate 0 is an
+    /// unresolved estimate). Tempo sync lives in separate fields.
+    ///
+    /// [`docs/research/lfo-rates.md`]: crate::lfo_rates
+    SnLfoRate,
     /// The value as a percentage (`100` -> "100%").
     Percent,
 }
 
 /// First raw value of the note range in a [`ParamFormat::TimeOrNote`] field.
 pub const NOTE_FROM: i32 = 128;
+
+/// The tempo-synced note name of a value at or above [`NOTE_FROM`].
+fn note_name(value: i32) -> Option<&'static str> {
+    value
+        .checked_sub(NOTE_FROM)
+        .and_then(|i| crate::fx_params::NOTE_NAMES.get(i as usize).copied())
+}
 
 /// Logical grouping for a parameter.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -159,12 +178,17 @@ impl ParamFormat {
                     value.div_euclid(12) - 1
                 )
             }
-            ParamFormat::TimeOrNote => match value.checked_sub(NOTE_FROM) {
-                Some(i) if i >= 0 => crate::fx_params::NOTE_NAMES
-                    .get(i as usize)
-                    .map_or_else(|| value.to_string(), |n| n.to_string()),
-                _ => value.to_string(),
+            ParamFormat::TimeOrNote => match note_name(value) {
+                Some(note) => note.to_string(),
+                None => value.to_string(),
             },
+            ParamFormat::PcmLfoRate => match note_name(value) {
+                Some(note) => note.to_string(),
+                None => crate::lfo_rates::format_hz(crate::lfo_rates::pcm_lfo_hz(value)),
+            },
+            ParamFormat::SnLfoRate => {
+                crate::lfo_rates::format_hz(crate::lfo_rates::sn_lfo_hz(value))
+            }
             ParamFormat::Percent => format!("{value}%"),
         }
     }
