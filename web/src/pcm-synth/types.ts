@@ -34,6 +34,9 @@ export interface PcmSynthCommon {
   pmtControlSwitch: number;
   pitchBendRangeUp: number;
   pitchBendRangeDown: number;
+  reserve0c: number;
+  reserve1f: number;
+  reserve27: number;
 }
 
 export interface PmtPartialEntry {

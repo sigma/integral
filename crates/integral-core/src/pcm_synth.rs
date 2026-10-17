@@ -649,6 +649,15 @@ pub struct PcmSynthCommon {
     pub pitch_bend_range_down: u8,
     /// Matrix Controls (4 slots).
     pub matrix_controls: Vec<MatrixControl>,
+    /// Reserve byte at offset `00 0C`. Carries data in saved files; passed
+    /// through decode/encode untouched.
+    pub reserve_0c: u8,
+    /// Reserve byte at offset `00 1F`. Carries data in saved files; passed
+    /// through decode/encode untouched.
+    pub reserve_1f: u8,
+    /// Reserve byte at offset `00 27`. Always 13 in the device's saved
+    /// tones; passed through decode/encode untouched.
+    pub reserve_27: u8,
 }
 
 impl Default for PcmSynthCommon {
@@ -701,6 +710,12 @@ impl Default for PcmSynthCommon {
                     ..MatrixControl::default()
                 },
             ],
+            // Values from the device's own INIT TONE
+            // (`tests/fixtures/init/pcm-synth-common.bin`), so freshly
+            // constructed tones match what the device writes.
+            reserve_0c: 0,
+            reserve_1f: 0,
+            reserve_27: 13,
         }
     }
 }
@@ -1269,6 +1284,11 @@ pub fn parse_pcms_common(data: &[u8]) -> Result<PcmSynthCommon, crate::ToneParse
         mc.sensitivities = F::MATRIX_CONTROL_SENS.map(|f| f.element(data, i));
     }
 
+    // Reserve bytes: no field spec models them, read the raw offsets.
+    c.reserve_0c = data[0x0C];
+    c.reserve_1f = data[0x1F];
+    c.reserve_27 = data[0x27];
+
     Ok(c)
 }
 
@@ -1509,6 +1529,12 @@ pub fn encode_pcms_common(c: &PcmSynthCommon) -> Vec<u8> {
             f.set_element(&mut data, i, value);
         }
     }
+
+    // Reserve bytes: no field spec models them, write the raw offsets.
+    data[0x0C] = c.reserve_0c;
+    data[0x1F] = c.reserve_1f;
+    data[0x27] = c.reserve_27;
+
     data
 }
 
@@ -1701,6 +1727,27 @@ mod tests {
         let partial = encode_pcms_partial(&state.partials[1]);
         assert_eq!(partial.len(), PCMS_PARTIAL_SIZE);
         assert_eq!(parse_pcms_partial(&partial).unwrap(), state.partials[1]);
+    }
+
+    /// The INIT TONE Common re-encodes byte-identically, reserves included.
+    #[test]
+    fn init_tone_common_round_trips_byte_identically() {
+        let init = include_bytes!("../tests/fixtures/init/pcm-synth-common.bin");
+        let common = parse_pcms_common(init).unwrap();
+        assert_eq!(encode_pcms_common(&common), init);
+    }
+
+    /// The reserve bytes a decode picked up survive an encode even after
+    /// other fields change.
+    #[test]
+    fn decoded_reserves_survive_an_encode() {
+        let init = include_bytes!("../tests/fixtures/init/pcm-synth-common.bin");
+        let mut common = parse_pcms_common(init).unwrap();
+        common.tone_level = 100;
+        let encoded = encode_pcms_common(&common);
+        assert_eq!(encoded[0x0C], init[0x0C]);
+        assert_eq!(encoded[0x1F], init[0x1F]);
+        assert_eq!(encoded[0x27], init[0x27]);
     }
 
     #[test]
