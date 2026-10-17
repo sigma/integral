@@ -13,10 +13,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // A new deploy takes over at once (skipWaiting + clientsClaim) and
-      // reloads open pages (registered in main.tsx), so JS and the WASM it
-      // loads always come from one build.
-      registerType: "autoUpdate",
+      // A new deploy waits until the user accepts the reload offered by
+      // PwaUpdateBanner (registered in main.tsx), so JS and the WASM it
+      // loads always come from one build — and no open page is reloaded
+      // mid-session.
+      registerType: "prompt",
       manifest: {
         name: "Integral",
         short_name: "Integral",
