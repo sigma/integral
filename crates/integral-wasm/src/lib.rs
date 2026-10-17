@@ -3074,9 +3074,11 @@ pub enum ControlSourceKind {
     Mfx,
     /// See [`mfx_params::ControlSourceKind::Matrix`].
     Matrix,
+    /// See [`mfx_params::ControlSourceKind::SystemControl`].
+    SystemControl,
 }
 
-mirror_core_enum!(ControlSourceKind <=> mfx_params::ControlSourceKind { Mfx, Matrix });
+mirror_core_enum!(ControlSourceKind <=> mfx_params::ControlSourceKind { Mfx, Matrix, SystemControl });
 
 /// One Control Source a picker may offer.
 #[wasm_bindgen(getter_with_clone)]

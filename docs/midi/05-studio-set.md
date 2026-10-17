@@ -90,6 +90,12 @@ Total size: **00 00 00 54**
 | 00 52 | 0aaa aaaa | (reserve) \<\*> | -- | -- |
 | 00 53 | 0aaa aaaa | (reserve) \<\*> | -- | -- |
 
+> **Note:** The Tone Control 1--4 Sources are indexed by CC number and likely
+> skip value 32 (CC32 is not offered), like the MFX/Matrix Control Sources
+> (see [JV/XV research notes](../research/jv-xv-roland-pairs.md),
+> "(b) Controller routing"). Unconfirmed for this list: no device read-back
+> yet.
+
 > **Note:** The reserves are not all zero in saved files. In an SVD entry the
 > 00 10 - 00 38 block (reserves and Voice Reserve 1 - 16) packs into 257 bits,
 > and its first 32 bits are always `FE 82 08 78`. See [SVD: Studio Set](../svd/05-studio-set.md#where-the-svd-differs-from-sysex-order-and-widths).
