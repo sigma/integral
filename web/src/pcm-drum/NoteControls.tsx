@@ -82,11 +82,11 @@ export function NoteControls({
           <OutputStrip
             pan={{
               value: note.pan, onChange: set(PcmdPartialField.Pan, "pan"),
-              format: (v) => pcmd_partial_spec(PcmdPartialField.Pan).formatValue(v),
-              family: pcmd_partial_spec(PcmdPartialField.Pan).family,
+              spec: knobProps(pcmd_partial_spec(PcmdPartialField.Pan)),
             }}
-            fx1Family={pcmd_partial_spec(PcmdPartialField.ChorusSend).family}
-            fx2Family={pcmd_partial_spec(PcmdPartialField.ReverbSend).family}
+            fx1Spec={knobProps(pcmd_partial_spec(PcmdPartialField.ChorusSend))}
+            fx2Spec={knobProps(pcmd_partial_spec(PcmdPartialField.ReverbSend))}
+            levelSpec={knobRange(pcmd_partial_spec(PcmdPartialField.OutputLevel))}
             fx1={note.chorusSend} fx2={note.reverbSend}
             level={note.outputLevel}
             onFx1Change={set(PcmdPartialField.ChorusSend, "chorusSend")}

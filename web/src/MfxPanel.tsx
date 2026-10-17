@@ -151,8 +151,11 @@ export function MfxPanel({
               level={levelParamIndex >= 0 ? (mfx.params[levelParamIndex] ?? 127) : 127}
               onFx1Change={(v) => onHeaderParam(MfxHeaderField.ChorusSend, 0, v)}
               onFx2Change={(v) => onHeaderParam(MfxHeaderField.ReverbSend, 0, v)}
-              fx1Family={mfxHeaderFamily(MfxHeaderField.ChorusSend)}
-              fx2Family={mfxHeaderFamily(MfxHeaderField.ReverbSend)}
+              // shortcut: 0–127 literal ranges — MFX header fields have no core
+              // field_spec yet; swap for `mfx_header_spec` knobs when integral-core grows one.
+              fx1Spec={{ min: 0, max: 127, defaultValue: 0, formatValue: String, family: mfxHeaderFamily(MfxHeaderField.ChorusSend) }}
+              fx2Spec={{ min: 0, max: 127, defaultValue: 0, formatValue: String, family: mfxHeaderFamily(MfxHeaderField.ReverbSend) }}
+              levelSpec={{ min: 0, max: 127, defaultValue: 127 }}
               onLevelChange={levelParamIndex >= 0 ? (v) => onNibParam(levelParamIndex, v) : () => {}}
               trackHeight={250}
             />
