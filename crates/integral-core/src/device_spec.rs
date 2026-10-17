@@ -34,8 +34,8 @@ pub struct DeviceSpec {
     pub chorus_output_names: &'static [&'static str],
     /// Reverb type display names.
     pub reverb_type_names: &'static [&'static str],
-    /// Reverb output routing names.
-    pub reverb_output_names: &'static [&'static str],
+    /// Output assign labels (A–D), shared by Reverb and Chorus Output Assign.
+    pub output_assign_names: &'static [&'static str],
     /// Motional Surround room type names.
     pub surround_room_types: &'static [&'static str],
     /// Motional Surround room size names.
@@ -353,7 +353,7 @@ pub const INTEGRA7: DeviceSpec = DeviceSpec {
     reverb_type_names: &[
         "OFF", "Room 1", "Room 2", "Hall 1", "Hall 2", "Plate", "GM2 Rev",
     ],
-    reverb_output_names: &["A", "B", "C", "D"],
+    output_assign_names: &["A", "B", "C", "D"],
     surround_room_types: &["Room 1", "Room 2", "Hall 1", "Hall 2"],
     surround_room_sizes: &["Small", "Medium", "Large"],
     comp_attack_times: &[
@@ -481,10 +481,10 @@ mod tests {
     }
 
     #[test]
-    fn integra7_reverb_outputs() {
-        assert_eq!(INTEGRA7.reverb_output_names.len(), 4);
-        assert_eq!(INTEGRA7.reverb_output_names[0], "A");
-        assert_eq!(INTEGRA7.reverb_output_names[3], "D");
+    fn integra7_output_assign_names() {
+        assert_eq!(INTEGRA7.output_assign_names.len(), 4);
+        assert_eq!(INTEGRA7.output_assign_names[0], "A");
+        assert_eq!(INTEGRA7.output_assign_names[3], "D");
     }
 
     #[test]

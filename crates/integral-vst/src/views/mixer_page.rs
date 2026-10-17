@@ -569,7 +569,7 @@ impl MixerPage {
                         cx,
                         "FX2",
                         INTEGRA7.reverb_type_names,
-                        INTEGRA7.reverb_output_names,
+                        INTEGRA7.output_assign_names,
                         MixerData::reverb,
                         |cx, edit| cx.emit(MixerEvent::Fx(FxBlock::Reverb, edit)),
                     );

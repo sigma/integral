@@ -85,7 +85,20 @@ export function MixerPage({ mixer, expansions }: Props) {
             label="FX1"
             fx={state.chorus}
             typeNames={spec.chorus_type_names}
-            outputNames={spec.chorus_output_names}
+            routes={[
+              {
+                offset: 2,
+                names: spec.output_assign_names,
+                value: state.chorus.outputAssign,
+                title: "FX1 Output Assign",
+              },
+              {
+                offset: 3,
+                names: spec.chorus_output_names,
+                value: state.chorus.output,
+                title: "FX1 Output Select",
+              },
+            ]}
             paramDefs={chorus_params}
             onToggleSwitch={mixer.toggleChorusSwitch}
             onParam={mixer.setChorusParam}
@@ -95,7 +108,14 @@ export function MixerPage({ mixer, expansions }: Props) {
             label="FX2"
             fx={state.reverb}
             typeNames={spec.reverb_type_names}
-            outputNames={spec.reverb_output_names}
+            routes={[
+              {
+                offset: 2,
+                names: spec.output_assign_names,
+                value: state.reverb.output,
+                title: "FX2 Output Assign",
+              },
+            ]}
             paramDefs={reverb_params}
             onToggleSwitch={mixer.toggleReverbSwitch}
             onParam={mixer.setReverbParam}

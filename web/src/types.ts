@@ -42,6 +42,8 @@ export interface FxState {
   level: number;
   /** Output routing (Chorus: 0-2 MAIN/REV/MAIN+REV; Reverb: 0-3 A/B/C/D). */
   output: number;
+  /** Chorus Output Assign (0-3 = A/B/C/D); only the Chorus uses this field. */
+  outputAssign: number;
   /** Type-dependent parameters (nibblized values, decoded to display range). */
   params: number[];
 }
@@ -53,6 +55,7 @@ export function defaultFxState(): FxState {
     type: 0,
     level: 0,
     output: 0,
+    outputAssign: 0,
     params: [],
   };
 }

@@ -239,6 +239,7 @@ impl MixerBlock {
             ChorusCore => {
                 state.chorus.fx_type = data[usize::from(params::chorus::TYPE)];
                 state.chorus.level = data[usize::from(params::chorus::LEVEL)];
+                state.chorus.output_assign = data[usize::from(params::chorus::OUTPUT_ASSIGN)];
                 state.chorus.output = data[usize::from(params::chorus::OUTPUT_SELECT)];
             }
             ChorusSwitch => state.chorus.enabled = byte == 1,

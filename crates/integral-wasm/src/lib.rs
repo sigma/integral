@@ -2313,7 +2313,7 @@ pub fn reverb_type_names() -> Vec<String> {
         .collect()
 }
 
-/// Returns chorus output routing names.
+/// Returns chorus output select names (MAIN/REV/MAIN+REV).
 #[wasm_bindgen]
 pub fn chorus_output_names() -> Vec<String> {
     fx_params::CHORUS_OUTPUT_NAMES
@@ -2322,10 +2322,19 @@ pub fn chorus_output_names() -> Vec<String> {
         .collect()
 }
 
-/// Returns reverb output routing names.
+/// Returns reverb output assign names (A–D).
 #[wasm_bindgen]
 pub fn reverb_output_names() -> Vec<String> {
-    fx_params::REVERB_OUTPUT_NAMES
+    fx_params::OUTPUT_ASSIGN_NAMES
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Returns chorus output assign names (A–D).
+#[wasm_bindgen]
+pub fn chorus_output_assign_names() -> Vec<String> {
+    fx_params::OUTPUT_ASSIGN_NAMES
         .iter()
         .map(|s| s.to_string())
         .collect()

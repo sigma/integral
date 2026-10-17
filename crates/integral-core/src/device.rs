@@ -633,12 +633,13 @@ impl DeviceState {
         );
     }
 
-    /// Set a chorus core parameter (type, level or output select, at the
-    /// [`params::chorus`] offsets).
+    /// Set a chorus core parameter (type, level, output assign or output
+    /// select, at the [`params::chorus`] offsets).
     pub fn set_chorus_param(&mut self, offset: u8, value: u8) {
         match offset {
             params::chorus::TYPE => self.state.chorus.fx_type = value,
             params::chorus::LEVEL => self.state.chorus.level = value,
+            params::chorus::OUTPUT_ASSIGN => self.state.chorus.output_assign = value,
             params::chorus::OUTPUT_SELECT => self.state.chorus.output = value,
             _ => return,
         }
@@ -1369,6 +1370,19 @@ mod tests {
     use crate::sn_synth;
 
     #[test]
+    fn chorus_output_assign_writes_its_own_offset() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_chorus_param(params::chorus::OUTPUT_ASSIGN, 3);
+        assert_eq!(dev.state().chorus.output_assign, 3);
+        let expected = sysex::build_dt1(
+            0x10,
+            &params::chorus_address(params::chorus::OUTPUT_ASSIGN),
+            &[3],
+        );
+        assert_eq!(dev.drain(0.0), Some(expected));
+    }
+
+    #[test]
     fn chorus_output_select_writes_its_own_offset() {
         let mut dev = DeviceState::new(0x10);
         dev.set_chorus_param(params::chorus::OUTPUT_SELECT, 2);
@@ -1379,10 +1393,11 @@ mod tests {
             &[2],
         );
         assert_eq!(dev.drain(0.0), Some(expected));
-        // Offset 0x02 is reserved: nothing to write.
-        dev.set_chorus_param(0x02, 1);
+        // The output assign at 0x02 is independent of the select.
+        dev.set_chorus_param(params::chorus::OUTPUT_ASSIGN, 1);
         assert_eq!(dev.state().chorus.output, 2);
-        assert!(!dev.has_pending());
+        assert_eq!(dev.state().chorus.output_assign, 1);
+        assert!(dev.has_pending());
     }
 
     #[test]
@@ -2195,7 +2210,7 @@ mod tests {
             (params::tone_category_address(2, 87).unwrap(), vec![7]),
             (
                 params::chorus_address(params::chorus::TYPE),
-                vec![2, 100, 0, 1],
+                vec![2, 100, 3, 1],
             ),
             (params::REVERB_SWITCH, vec![1]),
             (params::reverb_address(params::reverb::TYPE), vec![3, 80, 2]),
@@ -2217,8 +2232,13 @@ mod tests {
         assert_eq!((p.tone_name.as_str(), p.tone_category), ("User Lead", 7));
         assert_eq!(s.parts[9].tone_category, crate::svd::DRUMS_CATEGORY);
         assert_eq!(
-            (s.chorus.fx_type, s.chorus.level, s.chorus.output),
-            (2, 100, 1)
+            (
+                s.chorus.fx_type,
+                s.chorus.level,
+                s.chorus.output_assign,
+                s.chorus.output
+            ),
+            (2, 100, 3, 1)
         );
         assert!(s.reverb.enabled);
         assert_eq!(
