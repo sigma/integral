@@ -381,10 +381,11 @@ fn mfx(p: &mut Patch<'_>) {
 /// parameters go through the effect map when a Tone in `routed` (its
 /// place, and whether it goes through the MFX) uses it, and it is THRU
 /// otherwise. Tones that bypassed the MFX go through it on the INTEGRA-7,
-/// and are reported. Control Assign indexes the XV type's destinations, so
-/// it is set OFF, and a control in use is reported (#236). MFX Output Assign names
-/// physical outputs and is dropped. MFX Dry Send Level has no INTEGRA-7
-/// equivalent; its reserve gets 127, as INTEGRA-7 tones carry.
+/// and are reported. Control Assign indexes the XV type's destinations, and
+/// destination n converts onto the INTEGRA-7's Control Assign; a destination
+/// the INTEGRA-7 type cannot control is reported by its name. MFX Output
+/// Assign names physical outputs and is dropped. MFX Dry Send Level has no
+/// INTEGRA-7 equivalent; its reserve gets 127, as INTEGRA-7 tones carry.
 pub(super) fn convert_mfx(
     xv: &[u8],
     mfx: &mut [u8],
@@ -422,15 +423,41 @@ pub(super) fn convert_mfx(
         }
     }
     for (k, (control, name)) in (0..).zip(state.controls.iter().zip(MFX_CONTROLS)) {
-        if control.assign != 0 && control.source != 0 && control.sens != MfxCtrlSlot::default().sens
-        {
-            report.push(ConversionItem::ParamDropped {
-                at: None,
-                param: name,
-            });
-        }
         let assign = mfx_header_offset(MfxHeaderField::ControlAssign, k).expect("MFX Control 1-4");
-        mfx[usize::from(assign)] = 0;
+        // the stored Assign indexes the XV type's destinations; destination n
+        // converts onto the INTEGRA-7's Control Assign, or is reported by its
+        // destination name
+        let verdict = if control.assign != 0 {
+            fx_map::control_match(effect, usize::from(control.assign - 1))
+        } else {
+            fx_map::ControlMatch::Dead
+        };
+        match verdict {
+            fx_map::ControlMatch::Assign(value) => mfx[usize::from(assign)] = value,
+            fx_map::ControlMatch::Dropped(dest) => {
+                mfx[usize::from(assign)] = 0;
+                if control.source != 0 && control.sens != MfxCtrlSlot::default().sens {
+                    report.push(ConversionItem::ParamDropped {
+                        at: None,
+                        param: dest,
+                    });
+                }
+            }
+            fx_map::ControlMatch::Dead => {
+                mfx[usize::from(assign)] = 0;
+                if control.assign != 0
+                    && control.source != 0
+                    && control.sens != MfxCtrlSlot::default().sens
+                {
+                    // an Assign value beyond the type's destination list: the
+                    // XV-5050 manual gives no name for it
+                    report.push(ConversionItem::ParamDropped {
+                        at: None,
+                        param: name,
+                    });
+                }
+            }
+        }
     }
 }
 

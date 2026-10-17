@@ -174,6 +174,15 @@ struct EffectUnmappedEntry {
     value: i32,
 }
 
+/// One MFX Control destination of a type (`control_dests` of the map): its
+/// XV-5050 name, and the Integra name it lands on, or none when the Integra
+/// type cannot control it.
+#[derive(serde::Deserialize)]
+struct EffectControlEntry {
+    dest: String,
+    integra: Option<String>,
+}
+
 /// One JV EFX type of `foreign-fx-map.json`.
 #[derive(serde::Deserialize)]
 struct JvEffectEntry {
@@ -184,6 +193,8 @@ struct JvEffectEntry {
     params: Vec<EffectParamEntry>,
     #[serde(default)]
     integra_unmapped: Vec<EffectUnmappedEntry>,
+    #[serde(default)]
+    control_dests: Vec<EffectControlEntry>,
 }
 
 /// One XV MFX type 41–90 of `foreign-fx-map.json`.
@@ -198,6 +209,8 @@ struct XvEffectEntry {
     /// types whose layout the corpus and the manual support.
     #[serde(default)]
     copy_slots: Vec<u8>,
+    #[serde(default)]
+    control_dests: Vec<EffectControlEntry>,
 }
 
 /// The part of `docs/research/foreign-fx-map.json` the build reads.
@@ -497,7 +510,17 @@ fn generate_foreign_fx_map(map_path: &Path, out_dir: &Path) {
             .iter()
             .map(|u| format!("({}, {})", u.n, u.value))
             .collect();
-        writeln!(out, "    ], unmapped: &[{}] }},", unmapped.join(", ")).unwrap();
+        let controls = t
+            .integra_type
+            .is_some()
+            .then(|| controls_literal(&t.control_dests));
+        writeln!(
+            out,
+            "    ], unmapped: &[{}], controls: {} }},",
+            unmapped.join(", "),
+            controls.as_deref().unwrap_or("&[]")
+        )
+        .unwrap();
     }
     writeln!(out, "];").unwrap();
 
@@ -520,17 +543,34 @@ fn generate_foreign_fx_map(map_path: &Path, out_dir: &Path) {
             "foreign-fx-map.json: XV MFX {} has a target iff its class is not none",
             t.xv_type
         );
+        let controls = target.is_some().then(|| controls_literal(&t.control_dests));
         writeln!(
             out,
-            "    XvEffect {{ name: {:?}, class: {}, target: {}, copy: &{:?} }},",
+            "    XvEffect {{ name: {:?}, class: {}, target: {}, copy: &{:?}, controls: {} }},",
             t.name,
             effect_class(&t.class),
             target.unwrap_or(0),
-            t.copy_slots
+            t.copy_slots,
+            controls.as_deref().unwrap_or("&[]")
         )
         .unwrap();
     }
     writeln!(out, "];").unwrap();
+}
+
+/// The `CtrlDest` list literal of a type's `control_dests`.
+fn controls_literal(dests: &[EffectControlEntry]) -> String {
+    let items: Vec<String> = dests
+        .iter()
+        .map(|d| {
+            let integra = d
+                .integra
+                .as_deref()
+                .map_or("None".to_string(), |n| format!("Some({n:?})"));
+            format!("CtrlDest {{ name: {:?}, integra: {integra} }}", d.dest)
+        })
+        .collect();
+    format!("&[{}]", items.join(", "))
 }
 
 /// Load the category name → numeric value mapping from `docs/sounds/categories.json`.

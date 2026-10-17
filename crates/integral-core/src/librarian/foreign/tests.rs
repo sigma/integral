@@ -397,6 +397,10 @@ mod xv_patches {
         (read.pack.entries.remove(0), read.reports.remove(0))
     }
 
+    fn texts(report: &ConversionReport) -> Vec<String> {
+        report.iter().map(ToString::to_string).collect()
+    }
+
     #[test]
     fn the_fixture_is_one_patch_of_9_dt1s() {
         assert_eq!(UNITED.len(), 1056);
@@ -797,6 +801,57 @@ mod xv_patches {
             applied[2],
             at(params::reverb_address(reverb::TYPE), &[3, 0])
         );
+    }
+
+    /// MFX Control Assign indexes the XV type's destinations: RING MOD
+    /// Assign 1 = 2 (Sens) lands on Integra Ring Modulator Assign 1 = 2.
+    #[test]
+    fn a_control_assign_index_maps_onto_the_target_type() {
+        let (entry, report) = converted(&patch([0x30, 0x00], |b| {
+            b[1][0x00] = 44; // MFX Type 44 RING MOD
+            b[1][0x05] = 7; // Control 1 Source CC07, in use
+            b[1][0x06] = 100; // Control 1 Sens
+            b[1][0x0D] = 2; // Control Assign 1 = Sens
+        }));
+        let mfx = crate::mfx::parse_mfx_block(&entry.blocks()[1]);
+        assert_eq!(mfx.mfx_type, 15); // RING MODULATOR
+        assert_eq!(mfx.controls[0].assign, 2); // Sens
+        // RING MOD is a substitute, which is reported on its own.
+        assert_eq!(
+            texts(&report),
+            ["MFX type 44 (RING MODULATOR) approximated by MFX type 15 (Ring Modulator)"]
+        );
+    }
+
+    /// LOFI NOISE Assign 1 is Radio Detune, which Integra LOFI Compress
+    /// cannot control: reported by its destination, and Assign stays OFF.
+    #[test]
+    fn an_uncontrollable_assign_is_reported_by_its_destination() {
+        let (_, report) = converted(&patch([0x30, 0x00], |b| {
+            b[1][0x00] = 51; // MFX Type 51 LOFI NOISE
+            b[1][0x05] = 7; // Control 1 Source CC07, in use
+            b[1][0x06] = 100; // Control 1 Sens
+            b[1][0x0D] = 1; // Control Assign 1 = Radio Detune
+        }));
+        assert_eq!(
+            texts(&report),
+            [
+                "MFX type 51 (LOFI NOISE) approximated by MFX type 41 (LOFI Compress)",
+                "Radio Detune dropped",
+            ]
+        );
+    }
+
+    /// A control whose Assign is set but whose Source is OFF loses nothing:
+    /// it was off on the XV too.
+    #[test]
+    fn an_unused_control_is_not_reported() {
+        let (_, report) = converted(&patch([0x30, 0x00], |b| {
+            b[1][0x00] = 51; // MFX Type 51 LOFI NOISE
+            b[1][0x0D] = 1; // Control Assign 1 = Radio Detune, Source OFF
+        }));
+        // only the substitute report: the control itself was off on the XV.
+        assert_eq!(report.len(), 1);
     }
 }
 
@@ -1383,13 +1438,47 @@ mod jv_patches {
         let delays: Vec<i32> = [0, 2, 3, 5, 6, 8].map(|i| mfx.params[i]).to_vec();
         assert_eq!(delays, [1, 12, 1, 9, 1, 12]);
         assert_eq!(mfx.params[9..18], [34, 14, 110, 127, 0, 15, 15, 20, 127]);
-        // SYS-CTRL2 → SYS3 (100), Depth +10, destination dropped.
+        // SYS-CTRL2 → SYS3 (100), Depth +10, destination Feedback →
+        // Center Feedback; Control 2 lands on Balance.
         assert_eq!(mfx.controls[0].source, 100);
         assert_eq!(mfx.controls[0].sens, 74);
-        assert_eq!(mfx.controls[0].assign, 0);
-        assert_eq!(texts(&jv_report), ["EFX Control 1 dropped"]);
-        assert_eq!(xv_report.len(), 1);
-        assert_eq!(xv_report[0].to_string(), "MFX Control 1 dropped");
+        assert_eq!(mfx.controls[0].assign, 1);
+        assert_eq!(mfx.controls[1].assign, 2);
+        assert!(jv_report.is_empty(), "{jv_report:?}");
+        assert!(xv_report.is_empty(), "{xv_report:?}");
+    }
+
+    /// Both EFX Controls in use on STEREO-EQ, whose type has one
+    /// destination. Roland's conversions write Assign 1 = 1 (the XV list's
+    /// Level) and Assign 2 = 0 for it; here Level is the INTEGRA-7
+    /// Equalizer's third destination, and Control 2 loses nothing.
+    #[test]
+    fn a_one_destination_efx_leaves_control_2_off() {
+        let (entry, report) = converted(&patch([0x11, 0x00], 0x48, |b| {
+            b[0][0x0C] = 0; // EFX Type 1 STEREO-EQ
+            b[0][0x1A] = 127; // Mix Out Send Level full
+            b[0][0x1D..0x21].copy_from_slice(&[7, 100, 1, 100]); // both controls, in use
+            b[1][0x7D] = 1; // Output EFX
+        }));
+        let mfx = crate::mfx::parse_mfx_block(&entry.blocks()[1]);
+        assert_eq!(mfx.mfx_type, 1); // EQUALIZER
+        assert_eq!(mfx.controls[0].assign, 3); // Level
+        assert_eq!(mfx.controls[1].assign, 0); // dead on the EFX too
+        assert!(report.is_empty(), "{report:?}");
+    }
+
+    /// SPECTRUM Control 2 is the type's Pan, which the INTEGRA-7 Spectrum
+    /// cannot control: reported by its destination.
+    #[test]
+    fn an_uncontrollable_destination_is_reported_by_its_name() {
+        let (_, report) = converted(&patch([0x11, 0x00], 0x48, |b| {
+            b[0][0x0C] = 4; // EFX Type 5 SPECTRUM
+            b[0][0x16] = 64; // Output Pan centre
+            b[0][0x1A] = 127; // Mix Out Send Level full
+            b[0][0x1D..0x21].copy_from_slice(&[7, 100, 1, 100]);
+            b[1][0x7D] = 1; // Output EFX
+        }));
+        assert_eq!(texts(&report), ["Pan dropped"]);
     }
 
     #[test]

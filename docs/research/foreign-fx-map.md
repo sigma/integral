@@ -47,9 +47,9 @@ for all 40 JV types is in [`foreign-fx-map.json`](foreign-fx-map.json).
 |---|--------|---------------|
 | J1 | Roland *JV-1010 Owner's Manual*, MIDI Implementation, "Correspondence of the EFX algorithm and Exclusive Address" ([PDF](https://static.roland.com/assets/media/pdf/JV-1010_OM.pdf), PDF pp. 83-85) and Patch Common map | Raw range of EFX Parameter 1-12 for each of the 40 types. Patch Common `00 0C`-`00 2B`: EFX, Chorus and Reverb. Same model ID `6A` as the JV-1080/2080. |
 | J2 | Roland *JV-1080 Owner's Manual* ([PDF](https://static.roland.com/assets/media/pdf/JV-1080_OM.pdf), a scan, read by OCR; PDF pp. 45-47, 83-99) | Display ranges and step tables (Rate, Pre Delay, Delay Time, Manual). Patch Chorus/Reverb semantics. Tone Output Assign MIX/EFX/OUTPUT1/2. |
-| X1 | Roland *XV-5050 Owner's Manual* ([PDF](https://static.roland.com/assets/media/pdf/XV-5050_OM.pdf), PDF pp. 76-103) | All 90 MFX types with parameter, value and description tables. Note lists \*1 and \*2. Chorus types 0-3 (incl. GM2), Reverb types 0-5 (incl. GM2). |
+| X1 | Roland *XV-5050 Owner's Manual* ([PDF](https://static.roland.com/assets/media/pdf/XV-5050_OM.pdf), PDF pp. 76-103) | All 90 MFX types with parameter, value and description tables, `#`-marked per type's control destinations (see [Control destinations](#control-destinations)). Note lists \*1 and \*2. Chorus types 0-3 (incl. GM2), Reverb types 0-5 (incl. GM2). |
 | X2 | Roland *XV-3080 Owner's Manual* ([PDF](https://static.roland.com/assets/media/pdf/XV-3080_OM.pdf), list on PDF p. 36, MIDI Implementation in the appendix) | 63-type list (= XV-5080 1-63). Patch Common MFX/Chorus/Reverb and Patch Tone byte layouts. |
-| X3 | Roland *XV-5080 Owner's Manual* ([PDF](https://static.roland.com/assets/media/pdf/XV-5080_OM.pdf), pp. 26-28, 41-42) | 90-type list. MFX Dry/Chorus/Reverb Send. Chorus types 0-2, Reverb types 0-4. |
+| X3 | Roland *XV-5080 Owner's Manual* ([PDF](https://static.roland.com/assets/media/pdf/XV-5080_OM.pdf), pp. 26-28, 41-42) | 90-type list. MFX Dry/Chorus/Reverb Send. Chorus types 0-2, Reverb types 0-4. Its effects chapter's `#`/`#1`/`#2` legend (what [Control destinations](#control-destinations) reads X1's marks as) is reprinted there. |
 | X4 | Roland *XV-2020* and *XV-88* Owner's Manuals ([XV-2020](https://static.roland.com/assets/media/pdf/XV-2020_OM.pdf), [XV-88](https://static.roland.com/assets/media/pdf/XV-88_OM.pdf)) | XV-2020: MFX Type 0-40, Chorus OFF/CHORUS, Reverb OFF/REVERB. XV-88: 63 types. |
 | X5 | Roland *XP-30 Owner's Manual* ([PDF](https://static.roland.com/assets/media/pdf/XP-30_OM.pdf)) | XP-30: "40 different effects" (JV EFX). |
 | I1 | Roland *INTEGRA-7 Parameter Guide* e01 ([PDF](https://static.roland.com/assets/media/pdf/INTEGRA-7_Parameter_Guide_e01_W.pdf), PDF pp. 74-98) | Display ranges of the 68 MFX types, Chorus and Reverb. |
@@ -225,6 +225,68 @@ I2 and [`fx-param-layout.md`](fx-param-layout.md). Full text is in the JSON `con
 Check: each table's entry count equals its J1 raw range. Rate has 99+20+7 = 126 entries
 (0-125), Delay 500 has 50+10+30+26+11 = 127 (0-126), Delay 1000 has 70+46+10 notes = 126
 (0-125), TCD has 80+41 = 121 (0-120).
+
+## Control destinations
+
+A JV EFX has two realtime controls (Patch Common `1D`–`20`: Source and Depth 1/2) whose
+**destination is fixed per type**: on a JV there is nothing to store. XV MFX types 1–90 store
+`MFX Control Assign 1–4` (0–16 each), whose values index a per-type destination list. The two
+are the same mechanism: Roland's own JV → XV conversions write `Assign 1 = 1`, `Assign 2 = 2`
+into every type 1–40 (EFX Control n → destination n), and STEREO-EQ — the one type with a
+single destination — gets `Assign 2 = 0`. So EFX/MFX Control n maps onto destination n of the
+type's list, and the list converts onto the INTEGRA-7 type's Control Assign destinations by
+name (`foreign-fx-map.json`, `control_dests`; `fx_map::control_match`).
+
+**Where the lists come from.** The XV-5050 Owner's Manual (X1, PDF pp. 76–103) marks every
+controllable parameter of each of the 90 types with a sharp `#` in its parameter table
+("Parameters marked with a sharp '#' can be simultaneously controlled"); the XV-5080 manual's
+effects chapter says of the same tables that "two setting items will change simultaneously for
+'#1' and '#2'" — one destination each, the coarse+fine pitch pair of a pitch shifter voice
+(named `Pitch n` here). The destinations are the marked parameters in table
+order, and the stored Assign value indexes that order. Nine types point at another type's
+table instead ("the parameters are the same as for …", with renames: `DIST → x` renames
+OD → Dist): 3←2, 29←26, 30←27, 31←28, 38←35, 39←36, 40←37, 54←53, 80←79. Every list was
+cross-checked against the JV-1010 manual's EFX parameter tables (J1: each mark is a display
+abbreviation of a real JV parameter — `Treml Rate` = Tremolo Rate, `OD Pan` = Over Drive Pan
+…), and every `MFX Control Assign` value in Roland's own conversions
+(`bwalk-com-au/unpacked/XV SRJ to SRX-*`, 2,814 MFX blocks, types 1–40) indexes the list the
+extraction produces. ISOLATOR (59) marks nothing; REVERB (24), GATED-REVERB (25), ISOLATOR 2
+(87) and 3D MANUAL (90) mark destinations but have no INTEGRA-7 target.
+
+**Onto the INTEGRA-7.** Each destination name is matched against `mfx_params::control_targets`
+of the target type: exact first, then a deliberate rename (the INTEGRA-7 lists the same
+parameter under its own name). The renames, and every destination with no match (reported as
+`<destination> dropped` only when the control is in use):
+
+| XV-5050 destination | INTEGRA-7 destination | Where |
+|---------------------|-----------------------|-------|
+| `Treml Rate` | `Tremolo Rate` | 12 |
+| `Cho Rate`, `LFO Rate` | `Rate` | 13, 42, 60, 61 |
+| `Delay` | `Delay Time` | 21 |
+| `Feedback` | `Center Feedback` (3-tap) / `Dly 1 Fback` (4-tap, multi-tap) | 19, 20, 45, 48, 67, 70 |
+| `Feedback 1` | `Rev Dly Fback` | 46, 68 |
+| `Pitch A`/`Pitch B`, `Pitch 1`/`Pitch 2` | `Pitch1 Pitch`/`Pitch2 Pitch` | 22, 49 |
+| `Feedback 1` (49) | `Pitch1 Feedback` | 49 |
+| `OD Pan` | `Overdrive Pan` | 26–28 |
+| `Dist Pan` | `Dst Pan` | 29–31 |
+| `Cho`/`Flg`/`Dly Balance` | `Chorus Balance`/`Fln Balance`/`Delay Balance` | 26–40 |
+| `Amp Master Vol` | `Amp Master` | 78 |
+| 74 `Rate`/`Depth` (dests 5, 6) | `Tremolo Rate`/`Tremolo Depth` | the block order says which Rate is the tremolo's |
+| 72 `Drive` | `ODDrive` | ROTARY MULTI's drive block is Rotary 3's OD |
+| 83 `Manual` | `AutoWah Manual` | GTR MULTI C's auto-wah manual |
+| 84/85 `Balance` 1, 2 | `Delay Balance`, `Chorus Balance` | block order |
+| 81/82/86 `Balance` | `Chorus Balance` | the only balance the target keeps |
+| 86 `Drive` | `Dst Drive` | BASS MULTI's drive block onto Dist → Chorus |
+| 89 `Speed` | `Rate` | the spin speed is Auto Pan's rate |
+
+Of the 215 destinations the 90 types list, 102 match by name, 60 through the table above, and
+53 have no INTEGRA-7 destination: `Pan` on Spectrum/Compressor/Limiter (5, 9, 10 — the map
+already drops those pans), `Step Rate` on the phasers and 3D flangers that substitute a type
+without steps (41, 42, 61, 64), `Reset Trigger` (58), `Radio Detune` (51, 77), `Phase` on
+ST FORMANT FILTER (66), voice 3 of 3V PCH SHIFT (49), whole multi blocks (74's
+enhancer/phaser/chorus, 81–86's compressor and drive levels, 85's auto-wah), `Turn` (89) and
+everything on the six types with no target. The multi types (74, 81–86) are the approximations
+to re-check against a real Patch that uses them (#219).
 
 ## Chorus, Reverb and sends
 
