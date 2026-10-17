@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { useState } from "react";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
-import { Pack, planImport } from "../pkg/integral_wasm.js";
+import { Pack, planImport, type PackEntryInfo } from "../pkg/integral_wasm.js";
 import { libraryType } from "./librarian";
 import { PackImportPane } from "./PackImportPane";
 import { button, cleanup, click, render } from "./test/dom";
@@ -12,39 +14,66 @@ afterEach(cleanup);
 const IDENTITY_REQUEST = new Uint8Array([0xf0, 0x7e, 0x7f, 0x06, 0x01, 0xf7]);
 const pack = Pack.read(IDENTITY_REQUEST);
 const plan = planImport(pack, [], undefined);
+
+/** The repo's real Foreign fixtures, converted by the core's WASM as the
+ * Library page converts an opened file: Roland's XV Patch `United !`
+ * (lossy, its Chorus/Reverb living in the Studio Set), and a JV-1080 Patch
+ * of the public-domain `80TO1080.SYX` (clean, with Studio Set notes). */
+const FIXTURE = (path: string): Uint8Array =>
+  new Uint8Array(readFileSync(join(import.meta.dirname, "../../crates/integral-core/tests/fixtures", path)));
+const xv = Pack.read(FIXTURE("foreign/xv/srx03ap2-001.syx"));
+const xvPlan = planImport(xv, [], undefined);
+const jv = Pack.read(FIXTURE("foreign/jv/80to1080-cut.syx"));
+const jvPlan = planImport(jv, [], undefined);
 afterAll(() => {
+  xvPlan.free();
+  xv.free();
+  jvPlan.free();
+  jv.free();
   plan.free();
   pack.free();
 });
 
-/** The Conversion report of the XV fixture's Patch, as the core words it. */
-const REPORT = [
-  "Partial 3: MFX bypass dropped",
-  "Partial 4: MFX bypass dropped",
-  "Chorus CHORUS, level 127 lives in the Studio Set",
-  "Reverb SRV HALL, level 127 lives in the Studio Set",
-];
+/** The first item of `values`: each fixture here has its Patch. */
+function first<T>(values: readonly T[]): T {
+  const [head] = values;
+  if (head === undefined) throw new Error("nothing to show");
+  return head;
+}
 
-/** Settings a clean conversion leaves to the Studio Set. */
-const NOT_APPLIED = ["Tempo 90 lives in the Studio Set"];
+const xvInfo = first(xv.entries());
+const xvReport = first(xvPlan.reports());
+const xvLossy = first([...xvPlan.lossyCounts()]);
+// `sources()` comes back sparse: an unknown source is a hole, not an item.
+const xvSource = xvPlan.sources()[0] ?? null;
+const jvInfo = first(jv.entries());
+const jvReport = first(jvPlan.reports());
+const jvLossy = first([...jvPlan.lossyCounts()]);
+const jvSource = jvPlan.sources()[0] ?? null;
+const xvEffects = [...xvPlan.withEffects()].includes(0);
 
-/** A converted lossy tone, a clean one with Studio Set items, then a clean
- * one: all go to User slots. */
+/** A converted lossy tone, a clean one with Studio Set notes, then a clean
+ * one with nothing to say: all go to User slots. */
 function entries(): ImportEntry[] {
   const type = libraryType("pcm-synth");
-  const entry = (index: number, name: string, report: string[], lossy: number, source: string | null = null): ImportEntry => ({
+  const entry = (index: number, info: PackEntryInfo, report: string[], lossy: number, source: string | null = null): ImportEntry => ({
     index,
-    info: { kind: type.kind, index, name, toneRefs: [] },
+    info: { ...info, index },
     type,
     origin: `#${index + 1}`,
     placement: { user: index },
     report,
     lossy,
     // Only the XV fixture's Patch has a Chorus/Reverb to apply.
-    effects: report === REPORT,
+    effects: index === 0 && xvEffects,
     source,
   });
-  return [entry(0, "United !", REPORT, 2), entry(1, "Tempo", NOT_APPLIED, 0, "JV-1080"), entry(2, "Clean", [], 0)];
+  const clean: PackEntryInfo = { kind: type.kind, index: 0, name: "Clean", toneRefs: [] };
+  return [
+    entry(0, xvInfo, xvReport, xvLossy, xvSource),
+    entry(1, jvInfo, jvReport, jvLossy, jvSource),
+    entry(2, clean, [], 0),
+  ];
 }
 
 function noop(): void {}
@@ -111,6 +140,16 @@ function reportItems(container: HTMLElement): string[] {
 }
 
 describe("PackImportPane", () => {
+  it("converts the fixtures as the scenarios assume", () => {
+    expect(xvInfo.name).toBe("United !");
+    expect(xvLossy).toBeGreaterThan(0);
+    expect(xvReport.length).toBeGreaterThan(xvLossy); // notes beyond the lossy items
+    expect(xvEffects).toBe(true);
+    expect(jvLossy).toBe(0);
+    expect(jvReport.length).toBeGreaterThan(0);
+    expect(jvSource).toBe("JV-1080");
+  });
+
   it("names a SysEx dump as such", () => {
     const { container } = render(<Opened warnings={[]} />);
     expect(container.textContent).toContain("dump.syx · SysEx dump");
@@ -121,13 +160,13 @@ describe("PackImportPane", () => {
     const badges = [...container.querySelectorAll("button")].filter((b) =>
       b.textContent?.startsWith("lossy"),
     );
-    expect(badges.map((b) => b.textContent)).toEqual(["lossy · 2"]);
+    expect(badges.map((b) => b.textContent)).toEqual([`lossy · ${xvLossy}`]);
     expect(reportItems(container)).toEqual([]);
 
-    const badge = button(container, "lossy · 2");
+    const badge = button(container, `lossy · ${xvLossy}`);
     click(badge);
     expect(badge.getAttribute("aria-expanded")).toBe("true");
-    expect(reportItems(container)).toEqual(REPORT);
+    expect(reportItems(container)).toEqual(xvReport);
 
     click(badge);
     expect(reportItems(container)).toEqual([]);
@@ -135,14 +174,14 @@ describe("PackImportPane", () => {
 
   it("lists the items of a clean entry without a lossy badge", () => {
     const { container } = render(<Opened warnings={[]} />);
-    click(button(container, "notes · 1"));
-    expect(reportItems(container)).toEqual(NOT_APPLIED);
+    click(button(container, `notes · ${jvReport.length}`));
+    expect(reportItems(container)).toEqual(jvReport);
   });
 
   it("names the model a Foreign patch was made on", () => {
     const { container } = render(<Opened warnings={[]} />);
     const sources = [...container.querySelectorAll("span")].filter((s) => s.className.includes("source"));
-    expect(sources.map((s) => s.textContent)).toEqual(["JV-1080"]);
+    expect(sources.map((s) => s.textContent)).toEqual([jvSource]);
   });
 
   it("keeps lossy entries included", () => {
