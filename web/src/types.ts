@@ -42,6 +42,8 @@ export interface FxState {
   level: number;
   /** Output routing (Chorus: 0-2 MAIN/REV/MAIN+REV; Reverb: 0-3 A/B/C/D). */
   output: number;
+  /** Chorus Output Assign (0-3 = A/B/C/D); only the Chorus uses this field. */
+  outputAssign: number;
   /** Type-dependent parameters (nibblized values, decoded to display range). */
   params: number[];
 }
@@ -53,6 +55,7 @@ export function defaultFxState(): FxState {
     type: 0,
     level: 0,
     output: 0,
+    outputAssign: 0,
     params: [],
   };
 }
@@ -218,6 +221,11 @@ export interface MixerState {
   previewPart: number;
   /** Whether initial state is still loading from the device. */
   loading: boolean;
+  /**
+   * Labels of the mixer blocks whose read gave up on the last load
+   * (from `WasmDeviceState.mixerFailedBlocks()`).
+   */
+  failedBlocks: string[];
   /** All 64 Studio Set names (indexed 0–63). Populated via catalog query. */
   studioSetNames: Map<number, string>;
 }
@@ -259,6 +267,7 @@ export function defaultMixerState(): MixerState {
     drumCompEq: defaultDrumCompEqState(),
     previewPart: 0,
     loading: true,
+    failedBlocks: [],
     studioSetNames: new Map(),
   };
 }

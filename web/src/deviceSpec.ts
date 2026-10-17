@@ -15,7 +15,7 @@ interface DeviceSpec {
   chorus_type_names: string[];
   chorus_output_names: string[];
   reverb_type_names: string[];
-  reverb_output_names: string[];
+  output_assign_names: string[];
   surround_room_types: string[];
   surround_room_sizes: string[];
   comp_attack_times: string[];

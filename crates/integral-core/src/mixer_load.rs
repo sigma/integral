@@ -113,6 +113,36 @@ impl MixerBlock {
         ]
     }
 
+    /// A short human-readable name, e.g. for a list of blocks that failed
+    /// to load.
+    pub fn label(self) -> String {
+        use MixerBlock::*;
+        match self {
+            StudioSetName => "Studio Set name".into(),
+            StudioSetPc => "Studio Set number".into(),
+            MasterLevel => "Master level".into(),
+            SoloPart => "Solo part".into(),
+            Part(p) => format!("Part {}", u32::from(p) + 1),
+            PartEq(p) => format!("Part {} EQ", u32::from(p) + 1),
+            MasterEq => "Master EQ".into(),
+            MasterEqSwitch => "Master EQ switch".into(),
+            ExtLevel => "Ext part level".into(),
+            ExtMute => "Ext part mute".into(),
+            ChorusCore => "Chorus".into(),
+            ChorusSwitch => "Chorus switch".into(),
+            ChorusParams => "Chorus parameters".into(),
+            ReverbCore => "Reverb".into(),
+            ReverbSwitch => "Reverb switch".into(),
+            ReverbParams => "Reverb parameters".into(),
+            SurroundCommon => "Motional Surround".into(),
+            PartSurround(p) => format!("Part {} surround", u32::from(p) + 1),
+            DrumCompEqCommon => "Drum Comp+EQ".into(),
+            CompEq { part, .. } => format!("Part {} Comp+EQ", u32::from(part) + 1),
+            ToneName { part, .. } => format!("Part {} tone name", u32::from(part) + 1),
+            ToneCategory { part, .. } => format!("Part {} tone category", u32::from(part) + 1),
+        }
+    }
+
     /// Whether the mixer can't be shown before this block arrives.
     pub fn is_primary(self) -> bool {
         use MixerBlock::*;
@@ -239,6 +269,7 @@ impl MixerBlock {
             ChorusCore => {
                 state.chorus.fx_type = data[usize::from(params::chorus::TYPE)];
                 state.chorus.level = data[usize::from(params::chorus::LEVEL)];
+                state.chorus.output_assign = data[usize::from(params::chorus::OUTPUT_ASSIGN)];
                 state.chorus.output = data[usize::from(params::chorus::OUTPUT_SELECT)];
             }
             ChorusSwitch => state.chorus.enabled = byte == 1,

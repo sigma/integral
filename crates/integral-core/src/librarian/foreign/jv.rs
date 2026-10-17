@@ -680,9 +680,9 @@ pub(super) fn convert(key: [u8; 2], frames: &[Frame<'_>]) -> Result<Converted, S
 /// stays THRU otherwise. Tones that bypassed the EFX go through the MFX on
 /// the INTEGRA-7, and are reported, as is a Mix Out Send Level below 127
 /// (the INTEGRA-7 keeps a reserve there). EFX Control Source and Depth 1/2 map to
-/// MFX Control 1/2; their destination is fixed per JV type, so Control
-/// Assign stays OFF and a control in use is reported.
-// ponytail: the map has no per-type destinations yet (#236).
+/// MFX Control 1/2, and the type's fixed destination n of Control n onto the
+/// INTEGRA-7's Control Assign n; a destination the INTEGRA-7 type cannot
+/// control is reported by its name.
 fn mfx(p: &mut Patch<'_>) {
     let bypassed: Vec<usize> = (0..4)
         .filter(|&i| p.active(i) && p.tones[i][TONE_OUTPUT_ASSIGN] != OUTPUT_EFX)
@@ -710,7 +710,7 @@ fn mfx(p: &mut Patch<'_>) {
     if p.common[EFX_MIX_OUT] != pcm_tone::FULL_LEVEL {
         p.drop_param(None, "EFX Mix Out Send Level");
     }
-    for (k, (at, name)) in (0..).zip(EFX_CONTROLS) {
+    for (k, (at, _)) in (0..).zip(EFX_CONTROLS) {
         let (source, depth) = (p.common[at], p.common[at + 1]);
         let mapped = match control_source(source) {
             ControlSource::To(to) if source <= EFX_LAST_SOURCE => Some(to),
@@ -721,8 +721,17 @@ fn mfx(p: &mut Patch<'_>) {
         let mfx = p.tone.mfx();
         mfx[at(MfxHeaderField::ControlSource)] = mapped.unwrap_or(0);
         mfx[at(MfxHeaderField::ControlSens)] = depth.saturating_add(1).min(0x7F);
-        if source != 0 && depth != NEUTRAL_DEPTH {
-            p.drop_param(None, name);
+        // Control n's destination is the type's nth: it converts onto the
+        // INTEGRA-7's Control Assign, or is reported by its destination.
+        let verdict = fx_map::control_match(effect, usize::from(k));
+        if let fx_map::ControlMatch::Assign(assign) = verdict {
+            mfx[at(MfxHeaderField::ControlAssign)] = assign;
+        }
+        if source != 0
+            && depth != NEUTRAL_DEPTH
+            && let fx_map::ControlMatch::Dropped(dest) = verdict
+        {
+            p.drop_param(None, dest);
         }
     }
 }

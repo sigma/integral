@@ -40,7 +40,9 @@ pub enum Origin {
     Backup,
     /// A SysEx or MIDI dump: entries fill free slots as from a sound
     /// export, but a Studio Set Part's User tone is the device's User slot,
-    /// not a Pack position. It is kept as is.
+    /// not a Pack position. A Part whose tone the dump carries (said by its
+    /// source slot) is relinked to where the import stores it; any other
+    /// Part keeps the device's User slot of its number.
     Dump,
 }
 
@@ -111,6 +113,19 @@ pub enum Warning {
         /// The Expansion the tone needs.
         expansion: &'static Expansion,
     },
+    /// A Part of a dumped Studio Set points at a User tone that the dump
+    /// doesn't carry (or carries without saying where from). It is imported
+    /// as is, pointing at that User slot.
+    UnmatchedReference {
+        /// The Studio Set, as an index into the Pack's entries.
+        set: usize,
+        /// The Part, 0-indexed.
+        part: u8,
+        /// The missing tone's type.
+        kind: ChunkType,
+        /// The User slot the Part points at, 0-indexed.
+        slot: u16,
+    },
     /// A PCM Synth tone or PCM Drum Kit of the Pack plays Waves of an
     /// Expansion that is not loaded.
     ToneExpansionNotLoaded {
@@ -129,6 +144,7 @@ impl Warning {
         match *self {
             Self::BrokenReference { set, .. }
             | Self::ToneNotImported { set, .. }
+            | Self::UnmatchedReference { set, .. }
             | Self::ExpansionNotLoaded { set, .. } => set,
             Self::ToneExpansionNotLoaded { tone, .. } => tone,
         }
@@ -139,6 +155,7 @@ impl Warning {
         match *self {
             Self::BrokenReference { part, .. }
             | Self::ToneNotImported { part, .. }
+            | Self::UnmatchedReference { part, .. }
             | Self::ExpansionNotLoaded { part, .. } => Some(part),
             Self::ToneExpansionNotLoaded { .. } => None,
         }
@@ -164,6 +181,14 @@ impl fmt::Display for Warning {
                 "Part {}: {kind} at Pack position {} is not imported",
                 part + 1,
                 index + 1
+            ),
+            Self::UnmatchedReference {
+                part, kind, slot, ..
+            } => write!(
+                f,
+                "Part {}: no {kind} from User slot {} in the file",
+                part + 1,
+                slot + 1
             ),
             Self::ExpansionNotLoaded {
                 part, expansion, ..
@@ -228,7 +253,8 @@ pub struct ImportPlan {
 /// isn't loaded gets a warning too, whether converted or native.
 ///
 /// A lone tone, or a lone Studio Set that references no tone of the Pack,
-/// goes to Temporary. A dump's Studio Set references no tone of the Pack.
+/// goes to Temporary. So does a dump's lone entry: relinking a Studio Set
+/// needs another entry for its Part to select.
 ///
 /// The plan's reports are empty: [`plan_read`] plans a Pack with the
 /// reports of its reading.
@@ -246,12 +272,8 @@ pub fn plan_import(
     for (set, entry) in pack.entries.iter().enumerate() {
         for (part, tone_ref) in (0..).zip(entry.tone_refs()) {
             let warning = match tone_ref {
-                ToneRef::Pack { .. } if origin == Origin::Dump => None,
                 ToneRef::Pack { kind, index } => {
-                    let tone = (0..kinds.len())
-                        .filter(|&i| kinds[i] == kind)
-                        .nth(usize::from(index));
-                    match tone {
+                    match pointed_entry(pack, origin, kind, index) {
                         Some(tone) => {
                             let w = Warning::ToneNotImported {
                                 set,
@@ -262,6 +284,16 @@ pub fn plan_import(
                             pack_refs.push((w, tone));
                             None
                         }
+                        // A dump's Parts point at the device's User slots.
+                        // With no tone of that kind in the dump, the
+                        // reference stays as it is (#226).
+                        None if origin == Origin::Dump && !kinds.contains(&kind) => None,
+                        None if origin == Origin::Dump => Some(Warning::UnmatchedReference {
+                            set,
+                            part,
+                            kind,
+                            slot: index,
+                        }),
                         None => Some(Warning::BrokenReference {
                             set,
                             part,
@@ -345,6 +377,32 @@ pub fn plan_read(
     plan.effects.resize(read.pack.entries.len(), Vec::new());
     plan.file_report.clone_from(&read.file_report);
     plan
+}
+
+/// Which entry of `pack` the tone a Studio Set Part selects points at, as
+/// an index into its entries. From a sound export or a backup, a reference
+/// names a Pack position: the `index`-th entry of `kind`. From a dump, it
+/// names the device's User slot `index` of `kind`: the entry dumped from
+/// that slot, if the dump carries one.
+pub(crate) fn pointed_entry(
+    pack: &Pack,
+    origin: Origin,
+    kind: ChunkType,
+    index: u16,
+) -> Option<usize> {
+    match origin {
+        Origin::Dump => pack
+            .entries
+            .iter()
+            .position(|e| e.kind() == kind && e.slot() == Some(index)),
+        Origin::Sound | Origin::Backup => pack
+            .entries
+            .iter()
+            .enumerate()
+            .filter(|&(_, e)| e.kind() == kind)
+            .nth(usize::from(index))
+            .map(|(i, _)| i),
+    }
 }
 
 /// The free slots among `slot_names`, for the types in `kinds`, lowest
@@ -884,6 +942,101 @@ mod tests {
         let plan = plan_read(&read, Origin::Dump, &names(SET, &["INIT STUDIO"]), None);
         assert_eq!(plan.warnings().count(), 0, "no broken reference");
         assert_eq!(plan.placements(), [Placement::Temporary]);
+    }
+
+    /// The `.syx` bytes that dump `entry` at User slot `slot` of its type.
+    fn user_dump(entry: &PackEntry, slot: u16) -> Vec<u8> {
+        let memory = user_memory(entry.kind()).unwrap();
+        memory
+            .blocks(memory.user_address(slot).unwrap())
+            .zip(entry.blocks())
+            .flat_map(|((address, _), data)| crate::sysex::build_dt1(0x10, &address, data))
+            .collect()
+    }
+
+    #[test]
+    fn a_dump_relinks_to_the_slots_its_tones_come_from() {
+        // A Studio Set dumped from User slot 1, Part 3 on User SN-S slot 2,
+        // with that slot's tone alongside.
+        let set = set_with(&[(2, sns_ref(2))]);
+        let syx: Vec<u8> = user_dump(&set, 1)
+            .into_iter()
+            .chain(user_dump(&entry(SNS, None), 2))
+            .collect();
+        let read = Pack::read(&syx).unwrap();
+        assert_eq!(Origin::of(&read), Origin::Dump);
+        let slots: Vec<_> = read.pack.entries.iter().map(|e| e.slot()).collect();
+        assert_eq!(slots, [Some(1), Some(2)]);
+
+        let mut slot_names = names(SET, &["INIT STUDIO"]);
+        slot_names.extend(names(SNS, &["INIT TONE", "INIT TONE"]));
+        let plan = plan_read(&read, Origin::of(&read), &slot_names, None);
+        use Placement::User;
+        assert_eq!(plan.placements(), [User(0), User(0)]);
+        assert_eq!(plan.warnings().count(), 0, "the tone it plays is imported");
+
+        // Excluding the tone leaves the reference unlinked again.
+        let mut plan = plan_read(&read, Origin::of(&read), &slot_names, None);
+        plan.exclude(1).unwrap();
+        assert_eq!(
+            plan.warnings().collect::<Vec<_>>(),
+            [Warning::ToneNotImported {
+                set: 0,
+                part: 2,
+                kind: SNS,
+                index: 2
+            }]
+        );
+    }
+
+    #[test]
+    fn a_dump_warns_when_no_dumped_tone_matches_a_reference() {
+        // Part 3 on User SN-S slot 2; the dump's only SN-S tone is from
+        // slot 9.
+        let set = set_with(&[(2, sns_ref(2))]);
+        let syx: Vec<u8> = user_dump(&set, 0)
+            .into_iter()
+            .chain(user_dump(&entry(SNS, None), 9))
+            .collect();
+        let read = Pack::read(&syx).unwrap();
+        let plan = plan_read(
+            &read,
+            Origin::of(&read),
+            &names(SET, &["INIT STUDIO"]),
+            None,
+        );
+        let warnings: Vec<_> = plan.warnings().collect();
+        assert_eq!(
+            warnings,
+            [Warning::UnmatchedReference {
+                set: 0,
+                part: 2,
+                kind: SNS,
+                slot: 2
+            }]
+        );
+        assert_eq!(
+            warnings[0].to_string(),
+            "Part 3: no SN Synth Tone from User slot 3 in the file"
+        );
+    }
+
+    #[test]
+    fn a_dump_stays_silent_without_tones_of_the_referenced_kind() {
+        // Part 3 on User SN-S slot 2; the dump carries only a PCM-S tone.
+        let set = set_with(&[(2, sns_ref(2))]);
+        let syx: Vec<u8> = user_dump(&set, 0)
+            .into_iter()
+            .chain(user_dump(&entry(ChunkType::PcmSynthTone, None), 3))
+            .collect();
+        let read = Pack::read(&syx).unwrap();
+        let plan = plan_read(
+            &read,
+            Origin::of(&read),
+            &names(SET, &["INIT STUDIO"]),
+            None,
+        );
+        assert_eq!(plan.warnings().count(), 0);
     }
 
     #[test]

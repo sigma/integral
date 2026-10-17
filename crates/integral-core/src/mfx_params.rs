@@ -2940,7 +2940,7 @@ pub fn default_slots(mfx_type: u8) -> Option<[i32; MFX_PARAM_COUNT]> {
 
 /// Which Control Source list a value is read against.
 ///
-/// Both lists index sources by CC number: 32 is a hole (CC32 is not offered),
+/// All lists index sources by CC number: 32 is a hole (CC32 is not offered),
 /// which is why the documented ranges are one longer than their name lists.
 /// See `docs/research/jv-xv-roland-pairs.md`, "(b) Controller routing".
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2949,9 +2949,15 @@ pub enum ControlSourceKind {
     Mfx,
     /// PCM Synth Matrix Control Source (0–109), with CTRL1–CTRL4 at 98–101.
     Matrix,
+    /// System Control Source, also the Studio Set Tone Control Source
+    /// (0–97). These lists end at AFT and have no tail above 97.
+    ///
+    /// That value 32 is unused is likely (same indexing as MFX/Matrix) but
+    /// unconfirmed for these two lists: no device read-back yet.
+    SystemControl,
 }
 
-/// Sources shared by both kinds (0–97), indexed by value; `None` is unused.
+/// Sources shared by all kinds (0–97), indexed by value; `None` is unused.
 #[rustfmt::skip]
 static SHARED_CONTROL_SOURCES: [Option<&str>; 98] = [
     Some("OFF"), Some("CC01"), Some("CC02"), Some("CC03"), Some("CC04"), Some("CC05"), Some("CC06"), Some("CC07"),
@@ -2993,6 +2999,7 @@ impl ControlSourceKind {
         match self {
             Self::Mfx => MFX_CONTROL_SOURCE_TAIL,
             Self::Matrix => MATRIX_CONTROL_SOURCE_TAIL,
+            Self::SystemControl => &[],
         }
     }
 
@@ -3056,6 +3063,22 @@ mod tests {
         let matrix: Vec<_> = control_source_choices(Matrix).collect();
         assert_eq!(matrix.len(), 109);
         assert_eq!(matrix.last(), Some(&(109, "TVA-ENV")));
+    }
+
+    #[test]
+    fn system_control_shares_the_mfx_0_97_table() {
+        use ControlSourceKind::{Mfx, SystemControl};
+        assert_eq!(SystemControl.max(), 97);
+        let system: Vec<_> = control_source_choices(SystemControl).collect();
+        let mfx_prefix: Vec<_> = control_source_choices(Mfx)
+            .take_while(|&(v, _)| v <= 97)
+            .collect();
+        assert_eq!(system, mfx_prefix);
+        assert_eq!(system.last(), Some(&(97, "AFT")));
+        // Same treatment as the MFX table: 32 is an unused placeholder and
+        // there is nothing above AFT.
+        assert_eq!(control_source_name(SystemControl, 32), None);
+        assert_eq!(control_source_name(SystemControl, 98), None);
     }
 
     #[test]

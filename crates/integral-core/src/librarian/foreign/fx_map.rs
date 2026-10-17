@@ -60,6 +60,13 @@ enum Conv {
     LevelBalance,
 }
 
+/// One MFX Control destination of a type: its XV-5050 name, and the Integra
+/// destination of the target type it lands on, when there is one.
+struct CtrlDest {
+    name: &'static str,
+    integra: Option<&'static str>,
+}
+
 /// One JV EFX parameter and where it lands.
 struct ParamRow {
     /// The JV EFX Parameter number (1–12).
@@ -86,6 +93,8 @@ struct JvEffect {
     rows: &'static [ParamRow],
     /// `(MFX Parameter number, value)` of the targets with no source.
     unmapped: &'static [(u8, i32)],
+    /// The fixed MFX Control destinations, in stored order.
+    controls: &'static [CtrlDest],
 }
 
 /// An XV MFX type 41–90.
@@ -97,6 +106,8 @@ struct XvEffect {
     /// The MFX Parameter number each XV Parameter 1… copies to; empty
     /// when the layout is unknown.
     copy: &'static [u8],
+    /// The MFX Control destinations, in stored order.
+    controls: &'static [CtrlDest],
 }
 
 include!(concat!(env!("OUT_DIR"), "/foreign_fx_map_data.rs"));
@@ -129,6 +140,43 @@ impl ForeignEffect {
             EffectFamily::XvMfx => XV_MFX.get(n - usize::from(XV_JV_TYPES) - 1).map(Entry::Xv),
         }
     }
+}
+
+/// Where Control `k` (0-based; the stored Assign value − 1) of `effect`
+/// lands on the INTEGRA-7.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ControlMatch {
+    /// The destination converts: the stored MFX Control Assign value.
+    Assign(u8),
+    /// The destination has no INTEGRA-7 equivalent: its XV-5050 name, to
+    /// report.
+    Dropped(&'static str),
+    /// The type has no such destination: the control was dead on the source
+    /// too, as JV Control 2 on a one-destination EFX.
+    Dead,
+}
+
+/// The MFX Control Assign verdict of control `k` of `effect`.
+pub(super) fn control_match(effect: ForeignEffect, k: usize) -> ControlMatch {
+    let (target, controls) = match effect.entry() {
+        Some(Entry::Jv(e)) => (e.target, e.controls),
+        Some(Entry::Xv(e)) => (e.target, e.controls),
+        None => return ControlMatch::Dead,
+    };
+    let Some(dest) = controls.get(k) else {
+        return ControlMatch::Dead;
+    };
+    let Some(integra) = dest.integra else {
+        return ControlMatch::Dropped(dest.name);
+    };
+    // the map's names are checked against `control_targets` in a test; the
+    // stored value is the list index, where 0 is OFF
+    let at = crate::mfx_params::control_targets(target)
+        .expect("a mapped target type")
+        .iter()
+        .position(|&name| name == integra)
+        .expect("a control destination of the target type");
+    ControlMatch::Assign(u8::try_from(at).expect("at most 16 destinations"))
 }
 
 /// Convert `effect`, whose MFX Parameters 1–32 hold `source` (a JV EFX
@@ -363,6 +411,51 @@ mod tests {
                 assert!(slots.contains(n), "MFX type {}: Parameter {n}", i + 41);
             }
         }
+    }
+
+    #[test]
+    fn every_control_destination_names_a_target_destination() {
+        // A named Integra destination must be in `control_targets` of the
+        // type's target, or `control_match` could not resolve it.
+        let check = |type_name: &str, target: u8, controls: &[CtrlDest]| {
+            let targets = if target == 0 {
+                assert!(controls.is_empty(), "{type_name}: no target, no controls");
+                &[][..]
+            } else {
+                crate::mfx_params::control_targets(target).expect("a mapped type")
+            };
+            for c in controls {
+                if let Some(integra) = c.integra {
+                    assert!(
+                        targets.contains(&integra),
+                        "{type_name}: {integra} is not a destination of target {target}"
+                    );
+                }
+            }
+        };
+        for e in JV_EFX.iter() {
+            check(e.name, e.target, e.controls);
+        }
+        for e in XV_MFX.iter() {
+            check(e.name, e.target, e.controls);
+        }
+    }
+
+    #[test]
+    fn control_matches_by_name_or_alias_or_names_the_drop() {
+        // Direct: LIMITER Level is a destination of Integra Limiter.
+        assert_eq!(control_match(jv(10), 0), ControlMatch::Assign(3));
+        // Alias: 3 TAP DELAY Feedback is Integra Center Feedback.
+        assert_eq!(control_match(jv(19), 0), ControlMatch::Assign(1));
+        // No match: SPECTRUM Pan, which the Integra Spectrum cannot control.
+        assert_eq!(control_match(jv(5), 1), ControlMatch::Dropped("Pan"));
+        // XV: St PHASER's Step Rate has no target on Integra Phaser 1.
+        assert_eq!(control_match(xv(41), 2), ControlMatch::Dropped("Step Rate"));
+        // The type has no second destination: JV Control 2 is dead there.
+        assert_eq!(control_match(jv(1), 1), ControlMatch::Dead);
+        // An unknown effect has no controls either.
+        assert_eq!(control_match(jv(0), 0), ControlMatch::Dead);
+        assert_eq!(control_match(xv(91), 0), ControlMatch::Dead);
     }
 
     #[test]

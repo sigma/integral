@@ -34,16 +34,19 @@ const NUM_SNS_PARTIALS: usize = INTEGRA7.sn_synth_partial_count as usize;
 // ---------------------------------------------------------------------------
 // SN-S parameter display names
 // ---------------------------------------------------------------------------
-// TODO: migrate these to `DeviceSpec` once tone editor param metadata is added.
 
-/// SN-S oscillator wave type names (indexed by OSC Wave value 0-7).
-const SNS_OSC_WAVE_NAMES: &[&str] = &["SAW", "SQR", "PWSQ", "TRI", "SIN", "NSE", "SSAW", "PCM"];
-
-/// OSC Wave value selecting a PCM Wave (index of "PCM" in [`SNS_OSC_WAVE_NAMES`]).
+/// OSC Wave value selecting a PCM Wave (index of "PCM" in the core
+/// [`SnsPartialField::OscWave`] names).
 const SNS_OSC_WAVE_PCM: usize = sn_synth::OSC_WAVE_PCM as usize;
 
-/// SN-S filter mode names (indexed by Filter Mode value 0-7).
-const SNS_FILTER_MODE_NAMES: &[&str] = &["BYP", "LPF", "HPF", "BPF", "PKG", "LP2", "LP3", "LP4"];
+/// The option labels of an SN-S switch `spec`: each value in its range
+/// formatted by the field's core spec, as the web's `switchOptions` helper
+/// does.
+fn switch_labels(spec: &FieldSpec) -> Vec<String> {
+    (spec.min..=spec.max)
+        .map(|value| spec.format.format(value))
+        .collect()
+}
 
 /// The name of the tone type selected by `bank_msb` (e.g. "PCM Synth"),
 /// taken from the core tone bank table.
@@ -545,92 +548,86 @@ fn build_sns_common_section(cx: &mut Context) {
         // -- Switches row --
         HStack::new(cx, |cx| {
             // Unison
-            VStack::new(cx, |cx| {
-                Label::new(cx, "Unison").class("tone-editor__switch-label");
-                SynthSwitch::new(
-                    cx,
-                    ToneEditorData::sns_common.then(SnSynthCommonView::unison_switch),
-                    &["OFF", "ON"],
-                    |cx, idx| {
-                        cx.emit(ToneEditorEvent::SetSnsCommon(
-                            SnsCommonField::UnisonSwitch,
-                            idx as u8,
-                        ));
-                    },
-                );
-            });
+            sns_common_switch(
+                cx,
+                ToneEditorData::sns_common.then(SnSynthCommonView::unison_switch),
+                SnsCommonField::UnisonSwitch,
+                "Unison",
+                |cx, idx| {
+                    cx.emit(ToneEditorEvent::SetSnsCommon(
+                        SnsCommonField::UnisonSwitch,
+                        idx as u8,
+                    ));
+                },
+            );
 
             // Mono
-            VStack::new(cx, |cx| {
-                Label::new(cx, "Mono").class("tone-editor__switch-label");
-                SynthSwitch::new(
-                    cx,
-                    ToneEditorData::sns_common.then(SnSynthCommonView::mono_switch),
-                    &["OFF", "ON"],
-                    |cx, idx| {
-                        cx.emit(ToneEditorEvent::SetSnsCommon(
-                            SnsCommonField::MonoSwitch,
-                            idx as u8,
-                        ));
-                    },
-                );
-            });
+            sns_common_switch(
+                cx,
+                ToneEditorData::sns_common.then(SnSynthCommonView::mono_switch),
+                SnsCommonField::MonoSwitch,
+                "Mono",
+                |cx, idx| {
+                    cx.emit(ToneEditorEvent::SetSnsCommon(
+                        SnsCommonField::MonoSwitch,
+                        idx as u8,
+                    ));
+                },
+            );
 
             // Portamento
-            VStack::new(cx, |cx| {
-                Label::new(cx, "Porta").class("tone-editor__switch-label");
-                SynthSwitch::new(
-                    cx,
-                    ToneEditorData::sns_common.then(SnSynthCommonView::portamento_switch),
-                    &["OFF", "ON"],
-                    |cx, idx| {
-                        cx.emit(ToneEditorEvent::SetSnsCommon(
-                            SnsCommonField::PortamentoSwitch,
-                            idx as u8,
-                        ));
-                    },
-                );
-            });
+            sns_common_switch(
+                cx,
+                ToneEditorData::sns_common.then(SnSynthCommonView::portamento_switch),
+                SnsCommonField::PortamentoSwitch,
+                "Porta",
+                |cx, idx| {
+                    cx.emit(ToneEditorEvent::SetSnsCommon(
+                        SnsCommonField::PortamentoSwitch,
+                        idx as u8,
+                    ));
+                },
+            );
 
             // Portamento Mode
-            VStack::new(cx, |cx| {
-                Label::new(cx, "PortaMode").class("tone-editor__switch-label");
-                SynthSwitch::new(
-                    cx,
-                    ToneEditorData::sns_common.then(SnSynthCommonView::portamento_mode),
-                    &["NORMAL", "LEGATO"],
-                    |cx, idx| {
-                        cx.emit(ToneEditorEvent::SetSnsCommon(
-                            SnsCommonField::PortamentoMode,
-                            idx as u8,
-                        ));
-                    },
-                );
-            });
+            sns_common_switch(
+                cx,
+                ToneEditorData::sns_common.then(SnSynthCommonView::portamento_mode),
+                SnsCommonField::PortamentoMode,
+                "PortaMode",
+                |cx, idx| {
+                    cx.emit(ToneEditorEvent::SetSnsCommon(
+                        SnsCommonField::PortamentoMode,
+                        idx as u8,
+                    ));
+                },
+            );
 
             // Legato
-            VStack::new(cx, |cx| {
-                Label::new(cx, "Legato").class("tone-editor__switch-label");
-                SynthSwitch::new(
-                    cx,
-                    ToneEditorData::sns_common.then(SnSynthCommonView::legato_switch),
-                    &["OFF", "ON"],
-                    |cx, idx| {
-                        cx.emit(ToneEditorEvent::SetSnsCommon(
-                            SnsCommonField::LegatoSwitch,
-                            idx as u8,
-                        ));
-                    },
-                );
-            });
+            sns_common_switch(
+                cx,
+                ToneEditorData::sns_common.then(SnSynthCommonView::legato_switch),
+                SnsCommonField::LegatoSwitch,
+                "Legato",
+                |cx, idx| {
+                    cx.emit(ToneEditorEvent::SetSnsCommon(
+                        SnsCommonField::LegatoSwitch,
+                        idx as u8,
+                    ));
+                },
+            );
 
-            // Ring
-            VStack::new(cx, |cx| {
+            // Ring: an OFF/ON toggle over the spec's OFF (0) and ON (2)
+            // values; the middle "---" (1) still shows as ON, as before.
+            let ring_labels = switch_labels(&sns_common_spec(SnsCommonField::RingSwitch));
+            let ring_options = [ring_labels[0].clone(), ring_labels[2].clone()];
+            VStack::new(cx, move |cx| {
                 Label::new(cx, "Ring").class("tone-editor__switch-label");
+                let options: Vec<&str> = ring_options.iter().map(String::as_str).collect();
                 SynthSwitch::new(
                     cx,
                     ToneEditorData::sns_common.then(SnSynthCommonView::ring_switch),
-                    &["OFF", "ON"],
+                    &options,
                     |cx, idx| {
                         // Ring switch: OFF=0, ON=2 in the MIDI spec.
                         let raw = if idx == 1 { 2u8 } else { 0u8 };
@@ -660,11 +657,8 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
         let switch_field = SnsCommonField::PARTIAL_SWITCHES[partial_idx];
 
         HStack::new(cx, |cx| {
-            VStack::new(cx, |cx| {
-                Label::new(cx, "SW").class("tone-editor__switch-label");
-                SynthSwitch::new(cx, switch_lens, &["OFF", "ON"], move |cx, idx| {
-                    cx.emit(ToneEditorEvent::SetSnsCommon(switch_field, idx as u8));
-                });
+            sns_common_switch(cx, switch_lens, switch_field, "SW", move |cx, idx| {
+                cx.emit(ToneEditorEvent::SetSnsCommon(switch_field, idx as u8));
             });
 
             // OSC Wave selector
@@ -672,16 +666,19 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
             let wave_lens = ToneEditorData::sns_partials
                 .map(move |p| p[partial_idx].clone())
                 .then(SnSynthPartialView::osc_wave);
-            VStack::new(cx, |cx| {
-                Label::new(cx, "Wave").class("tone-editor__switch-label");
-                SynthSwitch::new(cx, wave_lens, SNS_OSC_WAVE_NAMES, move |cx, idx| {
+            sns_partial_switch(
+                cx,
+                wave_lens,
+                SnsPartialField::OscWave,
+                "Wave",
+                move |cx, idx| {
                     cx.emit(ToneEditorEvent::SetSnsPartial(
                         partial_idx_u8,
                         SnsPartialField::OscWave,
                         idx as u16,
                     ));
-                });
-            });
+                },
+            );
 
             // PCM Wave picker, shown only when OSC Wave is PCM.
             Binding::new(cx, wave_lens, move |cx, osc_wave| {
@@ -707,16 +704,19 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
             let fmode_lens = ToneEditorData::sns_partials
                 .map(move |p| p[partial_idx].clone())
                 .then(SnSynthPartialView::filter_mode);
-            VStack::new(cx, |cx| {
-                Label::new(cx, "FiltMode").class("tone-editor__switch-label");
-                SynthSwitch::new(cx, fmode_lens, SNS_FILTER_MODE_NAMES, move |cx, idx| {
+            sns_partial_switch(
+                cx,
+                fmode_lens,
+                SnsPartialField::FilterMode,
+                "FiltMode",
+                move |cx, idx| {
                     cx.emit(ToneEditorEvent::SetSnsPartial(
                         partial_idx_u8,
                         SnsPartialField::FilterMode,
                         idx as u16,
                     ));
-                });
-            });
+                },
+            );
         })
         .class("tone-editor__switch-row");
 
@@ -800,6 +800,46 @@ fn build_sns_partial_section(cx: &mut Context, partial_idx: usize) {
     });
 }
 
+/// The normalized centre of `spec`'s LED arc, when its format is signed
+/// around a value (e.g. pan 64); the arc then lights from that LED.
+fn spec_center(spec: &FieldSpec) -> Option<f32> {
+    spec.format.center().map(|center| to_norm(spec, center))
+}
+
+/// A labelled switch for an SN-S Common `field`, its option labels taken
+/// from the field's core spec.
+fn sns_common_switch(
+    cx: &mut Context,
+    lens: impl Lens<Target = usize>,
+    field: SnsCommonField,
+    title: &str,
+    on_change: impl Fn(&mut EventContext, usize) + 'static,
+) {
+    let labels = switch_labels(&sns_common_spec(field));
+    let options: Vec<&str> = labels.iter().map(String::as_str).collect();
+    VStack::new(cx, move |cx| {
+        Label::new(cx, title).class("tone-editor__switch-label");
+        SynthSwitch::new(cx, lens, &options, on_change);
+    });
+}
+
+/// A labelled switch for a Partial's SN-S `field`, its option labels taken
+/// from the field's core spec.
+fn sns_partial_switch(
+    cx: &mut Context,
+    lens: impl Lens<Target = usize>,
+    field: SnsPartialField,
+    title: &str,
+    on_change: impl Fn(&mut EventContext, usize) + 'static,
+) {
+    let labels = switch_labels(&sns_partial_spec(field));
+    let options: Vec<&str> = labels.iter().map(String::as_str).collect();
+    VStack::new(cx, move |cx| {
+        Label::new(cx, title).class("tone-editor__switch-label");
+        SynthSwitch::new(cx, lens, &options, on_change);
+    });
+}
+
 /// A knob for SN-S Common `field`, ranged and coloured by its core spec.
 fn sns_common_knob(
     cx: &mut Context,
@@ -809,12 +849,14 @@ fn sns_common_knob(
 ) {
     let spec = sns_common_spec(field);
     let family = spec.family;
+    let center = spec_center(&spec);
     SynthKnob::new(cx, lens, move |cx, val| {
         let raw = from_norm(&spec, val) as u8;
         cx.emit(ToneEditorEvent::SetSnsCommon(field, raw));
     })
     .label(label)
-    .family(family);
+    .family(family)
+    .center(center);
 }
 
 /// A knob for Partial `partial_idx`'s SN-S `field`, shown through
@@ -828,6 +870,7 @@ fn sns_partial_knob(
 ) {
     let spec = sns_partial_spec(field);
     let family = spec.family;
+    let center = spec_center(&spec);
     let lens = ToneEditorData::sns_partials
         .map(move |p| p[partial_idx].clone())
         .then(view_lens);
@@ -840,7 +883,8 @@ fn sns_partial_knob(
         ));
     })
     .label(label)
-    .family(family);
+    .family(family)
+    .center(center);
 }
 
 #[cfg(test)]
@@ -871,6 +915,18 @@ mod tests {
 
     #[test]
     fn osc_wave_pcm_index_names_pcm() {
-        assert_eq!(SNS_OSC_WAVE_NAMES[SNS_OSC_WAVE_PCM], "PCM");
+        let names = switch_labels(&sns_partial_spec(SnsPartialField::OscWave));
+        assert_eq!(names[SNS_OSC_WAVE_PCM], "PCM");
+    }
+
+    #[test]
+    fn switch_labels_come_from_the_spec_format() {
+        // The core names, not the deleted local table: the doc spells
+        // the slopes LPF2, LPF3, LPF4.
+        let mode = switch_labels(&sns_partial_spec(SnsPartialField::FilterMode));
+        assert_eq!(mode.last().map(String::as_str), Some("LPF4"));
+        // Boolean fields format as OFF/ON.
+        let on_off = switch_labels(&sns_common_spec(SnsCommonField::MonoSwitch));
+        assert_eq!(on_off, ["OFF", "ON"]);
     }
 }

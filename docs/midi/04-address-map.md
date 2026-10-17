@@ -124,6 +124,11 @@ Base address: `02 00 00 00`. Total size: `00 00 00 2F`.
 | `00 2D` | `0000 000a`   | 2CH Output Mode                 | 0 -- 1      | SPEAKER, PHONES                               |
 | `00 2E` | `0000 00aa`   | (reserve) \<\*>                 | --          | --                                            |
 
+The System Control 1--4 Sources are indexed by CC number and likely skip value
+32 (CC32 is not offered), like the MFX/Matrix Control Sources (see
+[JV/XV research notes](../research/jv-xv-roland-pairs.md), "(b) Controller
+routing"). Unconfirmed for this list: no device read-back yet.
+
 Some System Common reserves carry data. Every backup holds `00 08` = 1,
 `00 09` -- `00 10` = 0, 1, ..., 7, `00 12` = 1 and `00 14` -- `00 1F` = 64. See
 [SVD: System](../svd/10-system.md).

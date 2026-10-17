@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 
 mod commands;
 mod device;
@@ -21,19 +21,15 @@ use midi::DEFAULT_PORT_PATTERN;
 enum Cli {
     /// Ping the INTEGRA-7 via SysEx Identity Request.
     Ping {
-        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
-        port: String,
-        #[arg(long, default_value_t = 2.0)]
-        timeout: f64,
+        #[command(flatten)]
+        conn: PortTimeoutArgs,
         #[arg(long)]
         quiet: bool,
     },
     /// Read a parameter from the device via RQ1.
     Read {
-        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
-        port: String,
-        #[arg(long, default_value_t = 2.0)]
-        timeout: f64,
+        #[command(flatten)]
+        conn: PortTimeoutArgs,
         /// What to read: studio-set-name, master-level, part-mixer, tone-name,
         /// tone-waves
         what: String,
@@ -62,32 +58,22 @@ enum Cli {
     },
     /// Send RQ1 and capture all responses (for multi-response queries).
     RawRq1 {
-        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
-        port: String,
-        #[arg(long, default_value_t = 5.0)]
-        timeout: f64,
+        #[command(flatten)]
+        conn: RawConnectionArgs,
         /// 4-byte hex address
         addr: String,
         /// 4-byte hex size
         size: String,
-        /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
-        #[arg(long, value_parser = parse_device_id)]
-        device_id: Option<u8>,
     },
     /// Read raw bytes from a SysEx address (hex).
     RawRead {
-        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
-        port: String,
-        #[arg(long, default_value_t = 5.0)]
-        timeout: f64,
+        #[command(flatten)]
+        conn: RawConnectionArgs,
         /// 4-byte hex address (e.g. 10000000)
         addr: String,
         /// Size to read: a decimal byte count (e.g. 145), or the 7-bit
         /// SysEx size field as 8 hex digits (e.g. 00000111 = 145 bytes)
         size: String,
-        /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
-        #[arg(long, value_parser = parse_device_id)]
-        device_id: Option<u8>,
     },
     /// Send raw hex bytes as SysEx and capture all responses.
     RawHex {
@@ -131,10 +117,8 @@ enum Cli {
     },
     /// Validate SVD decode against the device by comparing SysEx reads.
     SvdValidate {
-        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
-        port: String,
-        #[arg(long, default_value_t = 2.0)]
-        timeout: f64,
+        #[command(flatten)]
+        conn: PortTimeoutArgs,
         /// Path to the .SVD file.
         file: PathBuf,
         /// Part number to read from (1-16, must have the right tone loaded).
@@ -165,6 +149,66 @@ enum Cli {
     },
 }
 
+/// The `--port` and `--timeout` options shared by the subcommands that
+/// talk to the device.
+#[derive(Args)]
+struct PortTimeoutArgs {
+    #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
+    port: String,
+    #[arg(long, default_value_t = 2.0)]
+    timeout: f64,
+}
+
+impl PortTimeoutArgs {
+    /// The `--timeout` value as a `Duration`.
+    fn timeout(&self) -> Duration {
+        Duration::from_secs_f64(self.timeout)
+    }
+}
+
+/// The `--port`, `--timeout` and `--device-id` options shared by the
+/// subcommands that address the device.
+#[derive(Args)]
+struct ConnectionArgs {
+    #[command(flatten)]
+    base: PortTimeoutArgs,
+    /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
+    #[arg(long, value_parser = parse_device_id)]
+    device_id: Option<u8>,
+}
+
+impl ConnectionArgs {
+    /// The `--port` value.
+    fn port(&self) -> &str {
+        &self.base.port
+    }
+
+    /// The `--timeout` value as a `Duration`.
+    fn timeout(&self) -> Duration {
+        self.base.timeout()
+    }
+}
+
+/// The connection options of the raw read commands, which default to a
+/// longer `--timeout`.
+#[derive(Args)]
+struct RawConnectionArgs {
+    #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
+    port: String,
+    #[arg(long, default_value_t = 5.0)]
+    timeout: f64,
+    /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
+    #[arg(long, value_parser = parse_device_id)]
+    device_id: Option<u8>,
+}
+
+impl RawConnectionArgs {
+    /// The `--timeout` value as a `Duration`.
+    fn timeout(&self) -> Duration {
+        Duration::from_secs_f64(self.timeout)
+    }
+}
+
 /// `wave` subcommands.
 #[derive(Subcommand)]
 enum WaveCommand {
@@ -187,13 +231,8 @@ enum WaveCommand {
 enum ExpansionCommand {
     /// Show the Expansion slots, then every Expansion and the slot holding it.
     List {
-        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
-        port: String,
-        #[arg(long, default_value_t = 2.0)]
-        timeout: f64,
-        /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
-        #[arg(long, value_parser = parse_device_id)]
-        device_id: Option<u8>,
+        #[command(flatten)]
+        conn: ConnectionArgs,
         #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
         format: OutputFormat,
     },
@@ -202,13 +241,8 @@ enum ExpansionCommand {
     /// Exit status: 0 success or nothing to do; 1 nothing sent (bad argument,
     /// no device, confirmation refused); 2 load sent but failed or timed out.
     Load {
-        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
-        port: String,
-        #[arg(long, default_value_t = 2.0)]
-        timeout: f64,
-        /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
-        #[arg(long, value_parser = parse_device_id)]
-        device_id: Option<u8>,
+        #[command(flatten)]
+        conn: ConnectionArgs,
         /// Slot assignments such as `A=SRX-01 C=ExSN3 D=OFF` (unnamed slots
         /// keep their Expansion), or `ExPCM` alone to fill all four.
         #[arg(required = true)]
@@ -246,13 +280,8 @@ enum PackCommand {
     /// Export User slots to a Pack file. Only reads from the device; the
     /// User tones of the chosen Studio Sets are added automatically.
     Export {
-        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
-        port: String,
-        #[arg(long, default_value_t = 2.0)]
-        timeout: f64,
-        /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
-        #[arg(long, value_parser = parse_device_id)]
-        device_id: Option<u8>,
+        #[command(flatten)]
+        conn: ConnectionArgs,
         /// Output .SVD file path.
         file: PathBuf,
         #[command(flatten)]
@@ -290,13 +319,8 @@ enum PackCommand {
     /// Exit status: 0 everything stored; 1 error before anything was
     /// stored; 2 partial store.
     Import {
-        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
-        port: String,
-        #[arg(long, default_value_t = 2.0)]
-        timeout: f64,
-        /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
-        #[arg(long, value_parser = parse_device_id)]
-        device_id: Option<u8>,
+        #[command(flatten)]
+        conn: ConnectionArgs,
         /// Path to the .SVD file (sound export or backup), or a .syx or .mid
         /// SysEx dump.
         file: PathBuf,
@@ -310,13 +334,8 @@ enum PackCommand {
     /// Exit status: 0 every slot stored; 1 error before anything was
     /// stored; 2 partial store.
     Reinit {
-        #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
-        port: String,
-        #[arg(long, default_value_t = 2.0)]
-        timeout: f64,
-        /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
-        #[arg(long, value_parser = parse_device_id)]
-        device_id: Option<u8>,
+        #[command(flatten)]
+        conn: ConnectionArgs,
         #[command(flatten)]
         options: ReinitOptions,
     },
@@ -337,27 +356,30 @@ fn resolve_device_id(port_pattern: &str, explicit: Option<u8>) -> Result<u8> {
     midi::detect_device_id(&mut conn_out, &rx, Duration::from_secs(2))
 }
 
+/// Exit the process with `code` unless it is zero.
+fn exit_nonzero(code: u8) -> Result<()> {
+    if code != 0 {
+        std::process::exit(code.into());
+    }
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli {
-        Cli::Ping {
-            port,
-            timeout,
-            quiet,
-        } => {
-            commands::ping::ping(&port, Duration::from_secs_f64(timeout), quiet)?;
+        Cli::Ping { conn, quiet } => {
+            commands::ping::ping(&conn.port, conn.timeout(), quiet)?;
             Ok(())
         }
         Cli::Read {
-            port,
-            timeout,
+            conn,
             what,
             part,
             device_id,
         } => {
-            let did = resolve_device_id(&port, device_id)?;
-            commands::dump::read_param(&port, Duration::from_secs_f64(timeout), did, &what, part)
+            let did = resolve_device_id(&conn.port, device_id)?;
+            commands::dump::read_param(&conn.port, conn.timeout(), did, &what, part)
         }
         Cli::Write {
             port,
@@ -369,28 +391,16 @@ fn main() -> Result<()> {
             let did = resolve_device_id(&port, device_id)?;
             commands::dump::write_param(&port, did, &what, part, value)
         }
-        Cli::RawRead {
-            port,
-            timeout,
-            addr,
-            size,
-            device_id,
-        } => {
-            let did = resolve_device_id(&port, device_id)?;
-            commands::raw::raw_read(&port, Duration::from_secs_f64(timeout), did, &addr, &size)
+        Cli::RawRead { conn, addr, size } => {
+            let did = resolve_device_id(&conn.port, conn.device_id)?;
+            commands::raw::raw_read(&conn.port, conn.timeout(), did, &addr, &size)
         }
         Cli::RawHex { port, timeout, hex } => {
             commands::raw::send_raw_hex(&port, Duration::from_secs_f64(timeout), &hex)
         }
-        Cli::RawRq1 {
-            port,
-            timeout,
-            addr,
-            size,
-            device_id,
-        } => {
-            let did = resolve_device_id(&port, device_id)?;
-            commands::raw::raw_rq1_multi(&port, Duration::from_secs_f64(timeout), did, &addr, &size)
+        Cli::RawRq1 { conn, addr, size } => {
+            let did = resolve_device_id(&conn.port, conn.device_id)?;
+            commands::raw::raw_rq1_multi(&conn.port, conn.timeout(), did, &addr, &size)
         }
         Cli::RawSend {
             port,
@@ -406,22 +416,14 @@ fn main() -> Result<()> {
         #[cfg(unix)]
         Cli::Bridge { host } => commands::bridge::bridge(host),
         Cli::SvdValidate {
-            port,
-            timeout,
+            conn,
             file,
             part,
             index,
             device_id,
         } => {
-            let did = resolve_device_id(&port, device_id)?;
-            commands::svd::svd_validate(
-                &port,
-                Duration::from_secs_f64(timeout),
-                did,
-                &file,
-                part,
-                index,
-            )
+            let did = resolve_device_id(&conn.port, device_id)?;
+            commands::svd::svd_validate(&conn.port, conn.timeout(), did, &file, part, index)
         }
         Cli::Pack {
             command:
@@ -436,9 +438,7 @@ fn main() -> Result<()> {
         Cli::Pack {
             command:
                 PackCommand::Export {
-                    port,
-                    timeout,
-                    device_id,
+                    conn,
                     file,
                     slots,
                     current_part,
@@ -446,9 +446,9 @@ fn main() -> Result<()> {
                     force,
                 },
         } => commands::pack::export(
-            &port,
-            device_id,
-            Duration::from_secs_f64(timeout),
+            conn.port(),
+            conn.device_id,
+            conn.timeout(),
             &file,
             slots,
             current_part,
@@ -457,90 +457,50 @@ fn main() -> Result<()> {
         ),
         Cli::Pack {
             command: PackCommand::Check { paths, top, format },
-        } => {
-            let code = commands::pack_check::run(&paths, top, format)?;
-            if code != 0 {
-                std::process::exit(code.into());
-            }
-            Ok(())
-        }
+        } => exit_nonzero(commands::pack_check::run(&paths, top, format)?),
         Cli::Pack {
             command:
                 PackCommand::Import {
-                    port,
-                    timeout,
-                    device_id,
+                    conn,
                     file,
                     options,
                 },
-        } => {
-            let code = commands::pack_import::import(
-                &port,
-                device_id,
-                Duration::from_secs_f64(timeout),
-                &file,
-                &options,
-            )?;
-            if code != 0 {
-                std::process::exit(code.into());
-            }
-            Ok(())
-        }
+        } => exit_nonzero(commands::pack_import::import(
+            conn.port(),
+            conn.device_id,
+            conn.timeout(),
+            &file,
+            &options,
+        )?),
         Cli::Pack {
-            command:
-                PackCommand::Reinit {
-                    port,
-                    timeout,
-                    device_id,
-                    options,
-                },
-        } => {
-            let code = commands::pack_import::reinit(
-                &port,
-                device_id,
-                Duration::from_secs_f64(timeout),
-                &options,
-            )?;
-            if code != 0 {
-                std::process::exit(code.into());
-            }
-            Ok(())
-        }
+            command: PackCommand::Reinit { conn, options },
+        } => exit_nonzero(commands::pack_import::reinit(
+            conn.port(),
+            conn.device_id,
+            conn.timeout(),
+            &options,
+        )?),
         Cli::Expansion {
-            command:
-                ExpansionCommand::List {
-                    port,
-                    timeout,
-                    device_id,
-                    format,
-                },
-        } => commands::expansion::list(&port, device_id, Duration::from_secs_f64(timeout), format),
+            command: ExpansionCommand::List { conn, format },
+        } => commands::expansion::list(conn.port(), conn.device_id, conn.timeout(), format),
         Cli::Expansion {
             command:
                 ExpansionCommand::Load {
-                    port,
-                    timeout,
-                    device_id,
+                    conn,
                     assignments,
                     dry_run,
                     yes,
                     format,
                 },
-        } => {
-            let code = commands::expansion::load(
-                &port,
-                device_id,
-                Duration::from_secs_f64(timeout),
-                &assignments,
-                dry_run,
-                yes,
-                format,
-            )?;
-            if code != 0 {
-                std::process::exit(code.into());
-            }
-            Ok(())
-        }
+        } => exit_nonzero(commands::expansion::load(
+            conn.port(),
+            conn.device_id,
+            conn.timeout(),
+            &assignments,
+            dry_run,
+            yes,
+            format,
+        )?),
         Cli::Wave {
             command: WaveCommand::List { group, all, format },
         } => commands::wave::list(group.as_deref(), all, format),

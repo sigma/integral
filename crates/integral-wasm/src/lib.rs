@@ -2313,7 +2313,7 @@ pub fn reverb_type_names() -> Vec<String> {
         .collect()
 }
 
-/// Returns chorus output routing names.
+/// Returns chorus output select names (MAIN/REV/MAIN+REV).
 #[wasm_bindgen]
 pub fn chorus_output_names() -> Vec<String> {
     fx_params::CHORUS_OUTPUT_NAMES
@@ -2322,10 +2322,19 @@ pub fn chorus_output_names() -> Vec<String> {
         .collect()
 }
 
-/// Returns reverb output routing names.
+/// Returns reverb output assign names (A–D).
 #[wasm_bindgen]
 pub fn reverb_output_names() -> Vec<String> {
-    fx_params::REVERB_OUTPUT_NAMES
+    fx_params::OUTPUT_ASSIGN_NAMES
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Returns chorus output assign names (A–D).
+#[wasm_bindgen]
+pub fn chorus_output_assign_names() -> Vec<String> {
+    fx_params::OUTPUT_ASSIGN_NAMES
         .iter()
         .map(|s| s.to_string())
         .collect()
@@ -2710,6 +2719,16 @@ impl WasmDeviceState {
         self.inner.mixer_loading()
     }
 
+    /// The mixer blocks whose read gave up, as human-readable labels.
+    #[wasm_bindgen(js_name = mixerFailedBlocks)]
+    pub fn mixer_failed_blocks(&self) -> Vec<String> {
+        self.inner
+            .mixer_failed_blocks()
+            .iter()
+            .map(|block| block.label())
+            .collect()
+    }
+
     /// Drop a part's cached SN-S tone and read it again from the device,
     /// e.g. when its editor opens. Lost replies are requested again by
     /// `drain`.
@@ -3074,9 +3093,11 @@ pub enum ControlSourceKind {
     Mfx,
     /// See [`mfx_params::ControlSourceKind::Matrix`].
     Matrix,
+    /// See [`mfx_params::ControlSourceKind::SystemControl`].
+    SystemControl,
 }
 
-mirror_core_enum!(ControlSourceKind <=> mfx_params::ControlSourceKind { Mfx, Matrix });
+mirror_core_enum!(ControlSourceKind <=> mfx_params::ControlSourceKind { Mfx, Matrix, SystemControl });
 
 /// One Control Source a picker may offer.
 #[wasm_bindgen(getter_with_clone)]

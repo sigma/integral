@@ -30,6 +30,7 @@ pub mod family;
 pub mod field_spec;
 pub mod fx_params;
 pub mod initialize;
+pub mod lfo_rates;
 pub mod librarian;
 pub mod mfx;
 pub mod mfx_params;

@@ -940,8 +940,9 @@ function OutputSection({
         onFx1Change={set(PcmsPartialField.ChorusSend, "chorusSend")}
         onFx2Change={set(PcmsPartialField.ReverbSend, "reverbSend")}
         onLevelChange={set(PcmsPartialField.OutputLevel, "outputLevel")}
-        fx1Family={pcms_partial_spec(PcmsPartialField.ChorusSend).family}
-        fx2Family={pcms_partial_spec(PcmsPartialField.ReverbSend).family}
+        fx1Spec={knobProps(pcms_partial_spec(PcmsPartialField.ChorusSend))}
+        fx2Spec={knobProps(pcms_partial_spec(PcmsPartialField.ReverbSend))}
+        levelSpec={knobRange(pcms_partial_spec(PcmsPartialField.OutputLevel))}
         trackHeight={150}
       />
     </SectionPanel>

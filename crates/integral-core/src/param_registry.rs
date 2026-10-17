@@ -36,12 +36,31 @@ pub enum ParamFormat {
     /// 0-127 as a number, then the tempo-synced note values from
     /// [`NOTE_FROM`].
     TimeOrNote,
+    /// A PCM Synth Tone LFO1/LFO2 rate as Hz
+    /// ([`docs/research/lfo-rates.md`], ±3% device scatter), then the
+    /// tempo-synced note values from [`NOTE_FROM`].
+    ///
+    /// [`docs/research/lfo-rates.md`]: crate::lfo_rates
+    PcmLfoRate,
+    /// An SN Synth Tone LFO / Modulation LFO rate as Hz
+    /// ([`docs/research/lfo-rates.md`], ±3% device scatter; rate 0 is an
+    /// unresolved estimate). Tempo sync lives in separate fields.
+    ///
+    /// [`docs/research/lfo-rates.md`]: crate::lfo_rates
+    SnLfoRate,
     /// The value as a percentage (`100` -> "100%").
     Percent,
 }
 
 /// First raw value of the note range in a [`ParamFormat::TimeOrNote`] field.
 pub const NOTE_FROM: i32 = 128;
+
+/// The tempo-synced note name of a value at or above [`NOTE_FROM`].
+fn note_name(value: i32) -> Option<&'static str> {
+    value
+        .checked_sub(NOTE_FROM)
+        .and_then(|i| crate::fx_params::NOTE_NAMES.get(i as usize).copied())
+}
 
 /// Logical grouping for a parameter.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -159,12 +178,17 @@ impl ParamFormat {
                     value.div_euclid(12) - 1
                 )
             }
-            ParamFormat::TimeOrNote => match value.checked_sub(NOTE_FROM) {
-                Some(i) if i >= 0 => crate::fx_params::NOTE_NAMES
-                    .get(i as usize)
-                    .map_or_else(|| value.to_string(), |n| n.to_string()),
-                _ => value.to_string(),
+            ParamFormat::TimeOrNote => match note_name(value) {
+                Some(note) => note.to_string(),
+                None => value.to_string(),
             },
+            ParamFormat::PcmLfoRate => match note_name(value) {
+                Some(note) => note.to_string(),
+                None => crate::lfo_rates::format_hz(crate::lfo_rates::pcm_lfo_hz(value)),
+            },
+            ParamFormat::SnLfoRate => {
+                crate::lfo_rates::format_hz(crate::lfo_rates::sn_lfo_hz(value))
+            }
             ParamFormat::Percent => format!("{value}%"),
         }
     }
@@ -379,8 +403,18 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
         family: ParameterFamily::Amp,
     });
     params.push(ParamDef {
+        id: "chorus.output_assign",
+        name: "Chorus Output Assign",
+        group: ParamGroup::Chorus,
+        min: 0,
+        max: last(spec.output_assign_names),
+        default: 0,
+        format: ParamFormat::Named(spec.output_assign_names),
+        family: ParameterFamily::Common,
+    });
+    params.push(ParamDef {
         id: "chorus.output",
-        name: "Chorus Output",
+        name: "Chorus Output Select",
         group: ParamGroup::Chorus,
         min: 0,
         max: last(spec.chorus_output_names),
@@ -422,12 +456,12 @@ fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
     });
     params.push(ParamDef {
         id: "reverb.output",
-        name: "Reverb Output",
+        name: "Reverb Output Assign",
         group: ParamGroup::Reverb,
         min: 0,
-        max: last(spec.reverb_output_names),
+        max: last(spec.output_assign_names),
         default: 0,
-        format: ParamFormat::Named(spec.reverb_output_names),
+        format: ParamFormat::Named(spec.output_assign_names),
         family: ParameterFamily::Common,
     });
 
@@ -572,15 +606,15 @@ mod tests {
     #[test]
     fn mixer_param_count() {
         let params = mixer_params();
-        // 16 parts * 7 params + 1 master + 2 ext + 4 chorus + 4 reverb + 1 solo + 7 EQ
-        // + 6 Comp = 137
-        assert_eq!(params.len(), 137);
+        // 16 parts * 7 params + 1 master + 2 ext + 5 chorus + 4 reverb + 1 solo + 7 EQ
+        // + 6 Comp = 138
+        assert_eq!(params.len(), 138);
     }
 
     #[test]
     fn part_count_drives_mixer_params() {
         let params = mixer_params_for(4);
-        assert_eq!(params.len(), 4 * 7 + 25);
+        assert_eq!(params.len(), 4 * 7 + 26);
         assert!(lookup(&params, "part.3.level").is_some());
         assert!(lookup(&params, "part.4.level").is_none());
         let rx = lookup(&params, "part.3.receive_channel").unwrap();
@@ -619,6 +653,14 @@ mod tests {
     fn format_named() {
         let params = mixer_params();
         let def = lookup(&params, "part.0.output_assign").unwrap();
+        assert_eq!(format_value(def, 0), "A");
+        assert_eq!(format_value(def, 3), "D");
+    }
+
+    #[test]
+    fn format_chorus_output_assign() {
+        let params = mixer_params();
+        let def = lookup(&params, "chorus.output_assign").unwrap();
         assert_eq!(format_value(def, 0), "A");
         assert_eq!(format_value(def, 3), "D");
     }

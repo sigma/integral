@@ -71,6 +71,10 @@ pub struct FxState {
     pub level: u8,
     /// Output routing (Chorus: 0–2 MAIN/REV/MAIN+REV; Reverb: 0–3 A/B/C/D).
     pub output: u8,
+    /// Chorus Output Assign (0–3 = A/B/C/D). Only the Chorus uses this: on
+    /// Reverb, [`FxState::output`] already holds the Output Assign, while the
+    /// chorus `output` holds the Output Select.
+    pub output_assign: u8,
     /// Type-dependent parameters (nibblized values, decoded to display range).
     pub params: Vec<i32>,
 }
@@ -82,6 +86,7 @@ impl Default for FxState {
             fx_type: 0,
             level: 0,
             output: 0,
+            output_assign: 0,
             params: Vec::new(),
         }
     }

@@ -52,7 +52,7 @@ fn totals_the_fixtures_and_skips_what_is_not_a_pack() {
     assert_eq!(totals["droppedEffects"], json!([]));
     assert_eq!(
         totals["itemKinds"][0],
-        json!({ "item": "notApplied", "count": 10 })
+        json!({ "item": "notApplied", "count": 9 })
     );
 
     // Per file, in path order, with each tone's full report.

@@ -390,11 +390,12 @@ function NoteControls({
           <OutputStrip
             pan={{
               value: note.pan, onChange: set(SndNoteField.Pan, "pan"),
-              format: (v) => snd_note_spec(SndNoteField.Pan).formatValue(v), family: snd_note_spec(SndNoteField.Pan).family,
+              spec: knobProps(snd_note_spec(SndNoteField.Pan)),
             }}
             fx1={note.chorusSend} fx2={note.reverbSend}
-            fx1Family={snd_note_spec(SndNoteField.ChorusSend).family}
-            fx2Family={snd_note_spec(SndNoteField.ReverbSend).family}
+            fx1Spec={knobProps(snd_note_spec(SndNoteField.ChorusSend))}
+            fx2Spec={knobProps(snd_note_spec(SndNoteField.ReverbSend))}
+            levelSpec={knobRange(snd_note_spec(SndNoteField.Level))}
             level={note.level}
             onFx1Change={set(SndNoteField.ChorusSend, "chorusSend")}
             onFx2Change={set(SndNoteField.ReverbSend, "reverbSend")}

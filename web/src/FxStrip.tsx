@@ -11,11 +11,20 @@ import { RouteChip } from "./RouteChip";
 import { SynthSwitch } from "./synth-ui";
 import { SyncToggle } from "./SyncToggle";
 
+/** One output-routing select on an FX strip, wired to a core block offset. */
+interface FxRoute {
+  /** Raw offset within the FX core block. */
+  offset: number;
+  names: string[];
+  value: number;
+  title: string;
+}
+
 interface Props {
   label: string;
   fx: FxState;
   typeNames: string[];
-  outputNames: string[];
+  routes: FxRoute[];
   /** Visible parameter definitions for a type (from the core, via WASM). */
   paramDefs: (type: number) => WasmFxParamDef[];
   onToggleSwitch: () => void;
@@ -27,7 +36,7 @@ export function FxStrip({
   label,
   fx,
   typeNames,
-  outputNames,
+  routes,
   paramDefs,
   onToggleSwitch,
   onParam,
@@ -94,12 +103,14 @@ export function FxStrip({
             options={typeNames.map((name, i) => ({ value: i, label: name }))}
             onChange={(v) => onParam(0, v)} />
         </div>
-        {/* Route chip shares the slot above M/S with part and Comp+EQ strips; the hidden M/S row aligns it. */}
+        {/* Route chips share the slots above M/S with part and Comp+EQ strips; the hidden M/S row aligns them. */}
         <div className={css.toggles}>
-          <div className={css.muteRow}>
-            <RouteChip value={fx.output} names={outputNames}
-              onChange={(v) => onParam(label === "FX1" ? 3 : 2, v)} title={`${label} Output`} />
-          </div>
+          {routes.map((route) => (
+            <div key={route.offset} className={css.muteRow}>
+              <RouteChip value={route.value} names={route.names}
+                onChange={(v) => onParam(route.offset, v)} title={route.title} />
+            </div>
+          ))}
           <div className={css.muteRow} style={{ visibility: "hidden" }}>
             <button className={css.muteButton}>M</button>
           </div>

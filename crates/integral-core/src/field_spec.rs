@@ -48,7 +48,7 @@ const fn shape(min: i32, max: i32, format: ParamFormat) -> Shape {
     Shape { min, max, format }
 }
 
-use ParamFormat::{Named, Note, OnOff, Pan, Raw, SignedCenter, TimeOrNote};
+use ParamFormat::{Named, Note, OnOff, Pan, PcmLfoRate, Raw, SignedCenter, SnLfoRate, TimeOrNote};
 
 const RAW_127: Shape = shape(0, 127, Raw);
 const SIGNED_63: Shape = shape(1, 127, SignedCenter(64));
@@ -252,7 +252,10 @@ pub fn pcms_partial_spec(field: PcmsPartialField) -> FieldSpec {
             3,
             Named(&["NORMAL", "HOLD", "KEY-OFF-NORMAL", "KEY-OFF-DECAY"]),
         ),
-        F::DelayTime | F::Lfo1Rate | F::Lfo2Rate => shape(0, 149, TimeOrNote),
+        // Rate 0-127 shows Hz (docs/research/lfo-rates.md); from 128 on, the
+        // tempo-synced note values.
+        F::Lfo1Rate | F::Lfo2Rate => shape(0, 149, PcmLfoRate),
+        F::DelayTime => shape(0, 149, TimeOrNote),
         F::ReceiveBender
         | F::ReceiveExpression
         | F::ReceiveHold1
@@ -504,12 +507,13 @@ pub fn sns_partial_spec(field: SnsPartialField) -> FieldSpec {
         | F::AmpEnvDecay
         | F::AmpEnvSustain
         | F::AmpEnvRelease
-        | F::LfoRate
         | F::LfoFadeTime
-        | F::ModLfoRate
         | F::PwShift
         | F::HpfCutoff
         | F::SuperSawDetune => RAW_127,
+        // Hz per docs/research/lfo-rates.md; tempo sync lives in separate
+        // fields.
+        F::LfoRate | F::ModLfoRate => shape(0, 127, SnLfoRate),
         F::OscPitchEnvDepth
         | F::FilterEnvVelSens
         | F::FilterEnvDepth
@@ -1066,7 +1070,10 @@ pub struct FieldSync<F> {
 /// How a PCM Synth Tone Partial rate or time field follows the tempo, if
 /// it can.
 pub fn pcms_partial_sync(field: PcmsPartialField) -> Option<InRangeSync> {
-    if pcms_partial_spec(field).format != ParamFormat::TimeOrNote {
+    if !matches!(
+        pcms_partial_spec(field).format,
+        ParamFormat::TimeOrNote | ParamFormat::PcmLfoRate
+    ) {
         return None;
     }
     let quarter = NOTE_NAMES
@@ -1414,7 +1421,8 @@ mod tests {
         assert_eq!(fmt(PcmsPartialField::Pan, 127), "63R");
         assert_eq!(fmt(PcmsPartialField::TvaBiasPosition, 0), "C-1");
         assert_eq!(fmt(PcmsPartialField::TvaBiasPosition, 127), "G9");
-        assert_eq!(fmt(PcmsPartialField::Lfo1Rate, 127), "127");
+        assert_eq!(fmt(PcmsPartialField::Lfo1Rate, 0), "0.05Hz");
+        assert_eq!(fmt(PcmsPartialField::Lfo1Rate, 127), "27.1Hz");
         assert_eq!(fmt(PcmsPartialField::Lfo1Rate, 128), "1/64T");
         assert_eq!(fmt(PcmsPartialField::Lfo1Rate, 149), "2/1");
         assert_eq!(fmt(PcmsPartialField::LfoStep, 28), "-36");
@@ -1457,6 +1465,16 @@ mod tests {
             (F::ModLfoTempoSync, F::ModLfoTempoSyncNote)
         );
         assert_eq!(sns_partial_sync(F::LfoPitchDepth), None);
+    }
+
+    #[test]
+    fn sn_lfo_rates_show_hz() {
+        use SnsPartialField as F;
+        let fmt = |f: SnsPartialField, v| sns_partial_spec(f).format.format(v);
+        assert_eq!(fmt(F::LfoRate, 0), "0.03Hz");
+        assert_eq!(fmt(F::LfoRate, 64), "1.9Hz");
+        assert_eq!(fmt(F::LfoRate, 127), "26.9Hz");
+        assert_eq!(fmt(F::ModLfoRate, 126), "25.6Hz");
     }
 
     #[test]

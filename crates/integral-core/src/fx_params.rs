@@ -412,8 +412,8 @@ pub static REVERB_TYPE_NAMES: &[&str] = &[
 /// Chorus output routing names.
 pub static CHORUS_OUTPUT_NAMES: &[&str] = &["MAIN", "REV", "MAIN+REV"];
 
-/// Reverb output routing names.
-pub static REVERB_OUTPUT_NAMES: &[&str] = &["A", "B", "C", "D"];
+/// Output assign names (A–D), shared by Reverb and Chorus Output Assign.
+pub static OUTPUT_ASSIGN_NAMES: &[&str] = &["A", "B", "C", "D"];
 
 #[cfg(test)]
 mod tests {

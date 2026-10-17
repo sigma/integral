@@ -1,5 +1,5 @@
 {
-  "_about": "Companion data for docs/research/foreign-fx-map.md. 'integra_params' are MFX Parameter numbers n (1-32) of the PCM Synth Tone MFX block, taken from Roland INTEGRA-7 Editor model_excmap_mfx.js leaf order minus the four CTRL_ASGN leaves. 'jv_prm' is EFX Parameter n (Patch Common 00 0D + n - 1), from the JV-1010 Owner's Manual MIDI Implementation, 'Correspondence of the EFX algorithm and Exclusive Address'. JV raw type r = XV MFX type r + 1 by name and parameter list. Roland's own JV->XV conversions (https://github.com/sigma/integral/issues/206, map-check-roland-pairs.md) confirm the type numbering and show that XV types 1-40 store the JV EFX parameters verbatim: XV MFX Parameter n = JV EFX Parameter n, same raw value, Parameters 13-32 = 0. An XV Patch with MFX type 1-40 therefore converts with these same rows (jv_prm = XV Parameter n). 'roland_pairs' gives the evidence per type; 'confidence' grades the JV/XV source side (type and raw parameter identity). The Integra side (integra_params, conv) cannot be checked from the pairs and keeps the grades in foreign-fx-map.md. The XV 41-90 encoding is still unverified. XV 41-90 'copy_slots': XV MFX Parameter n lands on Integra MFX Parameter copy_slots[n-1]; the other Integra Parameters keep the target type's defaults. Listed only for types the corpus check (xv-mfx-fit-check.py) and the XV-5050 manual both support (foreign-fx-map.md, Unresolved 1); every other XV 41-90 type gets the target type's defaults.",
+  "_about": "Companion data for docs/research/foreign-fx-map.md. 'integra_params' are MFX Parameter numbers n (1-32) of the PCM Synth Tone MFX block, taken from Roland INTEGRA-7 Editor model_excmap_mfx.js leaf order minus the four CTRL_ASGN leaves. 'jv_prm' is EFX Parameter n (Patch Common 00 0D + n - 1), from the JV-1010 Owner's Manual MIDI Implementation, 'Correspondence of the EFX algorithm and Exclusive Address'. JV raw type r = XV MFX type r + 1 by name and parameter list. Roland's own JV->XV conversions (https://github.com/sigma/integral/issues/206, map-check-roland-pairs.md) confirm the type numbering and show that XV types 1-40 store the JV EFX parameters verbatim: XV MFX Parameter n = JV EFX Parameter n, same raw value, Parameters 13-32 = 0. An XV Patch with MFX type 1-40 therefore converts with these same rows (jv_prm = XV Parameter n). 'roland_pairs' gives the evidence per type; 'confidence' grades the JV/XV source side (type and raw parameter identity). The Integra side (integra_params, conv) cannot be checked from the pairs and keeps the grades in foreign-fx-map.md. The XV 41-90 encoding is still unverified. XV 41-90 'copy_slots': XV MFX Parameter n lands on Integra MFX Parameter copy_slots[n-1]; the other Integra Parameters keep the target type's defaults. Listed only for types the corpus check (xv-mfx-fit-check.py) and the XV-5050 manual both support (foreign-fx-map.md, Unresolved 1); every other XV 41-90 type gets the target type's defaults. 'control_dests' lists each type's MFX Control Assign destinations in stored order: the XV-5050 Owner's Manual (pp. 76-103) marks the controllable parameters '#' per type, and '#1'/'#2' group two parameters that change as one destination (the grouped pitch destinations are named for the voice they tune). Roland's own JV->XV conversions fit: every Control Assign value they write indexes this list (types 1-40 default to Assign 1 = 1, Assign 2 = 2; STEREO-EQ, with one destination, gets Assign 2 = 0). Each entry's 'integra' names the INTEGRA-7 destination it lands on (mfx_params::control_targets of the target type), or is null when the INTEGRA-7 type cannot control it; a null is reported as a dropped parameter when the control is in use. Names that Roland renamed between XV and INTEGRA-7 are deliberate mappings, listed in foreign-fx-map.md (Control destinations). 'control_dests' lists each type's MFX Control Assign destinations in stored order: the XV-5050 Owner's Manual (pp. 76-103) marks the controllable parameters '#' per type, and '#1'/'#2' group two parameters that change as one destination (the grouped pitch destinations are named for the voice they tune). Roland's own JV->XV conversions fit: every Control Assign value they write indexes this list (types 1-40 default to Assign 1 = 1, Assign 2 = 2; STEREO-EQ, with one destination, gets Assign 2 = 0). Each entry's 'integra' names the INTEGRA-7 destination it lands on (mfx_params::control_targets of the target type), or is null when the INTEGRA-7 type cannot control it; a null is reported as a dropped parameter when the control is in use. Names that Roland renamed between XV and INTEGRA-7 are deliberate mappings, listed in foreign-fx-map.md (Control destinations).",
   "conversions": {
     "copy": "target raw = source raw",
     "drop": "no Integra equivalent: list in the Conversion report. A drop row's 'neutral' is the value that loses nothing (centre pan): the converter reports the parameter only when it differs.",
@@ -191,7 +191,16 @@
           "J2XV->XV 22": 1,
           "J2XV->XV 11": 1
         }
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Level",
+          "integra": "Level"
+        }
+      ],
+      "integra_dests": [
+        "Level"
+      ]
     },
     {
       "jv_raw": 1,
@@ -303,7 +312,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 2",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Drive",
+          "integra": "Drive"
+        },
+        {
+          "dest": "Pan",
+          "integra": "Pan"
+        }
+      ],
+      "integra_dests": [
+        "Drive",
+        "Pan"
+      ]
     },
     {
       "jv_raw": 2,
@@ -419,7 +442,21 @@
           "J2XV": "Parameters 5,6 differ in 1 of 8 Patches (source-version difference; R02 has none)",
           "X5050": "Parameters 5,6 differ in 1 of 5 Patches (source-version difference; R02 has none)"
         }
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Drive",
+          "integra": "Drive"
+        },
+        {
+          "dest": "Pan",
+          "integra": "Pan"
+        }
+      ],
+      "integra_dests": [
+        "Drive",
+        "Pan"
+      ]
     },
     {
       "jv_raw": 3,
@@ -556,7 +593,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 4",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Manual",
+          "integra": "Manual"
+        },
+        {
+          "dest": "Rate",
+          "integra": "Rate"
+        }
+      ],
+      "integra_dests": [
+        "Manual",
+        "Rate"
+      ]
     },
     {
       "jv_raw": 4,
@@ -715,7 +766,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 5",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Level",
+          "integra": "Level"
+        },
+        {
+          "dest": "Pan",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        "Level",
+        null
+      ]
     },
     {
       "jv_raw": 5,
@@ -803,7 +868,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 6",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Sens",
+          "integra": "Sens"
+        },
+        {
+          "dest": "Mix",
+          "integra": "Mix"
+        }
+      ],
+      "integra_dests": [
+        "Sens",
+        "Mix"
+      ]
     },
     {
       "jv_raw": 6,
@@ -939,7 +1018,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 7",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Manual",
+          "integra": "Manual"
+        },
+        {
+          "dest": "Rate",
+          "integra": "Rate"
+        }
+      ],
+      "integra_dests": [
+        "Manual",
+        "Rate"
+      ]
     },
     {
       "jv_raw": 7,
@@ -1105,7 +1198,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 8",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Speed",
+          "integra": "Speed"
+        },
+        {
+          "dest": "Level",
+          "integra": "Level"
+        }
+      ],
+      "integra_dests": [
+        "Speed",
+        "Level"
+      ]
     },
     {
       "jv_raw": 8,
@@ -1220,7 +1327,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 9",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Level",
+          "integra": "Level"
+        },
+        {
+          "dest": "Pan",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        "Level",
+        null
+      ]
     },
     {
       "jv_raw": 9,
@@ -1342,7 +1463,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 10",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Level",
+          "integra": "Level"
+        },
+        {
+          "dest": "Pan",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        "Level",
+        null
+      ]
     },
     {
       "jv_raw": 10,
@@ -1471,7 +1606,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 11",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Rate",
+        "Balance"
+      ]
     },
     {
       "jv_raw": 11,
@@ -1605,7 +1754,21 @@
         "exceptions": {
           "X5050": "Parameters 3 differ in 1 of 7 Patches (source-version difference; R02 has none)"
         }
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Treml Rate",
+          "integra": "Tremolo Rate"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Tremolo Rate",
+        "Balance"
+      ]
     },
     {
       "jv_raw": 12,
@@ -1733,7 +1896,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 13",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Cho Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Rate",
+        "Balance"
+      ]
     },
     {
       "jv_raw": 13,
@@ -1888,7 +2065,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 14",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Rate",
+        "Balance"
+      ]
     },
     {
       "jv_raw": 14,
@@ -2056,7 +2247,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 15",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Feedback",
+          "integra": "Feedback"
+        }
+      ],
+      "integra_dests": [
+        "Rate",
+        "Feedback"
+      ]
     },
     {
       "jv_raw": 15,
@@ -2224,7 +2429,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 16",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Feedback",
+          "integra": "Feedback"
+        },
+        {
+          "dest": "Step Rate",
+          "integra": "Step Rate"
+        }
+      ],
+      "integra_dests": [
+        "Feedback",
+        "Step Rate"
+      ]
     },
     {
       "jv_raw": 16,
@@ -2394,7 +2613,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 17",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Feedback",
+          "integra": "Feedback"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Feedback",
+        "Balance"
+      ]
     },
     {
       "jv_raw": 17,
@@ -2579,7 +2812,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 18",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Rate",
+        "Balance"
+      ]
     },
     {
       "jv_raw": 18,
@@ -2764,7 +3011,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 19",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Feedback",
+          "integra": "Center Feedback"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Center Feedback",
+        "Balance"
+      ]
     },
     {
       "jv_raw": 19,
@@ -2962,7 +3223,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 20",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Feedback",
+          "integra": "Dly 1 Fback"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Dly 1 Fback",
+        "Balance"
+      ]
     },
     {
       "jv_raw": 20,
@@ -3098,7 +3373,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 21",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Delay",
+          "integra": "Delay Time"
+        },
+        {
+          "dest": "Feedback",
+          "integra": "Feedback"
+        }
+      ],
+      "integra_dests": [
+        "Delay Time",
+        "Feedback"
+      ]
     },
     {
       "jv_raw": 21,
@@ -3298,7 +3587,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 22",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Pitch A",
+          "integra": "Pitch1 Pitch"
+        },
+        {
+          "dest": "Pitch B",
+          "integra": "Pitch2 Pitch"
+        }
+      ],
+      "integra_dests": [
+        "Pitch1 Pitch",
+        "Pitch2 Pitch"
+      ]
     },
     {
       "jv_raw": 22,
@@ -3442,7 +3745,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 23",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Pitch",
+          "integra": "Pitch"
+        },
+        {
+          "dest": "Feedback",
+          "integra": "Feedback"
+        }
+      ],
+      "integra_dests": [
+        "Pitch",
+        "Feedback"
+      ]
     },
     {
       "jv_raw": 23,
@@ -3463,7 +3780,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 24",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Time",
+          "integra": null
+        },
+        {
+          "dest": "Balance",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        null,
+        null
+      ]
     },
     {
       "jv_raw": 24,
@@ -3483,7 +3814,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 25",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Balance",
+          "integra": null
+        },
+        {
+          "dest": "Level",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        null,
+        null
+      ]
     },
     {
       "jv_raw": 25,
@@ -3585,7 +3930,21 @@
       "roland_pairs": {
         "patches": {},
         "xv_type": "not observed"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "OD Pan",
+          "integra": "Overdrive Pan"
+        },
+        {
+          "dest": "Cho Balance",
+          "integra": "Chorus Balance"
+        }
+      ],
+      "integra_dests": [
+        "Overdrive Pan",
+        "Chorus Balance"
+      ]
     },
     {
       "jv_raw": 26,
@@ -3712,7 +4071,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 27",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "OD Pan",
+          "integra": "Overdrive Pan"
+        },
+        {
+          "dest": "Flg Balance",
+          "integra": "Fln Balance"
+        }
+      ],
+      "integra_dests": [
+        "Overdrive Pan",
+        "Fln Balance"
+      ]
     },
     {
       "jv_raw": 27,
@@ -3825,7 +4198,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 28",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "OD Pan",
+          "integra": "Overdrive Pan"
+        },
+        {
+          "dest": "Dly Balance",
+          "integra": "Delay Balance"
+        }
+      ],
+      "integra_dests": [
+        "Overdrive Pan",
+        "Delay Balance"
+      ]
     },
     {
       "jv_raw": 28,
@@ -3939,7 +4326,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 29",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Dist Pan",
+          "integra": "Dst Pan"
+        },
+        {
+          "dest": "Cho Balance",
+          "integra": "Chorus Balance"
+        }
+      ],
+      "integra_dests": [
+        "Dst Pan",
+        "Chorus Balance"
+      ]
     },
     {
       "jv_raw": 29,
@@ -4053,7 +4454,21 @@
       "roland_pairs": {
         "patches": {},
         "xv_type": "not observed"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Dist Pan",
+          "integra": "Dst Pan"
+        },
+        {
+          "dest": "Flg Balance",
+          "integra": "Fln Balance"
+        }
+      ],
+      "integra_dests": [
+        "Dst Pan",
+        "Fln Balance"
+      ]
     },
     {
       "jv_raw": 30,
@@ -4166,7 +4581,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 31",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Dist Pan",
+          "integra": "Dst Pan"
+        },
+        {
+          "dest": "Dly Balance",
+          "integra": "Delay Balance"
+        }
+      ],
+      "integra_dests": [
+        "Dst Pan",
+        "Delay Balance"
+      ]
     },
     {
       "jv_raw": 31,
@@ -4281,7 +4710,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 32",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Enhancer Sens",
+          "integra": "Enhancer Sens"
+        },
+        {
+          "dest": "Cho Balance",
+          "integra": "Chorus Balance"
+        }
+      ],
+      "integra_dests": [
+        "Enhancer Sens",
+        "Chorus Balance"
+      ]
     },
     {
       "jv_raw": 32,
@@ -4408,7 +4851,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 33",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Enhancer Sens",
+          "integra": "Enhancer Sens"
+        },
+        {
+          "dest": "Flg Balance",
+          "integra": "Fln Balance"
+        }
+      ],
+      "integra_dests": [
+        "Enhancer Sens",
+        "Fln Balance"
+      ]
     },
     {
       "jv_raw": 33,
@@ -4524,7 +4981,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 34",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Enhancer Sens",
+          "integra": "Enhancer Sens"
+        },
+        {
+          "dest": "Dly Balance",
+          "integra": "Delay Balance"
+        }
+      ],
+      "integra_dests": [
+        "Enhancer Sens",
+        "Delay Balance"
+      ]
     },
     {
       "jv_raw": 34,
@@ -4667,7 +5138,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 35",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Cho Balance",
+          "integra": "Chorus Balance"
+        },
+        {
+          "dest": "Dly Balance",
+          "integra": "Delay Balance"
+        }
+      ],
+      "integra_dests": [
+        "Chorus Balance",
+        "Delay Balance"
+      ]
     },
     {
       "jv_raw": 35,
@@ -4823,7 +5308,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 36",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Flg Balance",
+          "integra": "Fln Balance"
+        },
+        {
+          "dest": "Dly Balance",
+          "integra": "Delay Balance"
+        }
+      ],
+      "integra_dests": [
+        "Fln Balance",
+        "Delay Balance"
+      ]
     },
     {
       "jv_raw": 36,
@@ -4977,7 +5476,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 37",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Cho Balance",
+          "integra": "Chorus Balance"
+        },
+        {
+          "dest": "Flg Balance",
+          "integra": "Fln Balance"
+        }
+      ],
+      "integra_dests": [
+        "Chorus Balance",
+        "Fln Balance"
+      ]
     },
     {
       "jv_raw": 37,
@@ -5120,7 +5633,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 38",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Cho Balance",
+          "integra": "Chorus Balance"
+        },
+        {
+          "dest": "Dly Balance",
+          "integra": "Delay Balance"
+        }
+      ],
+      "integra_dests": [
+        "Chorus Balance",
+        "Delay Balance"
+      ]
     },
     {
       "jv_raw": 38,
@@ -5260,7 +5787,21 @@
       "roland_pairs": {
         "patches": {},
         "xv_type": "not observed"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Flg Balance",
+          "integra": "Fln Balance"
+        },
+        {
+          "dest": "Dly Balance",
+          "integra": "Delay Balance"
+        }
+      ],
+      "integra_dests": [
+        "Fln Balance",
+        "Delay Balance"
+      ]
     },
     {
       "jv_raw": 39,
@@ -5414,7 +5955,21 @@
         },
         "xv_type": "confirmed: XV MFX Type 40",
         "xv_params": "verbatim: XV MFX Parameter n = JV EFX Parameter n (1-12), Parameters 13-32 = 0"
-      }
+      },
+      "control_dests": [
+        {
+          "dest": "Cho Balance",
+          "integra": "Chorus Balance"
+        },
+        {
+          "dest": "Flg Balance",
+          "integra": "Fln Balance"
+        }
+      ],
+      "integra_dests": [
+        "Chorus Balance",
+        "Fln Balance"
+      ]
     }
   ],
   "classes": {
@@ -5430,77 +5985,281 @@
       "name": "STEREO PHASER",
       "integra": "9 PHASER 1 (Step Switch OFF) / 12 STEP PHASER (Step Switch ON)",
       "class": "rescaled-lossy",
-      "notes": "Type 1/2 dropped; Mode 4/8-STAGE -> Integra Mode; Polarity, Manual 0-127, X-Feedback -> Cross Feedback, Mix, Low/High"
+      "notes": "Type 1/2 dropped; Mode 4/8-STAGE -> Integra Mode; Polarity, Manual 0-127, X-Feedback -> Cross Feedback, Mix, Low/High",
+      "control_dests": [
+        {
+          "dest": "Manual",
+          "integra": "Manual"
+        },
+        {
+          "dest": "Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Step Rate",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        "Manual",
+        "Rate",
+        null
+      ]
     },
     {
       "xv_type": 42,
       "name": "KEYSYNC FLANGER",
       "integra": "23 FLANGER (Step Sw OFF) / 24 STEP FLANGER (ON)",
       "class": "rescaled-lossy",
-      "notes": "Keysync, Threshold, Ksync Phase dropped"
+      "notes": "Keysync, Threshold, Ksync Phase dropped",
+      "control_dests": [
+        {
+          "dest": "LFO Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Feedback",
+          "integra": "Feedback"
+        },
+        {
+          "dest": "Step Rate",
+          "integra": null
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Rate",
+        "Feedback",
+        null,
+        "Balance"
+      ]
     },
     {
       "xv_type": 43,
       "name": "FORMANT FILTER",
       "integra": "7 HUMANIZER",
       "class": "rescaled",
-      "notes": "Drive Sw/Drive/Vowel1/Vowel2/Rate/Depth/Manual 0-100/Low/High/Level/Pan land by name; Keysync -> Input Sync Sw, Threshold -> Input Sync Threshold"
+      "notes": "Drive Sw/Drive/Vowel1/Vowel2/Rate/Depth/Manual 0-100/Low/High/Level/Pan land by name; Keysync -> Input Sync Sw, Threshold -> Input Sync Threshold",
+      "control_dests": [
+        {
+          "dest": "Drive",
+          "integra": "Drive"
+        },
+        {
+          "dest": "Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Depth",
+          "integra": "Depth"
+        },
+        {
+          "dest": "Manual",
+          "integra": "Manual"
+        }
+      ],
+      "integra_dests": [
+        "Drive",
+        "Rate",
+        "Depth",
+        "Manual"
+      ]
     },
     {
       "xv_type": 44,
       "name": "RING MODULATOR",
       "integra": "15 RING MODULATOR",
       "class": "rescaled-lossy",
-      "notes": "Modulator (OFF/SOURCE/A/B) and Monitor dropped"
+      "notes": "Modulator (OFF/SOURCE/A/B) and Monitor dropped",
+      "control_dests": [
+        {
+          "dest": "Frequency",
+          "integra": "Frequency"
+        },
+        {
+          "dest": "Sens",
+          "integra": "Sens"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Frequency",
+        "Sens",
+        "Balance"
+      ]
     },
     {
       "xv_type": 45,
       "name": "MULTI TAP DELAY",
       "integra": "38 MULTI TAP DELAY",
       "class": "rescaled",
-      "notes": "Delay 1-4 0-1800 ms fit Integra 0-2600"
+      "notes": "Delay 1-4 0-1800 ms fit Integra 0-2600",
+      "control_dests": [
+        {
+          "dest": "Feedback",
+          "integra": "Dly 1 Fback"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Dly 1 Fback",
+        "Balance"
+      ]
     },
     {
       "xv_type": 46,
       "name": "REVERSE DELAY",
       "integra": "39 REVERSE DELAY",
       "class": "rescaled-lossy",
-      "notes": "Delay 1-4 0-900 ms fit 0-1300; XV has Feedback/HF Damp for delays 1 and 4, Integra for reverse delay and delay 3: correspondence unverified"
+      "notes": "Delay 1-4 0-900 ms fit 0-1300; XV has Feedback/HF Damp for delays 1 and 4, Integra for reverse delay and delay 3: correspondence unverified",
+      "control_dests": [
+        {
+          "dest": "Feedback 1",
+          "integra": "Rev Dly Fback"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Rev Dly Fback",
+        "Balance"
+      ]
     },
     {
       "xv_type": 47,
       "name": "SHUFFLE DELAY",
       "integra": "34 DELAY",
       "class": "substitute",
-      "notes": "no shuffle on Integra"
+      "notes": "no shuffle on Integra",
+      "control_dests": [
+        {
+          "dest": "Delay",
+          "integra": null
+        },
+        {
+          "dest": "Shuffle Rate",
+          "integra": null
+        },
+        {
+          "dest": "Feedback",
+          "integra": "Feedback"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        null,
+        null,
+        "Feedback",
+        "Balance"
+      ]
     },
     {
       "xv_type": 48,
       "name": "3D DELAY",
       "integra": "36 3TAP PAN DELAY",
       "class": "substitute",
-      "notes": "RSS 3D placement and Output Mode lost"
+      "notes": "RSS 3D placement and Output Mode lost",
+      "control_dests": [
+        {
+          "dest": "Feedback",
+          "integra": "Center Feedback"
+        }
+      ],
+      "integra_dests": [
+        "Center Feedback"
+      ]
     },
     {
       "xv_type": 49,
       "name": "3VOICE PITCH SHIFTER",
       "integra": "44 2VOICE PITCH SHIFTER",
       "class": "substitute",
-      "notes": "voice 3 and Mode dropped"
+      "notes": "voice 3 and Mode dropped",
+      "control_dests": [
+        {
+          "dest": "Pitch 1",
+          "integra": "Pitch1 Pitch"
+        },
+        {
+          "dest": "Feedback 1",
+          "integra": "Pitch1 Feedback"
+        },
+        {
+          "dest": "Pitch 2",
+          "integra": "Pitch2 Pitch"
+        },
+        {
+          "dest": "Feedback 2",
+          "integra": null
+        },
+        {
+          "dest": "Pitch 3",
+          "integra": null
+        },
+        {
+          "dest": "Feedback 3",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        "Pitch1 Pitch",
+        "Pitch1 Feedback",
+        "Pitch2 Pitch",
+        null,
+        null,
+        null
+      ]
     },
     {
       "xv_type": 50,
       "name": "LOFI COMPRESS",
       "integra": "41 LOFI COMPRESS",
       "class": "rescaled-lossy",
-      "notes": "Post Filter 1 (1-6) and Pan dropped"
+      "notes": "Post Filter 1 (1-6) and Pan dropped",
+      "control_dests": [
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Balance"
+      ]
     },
     {
       "xv_type": 51,
       "name": "LOFI NOISE",
       "integra": "41 LOFI COMPRESS",
       "class": "substitute",
-      "notes": "radio/disc noise generators lost"
+      "notes": "radio/disc noise generators lost",
+      "control_dests": [
+        {
+          "dest": "Radio Detune",
+          "integra": null
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        null,
+        "Balance"
+      ]
     },
     {
       "xv_type": 52,
@@ -5514,6 +6273,25 @@
         3,
         4,
         5
+      ],
+      "control_dests": [
+        {
+          "dest": "Mic Level",
+          "integra": "Mic Level"
+        },
+        {
+          "dest": "Direct Level",
+          "integra": "Direct Level"
+        },
+        {
+          "dest": "Level",
+          "integra": "Level"
+        }
+      ],
+      "integra_dests": [
+        "Mic Level",
+        "Direct Level",
+        "Level"
       ]
     },
     {
@@ -5521,175 +6299,623 @@
       "name": "OVERDRIVE 2",
       "integra": "28 OVERDRIVE",
       "class": "same",
-      "notes": "Drive, Tone, Amp Sw, Amp Type, Low, High, Level, Pan"
+      "notes": "Drive, Tone, Amp Sw, Amp Type, Low, High, Level, Pan",
+      "control_dests": [
+        {
+          "dest": "Drive",
+          "integra": "Drive"
+        },
+        {
+          "dest": "Pan",
+          "integra": "Pan"
+        }
+      ],
+      "integra_dests": [
+        "Drive",
+        "Pan"
+      ]
     },
     {
       "xv_type": 54,
       "name": "DISTORTION 2",
       "integra": "29 DISTORTION",
       "class": "same",
-      "notes": "as 53"
+      "notes": "as 53",
+      "control_dests": [
+        {
+          "dest": "Drive",
+          "integra": "Drive"
+        },
+        {
+          "dest": "Pan",
+          "integra": "Pan"
+        }
+      ],
+      "integra_dests": [
+        "Drive",
+        "Pan"
+      ]
     },
     {
       "xv_type": 55,
       "name": "STEREO COMPRESSOR",
       "integra": "31 COMPRESSOR",
       "class": "substitute",
-      "notes": "Sustain has no target (Integra: Threshold); Post Gain x6"
+      "notes": "Sustain has no target (Integra: Threshold); Post Gain x6",
+      "control_dests": [
+        {
+          "dest": "Level",
+          "integra": "Level"
+        }
+      ],
+      "integra_dests": [
+        "Level"
+      ]
     },
     {
       "xv_type": 56,
       "name": "STEREO LIMITER",
       "integra": "32 LIMITER",
       "class": "rescaled",
-      "notes": "Post Gain 0/6/12/18 -> 0-18 (x6)"
+      "notes": "Post Gain 0/6/12/18 -> 0-18 (x6)",
+      "control_dests": [
+        {
+          "dest": "Level",
+          "integra": "Level"
+        }
+      ],
+      "integra_dests": [
+        "Level"
+      ]
     },
     {
       "xv_type": 57,
       "name": "GATE",
       "integra": "33 GATE",
       "class": "rescaled-lossy",
-      "notes": "Key (SOURCE/A/B) and Monitor dropped"
+      "notes": "Key (SOURCE/A/B) and Monitor dropped",
+      "control_dests": [
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Balance"
+      ]
     },
     {
       "xv_type": 58,
       "name": "SLICER",
       "integra": "18 SLICER",
       "class": "rescaled-lossy",
-      "notes": "Reset Trigger -> Input Sync Sw, Reset Threshold -> Input Sync Threshold, Beat Chg Mode -> Mode; Reset Monitor dropped"
+      "notes": "Reset Trigger -> Input Sync Sw, Reset Threshold -> Input Sync Threshold, Beat Chg Mode -> Mode; Reset Monitor dropped",
+      "control_dests": [
+        {
+          "dest": "Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Reset Trigger",
+          "integra": null
+        },
+        {
+          "dest": "Shuffle",
+          "integra": "Shuffle"
+        }
+      ],
+      "integra_dests": [
+        "Rate",
+        null,
+        "Shuffle"
+      ]
     },
     {
       "xv_type": 59,
       "name": "ISOLATOR",
       "integra": "-",
       "class": "none",
-      "notes": "no isolator MFX on the Integra"
+      "notes": "no isolator MFX on the Integra",
+      "control_dests": [],
+      "integra_dests": []
     },
     {
       "xv_type": 60,
       "name": "3D CHORUS",
       "integra": "22 CHORUS",
       "class": "substitute",
-      "notes": "RSS 3D and Output Mode lost"
+      "notes": "RSS 3D and Output Mode lost",
+      "control_dests": [
+        {
+          "dest": "LFO Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Rate",
+        "Balance"
+      ]
     },
     {
       "xv_type": 61,
       "name": "3D FLANGER",
       "integra": "23 FLANGER / 24 STEP FLANGER",
       "class": "substitute",
-      "notes": "RSS 3D and Output Mode lost"
+      "notes": "RSS 3D and Output Mode lost",
+      "control_dests": [
+        {
+          "dest": "LFO Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Feedback",
+          "integra": "Feedback"
+        },
+        {
+          "dest": "Step Rate",
+          "integra": null
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Rate",
+        "Feedback",
+        null,
+        "Balance"
+      ]
     },
     {
       "xv_type": 62,
       "name": "TREMOLO",
       "integra": "16 TREMOLO",
       "class": "rescaled",
-      "notes": "Mod Wave list identical"
+      "notes": "Mod Wave list identical",
+      "control_dests": [
+        {
+          "dest": "Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Depth",
+          "integra": "Depth"
+        }
+      ],
+      "integra_dests": [
+        "Rate",
+        "Depth"
+      ]
     },
     {
       "xv_type": 63,
       "name": "AUTO PAN",
       "integra": "17 AUTO PAN",
       "class": "rescaled",
-      "notes": "Mod Wave list identical"
+      "notes": "Mod Wave list identical",
+      "control_dests": [
+        {
+          "dest": "Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Depth",
+          "integra": "Depth"
+        }
+      ],
+      "integra_dests": [
+        "Rate",
+        "Depth"
+      ]
     },
     {
       "xv_type": 64,
       "name": "STEREO PHASER 2",
       "integra": "9 PHASER 1 / 12 STEP PHASER",
       "class": "rescaled-lossy",
-      "notes": "as 41"
+      "notes": "as 41",
+      "control_dests": [
+        {
+          "dest": "Manual",
+          "integra": "Manual"
+        },
+        {
+          "dest": "Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Step Rate",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        "Manual",
+        "Rate",
+        null
+      ]
     },
     {
       "xv_type": 65,
       "name": "STEREO AUTO WAH",
       "integra": "6 AUTO WAH",
       "class": "rescaled",
-      "notes": "Filter Type, Sens, Manual, Peak, Rate, Depth, Polarity, Phase, Low, High, Level: one-to-one"
+      "notes": "Filter Type, Sens, Manual, Peak, Rate, Depth, Polarity, Phase, Low, High, Level: one-to-one",
+      "control_dests": [
+        {
+          "dest": "Sens",
+          "integra": "Sens"
+        },
+        {
+          "dest": "Manual",
+          "integra": "Manual"
+        },
+        {
+          "dest": "Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Depth",
+          "integra": "Depth"
+        },
+        {
+          "dest": "Phase",
+          "integra": "Phase"
+        }
+      ],
+      "integra_dests": [
+        "Sens",
+        "Manual",
+        "Rate",
+        "Depth",
+        "Phase"
+      ]
     },
     {
       "xv_type": 66,
       "name": "ST FORMANT FILTER",
       "integra": "7 HUMANIZER",
       "class": "rescaled-lossy",
-      "notes": "Phase dropped (Humanizer is mono-LFO); Pan stays centre"
+      "notes": "Phase dropped (Humanizer is mono-LFO); Pan stays centre",
+      "control_dests": [
+        {
+          "dest": "Drive",
+          "integra": "Drive"
+        },
+        {
+          "dest": "Rate",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Depth",
+          "integra": "Depth"
+        },
+        {
+          "dest": "Manual",
+          "integra": "Manual"
+        },
+        {
+          "dest": "Phase",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        "Drive",
+        "Rate",
+        "Depth",
+        "Manual",
+        null
+      ]
     },
     {
       "xv_type": 67,
       "name": "MULTI TAP DELAY 2",
       "integra": "38 MULTI TAP DELAY",
       "class": "rescaled-lossy",
-      "notes": "0-3000 ms clamps at 2600"
+      "notes": "0-3000 ms clamps at 2600",
+      "control_dests": [
+        {
+          "dest": "Feedback",
+          "integra": "Dly 1 Fback"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Dly 1 Fback",
+        "Balance"
+      ]
     },
     {
       "xv_type": 68,
       "name": "REVERSE DELAY 2",
       "integra": "39 REVERSE DELAY",
       "class": "rescaled-lossy",
-      "notes": "0-1500 ms clamps at 1300"
+      "notes": "0-1500 ms clamps at 1300",
+      "control_dests": [
+        {
+          "dest": "Feedback 1",
+          "integra": "Rev Dly Fback"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Rev Dly Fback",
+        "Balance"
+      ]
     },
     {
       "xv_type": 69,
       "name": "SHUFFLE DELAY 2",
       "integra": "34 DELAY",
       "class": "substitute",
-      "notes": "as 47"
+      "notes": "as 47",
+      "control_dests": [
+        {
+          "dest": "Delay",
+          "integra": null
+        },
+        {
+          "dest": "Shuffle Rate",
+          "integra": null
+        },
+        {
+          "dest": "Feedback",
+          "integra": "Feedback"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        null,
+        null,
+        "Feedback",
+        "Balance"
+      ]
     },
     {
       "xv_type": 70,
       "name": "3D DELAY 2",
       "integra": "36 3TAP PAN DELAY",
       "class": "substitute",
-      "notes": "as 48; 0-3000 ms clamps at 2600"
+      "notes": "as 48; 0-3000 ms clamps at 2600",
+      "control_dests": [
+        {
+          "dest": "Feedback",
+          "integra": "Center Feedback"
+        }
+      ],
+      "integra_dests": [
+        "Center Feedback"
+      ]
     },
     {
       "xv_type": 71,
       "name": "ROTARY 2",
       "integra": "20 ROTARY 2",
       "class": "rescaled",
-      "notes": "Speed, Brake, Spread, Low/High rotor Slow/Fast/Trans Up/Trans Down/Level, Low/High Gain, Level"
+      "notes": "Speed, Brake, Spread, Low/High rotor Slow/Fast/Trans Up/Trans Down/Level, Low/High Gain, Level",
+      "control_dests": [
+        {
+          "dest": "Speed",
+          "integra": "Speed"
+        },
+        {
+          "dest": "Brake",
+          "integra": "Brake"
+        },
+        {
+          "dest": "Level",
+          "integra": "Level"
+        }
+      ],
+      "integra_dests": [
+        "Speed",
+        "Brake",
+        "Level"
+      ]
     },
     {
       "xv_type": 72,
       "name": "ROTARY MULTI",
       "integra": "21 ROTARY 3",
       "class": "substitute",
-      "notes": "OD/DS block -> Rotary 3 OD; Amp Simulator and EQ blocks lost"
+      "notes": "OD/DS block -> Rotary 3 OD; Amp Simulator and EQ blocks lost",
+      "control_dests": [
+        {
+          "dest": "Drive",
+          "integra": "ODDrive"
+        },
+        {
+          "dest": "Speed",
+          "integra": "Speed"
+        }
+      ],
+      "integra_dests": [
+        "ODDrive",
+        "Speed"
+      ]
     },
     {
       "xv_type": 73,
       "name": "KEYBOARD MULTI",
       "integra": "-",
       "class": "none",
-      "notes": "ring mod + EQ + pitch shift + phaser + delay chain"
+      "notes": "ring mod + EQ + pitch shift + phaser + delay chain",
+      "control_dests": [
+        {
+          "dest": "Freq",
+          "integra": null
+        },
+        {
+          "dest": "Bal",
+          "integra": null
+        },
+        {
+          "dest": "Pitch",
+          "integra": null
+        },
+        {
+          "dest": "Feedback",
+          "integra": null
+        },
+        {
+          "dest": "Manual",
+          "integra": null
+        },
+        {
+          "dest": "Rate",
+          "integra": null
+        },
+        {
+          "dest": "Balance",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
     },
     {
       "xv_type": 74,
       "name": "RHODES MULTI",
       "integra": "57-60 EP AMPSIM -> TREMOLO/CHORUS/FLANGER/PHASER",
       "class": "substitute",
-      "notes": "pick by the enabled block; adds an EP amp the source lacks; low confidence"
+      "notes": "pick by the enabled block; adds an EP amp the source lacks; low confidence",
+      "control_dests": [
+        {
+          "dest": "Sens",
+          "integra": null
+        },
+        {
+          "dest": "Manual",
+          "integra": null
+        },
+        {
+          "dest": "Rate",
+          "integra": null
+        },
+        {
+          "dest": "Balance",
+          "integra": null
+        },
+        {
+          "dest": "Rate",
+          "integra": "Tremolo Rate"
+        },
+        {
+          "dest": "Depth",
+          "integra": "Tremolo Depth"
+        }
+      ],
+      "integra_dests": [
+        null,
+        null,
+        null,
+        null,
+        "Tremolo Rate",
+        "Tremolo Depth"
+      ]
     },
     {
       "xv_type": 75,
       "name": "JD MULTI",
       "integra": "-",
       "class": "none",
-      "notes": "JD-800 style chain"
+      "notes": "JD-800 style chain",
+      "control_dests": [
+        {
+          "dest": "Drive",
+          "integra": null
+        },
+        {
+          "dest": "Manual",
+          "integra": null
+        },
+        {
+          "dest": "Rate",
+          "integra": null
+        },
+        {
+          "dest": "Depth",
+          "integra": null
+        },
+        {
+          "dest": "Resonance",
+          "integra": null
+        },
+        {
+          "dest": "Mix Level",
+          "integra": null
+        },
+        {
+          "dest": "Mix Level",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
     },
     {
       "xv_type": 76,
       "name": "STEREO LOFI COMPRESS",
       "integra": "41 LOFI COMPRESS",
       "class": "rescaled-lossy",
-      "notes": "as 50"
+      "notes": "as 50",
+      "control_dests": [
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        "Balance"
+      ]
     },
     {
       "xv_type": 77,
       "name": "STEREO LOFI NOISE",
       "integra": "41 LOFI COMPRESS",
       "class": "substitute",
-      "notes": "as 51"
+      "notes": "as 51",
+      "control_dests": [
+        {
+          "dest": "Radio Detune",
+          "integra": null
+        },
+        {
+          "dest": "Balance",
+          "integra": "Balance"
+        }
+      ],
+      "integra_dests": [
+        null,
+        "Balance"
+      ]
     },
     {
       "xv_type": 78,
@@ -5715,6 +6941,30 @@
         15,
         16,
         17
+      ],
+      "control_dests": [
+        {
+          "dest": "Amp Volume",
+          "integra": "Amp Volume"
+        },
+        {
+          "dest": "Amp Master Vol",
+          "integra": "Amp Master"
+        },
+        {
+          "dest": "Level",
+          "integra": "Level"
+        },
+        {
+          "dest": "Pan",
+          "integra": "Pan"
+        }
+      ],
+      "integra_dests": [
+        "Amp Volume",
+        "Amp Master",
+        "Level",
+        "Pan"
       ]
     },
     {
@@ -5731,6 +6981,15 @@
         5,
         6,
         8
+      ],
+      "control_dests": [
+        {
+          "dest": "Drive",
+          "integra": "Drive"
+        }
+      ],
+      "integra_dests": [
+        "Drive"
       ]
     },
     {
@@ -5747,6 +7006,15 @@
         5,
         6,
         8
+      ],
+      "control_dests": [
+        {
+          "dest": "Drive",
+          "integra": "Drive"
+        }
+      ],
+      "integra_dests": [
+        "Drive"
       ]
     },
     {
@@ -5754,49 +7022,182 @@
       "name": "GUITAR MULTI A",
       "integra": "53/54/56 GTAMPSIM -> CHORUS/FLANGER/DELAY",
       "class": "substitute",
-      "notes": "compressor and OD/DS blocks lost; pick by enabled block"
+      "notes": "compressor and OD/DS blocks lost; pick by enabled block",
+      "control_dests": [
+        {
+          "dest": "Level",
+          "integra": null
+        },
+        {
+          "dest": "Drive",
+          "integra": null
+        },
+        {
+          "dest": "Balance",
+          "integra": null
+        },
+        {
+          "dest": "Balance",
+          "integra": "Chorus Balance"
+        }
+      ],
+      "integra_dests": [
+        null,
+        null,
+        null,
+        "Chorus Balance"
+      ]
     },
     {
       "xv_type": 82,
       "name": "GUITAR MULTI B",
       "integra": "53/54 GTAMPSIM -> CHORUS/FLANGER",
       "class": "substitute",
-      "notes": "as 81, EQ block lost"
+      "notes": "as 81, EQ block lost",
+      "control_dests": [
+        {
+          "dest": "Level",
+          "integra": null
+        },
+        {
+          "dest": "Drive",
+          "integra": null
+        },
+        {
+          "dest": "Balance",
+          "integra": "Chorus Balance"
+        }
+      ],
+      "integra_dests": [
+        null,
+        null,
+        "Chorus Balance"
+      ]
     },
     {
       "xv_type": 83,
       "name": "GUITAR MULTI C",
       "integra": "52 OD/DS -> AUTOWAH or 53/56",
       "class": "substitute",
-      "notes": "wah + amp + delay + chorus chain; low confidence"
+      "notes": "wah + amp + delay + chorus chain; low confidence",
+      "control_dests": [
+        {
+          "dest": "Drive",
+          "integra": "Drive"
+        },
+        {
+          "dest": "Manual",
+          "integra": "AutoWah Manual"
+        },
+        {
+          "dest": "Balance",
+          "integra": null
+        },
+        {
+          "dest": "Balance",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        "Drive",
+        "AutoWah Manual",
+        null,
+        null
+      ]
     },
     {
       "xv_type": 84,
       "name": "CLEAN GUITAR MULTI A",
       "integra": "65 CHORUS -> DELAY",
       "class": "substitute",
-      "notes": "compressor and EQ lost; low confidence"
+      "notes": "compressor and EQ lost; low confidence",
+      "control_dests": [
+        {
+          "dest": "Level",
+          "integra": null
+        },
+        {
+          "dest": "Balance",
+          "integra": "Delay Balance"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Chorus Balance"
+        }
+      ],
+      "integra_dests": [
+        null,
+        "Delay Balance",
+        "Chorus Balance"
+      ]
     },
     {
       "xv_type": 85,
       "name": "CLEAN GUITAR MULTI B",
       "integra": "65 CHORUS -> DELAY",
       "class": "substitute",
-      "notes": "auto wah and EQ lost; low confidence"
+      "notes": "auto wah and EQ lost; low confidence",
+      "control_dests": [
+        {
+          "dest": "Manual",
+          "integra": null
+        },
+        {
+          "dest": "Balance",
+          "integra": "Delay Balance"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Chorus Balance"
+        }
+      ],
+      "integra_dests": [
+        null,
+        "Delay Balance",
+        "Chorus Balance"
+      ]
     },
     {
       "xv_type": 86,
       "name": "BASS MULTI",
       "integra": "48/45 DS/OD -> CHORUS or 29 DISTORTION",
       "class": "substitute",
-      "notes": "compressor, amp and EQ lost; low confidence"
+      "notes": "compressor, amp and EQ lost; low confidence",
+      "control_dests": [
+        {
+          "dest": "Level",
+          "integra": null
+        },
+        {
+          "dest": "Drive",
+          "integra": "Dst Drive"
+        },
+        {
+          "dest": "Balance",
+          "integra": "Chorus Balance"
+        }
+      ],
+      "integra_dests": [
+        null,
+        "Dst Drive",
+        "Chorus Balance"
+      ]
     },
     {
       "xv_type": 87,
       "name": "ISOLATOR 2",
       "integra": "-",
       "class": "none",
-      "notes": "as 59"
+      "notes": "as 59",
+      "control_dests": [
+        {
+          "dest": "Level Low",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        null
+      ]
     },
     {
       "xv_type": 88,
@@ -5815,6 +7216,15 @@
         8,
         9,
         10
+      ],
+      "control_dests": [
+        {
+          "dest": "Level",
+          "integra": "Level"
+        }
+      ],
+      "integra_dests": [
+        "Level"
       ]
     },
     {
@@ -5822,14 +7232,37 @@
       "name": "3D AUTO SPIN",
       "integra": "17 AUTO PAN",
       "class": "substitute",
-      "notes": "RSS rotation lost; low confidence"
+      "notes": "RSS rotation lost; low confidence",
+      "control_dests": [
+        {
+          "dest": "Speed",
+          "integra": "Rate"
+        },
+        {
+          "dest": "Turn",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        "Rate",
+        null
+      ]
     },
     {
       "xv_type": 90,
       "name": "3D MANUAL",
       "integra": "-",
       "class": "none",
-      "notes": "static RSS placement"
+      "notes": "static RSS placement",
+      "control_dests": [
+        {
+          "dest": "Azimuth",
+          "integra": null
+        }
+      ],
+      "integra_dests": [
+        null
+      ]
     }
   ],
   "xv_types_per_model": {

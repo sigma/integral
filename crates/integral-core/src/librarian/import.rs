@@ -54,7 +54,7 @@ use thiserror::Error;
 
 use super::foreign::studio_set_fx;
 use super::pack::{Pack, PackEntry, ToneRef, user_memory};
-use super::plan::{ImportPlan, Origin, Placement};
+use super::plan::{ImportPlan, Placement, pointed_entry};
 use super::reader::{BlockData, BlockReader};
 use crate::address::{self, Address, DataSize};
 use crate::device_spec::{INTEGRA7, USER_MEMORY, UserMemorySpec};
@@ -230,11 +230,9 @@ impl PackImport {
             };
             let target = memory.bank_select(slot).ok_or(ImportError::PlanMismatch)?;
             let job = if entry.kind() == ChunkType::StudioSet {
-                // A dump's Parts play the device's User slots: nothing to relink.
-                let set = match plan.origin() {
-                    Origin::Dump => entry.clone(),
-                    Origin::Sound | Origin::Backup => relink(pack, placements, entry),
-                };
+                // Parts whose tone the Pack stores are relinked to its slot;
+                // a dump's other Parts keep the device's User slots.
+                let set = relink(pack, plan, entry);
                 Job {
                     entry: i,
                     sends: dt1s(memory, address::STUDIO_SET, &set),
@@ -549,21 +547,22 @@ fn select(device_id: u8, part: u8, target: BankSelect) -> Vec<u8> {
 }
 
 /// `set` with each Part that selects a tone of the Pack pointed at the User
-/// slot the plan stores that tone in. Other references are left as they
-/// are: a broken or excluded one points at the User slot of its number.
-fn relink(pack: &Pack, placements: &[Placement], set: &PackEntry) -> PackEntry {
+/// slot the plan stores that tone in: from a sound export or backup, a
+/// reference names a Pack position; from a dump, the User slot the tone was
+/// dumped from. Other references are left as they are: a broken, excluded
+/// or unmatched one points at the User slot of its number.
+fn relink(pack: &Pack, plan: &ImportPlan, set: &PackEntry) -> PackEntry {
+    let placements = plan.placements();
+    let origin = plan.origin();
     let mut set = set.clone();
     for (p, r) in (0..).zip(set.tone_refs()) {
         let ToneRef::Pack { kind, index } = r else {
             continue;
         };
-        let slot = (0..pack.entries.len())
-            .filter(|&i| pack.entries[i].kind() == kind)
-            .nth(usize::from(index))
-            .and_then(|i| match placements[i] {
-                Placement::User(slot) => Some(slot),
-                _ => None,
-            });
+        let slot = pointed_entry(pack, origin, kind, index).and_then(|i| match placements[i] {
+            Placement::User(slot) => Some(slot),
+            _ => None,
+        });
         if let Some(slot) = slot {
             set.set_tone_ref(p, ToneRef::Pack { kind, index: slot })
                 .expect("a planned slot exists");
@@ -577,7 +576,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
-    use crate::librarian::plan::{Origin, plan_import};
+    use crate::librarian::plan::{Origin, plan_import, plan_read};
     use crate::parse_helpers::encode_ascii_name;
 
     const SET: ChunkType = ChunkType::StudioSet;
@@ -916,6 +915,78 @@ mod tests {
         // The Parts still play User slots 2 and 1, as on the dumping device.
         assert_eq!(device.stored_bank(0), [95, 0, 1]);
         assert_eq!(device.stored_bank(1), [95, 0, 0]);
+    }
+
+    /// The `.syx` bytes dumping `entry` at User slot `slot` of its type.
+    fn user_dump(entry: &PackEntry, slot: u16) -> Vec<u8> {
+        let memory = user_memory(entry.kind()).unwrap();
+        memory
+            .blocks(memory.user_address(slot).unwrap())
+            .zip(entry.blocks())
+            .flat_map(|((address, _), data)| crate::sysex::build_dt1(0x10, &address, data))
+            .collect()
+    }
+
+    /// A set dumped from User slot 4, Part 1 on User SN-S slot 2 (and Part
+    /// 2 on slot 0 when `with_part2`), with `slot`'s SN-S tone alongside.
+    fn dumped_pack(tone_slot: u16, with_part2: bool) -> (Pack, ImportPlan) {
+        let mut set = entry(SET, "Dumped", 0);
+        set.set_tone_ref(
+            0,
+            ToneRef::Pack {
+                kind: SNS,
+                index: 2,
+            },
+        )
+        .unwrap();
+        if with_part2 {
+            set.set_tone_ref(
+                1,
+                ToneRef::Pack {
+                    kind: SNS,
+                    index: 0,
+                },
+            )
+            .unwrap();
+        }
+        let mut bytes = user_dump(&set, 4);
+        bytes.extend(user_dump(&entry(SNS, "Tone", 1), tone_slot));
+        let read = Pack::read(&bytes).unwrap();
+        let plan = plan_read(&read, Origin::of(&read), &[], None);
+        (read.pack, plan)
+    }
+
+    #[test]
+    fn a_dump_with_its_tone_relinks_the_set() {
+        let (pack, mut plan) = dumped_pack(2, true);
+        plan.assign(0, 5).unwrap();
+        plan.assign(1, 9).unwrap();
+        // Part 2 plays User slot 0, which the dump doesn't carry; Part 1's
+        // tone is imported, so only it warns.
+        assert_eq!(plan.warnings().count(), 1);
+        let mut device = Device::new();
+        let mut import = PackImport::new(0x10, &pack, &plan, PART, false).unwrap();
+        device.run(&mut import);
+
+        // Part 1 now plays the slot the tone was stored in; Part 2 keeps
+        // the User slot 0 it played on the dumping device.
+        assert_eq!(device.stored_bank(0), [95, 0, 9]);
+        assert_eq!(device.stored_bank(1), [95, 0, 0]);
+    }
+
+    #[test]
+    fn a_dump_with_an_unrelated_tone_keeps_the_device_reference() {
+        let (pack, mut plan) = dumped_pack(9, false);
+        assert_eq!(plan.warnings().count(), 1);
+        plan.assign(0, 5).unwrap();
+        plan.assign(1, 7).unwrap();
+        let mut device = Device::new();
+        let mut import = PackImport::new(0x10, &pack, &plan, PART, false).unwrap();
+        device.run(&mut import);
+
+        // Part 1 still plays User slot 2, as on the dumping device — not
+        // the slot 7 the unrelated tone was stored in.
+        assert_eq!(device.stored_bank(0), [95, 0, 2]);
     }
 
     #[test]

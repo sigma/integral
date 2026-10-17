@@ -87,6 +87,10 @@ pub struct SynthKnob {
     /// Parameter family colouring the lit LEDs; neutral when `None`.
     #[lens(ignore)]
     family: Option<ParameterFamily>,
+    /// Normalized value (0.0–1.0) the LED arc grows from; relative
+    /// (signed) controls centre it, e.g. 0.5 for a pan knob.
+    #[lens(ignore)]
+    center: f32,
     /// Size variant.
     /// Will be used when canvas drawing is implemented.
     #[lens(ignore)]
@@ -114,6 +118,7 @@ impl SynthKnob {
             drag_start_value: 0.0,
             on_change: Some(Box::new(on_change)),
             family: None,
+            center: 0.0,
             size: KnobSize::Small,
         }
         .build(cx, move |cx| {
@@ -154,6 +159,11 @@ pub trait SynthKnobExt {
     fn label(self, text: &str) -> Self;
     /// Colour the lit LEDs by `family`, from the core palette.
     fn family(self, family: ParameterFamily) -> Self;
+    /// Light the LED arc from normalized `center` (0.0–1.0) instead of the
+    /// arc's start, for relative (signed) controls: `Some(0.5)` lights from
+    /// the middle LED, growing toward the value in either direction.
+    /// `None` keeps the default, lighting from the start.
+    fn center(self, center: Option<f32>) -> Self;
     /// Set the size variant.
     fn knob_size(self, size: KnobSize) -> Self;
 }
@@ -168,6 +178,10 @@ impl SynthKnobExt for Handle<'_, SynthKnob> {
 
     fn family(self, family: ParameterFamily) -> Self {
         self.modify(|knob| knob.family = Some(family))
+    }
+
+    fn center(self, center: Option<f32>) -> Self {
+        self.modify(|knob| knob.center = center.unwrap_or(0.0))
     }
 
     fn knob_size(self, _size: KnobSize) -> Self {
@@ -246,10 +260,14 @@ fn value_to_radians(norm: f32) -> f32 {
     (ANGLE_MIN + norm * (ANGLE_MAX - ANGLE_MIN) - 90.0) * PI / 180.0
 }
 
-/// Whether LED `index` of [`LED_COUNT`] is lit at normalized value `norm`:
-/// the arc is lit from its start up to the value.
-fn led_lit(index: usize, norm: f32) -> bool {
-    index as f32 <= norm * (LED_COUNT - 1) as f32
+/// Whether LED `index` of [`LED_COUNT`] is lit at normalized value `norm`,
+/// with the arc growing from normalized `center`: the LEDs between the
+/// centre LED and the value LED are lit, in either direction. Mirrors the
+/// web's LED rule (`SynthKnob.tsx`), which lights from `center ?? min`.
+fn led_lit(index: usize, norm: f32, center: f32) -> bool {
+    let from = (center * (LED_COUNT - 1) as f32).round();
+    let to = norm * (LED_COUNT - 1) as f32;
+    index as f32 >= from.min(to) && index as f32 <= from.max(to)
 }
 
 impl View for KnobFace {
@@ -261,10 +279,11 @@ impl View for KnobFace {
         }
         let (x0, y0) = (bounds.x + bounds.w / 2.0, bounds.y + bounds.h / 2.0);
         let pointer: vg::Color = cx.font_color().into();
-        let lit = cx
-            .data::<SynthKnob>()
+        let knob = cx.data::<SynthKnob>();
+        let lit = knob
             .and_then(|knob| knob.family)
             .map_or(pointer, |family| family_colour(family).into());
+        let center = knob.map_or(0.0, |knob| knob.center);
         let unlit: vg::Color = cx.outline_color().into();
 
         // LED arc
@@ -278,7 +297,7 @@ impl View for KnobFace {
                 y0 + r * angle.sin(),
                 side * LED_RADIUS,
             );
-            let colour = if led_lit(i, norm) { lit } else { unlit };
+            let colour = if led_lit(i, norm, center) { lit } else { unlit };
             canvas.fill_path(&dot, &vg::Paint::color(colour));
         }
 
@@ -317,9 +336,36 @@ mod tests {
 
     #[test]
     fn leds_light_from_start_to_value() {
-        let lit = |norm| (0..LED_COUNT).filter(|&i| led_lit(i, norm)).count();
+        let lit = |norm| (0..LED_COUNT).filter(|&i| led_lit(i, norm, 0.0)).count();
         assert_eq!(lit(0.0), 1);
         assert_eq!(lit(0.5), LED_COUNT / 2 + 1);
         assert_eq!(lit(1.0), LED_COUNT);
+    }
+
+    #[test]
+    fn centred_knob_lights_only_the_centre_led_at_rest() {
+        let mid = LED_COUNT / 2;
+        let lit = |norm| {
+            (0..LED_COUNT)
+                .filter(|&i| led_lit(i, norm, 0.5))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(lit(0.5), vec![mid]);
+    }
+
+    #[test]
+    fn centred_knob_lights_from_the_centre_to_the_value() {
+        let mid = LED_COUNT / 2;
+        let lit = |norm| {
+            (0..LED_COUNT)
+                .filter(|&i| led_lit(i, norm, 0.5))
+                .collect::<Vec<_>>()
+        };
+        // Above centre: centre -> end.
+        assert_eq!(lit(1.0), (mid..LED_COUNT).collect::<Vec<_>>());
+        // Below centre: end -> centre, growing back toward the start.
+        assert_eq!(lit(0.0), (0..=mid).collect::<Vec<_>>());
+        // A hair above centre: the centre LED and the next one.
+        assert_eq!(lit(0.55), vec![mid, mid + 1]);
     }
 }

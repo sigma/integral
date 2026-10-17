@@ -117,6 +117,9 @@ pub struct DeviceState {
     sns_tones: HashMap<u8, SnsToneLoad>,
     /// Mixer blocks being read (see [`load_mixer`](Self::load_mixer)).
     mixer_reads: Vec<MixerRead>,
+    /// Mixer blocks whose read gave up, or that nothing could build a read
+    /// for (see [`queue_mixer_reads`](Self::queue_mixer_reads)).
+    mixer_failed: Vec<MixerBlock>,
     /// Sent SN Synth block and mixer requests awaiting their reply.
     requests: RequestTracker,
 }
@@ -145,6 +148,7 @@ impl DeviceState {
             load: None,
             sns_tones: HashMap::new(),
             mixer_reads: Vec::new(),
+            mixer_failed: Vec::new(),
             requests: RequestTracker::new(),
         }
     }
@@ -545,6 +549,9 @@ impl DeviceState {
         if stale
             .iter()
             .any(|(b, _)| matches!(b, MixerBlock::CompEq { .. }))
+            // A part that left the drum kit banks has no kit block to read;
+            // queueing it anyway would report it failed.
+            && params::comp_eq_block_address_for_bank(part, msb).is_some()
         {
             reads.push(MixerBlock::CompEq { part, msb });
         }
@@ -633,12 +640,13 @@ impl DeviceState {
         );
     }
 
-    /// Set a chorus core parameter (type, level or output select, at the
-    /// [`params::chorus`] offsets).
+    /// Set a chorus core parameter (type, level, output assign or output
+    /// select, at the [`params::chorus`] offsets).
     pub fn set_chorus_param(&mut self, offset: u8, value: u8) {
         match offset {
             params::chorus::TYPE => self.state.chorus.fx_type = value,
             params::chorus::LEVEL => self.state.chorus.level = value,
+            params::chorus::OUTPUT_ASSIGN => self.state.chorus.output_assign = value,
             params::chorus::OUTPUT_SELECT => self.state.chorus.output = value,
             _ => return,
         }
@@ -985,6 +993,7 @@ impl DeviceState {
         for read in std::mem::take(&mut self.mixer_reads) {
             self.drop_mixer_read(&read.address);
         }
+        self.mixer_failed.clear();
         self.queue_mixer_reads(MixerBlock::initial());
     }
 
@@ -994,13 +1003,29 @@ impl DeviceState {
         self.mixer_reads.iter().any(|r| r.block.is_primary())
     }
 
+    /// The mixer blocks whose read gave up after `MAX_RETRIES` tries, or
+    /// that nothing could build a read for (the kit Comp+EQ block when the
+    /// part dump naming it is missing). A fresh
+    /// [`load_mixer`](Self::load_mixer) clears them.
+    pub fn mixer_failed_blocks(&self) -> &[MixerBlock] {
+        &self.mixer_failed
+    }
+
     /// Queue the RQ1 of each block that has something to read.
     fn queue_mixer_reads(&mut self, blocks: impl IntoIterator<Item = MixerBlock>) {
         for block in blocks {
             let Some((address, size)) = block.request() else {
+                // Only the kit Comp+EQ block has no read because its
+                // prerequisite (the part dump naming the kit's bank) is
+                // missing; the other unbuildable blocks (e.g. a GM2 tone's
+                // name) simply have nothing to read on the device.
+                if let MixerBlock::CompEq { .. } = block {
+                    self.mixer_failed.push(block);
+                }
                 continue;
             };
             self.drop_mixer_read(&address);
+            self.mixer_failed.retain(|b| *b != block);
             self.mixer_reads.push(MixerRead {
                 block,
                 address,
@@ -1042,7 +1067,9 @@ impl DeviceState {
         };
         let read = &mut self.mixer_reads[i];
         if read.retries >= MAX_RETRIES {
+            let block = read.block;
             self.mixer_reads.remove(i);
+            self.mixer_failed.push(block);
             return;
         }
         read.retries += 1;
@@ -1369,6 +1396,19 @@ mod tests {
     use crate::sn_synth;
 
     #[test]
+    fn chorus_output_assign_writes_its_own_offset() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_chorus_param(params::chorus::OUTPUT_ASSIGN, 3);
+        assert_eq!(dev.state().chorus.output_assign, 3);
+        let expected = sysex::build_dt1(
+            0x10,
+            &params::chorus_address(params::chorus::OUTPUT_ASSIGN),
+            &[3],
+        );
+        assert_eq!(dev.drain(0.0), Some(expected));
+    }
+
+    #[test]
     fn chorus_output_select_writes_its_own_offset() {
         let mut dev = DeviceState::new(0x10);
         dev.set_chorus_param(params::chorus::OUTPUT_SELECT, 2);
@@ -1379,10 +1419,11 @@ mod tests {
             &[2],
         );
         assert_eq!(dev.drain(0.0), Some(expected));
-        // Offset 0x02 is reserved: nothing to write.
-        dev.set_chorus_param(0x02, 1);
+        // The output assign at 0x02 is independent of the select.
+        dev.set_chorus_param(params::chorus::OUTPUT_ASSIGN, 1);
         assert_eq!(dev.state().chorus.output, 2);
-        assert!(!dev.has_pending());
+        assert_eq!(dev.state().chorus.output_assign, 1);
+        assert!(dev.has_pending());
     }
 
     #[test]
@@ -2195,7 +2236,7 @@ mod tests {
             (params::tone_category_address(2, 87).unwrap(), vec![7]),
             (
                 params::chorus_address(params::chorus::TYPE),
-                vec![2, 100, 0, 1],
+                vec![2, 100, 3, 1],
             ),
             (params::REVERB_SWITCH, vec![1]),
             (params::reverb_address(params::reverb::TYPE), vec![3, 80, 2]),
@@ -2217,8 +2258,13 @@ mod tests {
         assert_eq!((p.tone_name.as_str(), p.tone_category), ("User Lead", 7));
         assert_eq!(s.parts[9].tone_category, crate::svd::DRUMS_CATEGORY);
         assert_eq!(
-            (s.chorus.fx_type, s.chorus.level, s.chorus.output),
-            (2, 100, 1)
+            (
+                s.chorus.fx_type,
+                s.chorus.level,
+                s.chorus.output_assign,
+                s.chorus.output
+            ),
+            (2, 100, 3, 1)
         );
         assert!(s.reverb.enabled);
         assert_eq!(
@@ -2241,6 +2287,105 @@ mod tests {
         let master = sysex::build_rq1(0x10, &params::SYSTEM_MASTER_LEVEL, &DataSize::ONE);
         let tries = sent.iter().filter(|m| **m == master).count();
         assert_eq!(tries, 1 + usize::from(MAX_RETRIES));
+    }
+
+    /// Drain `dev` from 0 until `until_ms`, answering every RQ1 except the
+    /// addresses in `lost` (from `memory`, zeros elsewhere).
+    fn serve_but(
+        dev: &mut DeviceState,
+        memory: &HashMap<Address, Vec<u8>>,
+        until_ms: f64,
+        lost: &[Address],
+    ) {
+        let mut now = 0.0;
+        while now <= until_ms {
+            if let Some(msg) = dev.drain(now)
+                && msg[6] == 0x11
+            {
+                let address = Address::new(msg[7], msg[8], msg[9], msg[10]);
+                let size = DataSize::new(msg[11], msg[12], msg[13], msg[14]).value();
+                if !lost.contains(&address) {
+                    let data = memory
+                        .get(&address)
+                        .cloned()
+                        .unwrap_or_else(|| vec![0; size as usize]);
+                    dev.handle_dt1(&address, &data, now);
+                }
+            }
+            now += 10.0;
+        }
+    }
+
+    #[test]
+    fn a_lost_mixer_block_is_reported_failed_and_cleared_on_reload() {
+        let lost = params::SYSTEM_MASTER_LEVEL;
+        let mut dev = DeviceState::new(0x10);
+        dev.load_mixer();
+        serve_but(&mut dev, &HashMap::new(), 60_000.0, &[lost]);
+        assert_eq!(dev.mixer_failed_blocks(), &[MixerBlock::MasterLevel]);
+        assert!(!dev.mixer_loading());
+
+        // A fresh load starts over: the old failure no longer shows.
+        let memory = HashMap::from([(lost, vec![90])]);
+        dev.load_mixer();
+        assert!(dev.mixer_failed_blocks().is_empty());
+        serve_but(&mut dev, &memory, 60_000.0, &[]);
+        assert!(dev.mixer_failed_blocks().is_empty());
+        assert_eq!(dev.state().master_level, 90);
+    }
+
+    #[test]
+    fn a_lost_part_dump_reports_the_kit_comp_eq_block_failed() {
+        // The Comp+EQ common dump names part 10, whose own dump is lost:
+        // the kit Comp+EQ read can't be built, so it is reported too.
+        let memory = HashMap::from([(params::DRUM_COMP_EQ_SWITCH, vec![1, 9, 1, 2, 3, 4, 5, 6])]);
+        let mut dev = DeviceState::new(0x10);
+        dev.load_mixer();
+        serve_but(
+            &mut dev,
+            &memory,
+            60_000.0,
+            &[params::part_address(9, part::RECEIVE_CHANNEL)],
+        );
+        let failed = dev.mixer_failed_blocks();
+        assert!(
+            failed.contains(&MixerBlock::CompEq { part: 9, msb: 0 }),
+            "the kit Comp+EQ block is failed, not silently skipped: {failed:?}"
+        );
+        assert!(failed.contains(&MixerBlock::Part(9)));
+    }
+
+    #[test]
+    fn changing_to_a_non_kit_tone_queues_no_comp_eq_read() {
+        let kit = params::comp_eq_block_address_for_bank(9, 88).unwrap();
+        let memory = HashMap::from([
+            (params::SYSTEM_MASTER_LEVEL, vec![90]),
+            (params::STUDIO_SET_NAME, b"My Set          ".to_vec()),
+            (
+                params::part_address(9, part::RECEIVE_CHANNEL),
+                part_dump(88, 64, 0, 100),
+            ),
+            (params::DRUM_COMP_EQ_SWITCH, vec![1, 9, 1, 2, 3, 4, 5, 6]),
+            (kit, vec![0; params::COMP_EQ_BLOCK_SIZE.value() as usize]),
+        ]);
+        let mut dev = DeviceState::new(0x10);
+        dev.load_mixer();
+        serve(&mut dev, &memory, 10_000.0);
+        assert!(dev.mixer_failed_blocks().is_empty());
+
+        // Part 10 leaves the drum kit banks: no Comp+EQ read exists to
+        // queue, and none is reported failed. (The new tone's name and
+        // category reads go unanswered and fail, as they should.)
+        dev.change_part_tone(9, 87, 0, 3);
+        let sent = drain_until(&mut dev, 10_000.0, 20_000.0);
+        assert!(!sent.contains(&sysex::build_rq1(0x10, &kit, &params::COMP_EQ_BLOCK_SIZE)));
+        assert!(
+            !dev.mixer_failed_blocks()
+                .iter()
+                .any(|b| matches!(b, MixerBlock::CompEq { .. })),
+            "no Comp+EQ read was queued, so none fails: {:?}",
+            dev.mixer_failed_blocks()
+        );
     }
 
     #[test]
