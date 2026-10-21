@@ -37,6 +37,17 @@ export interface FieldSpace<F extends FieldKey> {
   nameOf(field: F): string;
   /** How many values the field takes, `max - min + 1`; sizes option lists. */
   optionCount(field: F): number;
+  /**
+   * How many elements the field holds: more than 1 for an array field (an
+   * envelope's times or levels, the Step LFO's steps), which a Control names
+   * one element of by `index`. Absent, every field holds one.
+   */
+  elementCount?(field: F): number;
+}
+
+/** How many elements `field` of `space` holds: 1 unless core says it is an array. */
+export function elementCount<F extends FieldKey>(space: FieldSpace<F>, field: F): number {
+  return space.elementCount?.(field) ?? 1;
 }
 
 /**
@@ -54,19 +65,29 @@ function enumMembers<E extends number>(enumObject: Record<string, string | numbe
   return Object.values(enumObject).filter((v): v is E => typeof v === "number");
 }
 
+/** Optional parts of an {@link enumFields} space. */
+export interface EnumFieldsOptions<E extends number> {
+  /** Which members the space holds; default all. */
+  keep?: (field: E) => boolean;
+  /** Core's element count of each field, for an enum with array fields; default 1 each. */
+  count?: (field: E) => number;
+}
+
 /**
  * The space of a wasm field enum: every member, with its range from `spec`.
  * Tone Sections use this with their enum and spec lookup, e.g.
- * `enumFields("SnsPartialField", SnsPartialField, sns_partial_spec)`.
+ * `enumFields("SnsPartialField", SnsPartialField, sns_partial_spec)`. An enum
+ * with array fields passes core's `count`, e.g. `{ count: pcms_partial_count }`.
  */
 export function enumFields<E extends number>(
   name: string,
   enumObject: Record<string, string | number>,
   spec: (field: E) => WasmFieldSpec,
-  keep: (field: E) => boolean = () => true,
+  { keep = () => true, count }: EnumFieldsOptions<E> = {},
 ): FieldSpace<E> {
   const ids = memo(() => enumMembers<E>(enumObject).filter(keep));
   return {
+    ...(count && { elementCount: count }),
     name,
     get ids() {
       return ids();
@@ -88,7 +109,7 @@ export function mixerFields(kinds: readonly MixerScopeKind[]): FieldSpace<MixerF
     `MixerField in ${kinds.map((k) => MixerScopeKind[k]).join(", ")}`,
     MixerField,
     mixer_field_spec,
-    (field) => kinds.every((kind) => mixer_field_in_scope(field, kind)),
+    { keep: (field) => kinds.every((kind) => mixer_field_in_scope(field, kind)) },
   );
 }
 
@@ -136,55 +157,5 @@ export function fxFields(block: FxBlock, type: number): FieldSpace<string> {
       const def = defs().get(field);
       return def === undefined ? 0 : def.max - def.min + 1;
     },
-  };
-}
-
-/**
- * The space of a wasm field enum whose fields may hold several values (an
- * envelope's times or levels), with a key per value: a single-valued field
- * is its enum member, value `i` of a field holding several is
- * `element(field, i)`. `count` is core's number of values per field.
- */
-export interface ElementFieldSpace<E extends number> extends FieldSpace<E | string> {
-  /** The key of value `index` of `field`; past the field's count, a key outside `ids`. */
-  element(field: E, index: number): string;
-  /** The field and value a key names; `undefined` for a key not in `ids`. */
-  resolve(key: E | string): { field: E; index: number } | undefined;
-}
-
-/** The {@link ElementFieldSpace} of a wasm field enum, each field holding `count(field)` values. */
-export function elementFields<E extends number>(
-  name: string,
-  enumObject: Record<string, string | number>,
-  spec: (field: E) => WasmFieldSpec,
-  count: (field: E) => number,
-): ElementFieldSpace<E> {
-  const memberName = (field: E): string => String(enumObject[field] ?? field);
-  const keyOf = (field: E, index: number): string => `${memberName(field)}[${index}]`;
-  // Counts come from core, so they are read on first use, not at import.
-  const resolved = memo(() => {
-    const out = new Map<E | string, { field: E; index: number }>();
-    for (const field of enumMembers<E>(enumObject)) {
-      const n = count(field);
-      if (n === 1) out.set(field, { field, index: 0 });
-      else for (let i = 0; i < n; i++) out.set(keyOf(field, i), { field, index: i });
-    }
-    return out;
-  });
-  const ids = memo(() => [...resolved().keys()]);
-  return {
-    name,
-    get ids() {
-      return ids();
-    },
-    nameOf: (key) => (typeof key === "string" ? key : memberName(key)),
-    optionCount: (key) => {
-      const r = resolved().get(key);
-      if (r === undefined) return 0;
-      const { min, max } = spec(r.field);
-      return max - min + 1;
-    },
-    element: keyOf,
-    resolve: (key) => resolved().get(key),
   };
 }

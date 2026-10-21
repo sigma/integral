@@ -16,7 +16,7 @@ export const SNA_COMMON_FIELDS: FieldSpace<SnaCommonField> = enumFields<SnaCommo
   "SnaCommonField",
   SnaCommonField,
   sna_common_spec,
-  (field) => field !== SnaCommonField.ModifyParameter,
+  { keep: (field) => field !== SnaCommonField.ModifyParameter },
 );
 
 /** One Modify Parameter of an instrument, from core's list. */

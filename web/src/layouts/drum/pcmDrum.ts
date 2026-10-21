@@ -19,23 +19,15 @@ import {
   ToneType,
 } from "../../../pkg/integral_wasm.js";
 import { displaySlots } from "../displays";
-import { elementFields, enumFields, memo, type FieldKey } from "../fields";
+import { enumFields, memo, type FieldKey } from "../fields";
 import { MFX_PANEL_FRAME } from "../fx/mfx";
 import { sectionCells } from "../geometry";
 import type { ControlLayout, ItemLayout, ScreenLayout, SectionLayout } from "../types";
 
-/** A PCM Drum Partial Control's field: a field, or one value of an envelope's times or levels. */
-export type PcmdPartialKey = PcmdPartialField | string;
-
-/** The Partial fields outside the WMT layers, one key per envelope time and level. */
-export const PCMD_PARTIAL_FIELDS = elementFields(
-  "PcmdPartialField",
-  PcmdPartialField,
-  pcmd_partial_spec,
-  pcmd_partial_count,
-);
-
-const elementKey = PCMD_PARTIAL_FIELDS.element;
+/** The Partial fields outside the WMT layers; an envelope's times and levels are array fields. */
+export const PCMD_PARTIAL_FIELDS = enumFields("PcmdPartialField", PcmdPartialField, pcmd_partial_spec, {
+  count: pcmd_partial_count,
+});
 
 /** The kit-wide level, as tall as a key's Level fader. */
 export const PCMD_KIT_LAYOUT: SectionLayout<PcmdCommonField> = {
@@ -102,14 +94,14 @@ function envelopeFaders(
   first: number,
   offset: number,
   y: number,
-): ControlLayout<PcmdPartialKey>[] {
+): ControlLayout<PcmdPartialField>[] {
   return displaySlots(display, ToneType.PcmDrum)
     .filter((s) => s.prop === prop)
     .flatMap((slot, n) => {
       const field = slot.pcmdPartial;
       if (field === undefined) return [];
       const label = `${name}${n + first}`;
-      return [{ kind: "fader", field: elementKey(field, slot.index), x: 2 * n + offset, y, h: ENV_FADER_H, label }];
+      return [{ kind: "fader", field, index: slot.index, x: 2 * n + offset, y, h: ENV_FADER_H, label }];
     });
 }
 
@@ -119,8 +111,8 @@ function envelopeFaders(
  * between them, so each time sits under the two levels it joins. The
  * faders come from the Display's core binding.
  */
-function envelopeLayout(spec: EnvelopeSpec): SectionLayout<PcmdPartialKey> {
-  const knobs: ControlLayout<PcmdPartialKey>[] = spec.knobs.map((k, i) => ({
+function envelopeLayout(spec: EnvelopeSpec): SectionLayout<PcmdPartialField> {
+  const knobs: ControlLayout<PcmdPartialField>[] = spec.knobs.map((k, i) => ({
     kind: "knob",
     field: k.field,
     x: 2 * i,
@@ -128,7 +120,7 @@ function envelopeLayout(spec: EnvelopeSpec): SectionLayout<PcmdPartialKey> {
     label: k.label,
   }));
   // The faders come from core's Display binding, read on first use, not at import.
-  const items = memo((): ItemLayout<PcmdPartialKey>[] => [
+  const items = memo((): ItemLayout<PcmdPartialField>[] => [
     ...knobs,
     { kind: "display", display: spec.display, x: 0, y: ENV_ROWS.curve, w: 10, h: 2 },
     ...envelopeFaders(spec.display, DisplayProp.Levels, "L", 0, 0, ENV_ROWS.levels),
@@ -181,7 +173,7 @@ export const PCMD_AMP_ENV_LAYOUT = envelopeLayout({
 });
 
 /** The filter: its type, the response scope, cutoff and resonance with their velocity sensitivities. */
-export const PCMD_FILTER_LAYOUT: SectionLayout<PcmdPartialKey> = {
+export const PCMD_FILTER_LAYOUT: SectionLayout<PcmdPartialField> = {
   title: "FILTER",
   titleEdge: "top",
   w: 10,
@@ -199,7 +191,7 @@ export const PCMD_FILTER_LAYOUT: SectionLayout<PcmdPartialKey> = {
 };
 
 /** How the key plays: assignment, mute group, envelope mode, output, pitch, level and what it receives. */
-export const PCMD_MISC_LAYOUT: SectionLayout<PcmdPartialKey> = {
+export const PCMD_MISC_LAYOUT: SectionLayout<PcmdPartialField> = {
   title: "MISC",
   titleEdge: "top",
   w: 10,
@@ -223,7 +215,7 @@ export const PCMD_MISC_LAYOUT: SectionLayout<PcmdPartialKey> = {
 };
 
 /** The key's pan, effect sends and output level. */
-export const PCMD_OUTPUT_LAYOUT: SectionLayout<PcmdPartialKey> = {
+export const PCMD_OUTPUT_LAYOUT: SectionLayout<PcmdPartialField> = {
   title: "LEVEL / PAN",
   titleEdge: "top",
   w: 4,

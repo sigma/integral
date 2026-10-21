@@ -2233,6 +2233,14 @@ pub fn pcms_partial_spec(field: PcmsPartialField) -> WasmFieldSpec {
     wrap_field_spec(field_spec::pcms_partial_spec(field.into()))
 }
 
+/// Number of values a PCM Synth Tone Partial field holds: 1, or one per
+/// envelope time or level, Control switch or LFO step.
+#[wasm_bindgen]
+pub fn pcms_partial_count(field: PcmsPartialField) -> usize {
+    use integral_core::block_field::BlockField;
+    pcm_synth::PcmsPartialField::from(field).count()
+}
+
 /// Spec of an SN Drum Kit Common field.
 #[wasm_bindgen]
 pub fn snd_common_spec(field: SndCommonField) -> WasmFieldSpec {
@@ -3232,6 +3240,15 @@ mod tests {
         assert_eq!(pcmd_partial_count(PcmdPartialField::PitchEnvTime), 4);
         assert_eq!(pcmd_partial_count(PcmdPartialField::PitchEnvLevel), 5);
         assert_eq!(pcmd_partial_count(PcmdPartialField::TvaEnvLevel), 3);
+    }
+
+    #[test]
+    fn pcms_partial_count_follows_the_arrays() {
+        assert_eq!(pcms_partial_count(PcmsPartialField::Level), 1);
+        assert_eq!(pcms_partial_count(PcmsPartialField::TvfEnvTime), 4);
+        assert_eq!(pcms_partial_count(PcmsPartialField::PitchEnvLevel), 5);
+        assert_eq!(pcms_partial_count(PcmsPartialField::TvaEnvLevel), 3);
+        assert_eq!(pcms_partial_count(PcmsPartialField::LfoStep), 16);
     }
 
     #[test]

@@ -34,6 +34,13 @@ export type Inactive = "dim" | "hide";
 interface ControlBase<F extends FieldKey> {
   /** The one parameter the Control binds. */
   field: F;
+  /**
+   * Which element of an array field (one field holding several values, such
+   * as an envelope's levels or the Step LFO's steps) the Control binds,
+   * 0-based and below core's element count. Required for an array field,
+   * absent otherwise.
+   */
+  index?: number;
   /** Left edge, in Cells from the Section's content origin. */
   x: number;
   /** Top edge, in Cells from the Section's content origin. */
@@ -144,9 +151,9 @@ export interface GroupNameSilk {
 /** The edge of an element an arrow leaves or enters, at its centre. */
 export type Side = "top" | "right" | "bottom" | "left";
 
-/** An end of an arrow inside a Section: a placed Control (by field) or Display. */
+/** An end of an arrow inside a Section: a placed Control (by field and element `index`) or Display. */
 export type ItemEndpoint<F extends FieldKey> =
-  | { field: F; side: Side }
+  | { field: F; index?: number; side: Side }
   | { display: DisplayKind; side: Side };
 
 /**

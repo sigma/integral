@@ -6,21 +6,23 @@ import {
   MixerField,
   MixerScopeKind,
   PcmdPartialField,
+  PcmsPartialField,
   mfx_params,
   mfx_type_names,
+  pcms_partial_count,
+  pcms_partial_spec,
 } from "../../pkg/integral_wasm.js";
 import {
   PCMD_AMP_ENV_LAYOUT,
   PCMD_FILTER_ENV_LAYOUT,
   PCMD_FILTER_LAYOUT,
   PCMD_MISC_LAYOUT,
-  PCMD_PARTIAL_FIELDS,
   PCMD_PITCH_ENV_LAYOUT,
   PCMD_SCREEN,
   PCMD_WMT_LAYOUT,
 } from "./drum/pcmDrum";
 import { SND_SCREEN, SND_TONE_LAYOUT } from "./drum/snDrum";
-import { fxFields, mixerFields, type FieldKey } from "./fields";
+import { elementCount, enumFields, fxFields, mixerFields, type FieldKey } from "./fields";
 import { MFX_PANEL_FRAME, MFX_SET } from "./fx/mfx";
 import { variantLayout } from "./geometry";
 import { EQ_LAYOUT } from "./mixer/eq";
@@ -450,31 +452,89 @@ describe("validateScreen", () => {
   });
 });
 
-describe("elementFields", () => {
-  const space = PCMD_PARTIAL_FIELDS;
+/** The PCM Synth Partial fields, with core's element counts. */
+const PCMS_PARTIAL = enumFields("PcmsPartialField", PcmsPartialField, pcms_partial_spec, { count: pcms_partial_count });
 
-  it("keys each value of a field holding several, and a single-valued field by itself", () => {
-    expect(space.ids).toContain(PcmdPartialField.Level);
-    expect(space.ids).not.toContain(PcmdPartialField.PitchEnvTime);
-    const t2 = space.element(PcmdPartialField.PitchEnvTime, 1);
-    expect(space.ids).toContain(t2);
-    expect(space.resolve(t2)).toEqual({ field: PcmdPartialField.PitchEnvTime, index: 1 });
-    expect(space.resolve(PcmdPartialField.Level)).toEqual({ field: PcmdPartialField.Level, index: 0 });
-    expect(space.optionCount(t2)).toBe(128);
+describe("array fields", () => {
+  /** A Section holding just `item`, over the PCM Synth Partial fields. */
+  const holding = (item: ItemLayout<PcmsPartialField>): SectionLayout<PcmsPartialField> => ({
+    title: "AMP",
+    titleEdge: "top",
+    w: 4,
+    h: 6,
+    fields: PCMS_PARTIAL,
+    items: [item],
+  });
+  const fader = (field: PcmsPartialField, index?: number): ItemLayout<PcmsPartialField> => ({
+    kind: "fader",
+    field,
+    index,
+    x: 1,
+    y: 0,
+    h: 4,
   });
 
-  it("field: a value past the field's count, or a whole envelope field, is not in the space", () => {
-    const past: ItemLayout<FieldKey> = {
-      kind: "knob",
-      field: space.element(PcmdPartialField.PitchEnvTime, 4),
-      x: 8,
-      y: 0,
+  it("takes each field's element count from core", () => {
+    expect(elementCount(PCMS_PARTIAL, PcmsPartialField.Level)).toBe(1);
+    expect(elementCount(PCMS_PARTIAL, PcmsPartialField.TvaEnvLevel)).toBe(3);
+    expect(elementCount(PCMS_PARTIAL, PcmsPartialField.LfoStep)).toBe(16);
+    // A space without counts holds single-valued fields only.
+    expect(elementCount(mixerFields([MixerScopeKind.Part]), MixerField.EqLowGain)).toBe(1);
+  });
+
+  it("passes a Control on one element of an array field", () => {
+    expect(validateSection(holding(fader(PcmsPartialField.TvaEnvLevel, 2)))).toEqual([]);
+    expect(validateSection(holding(fader(PcmsPartialField.LfoStep, 15)))).toEqual([]);
+  });
+
+  it.each([
+    ["past the field's count", PcmsPartialField.TvaEnvLevel, 3, "element 3 outside 0..2"],
+    ["negative", PcmsPartialField.TvaEnvLevel, -1, "element -1 outside 0..2"],
+    ["not whole", PcmsPartialField.TvaEnvLevel, 0.5, "element 0.5 outside 0..2"],
+    ["missing on an array field", PcmsPartialField.TvaEnvLevel, undefined, "an array field of 3: name one element"],
+    ["on a single-valued field", PcmsPartialField.Level, 0, "not an array field: names no element"],
+  ])("field: an element index %s", (_, field, index, message) => {
+    const problems = validateSection(holding(fader(field, index)));
+    expect(checks(problems)).toEqual(["field"]);
+    expect(problems[0]?.message).toBe(message);
+  });
+
+  it("field: a PCM Drum envelope fader past its field's count", () => {
+    const past: ItemLayout<PcmdPartialField> = { kind: "fader", field: PcmdPartialField.PitchEnvTime, index: 4, x: 0, y: 5, h: 4 };
+    const layout: SectionLayout<PcmdPartialField> = {
+      ...PCMD_PITCH_ENV_LAYOUT,
+      items: [...PCMD_PITCH_ENV_LAYOUT.items.filter((i) => i.kind !== "fader" || i.label !== "L0"), past],
     };
-    const whole: ItemLayout<FieldKey> = { kind: "knob", field: PcmdPartialField.PitchEnvTime, x: 8, y: 0 };
-    for (const item of [past, whole]) {
-      const bad: SectionLayout<FieldKey> = { ...PCMD_PITCH_ENV_LAYOUT, items: [...PCMD_PITCH_ENV_LAYOUT.items, item] };
-      expect(checks(validateSection(bad))).toEqual(["field"]);
-    }
+    const problems = validateSection(layout);
+    expect(checks(problems)).toEqual(["field"]);
+    expect(problems[0]?.where).toBe("PITCH ENV: fader PitchEnvTime[4]");
+  });
+
+  /** A one-key variant set over the TVA envelope levels, placing `indices`. */
+  const levelsSet = (indices: readonly number[]): VariantSet<number, PcmsPartialField> => ({
+    title: "AMP",
+    titleEdge: "top",
+    w: 6,
+    h: 4,
+    name: "amp",
+    keys: [0],
+    fieldsOf: () =>
+      enumFields("PcmsPartialField", PcmsPartialField, pcms_partial_spec, {
+        keep: (f) => f === PcmsPartialField.TvaEnvLevel,
+        count: pcms_partial_count,
+      }),
+    variants: new Map([[0, { items: indices.map((i) => ({ ...fader(PcmsPartialField.TvaEnvLevel, i), x: 2 * i, y: 0 })) }]]),
+    generate: () => ({ items: [] }),
+  });
+
+  it("counts each element of an array field as placed", () => {
+    expect(validateVariantSet(levelsSet([0, 1, 2]))).toEqual([]);
+  });
+
+  it("unplaced: a variant that leaves one element of an array field out", () => {
+    const problems = validateVariantSet(levelsSet([0, 2]));
+    expect(checks(problems)).toEqual(["unplaced"]);
+    expect(problems.map((p) => p.where)).toEqual(["amp: [0] TvaEnvLevel[1]"]);
   });
 });
 

@@ -35,8 +35,8 @@ export type {
   TitleEdge,
   VariantSet,
 } from "./types";
-export { elementFields, enumFields, fxFields, fxParamDefs, fxTypes, isTwoState, mixerFields } from "./fields";
-export type { ElementFieldSpace, FieldKey, FieldSpace, FxBlock } from "./fields";
+export { elementCount, enumFields, fxFields, fxParamDefs, fxTypes, isTwoState, mixerFields } from "./fields";
+export type { EnumFieldsOptions, FieldKey, FieldSpace, FxBlock } from "./fields";
 export {
   DISPLAY_MIN_FOOTPRINT,
   INSET,

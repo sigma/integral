@@ -68,12 +68,15 @@ export interface Binding {
 export interface GridSectionProps<F extends FieldKey> {
   /** What to draw. */
   layout: SectionLayout<F>;
-  /** Resolves a field for this instance's Scope. */
-  bind: (field: F) => Binding;
+  /**
+   * Resolves a field for this instance's Scope: element `index` of it when the
+   * Control names one (an array field), reading and writing that element only.
+   */
+  bind: (field: F, index?: number) => Binding;
   /** This instance's indices; fills the title template. */
   scope?: Scope;
-  /** Whether core counts a field active; default always. Inactive Controls dim or hide. */
-  isActive?: (field: F) => boolean;
+  /** Whether core counts a field (element `index`, if named) active; default always. Inactive Controls dim or hide. */
+  isActive?: (field: F, index?: number) => boolean;
   /** The alternative to draw for a group, by name; default (or unknown) the first. */
   alternative?: (group: string) => string | undefined;
   /** Draws a Display filling `size` px; default an empty rectangle. */
@@ -174,7 +177,7 @@ function Silk<F extends FieldKey>({ silk: s, ox, oy }: { silk: SectionSilk<F>; o
 
 /** A stable React key for an element. */
 function elementKey<F extends FieldKey>(el: ElementLayout<F>): string {
-  const what = el.kind === "display" ? `d${el.display}` : `f${String(el.field)}`;
+  const what = el.kind === "display" ? `d${el.display}` : `f${String(el.field)}${el.index === undefined ? "" : `[${el.index}]`}`;
   return `${what}@${el.x},${el.y}`;
 }
 
@@ -248,17 +251,18 @@ export function GridSection<F extends FieldKey>({
             </div>
           );
         }
-        const inactive = isActive(el.field) ? undefined : (el.inactive ?? "dim");
+        const inactive = isActive(el.field, el.index) ? undefined : (el.inactive ?? "dim");
         return (
           <div
             key={elementKey(el)}
             className={`${css.element} ${inactive ? css[inactive] : ""}`}
             data-field={String(el.field)}
+            data-index={el.index}
             data-inactive={inactive}
             inert={inactive !== undefined}
             style={box}
           >
-            <Control control={el} binding={bind(el.field)} />
+            <Control control={el} binding={bind(el.field, el.index)} />
           </div>
         );
       })}
