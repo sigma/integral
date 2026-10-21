@@ -1657,6 +1657,12 @@ pub fn sns_partial_switch_field(partial: u8) -> Result<SnsCommonField, JsError> 
     Ok(sn_synth::SnsCommonField::PARTIAL_SWITCHES[partial as usize].into())
 }
 
+/// How many Partials an SN Synth Tone has.
+#[wasm_bindgen]
+pub fn sns_partial_count() -> u8 {
+    sn_synth::SNS_PARTIAL_COUNT as u8
+}
+
 /// The SN Synth Partial OSC Wave value that selects a PCM Wave.
 #[wasm_bindgen]
 pub fn sns_osc_wave_pcm() -> u8 {
@@ -2255,6 +2261,22 @@ pub fn sns_common_spec(field: SnsCommonField) -> WasmFieldSpec {
 #[wasm_bindgen]
 pub fn sns_partial_spec(field: SnsPartialField) -> WasmFieldSpec {
     wrap_field_spec(field_spec::sns_partial_spec(field.into()))
+}
+
+/// The raw value of `field` in `common` (an SN Synth Tone's Common, as
+/// core serialized it).
+#[wasm_bindgen]
+pub fn sns_common_value(field: SnsCommonField, common: JsValue) -> Result<u16, JsError> {
+    let common: sn_synth::SnSynthCommon = relevance::from_js(common)?;
+    Ok(common.value(field.into()))
+}
+
+/// The raw value of `field` in `partial` (an SN Synth Tone Partial, as core
+/// serialized it).
+#[wasm_bindgen]
+pub fn sns_partial_value(field: SnsPartialField, partial: JsValue) -> Result<u16, JsError> {
+    let partial: sn_synth::SnSynthPartial = relevance::from_js(partial)?;
+    Ok(partial.value(field.into()))
 }
 
 /// A field whose values from `noteFrom` up are tempo-synced notes.

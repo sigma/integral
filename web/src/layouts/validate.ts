@@ -6,7 +6,7 @@
  */
 
 import { DisplayKind } from "../../pkg/integral_wasm.js";
-import { optionListRows, type Cells } from "../synth-ui/grid";
+import { BLEED, optionListRows, type Cells, type Edge } from "../synth-ui/grid";
 import { isTwoState, type FieldKey, type FieldSpace } from "./fields";
 import { DISPLAY_MIN_FOOTPRINT, allElements, itemRect, sectionCells, variantLayout } from "./geometry";
 import {
@@ -38,6 +38,11 @@ export type Check =
   | "containment"
   /** A Display under its kind's minimum, an option list shorter than its options, or a switch with more than two. */
   | "footprint"
+  /**
+   * A Control or Display drawing under its Section's border: on an edge Cell
+   * row or column with no title between it and the border (`BLEED`).
+   */
+  | "clearance"
   /** A variant that leaves a parameter of its key out. */
   | "unplaced"
   /** A Section covering a Lane's Cell. */
@@ -221,6 +226,30 @@ export function validateSection<F extends FieldKey>(
     if (stuck) report("arrow", `arrow ${endName(arrow.from)} → ${endName(arrow.to)}`, "no route through free Cells");
   }
   reportGlyphClashes(report, drawnArrows(arrows, (a) => routeSectionArrow(layout, a)));
+  return problems;
+}
+
+/**
+ * Clearance problems with one Section's layout: each element whose drawn edge
+ * (`BLEED`) lies on a Cell the border runs through. The border sits `INSET`
+ * inside the Section's outer Cells; a title row (`top`) or column (`side`)
+ * stands between it and the content on that edge, the other edges have none.
+ */
+export function validateClearance<F extends FieldKey>(layout: SectionLayout<F>, where: string = layout.title): Problem[] {
+  const { problems, report } = collector(where);
+  for (const el of allElements(layout.items)) {
+    const r = itemRect(el);
+    const under: Record<Edge, boolean> = {
+      top: r.y === 0 && layout.titleEdge !== "top",
+      left: r.x === 0 && layout.titleEdge !== "side",
+      bottom: r.y + r.h === layout.h,
+      right: r.x + r.w === layout.w,
+    };
+    const edges = (BLEED[el.kind] as readonly Edge[]).filter((e) => under[e]);
+    if (edges.length > 0) {
+      report("clearance", elementName(el, layout.fields), `draws under the border on its ${edges.join(", ")} edge`);
+    }
+  }
   return problems;
 }
 

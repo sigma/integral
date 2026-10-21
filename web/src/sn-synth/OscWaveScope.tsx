@@ -63,18 +63,21 @@ export function OscWaveScope({
   pwmDepth,
   pwShift,
   superSawDetune,
+  className,
 }: {
   wave: string;
   pulseWidth: number;
   pwmDepth: number;
   pwShift: number;
   superSawDetune: number;
+  /** Sizes the screen, e.g. to fill a Display's Cells. */
+  className?: string;
 }) {
   const isPw = wave === "PW-SQR";
   const path = isPw ? pulse(pulseWidth, pwShift) : wave === "SP-SAW" ? superSaw(superSawDetune) : SHAPES[wave];
   if (!path) return null;
   return (
-    <ScopeScreen>
+    <ScopeScreen className={className}>
       {isPw && pwmDepth > 0 && (
         <path d={`${pulse(pulseWidth - pwmDepth, pwShift)} ${pulse(pulseWidth + pwmDepth, pwShift)}`} fill="none"
           stroke="#fc8" strokeOpacity="0.3" strokeWidth="1" vectorEffect="non-scaling-stroke" />

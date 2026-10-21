@@ -8,7 +8,8 @@ use wasm_bindgen::prelude::*;
 
 use crate::{MixerField, PcmsPartialField, PcmsPmtField, SnaCommonField, SnsPartialField};
 
-fn from_js<T: for<'de> Deserialize<'de>>(value: JsValue) -> Result<T, JsError> {
+/// `value`, an object core serialized for the editors, read back.
+pub(crate) fn from_js<T: for<'de> Deserialize<'de>>(value: JsValue) -> Result<T, JsError> {
     serde_wasm_bindgen::from_value(value).map_err(|e| JsError::new(&e.to_string()))
 }
 

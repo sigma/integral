@@ -85,6 +85,20 @@ describe("GridSection draws the pilot mixer EQ", () => {
       ["LO", "72", "372"],
     ]);
   });
+
+  it("draws a band name in the band style and a title-style group name in the Section title's type", () => {
+    const layout: SectionLayout<MixerField> = {
+      ...EQ_LAYOUT,
+      silkscreen: [
+        { kind: "label", text: "HI", x: 3, y: 1 },
+        { kind: "label", text: "OSC", x: 1, y: 0.5, style: "title" },
+      ],
+    };
+    const texts = [...render(<GridSection layout={layout} bind={bindMixer} />).container.querySelectorAll("svg text")];
+    const classOf = (name: string) => texts.find((t) => t.textContent === name)!.getAttribute("class");
+    expect(classOf("HI")).toMatch(/groupName/);
+    expect(classOf("OSC")).toMatch(/groupTitle/);
+  });
 });
 
 /** A Section of three switches listed out of reading order, plus a group and a Display. */

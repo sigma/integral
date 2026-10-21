@@ -2,13 +2,13 @@ import { useEffect, useState, useCallback } from "react";
 import {
   sns_mfx_address,
   mfx_block_size,
-  sns_partial_switch_field,
   sns_partial_scope_is_active,
   ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
+import { GridScreen, GridZoom } from "./layouts";
+import { SNS_SECTION, rowSectionOf, snsScreen } from "./layouts/sn-synth/screen";
 import { MfxPanel } from "./MfxPanel";
-import { SignalArrows } from "./synth-ui/SignalArrows";
 import { useMfxHandlers } from "./useMfxHandlers";
 import type { MfxState } from "./MfxPanel";
 import css from "./SnSynthEditor.module.css";
@@ -17,8 +17,9 @@ import type {
   PartialParamHandler,
   SnSynthTone,
 } from "./sn-synth/types";
-import { CommonStrip } from "./sn-synth/CommonStrip";
-import { PartialRow } from "./sn-synth/PartialRow";
+import { boxOf } from "./layouts/sn-synth/partial";
+import { CommonSection, PartialSwitch } from "./sn-synth/CommonSection";
+import { PartialBox } from "./sn-synth/PartialBox";
 
 // ---------------------------------------------------------------------------
 // Component
@@ -89,19 +90,6 @@ export function SnSynthEditor({ partIndex, service }: Props) {
   const mfxHandlers = useMfxHandlers(service, partIndex, ToneType.SnSynth, setMfx);
 
   // ---------------------------------------------------------------------------
-  // Partial selector helpers
-  // ---------------------------------------------------------------------------
-  const common = tone?.common;
-  const partialSwitches = common
-    ? [common.partial1Switch, common.partial2Switch, common.partial3Switch]
-    : [];
-
-  const togglePartialSwitch = (idx: number) => {
-    const current = partialSwitches[idx] ?? 0;
-    setCommonParam(sns_partial_switch_field(idx), current !== 0 ? 0 : 1);
-  };
-
-  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
@@ -111,44 +99,37 @@ export function SnSynthEditor({ partIndex, service }: Props) {
 
   return (
     <div className={css.editor}>
-      {/* Tone name */}
-      <div className={css.toneName}>{tone.common.toneName || "(unnamed)"}</div>
-
-      {/* Common strip over the partial rows; the MFX beside the partials */}
-      <div className={css.mainArea}>
-        <div className={css.commonCell}>
-          <CommonStrip common={tone.common} onChange={setCommonParam} />
-        </div>
-        <div className={css.partialRows}>
-          {tone.partials.map((partial, idx) => {
-            const isOn = (partialSwitches[idx] ?? 0) !== 0;
-            const setP: PartialParamHandler = (field, value) =>
-              setPartialParam(idx, field, value);
-
+      <GridZoom cells={snsScreen()}>
+        <div className={css.toneName}>{tone.common.toneName || "(unnamed)"}</div>
+        {/* COMMON over the partial rows; the MFX beside them, every row summed into it. */}
+        <GridScreen layout={snsScreen()}>
+          {({ id }) => {
+            if (id === SNS_SECTION.common) return <CommonSection common={tone.common} onChange={setCommonParam} />;
+            if (id === SNS_SECTION.mfx) {
+              return <div className={css.mfx}>{mfx && <MfxPanel mfx={mfx} {...mfxHandlers} />}</div>;
+            }
+            const at = rowSectionOf(id);
+            const partial = at && tone.partials[at.partial];
+            if (!at || !partial) return null;
+            const idx = at.partial;
+            if (at.section === "switch") {
+              return <PartialSwitch idx={idx} common={tone.common} onChange={setCommonParam} />;
+            }
+            const box = boxOf(at.section);
+            const setP: PartialParamHandler = (field, value) => setPartialParam(idx, field, value);
             return (
-              <PartialRow
-                key={idx}
+              <PartialBox
                 idx={idx}
+                layout={box.layout}
+                family={box.family}
                 partial={partial}
-                isOn={isOn}
                 active={sns_partial_scope_is_active(idx, tone.common)}
-                onToggle={() => togglePartialSwitch(idx)}
                 setP={setP}
               />
             );
-          })}
-        </div>
-        <div className={css.mfxSidebar} data-node="mfx">
-          {mfx && (
-            <MfxPanel
-              mfx={mfx}
-              {...mfxHandlers}
-            />
-          )}
-        </div>
-        {/* Every partial is summed into the MFX. */}
-        <SignalArrows edges={tone.partials.map((_, i) => ({ from: `out-${i}`, to: "mfx", glyph: "+" }))} />
-      </div>
+          }}
+        </GridScreen>
+      </GridZoom>
     </div>
   );
 }

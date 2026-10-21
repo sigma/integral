@@ -164,7 +164,7 @@ function Silk<F extends FieldKey>({ silk: s, ox, oy }: { silk: SectionSilk<F>; o
   }
   if (s.kind === "label") {
     return (
-      <text className={css.groupName} x={ox + s.x * CELL} y={oy + s.y * CELL}>
+      <text className={s.style === "title" ? css.groupTitle : css.groupName} x={ox + s.x * CELL} y={oy + s.y * CELL}>
         {s.text}
       </text>
     );
@@ -215,7 +215,7 @@ export function GridSection<F extends FieldKey>({
     <div className={css.section} data-grid-section={title} style={{ width: W, height: H, ...style }}>
       <div className={css.border} style={border} />
       <div
-        className={`${css.title} ${side ? css.sideTitle : ""}`}
+        className={`${css.title} ${side ? css.sideTitle : top ? css.topTitle : ""}`}
         style={{
           left: side ? 0 : INSET,
           top: INSET,

@@ -1,6 +1,6 @@
 /* ================================================================
-   SN-S Synth Editor — layout styles only
-   (Component styles are in synth-ui modules)
+   SN-S Synth Editor: page chrome only. Sections, Controls and
+   Displays are placed by the Grid layout (layouts/sn-synth).
    ================================================================ */
 
 .editor {
@@ -30,234 +30,32 @@
   letter-spacing: 0.5px;
 }
 
-/* ----------------------------------------------------------------
-   Common Controls Strip
-   ---------------------------------------------------------------- */
+/* The MFX panel (not a Grid Section yet) inside its whole-Cell box. */
+.mfx {
+  box-sizing: border-box;
+  height: 100%;
+  padding: 4px;
+}
 
-/* Sits inside a SectionPanel, which supplies the frame. */
-.commonStrip {
+/* A scope or envelope filling its Display's Cells. */
+.fill {
+  height: 100%;
+}
+
+/* The PCM Wave picker, centred in its Display's Cells. */
+.picker {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  height: 100%;
 }
 
-.commonGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* The picker fills its Display's Cells, narrower than its own 220px. */
+.picker > * {
+  width: 100%;
+  min-width: 0;
 }
 
-.groupLabel {
-  font-size: 9px;
-  font-weight: 700;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.groupRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.commonDivider {
-  width: 1px;
-  height: 40px;
-  background: #2a2a4a;
-  flex-shrink: 0;
-}
-
-/* ----------------------------------------------------------------
-   Main area: COMMON, the 3 partial rows, and the MFX
-   ---------------------------------------------------------------- */
-
-/*
- * COMMON on top, the partial rows under it, and the MFX beside the partials,
- * centred on them: the rows are alike, so that's level with partial 2.
- */
-.mainArea {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 6px 56px;
-  justify-content: start;
-}
-
-.commonCell {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.partialRows {
-  grid-column: 1;
-  grid-row: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.partialRow {
-  display: flex;
-  gap: 6px;
-  align-items: stretch;
-}
-
-/* Each section wrapper must stretch to fill the row height.
-   The inner SectionPanel needs flex:1 to fill the wrapper. */
-.partialRow > div {
-  display: flex;
-}
-
-.partialRow > div > * {
-  flex: 1;
-}
-
-/* The dimmed overlay wrapper also needs to stretch */
-.partialRowDimmed {
+/* A partial core holds off: its whole row, dimmed (and inert). */
+.off {
   opacity: 0.4;
-}
-
-/* The MFX at its own height; the column gap leaves room for the arrows to meet at its +. */
-.mfxSidebar {
-  grid-column: 2;
-  grid-row: 2;
-  align-self: center;
-}
-
-/* Fixed-width area for wave selectors so knobs don't shift */
-.oscSelectors {
-  display: flex;
-  gap: 4px;
-  min-width: 90px;
-  width: 90px;
-  flex-shrink: 0;
-}
-
-/* Two equal rows the height of a knob: a scope (or the OSC's PCM Wave picker)
-   fills the first, the knobs always sit on the second, level with the lower
-   knob row of the other panels. */
-.scopeKnobArea {
-  display: grid;
-  grid-template-rows: 1fr 1fr;
-  gap: 6px;
-  margin-left: auto;
-}
-
-/* Reserves the PCM Wave picker's room so the panel doesn't resize when it appears. */
-.oscKnobArea {
-  min-width: 220px;
-}
-
-/* Centred in its row, rather than hugging the panel's top. */
-.oscPcmSlot {
-  align-self: center;
-}
-
-.scopeKnobRow {
-  grid-row: 2;
-  display: flex;
-  gap: 6px;
-  justify-content: flex-end;
-}
-
-.hiddenKnob {
-  visibility: hidden;
-}
-
-.oscKnobGrid {
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 6px;
-  margin-left: auto;
-}
-
-/* Shape selector with its sync switches stacked below it (LFO panels) */
-.switchColumn {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* Two knobs on top, three below: keeps the lower row level with the other panels'. */
-.knobGrid3 {
-  grid-template-columns: repeat(3, auto);
-}
-
-.knobGrid3 > :nth-child(-n + 2) {
-  grid-row: 1;
-}
-
-.knobGrid3 > :nth-child(n + 3) {
-  grid-row: 2;
-}
-
-/* Push knobs to the right in section top rows */
-.knobsRight {
-  margin-left: auto;
-}
-
-/* MFX column spans all 3 rows */
-
-/* ----------------------------------------------------------------
-   Panel row layout (used inside SectionPanel bodies)
-   ---------------------------------------------------------------- */
-
-/* flex: 1 takes the panel's spare height, so the fader rows below sit at
-   the bottom and line up across the panels of a partial row. */
-.panelRow {
-  flex: 1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: flex-start;
-  align-content: flex-start;
-}
-
-/* ----------------------------------------------------------------
-   Depth fader sections (Mod LFO / LFO)
-   ---------------------------------------------------------------- */
-
-.depthSection {
-  border-top: 1px solid #222240;
-  margin-top: 2px;
-  padding-top: 4px;
-}
-
-.depthLabel {
-  font-size: 8px;
-  font-weight: 700;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  display: block;
-  margin-bottom: 2px;
-}
-
-.depthFaders {
-  display: flex;
-  gap: 6px;
-  justify-content: center;
-}
-
-/* ----------------------------------------------------------------
-   Aftertouch strip (integrated into LFO column)
-   ---------------------------------------------------------------- */
-
-.aftertouchRow {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  border-top: 1px solid #222240;
-  margin-top: 2px;
-  padding-top: 4px;
-}
-
-.aftertouchLabel {
-  font-size: 8px;
-  font-weight: 700;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }

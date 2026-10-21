@@ -108,6 +108,15 @@
   box-sizing: border-box;
   justify-content: center;
   padding: 0 4px;
+  overflow: hidden;
+}
+
+/* A state name too long for the Cell is cut short, not drawn past it. */
+.grid .toggleBtn > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Rows sit flush, one Cell each; the outline draws the frame without taking space. */
@@ -119,8 +128,12 @@
   outline-offset: -1px;
 }
 
+/* Tighter than off the Grid, so a six-letter option fits its 2-Cell width. */
 .grid .option {
   box-sizing: border-box;
+  max-width: 100%;
+  gap: 3px;
+  padding: 0 3px;
   flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;

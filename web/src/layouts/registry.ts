@@ -18,6 +18,9 @@ import { SNA_FILTER_LAYOUT } from "./sn-acoustic/filter";
 import { SNA_INST_SET } from "./sn-acoustic/inst";
 import { SNA_SCREEN } from "./sn-acoustic/screen";
 import { SNA_VIBRATO_LAYOUT } from "./sn-acoustic/vibrato";
+import { SNS_COMMON_LAYOUT } from "./sn-synth/common";
+import { SNS_BOXES, SNS_PARTIAL_SWITCH_LAYOUT } from "./sn-synth/partial";
+import { snsScreen } from "./sn-synth/screen";
 import { surroundScreen } from "./surround/screen";
 import {
   SURROUND_AMBIENCE_LAYOUT,
@@ -44,6 +47,9 @@ export const SECTION_LAYOUTS: readonly SectionLayout<FieldKey>[] = [
   SND_TONE_LAYOUT,
   SND_OUTPUT_LAYOUT,
   ...PCMD_SECTIONS,
+  SNS_COMMON_LAYOUT,
+  SNS_PARTIAL_SWITCH_LAYOUT,
+  ...SNS_BOXES.map((b) => b.layout),
 ];
 
 /** Variant sets; the validator walks every key core enumerates. */
@@ -57,5 +63,13 @@ export const VARIANT_SETS: readonly VariantSet<FieldKey, FieldKey>[] = [
 
 /** Screen layouts; a function, as screens read the device spec from core. */
 export function screenLayouts(): readonly ScreenLayout[] {
-  return [mixerScreen(false).layout, mixerScreen(true).layout, surroundScreen(), SNA_SCREEN, SND_SCREEN, PCMD_SCREEN];
+  return [
+    mixerScreen(false).layout,
+    mixerScreen(true).layout,
+    surroundScreen(),
+    SNA_SCREEN,
+    SND_SCREEN,
+    PCMD_SCREEN,
+    snsScreen(),
+  ];
 }

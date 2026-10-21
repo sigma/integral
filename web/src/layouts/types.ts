@@ -134,6 +134,11 @@ export interface GroupNameSilk {
   x: number;
   /** Centre, in Cells. */
   y: number;
+  /**
+   * `band` (default): the heavy grey of the EQ's band names, sitting in a free slot.
+   * `title`: a Section title's type, naming a group of Controls inside a Section.
+   */
+  style?: "band" | "title";
 }
 
 /** The edge of an element an arrow leaves or enters, at its centre. */

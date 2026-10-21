@@ -7,6 +7,7 @@ export { SyncedControl } from "./SyncedControl";
 export { PartialPowerButton } from "./PartialPowerButton";
 export { ADSREnvelope, envelopePath } from "./ADSREnvelope";
 export type { EnvelopeShape } from "./ADSREnvelope";
+export { EnvelopeScope } from "./EnvelopeScope";
 export { BreakpointCurve, BreakpointEnvelope } from "./BreakpointEnvelope";
 export { FaderGroup, FaderGroupSep } from "./FaderGroup";
 export { OutputStrip } from "./OutputStrip";

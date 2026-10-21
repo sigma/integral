@@ -31,6 +31,27 @@ export const FOOTPRINT = {
   optionListW: 2,
 } as const satisfies Record<string, Cells | number>;
 
+/** An edge of a footprint. */
+export type Edge = "top" | "right" | "bottom" | "left";
+
+const ALL_EDGES = ["top", "right", "bottom", "left"] as const satisfies readonly Edge[];
+
+/**
+ * The edges of its footprint each kind of Control or Display draws right up
+ * to. A Section's border runs through the Cells along its edges (`INSET`
+ * inside them), so none of these edges may lie on one (`validateClearance`).
+ * Every Control's name sits in its top line; a knob or fader keeps its own
+ * margin on the other edges, while a switch, an option list or a Display
+ * fills its Cells.
+ */
+export const BLEED = {
+  knob: ["top"],
+  fader: ["top"],
+  switch: ALL_EDGES,
+  list: ALL_EDGES,
+  display: ALL_EDGES,
+} as const satisfies Record<string, readonly Edge[]>;
+
 /** A line of Control text on the Grid: its font size and line box, px. */
 export interface TextLine {
   /** Font size, px. */

@@ -9,17 +9,54 @@ import {
   mfx_params,
   mfx_type_names,
 } from "../../pkg/integral_wasm.js";
-import { PCMD_AMP_ENV_LAYOUT, PCMD_PARTIAL_FIELDS, PCMD_PITCH_ENV_LAYOUT, PCMD_SCREEN } from "./drum/pcmDrum";
-import { SND_SCREEN } from "./drum/snDrum";
+import {
+  PCMD_AMP_ENV_LAYOUT,
+  PCMD_FILTER_ENV_LAYOUT,
+  PCMD_FILTER_LAYOUT,
+  PCMD_MISC_LAYOUT,
+  PCMD_PARTIAL_FIELDS,
+  PCMD_PITCH_ENV_LAYOUT,
+  PCMD_SCREEN,
+  PCMD_WMT_LAYOUT,
+} from "./drum/pcmDrum";
+import { SND_SCREEN, SND_TONE_LAYOUT } from "./drum/snDrum";
 import { fxFields, mixerFields, type FieldKey } from "./fields";
-import { MFX_PANEL_FRAME } from "./fx/mfx";
+import { MFX_PANEL_FRAME, MFX_SET } from "./fx/mfx";
+import { variantLayout } from "./geometry";
 import { EQ_LAYOUT } from "./mixer/eq";
 import { mixerScreen } from "./mixer/screen";
 import { STRIP_SET } from "./mixer/strip";
 import { SECTION_LAYOUTS, VARIANT_SETS, screenLayouts } from "./registry";
+import { SNA_AMP_LAYOUT } from "./sn-acoustic/amp";
+import { SNA_COMMON_LAYOUT } from "./sn-acoustic/common";
+import { SNA_FILTER_LAYOUT } from "./sn-acoustic/filter";
+import { SNA_INST_SET } from "./sn-acoustic/inst";
 import { surroundScreen } from "./surround/screen";
+import { SURROUND_COMMON_LAYOUT, SURROUND_PAD_LAYOUT } from "./surround/sections";
 import type { ItemLayout, ScreenLayout, SectionBody, SectionLayout, SectionSilk, VariantSet } from "./types";
-import { validateScreen, validateSection, validateVariantSet, type Check } from "./validate";
+import { validateClearance, validateScreen, validateSection, validateVariantSet, type Check } from "./validate";
+
+/**
+ * Layouts from before `validateClearance`, still drawing some Control or
+ * Display under their border. Clear one, then drop it from here.
+ */
+const UNDER_BORDER = new Set<object>([
+  SURROUND_COMMON_LAYOUT,
+  SURROUND_PAD_LAYOUT,
+  SNA_COMMON_LAYOUT,
+  SNA_FILTER_LAYOUT,
+  SNA_AMP_LAYOUT,
+  SND_TONE_LAYOUT,
+  PCMD_WMT_LAYOUT,
+  PCMD_PITCH_ENV_LAYOUT,
+  PCMD_FILTER_ENV_LAYOUT,
+  PCMD_AMP_ENV_LAYOUT,
+  PCMD_FILTER_LAYOUT,
+  PCMD_MISC_LAYOUT,
+  STRIP_SET,
+  MFX_SET,
+  SNA_INST_SET,
+]);
 
 describe("every layout", () => {
   it.each(SECTION_LAYOUTS.map((l) => [l.title, l] as const))("Section %s is valid", (_, layout) => {
@@ -27,6 +64,26 @@ describe("every layout", () => {
   });
   it.each(VARIANT_SETS.map((s) => [s.name, s] as const))("variant set %s is valid", (_, set) => {
     expect(validateVariantSet(set)).toEqual([]);
+  });
+  it.each(SECTION_LAYOUTS.filter((l) => !UNDER_BORDER.has(l)).map((l) => [l.title, l] as const))(
+    "Section %s keeps clear of its border",
+    (_, layout) => {
+      expect(validateClearance(layout)).toEqual([]);
+    },
+  );
+  it.each(VARIANT_SETS.filter((s) => !UNDER_BORDER.has(s)).map((s) => [s.name, s] as const))(
+    "variant set %s keeps clear of its border",
+    (_, set) => {
+      for (const key of set.keys) expect(validateClearance(variantLayout(set, key), `${set.name}[${key}]`)).toEqual([]);
+    },
+  );
+  it("lists only layouts still drawn under their border as such", () => {
+    const sets = VARIANT_SETS.filter((s) => UNDER_BORDER.has(s));
+    const under = [
+      ...SECTION_LAYOUTS.filter((l) => UNDER_BORDER.has(l) && validateClearance(l).length > 0),
+      ...sets.filter((s) => s.keys.some((k) => validateClearance(variantLayout(s, k)).length > 0)),
+    ];
+    expect(under).toHaveLength(UNDER_BORDER.size);
   });
   it.each(screenLayouts().map((s) => [s.name, s] as const))("screen %s is valid", (_, screen) => {
     expect(validateScreen(screen)).toEqual([]);
@@ -207,6 +264,42 @@ describe("validateSection", () => {
     expect(validateSection(layout)).toEqual([]);
     const bad = { ...layout, items: [{ kind: "knob", field: "Lo Gain", x: 0, y: 0 } as const] };
     expect(checks(validateSection(bad))).toEqual(["field"]);
+  });
+});
+
+describe("validateClearance", () => {
+  /** A side-titled Section, 6×6, holding `items`. */
+  const side = (items: ItemLayout<MixerField>[]): SectionLayout<MixerField> => ({
+    ...BASE,
+    titleEdge: "side",
+    w: 6,
+    h: 6,
+    items,
+    silkscreen: [],
+  });
+  const top = (items: ItemLayout<MixerField>[]): SectionLayout<MixerField> => ({ ...side(items), titleEdge: "top" });
+
+  it("passes Controls clear of the border", () => {
+    expect(validateClearance(top([{ kind: "switch", field: MixerField.EqSwitch, x: 2, y: 0 }]))).toEqual([]);
+    expect(validateClearance(side([{ kind: "switch", field: MixerField.EqSwitch, x: 0, y: 1 }]))).toEqual([]);
+  });
+
+  it("clearance: any name in the first row, with no title over it", () => {
+    // The border's accent runs through the top Cell row, where names sit.
+    const knob = side([{ kind: "knob", field: MixerField.EqLowGain, x: 2, y: 0 }]);
+    expect(checks(validateClearance(knob))).toEqual(["clearance"]);
+    expect(validateClearance({ ...knob, titleEdge: "top" })).toEqual([]);
+  });
+
+  it("clearance: a switch, list or Display on the bottom, right or untitled left edge", () => {
+    // A switch fills its Cell; the border runs through the last row and column.
+    expect(checks(validateClearance(top([{ kind: "switch", field: MixerField.EqSwitch, x: 2, y: 5 }])))).toEqual(["clearance"]);
+    expect(checks(validateClearance(top([{ kind: "switch", field: MixerField.EqSwitch, x: 4, y: 2 }])))).toEqual(["clearance"]);
+    expect(checks(validateClearance(top([{ kind: "switch", field: MixerField.EqSwitch, x: 0, y: 2 }])))).toEqual(["clearance"]);
+    const scope: ItemLayout<MixerField> = { kind: "display", display: DisplayKind.AmpEnvelope, x: 1, y: 4, w: 4, h: 2 };
+    expect(checks(validateClearance(top([scope])))).toEqual(["clearance"]);
+    // Knobs and faders keep their own margin there.
+    expect(validateClearance(top([{ kind: "fader", field: MixerField.PartLevel, x: 4, y: 2, h: 4 }]))).toEqual([]);
   });
 });
 

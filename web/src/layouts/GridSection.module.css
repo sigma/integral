@@ -14,14 +14,27 @@
   background: #161628;
 }
 
+/* Section titles, in the same type as `SectionPanel`'s header, whatever the page's font. */
 .title {
   position: absolute;
   display: grid;
   place-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1.5px;
   color: #ddd;
+}
+
+/* A top title is a header band, as `SectionPanel`'s: the transparent borders
+   leave the Section's accent and sides showing through. */
+.topTitle {
+  box-sizing: border-box;
+  border: solid transparent;
+  border-width: 3px 1px 1px;
+  border-bottom-color: #2a2a4a;
+  background: #1a1a30;
+  background-clip: padding-box;
 }
 
 .sideTitle {
@@ -39,6 +52,17 @@
   fill: none;
   stroke: #3a3a5a;
   stroke-width: 2;
+}
+
+/* A group named like a Section title (`.title`), drawn in Silkscreen. */
+.groupTitle {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  fill: #ddd;
+  text-anchor: middle;
+  dominant-baseline: central;
 }
 
 /* Group names in a free slot, in the old ParametricEq style. */
