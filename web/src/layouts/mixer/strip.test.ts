@@ -7,7 +7,8 @@ import { allElements, itemRect, sectionCells, variantLayout } from "../geometry"
 import { validateVariantSet } from "../validate";
 import { EQ_LAYOUT } from "./eq";
 import { mixerScreen } from "./screen";
-import { STRIP_KINDS, STRIP_SET, stripFields } from "./strip";
+import { FX_STRIP_SET, STRIP_KINDS, STRIP_SET, stripFields } from "./strip";
+import { mixerFields } from "../fields";
 
 /** The placed fields of a strip kind. */
 const placed = (kind: MixerScopeKind) =>
@@ -110,9 +111,9 @@ describe("mixer screen", () => {
     expect(mixerScreen(true).layout.w).toBe((parts + units + 4) * 4);
   });
 
-  it("starts every strip on the row below the EQ, Ext included", () => {
+  it("starts every strip on the row below the EQ, Ext and FX included", () => {
     const strips = mixerScreen(true).layout.sections.filter((p) => p.id.startsWith("strip."));
-    expect(strips).toHaveLength(parts + 1 + units + 1);
+    expect(strips).toHaveLength(parts + 1 + units + 2 + 1);
     for (const p of strips) expect(p.y).toBe(sectionCells(EQ_LAYOUT).h);
     expect(mixerScreen(false).slots.get("eq.ext")).toBeUndefined();
   });
@@ -122,5 +123,26 @@ describe("mixer screen", () => {
       for (const p of screen.layout.sections) expect(screen.slots.has(p.id)).toBe(true);
     }
     expect(mixerScreen(false).slots.get("strip.part.3")).toEqual({ role: "strip", kind: MixerScopeKind.Part, index: 3 });
+    expect(mixerScreen(false).slots.get("strip.reverb")).toEqual({ role: "fx", fx: "reverb", section: "strip" });
+  });
+
+  it("gives the FX strips the strips' footprint, their level fader on the same rows", () => {
+    expect([FX_STRIP_SET.w, FX_STRIP_SET.h, FX_STRIP_SET.titleEdge]).toEqual([STRIP_SET.w, STRIP_SET.h, STRIP_SET.titleEdge]);
+    const level = (items: ReturnType<typeof variantLayout>["items"]) =>
+      items.filter((i) => i.kind === "fader").map(itemRect).reduce((a, b) => (b.h > a.h ? b : a));
+    const part = level(variantLayout(STRIP_SET, MixerScopeKind.Part).items);
+    for (const fx of FX_STRIP_SET.keys) {
+      const items = variantLayout(FX_STRIP_SET, fx).items;
+      expect(level(items)).toEqual(part);
+      expect(items.find((i) => i.kind === "fader" && i.h === part.h)).toMatchObject({ scale: true });
+    }
+  });
+
+  it("puts every Common field of the Chorus and Reverb on their FX strip", () => {
+    for (const fx of FX_STRIP_SET.keys) {
+      const prefix = fx === "chorus" ? "Chorus" : "Reverb";
+      const named = mixerFields([MixerScopeKind.Common]).ids.filter((f) => MixerField[f].startsWith(prefix));
+      expect([...FX_STRIP_SET.fieldsOf(fx).ids].sort()).toEqual(named.sort());
+    }
   });
 });

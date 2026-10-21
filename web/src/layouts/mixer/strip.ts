@@ -22,9 +22,10 @@
  */
 
 import { DisplayKind, MixerField, MixerScopeKind, mixer_field_in_scope } from "../../../pkg/integral_wasm.js";
+import { optionListRows } from "../../synth-ui/grid";
 import { memo, mixerFields, type FieldSpace } from "../fields";
 import { allElements } from "../geometry";
-import type { SectionBody, VariantSet } from "../types";
+import type { ItemLayout, SectionBody, VariantSet } from "../types";
 import { EQ_LAYOUT } from "./eq";
 
 /** The strip kinds: every mixer Scope kind but the Studio Set common block, from core's enum. */
@@ -185,4 +186,83 @@ export const STRIP_SET: VariantSet<MixerScopeKind, MixerField> = {
   generate: (kind) => {
     throw new Error(`no strip layout for ${MixerScopeKind[kind]}`);
   },
+};
+
+/** The FX columns' strips: the Chorus's and the Reverb's. */
+export type FxStripKind = "chorus" | "reverb";
+
+/**
+ * Each FX strip's fields, in the Studio Set common block, by role. Core
+ * groups them (`ParamGroup`) but doesn't export the group; a test checks
+ * that every Common field named for the block is here.
+ */
+export const FX_STRIP_FIELDS: Readonly<
+  Record<FxStripKind, { switch: MixerField; type: MixerField; level: MixerField; outputs: readonly MixerField[] }>
+> = {
+  chorus: {
+    switch: MixerField.ChorusSwitch,
+    type: MixerField.ChorusType,
+    level: MixerField.ChorusLevel,
+    outputs: [MixerField.ChorusOutputAssign, MixerField.ChorusOutputSelect],
+  },
+  reverb: {
+    switch: MixerField.ReverbSwitch,
+    type: MixerField.ReverbType,
+    level: MixerField.ReverbLevel,
+    outputs: [MixerField.ReverbOutputAssign],
+  },
+};
+
+/** The labels of an FX strip's output pickers, in `outputs` order. */
+const OUTPUT_LABELS = ["Out", "To"] as const;
+
+/** An FX strip's fields: its block's, from core's Common Scope. */
+function fxStripFields(kind: FxStripKind): FieldSpace<MixerField> {
+  const { switch: sw, type, level, outputs } = FX_STRIP_FIELDS[kind];
+  const mine = new Set([sw, type, level, ...outputs]);
+  const all = mixerFields([MixerScopeKind.Common]);
+  return {
+    name: `${kind} strip fields`,
+    get ids() {
+      return all.ids.filter((f) => mine.has(f));
+    },
+    nameOf: all.nameOf,
+    optionCount: all.optionCount,
+  };
+}
+
+/**
+ * An FX strip, laid out like a Comp+EQ unit's: the switch on top, the type
+ * list sitting on the output pickers, which sit on the part strips' Out row,
+ * then the level fader on every strip's fader rows, the type's name up its
+ * side. The list is as long as core's type count.
+ */
+function fxStrip(kind: FxStripKind): SectionBody<MixerField> {
+  const { switch: sw, type, level, outputs } = FX_STRIP_FIELDS[kind];
+  const listH = optionListRows(fxStripFields(kind).optionCount(type), true);
+  return {
+    items: [
+      { kind: "switch", field: sw, x: 1, y: 0, label: false },
+      { kind: "list", field: type, x: 1, y: OUT_Y - listH, h: listH, label: "Type" },
+      ...outputs.map(
+        (field, i): ItemLayout<MixerField> => ({ kind: "picker", field, x: 0, y: OUT_Y + i, w: 4, label: OUTPUT_LABELS[i] }),
+      ),
+      { kind: "fader", field: level, x: 1, ...FADER, label: false, scale: true },
+      NAME,
+    ],
+  };
+}
+
+/** The strip under each FX column's parameters, by FX: the strip footprint, so its fader is level with theirs. */
+export const FX_STRIP_SET: VariantSet<FxStripKind, MixerField> = {
+  name: "mixer FX strip",
+  // Its Scope's `fx` is its key's index: FX1 the Chorus, FX2 the Reverb.
+  title: "FX{fx}",
+  titleEdge: STRIP_SET.titleEdge,
+  w: STRIP_SET.w,
+  h: STRIP_SET.h,
+  keys: ["chorus", "reverb"],
+  fieldsOf: fxStripFields,
+  variants: new Map(),
+  generate: fxStrip,
 };

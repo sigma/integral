@@ -3,7 +3,8 @@
 import { describe, expect, it } from "vitest";
 import { chorus_type_names, mfx_type_names, reverb_type_names } from "../../../pkg/integral_wasm.js";
 import { fxFields, fxTypes, isTwoState, type FxBlock } from "../fields";
-import { variantLayout } from "../geometry";
+import { sectionCells, variantLayout } from "../geometry";
+import { EQ_LAYOUT } from "../mixer/eq";
 import { VARIANT_SETS } from "../registry";
 import type { ControlLayout } from "../types";
 import { MFX_LEVEL, MFX_PARAMS_Y, MFX_SET } from "./mfx";
@@ -111,8 +112,12 @@ describe("the Chorus and Reverb variant sets", () => {
     expect(Math.max(...most)).toBe(STRIP_CAPACITY);
   });
 
-  it("zig-zag one Control per 2-Cell row down two columns, like the mixer EQ", () => {
+  it("put two Controls to a row, a free row between rows", () => {
     const delay = [...controls(CHORUS_SET, 2).values()];
-    expect(delay.map((c) => [c.x, c.y])).toEqual(delay.map((_, i) => [(i % 2) * 2, i * 2]));
+    expect(delay.map((c) => [c.x, c.y])).toEqual(delay.map((_, i) => [(i % 2) * 2, Math.floor(i / 2) * 4]));
+  });
+
+  it("are as tall as the mixer EQ, so the FX columns' strips start on the other strips' row", () => {
+    for (const set of [CHORUS_SET, REVERB_SET]) expect(sectionCells(set)).toEqual(sectionCells(EQ_LAYOUT));
   });
 });

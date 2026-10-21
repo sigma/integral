@@ -89,6 +89,12 @@ export interface GridSectionProps<F extends FieldKey> {
   renderDisplay?: (display: DisplayKind, size: { width: number; height: number }) => ReactNode;
   /** Accents the border's top edge. */
   family?: ParameterFamily;
+  /**
+   * Size every knob's dial as if it drew an addon line (the tempo-sync
+   * toggle), whether or not it does: for Sections whose variants differ in
+   * sync, so their knobs keep one size from variant to variant.
+   */
+  reserveAddon?: boolean;
   /** Extra style for the Section's root (e.g. hiding it). */
   style?: CSSProperties;
 }
@@ -214,6 +220,7 @@ export function GridSection<F extends FieldKey>({
   alternative = none,
   renderDisplay,
   family,
+  reserveAddon = false,
   style,
 }: GridSectionProps<F>) {
   const { top, side } = titleCells(layout);
@@ -244,7 +251,7 @@ export function GridSection<F extends FieldKey>({
   for (const { el, size, binding } of drawn) {
     if (el.kind !== "knob") continue;
     const k = el.size ?? "sm";
-    dialSide[k] = Math.min(dialSide[k], knobDialSide(k, size, binding?.sync !== undefined));
+    dialSide[k] = Math.min(dialSide[k], knobDialSide(k, size, reserveAddon || binding?.sync !== undefined));
   }
   // An arrow is drawn when both its ends are.
   const arrows = drawnArrows(

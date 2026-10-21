@@ -1,34 +1,23 @@
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { chorus_params } from "../pkg/integral_wasm.js";
-import { FxStrip } from "./FxStrip";
-import { fxTypes, type FxBlock } from "./layouts";
+import { FxParams } from "./FxStrip";
+import { fxTypes } from "./layouts";
+import type { FxStripKind } from "./layouts/mixer/strip";
 import { cleanup, render } from "./test/dom";
 import { sectionSize } from "./test/grid";
 import type { FxState } from "./types";
 
 afterEach(cleanup);
 
-function strip(block: Exclude<FxBlock, "mfx">, type: number, params: number[] = Array<number>(20).fill(0)) {
+function strip(block: FxStripKind, type: number, params: number[] = Array<number>(20).fill(0)) {
   const onNibParam = vi.fn();
   const fx: FxState = { enabled: true, type, level: 100, output: 0, outputAssign: 0, params };
-  const typeNames = fxTypes(block).map(String);
-  const { container } = render(
-    <FxStrip
-      label={block === "chorus" ? "FX1" : "FX2"}
-      block={block}
-      fx={fx}
-      typeNames={typeNames}
-      routes={[]}
-      onToggleSwitch={vi.fn()}
-      onParam={vi.fn()}
-      onNibParam={onNibParam}
-    />,
-  );
+  const { container } = render(<FxParams block={block} fx={fx} onNibParam={onNibParam} />);
   return { container, onNibParam };
 }
 
-describe("FxStrip", () => {
+describe("FxParams", () => {
   it.each(["chorus", "reverb"] as const)("keeps one %s footprint whatever the type", (block) => {
     const sizes = fxTypes(block).map((t) => sectionSize(strip(block, t).container));
     for (const s of sizes) expect(s).toEqual(sizes[0]);

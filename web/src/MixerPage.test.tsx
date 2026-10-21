@@ -311,6 +311,29 @@ describe("MixerPage", () => {
     expect(placed(el, "name.comp.1").textContent).toBe("C+E2");
   });
 
+  it("draws the FX columns on the Grid, writing their strips in the Common Scope", () => {
+    const { el, base, setMixerField } = loaded((st) => ({ ...st, reverb: { ...st.reverb, type: 3, level: 90 } }));
+    expect(placed(el, "fx.chorus").querySelector('[data-grid-section="Chorus"]')).not.toBeNull();
+    expect(placed(el, "strip.chorus").querySelector("[data-grid-section]")!.getAttribute("data-grid-section")).toBe("FX1");
+    expect(placed(el, "strip.reverb").querySelector("[data-grid-section]")!.getAttribute("data-grid-section")).toBe("FX2");
+    // The type's name runs up the fader.
+    expect(placed(el, "strip.reverb").querySelector(`[data-display="${DisplayKind.StripName}"]`)!.textContent).toBe(
+      paramFormatter(MixerField.ReverbType)(3),
+    );
+    const reverb = placed(el, "strip.reverb");
+    expect(value(control(reverb, MixerField.ReverbLevel))).toBe("90");
+    stepUp(control(reverb, MixerField.ReverbLevel));
+    expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Common, 0, MixerField.ReverbLevel, 91);
+    press(el, "strip.chorus", MixerField.ChorusSwitch);
+    expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Common, 0, MixerField.ChorusSwitch, Number(!base.chorus.enabled));
+    const types = control(placed(el, "strip.chorus"), MixerField.ChorusType).querySelectorAll("button");
+    act(() => types[2]!.click());
+    expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Common, 0, MixerField.ChorusType, 2);
+    for (const field of [MixerField.ChorusOutputAssign, MixerField.ChorusOutputSelect]) {
+      expect(control(placed(el, "strip.chorus"), field).querySelector("button")).not.toBeNull();
+    }
+  });
+
   it("selects a part from anywhere on its column", () => {
     const { el, selectPart } = loaded();
     act(() => {

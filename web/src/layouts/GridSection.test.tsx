@@ -299,6 +299,16 @@ describe("GridSection knob dials", () => {
     // The synced knob gives up an addon line under its readout.
     expect(Number(sides[0])).toBeLessThan(FOOTPRINT.knobSm.w * 24 - INSET);
   });
+
+  it("keeps that dial without a synced knob when the Section reserves the addon line", () => {
+    const synced = (field: MixerField): Binding =>
+      field === MixerField.EqHighGain
+        ? { ...bindMixer(field), sync: { labels: ["ms", "♪"], noteMode: false, onChange: () => {} } }
+        : bindMixer(field);
+    const withSync = dial(render(<GridSection layout={KNOBS} bind={synced} />).container, MixerField.EqMidGain);
+    const reserved = dial(render(<GridSection layout={KNOBS} bind={bindMixer} reserveAddon />).container, MixerField.EqMidGain);
+    expect(reserved).toBe(withSync);
+  });
 });
 
 describe("GridSection array-field elements", () => {

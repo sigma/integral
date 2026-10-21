@@ -1,7 +1,8 @@
 /**
  * A level fader's scale: the marks it draws beside its track and their
- * labels. One rule for every fader that draws one, the mixer's FX faders'
- * (pre-Grid `VolumeFader`), so the level faders read alike (#392).
+ * labels. One rule for every fader that draws one, the pre-Grid mixer's FX
+ * faders' (`VolumeFader`, which it replaces), so the level faders read
+ * alike (#392).
  */
 
 /** One mark on a fader's scale. */
