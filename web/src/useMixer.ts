@@ -46,16 +46,7 @@ interface RustMixerState {
 
 export interface UseMixerResult {
   state: MixerState;
-  setPartLevel: (part: number, value: number) => void;
-  setPartPan: (part: number, value: number) => void;
-  togglePartMute: (part: number) => void;
-  toggleSolo: (part: number) => void;
   changePartTone: (part: number, msb: number, lsb: number, pc: number) => void;
-  setPartReceiveChannel: (part: number, channel: number) => void;
-  setPartOutputAssign: (part: number, value: number) => void;
-  setPartChorusSend: (part: number, value: number) => void;
-  setPartReverbSend: (part: number, value: number) => void;
-  setMasterLevel: (value: number) => void;
   /** Set a mixer field in a scope; `index` is the part or Comp+EQ unit, ignored for other kinds. */
   setMixerField: (kind: MixerScopeKind, index: number, field: MixerField, value: number) => void;
   setChorusParam: (offset: number, value: number) => void;
@@ -64,16 +55,11 @@ export interface UseMixerResult {
   setReverbParam: (offset: number, value: number) => void;
   setReverbNibParam: (paramIndex: number, value: number) => void;
   toggleReverbSwitch: () => void;
-  setExtLevel: (value: number) => void;
-  toggleExtMute: () => void;
   setSurroundParam: (field: SurroundField, value: number) => void;
   setPartSurroundLr: (part: number, value: number) => void;
   setPartSurroundFb: (part: number, value: number) => void;
   setPartSurroundWidth: (part: number, value: number) => void;
   setPartSurroundAmbienceSend: (part: number, value: number) => void;
-  setDrumCompEqSwitch: (enabled: boolean) => void;
-  setDrumCompEqPart: (part: number) => void;
-  setDrumCompEqOutputAssign: (unit: number, value: number) => void;
   selectPart: (part: number) => void;
   switchStudioSet: (pc: number) => void;
   /** Rename a part's Temporary tone on the device. */
@@ -224,14 +210,6 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   // Setters — delegate to Rust DeviceState + sync React state
   // -----------------------------------------------------------------------
 
-  const setPartLevel = useCallback(
-    (part: number, value: number) => {
-      service?.device.setPartLevel(part, value);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
   const renameTone = useCallback(
     (part: number, name: string) => {
       service?.device.renameTone(part, name);
@@ -248,75 +226,11 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     [service, syncFromRust],
   );
 
-  const setPartPan = useCallback(
-    (part: number, value: number) => {
-      service?.device.setPartPan(part, value);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const togglePartMute = useCallback(
-    (part: number) => {
-      service?.device.togglePartMute(part);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const toggleSolo = useCallback(
-    (part: number) => {
-      service?.device.toggleSolo(part);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
   const changePartTone = useCallback(
     (part: number, msb: number, lsb: number, pc: number) => {
       if (!service) return;
       // Core reads the new tone's name and category back.
       service.device.changePartTone(part, msb, lsb, pc);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const setPartReceiveChannel = useCallback(
-    (part: number, channel: number) => {
-      service?.device.setPartReceiveChannel(part, channel);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const setPartOutputAssign = useCallback(
-    (part: number, value: number) => {
-      service?.device.setPartOutputAssign(part, value);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const setPartChorusSend = useCallback(
-    (part: number, value: number) => {
-      service?.device.setPartChorusSend(part, value);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const setPartReverbSend = useCallback(
-    (part: number, value: number) => {
-      service?.device.setPartReverbSend(part, value);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const setMasterLevel = useCallback(
-    (value: number) => {
-      service?.device.setMasterLevel(value);
       syncFromRust();
     },
     [service, syncFromRust],
@@ -339,7 +253,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     [service, loadState],
   );
 
-  // --- EQ ---
+  // --- Mixer fields, in any Scope ---
 
   const setMixerField = useCallback(
     (kind: MixerScopeKind, index: number, field: MixerField, value: number) => {
@@ -393,21 +307,6 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     syncFromRust();
   }, [service, syncFromRust]);
 
-  // --- Ext Part ---
-
-  const setExtLevel = useCallback(
-    (value: number) => {
-      service?.device.setExtLevel(value);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const toggleExtMute = useCallback(() => {
-    service?.device.toggleExtMute();
-    syncFromRust();
-  }, [service, syncFromRust]);
-
   // --- Motional Surround ---
 
   const setSurroundParam = useCallback(
@@ -450,32 +349,6 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     [service, syncFromRust],
   );
 
-  // --- Drum Comp+EQ ---
-
-  const setDrumCompEqSwitch = useCallback(
-    (enabled: boolean) => {
-      service?.device.setDrumCompEqSwitch(enabled);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const setDrumCompEqPart = useCallback(
-    (part: number) => {
-      service?.device.setDrumCompEqPart(part);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const setDrumCompEqOutputAssign = useCallback(
-    (unit: number, value: number) => {
-      service?.device.setDrumCompEqOutputAssign(unit, value);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
   // --- UI-only state ---
 
   const preview = useCallback(() => {
@@ -488,16 +361,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
 
   return {
     state,
-    setPartLevel,
-    setPartPan,
-    togglePartMute,
-    toggleSolo,
     changePartTone,
-    setPartReceiveChannel,
-    setPartOutputAssign,
-    setPartChorusSend,
-    setPartReverbSend,
-    setMasterLevel,
     setMixerField,
     setChorusParam,
     setChorusNibParam,
@@ -505,16 +369,11 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     setReverbParam,
     setReverbNibParam,
     toggleReverbSwitch,
-    setExtLevel,
-    toggleExtMute,
     setSurroundParam,
     setPartSurroundLr,
     setPartSurroundFb,
     setPartSurroundWidth,
     setPartSurroundAmbienceSend,
-    setDrumCompEqSwitch,
-    setDrumCompEqPart,
-    setDrumCompEqOutputAssign,
     selectPart,
     switchStudioSet,
     renameTone,

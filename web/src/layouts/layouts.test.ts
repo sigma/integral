@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 import { DisplayKind, MixerField, MixerScopeKind, mfx_params, mfx_type_names } from "../../pkg/integral_wasm.js";
 import { fxFields, mixerFields } from "./fields";
 import { EQ_LAYOUT } from "./mixer/eq";
-import { SCREEN_LAYOUTS, SECTION_LAYOUTS, VARIANT_SETS } from "./registry";
+import { mixerScreen } from "./mixer/screen";
+import { STRIP_SET } from "./mixer/strip";
+import { SECTION_LAYOUTS, VARIANT_SETS, screenLayouts } from "./registry";
 import type { ItemLayout, ScreenLayout, SectionBody, SectionLayout, SectionSilk, VariantSet } from "./types";
 import { validateScreen, validateSection, validateVariantSet, type Check } from "./validate";
 
@@ -15,11 +17,13 @@ describe("every layout", () => {
   it.each(VARIANT_SETS.map((s) => [s.name, s] as const))("variant set %s is valid", (_, set) => {
     expect(validateVariantSet(set)).toEqual([]);
   });
-  it.each(SCREEN_LAYOUTS.map((s) => [s.name, s] as const))("screen %s is valid", (_, screen) => {
+  it.each(screenLayouts().map((s) => [s.name, s] as const))("screen %s is valid", (_, screen) => {
     expect(validateScreen(screen)).toEqual([]);
   });
-  it("lists the mixer EQ", () => {
+  it("lists the mixer EQ, strips and screens", () => {
     expect(SECTION_LAYOUTS).toContain(EQ_LAYOUT);
+    expect(VARIANT_SETS).toContain(STRIP_SET);
+    expect(screenLayouts()).toEqual(expect.arrayContaining([mixerScreen(false).layout, mixerScreen(true).layout]));
   });
 });
 

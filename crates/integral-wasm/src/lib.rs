@@ -1252,6 +1252,8 @@ pub enum MixerField {
     PartOutputAssign,
     /// See [`param_registry::MixerField::PartReceiveChannel`].
     PartReceiveChannel,
+    /// See [`param_registry::MixerField::PartAmbienceSend`].
+    PartAmbienceSend,
     /// See [`param_registry::MixerField::MasterLevel`].
     MasterLevel,
     /// See [`param_registry::MixerField::ExtLevel`].
@@ -1278,6 +1280,8 @@ pub enum MixerField {
     ReverbOutputAssign,
     /// See [`param_registry::MixerField::SoloPart`].
     SoloPart,
+    /// See [`param_registry::MixerField::DrumCompEqSwitch`].
+    DrumCompEqSwitch,
     /// See [`param_registry::MixerField::DrumCompEqPart`].
     DrumCompEqPart,
     /// See [`param_registry::MixerField::EqSwitch`].
@@ -1308,6 +1312,8 @@ pub enum MixerField {
     CompRatio,
     /// See [`param_registry::MixerField::CompOutputGain`].
     CompOutputGain,
+    /// See [`param_registry::MixerField::CompOutputAssign`].
+    CompOutputAssign,
 }
 
 mirror_core_enum!(MixerField <=> param_registry::MixerField {
@@ -1318,6 +1324,7 @@ mirror_core_enum!(MixerField <=> param_registry::MixerField {
     PartReverbSend,
     PartOutputAssign,
     PartReceiveChannel,
+    PartAmbienceSend,
     MasterLevel,
     ExtLevel,
     ExtMute,
@@ -1331,6 +1338,7 @@ mirror_core_enum!(MixerField <=> param_registry::MixerField {
     ReverbLevel,
     ReverbOutputAssign,
     SoloPart,
+    DrumCompEqSwitch,
     DrumCompEqPart,
     EqSwitch,
     EqLowFreq,
@@ -1346,6 +1354,7 @@ mirror_core_enum!(MixerField <=> param_registry::MixerField {
     CompThreshold,
     CompRatio,
     CompOutputGain,
+    CompOutputAssign,
 });
 
 /// The kind of scope a mixer field is used in (mirrors [`param_registry::MixerScopeKind`]).

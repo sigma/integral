@@ -41,7 +41,7 @@ export interface FieldSpace<F extends FieldKey> {
  * at import, before the app has started the wasm core (`initWasm`), so a space
  * asks core only when a Section first reads it.
  */
-function memo<T>(compute: () => T): () => T {
+export function memo<T>(compute: () => T): () => T {
   let value: { v: T } | undefined;
   return () => (value ??= { v: compute() }).v;
 }

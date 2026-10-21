@@ -16,7 +16,7 @@ use crate::address::Address;
 use crate::device_spec::{INTEGRA7, MIDI_CHANNELS};
 use crate::family::ParameterFamily;
 use crate::params::{self, ToneType};
-use crate::state::{CompEqUnit, DrumCompEqState, EqState};
+use crate::state::{CompEqUnit, DrumCompEqState, EqState, SurroundPartState};
 
 /// How a parameter value should be displayed.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -223,6 +223,9 @@ pub enum MixerField {
     PartOutputAssign,
     /// Part receive channel (0–15 = MIDI channel 1–16).
     PartReceiveChannel,
+    /// Part Motional Surround ambience send level (0–127), drawn in place
+    /// of the FX sends while surround is on.
+    PartAmbienceSend,
     /// System master level (0–127).
     MasterLevel,
     /// External input level (0–127).
@@ -249,6 +252,9 @@ pub enum MixerField {
     ReverbOutputAssign,
     /// Solo part (0 = OFF, 1–16 = that part).
     SoloPart,
+    /// Drum Comp+EQ switch (0 = OFF, 1 = ON): whether the assigned part's
+    /// kit runs through the Comp+EQ units.
+    DrumCompEqSwitch,
     /// Drum Comp+EQ assigned part (0–15 = Part 1–16): the part whose drum
     /// kit the Comp+EQ units process.
     DrumCompEqPart,
@@ -280,11 +286,15 @@ pub enum MixerField {
     CompRatio,
     /// Comp+EQ compressor output gain (0–24 dB).
     CompOutputGain,
+    /// Comp+EQ unit output assign (an index into the device's Comp+EQ
+    /// output assigns). It sits in the Studio Set common block, one byte
+    /// per unit, not in the kit.
+    CompOutputAssign,
 }
 
 impl MixerField {
     /// Every mixer field, in registry order.
-    pub const ALL: [MixerField; 35] = [
+    pub const ALL: [MixerField; 38] = [
         Self::PartLevel,
         Self::PartPan,
         Self::PartMute,
@@ -292,6 +302,7 @@ impl MixerField {
         Self::PartReverbSend,
         Self::PartOutputAssign,
         Self::PartReceiveChannel,
+        Self::PartAmbienceSend,
         Self::MasterLevel,
         Self::ExtLevel,
         Self::ExtMute,
@@ -305,6 +316,7 @@ impl MixerField {
         Self::ReverbLevel,
         Self::ReverbOutputAssign,
         Self::SoloPart,
+        Self::DrumCompEqSwitch,
         Self::DrumCompEqPart,
         Self::EqSwitch,
         Self::EqLowFreq,
@@ -320,6 +332,7 @@ impl MixerField {
         Self::CompThreshold,
         Self::CompRatio,
         Self::CompOutputGain,
+        Self::CompOutputAssign,
     ];
 
     /// Whether the field exists in a scope of this kind.
@@ -330,7 +343,9 @@ impl MixerField {
             MixerScopeKind::Master => {
                 self == Self::MasterLevel || master_eq_address(self).is_some()
             }
-            MixerScopeKind::CompEqUnit => comp_eq_offset(self).is_some(),
+            MixerScopeKind::CompEqUnit => {
+                self == Self::CompOutputAssign || comp_eq_offset(self).is_some()
+            }
             MixerScopeKind::Common => common_address(self).is_some(),
         }
     }
@@ -426,6 +441,7 @@ fn part_offset(field: MixerField) -> Option<[u8; 3]> {
         F::PartReverbSend => part::REVERB_SEND,
         F::PartOutputAssign => part::OUTPUT_ASSIGN,
         F::PartReceiveChannel => part::RECEIVE_CHANNEL,
+        F::PartAmbienceSend => params::part_surround::AMBIENCE_SEND,
         _ => return None,
     })
 }
@@ -513,6 +529,7 @@ fn common_address(field: MixerField) -> Option<Address> {
         F::ReverbLevel => params::reverb_address(reverb::LEVEL),
         F::ReverbOutputAssign => params::reverb_address(reverb::OUTPUT_ASSIGN),
         F::SoloPart => params::SOLO_PART,
+        F::DrumCompEqSwitch => params::DRUM_COMP_EQ_SWITCH,
         F::DrumCompEqPart => params::DRUM_COMP_EQ_PART,
         _ => return None,
     })
@@ -559,8 +576,12 @@ pub fn mixer_field_address(
             if usize::from(unit) >= params::COMP_EQ_UNIT_COUNT {
                 return Err(MixerFieldError::UnitOutOfRange(unit));
             }
-            comp_eq_offset(field)
-                .map(|offset| params::comp_eq_param_address(kit.part, kit.tone_type, unit, offset))
+            match field {
+                MixerField::CompOutputAssign => Some(params::drum_comp_eq_output_assign(unit)),
+                _ => comp_eq_offset(field).map(|offset| {
+                    params::comp_eq_param_address(kit.part, kit.tone_type, unit, offset)
+                }),
+            }
         }
         MixerScope::Common => common_address(field),
     };
@@ -657,6 +678,14 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
             Named(channel_names()),
             Common,
         ),
+        F::PartAmbienceSend => def(
+            "Ambience Send",
+            ParamGroup::Part,
+            127,
+            i32::from(SurroundPartState::default().ambience_send),
+            Raw,
+            Amp,
+        ),
         F::MasterLevel => def("Master Level", ParamGroup::Master, 127, 100, Raw, Amp),
         F::ExtLevel => def("Ext Level", ParamGroup::Ext, 127, 100, Raw, Amp),
         F::ExtMute => def("Ext Mute", ParamGroup::Ext, 1, 0, OnOff, Common),
@@ -710,6 +739,14 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
             i32::from(part_count),
             0,
             Raw,
+            Common,
+        ),
+        F::DrumCompEqSwitch => def(
+            "Drum Comp+EQ",
+            ParamGroup::Global,
+            1,
+            i32::from(DrumCompEqState::default().enabled),
+            OnOff,
             Common,
         ),
         F::DrumCompEqPart => def(
@@ -833,6 +870,14 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
             i32::from(unit.comp_output_gain),
             SignedCenter(0),
             Amp,
+        ),
+        F::CompOutputAssign => def(
+            "Output Assign",
+            ParamGroup::Comp,
+            last(spec.comp_eq_output_assigns),
+            i32::from(DrumCompEqState::default().output_assigns[0]),
+            Named(spec.comp_eq_output_assigns),
+            Common,
         ),
     }
 }
@@ -1016,6 +1061,62 @@ mod tests {
         assert_eq!((def.min, def.max, def.default), (0, 15, 9));
         assert_eq!(format_value(&def, 0), "1");
         assert_eq!(format_value(&def, 15), "16");
+    }
+
+    #[test]
+    fn drum_comp_eq_switch_is_the_studio_set_common_switch() {
+        // Studio Set Common 00 43, Drum Comp/EQ Switch (docs/midi/05-studio-set.md).
+        let field = MixerField::DrumCompEqSwitch;
+        assert_eq!(
+            mixer_field_address(field, MixerScope::Common),
+            Ok(Address::new(0x18, 0x00, 0x00, 0x43))
+        );
+        assert!(!field.in_scope(MixerScopeKind::Part));
+        let def = mixer_param(field);
+        assert_eq!((def.min, def.max, def.default), (0, 1, 0));
+        assert_eq!(format_value(&def, 1), "ON");
+    }
+
+    #[test]
+    fn comp_output_assign_is_the_units_studio_set_common_assign() {
+        // Studio Set Common 00 45 - 00 4A, Drum Comp/EQ 1-6 Output Assign
+        // (docs/midi/05-studio-set.md): in the common block, whatever the kit.
+        let field = MixerField::CompOutputAssign;
+        for tone_type in [ToneType::PcmDrum, ToneType::SnDrum] {
+            let kit = CompEqKit { part: 4, tone_type };
+            for unit in 0..6 {
+                assert_eq!(
+                    mixer_field_address(field, MixerScope::CompEqUnit { kit, unit }),
+                    Ok(Address::new(0x18, 0x00, 0x00, 0x45 + unit)),
+                    "unit {unit}"
+                );
+            }
+            assert_eq!(
+                mixer_field_address(field, MixerScope::CompEqUnit { kit, unit: 6 }),
+                Err(MixerFieldError::UnitOutOfRange(6))
+            );
+        }
+        assert!(field.in_scope(MixerScopeKind::CompEqUnit));
+        assert!(!field.in_scope(MixerScopeKind::Part));
+        let def = mixer_param(field);
+        assert_eq!((def.min, def.max, def.default), (0, 12, 0));
+        assert_eq!(format_value(&def, 0), "PART");
+        assert_eq!(format_value(&def, 12), "8");
+    }
+
+    #[test]
+    fn part_ambience_send_is_the_parts_motional_surround_send() {
+        // Studio Set Part 00 49, Motional Surround Ambience Send Level
+        // (docs/midi/05-studio-set.md).
+        let field = MixerField::PartAmbienceSend;
+        assert_eq!(
+            mixer_field_address(field, MixerScope::Part(7)),
+            Ok(params::part_address(7, [0x00, 0x00, 0x49]))
+        );
+        assert!(!field.in_scope(MixerScopeKind::Master));
+        let def = mixer_param(field);
+        assert_eq!((def.min, def.max, def.default), (0, 127, 0));
+        assert_eq!(def.group, ParamGroup::Part);
     }
 
     #[test]

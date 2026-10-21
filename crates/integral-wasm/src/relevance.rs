@@ -95,3 +95,18 @@ pub fn mixer_is_active(
         &drum_comp_eq,
     ))
 }
+
+/// Whether mixer `field` is active while Motional Surround is
+/// `surround_enabled` (it overrides the Output Assigns).
+#[wasm_bindgen]
+pub fn mixer_output_is_active(field: MixerField, surround_enabled: bool) -> bool {
+    relevance::mixer_output_is_active(field.into(), surround_enabled)
+}
+
+/// Whether mixer `field` of a Drum Comp+EQ unit in state `unit` (a
+/// `CompEqUnit`) is active.
+#[wasm_bindgen]
+pub fn comp_eq_unit_is_active(field: MixerField, unit: JsValue) -> Result<bool, JsError> {
+    let unit: state::CompEqUnit = from_js(unit)?;
+    Ok(relevance::comp_eq_unit_is_active(field.into(), &unit))
+}

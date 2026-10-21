@@ -1,15 +1,11 @@
-import { ChannelStrip } from "./ChannelStrip";
+import type { ReactNode } from "react";
+import { ChannelStrip, StripEq, StripName } from "./ChannelStrip";
 import { FxStrip } from "./FxStrip";
 import { MixerLoadWarning } from "./MixerLoadWarning";
-// CompEqPanel replaced by ChannelStrip variant="comp-eq"
-import {
-  chorus_params,
-  MixerField,
-  MixerScopeKind,
-  mixer_is_active,
-  reverb_params,
-} from "../pkg/integral_wasm.js";
+import { chorus_params, MixerScopeKind, reverb_params } from "../pkg/integral_wasm.js";
 import { deviceSpec } from "./deviceSpec";
+import { GridScreen, GridZoom } from "./layouts";
+import { mixerScreen, type MixerSlot } from "./layouts/mixer/screen";
 import type { UseMixerResult } from "./useMixer";
 import type { UseExpansionsResult } from "./useExpansions";
 import css from "./MixerPage.module.css";
@@ -19,128 +15,99 @@ interface Props {
   expansions: UseExpansionsResult;
 }
 
+/** The mixer: a screen of strips on the Grid, the Drum Comp+EQ units shown while it is on. */
 export function MixerPage({ mixer, expansions }: Props) {
   const { state } = mixer;
   const spec = deviceSpec();
+  const screen = mixerScreen(state.drumCompEq.enabled);
+  const { w, h } = screen.layout;
 
+  /**
+   * The Chorus or Reverb strip, still a CSS Section with raw block offsets
+   * until it moves onto the Grid (#360).
+   */
+  const fxStrip = (fx: "chorus" | "reverb"): ReactNode =>
+    fx === "chorus" ? (
+      <FxStrip
+        label="FX1"
+        fx={state.chorus}
+        typeNames={spec.chorus_type_names}
+        routes={[
+          { offset: 2, names: spec.output_assign_names, value: state.chorus.outputAssign, title: "FX1 Output Assign" },
+          { offset: 3, names: spec.chorus_output_names, value: state.chorus.output, title: "FX1 Output Select" },
+        ]}
+        paramDefs={chorus_params}
+        onToggleSwitch={mixer.toggleChorusSwitch}
+        onParam={mixer.setChorusParam}
+        onNibParam={mixer.setChorusNibParam}
+      />
+    ) : (
+      <FxStrip
+        label="FX2"
+        fx={state.reverb}
+        typeNames={spec.reverb_type_names}
+        routes={[{ offset: 2, names: spec.output_assign_names, value: state.reverb.output, title: "FX2 Output Assign" }]}
+        paramDefs={reverb_params}
+        onToggleSwitch={mixer.toggleReverbSwitch}
+        onParam={mixer.setReverbParam}
+        onNibParam={mixer.setReverbNibParam}
+      />
+    );
+
+  /** What one placement draws. */
+  const draw = (slot: MixerSlot): ReactNode => {
+    if (slot.role === "fx") return <div className={css.fxHost}>{fxStrip(slot.fx)}</div>;
+    const { kind, index } = slot;
+    const strip = { state, kind, index, setField: mixer.setMixerField };
+    const body =
+      slot.role === "eq" ? (
+        <StripEq {...strip} />
+      ) : slot.role === "strip" ? (
+        <ChannelStrip {...strip} />
+      ) : (
+        <StripName
+          state={state}
+          kind={kind}
+          index={index}
+          unloadedExpansion={
+            kind === MixerScopeKind.Part
+              ? expansions.unloadedExpansionOf(state.parts[index]!.toneBankMsb, state.parts[index]!.toneBankLsb)
+              : null
+          }
+        />
+      );
+    if (kind !== MixerScopeKind.Part) return body;
+    // Pressing anywhere on a part's column, its controls included, selects the part.
+    return (
+      <div
+        className={`${css.column} ${state.selectedPart === index ? css.selected : ""}`}
+        onPointerDown={() => mixer.selectPart(index)}
+      >
+        {body}
+      </div>
+    );
+  };
+
+  // The Grid page root: everything on the page zooms as one, inside the scrolling page.
   return (
     <div className={css.page}>
-      {state.loading ? (
-        <div className={css.loading}>Loading mixer state from device...</div>
-      ) : (
-        <div className={css.mixerArea}>
-          {state.failedBlocks.length > 0 && (
-            <MixerLoadWarning failed={state.failedBlocks} onRetry={mixer.reload} />
-          )}
-          <div className={css.channels}>
-            {state.parts.map((part, i) => (
-              <ChannelStrip
-                key={i}
-                partIndex={i}
-                part={part}
-                unloadedExpansion={expansions.unloadedExpansionOf(
-                  part.toneBankMsb,
-                  part.toneBankLsb,
-                )}
-                compEqAssigned={state.drumCompEq.enabled && state.drumCompEq.part === i}
-                compEqActive={mixer_is_active(MixerField.DrumCompEqPart, i, part, state.drumCompEq)}
-                onCompEqToggle={() => {
-                  if (state.drumCompEq.enabled && state.drumCompEq.part === i) {
-                    mixer.setDrumCompEqSwitch(false);
-                  } else {
-                    mixer.setDrumCompEqPart(i);
-                    mixer.setDrumCompEqSwitch(true);
-                  }
-                }}
-                onLevelChange={(v) => mixer.setPartLevel(i, v)}
-                onPanChange={(v) => mixer.setPartPan(i, v)}
-                onMuteToggle={() => mixer.togglePartMute(i)}
-                selected={state.selectedPart === i}
-                onSelect={() => mixer.selectPart(i)}
-                soloed={state.soloPart === i + 1}
-                onSoloToggle={() => mixer.toggleSolo(i)}
-                onChorusSendChange={(v) => mixer.setPartChorusSend(i, v)}
-                onReverbSendChange={(v) => mixer.setPartReverbSend(i, v)}
-                surroundEnabled={state.surround.enabled}
-                ambienceSend={state.surround.parts[i]?.ambienceSend}
-                onAmbienceSendChange={(v) => mixer.setPartSurroundAmbienceSend(i, v)}
-                onReceiveChannelChange={(ch) => mixer.setPartReceiveChannel(i, ch)}
-                onField={(field, v) => mixer.setMixerField(MixerScopeKind.Part, i, field, v)}
-                onOutputAssignChange={(v) => mixer.setPartOutputAssign(i, v)}
-              />
-            ))}
-          </div>
-          <ChannelStrip
-            variant="ext"
-            label="EX"
-            level={state.extLevel}
-            muted={state.extMuted}
-            onLevelChange={mixer.setExtLevel}
-            onMuteToggle={mixer.toggleExtMute}
-          />
-          {state.drumCompEq.enabled && state.drumCompEq.units.map((unit, i) => (
-            <ChannelStrip
-              key={`ceq-${i}`}
-              variant="comp-eq"
-              label={`C+E${i + 1}`}
-              compEqUnit={unit}
-              compEqUnitNumber={i + 1}
-              compEqOutputAssign={state.drumCompEq.outputAssigns[i]}
-              onField={(field, v) => mixer.setMixerField(MixerScopeKind.CompEqUnit, i, field, v)}
-              onCompEqOutputAssign={(v) => mixer.setDrumCompEqOutputAssign(i, v)}
-              surroundEnabled={state.surround.enabled}
-            />
-          ))}
-          <FxStrip
-            label="FX1"
-            fx={state.chorus}
-            typeNames={spec.chorus_type_names}
-            routes={[
-              {
-                offset: 2,
-                names: spec.output_assign_names,
-                value: state.chorus.outputAssign,
-                title: "FX1 Output Assign",
-              },
-              {
-                offset: 3,
-                names: spec.chorus_output_names,
-                value: state.chorus.output,
-                title: "FX1 Output Select",
-              },
-            ]}
-            paramDefs={chorus_params}
-            onToggleSwitch={mixer.toggleChorusSwitch}
-            onParam={mixer.setChorusParam}
-            onNibParam={mixer.setChorusNibParam}
-          />
-          <FxStrip
-            label="FX2"
-            fx={state.reverb}
-            typeNames={spec.reverb_type_names}
-            routes={[
-              {
-                offset: 2,
-                names: spec.output_assign_names,
-                value: state.reverb.output,
-                title: "FX2 Output Assign",
-              },
-            ]}
-            paramDefs={reverb_params}
-            onToggleSwitch={mixer.toggleReverbSwitch}
-            onParam={mixer.setReverbParam}
-            onNibParam={mixer.setReverbNibParam}
-          />
-          <ChannelStrip
-            variant="master"
-            label="Master"
-            level={state.masterLevel}
-            eq={state.masterEq}
-            onLevelChange={mixer.setMasterLevel}
-            onField={(field, v) => mixer.setMixerField(MixerScopeKind.Master, 0, field, v)}
-          />
-        </div>
-      )}
+      <GridZoom cells={{ w, h }}>
+        {state.loading ? (
+          <div className={css.loading}>Loading mixer state from device...</div>
+        ) : (
+          <>
+            {state.failedBlocks.length > 0 && (
+              <MixerLoadWarning failed={state.failedBlocks} onRetry={mixer.reload} />
+            )}
+            <GridScreen layout={screen.layout}>
+              {(p) => {
+                const slot = screen.slots.get(p.id);
+                return slot ? draw(slot) : null;
+              }}
+            </GridScreen>
+          </>
+        )}
+      </GridZoom>
     </div>
   );
 }

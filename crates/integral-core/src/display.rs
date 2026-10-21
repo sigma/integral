@@ -14,6 +14,7 @@
 //! props from the slots, and the Displays themselves stay props-driven.
 
 use crate::block_field::BlockField;
+use crate::param_registry::MixerField;
 use crate::params::{self, SurroundField, ToneType};
 use crate::pcm_drum::PcmdPartialField;
 use crate::pcm_synth::{PcmsPartialField, PcmsPmtField};
@@ -153,9 +154,8 @@ pub enum DisplayField {
     PcmsPmt(PcmsPmtField),
     /// A PCM Drum Kit Partial field; the Scope supplies the key.
     PcmdPartial(PcmdPartialField),
-    /// A Comp+EQ unit parameter, by its offset in the unit
-    /// ([`params::comp`]); the Scope supplies the unit.
-    CompEq(u8),
+    /// A mixer field; the Scope supplies its indices (the Comp+EQ unit).
+    Mixer(MixerField),
     /// A Part's Motional Surround parameter, by its offset in the Part
     /// block ([`params::part_surround`]); the Scope supplies the part.
     PartSurround([u8; 3]),
@@ -173,7 +173,7 @@ impl DisplayField {
             Self::PcmsPmt(f) => f.count(),
             Self::PcmdPartial(f) => f.count(),
             Self::Surround(f) => f.count(),
-            Self::CompEq(_) | Self::PartSurround(_) => 1,
+            Self::Mixer(_) | Self::PartSurround(_) => 1,
         }
     }
 }
@@ -388,21 +388,20 @@ fn pcm_drum(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
     })
 }
 
-/// Mixer Displays. Their fields are Comp+EQ unit offsets and Part
-/// surround offsets until an index-free mixer field enum replaces them
-/// ([#350](https://github.com/sigma/integral/issues/350)).
+/// Mixer Displays. The compressor's are [`MixerField`]s; the surround pad
+/// still reads Part surround offsets.
 fn mixer(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
     use DisplayProp as P;
-    let comp = DisplayField::CompEq;
+    let mixer = DisplayField::Mixer;
     Some(match kind {
         // The curve draws the release as its fall, so it feeds the decay.
         DisplayKind::CompEnvelope => reads(&[
-            (P::Attack, comp(params::comp::ATTACK)),
-            (P::Decay, comp(params::comp::RELEASE)),
+            (P::Attack, mixer(MixerField::CompAttack)),
+            (P::Decay, mixer(MixerField::CompRelease)),
         ]),
         DisplayKind::CompTransferCurve => reads(&[
-            (P::Threshold, comp(params::comp::THRESHOLD)),
-            (P::Ratio, comp(params::comp::RATIO)),
+            (P::Threshold, mixer(MixerField::CompThreshold)),
+            (P::Ratio, mixer(MixerField::CompRatio)),
         ]),
         DisplayKind::SurroundPad => reads(&[
             (P::Lr, DisplayField::PartSurround(params::part_surround::LR)),
@@ -773,8 +772,8 @@ mod tests {
         assert_eq!(
             sources(K::CompEnvelope, MIXER),
             [
-                one(P::Attack, DisplayField::CompEq(params::comp::ATTACK)),
-                one(P::Decay, DisplayField::CompEq(params::comp::RELEASE)),
+                one(P::Attack, DisplayField::Mixer(MixerField::CompAttack)),
+                one(P::Decay, DisplayField::Mixer(MixerField::CompRelease)),
             ]
         );
     }
@@ -785,8 +784,8 @@ mod tests {
         assert_eq!(
             sources(K::CompTransferCurve, MIXER),
             [
-                one(P::Threshold, DisplayField::CompEq(params::comp::THRESHOLD)),
-                one(P::Ratio, DisplayField::CompEq(params::comp::RATIO)),
+                one(P::Threshold, DisplayField::Mixer(MixerField::CompThreshold)),
+                one(P::Ratio, DisplayField::Mixer(MixerField::CompRatio)),
             ]
         );
     }
