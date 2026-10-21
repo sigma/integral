@@ -148,6 +148,7 @@ function Control<F extends FieldKey>({
         <SynthFader
           gridRows={c.h}
           box={box}
+          scale={c.scale}
           label={label ?? b.name}
           hideLabel={label === undefined}
           title={b.name}

@@ -126,3 +126,60 @@
 .grid .value {
   margin-top: 0;
 }
+
+/* With a scale: the track at the box's left, the marks beside it. */
+.scaled {
+  display: flex;
+  align-self: stretch;
+}
+
+.scaled .trackArea {
+  flex-shrink: 0;
+  width: 20px;
+}
+
+.scale {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* A mark: a tick from the track's side, then its label, centred on its value. */
+.mark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.mark::before {
+  content: "";
+  flex-shrink: 0;
+  width: 4px;
+  height: 1px;
+  background: #444;
+}
+
+.markZero::before {
+  width: 6px;
+  height: 2px;
+  background: #888;
+}
+
+.markLabel {
+  overflow: hidden;
+  font-size: 7px;
+  line-height: 1;
+  color: #666;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.markZero .markLabel {
+  color: #aaa;
+  font-weight: 700;
+}

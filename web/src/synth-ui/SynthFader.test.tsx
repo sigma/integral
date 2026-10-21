@@ -32,6 +32,20 @@ describe("SynthFader", () => {
     expect(stackedHeight([...root.children])).toBe(4 * CELL);
   });
 
+  it("draws the level scale beside its track, inside its Grid footprint, when asked", () => {
+    const plain = rootOf(render(<SynthFader {...fader} gridRows={8} />).container);
+    expect(plain.textContent).not.toContain("0dB");
+    const { container } = render(<SynthFader {...fader} gridRows={8} scale formatValue={(v) => `#${v}`} />);
+    const root = rootOf(container);
+    expectFillsFootprint(root, { w: FOOTPRINT.faderW, h: 8 });
+    const labels = [...root.querySelectorAll("span")].map((s) => s.textContent);
+    expect(labels).toEqual(expect.arrayContaining(["#127", "0dB", "#80", "#0"]));
+    // The 0 dB mark sits level with the thumb at that value.
+    const zero = [...root.querySelectorAll<HTMLElement>("span")].find((s) => s.textContent === "0dB")!.parentElement!;
+    const thumb = root.querySelector<HTMLElement>('[role="slider"] > div:last-child')!;
+    expect(zero.style.top).toBe(thumb.style.top);
+  });
+
   it("gives the track the name's row when the name is hidden", () => {
     const shown = render(<SynthFader {...fader} gridRows={4} />);
     const hidden = render(<SynthFader {...fader} gridRows={4} hideLabel />);

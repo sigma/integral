@@ -59,6 +59,14 @@ describe("mixer strip", () => {
     expect(levels[0]!.h).toBe(21);
   });
 
+  it("draws the level scale on every level fader, and only there", () => {
+    for (const kind of STRIP_KINDS) {
+      const faders = variantLayout(STRIP_SET, kind).items.filter((i) => i.kind === "fader");
+      const level = faders.reduce((a, b) => (b.h > a.h ? b : a));
+      for (const f of faders) expect(f.scale ?? false, `${MixerScopeKind[kind]} ${MixerField[f.field]}`).toBe(f === level);
+    }
+  });
+
   it("puts a part's mute and solo side by side, as the old mixer did", () => {
     const items = allElements(variantLayout(STRIP_SET, MixerScopeKind.Part).items);
     const at = (field: MixerField) => items.find((el) => el.kind !== "display" && el.field === field)!;

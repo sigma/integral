@@ -123,7 +123,7 @@ const PART: SectionBody<MixerField> = {
     { kind: "switch", field: MixerField.DrumCompEqPart, x: 1, y: TOP + 7, label: false },
     { kind: "switch", field: MixerField.PartMute, x: 0, y: TOP + 8, label: false },
     { kind: "switch", field: MixerField.SoloPart, x: 2, y: TOP + 8, label: false },
-    { kind: "fader", field: MixerField.PartLevel, x: 1, ...FADER, label: false },
+    { kind: "fader", field: MixerField.PartLevel, x: 1, ...FADER, label: false, scale: true },
   ],
 };
 
@@ -131,13 +131,13 @@ const PART: SectionBody<MixerField> = {
 const EXT: SectionBody<MixerField> = {
   items: [
     { kind: "switch", field: MixerField.ExtMute, x: 1, y: FADER.y - 1, label: false },
-    { kind: "fader", field: MixerField.ExtLevel, x: 1, ...FADER, label: false },
+    { kind: "fader", field: MixerField.ExtLevel, x: 1, ...FADER, label: false, scale: true },
   ],
 };
 
 /** The master: its level. */
 const MASTER: SectionBody<MixerField> = {
-  items: [{ kind: "fader", field: MixerField.MasterLevel, x: 1, ...FADER, label: false }],
+  items: [{ kind: "fader", field: MixerField.MasterLevel, x: 1, ...FADER, label: false, scale: true }],
 };
 
 /**
@@ -156,7 +156,7 @@ const COMP_EQ_UNIT: SectionBody<MixerField> = {
     { kind: "knob", field: MixerField.CompThreshold, x: 0, y: 9, label: "Thr" },
     { kind: "knob", field: MixerField.CompRatio, x: 2, y: 9 },
     { kind: "picker", field: MixerField.CompOutputAssign, x: 0, y: OUT_Y, w: 4, label: "Out" },
-    { kind: "fader", field: MixerField.CompOutputGain, x: 1, ...FADER, label: "Gain" },
+    { kind: "fader", field: MixerField.CompOutputGain, x: 1, ...FADER, label: "Gain", scale: true },
   ],
 };
 

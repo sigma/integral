@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import { faderScale } from "./synth-ui/faderScale";
 import css from "./VolumeFader.module.css";
 
 interface Props {
@@ -28,15 +29,6 @@ function valueToTop(value: number, min: number, max: number, offset = 0): string
 function topToValue(top: number, height: number, min: number, max: number): number {
   const ratio = 1 - (top - PAD) / (height - 2 * PAD - CAP_HEIGHT);
   return Math.round(Math.max(min, Math.min(max, min + ratio * (max - min))));
-}
-
-/** MIDI value ruler marks for the default 0–127 range. */
-const RULER_MARKS = [127, 100, 80, 60, 40, 20, 0];
-
-/** Ruler marks: the MIDI marks for 0–127, else quarters of the range. */
-function rulerMarks(min: number, max: number): number[] {
-  if (min === 0 && max === 127) return RULER_MARKS;
-  return [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(max - f * (max - min)));
 }
 
 export function VolumeFader({
@@ -121,21 +113,15 @@ export function VolumeFader({
         }}
       >
         {/* Ruler marks */}
-        {rulerMarks(min, max).map((midi) => {
-          const top = valueToTop(midi, min, max, CAP_HEIGHT / 2);
-          const isZeroDb = midi === defaultValue;
-          return (
-            <div
-              key={midi}
-              className={`${css.rulerMark} ${isZeroDb ? css.rulerZero : ""}`}
-              style={{ top }}
-            >
-              <span className={css.rulerLabel}>
-                {formatValue ? formatValue(midi) : isZeroDb ? "0dB" : midi}
-              </span>
-            </div>
-          );
-        })}
+        {faderScale({ min, max, format: formatValue, nominal: defaultValue }).map((mark) => (
+          <div
+            key={mark.value}
+            className={`${css.rulerMark} ${mark.zero ? css.rulerZero : ""}`}
+            style={{ top: valueToTop(mark.value, min, max, CAP_HEIGHT / 2) }}
+          >
+            <span className={css.rulerLabel}>{mark.label}</span>
+          </div>
+        ))}
         <div className={css.groove} />
         <div className={css.cap} style={{ top: capTop }} />
       </div>

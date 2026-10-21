@@ -68,6 +68,8 @@ export interface FaderLayout<F extends FieldKey> extends ControlBase<F> {
   kind: "fader";
   /** Height in Cells: the N of 2×N. */
   h: number;
+  /** Draws the level scale (marks and their labels) beside the track: a level fader. */
+  scale?: boolean;
 }
 
 /** A vertical option list, 2×`h`, one Cell row per option plus one for its name. */
