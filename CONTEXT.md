@@ -181,6 +181,12 @@ centres but covers no Cells. A Section's own Silkscreen moves with the
 Section; signal arrows between Sections belong to the screen.
 _Avoid_: Decoration, label (a Control's name belongs to the Control)
 
+**Zoom**:
+The one scale factor of a whole page: its Grid and everything else on the
+page. It fits the Grid's width to the width the page is given, rounded to
+the nearest 5%, and nothing reflows.
+_Avoid_: Breakpoint, responsive layout
+
 **Lane**:
 A run of Cells that no Section, Control or Display covers, left so signal
 arrows between Sections have room to run.
