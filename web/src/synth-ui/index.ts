@@ -1,6 +1,7 @@
 export { SynthFader } from "./SynthFader";
 export { SynthKnob } from "./SynthKnob";
 export { SynthSwitch } from "./SynthSwitch";
+export { SynthPicker } from "./SynthPicker";
 export { SynthSelect } from "./SynthSelect";
 export { SectionPanel } from "./SectionPanel";
 export { SyncedControl } from "./SyncedControl";

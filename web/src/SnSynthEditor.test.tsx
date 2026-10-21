@@ -220,14 +220,17 @@ describe("SnSynthEditor on the Grid", () => {
 
     pickWave(container, 0, "PCM");
     expect(r.querySelector(`[data-display="${DisplayKind.OscScope}"]`)).toBeNull();
-    const picker = r.querySelector(`[data-display="${DisplayKind.WavePicker}"]`);
-    expect(picker?.querySelector("button")).toBeTruthy();
+    const picker = control(r, SnsPartialField.WaveNumber);
+    // The picker names the zeroed partial's Wave as core formats it.
+    expect(sns_partial_spec(SnsPartialField.WaveNumber).formatValue(0)).toBe("OFF");
+    expect(picker.querySelector("button")?.textContent).toBe("OFF");
 
-    // Only the alternative changed: every other element kept its box, and the picker took the scope's.
+    // Only the alternative changed: every other element kept its box, and the picker took the scope's top-left Cells.
     const after = boxes(container);
     const scope = `${SNS_SECTION.partial(0, "osc")} display ${DisplayKind.OscScope}`;
-    const pcm = `${SNS_SECTION.partial(0, "osc")} display ${DisplayKind.WavePicker}`;
-    expect(after.get(pcm)).toBe(before.get(scope));
+    const pcm = `${SNS_SECTION.partial(0, "osc")} ${SnsPartialField.WaveNumber}`;
+    const [scopeLeft, scopeTop] = before.get(scope)!.split(",");
+    expect(after.get(pcm)).toBe(`${scopeLeft},${scopeTop},144px,24px`);
     before.delete(scope);
     after.delete(pcm);
     expect(after).toEqual(before);

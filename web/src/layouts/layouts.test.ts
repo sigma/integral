@@ -7,6 +7,7 @@ import {
   MixerScopeKind,
   PcmdPartialField,
   PcmsPartialField,
+  SndNoteField,
   mfx_params,
   mfx_type_names,
   pcms_partial_count,
@@ -588,5 +589,16 @@ describe("validateRegionSet", () => {
     const wide: ScreenRegion = { ...REGION, sections: [...REGION.sections, { id: "c", section: frame(1, 1), x: 9, y: 0 }] };
     const problems = validateRegionSet(regionSet(new Map([[0, REGION], [1, wide]]), (key) => (key ? ["a", "b", "c"] : ["a", "b"])));
     expect(checks(problems)).toEqual(["containment"]);
+  });
+});
+
+describe("pickers", () => {
+  it("keeps the SN Drum Inst picker clear of its border", () => {
+    const inst = SND_TONE_LAYOUT.fields.nameOf(SndNoteField.InstNumber);
+    const under = (layout: typeof SND_TONE_LAYOUT) => validateClearance(layout).filter((p) => p.where.includes(inst));
+    expect(under(SND_TONE_LAYOUT)).toEqual([]);
+    // A picker fills its Cells: on the left column it would draw under the border.
+    const left = { ...SND_TONE_LAYOUT, items: [{ kind: "picker", field: SndNoteField.InstNumber, x: 0, y: 0 }] } as const;
+    expect(under(left)).toHaveLength(1);
   });
 });

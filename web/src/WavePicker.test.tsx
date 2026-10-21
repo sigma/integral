@@ -4,8 +4,7 @@ import { waveSourceOf, type WaveSource } from "./waveCatalog";
 import { PartialWave } from "./pcm-synth/PartialSections";
 import { WmtWave } from "./pcm-drum/WmtWave";
 import { PCMD_WMT_ENTRIES } from "./pcm-drum/types";
-import { SnsPartialDisplay } from "./sn-synth/displays";
-import { DisplayKind, PcmdWmtField, PcmsPartialField, SnsPartialField } from "../pkg/integral_wasm.js";
+import { PcmdWmtField, PcmsPartialField } from "../pkg/integral_wasm.js";
 import type { PartialSetter } from "./pcm-synth/types";
 import { button, cleanup, click, options, render, typeInto } from "./test/dom";
 
@@ -248,31 +247,5 @@ describe("PCM Drum WMT wiring", () => {
     rerender(<WmtWave value={reader(snare)} onChange={onChange} />);
     expect(nameButton(container, 0).textContent).toBe(`0003 ${SRX07.name(3)}`);
     expect(nameButton(container, 1).textContent).toBe("0000 OFF");
-  });
-});
-
-describe("SN Synth OSC PCM Wave wiring", () => {
-  it("shows raw value 1 as JP-8 Saw and picks through the core Wave Number field", () => {
-    const onChange = vi.fn();
-    const { container } = render(
-      <SnsPartialDisplay
-        kind={DisplayKind.WavePicker}
-        valueOf={(f) => (f === SnsPartialField.WaveNumber ? 1 : 0)}
-        onChange={onChange}
-      />,
-    );
-    const name = container.querySelector("button")!;
-    expect(name.textContent).toBe("0001 JP-8 Saw");
-    // Just the name: no group label, steppers, dropdown, R, pair or marker.
-    expect(container.querySelector('[aria-label="Next Wave"]')).toBeNull();
-    expect(container.querySelector('[aria-haspopup="listbox"]')).toBeNull();
-    expect(container.querySelector('[aria-label="Pair"]')).toBeNull();
-
-    click(name);
-    const second = [...document.body.querySelectorAll('[role="option"]')].find((o) =>
-      o.textContent?.startsWith("0002"),
-    );
-    click(second!);
-    expect(onChange.mock.calls).toEqual([[SnsPartialField.WaveNumber, 2]]);
   });
 });

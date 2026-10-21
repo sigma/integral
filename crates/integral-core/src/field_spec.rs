@@ -11,7 +11,7 @@ use std::sync::OnceLock;
 use crate::block_field::BlockField;
 use crate::family::ParameterFamily;
 use crate::fx_params::{NOTE_NAMES, SYNC_HZ, SYNC_MS};
-use crate::param_registry::{NOTE_FROM, ParamFormat};
+use crate::param_registry::{FieldCatalog, NOTE_FROM, ParamFormat};
 use crate::pcm_drum::{self, PcmdCommonField, PcmdPartialField, PcmdWmtField};
 use crate::pcm_synth::{self, PcmsCommon2Field, PcmsCommonField, PcmsPartialField, PcmsPmtField};
 use crate::sn_acoustic::{self, SnaCommonField};
@@ -542,7 +542,11 @@ pub fn sns_partial_spec(field: SnsPartialField) -> FieldSpec {
         F::LfoTempoSync | F::LfoKeyTrigger | F::ModLfoTempoSync => ON_OFF,
         F::LfoTempoSyncNote | F::ModLfoTempoSyncNote => SNS_TEMPO_SYNC_NOTE,
         F::WaveGain => WAVE_GAIN,
-        F::WaveNumber => WAVE_NUMBER,
+        F::WaveNumber => shape(
+            0,
+            WAVE_NUMBER.max,
+            ParamFormat::Catalog(FieldCatalog::SnSynthWave),
+        ),
     };
     spec(field, init, shape, sns_partial_family(field))
 }
@@ -594,7 +598,11 @@ pub fn snd_note_spec(field: SndNoteField) -> FieldSpec {
     let init = INIT.get_or_init(|| sn_drum::encode_snd_note(&Default::default()));
     use SndNoteField as F;
     let shape = match field {
-        F::InstNumber => shape(0, SND_INST_NUMBER_MAX.into(), Raw),
+        F::InstNumber => shape(
+            0,
+            SND_INST_NUMBER_MAX.into(),
+            ParamFormat::Catalog(FieldCatalog::SnDrumInst),
+        ),
         F::Level | F::ChorusSend | F::ReverbSend | F::StereoWidth => RAW_127,
         F::Pan => PAN,
         // -1200 to +1200 cents.
@@ -1430,6 +1438,37 @@ mod tests {
         assert_eq!(center(PcmsPartialField::PitchEnvTimeKeyfollow), Some(64));
         assert_eq!(center(PcmsPartialField::Pan), Some(64));
         assert_eq!(center(PcmsPartialField::Level), None);
+    }
+
+    /// An SN Synth PCM Wave and an SN Drum Inst read as their catalog names,
+    /// the labels a picker lists.
+    #[test]
+    fn catalog_fields_show_names() {
+        let wave = sns_partial_spec(SnsPartialField::WaveNumber).format;
+        let inst = snd_note_spec(SndNoteField::InstNumber).format;
+        assert_eq!(wave.format(0), "OFF");
+        assert_eq!(inst.format(0), "OFF");
+        assert_eq!(inst.format(1), "Studio Kick");
+        assert_eq!(inst.format(294), "Telephone 3");
+        // A number the catalog doesn't name shows as itself.
+        assert_eq!(inst.format(295), "295");
+        for (format, count) in [
+            (
+                &wave,
+                crate::waves::waves(crate::waves::WaveGroup::SnSynth).len(),
+            ),
+            (&inst, sn_drum::sn_drum_insts().len()),
+        ] {
+            let ParamFormat::Catalog(catalog) = format else {
+                panic!("{format:?} is not a catalog format");
+            };
+            let options = catalog.options();
+            assert_eq!(options[0].label, "OFF");
+            assert_eq!(options.len(), count + 1);
+            for option in &options {
+                assert_eq!(format.format(option.value), option.label);
+            }
+        }
     }
 
     #[test]

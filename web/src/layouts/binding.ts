@@ -1,11 +1,23 @@
 /** Bindings built from core field specs, for callers resolving a Scope's fields. */
 
-import type { WasmFieldSpec } from "../../pkg/integral_wasm.js";
+import { catalog_options, type FieldCatalog, type WasmFieldSpec } from "../../pkg/integral_wasm.js";
+import { cached } from "../cached";
 import type { Binding, BindingOption } from "./GridSection";
+
+/** A catalog's entries as options, read from core once. */
+const catalogOptions = cached((catalog: FieldCatalog): readonly BindingOption[] =>
+  catalog_options(catalog).map((o) => {
+    const option = { value: o.value, label: o.label, family: o.family };
+    o.free();
+    return option;
+  }),
+);
 
 /**
  * The {@link Binding} of a field from its core spec: range, default, centre,
- * family and readout, at `value`, written through `onChange`.
+ * family and readout, at `value`, written through `onChange`. A field core
+ * names from a catalog (a Wave, an Inst) lists the catalog's entries, unless
+ * `options` overrides them.
  */
 export function specBinding(
   name: string,
@@ -23,7 +35,8 @@ export function specBinding(
     family: spec.family,
     center: spec.center,
     format: (v) => spec.formatValue(v),
-    options,
+    // A field naming its values from a catalog (a Wave, an Inst) lists its entries.
+    options: options ?? (spec.catalog === undefined ? undefined : catalogOptions(spec.catalog)),
     onChange,
   };
 }

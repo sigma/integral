@@ -17,6 +17,7 @@ export type {
   KnobLayout,
   Lane,
   OptionListLayout,
+  PickerLayout,
   RegionVariantSet,
   RuleSilk,
   Scope,

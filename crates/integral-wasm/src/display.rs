@@ -5,7 +5,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::{
     MixerField, PcmdPartialField, PcmdWmtField, PcmsPartialField, PcmsPmtField, SnaCommonField,
-    SndNoteField, SnsPartialField, ToneType,
+    SnsPartialField, ToneType,
 };
 
 /// A Display a layout can place (mirrors [`core::DisplayKind`]).
@@ -129,8 +129,6 @@ pub enum DisplayProp {
     WaveNumberL,
     /// See [`core::DisplayProp::WaveNumberR`].
     WaveNumberR,
-    /// See [`core::DisplayProp::Inst`].
-    Inst,
 }
 
 mirror_core_enum!(DisplayProp <=> core::DisplayProp {
@@ -164,7 +162,6 @@ mirror_core_enum!(DisplayProp <=> core::DisplayProp {
     WaveGroupId,
     WaveNumberL,
     WaveNumberR,
-    Inst,
 });
 
 /// One prop of a Display and where its value comes from (mirrors
@@ -182,7 +179,6 @@ struct FieldGetters {
     pcms_pmt: Option<PcmsPmtField>,
     pcmd_partial: Option<PcmdPartialField>,
     pcmd_wmt: Option<PcmdWmtField>,
-    snd_note: Option<SndNoteField>,
     mixer: Option<MixerField>,
 }
 
@@ -217,10 +213,6 @@ impl WasmDisplaySlot {
             },
             DisplayField::PcmdWmt(f) => FieldGetters {
                 pcmd_wmt: Some(f.into()),
-                ..none
-            },
-            DisplayField::SndNote(f) => FieldGetters {
-                snd_note: Some(f.into()),
                 ..none
             },
             DisplayField::Mixer(f) => FieldGetters {
@@ -293,12 +285,6 @@ impl WasmDisplaySlot {
         self.getters().pcmd_wmt
     }
 
-    /// The SN Drum Kit Note field read.
-    #[wasm_bindgen(getter, js_name = sndNote)]
-    pub fn snd_note(&self) -> Option<SndNoteField> {
-        self.getters().snd_note
-    }
-
     /// The mixer field read; the Scope supplies its indices.
     #[wasm_bindgen(getter)]
     pub fn mixer(&self) -> Option<MixerField> {
@@ -342,13 +328,12 @@ mod tests {
     }
 
     #[test]
-    fn drum_wave_pickers_read_their_blocks() {
+    fn drum_wave_picker_reads_its_block() {
         let pcmd = display_binding(DisplayKind::WavePicker, Some(ToneType::PcmDrum)).unwrap();
         assert_eq!(pcmd[2].prop(), DisplayProp::WaveNumberL);
         assert_eq!(pcmd[2].pcmd_wmt(), Some(PcmdWmtField::WaveNumberL));
-        let snd = display_binding(DisplayKind::WavePicker, Some(ToneType::SnDrum)).unwrap();
-        assert_eq!(snd[0].snd_note(), Some(SndNoteField::InstNumber));
-        assert_eq!(snd[0].pcmd_wmt(), None);
+        assert_eq!(pcmd[2].sns_partial(), None);
+        assert!(display_binding(DisplayKind::WavePicker, Some(ToneType::SnDrum)).is_none());
     }
 
     #[test]

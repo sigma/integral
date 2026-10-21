@@ -59,6 +59,78 @@ pub enum ParamFormat {
     SnLfoRate,
     /// The value as a percentage (`100` -> "100%").
     Percent,
+    /// A name from a device catalog (an SN Synth PCM Wave, an SN Drum
+    /// Inst): 0 is `OFF`, and a number the catalog doesn't name shows as
+    /// itself. A picker lists the catalog's [`FieldCatalog::options`].
+    Catalog(FieldCatalog),
+}
+
+/// A device catalog a field picks one entry of by name: its numbers name
+/// Waves or Insts, too many for an option list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub enum FieldCatalog {
+    /// The SN Synth PCM Waves ([`crate::waves::WaveGroup::SnSynth`]).
+    SnSynthWave,
+    /// The SN Drum Insts ([`crate::sn_drum::sn_drum_insts`]).
+    SnDrumInst,
+}
+
+/// One entry of a [`FieldCatalog`], as a picker lists it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CatalogOption {
+    /// The raw value written.
+    pub value: i32,
+    /// Its name: what the field's format shows for `value`.
+    pub label: &'static str,
+    /// The family a picker groups it under; `None` for OFF.
+    pub family: Option<&'static str>,
+}
+
+/// What a catalog shows for raw value 0.
+const CATALOG_OFF: &str = "OFF";
+
+impl FieldCatalog {
+    /// The name of `value`: `OFF` for 0, `None` where the catalog has no entry.
+    pub fn name(self, value: i32) -> Option<&'static str> {
+        if value == 0 {
+            return Some(CATALOG_OFF);
+        }
+        let number = u16::try_from(value).ok()?;
+        match self {
+            Self::SnSynthWave => crate::waves::name(crate::waves::WaveGroup::SnSynth, number),
+            Self::SnDrumInst => crate::sn_drum::sn_drum_insts()
+                .iter()
+                .find(|inst| inst.number == number)
+                .map(|inst| inst.name),
+        }
+    }
+
+    /// Every entry, OFF first, then in number order.
+    pub fn options(self) -> Vec<CatalogOption> {
+        let off = CatalogOption {
+            value: 0,
+            label: CATALOG_OFF,
+            family: None,
+        };
+        let named = |value: u16, label, family| CatalogOption {
+            value: value.into(),
+            label,
+            family: Some(family),
+        };
+        std::iter::once(off)
+            .chain(match self {
+                Self::SnSynthWave => crate::waves::waves(crate::waves::WaveGroup::SnSynth)
+                    .iter()
+                    .map(|w| named(w.number, w.name, w.family()))
+                    .collect::<Vec<_>>(),
+                Self::SnDrumInst => crate::sn_drum::sn_drum_insts()
+                    .iter()
+                    .map(|i| named(i.number, i.name, i.family))
+                    .collect(),
+            })
+            .collect()
+    }
 }
 
 /// First raw value of the note range in a [`ParamFormat::TimeOrNote`] field.
@@ -196,6 +268,9 @@ impl ParamFormat {
                 crate::lfo_rates::format_hz(crate::lfo_rates::sn_lfo_hz(value))
             }
             ParamFormat::Percent => format!("{value}%"),
+            ParamFormat::Catalog(catalog) => catalog
+                .name(value)
+                .map_or_else(|| value.to_string(), str::to_string),
         }
     }
 }

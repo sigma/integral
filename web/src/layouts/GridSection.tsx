@@ -7,8 +7,9 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import type { DisplayKind, ParameterFamily } from "../../pkg/integral_wasm.js";
+import type { PickOption } from "../SearchPopover";
 import { SyncToggle } from "../SyncToggle";
-import { SynthFader, SynthKnob, SynthSwitch, familyVar } from "../synth-ui";
+import { SynthFader, SynthKnob, SynthPicker, SynthSwitch, familyVar } from "../synth-ui";
 import { CELL, cellsPx, type Cells } from "../synth-ui/grid";
 import type { FieldKey } from "./fields";
 import { INSET, drawnElements, itemRect, sectionCells, sectionTitle, titleCells } from "./geometry";
@@ -17,13 +18,8 @@ import { drawnArrows, routeSectionArrow } from "./routing";
 import { SilkArrows } from "./SilkArrows";
 import css from "./GridSection.module.css";
 
-/** One option of a Control that picks from a list. */
-export interface BindingOption {
-  /** Raw value. */
-  value: number;
-  /** What the Control shows for it. */
-  label: string;
-}
+/** One option of a Control that picks from a list: its raw value, label and (for a picker) family. */
+export type BindingOption = PickOption;
 
 /**
  * A tempo-syncable parameter's free/note toggle, from core's sync info. The
@@ -56,7 +52,7 @@ export interface Binding {
   center?: number;
   /** Readout of a raw value; default its number. */
   format?: (value: number) => string;
-  /** Switch and list options; default every value from `min` to `max`, formatted. */
+  /** Switch, list and picker options; default every value from `min` to `max`, formatted. */
   options?: readonly BindingOption[];
   /** Writes a new raw value. */
   onChange: (value: number) => void;
@@ -156,6 +152,8 @@ function Control<F extends FieldKey>({ control: c, binding: b }: { control: Cont
           onChange={b.onChange}
         />
       );
+    case "picker":
+      return <SynthPicker label={label} title={b.name} value={b.value} options={optionsOf(b)} onChange={b.onChange} />;
   }
 }
 

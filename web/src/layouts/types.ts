@@ -77,12 +77,21 @@ export interface OptionListLayout<F extends FieldKey> extends ControlBase<F> {
   h: number;
 }
 
+/**
+ * A picker, 6×1: the field's name and its current option's, opening a
+ * searchable list of the options core names (a Wave, an Inst).
+ */
+export interface PickerLayout<F extends FieldKey> extends ControlBase<F> {
+  kind: "picker";
+}
+
 /** One interactive element bound to one parameter. */
 export type ControlLayout<F extends FieldKey> =
   | KnobLayout<F>
   | SwitchLayout<F>
   | FaderLayout<F>
-  | OptionListLayout<F>;
+  | OptionListLayout<F>
+  | PickerLayout<F>;
 
 /**
  * A Display, named by its core id: core says which fields it reads (#352), and

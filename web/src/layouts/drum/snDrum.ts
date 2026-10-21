@@ -5,7 +5,6 @@
  */
 
 import {
-  DisplayKind,
   ParameterFamily,
   SndCommonField,
   SndNoteField,
@@ -40,7 +39,7 @@ export const SND_TONE_LAYOUT: SectionLayout<SndNoteField> = {
   h: 9,
   fields: noteFields,
   items: [
-    { kind: "display", display: DisplayKind.WavePicker, x: 0, y: 0, w: 10, h: 2 },
+    { kind: "picker", field: SndNoteField.InstNumber, x: 1, y: 0, label: "Inst" },
     { kind: "knob", field: SndNoteField.Attack, x: 0, y: 2 },
     { kind: "knob", field: SndNoteField.Decay, x: 2, y: 2 },
     { kind: "knob", field: SndNoteField.Brilliance, x: 4, y: 2, label: "Brill" },

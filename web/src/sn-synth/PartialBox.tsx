@@ -86,7 +86,7 @@ export function PartialBox({ idx, layout, family, partial, active, setP }: Parti
         alternative={(group) =>
           group === OSC_WAVE_GROUP ? (isPcm ? OSC_WAVE_ALTERNATIVE.pcm : OSC_WAVE_ALTERNATIVE.scope) : undefined
         }
-        renderDisplay={(kind) => <SnsPartialDisplay kind={kind} valueOf={valueOf} onChange={setP} />}
+        renderDisplay={(kind) => <SnsPartialDisplay kind={kind} valueOf={valueOf} />}
       />
     </div>
   );

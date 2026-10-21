@@ -2203,6 +2203,67 @@ impl WasmFieldSpec {
     pub fn family(&self) -> ParameterFamily {
         self.family.into()
     }
+
+    /// The catalog the field names its values from, or `undefined`: a
+    /// picker lists [`catalog_options`].
+    #[wasm_bindgen(getter)]
+    pub fn catalog(&self) -> Option<FieldCatalog> {
+        match self.format {
+            param_registry::ParamFormat::Catalog(c) => Some(c.into()),
+            _ => None,
+        }
+    }
+}
+
+/// A device catalog a field picks by name (mirrors
+/// [`param_registry::FieldCatalog`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FieldCatalog {
+    /// See [`param_registry::FieldCatalog::SnSynthWave`].
+    SnSynthWave,
+    /// See [`param_registry::FieldCatalog::SnDrumInst`].
+    SnDrumInst,
+}
+
+mirror_core_enum!(FieldCatalog <=> param_registry::FieldCatalog {
+    SnSynthWave,
+    SnDrumInst,
+});
+
+/// One entry of a catalog (mirrors [`param_registry::CatalogOption`]).
+#[wasm_bindgen]
+pub struct WasmCatalogOption(param_registry::CatalogOption);
+
+#[wasm_bindgen]
+impl WasmCatalogOption {
+    /// The raw value written.
+    #[wasm_bindgen(getter)]
+    pub fn value(&self) -> i32 {
+        self.0.value
+    }
+
+    /// Its name, as the field's format shows it.
+    #[wasm_bindgen(getter)]
+    pub fn label(&self) -> String {
+        self.0.label.to_string()
+    }
+
+    /// The family a picker groups it under; `undefined` for OFF.
+    #[wasm_bindgen(getter)]
+    pub fn family(&self) -> Option<String> {
+        self.0.family.map(str::to_string)
+    }
+}
+
+/// Every entry of `catalog`, OFF first, then in number order.
+#[wasm_bindgen]
+pub fn catalog_options(catalog: FieldCatalog) -> Vec<WasmCatalogOption> {
+    param_registry::FieldCatalog::from(catalog)
+        .options()
+        .into_iter()
+        .map(WasmCatalogOption)
+        .collect()
 }
 
 fn wrap_field_spec(spec: field_spec::FieldSpec) -> WasmFieldSpec {
@@ -2412,12 +2473,6 @@ pub fn tone_type_from_bank_msb(msb: u8) -> Option<ToneType> {
 #[wasm_bindgen]
 pub fn sn_drum_inst_supports_variation(inst: u16, variation: u8) -> bool {
     sn_drum::inst_supports_variation(inst, variation)
-}
-
-/// Every named SN Drum Inst, as a JSON array of `{ number, name, family, bank, variations }`.
-#[wasm_bindgen(js_name = snDrumInstsJson)]
-pub fn sn_drum_insts_json() -> String {
-    serde_json::to_string(sn_drum::sn_drum_insts()).unwrap_or_else(|_| "[]".to_string())
 }
 
 /// Every SN Acoustic instrument, as a JSON array of `{ number, name, category,

@@ -8,18 +8,12 @@
  * entry. Names, families and Stereo pairs come from core.
  */
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-  type RefObject,
-} from "react";
-import { createPortal } from "react-dom";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import type { Expansion } from "./expansionCatalog";
 import { LoadExpansionButton, NotLoadedMarker } from "./NotLoadedMarker";
+import { Floating, SearchPopover, pad4, type PickOption, type SearchPopoverProps } from "./SearchPopover";
 import { pcmWaveSources, type WaveSource } from "./waveCatalog";
+import pop from "./SearchPopover.module.css";
 import css from "./WavePicker.module.css";
 
 /** Loaded state of the Expansions behind SRX Wave Groups. */
@@ -52,14 +46,8 @@ interface Props {
   marking?: ExpansionMarking;
 }
 
-/** Families shown as chips: the largest ones, with at least this many Waves. */
-const MIN_CHIP_SIZE = 4;
-const MAX_CHIPS = 24;
-const POPOVER_WIDTH = 280;
-
-function pad4(n: number): string {
-  return String(n).padStart(4, "0");
-}
+/** Listed above every search: Wave Number 0. */
+const OFF: readonly PickOption[] = [{ value: 0, label: "OFF" }];
 
 export function WavePicker({
   source,
@@ -204,98 +192,22 @@ function WaveRow({
 /** Search box, family chips and the (filtered) Waves of one group. */
 function WavePopover({
   source,
-  current,
-  anchor,
-  onPick,
-  onClose,
-}: {
-  source: WaveSource;
-  current: number;
-  anchor: RefObject<HTMLElement | null>;
-  onPick: (number: number) => void;
-  onClose: () => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [family, setFamily] = useState<string | null>(null);
-  const chips = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const w of source.waves) {
-      counts.set(w.family, (counts.get(w.family) ?? 0) + 1);
-    }
-    return source.families
-      .map((name) => ({ name, count: counts.get(name) ?? 0 }))
-      .filter((c) => c.count >= MIN_CHIP_SIZE)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, MAX_CHIPS);
-  }, [source]);
-  const needle = query.trim().toLowerCase();
-  const shown = source.waves.filter(
-    (w) =>
-      (family === null || w.family === family) &&
-      w.name.toLowerCase().includes(needle),
+  ...rest
+}: { source: WaveSource } & Pick<SearchPopoverProps, "current" | "anchor" | "onPick" | "onClose">) {
+  const options = useMemo(
+    () => source.waves.map((w) => ({ value: w.number, label: w.name, family: w.family })),
+    [source],
   );
-
   return (
-    <Floating anchor={anchor} onClose={onClose}>
-      <input
-        autoFocus
-        className={css.search}
-        placeholder={`Search ${source.id}…`}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-      <div className={css.chips}>
-        {chips.map((c) => (
-          <button
-            type="button"
-            key={c.name}
-            className={`${css.chip} ${family === c.name ? css.chipOn : ""}`}
-            aria-pressed={family === c.name}
-            onClick={() => setFamily(family === c.name ? null : c.name)}
-          >
-            {c.name} <span className={css.dim}>{c.count}</span>
-          </button>
-        ))}
-      </div>
-      <div className={css.dim}>{shown.length} Waves</div>
-      <div className={css.list} role="listbox">
-        <WaveItem number={0} name="OFF" current={current} onPick={onPick} />
-        {shown.map((w) => (
-          <WaveItem
-            key={w.number}
-            number={w.number}
-            name={w.name}
-            current={current}
-            onPick={onPick}
-          />
-        ))}
-      </div>
-    </Floating>
-  );
-}
-
-function WaveItem({
-  number,
-  name,
-  current,
-  onPick,
-}: {
-  number: number;
-  name: string;
-  current: number;
-  onPick: (number: number) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="option"
-      aria-selected={number === current}
-      className={`${css.item} ${number === current ? css.itemCurrent : ""}`}
-      onClick={() => onPick(number)}
-    >
-      <span className={css.dim}>{pad4(number)}</span>
-      {name}
-    </button>
+    <SearchPopover
+      {...rest}
+      options={options}
+      pinned={OFF}
+      families={source.families}
+      placeholder={`Search ${source.id}…`}
+      noun="Waves"
+      numbered
+    />
   );
 }
 
@@ -328,7 +240,7 @@ function GroupDropdown({
       </button>
       {open && (
         <Floating anchor={anchor} onClose={() => setOpen(false)}>
-          <div className={css.list} role="listbox">
+          <div className={pop.list} role="listbox">
             {pcmWaveSources().map((s) => {
               const unloaded =
                 s.expansion && marking?.isUnloaded(s.expansion)
@@ -340,13 +252,13 @@ function GroupDropdown({
                     type="button"
                     role="option"
                     aria-selected={s === current}
-                    className={`${css.item} ${s === current ? css.itemCurrent : ""}`}
+                    className={`${pop.item} ${s === current ? pop.itemCurrent : ""}`}
                     onClick={() => {
                       onPick(s);
                       setOpen(false);
                     }}
                   >
-                    {s.id} <span className={css.dim}>{s.waves.length}</span>
+                    {s.id} <span className={pop.dim}>{s.waves.length}</span>
                   </button>
                   {unloaded && marking && (
                     <>
@@ -364,62 +276,5 @@ function GroupDropdown({
         </Floating>
       )}
     </>
-  );
-}
-
-/**
- * A popover anchored under `anchor`, in a portal so a panel's overflow
- * doesn't clip it. Closes on an outside pointer press or Escape.
- */
-function Floating({
-  anchor,
-  onClose,
-  children,
-}: {
-  anchor: RefObject<HTMLElement | null>;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const onDown = (e: PointerEvent) => {
-      const target = e.target;
-      if (!(target instanceof Node)) return;
-      if (ref.current?.contains(target) || anchor.current?.contains(target)) {
-        return;
-      }
-      onClose();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("pointerdown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [anchor, onClose]);
-
-  const rect = anchor.current?.getBoundingClientRect();
-  const top = (rect?.bottom ?? 0) + 2;
-  const left = Math.max(
-    0,
-    Math.min(rect?.left ?? 0, window.innerWidth - POPOVER_WIDTH - 8),
-  );
-  return createPortal(
-    <div
-      ref={ref}
-      className={css.floating}
-      style={{
-        top,
-        left,
-        width: POPOVER_WIDTH,
-        maxHeight: window.innerHeight - top - 16,
-      }}
-    >
-      {children}
-    </div>,
-    document.body,
   );
 }

@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
-  DisplayKind,
-  DisplayProp,
   SndCommonField,
   SndNoteField,
   ToneType,
@@ -19,12 +17,10 @@ import {
 import type { IntegraService } from "./integra";
 import { deviceSpec } from "./deviceSpec";
 import { switchOptions } from "./fieldSpec";
-import { GridScreen, GridSection, slotField, slotOf, specBinding, type Binding, type SectionPlacement } from "./layouts";
+import { GridScreen, GridSection, specBinding, type Binding, type SectionPlacement } from "./layouts";
 import { SND_FAMILIES, SND_KIT_LAYOUT, SND_OUTPUT_LAYOUT, SND_SCREEN, SND_TONE_LAYOUT } from "./layouts/drum/snDrum";
 import { MfxPanel } from "./MfxPanel";
 import type { MfxState } from "./MfxPanel";
-import { WavePicker } from "./WavePicker";
-import { sndInstSource } from "./sndInstCatalog";
 import { useMfxHandlers } from "./useMfxHandlers";
 import { DrumKeyGrid } from "./DrumKeyGrid";
 import { useDrumKey } from "./useDrumKey";
@@ -40,12 +36,6 @@ function variationOptions(note: { instNumber: number; variation: number }) {
   return switchOptions(snd_note_spec(SndNoteField.Variation))
     .filter((o) => ok(o.value) || o.value === note.variation)
     .map((o) => (ok(o.value) ? o : { ...o, label: `${o.label} (n/a)` }));
-}
-
-/** The Note field core binds the SN Drum Inst picker to. */
-function instField(): SndNoteField {
-  const slot = slotOf(DisplayKind.WavePicker, ToneType.SnDrum, DisplayProp.Inst);
-  return slotField(slot, slot.sndNote);
 }
 
 interface Props {
@@ -136,19 +126,6 @@ export function SnDrumEditor({ partIndex, service }: Props) {
     return specBinding(name, spec, value, (v) => setNoteParam(field, v), options);
   };
 
-  const renderDisplay = (display: DisplayKind): ReactNode => {
-    if (display !== DisplayKind.WavePicker || !note) return null;
-    const inst = instField();
-    return (
-      <WavePicker
-        source={sndInstSource()}
-        stereo={false}
-        l={note[SND_NOTE_ENTRIES[inst].key]}
-        onChange={(_side, n) => setNoteParam(inst, n)}
-      />
-    );
-  };
-
   const { cache, cacheVersion } = drumKey;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const keyOutputAssigns = useMemo(() => {
@@ -176,7 +153,6 @@ export function SnDrumEditor({ partIndex, service }: Props) {
             bind={bindNote}
             scope={scope}
             isActive={isCurrent}
-            renderDisplay={renderDisplay}
             family={SND_FAMILIES.tone}
           />
         );

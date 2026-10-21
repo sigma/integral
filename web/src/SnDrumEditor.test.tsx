@@ -11,7 +11,7 @@ import {
 } from "../pkg/integral_wasm.js";
 import { SnDrumEditor } from "./SnDrumEditor";
 import { familyVar } from "./synth-ui";
-import { cleanup, click, render } from "./test/dom";
+import { cleanup, click, render, typeInto } from "./test/dom";
 import { controlsOffGrid, drumKey } from "./test/drum";
 import { arrowUp, fakeToneService, slider } from "./test/toneService";
 
@@ -73,6 +73,24 @@ describe("SnDrumEditor", () => {
     expect(attack.closest("[data-grid-section]")).toBe(tone);
     arrowUp(attack);
     expect(sentDt1s()).toEqual([{ address: [...snd_note_address(PART, 38).slice(0, 3), 12], data: [1] }]);
+  });
+
+  it("picks the key's Inst by name and writes its number", async () => {
+    const { service, sentDt1s } = fakeToneService(new WasmDeviceState(0x10));
+    const { container } = render(<SnDrumEditor partIndex={PART} service={service} />);
+    await act(async () => {});
+    const inst = container.querySelector<HTMLElement>(`[data-grid-section="TONE"] [data-field="${SndNoteField.InstNumber}"]`)!;
+    // The zeroed kit's Inst is 0: core names it OFF.
+    const current = inst.querySelector("button")!;
+    expect(current.textContent).toBe("OFF");
+
+    click(current);
+    typeInto(document.querySelector("input")!, "studio kick");
+    click([...document.querySelectorAll<HTMLElement>('[role="option"]')].find((o) => o.textContent === "Studio Kick")!);
+
+    // Inst Number is Note `00 00`, four nibbles: Inst 1 on key 36.
+    expect(sentDt1s()).toEqual([{ address: [...snd_note_address(PART, 36).slice(0, 3), 0], data: [0, 0, 0, 1] }]);
+    expect(current.textContent).toBe("Studio Kick");
   });
 
   it("lists only the Variations the key's Inst supports", async () => {

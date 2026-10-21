@@ -32,6 +32,8 @@ export function controlCells<F extends FieldKey>(control: ControlLayout<F>): Cel
       return { w: FOOTPRINT.faderW, h: control.h };
     case "list":
       return { w: FOOTPRINT.optionListW, h: control.h };
+    case "picker":
+      return FOOTPRINT.picker;
   }
 }
 
