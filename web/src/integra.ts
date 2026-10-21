@@ -387,22 +387,6 @@ export class IntegraService {
   }
 
   // -----------------------------------------------------------------------
-  // EQ parameters
-  // -----------------------------------------------------------------------
-
-  setPartEqParam(part: number, paramOffset: number, value: number): void {
-    this.device.setPartEqParam(part, paramOffset, value);
-  }
-
-  setMasterEqParam(paramOffset: number, value: number): void {
-    this.device.setMasterEqParam(paramOffset, value);
-  }
-
-  setMasterEqSwitch(_enabled: boolean): void {
-    this.device.toggleMasterEqSwitch();
-  }
-
-  // -----------------------------------------------------------------------
   // Chorus (FX1)
   // -----------------------------------------------------------------------
 

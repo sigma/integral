@@ -10,7 +10,7 @@ import { defaultPartState, type PartState, type EqState, type CompEqUnit } from 
 import { paramFormatter, paramMeta } from "./paramDefaults";
 import { CATEGORIES, lookupToneCategory } from "./categories";
 import { categoryIcon, stripIcon } from "./categoryIcons";
-import { is_drum_kit_bank } from "../pkg/integral_wasm.js";
+import { is_drum_kit_bank, MixerField } from "../pkg/integral_wasm.js";
 import css from "./ChannelStrip.module.css";
 import { deviceSpec } from "./deviceSpec";
 import { RouteChip } from "./RouteChip";
@@ -21,9 +21,9 @@ const hide: React.CSSProperties = { visibility: "hidden", pointerEvents: "none" 
 
 type Variant = "part" | "ext" | "master" | "comp-eq";
 
-const formatCompRatio = paramFormatter("comp.ratio");
+const formatCompRatio = paramFormatter(MixerField.CompRatio);
 
-/** Numeric ratio for a `comp.ratio` value ("inf:1" is a limiter). */
+/** Numeric ratio for a `CompRatio` value ("inf:1" is a limiter). */
 function ratioOf(i: number): number {
   const r = parseFloat(formatCompRatio(i));
   return Number.isNaN(r) ? Infinity : r;
@@ -46,7 +46,6 @@ interface Props {
   compEqOutputAssign?: number;
   /** Whether this part is the Comp+EQ assigned part (shows active indicator). */
   compEqAssigned?: boolean;
-  onCompEqParam?: (paramOffset: number, value: number) => void;
   onCompEqOutputAssign?: (value: number) => void;
   /** Toggle Comp+EQ assignment to this part. */
   onCompEqToggle?: () => void;
@@ -67,8 +66,8 @@ interface Props {
   surroundEnabled?: boolean;
   ambienceSend?: number;
   onAmbienceSendChange?: (value: number) => void;
-  onEqToggle?: () => void;
-  onEqParam?: (paramOffset: number, value: number) => void;
+  /** Set a mixer field (EQ, and the compressor on a Comp+EQ strip) in this strip's scope. */
+  onField?: (field: MixerField, value: number) => void;
   onOutputAssignChange?: (value: number) => void;
 }
 
@@ -103,7 +102,6 @@ function ChannelStripInner({
   compEqUnitNumber,
   compEqOutputAssign,
   compEqAssigned,
-  onCompEqParam,
   onCompEqOutputAssign,
   onCompEqToggle,
   onLevelChange,
@@ -119,17 +117,18 @@ function ChannelStripInner({
   surroundEnabled,
   ambienceSend,
   onAmbienceSendChange,
-  onEqToggle,
-  onEqParam,
+  onField,
   onOutputAssignChange,
 }: Props) {
   const p = part ?? defaultPartState();
   // Drum Comp+EQ compressor ranges, shared by every unit.
-  const attack = paramMeta("comp.attack");
-  const release = paramMeta("comp.release");
-  const threshold = paramMeta("comp.threshold");
-  const ratio = paramMeta("comp.ratio");
-  const outputGain = paramMeta("comp.output_gain");
+  const attack = paramMeta(MixerField.CompAttack);
+  const release = paramMeta(MixerField.CompRelease);
+  const threshold = paramMeta(MixerField.CompThreshold);
+  const ratio = paramMeta(MixerField.CompRatio);
+  const outputGain = paramMeta(MixerField.CompOutputGain);
+  const chorusSend = paramMeta(MixerField.PartChorusSend);
+  const reverbSend = paramMeta(MixerField.PartReverbSend);
   const isCompEq = variant === "comp-eq";
   const isPart = variant === "part";
   const showEq = variant !== "ext";
@@ -159,19 +158,6 @@ function ChannelStripInner({
     .filter(Boolean)
     .join(" ");
 
-  // Comp+EQ variant: EQ param callbacks route through onCompEqParam
-  // with offsets 0x06–0x0D (the EQ portion of the 14-byte unit).
-  const compEqOnEqToggle = () => {
-    if (compEqUnit && onCompEqParam) {
-      onCompEqParam(0x06, compEqUnit.eqSwitch ? 0 : 1);
-    }
-  };
-  const compEqOnEqParam = (paramOffset: number, value: number) => {
-    // EqSection uses paramBase=0, so offset 0=lowFreq, 1=lowGain, etc.
-    // Map to Comp+EQ unit offsets: 0x07=lowFreq, 0x08=lowGain, ...
-    onCompEqParam?.(0x07 + paramOffset, value);
-  };
-
   return (
     <div className={stripClass} onPointerDown={onSelect}>
       {/* Header */}
@@ -195,9 +181,7 @@ function ChannelStripInner({
       {/* EQ section */}
       <EqSection
         eq={eqState}
-        onToggleSwitch={isCompEq ? compEqOnEqToggle : (onEqToggle ?? noop)}
-        onParam={isCompEq ? compEqOnEqParam : (onEqParam ?? noop)}
-        {...(variant === "master" || isCompEq ? { paramBase: 0 } : {})}
+        onField={onField ?? noop}
         style={hideIf(showEq)}
       />
 
@@ -209,7 +193,7 @@ function ChannelStripInner({
             <div className={`${box.box} ${compEqUnit?.compSwitch ? "" : box.off}`}>
               <button
                 className={`${box.switchButton} ${compEqUnit?.compSwitch ? box.switchOn : box.switchOff}`}
-                onClick={() => onCompEqParam?.(0x00, compEqUnit?.compSwitch ? 0 : 1)}
+                onClick={() => onField?.(MixerField.CompSwitch, compEqUnit?.compSwitch ? 0 : 1)}
               >
                 {compEqUnit?.compSwitch ? "COMP ON" : "COMP OFF"}
               </button>
@@ -217,11 +201,11 @@ function ChannelStripInner({
               <ADSREnvelope
                 compact
                 attack={{ label: "Atk", value: compEqUnit?.compAttack ?? attack.defaultValue, min: attack.min, max: attack.max,
-                  defaultValue: attack.defaultValue, onChange: (v) => onCompEqParam?.(0x01, v),
-                  formatValue: paramFormatter("comp.attack") }}
+                  defaultValue: attack.defaultValue, onChange: (v) => onField?.(MixerField.CompAttack, v),
+                  formatValue: paramFormatter(MixerField.CompAttack) }}
                 decay={{ label: "Rel", value: compEqUnit?.compRelease ?? release.defaultValue, min: release.min, max: release.max,
-                  defaultValue: release.defaultValue, onChange: (v) => onCompEqParam?.(0x02, v),
-                  formatValue: paramFormatter("comp.release") }}
+                  defaultValue: release.defaultValue, onChange: (v) => onField?.(MixerField.CompRelease, v),
+                  formatValue: paramFormatter(MixerField.CompRelease) }}
               />
               <TransferCurve
                 threshold={compEqUnit?.compThreshold ?? threshold.defaultValue}
@@ -231,10 +215,10 @@ function ChannelStripInner({
               <div className={css.sends}>
                 <EqKnob label="Thr" value={compEqUnit?.compThreshold ?? threshold.defaultValue} min={threshold.min}
                   max={threshold.max} defaultValue={threshold.defaultValue}
-                  onChange={(v) => onCompEqParam?.(0x03, v)}
-                  formatValue={paramFormatter("comp.threshold")} family={threshold.family} />
+                  onChange={(v) => onField?.(MixerField.CompThreshold, v)}
+                  formatValue={paramFormatter(MixerField.CompThreshold)} family={threshold.family} />
                 <EqKnob label="Ratio" value={compEqUnit?.compRatio ?? ratio.defaultValue} min={ratio.min} max={ratio.max}
-                  defaultValue={ratio.defaultValue} onChange={(v) => onCompEqParam?.(0x04, v)}
+                  defaultValue={ratio.defaultValue} onChange={(v) => onField?.(MixerField.CompRatio, v)}
                   formatValue={formatCompRatio} family={ratio.family} />
               </div>
             </div>
@@ -252,14 +236,12 @@ function ChannelStripInner({
                       onChange={onAmbienceSendChange ?? noop} formatValue={(v) => String(v)} color="#a6f" />
                   ) : (
                     <>
-                      {(() => { const m = paramMeta(`part.${partIndex}.chorus_send`); return (
-                      <EqKnob label={m.name} value={p.chorusSend} min={m.min} max={m.max} defaultValue={m.defaultValue}
-                        onChange={onChorusSendChange ?? noop} formatValue={(v) => String(v)} color="#668" />
-                      ); })()}
-                      {(() => { const m = paramMeta(`part.${partIndex}.reverb_send`); return (
-                      <EqKnob label={m.name} value={p.reverbSend} min={m.min} max={m.max} defaultValue={m.defaultValue}
-                        onChange={onReverbSendChange ?? noop} formatValue={(v) => String(v)} color="#686" />
-                      ); })()}
+                      <EqKnob label={chorusSend.name} value={p.chorusSend} min={chorusSend.min} max={chorusSend.max}
+                        defaultValue={chorusSend.defaultValue} onChange={onChorusSendChange ?? noop}
+                        formatValue={(v) => String(v)} color="#668" />
+                      <EqKnob label={reverbSend.name} value={p.reverbSend} min={reverbSend.min} max={reverbSend.max}
+                        defaultValue={reverbSend.defaultValue} onChange={onReverbSendChange ?? noop}
+                        formatValue={(v) => String(v)} color="#686" />
                     </>
                   )}
                 </div>
@@ -328,7 +310,7 @@ function ChannelStripInner({
           {faderLabel}
         </span>
         {isCompEq ? (
-          <VolumeFader value={compEqUnit?.compOutputGain ?? outputGain.defaultValue} onChange={(v) => onCompEqParam?.(0x05, v)}
+          <VolumeFader value={compEqUnit?.compOutputGain ?? outputGain.defaultValue} onChange={(v) => onField?.(MixerField.CompOutputGain, v)}
             min={outputGain.min} max={outputGain.max} defaultValue={outputGain.defaultValue}
             formatValue={(v) => `+${v}dB`} label="Gain" />
         ) : (

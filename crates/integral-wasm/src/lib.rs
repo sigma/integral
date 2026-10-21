@@ -1229,6 +1229,141 @@ mirror_core_enum!(SurroundField <=> params::SurroundField {
     Depth,
 });
 
+/// An index-free mixer parameter; a scope supplies its indices (mirrors [`param_registry::MixerField`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MixerField {
+    /// See [`param_registry::MixerField::PartLevel`].
+    PartLevel,
+    /// See [`param_registry::MixerField::PartPan`].
+    PartPan,
+    /// See [`param_registry::MixerField::PartMute`].
+    PartMute,
+    /// See [`param_registry::MixerField::PartChorusSend`].
+    PartChorusSend,
+    /// See [`param_registry::MixerField::PartReverbSend`].
+    PartReverbSend,
+    /// See [`param_registry::MixerField::PartOutputAssign`].
+    PartOutputAssign,
+    /// See [`param_registry::MixerField::PartReceiveChannel`].
+    PartReceiveChannel,
+    /// See [`param_registry::MixerField::MasterLevel`].
+    MasterLevel,
+    /// See [`param_registry::MixerField::ExtLevel`].
+    ExtLevel,
+    /// See [`param_registry::MixerField::ExtMute`].
+    ExtMute,
+    /// See [`param_registry::MixerField::ChorusSwitch`].
+    ChorusSwitch,
+    /// See [`param_registry::MixerField::ChorusType`].
+    ChorusType,
+    /// See [`param_registry::MixerField::ChorusLevel`].
+    ChorusLevel,
+    /// See [`param_registry::MixerField::ChorusOutputAssign`].
+    ChorusOutputAssign,
+    /// See [`param_registry::MixerField::ChorusOutputSelect`].
+    ChorusOutputSelect,
+    /// See [`param_registry::MixerField::ReverbSwitch`].
+    ReverbSwitch,
+    /// See [`param_registry::MixerField::ReverbType`].
+    ReverbType,
+    /// See [`param_registry::MixerField::ReverbLevel`].
+    ReverbLevel,
+    /// See [`param_registry::MixerField::ReverbOutputAssign`].
+    ReverbOutputAssign,
+    /// See [`param_registry::MixerField::SoloPart`].
+    SoloPart,
+    /// See [`param_registry::MixerField::EqSwitch`].
+    EqSwitch,
+    /// See [`param_registry::MixerField::EqLowFreq`].
+    EqLowFreq,
+    /// See [`param_registry::MixerField::EqLowGain`].
+    EqLowGain,
+    /// See [`param_registry::MixerField::EqMidFreq`].
+    EqMidFreq,
+    /// See [`param_registry::MixerField::EqMidGain`].
+    EqMidGain,
+    /// See [`param_registry::MixerField::EqMidQ`].
+    EqMidQ,
+    /// See [`param_registry::MixerField::EqHighFreq`].
+    EqHighFreq,
+    /// See [`param_registry::MixerField::EqHighGain`].
+    EqHighGain,
+    /// See [`param_registry::MixerField::CompSwitch`].
+    CompSwitch,
+    /// See [`param_registry::MixerField::CompAttack`].
+    CompAttack,
+    /// See [`param_registry::MixerField::CompRelease`].
+    CompRelease,
+    /// See [`param_registry::MixerField::CompThreshold`].
+    CompThreshold,
+    /// See [`param_registry::MixerField::CompRatio`].
+    CompRatio,
+    /// See [`param_registry::MixerField::CompOutputGain`].
+    CompOutputGain,
+}
+
+mirror_core_enum!(MixerField <=> param_registry::MixerField {
+    PartLevel,
+    PartPan,
+    PartMute,
+    PartChorusSend,
+    PartReverbSend,
+    PartOutputAssign,
+    PartReceiveChannel,
+    MasterLevel,
+    ExtLevel,
+    ExtMute,
+    ChorusSwitch,
+    ChorusType,
+    ChorusLevel,
+    ChorusOutputAssign,
+    ChorusOutputSelect,
+    ReverbSwitch,
+    ReverbType,
+    ReverbLevel,
+    ReverbOutputAssign,
+    SoloPart,
+    EqSwitch,
+    EqLowFreq,
+    EqLowGain,
+    EqMidFreq,
+    EqMidGain,
+    EqMidQ,
+    EqHighFreq,
+    EqHighGain,
+    CompSwitch,
+    CompAttack,
+    CompRelease,
+    CompThreshold,
+    CompRatio,
+    CompOutputGain,
+});
+
+/// The kind of scope a mixer field is used in (mirrors [`param_registry::MixerScopeKind`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MixerScopeKind {
+    /// See [`param_registry::MixerScopeKind::Part`].
+    Part,
+    /// See [`param_registry::MixerScopeKind::Ext`].
+    Ext,
+    /// See [`param_registry::MixerScopeKind::Master`].
+    Master,
+    /// See [`param_registry::MixerScopeKind::CompEqUnit`].
+    CompEqUnit,
+    /// See [`param_registry::MixerScopeKind::Common`].
+    Common,
+}
+
+mirror_core_enum!(MixerScopeKind <=> param_registry::MixerScopeKind {
+    Part,
+    Ext,
+    Master,
+    CompEqUnit,
+    Common,
+});
+
 /// A field of an SN Synth Tone Common (mirrors [`sn_synth::SnsCommonField`]).
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2042,7 +2177,7 @@ fn wrap_fx_params(params: &[fx_params::FxParamDef]) -> Vec<WasmFxParamDef> {
     params.iter().cloned().map(wrap_fx_param).collect()
 }
 
-/// Range, default and display format of a tone block field.
+/// Range, default and display format of a tone block or mixer field.
 #[wasm_bindgen]
 pub struct WasmFieldSpec {
     /// Minimum raw value.
@@ -2488,28 +2623,23 @@ impl WasmDeviceState {
         self.inner.set_master_level(value);
     }
 
-    // -- EQ setters --------------------------------------------------------
+    // -- Mixer fields ------------------------------------------------------
 
-    #[wasm_bindgen(js_name = setPartEqParam)]
-    pub fn set_part_eq_param(
+    /// Set a mixer field in a scope. `index` is the part or Comp+EQ unit
+    /// (0-based) for those scope kinds, and ignored for the others; a
+    /// Comp+EQ unit is written in the assigned part's kit.
+    #[wasm_bindgen(js_name = setMixerField)]
+    pub fn set_mixer_field(
         &mut self,
-        part: u8,
-        param_offset: u8,
+        kind: MixerScopeKind,
+        index: u8,
+        field: MixerField,
         value: u8,
     ) -> Result<(), JsError> {
-        check_part(part)?;
-        self.inner.set_part_eq_param(part, param_offset, value);
-        Ok(())
-    }
-
-    #[wasm_bindgen(js_name = setMasterEqParam)]
-    pub fn set_master_eq_param(&mut self, param_offset: u8, value: u8) {
-        self.inner.set_master_eq_param(param_offset, value);
-    }
-
-    #[wasm_bindgen(js_name = toggleMasterEqSwitch)]
-    pub fn toggle_master_eq_switch(&mut self) {
-        self.inner.toggle_master_eq_switch();
+        let scope = self.inner.mixer_scope(kind.into(), index);
+        self.inner
+            .set_mixer_field(scope, field.into(), value)
+            .map_err(|e| JsError::new(&e.to_string()))
     }
 
     // -- FX setters --------------------------------------------------------
@@ -2611,18 +2741,6 @@ impl WasmDeviceState {
     pub fn set_drum_comp_eq_output_assign(&mut self, unit: u8, value: u8) -> Result<(), JsError> {
         check_comp_eq_unit(unit)?;
         self.inner.set_drum_comp_eq_output_assign(unit, value);
-        Ok(())
-    }
-
-    #[wasm_bindgen(js_name = setCompEqParam)]
-    pub fn set_comp_eq_param(
-        &mut self,
-        unit: u8,
-        param_offset: u8,
-        value: u8,
-    ) -> Result<(), JsError> {
-        check_comp_eq_unit(unit)?;
-        self.inner.set_comp_eq_param(unit, param_offset, value);
         Ok(())
     }
 
@@ -3138,45 +3256,32 @@ pub fn mfx_params(mfx_type: u8) -> Vec<WasmFxParamDef> {
 }
 
 // ---------------------------------------------------------------------------
-// Parameter registry JSON
+// Mixer fields
 // ---------------------------------------------------------------------------
 
-/// A mixer `ParamDef` as serialized for JS, its family as [`ParameterFamily`].
-#[derive(serde::Serialize)]
-struct MixerParamJson<'a> {
-    #[serde(flatten)]
-    def: &'a param_registry::ParamDef,
-    /// The [`ParameterFamily`] discriminant, so JS compares it to the enum.
-    family: u8,
+/// Range, default and display format of a mixer field.
+#[wasm_bindgen]
+pub fn mixer_field_spec(field: MixerField) -> WasmFieldSpec {
+    let def = param_registry::mixer_param(field.into());
+    wrap_field_spec(field_spec::FieldSpec {
+        min: def.min,
+        max: def.max,
+        default: def.default,
+        format: def.format,
+        family: def.family,
+    })
 }
 
-/// Return all mixer parameter definitions as a JSON string.
-///
-/// Returns a JSON array of `ParamDef` objects. Each carries `family`, a
-/// [`ParameterFamily`] value.
-#[wasm_bindgen(js_name = mixerParamsJson)]
-pub fn mixer_params_json() -> String {
-    let params = param_registry::mixer_params();
-    let json: Vec<_> = params
-        .iter()
-        .map(|def| MixerParamJson {
-            def,
-            family: ParameterFamily::from(def.family) as u8,
-        })
-        .collect();
-    serde_json::to_string(&json).unwrap_or_else(|_| "[]".to_string())
+/// Display name of a mixer field.
+#[wasm_bindgen]
+pub fn mixer_field_name(field: MixerField) -> String {
+    param_registry::mixer_param(field.into()).name.to_string()
 }
 
-/// Format a raw value of the mixer parameter `id` for display.
-///
-/// Unknown ids fall back to the raw number.
-#[wasm_bindgen(js_name = formatMixerParam)]
-pub fn format_mixer_param(id: &str, value: i32) -> String {
-    static PARAMS: std::sync::LazyLock<Vec<param_registry::ParamDef>> =
-        std::sync::LazyLock::new(param_registry::mixer_params);
-    param_registry::lookup(&PARAMS, id)
-        .map(|def| param_registry::format_value(def, value))
-        .unwrap_or_else(|| value.to_string())
+/// Whether a mixer field exists in a scope of this kind.
+#[wasm_bindgen]
+pub fn mixer_field_in_scope(field: MixerField, kind: MixerScopeKind) -> bool {
+    param_registry::MixerField::from(field).in_scope(kind.into())
 }
 
 #[cfg(test)]
@@ -3184,15 +3289,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn mixer_params_json_carries_family_as_wasm_enum() {
-        let defs: Vec<serde_json::Value> = serde_json::from_str(&mixer_params_json()).unwrap();
-        let family = |id: &str| {
-            defs.iter()
-                .find(|d| d["id"] == id)
-                .map(|d| d["family"].clone())
-                .unwrap()
-        };
-        assert_eq!(family("eq.low_gain"), ParameterFamily::Filter as u8);
-        assert_eq!(family("comp.threshold"), ParameterFamily::Amp as u8);
+    fn mixer_field_spec_carries_range_and_family() {
+        let spec = mixer_field_spec(MixerField::EqLowGain);
+        assert_eq!((spec.min, spec.max, spec.default_value), (0, 30, 15));
+        assert_eq!(spec.family(), ParameterFamily::Filter);
+        assert_eq!(spec.format_value(0), "-15");
+        assert_eq!(mixer_field_name(MixerField::PartChorusSend), "FX1");
+        assert!(mixer_field_in_scope(
+            MixerField::EqSwitch,
+            MixerScopeKind::Master
+        ));
+        assert!(!mixer_field_in_scope(
+            MixerField::EqSwitch,
+            MixerScopeKind::Ext
+        ));
     }
 }

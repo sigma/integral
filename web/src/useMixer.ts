@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { IntegraService } from "./integra";
-import type { SurroundField } from "../pkg/integral_wasm.js";
+import type { MixerField, MixerScopeKind, SurroundField } from "../pkg/integral_wasm.js";
 import {
   defaultMixerState,
   type MixerState,
@@ -56,10 +56,8 @@ export interface UseMixerResult {
   setPartChorusSend: (part: number, value: number) => void;
   setPartReverbSend: (part: number, value: number) => void;
   setMasterLevel: (value: number) => void;
-  setPartEqParam: (part: number, paramOffset: number, value: number) => void;
-  togglePartEqSwitch: (part: number) => void;
-  setMasterEqParam: (paramOffset: number, value: number) => void;
-  toggleMasterEqSwitch: () => void;
+  /** Set a mixer field in a scope; `index` is the part or Comp+EQ unit, ignored for other kinds. */
+  setMixerField: (kind: MixerScopeKind, index: number, field: MixerField, value: number) => void;
   setChorusParam: (offset: number, value: number) => void;
   setChorusNibParam: (paramIndex: number, value: number) => void;
   toggleChorusSwitch: () => void;
@@ -76,7 +74,6 @@ export interface UseMixerResult {
   setDrumCompEqSwitch: (enabled: boolean) => void;
   setDrumCompEqPart: (part: number) => void;
   setDrumCompEqOutputAssign: (unit: number, value: number) => void;
-  setCompEqParam: (unit: number, paramOffset: number, value: number) => void;
   selectPart: (part: number) => void;
   switchStudioSet: (pc: number) => void;
   /** Rename a part's Temporary tone on the device. */
@@ -344,35 +341,13 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
 
   // --- EQ ---
 
-  const setPartEqParam = useCallback(
-    (part: number, paramOffset: number, value: number) => {
-      service?.device.setPartEqParam(part, paramOffset, value);
+  const setMixerField = useCallback(
+    (kind: MixerScopeKind, index: number, field: MixerField, value: number) => {
+      service?.device.setMixerField(kind, index, field, value);
       syncFromRust();
     },
     [service, syncFromRust],
   );
-
-  const togglePartEqSwitch = useCallback(
-    (part: number) => {
-      const enabled = !stateRef.current.parts[part]!.eq.enabled;
-      service?.device.setPartEqParam(part, 0, enabled ? 1 : 0);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const setMasterEqParam = useCallback(
-    (paramOffset: number, value: number) => {
-      service?.device.setMasterEqParam(paramOffset, value);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const toggleMasterEqSwitch = useCallback(() => {
-    service?.device.toggleMasterEqSwitch();
-    syncFromRust();
-  }, [service, syncFromRust]);
 
   // --- FX ---
 
@@ -501,14 +476,6 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     [service, syncFromRust],
   );
 
-  const setCompEqParam = useCallback(
-    (unit: number, paramOffset: number, value: number) => {
-      service?.device.setCompEqParam(unit, paramOffset, value);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
   // --- UI-only state ---
 
   const preview = useCallback(() => {
@@ -531,10 +498,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     setPartChorusSend,
     setPartReverbSend,
     setMasterLevel,
-    setPartEqParam,
-    togglePartEqSwitch,
-    setMasterEqParam,
-    toggleMasterEqSwitch,
+    setMixerField,
     setChorusParam,
     setChorusNibParam,
     toggleChorusSwitch,
@@ -551,7 +515,6 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     setDrumCompEqSwitch,
     setDrumCompEqPart,
     setDrumCompEqOutputAssign,
-    setCompEqParam,
     selectPart,
     switchStudioSet,
     renameTone,

@@ -2,7 +2,7 @@ import { ChannelStrip } from "./ChannelStrip";
 import { FxStrip } from "./FxStrip";
 import { MixerLoadWarning } from "./MixerLoadWarning";
 // CompEqPanel replaced by ChannelStrip variant="comp-eq"
-import { chorus_params, reverb_params } from "../pkg/integral_wasm.js";
+import { chorus_params, MixerScopeKind, reverb_params } from "../pkg/integral_wasm.js";
 import { deviceSpec } from "./deviceSpec";
 import type { UseMixerResult } from "./useMixer";
 import type { UseExpansionsResult } from "./useExpansions";
@@ -58,8 +58,7 @@ export function MixerPage({ mixer, expansions }: Props) {
                 ambienceSend={state.surround.parts[i]?.ambienceSend}
                 onAmbienceSendChange={(v) => mixer.setPartSurroundAmbienceSend(i, v)}
                 onReceiveChannelChange={(ch) => mixer.setPartReceiveChannel(i, ch)}
-                onEqToggle={() => mixer.togglePartEqSwitch(i)}
-                onEqParam={(offset, v) => mixer.setPartEqParam(i, offset, v)}
+                onField={(field, v) => mixer.setMixerField(MixerScopeKind.Part, i, field, v)}
                 onOutputAssignChange={(v) => mixer.setPartOutputAssign(i, v)}
               />
             ))}
@@ -80,7 +79,7 @@ export function MixerPage({ mixer, expansions }: Props) {
               compEqUnit={unit}
               compEqUnitNumber={i + 1}
               compEqOutputAssign={state.drumCompEq.outputAssigns[i]}
-              onCompEqParam={(offset, v) => mixer.setCompEqParam(i, offset, v)}
+              onField={(field, v) => mixer.setMixerField(MixerScopeKind.CompEqUnit, i, field, v)}
               onCompEqOutputAssign={(v) => mixer.setDrumCompEqOutputAssign(i, v)}
               surroundEnabled={state.surround.enabled}
             />
@@ -131,8 +130,7 @@ export function MixerPage({ mixer, expansions }: Props) {
             level={state.masterLevel}
             eq={state.masterEq}
             onLevelChange={mixer.setMasterLevel}
-            onEqToggle={mixer.toggleMasterEqSwitch}
-            onEqParam={mixer.setMasterEqParam}
+            onField={(field, v) => mixer.setMixerField(MixerScopeKind.Master, 0, field, v)}
           />
         </div>
       )}

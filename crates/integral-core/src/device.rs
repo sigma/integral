@@ -31,13 +31,16 @@ use crate::expansion_slots::{self, ExpansionSlots};
 use crate::expansions::Expansion;
 use crate::midi_bridge::RequestTracker;
 use crate::mixer_load::{self, MixerBlock};
+use crate::param_registry::{
+    CompEqKit, MixerField, MixerFieldError, MixerScope, MixerScopeKind, mixer_field_address,
+};
 use crate::params::{self, ToneType, part};
 use crate::parse_helpers::encode_ascii_name;
 use crate::pcm_synth::{PcmsCommonField, PcmsPartialField, PcmsPmtField};
 use crate::sn_acoustic::SnaCommonField;
 use crate::sn_drum::{SndCommonField, SndNoteField};
 use crate::sn_synth::{SnSynthTone, SnSynthToneBlocks, SnsBlock, SnsCommonField, SnsPartialField};
-use crate::state::MixerState;
+use crate::state::{EqState, MixerState};
 use crate::sysex;
 
 /// Minimum interval between SysEx sends (ms).
@@ -91,6 +94,96 @@ fn mixer_request_key(address: &Address) -> String {
 /// The request tracker key of `part`'s `block` request.
 fn sns_request_key(part: u8, block: SnsBlock) -> String {
     format!("rq1:{}", block.address(part))
+}
+
+/// The state value a [`MixerField`] writes.
+enum Slot<'a> {
+    /// A byte value.
+    Byte(&'a mut u8),
+    /// A switch or mute.
+    Flag(&'a mut bool),
+}
+
+/// The state value `field` writes in `scope`, or `None` if the field is
+/// not in the scope. Indices must already be in range
+/// ([`mixer_field_address`] checks them).
+fn mixer_slot(state: &mut MixerState, scope: MixerScope, field: MixerField) -> Option<Slot<'_>> {
+    use MixerField as F;
+    use Slot::{Byte, Flag};
+    Some(match scope {
+        MixerScope::Part(part) => {
+            let p = &mut state.parts[usize::from(part)];
+            match field {
+                F::PartLevel => Byte(&mut p.level),
+                F::PartPan => Byte(&mut p.pan),
+                F::PartMute => Flag(&mut p.muted),
+                F::PartChorusSend => Byte(&mut p.chorus_send),
+                F::PartReverbSend => Byte(&mut p.reverb_send),
+                F::PartOutputAssign => Byte(&mut p.output_assign),
+                F::PartReceiveChannel => Byte(&mut p.receive_channel),
+                _ => eq_slot(&mut p.eq, field)?,
+            }
+        }
+        MixerScope::Ext => match field {
+            F::ExtLevel => Byte(&mut state.ext_level),
+            F::ExtMute => Flag(&mut state.ext_muted),
+            _ => return None,
+        },
+        MixerScope::Master => match field {
+            F::MasterLevel => Byte(&mut state.master_level),
+            _ => eq_slot(&mut state.master_eq, field)?,
+        },
+        MixerScope::CompEqUnit { unit, .. } => {
+            let u = &mut state.drum_comp_eq.units[usize::from(unit)];
+            match field {
+                F::CompSwitch => Flag(&mut u.comp_switch),
+                F::CompAttack => Byte(&mut u.comp_attack),
+                F::CompRelease => Byte(&mut u.comp_release),
+                F::CompThreshold => Byte(&mut u.comp_threshold),
+                F::CompRatio => Byte(&mut u.comp_ratio),
+                F::CompOutputGain => Byte(&mut u.comp_output_gain),
+                F::EqSwitch => Flag(&mut u.eq_switch),
+                F::EqLowFreq => Byte(&mut u.eq_low_freq),
+                F::EqLowGain => Byte(&mut u.eq_low_gain),
+                F::EqMidFreq => Byte(&mut u.eq_mid_freq),
+                F::EqMidGain => Byte(&mut u.eq_mid_gain),
+                F::EqMidQ => Byte(&mut u.eq_mid_q),
+                F::EqHighFreq => Byte(&mut u.eq_high_freq),
+                F::EqHighGain => Byte(&mut u.eq_high_gain),
+                _ => return None,
+            }
+        }
+        MixerScope::Common => match field {
+            F::ChorusSwitch => Flag(&mut state.chorus.enabled),
+            F::ChorusType => Byte(&mut state.chorus.fx_type),
+            F::ChorusLevel => Byte(&mut state.chorus.level),
+            F::ChorusOutputAssign => Byte(&mut state.chorus.output_assign),
+            F::ChorusOutputSelect => Byte(&mut state.chorus.output),
+            F::ReverbSwitch => Flag(&mut state.reverb.enabled),
+            F::ReverbType => Byte(&mut state.reverb.fx_type),
+            F::ReverbLevel => Byte(&mut state.reverb.level),
+            F::ReverbOutputAssign => Byte(&mut state.reverb.output),
+            F::SoloPart => Byte(&mut state.solo_part),
+            _ => return None,
+        },
+    })
+}
+
+/// The [`EqState`] value an EQ field writes.
+fn eq_slot(eq: &mut EqState, field: MixerField) -> Option<Slot<'_>> {
+    use MixerField as F;
+    use Slot::{Byte, Flag};
+    Some(match field {
+        F::EqSwitch => Flag(&mut eq.enabled),
+        F::EqLowFreq => Byte(&mut eq.low_freq),
+        F::EqLowGain => Byte(&mut eq.low_gain),
+        F::EqMidFreq => Byte(&mut eq.mid_freq),
+        F::EqMidGain => Byte(&mut eq.mid_gain),
+        F::EqMidQ => Byte(&mut eq.mid_q),
+        F::EqHighFreq => Byte(&mut eq.high_freq),
+        F::EqHighGain => Byte(&mut eq.high_gain),
+        _ => return None,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -590,54 +683,6 @@ impl DeviceState {
     pub fn set_master_level(&mut self, value: u8) {
         self.state.master_level = value;
         self.send_dt1(&params::SYSTEM_MASTER_LEVEL, &[value]);
-    }
-
-    /// Set a Part EQ parameter.
-    ///
-    /// # Panics
-    /// Debug-asserts that `part` < 16.
-    pub fn set_part_eq_param(&mut self, part: u8, param_offset: u8, value: u8) {
-        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
-        let eq = &mut self.state.parts[part as usize].eq;
-        match param_offset {
-            0 => eq.enabled = value == 1,
-            1 => eq.low_freq = value,
-            2 => eq.low_gain = value,
-            3 => eq.mid_freq = value,
-            4 => eq.mid_gain = value,
-            5 => eq.mid_q = value,
-            6 => eq.high_freq = value,
-            7 => eq.high_gain = value,
-            _ => return,
-        }
-        let addr = params::part_eq_address(part, param_offset);
-        self.send_dt1(&addr, &[value]);
-    }
-
-    /// Set a Master EQ parameter.
-    pub fn set_master_eq_param(&mut self, param_offset: u8, value: u8) {
-        let eq = &mut self.state.master_eq;
-        match param_offset {
-            0 => eq.low_freq = value,
-            1 => eq.low_gain = value,
-            2 => eq.mid_freq = value,
-            3 => eq.mid_gain = value,
-            4 => eq.mid_q = value,
-            5 => eq.high_freq = value,
-            6 => eq.high_gain = value,
-            _ => return,
-        }
-        let addr = params::master_eq_address(param_offset);
-        self.send_dt1(&addr, &[value]);
-    }
-
-    /// Toggle the Master EQ switch.
-    pub fn toggle_master_eq_switch(&mut self) {
-        self.state.master_eq.enabled = !self.state.master_eq.enabled;
-        self.send_dt1(
-            &params::MASTER_EQ_SWITCH,
-            &[u8::from(self.state.master_eq.enabled)],
-        );
     }
 
     /// Set a chorus core parameter (type, level, output assign or output
@@ -1306,39 +1351,60 @@ impl DeviceState {
         self.send_dt1(&addr, &[value]);
     }
 
-    /// Set a parameter within a Comp+EQ unit.
-    ///
-    /// `unit` is 0–5, `param_offset` is a `comp::` or `comp_eq::` constant.
-    pub fn set_comp_eq_param(&mut self, unit: u8, param_offset: u8, value: u8) {
-        let u = &mut self.state.drum_comp_eq.units[unit as usize];
-        match param_offset {
-            0x00 => u.comp_switch = value == 1,
-            0x01 => u.comp_attack = value,
-            0x02 => u.comp_release = value,
-            0x03 => u.comp_threshold = value,
-            0x04 => u.comp_ratio = value,
-            0x05 => u.comp_output_gain = value,
-            0x06 => u.eq_switch = value == 1,
-            0x07 => u.eq_low_freq = value,
-            0x08 => u.eq_low_gain = value,
-            0x09 => u.eq_mid_freq = value,
-            0x0A => u.eq_mid_gain = value,
-            0x0B => u.eq_mid_q = value,
-            0x0C => u.eq_high_freq = value,
-            0x0D => u.eq_high_gain = value,
-            _ => return,
-        }
-        let part = self.state.drum_comp_eq.part;
-        let tone_type = self.comp_eq_tone_type();
-        let addr = params::comp_eq_param_address(part, tone_type, unit, param_offset);
-        self.send_dt1(&addr, &[value]);
-    }
-
-    /// Determine the tone type for the Comp+EQ assigned part.
-    fn comp_eq_tone_type(&self) -> ToneType {
+    /// The drum kit holding the Drum Comp+EQ units: the assigned part and
+    /// its tone type (PCM Drum when its bank is not a known tone type).
+    pub fn comp_eq_kit(&self) -> CompEqKit {
         let part = self.state.drum_comp_eq.part;
         let msb = self.state.parts[part as usize].tone_bank_msb;
-        params::tone_type_from_bank_msb(msb).unwrap_or(ToneType::PcmDrum)
+        CompEqKit {
+            part,
+            tone_type: params::tone_type_from_bank_msb(msb).unwrap_or(ToneType::PcmDrum),
+        }
+    }
+
+    /// The [`MixerScope`] of a scope kind and index: the part or Comp+EQ
+    /// unit index, ignored for the other kinds. A Comp+EQ unit lives in
+    /// the current [`comp_eq_kit`](Self::comp_eq_kit).
+    pub fn mixer_scope(&self, kind: MixerScopeKind, index: u8) -> MixerScope {
+        match kind {
+            MixerScopeKind::Part => MixerScope::Part(index),
+            MixerScopeKind::Ext => MixerScope::Ext,
+            MixerScopeKind::Master => MixerScope::Master,
+            MixerScopeKind::CompEqUnit => MixerScope::CompEqUnit {
+                kit: self.comp_eq_kit(),
+                unit: index,
+            },
+            MixerScopeKind::Common => MixerScope::Common,
+        }
+    }
+
+    /// Set a mixer field in a scope: update the state and send it to the
+    /// address core resolves for the scope ([`mixer_field_address`]).
+    ///
+    /// A switch or mute is on for any non-zero value.
+    ///
+    /// # Errors
+    ///
+    /// The [`MixerFieldError`] of [`mixer_field_address`]; nothing is
+    /// changed or sent.
+    pub fn set_mixer_field(
+        &mut self,
+        scope: MixerScope,
+        field: MixerField,
+        value: u8,
+    ) -> Result<(), MixerFieldError> {
+        let address = mixer_field_address(field, scope)?;
+        let slot =
+            mixer_slot(&mut self.state, scope, field).ok_or(MixerFieldError::NotInScope {
+                field,
+                scope: scope.kind(),
+            })?;
+        match slot {
+            Slot::Byte(byte) => *byte = value,
+            Slot::Flag(flag) => *flag = value != 0,
+        }
+        self.send_dt1(&address, &[value]);
+        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -1394,6 +1460,168 @@ mod tests {
     use super::*;
     use crate::expansions;
     use crate::sn_synth;
+
+    #[test]
+    fn set_mixer_field_writes_part_eq() {
+        let mut dev = DeviceState::new(0x10);
+        let scope = dev.mixer_scope(MixerScopeKind::Part, 4);
+        dev.set_mixer_field(scope, MixerField::EqMidGain, 20)
+            .unwrap();
+        assert_eq!(dev.state().parts[4].eq.mid_gain, 20);
+        let expected = sysex::build_dt1(
+            0x10,
+            &params::part_eq_address(4, params::part_eq::MID_GAIN),
+            &[20],
+        );
+        assert_eq!(dev.drain(0.0), Some(expected));
+    }
+
+    #[test]
+    fn set_mixer_field_switches_master_eq() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_mixer_field(MixerScope::Master, MixerField::EqSwitch, 0)
+            .unwrap();
+        assert!(!dev.state().master_eq.enabled);
+        let expected = sysex::build_dt1(0x10, &params::MASTER_EQ_SWITCH, &[0]);
+        assert_eq!(dev.drain(0.0), Some(expected));
+    }
+
+    #[test]
+    fn set_mixer_field_writes_the_assigned_kits_comp_eq_unit() {
+        let mut dev = DeviceState::new(0x10);
+        dev.state_mut().drum_comp_eq.part = 9;
+        dev.state_mut().parts[9].tone_bank_msb = 88; // SN Drum
+        let scope = dev.mixer_scope(MixerScopeKind::CompEqUnit, 3);
+        let kit = CompEqKit {
+            part: 9,
+            tone_type: ToneType::SnDrum,
+        };
+        assert_eq!(scope, MixerScope::CompEqUnit { kit, unit: 3 });
+        dev.set_mixer_field(scope, MixerField::EqHighFreq, 2)
+            .unwrap();
+        assert_eq!(dev.state().drum_comp_eq.units[3].eq_high_freq, 2);
+        let expected = sysex::build_dt1(
+            0x10,
+            &params::comp_eq_param_address(9, ToneType::SnDrum, 3, params::comp_eq::EQ_HIGH_FREQ),
+            &[2],
+        );
+        assert_eq!(dev.drain(0.0), Some(expected));
+    }
+
+    #[test]
+    fn set_mixer_field_rejects_a_field_outside_its_scope() {
+        let mut dev = DeviceState::new(0x10);
+        assert_eq!(
+            dev.set_mixer_field(MixerScope::Ext, MixerField::EqLowGain, 3),
+            Err(MixerFieldError::NotInScope {
+                field: MixerField::EqLowGain,
+                scope: MixerScopeKind::Ext,
+            })
+        );
+        assert!(!dev.has_pending());
+    }
+
+    #[test]
+    fn typed_setters_agree_with_mixer_field_addresses() {
+        type Set = fn(&mut DeviceState);
+        let cases: [(Set, MixerScope, MixerField); 13] = [
+            (
+                |d| d.set_part_level(2, 1),
+                MixerScope::Part(2),
+                MixerField::PartLevel,
+            ),
+            (
+                |d| d.set_part_pan(2, 1),
+                MixerScope::Part(2),
+                MixerField::PartPan,
+            ),
+            (
+                |d| d.set_part_mute(2, true),
+                MixerScope::Part(2),
+                MixerField::PartMute,
+            ),
+            (
+                |d| d.set_part_chorus_send(2, 1),
+                MixerScope::Part(2),
+                MixerField::PartChorusSend,
+            ),
+            (
+                |d| d.set_part_reverb_send(2, 1),
+                MixerScope::Part(2),
+                MixerField::PartReverbSend,
+            ),
+            (
+                |d| d.set_part_receive_channel(2, 1),
+                MixerScope::Part(2),
+                MixerField::PartReceiveChannel,
+            ),
+            (
+                |d| d.set_part_output_assign(2, 1),
+                MixerScope::Part(2),
+                MixerField::PartOutputAssign,
+            ),
+            (
+                |d| d.set_master_level(1),
+                MixerScope::Master,
+                MixerField::MasterLevel,
+            ),
+            (
+                |d| d.set_ext_level(1),
+                MixerScope::Ext,
+                MixerField::ExtLevel,
+            ),
+            (
+                |d| d.toggle_ext_mute(),
+                MixerScope::Ext,
+                MixerField::ExtMute,
+            ),
+            (
+                |d| d.toggle_chorus_switch(),
+                MixerScope::Common,
+                MixerField::ChorusSwitch,
+            ),
+            (
+                |d| d.set_reverb_param(params::reverb::LEVEL, 1),
+                MixerScope::Common,
+                MixerField::ReverbLevel,
+            ),
+            (
+                |d| d.set_solo_part(1),
+                MixerScope::Common,
+                MixerField::SoloPart,
+            ),
+        ];
+        for (set, scope, field) in cases {
+            let mut typed = DeviceState::new(0x10);
+            set(&mut typed);
+            let sent = typed.drain(0.0).unwrap();
+            let address = mixer_field_address(field, scope).unwrap();
+            // F0 41 <dev> 00 00 64 12, then the 4 address bytes.
+            assert_eq!(&sent[7..11], address.as_bytes(), "{field:?}");
+        }
+    }
+
+    #[test]
+    fn every_scoped_mixer_field_has_a_state_slot() {
+        let kinds = [
+            MixerScopeKind::Part,
+            MixerScopeKind::Ext,
+            MixerScopeKind::Master,
+            MixerScopeKind::CompEqUnit,
+            MixerScopeKind::Common,
+        ];
+        let mut dev = DeviceState::new(0x10);
+        for kind in kinds {
+            let scope = dev.mixer_scope(kind, 1);
+            for field in MixerField::ALL {
+                assert_eq!(
+                    mixer_slot(&mut dev.state, scope, field).is_some(),
+                    field.in_scope(kind),
+                    "{field:?} in {kind:?}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn chorus_output_assign_writes_its_own_offset() {

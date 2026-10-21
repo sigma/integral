@@ -1,13 +1,22 @@
 //! Parameter registry — definitions, formatting, and lookup for all
 //! controllable parameters on the Integra-7.
+//!
+//! Mixer parameters are named by the index-free [`MixerField`]. A
+//! [`MixerScope`] (a part, the Ext input, the master, a Drum Comp+EQ unit
+//! or the Studio Set common block) supplies the indices, and
+//! [`mixer_field_address`] resolves the write address of a field in a
+//! scope.
 
-use std::collections::BTreeMap;
 use std::fmt::Write;
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
 
+use thiserror::Error;
+
+use crate::address::Address;
 use crate::device_spec::{INTEGRA7, MIDI_CHANNELS};
 use crate::family::ParameterFamily;
-use crate::state::CompEqUnit;
+use crate::params::{self, ToneType};
+use crate::state::{CompEqUnit, EqState};
 
 /// How a parameter value should be displayed.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,10 +73,9 @@ fn note_name(value: i32) -> Option<&'static str> {
 
 /// Logical grouping for a parameter.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum ParamGroup {
-    /// Per-part parameter (0-based part index).
-    Part(u8),
+    /// Per-part parameter; the [`MixerScope::Part`] supplies the index.
+    Part,
     /// Master output.
     Master,
     /// External input.
@@ -84,12 +92,11 @@ pub enum ParamGroup {
     Global,
 }
 
-/// A single parameter definition.
+/// A single mixer parameter definition.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ParamDef {
-    /// Dot-separated identifier, e.g. `"part.0.level"`.
-    pub id: &'static str,
+    /// The index-free field this defines.
+    pub field: MixerField,
     /// Human-readable display name.
     pub name: &'static str,
     /// Which group this parameter belongs to.
@@ -99,14 +106,10 @@ pub struct ParamDef {
     /// Maximum raw value (inclusive).
     pub max: i32,
     /// Default raw value.
-    #[cfg_attr(feature = "serde", serde(rename = "default_value"))]
     pub default: i32,
     /// Display format.
     pub format: ParamFormat,
     /// The parameter's role in shaping the sound (ADR 0002).
-    ///
-    /// Not serialized here: the wasm layer emits it as its mirror enum.
-    #[cfg_attr(feature = "serde", serde(skip))]
     pub family: ParameterFamily,
 }
 
@@ -194,36 +197,377 @@ impl ParamFormat {
     }
 }
 
-/// Per-part parameter id suffixes, in registry order.
-const PART_PARAM_SUFFIXES: [&str; 7] = [
-    "level",
-    "pan",
-    "mute",
-    "chorus_send",
-    "reverb_send",
-    "output_assign",
-    "receive_channel",
-];
+// ---------------------------------------------------------------------------
+// Mixer fields and scopes
+// ---------------------------------------------------------------------------
 
-/// `part.<i>.<suffix>` ids for a given part count, one row per part.
-type PartIds = Vec<[&'static str; 7]>;
+/// A mixer parameter, named without indices.
+///
+/// The [`MixerScope`] a field is used in supplies the part or Comp+EQ unit
+/// index, so one layout can name `EqLowGain` for every part, the master
+/// and every Comp+EQ unit. [`MixerField::in_scope`] says which scopes a
+/// field belongs to; [`mixer_param`] gives its range and format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MixerField {
+    /// Part level (0–127).
+    PartLevel,
+    /// Part pan (0–127, 64 = centre).
+    PartPan,
+    /// Part mute (0 = OFF, 1 = ON).
+    PartMute,
+    /// Part chorus (FX1) send level (0–127).
+    PartChorusSend,
+    /// Part reverb (FX2) send level (0–127).
+    PartReverbSend,
+    /// Part output assign (an index into the device's output assigns).
+    PartOutputAssign,
+    /// Part receive channel (0–15 = MIDI channel 1–16).
+    PartReceiveChannel,
+    /// System master level (0–127).
+    MasterLevel,
+    /// External input level (0–127).
+    ExtLevel,
+    /// External input mute (0 = OFF, 1 = ON).
+    ExtMute,
+    /// Chorus switch (0 = OFF, 1 = ON).
+    ChorusSwitch,
+    /// Chorus type (0 = OFF).
+    ChorusType,
+    /// Chorus level (0–127).
+    ChorusLevel,
+    /// Chorus output assign.
+    ChorusOutputAssign,
+    /// Chorus output select.
+    ChorusOutputSelect,
+    /// Reverb switch (0 = OFF, 1 = ON).
+    ReverbSwitch,
+    /// Reverb type (0 = OFF).
+    ReverbType,
+    /// Reverb level (0–127).
+    ReverbLevel,
+    /// Reverb output assign.
+    ReverbOutputAssign,
+    /// Solo part (0 = OFF, 1–16 = that part).
+    SoloPart,
+    /// 3-band EQ switch (0 = OFF, 1 = ON).
+    EqSwitch,
+    /// EQ low band frequency (0 = 200 Hz, 1 = 400 Hz).
+    EqLowFreq,
+    /// EQ low band gain (0–30 = −15 to +15 dB).
+    EqLowGain,
+    /// EQ mid band frequency (0–16 = 200 Hz to 8 kHz).
+    EqMidFreq,
+    /// EQ mid band gain (0–30 = −15 to +15 dB).
+    EqMidGain,
+    /// EQ mid band Q (0–4 = 0.5 to 8.0).
+    EqMidQ,
+    /// EQ high band frequency (0–2 = 2, 4, 8 kHz).
+    EqHighFreq,
+    /// EQ high band gain (0–30 = −15 to +15 dB).
+    EqHighGain,
+    /// Comp+EQ compressor switch (0 = OFF, 1 = ON).
+    CompSwitch,
+    /// Comp+EQ compressor attack time.
+    CompAttack,
+    /// Comp+EQ compressor release time.
+    CompRelease,
+    /// Comp+EQ compressor threshold (0–127).
+    CompThreshold,
+    /// Comp+EQ compressor ratio.
+    CompRatio,
+    /// Comp+EQ compressor output gain (0–24 dB).
+    CompOutputGain,
+}
 
-/// Interns the part ids per part count, so `ParamDef` can borrow
-/// `'static` strings while each count is leaked at most once.
-fn part_ids(part_count: u8) -> &'static PartIds {
-    static CACHE: Mutex<BTreeMap<u8, &'static PartIds>> = Mutex::new(BTreeMap::new());
-    let mut cache = CACHE.lock().unwrap_or_else(|e| e.into_inner());
-    cache.entry(part_count).or_insert_with(|| {
-        Box::leak(Box::new(
-            (0..part_count)
-                .map(|i| {
-                    PART_PARAM_SUFFIXES
-                        .map(|suffix| &*Box::leak(format!("part.{i}.{suffix}").into_boxed_str()))
-                })
-                .collect(),
-        ))
+impl MixerField {
+    /// Every mixer field, in registry order.
+    pub const ALL: [MixerField; 34] = [
+        Self::PartLevel,
+        Self::PartPan,
+        Self::PartMute,
+        Self::PartChorusSend,
+        Self::PartReverbSend,
+        Self::PartOutputAssign,
+        Self::PartReceiveChannel,
+        Self::MasterLevel,
+        Self::ExtLevel,
+        Self::ExtMute,
+        Self::ChorusSwitch,
+        Self::ChorusType,
+        Self::ChorusLevel,
+        Self::ChorusOutputAssign,
+        Self::ChorusOutputSelect,
+        Self::ReverbSwitch,
+        Self::ReverbType,
+        Self::ReverbLevel,
+        Self::ReverbOutputAssign,
+        Self::SoloPart,
+        Self::EqSwitch,
+        Self::EqLowFreq,
+        Self::EqLowGain,
+        Self::EqMidFreq,
+        Self::EqMidGain,
+        Self::EqMidQ,
+        Self::EqHighFreq,
+        Self::EqHighGain,
+        Self::CompSwitch,
+        Self::CompAttack,
+        Self::CompRelease,
+        Self::CompThreshold,
+        Self::CompRatio,
+        Self::CompOutputGain,
+    ];
+
+    /// Whether the field exists in a scope of this kind.
+    pub fn in_scope(self, kind: MixerScopeKind) -> bool {
+        match kind {
+            MixerScopeKind::Part => part_offset(self).is_some() || part_eq_offset(self).is_some(),
+            MixerScopeKind::Ext => ext_address(self).is_some(),
+            MixerScopeKind::Master => {
+                self == Self::MasterLevel || master_eq_address(self).is_some()
+            }
+            MixerScopeKind::CompEqUnit => comp_eq_offset(self).is_some(),
+            MixerScopeKind::Common => common_address(self).is_some(),
+        }
+    }
+}
+
+/// The kind of a [`MixerScope`], without its indices.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MixerScopeKind {
+    /// A Studio Set part.
+    Part,
+    /// The external input.
+    Ext,
+    /// The master output and its EQ.
+    Master,
+    /// A Drum Comp+EQ unit.
+    CompEqUnit,
+    /// The Studio Set common block: Chorus, Reverb and Solo Part.
+    Common,
+}
+
+/// The drum kit whose tone holds the Drum Comp+EQ units: the assigned
+/// part and its tone type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompEqKit {
+    /// The Comp+EQ assigned part (0-based).
+    pub part: u8,
+    /// The tone type of that part's kit ([`ToneType::PcmDrum`] or
+    /// [`ToneType::SnDrum`]).
+    pub tone_type: ToneType,
+}
+
+/// Where a [`MixerField`] is written: the scope supplies the indices.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MixerScope {
+    /// A Studio Set part (0-based).
+    Part(u8),
+    /// The external input.
+    Ext,
+    /// The master output and its EQ.
+    Master,
+    /// A Drum Comp+EQ unit (0-based) in the assigned part's kit.
+    CompEqUnit {
+        /// The kit holding the units.
+        kit: CompEqKit,
+        /// The unit (0-based).
+        unit: u8,
+    },
+    /// The Studio Set common block.
+    Common,
+}
+
+impl MixerScope {
+    /// The scope's kind.
+    pub fn kind(&self) -> MixerScopeKind {
+        match self {
+            Self::Part(_) => MixerScopeKind::Part,
+            Self::Ext => MixerScopeKind::Ext,
+            Self::Master => MixerScopeKind::Master,
+            Self::CompEqUnit { .. } => MixerScopeKind::CompEqUnit,
+            Self::Common => MixerScopeKind::Common,
+        }
+    }
+}
+
+/// Why a [`MixerField`] has no address in a [`MixerScope`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum MixerFieldError {
+    /// The field doesn't exist in this kind of scope.
+    #[error("mixer field {field:?} is not in a {scope:?} scope")]
+    NotInScope {
+        /// The field.
+        field: MixerField,
+        /// The scope kind it was used in.
+        scope: MixerScopeKind,
+    },
+    /// The part index is past the device's last part.
+    #[error("part index {0} out of range")]
+    PartOutOfRange(u8),
+    /// The Comp+EQ unit index is past the last unit.
+    #[error("Comp+EQ unit {0} out of range")]
+    UnitOutOfRange(u8),
+}
+
+/// The field's offset in a Studio Set Part block.
+fn part_offset(field: MixerField) -> Option<[u8; 3]> {
+    use MixerField as F;
+    use params::part;
+    Some(match field {
+        F::PartLevel => part::LEVEL,
+        F::PartPan => part::PAN,
+        F::PartMute => part::MUTE,
+        F::PartChorusSend => part::CHORUS_SEND,
+        F::PartReverbSend => part::REVERB_SEND,
+        F::PartOutputAssign => part::OUTPUT_ASSIGN,
+        F::PartReceiveChannel => part::RECEIVE_CHANNEL,
+        _ => return None,
     })
 }
+
+/// The EQ field's offset in a Studio Set Part EQ block.
+fn part_eq_offset(field: MixerField) -> Option<u8> {
+    use MixerField as F;
+    use params::part_eq;
+    Some(match field {
+        F::EqSwitch => part_eq::SWITCH,
+        F::EqLowFreq => part_eq::LOW_FREQ,
+        F::EqLowGain => part_eq::LOW_GAIN,
+        F::EqMidFreq => part_eq::MID_FREQ,
+        F::EqMidGain => part_eq::MID_GAIN,
+        F::EqMidQ => part_eq::MID_Q,
+        F::EqHighFreq => part_eq::HIGH_FREQ,
+        F::EqHighGain => part_eq::HIGH_GAIN,
+        _ => return None,
+    })
+}
+
+/// The address of a Master EQ field. Its switch sits in the Studio Set
+/// common block, not in the Master EQ block.
+fn master_eq_address(field: MixerField) -> Option<Address> {
+    use MixerField as F;
+    use params::master_eq;
+    let offset = match field {
+        F::EqSwitch => return Some(params::MASTER_EQ_SWITCH),
+        F::EqLowFreq => master_eq::LOW_FREQ,
+        F::EqLowGain => master_eq::LOW_GAIN,
+        F::EqMidFreq => master_eq::MID_FREQ,
+        F::EqMidGain => master_eq::MID_GAIN,
+        F::EqMidQ => master_eq::MID_Q,
+        F::EqHighFreq => master_eq::HIGH_FREQ,
+        F::EqHighGain => master_eq::HIGH_GAIN,
+        _ => return None,
+    };
+    Some(params::master_eq_address(offset))
+}
+
+/// The field's offset in a 14-byte Comp+EQ unit.
+fn comp_eq_offset(field: MixerField) -> Option<u8> {
+    use MixerField as F;
+    use params::{comp, comp_eq};
+    Some(match field {
+        F::CompSwitch => comp::SWITCH,
+        F::CompAttack => comp::ATTACK,
+        F::CompRelease => comp::RELEASE,
+        F::CompThreshold => comp::THRESHOLD,
+        F::CompRatio => comp::RATIO,
+        F::CompOutputGain => comp::OUTPUT_GAIN,
+        F::EqSwitch => comp_eq::EQ_SWITCH,
+        F::EqLowFreq => comp_eq::EQ_LOW_FREQ,
+        F::EqLowGain => comp_eq::EQ_LOW_GAIN,
+        F::EqMidFreq => comp_eq::EQ_MID_FREQ,
+        F::EqMidGain => comp_eq::EQ_MID_GAIN,
+        F::EqMidQ => comp_eq::EQ_MID_Q,
+        F::EqHighFreq => comp_eq::EQ_HIGH_FREQ,
+        F::EqHighGain => comp_eq::EQ_HIGH_GAIN,
+        _ => return None,
+    })
+}
+
+/// The address of an external input field.
+fn ext_address(field: MixerField) -> Option<Address> {
+    match field {
+        MixerField::ExtLevel => Some(params::EXT_PART_LEVEL),
+        MixerField::ExtMute => Some(params::EXT_PART_MUTE),
+        _ => None,
+    }
+}
+
+/// The address of a Studio Set common field.
+fn common_address(field: MixerField) -> Option<Address> {
+    use MixerField as F;
+    use params::{chorus, reverb};
+    Some(match field {
+        F::ChorusSwitch => params::CHORUS_SWITCH,
+        F::ChorusType => params::chorus_address(chorus::TYPE),
+        F::ChorusLevel => params::chorus_address(chorus::LEVEL),
+        F::ChorusOutputAssign => params::chorus_address(chorus::OUTPUT_ASSIGN),
+        F::ChorusOutputSelect => params::chorus_address(chorus::OUTPUT_SELECT),
+        F::ReverbSwitch => params::REVERB_SWITCH,
+        F::ReverbType => params::reverb_address(reverb::TYPE),
+        F::ReverbLevel => params::reverb_address(reverb::LEVEL),
+        F::ReverbOutputAssign => params::reverb_address(reverb::OUTPUT_ASSIGN),
+        F::SoloPart => params::SOLO_PART,
+        _ => return None,
+    })
+}
+
+/// The address a value of `field` is written to in `scope`.
+///
+/// One function serves every scope: an EQ field resolves to the Part EQ,
+/// Master EQ or Comp+EQ unit block by the scope it is used in.
+///
+/// # Errors
+///
+/// [`MixerFieldError::NotInScope`] if the field doesn't exist in the
+/// scope's kind (see [`MixerField::in_scope`]), and
+/// [`MixerFieldError::PartOutOfRange`] or
+/// [`MixerFieldError::UnitOutOfRange`] for an index past the device's
+/// parts or Comp+EQ units (for a Comp+EQ unit, either its kit's part or
+/// the unit).
+pub fn mixer_field_address(
+    field: MixerField,
+    scope: MixerScope,
+) -> Result<Address, MixerFieldError> {
+    let check_part = |part: u8| {
+        if part < INTEGRA7.part_count {
+            Ok(())
+        } else {
+            Err(MixerFieldError::PartOutOfRange(part))
+        }
+    };
+    let address = match scope {
+        MixerScope::Part(part) => {
+            check_part(part)?;
+            part_offset(field)
+                .map(|offset| params::part_address(part, offset))
+                .or_else(|| part_eq_offset(field).map(|o| params::part_eq_address(part, o)))
+        }
+        MixerScope::Ext => ext_address(field),
+        MixerScope::Master => match field {
+            MixerField::MasterLevel => Some(params::SYSTEM_MASTER_LEVEL),
+            _ => master_eq_address(field),
+        },
+        MixerScope::CompEqUnit { kit, unit } => {
+            check_part(kit.part)?;
+            if usize::from(unit) >= params::COMP_EQ_UNIT_COUNT {
+                return Err(MixerFieldError::UnitOutOfRange(unit));
+            }
+            comp_eq_offset(field)
+                .map(|offset| params::comp_eq_param_address(kit.part, kit.tone_type, unit, offset))
+        }
+        MixerScope::Common => common_address(field),
+    };
+    address.ok_or(MixerFieldError::NotInScope {
+        field,
+        scope: scope.kind(),
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Mixer parameter definitions
+// ---------------------------------------------------------------------------
 
 /// Receive-channel labels `"1"..="16"`, one per [`MIDI_CHANNELS`].
 fn channel_names() -> &'static [&'static str] {
@@ -235,368 +579,239 @@ fn channel_names() -> &'static [&'static str] {
     })
 }
 
-/// Generate all mixer parameter definitions.
+/// Mixer EQ frequency and Q labels, shared by parts, master and Drum
+/// Comp+EQ units.
+static EQ_LOW_FREQ_NAMES: &[&str] = &["200", "400"];
+static EQ_MID_FREQ_NAMES: &[&str] = &[
+    "200", "250", "315", "400", "500", "630", "800", "1.0k", "1.2k", "1.6k", "2.0k", "2.5k",
+    "3.1k", "4.0k", "5.0k", "6.3k", "8.0k",
+];
+static EQ_HIGH_FREQ_NAMES: &[&str] = &["2.0k", "4.0k", "8.0k"];
+static EQ_Q_NAMES: &[&str] = &["0.5", "1.0", "2.0", "4.0", "8.0"];
+
+/// The definition of a mixer field: its name, range, default, format and
+/// family.
 ///
-/// This includes per-part parameters ([`DeviceSpec::part_count`] parts x 7
-/// params each), master, external input, chorus, reverb, the solo-part
-/// selector, the shared mixer EQ bands and the Drum Comp+EQ compressor.
-///
-/// [`DeviceSpec::part_count`]: crate::device_spec::DeviceSpec::part_count
-pub fn mixer_params() -> Vec<ParamDef> {
-    mixer_params_for(INTEGRA7.part_count)
+/// The definition is index-free. `PartReceiveChannel` defaults to
+/// channel 1, Part 1's; Part *n* starts on channel *n*.
+pub fn mixer_param(field: MixerField) -> ParamDef {
+    mixer_param_for(field, INTEGRA7.part_count)
 }
 
-/// [`mixer_params`] for an arbitrary part count.
-fn mixer_params_for(part_count: u8) -> Vec<ParamDef> {
-    // 7 per part + 1 master + 2 ext + 4 chorus + 4 reverb + 1 solo + 7 EQ + 6 Comp
-    let mut params = Vec::with_capacity(usize::from(part_count) * 7 + 25);
+/// [`mixer_param`] for a device with `part_count` parts.
+fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
+    use MixerField as F;
+    use ParamFormat::{Named, OnOff, Raw, SignedCenter};
+    use ParameterFamily::{Amp, Common, Filter, Time};
 
     let spec = &INTEGRA7;
     let last = |names: &[&str]| names.len() as i32 - 1;
-    let channel_names = channel_names();
-
-    for (i, ids) in (0u8..).zip(part_ids(part_count)) {
-        let [
-            level_id,
-            pan_id,
-            mute_id,
-            chorus_send_id,
-            reverb_send_id,
-            output_assign_id,
-            receive_channel_id,
-        ] = *ids;
-        params.push(ParamDef {
-            id: level_id,
-            name: "Level",
-            group: ParamGroup::Part(i),
-            min: 0,
-            max: 127,
-            default: 100,
-            format: ParamFormat::Raw,
-            family: ParameterFamily::Amp,
-        });
-        params.push(ParamDef {
-            id: pan_id,
-            name: "Pan",
-            group: ParamGroup::Part(i),
-            min: 0,
-            max: 127,
-            default: 64,
-            format: ParamFormat::SignedCenter(64),
-            family: ParameterFamily::Time,
-        });
-        params.push(ParamDef {
-            id: mute_id,
-            name: "Mute",
-            group: ParamGroup::Part(i),
-            min: 0,
-            max: 1,
-            default: 0,
-            format: ParamFormat::OnOff,
-            family: ParameterFamily::Common,
-        });
-        params.push(ParamDef {
-            id: chorus_send_id,
-            name: "FX1",
-            group: ParamGroup::Part(i),
-            min: 0,
-            max: 127,
-            default: 0,
-            format: ParamFormat::Raw,
-            family: ParameterFamily::Amp,
-        });
-        params.push(ParamDef {
-            id: reverb_send_id,
-            name: "FX2",
-            group: ParamGroup::Part(i),
-            min: 0,
-            max: 127,
-            default: 0,
-            format: ParamFormat::Raw,
-            family: ParameterFamily::Amp,
-        });
-        params.push(ParamDef {
-            id: output_assign_id,
-            name: "Output Assign",
-            group: ParamGroup::Part(i),
-            min: 0,
-            max: last(spec.output_assigns),
-            default: 0,
-            format: ParamFormat::Named(spec.output_assigns),
-            family: ParameterFamily::Common,
-        });
-        params.push(ParamDef {
-            id: receive_channel_id,
-            name: "Receive Channel",
-            group: ParamGroup::Part(i),
-            min: 0,
-            max: last(channel_names),
-            default: i32::from(i),
-            format: ParamFormat::Named(channel_names),
-            family: ParameterFamily::Common,
-        });
-    }
-
-    // Master
-    params.push(ParamDef {
-        id: "master.level",
-        name: "Master Level",
-        group: ParamGroup::Master,
-        min: 0,
-        max: 127,
-        default: 100,
-        format: ParamFormat::Raw,
-        family: ParameterFamily::Amp,
-    });
-
-    // Ext
-    params.push(ParamDef {
-        id: "ext.level",
-        name: "Ext Level",
-        group: ParamGroup::Ext,
-        min: 0,
-        max: 127,
-        default: 100,
-        format: ParamFormat::Raw,
-        family: ParameterFamily::Amp,
-    });
-    params.push(ParamDef {
-        id: "ext.mute",
-        name: "Ext Mute",
-        group: ParamGroup::Ext,
-        min: 0,
-        max: 1,
-        default: 0,
-        format: ParamFormat::OnOff,
-        family: ParameterFamily::Common,
-    });
-
-    // Chorus
-    params.push(ParamDef {
-        id: "chorus.enabled",
-        name: "Chorus",
-        group: ParamGroup::Chorus,
-        min: 0,
-        max: 1,
-        default: 1,
-        format: ParamFormat::OnOff,
-        family: ParameterFamily::Common,
-    });
-    params.push(ParamDef {
-        id: "chorus.type",
-        name: "Chorus Type",
-        group: ParamGroup::Chorus,
-        min: 0,
-        max: last(spec.chorus_type_names),
-        default: 0,
-        format: ParamFormat::Named(spec.chorus_type_names),
-        family: ParameterFamily::Common,
-    });
-    params.push(ParamDef {
-        id: "chorus.level",
-        name: "Chorus Level",
-        group: ParamGroup::Chorus,
-        min: 0,
-        max: 127,
-        default: 0,
-        format: ParamFormat::Raw,
-        family: ParameterFamily::Amp,
-    });
-    params.push(ParamDef {
-        id: "chorus.output_assign",
-        name: "Chorus Output Assign",
-        group: ParamGroup::Chorus,
-        min: 0,
-        max: last(spec.output_assign_names),
-        default: 0,
-        format: ParamFormat::Named(spec.output_assign_names),
-        family: ParameterFamily::Common,
-    });
-    params.push(ParamDef {
-        id: "chorus.output",
-        name: "Chorus Output Select",
-        group: ParamGroup::Chorus,
-        min: 0,
-        max: last(spec.chorus_output_names),
-        default: 0,
-        format: ParamFormat::Named(spec.chorus_output_names),
-        family: ParameterFamily::Common,
-    });
-
-    // Reverb
-    params.push(ParamDef {
-        id: "reverb.enabled",
-        name: "Reverb",
-        group: ParamGroup::Reverb,
-        min: 0,
-        max: 1,
-        default: 1,
-        format: ParamFormat::OnOff,
-        family: ParameterFamily::Common,
-    });
-    params.push(ParamDef {
-        id: "reverb.type",
-        name: "Reverb Type",
-        group: ParamGroup::Reverb,
-        min: 0,
-        max: last(spec.reverb_type_names),
-        default: 0,
-        format: ParamFormat::Named(spec.reverb_type_names),
-        family: ParameterFamily::Common,
-    });
-    params.push(ParamDef {
-        id: "reverb.level",
-        name: "Reverb Level",
-        group: ParamGroup::Reverb,
-        min: 0,
-        max: 127,
-        default: 0,
-        format: ParamFormat::Raw,
-        family: ParameterFamily::Amp,
-    });
-    params.push(ParamDef {
-        id: "reverb.output",
-        name: "Reverb Output Assign",
-        group: ParamGroup::Reverb,
-        min: 0,
-        max: last(spec.output_assign_names),
-        default: 0,
-        format: ParamFormat::Named(spec.output_assign_names),
-        family: ParameterFamily::Common,
-    });
-
-    // Solo part
-    params.push(ParamDef {
-        id: "solo_part",
-        name: "Solo Part",
-        group: ParamGroup::Global,
-        min: 0,
-        max: i32::from(part_count),
-        default: 0,
-        format: ParamFormat::Raw,
-        family: ParameterFamily::Common,
-    });
-
-    // Mixer EQ: part, master and Drum Comp+EQ units share these ranges.
-    static EQ_LOW_FREQ_NAMES: &[&str] = &["200", "400"];
-    static EQ_MID_FREQ_NAMES: &[&str] = &[
-        "200", "250", "315", "400", "500", "630", "800", "1.0k", "1.2k", "1.6k", "2.0k", "2.5k",
-        "3.1k", "4.0k", "5.0k", "6.3k", "8.0k",
-    ];
-    static EQ_HIGH_FREQ_NAMES: &[&str] = &["2.0k", "4.0k", "8.0k"];
-    static EQ_Q_NAMES: &[&str] = &["0.5", "1.0", "2.0", "4.0", "8.0"];
-
-    // Gains and frequencies all shape the spectrum.
-    let eq = |id, name, max, default, format| ParamDef {
-        id,
-        name,
-        group: ParamGroup::Eq,
-        min: 0,
-        max,
-        default,
-        format,
-        family: ParameterFamily::Filter,
-    };
-    let gain = || ParamFormat::SignedCenter(15);
-    params.push(eq(
-        "eq.low_freq",
-        "Low Freq",
-        1,
-        1,
-        ParamFormat::Named(EQ_LOW_FREQ_NAMES),
-    ));
-    params.push(eq("eq.low_gain", "Low Gain", 30, 15, gain()));
-    params.push(eq(
-        "eq.mid_freq",
-        "Mid Freq",
-        16,
-        7,
-        ParamFormat::Named(EQ_MID_FREQ_NAMES),
-    ));
-    params.push(eq("eq.mid_gain", "Mid Gain", 30, 15, gain()));
-    params.push(eq(
-        "eq.mid_q",
-        "Mid Q",
-        4,
-        0,
-        ParamFormat::Named(EQ_Q_NAMES),
-    ));
-    params.push(eq(
-        "eq.high_freq",
-        "High Freq",
-        2,
-        1,
-        ParamFormat::Named(EQ_HIGH_FREQ_NAMES),
-    ));
-    params.push(eq("eq.high_gain", "High Gain", 30, 15, gain()));
-
-    // Drum Comp+EQ compressor: every unit shares these ranges and defaults.
+    let eq = EqState::default();
     let unit = CompEqUnit::default();
-    let comp = |id, name, max, default, format, family| ParamDef {
-        id,
+    let def = |name, group, max, default, format, family| ParamDef {
+        field,
         name,
-        group: ParamGroup::Comp,
+        group,
         min: 0,
         max,
         default,
         format,
         family,
     };
-    params.push(comp(
-        "comp.switch",
-        "Comp Switch",
-        1,
-        i32::from(unit.comp_switch),
-        ParamFormat::OnOff,
-        ParameterFamily::Common,
-    ));
-    params.push(comp(
-        "comp.attack",
-        "Attack",
-        last(spec.comp_attack_times),
-        i32::from(unit.comp_attack),
-        ParamFormat::Named(spec.comp_attack_times),
-        ParameterFamily::Amp,
-    ));
-    params.push(comp(
-        "comp.release",
-        "Release",
-        last(spec.comp_release_times),
-        i32::from(unit.comp_release),
-        ParamFormat::Named(spec.comp_release_times),
-        ParameterFamily::Amp,
-    ));
-    params.push(comp(
-        "comp.threshold",
-        "Threshold",
-        127,
-        i32::from(unit.comp_threshold),
-        ParamFormat::Raw,
-        ParameterFamily::Amp,
-    ));
-    params.push(comp(
-        "comp.ratio",
-        "Ratio",
-        last(spec.comp_ratios),
-        i32::from(unit.comp_ratio),
-        ParamFormat::Named(spec.comp_ratios),
-        ParameterFamily::Amp,
-    ));
-    params.push(comp(
-        "comp.output_gain",
-        "Output Gain",
-        24,
-        i32::from(unit.comp_output_gain),
-        ParamFormat::SignedCenter(0),
-        ParameterFamily::Amp,
-    ));
+    let eq_gain = SignedCenter(15);
 
-    params
-}
-
-/// Look up a parameter definition by its string id.
-pub fn lookup<'a>(params: &'a [ParamDef], id: &str) -> Option<&'a ParamDef> {
-    params.iter().find(|p| p.id == id)
+    match field {
+        F::PartLevel => def("Level", ParamGroup::Part, 127, 100, Raw, Amp),
+        F::PartPan => def("Pan", ParamGroup::Part, 127, 64, SignedCenter(64), Time),
+        F::PartMute => def("Mute", ParamGroup::Part, 1, 0, OnOff, Common),
+        F::PartChorusSend => def("FX1", ParamGroup::Part, 127, 0, Raw, Amp),
+        F::PartReverbSend => def("FX2", ParamGroup::Part, 127, 0, Raw, Amp),
+        F::PartOutputAssign => def(
+            "Output Assign",
+            ParamGroup::Part,
+            last(spec.output_assigns),
+            0,
+            Named(spec.output_assigns),
+            Common,
+        ),
+        F::PartReceiveChannel => def(
+            "Receive Channel",
+            ParamGroup::Part,
+            last(channel_names()),
+            0,
+            Named(channel_names()),
+            Common,
+        ),
+        F::MasterLevel => def("Master Level", ParamGroup::Master, 127, 100, Raw, Amp),
+        F::ExtLevel => def("Ext Level", ParamGroup::Ext, 127, 100, Raw, Amp),
+        F::ExtMute => def("Ext Mute", ParamGroup::Ext, 1, 0, OnOff, Common),
+        F::ChorusSwitch => def("Chorus", ParamGroup::Chorus, 1, 1, OnOff, Common),
+        F::ChorusType => def(
+            "Chorus Type",
+            ParamGroup::Chorus,
+            last(spec.chorus_type_names),
+            0,
+            Named(spec.chorus_type_names),
+            Common,
+        ),
+        F::ChorusLevel => def("Chorus Level", ParamGroup::Chorus, 127, 0, Raw, Amp),
+        F::ChorusOutputAssign => def(
+            "Chorus Output Assign",
+            ParamGroup::Chorus,
+            last(spec.output_assign_names),
+            0,
+            Named(spec.output_assign_names),
+            Common,
+        ),
+        F::ChorusOutputSelect => def(
+            "Chorus Output Select",
+            ParamGroup::Chorus,
+            last(spec.chorus_output_names),
+            0,
+            Named(spec.chorus_output_names),
+            Common,
+        ),
+        F::ReverbSwitch => def("Reverb", ParamGroup::Reverb, 1, 1, OnOff, Common),
+        F::ReverbType => def(
+            "Reverb Type",
+            ParamGroup::Reverb,
+            last(spec.reverb_type_names),
+            0,
+            Named(spec.reverb_type_names),
+            Common,
+        ),
+        F::ReverbLevel => def("Reverb Level", ParamGroup::Reverb, 127, 0, Raw, Amp),
+        F::ReverbOutputAssign => def(
+            "Reverb Output Assign",
+            ParamGroup::Reverb,
+            last(spec.output_assign_names),
+            0,
+            Named(spec.output_assign_names),
+            Common,
+        ),
+        F::SoloPart => def(
+            "Solo Part",
+            ParamGroup::Global,
+            i32::from(part_count),
+            0,
+            Raw,
+            Common,
+        ),
+        // Gains and frequencies all shape the spectrum.
+        F::EqSwitch => def(
+            "EQ Switch",
+            ParamGroup::Eq,
+            1,
+            i32::from(eq.enabled),
+            OnOff,
+            Common,
+        ),
+        F::EqLowFreq => def(
+            "Low Freq",
+            ParamGroup::Eq,
+            last(EQ_LOW_FREQ_NAMES),
+            i32::from(eq.low_freq),
+            Named(EQ_LOW_FREQ_NAMES),
+            Filter,
+        ),
+        F::EqLowGain => def(
+            "Low Gain",
+            ParamGroup::Eq,
+            30,
+            i32::from(eq.low_gain),
+            eq_gain,
+            Filter,
+        ),
+        F::EqMidFreq => def(
+            "Mid Freq",
+            ParamGroup::Eq,
+            last(EQ_MID_FREQ_NAMES),
+            i32::from(eq.mid_freq),
+            Named(EQ_MID_FREQ_NAMES),
+            Filter,
+        ),
+        F::EqMidGain => def(
+            "Mid Gain",
+            ParamGroup::Eq,
+            30,
+            i32::from(eq.mid_gain),
+            eq_gain,
+            Filter,
+        ),
+        F::EqMidQ => def(
+            "Mid Q",
+            ParamGroup::Eq,
+            last(EQ_Q_NAMES),
+            i32::from(eq.mid_q),
+            Named(EQ_Q_NAMES),
+            Filter,
+        ),
+        F::EqHighFreq => def(
+            "High Freq",
+            ParamGroup::Eq,
+            last(EQ_HIGH_FREQ_NAMES),
+            i32::from(eq.high_freq),
+            Named(EQ_HIGH_FREQ_NAMES),
+            Filter,
+        ),
+        F::EqHighGain => def(
+            "High Gain",
+            ParamGroup::Eq,
+            30,
+            i32::from(eq.high_gain),
+            eq_gain,
+            Filter,
+        ),
+        // Drum Comp+EQ compressor: every unit shares these ranges and defaults.
+        F::CompSwitch => def(
+            "Comp Switch",
+            ParamGroup::Comp,
+            1,
+            i32::from(unit.comp_switch),
+            OnOff,
+            Common,
+        ),
+        F::CompAttack => def(
+            "Attack",
+            ParamGroup::Comp,
+            last(spec.comp_attack_times),
+            i32::from(unit.comp_attack),
+            Named(spec.comp_attack_times),
+            Amp,
+        ),
+        F::CompRelease => def(
+            "Release",
+            ParamGroup::Comp,
+            last(spec.comp_release_times),
+            i32::from(unit.comp_release),
+            Named(spec.comp_release_times),
+            Amp,
+        ),
+        F::CompThreshold => def(
+            "Threshold",
+            ParamGroup::Comp,
+            127,
+            i32::from(unit.comp_threshold),
+            Raw,
+            Amp,
+        ),
+        F::CompRatio => def(
+            "Ratio",
+            ParamGroup::Comp,
+            last(spec.comp_ratios),
+            i32::from(unit.comp_ratio),
+            Named(spec.comp_ratios),
+            Amp,
+        ),
+        F::CompOutputGain => def(
+            "Output Gain",
+            ParamGroup::Comp,
+            24,
+            i32::from(unit.comp_output_gain),
+            SignedCenter(0),
+            Amp,
+        ),
+    }
 }
 
 #[cfg(test)]
@@ -604,125 +819,314 @@ mod tests {
     use super::*;
 
     #[test]
-    fn mixer_param_count() {
-        let params = mixer_params();
-        // 16 parts * 7 params + 1 master + 2 ext + 5 chorus + 4 reverb + 1 solo + 7 EQ
-        // + 6 Comp = 138
-        assert_eq!(params.len(), 138);
+    fn all_lists_every_field_once() {
+        let mut seen = std::collections::HashSet::new();
+        for field in MixerField::ALL {
+            assert!(seen.insert(field), "{field:?} listed twice");
+            assert_eq!(mixer_param(field).field, field);
+        }
     }
 
     #[test]
-    fn part_count_drives_mixer_params() {
-        let params = mixer_params_for(4);
-        assert_eq!(params.len(), 4 * 7 + 26);
-        assert!(lookup(&params, "part.3.level").is_some());
-        assert!(lookup(&params, "part.4.level").is_none());
-        let rx = lookup(&params, "part.3.receive_channel").unwrap();
+    fn every_field_has_a_scope() {
+        use MixerScopeKind as K;
+        let kinds = [K::Part, K::Ext, K::Master, K::CompEqUnit, K::Common];
+        for field in MixerField::ALL {
+            assert!(
+                kinds.iter().any(|&k| field.in_scope(k)),
+                "{field:?} has no scope"
+            );
+        }
+    }
+
+    /// One scope of each kind, with its indices.
+    fn scopes() -> [MixerScope; 5] {
+        let kit = CompEqKit {
+            part: 9,
+            tone_type: ToneType::PcmDrum,
+        };
+        [
+            MixerScope::Part(3),
+            MixerScope::Ext,
+            MixerScope::Master,
+            MixerScope::CompEqUnit { kit, unit: 2 },
+            MixerScope::Common,
+        ]
+    }
+
+    #[test]
+    fn in_scope_matches_address_resolution() {
+        for field in MixerField::ALL {
+            for scope in scopes() {
+                assert_eq!(
+                    mixer_field_address(field, scope).is_ok(),
+                    field.in_scope(scope.kind()),
+                    "{field:?} in {scope:?}"
+                );
+            }
+        }
+    }
+
+    /// Every EQ field, with its offset in the Part EQ, Master EQ and
+    /// Comp+EQ unit blocks as the strips hand-mapped them (part base 1,
+    /// master base 0, Comp+EQ `0x07 + offset`, switches apart).
+    const EQ_OFFSETS: [(MixerField, u8, u8, u8); 7] = [
+        (MixerField::EqLowFreq, 1, 0, 0x07),
+        (MixerField::EqLowGain, 2, 1, 0x08),
+        (MixerField::EqMidFreq, 3, 2, 0x09),
+        (MixerField::EqMidGain, 4, 3, 0x0A),
+        (MixerField::EqMidQ, 5, 4, 0x0B),
+        (MixerField::EqHighFreq, 6, 5, 0x0C),
+        (MixerField::EqHighGain, 7, 6, 0x0D),
+    ];
+
+    #[test]
+    fn eq_fields_resolve_per_scope() {
+        let kit = CompEqKit {
+            part: 9,
+            tone_type: ToneType::SnDrum,
+        };
+        for (field, part_off, master_off, unit_off) in EQ_OFFSETS {
+            assert_eq!(
+                mixer_field_address(field, MixerScope::Part(5)),
+                Ok(params::part_eq_address(5, part_off)),
+                "{field:?} part"
+            );
+            assert_eq!(
+                mixer_field_address(field, MixerScope::Master),
+                Ok(params::master_eq_address(master_off)),
+                "{field:?} master"
+            );
+            assert_eq!(
+                mixer_field_address(field, MixerScope::CompEqUnit { kit, unit: 4 }),
+                Ok(params::comp_eq_param_address(
+                    9,
+                    ToneType::SnDrum,
+                    4,
+                    unit_off
+                )),
+                "{field:?} Comp+EQ"
+            );
+        }
+    }
+
+    #[test]
+    fn eq_switch_resolves_per_scope() {
+        let kit = CompEqKit {
+            part: 0,
+            tone_type: ToneType::PcmDrum,
+        };
+        let switch = MixerField::EqSwitch;
+        assert_eq!(
+            mixer_field_address(switch, MixerScope::Part(15)),
+            Ok(params::part_eq_address(15, 0x00))
+        );
+        assert_eq!(
+            mixer_field_address(switch, MixerScope::Master),
+            Ok(params::MASTER_EQ_SWITCH)
+        );
+        assert_eq!(
+            mixer_field_address(switch, MixerScope::CompEqUnit { kit, unit: 0 }),
+            Ok(params::comp_eq_param_address(0, ToneType::PcmDrum, 0, 0x06))
+        );
+        assert!(!switch.in_scope(MixerScopeKind::Ext));
+    }
+
+    #[test]
+    fn comp_fields_resolve_in_their_unit() {
+        let kit = CompEqKit {
+            part: 2,
+            tone_type: ToneType::PcmDrum,
+        };
+        let comp = [
+            MixerField::CompSwitch,
+            MixerField::CompAttack,
+            MixerField::CompRelease,
+            MixerField::CompThreshold,
+            MixerField::CompRatio,
+            MixerField::CompOutputGain,
+        ];
+        for (offset, field) in (0u8..).zip(comp) {
+            assert_eq!(
+                mixer_field_address(field, MixerScope::CompEqUnit { kit, unit: 5 }),
+                Ok(params::comp_eq_param_address(
+                    2,
+                    ToneType::PcmDrum,
+                    5,
+                    offset
+                )),
+                "{field:?}"
+            );
+            assert!(!field.in_scope(MixerScopeKind::Part), "{field:?}");
+        }
+    }
+
+    #[test]
+    fn strip_fields_resolve_to_their_blocks() {
+        assert_eq!(
+            mixer_field_address(MixerField::PartChorusSend, MixerScope::Part(1)),
+            Ok(params::part_address(1, params::part::CHORUS_SEND))
+        );
+        assert_eq!(
+            mixer_field_address(MixerField::ExtMute, MixerScope::Ext),
+            Ok(params::EXT_PART_MUTE)
+        );
+        assert_eq!(
+            mixer_field_address(MixerField::MasterLevel, MixerScope::Master),
+            Ok(params::SYSTEM_MASTER_LEVEL)
+        );
+        assert_eq!(
+            mixer_field_address(MixerField::ReverbOutputAssign, MixerScope::Common),
+            Ok(params::reverb_address(params::reverb::OUTPUT_ASSIGN))
+        );
+    }
+
+    #[test]
+    fn out_of_scope_and_range_are_errors() {
+        assert_eq!(
+            mixer_field_address(MixerField::PartLevel, MixerScope::Master),
+            Err(MixerFieldError::NotInScope {
+                field: MixerField::PartLevel,
+                scope: MixerScopeKind::Master,
+            })
+        );
+        assert_eq!(
+            mixer_field_address(MixerField::EqLowGain, MixerScope::Part(16)),
+            Err(MixerFieldError::PartOutOfRange(16))
+        );
+        let kit = CompEqKit {
+            part: 0,
+            tone_type: ToneType::PcmDrum,
+        };
+        assert_eq!(
+            mixer_field_address(
+                MixerField::CompRatio,
+                MixerScope::CompEqUnit { kit, unit: 6 }
+            ),
+            Err(MixerFieldError::UnitOutOfRange(6))
+        );
+    }
+
+    #[test]
+    fn part_count_drives_solo_part() {
+        assert_eq!(mixer_param_for(MixerField::SoloPart, 4).max, 4);
+        let rx = mixer_param(MixerField::PartReceiveChannel);
         // Receive channels follow MIDI, not the part count.
-        assert_eq!((rx.max, rx.default), (i32::from(MIDI_CHANNELS) - 1, 3));
-        assert_eq!(format_value(rx, 15), "16");
-        assert_eq!(lookup(&params, "solo_part").unwrap().max, 4);
+        assert_eq!(rx.max, i32::from(MIDI_CHANNELS) - 1);
+        assert_eq!(format_value(&rx, 15), "16");
     }
 
     #[test]
-    fn lookup_part_level() {
-        let params = mixer_params();
-        let def = lookup(&params, "part.0.level").expect("part.0.level should exist");
-        assert_eq!(def.min, 0);
-        assert_eq!(def.max, 127);
-        assert_eq!(def.default, 100);
-        assert_eq!(def.group, ParamGroup::Part(0));
+    fn part_level_def() {
+        let def = mixer_param(MixerField::PartLevel);
+        assert_eq!((def.min, def.max, def.default), (0, 127, 100));
+        assert_eq!(def.group, ParamGroup::Part);
     }
 
     #[test]
     fn format_pan_center() {
-        let params = mixer_params();
-        let def = lookup(&params, "part.0.pan").unwrap();
-        assert_eq!(format_value(def, 64), "0");
+        assert_eq!(format_value(&mixer_param(MixerField::PartPan), 64), "0");
     }
 
     #[test]
     fn format_on_off() {
-        let params = mixer_params();
-        let def = lookup(&params, "part.0.mute").unwrap();
-        assert_eq!(format_value(def, 0), "OFF");
-        assert_eq!(format_value(def, 1), "ON");
+        let def = mixer_param(MixerField::PartMute);
+        assert_eq!(format_value(&def, 0), "OFF");
+        assert_eq!(format_value(&def, 1), "ON");
     }
 
     #[test]
     fn format_named() {
-        let params = mixer_params();
-        let def = lookup(&params, "part.0.output_assign").unwrap();
-        assert_eq!(format_value(def, 0), "A");
-        assert_eq!(format_value(def, 3), "D");
+        let def = mixer_param(MixerField::PartOutputAssign);
+        assert_eq!(format_value(&def, 0), "A");
+        assert_eq!(format_value(&def, 3), "D");
     }
 
     #[test]
     fn format_chorus_output_assign() {
-        let params = mixer_params();
-        let def = lookup(&params, "chorus.output_assign").unwrap();
-        assert_eq!(format_value(def, 0), "A");
-        assert_eq!(format_value(def, 3), "D");
+        let def = mixer_param(MixerField::ChorusOutputAssign);
+        assert_eq!(format_value(&def, 0), "A");
+        assert_eq!(format_value(&def, 3), "D");
     }
 
     #[test]
     fn fx_type_zero_is_off() {
-        let params = mixer_params();
-        for id in ["chorus.type", "reverb.type"] {
-            let def = lookup(&params, id).unwrap();
-            assert_eq!(format_value(def, 0), "OFF", "{id}");
+        for field in [MixerField::ChorusType, MixerField::ReverbType] {
+            assert_eq!(format_value(&mixer_param(field), 0), "OFF", "{field:?}");
         }
     }
 
     #[test]
     fn eq_named_tables_cover_their_range() {
-        let params = mixer_params();
-        for id in ["eq.low_freq", "eq.mid_freq", "eq.mid_q", "eq.high_freq"] {
-            let def = lookup(&params, id).unwrap();
+        for field in [
+            MixerField::EqLowFreq,
+            MixerField::EqMidFreq,
+            MixerField::EqMidQ,
+            MixerField::EqHighFreq,
+        ] {
+            let def = mixer_param(field);
             let ParamFormat::Named(names) = def.format else {
-                panic!("{id} should be named");
+                panic!("{field:?} should be named");
             };
-            assert_eq!(names.len() as i32, def.max - def.min + 1, "{id}");
+            assert_eq!(names.len() as i32, def.max - def.min + 1, "{field:?}");
         }
-        let gain = lookup(&params, "eq.mid_gain").unwrap();
-        assert_eq!(format_value(gain, 0), "-15");
-        assert_eq!(format_value(gain, 30), "+15");
+        let gain = mixer_param(MixerField::EqMidGain);
+        assert_eq!(format_value(&gain, 0), "-15");
+        assert_eq!(format_value(&gain, 30), "+15");
+    }
+
+    #[test]
+    fn eq_defaults_match_eq_state() {
+        let eq = EqState::default();
+        assert_eq!(
+            mixer_param(MixerField::EqSwitch).default,
+            i32::from(eq.enabled)
+        );
+        assert_eq!(mixer_param(MixerField::EqMidFreq).default, 7);
+        assert_eq!(mixer_param(MixerField::EqLowFreq).default, 1);
     }
 
     #[test]
     fn eq_gains_are_filter() {
-        let params = mixer_params();
-        for id in ["eq.low_gain", "eq.mid_gain", "eq.high_gain"] {
+        for field in [
+            MixerField::EqLowGain,
+            MixerField::EqMidGain,
+            MixerField::EqHighGain,
+        ] {
             assert_eq!(
-                lookup(&params, id).unwrap().family,
+                mixer_param(field).family,
                 ParameterFamily::Filter,
-                "{id}"
+                "{field:?}"
             );
         }
     }
 
     #[test]
     fn comp_threshold_is_amp() {
-        let params = mixer_params();
-        let threshold = lookup(&params, "comp.threshold").unwrap();
-        assert_eq!(threshold.family, ParameterFamily::Amp);
         assert_eq!(
-            lookup(&params, "comp.switch").unwrap().family,
+            mixer_param(MixerField::CompThreshold).family,
+            ParameterFamily::Amp
+        );
+        assert_eq!(
+            mixer_param(MixerField::CompSwitch).family,
             ParameterFamily::Common
         );
     }
 
     #[test]
     fn comp_named_tables_cover_their_range() {
-        let params = mixer_params();
-        for id in ["comp.attack", "comp.release", "comp.ratio"] {
-            let def = lookup(&params, id).unwrap();
+        for field in [
+            MixerField::CompAttack,
+            MixerField::CompRelease,
+            MixerField::CompRatio,
+        ] {
+            let def = mixer_param(field);
             let ParamFormat::Named(names) = def.format else {
-                panic!("{id} should be named");
+                panic!("{field:?} should be named");
             };
-            assert_eq!(names.len() as i32, def.max - def.min + 1, "{id}");
+            assert_eq!(names.len() as i32, def.max - def.min + 1, "{field:?}");
         }
-        let ratio = lookup(&params, "comp.ratio").unwrap();
-        assert_eq!(format_value(ratio, ratio.max), "inf:1");
+        let ratio = mixer_param(MixerField::CompRatio);
+        assert_eq!(format_value(&ratio, ratio.max), "inf:1");
     }
 }

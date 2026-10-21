@@ -1,36 +1,31 @@
-import { formatMixerParam, mixerParamsJson, type ParameterFamily } from "../pkg/integral_wasm.js";
+import { mixer_field_name, mixer_field_spec, type MixerField, type ParameterFamily } from "../pkg/integral_wasm.js";
 
-interface ParamMeta {
+/** A mixer field's display name, range, default and Parameter family, from core. */
+export interface ParamMeta {
   name: string;
   min: number;
   max: number;
   defaultValue: number;
-  /** The parameter's role in shaping the sound; absent for an unknown id. */
-  family?: ParameterFamily;
+  /** The parameter's role in shaping the sound; picks its colour. */
+  family: ParameterFamily;
 }
 
-let registry: Map<string, ParamMeta> | null = null;
+const metas = new Map<MixerField, ParamMeta>();
 
-function getRegistry(): Map<string, ParamMeta> {
-  if (!registry) {
-    const defs: Array<{
-      id: string; name: string; min: number; max: number; default_value: number; family: ParameterFamily;
-    }> =
-      JSON.parse(mixerParamsJson());
-    registry = new Map<string, ParamMeta>();
-    for (const d of defs) {
-      registry.set(d.id, { name: d.name, min: d.min, max: d.max, defaultValue: d.default_value, family: d.family });
-    }
+/** Look up a mixer field's metadata in core's registry. Fields are named by
+ *  core's `MixerField` enum, so a misspelt field fails `tsc`. */
+export function paramMeta(field: MixerField): ParamMeta {
+  let meta = metas.get(field);
+  if (!meta) {
+    const { min, max, defaultValue, family } = mixer_field_spec(field);
+    meta = { name: mixer_field_name(field), min, max, defaultValue, family };
+    metas.set(field, meta);
   }
-  return registry;
+  return meta;
 }
 
-/** Look up param metadata by registry id. Falls back to sensible defaults. */
-export function paramMeta(id: string): ParamMeta {
-  return getRegistry().get(id) ?? { name: id, min: 0, max: 127, defaultValue: 0 };
-}
-
-/** Display formatter for a mixer param, using the registry's value labels. */
-export function paramFormatter(id: string): (value: number) => string {
-  return (value) => formatMixerParam(id, value);
+/** Display formatter for a mixer field, using core's value labels. */
+export function paramFormatter(field: MixerField): (value: number) => string {
+  const spec = mixer_field_spec(field);
+  return (value) => spec.formatValue(value);
 }
