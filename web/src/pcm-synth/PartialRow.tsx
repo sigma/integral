@@ -10,7 +10,17 @@ import {
 } from "../synth-ui";
 import type { ReactNode } from "react";
 import { SignalArrows, type Edge } from "../synth-ui/SignalArrows";
-import { ParameterFamily, PcmsPartialField, PcmsPmtField, pcms_partial_spec, pcms_pmt_spec } from "../../pkg/integral_wasm.js";
+import {
+  ParameterFamily,
+  PcmsPartialField,
+  PcmsPmtField,
+  pcms_pair_scope_is_active,
+  pcms_partial_is_active,
+  pcms_partial_scope_is_active,
+  pcms_partial_spec,
+  pcms_pmt_is_active,
+  pcms_pmt_spec,
+} from "../../pkg/integral_wasm.js";
 import { routingOf, type Block, type Side } from "./structureRouting";
 import { knobProps, knobRange, switchOptions } from "../fieldSpec";
 import { VelocityCurveSelect } from "../synth-ui/VelocityCurveSelect";
@@ -18,14 +28,9 @@ import { LfoScope } from "../synth-ui/LfoScope";
 import { TimeOrNoteKnob } from "./TimeOrNoteKnob";
 import { FilterScope } from "../synth-ui/FilterScope";
 import css from "../PcmSynthEditor.module.css";
-import type { PartialParamHandler, PartialSetter, PcmSynthPartial } from "./types";
+import type { PartialParamHandler, PartialSetter, PcmSynthPartial, PcmSynthPmt } from "./types";
 import { WavePicker, type ExpansionMarking } from "../WavePicker";
 import { waveSourceOf } from "../waveCatalog";
-
-/** Whether an LFO Waveform value is STEP, the one that plays the Step LFO. */
-function isStepWaveform(waveform: number): boolean {
-  return pcms_partial_spec(PcmsPartialField.Lfo1Waveform).formatValue(waveform) === "STEP";
-}
 
 /** A box label, with its partial number when the box sits in a merged pair. */
 function numbered(label: string, n?: number, sep = " "): string {
@@ -40,6 +45,7 @@ function followsTitle(title: string, follows?: number): string {
 /** One partial of a pair, with what its row needs. */
 export interface PairPartial {
   partial: PcmSynthPartial | null;
+  /** The PMT Partial Switch's value, for its power button. */
   isOn: boolean;
   onParam: PartialParamHandler;
   /** Sets the Partial's PMT Partial Switch. */
@@ -63,6 +69,8 @@ export interface Pair {
   first: number;
   /** The pair's Structure Type (0-9). */
   structure: number;
+  /** The tone's PMT, which core reads to say which fields are active; `null` while loading. */
+  pmt: PcmSynthPmt | null;
   upper: PairPartial;
   lower: PairPartial;
   /** The pair's Booster depth (0-3), and its setter: shown on the path where the Structure boosts. */
@@ -93,7 +101,7 @@ export function PartialGrid({ pairs, marking }: { pairs: Pair[]; marking?: Expan
  * join, then a merged block centred on both rows, with arrows between blocks.
  */
 function pairLayout(
-  { first, structure, upper, lower, booster, onBooster, boosterField }: Pair,
+  { first, structure, pmt, upper, lower, booster, onBooster, boosterField }: Pair,
   rowBase: number,
   marking?: ExpansionMarking,
 ): { cells: ReactNode[]; edges: Edge[] } {
@@ -107,17 +115,31 @@ function pairLayout(
   const merged = !!routing.join;
   /** A box's partial number, shown only once the pair is merged. */
   const nOf = (side: Side) => (merged ? number[side] : undefined);
-  const followsFor = (side: Side) => (merged && side === "upper" ? number.lower : undefined);
+  /** Whether core holds `side`'s partial active (switched on). */
+  const scopeActive = (side: Side) => !!pmt && pcms_partial_scope_is_active(number[side] - 1, pmt);
+  /** The pair's own boxes (ring) dim once core holds the pair inactive. */
+  const pairDim = pmt && pcms_pair_scope_is_active(first, pmt) ? "" : css.partialDimmed;
+  /** Whether core holds `field` of `side`'s partial active. */
+  const activeFor = (side: Side) => (field: PcmsPartialField) => {
+    const p = sides[side].partial;
+    return !pmt || !p || pcms_partial_is_active(field, number[side] - 1, pmt, p);
+  };
+  /** The partial an inactive pan setting of `side` follows: core makes only a merged pair's upper one follow the lower. */
+  const followedFor = (side: Side) => {
+    const active = activeFor(side);
+    return (field: PcmsPartialField) => (active(field) ? undefined : number.lower);
+  };
 
-  /** One box of a block, dimmed with its own partial's power. */
+  /** One box of a block, dimmed with its own partial's Scope. */
   const box = (key: string, side: Side, content: ReactNode) => (
-    <div key={key} className={`${css.blockBox} ${sides[side].isOn ? "" : css.partialDimmed}`}>{content}</div>
+    <div key={key} className={`${css.blockBox} ${scopeActive(side) ? "" : css.partialDimmed}`}>{content}</div>
   );
   const pathBox = (b: Block, key: string): ReactNode => {
     if (b.kind === "booster") {
-      // The booster belongs to the pair; it dims only once both partials are off.
+      // The booster belongs to the pair; core holds it inactive once both partials are off.
+      const boosterActive = !!pmt && pcms_pmt_is_active(boosterField, pmt);
       return (
-        <div key={key} className={`${css.blockBox} ${upper.isOn || lower.isOn ? "" : css.partialDimmed}`}>
+        <div key={key} className={`${css.blockBox} ${boosterActive ? "" : css.partialDimmed}`}>
           <BoosterSection value={booster} onChange={onBooster} field={boosterField} pair={number} />
         </div>
       );
@@ -127,7 +149,9 @@ function pairLayout(
     if (!p) return null;
     if (b.kind === "filter") return box(key, side, <TvfSection partial={p} set={setters[side]} n={nOf(side)} />);
     if (b.kind === "amp") {
-      return box(key, side, <TvaSection partial={p} set={setters[side]} n={nOf(side)} follows={followsFor(side)} />);
+      return box(key, side, (
+        <TvaSection partial={p} set={setters[side]} n={nOf(side)} followed={followedFor(side)} />
+      ));
     }
     return null; // WAVE heads its lane
   };
@@ -177,10 +201,10 @@ function pairLayout(
     // The power label, then the modulation sources: detached from the signal path, no arrows.
     place(`${first}-lfo-${side}`, side, LFO_COLUMN, [
       power,
-      box("lfo1", side, <Lfo1Section partial={p} set={set} n={nOf(side)} follows={followsFor(side)} />),
-      box("lfo2", side, <Lfo2Section partial={p} set={set} n={nOf(side)} follows={followsFor(side)} />),
+      box("lfo1", side, <Lfo1Section partial={p} set={set} n={nOf(side)} followed={followedFor(side)} />),
+      box("lfo2", side, <Lfo2Section partial={p} set={set} n={nOf(side)} followed={followedFor(side)} />),
       box("step", side, <StepLfoSection partial={p} set={set} n={nOf(side)}
-        dimmed={!isStepWaveform(p.lfo1Waveform) && !isStepWaveform(p.lfo2Waveform)} />),
+        dimmed={!activeFor(side)(PcmsPartialField.LfoStep)} />),
     ]);
     const head = [
       box("wave", side, <WaveSection partial={p} set={set} n={nOf(side)} marking={marking} />),
@@ -228,7 +252,7 @@ function pairLayout(
       // The ring modulator: a box of its own, both lanes in, its product out.
       const ring = `${first}-ring`;
       place(ring, "both", column++, (
-        <div className={`${css.blockBox} ${upper.isOn || lower.isOn ? "" : css.partialDimmed}`}>
+        <div className={`${css.blockBox} ${pairDim}`}>
           <RingSection pair={number} />
         </div>
       ));
@@ -535,14 +559,14 @@ function TvaSection({
   partial,
   n,
   set,
-  follows,
+  followed,
 }: {
   partial: PcmSynthPartial;
   /** Partial number shown on the box, in a merged pair. */
   n?: number;
   set: PartialSetter;
-  /** Partial whose pan settings this one follows (merged Structure). */
-  follows?: number;
+  /** The partial whose setting an inactive pan `field` follows (merged Structure), if any. */
+  followed: (field: PcmsPartialField) => number | undefined;
 }) {
   return (
     <SectionPanel label={numbered("AMP", n, " ")} family={ParameterFamily.Amp}>
@@ -552,20 +576,20 @@ function TvaSection({
             onChange={set(PcmsPartialField.Pan, "pan")}
             title="Partial stereo panning" />
         </div>
-        <div className={follows ? css.follows : undefined}>
+        <div className={followed(PcmsPartialField.PanKeyfollow) ? css.follows : undefined}>
           <SynthKnob label="Pan KF" value={partial.panKeyfollow} {...knobProps(pcms_partial_spec(PcmsPartialField.PanKeyfollow))}
             onChange={set(PcmsPartialField.PanKeyfollow, "panKeyfollow")}
-            title={followsTitle("Pan keyfollow — notes above C4 pan right (+) or left (−). When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4.", follows)} />
+            title={followsTitle("Pan keyfollow — notes above C4 pan right (+) or left (−). When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4.", followed(PcmsPartialField.PanKeyfollow))} />
         </div>
-        <div className={follows ? css.follows : undefined}>
+        <div className={followed(PcmsPartialField.RandomPanDepth) ? css.follows : undefined}>
           <SynthKnob label="Rnd Pan" value={partial.randomPanDepth} {...knobProps(pcms_partial_spec(PcmsPartialField.RandomPanDepth))}
             onChange={set(PcmsPartialField.RandomPanDepth, "randomPanDepth")}
-            title={followsTitle("Random pan depth — each note lands at a random position. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4.", follows)} />
+            title={followsTitle("Random pan depth — each note lands at a random position. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4.", followed(PcmsPartialField.RandomPanDepth))} />
         </div>
-        <div className={follows ? css.follows : undefined}>
+        <div className={followed(PcmsPartialField.AlternatePanDepth) ? css.follows : undefined}>
           <SynthKnob label="Alt Pan" value={partial.alternatePanDepth} {...knobProps(pcms_partial_spec(PcmsPartialField.AlternatePanDepth))}
             onChange={set(PcmsPartialField.AlternatePanDepth, "alternatePanDepth")}
-            title={followsTitle("Alternate pan depth — successive notes alternate left and right; L/R sets which side comes first. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4.", follows)} />
+            title={followsTitle("Alternate pan depth — successive notes alternate left and right; L/R sets which side comes first. When Structure Type is 2-10, partial 1 follows partial 2 and partial 3 follows partial 4.", followed(PcmsPartialField.AlternatePanDepth))} />
         </div>
         <VelocityCurveSelect className={css.at1} label="Vel Crv" value={partial.tvaLevelVelocityCurve}
           options={switchOptions(pcms_partial_spec(PcmsPartialField.TvaLevelVelocityCurve))}
@@ -640,14 +664,14 @@ function Lfo1Section({
   partial,
   n,
   set,
-  follows,
+  followed,
 }: {
   partial: PcmSynthPartial;
   /** Partial number shown on the box, in a merged pair. */
   n?: number;
   set: PartialSetter;
-  /** Partial whose pan settings this one follows (merged Structure). */
-  follows?: number;
+  /** The partial whose setting an inactive pan `field` follows (merged Structure), if any. */
+  followed: (field: PcmsPartialField) => number | undefined;
 }) {
   return (
     <SectionPanel label={numbered("LFO1", n, " · ")} family={ParameterFamily.Modulation}>
@@ -700,10 +724,10 @@ function Lfo1Section({
         <SynthFader label={n ? "AMP " + n : "Amp"} value={partial.lfo1TvaDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1TvaDepth))}
           onChange={set(PcmsPartialField.Lfo1TvaDepth, "lfo1TvaDepth")} compact
           title="LFO modulation depth on amplitude (tremolo)" />
-        <div className={follows ? css.follows : undefined}>
+        <div className={followed(PcmsPartialField.Lfo1PanDepth) ? css.follows : undefined}>
           <SynthFader label={n ? "PAN " + n : "Pan"} value={partial.lfo1PanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo1PanDepth))}
             onChange={set(PcmsPartialField.Lfo1PanDepth, "lfo1PanDepth")} compact
-            title={followsTitle("LFO modulation depth on panning (auto-pan)", follows)} />
+            title={followsTitle("LFO modulation depth on panning (auto-pan)", followed(PcmsPartialField.Lfo1PanDepth))} />
         </div>
       </FaderGroup>
     </SectionPanel>
@@ -718,14 +742,14 @@ function Lfo2Section({
   partial,
   n,
   set,
-  follows,
+  followed,
 }: {
   partial: PcmSynthPartial;
   /** Partial number shown on the box, in a merged pair. */
   n?: number;
   set: PartialSetter;
-  /** Partial whose pan settings this one follows (merged Structure). */
-  follows?: number;
+  /** The partial whose setting an inactive pan `field` follows (merged Structure), if any. */
+  followed: (field: PcmsPartialField) => number | undefined;
 }) {
   return (
     <SectionPanel label={numbered("LFO2", n, " · ")} family={ParameterFamily.Modulation}>
@@ -778,10 +802,10 @@ function Lfo2Section({
         <SynthFader label={n ? "AMP " + n : "Amp"} value={partial.lfo2TvaDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2TvaDepth))}
           onChange={set(PcmsPartialField.Lfo2TvaDepth, "lfo2TvaDepth")} compact
           title="LFO modulation depth on amplitude (tremolo)" />
-        <div className={follows ? css.follows : undefined}>
+        <div className={followed(PcmsPartialField.Lfo2PanDepth) ? css.follows : undefined}>
           <SynthFader label={n ? "PAN " + n : "Pan"} value={partial.lfo2PanDepth} {...knobRange(pcms_partial_spec(PcmsPartialField.Lfo2PanDepth))}
             onChange={set(PcmsPartialField.Lfo2PanDepth, "lfo2PanDepth")} compact
-            title={followsTitle("LFO modulation depth on panning (auto-pan)", follows)} />
+            title={followsTitle("LFO modulation depth on panning (auto-pan)", followed(PcmsPartialField.Lfo2PanDepth))} />
         </div>
       </FaderGroup>
     </SectionPanel>

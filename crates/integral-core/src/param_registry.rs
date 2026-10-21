@@ -16,7 +16,7 @@ use crate::address::Address;
 use crate::device_spec::{INTEGRA7, MIDI_CHANNELS};
 use crate::family::ParameterFamily;
 use crate::params::{self, ToneType};
-use crate::state::{CompEqUnit, EqState};
+use crate::state::{CompEqUnit, DrumCompEqState, EqState};
 
 /// How a parameter value should be displayed.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -249,6 +249,9 @@ pub enum MixerField {
     ReverbOutputAssign,
     /// Solo part (0 = OFF, 1–16 = that part).
     SoloPart,
+    /// Drum Comp+EQ assigned part (0–15 = Part 1–16): the part whose drum
+    /// kit the Comp+EQ units process.
+    DrumCompEqPart,
     /// 3-band EQ switch (0 = OFF, 1 = ON).
     EqSwitch,
     /// EQ low band frequency (0 = 200 Hz, 1 = 400 Hz).
@@ -281,7 +284,7 @@ pub enum MixerField {
 
 impl MixerField {
     /// Every mixer field, in registry order.
-    pub const ALL: [MixerField; 34] = [
+    pub const ALL: [MixerField; 35] = [
         Self::PartLevel,
         Self::PartPan,
         Self::PartMute,
@@ -302,6 +305,7 @@ impl MixerField {
         Self::ReverbLevel,
         Self::ReverbOutputAssign,
         Self::SoloPart,
+        Self::DrumCompEqPart,
         Self::EqSwitch,
         Self::EqLowFreq,
         Self::EqLowGain,
@@ -509,6 +513,7 @@ fn common_address(field: MixerField) -> Option<Address> {
         F::ReverbLevel => params::reverb_address(reverb::LEVEL),
         F::ReverbOutputAssign => params::reverb_address(reverb::OUTPUT_ASSIGN),
         F::SoloPart => params::SOLO_PART,
+        F::DrumCompEqPart => params::DRUM_COMP_EQ_PART,
         _ => return None,
     })
 }
@@ -574,6 +579,16 @@ fn channel_names() -> &'static [&'static str] {
     static NAMES: OnceLock<Vec<&'static str>> = OnceLock::new();
     NAMES.get_or_init(|| {
         (1..=MIDI_CHANNELS)
+            .map(|n| &*Box::leak(n.to_string().into_boxed_str()))
+            .collect()
+    })
+}
+
+/// Part labels `"1"..`, one per part of the device.
+fn part_names() -> &'static [&'static str] {
+    static NAMES: OnceLock<Vec<&'static str>> = OnceLock::new();
+    NAMES.get_or_init(|| {
+        (1..=INTEGRA7.part_count)
             .map(|n| &*Box::leak(n.to_string().into_boxed_str()))
             .collect()
     })
@@ -695,6 +710,14 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
             i32::from(part_count),
             0,
             Raw,
+            Common,
+        ),
+        F::DrumCompEqPart => def(
+            "Drum Comp+EQ Part",
+            ParamGroup::Global,
+            i32::from(part_count) - 1,
+            i32::from(DrumCompEqState::default().part),
+            Named(part_names()),
             Common,
         ),
         // Gains and frequencies all shape the spectrum.
@@ -979,6 +1002,20 @@ mod tests {
             mixer_field_address(MixerField::ReverbOutputAssign, MixerScope::Common),
             Ok(params::reverb_address(params::reverb::OUTPUT_ASSIGN))
         );
+    }
+
+    #[test]
+    fn drum_comp_eq_part_is_the_studio_set_common_assign() {
+        // Studio Set Common 00 44, Drum Comp/EQ Part (docs/midi/05-studio-set.md).
+        assert_eq!(
+            mixer_field_address(MixerField::DrumCompEqPart, MixerScope::Common),
+            Ok(Address::new(0x18, 0x00, 0x00, 0x44))
+        );
+        assert!(!MixerField::DrumCompEqPart.in_scope(MixerScopeKind::Part));
+        let def = mixer_param(MixerField::DrumCompEqPart);
+        assert_eq!((def.min, def.max, def.default), (0, 15, 9));
+        assert_eq!(format_value(&def, 0), "1");
+        assert_eq!(format_value(&def, 15), "16");
     }
 
     #[test]

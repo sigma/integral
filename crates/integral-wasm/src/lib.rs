@@ -12,6 +12,7 @@ use wasm_bindgen::prelude::*;
 
 mod expansion;
 mod librarian;
+mod relevance;
 mod sequencer;
 mod waves;
 pub use expansion::WasmExpansion;
@@ -1277,6 +1278,8 @@ pub enum MixerField {
     ReverbOutputAssign,
     /// See [`param_registry::MixerField::SoloPart`].
     SoloPart,
+    /// See [`param_registry::MixerField::DrumCompEqPart`].
+    DrumCompEqPart,
     /// See [`param_registry::MixerField::EqSwitch`].
     EqSwitch,
     /// See [`param_registry::MixerField::EqLowFreq`].
@@ -1328,6 +1331,7 @@ mirror_core_enum!(MixerField <=> param_registry::MixerField {
     ReverbLevel,
     ReverbOutputAssign,
     SoloPart,
+    DrumCompEqPart,
     EqSwitch,
     EqLowFreq,
     EqLowGain,
@@ -1674,12 +1678,6 @@ pub fn sns_partial_switch_field(partial: u8) -> Result<SnsCommonField, JsError> 
 #[wasm_bindgen]
 pub fn sns_osc_wave_pcm() -> u8 {
     sn_synth::OSC_WAVE_PCM
-}
-
-/// The SN Synth Partial OSC Wave value that selects the Super Saw.
-#[wasm_bindgen]
-pub fn sns_osc_wave_super_saw() -> u8 {
-    sn_synth::OSC_WAVE_SUPER_SAW
 }
 
 /// Returns the address of part `part_index`'s SN Synth MFX block.
@@ -2406,20 +2404,6 @@ pub fn sn_drum_insts_json() -> String {
 #[wasm_bindgen(js_name = snaInstsJson)]
 pub fn sna_insts_json() -> String {
     serde_json::to_string(sn_acoustic::sna_insts()).unwrap_or_else(|_| "[]".to_string())
-}
-
-/// Whether an SN-A instrument (Inst Variation, Inst Number) responds to the
-/// Cutoff, Resonance, Attack and Release Offsets.
-#[wasm_bindgen]
-pub fn sna_has_tone_offsets(variation: u8, number: u8) -> bool {
-    sn_acoustic::sna_offsets(variation, number).tone
-}
-
-/// Whether an SN-A instrument (Inst Variation, Inst Number) responds to the
-/// Portamento Time Offset.
-#[wasm_bindgen]
-pub fn sna_has_portamento_offset(variation: u8, number: u8) -> bool {
-    sn_acoustic::sna_offsets(variation, number).portamento
 }
 
 /// Returns chorus parameter definitions for the given type index.

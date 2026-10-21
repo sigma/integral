@@ -12,7 +12,7 @@ import {
   ParameterFamily,
   SnsPartialField,
   sns_osc_wave_pcm,
-  sns_osc_wave_super_saw,
+  sns_partial_is_active,
   sns_partial_spec,
 } from "../../pkg/integral_wasm.js";
 import css from "../SnSynthEditor.module.css";
@@ -35,16 +35,20 @@ export function PartialRow({
   idx,
   partial,
   isOn,
+  active,
   onToggle,
   setP,
 }: {
   idx: number;
   partial: SnSynthPartial | null;
+  /** The Partial Switch's value, for its power button. */
   isOn: boolean;
+  /** Whether core holds the partial active: its Section dims as one when not. */
+  active: boolean;
   onToggle: () => void;
   setP: PartialParamHandler;
 }) {
-  const dimClass = isOn ? "" : css.partialRowDimmed;
+  const dimClass = active ? "" : css.partialRowDimmed;
 
   return (
     <div className={css.partialRow}>
@@ -109,8 +113,9 @@ function OscPanel({
 }) {
   const wave = nameOf(SnsPartialField.OscWave, partial.oscWave);
   const isPcm = partial.oscWave === sns_osc_wave_pcm();
-  const isSuperSaw = partial.oscWave === sns_osc_wave_super_saw();
-  const hasVariation = !isPcm && !isSuperSaw;
+  /** Class hiding a Control core holds inactive, keeping its Cells. */
+  const hideUnless = (field: SnsPartialField) =>
+    sns_partial_is_active(field, partial) ? undefined : css.hiddenKnob;
 
   return (
     <SectionPanel label="OSC" family={ParameterFamily.Pitch}>
@@ -119,11 +124,11 @@ function OscPanel({
           <SynthSwitch label="Wave" value={partial.oscWave} vertical
             options={switchOptions(sns_partial_spec(SnsPartialField.OscWave))}
             onChange={(v) => onChange(SnsPartialField.OscWave, v)} led={false} />
-          {hasVariation && (
+          <div className={hideUnless(SnsPartialField.OscWaveVariation)}>
             <SynthSwitch label="Var" value={partial.oscWaveVariation} vertical
               options={switchOptions(sns_partial_spec(SnsPartialField.OscWaveVariation))}
               onChange={(v) => onChange(SnsPartialField.OscWaveVariation, v)} led={false} />
-          )}
+          </div>
         </div>
         <div className={`${css.scopeKnobArea} ${css.oscKnobArea}`}>
           {isPcm ? (
@@ -143,7 +148,7 @@ function OscPanel({
             <SynthKnob label="Detune" value={partial.oscDetune} {...knobProps(sns_partial_spec(SnsPartialField.OscDetune))}
               onChange={(v) => onChange(SnsPartialField.OscDetune, v)} />
             {/* Hidden, not removed, so it keeps its room and the panel's width */}
-            <div className={isSuperSaw ? undefined : css.hiddenKnob}>
+            <div className={hideUnless(SnsPartialField.SuperSawDetune)}>
               <SynthKnob label="S-Saw" value={partial.superSawDetune} {...knobProps(sns_partial_spec(SnsPartialField.SuperSawDetune))}
                 onChange={(v) => onChange(SnsPartialField.SuperSawDetune, v)} />
             </div>

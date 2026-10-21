@@ -2,7 +2,13 @@ import { ChannelStrip } from "./ChannelStrip";
 import { FxStrip } from "./FxStrip";
 import { MixerLoadWarning } from "./MixerLoadWarning";
 // CompEqPanel replaced by ChannelStrip variant="comp-eq"
-import { chorus_params, MixerScopeKind, reverb_params } from "../pkg/integral_wasm.js";
+import {
+  chorus_params,
+  MixerField,
+  MixerScopeKind,
+  mixer_is_active,
+  reverb_params,
+} from "../pkg/integral_wasm.js";
 import { deviceSpec } from "./deviceSpec";
 import type { UseMixerResult } from "./useMixer";
 import type { UseExpansionsResult } from "./useExpansions";
@@ -37,6 +43,7 @@ export function MixerPage({ mixer, expansions }: Props) {
                   part.toneBankLsb,
                 )}
                 compEqAssigned={state.drumCompEq.enabled && state.drumCompEq.part === i}
+                compEqActive={mixer_is_active(MixerField.DrumCompEqPart, i, part, state.drumCompEq)}
                 onCompEqToggle={() => {
                   if (state.drumCompEq.enabled && state.drumCompEq.part === i) {
                     mixer.setDrumCompEqSwitch(false);

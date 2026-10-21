@@ -2,8 +2,7 @@ import { useEffect, useState, useCallback, useMemo, type ReactNode } from "react
 import {
   sna_inst_page,
   sna_inst_params,
-  sna_has_portamento_offset,
-  sna_has_tone_offsets,
+  sna_common_is_active,
   sna_common_spec,
   sna_common_address,
   sna_common_size,
@@ -293,9 +292,8 @@ function toneBoxes(
     (v: number) =>
       onChange(field, key, v);
   const resonanceCenter = sna_common_spec(SnaCommonField.ResonanceOffset).center ?? 0;
-  // Some instruments ignore some offsets (Parameter Guide): show them disabled.
-  const toneOffsets = sna_has_tone_offsets(common.instVariation, common.instNumber);
-  const portamento = sna_has_portamento_offset(common.instVariation, common.instNumber);
+  // Some instruments ignore some offsets: core holds them inactive, shown disabled.
+  const active = (field: SnaCommonField) => sna_common_is_active(field, common);
   return {
     common: (
         <SectionPanel label="COMMON" family={ParameterFamily.Common}>
@@ -305,7 +303,7 @@ function toneBoxes(
             <SynthKnob label="Oct" value={common.octaveShift} {...knobProps(sna_common_spec(SnaCommonField.OctaveShift))}
               onChange={set(SnaCommonField.OctaveShift, "octaveShift")}
               title="Octave Shift" />
-            <Offset enabled={portamento}>
+            <Offset enabled={active(SnaCommonField.PortamentoTimeOffset)}>
               <SynthKnob label="Port" value={common.portamentoTimeOffset} {...knobProps(sna_common_spec(SnaCommonField.PortamentoTimeOffset))}
                 onChange={set(SnaCommonField.PortamentoTimeOffset, "portamentoTimeOffset")}
                 title="Portamento Time Offset" />
@@ -333,22 +331,25 @@ function toneBoxes(
           {/* shortcut: SN-A never exposes its filter type; this draws a low-pass moved by the offsets, to show their direction, not the instrument's real filter. */}
           <FilterScope className={css.filterScope} type="LPF" cutoff={common.cutoffOffset}
             resonance={Math.max(0, common.resonanceOffset - resonanceCenter) * 2} />
-          <Offset enabled={toneOffsets}>
-            <div className={css.panelRow}>
+          <div className={css.panelRow}>
+            <Offset enabled={active(SnaCommonField.CutoffOffset)}>
               <SynthKnob label="Cutoff" value={common.cutoffOffset} {...knobProps(sna_common_spec(SnaCommonField.CutoffOffset))}
                 onChange={set(SnaCommonField.CutoffOffset, "cutoffOffset")}
                 title="Cutoff Offset" />
+            </Offset>
+            <Offset enabled={active(SnaCommonField.ResonanceOffset)}>
               <SynthKnob label="Reso" value={common.resonanceOffset} {...knobProps(sna_common_spec(SnaCommonField.ResonanceOffset))}
                 onChange={set(SnaCommonField.ResonanceOffset, "resonanceOffset")}
                 title="Resonance Offset" />
-            </div>
-          </Offset>
+            </Offset>
+          </div>
         </SectionPanel>
     ),
     amp: (
         <SectionPanel label="AMP" family={ParameterFamily.Amp}>
           <div className={css.ampRow}>
-            <Offset enabled={toneOffsets}>
+            {/* One envelope draws both offsets: it's disabled unless core holds both active. */}
+            <Offset enabled={active(SnaCommonField.AttackTimeOffset) && active(SnaCommonField.ReleaseTimeOffset)}>
               <ADSREnvelope
                 compact
                 attack={{

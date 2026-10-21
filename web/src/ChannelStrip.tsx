@@ -10,7 +10,7 @@ import { defaultPartState, type PartState, type EqState, type CompEqUnit } from 
 import { paramFormatter, paramMeta } from "./paramDefaults";
 import { CATEGORIES, lookupToneCategory } from "./categories";
 import { categoryIcon, stripIcon } from "./categoryIcons";
-import { is_drum_kit_bank, MixerField } from "../pkg/integral_wasm.js";
+import { MixerField } from "../pkg/integral_wasm.js";
 import css from "./ChannelStrip.module.css";
 import { deviceSpec } from "./deviceSpec";
 import { RouteChip } from "./RouteChip";
@@ -46,6 +46,8 @@ interface Props {
   compEqOutputAssign?: number;
   /** Whether this part is the Comp+EQ assigned part (shows active indicator). */
   compEqAssigned?: boolean;
+  /** Whether core holds this part's Comp+EQ assignment active (a drum kit, or assigned). */
+  compEqActive?: boolean;
   onCompEqOutputAssign?: (value: number) => void;
   /** Toggle Comp+EQ assignment to this part. */
   onCompEqToggle?: () => void;
@@ -102,6 +104,7 @@ function ChannelStripInner({
   compEqUnitNumber,
   compEqOutputAssign,
   compEqAssigned,
+  compEqActive,
   onCompEqOutputAssign,
   onCompEqToggle,
   onLevelChange,
@@ -267,9 +270,8 @@ function ChannelStripInner({
                     <button
                       className={`${css.compEqButton} ${compEqAssigned ? css.compOn : ""}`}
                       onClick={onCompEqToggle ?? noop}
-                      // Only drum kits route keys to the Comp+EQ units; keep it enabled while assigned so it can be turned off.
-                      disabled={!compEqAssigned && !is_drum_kit_bank(p.toneBankMsb)}
-                      title={compEqAssigned || is_drum_kit_bank(p.toneBankMsb)
+                      disabled={!compEqActive}
+                      title={compEqActive
                         ? "Assign Drum Comp+EQ to this part"
                         : "Drum Comp+EQ only works on drum kit parts"}
                     >
