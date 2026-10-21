@@ -19,6 +19,7 @@ import { arrowUp, dt1Drainer, slider } from "../test/toneService";
 import { specBinding } from "./binding";
 import { enumFields, mixerFields } from "./fields";
 import { GridScreen } from "./GridScreen";
+import { BORDER, INSET } from "./geometry";
 import { GridSection, type Binding } from "./GridSection";
 import { EQ_LAYOUT } from "./mixer/eq";
 import type { ScreenLayout, SectionLayout } from "./types";
@@ -113,12 +114,12 @@ describe("GridSection draws the pilot mixer EQ", () => {
   });
 });
 
-/** A Section of three switches listed out of reading order, plus a group and a Display. */
+/** A Section of three switches listed out of reading order, plus a group and a Display, all clear of its border. */
 const SCRAMBLED: SectionLayout<MixerField> = {
   title: "Part {part}",
   titleEdge: "side",
-  w: 4,
-  h: 4,
+  w: 5,
+  h: 5,
   fields: mixerFields([MixerScopeKind.Part]),
   items: [
     { kind: "switch", field: MixerField.EqMidQ, x: 2, y: 1, inactive: "hide" },
@@ -200,6 +201,71 @@ describe("GridSection", () => {
       />,
     );
     expect(sizes).toEqual(["CompEnvelope 96×48"]);
+  });
+});
+
+describe("GridSection edge padding", () => {
+  /** Side-titled, so its top, right and bottom edges have no title: every element sits on one. */
+  const EDGES: SectionLayout<MixerField> = {
+    title: "Edges",
+    titleEdge: "side",
+    w: 4,
+    h: 5,
+    fields: mixerFields([MixerScopeKind.Part]),
+    items: [
+      { kind: "switch", field: MixerField.EqSwitch, x: 2, y: 0 },
+      { kind: "knob", field: MixerField.EqLowGain, x: 0, y: 0 },
+      { kind: "display", display: DisplayKind.CompEnvelope, x: 0, y: 3, w: 4, h: 2 },
+    ],
+  };
+  const draw = () =>
+    render(
+      <GridSection
+        layout={EDGES}
+        bind={bindMixer}
+        renderDisplay={(_, { width, height }) => <div data-size={`${width}×${height}`} />}
+      />,
+    ).container;
+  /** An element's box, px from the Section's origin: [left, top, right, bottom]. */
+  const boxOf = (el: HTMLElement) => {
+    const [l, t, w, h] = [el.style.left, el.style.top, el.style.width, el.style.height].map(parseFloat) as [
+      number,
+      number,
+      number,
+      number,
+    ];
+    return [l, t, l + w, t + h];
+  };
+
+  it("draws an element in an edge Cell inset on that edge, never over the border", () => {
+    const container = draw();
+    const root = container.firstElementChild as HTMLElement;
+    const [W, H] = [parseFloat(root.style.width), parseFloat(root.style.height)];
+    // Inside of the border's line: INSET in, plus the line (the accent on top).
+    const inside = [INSET + BORDER.width, INSET + BORDER.accent, W - INSET - BORDER.width, H - INSET - BORDER.width];
+    const elements = [...container.querySelectorAll<HTMLElement>("[data-field], [data-display]")];
+    expect(elements).toHaveLength(3);
+    for (const el of elements) {
+      const [l, t, r, b] = boxOf(el);
+      expect(l).toBeGreaterThanOrEqual(inside[0]!);
+      expect(t).toBeGreaterThanOrEqual(inside[1]!);
+      expect(r).toBeLessThanOrEqual(inside[2]!);
+      expect(b).toBeLessThanOrEqual(inside[3]!);
+    }
+    // Each edge loses exactly the border's clearance, and only on border Cells.
+    expect(boxOf(wrapper(container, MixerField.EqSwitch))).toEqual([72, 7, 115, 24]);
+    const display = container.querySelector<HTMLElement>("[data-display]")!;
+    expect(boxOf(display)).toEqual([24, 72, 115, 115]);
+  });
+
+  it("draws the Control and the Display to fill the padded box", () => {
+    const container = draw();
+    const toggle = wrapper(container, MixerField.EqSwitch).firstElementChild as HTMLElement;
+    expect([toggle.style.width, toggle.style.height]).toEqual(["43px", "17px"]);
+    // A knob only draws to its top edge: it loses its top, keeps its width.
+    const knob = wrapper(container, MixerField.EqLowGain).firstElementChild as HTMLElement;
+    expect([knob.style.width, knob.style.height]).toEqual(["48px", "65px"]);
+    expect(container.querySelector("[data-size]")!.getAttribute("data-size")).toBe("91×43");
   });
 });
 

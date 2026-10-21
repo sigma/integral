@@ -1,4 +1,4 @@
-import { CELL, FOOTPRINT, NAME, cellsPx, lineStyle, optionListRows } from "./grid";
+import { CELL, FOOTPRINT, NAME, cellsPx, lineStyle, optionListRows, type Px } from "./grid";
 import css from "./SynthSwitch.module.css";
 
 interface Props {
@@ -26,16 +26,21 @@ interface Props {
    * N would clip options, so the list keeps its `optionListRows`.
    */
   gridRows?: number;
+  /**
+   * On the Grid, the px box to fill instead of the whole footprint: the
+   * footprint less the edge padding a Section's renderer gives it.
+   */
+  box?: Px;
 }
 
 /** Margin around a toggle's button on the Grid, px. */
 const TOGGLE_MARGIN = 2;
 
-/** A toggle's button on the Grid: the Cell, less the name's line or a margin each side. */
-function toggleButtonStyle(named: boolean): { width: string; height: number } {
+/** A toggle's button on the Grid: its box `height`, less the name's line or a margin each side. */
+function toggleButtonStyle(named: boolean, height: number): { width: string; height: number } {
   return {
     width: `calc(100% - ${2 * TOGGLE_MARGIN}px)`,
-    height: named ? CELL - NAME.line : CELL - 2 * TOGGLE_MARGIN,
+    height: named ? height - NAME.line : height - 2 * TOGGLE_MARGIN,
   };
 }
 
@@ -50,6 +55,7 @@ export function SynthSwitch({
   title,
   grid: gridProp = false,
   gridRows,
+  box,
 }: Props) {
   const grid = gridProp || gridRows !== undefined;
   const named = Boolean(label);
@@ -57,10 +63,11 @@ export function SynthSwitch({
   if (options.length === 2 && !vertical) {
     // Two-state toggle button
     const isOn = value === options[1]!.value;
+    const toggleBox = box ?? cellsPx(FOOTPRINT.switch);
     return (
       <div
         className={`${css.toggle} ${gridClass}`}
-        style={grid ? cellsPx(FOOTPRINT.switch) : undefined}
+        style={grid ? toggleBox : undefined}
         title={title ?? label}
       >
         {named && (
@@ -70,7 +77,7 @@ export function SynthSwitch({
         )}
         <button
           className={`${css.toggleBtn} ${isOn ? css.toggleOn : ""}`}
-          style={grid ? toggleButtonStyle(named) : undefined}
+          style={grid ? toggleButtonStyle(named, toggleBox.height) : undefined}
           onClick={() => onChange(isOn ? options[0]!.value : options[1]!.value)}
         >
           {led && <span className={css.led} style={isOn ? { background: ledColor } : undefined} />}
@@ -82,28 +89,28 @@ export function SynthSwitch({
 
   // Multi-state vertical list
   const listRows = Math.max(gridRows ?? 0, optionListRows(options.length, named));
-  const row = { height: CELL };
+  const listBox = box ?? cellsPx({ w: FOOTPRINT.optionListW, h: listRows });
+  // One Cell per row and for the name. A box cut short (edge padding) takes the
+  // px from the name's row first, down to its text line, then from the rows.
+  const nameH = named ? Math.min(CELL, Math.max(NAME.line, listBox.height - options.length * CELL)) : 0;
+  const row = { height: Math.min(CELL, (listBox.height - nameH) / options.length) };
   return (
     <div
       className={`${css.multiSwitch} ${gridClass}`}
-      style={
-        grid
-          ? cellsPx({ w: FOOTPRINT.optionListW, h: listRows })
-          : undefined
-      }
+      style={grid ? listBox : undefined}
       title={title ?? label}
     >
       {named && (
         <span
           className={css.label}
-          style={grid ? { ...lineStyle(NAME), lineHeight: `${CELL}px`, height: CELL } : undefined}
+          style={grid ? { ...lineStyle(NAME), lineHeight: `${nameH}px`, height: nameH } : undefined}
         >
           {label}
         </span>
       )}
       <div
         className={css.optionList}
-        style={grid ? { height: options.length * CELL } : undefined}
+        style={grid ? { height: options.length * row.height } : undefined}
         role="radiogroup"
         aria-label={title ?? label}
       >

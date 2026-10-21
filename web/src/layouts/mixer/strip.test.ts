@@ -48,10 +48,27 @@ describe("mixer strip", () => {
     expect(displays.sort()).toEqual([DisplayKind.CompEnvelope, DisplayKind.CompTransferCurve].sort());
   });
 
-  it("ends every fader on the strip's bottom row", () => {
-    for (const kind of STRIP_KINDS) {
-      const fader = variantLayout(STRIP_SET, kind).items.find((i) => i.kind === "fader");
-      expect(fader && itemRect(fader).y + itemRect(fader).h).toBe(STRIP_SET.h);
+  it("gives every strip kind one level fader, the same length, ending on the strip's bottom row", () => {
+    const levels = STRIP_KINDS.map((kind) => {
+      const faders = variantLayout(STRIP_SET, kind).items.filter((i) => i.kind === "fader").map(itemRect);
+      return faders.reduce((a, b) => (b.h > a.h ? b : a));
+    });
+    for (const r of levels) expect([r.y + r.h, r.h]).toEqual([STRIP_SET.h, levels[0]!.h]);
+    // The old mixer's proportions: a fader about 21 Cells long in a 4-Cell strip (#392).
+    expect(STRIP_SET.w).toBe(4);
+    expect(levels[0]!.h).toBe(21);
+  });
+
+  it("puts a part's mute and solo side by side, as the old mixer did", () => {
+    const items = allElements(variantLayout(STRIP_SET, MixerScopeKind.Part).items);
+    const at = (field: MixerField) => items.find((el) => el.kind !== "display" && el.field === field)!;
+    expect(at(MixerField.PartMute).y).toBe(at(MixerField.SoloPart).y);
+    expect([at(MixerField.PartMute).x, at(MixerField.SoloPart).x]).toEqual([0, 2]);
+  });
+
+  it("draws the compressor's Displays across the strip", () => {
+    for (const el of allElements(variantLayout(STRIP_SET, MixerScopeKind.CompEqUnit).items)) {
+      if (el.kind === "display") expect(itemRect(el)).toMatchObject({ x: 0, w: STRIP_SET.w });
     }
   });
 });

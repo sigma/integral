@@ -10,9 +10,18 @@ import type { DisplayKind, ParameterFamily } from "../../pkg/integral_wasm.js";
 import type { PickOption } from "../SearchPopover";
 import { SyncToggle } from "../SyncToggle";
 import { SynthFader, SynthKnob, SynthPicker, SynthSwitch, familyVar } from "../synth-ui";
-import { CELL, cellsPx, type Cells } from "../synth-ui/grid";
+import { CELL, cellsPx, type Px } from "../synth-ui/grid";
 import type { FieldKey } from "./fields";
-import { INSET, drawnElements, itemRect, sectionCells, sectionTitle, titleCells } from "./geometry";
+import {
+  BORDER,
+  INSET,
+  drawnElements,
+  edgePadding,
+  itemRect,
+  sectionCells,
+  sectionTitle,
+  titleCells,
+} from "./geometry";
 import type { ControlLayout, ElementLayout, Scope, SectionLayout, SectionSilk } from "./types";
 import { drawnArrows, routeSectionArrow } from "./routing";
 import { SilkArrows } from "./SilkArrows";
@@ -83,8 +92,8 @@ export interface GridSectionProps<F extends FieldKey> {
   style?: CSSProperties;
 }
 
-/** The border's corner radius and side width, px; the Silkscreen clip follows both. */
-const BORDER = { radius: 6, width: 1 } as const;
+/** The border's widths as CSS: the accent on top, the line elsewhere. */
+const BORDER_WIDTHS = `${BORDER.accent}px ${BORDER.width}px ${BORDER.width}px`;
 
 const always = (): true => true;
 const none = (): undefined => undefined;
@@ -97,8 +106,8 @@ function optionsOf(b: Binding): BindingOption[] {
   return out;
 }
 
-/** The Control for a layout entry and its binding, at its footprint. */
-function Control<F extends FieldKey>({ control: c, binding: b }: { control: ControlLayout<F>; binding: Binding }) {
+/** The Control for a layout entry and its binding, filling `box` (its footprint, less any edge padding). */
+function Control<F extends FieldKey>({ control: c, binding: b, box }: { control: ControlLayout<F>; binding: Binding; box: Px }) {
   const label = c.label === false ? undefined : (c.label ?? b.name);
   const addon = b.sync && <SyncToggle labels={b.sync.labels} noteMode={b.sync.noteMode} onChange={b.sync.onChange} />;
   switch (c.kind) {
@@ -106,6 +115,7 @@ function Control<F extends FieldKey>({ control: c, binding: b }: { control: Cont
       return (
         <SynthKnob
           grid
+          box={box}
           size={c.size ?? "sm"}
           label={label ?? ""}
           title={b.name}
@@ -124,6 +134,7 @@ function Control<F extends FieldKey>({ control: c, binding: b }: { control: Cont
       return (
         <SynthFader
           gridRows={c.h}
+          box={box}
           label={label ?? b.name}
           hideLabel={label === undefined}
           title={b.name}
@@ -138,13 +149,14 @@ function Control<F extends FieldKey>({ control: c, binding: b }: { control: Cont
       );
     case "switch":
       return (
-        <SynthSwitch grid label={label} title={b.name} value={b.value} options={optionsOf(b)} onChange={b.onChange} />
+        <SynthSwitch grid box={box} label={label} title={b.name} value={b.value} options={optionsOf(b)} onChange={b.onChange} />
       );
     case "list":
       return (
         <SynthSwitch
           vertical
           gridRows={c.h}
+          box={box}
           label={label}
           title={b.name}
           value={b.value}
@@ -153,7 +165,7 @@ function Control<F extends FieldKey>({ control: c, binding: b }: { control: Cont
         />
       );
     case "picker":
-      return <SynthPicker label={label} title={b.name} value={b.value} options={optionsOf(b)} onChange={b.onChange} />;
+      return <SynthPicker box={box} label={label} title={b.name} value={b.value} options={optionsOf(b)} onChange={b.onChange} />;
   }
 }
 
@@ -198,10 +210,7 @@ export function GridSection<F extends FieldKey>({
   const border = {
     inset: INSET,
     borderRadius: BORDER.radius,
-    // Sides and bottom only: the CSS draws the thicker accent top.
-    borderLeftWidth: BORDER.width,
-    borderRightWidth: BORDER.width,
-    borderBottomWidth: BORDER.width,
+    borderWidth: BORDER_WIDTHS,
     ...(family === undefined ? {} : { "--section-accent": familyVar(family) }),
   } as CSSProperties;
   const title = sectionTitle(layout, scope);
@@ -222,6 +231,8 @@ export function GridSection<F extends FieldKey>({
           top: INSET,
           width: side ? CELL : W - 2 * INSET,
           height: top ? CELL - INSET : H - 2 * INSET,
+          // A top title's transparent border lets the Section's accent and sides show through.
+          ...(top ? { borderWidth: BORDER_WIDTHS } : {}),
         }}
       >
         {title}
@@ -240,12 +251,15 @@ export function GridSection<F extends FieldKey>({
       </svg>
       {elements.map((el) => {
         const rect = itemRect(el);
-        const cells: Cells = { w: rect.w, h: rect.h };
-        const box = { left: ox + rect.x * CELL, top: oy + rect.y * CELL, ...cellsPx(cells) };
+        // An element on a border Cell is drawn clear of the border on that edge.
+        const pad = edgePadding(layout, el);
+        const full = cellsPx({ w: rect.w, h: rect.h });
+        const size: Px = { width: full.width - pad.left - pad.right, height: full.height - pad.top - pad.bottom };
+        const box = { left: ox + rect.x * CELL + pad.left, top: oy + rect.y * CELL + pad.top, ...size };
         if (el.kind === "display") {
           return (
             <div key={elementKey(el)} className={css.element} data-display={el.display} style={box}>
-              {renderDisplay?.(el.display, cellsPx(cells))}
+              {renderDisplay?.(el.display, size)}
             </div>
           );
         }
@@ -260,7 +274,7 @@ export function GridSection<F extends FieldKey>({
             inert={inactive !== undefined}
             style={box}
           >
-            <Control control={el} binding={bind(el.field, el.index)} />
+            <Control control={el} binding={bind(el.field, el.index)} box={size} />
           </div>
         );
       })}

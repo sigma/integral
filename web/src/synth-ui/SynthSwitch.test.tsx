@@ -65,6 +65,19 @@ describe("SynthSwitch on the Grid", () => {
     expectFillsFootprint(rootOf(container), { w: FOOTPRINT.optionListW, h: waves.length + 1 });
   });
 
+  it("fits a box cut short by edge padding, taking the px from its name's row first", () => {
+    const pad = 7;
+    const box = { width: 2 * CELL - pad, height: (waves.length + 1) * CELL - pad };
+    const { container } = render(
+      <SynthSwitch value={0} options={waves} onChange={() => {}} label="WAVE" gridRows={5} box={box} />,
+    );
+    const root = rootOf(container);
+    expect([root.style.width, root.style.height]).toEqual([`${box.width}px`, `${box.height}px`]);
+    expect(stackedHeight([...root.children])).toBe(box.height);
+    const rows = [...root.querySelectorAll<HTMLElement>('[role="radio"]')];
+    expect(rows.map((r) => r.style.height)).toEqual(waves.map(() => `${CELL}px`));
+  });
+
   it("sizes a toggle with an empty name as unnamed", () => {
     const button = (label: string | undefined) =>
       rootOf(

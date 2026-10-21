@@ -5,8 +5,7 @@
  * stacks the same three bands: a Display (rows 0–1), knobs (rows 2–4) and
  * faders (rows 5–9), with its option lists down its left side, so the bands
  * line up across the row. Each box leaves its first column and last row free
- * of option lists and Displays, which fill their Cells, so they stay clear
- * of its border (`validateClearance`).
+ * of option lists and Displays.
  *
  * The OSC's scope and its PCM Wave picker (a Control) are `alternatives` on one
  * rectangle; Var and S-Saw hide when core holds them inactive. Neither moves

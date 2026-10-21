@@ -157,7 +157,10 @@ _Avoid_: Slot (a User slot is device memory)
 
 **Section**:
 A titled group of Controls on screen, such as EQ, MFX or one mixer strip. It
-covers a rectangle of whole Cells, its border and title included.
+covers a rectangle of whole Cells, its border and title included. Its border
+runs a few px inside its outer Cells; a Control or Display in one of those
+Cells is drawn clear of the border on that edge, so it loses those px, never
+a Cell.
 _Avoid_: Box, panel
 
 **Control**:

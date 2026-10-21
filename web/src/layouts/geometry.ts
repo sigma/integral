@@ -5,7 +5,7 @@
  */
 
 import { DisplayKind } from "../../pkg/integral_wasm.js";
-import { FOOTPRINT, type Cells } from "../synth-ui/grid";
+import { BLEED, FOOTPRINT, type Cells, type Edge } from "../synth-ui/grid";
 import type { FieldKey } from "./fields";
 import type {
   CellRect,
@@ -21,6 +21,42 @@ import type {
 
 /** A Section's border, drawn this far inside its own Cells, px at zoom 1 (#329). */
 export const INSET = 4;
+
+/**
+ * The border's line, px: its corner radius, the width of its sides and
+ * bottom, and of its top (the family accent). The renderer draws it and the
+ * Silkscreen clip and edge padding follow it.
+ */
+export const BORDER = { radius: 6, width: 1, accent: 3 } as const;
+
+/** Px from a Section's outer edge to the inside of its border line on `edge`. */
+export function borderClearance(edge: Edge): number {
+  return INSET + (edge === "top" ? BORDER.accent : BORDER.width);
+}
+
+/** Px an element is drawn in from each edge of its Cells. */
+export type EdgePadding = Record<Edge, number>;
+
+/**
+ * How far in from each edge of its Cells `el` is drawn in `layout` (#392).
+ * The border runs through the Cells along a Section's edges, `INSET` inside
+ * them; a title row (`top`) or column (`side`) stands between it and the
+ * content on that edge, the other edges have none. An element whose drawn
+ * edge (`BLEED`) lies on a border Cell is drawn clear of the border's line
+ * on that edge, so it loses a few px there, never a Cell.
+ */
+export function edgePadding<F extends FieldKey>(layout: SectionFrame, el: ElementLayout<F>): EdgePadding {
+  const r = itemRect(el);
+  const onBorder: Record<Edge, boolean> = {
+    top: r.y === 0 && layout.titleEdge !== "top",
+    left: r.x === 0 && layout.titleEdge !== "side",
+    bottom: r.y + r.h === layout.h,
+    right: r.x + r.w === layout.w,
+  };
+  const bleeds = BLEED[el.kind] as readonly Edge[];
+  const pad = (e: Edge) => (onBorder[e] && bleeds.includes(e) ? borderClearance(e) : 0);
+  return { top: pad("top"), right: pad("right"), bottom: pad("bottom"), left: pad("left") };
+}
 
 /** A Control's footprint in Cells. */
 export function controlCells<F extends FieldKey>(control: ControlLayout<F>): Cells {

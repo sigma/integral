@@ -7,7 +7,6 @@ import {
   MixerScopeKind,
   PcmdPartialField,
   PcmsPartialField,
-  SndNoteField,
   mfx_params,
   mfx_type_names,
   pcms_partial_count,
@@ -18,7 +17,7 @@ import {
   PCMD_PITCH_ENV_LAYOUT,
   PCMD_SCREEN,
 } from "./drum/pcmDrum";
-import { SND_SCREEN, SND_TONE_LAYOUT } from "./drum/snDrum";
+import { SND_SCREEN } from "./drum/snDrum";
 import {
   elementCount,
   enumFields,
@@ -27,7 +26,7 @@ import {
   type FieldKey,
 } from "./fields";
 import { MFX_PANEL_FRAME } from "./fx/mfx";
-import { variantLayout } from "./geometry";
+import { borderClearance, edgePadding } from "./geometry";
 import { EQ_LAYOUT } from "./mixer/eq";
 import { mixerScreen } from "./mixer/screen";
 import { STRIP_SET } from "./mixer/strip";
@@ -49,16 +48,12 @@ import type {
   VariantSet,
 } from "./types";
 import {
-  validateClearance,
   validateRegionSet,
   validateScreen,
   validateSection,
   validateVariantSet,
   type Check,
 } from "./validate";
-
-/** Layouts still drawing some Control or Display under their border, pending #392. */
-const UNDER_BORDER = new Set<object>([STRIP_SET]);
 
 describe("every layout", () => {
   it.each(SECTION_LAYOUTS.map((l) => [l.title, l] as const))(
@@ -73,35 +68,6 @@ describe("every layout", () => {
       expect(validateVariantSet(set)).toEqual([]);
     },
   );
-  it.each(
-    SECTION_LAYOUTS.filter((l) => !UNDER_BORDER.has(l)).map(
-      (l) => [l.title, l] as const,
-    ),
-  )("Section %s keeps clear of its border", (_, layout) => {
-    expect(validateClearance(layout)).toEqual([]);
-  });
-  it.each(
-    VARIANT_SETS.filter((s) => !UNDER_BORDER.has(s)).map(
-      (s) => [s.name, s] as const,
-    ),
-  )("variant set %s keeps clear of its border", (_, set) => {
-    for (const key of set.keys)
-      expect(
-        validateClearance(variantLayout(set, key), `${set.name}[${key}]`),
-      ).toEqual([]);
-  });
-  it("lists only layouts still drawn under their border as such", () => {
-    const sets = VARIANT_SETS.filter((s) => UNDER_BORDER.has(s));
-    const under = [
-      ...SECTION_LAYOUTS.filter(
-        (l) => UNDER_BORDER.has(l) && validateClearance(l).length > 0,
-      ),
-      ...sets.filter((s) =>
-        s.keys.some((k) => validateClearance(variantLayout(s, k)).length > 0),
-      ),
-    ];
-    expect(under).toHaveLength(UNDER_BORDER.size);
-  });
   it.each(screenLayouts().map((s) => [s.name, s] as const))(
     "screen %s is valid",
     (_, screen) => {
@@ -412,7 +378,7 @@ describe("validateSection", () => {
   });
 });
 
-describe("validateClearance", () => {
+describe("edgePadding", () => {
   /** A side-titled Section, 6×6, holding `items`. */
   const side = (
     items: ItemLayout<MixerField>[],
@@ -428,67 +394,32 @@ describe("validateClearance", () => {
     ...side(items),
     titleEdge: "top",
   });
+  const NONE = { top: 0, right: 0, bottom: 0, left: 0 };
+  const padOf = (layout: SectionLayout<MixerField>) => {
+    const el = layout.items[0]!;
+    if (el.kind === "alternatives") throw new Error("one element");
+    return edgePadding(layout, el);
+  };
 
-  it("passes Controls clear of the border", () => {
-    expect(
-      validateClearance(
-        top([{ kind: "switch", field: MixerField.EqSwitch, x: 2, y: 0 }]),
-      ),
-    ).toEqual([]);
-    expect(
-      validateClearance(
-        side([{ kind: "switch", field: MixerField.EqSwitch, x: 0, y: 1 }]),
-      ),
-    ).toEqual([]);
+  it("leaves elements off the border, or behind a title, where they are", () => {
+    expect(padOf(top([{ kind: "switch", field: MixerField.EqSwitch, x: 2, y: 0 }]))).toEqual(NONE);
+    expect(padOf(side([{ kind: "switch", field: MixerField.EqSwitch, x: 0, y: 1 }]))).toEqual(NONE);
   });
 
-  it("clearance: any name in the first row, with no title over it", () => {
-    // The border's accent runs through the top Cell row, where names sit.
-    const knob = side([
-      { kind: "knob", field: MixerField.EqLowGain, x: 2, y: 0 },
-    ]);
-    expect(checks(validateClearance(knob))).toEqual(["clearance"]);
-    expect(validateClearance({ ...knob, titleEdge: "top" })).toEqual([]);
+  it("pads a name in the first row with no title over it by the border's accent", () => {
+    const knob = side([{ kind: "knob", field: MixerField.EqLowGain, x: 2, y: 0 }]);
+    expect(padOf(knob)).toEqual({ ...NONE, top: borderClearance("top") });
+    expect(padOf({ ...knob, titleEdge: "top" })).toEqual(NONE);
   });
 
-  it("clearance: a switch, list or Display on the bottom, right or untitled left edge", () => {
-    // A switch fills its Cell; the border runs through the last row and column.
-    expect(
-      checks(
-        validateClearance(
-          top([{ kind: "switch", field: MixerField.EqSwitch, x: 2, y: 5 }]),
-        ),
-      ),
-    ).toEqual(["clearance"]);
-    expect(
-      checks(
-        validateClearance(
-          top([{ kind: "switch", field: MixerField.EqSwitch, x: 4, y: 2 }]),
-        ),
-      ),
-    ).toEqual(["clearance"]);
-    expect(
-      checks(
-        validateClearance(
-          top([{ kind: "switch", field: MixerField.EqSwitch, x: 0, y: 2 }]),
-        ),
-      ),
-    ).toEqual(["clearance"]);
-    const scope: ItemLayout<MixerField> = {
-      kind: "display",
-      display: DisplayKind.AmpEnvelope,
-      x: 1,
-      y: 4,
-      w: 4,
-      h: 2,
-    };
-    expect(checks(validateClearance(top([scope])))).toEqual(["clearance"]);
+  it("pads a switch, list or Display on the bottom, right or untitled left edge by the border", () => {
+    expect(padOf(top([{ kind: "switch", field: MixerField.EqSwitch, x: 2, y: 5 }]))).toEqual({ ...NONE, bottom: borderClearance("bottom") });
+    expect(padOf(top([{ kind: "switch", field: MixerField.EqSwitch, x: 4, y: 2 }]))).toEqual({ ...NONE, right: borderClearance("right") });
+    expect(padOf(top([{ kind: "switch", field: MixerField.EqSwitch, x: 0, y: 2 }]))).toEqual({ ...NONE, left: borderClearance("left") });
+    const scope: ItemLayout<MixerField> = { kind: "display", display: DisplayKind.AmpEnvelope, x: 1, y: 4, w: 5, h: 2 };
+    expect(padOf(top([scope]))).toEqual({ ...NONE, right: borderClearance("right"), bottom: borderClearance("bottom") });
     // Knobs and faders keep their own margin there.
-    expect(
-      validateClearance(
-        top([{ kind: "fader", field: MixerField.PartLevel, x: 4, y: 2, h: 4 }]),
-      ),
-    ).toEqual([]);
+    expect(padOf(top([{ kind: "fader", field: MixerField.PartLevel, x: 4, y: 2, h: 4 }]))).toEqual(NONE);
   });
 });
 
@@ -962,20 +893,5 @@ describe("validateRegionSet", () => {
       ),
     );
     expect(checks(problems)).toEqual(["containment"]);
-  });
-});
-
-describe("pickers", () => {
-  it("keeps the SN Drum Inst picker clear of its border", () => {
-    const inst = SND_TONE_LAYOUT.fields.nameOf(SndNoteField.InstNumber);
-    const under = (layout: typeof SND_TONE_LAYOUT) =>
-      validateClearance(layout).filter((p) => p.where.includes(inst));
-    expect(under(SND_TONE_LAYOUT)).toEqual([]);
-    // A picker fills its Cells: on the left column it would draw under the border.
-    const left = {
-      ...SND_TONE_LAYOUT,
-      items: [{ kind: "picker", field: SndNoteField.InstNumber, x: 0, y: 0 }],
-    } as const;
-    expect(under(left)).toHaveLength(1);
   });
 });

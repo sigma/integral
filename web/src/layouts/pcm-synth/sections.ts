@@ -9,7 +9,7 @@
  * (`envelopeItems`) at the same rows, so their envelopes line up along a
  * lane. Envelope times and levels and the Step LFO's steps are elements of
  * array fields. Option lists, switches and Displays keep a free Cell from the
- * left, right and bottom borders (`validateClearance`).
+ * left, right and bottom borders.
  */
 
 import {
@@ -400,7 +400,7 @@ export const PCMS_BOXES: Readonly<Record<PcmsBox, PcmsBoxSpec>> = {
 /**
  * One partial's on/off switch, a strip at the head of its lane with the title
  * down its side, as in SN Synth; a Partial Scope binds it. The switch sits
- * under the top border's row and clear of the right edge (`validateClearance`).
+ * under the top border's row and clear of the right edge.
  */
 export const PARTIAL_LAYOUT: SectionLayout<PcmsPmtField> = {
   title: "Partial {partial}",

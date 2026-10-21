@@ -1,5 +1,5 @@
 import { useCallback, useRef, type ReactNode } from "react";
-import { ADDON_LINE, CELL, FOOTPRINT, NAME, READOUT, cellsPx, lineStyle } from "./grid";
+import { ADDON_LINE, FOOTPRINT, NAME, READOUT, cellsPx, lineStyle, type Px } from "./grid";
 import { ControlAddon } from "./ControlAddon";
 import css from "./SynthFader.module.css";
 
@@ -27,6 +27,11 @@ interface Props {
    * Absent: today's natural size, for CSS layouts.
    */
   gridRows?: number;
+  /**
+   * On the Grid, the px box to fill instead of the whole footprint: the
+   * footprint less the edge padding a Section's renderer gives it.
+   */
+  box?: Px;
   /**
    * A line under the readout, such as the tempo-sync toggle. On the Grid the
    * track gives up an `ADDON_LINE` for it, so the footprint holds.
@@ -56,14 +61,16 @@ export function SynthFader({
   title,
   readOnly,
   gridRows,
+  box: boxProp,
   addon,
 }: Props) {
   const grid = gridRows !== undefined;
+  const box = grid ? (boxProp ?? cellsPx({ w: FOOTPRINT.faderW, h: gridRows })) : undefined;
   // On the Grid the slider area is what the name and readout leave; the track runs
   // half a thumb inside it at each end, so the thumb never leaves the footprint.
   const nameH = hideLabel ? 0 : grid ? NAME.line : FADER_LABEL_HEIGHT;
-  const areaH = grid
-    ? gridRows * CELL - nameH - READOUT.line - (addon === undefined ? 0 : ADDON_LINE)
+  const areaH = box
+    ? box.height - nameH - READOUT.line - (addon === undefined ? 0 : ADDON_LINE)
     : (trackHeight ?? (compact ? TRACK_HEIGHT_COMPACT : TRACK_HEIGHT));
   const inset = grid ? THUMB_H / 2 : 0;
   const trackH = Math.max(0, areaH - 2 * inset);
@@ -144,7 +151,7 @@ export function SynthFader({
         readOnly ? css.readOnly : "",
         grid ? css.grid : "",
       ].join(" ")}
-      style={grid ? cellsPx({ w: FOOTPRINT.faderW, h: gridRows }) : undefined}
+      style={box}
       title={title ?? label}
     >
       {/* Label zone — fixed height so faders align across groups */}

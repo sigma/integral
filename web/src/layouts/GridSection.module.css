@@ -4,13 +4,14 @@
   flex-shrink: 0;
 }
 
-/* The border, inset inside the Section's own Cells (inset, radius and side width
-   inline, so the Silkscreen clip matches); the top takes the family accent. */
+/* The border, inset inside the Section's own Cells (inset, radius and widths
+   inline from `BORDER`, so the Silkscreen clip and edge padding match); the
+   top takes the family accent. */
 .border {
   position: absolute;
   border-style: solid;
   border-color: #2a2a4a;
-  border-top: 3px solid var(--section-accent, #2a2a4a);
+  border-top-color: var(--section-accent, #2a2a4a);
   background: #161628;
 }
 
@@ -27,11 +28,11 @@
 }
 
 /* A top title is a header band, as `SectionPanel`'s: the transparent borders
-   leave the Section's accent and sides showing through. */
+   (widths inline, from `BORDER`) leave the Section's accent and sides showing through. */
 .topTitle {
   box-sizing: border-box;
-  border: solid transparent;
-  border-width: 3px 1px 1px;
+  border-style: solid;
+  border-color: transparent;
   border-bottom-color: #2a2a4a;
   background: #1a1a30;
   background-clip: padding-box;

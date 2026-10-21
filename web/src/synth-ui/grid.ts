@@ -41,7 +41,8 @@ const ALL_EDGES = ["top", "right", "bottom", "left"] as const satisfies readonly
 /**
  * The edges of its footprint each kind of Control or Display draws right up
  * to. A Section's border runs through the Cells along its edges (`INSET`
- * inside them), so none of these edges may lie on one (`validateClearance`).
+ * inside them), so where one of these edges lies on a border Cell the
+ * renderer draws the element clear of the border on that edge (`edgePadding`).
  * Every Control's name sits in its top line; a knob or fader keeps its own
  * margin on the other edges, while a switch, an option list, a picker or a
  * Display fills its Cells.
@@ -87,8 +88,16 @@ export function optionListRows(options: number, named: boolean): number {
   return options + (named ? 1 : 0);
 }
 
+/** A box in px at zoom 1. */
+export interface Px {
+  /** Width, px. */
+  width: number;
+  /** Height, px. */
+  height: number;
+}
+
 /** `cells` in px at zoom 1. */
-export function cellsPx(cells: Cells): { width: number; height: number } {
+export function cellsPx(cells: Cells): Px {
   return { width: cells.w * CELL, height: cells.h * CELL };
 }
 
