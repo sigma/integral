@@ -96,7 +96,6 @@ struct EditorHandle(baseview::WindowHandle);
 
 // SAFETY: hosts create and destroy editors on the GUI thread, so the window
 // handle is only touched there; nih-plug only requires `Send` to store it.
-// nih_plug_vizia's handle does the same.
 unsafe impl Send for EditorHandle {}
 
 impl Drop for EditorHandle {

@@ -1,6 +1,6 @@
 //! Standalone binary for the Integral Integra-7 control surface.
 //!
-//! Runs the same Vizia UI as the VST3/CLAP plugin, but outside a DAW
+//! Runs the same editor as the VST3/CLAP plugin, but outside a DAW
 //! with direct MIDI port access via CoreMIDI (macOS), ALSA/JACK (Linux),
 //! or WASAPI (Windows).
 //!

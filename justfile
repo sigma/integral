@@ -33,10 +33,9 @@ lint-web: pack-wasm web-deps
 test-web: pack-wasm web-deps
     cd web && npx vitest run
 
-# lint CSS (web + VST Vizia theme)
+# lint the web CSS modules
 lint-css: web-deps
     cd web && npx stylelint "src/**/*.css"
-    cd web && npx stylelint --config ../crates/integral-vst/.stylelintrc.json "../crates/integral-vst/src/**/*.css"
 
 # build the web app for both bases and check its PWA manifest and precache
 check-pwa: pack-wasm web-deps
