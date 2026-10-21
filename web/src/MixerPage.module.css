@@ -1,41 +1,36 @@
+/* The page scrolls its zoomed Grid down when it is taller than the window. */
 .page {
-  display: flex;
-  flex-direction: column;
   flex: 1;
   min-height: 0;
-  background: #0c0c1a;
+  overflow: auto;
+  background: linear-gradient(to bottom, #1e1e35, #161628);
   color: #e0e0e0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/*
- * Every strip is a subgrid column sharing these rows, so the boxes, the
- * bottom group and the faders line up across strips:
- *   header / EQ or FX box / free space / bottom group / fader / label.
- * The FX boxes reserve room for their largest type, so the top part doesn't
- * move when the type changes. The free space goes first, then the fader row
- * shrinks; below that the mixer scrolls.
- */
-.mixerArea {
-  display: grid;
-  grid-template-rows: auto auto 1fr auto minmax(200px, 588px) auto;
-  grid-auto-flow: column;
-  grid-auto-columns: max-content;
-  row-gap: 6px;
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
+/* A part's Sections fill their placements; pressing one selects the part. */
+.column {
+  height: 100%;
 }
 
-.channels {
-  display: contents;
+.selected {
+  background: linear-gradient(to bottom, #262a4e, #1a1c38);
+}
+
+/*
+ * A Chorus or Reverb strip fills its column, with the rows it shares with
+ * the old CSS strips: label / FX box / free space / type and routing /
+ * fader / role.
+ */
+.fxHost {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto minmax(200px, 588px) auto;
+  height: 100%;
 }
 
 .loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
+  padding: 48px 0;
+  text-align: center;
   color: #888;
   font-size: 14px;
 }

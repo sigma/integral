@@ -23,7 +23,7 @@ use crate::sn_acoustic::{SnAcousticCommon, SnaCommonField, sna_offsets};
 use crate::sn_synth::{
     OSC_WAVE_PCM, OSC_WAVE_SUPER_SAW, SnSynthCommon, SnSynthPartial, SnsPartialField,
 };
-use crate::state::{DrumCompEqState, PartState};
+use crate::state::{CompEqUnit, DrumCompEqState, PartState};
 
 // ---------------------------------------------------------------------------
 // SN Synth
@@ -165,6 +165,30 @@ pub fn mixer_is_active(
         MixerField::DrumCompEqPart => {
             let assigned = drum_comp_eq.enabled && usize::from(drum_comp_eq.part) == part;
             assigned || params::is_drum_kit_bank(part_state.tone_bank_msb)
+        }
+        _ => true,
+    }
+}
+
+/// Whether mixer `field` is active while Motional Surround is
+/// `surround_enabled`: surround routes the parts and the Drum Comp+EQ units
+/// itself, so their Output Assigns have no effect while it is on. Every
+/// other field is always active.
+pub fn mixer_output_is_active(field: MixerField, surround_enabled: bool) -> bool {
+    match field {
+        MixerField::PartOutputAssign | MixerField::CompOutputAssign => !surround_enabled,
+        _ => true,
+    }
+}
+
+/// Whether mixer `field` of a Drum Comp+EQ unit in state `unit` is active:
+/// the compressor's settings act only while its switch is on. The switch
+/// itself, the unit's EQ and its routing are always active.
+pub fn comp_eq_unit_is_active(field: MixerField, unit: &CompEqUnit) -> bool {
+    use MixerField as F;
+    match field {
+        F::CompAttack | F::CompRelease | F::CompThreshold | F::CompRatio | F::CompOutputGain => {
+            unit.comp_switch
         }
         _ => true,
     }
@@ -490,5 +514,43 @@ mod tests {
             &part(87),
             &DrumCompEqState::default()
         ));
+    }
+
+    #[test]
+    fn surround_overrides_the_output_assigns() {
+        for field in [MixerField::PartOutputAssign, MixerField::CompOutputAssign] {
+            assert!(mixer_output_is_active(field, false), "{field:?}");
+            assert!(!mixer_output_is_active(field, true), "{field:?}");
+        }
+        assert!(mixer_output_is_active(MixerField::PartLevel, true));
+    }
+
+    #[test]
+    fn a_switched_off_compressor_leaves_its_settings_inactive() {
+        let on = CompEqUnit {
+            comp_switch: true,
+            ..CompEqUnit::default()
+        };
+        let off = CompEqUnit {
+            comp_switch: false,
+            ..on.clone()
+        };
+        for field in [
+            MixerField::CompAttack,
+            MixerField::CompRelease,
+            MixerField::CompThreshold,
+            MixerField::CompRatio,
+            MixerField::CompOutputGain,
+        ] {
+            assert!(comp_eq_unit_is_active(field, &on), "{field:?}");
+            assert!(!comp_eq_unit_is_active(field, &off), "{field:?}");
+        }
+        for field in [
+            MixerField::CompSwitch,
+            MixerField::EqLowGain,
+            MixerField::CompOutputAssign,
+        ] {
+            assert!(comp_eq_unit_is_active(field, &off), "{field:?}");
+        }
     }
 }

@@ -6,13 +6,17 @@
 
 import type { FieldKey } from "./fields";
 import { EQ_LAYOUT } from "./mixer/eq";
+import { mixerScreen } from "./mixer/screen";
+import { STRIP_SET } from "./mixer/strip";
 import type { ScreenLayout, SectionLayout, VariantSet } from "./types";
 
 /** Section layouts that are not variants. */
 export const SECTION_LAYOUTS: readonly SectionLayout<FieldKey>[] = [EQ_LAYOUT];
 
 /** Variant sets; the validator walks every key core enumerates. */
-export const VARIANT_SETS: readonly VariantSet<FieldKey, FieldKey>[] = [];
+export const VARIANT_SETS: readonly VariantSet<FieldKey, FieldKey>[] = [STRIP_SET];
 
-/** Screen layouts. */
-export const SCREEN_LAYOUTS: readonly ScreenLayout[] = [];
+/** Screen layouts; a function, as screens read the device spec from core. */
+export function screenLayouts(): readonly ScreenLayout[] {
+  return [mixerScreen(false).layout, mixerScreen(true).layout];
+}

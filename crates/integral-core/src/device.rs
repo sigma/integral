@@ -112,7 +112,11 @@ fn mixer_slot(state: &mut MixerState, scope: MixerScope, field: MixerField) -> O
     use Slot::{Byte, Flag};
     Some(match scope {
         MixerScope::Part(part) => {
-            let p = &mut state.parts[usize::from(part)];
+            let part = usize::from(part);
+            if field == F::PartAmbienceSend {
+                return Some(Byte(&mut state.surround.parts[part].ambience_send));
+            }
+            let p = &mut state.parts[part];
             match field {
                 F::PartLevel => Byte(&mut p.level),
                 F::PartPan => Byte(&mut p.pan),
@@ -134,7 +138,11 @@ fn mixer_slot(state: &mut MixerState, scope: MixerScope, field: MixerField) -> O
             _ => eq_slot(&mut state.master_eq, field)?,
         },
         MixerScope::CompEqUnit { unit, .. } => {
-            let u = &mut state.drum_comp_eq.units[usize::from(unit)];
+            let unit = usize::from(unit);
+            if field == F::CompOutputAssign {
+                return Some(Byte(&mut state.drum_comp_eq.output_assigns[unit]));
+            }
+            let u = &mut state.drum_comp_eq.units[unit];
             match field {
                 F::CompSwitch => Flag(&mut u.comp_switch),
                 F::CompAttack => Byte(&mut u.comp_attack),
@@ -164,6 +172,7 @@ fn mixer_slot(state: &mut MixerState, scope: MixerScope, field: MixerField) -> O
             F::ReverbLevel => Byte(&mut state.reverb.level),
             F::ReverbOutputAssign => Byte(&mut state.reverb.output),
             F::SoloPart => Byte(&mut state.solo_part),
+            F::DrumCompEqSwitch => Flag(&mut state.drum_comp_eq.enabled),
             F::DrumCompEqPart => Byte(&mut state.drum_comp_eq.part),
             _ => return None,
         },
@@ -1478,6 +1487,22 @@ mod tests {
     }
 
     #[test]
+    fn set_mixer_field_writes_the_strip_fields_outside_their_blocks() {
+        let mut dev = DeviceState::new(0x10);
+        let part = dev.mixer_scope(MixerScopeKind::Part, 5);
+        dev.set_mixer_field(part, MixerField::PartAmbienceSend, 90)
+            .unwrap();
+        assert_eq!(dev.state().surround.parts[5].ambience_send, 90);
+        let unit = dev.mixer_scope(MixerScopeKind::CompEqUnit, 2);
+        dev.set_mixer_field(unit, MixerField::CompOutputAssign, 7)
+            .unwrap();
+        assert_eq!(dev.state().drum_comp_eq.output_assigns[2], 7);
+        dev.set_mixer_field(MixerScope::Common, MixerField::DrumCompEqSwitch, 1)
+            .unwrap();
+        assert!(dev.state().drum_comp_eq.enabled);
+    }
+
+    #[test]
     fn set_mixer_field_switches_master_eq() {
         let mut dev = DeviceState::new(0x10);
         dev.set_mixer_field(MixerScope::Master, MixerField::EqSwitch, 0)
@@ -1525,7 +1550,8 @@ mod tests {
     #[test]
     fn typed_setters_agree_with_mixer_field_addresses() {
         type Set = fn(&mut DeviceState);
-        let cases: [(Set, MixerScope, MixerField); 14] = [
+        let unit = DeviceState::new(0x10).mixer_scope(MixerScopeKind::CompEqUnit, 4);
+        let cases: [(Set, MixerScope, MixerField); 17] = [
             (
                 |d| d.set_part_level(2, 1),
                 MixerScope::Part(2),
@@ -1595,6 +1621,21 @@ mod tests {
                 |d| d.set_drum_comp_eq_part(3),
                 MixerScope::Common,
                 MixerField::DrumCompEqPart,
+            ),
+            (
+                |d| d.set_drum_comp_eq_switch(true),
+                MixerScope::Common,
+                MixerField::DrumCompEqSwitch,
+            ),
+            (
+                |d| d.set_part_surround_param(2, params::part_surround::AMBIENCE_SEND, 1),
+                MixerScope::Part(2),
+                MixerField::PartAmbienceSend,
+            ),
+            (
+                |d| d.set_drum_comp_eq_output_assign(4, 1),
+                unit,
+                MixerField::CompOutputAssign,
             ),
         ];
         for (set, scope, field) in cases {

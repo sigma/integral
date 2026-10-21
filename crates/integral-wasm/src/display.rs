@@ -4,7 +4,7 @@ use integral_core::display::{self as core, DisplayField, DisplaySource};
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    PcmdPartialField, PcmsPartialField, PcmsPmtField, SnaCommonField, SnsPartialField,
+    MixerField, PcmdPartialField, PcmsPartialField, PcmsPmtField, SnaCommonField, SnsPartialField,
     SurroundField, ToneType,
 };
 
@@ -163,7 +163,7 @@ struct FieldGetters {
     pcms_partial: Option<PcmsPartialField>,
     pcms_pmt: Option<PcmsPmtField>,
     pcmd_partial: Option<PcmdPartialField>,
-    comp_eq_offset: Option<u8>,
+    mixer: Option<MixerField>,
     part_surround_offset: Option<[u8; 3]>,
     surround: Option<SurroundField>,
 }
@@ -197,8 +197,8 @@ impl WasmDisplaySlot {
                 pcmd_partial: Some(f.into()),
                 ..none
             },
-            DisplayField::CompEq(offset) => FieldGetters {
-                comp_eq_offset: Some(offset),
+            DisplayField::Mixer(f) => FieldGetters {
+                mixer: Some(f.into()),
                 ..none
             },
             DisplayField::PartSurround(offset) => FieldGetters {
@@ -269,10 +269,10 @@ impl WasmDisplaySlot {
         self.getters().pcmd_partial
     }
 
-    /// The Comp+EQ unit parameter read, by its offset in the unit.
-    #[wasm_bindgen(getter, js_name = compEqOffset)]
-    pub fn comp_eq_offset(&self) -> Option<u8> {
-        self.getters().comp_eq_offset
+    /// The mixer field read; the Scope supplies its indices.
+    #[wasm_bindgen(getter)]
+    pub fn mixer(&self) -> Option<MixerField> {
+        self.getters().mixer
     }
 
     /// The Part surround parameter read, by its offset in the Part block.
@@ -332,9 +332,6 @@ mod tests {
         );
         assert_eq!(pad[2].surround(), Some(SurroundField::ExtPartLr));
         let curve = display_binding(DisplayKind::CompTransferCurve, None).unwrap();
-        assert_eq!(
-            curve[0].comp_eq_offset(),
-            Some(integral_core::params::comp::THRESHOLD)
-        );
+        assert_eq!(curve[0].mixer(), Some(MixerField::CompThreshold));
     }
 }

@@ -4,7 +4,7 @@
   grid-template-rows: subgrid;
   place-items: start center;
 
-  /* Four 24px Cells, so the Grid EQ fits; the CSS parts centre in it. */
+  /* Four 24px Cells: a mixer screen column. */
   padding: 10px 0 8px;
   min-width: 96px;
   width: 96px;
@@ -23,44 +23,7 @@
   border-radius: 3px;
 }
 
-.channelSelect {
-  font-size: 12px;
-  font-weight: 700;
-  color: #c0c0e0;
-  background: #2a2a4a;
-  width: 100%;
-  text-align: center;
-  padding: 4px 2px;
-  border-radius: 3px;
-  border: 1px solid #3a3a5a;
-  cursor: pointer;
-  appearance: none;
-}
-
-.channelSelect:hover {
-  border-color: #4a6cf7;
-}
-
-.channelSelect option {
-  background: #2a2a4a;
-  color: #c0c0e0;
-}
-
-.sends {
-  display: flex;
-  justify-content: center;
-  gap: 2px;
-  width: 100%;
-}
-
-.muteLabel {
-  font-size: 9px;
-  color: #888;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-/* Route chip, C+EQ, M and S share one width so the toggle rows line up. */
+/* Route chips (FX strips) share one width so the toggle rows line up. */
 .compEqButton {
   min-width: 42px;
   font-size: 9px;
@@ -105,21 +68,7 @@
   border-color: #888;
 }
 
-.muted {
-  background: #5a1a1a;
-  color: #f44;
-  border-color: #f44;
-  box-shadow: 0 0 6px rgb(255 68 68 / 30%);
-}
-
-.soloed {
-  background: #4a4a1a;
-  color: #fd4;
-  border-color: #fd4;
-  box-shadow: 0 0 6px rgb(255 221 68 / 30%);
-}
-
-/* Pan/Sends and the toggles, or the comp box, sitting on the fader. */
+/* An FX strip's type list and routing, sitting on the fader. */
 .bottom {
   grid-row: 4;
   align-self: end;
@@ -130,7 +79,7 @@
   width: 100%;
 }
 
-/* C+EQ and M/S, the bottom of .bottom, so M/S lines up across strips. */
+/* The routing chips, the bottom of .bottom. */
 .toggles {
   display: flex;
   flex-direction: column;
@@ -157,42 +106,6 @@
   border: 1px solid #1a1a30;
   padding: 4px 0;
   min-height: 0;
-}
-
-.selected {
-  background: linear-gradient(to bottom, #262a4e, #1a1c38);
-}
-
-/* Matches the active part tab in the header. */
-.selected .partNumber {
-  color: #fff;
-  background: #4a6cf7;
-}
-
-.extOverride {
-  border-right: none;
-  border-left: 1px solid #2a4a2a;
-}
-
-.masterOverride {
-  border-right: none;
-  border-left: 2px solid #3a3a5a;
-}
-
-.compEqOverride {
-  border-right: 1px solid #1a1a30;
-}
-
-/* Separate the Comp+EQ strips (shown only while enabled) from EX. */
-.extOverride + .compEqOverride {
-  border-left: 1px solid #2a4a2a;
-}
-
-.compOn {
-  background: #3a2a0a;
-  color: #fa4;
-  border-color: #fa4;
-  box-shadow: 0 0 6px rgb(255 170 68 / 30%);
 }
 
 .faderLabel {
@@ -238,4 +151,40 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* A Grid strip's name plate: the tone (or role) over its category. */
+.namePlate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 100%;
+  padding: 2px 4px;
+  overflow: hidden;
+}
+
+.toneName {
+  max-width: 100%;
+  font-size: 10px;
+  font-weight: 600;
+  color: #4dff4d;
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.categoryRow {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+}
+
+.categoryRow .categoryIcon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
 }
