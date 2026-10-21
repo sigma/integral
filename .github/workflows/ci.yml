@@ -13,11 +13,27 @@ jobs:
   check:
     name: Lint, Build & Test
     runs-on: ubuntu-latest
+    env:
+      # Incremental state only bloats the cache; CI never rebuilds in place.
+      CARGO_INCREMENTAL: 0
     steps:
       - uses: actions/checkout@v4
 
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      # The Nix cache holds the toolchain, not cargo's build output. flake.lock pins
+      # the toolchain, so it keys the cache together with Cargo.lock.
+      - name: Restore cargo cache
+        id: cargo-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('flake.lock', 'Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
 
       - name: Format check (Rust + Nix)
         run: nix develop -c just fmt-check
@@ -38,9 +54,6 @@ jobs:
       - name: Build (native)
         run: nix develop -c just build
 
-      - name: Build (WASM)
-        run: nix develop -c just build-wasm
-
       - name: Test
         run: nix develop -c just test
 
@@ -55,3 +68,14 @@ jobs:
 
       - name: Build web and check PWA output
         run: nix develop -c just check-pwa
+
+      # Saved from main only, so PR caches don't evict it.
+      - name: Save cargo cache
+        if: github.ref == 'refs/heads/main' && steps.cargo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
