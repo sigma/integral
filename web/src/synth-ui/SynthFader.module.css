@@ -76,12 +76,12 @@
   border-radius: 2px;
 }
 
+/* Height and centring come from SynthFader's THUMB_H. */
 .thumb {
   position: absolute;
+  box-sizing: border-box;
   left: 2px;
   right: 2px;
-  height: 8px;
-  margin-top: -4px;
   background: linear-gradient(to bottom, #bbb, #888);
   border-radius: 2px;
   border: 1px solid #555;
@@ -111,4 +111,18 @@
 
 .readOnly .trackArea {
   cursor: default;
+}
+
+/* On the Grid: the footprint fixes the box; name and readout take one line each. */
+.grid .labelZone {
+  align-items: center;
+  padding-bottom: 0;
+}
+
+.grid .label {
+  max-width: 100%;
+}
+
+.grid .value {
+  margin-top: 0;
 }

@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import { CELL, FOOTPRINT, NAME, READOUT, cellsPx, lineStyle } from "./grid";
 import css from "./SynthFader.module.css";
 
 interface Props {
@@ -19,6 +20,12 @@ interface Props {
   title?: string;
   /** Shown but not editable (a value the device fixes). */
   readOnly?: boolean;
+  /**
+   * N: fill a 2×N Grid footprint exactly, at scale 1, name and readout
+   * included; the track takes what is left. Overrides compact and trackHeight.
+   * Absent: today's natural size, for CSS layouts.
+   */
+  gridRows?: number;
 }
 
 const TRACK_HEIGHT = 100;
@@ -26,6 +33,8 @@ const TRACK_HEIGHT_COMPACT = 70;
 const TICK_COUNT = 11;
 
 export const FADER_LABEL_HEIGHT = 28; // px — fixed height for the label zone
+/** Thumb height, border included, px. On the Grid the track is inset by half of it, so the thumb stays in the footprint. */
+const THUMB_H = 10;
 
 export function SynthFader({
   value,
@@ -40,8 +49,17 @@ export function SynthFader({
   hideLabel,
   title,
   readOnly,
+  gridRows,
 }: Props) {
-  const trackH = trackHeight ?? (compact ? TRACK_HEIGHT_COMPACT : TRACK_HEIGHT);
+  const grid = gridRows !== undefined;
+  // On the Grid the slider area is what the name and readout leave; the track runs
+  // half a thumb inside it at each end, so the thumb never leaves the footprint.
+  const nameH = hideLabel ? 0 : grid ? NAME.line : FADER_LABEL_HEIGHT;
+  const areaH = grid
+    ? gridRows * CELL - nameH - READOUT.line
+    : (trackHeight ?? (compact ? TRACK_HEIGHT_COMPACT : TRACK_HEIGHT));
+  const inset = grid ? THUMB_H / 2 : 0;
+  const trackH = Math.max(0, areaH - 2 * inset);
   const dragging = useRef(false);
   const startY = useRef(0);
   const startVal = useRef(0);
@@ -54,7 +72,7 @@ export function SynthFader({
   const fillBottom = Math.min(norm, defaultNorm) * trackH;
   const fillTop = Math.max(norm, defaultNorm) * trackH;
   const fillHeight = fillTop - fillBottom;
-  const thumbY = (1 - norm) * trackH;
+  const thumbY = inset + (1 - norm) * trackH;
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -112,17 +130,28 @@ export function SynthFader({
   const display = formatValue ? formatValue(value) : String(value);
 
   return (
-    <div className={`${css.fader} ${compact ? css.compact : ""} ${readOnly ? css.readOnly : ""}`} title={title ?? label}>
+    <div
+      className={[
+        css.fader,
+        compact ? css.compact : "",
+        readOnly ? css.readOnly : "",
+        grid ? css.grid : "",
+      ].join(" ")}
+      style={grid ? cellsPx({ w: FOOTPRINT.faderW, h: gridRows }) : undefined}
+      title={title ?? label}
+    >
       {/* Label zone — fixed height so faders align across groups */}
       {!hideLabel && (
-        <div className={css.labelZone} style={{ height: FADER_LABEL_HEIGHT }}>
-          <span className={css.label}>{label}</span>
+        <div className={css.labelZone} style={{ height: nameH }}>
+          <span className={css.label} style={grid ? lineStyle(NAME) : undefined}>
+            {label}
+          </span>
         </div>
       )}
       {/* Fader zone */}
       <div
         className={css.trackArea}
-        style={{ height: trackH }}
+        style={{ height: areaH }}
         tabIndex={0}
         role="slider"
         aria-valuenow={value}
@@ -141,15 +170,22 @@ export function SynthFader({
               onKeyDown: handleKeyDown,
             })}
       >
-        <div className={css.ruler}>{ticks}</div>
-        <div className={css.track}>
+        <div className={css.ruler} style={grid ? { top: inset, bottom: inset } : undefined}>
+          {ticks}
+        </div>
+        <div className={css.track} style={grid ? { top: inset, bottom: inset } : undefined}>
           {!isDefault && (
             <div className={css.fill} style={{ bottom: fillBottom, height: fillHeight }} />
           )}
         </div>
-        <div className={`${css.thumb} ${!isDefault ? css.thumbActive : ""}`} style={{ top: thumbY }} />
+        <div
+          className={`${css.thumb} ${!isDefault ? css.thumbActive : ""}`}
+          style={{ top: thumbY, height: THUMB_H, marginTop: -THUMB_H / 2 }}
+        />
       </div>
-      <span className={css.value}>{display}</span>
+      <span className={css.value} style={grid ? lineStyle(READOUT) : undefined}>
+        {display}
+      </span>
     </div>
   );
 }

@@ -42,3 +42,13 @@
 .pointer {
   stroke: #ddd;
 }
+
+/* On the Grid: the footprint fixes the box; name, dial and readout spread over it. */
+.grid {
+  justify-content: space-between;
+  gap: 0;
+}
+
+.grid .label {
+  max-width: 100%;
+}

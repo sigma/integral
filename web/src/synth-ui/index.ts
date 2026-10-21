@@ -12,3 +12,5 @@ export { OutputStrip } from "./OutputStrip";
 export { ParametricEq } from "./ParametricEq";
 export type { EqBand, EqControl } from "./ParametricEq";
 export { FAMILIES, accentColour, familyProperty, familyVar, installFamilyPalette } from "./family";
+export { CELL, FOOTPRINT, cellsPx } from "./grid";
+export type { Cells } from "./grid";
