@@ -1,8 +1,10 @@
+import type { ReactNode } from "react";
 import { useDragControl } from "../useDragControl";
 import { MAX_TICKS } from "../EqKnob";
 import { ParameterFamily } from "../../pkg/integral_wasm.js";
 import { familyVar } from "./family";
-import { CELL, FOOTPRINT, NAME, READOUT, cellsPx, lineStyle, type Cells } from "./grid";
+import { ADDON_LINE, CELL, FOOTPRINT, NAME, READOUT, cellsPx, lineStyle, type Cells } from "./grid";
+import { ControlAddon } from "./ControlAddon";
 import css from "./SynthKnob.module.css";
 
 interface Props {
@@ -30,6 +32,11 @@ interface Props {
   title?: string;
   /** Value the LED arc grows from, for relative controls. Default: 0 for signed ranges, else min. */
   center?: number;
+  /**
+   * A line under the readout, such as the tempo-sync toggle. On the Grid the
+   * dial gives up an `ADDON_LINE` for it, so the footprint holds.
+   */
+  addon?: ReactNode;
 }
 
 const ANGLE_MIN = -135;
@@ -56,11 +63,11 @@ const SIZES: Record<"sm" | "lg", { dial: Dial; footprint: Cells }> = {
 
 /**
  * `dial` redrawn for `footprint`: as large as the width and the height left
- * between name and readout allow, never larger than natural. Radii follow the
- * side, so a footprint changed in the table resizes the dial with it.
+ * by name, readout and `extra` px allow, never larger than natural. Radii
+ * follow the side, so a footprint changed in the table resizes the dial with it.
  */
-function gridDial(dial: Dial, footprint: Cells): Dial {
-  const svg = Math.min(dial.svg, footprint.w * CELL, footprint.h * CELL - NAME.line - READOUT.line);
+function gridDial(dial: Dial, footprint: Cells, extra: number): Dial {
+  const svg = Math.min(dial.svg, footprint.w * CELL, footprint.h * CELL - NAME.line - READOUT.line - extra);
   const k = svg / dial.svg;
   return { svg, knobR: dial.knobR * k, ledR: dial.ledR * k, dotR: dial.dotR * k, pointer: dial.pointer };
 }
@@ -83,10 +90,11 @@ export function SynthKnob({
   center,
   family,
   grid = false,
+  addon,
 }: Props) {
   const lit = familyVar(family ?? NEUTRAL_FAMILY);
   const { footprint, dial: natural } = SIZES[size];
-  const dial = grid ? gridDial(natural, footprint) : natural;
+  const dial = grid ? gridDial(natural, footprint, addon === undefined ? 0 : ADDON_LINE) : natural;
   const { svg: svgSize, knobR, ledR } = dial;
   const cx = svgSize / 2;
   const cy = svgSize / 2;
@@ -177,6 +185,7 @@ export function SynthKnob({
       <span className={css.value} style={grid ? lineStyle(READOUT) : undefined}>
         {display}
       </span>
+      {addon !== undefined && <ControlAddon grid={grid}>{addon}</ControlAddon>}
     </div>
   );
 }

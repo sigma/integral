@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { act } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DisplayKind, MixerField, MixerScopeKind } from "../../pkg/integral_wasm.js";
 import { paramFormatter, paramMeta } from "../paramDefaults";
 import { FOOTPRINT } from "../synth-ui/grid";
@@ -173,6 +174,44 @@ describe("GridSection", () => {
       />,
     );
     expect(sizes).toEqual(["CompEnvelope 96×48"]);
+  });
+});
+
+describe("GridSection tempo sync", () => {
+  /** One knob and one fader over mixer fields, both bound as tempo-syncable. */
+  const SYNCED: SectionLayout<MixerField> = {
+    title: "T",
+    titleEdge: "top",
+    w: 4,
+    h: 4,
+    fields: mixerFields([MixerScopeKind.Part]),
+    items: [
+      { kind: "knob", field: MixerField.EqLowGain, x: 0, y: 0 },
+      { kind: "fader", field: MixerField.EqMidGain, x: 2, y: 0, h: 4 },
+    ],
+  };
+
+  it("keeps the free/note toggle inside each Control's footprint", () => {
+    const onChange = vi.fn();
+    const bind = (field: MixerField): Binding => ({
+      ...bindMixer(field),
+      sync: { labels: ["ms", "♪"], noteMode: false, onChange },
+    });
+    const { container } = render(<GridSection layout={SYNCED} bind={bind} />);
+    const knob = wrapper(container, MixerField.EqLowGain);
+    const fader = wrapper(container, MixerField.EqMidGain);
+    expectFillsFootprint(knob.firstElementChild as HTMLElement, FOOTPRINT.knobSm);
+    expectFillsFootprint(fader.firstElementChild as HTMLElement, { w: FOOTPRINT.faderW, h: 4 });
+    for (const el of [knob, fader]) {
+      const note = [...el.querySelectorAll("button")].find((b) => b.textContent === "♪");
+      act(() => note?.click());
+    }
+    expect(onChange.mock.calls).toEqual([[true], [true]]);
+  });
+
+  it("draws no toggle for a Control without sync", () => {
+    const { container } = render(<GridSection layout={SYNCED} bind={bindMixer} />);
+    expect(container.querySelector("button")).toBeNull();
   });
 });
 

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { ChannelStrip, StripEq, StripName } from "./ChannelStrip";
 import { FxStrip } from "./FxStrip";
 import { MixerLoadWarning } from "./MixerLoadWarning";
-import { chorus_params, MixerScopeKind, reverb_params } from "../pkg/integral_wasm.js";
+import { MixerScopeKind } from "../pkg/integral_wasm.js";
 import { deviceSpec } from "./deviceSpec";
 import { GridScreen, GridZoom } from "./layouts";
 import { mixerScreen, type MixerSlot } from "./layouts/mixer/screen";
@@ -23,20 +23,20 @@ export function MixerPage({ mixer, expansions }: Props) {
   const { w, h } = screen.layout;
 
   /**
-   * The Chorus or Reverb strip, still a CSS Section with raw block offsets
-   * until it moves onto the Grid (#360).
+   * The Chorus or Reverb strip: a CSS Section around its parameters' Grid
+   * Section; its switch and routes still write raw block offsets.
    */
   const fxStrip = (fx: "chorus" | "reverb"): ReactNode =>
     fx === "chorus" ? (
       <FxStrip
         label="FX1"
+        block="chorus"
         fx={state.chorus}
         typeNames={spec.chorus_type_names}
         routes={[
           { offset: 2, names: spec.output_assign_names, value: state.chorus.outputAssign, title: "FX1 Output Assign" },
           { offset: 3, names: spec.chorus_output_names, value: state.chorus.output, title: "FX1 Output Select" },
         ]}
-        paramDefs={chorus_params}
         onToggleSwitch={mixer.toggleChorusSwitch}
         onParam={mixer.setChorusParam}
         onNibParam={mixer.setChorusNibParam}
@@ -44,10 +44,10 @@ export function MixerPage({ mixer, expansions }: Props) {
     ) : (
       <FxStrip
         label="FX2"
+        block="reverb"
         fx={state.reverb}
         typeNames={spec.reverb_type_names}
         routes={[{ offset: 2, names: spec.output_assign_names, value: state.reverb.output, title: "FX2 Output Assign" }]}
-        paramDefs={reverb_params}
         onToggleSwitch={mixer.toggleReverbSwitch}
         onParam={mixer.setReverbParam}
         onNibParam={mixer.setReverbNibParam}

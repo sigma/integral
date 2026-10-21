@@ -7,7 +7,7 @@
 
 import { DisplayKind } from "../../pkg/integral_wasm.js";
 import { optionListRows, type Cells } from "../synth-ui/grid";
-import type { FieldKey, FieldSpace } from "./fields";
+import { isTwoState, type FieldKey, type FieldSpace } from "./fields";
 import { DISPLAY_MIN_FOOTPRINT, allElements, itemRect, sectionCells, variantLayout } from "./geometry";
 import {
   drawnArrows,
@@ -169,7 +169,7 @@ export function validateSection<F extends FieldKey>(
     } else if (el.kind === "list") {
       const need = optionListRows(layout.fields.optionCount(el.field), el.label !== false);
       if (el.h < need) report("footprint", name, `${el.h} rows, needs ${need}`);
-    } else if (el.kind === "switch" && layout.fields.optionCount(el.field) !== 2) {
+    } else if (el.kind === "switch" && !isTwoState(layout.fields, el.field)) {
       report("footprint", name, "a 2×1 switch needs a two-state field");
     }
   };

@@ -6,7 +6,7 @@ export function SyncToggle({
   noteMode,
   onChange,
 }: {
-  labels: string[];
+  labels: readonly string[];
   noteMode: boolean;
   onChange: (noteMode: boolean) => void;
 }) {

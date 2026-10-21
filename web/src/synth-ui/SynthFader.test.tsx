@@ -24,6 +24,14 @@ describe("SynthFader", () => {
     expect(stackedHeight([...root.children])).toBe(rows * CELL);
   });
 
+  it("makes room for an addon line inside its Grid footprint", () => {
+    const { container } = render(<SynthFader {...fader} gridRows={4} addon={<button>♪</button>} />);
+    const root = rootOf(container);
+    expectFillsFootprint(root, { w: FOOTPRINT.faderW, h: 4 });
+    expect(root.querySelector("button")?.textContent).toBe("♪");
+    expect(stackedHeight([...root.children])).toBe(4 * CELL);
+  });
+
   it("gives the track the name's row when the name is hidden", () => {
     const shown = render(<SynthFader {...fader} gridRows={4} />);
     const hidden = render(<SynthFader {...fader} gridRows={4} hideLabel />);

@@ -1,24 +1,23 @@
+/* The divider is drawn inside the strip, which fills a whole mixer column. */
 .override {
   border-right: none;
-  border-left: 1px solid #2a3a4a;
+  box-shadow: inset 1px 0 #2a3a4a;
 }
 
 /* FX1 and FX2 read as one group: no line between them. */
 .override + .override {
-  border-left: none;
+  box-shadow: none;
 }
 
-/* One knob per row, zig-zagging like the mixer EQ beside it. */
-.box {
+/*
+ * The parameter Section zig-zags one Control per row, like the mixer EQ beside
+ * it, so row N meets EQ row N. It fills the column and draws its own frame, so
+ * its box adds none.
+ */
+.override .box {
   align-self: stretch;
-}
-
-.knobs {
-  composes: knobRows from "./PanelBox.module.css";
-}
-
-.knobs > :nth-child(even) {
-  grid-column: 2;
+  border: none;
+  background: none;
 }
 
 /* Fill the shared row so FX1's shorter type list gets a box as tall as FX2's: tops align. */
@@ -26,8 +25,10 @@
   align-self: stretch;
 }
 
+/* Its border sits inside the column's width. */
 .typeList {
   flex: 1;
+  box-sizing: border-box;
 }
 
 /* Type list as car-radio push buttons: raised keys; the selected one sits pressed in with its LED lit. */
