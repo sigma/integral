@@ -4,8 +4,8 @@ import { waveSourceOf, type WaveSource } from "./waveCatalog";
 import { PartialWave } from "./pcm-synth/PartialRow";
 import { WmtWave } from "./pcm-drum/WmtWave";
 import { PCMD_WMT_ENTRIES } from "./pcm-drum/types";
-import { OscPcmWave } from "./sn-synth/PartialRow";
-import { PcmdWmtField, PcmsPartialField, SnsPartialField } from "../pkg/integral_wasm.js";
+import { SnsPartialDisplay } from "./sn-synth/displays";
+import { DisplayKind, PcmdWmtField, PcmsPartialField, SnsPartialField } from "../pkg/integral_wasm.js";
 import type { PartialSetter } from "./pcm-synth/types";
 import { button, cleanup, click, options, render, typeInto } from "./test/dom";
 
@@ -254,7 +254,13 @@ describe("PCM Drum WMT wiring", () => {
 describe("SN Synth OSC PCM Wave wiring", () => {
   it("shows raw value 1 as JP-8 Saw and picks through the core Wave Number field", () => {
     const onChange = vi.fn();
-    const { container } = render(<OscPcmWave waveNumber={1} onChange={onChange} />);
+    const { container } = render(
+      <SnsPartialDisplay
+        kind={DisplayKind.WavePicker}
+        valueOf={(f) => (f === SnsPartialField.WaveNumber ? 1 : 0)}
+        onChange={onChange}
+      />,
+    );
     const name = container.querySelector("button")!;
     expect(name.textContent).toBe("0001 JP-8 Saw");
     // Just the name: no group label, steppers, dropdown, R, pair or marker.

@@ -62,7 +62,8 @@ pub enum DisplayKind {
     /// input's.
     SurroundPad,
     /// Wave picker, by name: a PCM Drum WMT layer's Wave Group and L/R
-    /// Wave Numbers, or an SN Drum key's Inst.
+    /// Wave Numbers, an SN Drum key's Inst, or an SN Synth OSC's PCM Wave.
+    /// Interactive: it writes the fields it reads.
     WavePicker,
 }
 
@@ -148,7 +149,7 @@ pub enum DisplayProp {
     WaveGroupType,
     /// Wave Group ID within its type.
     WaveGroupId,
-    /// Left (or mono) Wave Number.
+    /// Left (or mono) Wave Number; an SN Synth OSC's PCM Wave.
     WaveNumberL,
     /// Right Wave Number; 0 for mono.
     WaveNumberR,
@@ -333,6 +334,7 @@ fn sn_synth(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
         DisplayKind::ModLfoScope => {
             reads(&[(P::Shape, f(F::ModLfoShape)), (P::Rate, f(F::ModLfoRate))])
         }
+        DisplayKind::WavePicker => reads(&[(P::WaveNumberL, f(F::WaveNumber))]),
         _ => return None,
     })
 }
@@ -451,8 +453,8 @@ fn mixer(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
 
 #[cfg(test)]
 mod tests {
-    //! Each binding is checked against the fields today's caller passes
-    //! its Display, named in the test's doc comment.
+    //! Each binding is checked against the fields its Display's caller
+    //! passed it before the binding existed, named in the test's doc comment.
 
     use super::*;
     use DisplayKind as K;
@@ -518,7 +520,7 @@ mod tests {
     const SND: DisplayHost = DisplayHost::Editor(ToneType::SnDrum);
     const MIXER: DisplayHost = DisplayHost::Mixer;
 
-    /// `sn-synth/PartialRow.tsx` `OscPanel`: `ADSREnvelope` attack, decay.
+    /// Before the Grid (#361), `sn-synth/PartialRow.tsx` `OscPanel`: `ADSREnvelope` attack, decay.
     #[test]
     fn sns_pitch_envelope() {
         use SnsPartialField as F;
@@ -531,7 +533,7 @@ mod tests {
         );
     }
 
-    /// `sn-synth/PartialRow.tsx` `FilterPanel`: `ADSREnvelope`.
+    /// Before the Grid (#361), `sn-synth/PartialRow.tsx` `FilterPanel`: `ADSREnvelope`.
     #[test]
     fn sns_filter_envelope() {
         use SnsPartialField as F;
@@ -546,7 +548,7 @@ mod tests {
         );
     }
 
-    /// `sn-synth/PartialRow.tsx` `AmpPanel`: `ADSREnvelope`.
+    /// Before the Grid (#361), `sn-synth/PartialRow.tsx` `AmpPanel`: `ADSREnvelope`.
     #[test]
     fn sns_amp_envelope() {
         use SnsPartialField as F;
@@ -561,7 +563,7 @@ mod tests {
         );
     }
 
-    /// `sn-synth/PartialRow.tsx` `OscPanel`: `OscWaveScope`.
+    /// Before the Grid (#361), `sn-synth/PartialRow.tsx` `OscPanel`: `OscWaveScope`.
     #[test]
     fn sns_osc_scope() {
         use SnsPartialField as F;
@@ -577,7 +579,16 @@ mod tests {
         );
     }
 
-    /// `sn-synth/PartialRow.tsx` `LfoPanel`: `LfoScope` shape, rate.
+    /// Before the Grid (#361), `sn-synth/PartialRow.tsx` `OscPcmWave`: `WavePicker` (mono).
+    #[test]
+    fn sns_pcm_wave() {
+        assert_eq!(
+            sources(K::WavePicker, SNS),
+            [one(P::WaveNumberL, SnsPartialField::WaveNumber)]
+        );
+    }
+
+    /// Before the Grid (#361), `sn-synth/PartialRow.tsx` `LfoPanel`: `LfoScope` shape, rate.
     #[test]
     fn sns_lfo_scope() {
         use SnsPartialField as F;
@@ -587,7 +598,7 @@ mod tests {
         );
     }
 
-    /// `sn-synth/PartialRow.tsx` `ModLfoPanel`: `LfoScope` shape, rate.
+    /// Before the Grid (#361), `sn-synth/PartialRow.tsx` `ModLfoPanel`: `LfoScope` shape, rate.
     #[test]
     fn sns_mod_lfo_scope() {
         use SnsPartialField as F;
@@ -895,7 +906,7 @@ mod tests {
                     &[PCMS]
                 }
                 K::CompEnvelope | K::CompTransferCurve | K::SurroundPad => &[MIXER],
-                K::WavePicker => &[PCMD, SND],
+                K::WavePicker => &[SNS, PCMD, SND],
             }
         };
         for kind in K::ALL {

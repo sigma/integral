@@ -76,6 +76,16 @@ pub trait BlockField: Copy + Debug {
             .fold(0, |acc, &b| (acc << 4) | u16::from(b & 0x0F))
     }
 
+    /// The value of the field in a block dump: its [`byte`](Self::byte),
+    /// or its [`nibbles`](Self::nibbles) when nibblized.
+    fn value(self, data: &[u8]) -> u16 {
+        if self.is_nibblized() {
+            self.nibbles(data)
+        } else {
+            u16::from(self.byte(data))
+        }
+    }
+
     /// Write the single-byte value of the field into a block dump: the
     /// inverse of [`byte`](Self::byte).
     fn set_byte(self, data: &mut [u8], value: u8) {

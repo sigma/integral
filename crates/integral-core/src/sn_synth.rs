@@ -888,9 +888,43 @@ pub fn encode_sns_partial(p: &SnSynthPartial) -> Vec<u8> {
     data
 }
 
+impl SnSynthCommon {
+    /// The raw value of `field`, as the device holds it.
+    pub fn value(&self, field: SnsCommonField) -> u16 {
+        field.value(&encode_sns_common(self))
+    }
+}
+
+impl SnSynthPartial {
+    /// The raw value of `field`, as the device holds it.
+    pub fn value(&self, field: SnsPartialField) -> u16 {
+        field.value(&encode_sns_partial(self))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A field's value is what the parsed block holds at its position.
+    #[test]
+    fn value_reads_the_field_from_the_state() {
+        let mut data = [0u8; SNS_PARTIAL_SIZE];
+        data[SnsPartialField::FilterCutoff.position()] = 93;
+        data[SnsPartialField::WaveNumber.position()..][..4].copy_from_slice(&[0, 1, 2, 3]);
+        let partial = parse_sns_partial(&data).unwrap();
+        assert_eq!(partial.value(SnsPartialField::FilterCutoff), 93);
+        assert_eq!(partial.value(SnsPartialField::WaveNumber), 0x123);
+        assert_eq!(partial.value(SnsPartialField::OscWave), 0);
+
+        let common = SnSynthCommon {
+            tone_level: 101,
+            phrase_number: 0x1234,
+            ..SnSynthCommon::default()
+        };
+        assert_eq!(common.value(SnsCommonField::ToneLevel), 101);
+        assert_eq!(common.value(SnsCommonField::PhraseNumber), 0x1234);
+    }
 
     /// The INIT TONE blocks, read from an unwritten User slot (`53 7F xx 00`)
     /// on the device.

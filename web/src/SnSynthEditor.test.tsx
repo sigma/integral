@@ -1,18 +1,36 @@
 import { act } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  DisplayKind,
   ParameterFamily,
+  SnsCommonField,
   SnsPartialField,
   WasmDeviceState,
+  sns_common_spec,
   sns_partial_spec,
+  sns_partial_sync,
 } from "../pkg/integral_wasm.js";
 import { SnSynthEditor } from "./SnSynthEditor";
 import type { IntegraService } from "./integra";
 import { familyVar } from "./synth-ui";
-import { cleanup, render } from "./test/dom";
+import { SNS_SECTION } from "./layouts/sn-synth/screen";
+import { button, cleanup, click, render } from "./test/dom";
 import { dt1Drainer } from "./test/toneService";
 
-afterEach(cleanup);
+// jsdom has no ResizeObserver, which the page's GridZoom watches its width with.
+beforeEach(() => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+});
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const PART = 2;
 
@@ -104,5 +122,159 @@ describe("SnSynthEditor", () => {
     const fills = [...pan.querySelectorAll("circle")].map((c) => c.style.fill);
     expect(fills).toContain(familyVar(panFamily));
     expect(fills).not.toContain(familyVar(ParameterFamily.Amp));
+  });
+});
+
+/** Partial `partial`'s row (0-based). */
+function row(container: HTMLElement, partial: number): HTMLElement {
+  const el = container.querySelector<HTMLElement>(`[data-section="${SNS_SECTION.partial(partial)}"]`);
+  if (!el) throw new Error(`no row for partial ${partial}`);
+  return el;
+}
+
+/** The element wrapping the Control bound to `field` in `scope`. */
+function control(scope: ParentNode, field: SnsPartialField | SnsCommonField): HTMLElement {
+  const el = scope.querySelector<HTMLElement>(`[data-field="${field}"]`);
+  if (!el) throw new Error(`no Control for field ${field}`);
+  return el;
+}
+
+/** Every Control and Display on the page, by Section and binding, with its box. */
+function boxes(container: HTMLElement): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const el of container.querySelectorAll<HTMLElement>("[data-field], [data-display]")) {
+    const section = el.closest("[data-section]")?.getAttribute("data-section");
+    const what = el.dataset.field ?? `display ${el.dataset.display}`;
+    const { left, top, width, height } = el.style;
+    out.set(`${section} ${what}`, `${left},${top},${width},${height}`);
+  }
+  return out;
+}
+
+/** Picks OSC Wave `name` on partial `partial`. */
+function pickWave(container: HTMLElement, partial: number, name: string) {
+  click(button(control(row(container, partial), SnsPartialField.OscWave), name));
+}
+
+describe("SnSynthEditor on the Grid", () => {
+  it("places Common, every partial row and the MFX on one zoomed screen", () => {
+    const { container } = loadedEditor();
+    const zoom = container.querySelector("[data-grid-zoom]");
+    expect(zoom?.querySelector('[data-grid-screen="SN Synth"]')).toBeTruthy();
+    for (const p of [0, 1, 2]) {
+      expect(row(container, p).querySelector("[data-grid-section]")?.getAttribute("data-grid-section")).toBe(
+        `Partial ${p + 1}`,
+      );
+    }
+    expect(container.querySelector(`[data-section="${SNS_SECTION.mfx}"]`)).toBeTruthy();
+  });
+
+  it("sums every row into the MFX: Screen Silkscreen arrows meeting at one +", () => {
+    const { container } = loadedEditor();
+    const silk = container.querySelector("[data-screen-silkscreen]");
+    if (!silk) throw new Error("no Screen Silkscreen");
+    expect([...silk.querySelectorAll("[data-glyph]")].map((g) => g.textContent)).toEqual(["+"]);
+    // One body per row, and the shared glyph's lead into the MFX.
+    expect(silk.querySelectorAll("path[data-arrow]")).toHaveLength(4);
+  });
+
+  it("draws the envelopes and scopes as Displays", () => {
+    const { container } = loadedEditor();
+    const r = row(container, 0);
+    for (const kind of [
+      DisplayKind.PitchEnvelope,
+      DisplayKind.FilterEnvelope,
+      DisplayKind.AmpEnvelope,
+      DisplayKind.OscScope,
+      DisplayKind.ModLfoScope,
+      DisplayKind.LfoScope,
+    ]) {
+      const display = r.querySelector(`[data-display="${kind}"]`);
+      expect(display?.querySelector("path"), DisplayKind[kind]).toBeTruthy();
+    }
+  });
+
+  it("swaps the OSC scope for the PCM Wave picker without moving a Control", () => {
+    const { container } = loadedEditor();
+    const original = boxes(container);
+    const before = new Map(original);
+    const r = row(container, 0);
+    expect(r.querySelector(`[data-display="${DisplayKind.OscScope}"]`)).toBeTruthy();
+
+    pickWave(container, 0, "PCM");
+    expect(r.querySelector(`[data-display="${DisplayKind.OscScope}"]`)).toBeNull();
+    const picker = r.querySelector(`[data-display="${DisplayKind.WavePicker}"]`);
+    expect(picker?.querySelector("button")).toBeTruthy();
+
+    // Only the alternative changed: every other element kept its box, and the picker took the scope's.
+    const after = boxes(container);
+    const scope = `${SNS_SECTION.partial(0)} display ${DisplayKind.OscScope}`;
+    const pcm = `${SNS_SECTION.partial(0)} display ${DisplayKind.WavePicker}`;
+    expect(after.get(pcm)).toBe(before.get(scope));
+    before.delete(scope);
+    after.delete(pcm);
+    expect(after).toEqual(before);
+
+    // And back to a scope: everything where it started.
+    pickWave(container, 0, "SP-SAW");
+    expect(boxes(container)).toEqual(original);
+  });
+
+  it("hides Var and S-Saw in place, as core holds them inactive", () => {
+    const { container } = loadedEditor();
+    const r = row(container, 0);
+    const state = () =>
+      [SnsPartialField.OscWaveVariation, SnsPartialField.SuperSawDetune].map(
+        (f) => control(r, f).dataset.inactive ?? "active",
+      );
+    const at = () =>
+      [SnsPartialField.OscWaveVariation, SnsPartialField.SuperSawDetune].map((f) => {
+        const { left, top } = control(r, f).style;
+        return `${left},${top}`;
+      });
+    const where = at();
+    // SAW: Var applies, S-Saw doesn't.
+    expect(state()).toEqual(["active", "hide"]);
+    pickWave(container, 0, "SP-SAW");
+    expect(state()).toEqual(["hide", "active"]);
+    pickWave(container, 0, "PCM");
+    expect(state()).toEqual(["hide", "hide"]);
+    expect(at()).toEqual(where);
+  });
+
+  it("dims a partial's row as one, inert, while it is off; its switch in Common stays live", () => {
+    const { container } = loadedEditor();
+    // The zeroed Common holds every partial off.
+    const off = (p: number) => row(container, p).querySelector<HTMLElement>("[data-scope-inactive]");
+    expect(off(0)?.hasAttribute("inert")).toBe(true);
+    // Field relevance is apart: Cutoff always applies.
+    expect(control(row(container, 0), SnsPartialField.FilterCutoff).dataset.inactive).toBeUndefined();
+    const common = container.querySelector<HTMLElement>(`[data-section="${SNS_SECTION.common}"]`)!;
+    const sw = control(common, SnsCommonField.Partial1Switch);
+    expect(sw.closest("[inert]")).toBeNull();
+    click(sw.querySelector("button")!);
+    expect(off(0)).toBeNull();
+    expect(off(1)?.hasAttribute("inert")).toBe(true);
+  });
+
+  it("edits the note with the rate knob while its LFO follows the tempo", () => {
+    const { container } = loadedEditor();
+    const sync = sns_partial_sync(SnsPartialField.LfoRate)!;
+    const knob = () => control(row(container, 0), SnsPartialField.LfoRate).querySelector('[role="slider"]')!;
+    expect(knob().getAttribute("aria-valuemax")).toBe(String(sns_partial_spec(SnsPartialField.LfoRate).max));
+    // The tempo-sync toggle sits inside the rate knob; no separate Sync switch is placed.
+    expect(row(container, 0).querySelector(`[data-field="${sync.switchField}"]`)).toBeNull();
+    const note = [...control(row(container, 0), SnsPartialField.LfoRate).querySelectorAll("button")].find(
+      (b) => b.textContent === sync.labels[1],
+    );
+    click(note!);
+    expect(knob().getAttribute("aria-valuemax")).toBe(String(sns_partial_spec(sync.noteField).max));
+  });
+
+  it("labels Common's Controls from the layout and ranges them from core", () => {
+    const { container } = loadedEditor();
+    const common = container.querySelector<HTMLElement>(`[data-section="${SNS_SECTION.common}"]`)!;
+    const level = control(common, SnsCommonField.ToneLevel).querySelector('[role="slider"]')!;
+    expect(level.getAttribute("aria-valuemax")).toBe(String(sns_common_spec(SnsCommonField.ToneLevel).max));
   });
 });

@@ -20,6 +20,11 @@ const LAYOUT_MODULES = [
   "./layouts/sn-acoustic/inst",
   "./layouts/sn-acoustic/screen",
   "./layouts/sn-acoustic/vibrato",
+  "./layouts/sn-synth/common",
+  "./layouts/sn-synth/partial",
+  "./layouts/sn-synth/screen",
+  "./sn-synth/displays",
+  "./sn-synth/PartialRow",
 ];
 
 describe("importing before wasm starts", () => {
