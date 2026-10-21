@@ -227,6 +227,7 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
             return {
               first,
               structure: (first ? pmt?.structureType34 : pmt?.structureType12) ?? 0,
+              pmt,
               upper: half(first),
               lower: half(first + 1),
               booster: (first ? pmt?.booster34 : pmt?.booster12) ?? 0,

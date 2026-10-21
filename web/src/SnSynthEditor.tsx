@@ -3,6 +3,7 @@ import {
   sns_mfx_address,
   mfx_block_size,
   sns_partial_switch_field,
+  sns_partial_scope_is_active,
   ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
@@ -130,6 +131,7 @@ export function SnSynthEditor({ partIndex, service }: Props) {
                 idx={idx}
                 partial={partial}
                 isOn={isOn}
+                active={sns_partial_scope_is_active(idx, tone.common)}
                 onToggle={() => togglePartialSwitch(idx)}
                 setP={setP}
               />

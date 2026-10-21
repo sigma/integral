@@ -164,6 +164,7 @@ fn mixer_slot(state: &mut MixerState, scope: MixerScope, field: MixerField) -> O
             F::ReverbLevel => Byte(&mut state.reverb.level),
             F::ReverbOutputAssign => Byte(&mut state.reverb.output),
             F::SoloPart => Byte(&mut state.solo_part),
+            F::DrumCompEqPart => Byte(&mut state.drum_comp_eq.part),
             _ => return None,
         },
     })
@@ -1524,7 +1525,7 @@ mod tests {
     #[test]
     fn typed_setters_agree_with_mixer_field_addresses() {
         type Set = fn(&mut DeviceState);
-        let cases: [(Set, MixerScope, MixerField); 13] = [
+        let cases: [(Set, MixerScope, MixerField); 14] = [
             (
                 |d| d.set_part_level(2, 1),
                 MixerScope::Part(2),
@@ -1589,6 +1590,11 @@ mod tests {
                 |d| d.set_solo_part(1),
                 MixerScope::Common,
                 MixerField::SoloPart,
+            ),
+            (
+                |d| d.set_drum_comp_eq_part(3),
+                MixerScope::Common,
+                MixerField::DrumCompEqPart,
             ),
         ];
         for (set, scope, field) in cases {

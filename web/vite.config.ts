@@ -58,5 +58,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
+    // The PCM Synth editor renders whole Structure pairs per test; CI runners
+    // take 5-8 s for these, past vitest's 5 s default.
+    testTimeout: 20_000,
   },
 });

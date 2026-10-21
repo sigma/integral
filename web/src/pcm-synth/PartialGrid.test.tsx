@@ -6,18 +6,32 @@ import {
   WasmDeviceState,
   pcms_partial_size,
   pcms_partial_spec,
+  pcms_pmt_size,
 } from "../../pkg/integral_wasm.js";
 import { familyVar } from "../synth-ui";
 import { PartialGrid, type PairPartial } from "./PartialRow";
-import type { PcmSynthPartial } from "./types";
+import type { PcmSynthPartial, PcmSynthPmt } from "./types";
 import { cleanup, render } from "../test/dom";
 
 afterEach(cleanup);
 
+/** The byte length of a block from its 7-bit RQ1 size. */
+const blockLength = (size: Uint8Array) => Array.from(size).reduce((n, b) => n * 128 + b, 0);
+
 /** A partial parsed from an all-zero block, enough to lay out. */
 function partial(): PcmSynthPartial {
-  const size = Array.from(pcms_partial_size()).reduce((n, b) => n * 128 + b, 0);
-  return new WasmDeviceState(0x10).applyPcmsPartial(new Uint8Array(size)) as PcmSynthPartial;
+  return new WasmDeviceState(0x10).applyPcmsPartial(new Uint8Array(blockLength(pcms_partial_size()))) as PcmSynthPartial;
+}
+
+/** A PMT with every partial on and both pairs on Structure `structure`. */
+function pmt(structure: number): PcmSynthPmt {
+  const p = new WasmDeviceState(0x10).applyPcmsPmt(new Uint8Array(blockLength(pcms_pmt_size()))) as PcmSynthPmt;
+  return {
+    ...p,
+    structureType12: structure,
+    structureType34: structure,
+    partialEntries: p.partialEntries.map((e) => ({ ...e, partialSwitch: 1 })),
+  };
 }
 
 /** A pair's booster props, for the pair starting at partial index `first`. */
@@ -31,7 +45,7 @@ const half = (): PairPartial => ({ partial: partial(), isOn: true, onParam: () =
 
 function layout(structure: number) {
   const { container } = render(
-    <PartialGrid pairs={[{ first: 0, structure, upper: half(), lower: half(), ...boost(0) }]} />,
+    <PartialGrid pairs={[{ first: 0, structure, pmt: pmt(structure), upper: half(), lower: half(), ...boost(0) }]} />,
   );
   // A box is a SectionPanel (it sets its accent as the top border) headed `label`;
   // its block is the nearest element placed on the grid.
@@ -112,8 +126,8 @@ describe("PartialGrid with both pairs", () => {
   it("puts every partial's LFOs and WAVE in shared columns", () => {
     const { container } = render(
       <PartialGrid pairs={[
-        { first: 0, structure: 1, upper: half(), lower: half(), ...boost(0) },
-        { first: 2, structure: 0, upper: half(), lower: half(), ...boost(2) },
+        { first: 0, structure: 1, pmt: { ...pmt(1), structureType34: 0 }, upper: half(), lower: half(), ...boost(0) },
+        { first: 2, structure: 0, pmt: { ...pmt(1), structureType34: 0 }, upper: half(), lower: half(), ...boost(2) },
       ]} />,
     );
     const nodes = [...container.querySelectorAll<HTMLElement>("[data-node]")];
