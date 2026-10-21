@@ -47,7 +47,7 @@ export {
   titleCells,
   variantLayout,
 } from "./geometry";
-export { MFX_LEVEL, MFX_SET } from "./fx/mfx";
+export { MFX_LEVEL, MFX_PANEL_FRAME, MFX_SET } from "./fx/mfx";
 export { CHORUS_SET, REVERB_SET } from "./fx/strip";
 export { GridSection } from "./GridSection";
 export type { Binding, BindingOption, GridSectionProps, SyncBinding } from "./GridSection";

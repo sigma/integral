@@ -1,35 +1,35 @@
 import { useEffect, useState, useCallback, useMemo, type ReactNode } from "react";
 import {
-  sna_inst_page,
-  sna_inst_params,
+  display_binding,
   sna_common_is_active,
   sna_common_spec,
   sna_common_address,
   sna_common_size,
   sna_mfx_address,
   mfx_block_size,
+  DisplayKind,
+  DisplayProp,
   SnaCommonField,
   ToneType,
   ParameterFamily,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
-import {
-  SynthKnob,
-  SynthFader,
-  SynthSwitch,
-  SectionPanel,
-  FaderGroup,
-  ADSREnvelope,
-  FaderGroupSep,
-} from "./synth-ui";
 import { MfxPanel } from "./MfxPanel";
-import { knobProps, knobRange, switchOptions } from "./fieldSpec";
 import { WavePicker } from "./WavePicker";
-import { snaInstNumberOf, snaInstSource, snaInsts } from "./snaInstCatalog";
-import { SignalArrows } from "./synth-ui/SignalArrows";
+import { snaInstNumberOf, snaInstSource } from "./snaInstCatalog";
 import { FilterScope } from "./synth-ui/FilterScope";
+import { ScopeScreen } from "./synth-ui/ScopeScreen";
+import { envelopePath } from "./synth-ui/ADSREnvelope";
 import { useMfxHandlers } from "./useMfxHandlers";
 import type { MfxState } from "./MfxPanel";
+import { GridScreen, GridSection, variantLayout, type Binding, type SectionLayout } from "./layouts";
+import { SNA_AMP_LAYOUT } from "./layouts/sn-acoustic/amp";
+import { SNA_COMMON_LAYOUT } from "./layouts/sn-acoustic/common";
+import { instOf, isTwoState, modifyDefs, modifyParams } from "./layouts/sn-acoustic/fields";
+import { SNA_FILTER_LAYOUT } from "./layouts/sn-acoustic/filter";
+import { SNA_INST_SET, instPage } from "./layouts/sn-acoustic/inst";
+import { SNA_SCREEN, SNA_SECTION } from "./layouts/sn-acoustic/screen";
+import { SNA_VIBRATO_LAYOUT } from "./layouts/sn-acoustic/vibrato";
 import css from "./SnAcousticEditor.module.css";
 
 // ---------------------------------------------------------------------------
@@ -63,34 +63,47 @@ type CommonKey = {
   [K in keyof SnAcousticCommon]: SnAcousticCommon[K] extends number ? K : never;
 }[keyof SnAcousticCommon];
 
-/** Sets a Common field: `field` addresses it on the device, `key` names it
- *  in {@link SnAcousticCommon}. */
-type CommonParamHandler = (field: SnaCommonField, key: CommonKey, value: number) => void;
+/** A Common field other than the 32-slot Modify Parameter. */
+type ScalarField = Exclude<SnaCommonField, SnaCommonField.ModifyParameter>;
 
-/** A single instrument parameter definition from the Rust table. */
-interface InstParamDef {
-  index: number;
-  name: string;
-  min: number;
-  max: number;
-  defaultValue: number;
+/** Where each scalar Common field sits in {@link SnAcousticCommon} (core's serde names). */
+const COMMON_KEY: Record<ScalarField, CommonKey> = {
+  [SnaCommonField.ToneLevel]: "toneLevel",
+  [SnaCommonField.MonoPoly]: "monoPoly",
+  [SnaCommonField.PortamentoTimeOffset]: "portamentoTimeOffset",
+  [SnaCommonField.CutoffOffset]: "cutoffOffset",
+  [SnaCommonField.ResonanceOffset]: "resonanceOffset",
+  [SnaCommonField.AttackTimeOffset]: "attackTimeOffset",
+  [SnaCommonField.ReleaseTimeOffset]: "releaseTimeOffset",
+  [SnaCommonField.VibratoRate]: "vibratoRate",
+  [SnaCommonField.VibratoDepth]: "vibratoDepth",
+  [SnaCommonField.VibratoDelay]: "vibratoDelay",
+  [SnaCommonField.OctaveShift]: "octaveShift",
+  [SnaCommonField.Category]: "category",
+  [SnaCommonField.PhraseNumber]: "phraseNumber",
+  [SnaCommonField.PhraseOctaveShift]: "phraseOctaveShift",
+  [SnaCommonField.TfxSwitch]: "tfxSwitch",
+  [SnaCommonField.InstVariation]: "instVariation",
+  [SnaCommonField.InstNumber]: "instNumber",
+};
+
+/** Sets a scalar Common field. */
+type CommonParamHandler = (field: ScalarField, value: number) => void;
+
+/** A Common field's name, from its core enum member: `CutoffOffset` reads "Cutoff Offset". */
+function commonName(field: SnaCommonField): string {
+  const member = SnaCommonField[field] ?? String(field);
+  let out = "";
+  for (const [i, ch] of [...member].entries()) {
+    const prev = member[i - 1];
+    out += i > 0 && prev !== undefined && prev === prev.toLowerCase() && ch !== ch.toLowerCase() ? ` ${ch}` : ch;
+  }
+  return out;
 }
-
-// ---------------------------------------------------------------------------
-// Display helpers
-// ---------------------------------------------------------------------------
 
 /** The family every Modify Parameter knob shows, from its Common field spec. */
 function modifyParamFamily(): ParameterFamily {
   return sna_common_spec(SnaCommonField.ModifyParameter).family;
-}
-
-/** Parse the raw tuple array from WASM into structured InstParamDef[]. */
-function parseInstParams(raw: unknown): InstParamDef[] {
-  if (!Array.isArray(raw)) return [];
-  return (raw as [number, string, number, number, number][]).map(
-    ([index, name, min, max, defaultValue]) => ({ index, name, min, max, defaultValue }),
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -145,9 +158,9 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
   // Param setters: send to the device, then patch the local copy
   // ---------------------------------------------------------------------------
   const setCommonParam = useCallback<CommonParamHandler>(
-    (field, key, value) => {
+    (field, value) => {
       service.device.setSnaCommonParam(partIndex, field, 0, value);
-      setCommon((prev) => (prev ? { ...prev, [key]: value } : prev));
+      setCommon((prev) => (prev ? { ...prev, [COMMON_KEY[field]]: value } : prev));
     },
     [partIndex, service],
   );
@@ -170,15 +183,15 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
    */
   const pickInstrument = useCallback(
     (listNumber: number) => {
-      const inst = snaInsts()[listNumber - 1];
+      const inst = instOf(listNumber);
       if (!inst) return; // the picker's "(unlisted)" entry
-      setCommonParam(SnaCommonField.InstVariation, "instVariation", inst.variation);
-      setCommonParam(SnaCommonField.InstNumber, "instNumber", inst.instNumber);
+      setCommonParam(SnaCommonField.InstVariation, inst.variation);
+      setCommonParam(SnaCommonField.InstNumber, inst.instNumber);
       // The Modify slots keep the previous instrument's values, which mean
       // nothing (or silence, for TW Organ's drawbars) to the new one: give it
       // its defaults.
-      for (const def of parseInstParams(sna_inst_params(inst.variation, inst.instNumber))) {
-        setModifyParam(def.index - 1, def.defaultValue);
+      for (const def of modifyParams(inst.variation, inst.instNumber)) {
+        setModifyParam(def.slot - 1, def.defaultValue);
       }
       service
         .requestData(Array.from(sna_common_address(partIndex)), Array.from(sna_common_size()))
@@ -193,20 +206,6 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
     [partIndex, service, setCommonParam, setModifyParam],
   );
 
-  // ---------------------------------------------------------------------------
-  // Instrument parameters
-  // ---------------------------------------------------------------------------
-  // The instrument's INST page ("Ac.Piano", "TW Organ", or its category) and
-  // its Modify Parameters, both from core's per-instrument list.
-  const instVariation = common?.instVariation ?? 0;
-  const instNumber = common?.instNumber ?? 0;
-  const categoryName = common ? (sna_inst_page(instVariation, instNumber) ?? null) : null;
-
-  const instParamDefs = useMemo(
-    () => parseInstParams(sna_inst_params(instVariation, instNumber)),
-    [instVariation, instNumber],
-  );
-
   const mfxHandlers = useMfxHandlers(service, partIndex, ToneType.SnAcoustic, setMfx);
 
   // ---------------------------------------------------------------------------
@@ -217,386 +216,184 @@ export function SnAcousticEditor({ partIndex, service }: Props) {
     return <div className={css.loading}>Loading SN-A tone data...</div>;
   }
 
-  const boxes = common ? toneBoxes(common, setCommonParam) : null;
-  const instPicker = common && (
-    <WavePicker
-      source={snaInstSource()}
-      stereo={false}
-      l={snaInstNumberOf(common.instVariation, common.instNumber)}
-      onChange={(_side, n) => pickInstrument(n)}
-    />
-  );
-
   return (
     <div className={css.editor}>
-      {/* Tone name */}
       {common && (
-        <div className={css.toneName}>{common.toneName || "(unnamed)"}</div>
-      )}
-
-      {/* COMMON on top; below it the instrument, vibrato, filter and amp, which feeds the MFX */}
-      {common && (
-        <div className={css.mainArea}>
-          <div className={css.commonCell}>{boxes!.common}</div>
-          <div className={css.toneRow}>
-            {categoryName ? (
-              <InstrumentPanel
-                header={instPicker}
-                categoryName={categoryName}
-                paramDefs={instParamDefs}
-                modifyParams={common.modifyParams}
-                onModify={setModifyParam}
-              />
-            ) : (
-              <SectionPanel label="INSTRUMENT" family={ParameterFamily.Pitch}>{instPicker}</SectionPanel>
-            )}
-            {boxes!.vibrato}
-            {boxes!.filter}
-            <div className={css.ampCell} data-node="sna-amp">{boxes!.amp}</div>
-          </div>
-          {mfx && (
-            <div className={css.mfxSidebar} data-node="mfx">
-              <MfxPanel
-                mfx={mfx}
-                {...mfxHandlers}
-              />
-            </div>
-          )}
-          <SignalArrows edges={[{ from: "sna-amp", to: "mfx" }]} />
+        <div className={css.header}>
+          <div className={css.toneName}>{common.toneName || "(unnamed)"}</div>
+          {/* Picks the INST variant: it writes two fields, so it is no Grid Control. */}
+          <WavePicker
+            source={snaInstSource()}
+            stereo={false}
+            l={snaInstNumberOf(common.instVariation, common.instNumber)}
+            onChange={(_side, n) => pickInstrument(n)}
+          />
         </div>
       )}
+      {common && (
+        <SnaScreen
+          common={common}
+          onCommon={setCommonParam}
+          onModify={setModifyParam}
+          mfx={mfx && <MfxPanel mfx={mfx} {...mfxHandlers} />}
+        />
+      )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Tone-wide boxes: COMMON, VIBRATO, FILTER, AMP, ENV
+// The screen
 // ---------------------------------------------------------------------------
 
-/** Offset controls, shown disabled when the instrument ignores them. */
-function Offset({ enabled, children }: { enabled: boolean; children: ReactNode }) {
-  return enabled ? <>{children}</> : (
-    <div className={css.offsetDisabled} inert title="This instrument ignores these offsets">
-      {children}
-    </div>
-  );
+/** The tone-wide Sections, by placement id, with the family accenting each. */
+const TONE_SECTIONS: Record<string, { layout: SectionLayout<SnaCommonField>; family: ParameterFamily }> = {
+  [SNA_SECTION.common]: { layout: SNA_COMMON_LAYOUT, family: ParameterFamily.Common },
+  [SNA_SECTION.vibrato]: { layout: SNA_VIBRATO_LAYOUT, family: ParameterFamily.Modulation },
+  [SNA_SECTION.filter]: { layout: SNA_FILTER_LAYOUT, family: ParameterFamily.Filter },
+  [SNA_SECTION.amp]: { layout: SNA_AMP_LAYOUT, family: ParameterFamily.Amp },
+};
+
+/** `value` as 0-1 across `field`'s range. */
+function normalized(field: SnaCommonField, value: number): number {
+  const { min, max } = sna_common_spec(field);
+  return (value - min) / (max - min || 1);
 }
 
-/** The tone-wide boxes, for the editor to lay out: COMMON, VIBRATO, FILTER, AMP. */
-function toneBoxes(
-  common: SnAcousticCommon,
-  onChange: CommonParamHandler,
-): Record<"common" | "vibrato" | "filter" | "amp", ReactNode> {
-  const set =
-    (field: SnaCommonField, key: Parameters<CommonParamHandler>[1]) =>
-    (v: number) =>
-      onChange(field, key, v);
-  const resonanceCenter = sna_common_spec(SnaCommonField.ResonanceOffset).center ?? 0;
-  // Some instruments ignore some offsets: core holds them inactive, shown disabled.
-  const active = (field: SnaCommonField) => sna_common_is_active(field, common);
-  return {
-    common: (
-        <SectionPanel label="COMMON" family={ParameterFamily.Common}>
-          <div className={css.panelRow}>
-            <SynthSwitch label="Mono/Poly" value={common.monoPoly} options={switchOptions(sna_common_spec(SnaCommonField.MonoPoly))}
-              onChange={set(SnaCommonField.MonoPoly, "monoPoly")} />
-            <SynthKnob label="Oct" value={common.octaveShift} {...knobProps(sna_common_spec(SnaCommonField.OctaveShift))}
-              onChange={set(SnaCommonField.OctaveShift, "octaveShift")}
-              title="Octave Shift" />
-            <Offset enabled={active(SnaCommonField.PortamentoTimeOffset)}>
-              <SynthKnob label="Port" value={common.portamentoTimeOffset} {...knobProps(sna_common_spec(SnaCommonField.PortamentoTimeOffset))}
-                onChange={set(SnaCommonField.PortamentoTimeOffset, "portamentoTimeOffset")}
-                title="Portamento Time Offset" />
-            </Offset>
-          </div>
-        </SectionPanel>
-    ),
-    vibrato: (
-        <SectionPanel label="VIB" family={ParameterFamily.Modulation}>
-          <div className={css.knobColumn}>
-            <SynthKnob label="Rate" value={common.vibratoRate} {...knobProps(sna_common_spec(SnaCommonField.VibratoRate))}
-              onChange={set(SnaCommonField.VibratoRate, "vibratoRate")}
-              title="Vibrato Rate (offset)" />
-            <SynthKnob label="Depth" value={common.vibratoDepth} {...knobProps(sna_common_spec(SnaCommonField.VibratoDepth))}
-              onChange={set(SnaCommonField.VibratoDepth, "vibratoDepth")}
-              title="Vibrato Depth (offset)" />
-            <SynthKnob label="Delay" value={common.vibratoDelay} {...knobProps(sna_common_spec(SnaCommonField.VibratoDelay))}
-              onChange={set(SnaCommonField.VibratoDelay, "vibratoDelay")}
-              title="Vibrato Delay (offset)" />
-          </div>
-        </SectionPanel>
-    ),
-    filter: (
-        <SectionPanel label="FILTER" family={ParameterFamily.Filter}>
-          {/* shortcut: SN-A never exposes its filter type; this draws a low-pass moved by the offsets, to show their direction, not the instrument's real filter. */}
-          <FilterScope className={css.filterScope} type="LPF" cutoff={common.cutoffOffset}
-            resonance={Math.max(0, common.resonanceOffset - resonanceCenter) * 2} />
-          <div className={css.panelRow}>
-            <Offset enabled={active(SnaCommonField.CutoffOffset)}>
-              <SynthKnob label="Cutoff" value={common.cutoffOffset} {...knobProps(sna_common_spec(SnaCommonField.CutoffOffset))}
-                onChange={set(SnaCommonField.CutoffOffset, "cutoffOffset")}
-                title="Cutoff Offset" />
-            </Offset>
-            <Offset enabled={active(SnaCommonField.ResonanceOffset)}>
-              <SynthKnob label="Reso" value={common.resonanceOffset} {...knobProps(sna_common_spec(SnaCommonField.ResonanceOffset))}
-                onChange={set(SnaCommonField.ResonanceOffset, "resonanceOffset")}
-                title="Resonance Offset" />
-            </Offset>
-          </div>
-        </SectionPanel>
-    ),
-    amp: (
-        <SectionPanel label="AMP" family={ParameterFamily.Amp}>
-          <div className={css.ampRow}>
-            {/* One envelope draws both offsets: it's disabled unless core holds both active. */}
-            <Offset enabled={active(SnaCommonField.AttackTimeOffset) && active(SnaCommonField.ReleaseTimeOffset)}>
-              <ADSREnvelope
-                compact
-                attack={{
-                  label: "Atk", value: common.attackTimeOffset,
-                  onChange: set(SnaCommonField.AttackTimeOffset, "attackTimeOffset"), ...knobRange(sna_common_spec(SnaCommonField.AttackTimeOffset)),
-                  title: "Attack Time Offset",
-                }}
-                release={{
-                  label: "Rel", value: common.releaseTimeOffset,
-                  onChange: set(SnaCommonField.ReleaseTimeOffset, "releaseTimeOffset"), ...knobRange(sna_common_spec(SnaCommonField.ReleaseTimeOffset)),
-                  title: "Release Time Offset",
-                }}
-              />
-            </Offset>
-            <FaderGroupSep />
-            <FaderGroup>
-              <SynthFader label="Level" value={common.toneLevel} {...knobRange(sna_common_spec(SnaCommonField.ToneLevel))}
-                onChange={set(SnaCommonField.ToneLevel, "toneLevel")} compact
-                title="Tone Level" />
-            </FaderGroup>
-          </div>
-        </SectionPanel>
-    ),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Instrument Panel — dispatches to custom or generic
-// ---------------------------------------------------------------------------
-
-function InstrumentPanel({
-  header,
-  categoryName,
-  paramDefs,
-  modifyParams,
+/** The SN-A screen on the Grid: the tone-wide Sections, INST for the instrument, and the MFX host. */
+function SnaScreen({
+  common,
+  onCommon,
   onModify,
+  mfx,
 }: {
-  /** Shown first in the box: the instrument picker. */
-  header?: ReactNode;
-  categoryName: string;
-  paramDefs: InstParamDef[];
-  modifyParams: number[];
+  common: SnAcousticCommon;
+  onCommon: CommonParamHandler;
   /** Sets Modify Parameter `index + 1`. */
   onModify: (index: number, value: number) => void;
+  /** The MFX panel, drawn in its host column; none until it loads. */
+  mfx: ReactNode;
 }) {
-  const setModParam = (paramIndex: number, value: number) => {
-    // paramIndex is 1-based
-    onModify(paramIndex - 1, value);
+  const instKey = snaInstNumberOf(common.instVariation, common.instNumber);
+  const instLayout = useMemo(
+    () => ({ ...variantLayout(SNA_INST_SET, instKey), title: instPage(instKey) ?? SNA_INST_SET.title }),
+    [instKey],
+  );
+  const instDefs = useMemo(() => modifyDefs(instKey), [instKey]);
+
+  const value = (field: SnaCommonField): number =>
+    field === SnaCommonField.ModifyParameter ? 0 : common[COMMON_KEY[field]];
+  // Some instruments ignore some offsets: core holds them inactive.
+  const isActive = (field: SnaCommonField): boolean => sna_common_is_active(field, common);
+
+  const bindCommon = (field: SnaCommonField): Binding => {
+    const spec = sna_common_spec(field);
+    return {
+      name: commonName(field),
+      value: value(field),
+      min: spec.min,
+      max: spec.max,
+      defaultValue: spec.defaultValue,
+      center: spec.center,
+      family: spec.family,
+      format: (v) => spec.formatValue(v),
+      onChange: (v) => {
+        if (field !== SnaCommonField.ModifyParameter) onCommon(field, v);
+      },
+    };
   };
 
-  switch (categoryName) {
-    case "TW Organ":
-      return (
-        <TWOrganPanel header={header} paramDefs={paramDefs} modifyParams={modifyParams} onChangeParam={setModParam} />
-      );
-    case "Ac.Piano":
-      return (
-        <AcPianoPanel header={header} paramDefs={paramDefs} modifyParams={modifyParams} onChangeParam={setModParam} />
-      );
-    default:
-      return (
-        <GenericInstPanel header={header}
-          categoryName={categoryName}
-          paramDefs={paramDefs}
-          modifyParams={modifyParams}
-          onChangeParam={setModParam}
+  const bindModify = (slot: number): Binding => {
+    // The variant places only the slots core lists for the instrument.
+    const def = instDefs.get(slot);
+    if (!def) throw new Error(`instrument ${instKey} has no Modify Parameter ${slot}`);
+    return {
+      name: def.name,
+      value: common.modifyParams[slot - 1] ?? def.defaultValue,
+      min: def.min,
+      max: def.max,
+      defaultValue: def.defaultValue,
+      family: modifyParamFamily(),
+      format: String,
+      // shortcut: core gives Modify Parameters no value labels, so two-state ones read OFF/ON (Glide's Porta/Gliss included), as before the Grid.
+      options: isTwoState(def)
+        ? [
+            { value: def.min, label: "OFF" },
+            { value: def.max, label: "ON" },
+          ]
+        : undefined,
+      onChange: (v) => onModify(slot - 1, v),
+    };
+  };
+
+  /** Draws a tone-wide Display from the Common fields core binds it to, dimmed if any is inactive. */
+  const renderDisplay = (display: DisplayKind): ReactNode => {
+    const slots = display_binding(display, ToneType.SnAcoustic) ?? [];
+    const read = (prop: DisplayProp): { field: SnaCommonField; value: number } | undefined => {
+      const field = slots.find((s) => s.prop === prop)?.snaCommon;
+      return field === undefined ? undefined : { field, value: value(field) };
+    };
+    const dim = slots.some((s) => s.snaCommon !== undefined && !isActive(s.snaCommon));
+    let drawn: ReactNode = null;
+    if (display === DisplayKind.FilterScope) {
+      const cutoff = read(DisplayProp.Cutoff);
+      const reso = read(DisplayProp.Resonance);
+      const center = reso ? (sna_common_spec(reso.field).center ?? 0) : 0;
+      // shortcut: SN-A never exposes its filter type; this draws a low-pass moved by the offsets, to show their direction, not the instrument's real filter.
+      drawn = (
+        <FilterScope
+          className={css.display}
+          type="LPF"
+          cutoff={cutoff?.value ?? sna_common_spec(SnaCommonField.CutoffOffset).defaultValue}
+          resonance={Math.max(0, (reso?.value ?? center) - center) * 2}
         />
       );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Generic Instrument Panel
-// ---------------------------------------------------------------------------
-
-function GenericInstPanel({
-  header,
-  categoryName,
-  paramDefs,
-  modifyParams,
-  onChangeParam,
-}: {
-  /** Shown first in the box: the instrument picker. */
-  header?: ReactNode;
-  categoryName: string;
-  paramDefs: InstParamDef[];
-  modifyParams: number[];
-  onChangeParam: (paramIndex: number, value: number) => void;
-}) {
-  return (
-    <SectionPanel label={categoryName} family={ParameterFamily.Pitch}>
-      {header}
-      <div className={css.instParamGrid}>
-        {paramDefs.map((def) => {
-          const val = modifyParams[def.index - 1] ?? def.defaultValue;
-          const range = def.max - def.min;
-          if (range <= 1) {
-            return (
-              <SynthSwitch
-                key={def.index}
-                label={def.name}
-                value={val}
-                options={[
-                  { value: def.min, label: "OFF" },
-                  { value: def.max, label: "ON" },
-                ]}
-                onChange={(v) => onChangeParam(def.index, v)}
-              />
-            );
-          }
-          return (
-            <SynthKnob
-              key={def.index}
-              label={def.name}
-              value={val}
-              min={def.min}
-              max={def.max}
-              defaultValue={def.defaultValue}
-              onChange={(v) => onChangeParam(def.index, v)}
-              formatValue={(v) => String(v)}
-              family={modifyParamFamily()}
-            />
-          );
-        })}
-      </div>
-    </SectionPanel>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// TW Organ Panel — 9 harmonic bars as faders + percussion controls
-// ---------------------------------------------------------------------------
-
-const HARMONIC_BAR_LABELS = [
-  "16'", "5-1/3'", "8'", "4'", "2-2/3'", "2'", "1-3/5'", "1-1/3'", "1'",
-];
-
-function TWOrganPanel({
-  header,
-  paramDefs,
-  modifyParams,
-  onChangeParam,
-}: {
-  /** Shown first in the box: the instrument picker. */
-  header?: ReactNode;
-  paramDefs: InstParamDef[];
-  modifyParams: number[];
-  onChangeParam: (paramIndex: number, value: number) => void;
-}) {
-  // Params 1-9: harmonic bars, 10: leakage, 11-22: percussion + click
-  const barDefs = paramDefs.filter((d) => d.index >= 1 && d.index <= 9);
-  const percDefs = paramDefs.filter((d) => d.index >= 10);
-
-  return (
-    <SectionPanel label="TW Organ" family={ParameterFamily.Pitch}>
-      {header}
-      {/* Harmonic bars */}
-      <FaderGroup>
-        {barDefs.map((def, i) => (
-          <SynthFader
-            key={def.index}
-            label={HARMONIC_BAR_LABELS[i] ?? String(def.index)}
-            value={modifyParams[def.index - 1] ?? def.defaultValue}
-            min={def.min}
-            max={def.max}
-            defaultValue={def.defaultValue}
-            onChange={(v) => onChangeParam(def.index, v)}
-            compact
+    } else if (display === DisplayKind.AmpEnvelope) {
+      const attack = read(DisplayProp.Attack);
+      const release = read(DisplayProp.Release);
+      drawn = (
+        <ScopeScreen className={css.display}>
+          <path
+            d={envelopePath({
+              attack: attack ? normalized(attack.field, attack.value) : 0,
+              release: release ? normalized(release.field, release.value) : 0,
+            })}
+            fill="none"
+            stroke="#fc8"
+            strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
           />
-        ))}
-      </FaderGroup>
+        </ScopeScreen>
+      );
+    }
+    return dim ? <div className={`${css.display} ${css.inactive}`}>{drawn}</div> : drawn;
+  };
 
-      {/* Percussion + other controls */}
-      <div className={css.instParamGrid}>
-        {percDefs.map((def) => {
-          const val = modifyParams[def.index - 1] ?? def.defaultValue;
-          const range = def.max - def.min;
-          if (range <= 1) {
+  return (
+    <div className={css.screen}>
+      <GridScreen layout={SNA_SCREEN}>
+        {(placement) => {
+          if (placement.id === SNA_SECTION.mfx) return <div data-node="mfx">{mfx}</div>;
+          if (placement.id === SNA_SECTION.inst) {
             return (
-              <SynthSwitch
-                key={def.index}
-                label={def.name}
-                value={val}
-                options={[
-                  { value: def.min, label: "OFF" },
-                  { value: def.max, label: "ON" },
-                ]}
-                onChange={(v) => onChangeParam(def.index, v)}
-              />
+              <GridSection layout={instLayout} bind={bindModify} family={ParameterFamily.Pitch} />
             );
           }
+          const tone = TONE_SECTIONS[placement.id];
+          if (!tone) return null;
           return (
-            <SynthKnob
-              key={def.index}
-              label={def.name}
-              value={val}
-              min={def.min}
-              max={def.max}
-              defaultValue={def.defaultValue}
-              onChange={(v) => onChangeParam(def.index, v)}
-              formatValue={(v) => String(v)}
-              family={modifyParamFamily()}
-            />
+            <div data-node={placement.id}>
+              <GridSection
+                layout={tone.layout}
+                bind={bindCommon}
+                isActive={isActive}
+                renderDisplay={renderDisplay}
+                family={tone.family}
+              />
+            </div>
           );
-        })}
-      </div>
-    </SectionPanel>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Ac.Piano Panel
-// ---------------------------------------------------------------------------
-
-function AcPianoPanel({
-  header,
-  paramDefs,
-  modifyParams,
-  onChangeParam,
-}: {
-  /** Shown first in the box: the instrument picker. */
-  header?: ReactNode;
-  paramDefs: InstParamDef[];
-  modifyParams: number[];
-  onChangeParam: (paramIndex: number, value: number) => void;
-}) {
-  return (
-    <SectionPanel label="Ac.Piano" family={ParameterFamily.Pitch}>
-      {header}
-      <div className={css.instParamGrid}>
-        {paramDefs.map((def) => {
-          const val = modifyParams[def.index - 1] ?? def.defaultValue;
-          return (
-            <SynthKnob
-              key={def.index}
-              label={def.name}
-              value={val}
-              min={def.min}
-              max={def.max}
-              defaultValue={def.defaultValue}
-              onChange={(v) => onChangeParam(def.index, v)}
-              formatValue={(v) => String(v)}
-              family={modifyParamFamily()}
-            />
-          );
-        })}
-      </div>
-    </SectionPanel>
+        }}
+      </GridScreen>
+    </div>
   );
 }

@@ -93,6 +93,65 @@ describe("SnAcousticEditor", () => {
     ]);
   });
 
+  it("draws every tone Control on the Grid, in a Grid Section", async () => {
+    const { service } = fakeToneService(new WasmDeviceState(0x10));
+    const { container } = render(<SnAcousticEditor partIndex={PART} service={service} />);
+    await act(async () => {});
+
+    // The MFX is still drawn by MfxPanel until it moves onto the Grid (#360).
+    const controls = [...container.querySelectorAll('[role="slider"], button')].filter(
+      (el) => el.closest('[data-section="mfx"]') === null,
+    );
+    const outside = controls.filter((el) => el.closest("[data-grid-section]") === null);
+    // Every tone field (11) has its Control; only the instrument picker, which
+    // writes two fields, stays off the Grid.
+    expect(controls.length).toBe(12);
+    expect(outside.map((el) => el.textContent)).toEqual(["0000 (unlisted)"]);
+    expect(container.querySelector('[data-grid-screen="SN-A editor"]')).not.toBeNull();
+  });
+
+  it("keeps every Section's Cells when the instrument changes", async () => {
+    const { service } = fakeToneService(new WasmDeviceState(0x10));
+    const common0 = [...sna_common_address(PART)];
+    const base = service.requestData.bind(service);
+    // The device's instrument (Common `00 20`, `00 21`): Pure Vintage EP1 first.
+    let inst: [number, number] = [0, 4];
+    service.requestData = async (address: number[], size: number[]) => {
+      const data = await base(address, size);
+      if (address.every((b, i) => b === common0[i])) [data[0x20], data[0x21]] = inst;
+      return data;
+    };
+    const { container } = render(<SnAcousticEditor partIndex={PART} service={service} />);
+    await act(async () => {});
+
+    /** Each placed Section's box, and the size of what it draws. */
+    const boxes = () =>
+      [...container.querySelectorAll<HTMLElement>("[data-section]")].map((el) => {
+        const drawn = el.firstElementChild as HTMLElement | null;
+        return [el.dataset.section, el.style.cssText, drawn?.style.width, drawn?.style.height];
+      });
+    const before = boxes();
+    const instTitle = () =>
+      container.querySelector('[data-section="inst"] [data-grid-section]')?.getAttribute("data-grid-section");
+    const generic = instTitle();
+    expect(slider(container, "Noise Level")).toBeTruthy();
+
+    // Concert Grand (list entry 1): the Ac.Piano page, by hand.
+    const current = [...container.querySelectorAll("button")].find((b) => /^\d{4} /.test(b.textContent ?? ""))!;
+    click(current);
+    const grand = [...document.body.querySelectorAll('[role="option"]')].find((o) =>
+      o.textContent?.startsWith("0001"),
+    )!;
+    inst = [64, 0];
+    click(grand);
+    await act(async () => {});
+
+    expect(instTitle()).toBe("Ac.Piano");
+    expect(instTitle()).not.toBe(generic);
+    expect(slider(container, "String Res")).toBeTruthy();
+    expect(boxes()).toEqual(before);
+  });
+
   it("lights a knob in its field's family, not its section's", async () => {
     const { service } = fakeToneService(new WasmDeviceState(0x10));
     const { container } = render(<SnAcousticEditor partIndex={PART} service={service} />);
