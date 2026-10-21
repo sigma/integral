@@ -1,8 +1,10 @@
 /**
  * The MFX parameter Section, keyed by MFX type. Six types have hand layouts
  *; every other type's layout is generated from its params.
- * All of them fit one footprint: six by four knob places, and the output
- * Level fader at the right on the same Cells for every type.
+ * All of them fit one footprint: six by four knob places under a free top
+ * row, and the output Level fader at the right on the same Cells for every
+ * type. The Section is titled on its side, so the free row keeps every name
+ * clear of its top border.
  */
 
 import { FOOTPRINT } from "../../synth-ui/grid";
@@ -21,14 +23,21 @@ const ROWS = 4;
 const SWITCHES_PER_PLACE = PLACE.h / FOOTPRINT.switch.h;
 /** Width of the knob places, in Cells; the Level fader sits right of them. */
 const PARAMS_W = COLS * PLACE.w;
+/**
+ * First Cell row of the knob places and the Level fader: one free row over
+ * them, since no title stands between them and the top border.
+ */
+export const MFX_PARAMS_Y = 1;
+/** Height of the knob places and the Level fader, in Cells. */
+const PARAMS_H = ROWS * PLACE.h;
 /** Height of the Section, in Cells. */
-const H = ROWS * PLACE.h;
+const H = MFX_PARAMS_Y + PARAMS_H;
 
 /** Core's name for the output level every MFX type but Thru ends with. */
 export const MFX_LEVEL = "Level";
 
 /** The output level: a full-height fader right of the knob places. */
-const LEVEL_FADER: FaderLayout<string> = { kind: "fader", field: MFX_LEVEL, x: PARAMS_W, y: 0, h: H };
+const LEVEL_FADER: FaderLayout<string> = { kind: "fader", field: MFX_LEVEL, x: PARAMS_W, y: MFX_PARAMS_Y, h: PARAMS_H };
 
 /**
  * A type's generated layout: Level on its fader, every other param in core's
@@ -40,7 +49,7 @@ function generate(type: number): SectionBody<string> {
   const items: ControlLayout<string>[] = [];
   let place = 0;
   let stacked = 0;
-  const origin = () => ({ x: (place % COLS) * PLACE.w, y: Math.floor(place / COLS) * PLACE.h });
+  const origin = () => ({ x: (place % COLS) * PLACE.w, y: MFX_PARAMS_Y + Math.floor(place / COLS) * PLACE.h });
   for (const field of fields.ids) {
     if (field === MFX_LEVEL) {
       items.push(LEVEL_FADER);
@@ -75,42 +84,42 @@ function generate(type: number): SectionBody<string> {
  */
 const EQUALIZER: SectionBody<string> = {
   items: [
-    { kind: "knob", field: "High Freq", x: 0, y: 0, label: "Freq" },
-    { kind: "knob", field: "High Gain", x: 2, y: 2, label: "Gain" },
-    { kind: "knob", field: "Mid2 Freq", x: 0, y: 4, label: "Freq" },
-    { kind: "knob", field: "Mid2 Gain", x: 2, y: 6, label: "Gain" },
-    { kind: "knob", field: "Mid2 Q", x: 0, y: 8, label: "Q" },
-    { kind: "knob", field: "Mid1 Freq", x: 6, y: 0, label: "Freq" },
-    { kind: "knob", field: "Mid1 Gain", x: 8, y: 2, label: "Gain" },
-    { kind: "knob", field: "Mid1 Q", x: 6, y: 4, label: "Q" },
-    { kind: "knob", field: "Low Gain", x: 8, y: 6, label: "Gain" },
-    { kind: "knob", field: "Low Freq", x: 6, y: 8, label: "Freq" },
+    { kind: "knob", field: "High Freq", x: 0, y: MFX_PARAMS_Y, label: "Freq" },
+    { kind: "knob", field: "High Gain", x: 2, y: MFX_PARAMS_Y + 2, label: "Gain" },
+    { kind: "knob", field: "Mid2 Freq", x: 0, y: MFX_PARAMS_Y + 4, label: "Freq" },
+    { kind: "knob", field: "Mid2 Gain", x: 2, y: MFX_PARAMS_Y + 6, label: "Gain" },
+    { kind: "knob", field: "Mid2 Q", x: 0, y: MFX_PARAMS_Y + 8, label: "Q" },
+    { kind: "knob", field: "Mid1 Freq", x: 6, y: MFX_PARAMS_Y, label: "Freq" },
+    { kind: "knob", field: "Mid1 Gain", x: 8, y: MFX_PARAMS_Y + 2, label: "Gain" },
+    { kind: "knob", field: "Mid1 Q", x: 6, y: MFX_PARAMS_Y + 4, label: "Q" },
+    { kind: "knob", field: "Low Gain", x: 8, y: MFX_PARAMS_Y + 6, label: "Gain" },
+    { kind: "knob", field: "Low Freq", x: 6, y: MFX_PARAMS_Y + 8, label: "Freq" },
     LEVEL_FADER,
   ],
   // Rules run through the column centres and the gaps between knobs.
   silkscreen: [
-    { kind: "rule", points: [[0, 3.5], [1, 3.5], [3, 5.5], [4, 5.5]] },
-    { kind: "rule", points: [[5, 0], [5, H]] },
-    { kind: "rule", points: [[6, 7.5], [7, 7.5], [9, 5.5], [10, 5.5]] },
-    { kind: "label", text: "HI", x: 3, y: 1 },
-    { kind: "label", text: "MID2", x: 1, y: 7.5 },
-    { kind: "label", text: "MID1", x: 7, y: 3.5 },
-    { kind: "label", text: "LO", x: 9, y: 10 },
+    { kind: "rule", points: [[0, MFX_PARAMS_Y + 3.5], [1, MFX_PARAMS_Y + 3.5], [3, MFX_PARAMS_Y + 5.5], [4, MFX_PARAMS_Y + 5.5]] },
+    { kind: "rule", points: [[5, MFX_PARAMS_Y], [5, H]] },
+    { kind: "rule", points: [[6, MFX_PARAMS_Y + 7.5], [7, MFX_PARAMS_Y + 7.5], [9, MFX_PARAMS_Y + 5.5], [10, MFX_PARAMS_Y + 5.5]] },
+    { kind: "label", text: "HI", x: 3, y: MFX_PARAMS_Y + 1 },
+    { kind: "label", text: "MID2", x: 1, y: MFX_PARAMS_Y + 7.5 },
+    { kind: "label", text: "MID1", x: 7, y: MFX_PARAMS_Y + 3.5 },
+    { kind: "label", text: "LO", x: 9, y: MFX_PARAMS_Y + 10 },
   ],
 };
 
 /** Chorus: filter and modulation, then delay and mix, then the tone EQ. */
 const CHORUS: SectionBody<string> = {
   items: [
-    { kind: "knob", field: "Filter Type", x: 0, y: 0, label: "Filter" },
-    { kind: "knob", field: "Cutoff Freq", x: 2, y: 0, label: "Cutoff" },
-    { kind: "knob", field: "Rate", x: 6, y: 0 },
-    { kind: "knob", field: "Depth", x: 8, y: 0 },
-    { kind: "knob", field: "Pre Delay", x: 0, y: 3, label: "Pre Dly" },
-    { kind: "knob", field: "Phase", x: 2, y: 3 },
-    { kind: "knob", field: "Balance", x: 6, y: 3 },
-    { kind: "knob", field: "Low Gain", x: 0, y: 6, label: "Lo Gain" },
-    { kind: "knob", field: "High Gain", x: 2, y: 6, label: "Hi Gain" },
+    { kind: "knob", field: "Filter Type", x: 0, y: MFX_PARAMS_Y, label: "Filter" },
+    { kind: "knob", field: "Cutoff Freq", x: 2, y: MFX_PARAMS_Y, label: "Cutoff" },
+    { kind: "knob", field: "Rate", x: 6, y: MFX_PARAMS_Y },
+    { kind: "knob", field: "Depth", x: 8, y: MFX_PARAMS_Y },
+    { kind: "knob", field: "Pre Delay", x: 0, y: MFX_PARAMS_Y + 3, label: "Pre Dly" },
+    { kind: "knob", field: "Phase", x: 2, y: MFX_PARAMS_Y + 3 },
+    { kind: "knob", field: "Balance", x: 6, y: MFX_PARAMS_Y + 3 },
+    { kind: "knob", field: "Low Gain", x: 0, y: MFX_PARAMS_Y + 6, label: "Lo Gain" },
+    { kind: "knob", field: "High Gain", x: 2, y: MFX_PARAMS_Y + 6, label: "Hi Gain" },
     LEVEL_FADER,
   ],
 };
@@ -118,13 +127,13 @@ const CHORUS: SectionBody<string> = {
 /** Overdrive and Distortion: drive and tone, the amp, pan, then the tone EQ. */
 const DRIVE: SectionBody<string> = {
   items: [
-    { kind: "knob", field: "Drive", x: 0, y: 0 },
-    { kind: "knob", field: "Tone", x: 2, y: 0 },
-    { kind: "switch", field: "Amp Sw", x: 6, y: 1, label: "Amp" },
-    { kind: "knob", field: "Amp Type", x: 8, y: 0, label: "Type" },
-    { kind: "knob", field: "Pan", x: 0, y: 3 },
-    { kind: "knob", field: "Low Gain", x: 0, y: 6, label: "Lo Gain" },
-    { kind: "knob", field: "High Gain", x: 2, y: 6, label: "Hi Gain" },
+    { kind: "knob", field: "Drive", x: 0, y: MFX_PARAMS_Y },
+    { kind: "knob", field: "Tone", x: 2, y: MFX_PARAMS_Y },
+    { kind: "switch", field: "Amp Sw", x: 6, y: MFX_PARAMS_Y + 1, label: "Amp" },
+    { kind: "knob", field: "Amp Type", x: 8, y: MFX_PARAMS_Y, label: "Type" },
+    { kind: "knob", field: "Pan", x: 0, y: MFX_PARAMS_Y + 3 },
+    { kind: "knob", field: "Low Gain", x: 0, y: MFX_PARAMS_Y + 6, label: "Lo Gain" },
+    { kind: "knob", field: "High Gain", x: 2, y: MFX_PARAMS_Y + 6, label: "Hi Gain" },
     LEVEL_FADER,
   ],
 };
@@ -132,11 +141,11 @@ const DRIVE: SectionBody<string> = {
 /** Compressor: the tone EQ over the attack, threshold and gain faders. */
 const COMPRESSOR: SectionBody<string> = {
   items: [
-    { kind: "knob", field: "Low Gain", x: 0, y: 0, label: "Lo Gain" },
-    { kind: "knob", field: "High Gain", x: 2, y: 0, label: "Hi Gain" },
-    { kind: "fader", field: "Attack", x: 0, y: 3, h: H - 3, label: "Atk" },
-    { kind: "fader", field: "Threshold", x: 2, y: 3, h: H - 3, label: "Thr" },
-    { kind: "fader", field: "Post Gain", x: 4, y: 3, h: H - 3, label: "Gain" },
+    { kind: "knob", field: "Low Gain", x: 0, y: MFX_PARAMS_Y, label: "Lo Gain" },
+    { kind: "knob", field: "High Gain", x: 2, y: MFX_PARAMS_Y, label: "Hi Gain" },
+    { kind: "fader", field: "Attack", x: 0, y: MFX_PARAMS_Y + 3, h: PARAMS_H - 3, label: "Atk" },
+    { kind: "fader", field: "Threshold", x: 2, y: MFX_PARAMS_Y + 3, h: PARAMS_H - 3, label: "Thr" },
+    { kind: "fader", field: "Post Gain", x: 4, y: MFX_PARAMS_Y + 3, h: PARAMS_H - 3, label: "Gain" },
     LEVEL_FADER,
   ],
 };
@@ -144,16 +153,16 @@ const COMPRESSOR: SectionBody<string> = {
 /** Delay: phase and feedback switches, feedback and mix, the tone EQ, and the delay times as faders. */
 const DELAY: SectionBody<string> = {
   items: [
-    { kind: "switch", field: "Phase Left", x: 0, y: 0, label: "Ph L" },
-    { kind: "switch", field: "Phase Right", x: 2, y: 0, label: "Ph R" },
-    { kind: "switch", field: "Feedback Mode", x: 4, y: 0, label: "FB" },
-    { kind: "knob", field: "Feedback", x: 0, y: 1, label: "Fdbk" },
-    { kind: "knob", field: "HF Damp", x: 2, y: 1 },
-    { kind: "knob", field: "Balance", x: 4, y: 1 },
-    { kind: "knob", field: "Low Gain", x: 0, y: 4, label: "Lo Gain" },
-    { kind: "knob", field: "High Gain", x: 2, y: 4, label: "Hi Gain" },
-    { kind: "fader", field: "Delay Left", x: 7, y: 0, h: H, label: "Time L" },
-    { kind: "fader", field: "Delay Right", x: 9, y: 0, h: H, label: "Time R" },
+    { kind: "switch", field: "Phase Left", x: 0, y: MFX_PARAMS_Y, label: "Ph L" },
+    { kind: "switch", field: "Phase Right", x: 2, y: MFX_PARAMS_Y, label: "Ph R" },
+    { kind: "switch", field: "Feedback Mode", x: 4, y: MFX_PARAMS_Y, label: "FB" },
+    { kind: "knob", field: "Feedback", x: 0, y: MFX_PARAMS_Y + 1, label: "Fdbk" },
+    { kind: "knob", field: "HF Damp", x: 2, y: MFX_PARAMS_Y + 1 },
+    { kind: "knob", field: "Balance", x: 4, y: MFX_PARAMS_Y + 1 },
+    { kind: "knob", field: "Low Gain", x: 0, y: MFX_PARAMS_Y + 4, label: "Lo Gain" },
+    { kind: "knob", field: "High Gain", x: 2, y: MFX_PARAMS_Y + 4, label: "Hi Gain" },
+    { kind: "fader", field: "Delay Left", x: 7, y: MFX_PARAMS_Y, h: PARAMS_H, label: "Time L" },
+    { kind: "fader", field: "Delay Right", x: 9, y: MFX_PARAMS_Y, h: PARAMS_H, label: "Time R" },
     LEVEL_FADER,
   ],
 };

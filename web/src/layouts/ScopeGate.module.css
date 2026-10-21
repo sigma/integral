@@ -1,0 +1,4 @@
+/* A Scope core holds inactive: its Sections, dimmed. */
+.off {
+  opacity: 0.4;
+}

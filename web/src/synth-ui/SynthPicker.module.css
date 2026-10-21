@@ -1,0 +1,39 @@
+/* A picker on the Grid: name, then the current option in a button the Cells' height less a margin. */
+
+.picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  padding: 2px;
+}
+
+.label {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.current {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  padding: 0 6px;
+  font-family: monospace;
+  font-size: 11px;
+  color: #4dff4d;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #1a2a1a;
+  border: 1px solid #2a4a2a;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.current:hover {
+  border-color: #4dff4d;
+}

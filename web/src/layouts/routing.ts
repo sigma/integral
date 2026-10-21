@@ -218,7 +218,9 @@ export function sectionFree<F extends FieldKey>(layout: SectionLayout<F>): Free 
 
 /** Whether `el` is what `end` names. */
 export function isEndpoint<F extends FieldKey>(el: ElementLayout<F>, end: ItemEndpoint<F>): boolean {
-  return "field" in end ? el.kind !== "display" && el.field === end.field : el.kind === "display" && el.display === end.display;
+  return "field" in end
+    ? el.kind !== "display" && el.field === end.field && el.index === end.index
+    : el.kind === "display" && el.display === end.display;
 }
 
 /**

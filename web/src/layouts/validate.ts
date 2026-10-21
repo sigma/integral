@@ -7,7 +7,7 @@
 
 import { DisplayKind } from "../../pkg/integral_wasm.js";
 import { BLEED, optionListRows, type Cells, type Edge } from "../synth-ui/grid";
-import { isTwoState, type FieldKey, type FieldSpace } from "./fields";
+import { elementCount, isTwoState, type FieldKey, type FieldSpace } from "./fields";
 import { DISPLAY_MIN_FOOTPRINT, allElements, itemRect, sectionCells, variantLayout } from "./geometry";
 import {
   drawnArrows,
@@ -53,7 +53,11 @@ export type Check =
    * or Lanes can carry, or whose glyph shares a Cell with another.
    */
   | "arrow"
-  /** A field, Display or variant key core doesn't define, or a Section a region variant's key doesn't have. */
+  /**
+   * A field, Display or variant key core doesn't define, a Section a region
+   * variant's key doesn't have, or an element index outside its field's
+   * count (or missing on an array field, or given on a single-valued one).
+   */
   | "field";
 
 /** One thing wrong with a layout. */
@@ -136,10 +140,27 @@ function displayName(display: DisplayKind): string {
   return `display ${DisplayKind[display] ?? display}`;
 }
 
+/** A field's name for messages, with its element index when it has one: `TvaEnvLevel[1]`. */
+function fieldName<F extends FieldKey>(fields: FieldSpace<F>, field: F, index?: number): string {
+  return index === undefined ? fields.nameOf(field) : `${fields.nameOf(field)}[${index}]`;
+}
+
 /** Names an element for messages. */
 function elementName<F extends FieldKey>(el: ElementLayout<F>, fields: FieldSpace<F>): string {
-  return el.kind === "display" ? displayName(el.display) : `${el.kind} ${fields.nameOf(el.field)}`;
+  return el.kind === "display" ? displayName(el.display) : `${el.kind} ${fieldName(fields, el.field, el.index)}`;
 }
+
+/** What is wrong with a Control's element index for its field, if anything. */
+function indexProblem<F extends FieldKey>(fields: FieldSpace<F>, field: F, index: number | undefined): string | undefined {
+  const count = elementCount(fields, field);
+  if (index === undefined) return count > 1 ? `an array field of ${count}: name one element` : undefined;
+  if (count === 1) return "not an array field: names no element";
+  if (!Number.isInteger(index) || index < 0 || index >= count) return `element ${index} outside 0..${count - 1}`;
+  return undefined;
+}
+
+/** A key for one element of a field, for counting placements. */
+const placementKey = (field: FieldKey, index: number): string => `${typeof field}:${String(field)}#${index}`;
 
 /** Reports each Cell where two different glyphs would be drawn. */
 function reportGlyphClashes(report: Report, arrows: readonly DrawnArrow[]): void {
@@ -172,11 +193,16 @@ export function validateSection<F extends FieldKey>(
       }
     } else if (!known.has(el.field)) {
       report("field", name, `not in ${layout.fields.name}`);
-    } else if (el.kind === "list") {
-      const need = optionListRows(layout.fields.optionCount(el.field), el.label !== false);
-      if (el.h < need) report("footprint", name, `${el.h} rows, needs ${need}`);
-    } else if (el.kind === "switch" && !isTwoState(layout.fields, el.field)) {
-      report("footprint", name, "a 2×1 switch needs a two-state field");
+    } else {
+      const badIndex = indexProblem(layout.fields, el.field, el.index);
+      if (badIndex !== undefined) {
+        report("field", name, badIndex);
+      } else if (el.kind === "list") {
+        const need = optionListRows(layout.fields.optionCount(el.field), el.label !== false);
+        if (el.h < need) report("footprint", name, `${el.h} rows, needs ${need}`);
+      } else if (el.kind === "switch" && !isTwoState(layout.fields, el.field)) {
+        report("footprint", name, "a 2×1 switch needs a two-state field");
+      }
     }
   };
 
@@ -215,7 +241,7 @@ export function validateSection<F extends FieldKey>(
     if (silk.kind === "rule" && silk.points.length < 2) report("lattice", name, "needs two points");
   }
   const endName = (end: ItemEndpoint<F>): string =>
-    "field" in end ? layout.fields.nameOf(end.field) : displayName(end.display);
+    "field" in end ? fieldName(layout.fields, end.field, end.index) : displayName(end.display);
   for (const end of arrows.flatMap((a) => [a.from, a.to])) {
     if (!placed.some((el) => isEndpoint(el, end))) report("arrow", `arrow ${endName(end)}`, "endpoint not placed");
   }
@@ -256,7 +282,8 @@ export function validateClearance<F extends FieldKey>(layout: SectionLayout<F>, 
 
 /**
  * Problems with a variant set: every key's layout, and every parameter of
- * each key placed. A parameter in any alternative counts as placed.
+ * each key placed, each element of an array field on its own. A parameter
+ * in any alternative counts as placed.
  */
 export function validateVariantSet<K extends FieldKey, F extends FieldKey>(
   set: VariantSet<K, F>,
@@ -269,10 +296,16 @@ export function validateVariantSet<K extends FieldKey, F extends FieldKey>(
   for (const key of set.keys) {
     const layout = variantLayout(set, key);
     problems.push(...validateSection(layout, `${set.name}[${key}]`));
-    const placed = new Set<FieldKey>();
-    for (const el of allElements(layout.items)) if (el.kind !== "display") placed.add(el.field);
+    const placed = new Set<string>();
+    for (const el of allElements(layout.items)) {
+      if (el.kind !== "display") placed.add(placementKey(el.field, el.index ?? 0));
+    }
     for (const id of layout.fields.ids) {
-      if (!placed.has(id)) report("unplaced", `[${key}] ${layout.fields.nameOf(id)}`, "not placed");
+      const count = elementCount(layout.fields, id);
+      for (let i = 0; i < count; i++) {
+        if (placed.has(placementKey(id, i))) continue;
+        report("unplaced", `[${key}] ${fieldName(layout.fields, id, count > 1 ? i : undefined)}`, "not placed");
+      }
     }
   }
   return problems;

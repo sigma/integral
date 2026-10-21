@@ -1,0 +1,83 @@
+/* A searchable option list in a popover: the Wave picker's and the picker Control's. */
+
+.search {
+  padding: 3px 6px;
+  font-size: 11px;
+  color: #ddd;
+  background: #10101e;
+  border: 1px solid #3a3a5a;
+  border-radius: 3px;
+}
+
+.floating {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  font-size: 11px;
+  color: #ccc;
+  background: #161628;
+  border: 1px solid #fc8;
+  border-radius: 4px;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 60%);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.chip {
+  padding: 1px 6px;
+  font-size: 10px;
+  color: #ccc;
+  background: #22223a;
+  border: 1px solid #3a3a5a;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.chipOn {
+  color: #fc8;
+  background: #4a3a20;
+  border-color: #fc8;
+}
+
+.dim {
+  color: #888;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.item {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  align-items: center;
+  padding: 2px 4px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  white-space: pre;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.item:hover {
+  background: #22223a;
+}
+
+.itemCurrent {
+  color: #4dff4d;
+}

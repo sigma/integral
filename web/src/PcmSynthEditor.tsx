@@ -21,15 +21,18 @@ import { useMfxHandlers } from "./useMfxHandlers";
 import type { MfxState } from "./MfxPanel";
 import css from "./PcmSynthEditor.module.css";
 
-import type {
-  CommonParamHandler,
-  PartialParamHandler,
-  PcmSynthCommon,
-  PcmSynthPmt,
-  PcmSynthPartial,
-  PcmSynthCommon2,
-  PmtEntryParamHandler,
-  PmtParamHandler,
+import {
+  PCMS_COMMON_ENTRIES,
+  PCMS_PARTIAL_ENTRIES,
+  PCMS_PMT_ENTRIES,
+  type CommonParamHandler,
+  type PartialParamHandler,
+  type PcmSynthCommon,
+  type PcmSynthPmt,
+  type PcmSynthPartial,
+  type PcmSynthCommon2,
+  type PmtEntryParamHandler,
+  type PmtParamHandler,
 } from "./pcm-synth/types";
 import { PcmSynthScreen } from "./pcm-synth/PcmSynthScreen";
 
@@ -128,17 +131,19 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
   // Param setters: send to the device, then patch the local copy
   // ---------------------------------------------------------------------------
   const setCommonParam = useCallback<CommonParamHandler>(
-    (field, key, value) => {
+    (field, value) => {
       service.device.setPcmsCommonParam(partIndex, field, 0, value);
-      setCommon((prev) => (prev ? { ...prev, [key]: value } : prev));
+      const key = PCMS_COMMON_ENTRIES[field]?.key;
+      if (key) setCommon((prev) => (prev ? { ...prev, [key]: value } : prev));
     },
     [partIndex, service],
   );
 
   const setPmtParam = useCallback<PmtParamHandler>(
-    (field, key, value) => {
+    (field, value) => {
       service.device.setPcmsPmtParam(partIndex, field, 0, value);
-      setPmt((prev) => (prev ? { ...prev, [key]: value } : prev));
+      const key = PCMS_PMT_ENTRIES[field]?.key;
+      if (key) setPmt((prev) => (prev ? { ...prev, [key]: value } : prev));
     },
     [partIndex, service],
   );
@@ -158,8 +163,9 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
   );
 
   const setPartialParam = useCallback(
-    (partial: number, ...[field, key, index, value]: Parameters<PartialParamHandler>) => {
+    (partial: number, ...[field, index, value]: Parameters<PartialParamHandler>) => {
       service.device.setPcmsPartialParam(partIndex, partial, field, index, value);
+      const { key } = PCMS_PARTIAL_ENTRIES[field];
       setPartials((prev) => {
         const p = prev[partial];
         if (!p) return prev;

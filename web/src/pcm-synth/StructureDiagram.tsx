@@ -1,5 +1,4 @@
 import { routingOf, type Block } from "./structureRouting";
-import css from "../PcmSynthEditor.module.css";
 
 const NAMES = { wave: "WG", filter: "TVF", amp: "TVA" } as const;
 const JOIN_LABELS = { mix: "+", booster: "B", ring: "R" } as const;
@@ -14,9 +13,10 @@ const HEIGHT = 56;
 /**
  * The signal path of a PCM Synth Structure Type, as in the Parameter Guide:
  * each partial's WG → TVF → TVA, and where the pair (`first` and `first + 1`)
- * joins through a mixer, the booster (B) or the ring modulator (R).
+ * joins through a mixer, the booster (B) or the ring modulator (R). Drawn
+ * at its natural size, or scaled to fit `className`'s box.
  */
-export function StructureDiagram({ structure, first }: { structure: number; first: number }) {
+export function StructureDiagram({ structure, first, className }: { structure: number; first: number; className?: string }) {
   const routing = routingOf(structure);
   const label = (b: Block) =>
     b.kind === "booster" ? "B" : `${NAMES[b.kind]}${b.side === "upper" ? first : first + 1}`;
@@ -60,7 +60,7 @@ export function StructureDiagram({ structure, first }: { structure: number; firs
 
   const width = (columns - 1) * COL + BOX_W + 2;
   return (
-    <svg className={css.structureDiagram} width={width} height={HEIGHT} viewBox={`-1 0 ${width} ${HEIGHT}`}
+    <svg className={className} width={width} height={HEIGHT} viewBox={`-1 0 ${width} ${HEIGHT}`}
       role="img" aria-label={`Structure ${structure + 1} signal path`}>
       <g fill="none" stroke="#777" strokeWidth="1">
         {lines.map((d, i) => <path key={i} d={d} />)}

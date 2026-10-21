@@ -18,10 +18,10 @@ import { routingOf, type Block, type Side } from "../../pcm-synth/structureRouti
 import { sectionCells } from "../geometry";
 import { freeLanes } from "../region";
 import type { ArrowGlyph, RegionVariantSet, ScreenArrowSilk, ScreenRegion, SectionFrame, SectionPlacement } from "../types";
-import { BOOST_12_LAYOUT, HOSTED, PARTIAL_LAYOUT, RING_12_LAYOUT, ROW_H } from "./sections";
+import { BOOST_12_LAYOUT, PARTIAL_LAYOUT, PCMS_BOXES, RING_12_LAYOUT, ROW_H, type PcmsBox } from "./sections";
 
 /** A partial's own boxes, one Section each. */
-export type PartialBlock = "partial" | "lfo1" | "lfo2" | "step" | "wave" | "pitch" | "ctrl" | "tvf" | "tva" | "out";
+export type PartialBlock = "partial" | PcmsBox;
 
 /** A Section of the pair, by its id in the region: a partial's box, or the pair's BOOST or RING. */
 export type PairSection = `${Side}.${PartialBlock}` | "boost" | "ring";
@@ -50,7 +50,7 @@ function frameOf(id: PairSection): SectionFrame {
   if (id === "boost") return BOOST_12_LAYOUT;
   if (id === "ring") return RING_12_LAYOUT;
   const { block } = partialBoxOf(id)!;
-  return block === "partial" ? PARTIAL_LAYOUT : HOSTED[block];
+  return block === "partial" ? PARTIAL_LAYOUT : PCMS_BOXES[block].layout;
 }
 
 /** Content plus title Cells: what a Section covers. */

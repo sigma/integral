@@ -43,11 +43,9 @@ import {
   PCMD_KIT_LAYOUT,
   PCMD_MISC_LAYOUT,
   PCMD_OUTPUT_LAYOUT,
-  PCMD_PARTIAL_FIELDS,
   PCMD_PITCH_ENV_LAYOUT,
   PCMD_SCREEN,
   PCMD_WMT_LAYOUT,
-  type PcmdPartialKey,
 } from "./layouts/drum/pcmDrum";
 import { MfxPanel } from "./MfxPanel";
 import type { MfxState } from "./MfxPanel";
@@ -55,7 +53,7 @@ import { FilterScope } from "./synth-ui/FilterScope";
 import { useMfxHandlers } from "./useMfxHandlers";
 import { DrumKeyGrid } from "./DrumKeyGrid";
 import { useDrumKey } from "./useDrumKey";
-import { WmtWave } from "./pcm-drum/WmtWave";
+import { WaveDisplay } from "./WaveDisplay";
 import {
   PCMD_COMMON_ENTRIES,
   PCMD_PARTIAL_ENTRIES,
@@ -196,10 +194,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
     return value ?? pcmd_partial_spec(field).defaultValue;
   };
 
-  const bindPartial = (key: PcmdPartialKey): Binding => {
-    const at = PCMD_PARTIAL_FIELDS.resolve(key);
-    if (at === undefined) throw new Error(`${String(key)} is not a PCM Drum Partial field`);
-    const { field, index } = at;
+  const bindPartial = (field: PcmdPartialField, index = 0): Binding => {
     const spec = pcmd_partial_spec(field);
     const { name } = PCMD_PARTIAL_ENTRIES[field];
     const count = pcmd_partial_count(field);
@@ -241,7 +236,13 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
 
   const renderWmtDisplay = (display: DisplayKind): ReactNode =>
     display === DisplayKind.WavePicker && note ? (
-      <WmtWave value={wmtValue} onChange={setWmtParam} marking={marking} />
+      <WaveDisplay
+        toneType={ToneType.PcmDrum}
+        fieldOf={(s) => s.pcmdWmt}
+        value={wmtValue}
+        onChange={setWmtParam}
+        marking={marking}
+      />
     ) : null;
 
   // Build key→outputAssign map and the set of silent keys (every WMT layer

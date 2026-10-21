@@ -15,6 +15,7 @@ import type {
   Scope,
   SectionFrame,
   SectionLayout,
+  SectionPlacement,
   VariantSet,
 } from "./types";
 
@@ -32,6 +33,8 @@ export function controlCells<F extends FieldKey>(control: ControlLayout<F>): Cel
       return { w: FOOTPRINT.faderW, h: control.h };
     case "list":
       return { w: FOOTPRINT.optionListW, h: control.h };
+    case "picker":
+      return FOOTPRINT.picker;
   }
 }
 
@@ -84,6 +87,27 @@ export function titleCells(frame: SectionFrame): { top: number; side: number } {
 export function sectionCells(frame: SectionFrame): Cells {
   const { top, side } = titleCells(frame);
   return { w: frame.w + side, h: frame.h + top };
+}
+
+/** A row of Sections by placement id, left to right. */
+export type SectionRow = readonly { id: string; section: SectionFrame }[];
+
+/** `row`'s Sections abutting from column 0, their tops on `y`. */
+export function placeRow(row: SectionRow, y: number): SectionPlacement[] {
+  let x = 0;
+  return row.map(({ id, section }) => {
+    const placed = { id, section, x, y };
+    x += sectionCells(section).w;
+    return placed;
+  });
+}
+
+/** The Cells `row` covers: its Sections' widths summed, and the tallest. */
+export function rowCells(row: SectionRow): Cells {
+  return {
+    w: row.reduce((w, { section }) => w + sectionCells(section).w, 0),
+    h: Math.max(0, ...row.map(({ section }) => sectionCells(section).h)),
+  };
 }
 
 /** `frame`'s title with each `{name}` replaced by the Scope's 1-based `name` index. */

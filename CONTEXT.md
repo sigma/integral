@@ -164,6 +164,9 @@ _Avoid_: Box, panel
 One interactive element (knob, switch, fader, picker) bound to one
 parameter. A picker chooses one of a parameter's named options from a list. It
 covers a rectangle of whole Cells and carries its own name and value readout.
+An array field, one field holding several values (an envelope's times or
+levels, the Step LFO's steps), gets one Control per element: each element is a
+parameter of its own.
 A Control is **inactive** when the device state makes its parameter
 irrelevant; it keeps its Cells, dimmed or hidden, and never reflows.
 _Avoid_: Widget

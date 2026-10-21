@@ -17,6 +17,7 @@ export type {
   KnobLayout,
   Lane,
   OptionListLayout,
+  PickerLayout,
   RegionVariantSet,
   RuleSilk,
   Scope,
@@ -35,8 +36,8 @@ export type {
   TitleEdge,
   VariantSet,
 } from "./types";
-export { elementFields, enumFields, fxFields, fxParamDefs, fxTypes, isTwoState, mixerFields } from "./fields";
-export type { ElementFieldSpace, FieldKey, FieldSpace, FxBlock } from "./fields";
+export { elementCount, enumFields, fxFields, fxParamDefs, fxTypes, isTwoState, mixerFields } from "./fields";
+export type { EnumFieldsOptions, FieldKey, FieldSpace, FxBlock } from "./fields";
 export {
   DISPLAY_MIN_FOOTPRINT,
   INSET,
@@ -52,6 +53,7 @@ export {
 export { MFX_LEVEL, MFX_PANEL_FRAME, MFX_SET } from "./fx/mfx";
 export { CHORUS_SET, REVERB_SET } from "./fx/strip";
 export { GridSection } from "./GridSection";
+export { ScopeGate } from "./ScopeGate";
 export type { Binding, BindingOption, GridSectionProps, SyncBinding } from "./GridSection";
 export { routeScreenArrow, routeSectionArrow } from "./routing";
 export { freeLanes, placeRegion } from "./region";

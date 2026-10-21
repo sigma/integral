@@ -1,41 +1,6 @@
-/* Rows: shape preview, levels, sequence line, times; half-fader columns are set inline.
-   margin-top: auto sinks it to the bottom of a flex-column panel. */
-.envelope {
-  margin-top: auto;
-  display: inline-grid;
-  grid-template-rows: auto auto 16px auto;
-}
-
-.curve {
-  composes: screen from "./Scope.module.css";
-  grid-column: 1 / -1;
-  grid-row: 1;
-}
-
 /* The curve alone, filling a Display's Cells. */
 .fill {
   composes: screen from "./Scope.module.css";
   height: 100%;
   margin-bottom: 0;
-}
-
-.level {
-  grid-row: 2;
-  display: flex;
-  justify-content: center;
-  padding: 0 3px;
-}
-
-.link {
-  grid-column: 1 / -1;
-  grid-row: 3;
-  width: 100%;
-  height: 100%;
-}
-
-.time {
-  grid-row: 4;
-  display: flex;
-  justify-content: center;
-  padding: 0 3px;
 }

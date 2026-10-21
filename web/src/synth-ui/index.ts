@@ -1,16 +1,13 @@
 export { SynthFader } from "./SynthFader";
 export { SynthKnob } from "./SynthKnob";
 export { SynthSwitch } from "./SynthSwitch";
-export { SynthSelect } from "./SynthSelect";
+export { SynthPicker } from "./SynthPicker";
 export { SectionPanel } from "./SectionPanel";
-export { SyncedControl } from "./SyncedControl";
 export { PartialPowerButton } from "./PartialPowerButton";
 export { ADSREnvelope, envelopePath } from "./ADSREnvelope";
 export type { EnvelopeShape } from "./ADSREnvelope";
 export { EnvelopeScope } from "./EnvelopeScope";
-export { BreakpointCurve, BreakpointEnvelope } from "./BreakpointEnvelope";
-export { FaderGroup, FaderGroupSep } from "./FaderGroup";
-export { OutputStrip } from "./OutputStrip";
+export { BreakpointCurve } from "./BreakpointEnvelope";
 export { FAMILIES, accentColour, familyProperty, familyVar, installFamilyPalette } from "./family";
 export { CELL, FOOTPRINT, cellsPx } from "./grid";
 export type { Cells } from "./grid";

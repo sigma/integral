@@ -29,7 +29,10 @@ const LAYOUT_MODULES = [
   "./sn-synth/displays",
   "./sn-synth/PartialBox",
   "./pcm-synth/PcmSynthScreen",
-  "./pcm-synth/PartialSections",
+  "./pcm-synth/binding",
+  "./pcm-synth/displays",
+  "./layouts/envelope",
+  "./WaveDisplay",
   "./plugin",
 ];
 

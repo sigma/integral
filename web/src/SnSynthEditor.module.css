@@ -41,21 +41,3 @@
 .fill {
   height: 100%;
 }
-
-/* The PCM Wave picker, centred in its Display's Cells. */
-.picker {
-  display: flex;
-  align-items: center;
-  height: 100%;
-}
-
-/* The picker fills its Display's Cells, narrower than its own 220px. */
-.picker > * {
-  width: 100%;
-  min-width: 0;
-}
-
-/* A partial core holds off: its whole row, dimmed (and inert). */
-.off {
-  opacity: 0.4;
-}

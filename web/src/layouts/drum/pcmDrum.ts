@@ -7,7 +7,6 @@
 
 import {
   DisplayKind,
-  DisplayProp,
   ParameterFamily,
   PcmdCommonField,
   PcmdPartialField,
@@ -18,24 +17,16 @@ import {
   pcmd_wmt_spec,
   ToneType,
 } from "../../../pkg/integral_wasm.js";
-import { displaySlots } from "../displays";
-import { elementFields, enumFields, memo, type FieldKey } from "../fields";
+import { ENV_CELLS, envelopeItems } from "../envelope";
+import { enumFields, memo, type FieldKey } from "../fields";
 import { MFX_PANEL_FRAME } from "../fx/mfx";
-import { sectionCells } from "../geometry";
-import type { ControlLayout, ItemLayout, ScreenLayout, SectionLayout } from "../types";
+import { placeRow, rowCells, sectionCells, type SectionRow } from "../geometry";
+import type { ScreenLayout, SectionLayout } from "../types";
 
-/** A PCM Drum Partial Control's field: a field, or one value of an envelope's times or levels. */
-export type PcmdPartialKey = PcmdPartialField | string;
-
-/** The Partial fields outside the WMT layers, one key per envelope time and level. */
-export const PCMD_PARTIAL_FIELDS = elementFields(
-  "PcmdPartialField",
-  PcmdPartialField,
-  pcmd_partial_spec,
-  pcmd_partial_count,
-);
-
-const elementKey = PCMD_PARTIAL_FIELDS.element;
+/** The Partial fields outside the WMT layers; an envelope's times and levels are array fields. */
+export const PCMD_PARTIAL_FIELDS = enumFields("PcmdPartialField", PcmdPartialField, pcmd_partial_spec, {
+  count: pcmd_partial_count,
+});
 
 /** The kit-wide level, as tall as a key's Level fader. */
 export const PCMD_KIT_LAYOUT: SectionLayout<PcmdCommonField> = {
@@ -51,11 +42,12 @@ export const PCMD_KIT_LAYOUT: SectionLayout<PcmdCommonField> = {
 export const PCMD_WMT_LAYOUT: SectionLayout<PcmdWmtField> = {
   title: "WMT {layer}",
   titleEdge: "top",
-  w: 12,
-  h: 13,
+  w: 13,
+  h: 14,
   fields: enumFields("PcmdWmtField", PcmdWmtField, pcmd_wmt_spec),
+  // The picker, switches and lists keep a free Cell from the left, right and bottom borders.
   items: [
-    { kind: "display", display: DisplayKind.WavePicker, x: 0, y: 0, w: 10, h: 5 },
+    { kind: "display", display: DisplayKind.WavePicker, x: 1, y: 0, w: 9, h: 5 },
     { kind: "switch", field: PcmdWmtField.Switch, x: 10, y: 0 },
     { kind: "list", field: PcmdWmtField.WaveGain, x: 10, y: 1, h: 5, label: "Gain" },
     { kind: "knob", field: PcmdWmtField.WaveFxmColor, x: 0, y: 6, label: "Color" },
@@ -76,69 +68,26 @@ export const PCMD_WMT_LAYOUT: SectionLayout<PcmdWmtField> = {
 };
 
 /** What sets an envelope Section apart: its title, its Display and the knobs over its curve. */
-interface EnvelopeSpec {
+interface EnvelopeSection {
   title: string;
   display: DisplayKind;
   /** The knobs over the curve, left to right. */
   knobs: readonly { field: PcmdPartialField; label: string }[];
 }
 
-/** Rows of an envelope Section: its knobs, its curve, its level faders and its time faders. */
-const ENV_ROWS = { knobs: 0, curve: 3, levels: 5, times: 9 } as const;
-
-/** Height of an envelope's faders, in Cells. */
-const ENV_FADER_H = 4;
-
 /**
- * One fader per stored value of `prop` in `display`'s core binding: the
- * n-th value (0-based) on column `2n + offset`, named `name` and its number
- * counted from `first`. Values the device fixes (a TVA's L0 and L4) get no
- * fader; only the curve draws them.
+ * An envelope Section, after the old BreakpointEnvelope: one envelope block
+ * (`envelopeItems`), its faders from the Display's core binding.
  */
-function envelopeFaders(
-  display: DisplayKind,
-  prop: DisplayProp,
-  name: string,
-  first: number,
-  offset: number,
-  y: number,
-): ControlLayout<PcmdPartialKey>[] {
-  return displaySlots(display, ToneType.PcmDrum)
-    .filter((s) => s.prop === prop)
-    .flatMap((slot, n) => {
-      const field = slot.pcmdPartial;
-      if (field === undefined) return [];
-      const label = `${name}${n + first}`;
-      return [{ kind: "fader", field: elementKey(field, slot.index), x: 2 * n + offset, y, h: ENV_FADER_H, label }];
-    });
-}
-
-/**
- * An envelope Section, after the old BreakpointEnvelope: knobs, the curve
- * across the Section, then levels L0–L4 on even columns and times T1–T4
- * between them, so each time sits under the two levels it joins. The
- * faders come from the Display's core binding.
- */
-function envelopeLayout(spec: EnvelopeSpec): SectionLayout<PcmdPartialKey> {
-  const knobs: ControlLayout<PcmdPartialKey>[] = spec.knobs.map((k, i) => ({
-    kind: "knob",
-    field: k.field,
-    x: 2 * i,
-    y: ENV_ROWS.knobs,
-    label: k.label,
-  }));
+function envelopeLayout({ title, display, knobs }: EnvelopeSection): SectionLayout<PcmdPartialField> {
   // The faders come from core's Display binding, read on first use, not at import.
-  const items = memo((): ItemLayout<PcmdPartialKey>[] => [
-    ...knobs,
-    { kind: "display", display: spec.display, x: 0, y: ENV_ROWS.curve, w: 10, h: 2 },
-    ...envelopeFaders(spec.display, DisplayProp.Levels, "L", 0, 0, ENV_ROWS.levels),
-    ...envelopeFaders(spec.display, DisplayProp.Times, "T", 1, 1, ENV_ROWS.times),
-  ]);
+  const items = memo(() =>
+    envelopeItems({ display, toneType: ToneType.PcmDrum, fieldOf: (s) => s.pcmdPartial, knobs }, 0, 0),
+  );
   return {
-    title: spec.title,
+    title,
     titleEdge: "top",
-    w: 10,
-    h: 13,
+    ...ENV_CELLS,
     fields: PCMD_PARTIAL_FIELDS,
     get items() {
       return items();
@@ -181,36 +130,38 @@ export const PCMD_AMP_ENV_LAYOUT = envelopeLayout({
 });
 
 /** The filter: its type, the response scope, cutoff and resonance with their velocity sensitivities. */
-export const PCMD_FILTER_LAYOUT: SectionLayout<PcmdPartialKey> = {
+export const PCMD_FILTER_LAYOUT: SectionLayout<PcmdPartialField> = {
   title: "FILTER",
   titleEdge: "top",
   w: 10,
   h: 9,
   fields: PCMD_PARTIAL_FIELDS,
   items: [
-    { kind: "list", field: PcmdPartialField.TvfFilterType, x: 0, y: 0, h: 8, label: "Type" },
-    { kind: "display", display: DisplayKind.FilterScope, x: 2, y: 0, w: 8, h: 3 },
-    { kind: "knob", field: PcmdPartialField.TvfCutoffFrequency, x: 2, y: 3, label: "Cutoff" },
-    { kind: "knob", field: PcmdPartialField.TvfResonance, x: 4, y: 3, label: "Reso" },
-    { kind: "knob", field: PcmdPartialField.TvfCutoffVelocityCurve, x: 6, y: 3, label: "Vel Crv" },
-    { kind: "knob", field: PcmdPartialField.TvfCutoffVelocitySens, x: 2, y: 6, label: "Cut Vel" },
-    { kind: "knob", field: PcmdPartialField.TvfResonanceVelocitySens, x: 4, y: 6, label: "Res Vel" },
+    // The list and scope keep a free Cell from the left and right borders.
+    { kind: "list", field: PcmdPartialField.TvfFilterType, x: 1, y: 0, h: 8, label: "Type" },
+    { kind: "display", display: DisplayKind.FilterScope, x: 3, y: 0, w: 6, h: 3 },
+    { kind: "knob", field: PcmdPartialField.TvfCutoffFrequency, x: 3, y: 3, label: "Cutoff" },
+    { kind: "knob", field: PcmdPartialField.TvfResonance, x: 5, y: 3, label: "Reso" },
+    { kind: "knob", field: PcmdPartialField.TvfCutoffVelocityCurve, x: 7, y: 3, label: "Vel Crv" },
+    { kind: "knob", field: PcmdPartialField.TvfCutoffVelocitySens, x: 3, y: 6, label: "Cut Vel" },
+    { kind: "knob", field: PcmdPartialField.TvfResonanceVelocitySens, x: 5, y: 6, label: "Res Vel" },
   ],
 };
 
 /** How the key plays: assignment, mute group, envelope mode, output, pitch, level and what it receives. */
-export const PCMD_MISC_LAYOUT: SectionLayout<PcmdPartialKey> = {
+export const PCMD_MISC_LAYOUT: SectionLayout<PcmdPartialField> = {
   title: "MISC",
   titleEdge: "top",
-  w: 10,
-  h: 12,
+  w: 12,
+  h: 13,
   fields: PCMD_PARTIAL_FIELDS,
+  // The switches and lists keep a free Cell from the left, right and bottom borders.
   items: [
-    { kind: "switch", field: PcmdPartialField.AssignType, x: 0, y: 0, label: "Assign" },
-    { kind: "switch", field: PcmdPartialField.EnvMode, x: 2, y: 0, label: "Env Mode" },
-    { kind: "switch", field: PcmdPartialField.OneShotMode, x: 4, y: 0, label: "1-Shot" },
-    { kind: "switch", field: PcmdPartialField.ReceiveExpression, x: 6, y: 0, label: "RxExpr" },
-    { kind: "switch", field: PcmdPartialField.ReceiveHold1, x: 8, y: 0, label: "RxHold" },
+    { kind: "switch", field: PcmdPartialField.AssignType, x: 1, y: 0, label: "Assign" },
+    { kind: "switch", field: PcmdPartialField.EnvMode, x: 3, y: 0, label: "Env Mode" },
+    { kind: "switch", field: PcmdPartialField.OneShotMode, x: 5, y: 0, label: "1-Shot" },
+    { kind: "switch", field: PcmdPartialField.ReceiveExpression, x: 7, y: 0, label: "RxExpr" },
+    { kind: "switch", field: PcmdPartialField.ReceiveHold1, x: 9, y: 0, label: "RxHold" },
     { kind: "knob", field: PcmdPartialField.MuteGroup, x: 0, y: 1, label: "Mute Grp" },
     { kind: "knob", field: PcmdPartialField.PitchBendRange, x: 2, y: 1, label: "PB Rng" },
     { kind: "knob", field: PcmdPartialField.Level, x: 4, y: 1 },
@@ -223,7 +174,7 @@ export const PCMD_MISC_LAYOUT: SectionLayout<PcmdPartialKey> = {
 };
 
 /** The key's pan, effect sends and output level. */
-export const PCMD_OUTPUT_LAYOUT: SectionLayout<PcmdPartialKey> = {
+export const PCMD_OUTPUT_LAYOUT: SectionLayout<PcmdPartialField> = {
   title: "LEVEL / PAN",
   titleEdge: "top",
   w: 4,
@@ -248,10 +199,27 @@ export const PCMD_FAMILIES: Readonly<Record<string, ParameterFamily>> = {
   output: ParameterFamily.Amp,
 };
 
+/** The top row: the kit, the wave and the pitch. */
+const TOP_ROW: SectionRow = [
+  { id: "kit", section: PCMD_KIT_LAYOUT },
+  { id: "wmt", section: PCMD_WMT_LAYOUT },
+  { id: "pitchEnv", section: PCMD_PITCH_ENV_LAYOUT },
+  { id: "misc", section: PCMD_MISC_LAYOUT },
+];
+/** The bottom row: the filter and the amp. */
+const BOTTOM_ROW: SectionRow = [
+  { id: "filter", section: PCMD_FILTER_LAYOUT },
+  { id: "filterEnv", section: PCMD_FILTER_ENV_LAYOUT },
+  { id: "ampEnv", section: PCMD_AMP_ENV_LAYOUT },
+  { id: "output", section: PCMD_OUTPUT_LAYOUT },
+];
+const TOP = rowCells(TOP_ROW);
+const BOTTOM = rowCells(BOTTOM_ROW);
+
 /** Right edge of the key Sections, in Cells. */
-const KEY_W = 34;
+const KEY_W = Math.max(TOP.w, BOTTOM.w);
 /** Height of the key Sections, in Cells. */
-const KEY_H = 28;
+const KEY_H = TOP.h + BOTTOM.h;
 /** The Lane between the key's output and the MFX, in Cells. */
 const LANE_W = 2;
 const MFX = sectionCells(MFX_PANEL_FRAME);
@@ -265,17 +233,15 @@ export const PCMD_SCREEN: ScreenLayout = {
   w: KEY_W + LANE_W + MFX.w,
   h: Math.max(KEY_H, MFX.h),
   sections: [
-    { id: "kit", section: PCMD_KIT_LAYOUT, x: 0, y: 0 },
-    { id: "wmt", section: PCMD_WMT_LAYOUT, x: 2, y: 0 },
-    { id: "pitchEnv", section: PCMD_PITCH_ENV_LAYOUT, x: 14, y: 0 },
-    { id: "misc", section: PCMD_MISC_LAYOUT, x: 24, y: 0 },
-    { id: "filter", section: PCMD_FILTER_LAYOUT, x: 0, y: 14 },
-    { id: "filterEnv", section: PCMD_FILTER_ENV_LAYOUT, x: 10, y: 14 },
-    { id: "ampEnv", section: PCMD_AMP_ENV_LAYOUT, x: 20, y: 14 },
-    { id: "output", section: PCMD_OUTPUT_LAYOUT, x: 30, y: 14 },
+    ...placeRow(TOP_ROW, 0),
+    ...placeRow(BOTTOM_ROW, TOP.h),
     { id: "mfx", section: MFX_PANEL_FRAME, x: KEY_W + LANE_W, y: 0 },
   ],
-  lanes: [{ x: KEY_W, y: 0, w: LANE_W, h: Math.max(KEY_H, MFX.h) }],
+  lanes: [
+    { x: KEY_W, y: 0, w: LANE_W, h: Math.max(KEY_H, MFX.h) },
+    // The bottom row ends short of the top one: carry the output's arrow across the gap.
+    ...(BOTTOM.w < KEY_W ? [{ x: BOTTOM.w, y: TOP.h, w: KEY_W - BOTTOM.w, h: BOTTOM.h }] : []),
+  ],
   // The kit's keys all feed the MFX.
   silkscreen: [{ kind: "arrow", from: { section: "output", side: "right" }, to: { section: "mfx", side: "left" } }],
 };

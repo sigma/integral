@@ -1,11 +1,23 @@
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DisplayKind, MixerField, MixerScopeKind } from "../../pkg/integral_wasm.js";
+import {
+  DisplayKind,
+  MixerField,
+  MixerScopeKind,
+  PcmsPartialField,
+  SndNoteField,
+  WasmDeviceState,
+  pcms_partial_count,
+  pcms_partial_spec,
+  snd_note_spec,
+} from "../../pkg/integral_wasm.js";
 import { paramFormatter, paramMeta } from "../paramDefaults";
 import { FOOTPRINT } from "../synth-ui/grid";
-import { cleanup, render } from "../test/dom";
+import { cleanup, click, render, typeInto } from "../test/dom";
 import { expectFillsFootprint } from "../test/grid";
-import { mixerFields } from "./fields";
+import { arrowUp, dt1Drainer, slider } from "../test/toneService";
+import { specBinding } from "./binding";
+import { enumFields, mixerFields } from "./fields";
 import { GridScreen } from "./GridScreen";
 import { GridSection, type Binding } from "./GridSection";
 import { EQ_LAYOUT } from "./mixer/eq";
@@ -188,6 +200,63 @@ describe("GridSection", () => {
       />,
     );
     expect(sizes).toEqual(["CompEnvelope 96×48"]);
+  });
+});
+
+describe("GridSection array-field elements", () => {
+  const PART = 1;
+  const PARTIAL = 0;
+  const LEVELS = PcmsPartialField.TvaEnvLevel;
+  /** A fader per PCM Synth TVA envelope level, L1–L3: one per element of one array field. */
+  const AMP: SectionLayout<PcmsPartialField> = {
+    title: "AMP",
+    titleEdge: "top",
+    w: 8,
+    h: 5,
+    fields: enumFields("PcmsPartialField", PcmsPartialField, pcms_partial_spec, { count: pcms_partial_count }),
+    items: [0, 1, 2].map((index) => ({ kind: "fader", field: LEVELS, index, x: 1 + 2 * index, y: 0, h: 4, label: `L${index + 1}` })),
+  };
+
+  /** Binds each element to a real core, writing it through the core's element setter. */
+  function draw(device: WasmDeviceState) {
+    const values = [10, 20, 30];
+    const bind = (field: PcmsPartialField, index = 0): Binding =>
+      specBinding(`level ${index + 1}`, pcms_partial_spec(field), values[index]!, (v) =>
+        device.setPcmsPartialParam(PART, PARTIAL, field, index, v),
+      );
+    const isActive = vi.fn((_field: PcmsPartialField, _index?: number) => true);
+    const { container } = render(<GridSection layout={AMP} bind={bind} isActive={isActive} />);
+    return { container, isActive };
+  }
+
+  it("binds each fader to its element's value", () => {
+    const { container, isActive } = draw(new WasmDeviceState(0x10));
+    expect(["L1", "L2", "L3"].map((l) => slider(container, l).getAttribute("aria-valuenow"))).toEqual(["10", "20", "30"]);
+    expect(isActive.mock.calls).toEqual([[LEVELS, 0], [LEVELS, 1], [LEVELS, 2]]);
+    const levels = [...container.querySelectorAll(`[data-field="${LEVELS}"]`)].map((el) => el.getAttribute("data-index"));
+    expect(levels).toEqual(["0", "1", "2"]);
+  });
+
+  it("moving the L2 fader writes only TVA envelope level L2", () => {
+    const device = new WasmDeviceState(0x10);
+    const sent = dt1Drainer(device);
+    const { container } = draw(device);
+    arrowUp(slider(container, "L2"));
+
+    /** What a fresh core sends for element `index` set to `value`. */
+    const write = (index: number, value: number) => {
+      const fresh = new WasmDeviceState(0x10);
+      const drain = dt1Drainer(fresh);
+      fresh.setPcmsPartialParam(PART, PARTIAL, LEVELS, index, value);
+      return drain();
+    };
+    const got = sent();
+    expect(got).toEqual(write(1, 21));
+    expect(got).toHaveLength(1);
+    expect(got[0]!.data).toEqual([21]);
+    // Not the field's first element, nor its last: the address is L2's own.
+    expect(got[0]!.address).not.toEqual(write(0, 21)[0]!.address);
+    expect(got[0]!.address).not.toEqual(write(2, 21)[0]!.address);
   });
 });
 
@@ -396,5 +465,52 @@ describe("GridScreen Silkscreen arrows", () => {
   it("draws nothing for an arrow the Lanes can't carry", () => {
     const container = draw(screen([{ kind: "arrow", from: { section: "a", side: "top" }, to: { section: "b", side: "left" } }]));
     expect(arrowPaths(container)).toEqual([]);
+  });
+});
+
+describe("GridSection picker", () => {
+  const fields = enumFields("SndNoteField", SndNoteField, snd_note_spec);
+  const layout = (inactive?: "dim" | "hide"): SectionLayout<SndNoteField> => ({
+    title: "TONE",
+    titleEdge: "top",
+    w: 8,
+    h: 2,
+    fields,
+    items: [{ kind: "picker", field: SndNoteField.InstNumber, x: 1, y: 0, label: "Inst", inactive }],
+  });
+  const draw = (value: number, onChange = vi.fn(), active = true, inactive?: "dim" | "hide") => {
+    const bind = (field: SndNoteField) => specBinding("Inst Number", snd_note_spec(field), value, onChange);
+    const { container } = render(<GridSection layout={layout(inactive)} bind={bind} isActive={() => active} />);
+    return container.querySelector<HTMLElement>(`[data-field="${SndNoteField.InstNumber}"]`)!;
+  };
+  /** The names the open list shows. */
+  const listed = () => [...document.querySelectorAll('[role="option"]')].map((o) => o.textContent ?? "");
+
+  it("fills 6×1 and shows the bound field's option name, from core", () => {
+    const el = draw(1);
+    expect([el.style.left, el.style.top]).toEqual(["24px", "24px"]);
+    expectFillsFootprint(el.firstElementChild as HTMLElement, FOOTPRINT.picker);
+    expect(el.querySelector("button")!.textContent).toBe(snd_note_spec(SndNoteField.InstNumber).formatValue(1));
+  });
+
+  it("filters the list by typed text and writes the chosen option", () => {
+    const onChange = vi.fn();
+    const el = draw(0, onChange);
+    click(el.querySelector("button")!);
+    // Every Inst core names, OFF first.
+    expect(listed()[0]).toBe("OFF");
+    expect(listed()).toContain("Studio Kick");
+
+    typeInto(document.querySelector("input")!, "telephone");
+    expect(listed()).toEqual(["Telephone 1", "Telephone 2", "Telephone 3"]);
+    click([...document.querySelectorAll<HTMLElement>('[role="option"]')].find((o) => o.textContent === "Telephone 3")!);
+    expect(onChange).toHaveBeenCalledWith(294);
+  });
+
+  it.each(["dim", "hide"] as const)("goes inert in place when inactive (%s)", (inactive) => {
+    const el = draw(1, vi.fn(), false, inactive);
+    expect(el.dataset.inactive).toBe(inactive);
+    expect(el.hasAttribute("inert")).toBe(true);
+    expect([el.style.left, el.style.top]).toEqual(["24px", "24px"]);
   });
 });

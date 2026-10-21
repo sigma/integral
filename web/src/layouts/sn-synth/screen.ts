@@ -12,7 +12,7 @@
 import { sns_partial_count } from "../../../pkg/integral_wasm.js";
 import { memo } from "../fields";
 import { MFX_PANEL_FRAME } from "../fx/mfx";
-import { sectionCells } from "../geometry";
+import { placeRow, rowCells, sectionCells, type SectionRow } from "../geometry";
 import type { ScreenArrowSilk, ScreenLayout, SectionPlacement } from "../types";
 import { SNS_COMMON_LAYOUT } from "./common";
 import { SNS_BOXES, SNS_PARTIAL_SWITCH_LAYOUT, boxOf, type SnsBox } from "./partial";
@@ -55,23 +55,19 @@ const frameOf = (section: SnsRowSection) =>
 const common = sectionCells(SNS_COMMON_LAYOUT);
 const strip = sectionCells(SNS_PARTIAL_SWITCH_LAYOUT);
 const mfx = sectionCells(MFX_PANEL_FRAME);
+/** Row `partial`'s Sections, the strip then its boxes. */
+const rowOf = (partial: number): SectionRow =>
+  SNS_ROW.map((s) => ({ id: SNS_SECTION.partial(partial, s), section: frameOf(s) }));
+
 /** A row's width: the strip and its boxes, abutting. */
-const ROW_W = SNS_ROW.reduce((w, s) => w + sectionCells(frameOf(s)).w, 0);
+const ROW_W = rowCells(rowOf(0)).w;
 /** A row's height: every row Section is as tall as the strip. */
 const ROW_H = strip.h;
 /** The Lane column, right of the rows. */
 const LANE_X = ROW_W;
 
 /** Row `partial`'s Sections, abutting from the left edge. */
-function row(partial: number): SectionPlacement[] {
-  let x = 0;
-  return SNS_ROW.map((s) => {
-    const section = frameOf(s);
-    const placed = { id: SNS_SECTION.partial(partial, s), section, x, y: common.h + partial * ROW_H };
-    x += sectionCells(section).w;
-    return placed;
-  });
-}
+const row = (partial: number): SectionPlacement[] => placeRow(rowOf(partial), common.h + partial * ROW_H);
 
 function buildScreen(): ScreenLayout {
   const rows = partials();

@@ -75,11 +75,6 @@ export function waveSourceOf(type: number, id: number): WaveSource | null {
   return group ? sourceOf(group) : null;
 }
 
-/** The SN Synth OSC's PCM Waves. */
-export function snSynthWaveSource(): WaveSource {
-  return sourceOf(WaveGroup.snSynth());
-}
-
 let pcmSources: WaveSource[] | null = null;
 
 /** The groups a PCM partial or WMT picks from (INT, SRX-01…12). */

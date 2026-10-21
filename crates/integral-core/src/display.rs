@@ -19,7 +19,6 @@ use crate::params::ToneType;
 use crate::pcm_drum::{PcmdPartialField, PcmdWmtField};
 use crate::pcm_synth::{PcmsPartialField, PcmsPmtField};
 use crate::sn_acoustic::SnaCommonField;
-use crate::sn_drum::SndNoteField;
 use crate::sn_synth::SnsPartialField;
 
 /// A Display a layout can place, named independently of the engine: the
@@ -61,9 +60,10 @@ pub enum DisplayKind {
     /// Motional Surround XY pad: every part's position, and the external
     /// input's.
     SurroundPad,
-    /// Wave picker, by name: a PCM Drum WMT layer's Wave Group and L/R
-    /// Wave Numbers, an SN Drum key's Inst, or an SN Synth OSC's PCM Wave.
-    /// Interactive: it writes the fields it reads.
+    /// Wave picker, by name: a PCM Synth Partial's or a PCM Drum WMT
+    /// layer's Wave Group and L/R Wave Numbers. Interactive: it writes the fields it reads. A picker
+    /// of one field (an SN Drum key's Inst, an SN Synth OSC's PCM Wave) is
+    /// a Control, not this Display.
     WavePicker,
 }
 
@@ -149,12 +149,10 @@ pub enum DisplayProp {
     WaveGroupType,
     /// Wave Group ID within its type.
     WaveGroupId,
-    /// Left (or mono) Wave Number; an SN Synth OSC's PCM Wave.
+    /// Left (or mono) Wave Number.
     WaveNumberL,
     /// Right Wave Number; 0 for mono.
     WaveNumberR,
-    /// SN Drum Inst number.
-    Inst,
 }
 
 /// A parameter a Display reads, in the block its Scope addresses.
@@ -173,8 +171,6 @@ pub enum DisplayField {
     /// A PCM Drum Kit WMT layer field; the Scope supplies the key and the
     /// layer.
     PcmdWmt(PcmdWmtField),
-    /// An SN Drum Kit Note field; the Scope supplies the key.
-    SndNote(SndNoteField),
     /// A mixer field; the Scope supplies its indices (the part or Comp+EQ
     /// unit). An `Ext` prop reads it in the external input's Scope.
     Mixer(MixerField),
@@ -189,7 +185,6 @@ impl DisplayField {
             Self::PcmsPartial(f) => f.count(),
             Self::PcmsPmt(f) => f.count(),
             Self::PcmdPartial(f) => f.count(),
-            Self::SndNote(f) => f.count(),
             // The layer is the Scope's, not one of the field's values.
             Self::PcmdWmt(_) | Self::Mixer(_) => 1,
         }
@@ -297,7 +292,8 @@ pub fn display_binding(kind: DisplayKind, host: DisplayHost) -> Option<Vec<Displ
         DisplayHost::Editor(ToneType::SnAcoustic) => sn_acoustic(kind),
         DisplayHost::Editor(ToneType::PcmSynth) => pcm_synth(kind),
         DisplayHost::Editor(ToneType::PcmDrum) => pcm_drum(kind),
-        DisplayHost::Editor(ToneType::SnDrum) => sn_drum(kind),
+        // Its Inst picker is a Control: the SN Drum editor has no Display.
+        DisplayHost::Editor(ToneType::SnDrum) => None,
         DisplayHost::Mixer => mixer(kind),
     }
 }
@@ -334,7 +330,6 @@ fn sn_synth(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
         DisplayKind::ModLfoScope => {
             reads(&[(P::Shape, f(F::ModLfoShape)), (P::Rate, f(F::ModLfoRate))])
         }
-        DisplayKind::WavePicker => reads(&[(P::WaveNumberL, f(F::WaveNumber))]),
         _ => return None,
     })
 }
@@ -386,6 +381,12 @@ fn pcm_synth(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
         DisplayKind::StepLfoScope => steps().collect(),
         DisplayKind::Structure12 => structure(PcmsPmtField::StructureType12, 1),
         DisplayKind::Structure34 => structure(PcmsPmtField::StructureType34, 3),
+        DisplayKind::WavePicker => reads(&[
+            (P::WaveGroupType, f(F::WaveGroupType)),
+            (P::WaveGroupId, f(F::WaveGroupId)),
+            (P::WaveNumberL, f(F::WaveNumberL)),
+            (P::WaveNumberR, f(F::WaveNumberR)),
+        ]),
         _ => return None,
     })
 }
@@ -415,16 +416,6 @@ fn pcm_drum(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
         }
         _ => return None,
     })
-}
-
-fn sn_drum(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
-    match kind {
-        DisplayKind::WavePicker => Some(reads(&[(
-            DisplayProp::Inst,
-            DisplayField::SndNote(SndNoteField::InstNumber),
-        )])),
-        _ => None,
-    }
 }
 
 /// Mixer Displays, which read [`MixerField`]s.
@@ -576,15 +567,6 @@ mod tests {
                 one(P::PwShift, F::PwShift),
                 one(P::SuperSawDetune, F::SuperSawDetune),
             ]
-        );
-    }
-
-    /// Before the Grid (#361), `sn-synth/PartialRow.tsx` `OscPcmWave`: `WavePicker` (mono).
-    #[test]
-    fn sns_pcm_wave() {
-        assert_eq!(
-            sources(K::WavePicker, SNS),
-            [one(P::WaveNumberL, SnsPartialField::WaveNumber)]
         );
     }
 
@@ -853,6 +835,23 @@ mod tests {
         );
     }
 
+    /// Before the Grid (#369), `pcm-synth/PartialSections.tsx`
+    /// `PartialWave`: `WavePicker` group, L, R.
+    #[test]
+    fn pcms_wave_picker() {
+        use PcmsPartialField as F;
+        let f = DisplayField::PcmsPartial;
+        assert_eq!(
+            sources(K::WavePicker, PCMS),
+            [
+                (P::WaveGroupType, Some(f(F::WaveGroupType)), 0),
+                (P::WaveGroupId, Some(f(F::WaveGroupId)), 0),
+                (P::WaveNumberL, Some(f(F::WaveNumberL)), 0),
+                (P::WaveNumberR, Some(f(F::WaveNumberR)), 0),
+            ]
+        );
+    }
+
     /// `pcm-drum/WmtWave.tsx`: `WavePicker` group, L, R.
     #[test]
     fn pcmd_wave_picker() {
@@ -866,19 +865,6 @@ mod tests {
                 (P::WaveNumberL, Some(w(W::WaveNumberL)), 0),
                 (P::WaveNumberR, Some(w(W::WaveNumberR)), 0),
             ]
-        );
-    }
-
-    /// `SnDrumEditor.tsx` TONE: `WavePicker` Inst.
-    #[test]
-    fn snd_wave_picker() {
-        assert_eq!(
-            sources(K::WavePicker, SND),
-            [(
-                P::Inst,
-                Some(DisplayField::SndNote(SndNoteField::InstNumber)),
-                0
-            )]
         );
     }
 
@@ -906,7 +892,7 @@ mod tests {
                     &[PCMS]
                 }
                 K::CompEnvelope | K::CompTransferCurve | K::SurroundPad => &[MIXER],
-                K::WavePicker => &[SNS, PCMD, SND],
+                K::WavePicker => &[PCMS, PCMD],
             }
         };
         for kind in K::ALL {

@@ -7,8 +7,9 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import type { DisplayKind, ParameterFamily } from "../../pkg/integral_wasm.js";
+import type { PickOption } from "../SearchPopover";
 import { SyncToggle } from "../SyncToggle";
-import { SynthFader, SynthKnob, SynthSwitch, familyVar } from "../synth-ui";
+import { SynthFader, SynthKnob, SynthPicker, SynthSwitch, familyVar } from "../synth-ui";
 import { CELL, cellsPx, type Cells } from "../synth-ui/grid";
 import type { FieldKey } from "./fields";
 import { INSET, drawnElements, itemRect, sectionCells, sectionTitle, titleCells } from "./geometry";
@@ -17,13 +18,8 @@ import { drawnArrows, routeSectionArrow } from "./routing";
 import { SilkArrows } from "./SilkArrows";
 import css from "./GridSection.module.css";
 
-/** One option of a Control that picks from a list. */
-export interface BindingOption {
-  /** Raw value. */
-  value: number;
-  /** What the Control shows for it. */
-  label: string;
-}
+/** One option of a Control that picks from a list: its raw value, label and (for a picker) family. */
+export type BindingOption = PickOption;
 
 /**
  * A tempo-syncable parameter's free/note toggle, from core's sync info. The
@@ -56,7 +52,7 @@ export interface Binding {
   center?: number;
   /** Readout of a raw value; default its number. */
   format?: (value: number) => string;
-  /** Switch and list options; default every value from `min` to `max`, formatted. */
+  /** Switch, list and picker options; default every value from `min` to `max`, formatted. */
   options?: readonly BindingOption[];
   /** Writes a new raw value. */
   onChange: (value: number) => void;
@@ -68,12 +64,15 @@ export interface Binding {
 export interface GridSectionProps<F extends FieldKey> {
   /** What to draw. */
   layout: SectionLayout<F>;
-  /** Resolves a field for this instance's Scope. */
-  bind: (field: F) => Binding;
+  /**
+   * Resolves a field for this instance's Scope: element `index` of it when the
+   * Control names one (an array field), reading and writing that element only.
+   */
+  bind: (field: F, index?: number) => Binding;
   /** This instance's indices; fills the title template. */
   scope?: Scope;
-  /** Whether core counts a field active; default always. Inactive Controls dim or hide. */
-  isActive?: (field: F) => boolean;
+  /** Whether core counts a field (element `index`, if named) active; default always. Inactive Controls dim or hide. */
+  isActive?: (field: F, index?: number) => boolean;
   /** The alternative to draw for a group, by name; default (or unknown) the first. */
   alternative?: (group: string) => string | undefined;
   /** Draws a Display filling `size` px; default an empty rectangle. */
@@ -153,6 +152,8 @@ function Control<F extends FieldKey>({ control: c, binding: b }: { control: Cont
           onChange={b.onChange}
         />
       );
+    case "picker":
+      return <SynthPicker label={label} title={b.name} value={b.value} options={optionsOf(b)} onChange={b.onChange} />;
   }
 }
 
@@ -174,7 +175,7 @@ function Silk<F extends FieldKey>({ silk: s, ox, oy }: { silk: SectionSilk<F>; o
 
 /** A stable React key for an element. */
 function elementKey<F extends FieldKey>(el: ElementLayout<F>): string {
-  const what = el.kind === "display" ? `d${el.display}` : `f${String(el.field)}`;
+  const what = el.kind === "display" ? `d${el.display}` : `f${String(el.field)}${el.index === undefined ? "" : `[${el.index}]`}`;
   return `${what}@${el.x},${el.y}`;
 }
 
@@ -248,17 +249,18 @@ export function GridSection<F extends FieldKey>({
             </div>
           );
         }
-        const inactive = isActive(el.field) ? undefined : (el.inactive ?? "dim");
+        const inactive = isActive(el.field, el.index) ? undefined : (el.inactive ?? "dim");
         return (
           <div
             key={elementKey(el)}
             className={`${css.element} ${inactive ? css[inactive] : ""}`}
             data-field={String(el.field)}
+            data-index={el.index}
             data-inactive={inactive}
             inert={inactive !== undefined}
             style={box}
           >
-            <Control control={el} binding={bind(el.field)} />
+            <Control control={el} binding={bind(el.field, el.index)} />
           </div>
         );
       })}

@@ -1,12 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WavePicker, type ExpansionMarking } from "./WavePicker";
 import { waveSourceOf, type WaveSource } from "./waveCatalog";
-import { PartialWave } from "./pcm-synth/PartialSections";
-import { WmtWave } from "./pcm-drum/WmtWave";
+import { WaveDisplay } from "./WaveDisplay";
 import { PCMD_WMT_ENTRIES } from "./pcm-drum/types";
-import { SnsPartialDisplay } from "./sn-synth/displays";
-import { DisplayKind, PcmdWmtField, PcmsPartialField, SnsPartialField } from "../pkg/integral_wasm.js";
-import type { PartialSetter } from "./pcm-synth/types";
+import { PCMS_PARTIAL_ENTRIES } from "./pcm-synth/types";
+import { PcmdWmtField, PcmsPartialField, ToneType } from "../pkg/integral_wasm.js";
 import { button, cleanup, click, options, render, typeInto } from "./test/dom";
 
 const INT = waveSourceOf(0, 0)!;
@@ -158,7 +156,7 @@ describe("WavePicker", () => {
   });
 });
 
-describe("PCM Synth partial wiring", () => {
+describe("PCM Synth partial wiring, through core's wave picker binding", () => {
   function partialWave(partial: {
     waveGroupType: number;
     waveGroupId: number;
@@ -166,9 +164,14 @@ describe("PCM Synth partial wiring", () => {
     waveNumberR: number;
   }) {
     const onParam = vi.fn();
-    const set: PartialSetter = (field, key, index = 0) => (v) =>
-      onParam(field, key, index, v);
-    const { container } = render(<PartialWave partial={partial} set={set} />);
+    const value = (field: PcmsPartialField) => {
+      const key = PCMS_PARTIAL_ENTRIES[field].key;
+      if (!(key in partial)) throw new Error(`the picker read ${key}`);
+      return partial[key as keyof typeof partial];
+    };
+    const { container } = render(
+      <WaveDisplay toneType={ToneType.PcmSynth} fieldOf={(s) => s.pcmsPartial} value={value} onChange={onParam} />,
+    );
     return { container, onParam };
   }
 
@@ -182,8 +185,8 @@ describe("PCM Synth partial wiring", () => {
     pickWave(container, 0, 2);
     click(button(container, "Pair"));
     expect(onParam.mock.calls).toEqual([
-      [PcmsPartialField.WaveNumberL, "waveNumberL", 0, 2],
-      [PcmsPartialField.WaveNumberR, "waveNumberR", 0, 2],
+      [PcmsPartialField.WaveNumberL, 2],
+      [PcmsPartialField.WaveNumberR, 2],
     ]);
   });
 
@@ -200,8 +203,8 @@ describe("PCM Synth partial wiring", () => {
     );
     click(srx07!);
     expect(onParam.mock.calls).toEqual([
-      [PcmsPartialField.WaveGroupType, "waveGroupType", 0, 1],
-      [PcmsPartialField.WaveGroupId, "waveGroupId", 0, 7],
+      [PcmsPartialField.WaveGroupType, 1],
+      [PcmsPartialField.WaveGroupId, 7],
     ]);
   });
 
@@ -217,7 +220,7 @@ describe("PCM Synth partial wiring", () => {
   });
 });
 
-describe("PCM Drum WMT wiring", () => {
+describe("PCM Drum WMT wiring, through core's wave picker binding", () => {
   it("writes through the core WMT fields, and follows the selected key", () => {
     const onChange = vi.fn();
     const kick = { waveGroupType: 0, waveGroupId: 0, waveNumberL: 1, waveNumberR: 2 };
@@ -227,7 +230,9 @@ describe("PCM Drum WMT wiring", () => {
       if (!(key in wmt)) throw new Error(`the picker read ${key}`);
       return wmt[key as keyof typeof kick];
     };
-    const { container, rerender } = render(<WmtWave value={reader(kick)} onChange={onChange} />);
+    const { container, rerender } = render(
+      <WaveDisplay toneType={ToneType.PcmDrum} fieldOf={(s) => s.pcmdWmt} value={reader(kick)} onChange={onChange} />,
+    );
     expect(nameButton(container, 0).textContent).toBe("0001 StGrand pA L");
 
     pickWave(container, 0, 2);
@@ -245,34 +250,10 @@ describe("PCM Drum WMT wiring", () => {
     ]);
 
     // Another key: its own group and Waves.
-    rerender(<WmtWave value={reader(snare)} onChange={onChange} />);
+    rerender(
+      <WaveDisplay toneType={ToneType.PcmDrum} fieldOf={(s) => s.pcmdWmt} value={reader(snare)} onChange={onChange} />,
+    );
     expect(nameButton(container, 0).textContent).toBe(`0003 ${SRX07.name(3)}`);
     expect(nameButton(container, 1).textContent).toBe("0000 OFF");
-  });
-});
-
-describe("SN Synth OSC PCM Wave wiring", () => {
-  it("shows raw value 1 as JP-8 Saw and picks through the core Wave Number field", () => {
-    const onChange = vi.fn();
-    const { container } = render(
-      <SnsPartialDisplay
-        kind={DisplayKind.WavePicker}
-        valueOf={(f) => (f === SnsPartialField.WaveNumber ? 1 : 0)}
-        onChange={onChange}
-      />,
-    );
-    const name = container.querySelector("button")!;
-    expect(name.textContent).toBe("0001 JP-8 Saw");
-    // Just the name: no group label, steppers, dropdown, R, pair or marker.
-    expect(container.querySelector('[aria-label="Next Wave"]')).toBeNull();
-    expect(container.querySelector('[aria-haspopup="listbox"]')).toBeNull();
-    expect(container.querySelector('[aria-label="Pair"]')).toBeNull();
-
-    click(name);
-    const second = [...document.body.querySelectorAll('[role="option"]')].find((o) =>
-      o.textContent?.startsWith("0002"),
-    );
-    click(second!);
-    expect(onChange.mock.calls).toEqual([[SnsPartialField.WaveNumber, 2]]);
   });
 });

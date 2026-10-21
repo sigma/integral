@@ -8,7 +8,7 @@
  * of option lists and Displays, which fill their Cells, so they stay clear
  * of its border (`validateClearance`).
  *
- * The OSC's scope and its PCM Wave picker are `alternatives` on one
+ * The OSC's scope and its PCM Wave picker (a Control) are `alternatives` on one
  * rectangle; Var and S-Saw hide when core holds them inactive. Neither moves
  * a Control: switching the OSC Wave only changes what those Cells draw.
  */
@@ -59,7 +59,7 @@ export const SNS_OSC_LAYOUT = box("OSC", 17, [
     h: 2,
     options: [
       { name: OSC_WAVE_ALTERNATIVE.scope, items: [{ kind: "display", display: DisplayKind.OscScope, x: 5, y: 0, w: 6, h: 2 }] },
-      { name: OSC_WAVE_ALTERNATIVE.pcm, items: [{ kind: "display", display: DisplayKind.WavePicker, x: 5, y: 0, w: 6, h: 2 }] },
+      { name: OSC_WAVE_ALTERNATIVE.pcm, items: [{ kind: "picker", field: F.WaveNumber, x: 5, y: 0, label: "PCM" }] },
     ],
   },
   { kind: "knob", field: F.OscPitch, x: 5, y: 2, label: "Pitch" },

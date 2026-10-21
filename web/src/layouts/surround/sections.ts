@@ -13,15 +13,16 @@ const common = mixerFields([MixerScopeKind.Common]);
 export const SURROUND_COMMON_LAYOUT: SectionLayout<MixerField> = {
   title: "Surround",
   titleEdge: "top",
-  w: 8,
-  h: 5,
+  w: 9,
+  h: 6,
   fields: common,
+  // The switch and lists keep a free Cell from the left and bottom borders.
   items: [
     // The title already names the switch.
-    { kind: "switch", field: MixerField.SurroundSwitch, x: 0, y: 0, label: false },
-    { kind: "list", field: MixerField.SurroundRoomType, x: 2, y: 0, h: 5, label: "Room" },
-    { kind: "list", field: MixerField.SurroundRoomSize, x: 4, y: 0, h: 4, label: "Size" },
-    { kind: "knob", field: MixerField.SurroundDepth, x: 6, y: 0 },
+    { kind: "switch", field: MixerField.SurroundSwitch, x: 1, y: 0, label: false },
+    { kind: "list", field: MixerField.SurroundRoomType, x: 3, y: 0, h: 5, label: "Room" },
+    { kind: "list", field: MixerField.SurroundRoomSize, x: 5, y: 0, h: 4, label: "Size" },
+    { kind: "knob", field: MixerField.SurroundDepth, x: 7, y: 0 },
   ],
 };
 
@@ -47,10 +48,11 @@ const position = mixerFields([MixerScopeKind.Part, MixerScopeKind.Ext]);
 export const SURROUND_PAD_LAYOUT: SectionLayout<MixerField> = {
   title: "Position",
   titleEdge: "top",
-  w: 20,
-  h: 20,
+  w: 22,
+  h: 21,
   fields: position,
-  items: [{ kind: "display", display: DisplayKind.SurroundPad, x: 0, y: 0, w: 20, h: 20 }],
+  // A free Cell from the left, right and bottom borders.
+  items: [{ kind: "display", display: DisplayKind.SurroundPad, x: 1, y: 0, w: 20, h: 20 }],
 };
 
 /** One part's width and ambience send; a Part Scope binds it. */

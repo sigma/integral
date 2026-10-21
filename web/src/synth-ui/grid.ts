@@ -29,6 +29,8 @@ export const FOOTPRINT = {
   faderW: 2,
   /** Vertical option list: 2×N, one Cell row per option. */
   optionListW: 2,
+  /** Picker: its name, then the current option's, opening a searchable list. */
+  picker: { w: 6, h: 1 },
 } as const satisfies Record<string, Cells | number>;
 
 /** An edge of a footprint. */
@@ -41,14 +43,15 @@ const ALL_EDGES = ["top", "right", "bottom", "left"] as const satisfies readonly
  * to. A Section's border runs through the Cells along its edges (`INSET`
  * inside them), so none of these edges may lie on one (`validateClearance`).
  * Every Control's name sits in its top line; a knob or fader keeps its own
- * margin on the other edges, while a switch, an option list or a Display
- * fills its Cells.
+ * margin on the other edges, while a switch, an option list, a picker or a
+ * Display fills its Cells.
  */
 export const BLEED = {
   knob: ["top"],
   fader: ["top"],
   switch: ALL_EDGES,
   list: ALL_EDGES,
+  picker: ALL_EDGES,
   display: ALL_EDGES,
 } as const satisfies Record<string, readonly Edge[]>;
 
