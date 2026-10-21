@@ -74,6 +74,63 @@ export function findIntegraPort(pairs: MidiPortPair[]): MidiPortPair | undefined
   return pairs.find((p) => p.name.toLowerCase().includes("integra"));
 }
 
+/** Find the pair named exactly `name`, if there is one. */
+export function findPortByName(
+  pairs: MidiPortPair[],
+  name: string | null,
+): MidiPortPair | undefined {
+  return name === null ? undefined : pairs.find((p) => p.name === name);
+}
+
+/** The storage key holding the name of the last port connected to. */
+export const LAST_PORT_KEY = "integral.lastPort";
+
+/**
+ * The last port connected to, kept across page loads.
+ *
+ * Hosts destroy a plugin editor on close, so its page reloads on reopen; the
+ * browser tab reloads too. Ports are remembered by name: Web MIDI port ids
+ * are not guaranteed stable across sessions.
+ */
+export interface PortMemory {
+  /** The remembered port's name, or `null` if none is remembered. */
+  recall(): string | null;
+  /** Remember `name` as the last port connected to. */
+  remember(name: string): void;
+}
+
+/**
+ * A `PortMemory` over `storage`. With no storage, or one that throws (a
+ * sandboxed frame, a full quota), nothing is remembered.
+ */
+export function portMemory(storage: Storage | null): PortMemory {
+  return {
+    recall() {
+      try {
+        return storage?.getItem(LAST_PORT_KEY) ?? null;
+      } catch {
+        return null;
+      }
+    },
+    remember(name) {
+      try {
+        storage?.setItem(LAST_PORT_KEY, name);
+      } catch {
+        // Not remembering only costs a click on the next open.
+      }
+    },
+  };
+}
+
+/** The browser's `localStorage`, or `null` where reading it throws. */
+export function browserStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Open both halves of a port pair.
  *
@@ -87,6 +144,9 @@ export async function openPortPair(pair: MidiPortPair): Promise<void> {
   await Promise.all([pair.input.open(), pair.output.open()]);
 }
 
+/** How long `identifyDevice` waits for an Identity Reply by default. */
+export const IDENTIFY_TIMEOUT_MS = 2000;
+
 /**
  * Send an Identity Request to the given port pair and wait for a reply.
  *
@@ -95,7 +155,7 @@ export async function openPortPair(pair: MidiPortPair): Promise<void> {
  */
 export async function identifyDevice(
   pair: MidiPortPair,
-  timeoutMs = 2000,
+  timeoutMs = IDENTIFY_TIMEOUT_MS,
 ): Promise<DeviceIdentity | null> {
   await openPortPair(pair);
   return new Promise((resolve) => {

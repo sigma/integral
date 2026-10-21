@@ -4,7 +4,10 @@ import {
   requestMidiAccess,
   getPairedPorts,
   findIntegraPort,
+  findPortByName,
   identifyDevice,
+  portMemory,
+  browserStorage,
   type MidiPortPair,
   type DeviceIdentity,
 } from "./midi";
@@ -66,7 +69,26 @@ function Lockable({ locked, children }: { locked: boolean; children: ReactNode }
   );
 }
 
-export function App() {
+/** Where the app reaches MIDI and keeps state across page loads. Both are
+ *  read once, on mount. */
+interface AppProps {
+  /** Grants MIDI access; the browser's Web MIDI by default. */
+  requestAccess?: () => Promise<MIDIAccess>;
+  /** Keeps the last port across page loads; `localStorage` by default. */
+  storage?: Storage | null;
+}
+
+/** The control surface: connects to a device, then shows its pages. */
+export function App({
+  requestAccess = requestMidiAccess,
+  storage = browserStorage(),
+}: AppProps = {}) {
+  const [{ memory, connect }] = useState(() => ({
+    memory: portMemory(storage),
+    connect: requestAccess,
+  }));
+  // The remembered port, while it has yet to appear and no port was chosen.
+  const awaitedPortRef = useRef<string | null>(null);
   const [midiError, setMidiError] = useState<string | null>(null);
   const [ports, setPorts] = useState<MidiPortPair[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -74,6 +96,30 @@ export function App() {
   const identifyGenRef = useRef(0);
   const midiAccessRef = useRef<MIDIAccess | null>(null);
   const [sequencer, setSequencer] = useState<SequencerEngine | null>(null);
+
+  const identify = useCallback(
+    async (port: MidiPortPair) => {
+      const gen = ++identifyGenRef.current;
+      setStatus({ step: "identifying" });
+
+      const identity = await identifyDevice(port);
+      if (identifyGenRef.current !== gen) return;
+
+      if (identity) {
+        // The next open reconnects here without a click. Only a port an
+        // INTEGRA-7 answered on is remembered: a dead pick keeps the old one.
+        if (identity.isIntegra7()) memory.remember(port.name);
+        setStatus({ step: "connected", identity });
+      } else {
+        setStatus({
+          step: "failed",
+          reason:
+            "No response — device may not be an Integra-7, or is powered off.",
+        });
+      }
+    },
+    [memory],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -91,7 +137,7 @@ export function App() {
 
       let access: MIDIAccess;
       try {
-        access = await requestMidiAccess();
+        access = await connect();
       } catch {
         if (!cancelled)
           setMidiError("Web MIDI API not available. Use Chrome or Edge.");
@@ -104,14 +150,32 @@ export function App() {
       const pairs = getPairedPorts(access);
       setPorts(pairs);
 
-      const integra = findIntegraPort(pairs);
-      setSelectedId(integra?.id ?? pairs[0]?.id ?? null);
+      // Reopening (a reloaded tab, a plugin editor the host recreated)
+      // reconnects to the last port; a first open waits for a click.
+      // A remembered port that shows up later (a network or virtual port
+      // still coming up) is connected to when it appears.
+      const remembered = memory.recall();
+      const last = findPortByName(pairs, remembered);
+      if (last) {
+        setSelectedId(last.id);
+        identify(last);
+      } else {
+        awaitedPortRef.current = remembered;
+        const integra = findIntegraPort(pairs);
+        setSelectedId(integra?.id ?? pairs[0]?.id ?? null);
+      }
 
       // Monitor port connect/disconnect events.
       access.onstatechange = () => {
         if (cancelled) return;
         const updatedPairs = getPairedPorts(access);
         setPorts(updatedPairs);
+        const arrived = findPortByName(updatedPairs, awaitedPortRef.current);
+        if (arrived) {
+          awaitedPortRef.current = null;
+          setSelectedId(arrived.id);
+          identify(arrived);
+        }
       };
     }
 
@@ -122,31 +186,11 @@ export function App() {
         midiAccessRef.current.onstatechange = null;
       }
     };
-  }, []);
-
-  const identify = useCallback(
-    async (port: MidiPortPair) => {
-      const gen = ++identifyGenRef.current;
-      setStatus({ step: "identifying" });
-
-      const identity = await identifyDevice(port);
-      if (identifyGenRef.current !== gen) return;
-
-      if (identity) {
-        setStatus({ step: "connected", identity });
-      } else {
-        setStatus({
-          step: "failed",
-          reason:
-            "No response — device may not be an Integra-7, or is powered off.",
-        });
-      }
-    },
-    [],
-  );
+  }, [connect, memory, identify]);
 
   const handleSelect = useCallback(
     (portId: string) => {
+      awaitedPortRef.current = null;
       setSelectedId(portId);
       setStatus({ step: "idle" });
       const port = ports.find((p) => p.id === portId);
@@ -156,6 +200,7 @@ export function App() {
   );
 
   const handleIdentify = useCallback(() => {
+    awaitedPortRef.current = null;
     const port = ports.find((p) => p.id === selectedId);
     if (port) identify(port);
   }, [ports, selectedId, identify]);
