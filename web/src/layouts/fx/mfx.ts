@@ -7,7 +7,8 @@
 
 import { FOOTPRINT } from "../../synth-ui/grid";
 import { fxFields, isTwoState } from "../fields";
-import type { ControlLayout, FaderLayout, SectionBody, VariantSet } from "../types";
+import { sectionCells } from "../geometry";
+import type { ControlLayout, FaderLayout, SectionBody, SectionFrame, VariantSet } from "../types";
 import { fxVariantSet } from "./set";
 
 /** One knob's place: a run of switches may share it. */
@@ -171,3 +172,25 @@ export const MFX_SET: VariantSet<number, string> = fxVariantSet(
   ]),
   generate,
 );
+
+/** The type selector row above the parameter Section, in Cells. */
+const TYPE_ROW_H = 1;
+/** The Chorus and Reverb send knobs below the parameter Section, in Cells. */
+const OUTPUT_H = 4;
+/** The macro column right of the parameter Section, in Cells. */
+const MACROS_W = 7;
+/** The panel's padding and border, in Cells along each axis. */
+const CHROME = 1;
+
+/**
+ * The whole MFX, as a tone editor's screen places it: `MfxPanel`, a CSS
+ * Section hosted in whole Cells around the {@link MFX_SET} footprint, with
+ * its type selector above, its output (the sends) below and its macros right.
+ * Its title row is the panel's header.
+ */
+export const MFX_PANEL_FRAME: SectionFrame = {
+  title: "MFX",
+  titleEdge: "top",
+  w: sectionCells(MFX_SET).w + MACROS_W + CHROME,
+  h: TYPE_ROW_H + sectionCells(MFX_SET).h + OUTPUT_H + CHROME,
+};

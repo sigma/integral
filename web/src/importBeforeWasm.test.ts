@@ -9,6 +9,17 @@ import { describe, expect, it, vi } from "vitest";
 
 const WASM = "../pkg/integral_wasm.js";
 
+/** Layout modules the barrel and registry may not reach: each must import before wasm too. */
+const LAYOUT_MODULES = [
+  "./layouts/sn-acoustic/amp",
+  "./layouts/sn-acoustic/common",
+  "./layouts/sn-acoustic/fields",
+  "./layouts/sn-acoustic/filter",
+  "./layouts/sn-acoustic/inst",
+  "./layouts/sn-acoustic/screen",
+  "./layouts/sn-acoustic/vibrato",
+];
+
 describe("importing before wasm starts", () => {
   it("calls no wasm function", async () => {
     vi.resetModules();
@@ -29,6 +40,7 @@ describe("importing before wasm starts", () => {
     try {
       await expect(import("./layouts")).resolves.toBeDefined();
       await expect(import("./layouts/registry")).resolves.toBeDefined();
+      for (const module of LAYOUT_MODULES) await expect(import(module)).resolves.toBeDefined();
       await expect(import("./App")).resolves.toBeDefined();
     } finally {
       vi.doUnmock(WASM);

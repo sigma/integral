@@ -3042,6 +3042,33 @@ impl WasmDeviceState {
 // SN-A instrument parameter table (standalone functions)
 // ---------------------------------------------------------------------------
 
+/// Which INST page an SN-A instrument gets (mirrors
+/// [`integral_core::sna_inst_params::SnaInstPage`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SnaInstPage {
+    /// See [`integral_core::sna_inst_params::SnaInstPage::AcPiano`].
+    AcPiano,
+    /// See [`integral_core::sna_inst_params::SnaInstPage::TwOrgan`].
+    TwOrgan,
+    /// See [`integral_core::sna_inst_params::SnaInstPage::Generic`].
+    Generic,
+}
+
+mirror_core_enum!(SnaInstPage <=> integral_core::sna_inst_params::SnaInstPage {
+    AcPiano,
+    TwOrgan,
+    Generic,
+});
+
+/// Which INST page the SN-A instrument at Inst Variation `variation`, Inst
+/// Number `number` gets; `undefined` for an instrument the list doesn't name.
+#[wasm_bindgen]
+pub fn sna_inst_page_kind(variation: u8, number: u8) -> Option<SnaInstPage> {
+    let inst = sn_acoustic::sna_inst(variation, number)?;
+    Some(integral_core::sna_inst_params::sna_inst_page(inst).into())
+}
+
 /// The INST page of the SN-A instrument at Inst Variation `variation`, Inst
 /// Number `number`: `"Ac.Piano"`, `"TW Organ"`, or its category for the
 /// generic page; `undefined` for an instrument the list doesn't name.
