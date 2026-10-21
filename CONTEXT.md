@@ -143,6 +143,40 @@ on/off switches and structure selectors.
 _Avoid_: Section (a section is a group of controls on screen), category (a
 Category classifies Tones)
 
+## Layout
+
+**Grid**:
+The one lattice of Cells that every control surface screen is laid out on.
+Sections placed side by side share it, so their rows and columns line up.
+_Avoid_: Layout grid per section (there is only one Grid)
+
+**Cell**:
+One unit square of the Grid. Every Section and Control covers a whole number
+of Cells.
+_Avoid_: Slot (a User slot is device memory)
+
+**Section**:
+A titled group of Controls on screen, such as EQ, MFX or one mixer strip. It
+covers a rectangle of whole Cells, its border and title included.
+_Avoid_: Box, panel
+
+**Control**:
+One interactive element (knob, switch, fader) bound to one parameter. It
+covers a rectangle of whole Cells and carries its own name and value readout.
+_Avoid_: Widget
+
+**Display**:
+A non-interactive or multi-parameter element (envelope, scope, EQ curve,
+structure diagram) that covers a rectangle of whole Cells like a Control, but
+binds to several parameters or none.
+_Avoid_: Graph, visualiser
+
+**Silkscreen**:
+Everything drawn on a Section that is not a Control: group titles, bracket
+lines, divider rules, signal arrows. It is placed in Grid coordinates but
+covers no Cells.
+_Avoid_: Decoration, label (a Control's name belongs to the Control)
+
 ## Connection
 
 **Wireless link**:
