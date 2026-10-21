@@ -2337,6 +2337,14 @@ pub fn pcmd_partial_spec(field: PcmdPartialField) -> WasmFieldSpec {
     wrap_field_spec(field_spec::pcmd_partial_spec(field.into()))
 }
 
+/// Number of values a PCM Drum Kit Partial field holds: 1, or one per
+/// envelope time or level.
+#[wasm_bindgen]
+pub fn pcmd_partial_count(field: PcmdPartialField) -> usize {
+    use integral_core::block_field::BlockField;
+    pcm_drum::PcmdPartialField::from(field).count()
+}
+
 /// How strongly velocity `v` (0.0-1.0) acts under V-Curve `curve` (0 =
 /// FIXED, 1-7), from 0.0 to 1.0.
 #[wasm_bindgen]
@@ -3195,6 +3203,14 @@ pub fn mixer_field_in_scope(field: MixerField, kind: MixerScopeKind) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pcmd_partial_count_follows_the_envelopes() {
+        assert_eq!(pcmd_partial_count(PcmdPartialField::Level), 1);
+        assert_eq!(pcmd_partial_count(PcmdPartialField::PitchEnvTime), 4);
+        assert_eq!(pcmd_partial_count(PcmdPartialField::PitchEnvLevel), 5);
+        assert_eq!(pcmd_partial_count(PcmdPartialField::TvaEnvLevel), 3);
+    }
 
     #[test]
     fn mixer_field_spec_carries_range_and_family() {

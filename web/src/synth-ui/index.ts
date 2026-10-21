@@ -7,7 +7,7 @@ export { SyncedControl } from "./SyncedControl";
 export { PartialPowerButton } from "./PartialPowerButton";
 export { ADSREnvelope, envelopePath } from "./ADSREnvelope";
 export type { EnvelopeShape } from "./ADSREnvelope";
-export { BreakpointEnvelope } from "./BreakpointEnvelope";
+export { BreakpointCurve, BreakpointEnvelope } from "./BreakpointEnvelope";
 export { FaderGroup, FaderGroupSep } from "./FaderGroup";
 export { OutputStrip } from "./OutputStrip";
 export { FAMILIES, accentColour, familyProperty, familyVar, installFamilyPalette } from "./family";

@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { WavePicker, type ExpansionMarking } from "./WavePicker";
 import { waveSourceOf, type WaveSource } from "./waveCatalog";
 import { PartialWave } from "./pcm-synth/PartialRow";
-import { WmtWave } from "./pcm-drum/NoteControls";
+import { WmtWave } from "./pcm-drum/WmtWave";
+import { PCMD_WMT_ENTRIES } from "./pcm-drum/types";
 import { OscPcmWave } from "./sn-synth/PartialRow";
 import { PcmdWmtField, PcmsPartialField, SnsPartialField } from "../pkg/integral_wasm.js";
 import type { PartialSetter } from "./pcm-synth/types";
@@ -218,12 +219,15 @@ describe("PCM Synth partial wiring", () => {
 
 describe("PCM Drum WMT wiring", () => {
   it("writes through the core WMT fields, and follows the selected key", () => {
-    const onWmtParam = vi.fn();
+    const onChange = vi.fn();
     const kick = { waveGroupType: 0, waveGroupId: 0, waveNumberL: 1, waveNumberR: 2 };
     const snare = { waveGroupType: 1, waveGroupId: 7, waveNumberL: 3, waveNumberR: 0 };
-    const { container, rerender } = render(
-      <WmtWave wmt={kick} index={2} onWmtParam={onWmtParam} />,
-    );
+    const reader = (wmt: typeof kick) => (field: PcmdWmtField) => {
+      const key = PCMD_WMT_ENTRIES[field].key;
+      if (!(key in wmt)) throw new Error(`the picker read ${key}`);
+      return wmt[key as keyof typeof kick];
+    };
+    const { container, rerender } = render(<WmtWave value={reader(kick)} onChange={onChange} />);
     expect(nameButton(container, 0).textContent).toBe("0001 StGrand pA L");
 
     pickWave(container, 0, 2);
@@ -233,15 +237,15 @@ describe("PCM Drum WMT wiring", () => {
       o.textContent?.startsWith("SRX-07 "),
     );
     click(srx07!);
-    expect(onWmtParam.mock.calls).toEqual([
-      [2, PcmdWmtField.WaveNumberL, "waveNumberL", 2],
-      [2, PcmdWmtField.WaveNumberR, "waveNumberR", 0],
-      [2, PcmdWmtField.WaveGroupType, "waveGroupType", 1],
-      [2, PcmdWmtField.WaveGroupId, "waveGroupId", 7],
+    expect(onChange.mock.calls).toEqual([
+      [PcmdWmtField.WaveNumberL, 2],
+      [PcmdWmtField.WaveNumberR, 0],
+      [PcmdWmtField.WaveGroupType, 1],
+      [PcmdWmtField.WaveGroupId, 7],
     ]);
 
     // Another key: its own group and Waves.
-    rerender(<WmtWave wmt={snare} index={2} onWmtParam={onWmtParam} />);
+    rerender(<WmtWave value={reader(snare)} onChange={onChange} />);
     expect(nameButton(container, 0).textContent).toBe(`0003 ${SRX07.name(3)}`);
     expect(nameButton(container, 1).textContent).toBe("0000 OFF");
   });

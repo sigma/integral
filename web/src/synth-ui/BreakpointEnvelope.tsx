@@ -31,15 +31,14 @@ const CURVE_H = 40;
 const HOLD = 0.6;
 
 /**
- * Breakpoint envelope: L0 → T1 → L1 → … → L(n-1) (held) → Tn → Ln.
- * Levels sit on top, times below between them, linked by a line in stage
- * order. Levels the device fixes show as read-only faders.
+ * The curve L0 → T1 → L1 → … → L(n-1) (held) → Tn → Ln, from normalized
+ * (0–1) times and levels, in a box `2 × levels.length` wide and 1 high:
+ * level i sits on column line 2i+1, so each time spans the columns between
+ * the two levels it joins.
  */
-export function BreakpointEnvelope({ times, levels, compact }: Props) {
-  // Grid of half-fader columns: level i centered on column line 2i+1,
-  // time i on 2i, so each time sits between the two levels it connects.
+export function breakpointPath(times: readonly number[], levels: readonly number[]): string {
   const cols = 2 * levels.length;
-  const ys = levels.map((l) => 1 - normalize(l));
+  const ys = levels.map((l) => 1 - l);
   const span = (cols - 2 - HOLD) / times.length;
 
   let x = 1;
@@ -49,9 +48,31 @@ export function BreakpointEnvelope({ times, levels, compact }: Props) {
       x += HOLD;
       curve += ` L ${x} ${ys[i]}`;
     }
-    x += normalize(t) * span;
+    x += t * span;
     curve += ` L ${x} ${ys[i + 1]}`;
   });
+  return curve;
+}
+
+/** The curve of a breakpoint envelope alone, filling its box: a Display on the Grid. */
+export function BreakpointCurve({ times, levels }: { times: readonly number[]; levels: readonly number[] }) {
+  return (
+    <svg className={css.fill} viewBox={`0 -0.1 ${2 * levels.length} 1.2`} preserveAspectRatio="none">
+      <path d={breakpointPath(times, levels)} fill="none" stroke="#fc8" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+/**
+ * Breakpoint envelope: L0 → T1 → L1 → … → L(n-1) (held) → Tn → Ln.
+ * Levels sit on top, times below between them, linked by a line in stage
+ * order. Levels the device fixes show as read-only faders.
+ */
+export function BreakpointEnvelope({ times, levels, compact }: Props) {
+  // Grid of half-fader columns: level i centered on column line 2i+1,
+  // time i on 2i, so each time sits between the two levels it connects.
+  const cols = 2 * levels.length;
+  const curve = breakpointPath(times.map(normalize), levels.map(normalize));
 
   let link = "";
   times.forEach((_, i) => {

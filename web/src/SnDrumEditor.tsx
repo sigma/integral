@@ -1,85 +1,35 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import {
+  DisplayKind,
+  DisplayProp,
+  SndCommonField,
+  SndNoteField,
+  ToneType,
+  mfx_block_size,
   snd_common_address,
   snd_common_size,
+  snd_common_spec,
   snd_mfx_address,
   snd_note_address,
   snd_note_size,
-  mfx_block_size,
-  SndCommonField,
-  SndNoteField,
-  snd_common_spec,
   snd_note_spec,
-  ToneType,
-  ParameterFamily,
   sn_drum_inst_supports_variation,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import { deviceSpec } from "./deviceSpec";
-import {
-  SynthKnob,
-  SynthFader,
-  SynthSelect,
-  SectionPanel,
-  OutputStrip,
-} from "./synth-ui";
+import { switchOptions } from "./fieldSpec";
+import { GridScreen, GridSection, slotField, slotOf, specBinding, type Binding, type SectionPlacement } from "./layouts";
+import { SND_FAMILIES, SND_KIT_LAYOUT, SND_OUTPUT_LAYOUT, SND_SCREEN, SND_TONE_LAYOUT } from "./layouts/drum/snDrum";
 import { MfxPanel } from "./MfxPanel";
-import { knobProps, knobRange, switchOptions } from "./fieldSpec";
+import type { MfxState } from "./MfxPanel";
 import { WavePicker } from "./WavePicker";
 import { sndInstSource } from "./sndInstCatalog";
-import { SignalArrows } from "./synth-ui/SignalArrows";
 import { useMfxHandlers } from "./useMfxHandlers";
-import type { MfxState } from "./MfxPanel";
 import { DrumKeyGrid } from "./DrumKeyGrid";
-import { useKeyPrefetch } from "./useKeyPrefetch";
+import { useDrumKey } from "./useDrumKey";
+import { SND_COMMON_ENTRIES, SND_NOTE_ENTRIES, type SnDrumCommon, type SnDrumNote } from "./sn-drum/types";
 import css from "./SnDrumEditor.module.css";
-
-// ---------------------------------------------------------------------------
-// Types mirroring the Rust serde output
-// ---------------------------------------------------------------------------
-
-interface SnDrumCommon {
-  kitName: string;
-  kitLevel: number;
-  ambienceLevel: number;
-  phraseNumber: number;
-  tfxSwitch: number;
-}
-
-interface SnDrumNote {
-  instNumber: number;
-  level: number;
-  pan: number;
-  chorusSend: number;
-  reverbSend: number;
-  tune: number;
-  attack: number;
-  decay: number;
-  brilliance: number;
-  variation: number;
-  dynamicRange: number;
-  stereoWidth: number;
-  outputAssign: number;
-}
-
-/** The keys of `T` holding a number. */
-type NumberKey<T> = { [K in keyof T]: T[K] extends number ? K : never }[keyof T];
-
-/** Sets a Common field: `field` addresses it on the device, `key` names it
- *  in {@link SnDrumCommon}. */
-type CommonParamHandler = (
-  field: SndCommonField,
-  key: NumberKey<SnDrumCommon>,
-  value: number,
-) => void;
-
-/** Sets a field of the selected key's Note: `field` addresses it on the
- *  device, `key` names it in {@link SnDrumNote}. */
-type NoteParamHandler = (field: SndNoteField, key: keyof SnDrumNote, value: number) => void;
-
-// ---------------------------------------------------------------------------
-// Display helpers
-// ---------------------------------------------------------------------------
 
 /**
  * The Variations a key's Inst supports. A value the Inst doesn't support
@@ -88,13 +38,15 @@ type NoteParamHandler = (field: SndNoteField, key: keyof SnDrumNote, value: numb
 function variationOptions(note: { instNumber: number; variation: number }) {
   const ok = (v: number) => sn_drum_inst_supports_variation(note.instNumber, v);
   return switchOptions(snd_note_spec(SndNoteField.Variation))
-    .filter((o) => ok(o.value) || o.value === note.variation).map((o) =>
-    ok(o.value) ? o : { ...o, label: `${o.label} (n/a)` });
+    .filter((o) => ok(o.value) || o.value === note.variation)
+    .map((o) => (ok(o.value) ? o : { ...o, label: `${o.label} (n/a)` }));
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+/** The Note field core binds the SN Drum Inst picker to. */
+function instField(): SndNoteField {
+  const slot = slotOf(DisplayKind.WavePicker, ToneType.SnDrum, DisplayProp.Inst);
+  return slotField(slot, slot.sndNote);
+}
 
 interface Props {
   partIndex: number;
@@ -106,20 +58,14 @@ export function SnDrumEditor({ partIndex, service }: Props) {
   const [common, setCommon] = useState<SnDrumCommon | null>(null);
   const [mfx, setMfx] = useState<MfxState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedKey, setSelectedKey] = useState(36); // C2 — kick drum
-  const [noteData, setNoteData] = useState<SnDrumNote | null>(null);
-  const [noteLoading, setNoteLoading] = useState(false);
-  const noteCache = useRef<Map<number, SnDrumNote>>(new Map());
 
   // Load common + MFX on mount / part change
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    noteCache.current.clear();
 
     async function load() {
       try {
-        // Common
         const commonData = await service.requestData(
           Array.from(snd_common_address(partIndex)),
           Array.from(snd_common_size()),
@@ -128,7 +74,6 @@ export function SnDrumEditor({ partIndex, service }: Props) {
         const c = service.device.applySndCommon(commonData) as SnDrumCommon | null;
         if (c) setCommon(c);
 
-        // MFX
         const mfxData = await service.requestData(
           Array.from(snd_mfx_address(partIndex)),
           Array.from(mfx_block_size()),
@@ -143,267 +88,128 @@ export function SnDrumEditor({ partIndex, service }: Props) {
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [partIndex, service]);
 
-  // Prefetch every key so the grid shows routing up front
   const fetchNote = useCallback(
     async (k: number) =>
       service.device.applySndNote(
-        await service.requestData(
-          Array.from(snd_note_address(partIndex, k)),
-          Array.from(snd_note_size()),
-        ),
+        await service.requestData(Array.from(snd_note_address(partIndex, k)), Array.from(snd_note_size())),
       ) as SnDrumNote | null,
     [partIndex, service],
   );
-  const cacheVersion = useKeyPrefetch(!loading, keys.first, keys.last, noteCache, fetchNote);
+  const drumKey = useDrumKey(service, partIndex, keys, !loading, fetchNote);
+  const { key: selectedKey, note, current, update } = drumKey;
 
-  // Load note data on key selection change
-  useEffect(() => {
-    const { first, last } = deviceSpec().sn_drum_keys;
-    if (selectedKey < first || selectedKey > last) return;
-
-    const cached = noteCache.current.get(selectedKey);
-    if (cached) {
-      setNoteData(cached);
-      return;
-    }
-
-    let cancelled = false;
-    setNoteLoading(true);
-
-    async function loadNote() {
-      try {
-        const data = await service.requestData(
-          Array.from(snd_note_address(partIndex, selectedKey)),
-          Array.from(snd_note_size()),
-        );
-        if (cancelled) return;
-        const n = service.device.applySndNote(data) as SnDrumNote | null;
-        if (n) {
-          noteCache.current.set(selectedKey, n);
-          setNoteData(n);
-        }
-      } catch {
-        // Timeout
-      }
-      if (!cancelled) setNoteLoading(false);
-    }
-
-    loadNote();
-    return () => { cancelled = true; };
-  }, [selectedKey, partIndex, service]);
-
-  // ---------------------------------------------------------------------------
-  // Key selection with note preview
-  // ---------------------------------------------------------------------------
-  const handleKeySelect = useCallback(
-    (key: number) => {
-      setSelectedKey(key);
-      // Preview the note on the part's receive channel
-      const rs = service.device.readState() as { parts?: { receiveChannel?: number }[] };
-      const ch = rs?.parts?.[partIndex]?.receiveChannel ?? partIndex;
-      service.sendNoteOn(ch, key, 100);
-      setTimeout(() => {
-        service.sendNoteOff(ch, key);
-      }, 300);
-    },
-    [partIndex, service],
-  );
-
-  // ---------------------------------------------------------------------------
-  // Param setters: send to the device, then patch the local copy
-  // ---------------------------------------------------------------------------
-  const setCommonParam = useCallback<CommonParamHandler>(
-    (field, key, value) => {
+  const setCommonParam = useCallback(
+    (field: SndCommonField, value: number) => {
       service.device.setSndCommonParam(partIndex, field, value);
-      setCommon((prev) => (prev ? { ...prev, [key]: value } : prev));
+      setCommon((prev) => (prev ? { ...prev, [SND_COMMON_ENTRIES[field].key]: value } : prev));
     },
     [partIndex, service],
   );
 
-  const setNoteParam = useCallback<NoteParamHandler>(
-    (field, key, value) => {
+  const setNoteParam = useCallback(
+    (field: SndNoteField, value: number) => {
+      if (!current) return;
       service.device.setSndNoteParam(partIndex, selectedKey, field, value);
-      setNoteData((prev) => {
-        if (!prev) return prev;
-        const next = { ...prev, [key]: value };
-        noteCache.current.set(selectedKey, next);
-        return next;
-      });
+      update((n) => ({ ...n, [SND_NOTE_ENTRIES[field].key]: value }));
     },
-    [partIndex, selectedKey, service],
+    [current, partIndex, selectedKey, service, update],
   );
 
   const mfxHandlers = useMfxHandlers(service, partIndex, ToneType.SnDrum, setMfx);
 
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
+  const bindCommon = (field: SndCommonField): Binding => {
+    const { key, name } = SND_COMMON_ENTRIES[field];
+    const spec = snd_common_spec(field);
+    return specBinding(name, spec, common?.[key] ?? spec.defaultValue, (v) => setCommonParam(field, v));
+  };
 
+  const bindNote = (field: SndNoteField): Binding => {
+    const { key, name } = SND_NOTE_ENTRIES[field];
+    const spec = snd_note_spec(field);
+    const value = note?.[key] ?? spec.defaultValue;
+    const options = field === SndNoteField.Variation && note ? variationOptions(note) : undefined;
+    return specBinding(name, spec, value, (v) => setNoteParam(field, v), options);
+  };
+
+  const renderDisplay = (display: DisplayKind): ReactNode => {
+    if (display !== DisplayKind.WavePicker || !note) return null;
+    const inst = instField();
+    return (
+      <WavePicker
+        source={sndInstSource()}
+        stereo={false}
+        l={note[SND_NOTE_ENTRIES[inst].key]}
+        onChange={(_side, n) => setNoteParam(inst, n)}
+      />
+    );
+  };
+
+  const { cache, cacheVersion } = drumKey;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const keyOutputAssigns = useMemo(() => {
     const m = new Map<number, number>();
-    for (const [k, n] of noteCache.current) {
-      m.set(k, n.outputAssign);
-    }
+    for (const [k, n] of cache.current) m.set(k, n.outputAssign);
     return m;
-  }, [noteData, selectedKey, cacheVersion]);
+  }, [note, selectedKey, cacheVersion]);
 
   if (loading) {
     return <div className={css.loading}>Loading SN-D drum kit data...</div>;
   }
 
+  const isCurrent = () => current;
+  const scope = { key: selectedKey };
+  const section = (p: SectionPlacement): ReactNode => {
+    switch (p.id) {
+      case "mfx":
+        return mfx && <MfxPanel mfx={mfx} {...mfxHandlers} />;
+      case "kit":
+        return <GridSection layout={SND_KIT_LAYOUT} bind={bindCommon} isActive={() => common !== null} />;
+      case "tone":
+        return (
+          <GridSection
+            layout={SND_TONE_LAYOUT}
+            bind={bindNote}
+            scope={scope}
+            isActive={isCurrent}
+            renderDisplay={renderDisplay}
+            family={SND_FAMILIES.tone}
+          />
+        );
+      case "output":
+        return (
+          <GridSection
+            layout={SND_OUTPUT_LAYOUT}
+            bind={bindNote}
+            scope={scope}
+            isActive={isCurrent}
+            family={SND_FAMILIES.output}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className={css.editor}>
-      {/* Kit name */}
-      {common && (
-        <div className={css.kitName}>{common.kitName || "(unnamed kit)"}</div>
-      )}
+      {common && <div className={css.kitName}>{common.kitName || "(unnamed kit)"}</div>}
 
-      {/* The key editor (kit levels beside the key grid), then the MFX it feeds */}
-      <div className={css.mainArea}>
-        <div className={css.keyEditorArea} data-node="drum-key">
-          <SectionPanel label="DRUM INST" sectionColour="drum">
-            <div className={css.keyGridRow}>
-              {common ? <KitLevels common={common} onChange={setCommonParam} /> : <div />}
-              <DrumKeyGrid
-                firstKey={keys.first}
-                lastKey={keys.last}
-                selectedKey={selectedKey}
-                onSelect={handleKeySelect}
-                keyOutputAssigns={keyOutputAssigns}
-              />
-            </div>
-            {noteLoading ? (
-              <div className={css.noteLoadingPlaceholder}>Loading note data...</div>
-            ) : noteData ? (
-              <NoteControls
-                note={noteData}
-                onChange={setNoteParam}
-              />
-            ) : (
-              <div className={css.noteLoadingPlaceholder}>Select a key to edit</div>
-            )}
-          </SectionPanel>
-        </div>
+      {/* The key grid picks the Scope of the key Sections below it. */}
+      <DrumKeyGrid
+        firstKey={keys.first}
+        lastKey={keys.last}
+        selectedKey={selectedKey}
+        onSelect={drumKey.select}
+        keyOutputAssigns={keyOutputAssigns}
+      />
 
-        {mfx && (
-          <div className={css.mfxSidebar} data-node="mfx">
-            <MfxPanel
-              mfx={mfx}
-              {...mfxHandlers}
-            />
-          </div>
-        )}
-        {/* The kit's keys all feed the MFX. */}
-        <SignalArrows edges={[{ from: "drum-key", to: "mfx" }]} />
-      </div>
+      {/* The key Sections, then the MFX they all feed */}
+      <GridScreen layout={SND_SCREEN}>{section}</GridScreen>
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Kit levels: bare faders left of the key grid, as tall as a key's Level
-// ---------------------------------------------------------------------------
-
-/** Track height of a key's Level fader, which the kit's level faders match. */
-const LEVEL_TRACK_HEIGHT = 250;
-
-function KitLevels({
-  common,
-  onChange,
-}: {
-  common: SnDrumCommon;
-  onChange: CommonParamHandler;
-}) {
-  const set =
-    (field: SndCommonField, key: Parameters<CommonParamHandler>[1]) =>
-    (v: number) =>
-      onChange(field, key, v);
-  return (
-    <div className={css.kitLevels}>
-      <SynthFader label="Kit Lv" value={common.kitLevel} {...knobRange(snd_common_spec(SndCommonField.KitLevel))}
-        onChange={set(SndCommonField.KitLevel, "kitLevel")}
-        trackHeight={LEVEL_TRACK_HEIGHT} title="Kit Level" />
-      <SynthFader label="Amb Lv" value={common.ambienceLevel} {...knobRange(snd_common_spec(SndCommonField.AmbienceLevel))}
-        onChange={set(SndCommonField.AmbienceLevel, "ambienceLevel")}
-        trackHeight={LEVEL_TRACK_HEIGHT} title="Ambience Level" />
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Per-key note controls
-// ---------------------------------------------------------------------------
-
-function NoteControls({
-  note,
-  onChange,
-}: {
-  note: SnDrumNote;
-  onChange: NoteParamHandler;
-}) {
-  const set =
-    (field: SndNoteField, key: Parameters<NoteParamHandler>[1]) =>
-    (v: number) =>
-      onChange(field, key, v);
-  return (
-    <>
-      <div className={css.noteControls}>
-        <SectionPanel label="TONE" family={ParameterFamily.Pitch}>
-        <WavePicker
-          source={sndInstSource()}
-          stereo={false}
-          l={note.instNumber}
-          onChange={(_side, n) => onChange(SndNoteField.InstNumber, "instNumber", n)}
-        />
-          <div className={css.knobRow}>
-            <SynthKnob label="Attack" value={note.attack} {...knobProps(snd_note_spec(SndNoteField.Attack))}
-              onChange={set(SndNoteField.Attack, "attack")} />
-            <SynthKnob label="Decay" value={note.decay} {...knobProps(snd_note_spec(SndNoteField.Decay))}
-              onChange={set(SndNoteField.Decay, "decay")} />
-            <SynthKnob label="Brill" value={note.brilliance} {...knobProps(snd_note_spec(SndNoteField.Brilliance))}
-              onChange={set(SndNoteField.Brilliance, "brilliance")}
-              title="Brilliance" />
-          </div>
-          <div className={css.knobRow}>
-            <SynthKnob label="DynRng" value={note.dynamicRange} {...knobProps(snd_note_spec(SndNoteField.DynamicRange))}
-              onChange={set(SndNoteField.DynamicRange, "dynamicRange")}
-              title="Dynamic Range" />
-            <SynthKnob label="Width" value={note.stereoWidth} {...knobProps(snd_note_spec(SndNoteField.StereoWidth))}
-              onChange={set(SndNoteField.StereoWidth, "stereoWidth")}
-              title="Stereo Width" />
-          </div>
-          <div className={css.noteSelects}>
-            <SynthSelect label="Variation" value={note.variation} options={variationOptions(note)}
-              onChange={set(SndNoteField.Variation, "variation")} />
-            <SynthSelect label="Output" value={note.outputAssign} options={switchOptions(snd_note_spec(SndNoteField.OutputAssign))}
-              onChange={set(SndNoteField.OutputAssign, "outputAssign")} />
-          </div>
-        </SectionPanel>
-
-        {/* Tone shaping */}
-        {/* Strip: Pan + Sends + Level — reuses the shared OutputStrip */}
-        <SectionPanel label="LEVEL / PAN" family={ParameterFamily.Amp}>
-          <OutputStrip
-            pan={{
-              value: note.pan, onChange: set(SndNoteField.Pan, "pan"),
-              spec: knobProps(snd_note_spec(SndNoteField.Pan)),
-            }}
-            fx1={note.chorusSend} fx2={note.reverbSend}
-            fx1Spec={knobProps(snd_note_spec(SndNoteField.ChorusSend))}
-            fx2Spec={knobProps(snd_note_spec(SndNoteField.ReverbSend))}
-            levelSpec={knobRange(snd_note_spec(SndNoteField.Level))}
-            level={note.level}
-            onFx1Change={set(SndNoteField.ChorusSend, "chorusSend")}
-            onFx2Change={set(SndNoteField.ReverbSend, "reverbSend")}
-            onLevelChange={set(SndNoteField.Level, "level")}
-            trackHeight={LEVEL_TRACK_HEIGHT}
-          />
-        </SectionPanel>
-      </div>
-    </>
   );
 }

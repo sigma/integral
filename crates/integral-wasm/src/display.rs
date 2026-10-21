@@ -4,8 +4,8 @@ use integral_core::display::{self as core, DisplayField, DisplaySource};
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    MixerField, PcmdPartialField, PcmsPartialField, PcmsPmtField, SnaCommonField, SnsPartialField,
-    ToneType,
+    MixerField, PcmdPartialField, PcmdWmtField, PcmsPartialField, PcmsPmtField, SnaCommonField,
+    SndNoteField, SnsPartialField, ToneType,
 };
 
 /// A Display a layout can place (mirrors [`core::DisplayKind`]).
@@ -42,6 +42,8 @@ pub enum DisplayKind {
     CompTransferCurve,
     /// See [`core::DisplayKind::SurroundPad`].
     SurroundPad,
+    /// See [`core::DisplayKind::WavePicker`].
+    WavePicker,
 }
 
 mirror_core_enum!(DisplayKind <=> core::DisplayKind {
@@ -60,6 +62,7 @@ mirror_core_enum!(DisplayKind <=> core::DisplayKind {
     CompEnvelope,
     CompTransferCurve,
     SurroundPad,
+    WavePicker,
 });
 
 /// The Display prop a slot feeds (mirrors [`core::DisplayProp`]).
@@ -118,6 +121,16 @@ pub enum DisplayProp {
     ExtLr,
     /// See [`core::DisplayProp::ExtFb`].
     ExtFb,
+    /// See [`core::DisplayProp::WaveGroupType`].
+    WaveGroupType,
+    /// See [`core::DisplayProp::WaveGroupId`].
+    WaveGroupId,
+    /// See [`core::DisplayProp::WaveNumberL`].
+    WaveNumberL,
+    /// See [`core::DisplayProp::WaveNumberR`].
+    WaveNumberR,
+    /// See [`core::DisplayProp::Inst`].
+    Inst,
 }
 
 mirror_core_enum!(DisplayProp <=> core::DisplayProp {
@@ -147,6 +160,11 @@ mirror_core_enum!(DisplayProp <=> core::DisplayProp {
     Fb,
     ExtLr,
     ExtFb,
+    WaveGroupType,
+    WaveGroupId,
+    WaveNumberL,
+    WaveNumberR,
+    Inst,
 });
 
 /// One prop of a Display and where its value comes from (mirrors
@@ -163,6 +181,8 @@ struct FieldGetters {
     pcms_partial: Option<PcmsPartialField>,
     pcms_pmt: Option<PcmsPmtField>,
     pcmd_partial: Option<PcmdPartialField>,
+    pcmd_wmt: Option<PcmdWmtField>,
+    snd_note: Option<SndNoteField>,
     mixer: Option<MixerField>,
 }
 
@@ -193,6 +213,14 @@ impl WasmDisplaySlot {
             },
             DisplayField::PcmdPartial(f) => FieldGetters {
                 pcmd_partial: Some(f.into()),
+                ..none
+            },
+            DisplayField::PcmdWmt(f) => FieldGetters {
+                pcmd_wmt: Some(f.into()),
+                ..none
+            },
+            DisplayField::SndNote(f) => FieldGetters {
+                snd_note: Some(f.into()),
                 ..none
             },
             DisplayField::Mixer(f) => FieldGetters {
@@ -259,6 +287,18 @@ impl WasmDisplaySlot {
         self.getters().pcmd_partial
     }
 
+    /// The PCM Drum Kit WMT layer field read.
+    #[wasm_bindgen(getter, js_name = pcmdWmt)]
+    pub fn pcmd_wmt(&self) -> Option<PcmdWmtField> {
+        self.getters().pcmd_wmt
+    }
+
+    /// The SN Drum Kit Note field read.
+    #[wasm_bindgen(getter, js_name = sndNote)]
+    pub fn snd_note(&self) -> Option<SndNoteField> {
+        self.getters().snd_note
+    }
+
     /// The mixer field read; the Scope supplies its indices.
     #[wasm_bindgen(getter)]
     pub fn mixer(&self) -> Option<MixerField> {
@@ -299,6 +339,16 @@ mod tests {
         assert_eq!(l0.prop(), DisplayProp::Levels);
         assert_eq!(l0.fixed(), Some(0));
         assert_eq!(l0.pcms_partial(), None);
+    }
+
+    #[test]
+    fn drum_wave_pickers_read_their_blocks() {
+        let pcmd = display_binding(DisplayKind::WavePicker, Some(ToneType::PcmDrum)).unwrap();
+        assert_eq!(pcmd[2].prop(), DisplayProp::WaveNumberL);
+        assert_eq!(pcmd[2].pcmd_wmt(), Some(PcmdWmtField::WaveNumberL));
+        let snd = display_binding(DisplayKind::WavePicker, Some(ToneType::SnDrum)).unwrap();
+        assert_eq!(snd[0].snd_note(), Some(SndNoteField::InstNumber));
+        assert_eq!(snd[0].pcmd_wmt(), None);
     }
 
     #[test]

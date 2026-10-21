@@ -98,7 +98,7 @@ describe("SnAcousticEditor", () => {
     const { container } = render(<SnAcousticEditor partIndex={PART} service={service} />);
     await act(async () => {});
 
-    // The MFX is still drawn by MfxPanel until it moves onto the Grid (#360).
+    // The MFX placement hosts MfxPanel, a CSS Section with its own selects and send knobs.
     const controls = [...container.querySelectorAll('[role="slider"], button')].filter(
       (el) => el.closest('[data-section="mfx"]') === null,
     );

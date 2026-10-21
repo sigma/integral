@@ -5,6 +5,8 @@
  */
 
 import type { FieldKey } from "./fields";
+import { PCMD_SCREEN, PCMD_SECTIONS } from "./drum/pcmDrum";
+import { SND_KIT_LAYOUT, SND_OUTPUT_LAYOUT, SND_SCREEN, SND_TONE_LAYOUT } from "./drum/snDrum";
 import { MFX_SET } from "./fx/mfx";
 import { CHORUS_SET, REVERB_SET } from "./fx/strip";
 import { EQ_LAYOUT } from "./mixer/eq";
@@ -38,6 +40,10 @@ export const SECTION_LAYOUTS: readonly SectionLayout<FieldKey>[] = [
   SNA_VIBRATO_LAYOUT,
   SNA_FILTER_LAYOUT,
   SNA_AMP_LAYOUT,
+  SND_KIT_LAYOUT,
+  SND_TONE_LAYOUT,
+  SND_OUTPUT_LAYOUT,
+  ...PCMD_SECTIONS,
 ];
 
 /** Variant sets; the validator walks every key core enumerates. */
@@ -51,5 +57,5 @@ export const VARIANT_SETS: readonly VariantSet<FieldKey, FieldKey>[] = [
 
 /** Screen layouts; a function, as screens read the device spec from core. */
 export function screenLayouts(): readonly ScreenLayout[] {
-  return [mixerScreen(false).layout, mixerScreen(true).layout, surroundScreen(), SNA_SCREEN];
+  return [mixerScreen(false).layout, mixerScreen(true).layout, surroundScreen(), SNA_SCREEN, SND_SCREEN, PCMD_SCREEN];
 }

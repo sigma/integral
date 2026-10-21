@@ -1,5 +1,5 @@
 /* ================================================================
-   SN-D Drum Kit Editor
+   SN-D Drum Kit Editor: the key grid over the key Sections on the Grid
    ================================================================ */
 
 .editor {
@@ -27,84 +27,5 @@
   color: #e0e0e0;
   padding: 4px 0;
   letter-spacing: 0.5px;
-}
-
-/* ----------------------------------------------------------------
-   Main Area: three columns
-   ---------------------------------------------------------------- */
-
-/* The key editor, then the MFX centred on it, with room for the arrow between them */
-.mainArea {
-  position: relative;
-  display: flex;
-  gap: 56px;
-  align-items: flex-start;
-}
-
-.mfxSidebar {
-  flex-shrink: 0;
-  align-self: center;
-}
-
-/*
- * The kit's level faders at the left; the key grid and its legend centred in
- * the box (the empty third column balances the first).
- */
-.keyGridRow {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 8px;
-  align-items: stretch;
-}
-
-.kitLevels {
-  display: flex;
-  gap: 6px;
-}
-
-.panelRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-/* ----------------------------------------------------------------
-   Key grid
-   ---------------------------------------------------------------- */
-
-.keyEditorArea {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* ----------------------------------------------------------------
-   Per-key controls
-   ---------------------------------------------------------------- */
-
-.noteControls {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-}
-
-.knobRow {
-  display: flex;
-  gap: 4px;
-  justify-content: center;
-}
-
-.noteSelects {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-top: 4px;
-}
-
-.noteLoadingPlaceholder {
-  color: #666;
-  font-size: 13px;
-  padding: 12px 0;
 }
 

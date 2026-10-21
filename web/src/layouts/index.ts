@@ -33,8 +33,8 @@ export type {
   TitleEdge,
   VariantSet,
 } from "./types";
-export { enumFields, fxFields, fxParamDefs, fxTypes, isTwoState, mixerFields } from "./fields";
-export type { FieldKey, FieldSpace, FxBlock } from "./fields";
+export { elementFields, enumFields, fxFields, fxParamDefs, fxTypes, isTwoState, mixerFields } from "./fields";
+export type { ElementFieldSpace, FieldKey, FieldSpace, FxBlock } from "./fields";
 export {
   DISPLAY_MIN_FOOTPRINT,
   INSET,
@@ -57,3 +57,6 @@ export { GridScreen } from "./GridScreen";
 export type { GridScreenProps } from "./GridScreen";
 export { GridZoom, ZOOM_STEP, fitZoom, naturalSize, roundZoom, useFitZoom } from "./zoom";
 export type { GridZoomProps, NaturalSize } from "./zoom";
+export { specBinding } from "./binding";
+export { BreakpointDisplay, displaySlots, slotField, slotOf } from "./displays";
+export type { SlotReader, SlotValue } from "./displays";
