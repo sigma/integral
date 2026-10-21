@@ -58,24 +58,27 @@ describe("GridSection draws the pilot mixer EQ", () => {
     ]);
   });
 
+  // The left column's knobs clear the border their LED rings reach.
+  const SIDE = INSET + BORDER.width;
   it.each([
     [MixerField.EqSwitch, 24, 24],
-    [MixerField.EqHighFreq, 0, 48],
+    [MixerField.EqHighFreq, SIDE, 48],
     [MixerField.EqHighGain, 48, 96],
-    [MixerField.EqMidFreq, 0, 144],
+    [MixerField.EqMidFreq, SIDE, 144],
     [MixerField.EqMidGain, 48, 192],
-    [MixerField.EqMidQ, 0, 240],
+    [MixerField.EqMidQ, SIDE, 240],
     [MixerField.EqLowGain, 48, 288],
-    [MixerField.EqLowFreq, 0, 336],
+    [MixerField.EqLowFreq, SIDE, 336],
   ])("places field %i at (%ipx, %ipx)", (field, left, top) => {
     const el = wrapper(draw(), field);
     expect([el.style.left, el.style.top]).toEqual([`${left}px`, `${top}px`]);
   });
 
-  it("draws each Control at its footprint, unscaled", () => {
+  it("draws each Control at its footprint, unscaled, less the border it clears", () => {
     const container = draw();
     expectFillsFootprint(wrapper(container, MixerField.EqSwitch).firstElementChild as HTMLElement, FOOTPRINT.switch);
-    expectFillsFootprint(wrapper(container, MixerField.EqMidQ).firstElementChild as HTMLElement, FOOTPRINT.knobSm);
+    const knob = wrapper(container, MixerField.EqMidQ).firstElementChild as HTMLElement;
+    expect([knob.style.width, knob.style.height]).toEqual([`${FOOTPRINT.knobSm.w * 24 - SIDE}px`, `${FOOTPRINT.knobSm.h * 24}px`]);
   });
 
   it("names knobs as the layout says, and hides the switch's name", () => {
@@ -262,10 +265,39 @@ describe("GridSection edge padding", () => {
     const container = draw();
     const toggle = wrapper(container, MixerField.EqSwitch).firstElementChild as HTMLElement;
     expect([toggle.style.width, toggle.style.height]).toEqual(["43px", "17px"]);
-    // A knob only draws to its top edge: it loses its top, keeps its width.
+    // Behind the side title a knob's left edge is no border: it loses its top, keeps its width.
     const knob = wrapper(container, MixerField.EqLowGain).firstElementChild as HTMLElement;
     expect([knob.style.width, knob.style.height]).toEqual(["48px", "65px"]);
     expect(container.querySelector("[data-size]")!.getAttribute("data-size")).toBe("91×43");
+  });
+});
+
+describe("GridSection knob dials", () => {
+  /** Three small knobs: one on the left border, one inside, one tempo-syncable. */
+  const KNOBS: SectionLayout<MixerField> = {
+    title: "K",
+    titleEdge: "top",
+    w: 8,
+    h: 3,
+    fields: mixerFields([MixerScopeKind.Part]),
+    items: [
+      { kind: "knob", field: MixerField.EqLowGain, x: 0, y: 0 },
+      { kind: "knob", field: MixerField.EqMidGain, x: 3, y: 0 },
+      { kind: "knob", field: MixerField.EqHighGain, x: 5, y: 0 },
+    ],
+  };
+  const dial = (container: HTMLElement, field: MixerField) => wrapper(container, field).querySelector("svg")!.getAttribute("width");
+
+  it("draws every knob of a size in a Section at one dial, the smallest any fits", () => {
+    const bind = (field: MixerField): Binding =>
+      field === MixerField.EqHighGain
+        ? { ...bindMixer(field), sync: { labels: ["ms", "♪"], noteMode: false, onChange: () => {} } }
+        : bindMixer(field);
+    const { container } = render(<GridSection layout={KNOBS} bind={bind} />);
+    const sides = [MixerField.EqLowGain, MixerField.EqMidGain, MixerField.EqHighGain].map((f) => dial(container, f));
+    expect(new Set(sides).size).toBe(1);
+    // The synced knob gives up an addon line under its readout.
+    expect(Number(sides[0])).toBeLessThan(FOOTPRINT.knobSm.w * 24 - INSET);
   });
 });
 
@@ -331,12 +363,12 @@ describe("GridSection tempo sync", () => {
   const SYNCED: SectionLayout<MixerField> = {
     title: "T",
     titleEdge: "top",
-    w: 4,
+    w: 6,
     h: 4,
     fields: mixerFields([MixerScopeKind.Part]),
     items: [
-      { kind: "knob", field: MixerField.EqLowGain, x: 0, y: 0 },
-      { kind: "fader", field: MixerField.EqMidGain, x: 2, y: 0, h: 4 },
+      { kind: "knob", field: MixerField.EqLowGain, x: 1, y: 0 },
+      { kind: "fader", field: MixerField.EqMidGain, x: 3, y: 0, h: 4 },
     ],
   };
 

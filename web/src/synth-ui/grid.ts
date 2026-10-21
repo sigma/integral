@@ -43,12 +43,13 @@ const ALL_EDGES = ["top", "right", "bottom", "left"] as const satisfies readonly
  * to. A Section's border runs through the Cells along its edges (`INSET`
  * inside them), so where one of these edges lies on a border Cell the
  * renderer draws the element clear of the border on that edge (`edgePadding`).
- * Every Control's name sits in its top line; a knob or fader keeps its own
- * margin on the other edges, while a switch, an option list, a picker or a
- * Display fills its Cells.
+ * Every Control's name sits in its top line. A knob's LED ring spans its
+ * box's width, so it reaches the sides too, and only its readout keeps a
+ * margin at the bottom; a fader keeps its own margin on the sides and
+ * bottom; a switch, an option list, a picker or a Display fills its Cells.
  */
 export const BLEED = {
-  knob: ["top"],
+  knob: ["top", "left", "right"],
   fader: ["top"],
   switch: ALL_EDGES,
   list: ALL_EDGES,

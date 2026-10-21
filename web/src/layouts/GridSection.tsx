@@ -10,6 +10,7 @@ import type { DisplayKind, ParameterFamily } from "../../pkg/integral_wasm.js";
 import type { PickOption } from "../SearchPopover";
 import { SyncToggle } from "../SyncToggle";
 import { SynthFader, SynthKnob, SynthPicker, SynthSwitch, familyVar } from "../synth-ui";
+import { knobDialSide } from "../synth-ui/SynthKnob";
 import { CELL, cellsPx, type Px } from "../synth-ui/grid";
 import type { FieldKey } from "./fields";
 import {
@@ -107,7 +108,18 @@ function optionsOf(b: Binding): BindingOption[] {
 }
 
 /** The Control for a layout entry and its binding, filling `box` (its footprint, less any edge padding). */
-function Control<F extends FieldKey>({ control: c, binding: b, box }: { control: ControlLayout<F>; binding: Binding; box: Px }) {
+function Control<F extends FieldKey>({
+  control: c,
+  binding: b,
+  box,
+  dialSide,
+}: {
+  control: ControlLayout<F>;
+  binding: Binding;
+  box: Px;
+  /** The dial side of each size of knob in the Section. */
+  dialSide: Record<"sm" | "lg", number>;
+}) {
   const label = c.label === false ? undefined : (c.label ?? b.name);
   const addon = b.sync && <SyncToggle labels={b.sync.labels} noteMode={b.sync.noteMode} onChange={b.sync.onChange} />;
   switch (c.kind) {
@@ -116,6 +128,7 @@ function Control<F extends FieldKey>({ control: c, binding: b, box }: { control:
         <SynthKnob
           grid
           box={box}
+          dialSide={dialSide[c.size ?? "sm"]}
           size={c.size ?? "sm"}
           label={label ?? ""}
           title={b.name}
@@ -215,6 +228,23 @@ export function GridSection<F extends FieldKey>({
   } as CSSProperties;
   const title = sectionTitle(layout, scope);
   const elements = drawnElements(layout.items, alternative);
+  // Each element's box: its Cells, less the edge padding that keeps it clear of the border.
+  const drawn = elements.map((el) => {
+    const rect = itemRect(el);
+    const pad = edgePadding(layout, el);
+    const full = cellsPx({ w: rect.w, h: rect.h });
+    const size: Px = { width: full.width - pad.left - pad.right, height: full.height - pad.top - pad.bottom };
+    const box = { left: ox + rect.x * CELL + pad.left, top: oy + rect.y * CELL + pad.top, ...size };
+    const binding = el.kind === "display" ? undefined : bind(el.field, el.index);
+    return { el, size, box, binding };
+  });
+  // Every knob of a size is drawn at the smallest dial any of them fits.
+  const dialSide = { sm: Infinity, lg: Infinity };
+  for (const { el, size, binding } of drawn) {
+    if (el.kind !== "knob") continue;
+    const k = el.size ?? "sm";
+    dialSide[k] = Math.min(dialSide[k], knobDialSide(k, size, binding?.sync !== undefined));
+  }
   // An arrow is drawn when both its ends are.
   const arrows = drawnArrows(
     (layout.silkscreen ?? []).filter((s) => s.kind === "arrow"),
@@ -249,17 +279,11 @@ export function GridSection<F extends FieldKey>({
         ))}
         <SilkArrows arrows={arrows} ox={ox} oy={oy} />
       </svg>
-      {elements.map((el) => {
-        const rect = itemRect(el);
-        // An element on a border Cell is drawn clear of the border on that edge.
-        const pad = edgePadding(layout, el);
-        const full = cellsPx({ w: rect.w, h: rect.h });
-        const size: Px = { width: full.width - pad.left - pad.right, height: full.height - pad.top - pad.bottom };
-        const box = { left: ox + rect.x * CELL + pad.left, top: oy + rect.y * CELL + pad.top, ...size };
-        if (el.kind === "display") {
+      {drawn.map(({ el, box, size, binding }) => {
+        if (el.kind === "display" || binding === undefined) {
           return (
-            <div key={elementKey(el)} className={css.element} data-display={el.display} style={box}>
-              {renderDisplay?.(el.display, size)}
+            <div key={elementKey(el)} className={css.element} data-display={el.kind === "display" ? el.display : undefined} style={box}>
+              {el.kind === "display" && renderDisplay?.(el.display, size)}
             </div>
           );
         }
@@ -274,7 +298,7 @@ export function GridSection<F extends FieldKey>({
             inert={inactive !== undefined}
             style={box}
           >
-            <Control control={el} binding={bind(el.field, el.index)} box={size} />
+            <Control control={el} binding={binding} box={size} dialSide={dialSide} />
           </div>
         );
       })}

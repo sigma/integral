@@ -418,8 +418,14 @@ describe("edgePadding", () => {
     expect(padOf(top([{ kind: "switch", field: MixerField.EqSwitch, x: 0, y: 2 }]))).toEqual({ ...NONE, left: borderClearance("left") });
     const scope: ItemLayout<MixerField> = { kind: "display", display: DisplayKind.AmpEnvelope, x: 1, y: 4, w: 5, h: 2 };
     expect(padOf(top([scope]))).toEqual({ ...NONE, right: borderClearance("right"), bottom: borderClearance("bottom") });
-    // Knobs and faders keep their own margin there.
+    // Faders keep their own margin there.
     expect(padOf(top([{ kind: "fader", field: MixerField.PartLevel, x: 4, y: 2, h: 4 }]))).toEqual(NONE);
+  });
+
+  it("pads a knob on a left or right border, where its LED ring reaches, not on the bottom", () => {
+    expect(padOf(top([{ kind: "knob", field: MixerField.EqLowGain, x: 0, y: 3 }]))).toEqual({ ...NONE, left: borderClearance("left") });
+    expect(padOf(top([{ kind: "knob", field: MixerField.EqLowGain, x: 4, y: 0 }]))).toEqual({ ...NONE, right: borderClearance("right") });
+    expect(padOf(top([{ kind: "knob", field: MixerField.EqLowGain, x: 2, y: 3 }]))).toEqual(NONE);
   });
 });
 

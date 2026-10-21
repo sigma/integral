@@ -33,6 +33,11 @@ interface Props {
    * footprint less the edge padding a Section's renderer gives it.
    */
   box?: Px;
+  /**
+   * On the Grid, the largest dial side, px: a Section draws each size of
+   * knob at one side, the smallest any of them fits (`knobDialSide`).
+   */
+  dialSide?: number;
   /** Full name for tooltip. Defaults to label. */
   title?: string;
   /** Value the LED arc grows from, for relative controls. Default: 0 for signed ranges, else min. */
@@ -67,12 +72,19 @@ const SIZES: Record<"sm" | "lg", { dial: Dial; footprint: Cells }> = {
 };
 
 /**
- * `dial` redrawn for `box`: as large as the width and the height left by
- * name, readout and `extra` px allow, never larger than natural. Radii
- * follow the side, so a footprint changed in the table resizes the dial with it.
+ * The side of a `size` knob's dial on the Grid in `box`: as large as the
+ * width and the height left by name, readout and an addon line (when it has
+ * one) allow, never larger than natural.
  */
-function gridDial(dial: Dial, box: Px, extra: number): Dial {
-  const svg = Math.min(dial.svg, box.width, box.height - NAME.line - READOUT.line - extra);
+export function knobDialSide(size: "sm" | "lg", box: Px, addon: boolean): number {
+  return Math.min(SIZES[size].dial.svg, box.width, box.height - NAME.line - READOUT.line - (addon ? ADDON_LINE : 0));
+}
+
+/**
+ * `dial` redrawn at side `svg`. Radii follow the side, so a footprint
+ * changed in the table resizes the dial with it.
+ */
+function scaledDial(dial: Dial, svg: number): Dial {
   const k = svg / dial.svg;
   return { svg, knobR: dial.knobR * k, ledR: dial.ledR * k, dotR: dial.dotR * k, pointer: dial.pointer };
 }
@@ -96,12 +108,14 @@ export function SynthKnob({
   family,
   grid = false,
   box: boxProp,
+  dialSide,
   addon,
 }: Props) {
   const lit = familyVar(family ?? NEUTRAL_FAMILY);
   const { footprint, dial: natural } = SIZES[size];
   const box = boxProp ?? cellsPx(footprint);
-  const dial = grid ? gridDial(natural, box, addon === undefined ? 0 : ADDON_LINE) : natural;
+  const fits = knobDialSide(size, box, addon !== undefined);
+  const dial = grid ? scaledDial(natural, Math.min(fits, dialSide ?? fits)) : natural;
   const { svg: svgSize, knobR, ledR } = dial;
   const cx = svgSize / 2;
   const cy = svgSize / 2;
