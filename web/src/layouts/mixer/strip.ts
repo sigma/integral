@@ -162,7 +162,7 @@ const COMP_EQ_UNIT: SectionBody<MixerField> = {
     { kind: "knob", field: MixerField.CompThreshold, x: 0, y: 9, label: "Thr" },
     { kind: "knob", field: MixerField.CompRatio, x: 2, y: 9 },
     { kind: "picker", field: MixerField.CompOutputAssign, x: 0, y: OUT_Y, w: 4, label: "Out" },
-    { kind: "fader", field: MixerField.CompOutputGain, x: 1, ...FADER, label: "Gain", scale: true },
+    { kind: "fader", field: MixerField.CompOutputGain, x: 1, ...FADER, label: false, scale: true },
     NAME,
   ],
 };

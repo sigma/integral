@@ -304,7 +304,7 @@ describe("MixerPage", () => {
       placed(el, id).querySelector(`[data-display="${DisplayKind.StripName}"]`)?.textContent;
     expect(name("strip.part.2")).toBe("Pulse Lead 1");
     expect(name("strip.ext")).toBe("External Input");
-    expect(name("strip.comp.1")).toBe("Compressor 2");
+    expect(name("strip.comp.1")).toBe("Compressor 2 Gain");
     expect(name("strip.master")).toBe("Master");
     // The plate under the strip names the role, not the tone again.
     expect(placed(el, "name.part.2").textContent).not.toContain("Pulse Lead 1");

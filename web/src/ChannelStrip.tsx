@@ -269,7 +269,7 @@ function toneLabel(part: PartState): string {
 const ROLE: Partial<Record<MixerScopeKind, { icon: string; name: (index: number) => string; role: (index: number) => string }>> = {
   [MixerScopeKind.Ext]: { icon: "ext", name: () => "External Input", role: () => "Ext In" },
   [MixerScopeKind.Master]: { icon: "master", name: () => "Master", role: () => "Master" },
-  [MixerScopeKind.CompEqUnit]: { icon: "comp-eq", name: (i) => `Compressor ${i + 1}`, role: (i) => `C+E${i + 1}` },
+  [MixerScopeKind.CompEqUnit]: { icon: "comp-eq", name: (i) => `Compressor ${i + 1} Gain`, role: (i) => `C+E${i + 1}` },
 };
 
 /** A strip's name: a part's tone, or the strip's role in full. */
