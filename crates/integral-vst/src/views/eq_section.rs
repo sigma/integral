@@ -1,6 +1,6 @@
 //! A 3-band EQ section with enable switch and 7 parameter knobs.
 //!
-//! Mirrors the `EqSection` React component from `web/src/EqSection.tsx`.
+//! Mirrors the web mixer EQ (`web/src/layouts/mixer/eq.ts`), not yet on the Grid.
 //! Contains an EQ on/off toggle plus knobs for Low Freq, Low Gain,
 //! Mid Freq, Mid Gain, Mid Q, High Freq, and High Gain.
 

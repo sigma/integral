@@ -3,9 +3,11 @@
   grid-row: 1 / -1;
   grid-template-rows: subgrid;
   place-items: start center;
-  padding: 10px 6px 8px;
-  min-width: 100px;
-  width: 100px;
+
+  /* Four 24px Cells, so the Grid EQ fits; the CSS parts centre in it. */
+  padding: 10px 0 8px;
+  min-width: 96px;
+  width: 96px;
   border-right: 1px solid #1a1a30;
   background: linear-gradient(to bottom, #1e1e35, #161628);
 }

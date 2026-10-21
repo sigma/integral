@@ -29,9 +29,6 @@ export interface EqBand {
 interface Props {
   /** Bands from highest to lowest (2–4). */
   bands: EqBand[];
-  /** Switch state; only shown with `onToggleSwitch`. */
-  enabled?: boolean;
-  onToggleSwitch?: () => void;
   style?: CSSProperties;
 }
 
@@ -78,7 +75,7 @@ interface Geometry {
   ys: number[];
 }
 
-export function ParametricEq({ bands, enabled = true, onToggleSwitch, style }: Props) {
+export function ParametricEq({ bands, style }: Props) {
   const slots = layout(bands);
   const areaRef = useRef<HTMLDivElement>(null);
   const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -122,15 +119,7 @@ export function ParametricEq({ bands, enabled = true, onToggleSwitch, style }: P
   });
 
   return (
-    <div className={`${box.box} ${onToggleSwitch && !enabled ? box.off : ""}`} style={style}>
-      {onToggleSwitch && (
-        <button
-          className={`${box.switchButton} ${enabled ? box.switchOn : box.switchOff}`}
-          onClick={onToggleSwitch}
-        >
-          {enabled ? "EQ ON" : "EQ OFF"}
-        </button>
-      )}
+    <div className={box.box} style={style}>
 
       <div className={css.knobArea} ref={areaRef}>
         {geo && geo.ys.length === slots.length && (
