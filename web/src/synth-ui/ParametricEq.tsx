@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import type { ParameterFamily } from "../../pkg/integral_wasm.js";
 import { EqKnob } from "../EqKnob";
 import box from "../PanelBox.module.css";
+import { zoomOf } from "./grid";
 import css from "./ParametricEq.module.css";
 
 /** One EQ knob, bound to a parameter. Discrete ranges show one tick per value. */
@@ -91,12 +92,14 @@ export function ParametricEq({ bands, enabled = true, onToggleSwitch, style }: P
     const h = area.offsetHeight;
     if (w === 0 || h === 0) return;
     const a = area.getBoundingClientRect();
+    // Rects are on screen; `w`, `h` and the plot are layout px (a page's zoom).
+    const zoom = zoomOf(area);
     const rects = slotRefs.current.map((el) => el?.getBoundingClientRect());
     setGeo({
       w,
       h,
-      xs: rects.map((r) => (r ? r.left + r.width / 2 - a.left : 0)),
-      ys: rects.map((r) => (r ? r.top + r.height / 2 - a.top : 0)),
+      xs: rects.map((r) => (r ? (r.left + r.width / 2 - a.left) / zoom : 0)),
+      ys: rects.map((r) => (r ? (r.top + r.height / 2 - a.top) / zoom : 0)),
     });
   }, []);
 

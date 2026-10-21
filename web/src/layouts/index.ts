@@ -53,3 +53,5 @@ export { routeScreenArrow, routeSectionArrow } from "./routing";
 export type { DrawnArrow, Route } from "./routing";
 export { GridScreen } from "./GridScreen";
 export type { GridScreenProps } from "./GridScreen";
+export { GridZoom, ZOOM_STEP, fitZoom, naturalSize, roundZoom, useFitZoom } from "./zoom";
+export type { GridZoomProps, NaturalSize } from "./zoom";

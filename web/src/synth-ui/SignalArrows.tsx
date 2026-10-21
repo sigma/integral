@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import { zoomOf } from "./grid";
 import css from "./SignalArrows.module.css";
 
 /** A signal connection from one box to another, by their `data-node` names. */
@@ -77,13 +78,17 @@ export function SignalArrows({ edges }: { edges: Edge[] }) {
     if (!root) return;
     const measure = () => {
       const origin = root.getBoundingClientRect();
+      // Rects are on screen; the overlay draws in layout px (a page's zoom).
+      const zoom = zoomOf(root);
       const box = (name: string): Box | null => {
         const el = root.querySelector(`[data-node="${name}"]`);
         if (!el) return null;
         const r = el.getBoundingClientRect();
-        const left = r.left - origin.left + root.scrollLeft;
-        const top = r.top - origin.top + root.scrollTop;
-        return { left, right: left + r.width, top, mid: top + r.height / 2, bottom: top + r.height };
+        const left = (r.left - origin.left) / zoom + root.scrollLeft;
+        const top = (r.top - origin.top) / zoom + root.scrollTop;
+        const width = r.width / zoom;
+        const height = r.height / zoom;
+        return { left, right: left + width, top, mid: top + height / 2, bottom: top + height };
       };
       const next: Drawing = { curves: [], glyphs: [] };
       const glyphed = new Set<string>();

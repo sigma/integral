@@ -65,3 +65,14 @@ export function optionListRows(options: number, named: boolean): number {
 export function cellsPx(cells: Cells): { width: number; height: number } {
   return { width: cells.w * CELL, height: cells.h * CELL };
 }
+
+/**
+ * The zoom `el` is drawn at: its on-screen width over its layout width, or 1
+ * when it isn't laid out. Under a page's CSS `zoom` (`GridZoom`),
+ * `getBoundingClientRect` is on screen and `offsetWidth` is in layout px;
+ * divide rect distances by this to draw in layout px.
+ */
+export function zoomOf(el: HTMLElement): number {
+  const layout = el.offsetWidth;
+  return layout > 0 ? el.getBoundingClientRect().width / layout : 1;
+}
