@@ -63,12 +63,15 @@ export interface SwitchLayout<F extends FieldKey> extends ControlBase<F> {
   kind: "switch";
 }
 
-/** A vertical fader, 2×`h`. */
+/** A vertical fader, 2×`h` (3×`h` with its scale: `FOOTPRINT.levelFaderW`). */
 export interface FaderLayout<F extends FieldKey> extends ControlBase<F> {
   kind: "fader";
-  /** Height in Cells: the N of 2×N. */
+  /** Height in Cells: the N of 2×N (or 3×N). */
   h: number;
-  /** Draws the level scale (marks and their labels) beside the track: a level fader. */
+  /**
+   * A level fader, as the pre-Grid mixer's: a recessed panel, a wide cap and
+   * the level scale (marks and their labels) beside it, no fill; 3×N Cells.
+   */
   scale?: boolean;
 }
 

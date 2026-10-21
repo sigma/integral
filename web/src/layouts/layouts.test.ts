@@ -420,6 +420,12 @@ describe("edgePadding", () => {
     expect(padOf(top([scope]))).toEqual({ ...NONE, right: borderClearance("right"), bottom: borderClearance("bottom") });
     // Faders keep their own margin there.
     expect(padOf(top([{ kind: "fader", field: MixerField.PartLevel, x: 4, y: 2, h: 4 }]))).toEqual(NONE);
+    // A level fader's panel fills its 3×N Cells, so it clears the border.
+    expect(padOf(top([{ kind: "fader", field: MixerField.PartLevel, x: 3, y: 2, h: 4, scale: true }]))).toEqual({
+      ...NONE,
+      right: borderClearance("right"),
+      bottom: borderClearance("bottom"),
+    });
   });
 
   it("pads a knob on a left or right border, where its LED ring reaches, not on the bottom", () => {

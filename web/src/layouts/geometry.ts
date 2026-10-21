@@ -5,7 +5,7 @@
  */
 
 import { DisplayKind } from "../../pkg/integral_wasm.js";
-import { BLEED, FOOTPRINT, type Cells, type Edge } from "../synth-ui/grid";
+import { BLEED, FOOTPRINT, faderCells, type Cells, type Edge } from "../synth-ui/grid";
 import type { FieldKey } from "./fields";
 import type {
   CellRect,
@@ -53,7 +53,7 @@ export function edgePadding<F extends FieldKey>(layout: SectionFrame, el: Elemen
     bottom: r.y + r.h === layout.h,
     right: r.x + r.w === layout.w,
   };
-  const bleeds = BLEED[el.kind] as readonly Edge[];
+  const bleeds = (el.kind === "fader" && el.scale ? BLEED.levelFader : BLEED[el.kind]) as readonly Edge[];
   const pad = (e: Edge) => (onBorder[e] && bleeds.includes(e) ? borderClearance(e) : 0);
   return { top: pad("top"), right: pad("right"), bottom: pad("bottom"), left: pad("left") };
 }
@@ -66,7 +66,7 @@ export function controlCells<F extends FieldKey>(control: ControlLayout<F>): Cel
     case "switch":
       return FOOTPRINT.switch;
     case "fader":
-      return { w: FOOTPRINT.faderW, h: control.h };
+      return faderCells(control.h, control.scale);
     case "list":
       return { w: FOOTPRINT.optionListW, h: control.h };
     case "picker":

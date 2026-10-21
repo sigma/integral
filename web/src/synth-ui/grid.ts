@@ -27,6 +27,8 @@ export const FOOTPRINT = {
   switch: { w: 2, h: 1 },
   /** Fader: 2×N. */
   faderW: 2,
+  /** Level fader (a fader with its scale, as the mixer's): 3×N, the scale beside the wide cap. */
+  levelFaderW: 3,
   /** Vertical option list: 2×N, one Cell row per option. */
   optionListW: 2,
   /**
@@ -49,11 +51,13 @@ const ALL_EDGES = ["top", "right", "bottom", "left"] as const satisfies readonly
  * Every Control's name sits in its top line. A knob's LED ring spans its
  * box's width, so it reaches the sides too, and only its readout keeps a
  * margin at the bottom; a fader keeps its own margin on the sides and
- * bottom; a switch, an option list, a picker or a Display fills its Cells.
+ * bottom, but a level fader's panel fills its Cells, as a switch, an option
+ * list, a picker or a Display does.
  */
 export const BLEED = {
   knob: ["top", "left", "right"],
   fader: ["top"],
+  levelFader: ALL_EDGES,
   switch: ALL_EDGES,
   list: ALL_EDGES,
   picker: ALL_EDGES,
@@ -98,6 +102,11 @@ export interface Px {
   width: number;
   /** Height, px. */
   height: number;
+}
+
+/** A fader's footprint, N rows tall: a level fader's (`scale`) is wider, for its scale. */
+export function faderCells(h: number, scale = false): Cells {
+  return { w: scale ? FOOTPRINT.levelFaderW : FOOTPRINT.faderW, h };
 }
 
 /** `cells` in px at zoom 1. */

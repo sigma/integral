@@ -1,5 +1,5 @@
 import { useCallback, useRef, type ReactNode } from "react";
-import { ADDON_LINE, FOOTPRINT, NAME, READOUT, cellsPx, lineStyle, type Px } from "./grid";
+import { ADDON_LINE, NAME, READOUT, cellsPx, faderCells, lineStyle, type Px } from "./grid";
 import { ControlAddon } from "./ControlAddon";
 import { faderScale } from "./faderScale";
 import css from "./SynthFader.module.css";
@@ -34,10 +34,10 @@ interface Props {
    */
   box?: Px;
   /**
-   * On the Grid, draw the level scale (`faderScale`) beside the track in
-   * place of its ticks: the track moves to the box's left, the marks and
-   * their labels take the rest. The 0 dB mark of a range other than 0–127
-   * is `defaultValue`.
+   * Draw a level fader, as the pre-Grid mixer's (#392): a recessed panel, a
+   * thin groove, a wide white cap and the level scale (`faderScale`) beside
+   * it, with no fill. On the Grid its footprint is `FOOTPRINT.levelFaderW`
+   * wide. The 0 dB mark of a range other than 0–127 is `defaultValue`.
    */
   scale?: boolean;
   /**
@@ -54,6 +54,16 @@ const TICK_COUNT = 11;
 export const FADER_LABEL_HEIGHT = 28; // px — fixed height for the label zone
 /** Thumb height, border included, px. On the Grid the track is inset by half of it, so the thumb stays in the footprint. */
 const THUMB_H = 10;
+
+/**
+ * A level fader's geometry, px: its cap's height, border included; how far
+ * its groove runs past the cap's centre at each end of its travel, so the
+ * cap stays on it; and its panel's border and top and bottom padding.
+ */
+export const LEVEL = { cap: 18, groovePad: 8, border: 1, padding: 4 } as const;
+
+/** A level fader's panel frame, border and padding, at its top or bottom, px. */
+export const LEVEL_FRAME = LEVEL.border + LEVEL.padding;
 
 export function SynthFader({
   value,
@@ -74,14 +84,17 @@ export function SynthFader({
   addon,
 }: Props) {
   const grid = gridRows !== undefined;
-  const box = grid ? (boxProp ?? cellsPx({ w: FOOTPRINT.faderW, h: gridRows })) : undefined;
-  // On the Grid the slider area is what the name and readout leave; the track runs
-  // half a thumb inside it at each end, so the thumb never leaves the footprint.
+  const box = grid ? (boxProp ?? cellsPx(faderCells(gridRows, scale))) : undefined;
+  // On the Grid the slider area is what the name, readout (and a level fader's
+  // panel frame) leave; the track runs half a thumb inside it at each end (a
+  // level fader's, its groove's end and half a cap), so the thumb never leaves the footprint.
   const nameH = hideLabel ? 0 : grid ? NAME.line : FADER_LABEL_HEIGHT;
+  const frame = scale && grid ? 2 * LEVEL_FRAME : 0;
   const areaH = box
-    ? box.height - nameH - READOUT.line - (addon === undefined ? 0 : ADDON_LINE)
+    ? box.height - frame - nameH - READOUT.line - (addon === undefined ? 0 : ADDON_LINE)
     : (trackHeight ?? (compact ? TRACK_HEIGHT_COMPACT : TRACK_HEIGHT));
-  const inset = grid ? THUMB_H / 2 : 0;
+  const thumbH = scale ? LEVEL.cap : THUMB_H;
+  const inset = scale ? LEVEL.groovePad + LEVEL.cap / 2 : grid ? THUMB_H / 2 : 0;
   const trackH = Math.max(0, areaH - 2 * inset);
   const dragging = useRef(false);
   const startY = useRef(0);
@@ -89,11 +102,8 @@ export function SynthFader({
 
   const range = max - min || 1;
   const norm = (value - min) / range;
-  const scaleMarks = scale ? faderScale({ min, max, format: formatValue, nominal: defaultValue }) : [];
-  // A scaled fader's fill grows from its 0 dB mark, else from its default.
-  const rest = scaleMarks.find((m) => m.zero)?.value ?? defaultValue;
-  const defaultNorm = (rest - min) / range;
-  const isDefault = value === rest;
+  const defaultNorm = (defaultValue - min) / range;
+  const isDefault = value === defaultValue;
 
   const fillBottom = Math.min(norm, defaultNorm) * trackH;
   const fillTop = Math.max(norm, defaultNorm) * trackH;
@@ -144,19 +154,32 @@ export function SynthFader({
     }
   };
 
-  const ticks = [];
-  for (let i = 0; i < (scale ? 0 : TICK_COUNT); i++) {
-    const y = (i / (TICK_COUNT - 1)) * trackH;
-    const isMajor = i === 0 || i === TICK_COUNT - 1 || i === Math.floor(TICK_COUNT / 2);
-    ticks.push(
-      <div key={i} className={`${css.tick} ${isMajor ? css.tickMajor : ""}`} style={{ top: y }} />,
-    );
-  }
-
   const display = formatValue ? formatValue(value) : String(value);
-  // The marks sit level with the thumb's centre at their value.
-  const marks = scale
-    ? scaleMarks.map((mark) => (
+  const sliderProps = {
+    tabIndex: 0,
+    role: "slider",
+    "aria-valuenow": value,
+    "aria-valuemin": min,
+    "aria-valuemax": max,
+    "aria-label": label,
+    "aria-orientation": "vertical",
+    "aria-readonly": readOnly,
+    ...(readOnly
+      ? {}
+      : {
+          onPointerDown: handlePointerDown,
+          onPointerMove: handlePointerMove,
+          onPointerUp: handlePointerUp,
+          onDoubleClick: handleDoubleClick,
+          onKeyDown: handleKeyDown,
+        }),
+  } as const;
+  const thumbStyle = { top: thumbY, height: thumbH, marginTop: -thumbH / 2 };
+
+  // A level fader: its scale's marks, each level with the cap's centre at its value, then the groove and the cap.
+  const trackArea = scale ? (
+    <div className={css.levelTrack} style={{ height: areaH }} {...sliderProps}>
+      {faderScale({ min, max, format: formatValue, nominal: defaultValue }).map((mark) => (
         <div
           key={mark.value}
           className={`${css.mark} ${mark.zero ? css.markZero : ""}`}
@@ -164,43 +187,28 @@ export function SynthFader({
         >
           <span className={css.markLabel}>{mark.label}</span>
         </div>
-      ))
-    : null;
-
-  const trackArea = (
-    <div
-      className={css.trackArea}
-      style={{ height: areaH }}
-      tabIndex={0}
-      role="slider"
-      aria-valuenow={value}
-      aria-valuemin={min}
-      aria-valuemax={max}
-      aria-label={label}
-      aria-orientation="vertical"
-      aria-readonly={readOnly}
-      {...(readOnly
-        ? {}
-        : {
-            onPointerDown: handlePointerDown,
-            onPointerMove: handlePointerMove,
-            onPointerUp: handlePointerUp,
-            onDoubleClick: handleDoubleClick,
-            onKeyDown: handleKeyDown,
-          })}
-    >
+      ))}
+      <div className={css.groove} style={{ top: LEVEL.groovePad, bottom: LEVEL.groovePad }} />
+      <div className={css.cap} style={thumbStyle} />
+    </div>
+  ) : (
+    <div className={css.trackArea} style={{ height: areaH }} {...sliderProps}>
       <div className={css.ruler} style={grid ? { top: inset, bottom: inset } : undefined}>
-        {ticks}
+        {Array.from({ length: TICK_COUNT }, (_, i) => {
+          const isMajor = i === 0 || i === TICK_COUNT - 1 || i === Math.floor(TICK_COUNT / 2);
+          return (
+            <div
+              key={i}
+              className={`${css.tick} ${isMajor ? css.tickMajor : ""}`}
+              style={{ top: (i / (TICK_COUNT - 1)) * trackH }}
+            />
+          );
+        })}
       </div>
       <div className={css.track} style={grid ? { top: inset, bottom: inset } : undefined}>
-        {!isDefault && (
-          <div className={css.fill} style={{ bottom: fillBottom, height: fillHeight }} />
-        )}
+        {!isDefault && <div className={css.fill} style={{ bottom: fillBottom, height: fillHeight }} />}
       </div>
-      <div
-        className={`${css.thumb} ${!isDefault ? css.thumbActive : ""}`}
-        style={{ top: thumbY, height: THUMB_H, marginTop: -THUMB_H / 2 }}
-      />
+      <div className={`${css.thumb} ${!isDefault ? css.thumbActive : ""}`} style={thumbStyle} />
     </div>
   );
 
@@ -209,10 +217,11 @@ export function SynthFader({
       className={[
         css.fader,
         compact ? css.compact : "",
+        scale ? css.level : "",
         readOnly ? css.readOnly : "",
         grid ? css.grid : "",
       ].join(" ")}
-      style={box}
+      style={scale ? { ...box, borderWidth: LEVEL.border, paddingBlock: LEVEL.padding } : box}
       title={title ?? label}
     >
       {/* Label zone — fixed height so faders align across groups */}
@@ -223,15 +232,7 @@ export function SynthFader({
           </span>
         </div>
       )}
-      {/* Fader zone, and the scale beside it */}
-      {marks ? (
-        <div className={css.scaled} style={{ height: areaH }}>
-          {trackArea}
-          <div className={css.scale}>{marks}</div>
-        </div>
-      ) : (
-        trackArea
-      )}
+      {trackArea}
       <span className={css.value} style={grid ? lineStyle(READOUT) : undefined}>
         {display}
       </span>
