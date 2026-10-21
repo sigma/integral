@@ -89,8 +89,11 @@ export function SynthFader({
 
   const range = max - min || 1;
   const norm = (value - min) / range;
-  const defaultNorm = (defaultValue - min) / range;
-  const isDefault = value === defaultValue;
+  const scaleMarks = scale ? faderScale({ min, max, format: formatValue, nominal: defaultValue }) : [];
+  // A scaled fader's fill grows from its 0 dB mark, else from its default.
+  const rest = scaleMarks.find((m) => m.zero)?.value ?? defaultValue;
+  const defaultNorm = (rest - min) / range;
+  const isDefault = value === rest;
 
   const fillBottom = Math.min(norm, defaultNorm) * trackH;
   const fillTop = Math.max(norm, defaultNorm) * trackH;
@@ -153,7 +156,7 @@ export function SynthFader({
   const display = formatValue ? formatValue(value) : String(value);
   // The marks sit level with the thumb's centre at their value.
   const marks = scale
-    ? faderScale({ min, max, format: formatValue, nominal: defaultValue }).map((mark) => (
+    ? scaleMarks.map((mark) => (
         <div
           key={mark.value}
           className={`${css.mark} ${mark.zero ? css.markZero : ""}`}

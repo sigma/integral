@@ -38,16 +38,28 @@ export function FxParams({ block, fx, onNibParam }: FxParamsProps) {
   return <GridSection layout={layout} bind={bind} isActive={() => fx.enabled} reserveAddon />;
 }
 
-/** The `FxState` member holding each FX strip field's value. */
-function fxValue(block: FxStripKind, fx: FxState, field: MixerField): number {
-  const { switch: sw, type, level, outputs } = FX_STRIP_FIELDS[block];
-  if (field === sw) return Number(fx.enabled);
-  if (field === type) return fx.type;
-  if (field === level) return fx.level;
-  // The Chorus keeps its Output Assign apart from its Output Select; the Reverb's one output is its assign.
-  if (field === MixerField.ChorusOutputAssign) return fx.outputAssign;
-  if (outputs.includes(field)) return fx.output;
-  throw new Error(`${MixerField[field]} is not on the ${block} strip`);
+/**
+ * Where each FX strip field's value lives in `FxState`. The Chorus keeps its
+ * Output Assign apart from its Output Select; the Reverb's one output, its
+ * assign, is `output`.
+ */
+const FX_STATE: Readonly<Partial<Record<MixerField, (fx: FxState) => number>>> = {
+  [MixerField.ChorusSwitch]: (fx) => Number(fx.enabled),
+  [MixerField.ChorusType]: (fx) => fx.type,
+  [MixerField.ChorusLevel]: (fx) => fx.level,
+  [MixerField.ChorusOutputAssign]: (fx) => fx.outputAssign,
+  [MixerField.ChorusOutputSelect]: (fx) => fx.output,
+  [MixerField.ReverbSwitch]: (fx) => Number(fx.enabled),
+  [MixerField.ReverbType]: (fx) => fx.type,
+  [MixerField.ReverbLevel]: (fx) => fx.level,
+  [MixerField.ReverbOutputAssign]: (fx) => fx.output,
+};
+
+/** The value of FX strip field `field` in `fx`. */
+function fxValue(fx: FxState, field: MixerField): number {
+  const read = FX_STATE[field];
+  if (!read) throw new Error(`${MixerField[field]} is not on an FX strip`);
+  return read(fx);
 }
 
 /** Props of {@link FxStrip}. */
@@ -60,15 +72,12 @@ interface FxStripProps {
   setField: SetMixerField;
 }
 
-/** The strip Section's accent: the family of its level fader, as on every strip. */
-const stripFamily = () => paramMeta(MixerField.PartLevel).family;
-
 /** An FX column's strip: switch, type, outputs and level, the type's name up the fader. */
 export function FxStrip({ block, fx, setField }: FxStripProps) {
   const layout = useMemo(() => variantLayout(FX_STRIP_SET, block), [block]);
   const { switch: sw, type, level } = FX_STRIP_FIELDS[block];
   const bind = (field: MixerField): Binding => ({
-    ...mixerBinding(field, fxValue(block, fx, field), (v) => setField(MixerScopeKind.Common, 0, field, v)),
+    ...mixerBinding(field, fxValue(fx, field), (v) => setField(MixerScopeKind.Common, 0, field, v)),
     // The switch reads FX, on and off alike: its LED shows the state.
     ...(field === sw ? { options: [{ value: 0, label: "FX" }, { value: 1, label: "FX" }] } : {}),
   });
@@ -77,7 +86,8 @@ export function FxStrip({ block, fx, setField }: FxStripProps) {
       layout={layout}
       bind={bind}
       scope={{ fx: FX_STRIP_SET.keys.indexOf(block) }}
-      family={stripFamily()}
+      // The accent of its level fader, as on every strip.
+      family={paramMeta(level).family}
       // The level greys out with the switch, as the old FX fader did.
       isActive={(field) => fx.enabled || field !== level}
       renderDisplay={(display) =>

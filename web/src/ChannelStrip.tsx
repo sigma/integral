@@ -278,8 +278,16 @@ function stripName(state: MixerState, { kind, index }: StripScope): string {
   return ROLE[kind]?.name(index) ?? "";
 }
 
+/** Props of {@link VerticalName}. */
+interface VerticalNameProps {
+  /** The name. */
+  name: string;
+  /** The Expansion of a part's tone, when known not to be loaded: marked ahead of the name. */
+  unloadedExpansion?: string | null;
+}
+
 /** A name run up the side of a fader, bottom to top, as the old mixer drew it. */
-export function VerticalName({ name, unloadedExpansion }: { name: string; unloadedExpansion?: string | null }) {
+export function VerticalName({ name, unloadedExpansion }: VerticalNameProps) {
   return (
     <div className={css.verticalName} title={name}>
       {/* Ahead of the tone name, so a long name can't clip it. */}
@@ -314,8 +322,16 @@ export function StripCategory({ state, kind, index }: StripCategoryProps) {
   return <CategoryPlate icon={icon} label={label} />;
 }
 
+/** Props of {@link CategoryPlate}. */
+interface CategoryPlateProps {
+  /** The icon's SVG markup; none when empty. */
+  icon: string;
+  /** Under the icon; none when absent. */
+  label?: string;
+}
+
 /** An icon over its label, the plate under a strip. */
-export function CategoryPlate({ icon, label }: { icon: string; label?: string }) {
+export function CategoryPlate({ icon, label }: CategoryPlateProps) {
   return (
     <div className={css.categoryArea}>
       {icon && <div className={css.categoryIcon} dangerouslySetInnerHTML={{ __html: icon }} />}

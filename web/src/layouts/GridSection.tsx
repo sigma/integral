@@ -288,10 +288,10 @@ export function GridSection<F extends FieldKey>({
         <SilkArrows arrows={arrows} ox={ox} oy={oy} />
       </svg>
       {drawn.map(({ el, box, size, binding }) => {
-        if (el.kind === "display" || binding === undefined) {
+        if (el.kind === "display") {
           return (
-            <div key={elementKey(el)} className={css.element} data-display={el.kind === "display" ? el.display : undefined} style={box}>
-              {el.kind === "display" && renderDisplay?.(el.display, size)}
+            <div key={elementKey(el)} className={css.element} data-display={el.display} style={box}>
+              {renderDisplay?.(el.display, size)}
             </div>
           );
         }
@@ -306,7 +306,7 @@ export function GridSection<F extends FieldKey>({
             inert={inactive !== undefined}
             style={box}
           >
-            <Control control={el} binding={binding} box={size} dialSide={dialSide} />
+            <Control control={el} binding={binding!} box={size} dialSide={dialSide} />
           </div>
         );
       })}

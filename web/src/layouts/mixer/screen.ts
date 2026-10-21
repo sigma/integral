@@ -16,7 +16,7 @@ import { deviceSpec } from "../../deviceSpec";
 import { memo } from "../fields";
 import { sectionCells } from "../geometry";
 import type { ScreenLayout, SectionFrame, SectionPlacement } from "../types";
-import { CHORUS_SET } from "../fx/strip";
+import { CHORUS_SET, REVERB_SET } from "../fx/strip";
 import { EQ_LAYOUT } from "./eq";
 import { FX_STRIP_SET, STRIP_SET, type FxStripKind } from "./strip";
 
@@ -29,6 +29,9 @@ const COLUMN = 4;
 const EQ_H = sectionCells(EQ_LAYOUT).h;
 const STRIP_H = sectionCells(STRIP_SET).h;
 const NAME_H = sectionCells(NAME_FRAME).h;
+/** Each FX column's parameter Section. */
+const FX_PARAMS: Readonly<Record<FxStripKind, SectionFrame>> = { chorus: CHORUS_SET, reverb: REVERB_SET };
+
 /** A column's height: EQ, strip and name. */
 const HEIGHT = EQ_H + STRIP_H + NAME_H;
 
@@ -73,8 +76,7 @@ function buildMixerScreen(compEq: boolean): MixerScreen {
     for (let u = 0; u < spec.comp_eq_unit_count; u++) column(MixerScopeKind.CompEqUnit, u, `comp.${u}`, true);
   }
   for (const fx of FX_STRIP_SET.keys) {
-    // Both FX parameter Sections share one frame.
-    place(`fx.${fx}`, CHORUS_SET, 0, { role: "fx", fx, section: "params" });
+    place(`fx.${fx}`, FX_PARAMS[fx], 0, { role: "fx", fx, section: "params" });
     place(`strip.${fx}`, FX_STRIP_SET, EQ_H, { role: "fx", fx, section: "strip" });
     place(`name.${fx}`, NAME_FRAME, EQ_H + STRIP_H, { role: "fx", fx, section: "name" });
     x += COLUMN;

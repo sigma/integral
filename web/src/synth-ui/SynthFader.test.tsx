@@ -46,6 +46,14 @@ describe("SynthFader", () => {
     expect(zero.style.top).toBe(thumb.style.top);
   });
 
+  it("fills a scaled fader from its 0 dB mark, whatever its default", () => {
+    // An FX level: default 0, at the 0 dB mark: nothing to fill.
+    const atZero = rootOf(render(<SynthFader {...fader} defaultValue={0} value={100} gridRows={8} scale />).container);
+    expect(atZero.querySelector('[role="slider"] div div')).toBeNull();
+    const below = rootOf(render(<SynthFader {...fader} defaultValue={0} value={60} gridRows={8} scale />).container);
+    expect(below.querySelector('[role="slider"] div div')).not.toBeNull();
+  });
+
   it("gives the track the name's row when the name is hidden", () => {
     const shown = render(<SynthFader {...fader} gridRows={4} />);
     const hidden = render(<SynthFader {...fader} gridRows={4} hideLabel />);

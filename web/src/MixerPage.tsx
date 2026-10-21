@@ -20,20 +20,23 @@ export function MixerPage({ mixer, expansions }: Props) {
   const screen = mixerScreen(state.drumCompEq.enabled);
   const { w, h } = screen.layout;
 
+  /** Each FX block's state and parameter writer. */
+  const fxBlocks = {
+    chorus: { state: state.chorus, onNib: mixer.setChorusNibParam },
+    reverb: { state: state.reverb, onNib: mixer.setReverbNibParam },
+  } as const;
+
   /** What one placement draws. */
   const draw = (slot: MixerSlot): ReactNode => {
     if (slot.role === "fx") {
-      const fx = slot.fx === "chorus" ? state.chorus : state.reverb;
-      if (slot.section === "params") {
-        const onNib = slot.fx === "chorus" ? mixer.setChorusNibParam : mixer.setReverbNibParam;
-        return <FxParams block={slot.fx} fx={fx} onNibParam={onNib} />;
-      }
+      const { state: fx, onNib } = fxBlocks[slot.fx];
+      if (slot.section === "params") return <FxParams block={slot.fx} fx={fx} onNibParam={onNib} />;
       if (slot.section === "strip") return <FxStrip block={slot.fx} fx={fx} setField={mixer.setMixerField} />;
       return <FxCategory block={slot.fx} />;
     }
     const { kind, index } = slot;
     const strip = { state, kind, index, setField: mixer.setMixerField };
-    const unloadedExpansion =
+    const unloadedExpansion = () =>
       kind === MixerScopeKind.Part
         ? expansions.unloadedExpansionOf(state.parts[index]!.toneBankMsb, state.parts[index]!.toneBankLsb)
         : null;
@@ -41,7 +44,7 @@ export function MixerPage({ mixer, expansions }: Props) {
       slot.role === "eq" ? (
         <StripEq {...strip} />
       ) : slot.role === "strip" ? (
-        <ChannelStrip {...strip} unloadedExpansion={unloadedExpansion} />
+        <ChannelStrip {...strip} unloadedExpansion={unloadedExpansion()} />
       ) : (
         <StripCategory state={state} kind={kind} index={index} />
       );
