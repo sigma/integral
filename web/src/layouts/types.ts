@@ -78,11 +78,13 @@ export interface OptionListLayout<F extends FieldKey> extends ControlBase<F> {
 }
 
 /**
- * A picker, 6×1: the field's name and its current option's, opening a
- * searchable list of the options core names (a Wave, an Inst).
+ * A picker, `w`×1: the field's name and its current option's, opening a
+ * searchable list of the options core names (a Wave, an Inst, an output).
  */
 export interface PickerLayout<F extends FieldKey> extends ControlBase<F> {
   kind: "picker";
+  /** Width in Cells: the N of N×1. Default `FOOTPRINT.picker.w`. */
+  w?: number;
 }
 
 /** One interactive element bound to one parameter. */

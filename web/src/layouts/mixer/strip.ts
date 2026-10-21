@@ -85,11 +85,14 @@ export const STRIP_TITLES: Readonly<Partial<Record<MixerScopeKind, string>>> = {
 /** The row every level fader starts on, and its height: it ends on the strip's last row. */
 const FADER = { y: 15, h: 21 } as const;
 
-/** Rows of a part strip's Controls: Ch and Pan, the sends, Out, then M and S. */
-const PART_CONTROLS_H = 10;
+/** Rows of a part strip's Controls: Ch and Pan, the sends, Out, C+EQ, then M and S. */
+const PART_CONTROLS_H = 9;
 
 /** The first row of a part strip's Controls, so they end just over its fader. */
 const TOP = FADER.y - PART_CONTROLS_H;
+
+/** The row of every strip's output picker. */
+const OUT_Y = TOP + 6;
 
 /** A part strip: channel and pan, the sends (or the ambience send), routing, mute and solo side by side, level. */
 const PART: SectionBody<MixerField> = {
@@ -115,10 +118,11 @@ const PART: SectionBody<MixerField> = {
         { name: "surround", items: [{ kind: "knob", field: MixerField.SurroundAmbienceSend, x: 1, y: TOP + 3, label: "AMB" }] },
       ],
     },
-    { kind: "knob", field: MixerField.PartOutputAssign, x: 0, y: TOP + 6, label: "Out" },
-    { kind: "switch", field: MixerField.DrumCompEqPart, x: 2, y: TOP + 7, label: false },
-    { kind: "switch", field: MixerField.PartMute, x: 0, y: TOP + 9, label: false },
-    { kind: "switch", field: MixerField.SoloPart, x: 2, y: TOP + 9, label: false },
+    // The output, as the old mixer's route chip: the current output's name, opening the list.
+    { kind: "picker", field: MixerField.PartOutputAssign, x: 0, y: OUT_Y, w: 4, label: "Out" },
+    { kind: "switch", field: MixerField.DrumCompEqPart, x: 1, y: TOP + 7, label: false },
+    { kind: "switch", field: MixerField.PartMute, x: 0, y: TOP + 8, label: false },
+    { kind: "switch", field: MixerField.SoloPart, x: 2, y: TOP + 8, label: false },
     { kind: "fader", field: MixerField.PartLevel, x: 1, ...FADER, label: false },
   ],
 };
@@ -151,7 +155,7 @@ const COMP_EQ_UNIT: SectionBody<MixerField> = {
     { kind: "display", display: DisplayKind.CompTransferCurve, x: 0, y: 6, w: 4, h: 3 },
     { kind: "knob", field: MixerField.CompThreshold, x: 0, y: 9, label: "Thr" },
     { kind: "knob", field: MixerField.CompRatio, x: 2, y: 9 },
-    { kind: "knob", field: MixerField.CompOutputAssign, x: 1, y: 12, label: "Out" },
+    { kind: "picker", field: MixerField.CompOutputAssign, x: 0, y: OUT_Y, w: 4, label: "Out" },
     { kind: "fader", field: MixerField.CompOutputGain, x: 1, ...FADER, label: "Gain" },
   ],
 };

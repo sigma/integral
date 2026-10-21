@@ -70,7 +70,7 @@ export function controlCells<F extends FieldKey>(control: ControlLayout<F>): Cel
     case "list":
       return { w: FOOTPRINT.optionListW, h: control.h };
     case "picker":
-      return FOOTPRINT.picker;
+      return { w: control.w ?? FOOTPRINT.picker.w, h: FOOTPRINT.picker.h };
   }
 }
 

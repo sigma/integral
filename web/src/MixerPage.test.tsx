@@ -7,7 +7,8 @@ import { CELL } from "./synth-ui/grid";
 import type { UseMixerResult } from "./useMixer";
 import type { UseExpansionsResult } from "./useExpansions";
 import { defaultMixerState, type MixerState } from "./types";
-import { cleanup, render } from "./test/dom";
+import { cleanup, click, render } from "./test/dom";
+import { paramFormatter, paramMeta } from "./paramDefaults";
 
 // jsdom lacks the ResizeObserver the FX strips' EQ plot measures with.
 globalThis.ResizeObserver ??= class {
@@ -176,13 +177,26 @@ describe("MixerPage", () => {
     expect(setMixerField).toHaveBeenLastCalledWith(
       MixerScopeKind.Part, 4, MixerField.PartReceiveChannel, base.parts[4]!.receiveChannel + 1,
     );
-    stepUp(control(strip, MixerField.PartOutputAssign));
-    expect(setMixerField).toHaveBeenLastCalledWith(
-      MixerScopeKind.Part, 4, MixerField.PartOutputAssign, base.parts[4]!.outputAssign + 1,
-    );
     expect(value(control(strip, MixerField.PartLevel))).toBe(String(base.parts[4]!.level));
     press(el, "strip.part.4", MixerField.PartMute);
     expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Part, 4, MixerField.PartMute, 1);
+  });
+
+  it.each([
+    ["strip.part.4", MixerScopeKind.Part, 4, MixerField.PartOutputAssign],
+    ["strip.comp.1", MixerScopeKind.CompEqUnit, 1, MixerField.CompOutputAssign],
+  ] as const)("picks %s's output from core's names", (id, kind, index, field) => {
+    const { el, setMixerField } = loaded();
+    const picker = control(placed(el, id), field);
+    const name = paramFormatter(field);
+    const button = picker.querySelector("button")!;
+    expect(button.textContent).toBe(name(paramMeta(field).defaultValue));
+    click(button);
+    const options = [...document.querySelectorAll<HTMLElement>('[role="option"]')];
+    const { min, max } = paramMeta(field);
+    expect(options.map((o) => o.textContent)).toEqual(Array.from({ length: max - min + 1 }, (_, i) => name(min + i)));
+    click(options[2]!);
+    expect(setMixerField).toHaveBeenLastCalledWith(kind, index, field, min + 2);
   });
 
   it("solos a part through the Studio Set's Solo Part, and un-solos it", () => {
@@ -238,10 +252,6 @@ describe("MixerPage", () => {
     expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Ext, 0, MixerField.ExtMute, 1);
     expect(value(control(placed(el, "strip.master"), MixerField.MasterLevel))).toBe(String(base.masterLevel));
     const unit = placed(el, "strip.comp.5");
-    stepUp(control(unit, MixerField.CompOutputAssign));
-    expect(setMixerField).toHaveBeenLastCalledWith(
-      MixerScopeKind.CompEqUnit, 5, MixerField.CompOutputAssign, base.drumCompEq.outputAssigns[5]! + 1,
-    );
     stepUp(control(unit, MixerField.CompAttack));
     expect(setMixerField).toHaveBeenLastCalledWith(
       MixerScopeKind.CompEqUnit, 5, MixerField.CompAttack, base.drumCompEq.units[5]!.compAttack + 1,

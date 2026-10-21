@@ -1,5 +1,5 @@
 /**
- * A picker on the Grid, 6×1: the field's name, then its current option's in a
+ * A picker on the Grid, N×1 (6×1 by default): the field's name, then its current option's in a
  * button that opens a searchable list of the field's options (`SearchPopover`).
  * For fields with too many named values for an option list: a Wave, an Inst.
  */
@@ -30,7 +30,7 @@ export interface SynthPickerProps {
   box?: Px;
 }
 
-/** A picker, filling its 6×1 footprint at scale 1. */
+/** A picker, filling its footprint (`box`, or the default 6×1) at scale 1. */
 export function SynthPicker({ value, options, onChange, label, title = label, box }: SynthPickerProps) {
   const [open, setOpen] = useState(false);
   const anchor = useRef<HTMLButtonElement>(null);

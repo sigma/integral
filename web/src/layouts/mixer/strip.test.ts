@@ -66,6 +66,16 @@ describe("mixer strip", () => {
     expect([at(MixerField.PartMute).x, at(MixerField.SoloPart).x]).toEqual([0, 2]);
   });
 
+  it("draws every output assign as a picker that fits the strip", () => {
+    for (const kind of STRIP_SET.keys) {
+      for (const el of allElements(variantLayout(STRIP_SET, kind).items)) {
+        if (el.kind === "display" || !MixerField[el.field].endsWith("OutputAssign")) continue;
+        expect(el.kind, MixerField[el.field]).toBe("picker");
+        expect(itemRect(el).w).toBeLessThanOrEqual(STRIP_SET.w);
+      }
+    }
+  });
+
   it("draws the compressor's Displays across the strip", () => {
     for (const el of allElements(variantLayout(STRIP_SET, MixerScopeKind.CompEqUnit).items)) {
       if (el.kind === "display") expect(itemRect(el)).toMatchObject({ x: 0, w: STRIP_SET.w });

@@ -29,7 +29,10 @@ export const FOOTPRINT = {
   faderW: 2,
   /** Vertical option list: 2×N, one Cell row per option. */
   optionListW: 2,
-  /** Picker: its name, then the current option's, opening a searchable list. */
+  /**
+   * Picker: its name, then the current option's, opening a searchable list.
+   * N×1: a layout may pick another width (a mixer strip's output, 2 or 4).
+   */
   picker: { w: 6, h: 1 },
 } as const satisfies Record<string, Cells | number>;
 
