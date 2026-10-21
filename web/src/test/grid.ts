@@ -31,3 +31,10 @@ export function stackedHeight(els: Element[]): number {
 export function rootOf(container: HTMLElement): HTMLElement {
   return container.firstElementChild as HTMLElement;
 }
+
+/** The outer size of the first Grid Section in `container`, as `[width, height]`. */
+export function sectionSize(container: HTMLElement): string[] {
+  const root = container.querySelector<HTMLElement>("[data-grid-section]");
+  if (!root) throw new Error("no Grid Section");
+  return [root.style.width, root.style.height];
+}

@@ -1,0 +1,6 @@
+/* A line under a Control's readout, such as the tempo-sync toggle. */
+.addon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

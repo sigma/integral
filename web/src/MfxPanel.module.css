@@ -26,13 +26,6 @@
   flex: 1;
 }
 
-.mfxParamGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
-  gap: 4px;
-  justify-items: center;
-}
-
 /* Controls on the left, macros on the right; both fill the panel's height. */
 .columns {
   flex: 1;
@@ -60,11 +53,6 @@
 .mfxSends {
   display: flex;
   gap: 8px;
-  justify-content: center;
-}
-
-.mfxLevelFader {
-  display: flex;
   justify-content: center;
 }
 
@@ -135,22 +123,3 @@
   padding: 2px 3px;
   width: 85px;
 }
-
-/* ----------------------------------------------------------------
-   Custom layout: Compressor
-   ---------------------------------------------------------------- */
-
-/* Shared custom panel layout (used by Compressor, Chorus, etc.) */
-.customLayout {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.customRow {
-  display: flex;
-  gap: 6px;
-  align-items: flex-start;
-  justify-content: center;
-}
-

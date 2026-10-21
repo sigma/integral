@@ -33,7 +33,7 @@ export type {
   TitleEdge,
   VariantSet,
 } from "./types";
-export { enumFields, fxFields, mixerFields } from "./fields";
+export { enumFields, fxFields, fxParamDefs, fxTypes, isTwoState, mixerFields } from "./fields";
 export type { FieldKey, FieldSpace, FxBlock } from "./fields";
 export {
   DISPLAY_MIN_FOOTPRINT,
@@ -47,8 +47,10 @@ export {
   titleCells,
   variantLayout,
 } from "./geometry";
+export { MFX_LEVEL, MFX_SET } from "./fx/mfx";
+export { CHORUS_SET, REVERB_SET } from "./fx/strip";
 export { GridSection } from "./GridSection";
-export type { Binding, BindingOption, GridSectionProps } from "./GridSection";
+export type { Binding, BindingOption, GridSectionProps, SyncBinding } from "./GridSection";
 export { routeScreenArrow, routeSectionArrow } from "./routing";
 export type { DrawnArrow, Route } from "./routing";
 export { GridScreen } from "./GridScreen";

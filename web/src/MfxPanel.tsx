@@ -7,13 +7,11 @@ import {
   mfxHeaderFamily,
   mfx_type_names,
   mfx_control_targets,
-  mfx_params,
 } from "../pkg/integral_wasm.js";
 import type { WasmControlSource } from "../pkg/integral_wasm.js";
-import { SynthKnob, OutputStrip, ParametricEq, SectionPanel } from "./synth-ui";
-import type { EqBand, EqControl } from "./synth-ui";
-import { ParamControl, pairParams, type ParamLook, type SpecParam } from "./ParamControl";
-import { OUTPUT_PARAMS, itemParam, resolveSkin, type Skin } from "./mfxSkins";
+import { SynthKnob, SectionPanel } from "./synth-ui";
+import { GridSection, MFX_SET, variantLayout } from "./layouts";
+import { useFxBind } from "./fxBinding";
 import css from "./MfxPanel.module.css";
 import { deviceSpec } from "./deviceSpec";
 import type { MfxHandlers } from "./useMfxHandlers";
@@ -61,54 +59,6 @@ function getMfxControlSources(): WasmControlSource[] {
 }
 
 // ---------------------------------------------------------------------------
-// Spec-driven parameter panel
-// ---------------------------------------------------------------------------
-
-function useSpecParams(mfxType: number): SpecParam[] {
-  return useMemo(() => pairParams(mfx_params(mfxType)), [mfxType]);
-}
-
-interface SkinPanelProps {
-  skin: Skin;
-  params: SpecParam[];
-  slots: number[];
-  onNibParam: (slot: number, value: number) => void;
-}
-
-function SkinPanel({ skin, params, slots, onNibParam }: SkinPanelProps) {
-  const byName = new Map(params.map((p) => [p.def.name, p]));
-  const eqControl = (name: string): EqControl | undefined => {
-    const def = byName.get(name)?.def;
-    return def && {
-      value: slots[def.index] ?? def.defaultValue, min: def.min, max: def.max, defaultValue: def.defaultValue,
-      onChange: (v) => onNibParam(def.index, v), formatValue: (v) => def.formatValue(v),
-    };
-  };
-  const bands = (skin.eq ?? []).flatMap((b): EqBand[] => {
-    const gain = eqControl(b.gain), freq = eqControl(b.freq);
-    const family = byName.get(b.gain)?.def.family;
-    return gain && freq ? [{ label: b.label, family, gain, freq, q: b.q ? eqControl(b.q) : undefined }] : [];
-  });
-  return (
-    <div className={css.customLayout}>
-      {bands.length > 0 && <ParametricEq bands={bands} />}
-      {skin.rows.map((row, ri) => (
-        <div key={ri} className={css.customRow}>
-          {row.items.map((item) => {
-            const param = byName.get(itemParam(item));
-            if (!param) return null;
-            const look: ParamLook = typeof item === "string" ? {} : item;
-            return (
-              <ParamControl key={param.def.index} param={param} slots={slots} onNibParam={onNibParam} look={look} />
-            );
-          })}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Main MfxPanel component
 // ---------------------------------------------------------------------------
 
@@ -118,10 +68,9 @@ export function MfxPanel({
   onHeaderParam,
   onNibParam,
 }: Props) {
-  const params = useSpecParams(mfx.mfxType);
-  const skin = useMemo(() => resolveSkin(mfx.mfxType, params), [mfx.mfxType, params]);
+  const layout = useMemo(() => variantLayout(MFX_SET, mfx.mfxType), [mfx.mfxType]);
+  const bind = useFxBind("mfx", mfx.mfxType, mfx.params, onNibParam);
   const controlTargets = useMemo(() => mfx_control_targets(mfx.mfxType), [mfx.mfxType]);
-  const levelParamIndex = params.find((p) => OUTPUT_PARAMS.has(p.def.name))?.def.index ?? -1;
 
   return (
     <SectionPanel label="MFX" family={ParameterFamily.Common}>
@@ -141,24 +90,23 @@ export function MfxPanel({
             </select>
           </div>
 
-          {/* Spec-driven parameter panel, laid out by the type's skin */}
-          <SkinPanel skin={skin} params={params} slots={mfx.params} onNibParam={onNibParam} />
+          {/* The type's parameters, Level included, in the variant set's one footprint */}
+          <GridSection layout={layout} bind={bind} />
 
-          {/* Output section — sends + level, like a mixer channel strip */}
+          {/* Sends, like a mixer channel strip */}
           <div className={css.mfxOutput}>
-            <OutputStrip
-              fx1={mfx.chorusSend} fx2={mfx.reverbSend}
-              level={levelParamIndex >= 0 ? (mfx.params[levelParamIndex] ?? 127) : 127}
-              onFx1Change={(v) => onHeaderParam(MfxHeaderField.ChorusSend, 0, v)}
-              onFx2Change={(v) => onHeaderParam(MfxHeaderField.ReverbSend, 0, v)}
-              // shortcut: 0–127 literal ranges — MFX header fields have no core
-              // field_spec yet; swap for `mfx_header_spec` knobs when integral-core grows one.
-              fx1Spec={{ min: 0, max: 127, defaultValue: 0, formatValue: String, family: mfxHeaderFamily(MfxHeaderField.ChorusSend) }}
-              fx2Spec={{ min: 0, max: 127, defaultValue: 0, formatValue: String, family: mfxHeaderFamily(MfxHeaderField.ReverbSend) }}
-              levelSpec={{ min: 0, max: 127, defaultValue: 127 }}
-              onLevelChange={levelParamIndex >= 0 ? (v) => onNibParam(levelParamIndex, v) : () => {}}
-              trackHeight={250}
-            />
+            <div className={css.mfxSends}>
+              {/* shortcut: 0–127 literal ranges — MFX header fields have no core
+                  field_spec yet; swap for `mfx_header_spec` knobs when integral-core grows one. */}
+              <SynthKnob label="FX1" title="Chorus Send Level" value={mfx.chorusSend}
+                min={0} max={127} defaultValue={0} formatValue={String}
+                family={mfxHeaderFamily(MfxHeaderField.ChorusSend)}
+                onChange={(v) => onHeaderParam(MfxHeaderField.ChorusSend, 0, v)} />
+              <SynthKnob label="FX2" title="Reverb Send Level" value={mfx.reverbSend}
+                min={0} max={127} defaultValue={0} formatValue={String}
+                family={mfxHeaderFamily(MfxHeaderField.ReverbSend)}
+                onChange={(v) => onHeaderParam(MfxHeaderField.ReverbSend, 0, v)} />
+            </div>
           </div>
         </div>
 

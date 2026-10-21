@@ -6,8 +6,9 @@
  * empty, so its strip starts on the same row as the others.
  *
  * The Chorus and Reverb strips and the name plates are CSS Sections hosted in
- * whole-Cell placements: they hold no Grid Control (Chorus and Reverb move
- * onto the Grid with #360).
+ * whole-Cell placements. A Chorus or Reverb strip draws its parameters as a
+ * Grid Section of its type's variant set (`layouts/fx/strip.ts`), one column
+ * wide.
  */
 
 import { MixerScopeKind } from "../../../pkg/integral_wasm.js";
@@ -30,7 +31,7 @@ const NAME_H = sectionCells(NAME_FRAME).h;
 /** A column's height: EQ, strip and name. */
 const HEIGHT = EQ_H + STRIP_H + NAME_H;
 
-/** A Chorus or Reverb strip: a CSS Section filling a whole column, its unused title row included. */
+/** A Chorus or Reverb strip: a CSS Section filling a whole column, its unused title row included, around its Grid parameter Section. */
 export const FX_FRAME: SectionFrame = { title: "", titleEdge: "top", w: COLUMN, h: HEIGHT - 1 };
 
 /** What a placement on the mixer screen draws. */

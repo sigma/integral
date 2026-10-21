@@ -4,6 +4,7 @@ import { MfxHeaderField, mfx_params, mfxHeaderFamily } from "../pkg/integral_was
 import { familyVar } from "./synth-ui";
 import { MfxPanel, type MfxState } from "./MfxPanel";
 import { cleanup, render } from "./test/dom";
+import { sectionSize } from "./test/grid";
 
 afterEach(cleanup);
 
@@ -91,6 +92,55 @@ describe("MfxPanel params", () => {
     const ms = [...container.querySelectorAll("button")].find((b) => b.textContent === "ms");
     act(() => ms?.click());
     expect(onNibParam).toHaveBeenCalledWith(0, 0);
+  });
+});
+
+describe("MfxPanel layout", () => {
+  function draw(mfxType: number, params: number[] = []) {
+    const onNibParam = vi.fn();
+    const onHeaderParam = vi.fn();
+    const mfx: MfxState = { mfxType, chorusSend: 0, reverbSend: 0, controls: [], params };
+    const { container } = render(
+      <MfxPanel mfx={mfx} onTypeChange={vi.fn()} onHeaderParam={onHeaderParam} onNibParam={onNibParam} />,
+    );
+    return { container, onNibParam, onHeaderParam };
+  }
+
+  it("keeps one footprint whatever the type, hand or generated", () => {
+    // Thru, Equalizer (hand), Slicer (generated, most params), Delay (hand).
+    const sizes = [0, 1, 18, 34].map((t) => sectionSize(draw(t).container));
+    for (const s of sizes) expect(s).toEqual(sizes[0]);
+  });
+
+  it("places every parameter of a generated type", () => {
+    const { container } = draw(18);
+    for (const def of mfx_params(18)) {
+      expect(container.querySelector(`[data-field="${def.name}"]`), def.name).not.toBeNull();
+    }
+  });
+
+  it("writes the output Level from its fader in the parameter Section", () => {
+    const level = mfx_params(22).find((d) => d.name === "Level");
+    if (!level) throw new Error("no Level");
+    const params = Array<number>(32).fill(0);
+    params[level.index] = 100;
+    const { container, onNibParam } = draw(22, params);
+    const slider = container.querySelector<HTMLElement>('[data-field="Level"] [role="slider"]');
+    if (!slider) throw new Error("no Level fader");
+    act(() => {
+      slider.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+    });
+    expect(onNibParam).toHaveBeenCalledWith(level.index, 101);
+  });
+
+  it("keeps the Chorus and Reverb sends", () => {
+    const { container, onHeaderParam } = draw(22);
+    const send = container.querySelector<HTMLElement>('[title="Reverb Send Level"] [role="slider"]');
+    if (!send) throw new Error("no Reverb send");
+    act(() => {
+      send.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+    });
+    expect(onHeaderParam).toHaveBeenCalledWith(MfxHeaderField.ReverbSend, 0, 1);
   });
 });
 

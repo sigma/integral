@@ -5,6 +5,8 @@
  */
 
 import type { FieldKey } from "./fields";
+import { MFX_SET } from "./fx/mfx";
+import { CHORUS_SET, REVERB_SET } from "./fx/strip";
 import { EQ_LAYOUT } from "./mixer/eq";
 import { mixerScreen } from "./mixer/screen";
 import { STRIP_SET } from "./mixer/strip";
@@ -29,7 +31,7 @@ export const SECTION_LAYOUTS: readonly SectionLayout<FieldKey>[] = [
 ];
 
 /** Variant sets; the validator walks every key core enumerates. */
-export const VARIANT_SETS: readonly VariantSet<FieldKey, FieldKey>[] = [STRIP_SET];
+export const VARIANT_SETS: readonly VariantSet<FieldKey, FieldKey>[] = [STRIP_SET, MFX_SET, CHORUS_SET, REVERB_SET];
 
 /** Screen layouts; a function, as screens read the device spec from core. */
 export function screenLayouts(): readonly ScreenLayout[] {

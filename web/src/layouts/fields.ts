@@ -13,10 +13,13 @@ import {
   MixerField,
   MixerScopeKind,
   chorus_params,
+  chorus_type_names,
   mfx_params,
+  mfx_type_names,
   mixer_field_in_scope,
   mixer_field_spec,
   reverb_params,
+  reverb_type_names,
   type WasmFieldSpec,
   type WasmFxParamDef,
 } from "../../pkg/integral_wasm.js";
@@ -89,6 +92,11 @@ export function mixerFields(kinds: readonly MixerScopeKind[]): FieldSpace<MixerF
   );
 }
 
+/** Whether `field` takes exactly two values: a 2×1 switch can draw it. */
+export function isTwoState<F extends FieldKey>(space: FieldSpace<F>, field: F): boolean {
+  return space.optionCount(field) === 2;
+}
+
 /** An FX block whose params core lists per type. */
 export type FxBlock = "mfx" | "chorus" | "reverb";
 
@@ -98,9 +106,25 @@ const FX_PARAMS: Record<FxBlock, (type: number) => WasmFxParamDef[]> = {
   reverb: reverb_params,
 };
 
+const FX_TYPE_NAMES: Record<FxBlock, () => string[]> = {
+  mfx: mfx_type_names,
+  chorus: chorus_type_names,
+  reverb: reverb_type_names,
+};
+
+/** Every type of an FX block, as core enumerates them: `0..count`. */
+export function fxTypes(block: FxBlock): number[] {
+  return FX_TYPE_NAMES[block]().map((_, i) => i);
+}
+
+/** Core's param defs of one FX type, in its table's order. */
+export function fxParamDefs(block: FxBlock, type: number): WasmFxParamDef[] {
+  return FX_PARAMS[block](type);
+}
+
 /** The params of one FX type, named as core's generated table names them. */
 export function fxFields(block: FxBlock, type: number): FieldSpace<string> {
-  const defs = memo(() => new Map(FX_PARAMS[block](type).map((d) => [d.name, d])));
+  const defs = memo(() => new Map(fxParamDefs(block, type).map((d) => [d.name, d])));
   const ids = memo(() => [...defs().keys()]);
   return {
     name: `${block} type ${type}`,

@@ -7,6 +7,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import type { DisplayKind, ParameterFamily } from "../../pkg/integral_wasm.js";
+import { SyncToggle } from "../SyncToggle";
 import { SynthFader, SynthKnob, SynthSwitch, familyVar } from "../synth-ui";
 import { CELL, cellsPx, type Cells } from "../synth-ui/grid";
 import type { FieldKey } from "./fields";
@@ -22,6 +23,19 @@ export interface BindingOption {
   value: number;
   /** What the Control shows for it. */
   label: string;
+}
+
+/**
+ * A tempo-syncable parameter's free/note toggle, from core's sync info. The
+ * Control carries it; the layout knows nothing of it. Knobs and faders draw it.
+ */
+export interface SyncBinding {
+  /** Toggle labels from core, `[free, note]`. */
+  labels: readonly string[];
+  /** Whether the Control edits the note value now. */
+  noteMode: boolean;
+  /** Switches between the free value and the note. */
+  onChange: (noteMode: boolean) => void;
 }
 
 /** What a Control needs from its parameter, resolved by the caller for its Scope. */
@@ -46,6 +60,8 @@ export interface Binding {
   options?: readonly BindingOption[];
   /** Writes a new raw value. */
   onChange: (value: number) => void;
+  /** Tempo sync, when the parameter has it: the Control draws its toggle. */
+  sync?: SyncBinding;
 }
 
 /** Props of {@link GridSection}. */
@@ -85,6 +101,7 @@ function optionsOf(b: Binding): BindingOption[] {
 /** The Control for a layout entry and its binding, at its footprint. */
 function Control<F extends FieldKey>({ control: c, binding: b }: { control: ControlLayout<F>; binding: Binding }) {
   const label = c.label === false ? undefined : (c.label ?? b.name);
+  const addon = b.sync && <SyncToggle labels={b.sync.labels} noteMode={b.sync.noteMode} onChange={b.sync.onChange} />;
   switch (c.kind) {
     case "knob":
       return (
@@ -101,6 +118,7 @@ function Control<F extends FieldKey>({ control: c, binding: b }: { control: Cont
           family={b.family}
           formatValue={b.format}
           onChange={b.onChange}
+          addon={addon}
         />
       );
     case "fader":
@@ -116,6 +134,7 @@ function Control<F extends FieldKey>({ control: c, binding: b }: { control: Cont
           defaultValue={b.defaultValue}
           formatValue={b.format}
           onChange={b.onChange}
+          addon={addon}
         />
       );
     case "switch":

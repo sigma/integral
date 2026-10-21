@@ -57,6 +57,14 @@ describe("SynthKnob", () => {
     );
   });
 
+  it("makes room for an addon line inside its Grid footprint", () => {
+    const { container } = render(<SynthKnob {...knob} grid addon={<button>♪</button>} />);
+    const root = rootOf(container);
+    expectFillsFootprint(root, FOOTPRINT.knobSm);
+    expect(root.querySelector("button")?.textContent).toBe("♪");
+    expect(stackedHeight([...root.children])).toBeLessThanOrEqual(FOOTPRINT.knobSm.h * CELL);
+  });
+
   it("keeps a 7px name and a 9px readout on the Grid", () => {
     const { container } = render(<SynthKnob {...knob} grid />);
     const [name, readout] = [...container.querySelectorAll("span")];
