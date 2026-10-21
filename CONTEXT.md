@@ -161,7 +161,8 @@ covers a rectangle of whole Cells, its border and title included.
 _Avoid_: Box, panel
 
 **Control**:
-One interactive element (knob, switch, fader) bound to one parameter. It
+One interactive element (knob, switch, fader, picker) bound to one
+parameter. A picker chooses one of a parameter's named options from a list. It
 covers a rectangle of whole Cells and carries its own name and value readout.
 A Control is **inactive** when the device state makes its parameter
 irrelevant; it keeps its Cells, dimmed or hidden, and never reflows.
