@@ -76,7 +76,7 @@ flowchart LR
     PARTS --> MS_OR_FX
 
     MS_OR_FX --> AOUT["Analog Outputs<br/>(A/B/C/D)"]
-    PARTS --> USBOUT["USB Output L/R"]
+    MS_OR_FX --> USBOUT["USB Output L/R<br/>(same as A (MIX))"]
 ```
 
 ### Audio format
