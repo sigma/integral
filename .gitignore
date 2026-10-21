@@ -9,6 +9,8 @@
 # Node / Web
 node_modules/
 dist/
+# The web build the plugin embeds (`just build-web-plugin`).
+dist-plugin/
 .parcel-cache/
 
 # WASM build output

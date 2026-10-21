@@ -164,31 +164,25 @@ export class IntegraService {
    */
   private sentHooks: SentHook[] = [];
   private pendingRequests: PendingRequest[] = [];
-  private boundHandler: (event: MIDIMessageEvent) => void;
+  private unlisten: () => void;
   private drainTimer: ReturnType<typeof setInterval>;
 
   constructor(port: MidiPortPair, deviceId: number) {
     this.port = port;
     this.deviceId = deviceId;
     this.device = new WasmDeviceState(deviceId);
-    this.boundHandler = this.handleMidiMessage.bind(this);
-    // addEventListener does not open a MIDIPort; only setting onmidimessage
-    // does. Identification opens the pair first, but do not depend on it.
-    void this.port.input.open();
-    this.port.input.addEventListener(
-      "midimessage",
-      this.boundHandler as EventListener,
-    );
+    // Identification opens the pair first, but do not depend on it. A pair
+    // that fails to open now already answered identification, so a failure
+    // here only means sends go nowhere, as on an unplugged port.
+    this.port.open().catch(() => {});
+    this.unlisten = this.port.listen((data) => this.handleMidiMessage(data));
     // Poll Rust drain queue.
     this.drainTimer = setInterval(() => this.drainRust(), DRAIN_INTERVAL_MS);
   }
 
   destroy(): void {
     clearInterval(this.drainTimer);
-    this.port.input.removeEventListener(
-      "midimessage",
-      this.boundHandler as EventListener,
-    );
+    this.unlisten();
     this.dt1Listeners.clear();
     this.sentHooks = [];
     for (const req of this.pendingRequests) {
@@ -233,7 +227,7 @@ export class IntegraService {
         .map((b) => b.toString(16).padStart(2, "0"))
         .join(" ")}`,
     );
-    this.port.output.send(msg);
+    this.port.send(msg);
   }
 
   // -----------------------------------------------------------------------
@@ -309,9 +303,8 @@ export class IntegraService {
     return () => this.dt1Listeners.delete(callback);
   }
 
-  private handleMidiMessage(event: MIDIMessageEvent): void {
-    const raw = event.data;
-    if (!raw || raw.length < 14) return;
+  private handleMidiMessage(raw: Uint8Array): void {
+    if (raw.length < 14) return;
     if (raw[0] !== SYSEX_START) return;
 
     let parsed;
@@ -469,9 +462,8 @@ export class IntegraService {
         timeoutId = setTimeout(done, 3000);
       };
 
-      const handler = (event: MIDIMessageEvent) => {
-        const raw = event.data;
-        if (!raw || raw.length < 14 || raw[0] !== SYSEX_START) return;
+      const handler = (raw: Uint8Array) => {
+        if (raw.length < 14 || raw[0] !== SYSEX_START) return;
 
         let parsed;
         try {
@@ -496,14 +488,7 @@ export class IntegraService {
         resetTimeout();
       };
 
-      const cleanup = () => {
-        this.port.input.removeEventListener(
-          "midimessage",
-          handler as EventListener,
-        );
-      };
-
-      this.port.input.addEventListener("midimessage", handler as EventListener);
+      const cleanup = this.port.listen(handler);
 
       // Timeouts start once the request leaves the queue.
       const cancelSent = this.queueRaw("catalog", msg, () => {
@@ -543,9 +528,8 @@ export class IntegraService {
         timeoutId = setTimeout(done, 500);
       };
 
-      const handler = (event: MIDIMessageEvent) => {
-        const raw = event.data;
-        if (!raw || raw.length < 14 || raw[0] !== SYSEX_START) return;
+      const handler = (raw: Uint8Array) => {
+        if (raw.length < 14 || raw[0] !== SYSEX_START) return;
 
         let parsed;
         try {
@@ -575,14 +559,7 @@ export class IntegraService {
         resetTimeout();
       };
 
-      const cleanup = () => {
-        this.port.input.removeEventListener(
-          "midimessage",
-          handler as EventListener,
-        );
-      };
-
-      this.port.input.addEventListener("midimessage", handler as EventListener);
+      const cleanup = this.port.listen(handler);
 
       // Timeouts start once the request leaves the queue.
       const cancelSent = this.queueRaw(
@@ -994,7 +971,7 @@ export class IntegraService {
   // -----------------------------------------------------------------------
 
   sendNoteOn(channel: number, note: number, velocity: number): void {
-    this.port.output.send(
+    this.port.send(
       new Uint8Array([
         NOTE_ON | (channel & CHANNEL_MASK),
         note & DATA_MASK,
@@ -1004,7 +981,7 @@ export class IntegraService {
   }
 
   sendNoteOff(channel: number, note: number): void {
-    this.port.output.send(
+    this.port.send(
       new Uint8Array([
         NOTE_OFF | (channel & CHANNEL_MASK),
         note & DATA_MASK,
@@ -1015,7 +992,7 @@ export class IntegraService {
 
   /** Send a raw MIDI message at `timestamp` (`performance.now()` clock), or now if omitted. */
   sendMidi(bytes: number[], timestamp?: number): void {
-    this.port.output.send(bytes, timestamp);
+    this.port.send(bytes, timestamp);
   }
 }
 

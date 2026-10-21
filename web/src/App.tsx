@@ -1,14 +1,14 @@
 import { useEffect, useState, useCallback, useRef, useMemo, type ReactNode } from "react";
 import {
   initWasm,
-  requestMidiAccess,
-  getPairedPorts,
+  webMidi,
   findIntegraPort,
   findPortByName,
   identifyDevice,
   portMemory,
   browserStorage,
   type MidiPortPair,
+  type MidiPorts,
   type DeviceIdentity,
 } from "./midi";
 import { IntegraService } from "./integra";
@@ -72,20 +72,21 @@ function Lockable({ locked, children }: { locked: boolean; children: ReactNode }
 /** Where the app reaches MIDI and keeps state across page loads. Both are
  *  read once, on mount. */
 interface AppProps {
-  /** Grants MIDI access; the browser's Web MIDI by default. */
-  requestAccess?: () => Promise<MIDIAccess>;
+  /** Opens the transport's port list: the browser's Web MIDI by default,
+   *  the plugin transport inside the plugin (`main.tsx`). */
+  openPorts?: () => Promise<MidiPorts>;
   /** Keeps the last port across page loads; `localStorage` by default. */
   storage?: Storage | null;
 }
 
 /** The control surface: connects to a device, then shows its pages. */
 export function App({
-  requestAccess = requestMidiAccess,
+  openPorts = webMidi,
   storage = browserStorage(),
 }: AppProps = {}) {
-  const [{ memory, connect }] = useState(() => ({
+  const [{ memory, connectPorts }] = useState(() => ({
     memory: portMemory(storage),
-    connect: requestAccess,
+    connectPorts: openPorts,
   }));
   // The remembered port, while it has yet to appear and no port was chosen.
   const awaitedPortRef = useRef<string | null>(null);
@@ -94,7 +95,6 @@ export function App({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [status, setStatus] = useState<DeviceStatus>({ step: "idle" });
   const identifyGenRef = useRef(0);
-  const midiAccessRef = useRef<MIDIAccess | null>(null);
   const [sequencer, setSequencer] = useState<SequencerEngine | null>(null);
 
   const identify = useCallback(
@@ -135,19 +135,21 @@ export function App({
       // Load the Pattern before any device connects.
       setSequencer(sequencerEngine());
 
-      let access: MIDIAccess;
+      let access: MidiPorts;
       try {
-        access = await connect();
+        access = await connectPorts();
       } catch {
         if (!cancelled)
           setMidiError("Web MIDI API not available. Use Chrome or Edge.");
         return;
       }
-      if (cancelled) return;
+      if (cancelled) {
+        access.close?.();
+        return;
+      }
+      opened = access;
 
-      midiAccessRef.current = access;
-
-      const pairs = getPairedPorts(access);
+      const pairs = access.pairs();
       setPorts(pairs);
 
       // Reopening (a reloaded tab, a plugin editor the host recreated)
@@ -166,9 +168,9 @@ export function App({
       }
 
       // Monitor port connect/disconnect events.
-      access.onstatechange = () => {
+      stopWatching = access.onChange(() => {
         if (cancelled) return;
-        const updatedPairs = getPairedPorts(access);
+        const updatedPairs = access.pairs();
         setPorts(updatedPairs);
         const arrived = findPortByName(updatedPairs, awaitedPortRef.current);
         if (arrived) {
@@ -176,17 +178,18 @@ export function App({
           setSelectedId(arrived.id);
           identify(arrived);
         }
-      };
+      });
     }
 
+    let stopWatching: (() => void) | null = null;
+    let opened: MidiPorts | null = null;
     init();
     return () => {
       cancelled = true;
-      if (midiAccessRef.current) {
-        midiAccessRef.current.onstatechange = null;
-      }
+      stopWatching?.();
+      opened?.close?.();
     };
-  }, [connect, memory, identify]);
+  }, [connectPorts, memory, identify]);
 
   const handleSelect = useCallback(
     (portId: string) => {

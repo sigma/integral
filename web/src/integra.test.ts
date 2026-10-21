@@ -40,20 +40,28 @@ function catalogEntry(
   ]);
 }
 
-function fakePort(): MidiPortPair {
-  const input = Object.assign(new EventTarget(), { open: async () => input });
+/** A port pair whose sends go nowhere and that receives what `receive` hands it. */
+type FakePort = MidiPortPair & { receive(bytes: Uint8Array): void };
+
+function fakePort(): FakePort {
+  const listeners = new Set<(data: Uint8Array) => void>();
   return {
     id: "test",
     name: "test",
-    input,
-    output: { send: vi.fn() },
-  } as unknown as MidiPortPair;
+    open: async () => {},
+    send: vi.fn(),
+    listen(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    receive(bytes: Uint8Array) {
+      for (const l of [...listeners]) l(bytes);
+    },
+  };
 }
 
-function receive(port: MidiPortPair, bytes: Uint8Array): void {
-  port.input.dispatchEvent(
-    Object.assign(new Event("midimessage"), { data: bytes }),
-  );
+function receive(port: FakePort, bytes: Uint8Array): void {
+  port.receive(bytes);
 }
 
 describe("catalog reads", () => {

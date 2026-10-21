@@ -21,7 +21,7 @@ use integral_core::waves::WaveGroup;
 use nih_plug_vizia::vizia::prelude::*;
 
 use crate::SharedState;
-use crate::editor::{EditorEvent, PageTab};
+use crate::views::{EditorEvent, PageTab};
 
 use super::{SectionPanel, SectionPanelExt, SynthKnob, SynthKnobExt, SynthSwitch, WavePicker};
 

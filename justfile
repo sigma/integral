@@ -43,6 +43,14 @@ check-pwa: pack-wasm web-deps
     cd web && npx vite build --logLevel warn --outDir dist/check-root --emptyOutDir && node scripts/check-pwa-build.mjs dist/check-root /
     cd web && GITHUB_PAGES=true npx vite build --logLevel warn --outDir dist/check-pages --emptyOutDir && node scripts/check-pwa-build.mjs dist/check-pages /integral/
 
+# build the web app the plugin embeds (web/dist-plugin: no service worker, base /) and check it
+build-web-plugin: pack-wasm web-deps
+    cd web && npx vite build --mode plugin --logLevel warn --emptyOutDir && node scripts/check-plugin-build.mjs dist-plugin
+
+# build the plugin (VST3/CLAP library and integral-app) with its web UI embedded
+build-plugin: build-web-plugin
+    cargo build -p integral-vst --release
+
 # render the PWA icons from web/public/icon.svg (librsvg from the pinned nixpkgs)
 web-icons:
     cd web/public && for s in 192 512; do nix shell --quiet --inputs-from ../.. nixpkgs#librsvg -c rsvg-convert -w $s -h $s icon.svg -o pwa-$s.png; done
@@ -70,12 +78,12 @@ build-web: pack-wasm
     cd web && npx vite build
 
 # format, lint, build, and test — the full pre-commit check
-check: fmt-check lint lint-web lint-css build build-wasm test test-web check-pwa
+check: fmt-check lint lint-web lint-css build-web-plugin build build-wasm test test-web check-pwa
 
 # clean build artifacts
 clean:
     cargo clean
-    rm -rf web/dist web/pkg
+    rm -rf web/dist web/dist-plugin web/pkg
 
 # ping the INTEGRA-7 device
 ping *ARGS:
@@ -89,8 +97,8 @@ bridge *ARGS:
 monitor *ARGS:
     cargo run -p integral-cli -- monitor {{ARGS}}
 
-# run the standalone VST binary (native app with MIDI)
-run *ARGS:
+# run the standalone VST binary (native app with MIDI), web UI embedded
+run *ARGS: build-web-plugin
     cargo run -p integral-vst --bin integral-app --release -- {{ARGS}}
 
 # start the web dev server
