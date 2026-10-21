@@ -184,7 +184,8 @@ _Avoid_: Decoration, label (a Control's name belongs to the Control)
 **Zoom**:
 The one scale factor of a whole page: its Grid and everything else on the
 page. It fits the Grid's width to the width the page is given, rounded to
-the nearest 5%, and nothing reflows.
+the nearest 5%, but never drops below the Grid's drawn size: a wider Grid
+scrolls instead. Nothing reflows.
 _Avoid_: Breakpoint, responsive layout
 
 **Lane**:

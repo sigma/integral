@@ -3,7 +3,7 @@ import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CELL, cellsPx, zoomOf } from "../synth-ui/grid";
 import { cleanup, render } from "../test/dom";
-import { GridZoom, ZOOM_STEP, fitZoom, naturalSize, roundZoom } from "./zoom";
+import { GridZoom, MIN_ZOOM, ZOOM_STEP, fitZoom, naturalSize, roundZoom } from "./zoom";
 
 afterEach(() => {
   cleanup();
@@ -49,11 +49,20 @@ describe("roundZoom", () => {
 });
 
 describe("fitZoom", () => {
-  it("fits the available width, rounded to 5%", () => {
+  it("fits the available width, rounded down to a 5% step so it never overshoots", () => {
     expect(fitZoom(1000, 1000)).toBe(1);
     expect(fitZoom(1500, 1000)).toBe(1.5);
-    expect(fitZoom(1234, 1000)).toBe(1.25);
-    expect(fitZoom(640, 960)).toBe(0.65);
+    expect(fitZoom(1250, 1000)).toBe(1.25);
+    expect(fitZoom(1249, 1000)).toBe(1.2);
+    for (const available of [1001, 1234, 1399, 1440, 1999]) {
+      expect(fitZoom(available, 1000) * 1000).toBeLessThanOrEqual(available);
+    }
+  });
+  it("never shrinks below MIN_ZOOM: a wider Grid scrolls instead", () => {
+    expect(MIN_ZOOM).toBe(1);
+    expect(fitZoom(640, 960)).toBe(MIN_ZOOM);
+    // The PCM Synth editor (148 Cells, 3552px) in a 1440px laptop window.
+    expect(fitZoom(1440, 3552)).toBe(MIN_ZOOM);
   });
   it("stays at 1 until there is a width to fit", () => {
     expect(fitZoom(0, 960)).toBe(1);
@@ -96,14 +105,26 @@ describe("GridZoom", () => {
     expect(page.querySelector('[data-testid="css-section"]')).not.toBeNull();
   });
 
-  it("rescales in 5% steps when the window resizes", () => {
+  it("rescales in 5% steps when the window resizes, down to MIN_ZOOM", () => {
     const observer = stubResizeObserver();
     const width = { px: PAGE_PX };
     const page = mount(width);
     expect(page.style.zoom).toBe("1");
+    width.px = PAGE_PX * 1.26;
+    act(observer.resize);
+    expect(page.style.zoom).toBe("1.25");
     width.px = PAGE_PX * 0.86;
     act(observer.resize);
-    expect(page.style.zoom).toBe("0.85");
+    expect(page.style.zoom).toBe("1");
+  });
+
+  it("scrolls a Grid wider than the window at MIN_ZOOM instead of widening the page", () => {
+    stubResizeObserver();
+    const page = mount({ px: PAGE_PX / 2 });
+    expect(page.style.zoom).toBe(String(MIN_ZOOM));
+    const outer = page.parentElement!;
+    expect(outer.style.overflowX).toBe("auto");
+    expect(outer.style.minWidth).toBe("0px");
   });
 
   it("leaves the page's own layout at zoom 1", () => {

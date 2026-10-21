@@ -1,8 +1,10 @@
 /**
  * Uniform zoom of a Grid page (#329, #356). The page is laid out at zoom 1
  * and scaled as a whole: zoom fits the page's Grid width into the window
- * width, rounded to the nearest 5%. Nothing reflows and there are no
- * breakpoints.
+ * width, rounded down to a 5% step so it never overshoots, but never below
+ * {@link MIN_ZOOM}: a Grid wider than the window scrolls sideways instead of
+ * shrinking. Nothing
+ * reflows and there are no breakpoints.
  *
  * One {@link GridZoom} wraps each page that has a Grid, and it is the page
  * root. A Grid screen and any CSS Sections on the same page sit inside that
@@ -26,6 +28,13 @@ const STEPS = 20;
 /** The zoom grain: 5%. */
 export const ZOOM_STEP = 1 / STEPS;
 
+/**
+ * The smallest zoom a page is fitted to. At zoom 1 Control names are 7px and
+ * readouts 9px, the smallest the Grid was drawn for (#329, #354); below it a
+ * wide screen such as the PCM Synth editor becomes unreadable on a laptop.
+ */
+export const MIN_ZOOM = 1;
+
 /** `zoom` rounded to the nearest {@link ZOOM_STEP}, never below one step. */
 export function roundZoom(zoom: number): number {
   return Math.max(1, Math.round(zoom * STEPS)) / STEPS;
@@ -33,11 +42,15 @@ export function roundZoom(zoom: number): number {
 
 /**
  * The zoom that fits `naturalPx` (the Grid's width at zoom 1) into
- * `availablePx`, rounded to 5%. It is 1 while either width is unknown (0).
+ * `availablePx`: rounded down to a 5% step, so the Grid is never wider than
+ * the space it is given, and floored at {@link MIN_ZOOM}. It is 1 while
+ * either width is unknown (0).
  */
 export function fitZoom(availablePx: number, naturalPx: number): number {
   if (availablePx <= 0 || naturalPx <= 0) return 1;
-  return roundZoom(availablePx / naturalPx);
+  // The epsilon keeps an exact fit (e.g. 1.25) from flooring a step down on float error.
+  const steps = Math.floor((availablePx / naturalPx) * STEPS + 1e-9);
+  return Math.max(MIN_ZOOM, steps / STEPS);
 }
 
 /** A Grid's size at zoom 1, in Cells and in px. */
@@ -91,15 +104,15 @@ export interface GridZoomProps {
  * given. The outer element takes the available width unscaled and is what is
  * measured; the inner element carries the zoom and is the Grid's width at
  * zoom 1, so CSS Sections lay out in that width whatever the window is.
- * Rounding to the nearest step can overshoot the width by up to 2.5%, which
- * the window scrolls sideways; nothing clips it, so popovers inside still
- * overflow freely.
+ * The outer element scrolls sideways when the Grid is wider than it even at
+ * {@link MIN_ZOOM}, so the page around it keeps the window's width and
+ * nothing is cut off.
  */
 export function GridZoom({ cells, children }: GridZoomProps) {
   const { width } = naturalSize(cells).px;
   const { ref, zoom } = useFitZoom<HTMLDivElement>(width);
   return (
-    <div ref={ref} style={{ width: "100%" }}>
+    <div ref={ref} style={{ width: "100%", minWidth: 0, overflowX: "auto" }}>
       <div data-grid-zoom={zoom} style={{ zoom, width }}>
         {children}
       </div>
