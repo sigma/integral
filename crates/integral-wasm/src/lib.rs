@@ -44,17 +44,6 @@ fn check_partial(partial: u8, max: u8) -> Result<(), JsError> {
     }
 }
 
-/// Validate a Comp+EQ unit index (0–5).
-fn check_comp_eq_unit(unit: u8) -> Result<(), JsError> {
-    if unit > 5 {
-        Err(JsError::new(&format!(
-            "comp+eq unit {unit} out of range (0–5)"
-        )))
-    } else {
-        Ok(())
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Identity
 // ---------------------------------------------------------------------------
@@ -1186,54 +1175,6 @@ mirror_core_enum!(SndNoteField <=> sn_drum::SndNoteField {
     OutputAssign,
 });
 
-/// A Motional Surround common field (mirrors [`params::SurroundField`]).
-#[wasm_bindgen]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SurroundField {
-    /// See [`params::SurroundField::Switch`].
-    Switch,
-    /// See [`params::SurroundField::RoomType`].
-    RoomType,
-    /// See [`params::SurroundField::AmbienceLevel`].
-    AmbienceLevel,
-    /// See [`params::SurroundField::RoomSize`].
-    RoomSize,
-    /// See [`params::SurroundField::AmbienceTime`].
-    AmbienceTime,
-    /// See [`params::SurroundField::AmbienceDensity`].
-    AmbienceDensity,
-    /// See [`params::SurroundField::AmbienceHfDamp`].
-    AmbienceHfDamp,
-    /// See [`params::SurroundField::ExtPartLr`].
-    ExtPartLr,
-    /// See [`params::SurroundField::ExtPartFb`].
-    ExtPartFb,
-    /// See [`params::SurroundField::ExtPartWidth`].
-    ExtPartWidth,
-    /// See [`params::SurroundField::ExtPartAmbienceSend`].
-    ExtPartAmbienceSend,
-    /// See [`params::SurroundField::ExtPartControlChannel`].
-    ExtPartControlChannel,
-    /// See [`params::SurroundField::Depth`].
-    Depth,
-}
-
-mirror_core_enum!(SurroundField <=> params::SurroundField {
-    Switch,
-    RoomType,
-    AmbienceLevel,
-    RoomSize,
-    AmbienceTime,
-    AmbienceDensity,
-    AmbienceHfDamp,
-    ExtPartLr,
-    ExtPartFb,
-    ExtPartWidth,
-    ExtPartAmbienceSend,
-    ExtPartControlChannel,
-    Depth,
-});
-
 /// An index-free mixer parameter; a scope supplies its indices (mirrors [`param_registry::MixerField`]).
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1252,8 +1193,6 @@ pub enum MixerField {
     PartOutputAssign,
     /// See [`param_registry::MixerField::PartReceiveChannel`].
     PartReceiveChannel,
-    /// See [`param_registry::MixerField::PartAmbienceSend`].
-    PartAmbienceSend,
     /// See [`param_registry::MixerField::MasterLevel`].
     MasterLevel,
     /// See [`param_registry::MixerField::ExtLevel`].
@@ -1314,6 +1253,30 @@ pub enum MixerField {
     CompOutputGain,
     /// See [`param_registry::MixerField::CompOutputAssign`].
     CompOutputAssign,
+    /// See [`param_registry::MixerField::SurroundSwitch`].
+    SurroundSwitch,
+    /// See [`param_registry::MixerField::SurroundRoomType`].
+    SurroundRoomType,
+    /// See [`param_registry::MixerField::SurroundRoomSize`].
+    SurroundRoomSize,
+    /// See [`param_registry::MixerField::SurroundDepth`].
+    SurroundDepth,
+    /// See [`param_registry::MixerField::SurroundAmbienceLevel`].
+    SurroundAmbienceLevel,
+    /// See [`param_registry::MixerField::SurroundAmbienceTime`].
+    SurroundAmbienceTime,
+    /// See [`param_registry::MixerField::SurroundAmbienceDensity`].
+    SurroundAmbienceDensity,
+    /// See [`param_registry::MixerField::SurroundAmbienceHfDamp`].
+    SurroundAmbienceHfDamp,
+    /// See [`param_registry::MixerField::SurroundLr`].
+    SurroundLr,
+    /// See [`param_registry::MixerField::SurroundFb`].
+    SurroundFb,
+    /// See [`param_registry::MixerField::SurroundWidth`].
+    SurroundWidth,
+    /// See [`param_registry::MixerField::SurroundAmbienceSend`].
+    SurroundAmbienceSend,
 }
 
 mirror_core_enum!(MixerField <=> param_registry::MixerField {
@@ -1324,7 +1287,6 @@ mirror_core_enum!(MixerField <=> param_registry::MixerField {
     PartReverbSend,
     PartOutputAssign,
     PartReceiveChannel,
-    PartAmbienceSend,
     MasterLevel,
     ExtLevel,
     ExtMute,
@@ -1355,6 +1317,18 @@ mirror_core_enum!(MixerField <=> param_registry::MixerField {
     CompRatio,
     CompOutputGain,
     CompOutputAssign,
+    SurroundSwitch,
+    SurroundRoomType,
+    SurroundRoomSize,
+    SurroundDepth,
+    SurroundAmbienceLevel,
+    SurroundAmbienceTime,
+    SurroundAmbienceDensity,
+    SurroundAmbienceHfDamp,
+    SurroundLr,
+    SurroundFb,
+    SurroundWidth,
+    SurroundAmbienceSend,
 });
 
 /// The kind of scope a mixer field is used in (mirrors [`param_registry::MixerScopeKind`]).
@@ -2558,13 +2532,6 @@ impl WasmDeviceState {
         Ok(())
     }
 
-    #[wasm_bindgen(js_name = togglePartMute)]
-    pub fn toggle_part_mute(&mut self, part: u8) -> Result<(), JsError> {
-        check_part(part)?;
-        self.inner.toggle_part_mute(part);
-        Ok(())
-    }
-
     #[wasm_bindgen(js_name = setPartChorusSend)]
     pub fn set_part_chorus_send(&mut self, part: u8, value: u8) -> Result<(), JsError> {
         check_part(part)?;
@@ -2583,14 +2550,6 @@ impl WasmDeviceState {
     pub fn set_part_receive_channel(&mut self, part: u8, channel: u8) -> Result<(), JsError> {
         check_part(part)?;
         self.inner.set_part_receive_channel(part, channel);
-        Ok(())
-    }
-
-    /// Set a part's output assign (0=A, 1=B, 2=C, 3=D, 4–11=1–8).
-    #[wasm_bindgen(js_name = setPartOutputAssign)]
-    pub fn set_part_output_assign(&mut self, part: u8, value: u8) -> Result<(), JsError> {
-        check_part(part)?;
-        self.inner.set_part_output_assign(part, value);
         Ok(())
     }
 
@@ -2690,16 +2649,6 @@ impl WasmDeviceState {
         self.inner.switch_studio_set(pc);
     }
 
-    #[wasm_bindgen(js_name = toggleSolo)]
-    pub fn toggle_solo(&mut self, part: u8) {
-        self.inner.toggle_solo(part);
-    }
-
-    #[wasm_bindgen(js_name = setSoloPart)]
-    pub fn set_solo_part(&mut self, value: u8) {
-        self.inner.set_solo_part(value);
-    }
-
     // -- Preview -------------------------------------------------------------
 
     /// Start phrase preview on the given part (1–16).
@@ -2721,71 +2670,6 @@ impl WasmDeviceState {
     }
 
     // -- Direct state mutation (for load responses) ------------------------
-
-    // -- Drum Comp+EQ --------------------------------------------------
-
-    #[wasm_bindgen(js_name = setDrumCompEqSwitch)]
-    pub fn set_drum_comp_eq_switch(&mut self, enabled: bool) {
-        self.inner.set_drum_comp_eq_switch(enabled);
-    }
-
-    #[wasm_bindgen(js_name = setDrumCompEqPart)]
-    pub fn set_drum_comp_eq_part(&mut self, part: u8) {
-        self.inner.set_drum_comp_eq_part(part);
-    }
-
-    #[wasm_bindgen(js_name = setDrumCompEqOutputAssign)]
-    pub fn set_drum_comp_eq_output_assign(&mut self, unit: u8, value: u8) -> Result<(), JsError> {
-        check_comp_eq_unit(unit)?;
-        self.inner.set_drum_comp_eq_output_assign(unit, value);
-        Ok(())
-    }
-
-    // -- Motional Surround -------------------------------------------------
-
-    /// Set a Motional Surround common field.
-    #[wasm_bindgen(js_name = setSurroundParam)]
-    pub fn set_surround_param(&mut self, field: SurroundField, value: u8) {
-        self.inner.set_surround_param(field.into(), value);
-    }
-
-    #[wasm_bindgen(js_name = setPartSurroundLr)]
-    pub fn set_part_surround_lr(&mut self, part: u8, value: u8) -> Result<(), JsError> {
-        check_part(part)?;
-        self.inner
-            .set_part_surround_param(part, integral_core::params::part_surround::LR, value);
-        Ok(())
-    }
-
-    #[wasm_bindgen(js_name = setPartSurroundFb)]
-    pub fn set_part_surround_fb(&mut self, part: u8, value: u8) -> Result<(), JsError> {
-        check_part(part)?;
-        self.inner
-            .set_part_surround_param(part, integral_core::params::part_surround::FB, value);
-        Ok(())
-    }
-
-    #[wasm_bindgen(js_name = setPartSurroundWidth)]
-    pub fn set_part_surround_width(&mut self, part: u8, value: u8) -> Result<(), JsError> {
-        check_part(part)?;
-        self.inner.set_part_surround_param(
-            part,
-            integral_core::params::part_surround::WIDTH,
-            value,
-        );
-        Ok(())
-    }
-
-    #[wasm_bindgen(js_name = setPartSurroundAmbienceSend)]
-    pub fn set_part_surround_ambience_send(&mut self, part: u8, value: u8) -> Result<(), JsError> {
-        check_part(part)?;
-        self.inner.set_part_surround_param(
-            part,
-            integral_core::params::part_surround::AMBIENCE_SEND,
-            value,
-        );
-        Ok(())
-    }
 
     // -- SN-S Tone Edit ----------------------------------------------------
 

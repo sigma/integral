@@ -40,7 +40,7 @@ use crate::pcm_synth::{PcmsCommonField, PcmsPartialField, PcmsPmtField};
 use crate::sn_acoustic::SnaCommonField;
 use crate::sn_drum::{SndCommonField, SndNoteField};
 use crate::sn_synth::{SnSynthTone, SnSynthToneBlocks, SnsBlock, SnsCommonField, SnsPartialField};
-use crate::state::{EqState, MixerState};
+use crate::state::{EqState, MixerState, SurroundPartState};
 use crate::sysex;
 
 /// Minimum interval between SysEx sends (ms).
@@ -113,9 +113,6 @@ fn mixer_slot(state: &mut MixerState, scope: MixerScope, field: MixerField) -> O
     Some(match scope {
         MixerScope::Part(part) => {
             let part = usize::from(part);
-            if field == F::PartAmbienceSend {
-                return Some(Byte(&mut state.surround.parts[part].ambience_send));
-            }
             let p = &mut state.parts[part];
             match field {
                 F::PartLevel => Byte(&mut p.level),
@@ -125,13 +122,16 @@ fn mixer_slot(state: &mut MixerState, scope: MixerScope, field: MixerField) -> O
                 F::PartReverbSend => Byte(&mut p.reverb_send),
                 F::PartOutputAssign => Byte(&mut p.output_assign),
                 F::PartReceiveChannel => Byte(&mut p.receive_channel),
+                F::SurroundLr | F::SurroundFb | F::SurroundWidth | F::SurroundAmbienceSend => {
+                    surround_slot(&mut state.surround.parts[part], field)?
+                }
                 _ => eq_slot(&mut p.eq, field)?,
             }
         }
         MixerScope::Ext => match field {
             F::ExtLevel => Byte(&mut state.ext_level),
             F::ExtMute => Flag(&mut state.ext_muted),
-            _ => return None,
+            _ => surround_slot(&mut state.surround.ext, field)?,
         },
         MixerScope::Master => match field {
             F::MasterLevel => Byte(&mut state.master_level),
@@ -174,9 +174,30 @@ fn mixer_slot(state: &mut MixerState, scope: MixerScope, field: MixerField) -> O
             F::SoloPart => Byte(&mut state.solo_part),
             F::DrumCompEqSwitch => Flag(&mut state.drum_comp_eq.enabled),
             F::DrumCompEqPart => Byte(&mut state.drum_comp_eq.part),
+            F::SurroundSwitch => Flag(&mut state.surround.enabled),
+            F::SurroundRoomType => Byte(&mut state.surround.room_type),
+            F::SurroundRoomSize => Byte(&mut state.surround.room_size),
+            F::SurroundDepth => Byte(&mut state.surround.depth),
+            F::SurroundAmbienceLevel => Byte(&mut state.surround.ambience_level),
+            F::SurroundAmbienceTime => Byte(&mut state.surround.ambience_time),
+            F::SurroundAmbienceDensity => Byte(&mut state.surround.ambience_density),
+            F::SurroundAmbienceHfDamp => Byte(&mut state.surround.ambience_hf_damp),
             _ => return None,
         },
     })
+}
+
+/// The [`SurroundPartState`] value a part's (or the Ext Part's) surround
+/// field writes.
+fn surround_slot(position: &mut SurroundPartState, field: MixerField) -> Option<Slot<'_>> {
+    use MixerField as F;
+    Some(Slot::Byte(match field {
+        F::SurroundLr => &mut position.lr,
+        F::SurroundFb => &mut position.fb,
+        F::SurroundWidth => &mut position.width,
+        F::SurroundAmbienceSend => &mut position.ambience_send,
+        _ => return None,
+    }))
 }
 
 /// The [`EqState`] value an EQ field writes.
@@ -1291,54 +1312,6 @@ impl DeviceState {
     }
 
     // -----------------------------------------------------------------------
-    // Motional Surround
-    // -----------------------------------------------------------------------
-
-    /// Set a Motional Surround common field.
-    pub fn set_surround_param(&mut self, field: params::SurroundField, value: u8) {
-        use params::SurroundField as F;
-        let s = &mut self.state.surround;
-        match field {
-            F::Switch => s.enabled = value == 1,
-            F::RoomType => s.room_type = value,
-            F::AmbienceLevel => s.ambience_level = value,
-            F::RoomSize => s.room_size = value,
-            F::AmbienceTime => s.ambience_time = value,
-            F::AmbienceDensity => s.ambience_density = value,
-            F::AmbienceHfDamp => s.ambience_hf_damp = value,
-            F::ExtPartLr => s.ext.lr = value,
-            F::ExtPartFb => s.ext.fb = value,
-            F::ExtPartWidth => s.ext.width = value,
-            F::ExtPartAmbienceSend => s.ext.ambience_send = value,
-            F::ExtPartControlChannel => s.ext_control_channel = value,
-            F::Depth => s.depth = value,
-        }
-        let addr = params::surround_address(field as u8);
-        self.send_dt1(&addr, &field.encode(value.into()));
-    }
-
-    /// Set a per-part surround parameter.
-    ///
-    /// # Panics
-    /// Debug-asserts that `part_idx` < 16.
-    pub fn set_part_surround_param(&mut self, part_idx: u8, param: [u8; 3], value: u8) {
-        debug_assert!(
-            part_idx < Self::NUM_PARTS,
-            "part index {part_idx} out of range"
-        );
-        let ps = &mut self.state.surround.parts[part_idx as usize];
-        match param {
-            params::part_surround::LR => ps.lr = value,
-            params::part_surround::FB => ps.fb = value,
-            params::part_surround::WIDTH => ps.width = value,
-            params::part_surround::AMBIENCE_SEND => ps.ambience_send = value,
-            _ => return,
-        }
-        let addr = params::part_address(part_idx, param);
-        self.send_dt1(&addr, &[value]);
-    }
-
-    // -----------------------------------------------------------------------
     // Drum Comp+EQ
     // -----------------------------------------------------------------------
 
@@ -1472,6 +1445,30 @@ mod tests {
     use crate::sn_synth;
 
     #[test]
+    fn set_mixer_field_writes_part_and_ext_surround() {
+        let mut dev = DeviceState::new(0x10);
+        let part = dev.mixer_scope(MixerScopeKind::Part, 3);
+        dev.set_mixer_field(part, MixerField::SurroundWidth, 20)
+            .unwrap();
+        assert_eq!(dev.state().surround.parts[3].width, 20);
+        let expected = sysex::build_dt1(
+            0x10,
+            &params::part_address(3, params::part_surround::WIDTH),
+            &[20],
+        );
+        assert_eq!(dev.drain(0.0), Some(expected));
+
+        let ext = dev.mixer_scope(MixerScopeKind::Ext, 0);
+        dev.set_mixer_field(ext, MixerField::SurroundLr, 10)
+            .unwrap();
+        assert_eq!(dev.state().surround.ext.lr, 10);
+        let common = dev.mixer_scope(MixerScopeKind::Common, 0);
+        dev.set_mixer_field(common, MixerField::SurroundSwitch, 1)
+            .unwrap();
+        assert!(dev.state().surround.enabled);
+    }
+
+    #[test]
     fn set_mixer_field_writes_part_eq() {
         let mut dev = DeviceState::new(0x10);
         let scope = dev.mixer_scope(MixerScopeKind::Part, 4);
@@ -1490,7 +1487,7 @@ mod tests {
     fn set_mixer_field_writes_the_strip_fields_outside_their_blocks() {
         let mut dev = DeviceState::new(0x10);
         let part = dev.mixer_scope(MixerScopeKind::Part, 5);
-        dev.set_mixer_field(part, MixerField::PartAmbienceSend, 90)
+        dev.set_mixer_field(part, MixerField::SurroundAmbienceSend, 90)
             .unwrap();
         assert_eq!(dev.state().surround.parts[5].ambience_send, 90);
         let unit = dev.mixer_scope(MixerScopeKind::CompEqUnit, 2);
@@ -1551,7 +1548,7 @@ mod tests {
     fn typed_setters_agree_with_mixer_field_addresses() {
         type Set = fn(&mut DeviceState);
         let unit = DeviceState::new(0x10).mixer_scope(MixerScopeKind::CompEqUnit, 4);
-        let cases: [(Set, MixerScope, MixerField); 17] = [
+        let cases: [(Set, MixerScope, MixerField); 16] = [
             (
                 |d| d.set_part_level(2, 1),
                 MixerScope::Part(2),
@@ -1626,11 +1623,6 @@ mod tests {
                 |d| d.set_drum_comp_eq_switch(true),
                 MixerScope::Common,
                 MixerField::DrumCompEqSwitch,
-            ),
-            (
-                |d| d.set_part_surround_param(2, params::part_surround::AMBIENCE_SEND, 1),
-                MixerScope::Part(2),
-                MixerField::PartAmbienceSend,
             ),
             (
                 |d| d.set_drum_comp_eq_output_assign(4, 1),
@@ -2236,9 +2228,11 @@ mod tests {
     }
 
     #[test]
-    fn set_surround_param_updates_state_and_writes_the_field() {
+    fn set_mixer_field_writes_surround_common() {
         let mut dev = DeviceState::new(0x10);
-        dev.set_surround_param(params::SurroundField::Depth, 80);
+        let common = dev.mixer_scope(MixerScopeKind::Common, 0);
+        dev.set_mixer_field(common, MixerField::SurroundDepth, 80)
+            .unwrap();
         assert_eq!(dev.state().surround.depth, 80);
         // Motional Surround at `18 00 08 00`, Depth at `00 0C`.
         assert_eq!(

@@ -126,7 +126,7 @@ export function stripValue(state: MixerState, scope: StripScope, field: MixerFie
   const found = ((): number | boolean | undefined => {
     switch (kind) {
       case MixerScopeKind.Part: {
-        if (field === MixerField.PartAmbienceSend) return state.surround.parts[index]?.ambienceSend;
+        if (field === MixerField.SurroundAmbienceSend) return state.surround.parts[index]?.ambienceSend;
         if (field === MixerField.SoloPart) return state.soloPart === index + 1;
         if (field === MixerField.DrumCompEqPart) return state.drumCompEq.enabled && state.drumCompEq.part === index;
         const key = PART_STATE_KEY[field];

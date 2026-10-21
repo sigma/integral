@@ -16,7 +16,7 @@ use crate::address::Address;
 use crate::device_spec::{INTEGRA7, MIDI_CHANNELS};
 use crate::family::ParameterFamily;
 use crate::params::{self, ToneType};
-use crate::state::{CompEqUnit, DrumCompEqState, EqState, SurroundPartState};
+use crate::state::{CompEqUnit, DrumCompEqState, EqState, SurroundPartState, SurroundState};
 
 /// How a parameter value should be displayed.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,6 +88,9 @@ pub enum ParamGroup {
     Eq,
     /// Compressor of a Drum Comp+EQ unit, shared by all units.
     Comp,
+    /// Motional Surround: its common block, and each part's (and the Ext
+    /// Part's) position.
+    Surround,
     /// Global / top-level.
     Global,
 }
@@ -223,9 +226,6 @@ pub enum MixerField {
     PartOutputAssign,
     /// Part receive channel (0–15 = MIDI channel 1–16).
     PartReceiveChannel,
-    /// Part Motional Surround ambience send level (0–127), drawn in place
-    /// of the FX sends while surround is on.
-    PartAmbienceSend,
     /// System master level (0–127).
     MasterLevel,
     /// External input level (0–127).
@@ -290,11 +290,36 @@ pub enum MixerField {
     /// output assigns). It sits in the Studio Set common block, one byte
     /// per unit, not in the kit.
     CompOutputAssign,
+    /// Motional Surround switch (0 = OFF, 1 = ON).
+    SurroundSwitch,
+    /// Motional Surround room type (an index into the device's room types).
+    SurroundRoomType,
+    /// Motional Surround room size (an index into the device's room sizes).
+    SurroundRoomSize,
+    /// Motional Surround depth (0–100).
+    SurroundDepth,
+    /// Motional Surround ambience level (0–127).
+    SurroundAmbienceLevel,
+    /// Motional Surround ambience time (0–100).
+    SurroundAmbienceTime,
+    /// Motional Surround ambience density (0–100).
+    SurroundAmbienceDensity,
+    /// Motional Surround ambience HF damp (0–100).
+    SurroundAmbienceHfDamp,
+    /// Surround L-R position of a part or the Ext Part (0–127, 64 = centre).
+    SurroundLr,
+    /// Surround F-B position of a part or the Ext Part (0–127, 64 = centre).
+    SurroundFb,
+    /// Surround width of a part or the Ext Part (0–32).
+    SurroundWidth,
+    /// Surround ambience send level of a part or the Ext Part (0–127),
+    /// drawn in place of a part's FX sends while surround is on.
+    SurroundAmbienceSend,
 }
 
 impl MixerField {
     /// Every mixer field, in registry order.
-    pub const ALL: [MixerField; 38] = [
+    pub const ALL: [MixerField; 49] = [
         Self::PartLevel,
         Self::PartPan,
         Self::PartMute,
@@ -302,7 +327,6 @@ impl MixerField {
         Self::PartReverbSend,
         Self::PartOutputAssign,
         Self::PartReceiveChannel,
-        Self::PartAmbienceSend,
         Self::MasterLevel,
         Self::ExtLevel,
         Self::ExtMute,
@@ -333,12 +357,28 @@ impl MixerField {
         Self::CompRatio,
         Self::CompOutputGain,
         Self::CompOutputAssign,
+        Self::SurroundSwitch,
+        Self::SurroundRoomType,
+        Self::SurroundRoomSize,
+        Self::SurroundDepth,
+        Self::SurroundAmbienceLevel,
+        Self::SurroundAmbienceTime,
+        Self::SurroundAmbienceDensity,
+        Self::SurroundAmbienceHfDamp,
+        Self::SurroundLr,
+        Self::SurroundFb,
+        Self::SurroundWidth,
+        Self::SurroundAmbienceSend,
     ];
 
     /// Whether the field exists in a scope of this kind.
     pub fn in_scope(self, kind: MixerScopeKind) -> bool {
         match kind {
-            MixerScopeKind::Part => part_offset(self).is_some() || part_eq_offset(self).is_some(),
+            MixerScopeKind::Part => {
+                part_offset(self).is_some()
+                    || part_eq_offset(self).is_some()
+                    || part_surround_offset(self).is_some()
+            }
             MixerScopeKind::Ext => ext_address(self).is_some(),
             MixerScopeKind::Master => {
                 self == Self::MasterLevel || master_eq_address(self).is_some()
@@ -362,7 +402,8 @@ pub enum MixerScopeKind {
     Master,
     /// A Drum Comp+EQ unit.
     CompEqUnit,
-    /// The Studio Set common block: Chorus, Reverb and Solo Part.
+    /// The Studio Set common block: Chorus, Reverb, Solo Part and Motional
+    /// Surround.
     Common,
 }
 
@@ -441,9 +482,49 @@ fn part_offset(field: MixerField) -> Option<[u8; 3]> {
         F::PartReverbSend => part::REVERB_SEND,
         F::PartOutputAssign => part::OUTPUT_ASSIGN,
         F::PartReceiveChannel => part::RECEIVE_CHANNEL,
-        F::PartAmbienceSend => params::part_surround::AMBIENCE_SEND,
         _ => return None,
     })
+}
+
+/// The surround field's offset in a Studio Set Part block.
+fn part_surround_offset(field: MixerField) -> Option<[u8; 3]> {
+    use MixerField as F;
+    use params::part_surround;
+    Some(match field {
+        F::SurroundLr => part_surround::LR,
+        F::SurroundFb => part_surround::FB,
+        F::SurroundWidth => part_surround::WIDTH,
+        F::SurroundAmbienceSend => part_surround::AMBIENCE_SEND,
+        _ => return None,
+    })
+}
+
+/// The Motional Surround common field a mixer field is, if any. The Ext
+/// Part's position lives in that block too, so the Ext scope reads it here.
+fn surround_field(field: MixerField, scope: MixerScopeKind) -> Option<params::SurroundField> {
+    use MixerField as F;
+    use MixerScopeKind as K;
+    use params::SurroundField as S;
+    Some(match (scope, field) {
+        (K::Common, F::SurroundSwitch) => S::Switch,
+        (K::Common, F::SurroundRoomType) => S::RoomType,
+        (K::Common, F::SurroundRoomSize) => S::RoomSize,
+        (K::Common, F::SurroundDepth) => S::Depth,
+        (K::Common, F::SurroundAmbienceLevel) => S::AmbienceLevel,
+        (K::Common, F::SurroundAmbienceTime) => S::AmbienceTime,
+        (K::Common, F::SurroundAmbienceDensity) => S::AmbienceDensity,
+        (K::Common, F::SurroundAmbienceHfDamp) => S::AmbienceHfDamp,
+        (K::Ext, F::SurroundLr) => S::ExtPartLr,
+        (K::Ext, F::SurroundFb) => S::ExtPartFb,
+        (K::Ext, F::SurroundWidth) => S::ExtPartWidth,
+        (K::Ext, F::SurroundAmbienceSend) => S::ExtPartAmbienceSend,
+        _ => return None,
+    })
+}
+
+/// The address of a Motional Surround common field in `scope`.
+fn surround_address(field: MixerField, scope: MixerScopeKind) -> Option<Address> {
+    surround_field(field, scope).map(|f| params::surround_address(f as u8))
 }
 
 /// The EQ field's offset in a Studio Set Part EQ block.
@@ -510,7 +591,7 @@ fn ext_address(field: MixerField) -> Option<Address> {
     match field {
         MixerField::ExtLevel => Some(params::EXT_PART_LEVEL),
         MixerField::ExtMute => Some(params::EXT_PART_MUTE),
-        _ => None,
+        _ => surround_address(field, MixerScopeKind::Ext),
     }
 }
 
@@ -531,7 +612,7 @@ fn common_address(field: MixerField) -> Option<Address> {
         F::SoloPart => params::SOLO_PART,
         F::DrumCompEqSwitch => params::DRUM_COMP_EQ_SWITCH,
         F::DrumCompEqPart => params::DRUM_COMP_EQ_PART,
-        _ => return None,
+        _ => return surround_address(field, MixerScopeKind::Common),
     })
 }
 
@@ -565,6 +646,7 @@ pub fn mixer_field_address(
             part_offset(field)
                 .map(|offset| params::part_address(part, offset))
                 .or_else(|| part_eq_offset(field).map(|o| params::part_eq_address(part, o)))
+                .or_else(|| part_surround_offset(field).map(|o| params::part_address(part, o)))
         }
         MixerScope::Ext => ext_address(field),
         MixerScope::Master => match field {
@@ -644,6 +726,8 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
     let last = |names: &[&str]| names.len() as i32 - 1;
     let eq = EqState::default();
     let unit = CompEqUnit::default();
+    let surround = SurroundState::default();
+    let position = SurroundPartState::default();
     let def = |name, group, max, default, format, family| ParamDef {
         field,
         name,
@@ -677,14 +761,6 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
             0,
             Named(channel_names()),
             Common,
-        ),
-        F::PartAmbienceSend => def(
-            "Ambience Send",
-            ParamGroup::Part,
-            127,
-            i32::from(SurroundPartState::default().ambience_send),
-            Raw,
-            Amp,
         ),
         F::MasterLevel => def("Master Level", ParamGroup::Master, 127, 100, Raw, Amp),
         F::ExtLevel => def("Ext Level", ParamGroup::Ext, 127, 100, Raw, Amp),
@@ -878,6 +954,103 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
             i32::from(DrumCompEqState::default().output_assigns[0]),
             Named(spec.comp_eq_output_assigns),
             Common,
+        ),
+        F::SurroundSwitch => def(
+            "Surround",
+            ParamGroup::Surround,
+            1,
+            i32::from(surround.enabled),
+            OnOff,
+            Common,
+        ),
+        F::SurroundRoomType => def(
+            "Room Type",
+            ParamGroup::Surround,
+            last(spec.surround_room_types),
+            i32::from(surround.room_type),
+            Named(spec.surround_room_types),
+            Common,
+        ),
+        F::SurroundRoomSize => def(
+            "Room Size",
+            ParamGroup::Surround,
+            last(spec.surround_room_sizes),
+            i32::from(surround.room_size),
+            Named(spec.surround_room_sizes),
+            Common,
+        ),
+        F::SurroundDepth => def(
+            "Depth",
+            ParamGroup::Surround,
+            100,
+            i32::from(surround.depth),
+            Raw,
+            Amp,
+        ),
+        F::SurroundAmbienceLevel => def(
+            "Ambience Level",
+            ParamGroup::Surround,
+            127,
+            i32::from(surround.ambience_level),
+            Raw,
+            Amp,
+        ),
+        F::SurroundAmbienceTime => def(
+            "Ambience Time",
+            ParamGroup::Surround,
+            100,
+            i32::from(surround.ambience_time),
+            Raw,
+            Time,
+        ),
+        F::SurroundAmbienceDensity => def(
+            "Ambience Density",
+            ParamGroup::Surround,
+            100,
+            i32::from(surround.ambience_density),
+            Raw,
+            Time,
+        ),
+        F::SurroundAmbienceHfDamp => def(
+            "Ambience HF Damp",
+            ParamGroup::Surround,
+            100,
+            i32::from(surround.ambience_hf_damp),
+            Raw,
+            Filter,
+        ),
+        // Position and width place the part in space, as pan does.
+        F::SurroundLr => def(
+            "L-R",
+            ParamGroup::Surround,
+            127,
+            i32::from(position.lr),
+            SignedCenter(64),
+            Time,
+        ),
+        F::SurroundFb => def(
+            "F-B",
+            ParamGroup::Surround,
+            127,
+            i32::from(position.fb),
+            SignedCenter(64),
+            Time,
+        ),
+        F::SurroundWidth => def(
+            "Width",
+            ParamGroup::Surround,
+            32,
+            i32::from(position.width),
+            Raw,
+            Time,
+        ),
+        F::SurroundAmbienceSend => def(
+            "Ambience Send",
+            ParamGroup::Surround,
+            127,
+            i32::from(position.ambience_send),
+            Raw,
+            Amp,
         ),
     }
 }
@@ -1105,18 +1278,22 @@ mod tests {
     }
 
     #[test]
-    fn part_ambience_send_is_the_parts_motional_surround_send() {
-        // Studio Set Part 00 49, Motional Surround Ambience Send Level
-        // (docs/midi/05-studio-set.md).
-        let field = MixerField::PartAmbienceSend;
+    fn ambience_send_is_the_motional_surround_send_of_a_part_or_ext() {
+        // Studio Set Part 00 49 and Motional Surround 00 0A, Ambience Send
+        // Level (docs/midi/05-studio-set.md).
+        let field = MixerField::SurroundAmbienceSend;
         assert_eq!(
             mixer_field_address(field, MixerScope::Part(7)),
             Ok(params::part_address(7, [0x00, 0x00, 0x49]))
         );
+        assert_eq!(
+            mixer_field_address(field, MixerScope::Ext),
+            Ok(Address::new(0x18, 0x00, 0x08, 0x0A))
+        );
         assert!(!field.in_scope(MixerScopeKind::Master));
         let def = mixer_param(field);
         assert_eq!((def.min, def.max, def.default), (0, 127, 0));
-        assert_eq!(def.group, ParamGroup::Part);
+        assert_eq!(def.group, ParamGroup::Surround);
     }
 
     #[test]
@@ -1266,5 +1443,91 @@ mod tests {
         }
         let ratio = mixer_param(MixerField::CompRatio);
         assert_eq!(format_value(&ratio, ratio.max), "inf:1");
+    }
+
+    /// The per-part surround fields, with their Part block offset and the
+    /// Ext Part field they resolve to in the Ext scope.
+    const SURROUND_POSITION: [(MixerField, [u8; 3], params::SurroundField); 4] = [
+        (
+            MixerField::SurroundLr,
+            params::part_surround::LR,
+            params::SurroundField::ExtPartLr,
+        ),
+        (
+            MixerField::SurroundFb,
+            params::part_surround::FB,
+            params::SurroundField::ExtPartFb,
+        ),
+        (
+            MixerField::SurroundWidth,
+            params::part_surround::WIDTH,
+            params::SurroundField::ExtPartWidth,
+        ),
+        (
+            MixerField::SurroundAmbienceSend,
+            params::part_surround::AMBIENCE_SEND,
+            params::SurroundField::ExtPartAmbienceSend,
+        ),
+    ];
+
+    #[test]
+    fn surround_position_fields_resolve_per_part_and_ext() {
+        for (field, offset, ext) in SURROUND_POSITION {
+            assert_eq!(
+                mixer_field_address(field, MixerScope::Part(7)),
+                Ok(params::part_address(7, offset)),
+                "{field:?} part"
+            );
+            assert_eq!(
+                mixer_field_address(field, MixerScope::Ext),
+                Ok(params::surround_address(ext as u8)),
+                "{field:?} ext"
+            );
+            assert!(!field.in_scope(MixerScopeKind::Common), "{field:?}");
+        }
+    }
+
+    #[test]
+    fn surround_common_fields_resolve_in_the_surround_block() {
+        use params::SurroundField as S;
+        let common = [
+            (MixerField::SurroundSwitch, S::Switch),
+            (MixerField::SurroundRoomType, S::RoomType),
+            (MixerField::SurroundAmbienceLevel, S::AmbienceLevel),
+            (MixerField::SurroundRoomSize, S::RoomSize),
+            (MixerField::SurroundAmbienceTime, S::AmbienceTime),
+            (MixerField::SurroundAmbienceDensity, S::AmbienceDensity),
+            (MixerField::SurroundAmbienceHfDamp, S::AmbienceHfDamp),
+            (MixerField::SurroundDepth, S::Depth),
+        ];
+        for (field, surround) in common {
+            assert_eq!(
+                mixer_field_address(field, MixerScope::Common),
+                Ok(params::surround_address(surround as u8)),
+                "{field:?}"
+            );
+            assert!(!field.in_scope(MixerScopeKind::Part), "{field:?}");
+        }
+    }
+
+    #[test]
+    fn surround_defs_follow_the_device_and_state() {
+        let state = SurroundState::default();
+        let part = SurroundPartState::default();
+        let room = mixer_param(MixerField::SurroundRoomType);
+        assert_eq!(room.max as usize, INTEGRA7.surround_room_types.len() - 1);
+        assert_eq!(format_value(&room, 3), "Hall 2");
+        let size = mixer_param(MixerField::SurroundRoomSize);
+        assert_eq!(size.default, i32::from(state.room_size));
+        assert_eq!(format_value(&size, 0), "Small");
+        let width = mixer_param(MixerField::SurroundWidth);
+        assert_eq!((width.max, width.default), (32, i32::from(part.width)));
+        let lr = mixer_param(MixerField::SurroundLr);
+        assert_eq!(format_value(&lr, 64), "0");
+        assert_eq!(mixer_param(MixerField::SurroundDepth).max, 100);
+        assert_eq!(
+            mixer_param(MixerField::SurroundSwitch).format,
+            ParamFormat::OnOff
+        );
     }
 }

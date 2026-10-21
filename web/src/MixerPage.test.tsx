@@ -220,15 +220,15 @@ describe("MixerPage", () => {
   it("swaps the FX sends for the ambience send while surround is on", () => {
     const fx = placed(loaded().el, "strip.part.1");
     control(fx, MixerField.PartReverbSend);
-    expect(fx.querySelector(`[data-field="${MixerField.PartAmbienceSend}"]`)).toBeNull();
+    expect(fx.querySelector(`[data-field="${MixerField.SurroundAmbienceSend}"]`)).toBeNull();
     cleanup();
 
     const { el, state, setMixerField } = loaded((st) => ({ ...st, surround: { ...st.surround, enabled: true } }));
     const amb = placed(el, "strip.part.1");
     expect(amb.querySelector(`[data-field="${MixerField.PartChorusSend}"]`)).toBeNull();
-    stepUp(control(amb, MixerField.PartAmbienceSend));
+    stepUp(control(amb, MixerField.SurroundAmbienceSend));
     expect(setMixerField).toHaveBeenLastCalledWith(
-      MixerScopeKind.Part, 1, MixerField.PartAmbienceSend, state.surround.parts[1]!.ambienceSend + 1,
+      MixerScopeKind.Part, 1, MixerField.SurroundAmbienceSend, state.surround.parts[1]!.ambienceSend + 1,
     );
   });
 
