@@ -168,16 +168,23 @@ irrelevant; it keeps its Cells, dimmed or hidden, and never reflows.
 _Avoid_: Widget
 
 **Display**:
-A non-interactive or multi-parameter element (envelope, scope, EQ curve,
-structure diagram) that covers a rectangle of whole Cells like a Control, but
-binds to several parameters or none.
+An element that binds to several parameters or none (envelope, scope, EQ
+curve, structure diagram, surround pad). It covers a rectangle of whole Cells
+like a Control and fills it. It may be interactive: what makes it a Display
+rather than a Control is binding more than one parameter, or none.
 _Avoid_: Graph, visualiser
 
 **Silkscreen**:
-Everything drawn on a Section that is not a Control: group titles, bracket
-lines, divider rules, signal arrows. It is placed in Grid coordinates but
-covers no Cells.
+Everything drawn that is neither a Control nor a Display: group titles,
+bracket lines, divider rules, signal arrows. It sits on Cell edges and Cell
+centres but covers no Cells. A Section's own Silkscreen moves with the
+Section; signal arrows between Sections belong to the screen.
 _Avoid_: Decoration, label (a Control's name belongs to the Control)
+
+**Lane**:
+A run of Cells that no Section, Control or Display covers, left so signal
+arrows between Sections have room to run.
+_Avoid_: Gutter (Sections have none)
 
 **Scope**:
 The indices (part, partial, drum key, layer) that bind one instance of a
