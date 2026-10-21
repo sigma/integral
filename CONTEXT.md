@@ -163,6 +163,8 @@ _Avoid_: Box, panel
 **Control**:
 One interactive element (knob, switch, fader) bound to one parameter. It
 covers a rectangle of whole Cells and carries its own name and value readout.
+A Control is **inactive** when the device state makes its parameter
+irrelevant; it keeps its Cells, dimmed or hidden, and never reflows.
 _Avoid_: Widget
 
 **Display**:
@@ -176,6 +178,18 @@ Everything drawn on a Section that is not a Control: group titles, bracket
 lines, divider rules, signal arrows. It is placed in Grid coordinates but
 covers no Cells.
 _Avoid_: Decoration, label (a Control's name belongs to the Control)
+
+**Scope**:
+The indices (part, partial, drum key, layer) that bind one instance of a
+Section to its parameters. One layout serves every instance; a repeat or a
+selection supplies the Scope.
+_Avoid_: Index, instance number
+
+**Variant set**:
+The layouts of one Section, one per key (MFX type, structure type,
+instrument, strip kind). Every variant fits the same rectangle, so changing
+the key never moves a neighbouring Section.
+_Avoid_: Skin
 
 ## Connection
 
