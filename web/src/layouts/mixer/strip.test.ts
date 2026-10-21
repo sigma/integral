@@ -45,7 +45,7 @@ describe("mixer strip", () => {
     const displays = allElements(variantLayout(STRIP_SET, MixerScopeKind.CompEqUnit).items).flatMap((el) =>
       el.kind === "display" ? [el.display] : [],
     );
-    expect(displays.sort()).toEqual([DisplayKind.CompEnvelope, DisplayKind.CompTransferCurve].sort());
+    expect(displays.sort()).toEqual([DisplayKind.CompEnvelope, DisplayKind.CompTransferCurve, DisplayKind.StripName].sort());
   });
 
   it("gives every strip kind one level fader, the same length, ending on the strip's bottom row", () => {
@@ -64,6 +64,15 @@ describe("mixer strip", () => {
       const faders = variantLayout(STRIP_SET, kind).items.filter((i) => i.kind === "fader");
       const level = faders.reduce((a, b) => (b.h > a.h ? b : a));
       for (const f of faders) expect(f.scale ?? false, `${MixerScopeKind[kind]} ${MixerField[f.field]}`).toBe(f === level);
+    }
+  });
+
+  it("runs every strip's name up the column left of its level fader, as long as it", () => {
+    for (const kind of STRIP_KINDS) {
+      const items = allElements(variantLayout(STRIP_SET, kind).items);
+      const name = items.find((el) => el.kind === "display" && el.display === DisplayKind.StripName);
+      const level = items.filter((el) => el.kind === "fader").map(itemRect).reduce((a, b) => (b.h > a.h ? b : a));
+      expect(name && itemRect(name), MixerScopeKind[kind]).toEqual({ x: level.x - 1, y: level.y, w: 1, h: level.h });
     }
   });
 
@@ -86,7 +95,9 @@ describe("mixer strip", () => {
 
   it("draws the compressor's Displays across the strip", () => {
     for (const el of allElements(variantLayout(STRIP_SET, MixerScopeKind.CompEqUnit).items)) {
-      if (el.kind === "display") expect(itemRect(el)).toMatchObject({ x: 0, w: STRIP_SET.w });
+      if (el.kind === "display" && el.display !== DisplayKind.StripName) {
+        expect(itemRect(el)).toMatchObject({ x: 0, w: STRIP_SET.w });
+      }
     }
   });
 });

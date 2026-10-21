@@ -44,6 +44,8 @@ pub enum DisplayKind {
     SurroundPad,
     /// See [`core::DisplayKind::WavePicker`].
     WavePicker,
+    /// See [`core::DisplayKind::StripName`].
+    StripName,
 }
 
 mirror_core_enum!(DisplayKind <=> core::DisplayKind {
@@ -63,6 +65,7 @@ mirror_core_enum!(DisplayKind <=> core::DisplayKind {
     CompTransferCurve,
     SurroundPad,
     WavePicker,
+    StripName,
 });
 
 /// The Display prop a slot feeds (mirrors [`core::DisplayProp`]).

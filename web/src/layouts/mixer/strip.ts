@@ -7,7 +7,7 @@
  * about 21 Cells long for a 4-Cell strip, so each strip is a fixed 36 rows,
  * a 21-row fader under the 15 rows the Comp+EQ unit's compressor needs. A
  * part strip's Controls sit just over its fader, leaving its top rows empty,
- * as the old mixer did. Controls in the strip's edge columns (M, S, the
+ * as the old mixer did; its name runs up the left of its fader. Controls in the strip's edge columns (M, S, the
  * Comp+EQ Displays) are drawn clear of the border by the renderer.
  *
  * The EQ is its own Section (`eq.ts`), stacked above the strip by the mixer
@@ -88,6 +88,9 @@ const FADER = { y: 15, h: 21 } as const;
 /** Rows of a part strip's Controls: Ch and Pan, the sends, Out, C+EQ, then M and S. */
 const PART_CONTROLS_H = 9;
 
+/** A strip's name, up the left of its level fader (the column beside it), as the old mixer had it. */
+const NAME = { kind: "display", display: DisplayKind.StripName, x: 0, y: FADER.y, w: 1, h: FADER.h } as const;
+
 /** The first row of a part strip's Controls, so they end just over its fader. */
 const TOP = FADER.y - PART_CONTROLS_H;
 
@@ -124,6 +127,7 @@ const PART: SectionBody<MixerField> = {
     { kind: "switch", field: MixerField.PartMute, x: 0, y: TOP + 8, label: false },
     { kind: "switch", field: MixerField.SoloPart, x: 2, y: TOP + 8, label: false },
     { kind: "fader", field: MixerField.PartLevel, x: 1, ...FADER, label: false, scale: true },
+    NAME,
   ],
 };
 
@@ -132,12 +136,13 @@ const EXT: SectionBody<MixerField> = {
   items: [
     { kind: "switch", field: MixerField.ExtMute, x: 1, y: FADER.y - 1, label: false },
     { kind: "fader", field: MixerField.ExtLevel, x: 1, ...FADER, label: false, scale: true },
+    NAME,
   ],
 };
 
 /** The master: its level. */
 const MASTER: SectionBody<MixerField> = {
-  items: [{ kind: "fader", field: MixerField.MasterLevel, x: 1, ...FADER, label: false, scale: true }],
+  items: [{ kind: "fader", field: MixerField.MasterLevel, x: 1, ...FADER, label: false, scale: true }, NAME],
 };
 
 /**
@@ -157,6 +162,7 @@ const COMP_EQ_UNIT: SectionBody<MixerField> = {
     { kind: "knob", field: MixerField.CompRatio, x: 2, y: 9 },
     { kind: "picker", field: MixerField.CompOutputAssign, x: 0, y: OUT_Y, w: 4, label: "Out" },
     { kind: "fader", field: MixerField.CompOutputGain, x: 1, ...FADER, label: "Gain", scale: true },
+    NAME,
   ],
 };
 

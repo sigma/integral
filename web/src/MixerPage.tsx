@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ChannelStrip, StripEq, StripName } from "./ChannelStrip";
+import { ChannelStrip, StripCategory, StripEq } from "./ChannelStrip";
 import { FxStrip } from "./FxStrip";
 import { MixerLoadWarning } from "./MixerLoadWarning";
 import { MixerScopeKind } from "../pkg/integral_wasm.js";
@@ -59,22 +59,17 @@ export function MixerPage({ mixer, expansions }: Props) {
     if (slot.role === "fx") return <div className={css.fxHost}>{fxStrip(slot.fx)}</div>;
     const { kind, index } = slot;
     const strip = { state, kind, index, setField: mixer.setMixerField };
+    const unloadedExpansion =
+      kind === MixerScopeKind.Part
+        ? expansions.unloadedExpansionOf(state.parts[index]!.toneBankMsb, state.parts[index]!.toneBankLsb)
+        : null;
     const body =
       slot.role === "eq" ? (
         <StripEq {...strip} />
       ) : slot.role === "strip" ? (
-        <ChannelStrip {...strip} />
+        <ChannelStrip {...strip} unloadedExpansion={unloadedExpansion} />
       ) : (
-        <StripName
-          state={state}
-          kind={kind}
-          index={index}
-          unloadedExpansion={
-            kind === MixerScopeKind.Part
-              ? expansions.unloadedExpansionOf(state.parts[index]!.toneBankMsb, state.parts[index]!.toneBankLsb)
-              : null
-          }
-        />
+        <StripCategory state={state} kind={kind} index={index} />
       );
     if (kind !== MixerScopeKind.Part) return body;
     // Pressing anywhere on a part's column, its controls included, selects the part.

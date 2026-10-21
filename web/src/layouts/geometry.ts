@@ -94,6 +94,7 @@ export function itemRect<F extends FieldKey>(item: ItemLayout<F>): CellRect {
  * | Comp transfer curve | 3×3 | a square plot; the old 88×60 curve, squared |
  * | Surround pad | 8×8 | a square room a finger can drag in, 192px |
  * | Wave picker | 6×2 | one Wave row in 144px, its name truncated; the picker fills its Cells up to its 220px |
+ * | Strip name | 1×4 | one line of the old mixer's 15px name, run up 96px of a fader's side |
  */
 export const DISPLAY_MIN_FOOTPRINT = {
   [DisplayKind.PitchEnvelope]: { w: 4, h: 2 },
@@ -112,6 +113,7 @@ export const DISPLAY_MIN_FOOTPRINT = {
   [DisplayKind.CompTransferCurve]: { w: 3, h: 3 },
   [DisplayKind.SurroundPad]: { w: 8, h: 8 },
   [DisplayKind.WavePicker]: { w: 6, h: 2 },
+  [DisplayKind.StripName]: { w: 1, h: 4 },
 } as const satisfies Record<DisplayKind, Cells>;
 
 /** Title Cells a Section adds above (`top`) or beside (`side`) its content. */

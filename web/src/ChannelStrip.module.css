@@ -126,6 +126,7 @@
   opacity: 0.7;
 }
 
+/* Row 6 of an FX strip's CSS grid; a placement's only child elsewhere. */
 .categoryArea {
   grid-row: 6;
   display: flex;
@@ -154,38 +155,17 @@
   white-space: nowrap;
 }
 
-/* A Grid strip's name plate: the tone (or role) over its category. */
-.namePlate {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
+/* A strip's name, run up the side of its level fader, read bottom to top. */
+.verticalName {
   height: 100%;
-  padding: 2px 4px;
   overflow: hidden;
-}
-
-.toneName {
-  max-width: 100%;
-  font-size: 10px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 15px;
   font-weight: 600;
+  line-height: 19px;
   color: #4dff4d;
-  opacity: 0.8;
-  overflow: hidden;
+  opacity: 0.7;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.categoryRow {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  max-width: 100%;
-}
-
-.categoryRow .categoryIcon {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
 }

@@ -295,6 +295,22 @@ describe("MixerPage", () => {
     expect(loaded(undefined, false).el.querySelector('[data-section^="strip.comp."]')).toBeNull();
   });
 
+  it("names each strip up the side of its fader, and puts its category or role under it", () => {
+    const { el } = loaded((st) => ({
+      ...st,
+      parts: st.parts.map((p, i) => (i === 2 ? { ...p, toneName: "Pulse Lead 1" } : p)),
+    }));
+    const name = (id: string) =>
+      placed(el, id).querySelector(`[data-display="${DisplayKind.StripName}"]`)?.textContent;
+    expect(name("strip.part.2")).toBe("Pulse Lead 1");
+    expect(name("strip.ext")).toBe("External Input");
+    expect(name("strip.comp.1")).toBe("Compressor 2");
+    expect(name("strip.master")).toBe("Master");
+    // The plate under the strip names the role, not the tone again.
+    expect(placed(el, "name.part.2").textContent).not.toContain("Pulse Lead 1");
+    expect(placed(el, "name.comp.1").textContent).toBe("C+E2");
+  });
+
   it("selects a part from anywhere on its column", () => {
     const { el, selectPart } = loaded();
     act(() => {

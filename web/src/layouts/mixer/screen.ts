@@ -5,7 +5,7 @@
  * strip and its name; the external input has no EQ and leaves those Cells
  * empty, so its strip starts on the same row as the others.
  *
- * The Chorus and Reverb strips and the name plates are CSS Sections hosted in
+ * The Chorus and Reverb strips and the category plates are CSS Sections hosted in
  * whole-Cell placements. A Chorus or Reverb strip draws its parameters as a
  * Grid Section of its type's variant set (`layouts/fx/strip.ts`), one column
  * wide.
@@ -19,7 +19,7 @@ import type { ScreenLayout, SectionFrame, SectionPlacement } from "../types";
 import { EQ_LAYOUT } from "./eq";
 import { STRIP_SET } from "./strip";
 
-/** A strip's name plate below its fader: the tone or role, and its icon. */
+/** The plate below a strip's fader: its tone's category or its role, under its icon. */
 export const NAME_FRAME: SectionFrame = { title: "", titleEdge: "top", w: 4, h: 2 };
 
 /** The width of every column, in Cells. */
@@ -40,7 +40,7 @@ export type MixerSlot =
   | { role: "eq"; kind: MixerScopeKind; index: number }
   /** A strip, in its Scope. */
   | { role: "strip"; kind: MixerScopeKind; index: number }
-  /** A strip's name plate. */
+  /** The plate under a strip: its category or role. */
   | { role: "name"; kind: MixerScopeKind; index: number }
   /** The Chorus or Reverb strip. */
   | { role: "fx"; fx: "chorus" | "reverb" };
