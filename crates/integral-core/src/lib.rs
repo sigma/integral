@@ -22,6 +22,7 @@ pub mod block_field;
 pub mod catalog;
 pub mod device;
 pub mod device_spec;
+pub mod display;
 pub mod expansion_load;
 pub mod expansion_slots;
 pub mod expansions;

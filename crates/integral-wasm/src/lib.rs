@@ -326,6 +326,10 @@ macro_rules! mirror_core_enum {
     };
 }
 
+// Declared after `mirror_core_enum!`, which it uses.
+mod display;
+pub use display::{DisplayKind, DisplayProp, WasmDisplaySlot, display_binding};
+
 /// Tone type of a Part's Temporary Tone, selecting which tone type block
 /// (and so which MFX block) an edit addresses (mirrors [`params::ToneType`]).
 #[wasm_bindgen]
