@@ -19,12 +19,11 @@ import {
   SnsPartialField,
   type WasmSnsPartialSync,
 } from "../../pkg/integral_wasm.js";
-import { GridSection, specBinding, type Binding, type SectionLayout } from "../layouts";
+import { GridSection, ScopeGate, specBinding, type Binding, type SectionLayout } from "../layouts";
 import { memo } from "../layouts/fields";
 import { OSC_WAVE_ALTERNATIVE, OSC_WAVE_GROUP, SNS_PARTIAL_FIELDS } from "../layouts/sn-synth/partial";
 import { SnsPartialDisplay, partialSpec } from "./displays";
 import type { PartialParamHandler, SnSynthPartial } from "./types";
-import css from "../SnSynthEditor.module.css";
 
 /** Each rate field's tempo sync, from core; read on first use, not at import. */
 const syncs = memo(
@@ -76,7 +75,7 @@ export function PartialBox({ idx, layout, family, partial, active, setP }: Parti
   const isPcm = valueOf(SnsPartialField.OscWave) === sns_osc_wave_pcm();
 
   return (
-    <div className={active ? undefined : css.off} data-scope-inactive={active ? undefined : true} inert={!active}>
+    <ScopeGate active={active}>
       <GridSection
         layout={layout}
         scope={{ partial: idx }}
@@ -88,6 +87,6 @@ export function PartialBox({ idx, layout, family, partial, active, setP }: Parti
         }
         renderDisplay={(kind) => <SnsPartialDisplay kind={kind} valueOf={valueOf} />}
       />
-    </div>
+    </ScopeGate>
   );
 }

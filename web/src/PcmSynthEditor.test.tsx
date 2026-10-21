@@ -6,8 +6,7 @@ import {
   pcms_partial_address,
 } from "../pkg/integral_wasm.js";
 import { PcmSynthEditor } from "./PcmSynthEditor";
-import { PmtStrip } from "./pcm-synth/PmtStrip";
-import { cleanup, render } from "./test/dom";
+import { cleanup, click, render } from "./test/dom";
 import { arrowUp, fakeToneService, slider } from "./test/toneService";
 
 // jsdom lacks the ResizeObserver the page's zoom measures with.
@@ -67,13 +66,34 @@ describe("PcmSynthEditor", () => {
     expect(range("Random")).toEqual([0, 30]);
   });
 
-  it("labels switch and select options from the core field specs", () => {
-    const pmt = { structureType12: 0, booster12: 0, structureType34: 0, booster34: 0, pmtVelocityControl: 0, partialEntries: [] };
-    const { container } = render(<PmtStrip pmt={pmt} onChange={() => {}} />);
-    // The first select is Structure 1 & 2; it read "1: Independent"… from a TS table.
-    const structure = container.querySelector("select")!;
-    expect([...structure.querySelectorAll("option")].map((o) => o.textContent)).toEqual(
+  it("labels picker options from the core field specs", async () => {
+    const { service } = fakeToneService(new WasmDeviceState(0x10));
+    const { container } = render(<PcmSynthEditor partIndex={PART} service={service} />);
+    await act(async () => {});
+
+    // Structure 1 & 2 read "1: Independent"… from a TS table once.
+    const mix = container.querySelector('[data-grid-section="PARTIAL MIX"]')!;
+    click(mix.querySelector("button")!);
+    expect([...document.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toEqual(
       ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
     );
+  });
+
+  it("draws every tone Control on the Grid, in a Grid Section", async () => {
+    const { service } = fakeToneService(new WasmDeviceState(0x10));
+    const { container } = render(<PcmSynthEditor partIndex={PART} service={service} />);
+    await act(async () => {});
+
+    // The MFX placement hosts MfxPanel, a CSS Section with its own selects and send knobs.
+    const controls = [...container.querySelectorAll('[role="slider"], button, select')].filter(
+      (el) => el.closest('[data-section="mfx"]') === null,
+    );
+    expect(controls.length).toBeGreaterThan(0);
+    // The wave pickers are Displays: their buttons sit in a Display's Cells.
+    const outside = controls.filter((el) => el.closest("[data-grid-section]") === null);
+    expect(outside).toEqual([]);
+    const loose = controls.filter((el) => el.closest("[data-field], [data-display]") === null);
+    expect(loose).toEqual([]);
+    expect(container.querySelector("[data-grid-screen]")).not.toBeNull();
   });
 });

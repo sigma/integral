@@ -1,11 +1,12 @@
 /* Wave picker: group dropdown and L/R rows; the name popover is `SearchPopover`'s. */
 
-/* Fixed width: long names truncate instead of resizing the panel. */
+/* Fixed width, or a narrower Display's: long names truncate instead of resizing the panel. */
 .picker {
   display: flex;
   flex-direction: column;
   gap: 4px;
   width: 220px;
+  max-width: 100%;
   font-size: 10px;
   color: #ccc;
 }

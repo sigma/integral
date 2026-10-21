@@ -14,7 +14,16 @@ import { mixerScreen } from "./mixer/screen";
 import { STRIP_SET } from "./mixer/strip";
 import { PCMS_PAIR } from "./pcm-synth/pair";
 import { pcmsScreens } from "./pcm-synth/screen";
-import { BOOST_12_LAYOUT, BOOST_34_LAYOUT, PARTIAL_LAYOUT, RING_12_LAYOUT, RING_34_LAYOUT } from "./pcm-synth/sections";
+import {
+  BOOST_12_LAYOUT,
+  BOOST_34_LAYOUT,
+  PARTIAL_LAYOUT,
+  PCMS_BOXES,
+  PCMS_COMMON_LAYOUT,
+  PCMS_PMT_LAYOUT,
+  RING_12_LAYOUT,
+  RING_34_LAYOUT,
+} from "./pcm-synth/sections";
 import { SNA_AMP_LAYOUT } from "./sn-acoustic/amp";
 import { SNA_COMMON_LAYOUT } from "./sn-acoustic/common";
 import { SNA_FILTER_LAYOUT } from "./sn-acoustic/filter";
@@ -53,7 +62,10 @@ export const SECTION_LAYOUTS: readonly SectionLayout<FieldKey>[] = [
   SNS_COMMON_LAYOUT,
   SNS_PARTIAL_SWITCH_LAYOUT,
   ...SNS_BOXES.map((b) => b.layout),
+  PCMS_COMMON_LAYOUT,
+  PCMS_PMT_LAYOUT,
   PARTIAL_LAYOUT,
+  ...Object.values(PCMS_BOXES).flatMap((b) => [b.layout, b.numbered]),
   BOOST_12_LAYOUT,
   BOOST_34_LAYOUT,
   RING_12_LAYOUT,

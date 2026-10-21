@@ -7,7 +7,6 @@
 
 import {
   DisplayKind,
-  DisplayProp,
   ParameterFamily,
   PcmdCommonField,
   PcmdPartialField,
@@ -18,11 +17,11 @@ import {
   pcmd_wmt_spec,
   ToneType,
 } from "../../../pkg/integral_wasm.js";
-import { displaySlots } from "../displays";
+import { ENV_CELLS, envelopeItems } from "../envelope";
 import { enumFields, memo, type FieldKey } from "../fields";
 import { MFX_PANEL_FRAME } from "../fx/mfx";
 import { placeRow, rowCells, sectionCells, type SectionRow } from "../geometry";
-import type { ControlLayout, ItemLayout, ScreenLayout, SectionLayout } from "../types";
+import type { ScreenLayout, SectionLayout } from "../types";
 
 /** The Partial fields outside the WMT layers; an envelope's times and levels are array fields. */
 export const PCMD_PARTIAL_FIELDS = enumFields("PcmdPartialField", PcmdPartialField, pcmd_partial_spec, {
@@ -69,70 +68,26 @@ export const PCMD_WMT_LAYOUT: SectionLayout<PcmdWmtField> = {
 };
 
 /** What sets an envelope Section apart: its title, its Display and the knobs over its curve. */
-interface EnvelopeSpec {
+interface EnvelopeSection {
   title: string;
   display: DisplayKind;
   /** The knobs over the curve, left to right. */
   knobs: readonly { field: PcmdPartialField; label: string }[];
 }
 
-/** Rows of an envelope Section: its knobs, its curve, its level faders and its time faders. */
-const ENV_ROWS = { knobs: 0, curve: 3, levels: 5, times: 9 } as const;
-
-/** Height of an envelope's faders, in Cells. */
-const ENV_FADER_H = 4;
-
 /**
- * One fader per stored value of `prop` in `display`'s core binding: the
- * n-th value (0-based) on column `2n + offset`, named `name` and its number
- * counted from `first`. Values the device fixes (a TVA's L0 and L4) get no
- * fader; only the curve draws them.
+ * An envelope Section, after the old BreakpointEnvelope: one envelope block
+ * (`envelopeItems`), its faders from the Display's core binding.
  */
-function envelopeFaders(
-  display: DisplayKind,
-  prop: DisplayProp,
-  name: string,
-  first: number,
-  offset: number,
-  y: number,
-): ControlLayout<PcmdPartialField>[] {
-  return displaySlots(display, ToneType.PcmDrum)
-    .filter((s) => s.prop === prop)
-    .flatMap((slot, n) => {
-      const field = slot.pcmdPartial;
-      if (field === undefined) return [];
-      const label = `${name}${n + first}`;
-      return [{ kind: "fader", field, index: slot.index, x: 2 * n + offset, y, h: ENV_FADER_H, label }];
-    });
-}
-
-/**
- * An envelope Section, after the old BreakpointEnvelope: knobs, the curve
- * over the level faders (a free Cell each side, clear of the border), then levels L0–L4 on even columns and times T1–T4
- * between them, so each time sits under the two levels it joins. The
- * faders come from the Display's core binding.
- */
-function envelopeLayout(spec: EnvelopeSpec): SectionLayout<PcmdPartialField> {
-  const knobs: ControlLayout<PcmdPartialField>[] = spec.knobs.map((k, i) => ({
-    kind: "knob",
-    field: k.field,
-    x: 2 * i,
-    y: ENV_ROWS.knobs,
-    label: k.label,
-  }));
+function envelopeLayout({ title, display, knobs }: EnvelopeSection): SectionLayout<PcmdPartialField> {
   // The faders come from core's Display binding, read on first use, not at import.
-  const items = memo((): ItemLayout<PcmdPartialField>[] => [
-    ...knobs,
-    // The curve keeps a free Cell from the left and right borders.
-    { kind: "display", display: spec.display, x: 1, y: ENV_ROWS.curve, w: 8, h: 2 },
-    ...envelopeFaders(spec.display, DisplayProp.Levels, "L", 0, 0, ENV_ROWS.levels),
-    ...envelopeFaders(spec.display, DisplayProp.Times, "T", 1, 1, ENV_ROWS.times),
-  ]);
+  const items = memo(() =>
+    envelopeItems({ display, toneType: ToneType.PcmDrum, fieldOf: (s) => s.pcmdPartial, knobs }, 0, 0),
+  );
   return {
-    title: spec.title,
+    title,
     titleEdge: "top",
-    w: 10,
-    h: 13,
+    ...ENV_CELLS,
     fields: PCMD_PARTIAL_FIELDS,
     get items() {
       return items();

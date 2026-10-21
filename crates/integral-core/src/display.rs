@@ -60,8 +60,8 @@ pub enum DisplayKind {
     /// Motional Surround XY pad: every part's position, and the external
     /// input's.
     SurroundPad,
-    /// Wave picker, by name: a PCM Drum WMT layer's Wave Group and L/R
-    /// Wave Numbers. Interactive: it writes the fields it reads. A picker
+    /// Wave picker, by name: a PCM Synth Partial's or a PCM Drum WMT
+    /// layer's Wave Group and L/R Wave Numbers. Interactive: it writes the fields it reads. A picker
     /// of one field (an SN Drum key's Inst, an SN Synth OSC's PCM Wave) is
     /// a Control, not this Display.
     WavePicker,
@@ -381,6 +381,12 @@ fn pcm_synth(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
         DisplayKind::StepLfoScope => steps().collect(),
         DisplayKind::Structure12 => structure(PcmsPmtField::StructureType12, 1),
         DisplayKind::Structure34 => structure(PcmsPmtField::StructureType34, 3),
+        DisplayKind::WavePicker => reads(&[
+            (P::WaveGroupType, f(F::WaveGroupType)),
+            (P::WaveGroupId, f(F::WaveGroupId)),
+            (P::WaveNumberL, f(F::WaveNumberL)),
+            (P::WaveNumberR, f(F::WaveNumberR)),
+        ]),
         _ => return None,
     })
 }
@@ -829,6 +835,23 @@ mod tests {
         );
     }
 
+    /// Before the Grid (#369), `pcm-synth/PartialSections.tsx`
+    /// `PartialWave`: `WavePicker` group, L, R.
+    #[test]
+    fn pcms_wave_picker() {
+        use PcmsPartialField as F;
+        let f = DisplayField::PcmsPartial;
+        assert_eq!(
+            sources(K::WavePicker, PCMS),
+            [
+                (P::WaveGroupType, Some(f(F::WaveGroupType)), 0),
+                (P::WaveGroupId, Some(f(F::WaveGroupId)), 0),
+                (P::WaveNumberL, Some(f(F::WaveNumberL)), 0),
+                (P::WaveNumberR, Some(f(F::WaveNumberR)), 0),
+            ]
+        );
+    }
+
     /// `pcm-drum/WmtWave.tsx`: `WavePicker` group, L, R.
     #[test]
     fn pcmd_wave_picker() {
@@ -869,7 +892,7 @@ mod tests {
                     &[PCMS]
                 }
                 K::CompEnvelope | K::CompTransferCurve | K::SurroundPad => &[MIXER],
-                K::WavePicker => &[PCMD],
+                K::WavePicker => &[PCMS, PCMD],
             }
         };
         for kind in K::ALL {

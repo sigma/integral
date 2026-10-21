@@ -10,6 +10,7 @@ import {
 import { CELL } from "../synth-ui/grid";
 import { familyVar } from "../synth-ui";
 import { LANE_Y } from "../layouts/pcm-synth/pair";
+import { ROW_H } from "../layouts/pcm-synth/sections";
 import { PAIR_Y } from "../layouts/pcm-synth/screen";
 import { PcmSynthScreen } from "./PcmSynthScreen";
 import type { PcmSynthPartial, PcmSynthPmt } from "./types";
@@ -52,17 +53,9 @@ function layout(s12: number, s34 = 0) {
       onPartial={noop}
     />,
   );
-  // A hosted box is a SectionPanel (it sets its accent as the top border)
-  // headed `label`; a Section drawn from its layout carries its title.
-  const panels = (label: string) =>
-    [...container.querySelectorAll("div")].filter(
-      (d) => d.style.borderTopColor && d.firstElementChild?.textContent === label,
-    );
+  // Every Section is drawn from its layout, and carries its title.
   const placementOf = (d: Element) => d.closest<HTMLElement>("[data-section]")!;
-  const boxes = (label: string) => [
-    ...panels(label),
-    ...container.querySelectorAll(`[data-grid-section="${label}"]`),
-  ];
+  const boxes = (label: string) => [...container.querySelectorAll(`[data-grid-section="${label}"]`)];
   /** The screen ids of the Sections showing `label`. */
   const sections = (label: string) => boxes(label).map((d) => placementOf(d).dataset.section);
   /** The top row, in Cells, of each Section showing `label`. */
@@ -84,7 +77,7 @@ describe("PcmSynthScreen", () => {
   it("runs a merged pair's blocks after the join across both rows, with one OUTPUT", () => {
     // Structure 2: WG1→TVA1 and WG2 mix, then TVF1 → TVF2 → TVA2.
     const { sections, rows, container } = layout(1);
-    const middle = PAIR_Y[0] + 14;
+    const middle = PAIR_Y[0] + ROW_H / 2;
     for (const label of ["FILTER 1", "FILTER 2", "AMP 2", "OUTPUT 2"]) expect(rows(label), label).toEqual([middle]);
     expect(sections("OUTPUT 1")).toEqual([]);
     expect(rows("AMP 1")).toEqual([PAIR_Y[0]]);
@@ -92,9 +85,9 @@ describe("PcmSynthScreen", () => {
     // The WAVE boxes head both lanes in the same column.
     expect(sections("WAVE 1")).toEqual(["p12.upper.wave"]);
     expect(sections("WAVE 2")).toEqual(["p12.lower.wave"]);
-    // LFO depth faders name the box they target.
-    expect(container.querySelector('[role="slider"][aria-label="FLT 1"]')).not.toBeNull();
-    expect(container.querySelector('[role="slider"][aria-label="FLT 2"]')).not.toBeNull();
+    // The LFOs name the partial whose depths they send.
+    expect(sections("LFO1 · 1")).toEqual(["p12.upper.lfo1"]);
+    expect(sections("LFO2 · 2")).toEqual(["p12.lower.lfo2"]);
     // Partial 1's pan modulation follows partial 2.
     expect(container.querySelector('[title*="Follows partial 2"]')).not.toBeNull();
   });
@@ -120,7 +113,8 @@ describe("PcmSynthScreen ring modulator", () => {
     for (const structure of [4, 5, 6, 7, 8, 9]) {
       const { sections, rows } = layout(structure);
       expect(sections("RING"), `type ${structure + 1}`).toEqual(["p12.ring"]);
-      expect(rows("RING")).toEqual([PAIR_Y[0] + 26]);
+      // RING's 3 content rows and title, centred on the pair's two lanes.
+      expect(rows("RING")).toEqual([PAIR_Y[0] + ROW_H - 2]);
     }
     expect(layout(1).sections("RING")).toEqual([]);
   });
@@ -139,7 +133,7 @@ describe("PcmSynthScreen booster", () => {
     // Type 3 between the filters, type 4 where the lanes meet: both after the join.
     expect(boxes(2)).toEqual(["p12.boost"]);
     expect(boxes(3)).toEqual(["p12.boost"]);
-    expect(layout(3).rows("BOOST")).toEqual([PAIR_Y[0] + 14]);
+    expect(layout(3).rows("BOOST")).toEqual([PAIR_Y[0] + ROW_H / 2]);
   });
 });
 
@@ -155,10 +149,9 @@ describe("PcmSynthScreen arrows", () => {
 describe("PcmSynthScreen families", () => {
   it("colours a knob by its field's family, which may differ from its box's", () => {
     const { container } = layout(0);
-    const amp = [...container.querySelectorAll<HTMLElement>("div")].find(
-      (d) => d.style.borderTopColor && d.firstElementChild?.textContent === "AMP",
-    )!;
-    expect(amp.style.borderTopColor).toBe(familyVar(ParameterFamily.Amp));
+    const amp = container.querySelector<HTMLElement>('[data-grid-section="AMP"]')!;
+    const border = amp.firstElementChild as HTMLElement;
+    expect(border.style.getPropertyValue("--section-accent")).toBe(familyVar(ParameterFamily.Amp));
     const pan = amp.querySelector('[role="slider"][aria-label="Pan"]')!;
     const lit = [...pan.querySelectorAll("circle")].map((c) => c.style.fill);
     expect(lit).toContain(familyVar(pcms_partial_spec(PcmsPartialField.Pan).family));

@@ -53,7 +53,7 @@ import { FilterScope } from "./synth-ui/FilterScope";
 import { useMfxHandlers } from "./useMfxHandlers";
 import { DrumKeyGrid } from "./DrumKeyGrid";
 import { useDrumKey } from "./useDrumKey";
-import { WmtWave } from "./pcm-drum/WmtWave";
+import { WaveDisplay } from "./WaveDisplay";
 import {
   PCMD_COMMON_ENTRIES,
   PCMD_PARTIAL_ENTRIES,
@@ -236,7 +236,13 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
 
   const renderWmtDisplay = (display: DisplayKind): ReactNode =>
     display === DisplayKind.WavePicker && note ? (
-      <WmtWave value={wmtValue} onChange={setWmtParam} marking={marking} />
+      <WaveDisplay
+        toneType={ToneType.PcmDrum}
+        fieldOf={(s) => s.pcmdWmt}
+        value={wmtValue}
+        onChange={setWmtParam}
+        marking={marking}
+      />
     ) : null;
 
   // Build key→outputAssign map and the set of silent keys (every WMT layer

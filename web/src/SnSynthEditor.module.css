@@ -41,8 +41,3 @@
 .fill {
   height: 100%;
 }
-
-/* A partial core holds off: its whole row, dimmed (and inert). */
-.off {
-  opacity: 0.4;
-}
