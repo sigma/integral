@@ -1,34 +1,25 @@
+/**
+ * A PCM Synth partial's boxes, one Section each, drawing their own Controls.
+ * `PcmSynthScreen` places them on the Grid, hosted on whole-Cell footprints.
+ */
+
 import {
   SynthKnob,
   SynthFader,
   SynthSwitch,
   SectionPanel,
-  PartialPowerButton,
   BreakpointEnvelope,
   FaderGroup,
   OutputStrip,
 } from "../synth-ui";
-import type { ReactNode } from "react";
-import { SignalArrows, type Edge } from "../synth-ui/SignalArrows";
-import {
-  ParameterFamily,
-  PcmsPartialField,
-  PcmsPmtField,
-  pcms_pair_scope_is_active,
-  pcms_partial_is_active,
-  pcms_partial_scope_is_active,
-  pcms_partial_spec,
-  pcms_pmt_is_active,
-  pcms_pmt_spec,
-} from "../../pkg/integral_wasm.js";
-import { routingOf, type Block, type Side } from "./structureRouting";
+import { ParameterFamily, PcmsPartialField, pcms_partial_spec } from "../../pkg/integral_wasm.js";
 import { knobProps, knobRange, switchOptions } from "../fieldSpec";
 import { VelocityCurveSelect } from "../synth-ui/VelocityCurveSelect";
 import { LfoScope } from "../synth-ui/LfoScope";
 import { TimeOrNoteKnob } from "./TimeOrNoteKnob";
 import { FilterScope } from "../synth-ui/FilterScope";
 import css from "../PcmSynthEditor.module.css";
-import type { PartialParamHandler, PartialSetter, PcmSynthPartial, PcmSynthPmt } from "./types";
+import type { PartialParamHandler, PartialSetter, PcmSynthPartial } from "./types";
 import { WavePicker, type ExpansionMarking } from "../WavePicker";
 import { waveSourceOf } from "../waveCatalog";
 
@@ -42,250 +33,8 @@ function followsTitle(title: string, follows?: number): string {
   return follows ? `${title}. Follows partial ${follows} in this Structure.` : title;
 }
 
-/** One partial of a pair, with what its row needs. */
-export interface PairPartial {
-  partial: PcmSynthPartial | null;
-  /** The PMT Partial Switch's value, for its power button. */
-  isOn: boolean;
-  onParam: PartialParamHandler;
-  /** Sets the Partial's PMT Partial Switch. */
-  onSwitch: (value: number) => void;
-}
-
-/**
- * A pair of partials (1 & 2, or 3 & 4) laid out along their Structure's
- * signal path: each row keeps its modulation boxes (LFOs, STEP LFO), WAVE,
- * PITCH and CONTROL, then the blocks before the join; blocks after the join,
- * and a merged pair's single OUTPUT (the lower partial's), span both rows.
- */
-/** Outer grid columns: power + LFOs, lane heads, then each pair's path sub-grid. */
-const LFO_COLUMN = 1;
-const HEAD_COLUMN = 2;
-const PATH_COLUMN = 3;
-
-/** One pair of partials (1 & 2, or 3 & 4) and its Structure. */
-export interface Pair {
-  /** Index (0-based) of the pair's upper partial: 0 or 2. */
-  first: number;
-  /** The pair's Structure Type (0-9). */
-  structure: number;
-  /** The tone's PMT, which core reads to say which fields are active; `null` while loading. */
-  pmt: PcmSynthPmt | null;
-  upper: PairPartial;
-  lower: PairPartial;
-  /** The pair's Booster depth (0-3), and its setter: shown on the path where the Structure boosts. */
-  booster: number;
-  onBooster: (value: number) => void;
-  /** The PMT field for this pair's Booster (Booster 1&2 or 3&4), for its range and labels. */
-  boosterField: PcmsPmtField;
-}
-
-/**
- * The partials, a pair at a time, on one grid: the LFO and WAVE columns line
- * up across all partials, and each pair's path follows its Structure.
- */
-export function PartialGrid({ pairs, marking }: { pairs: Pair[]; marking?: ExpansionMarking }) {
-  const laid = pairs.map((pair, i) => pairLayout(pair, 2 * i, marking));
-  return (
-    <div className={css.partialGrid}>
-      {laid.flatMap((l) => l.cells)}
-      <SignalArrows edges={laid.flatMap((l) => l.edges)} />
-    </div>
-  );
-}
-
-/**
- * A pair's blocks along its Structure's signal path, on grid rows
- * `rowBase + 1` (upper partial) and `rowBase + 2` (lower): the detached LFO
- * blocks, each lane's head (WAVE, PITCH, CONTROL), its blocks before the
- * join, then a merged block centred on both rows, with arrows between blocks.
- */
-function pairLayout(
-  { first, structure, pmt, upper, lower, booster, onBooster, boosterField }: Pair,
-  rowBase: number,
-  marking?: ExpansionMarking,
-): { cells: ReactNode[]; edges: Edge[] } {
-  const routing = routingOf(structure);
-  const sides = { upper, lower };
-  const number = { upper: first + 1, lower: first + 2 };
-  const setters = {
-    upper: setterFor(upper.onParam),
-    lower: setterFor(lower.onParam),
-  };
-  const merged = !!routing.join;
-  /** A box's partial number, shown only once the pair is merged. */
-  const nOf = (side: Side) => (merged ? number[side] : undefined);
-  /** Whether core holds `side`'s partial active (switched on). */
-  const scopeActive = (side: Side) => !!pmt && pcms_partial_scope_is_active(number[side] - 1, pmt);
-  /** The pair's own boxes (ring) dim once core holds the pair inactive. */
-  const pairDim = pmt && pcms_pair_scope_is_active(first, pmt) ? "" : css.partialDimmed;
-  /** Whether core holds `field` of `side`'s partial active. */
-  const activeFor = (side: Side) => (field: PcmsPartialField) => {
-    const p = sides[side].partial;
-    return !pmt || !p || pcms_partial_is_active(field, number[side] - 1, pmt, p);
-  };
-  /** The partial an inactive pan setting of `side` follows: core makes only a merged pair's upper one follow the lower. */
-  const followedFor = (side: Side) => {
-    const active = activeFor(side);
-    return (field: PcmsPartialField) => (active(field) ? undefined : number.lower);
-  };
-
-  /** One box of a block, dimmed with its own partial's Scope. */
-  const box = (key: string, side: Side, content: ReactNode) => (
-    <div key={key} className={`${css.blockBox} ${scopeActive(side) ? "" : css.partialDimmed}`}>{content}</div>
-  );
-  const pathBox = (b: Block, key: string): ReactNode => {
-    if (b.kind === "booster") {
-      // The booster belongs to the pair; core holds it inactive once both partials are off.
-      const boosterActive = !!pmt && pcms_pmt_is_active(boosterField, pmt);
-      return (
-        <div key={key} className={`${css.blockBox} ${boosterActive ? "" : css.partialDimmed}`}>
-          <BoosterSection value={booster} onChange={onBooster} field={boosterField} pair={number} />
-        </div>
-      );
-    }
-    const side = b.side;
-    const p = sides[side].partial;
-    if (!p) return null;
-    if (b.kind === "filter") return box(key, side, <TvfSection partial={p} set={setters[side]} n={nOf(side)} />);
-    if (b.kind === "amp") {
-      return box(key, side, (
-        <TvaSection partial={p} set={setters[side]} n={nOf(side)} followed={followedFor(side)} />
-      ));
-    }
-    return null; // WAVE heads its lane
-  };
-  const outputBox = (side: Side, n?: number): ReactNode => {
-    const p = sides[side].partial;
-    return p && box(`out-${side}`, side, <OutputSection partial={p} set={setters[side]} n={n} />);
-  };
-
-  const cells: ReactNode[] = [];
-  /** Blocks after the WAVE column: the pair's own path, on its own sub-grid. */
-  const path: ReactNode[] = [];
-  const edges: Edge[] = [];
-  /**
-   * Place a block at `column`: in its partial's row, or centred across both
-   * rows once the lanes have merged. `node` names it for the arrows.
-   */
-  const place = (node: string, row: Side | "both", column: number, content: ReactNode, span = 1) => {
-    // Shared columns (power, LFOs, heads) sit on the outer grid's rows; the
-    // path columns on the pair's sub-grid, whose two rows are the pair's.
-    const inPath = column >= PATH_COLUMN;
-    const rowOf = (r: number) => (inPath ? r : rowBase + r);
-    (inPath ? path : cells).push(
-      <div key={node} data-node={node} className={`${css.block} ${row === "both" ? css.mergedCell : ""}`}
-        style={{
-          gridColumn: `${inPath ? column - PATH_COLUMN + 1 : column} / span ${span}`,
-          gridRow: row === "both" ? `${rowOf(1)} / span 2` : rowOf(row === "upper" ? 1 : 2),
-        }}>
-        {content}
-      </div>,
-    );
-  };
-
-  const lastBlock: Record<Side, string> = { upper: "", lower: "" };
-  const preColumn = routing.upper.length > 1 || routing.lower.length > 1;
-  for (const side of ["upper", "lower"] as const) {
-    const p = sides[side].partial;
-    const idx = side === "upper" ? first : first + 1;
-    const power = (
-      <PartialPowerButton key="power" label={`Partial ${number[side]}`} isOn={sides[side].isOn}
-        onToggle={() => sides[side].onSwitch(sides[side].isOn ? 0 : 1)} />
-    );
-    if (!p) {
-      place(`${first}-lfo-${side}`, side, LFO_COLUMN, [power]);
-      continue;
-    }
-    const set = setters[side];
-    // The power label, then the modulation sources: detached from the signal path, no arrows.
-    place(`${first}-lfo-${side}`, side, LFO_COLUMN, [
-      power,
-      box("lfo1", side, <Lfo1Section partial={p} set={set} n={nOf(side)} followed={followedFor(side)} />),
-      box("lfo2", side, <Lfo2Section partial={p} set={set} n={nOf(side)} followed={followedFor(side)} />),
-      box("step", side, <StepLfoSection partial={p} set={set} n={nOf(side)}
-        dimmed={!activeFor(side)(PcmsPartialField.LfoStep)} />),
-    ]);
-    const head = [
-      box("wave", side, <WaveSection partial={p} set={set} n={nOf(side)} marking={marking} />),
-      box("pitch", side, <PitchSection partial={p} set={set} n={nOf(side)} />),
-      box("control", side, <ControlSection partial={p} set={set} n={nOf(side)} />),
-    ];
-    if (!merged) {
-      // An independent lane is one straight chain: a single block from WAVE to
-      // OUTPUT, starting in the shared WAVE column and running on over the path's.
-      place(`out-${idx}`, side, HEAD_COLUMN, [
-        ...head,
-        ...routing[side].slice(1).map((b, i) => pathBox(b, `pre${i}`)),
-        outputBox(side),
-      ], 2);
-      continue;
-    }
-    // The lane's head: the wave and what shapes it, aligned in both rows.
-    const headNode = `${first}-head-${side}`;
-    place(headNode, side, HEAD_COLUMN, head);
-    lastBlock[side] = headNode;
-    // The lane's own blocks before the join.
-    const pre = routing[side].slice(1).map((b, i) => pathBox(b, `pre${i}`));
-    if (pre.length) {
-      const node = `${first}-pre-${side}`;
-      place(node, side, PATH_COLUMN, pre);
-      edges.push({ from: headNode, to: node });
-      lastBlock[side] = node;
-    }
-  }
-
-  const join = routing.join;
-  /**
-   * A lane's edge into the join. A lane with nothing before the join leaves
-   * from its head, so it goes around the other lane's blocks in that column.
-   */
-  const intoJoin = (side: Side, to: string): Edge => {
-    const other = side === "upper" ? "lower" : "upper";
-    const skips = lastBlock[side].includes("-head-") && lastBlock[other].includes("-pre-");
-    return { from: lastBlock[side], to, around: skips ? lastBlock[other] : undefined };
-  };
-  if (join) {
-    let column = PATH_COLUMN + (preColumn ? 1 : 0);
-    const node = `out-${first + 1}`;
-    if (join.kind === "ring") {
-      // The ring modulator: a box of its own, both lanes in, its product out.
-      const ring = `${first}-ring`;
-      place(ring, "both", column++, (
-        <div className={`${css.blockBox} ${pairDim}`}>
-          <RingSection pair={number} />
-        </div>
-      ));
-      edges.push(intoJoin("upper", ring), intoJoin("lower", ring));
-      if (join.lowerDry) {
-        // Partial 2 (4) also goes in dry, summed with the ring's product.
-        edges.push({ from: ring, to: node, glyph: "+" }, { from: lastBlock.lower, to: node, glyph: "+", around: ring });
-      } else {
-        edges.push({ from: ring, to: node });
-      }
-    } else {
-      // Summed: type 4's booster then opens the merged block.
-      edges.push({ ...intoJoin("upper", node), glyph: "+" }, { ...intoJoin("lower", node), glyph: "+" });
-    }
-    // After the join: one block, centred on both lanes, ending in the pair's single output.
-    place(node, "both", column, [
-      ...(join.kind === "booster" ? [pathBox({ kind: "booster" }, "boost")] : []),
-      ...join.after.map((b, i) => pathBox(b, `after${i}`)),
-      outputBox("lower", number.lower),
-    ]);
-  }
-
-  if (path.length) {
-    cells.push(
-      <div key={`${first}-path`} className={css.pairPath} style={{ gridColumn: PATH_COLUMN, gridRow: `${rowBase + 1} / span 2` }}>
-        {path}
-      </div>,
-    );
-  }
-  return { cells, edges };
-}
-
-function setterFor(onParam: PartialParamHandler): PartialSetter {
+/** The setter factory a partial's boxes take, writing through `onParam`. */
+export function setterFor(onParam: PartialParamHandler): PartialSetter {
   return (field, key, index = 0) => (v) => onParam(field, key, index, v);
 }
 
@@ -293,7 +42,8 @@ function setterFor(onParam: PartialParamHandler): PartialSetter {
 // Wave Section
 // ---------------------------------------------------------------------------
 
-function WaveSection({
+/** The WAVE box: the wave picker, tempo sync, FXM and gain. */
+export function WaveSection({
   partial,
   n,
   set,
@@ -370,7 +120,8 @@ export function PartialWave({
 // Pitch + Envelope Section
 // ---------------------------------------------------------------------------
 
-function PitchSection({
+/** The PITCH box: tuning, and the pitch envelope with its knobs. */
+export function PitchSection({
   partial,
   n,
   set,
@@ -453,7 +204,8 @@ function PitchSection({
 // TVF (Filter) Section
 // ---------------------------------------------------------------------------
 
-function TvfSection({
+/** The FILTER (TVF) box: type, cutoff and resonance, and the filter envelope. */
+export function TvfSection({
   partial,
   n,
   set,
@@ -555,7 +307,8 @@ function TvfSection({
 // TVA (Amp) Section
 // ---------------------------------------------------------------------------
 
-function TvaSection({
+/** The AMP (TVA) box: level, pan, and the amp envelope. */
+export function TvaSection({
   partial,
   n,
   set,
@@ -660,7 +413,8 @@ function TvaSection({
 // LFO1 Section
 // ---------------------------------------------------------------------------
 
-function Lfo1Section({
+/** The LFO1 box: its wave, rate and the depths it sends. */
+export function Lfo1Section({
   partial,
   n,
   set,
@@ -738,7 +492,8 @@ function Lfo1Section({
 // LFO2 Section
 // ---------------------------------------------------------------------------
 
-function Lfo2Section({
+/** The LFO2 box: its wave, rate and the depths it sends. */
+export function Lfo2Section({
   partial,
   n,
   set,
@@ -816,7 +571,8 @@ function Lfo2Section({
 // Step LFO Section
 // ---------------------------------------------------------------------------
 
-function StepLfoSection({
+/** The STEP LFO box: its type and 16 steps. */
+export function StepLfoSection({
   partial,
   n,
   set,
@@ -863,7 +619,8 @@ function StepLfoSection({
 // Control Section: how the partial responds to playing, kept per partial
 // ---------------------------------------------------------------------------
 
-function ControlSection({
+/** The CTRL box: how the partial responds to playing. */
+export function ControlSection({
   partial,
   n,
   set,
@@ -895,48 +652,11 @@ function ControlSection({
 }
 
 // ---------------------------------------------------------------------------
-// Booster Section: the pair's booster, on its signal path (Structure 3 and 4)
-// ---------------------------------------------------------------------------
-
-function BoosterSection({
-  value,
-  onChange,
-  field,
-  pair,
-}: {
-  value: number;
-  onChange: (value: number) => void;
-  field: PcmsPmtField;
-  pair: { upper: number; lower: number };
-}) {
-  return (
-    <SectionPanel label="BOOST" family={ParameterFamily.Filter}>
-      <SynthKnob label="Boost" value={value} {...knobProps(pcms_pmt_spec(field))} onChange={onChange}
-        title={`Booster depth for partials ${pair.upper} & ${pair.lower}: overdrives the signal; higher distorts more`} />
-    </SectionPanel>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Ring Section: the pair's ring modulator, on its signal path (Structure 5-10)
-// ---------------------------------------------------------------------------
-
-function RingSection({ pair }: { pair: { upper: number; lower: number } }) {
-  return (
-    <SectionPanel label="RING" family={ParameterFamily.Filter}>
-      <div className={css.ringProduct}
-        title={`Ring modulator: multiplies partials ${pair.upper} and ${pair.lower}, adding new (often metallic) overtones. No settings; partial ${pair.upper}'s AMP sets its depth.`}>
-        {pair.upper} × {pair.lower}
-      </div>
-    </SectionPanel>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Output Section
 // ---------------------------------------------------------------------------
 
-function OutputSection({
+/** The OUTPUT box: delay, sends and output level. */
+export function OutputSection({
   partial,
   n,
   set,

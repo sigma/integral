@@ -12,6 +12,9 @@ import { CHORUS_SET, REVERB_SET } from "./fx/strip";
 import { EQ_LAYOUT } from "./mixer/eq";
 import { mixerScreen } from "./mixer/screen";
 import { STRIP_SET } from "./mixer/strip";
+import { PCMS_PAIR } from "./pcm-synth/pair";
+import { pcmsScreens } from "./pcm-synth/screen";
+import { BOOST_12_LAYOUT, BOOST_34_LAYOUT, PARTIAL_LAYOUT, RING_12_LAYOUT, RING_34_LAYOUT } from "./pcm-synth/sections";
 import { SNA_AMP_LAYOUT } from "./sn-acoustic/amp";
 import { SNA_COMMON_LAYOUT } from "./sn-acoustic/common";
 import { SNA_FILTER_LAYOUT } from "./sn-acoustic/filter";
@@ -29,7 +32,7 @@ import {
   SURROUND_PAD_LAYOUT,
   SURROUND_PART_LAYOUT,
 } from "./surround/sections";
-import type { ScreenLayout, SectionLayout, VariantSet } from "./types";
+import type { RegionVariantSet, ScreenLayout, SectionLayout, VariantSet } from "./types";
 
 /** Section layouts that are not variants. */
 export const SECTION_LAYOUTS: readonly SectionLayout<FieldKey>[] = [
@@ -49,6 +52,11 @@ export const SECTION_LAYOUTS: readonly SectionLayout<FieldKey>[] = [
   ...PCMD_SECTIONS,
   SNS_COMMON_LAYOUT,
   SNS_PARTIAL_LAYOUT,
+  PARTIAL_LAYOUT,
+  BOOST_12_LAYOUT,
+  BOOST_34_LAYOUT,
+  RING_12_LAYOUT,
+  RING_34_LAYOUT,
 ];
 
 /** Variant sets; the validator walks every key core enumerates. */
@@ -70,5 +78,9 @@ export function screenLayouts(): readonly ScreenLayout[] {
     SND_SCREEN,
     PCMD_SCREEN,
     snsScreen(),
+    ...pcmsScreens(),
   ];
 }
+
+/** Region variant sets; the validator walks every key core enumerates. */
+export const REGION_VARIANT_SETS: readonly RegionVariantSet<FieldKey>[] = [PCMS_PAIR];

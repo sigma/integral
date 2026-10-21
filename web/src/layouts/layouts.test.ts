@@ -16,10 +16,19 @@ import { MFX_PANEL_FRAME } from "./fx/mfx";
 import { EQ_LAYOUT } from "./mixer/eq";
 import { mixerScreen } from "./mixer/screen";
 import { STRIP_SET } from "./mixer/strip";
-import { SECTION_LAYOUTS, VARIANT_SETS, screenLayouts } from "./registry";
+import { REGION_VARIANT_SETS, SECTION_LAYOUTS, VARIANT_SETS, screenLayouts } from "./registry";
 import { surroundScreen } from "./surround/screen";
-import type { ItemLayout, ScreenLayout, SectionBody, SectionLayout, SectionSilk, VariantSet } from "./types";
-import { validateScreen, validateSection, validateVariantSet, type Check } from "./validate";
+import type {
+  ItemLayout,
+  RegionVariantSet,
+  ScreenLayout,
+  ScreenRegion,
+  SectionBody,
+  SectionLayout,
+  SectionSilk,
+  VariantSet,
+} from "./types";
+import { validateRegionSet, validateScreen, validateSection, validateVariantSet, type Check } from "./validate";
 
 describe("every layout", () => {
   it.each(SECTION_LAYOUTS.map((l) => [l.title, l] as const))("Section %s is valid", (_, layout) => {
@@ -30,6 +39,9 @@ describe("every layout", () => {
   });
   it.each(screenLayouts().map((s) => [s.name, s] as const))("screen %s is valid", (_, screen) => {
     expect(validateScreen(screen)).toEqual([]);
+  });
+  it.each(REGION_VARIANT_SETS.map((s) => [s.name, s] as const))("region variant set %s is valid", (_, set) => {
+    expect(validateRegionSet(set)).toEqual([]);
   });
   it("lists the mixer EQ, strips and screens", () => {
     expect(SECTION_LAYOUTS).toContain(EQ_LAYOUT);
@@ -374,5 +386,47 @@ describe("PCM Drum envelopes", () => {
     expect(faders(PCMD_PITCH_ENV_LAYOUT)).toEqual(["L0", "L1", "L2", "L3", "L4", "T1", "T2", "T3", "T4"]);
     // The device fixes the TVA's L0 and L4: only its curve draws them.
     expect(faders(PCMD_AMP_ENV_LAYOUT)).toEqual(["L1", "L2", "L3", "T1", "T2", "T3", "T4"]);
+  });
+});
+
+/** {@link SCREEN}'s Sections and arrow, as a region. */
+const REGION: ScreenRegion = { sections: SCREEN.sections, lanes: SCREEN.lanes, silkscreen: SCREEN.silkscreen };
+
+/** A region set over keys 0 and 1, both {@link REGION} unless `variants` says otherwise. */
+function regionSet(
+  variants: ReadonlyMap<number, ScreenRegion> = new Map([[0, REGION], [1, REGION]]),
+  sectionsOf: (key: number) => readonly string[] = () => ["a", "b"],
+): RegionVariantSet<number> {
+  return { name: "region", w: SCREEN.w, h: SCREEN.h, keys: [0, 1], sectionsOf, variants };
+}
+
+describe("validateRegionSet", () => {
+  it("passes the base fixture", () => {
+    expect(validateRegionSet(regionSet())).toEqual([]);
+  });
+
+  it("unplaced: a variant that leaves a Section of its key out", () => {
+    const problems = validateRegionSet(regionSet(undefined, (key) => (key ? ["a", "b", "c"] : ["a", "b"])));
+    expect(checks(problems)).toEqual(["unplaced"]);
+    expect(problems[0]?.where).toBe("region: [1] c");
+  });
+
+  it("unplaced: a key with no variant", () => {
+    expect(checks(validateRegionSet(regionSet(new Map([[0, REGION]]))))).toEqual(["unplaced"]);
+  });
+
+  it("field: a variant placing a Section its key doesn't have", () => {
+    expect(checks(validateRegionSet(regionSet(undefined, () => ["a"])))).toEqual(["field"]);
+  });
+
+  it("field: a variant for a key core doesn't define", () => {
+    const set = regionSet(new Map([[0, REGION], [1, REGION], [2, REGION]]));
+    expect(checks(validateRegionSet(set))).toEqual(["field"]);
+  });
+
+  it("containment: a variant outside the set's footprint", () => {
+    const wide: ScreenRegion = { ...REGION, sections: [...REGION.sections, { id: "c", section: frame(1, 1), x: 9, y: 0 }] };
+    const problems = validateRegionSet(regionSet(new Map([[0, REGION], [1, wide]]), (key) => (key ? ["a", "b", "c"] : ["a", "b"])));
+    expect(checks(problems)).toEqual(["containment"]);
   });
 });

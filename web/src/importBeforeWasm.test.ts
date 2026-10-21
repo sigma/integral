@@ -13,6 +13,9 @@ const WASM = "../pkg/integral_wasm.js";
 const LAYOUT_MODULES = [
   "./layouts/drum/pcmDrum",
   "./layouts/drum/snDrum",
+  "./layouts/pcm-synth/pair",
+  "./layouts/pcm-synth/screen",
+  "./layouts/pcm-synth/sections",
   "./layouts/sn-acoustic/amp",
   "./layouts/sn-acoustic/common",
   "./layouts/sn-acoustic/fields",
@@ -25,6 +28,8 @@ const LAYOUT_MODULES = [
   "./layouts/sn-synth/screen",
   "./sn-synth/displays",
   "./sn-synth/PartialRow",
+  "./pcm-synth/PcmSynthScreen",
+  "./pcm-synth/PartialSections",
 ];
 
 describe("importing before wasm starts", () => {

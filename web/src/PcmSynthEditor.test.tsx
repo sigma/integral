@@ -1,5 +1,5 @@
 import { act } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   WasmDeviceState,
   pcms_common_address,
@@ -10,7 +10,22 @@ import { PmtStrip } from "./pcm-synth/PmtStrip";
 import { cleanup, render } from "./test/dom";
 import { arrowUp, fakeToneService, slider } from "./test/toneService";
 
-afterEach(cleanup);
+// jsdom lacks the ResizeObserver the page's zoom measures with.
+beforeEach(() => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    },
+  );
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const PART = 1;
 

@@ -279,3 +279,39 @@ export interface ScreenLayout {
   /** Arrows between Sections. */
   silkscreen: readonly ScreenArrowSilk[];
 }
+
+/**
+ * Part of a screen: Sections, Lanes and arrows between them, in the region's
+ * own Cells. A screen layout places it at an offset (`placeRegion`).
+ */
+export interface ScreenRegion {
+  /** The Sections, ids unique in the region. */
+  sections: readonly SectionPlacement[];
+  /** Cells left uncovered for arrows. */
+  lanes: readonly Lane[];
+  /** Arrows between the region's Sections. */
+  silkscreen: readonly ScreenArrowSilk[];
+}
+
+/**
+ * A variant set of screen regions: where a group of Sections goes, one region
+ * per key, all in one `w`×`h` footprint, so changing the key never moves a
+ * Section outside it. It is a variant set (`CONTEXT.md`) one level up: a key
+ * changes which Sections a path holds and where they sit (a PCM Synth pair
+ * per Structure Type), not one Section's Controls. Every variant must place
+ * every Section of its key, and no other.
+ */
+export interface RegionVariantSet<K extends FieldKey> {
+  /** Which set this is, for validator messages. */
+  name: string;
+  /** Footprint width, in Cells. */
+  w: number;
+  /** Footprint height, in Cells. */
+  h: number;
+  /** Every key, enumerated from core. */
+  keys: readonly K[];
+  /** The ids of the Sections key `key` has, from core: all of them must be placed. */
+  sectionsOf(key: K): readonly string[];
+  /** The layout of each key. */
+  variants: ReadonlyMap<K, ScreenRegion>;
+}

@@ -10,16 +10,13 @@ import {
   mfx_block_size,
   pcms_partial_address,
   pcms_partial_size,
-  ParameterFamily,
-  PcmsPmtField,
   ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import type { ExpansionMarking } from "./WavePicker";
 import { deviceSpec } from "./deviceSpec";
-import { MfxPanel } from "./MfxPanel";
-import { SignalArrows } from "./synth-ui/SignalArrows";
-import { SectionPanel } from "./synth-ui";
+import { GridZoom } from "./layouts";
+import { PCMS_SCREEN_CELLS } from "./layouts/pcm-synth/screen";
 import { useMfxHandlers } from "./useMfxHandlers";
 import type { MfxState } from "./MfxPanel";
 import css from "./PcmSynthEditor.module.css";
@@ -34,9 +31,7 @@ import type {
   PmtEntryParamHandler,
   PmtParamHandler,
 } from "./pcm-synth/types";
-import { CommonStrip } from "./pcm-synth/CommonStrip";
-import { PmtStrip } from "./pcm-synth/PmtStrip";
-import { PartialGrid, type PairPartial } from "./pcm-synth/PartialRow";
+import { PcmSynthScreen } from "./pcm-synth/PcmSynthScreen";
 
 // ---------------------------------------------------------------------------
 // Component
@@ -190,66 +185,23 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
     return <div className={css.loading}>Loading PCM Synth tone data...</div>;
   }
 
-  const partialSwitches = pmt
-    ? pmt.partialEntries.map((p) => p.partialSwitch)
-    : [];
-
   return (
     <div className={css.editor}>
-      {/* Tone name */}
-      {common && (
-        <div className={css.toneName}>{common.toneName || "(unnamed)"}</div>
-      )}
-
-      {/* Tone-wide settings: Common, then the partial mix */}
-      {(common || pmt) && (
-        <div className={css.commonPanel}>
-          <SectionPanel label="COMMON" family={ParameterFamily.Common}>
-            <div className={css.commonStrip}>
-              {common && <CommonStrip common={common} onChange={setCommonParam} />}
-              {common && pmt && <div className={css.commonDivider} />}
-              {pmt && <PmtStrip pmt={pmt} onChange={setPmtParam} />}
-            </div>
-          </SectionPanel>
-        </div>
-      )}
-
-      {/* Partial rows + MFX sidebar */}
-      <div className={css.mainArea}>
-        <div className={css.partialRows}>
-          <PartialGrid marking={marking} pairs={[0, 2].map((first) => {
-            const half = (idx: number): PairPartial => ({
-              partial: partials[idx] ?? null,
-              isOn: (partialSwitches[idx] ?? 0) !== 0,
-              onParam: (...args) => setPartialParam(idx, ...args),
-              onSwitch: (v) => setPmtEntryParam(idx, PcmsPmtField.PartialSwitch, "partialSwitch", v),
-            });
-            return {
-              first,
-              structure: (first ? pmt?.structureType34 : pmt?.structureType12) ?? 0,
-              pmt,
-              upper: half(first),
-              lower: half(first + 1),
-              booster: (first ? pmt?.booster34 : pmt?.booster12) ?? 0,
-              boosterField: first ? PcmsPmtField.Booster34 : PcmsPmtField.Booster12,
-              onBooster: (v: number) =>
-                first
-                  ? setPmtParam(PcmsPmtField.Booster34, "booster34", v)
-                  : setPmtParam(PcmsPmtField.Booster12, "booster12", v),
-            };
-          })} />
-        </div>
-        <div className={css.mfxSidebar} data-node="mfx">
-          {mfx && (
-            <MfxPanel
-              mfx={mfx}
-              {...mfxHandlers}
-            />
-          )}
-        </div>
-        {/* Every partial output (one per merged pair) is summed into the MFX. */}
-        <SignalArrows edges={[0, 1, 2, 3].map((i) => ({ from: `out-${i}`, to: "mfx", glyph: "+" }))} />
-      </div>
+      <GridZoom cells={PCMS_SCREEN_CELLS}>
+        {common && <div className={css.toneName}>{common.toneName || "(unnamed)"}</div>}
+        <PcmSynthScreen
+          common={common}
+          pmt={pmt}
+          partials={partials}
+          mfx={mfx}
+          mfxHandlers={mfxHandlers}
+          onCommon={setCommonParam}
+          onPmt={setPmtParam}
+          onPmtEntry={setPmtEntryParam}
+          onPartial={setPartialParam}
+          marking={marking}
+        />
+      </GridZoom>
     </div>
   );
 }
