@@ -22,6 +22,7 @@ import type {
   ElementLayout,
   HalfCellPoint,
   ItemEndpoint,
+  RegionVariantSet,
   ScreenLayout,
   SectionArrowSilk,
   SectionLayout,
@@ -43,7 +44,7 @@ export type Check =
    * row or column with no title between it and the border (`BLEED`).
    */
   | "clearance"
-  /** A variant that leaves a parameter of its key out. */
+  /** A variant that leaves a parameter (or, in a region variant set, a Section) of its key out. */
   | "unplaced"
   /** A Section covering a Lane's Cell. */
   | "lane"
@@ -52,7 +53,7 @@ export type Check =
    * or Lanes can carry, or whose glyph shares a Cell with another.
    */
   | "arrow"
-  /** A field, Display or variant key core doesn't define. */
+  /** A field, Display or variant key core doesn't define, or a Section a region variant's key doesn't have. */
   | "field";
 
 /** One thing wrong with a layout. */
@@ -309,5 +310,30 @@ export function validateScreen(screen: ScreenLayout): Problem[] {
     }
   }
   reportGlyphClashes(report, drawnArrows(screen.silkscreen, (a) => routeScreenArrow(screen, a)));
+  return problems;
+}
+
+/**
+ * Problems with a region variant set: every key's region as a screen of the
+ * set's footprint, and each placing exactly the Sections core gives its key.
+ */
+export function validateRegionSet<K extends FieldKey>(set: RegionVariantSet<K>): Problem[] {
+  const { problems, report } = collector(set.name);
+  const keys = new Set<FieldKey>(set.keys);
+  for (const key of set.variants.keys()) {
+    if (!keys.has(key)) report("field", `[${key}]`, "not a key core defines");
+  }
+  for (const key of set.keys) {
+    const region = set.variants.get(key);
+    if (region === undefined) {
+      report("unplaced", `[${key}]`, "no variant");
+      continue;
+    }
+    problems.push(...validateScreen({ name: `${set.name}[${key}]`, w: set.w, h: set.h, ...region }));
+    const wanted = new Set(set.sectionsOf(key));
+    const placed = new Set(region.sections.map((p) => p.id));
+    for (const id of wanted) if (!placed.has(id)) report("unplaced", `[${key}] ${id}`, "not placed");
+    for (const id of placed) if (!wanted.has(id)) report("field", `[${key}] ${id}`, "not a Section of its key");
+  }
   return problems;
 }

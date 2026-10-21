@@ -30,21 +30,9 @@
   letter-spacing: 0.5px;
 }
 
-/* (topRow/topPanels removed — replaced by mainArea layout) */
-
 /* ----------------------------------------------------------------
    Tone-wide strip: Common settings, then the partial mix (PMT)
    ---------------------------------------------------------------- */
-
-/*
- * Holds the COMMON panel at its full height: in the editor's scrolling column a
- * panel (overflow: hidden) could otherwise shrink to nothing but its border.
- */
-.commonPanel {
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-}
 
 /* Inside the COMMON panel, which draws the frame */
 .commonStrip {
@@ -82,99 +70,26 @@
 }
 
 /* ----------------------------------------------------------------
-   Main area: partial rows + MFX sidebar
+   Boxes on the Grid
    ---------------------------------------------------------------- */
 
-.mainArea {
-  position: relative;
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-
 /*
- * No flex: 1, so the MFX sidebar sits right next to the partials; no
- * shrinking either, so the partials are never clipped (the editor scrolls)
- * and the arrows into MFX always start on a visible OUTPUT.
+ * A box drawing its own Controls, filling its Section's Cells inside the
+ * border inset (inline), as Grid Sections draw their borders.
  */
-.partialRows {
+.hosted {
+  position: absolute;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  flex-shrink: 0;
 }
 
-/* Centred on the partial lanes, with room for their arrows to converge on it */
-.mfxSidebar {
-  flex-shrink: 0;
-  align-self: center;
-  margin-left: 56px;
-}
-
-/* ----------------------------------------------------------------
-   Partial row — one horizontal strip per partial
-   ---------------------------------------------------------------- */
-
-/*
- * All partials on one grid, two rows per pair (1 & 2, 3 & 4), so the LFO and
- * WAVE columns line up across partials and a merged pair's blocks can span its
- * two rows. Columns and cells take their content's width (no stretching), so
- * the arrows start and end on the blocks themselves.
- */
-.partialGrid {
-  position: relative;
-  display: grid;
-  gap: 8px 56px;
-  justify-content: start;
-  place-items: stretch start;
-  padding-bottom: 2px;
-}
-
-/*
- * A pair's path after its heads: its own columns (so one pair's wide blocks
- * don't push the other's along), its rows the pair's two rows of the grid.
- */
-.pairPath {
-  display: grid;
-  grid-row: span 2;
-  grid-template-rows: subgrid;
-  column-gap: 56px;
-  place-items: stretch start;
-}
-
-/* A block of the signal path: boxes side by side, all as tall as the block */
-.block {
-  display: flex;
-  gap: 4px;
-  align-items: stretch;
-}
-
-.blockBox {
-  display: flex;
-}
-
-.blockBox > * {
+.hosted > * {
   flex: 1;
 }
 
-/* A block after the join: regular height, centred between the two lanes it merges */
-.mergedCell {
-  align-self: center;
-}
-
-/* Dim a switched-off partial's boxes, not its power button. */
+/* Dim a switched-off partial's boxes, not its switch. */
 .partialDimmed {
   opacity: 0.4;
-}
-
-/* The ring modulator's only content: which partials it multiplies */
-.ringProduct {
-  margin: auto 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: #ccc;
-  text-align: center;
-  white-space: nowrap;
 }
 
 /* A partial 1 (3) setting that follows partial 2 (4) in a merged Structure */

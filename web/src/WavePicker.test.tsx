@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WavePicker, type ExpansionMarking } from "./WavePicker";
 import { waveSourceOf, type WaveSource } from "./waveCatalog";
-import { PartialWave } from "./pcm-synth/PartialRow";
+import { PartialWave } from "./pcm-synth/PartialSections";
 import { WmtWave } from "./pcm-drum/WmtWave";
 import { PCMD_WMT_ENTRIES } from "./pcm-drum/types";
 import { SnsPartialDisplay } from "./sn-synth/displays";

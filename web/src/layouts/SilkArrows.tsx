@@ -47,8 +47,7 @@ function pathOf(points: readonly Px[]): string {
 
 /**
  * Signal arrows, each with its arrowhead; arrows into one target through one
- * glyph meet at it. The arrowhead and colours follow `synth-ui/SignalArrows`,
- * which goes once the last screens move to layouts (#361, #362).
+ * glyph meet at it.
  */
 export function SilkArrows({ arrows, ox = 0, oy = 0, inset = 0 }: SilkArrowsProps) {
   // One marker per drawing, so no two SVGs on a page share an id.

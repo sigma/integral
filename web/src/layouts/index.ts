@@ -17,10 +17,12 @@ export type {
   KnobLayout,
   Lane,
   OptionListLayout,
+  RegionVariantSet,
   RuleSilk,
   Scope,
   ScreenArrowSilk,
   ScreenLayout,
+  ScreenRegion,
   SectionArrowSilk,
   SectionBody,
   SectionEndpoint,
@@ -52,6 +54,7 @@ export { CHORUS_SET, REVERB_SET } from "./fx/strip";
 export { GridSection } from "./GridSection";
 export type { Binding, BindingOption, GridSectionProps, SyncBinding } from "./GridSection";
 export { routeScreenArrow, routeSectionArrow } from "./routing";
+export { freeLanes, placeRegion } from "./region";
 export type { DrawnArrow, Route } from "./routing";
 export { GridScreen } from "./GridScreen";
 export type { GridScreenProps } from "./GridScreen";
