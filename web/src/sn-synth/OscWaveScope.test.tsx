@@ -28,6 +28,11 @@ describe("OscWaveScope", () => {
     expect(pathOf("SAW")).toMatch(/L 1 0$/);
   });
 
+  it("draws the saw's resets as vertical lines, not gaps", () => {
+    expect(pathOf("SAW")).toContain("L 0.5 0 L 0.5 1");
+    expect(pathOf("SAW")!.slice(1)).not.toContain("M");
+  });
+
   it("draws PW-SQR at PW 0 as a square, thinner as PW rises", () => {
     expect(pathsOf("PW-SQR", 0)).toEqual([pathOf("SQR")]);
     expect(pathsOf("PW-SQR", 127)[0]).not.toEqual(pathOf("SQR"));

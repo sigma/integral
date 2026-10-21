@@ -11,10 +11,10 @@ const NOISE = (() => {
   }).join(" ");
 })();
 
-/** Rising ramps of the given period, offset by `phase`, clipped to 0..1. */
+/** Rising ramps of the given period, offset by `phase`, clipped to 0..1, each reset drawn as a vertical drop. */
 function saw(period: number, phase: number): string {
   let d = `M 0 ${1 - phase / period}`;
-  for (let x = period - phase; x < 1; x += period) d += ` L ${x} 0 M ${x} 1`;
+  for (let x = period - phase; x < 1; x += period) d += ` L ${x} 0 L ${x} 1`;
   const tail = (1 + phase) % period || period; // ends at a reset: draw up to the peak
   return `${d} L 1 ${1 - tail / period}`;
 }
