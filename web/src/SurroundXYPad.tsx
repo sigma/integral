@@ -88,6 +88,7 @@ export function SurroundXYPad({ parts, selectedPart, onSelect, onMove }: Props) 
       </div>
       <div
         ref={padRef}
+        data-surround-pad
         className={css.pad}
         onPointerDown={handlePadClick}
         onPointerMove={handlePointerMove}
@@ -105,6 +106,7 @@ export function SurroundXYPad({ parts, selectedPart, onSelect, onMove }: Props) 
           return (
             <div
               key={p.index}
+              data-surround-dot
               className={`${css.dot} ${isSelected ? css.dotSelected : ""}`}
               style={{ left: `${x}%`, top: `${y}%` }}
               onPointerDown={(e) => handlePointerDown(e, p.index)}

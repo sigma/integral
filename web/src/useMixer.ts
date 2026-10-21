@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { IntegraService } from "./integra";
-import type { MixerField, MixerScopeKind, SurroundField } from "../pkg/integral_wasm.js";
+import type { MixerField, MixerScopeKind } from "../pkg/integral_wasm.js";
 import {
   defaultMixerState,
   type MixerState,
@@ -55,11 +55,6 @@ export interface UseMixerResult {
   setReverbParam: (offset: number, value: number) => void;
   setReverbNibParam: (paramIndex: number, value: number) => void;
   toggleReverbSwitch: () => void;
-  setSurroundParam: (field: SurroundField, value: number) => void;
-  setPartSurroundLr: (part: number, value: number) => void;
-  setPartSurroundFb: (part: number, value: number) => void;
-  setPartSurroundWidth: (part: number, value: number) => void;
-  setPartSurroundAmbienceSend: (part: number, value: number) => void;
   selectPart: (part: number) => void;
   switchStudioSet: (pc: number) => void;
   /** Rename a part's Temporary tone on the device. */
@@ -307,48 +302,6 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     syncFromRust();
   }, [service, syncFromRust]);
 
-  // --- Motional Surround ---
-
-  const setSurroundParam = useCallback(
-    (field: SurroundField, value: number) => {
-      service?.device.setSurroundParam(field, value);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const setPartSurroundLr = useCallback(
-    (part: number, value: number) => {
-      service?.device.setPartSurroundLr(part, value);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const setPartSurroundFb = useCallback(
-    (part: number, value: number) => {
-      service?.device.setPartSurroundFb(part, value);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const setPartSurroundWidth = useCallback(
-    (part: number, value: number) => {
-      service?.device.setPartSurroundWidth(part, value);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
-  const setPartSurroundAmbienceSend = useCallback(
-    (part: number, value: number) => {
-      service?.device.setPartSurroundAmbienceSend(part, value);
-      syncFromRust();
-    },
-    [service, syncFromRust],
-  );
-
   // --- UI-only state ---
 
   const preview = useCallback(() => {
@@ -369,11 +322,6 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     setReverbParam,
     setReverbNibParam,
     toggleReverbSwitch,
-    setSurroundParam,
-    setPartSurroundLr,
-    setPartSurroundFb,
-    setPartSurroundWidth,
-    setPartSurroundAmbienceSend,
     selectPart,
     switchStudioSet,
     renameTone,

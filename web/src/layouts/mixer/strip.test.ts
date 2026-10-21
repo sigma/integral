@@ -31,7 +31,7 @@ describe("mixer strip", () => {
 
   it("places the strip controls core had no field for", () => {
     expect(placed(MixerScopeKind.Part)).toEqual(
-      expect.arrayContaining([MixerField.PartAmbienceSend, MixerField.SoloPart, MixerField.DrumCompEqPart]),
+      expect.arrayContaining([MixerField.SurroundAmbienceSend, MixerField.SoloPart, MixerField.DrumCompEqPart]),
     );
     expect(placed(MixerScopeKind.CompEqUnit)).toContain(MixerField.CompOutputAssign);
   });

@@ -7,6 +7,7 @@ import { EQ_LAYOUT } from "./mixer/eq";
 import { mixerScreen } from "./mixer/screen";
 import { STRIP_SET } from "./mixer/strip";
 import { SECTION_LAYOUTS, VARIANT_SETS, screenLayouts } from "./registry";
+import { surroundScreen } from "./surround/screen";
 import type { ItemLayout, ScreenLayout, SectionBody, SectionLayout, SectionSilk, VariantSet } from "./types";
 import { validateScreen, validateSection, validateVariantSet, type Check } from "./validate";
 
@@ -24,6 +25,10 @@ describe("every layout", () => {
     expect(SECTION_LAYOUTS).toContain(EQ_LAYOUT);
     expect(VARIANT_SETS).toContain(STRIP_SET);
     expect(screenLayouts()).toEqual(expect.arrayContaining([mixerScreen(false).layout, mixerScreen(true).layout]));
+  });
+  it("lists the Surround screen and every Section it places", () => {
+    expect(screenLayouts()).toContain(surroundScreen());
+    for (const { section } of surroundScreen().sections) expect(SECTION_LAYOUTS).toContain(section);
   });
 });
 

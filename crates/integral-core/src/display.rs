@@ -15,7 +15,7 @@
 
 use crate::block_field::BlockField;
 use crate::param_registry::MixerField;
-use crate::params::{self, SurroundField, ToneType};
+use crate::params::ToneType;
 use crate::pcm_drum::PcmdPartialField;
 use crate::pcm_synth::{PcmsPartialField, PcmsPmtField};
 use crate::sn_acoustic::SnaCommonField;
@@ -154,13 +154,9 @@ pub enum DisplayField {
     PcmsPmt(PcmsPmtField),
     /// A PCM Drum Kit Partial field; the Scope supplies the key.
     PcmdPartial(PcmdPartialField),
-    /// A mixer field; the Scope supplies its indices (the Comp+EQ unit).
+    /// A mixer field; the Scope supplies its indices (the part or Comp+EQ
+    /// unit). An `Ext` prop reads it in the external input's Scope.
     Mixer(MixerField),
-    /// A Part's Motional Surround parameter, by its offset in the Part
-    /// block ([`params::part_surround`]); the Scope supplies the part.
-    PartSurround([u8; 3]),
-    /// A Motional Surround common field.
-    Surround(SurroundField),
 }
 
 impl DisplayField {
@@ -172,8 +168,7 @@ impl DisplayField {
             Self::PcmsPartial(f) => f.count(),
             Self::PcmsPmt(f) => f.count(),
             Self::PcmdPartial(f) => f.count(),
-            Self::Surround(f) => f.count(),
-            Self::Mixer(_) | Self::PartSurround(_) => 1,
+            Self::Mixer(_) => 1,
         }
     }
 }
@@ -388,8 +383,7 @@ fn pcm_drum(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
     })
 }
 
-/// Mixer Displays. The compressor's are [`MixerField`]s; the surround pad
-/// still reads Part surround offsets.
+/// Mixer Displays, which read [`MixerField`]s.
 fn mixer(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
     use DisplayProp as P;
     let mixer = DisplayField::Mixer;
@@ -404,10 +398,10 @@ fn mixer(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
             (P::Ratio, mixer(MixerField::CompRatio)),
         ]),
         DisplayKind::SurroundPad => reads(&[
-            (P::Lr, DisplayField::PartSurround(params::part_surround::LR)),
-            (P::Fb, DisplayField::PartSurround(params::part_surround::FB)),
-            (P::ExtLr, DisplayField::Surround(SurroundField::ExtPartLr)),
-            (P::ExtFb, DisplayField::Surround(SurroundField::ExtPartFb)),
+            (P::Lr, mixer(MixerField::SurroundLr)),
+            (P::Fb, mixer(MixerField::SurroundFb)),
+            (P::ExtLr, mixer(MixerField::SurroundLr)),
+            (P::ExtFb, mixer(MixerField::SurroundFb)),
         ]),
         _ => return None,
     })
@@ -797,10 +791,10 @@ mod tests {
         assert_eq!(
             sources(K::SurroundPad, MIXER),
             [
-                one(P::Lr, DisplayField::PartSurround(params::part_surround::LR)),
-                one(P::Fb, DisplayField::PartSurround(params::part_surround::FB)),
-                one(P::ExtLr, DisplayField::Surround(SurroundField::ExtPartLr)),
-                one(P::ExtFb, DisplayField::Surround(SurroundField::ExtPartFb)),
+                one(P::Lr, DisplayField::Mixer(MixerField::SurroundLr)),
+                one(P::Fb, DisplayField::Mixer(MixerField::SurroundFb)),
+                one(P::ExtLr, DisplayField::Mixer(MixerField::SurroundLr)),
+                one(P::ExtFb, DisplayField::Mixer(MixerField::SurroundFb)),
             ]
         );
     }

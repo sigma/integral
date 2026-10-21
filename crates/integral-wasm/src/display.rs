@@ -5,7 +5,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::{
     MixerField, PcmdPartialField, PcmsPartialField, PcmsPmtField, SnaCommonField, SnsPartialField,
-    SurroundField, ToneType,
+    ToneType,
 };
 
 /// A Display a layout can place (mirrors [`core::DisplayKind`]).
@@ -164,8 +164,6 @@ struct FieldGetters {
     pcms_pmt: Option<PcmsPmtField>,
     pcmd_partial: Option<PcmdPartialField>,
     mixer: Option<MixerField>,
-    part_surround_offset: Option<[u8; 3]>,
-    surround: Option<SurroundField>,
 }
 
 impl WasmDisplaySlot {
@@ -199,14 +197,6 @@ impl WasmDisplaySlot {
             },
             DisplayField::Mixer(f) => FieldGetters {
                 mixer: Some(f.into()),
-                ..none
-            },
-            DisplayField::PartSurround(offset) => FieldGetters {
-                part_surround_offset: Some(offset),
-                ..none
-            },
-            DisplayField::Surround(f) => FieldGetters {
-                surround: Some(f.into()),
                 ..none
             },
         }
@@ -274,18 +264,6 @@ impl WasmDisplaySlot {
     pub fn mixer(&self) -> Option<MixerField> {
         self.getters().mixer
     }
-
-    /// The Part surround parameter read, by its offset in the Part block.
-    #[wasm_bindgen(getter, js_name = partSurroundOffset)]
-    pub fn part_surround_offset(&self) -> Option<Vec<u8>> {
-        self.getters().part_surround_offset.map(|o| o.to_vec())
-    }
-
-    /// The Motional Surround common field read.
-    #[wasm_bindgen(getter)]
-    pub fn surround(&self) -> Option<SurroundField> {
-        self.getters().surround
-    }
 }
 
 /// The slots of `kind`, shown in an editor of `tone_type` or, without one,
@@ -324,13 +302,10 @@ mod tests {
     }
 
     #[test]
-    fn mixer_slots_carry_offsets() {
+    fn mixer_slots_carry_mixer_fields() {
         let pad = display_binding(DisplayKind::SurroundPad, None).unwrap();
-        assert_eq!(
-            pad[0].part_surround_offset(),
-            Some(integral_core::params::part_surround::LR.to_vec())
-        );
-        assert_eq!(pad[2].surround(), Some(SurroundField::ExtPartLr));
+        assert_eq!(pad[0].mixer(), Some(MixerField::SurroundLr));
+        assert_eq!(pad[2].mixer(), Some(MixerField::SurroundLr));
         let curve = display_binding(DisplayKind::CompTransferCurve, None).unwrap();
         assert_eq!(curve[0].mixer(), Some(MixerField::CompThreshold));
     }

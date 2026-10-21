@@ -33,13 +33,30 @@ const EQ_PLACED: ReadonlySet<MixerField> = new Set(
   allElements(EQ_LAYOUT.items).flatMap((el) => (el.kind === "display" ? [] : [el.field])),
 );
 
-/** The fields a strip of `kind` places: its Scope's, less the EQ's, plus a part's toggles. */
+/** Surround position fields a part strip draws: its ambience send, in place of its FX sends. */
+const PART_SURROUND: ReadonlySet<MixerField> = new Set([MixerField.SurroundAmbienceSend]);
+
+/** A Motional Surround position field: one both a part and the Ext Part have, which the Surround page places. */
+function isSurroundPosition(field: MixerField): boolean {
+  return mixer_field_in_scope(field, MixerScopeKind.Part) && mixer_field_in_scope(field, MixerScopeKind.Ext);
+}
+
+/**
+ * The fields a strip of `kind` places: its Scope's, less the EQ's and the
+ * surround positions, plus a part's toggles and ambience send.
+ */
 export function stripFields(kind: MixerScopeKind): FieldSpace<MixerField> {
   // Every mixer field, with core's names and ranges.
   const all = mixerFields([]);
-  const toggles = kind === MixerScopeKind.Part ? PART_TOGGLES : new Set<MixerField>();
+  const part = kind === MixerScopeKind.Part;
+  const toggles = part ? PART_TOGGLES : new Set<MixerField>();
   const ids = memo(() =>
-    all.ids.filter((field) => toggles.has(field) || (mixer_field_in_scope(field, kind) && !EQ_PLACED.has(field))),
+    all.ids.filter(
+      (field) =>
+        toggles.has(field) ||
+        (part && PART_SURROUND.has(field)) ||
+        (mixer_field_in_scope(field, kind) && !EQ_PLACED.has(field) && !isSurroundPosition(field)),
+    ),
   );
   return {
     name: `strip fields of ${MixerScopeKind[kind]}`,
@@ -82,7 +99,7 @@ const PART: SectionBody<MixerField> = {
             { kind: "knob", field: MixerField.PartReverbSend, x: 2, y: 3 },
           ],
         },
-        { name: "surround", items: [{ kind: "knob", field: MixerField.PartAmbienceSend, x: 1, y: 3, label: "AMB" }] },
+        { name: "surround", items: [{ kind: "knob", field: MixerField.SurroundAmbienceSend, x: 1, y: 3, label: "AMB" }] },
       ],
     },
     { kind: "knob", field: MixerField.PartOutputAssign, x: 0, y: 6, label: "Out" },
