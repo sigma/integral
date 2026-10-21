@@ -146,10 +146,18 @@ describe("validateSection", () => {
   });
 
   it("arrow: an endpoint not placed in the Section", () => {
-    const ok = withItems([], [{ kind: "arrow", from: { field: MixerField.EqLowGain, side: "right" }, to: { field: MixerField.EqSwitch, side: "top" } }]);
+    const ok = withItems([], [{ kind: "arrow", from: { field: MixerField.EqSwitch, side: "bottom" }, to: { field: MixerField.EqMidGain, side: "bottom" } }]);
     expect(validateSection(ok)).toEqual([]);
-    const bad = withItems([], [{ kind: "arrow", from: { field: MixerField.EqLowGain, side: "right" }, to: { display: DisplayKind.AmpEnvelope, side: "left" } }]);
+    const bad = withItems([], [{ kind: "arrow", from: { field: MixerField.EqSwitch, side: "bottom" }, to: { display: DisplayKind.AmpEnvelope, side: "left" } }]);
     expect(checks(validateSection(bad))).toEqual(["arrow"]);
+  });
+
+  it("arrow: no free Cells out of an endpoint's side", () => {
+    // The knob's right side abuts the other knob.
+    const bad = withItems([], [{ kind: "arrow", from: { field: MixerField.EqLowGain, side: "right" }, to: { field: MixerField.EqSwitch, side: "top" } }]);
+    const problems = validateSection(bad);
+    expect(checks(problems)).toEqual(["arrow"]);
+    expect(problems[0]?.message).toBe("no route through free Cells");
   });
 
   it("field: an id outside core's list for the Section's Scopes", () => {
@@ -258,7 +266,8 @@ describe("validateScreen", () => {
   });
 
   it("lattice: a Section off whole Cells", () => {
-    const bad = { ...SCREEN, sections: [...SCREEN.sections.slice(0, 1), { id: "b", section: frame(3, 4), x: 5.5, y: 0 }] };
+    // Without the arrow, which can't route to a Section off the lattice either.
+    const bad = { ...SCREEN, silkscreen: [], sections: [...SCREEN.sections.slice(0, 1), { id: "b", section: frame(3, 4), x: 5.5, y: 0 }] };
     expect(checks(validateScreen(bad))).toEqual(["lattice"]);
   });
 
@@ -268,7 +277,7 @@ describe("validateScreen", () => {
   });
 
   it("overlap: two Sections on one Cell", () => {
-    const bad = { ...SCREEN, lanes: [], sections: [...SCREEN.sections, { id: "c", section: frame(1, 1), x: 3, y: 3 }] };
+    const bad = { ...SCREEN, lanes: [], silkscreen: [], sections: [...SCREEN.sections, { id: "c", section: frame(1, 1), x: 3, y: 3 }] };
     expect(checks(validateScreen(bad))).toEqual(["overlap"]);
   });
 
@@ -285,5 +294,20 @@ describe("validateScreen", () => {
   it("arrow: an endpoint naming no Section", () => {
     const bad: ScreenLayout = { ...SCREEN, silkscreen: [{ kind: "arrow", from: { section: "a", side: "right" }, to: { section: "z", side: "left" } }] };
     expect(checks(validateScreen(bad))).toEqual(["arrow"]);
+  });
+
+  it("arrow: glyphs into two targets in one Lane Cell", () => {
+    const into = (from: string, to: string) => ({ kind: "arrow", from: { section: from, side: from === "a" ? "right" : "left" }, to: { section: to, side: to === "a" ? "right" : "left" }, glyph: "+" }) as const;
+    expect(validateScreen({ ...SCREEN, silkscreen: [into("a", "b")] })).toEqual([]);
+    const problems = validateScreen({ ...SCREEN, silkscreen: [into("a", "b"), into("b", "a")] });
+    expect(checks(problems)).toEqual(["arrow"]);
+    expect(problems[0]?.where).toBe("screen: glyph at 4.5,2.5");
+  });
+
+  it("arrow: no Lane out of an endpoint's side", () => {
+    const bad: ScreenLayout = { ...SCREEN, silkscreen: [{ kind: "arrow", from: { section: "a", side: "top" }, to: { section: "b", side: "left" } }] };
+    const problems = validateScreen(bad);
+    expect(checks(problems)).toEqual(["arrow"]);
+    expect(problems[0]?.message).toBe("no route through the Lanes");
   });
 });

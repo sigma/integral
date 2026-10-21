@@ -144,13 +144,25 @@ export type ItemEndpoint<F extends FieldKey> =
   | { field: F; side: Side }
   | { display: DisplayKind; side: Side };
 
-/** A signal arrow inside a Section. Routed from the layout, not the DOM (#355). */
+/**
+ * What a signal goes through just before it enters an arrow's target: mix
+ * (+), booster (B) or ring modulator (R). Drawn centred in the free Cell next
+ * to the target; arrows sharing a target and glyph share one.
+ */
+export type ArrowGlyph = "+" | "B" | "R";
+
+/**
+ * A signal arrow inside a Section, through Cells no item covers. Routed from
+ * the layout, not the DOM (`routing.ts`).
+ */
 export interface SectionArrowSilk<F extends FieldKey> {
   kind: "arrow";
   /** Where the signal leaves. */
   from: ItemEndpoint<F>;
   /** Where it enters. */
   to: ItemEndpoint<F>;
+  /** Drawn where it meets `to`. */
+  glyph?: ArrowGlyph;
 }
 
 /** A Section's own Silkscreen, in Section coordinates; covers no Cells. */
@@ -238,13 +250,15 @@ export interface SectionEndpoint {
   side: Side;
 }
 
-/** A signal arrow between Sections, running through Lanes (#355). */
+/** A signal arrow between Sections, running through Lanes (`routing.ts`). */
 export interface ScreenArrowSilk {
   kind: "arrow";
   /** Where the signal leaves. */
   from: SectionEndpoint;
   /** Where it enters. */
   to: SectionEndpoint;
+  /** Drawn where it meets `to`. */
+  glyph?: ArrowGlyph;
 }
 
 /** A run of Cells nothing covers, so arrows between Sections have room. */

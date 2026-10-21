@@ -215,3 +215,133 @@ describe("GridScreen", () => {
     ]);
   });
 });
+
+/** The `d` of each arrow path in `root`, in DOM order. */
+const arrowPaths = (root: ParentNode): (string | null)[] =>
+  [...root.querySelectorAll("path[data-arrow]")].map((p) => p.getAttribute("d"));
+
+describe("GridSection Silkscreen arrows", () => {
+  // Two knobs across the top of a side-titled Section; free Cells below them.
+  const layout: SectionLayout<MixerField> = {
+    title: "S",
+    titleEdge: "side",
+    w: 4,
+    h: 5,
+    fields: mixerFields([MixerScopeKind.Part]),
+    items: [
+      { kind: "knob", field: MixerField.EqLowGain, x: 0, y: 0 },
+      { kind: "knob", field: MixerField.EqMidGain, x: 2, y: 0 },
+    ],
+    silkscreen: [
+      { kind: "arrow", from: { field: MixerField.EqLowGain, side: "bottom" }, to: { field: MixerField.EqMidGain, side: "bottom" } },
+    ],
+  };
+
+  it("routes an arrow between elements from the layout, offset past the title", () => {
+    const { container } = render(<GridSection layout={layout} bind={bindMixer} />);
+    // Content starts one Cell (24px) right of the side title; routes run on Cell centres.
+    expect(arrowPaths(container)).toEqual(["M 36 72 L 36 84 L 84 84 L 84 72"]);
+  });
+
+  it("draws a glyph centred in the Cell next to the target", () => {
+    const glyphed: SectionLayout<MixerField> = {
+      ...layout,
+      silkscreen: [{ kind: "arrow", from: { field: MixerField.EqLowGain, side: "bottom" }, to: { field: MixerField.EqMidGain, side: "bottom" }, glyph: "R" }],
+    };
+    const { container } = render(<GridSection layout={glyphed} bind={bindMixer} />);
+    const circle = container.querySelector("circle")!;
+    expect([circle.getAttribute("cx"), circle.getAttribute("cy")]).toEqual(["84", "84"]);
+    expect(container.querySelector("[data-glyph]")!.textContent).toBe("R");
+    // The route stops at the glyph's ring; a lead runs from it into the target.
+    expect(arrowPaths(container)).toEqual(["M 36 72 L 36 84 L 77 84", "M 84 77 L 84 72"]);
+  });
+
+  it("draws no arrow whose endpoint is in an alternative not drawn", () => {
+    const alt: SectionLayout<MixerField> = {
+      ...layout,
+      items: [
+        layout.items[0]!,
+        {
+          kind: "alternatives",
+          group: "g",
+          x: 2,
+          y: 0,
+          w: 2,
+          h: 3,
+          options: [
+            { name: "a", items: [{ kind: "knob", field: MixerField.EqMidGain, x: 2, y: 0 }] },
+            { name: "b", items: [{ kind: "knob", field: MixerField.EqMidQ, x: 2, y: 0 }] },
+          ],
+        },
+      ],
+    };
+    expect(arrowPaths(render(<GridSection layout={alt} bind={bindMixer} />).container)).toHaveLength(1);
+    expect(arrowPaths(render(<GridSection layout={alt} bind={bindMixer} alternative={() => "b"} />).container)).toHaveLength(0);
+  });
+});
+
+describe("GridScreen Silkscreen arrows", () => {
+  /** A section outline of `w`×`h` content Cells, title on top. */
+  const frame = (w: number, h: number) => ({ title: "S", titleEdge: "top" as const, w, h });
+  /** `a` above left, `b` lower right, a Lane between, and arrows `a` → `b`. */
+  const screen = (silkscreen: ScreenLayout["silkscreen"]): ScreenLayout => ({
+    name: "elbow",
+    w: 9,
+    h: 8,
+    sections: [
+      { id: "a", section: frame(4, 3), x: 0, y: 0 },
+      { id: "c", section: frame(4, 3), x: 0, y: 4 },
+      { id: "b", section: frame(4, 5), x: 5, y: 2 },
+    ],
+    lanes: [{ x: 4, y: 0, w: 1, h: 8 }],
+    silkscreen,
+  });
+  const draw = (layout: ScreenLayout) => render(<GridScreen layout={layout}>{() => null}</GridScreen>).container;
+
+  it("routes an elbowed arrow between two Sections through a Lane, border to border", () => {
+    const container = draw(screen([{ kind: "arrow", from: { section: "a", side: "right" }, to: { section: "b", side: "left" } }]));
+    // Lattice (4, 1.5) → (4.5, 1.5) → (4.5, 4.5) → (5, 4.5), each end reaching the
+    // border drawn INSET (4px) inside its Section.
+    expect(arrowPaths(container)).toEqual(["M 92 36 L 108 36 L 108 108 L 124 108"]);
+    const svg = container.querySelector<SVGSVGElement>("svg[data-screen-silkscreen]")!;
+    expect([svg.getAttribute("width"), svg.getAttribute("height")]).toEqual(["216", "192"]);
+    expect(svg.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("draws one glyph where arrows into one target meet", () => {
+    const container = draw(
+      screen([
+        { kind: "arrow", from: { section: "a", side: "right" }, to: { section: "b", side: "left" }, glyph: "+" },
+        { kind: "arrow", from: { section: "c", side: "right" }, to: { section: "b", side: "left" }, glyph: "+" },
+      ]),
+    );
+    expect(container.querySelectorAll("[data-glyph]")).toHaveLength(1);
+    expect(arrowPaths(container)).toEqual([
+      "M 92 36 L 108 36 L 108 101",
+      "M 92 132 L 108 132 L 108 115",
+      "M 115 108 L 124 108",
+    ]);
+  });
+
+  it("draws a lead into each target, even when their glyph Cells coincide", () => {
+    // a → b and b → a both put their glyph in Lane Cell (4, 2); a validator error, but each target still gets its lead.
+    const facing: ScreenLayout = {
+      ...screen([]),
+      sections: [
+        { id: "a", section: frame(4, 4), x: 0, y: 0 },
+        { id: "b", section: frame(4, 4), x: 5, y: 0 },
+      ],
+      silkscreen: [
+        { kind: "arrow", from: { section: "a", side: "right" }, to: { section: "b", side: "left" }, glyph: "+" },
+        { kind: "arrow", from: { section: "b", side: "left" }, to: { section: "a", side: "right" }, glyph: "+" },
+      ],
+    };
+    const leads = arrowPaths(draw(facing)).slice(2);
+    expect(leads).toEqual(["M 115 60 L 124 60", "M 101 60 L 92 60"]);
+  });
+
+  it("draws nothing for an arrow the Lanes can't carry", () => {
+    const container = draw(screen([{ kind: "arrow", from: { section: "a", side: "top" }, to: { section: "b", side: "left" } }]));
+    expect(arrowPaths(container)).toEqual([]);
+  });
+});

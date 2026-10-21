@@ -9,12 +9,21 @@ import { DisplayKind } from "../../pkg/integral_wasm.js";
 import { optionListRows, type Cells } from "../synth-ui/grid";
 import type { FieldKey, FieldSpace } from "./fields";
 import { DISPLAY_MIN_FOOTPRINT, allElements, itemRect, sectionCells, variantLayout } from "./geometry";
+import {
+  drawnArrows,
+  glyphClashes,
+  isEndpoint,
+  routeScreenArrow,
+  routeSectionArrow,
+  type DrawnArrow,
+} from "./routing";
 import type {
   CellRect,
   ElementLayout,
   HalfCellPoint,
   ItemEndpoint,
   ScreenLayout,
+  SectionArrowSilk,
   SectionLayout,
   VariantSet,
 } from "./types";
@@ -33,7 +42,10 @@ export type Check =
   | "unplaced"
   /** A Section covering a Lane's Cell. */
   | "lane"
-  /** An arrow whose endpoint isn't on the Section or screen. */
+  /**
+   * An arrow whose endpoint isn't on the Section or screen, that no free Cells
+   * or Lanes can carry, or whose glyph shares a Cell with another.
+   */
   | "arrow"
   /** A field, Display or variant key core doesn't define. */
   | "field";
@@ -123,6 +135,13 @@ function elementName<F extends FieldKey>(el: ElementLayout<F>, fields: FieldSpac
   return el.kind === "display" ? displayName(el.display) : `${el.kind} ${fields.nameOf(el.field)}`;
 }
 
+/** Reports each Cell where two different glyphs would be drawn. */
+function reportGlyphClashes(report: Report, arrows: readonly DrawnArrow[]): void {
+  for (const cell of glyphClashes(arrows)) {
+    report("arrow", `glyph at ${cell}`, "two targets or glyphs share one Cell");
+  }
+}
+
 /** Problems with one Section's layout. */
 export function validateSection<F extends FieldKey>(
   layout: SectionLayout<F>,
@@ -173,10 +192,10 @@ export function validateSection<F extends FieldKey>(
 
   // An endpoint in any alternative exists: the arrow is drawn when it is.
   const placed = allElements(layout.items);
-  const ends: ItemEndpoint<F>[] = [];
+  const arrows: SectionArrowSilk<F>[] = [];
   for (const silk of layout.silkscreen ?? []) {
     if (silk.kind === "arrow") {
-      ends.push(silk.from, silk.to);
+      arrows.push(silk);
       continue;
     }
     const points: readonly HalfCellPoint[] = silk.kind === "rule" ? silk.points : [[silk.x, silk.y]];
@@ -189,16 +208,19 @@ export function validateSection<F extends FieldKey>(
     }
     if (silk.kind === "rule" && silk.points.length < 2) report("lattice", name, "needs two points");
   }
-  for (const end of ends) {
-    const found =
-      "field" in end
-        ? placed.some((el) => el.kind !== "display" && el.field === end.field)
-        : placed.some((el) => el.kind === "display" && el.display === end.display);
-    if (!found) {
-      const name = "field" in end ? layout.fields.nameOf(end.field) : displayName(end.display);
-      report("arrow", `arrow ${name}`, "endpoint not placed");
-    }
+  const endName = (end: ItemEndpoint<F>): string =>
+    "field" in end ? layout.fields.nameOf(end.field) : displayName(end.display);
+  for (const end of arrows.flatMap((a) => [a.from, a.to])) {
+    if (!placed.some((el) => isEndpoint(el, end))) report("arrow", `arrow ${endName(end)}`, "endpoint not placed");
   }
+  // Every placement of each end (one per alternative naming it) must route.
+  for (const arrow of arrows) {
+    const froms = placed.filter((el) => isEndpoint(el, arrow.from));
+    const tos = placed.filter((el) => isEndpoint(el, arrow.to));
+    const stuck = froms.some((f) => tos.some((t) => routeSectionArrow(layout, arrow, [f, t]) === null));
+    if (stuck) report("arrow", `arrow ${endName(arrow.from)} → ${endName(arrow.to)}`, "no route through free Cells");
+  }
+  reportGlyphClashes(report, drawnArrows(arrows, (a) => routeSectionArrow(layout, a)));
   return problems;
 }
 
@@ -251,9 +273,12 @@ export function validateScreen(screen: ScreenLayout): Problem[] {
     if (by !== undefined) report("lane", name, `covered by ${by}`);
   });
   for (const arrow of screen.silkscreen) {
-    for (const end of [arrow.from, arrow.to]) {
-      if (!ids.has(end.section)) report("arrow", `arrow ${end.section}`, "no such Section");
+    const unknown = [arrow.from, arrow.to].filter((end) => !ids.has(end.section));
+    for (const end of unknown) report("arrow", `arrow ${end.section}`, "no such Section");
+    if (unknown.length === 0 && routeScreenArrow(screen, arrow) === null) {
+      report("arrow", `arrow ${arrow.from.section} → ${arrow.to.section}`, "no route through the Lanes");
     }
   }
+  reportGlyphClashes(report, drawnArrows(screen.silkscreen, (a) => routeScreenArrow(screen, a)));
   return problems;
 }
