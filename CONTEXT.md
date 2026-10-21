@@ -192,6 +192,13 @@ Section to its parameters. One layout serves every instance; a repeat or a
 selection supplies the Scope.
 _Avoid_: Index, instance number
 
+**Layout**:
+The definition of where things go on the Grid. A Section's layout places its
+Controls, Displays and Silkscreen. A screen's layout places its Sections and
+Lanes and the signal arrows between Sections. A layout names parameters and
+never defines them.
+_Avoid_: Skin, template
+
 **Variant set**:
 The layouts of one Section, one per key (MFX type, structure type,
 instrument, strip kind). Every variant fits the same rectangle, so changing
