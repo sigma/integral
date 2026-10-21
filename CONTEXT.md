@@ -213,7 +213,10 @@ MIDI interface in between. The device serves one wireless link at a time;
 other clients wait until it ends.
 _Avoid_: Wi-Fi MIDI, network MIDI (that is RTP-MIDI through an interface)
 
-**Bridge**:
-The helper that holds a Wireless link and shows it to other apps as an
-ordinary MIDI port, present only while the link is up.
-_Avoid_: Proxy, daemon
+**Device service**:
+The one process that owns the link to the INTEGRA-7 (a Wireless link, an
+RTP-MIDI port or a USB port) and the one device state. Plugin instances reach
+the device through it. It shows the link to other apps as an ordinary MIDI
+port, present only while the link is up.
+_Avoid_: Bridge (its former name, when it only held a Wireless link), proxy,
+daemon
