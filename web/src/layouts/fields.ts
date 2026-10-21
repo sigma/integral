@@ -28,12 +28,22 @@ export type FieldKey = number | string;
 export interface FieldSpace<F extends FieldKey> {
   /** Which space this is, for validator messages ("MixerField in Part, Master"). */
   readonly name: string;
-  /** Every id core defines in this space. */
+  /** Every id core defines in this space; read lazily, so a space can be built before wasm starts. */
   readonly ids: readonly F[];
   /** A field's name in messages: its enum member name, or its FX param name. */
   nameOf(field: F): string;
   /** How many values the field takes, `max - min + 1`; sizes option lists. */
   optionCount(field: F): number;
+}
+
+/**
+ * `compute` on first call, then its result. Layout modules build field spaces
+ * at import, before the app has started the wasm core (`initWasm`), so a space
+ * asks core only when a Section first reads it.
+ */
+function memo<T>(compute: () => T): () => T {
+  let value: { v: T } | undefined;
+  return () => (value ??= { v: compute() }).v;
 }
 
 /** The members of a wasm-bindgen numeric enum, in declaration order. */
@@ -52,10 +62,12 @@ export function enumFields<E extends number>(
   spec: (field: E) => WasmFieldSpec,
   keep: (field: E) => boolean = () => true,
 ): FieldSpace<E> {
-  const ids = enumMembers<E>(enumObject).filter(keep);
+  const ids = memo(() => enumMembers<E>(enumObject).filter(keep));
   return {
     name,
-    ids,
+    get ids() {
+      return ids();
+    },
     nameOf: (field) => String(enumObject[field] ?? field),
     optionCount: (field) => {
       const { min, max } = spec(field);
@@ -88,13 +100,16 @@ const FX_PARAMS: Record<FxBlock, (type: number) => WasmFxParamDef[]> = {
 
 /** The params of one FX type, named as core's generated table names them. */
 export function fxFields(block: FxBlock, type: number): FieldSpace<string> {
-  const defs = new Map(FX_PARAMS[block](type).map((d) => [d.name, d]));
+  const defs = memo(() => new Map(FX_PARAMS[block](type).map((d) => [d.name, d])));
+  const ids = memo(() => [...defs().keys()]);
   return {
     name: `${block} type ${type}`,
-    ids: [...defs.keys()],
+    get ids() {
+      return ids();
+    },
     nameOf: (field) => field,
     optionCount: (field) => {
-      const def = defs.get(field);
+      const def = defs().get(field);
       return def === undefined ? 0 : def.max - def.min + 1;
     },
   };

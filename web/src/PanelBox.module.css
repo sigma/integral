@@ -43,8 +43,8 @@
  * Knob rows: one EqKnob per row at a fixed pitch shorter than the knob (64px).
  * Knobs zig-zag between the columns, so each overlaps its neighbours' rows
  * without touching them; the padding holds the first and last knob's overhang.
- * EqSection and FxStrip both build on this, which keeps FX row N level with
- * EQ row N.
+ * ParametricEq and FxStrip build on this. The mixer EQ is drawn on the Grid
+ * instead (layouts/mixer/eq.ts), at the same 48px pitch.
  */
 .knobRows {
   --knob-pitch: 48px;

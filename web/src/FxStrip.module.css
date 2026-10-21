@@ -8,7 +8,7 @@
   border-left: none;
 }
 
-/* One knob per row, zig-zagging like EqSection, so row N meets EQ row N. */
+/* One knob per row, zig-zagging like the mixer EQ beside it. */
 .box {
   align-self: stretch;
 }

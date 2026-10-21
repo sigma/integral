@@ -24,8 +24,12 @@ export function paramMeta(field: MixerField): ParamMeta {
   return meta;
 }
 
-/** Display formatter for a mixer field, using core's value labels. */
+/**
+ * Display formatter for a mixer field, using core's value labels. It looks
+ * the spec up on first use, so a module may build one at import, before the
+ * app has started the wasm core.
+ */
 export function paramFormatter(field: MixerField): (value: number) => string {
-  const spec = mixer_field_spec(field);
-  return (value) => spec.formatValue(value);
+  let spec: ReturnType<typeof mixer_field_spec> | undefined;
+  return (value) => (spec ??= mixer_field_spec(field)).formatValue(value);
 }

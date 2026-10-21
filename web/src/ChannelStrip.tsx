@@ -2,7 +2,8 @@ import { memo } from "react";
 import { VolumeFader } from "./VolumeFader";
 import { PanKnob } from "./PanKnob";
 import { EqKnob } from "./EqKnob";
-import { EqSection } from "./EqSection";
+import { GridSection, type Binding } from "./layouts";
+import { EQ_LAYOUT } from "./layouts/mixer/eq";
 import box from "./PanelBox.module.css";
 import { TransferCurve } from "./TransferCurve";
 import { ADSREnvelope } from "./synth-ui";
@@ -77,7 +78,47 @@ function toneLabel(part: PartState): string {
   return part.toneName || `${part.toneBankMsb}-${part.toneBankLsb}-${part.tonePC + 1}`;
 }
 
-/** Map CompEqUnit EQ fields to an EqState for the EqSection component. */
+/** The `EqState` member holding each EQ knob's value. */
+const EQ_STATE_KEY: Partial<Record<MixerField, Exclude<keyof EqState, "enabled">>> = {
+  [MixerField.EqLowFreq]: "lowFreq",
+  [MixerField.EqLowGain]: "lowGain",
+  [MixerField.EqMidFreq]: "midFreq",
+  [MixerField.EqMidGain]: "midGain",
+  [MixerField.EqMidQ]: "midQ",
+  [MixerField.EqHighFreq]: "highFreq",
+  [MixerField.EqHighGain]: "highGain",
+};
+
+/** Gains read in dB; core's labels carry the sign only. */
+const EQ_GAINS: ReadonlySet<MixerField> = new Set([MixerField.EqLowGain, MixerField.EqMidGain, MixerField.EqHighGain]);
+
+/** `eq`'s raw value of the EQ field `field`. */
+function eqValue(eq: EqState, field: MixerField): number {
+  if (field === MixerField.EqSwitch) return Number(eq.enabled);
+  const key = EQ_STATE_KEY[field];
+  if (key === undefined) throw new Error(`${MixerField[field]} is not an EQ field`);
+  return eq[key];
+}
+
+/** Binds the EQ layout's fields to `eq`, writing through `onField` in the strip's Scope. */
+function eqBinding(eq: EqState, onField: (field: MixerField, value: number) => void) {
+  return (field: MixerField): Binding => {
+    const meta = paramMeta(field);
+    const fmt = paramFormatter(field);
+    const unit = EQ_GAINS.has(field) ? "dB" : "";
+    return {
+      ...meta,
+      value: eqValue(eq, field),
+      format: (v) => `${fmt(v)}${unit}`,
+      onChange: (v) => onField(field, v),
+    };
+  };
+}
+
+/** The EQ Section's accent: the family of its gain knobs. */
+const eqFamily = () => paramMeta(MixerField.EqMidGain).family;
+
+/** Map CompEqUnit EQ fields to an EqState for the EQ Section. */
 function compEqToEqState(u: CompEqUnit): EqState {
   return {
     enabled: u.eqSwitch,
@@ -182,9 +223,10 @@ function ChannelStripInner({
       )}
 
       {/* EQ section */}
-      <EqSection
-        eq={eqState}
-        onField={onField ?? noop}
+      <GridSection
+        layout={EQ_LAYOUT}
+        bind={eqBinding(eqState, onField ?? noop)}
+        family={eqFamily()}
         style={hideIf(showEq)}
       />
 
