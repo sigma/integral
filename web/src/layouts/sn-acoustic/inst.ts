@@ -48,10 +48,11 @@ export const TW_ORGAN_BODY: SectionBody<number> = {
     ...FOOTAGES.map(
       (label, i): ControlLayout<number> => ({ kind: "fader", field: i + 1, x: i * 2, y: 0, h: BAR_H, label }),
     ),
-    { kind: "switch", field: 11, x: 0, y: BAR_H, label: "Perc" },
-    { kind: "switch", field: 12, x: 2, y: BAR_H, label: "Soft" },
-    { kind: "switch", field: 15, x: 4, y: BAR_H, label: "Slow" },
-    { kind: "switch", field: 18, x: 6, y: BAR_H, label: "Harm" },
+    // Switches keep a free Cell from the left border.
+    { kind: "switch", field: 11, x: 1, y: BAR_H, label: "Perc" },
+    { kind: "switch", field: 12, x: 3, y: BAR_H, label: "Soft" },
+    { kind: "switch", field: 15, x: 5, y: BAR_H, label: "Slow" },
+    { kind: "switch", field: 18, x: 7, y: BAR_H, label: "Harm" },
     { kind: "knob", field: 10, x: 0, y: BAR_H + 1, label: "Leakage" },
     { kind: "knob", field: 13, x: 2, y: BAR_H + 1, label: "Soft Lvl" },
     { kind: "knob", field: 14, x: 4, y: BAR_H + 1, label: "Norm Lvl" },
@@ -64,13 +65,18 @@ export const TW_ORGAN_BODY: SectionBody<number> = {
   ],
 };
 
-/** Small knobs (or switches) per row: the footprint's width in 2-Cell Controls. */
+/** Small knobs per row: the footprint's width in 2-Cell Controls. */
 const PER_ROW = W / 2;
+/**
+ * Switches per row: one fewer than knobs, since a switch fills its Cells and
+ * keeps a free Cell from the left and right borders.
+ */
+const SWITCHES_PER_ROW = PER_ROW - 1;
 
 /**
  * The INST layout of an instrument without a hand one: its knobs row-major,
  * then its two-state parameters as switches in rows below, in core's slot
- * order.
+ * order. The switches start a Cell in, clear of the border.
  *
  * This is SN-A's own small generator. #360 may promote a shared variant-set
  * generator into `layouts/`; this one is meant to be folded into it then.
@@ -94,8 +100,8 @@ export function packModifyParams(key: number): SectionBody<number> {
         (d, i): ControlLayout<number> => ({
           kind: "switch",
           field: d.slot,
-          x: (i % PER_ROW) * 2,
-          y: knobRows * 3 + Math.floor(i / PER_ROW),
+          x: 1 + (i % SWITCHES_PER_ROW) * 2,
+          y: knobRows * 3 + Math.floor(i / SWITCHES_PER_ROW),
         }),
       ),
     ],

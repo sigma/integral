@@ -8,12 +8,13 @@ import { SNA_COMMON_FIELDS } from "./fields";
 export const SNA_FILTER_LAYOUT: SectionLayout<SnaCommonField> = {
   title: "FILTER",
   titleEdge: "top",
-  w: 4,
+  w: 6,
   h: 5,
   fields: SNA_COMMON_FIELDS,
   items: [
-    { kind: "display", display: DisplayKind.FilterScope, x: 0, y: 0, w: 4, h: 2 },
-    { kind: "knob", field: SnaCommonField.CutoffOffset, x: 0, y: 2, label: "Cutoff" },
-    { kind: "knob", field: SnaCommonField.ResonanceOffset, x: 2, y: 2, label: "Reso" },
+    // The scope keeps a free Cell from the left and right borders.
+    { kind: "display", display: DisplayKind.FilterScope, x: 1, y: 0, w: 4, h: 2 },
+    { kind: "knob", field: SnaCommonField.CutoffOffset, x: 1, y: 2, label: "Cutoff" },
+    { kind: "knob", field: SnaCommonField.ResonanceOffset, x: 3, y: 2, label: "Reso" },
   ],
 };

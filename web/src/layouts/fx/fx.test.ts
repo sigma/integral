@@ -6,7 +6,7 @@ import { fxFields, fxTypes, isTwoState, type FxBlock } from "../fields";
 import { variantLayout } from "../geometry";
 import { VARIANT_SETS } from "../registry";
 import type { ControlLayout } from "../types";
-import { MFX_LEVEL, MFX_SET } from "./mfx";
+import { MFX_LEVEL, MFX_PARAMS_Y, MFX_SET } from "./mfx";
 import { CHORUS_SET, REVERB_SET, STRIP_CAPACITY } from "./strip";
 
 const SETS = [
@@ -82,11 +82,11 @@ describe("the MFX variant set", () => {
       const c = eq.get(f);
       return c && [c.kind, c.x, c.y];
     };
-    // HI and MID2 zig-zag down the left pair, MID1 and LO down the right, 2 rows apart.
+    // HI and MID2 zig-zag down the left pair, MID1 and LO down the right, 2 rows apart, under the free top row.
     const left = ["High Freq", "High Gain", "Mid2 Freq", "Mid2 Gain", "Mid2 Q"];
     const right = ["Mid1 Freq", "Mid1 Gain", "Mid1 Q", "Low Gain", "Low Freq"];
-    expect(left.map(at)).toEqual(left.map((_, i) => ["knob", (i % 2) * 2, i * 2]));
-    expect(right.map(at)).toEqual(right.map((_, i) => ["knob", 6 + (i % 2) * 2, i * 2]));
+    expect(left.map(at)).toEqual(left.map((_, i) => ["knob", (i % 2) * 2, MFX_PARAMS_Y + i * 2]));
+    expect(right.map(at)).toEqual(right.map((_, i) => ["knob", 6 + (i % 2) * 2, MFX_PARAMS_Y + i * 2]));
     for (const [field, c] of eq) {
       if (field === MFX_LEVEL) continue;
       const column = (c.x / 2) % 3;
