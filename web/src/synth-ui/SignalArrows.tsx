@@ -59,6 +59,10 @@ interface Drawing {
  * Curved arrows between the boxes of a signal path, drawn over its parent
  * element (which must be positioned). Boxes are found inside the parent by
  * their `data-node` attribute; arrows follow layout changes.
+ *
+ * Only for screens not yet drawn from a layout (the SN and PCM Synth editors
+ * move over in #361 and #362): layout-driven screens route their arrows from
+ * the layout (`layouts/routing.ts`) and measure nothing.
  */
 export function SignalArrows({ edges }: { edges: Edge[] }) {
   const svgRef = useRef<SVGSVGElement>(null);

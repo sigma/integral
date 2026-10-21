@@ -12,6 +12,8 @@ import { CELL, cellsPx, type Cells } from "../synth-ui/grid";
 import type { FieldKey } from "./fields";
 import { INSET, drawnElements, itemRect, sectionCells, sectionTitle, titleCells } from "./geometry";
 import type { ControlLayout, ElementLayout, Scope, SectionLayout, SectionSilk } from "./types";
+import { drawnArrows, routeSectionArrow } from "./routing";
+import { SilkArrows } from "./SilkArrows";
 import css from "./GridSection.module.css";
 
 /** One option of a Control that picks from a list. */
@@ -135,7 +137,7 @@ function Control<F extends FieldKey>({ control: c, binding: b }: { control: Cont
   }
 }
 
-/** A rule or group name, in px from the Section's origin; arrows are drawn by the router (#355). */
+/** A rule or group name, in px from the Section's origin; arrows are drawn by `SilkArrows`. */
 function Silk<F extends FieldKey>({ silk: s, ox, oy }: { silk: SectionSilk<F>; ox: number; oy: number }) {
   if (s.kind === "rule") {
     const points = s.points.map(([x, y]) => `${ox + x * CELL},${oy + y * CELL}`).join(" ");
@@ -183,6 +185,12 @@ export function GridSection<F extends FieldKey>({
     ...(family === undefined ? {} : { "--section-accent": familyVar(family) }),
   } as CSSProperties;
   const title = sectionTitle(layout, scope);
+  const elements = drawnElements(layout.items, alternative);
+  // An arrow is drawn when both its ends are.
+  const arrows = drawnArrows(
+    (layout.silkscreen ?? []).filter((s) => s.kind === "arrow"),
+    (a) => routeSectionArrow(layout, a, elements),
+  );
 
   return (
     <div className={css.section} data-grid-section={title} style={{ width: W, height: H, ...style }}>
@@ -208,8 +216,9 @@ export function GridSection<F extends FieldKey>({
         {(layout.silkscreen ?? []).map((s, i) => (
           <Silk key={i} silk={s} ox={ox} oy={oy} />
         ))}
+        <SilkArrows arrows={arrows} ox={ox} oy={oy} />
       </svg>
-      {drawnElements(layout.items, alternative).map((el) => {
+      {elements.map((el) => {
         const rect = itemRect(el);
         const cells: Cells = { w: rect.w, h: rect.h };
         const box = { left: ox + rect.x * CELL, top: oy + rect.y * CELL, ...cellsPx(cells) };

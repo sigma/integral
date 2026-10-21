@@ -3,6 +3,7 @@
 export type {
   Alternative,
   AlternativesLayout,
+  ArrowGlyph,
   CellRect,
   ControlLayout,
   DisplayLayout,
@@ -48,5 +49,7 @@ export {
 } from "./geometry";
 export { GridSection } from "./GridSection";
 export type { Binding, BindingOption, GridSectionProps } from "./GridSection";
+export { routeScreenArrow, routeSectionArrow } from "./routing";
+export type { DrawnArrow, Route } from "./routing";
 export { GridScreen } from "./GridScreen";
 export type { GridScreenProps } from "./GridScreen";

@@ -1,0 +1,37 @@
+/* Routed signal arrows, in the old SignalArrows colours. */
+.arrows {
+  pointer-events: none;
+}
+
+.line {
+  fill: none;
+  stroke: #888;
+  stroke-width: 1.5;
+}
+
+.head {
+  fill: #888;
+}
+
+.ring {
+  fill: #1a1a30;
+  stroke: #888;
+}
+
+.glyph {
+  font-family: sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  fill: #ccc;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+/* The screen's arrow layer, over its Sections, without taking their clicks. */
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
