@@ -1,8 +1,18 @@
 // The layout validator (ADR 0005): every layout and every variant key is
 // valid, and each check fails on the kind of error it guards against.
 import { describe, expect, it } from "vitest";
-import { DisplayKind, MixerField, MixerScopeKind, mfx_params, mfx_type_names } from "../../pkg/integral_wasm.js";
-import { fxFields, mixerFields } from "./fields";
+import {
+  DisplayKind,
+  MixerField,
+  MixerScopeKind,
+  PcmdPartialField,
+  mfx_params,
+  mfx_type_names,
+} from "../../pkg/integral_wasm.js";
+import { PCMD_AMP_ENV_LAYOUT, PCMD_PARTIAL_FIELDS, PCMD_PITCH_ENV_LAYOUT, PCMD_SCREEN } from "./drum/pcmDrum";
+import { SND_SCREEN } from "./drum/snDrum";
+import { fxFields, mixerFields, type FieldKey } from "./fields";
+import { MFX_PANEL_FRAME } from "./fx/mfx";
 import { EQ_LAYOUT } from "./mixer/eq";
 import { mixerScreen } from "./mixer/screen";
 import { STRIP_SET } from "./mixer/strip";
@@ -29,6 +39,13 @@ describe("every layout", () => {
   it("lists the Surround screen and every Section it places", () => {
     expect(screenLayouts()).toContain(surroundScreen());
     for (const { section } of surroundScreen().sections) expect(SECTION_LAYOUTS).toContain(section);
+  });
+  it("lists the drum editors and every Section they place", () => {
+    expect(screenLayouts()).toEqual(expect.arrayContaining([SND_SCREEN, PCMD_SCREEN]));
+    for (const screen of [SND_SCREEN, PCMD_SCREEN]) {
+      // The MFX placement hosts `MfxPanel`, a CSS Section around the MFX variant set.
+      for (const p of screen.sections) if (p.section !== MFX_PANEL_FRAME) expect(SECTION_LAYOUTS).toContain(p.section);
+    }
   });
 });
 
@@ -318,5 +335,44 @@ describe("validateScreen", () => {
     const problems = validateScreen(bad);
     expect(checks(problems)).toEqual(["arrow"]);
     expect(problems[0]?.message).toBe("no route through the Lanes");
+  });
+});
+
+describe("elementFields", () => {
+  const space = PCMD_PARTIAL_FIELDS;
+
+  it("keys each value of a field holding several, and a single-valued field by itself", () => {
+    expect(space.ids).toContain(PcmdPartialField.Level);
+    expect(space.ids).not.toContain(PcmdPartialField.PitchEnvTime);
+    const t2 = space.element(PcmdPartialField.PitchEnvTime, 1);
+    expect(space.ids).toContain(t2);
+    expect(space.resolve(t2)).toEqual({ field: PcmdPartialField.PitchEnvTime, index: 1 });
+    expect(space.resolve(PcmdPartialField.Level)).toEqual({ field: PcmdPartialField.Level, index: 0 });
+    expect(space.optionCount(t2)).toBe(128);
+  });
+
+  it("field: a value past the field's count, or a whole envelope field, is not in the space", () => {
+    const past: ItemLayout<FieldKey> = {
+      kind: "knob",
+      field: space.element(PcmdPartialField.PitchEnvTime, 4),
+      x: 8,
+      y: 0,
+    };
+    const whole: ItemLayout<FieldKey> = { kind: "knob", field: PcmdPartialField.PitchEnvTime, x: 8, y: 0 };
+    for (const item of [past, whole]) {
+      const bad: SectionLayout<FieldKey> = { ...PCMD_PITCH_ENV_LAYOUT, items: [...PCMD_PITCH_ENV_LAYOUT.items, item] };
+      expect(checks(validateSection(bad))).toEqual(["field"]);
+    }
+  });
+});
+
+describe("PCM Drum envelopes", () => {
+  const faders = (layout: SectionLayout<FieldKey>) =>
+    layout.items.flatMap((i) => (i.kind === "fader" ? [i.label] : []));
+
+  it("take their faders from core's binding: a fader per stored time and level", () => {
+    expect(faders(PCMD_PITCH_ENV_LAYOUT)).toEqual(["L0", "L1", "L2", "L3", "L4", "T1", "T2", "T3", "T4"]);
+    // The device fixes the TVA's L0 and L4: only its curve draws them.
+    expect(faders(PCMD_AMP_ENV_LAYOUT)).toEqual(["L1", "L2", "L3", "T1", "T2", "T3", "T4"]);
   });
 });

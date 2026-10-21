@@ -11,6 +11,8 @@ const WASM = "../pkg/integral_wasm.js";
 
 /** Layout modules the barrel and registry may not reach: each must import before wasm too. */
 const LAYOUT_MODULES = [
+  "./layouts/drum/pcmDrum",
+  "./layouts/drum/snDrum",
   "./layouts/sn-acoustic/amp",
   "./layouts/sn-acoustic/common",
   "./layouts/sn-acoustic/fields",

@@ -12,6 +12,13 @@
   grid-row: 1;
 }
 
+/* The curve alone, filling a Display's Cells. */
+.fill {
+  composes: screen from "./Scope.module.css";
+  height: 100%;
+  margin-bottom: 0;
+}
+
 .level {
   grid-row: 2;
   display: flex;

@@ -138,3 +138,53 @@ export function fxFields(block: FxBlock, type: number): FieldSpace<string> {
     },
   };
 }
+
+/**
+ * The space of a wasm field enum whose fields may hold several values (an
+ * envelope's times or levels), with a key per value: a single-valued field
+ * is its enum member, value `i` of a field holding several is
+ * `element(field, i)`. `count` is core's number of values per field.
+ */
+export interface ElementFieldSpace<E extends number> extends FieldSpace<E | string> {
+  /** The key of value `index` of `field`; past the field's count, a key outside `ids`. */
+  element(field: E, index: number): string;
+  /** The field and value a key names; `undefined` for a key not in `ids`. */
+  resolve(key: E | string): { field: E; index: number } | undefined;
+}
+
+/** The {@link ElementFieldSpace} of a wasm field enum, each field holding `count(field)` values. */
+export function elementFields<E extends number>(
+  name: string,
+  enumObject: Record<string, string | number>,
+  spec: (field: E) => WasmFieldSpec,
+  count: (field: E) => number,
+): ElementFieldSpace<E> {
+  const memberName = (field: E): string => String(enumObject[field] ?? field);
+  const keyOf = (field: E, index: number): string => `${memberName(field)}[${index}]`;
+  // Counts come from core, so they are read on first use, not at import.
+  const resolved = memo(() => {
+    const out = new Map<E | string, { field: E; index: number }>();
+    for (const field of enumMembers<E>(enumObject)) {
+      const n = count(field);
+      if (n === 1) out.set(field, { field, index: 0 });
+      else for (let i = 0; i < n; i++) out.set(keyOf(field, i), { field, index: i });
+    }
+    return out;
+  });
+  const ids = memo(() => [...resolved().keys()]);
+  return {
+    name,
+    get ids() {
+      return ids();
+    },
+    nameOf: (key) => (typeof key === "string" ? key : memberName(key)),
+    optionCount: (key) => {
+      const r = resolved().get(key);
+      if (r === undefined) return 0;
+      const { min, max } = spec(r.field);
+      return max - min + 1;
+    },
+    element: keyOf,
+    resolve: (key) => resolved().get(key),
+  };
+}

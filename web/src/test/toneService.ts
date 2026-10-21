@@ -11,11 +11,14 @@ export interface SentDt1 {
 }
 
 /** A service that answers every data request with a zeroed block of the
- *  requested size, and lets the test read back the DT1s the core sends. */
+ *  requested size, ignores note previews, and lets the test read back the
+ *  DT1s the core sends. */
 export function fakeToneService(device: WasmDeviceState) {
   const service = {
     device,
     onDt1: () => () => {},
+    sendNoteOn: () => {},
+    sendNoteOff: () => {},
     requestData: async (_address: number[], size: number[]) => {
       // RQ1 size: 4 bytes of 7 bits each.
       const bytes = size.reduce((n, b) => (n << 7) | b, 0);

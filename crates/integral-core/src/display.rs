@@ -16,9 +16,10 @@
 use crate::block_field::BlockField;
 use crate::param_registry::MixerField;
 use crate::params::ToneType;
-use crate::pcm_drum::PcmdPartialField;
+use crate::pcm_drum::{PcmdPartialField, PcmdWmtField};
 use crate::pcm_synth::{PcmsPartialField, PcmsPmtField};
 use crate::sn_acoustic::SnaCommonField;
+use crate::sn_drum::SndNoteField;
 use crate::sn_synth::SnsPartialField;
 
 /// A Display a layout can place, named independently of the engine: the
@@ -60,11 +61,14 @@ pub enum DisplayKind {
     /// Motional Surround XY pad: every part's position, and the external
     /// input's.
     SurroundPad,
+    /// Wave picker, by name: a PCM Drum WMT layer's Wave Group and L/R
+    /// Wave Numbers, or an SN Drum key's Inst.
+    WavePicker,
 }
 
 impl DisplayKind {
     /// Every kind, in declaration order.
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 16] = [
         Self::PitchEnvelope,
         Self::FilterEnvelope,
         Self::AmpEnvelope,
@@ -80,6 +84,7 @@ impl DisplayKind {
         Self::CompEnvelope,
         Self::CompTransferCurve,
         Self::SurroundPad,
+        Self::WavePicker,
     ];
 }
 
@@ -139,6 +144,16 @@ pub enum DisplayProp {
     ExtLr,
     /// The external input's surround F-B position.
     ExtFb,
+    /// Wave Group Type (INT, SRX, ...).
+    WaveGroupType,
+    /// Wave Group ID within its type.
+    WaveGroupId,
+    /// Left (or mono) Wave Number.
+    WaveNumberL,
+    /// Right Wave Number; 0 for mono.
+    WaveNumberR,
+    /// SN Drum Inst number.
+    Inst,
 }
 
 /// A parameter a Display reads, in the block its Scope addresses.
@@ -154,6 +169,11 @@ pub enum DisplayField {
     PcmsPmt(PcmsPmtField),
     /// A PCM Drum Kit Partial field; the Scope supplies the key.
     PcmdPartial(PcmdPartialField),
+    /// A PCM Drum Kit WMT layer field; the Scope supplies the key and the
+    /// layer.
+    PcmdWmt(PcmdWmtField),
+    /// An SN Drum Kit Note field; the Scope supplies the key.
+    SndNote(SndNoteField),
     /// A mixer field; the Scope supplies its indices (the part or Comp+EQ
     /// unit). An `Ext` prop reads it in the external input's Scope.
     Mixer(MixerField),
@@ -168,7 +188,9 @@ impl DisplayField {
             Self::PcmsPartial(f) => f.count(),
             Self::PcmsPmt(f) => f.count(),
             Self::PcmdPartial(f) => f.count(),
-            Self::Mixer(_) => 1,
+            Self::SndNote(f) => f.count(),
+            // The layer is the Scope's, not one of the field's values.
+            Self::PcmdWmt(_) | Self::Mixer(_) => 1,
         }
     }
 }
@@ -274,7 +296,7 @@ pub fn display_binding(kind: DisplayKind, host: DisplayHost) -> Option<Vec<Displ
         DisplayHost::Editor(ToneType::SnAcoustic) => sn_acoustic(kind),
         DisplayHost::Editor(ToneType::PcmSynth) => pcm_synth(kind),
         DisplayHost::Editor(ToneType::PcmDrum) => pcm_drum(kind),
-        DisplayHost::Editor(ToneType::SnDrum) => None,
+        DisplayHost::Editor(ToneType::SnDrum) => sn_drum(kind),
         DisplayHost::Mixer => mixer(kind),
     }
 }
@@ -379,8 +401,28 @@ fn pcm_drum(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
             (P::Cutoff, f(F::TvfCutoffFrequency)),
             (P::Resonance, f(F::TvfResonance)),
         ]),
+        DisplayKind::WavePicker => {
+            use PcmdWmtField as W;
+            let w = DisplayField::PcmdWmt;
+            reads(&[
+                (P::WaveGroupType, w(W::WaveGroupType)),
+                (P::WaveGroupId, w(W::WaveGroupId)),
+                (P::WaveNumberL, w(W::WaveNumberL)),
+                (P::WaveNumberR, w(W::WaveNumberR)),
+            ])
+        }
         _ => return None,
     })
+}
+
+fn sn_drum(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
+    match kind {
+        DisplayKind::WavePicker => Some(reads(&[(
+            DisplayProp::Inst,
+            DisplayField::SndNote(SndNoteField::InstNumber),
+        )])),
+        _ => None,
+    }
 }
 
 /// Mixer Displays, which read [`MixerField`]s.
@@ -473,6 +515,7 @@ mod tests {
     const SNA: DisplayHost = DisplayHost::Editor(ToneType::SnAcoustic);
     const PCMS: DisplayHost = DisplayHost::Editor(ToneType::PcmSynth);
     const PCMD: DisplayHost = DisplayHost::Editor(ToneType::PcmDrum);
+    const SND: DisplayHost = DisplayHost::Editor(ToneType::SnDrum);
     const MIXER: DisplayHost = DisplayHost::Mixer;
 
     /// `sn-synth/PartialRow.tsx` `OscPanel`: `ADSREnvelope` attack, decay.
@@ -581,7 +624,7 @@ mod tests {
     }
 
     /// The breakpoint envelope `pcm-synth/PartialRow.tsx` and
-    /// `pcm-drum/NoteControls.tsx` pass: T1-T4, then L0-L4.
+    /// `PcmDrumEditor.tsx` (`BreakpointDisplay`) read: T1-T4, then L0-L4.
     fn breakpoints<F: Into<DisplayField> + Copy>(
         time: F,
         level: F,
@@ -715,7 +758,7 @@ mod tests {
         );
     }
 
-    /// `pcm-drum/NoteControls.tsx` pitch section: `BreakpointEnvelope`.
+    /// `layouts/drum/pcmDrum.ts` PITCH ENV: `BreakpointDisplay`.
     #[test]
     fn pcmd_pitch_envelope() {
         use PcmdPartialField as F;
@@ -725,7 +768,7 @@ mod tests {
         );
     }
 
-    /// `pcm-drum/NoteControls.tsx` `TvfSection`: `BreakpointEnvelope`.
+    /// `layouts/drum/pcmDrum.ts` FILTER ENV: `BreakpointDisplay`.
     #[test]
     fn pcmd_filter_envelope() {
         use PcmdPartialField as F;
@@ -735,7 +778,7 @@ mod tests {
         );
     }
 
-    /// `pcm-drum/NoteControls.tsx` `TvaSection`: `BreakpointEnvelope`.
+    /// `layouts/drum/pcmDrum.ts` AMP: `BreakpointDisplay`.
     #[test]
     fn pcmd_amp_envelope() {
         use PcmdPartialField as F;
@@ -745,7 +788,7 @@ mod tests {
         );
     }
 
-    /// `pcm-drum/NoteControls.tsx` `TvfSection`: `FilterScope`.
+    /// `layouts/drum/pcmDrum.ts` FILTER: `FilterScope`.
     #[test]
     fn pcmd_filter_scope() {
         use PcmdPartialField as F;
@@ -799,10 +842,39 @@ mod tests {
         );
     }
 
+    /// `pcm-drum/WmtWave.tsx`: `WavePicker` group, L, R.
+    #[test]
+    fn pcmd_wave_picker() {
+        use PcmdWmtField as W;
+        let w = DisplayField::PcmdWmt;
+        assert_eq!(
+            sources(K::WavePicker, PCMD),
+            [
+                (P::WaveGroupType, Some(w(W::WaveGroupType)), 0),
+                (P::WaveGroupId, Some(w(W::WaveGroupId)), 0),
+                (P::WaveNumberL, Some(w(W::WaveNumberL)), 0),
+                (P::WaveNumberR, Some(w(W::WaveNumberR)), 0),
+            ]
+        );
+    }
+
+    /// `SnDrumEditor.tsx` TONE: `WavePicker` Inst.
+    #[test]
+    fn snd_wave_picker() {
+        assert_eq!(
+            sources(K::WavePicker, SND),
+            [(
+                P::Inst,
+                Some(DisplayField::SndNote(SndNoteField::InstNumber)),
+                0
+            )]
+        );
+    }
+
     /// [`DisplayKind::ALL`] lists every kind once, in order.
     #[test]
     fn all_lists_every_kind() {
-        assert_eq!(K::ALL.len(), K::SurroundPad as usize + 1);
+        assert_eq!(K::ALL.len(), K::WavePicker as usize + 1);
         for (i, kind) in K::ALL.into_iter().enumerate() {
             assert_eq!(kind as usize, i, "{kind:?}");
         }
@@ -812,14 +884,7 @@ mod tests {
     /// combination has no binding.
     #[test]
     fn bindings_exist_where_displays_are_shown() {
-        let hosts = [
-            SNS,
-            SNA,
-            PCMS,
-            PCMD,
-            DisplayHost::Editor(ToneType::SnDrum),
-            MIXER,
-        ];
+        let hosts = [SNS, SNA, PCMS, PCMD, SND, MIXER];
         let shown = |kind: K| -> &[DisplayHost] {
             match kind {
                 K::PitchEnvelope | K::FilterEnvelope => &[SNS, PCMS, PCMD],
@@ -830,6 +895,7 @@ mod tests {
                     &[PCMS]
                 }
                 K::CompEnvelope | K::CompTransferCurve | K::SurroundPad => &[MIXER],
+                K::WavePicker => &[PCMD, SND],
             }
         };
         for kind in K::ALL {
@@ -846,7 +912,7 @@ mod tests {
     /// Every slot reads a value its field holds.
     #[test]
     fn indices_are_within_their_field() {
-        let hosts = [SNS, SNA, PCMS, PCMD, MIXER];
+        let hosts = [SNS, SNA, PCMS, PCMD, SND, MIXER];
         for kind in K::ALL {
             for host in hosts {
                 for slot in display_binding(kind, host).unwrap_or_default() {
