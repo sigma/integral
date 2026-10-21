@@ -22,6 +22,16 @@ jobs:
       - name: Format check (Rust + Nix)
         run: nix develop -c just fmt-check
 
+      - name: Pack WASM
+        run: nix develop -c just pack-wasm
+
+      - name: Install web dependencies
+        run: nix develop -c bash -c "cd web && npm ci"
+
+      # Before every step that compiles integral-vst, so it embeds the UI.
+      - name: Build the plugin's web UI and check it
+        run: nix develop -c just build-web-plugin
+
       - name: Clippy
         run: nix develop -c just lint
 
@@ -33,12 +43,6 @@ jobs:
 
       - name: Test
         run: nix develop -c just test
-
-      - name: Pack WASM
-        run: nix develop -c just pack-wasm
-
-      - name: Install web dependencies
-        run: nix develop -c bash -c "cd web && npm ci"
 
       - name: CSS lint
         run: nix develop -c just lint-css

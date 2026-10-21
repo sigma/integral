@@ -16,6 +16,24 @@ pub(crate) type MidiCallback = Option<Box<dyn Fn(&mut EventContext, u8)>>;
 /// Type alias for a boxed value-change callback taking a `usize` (index).
 pub(crate) type IndexCallback = Option<Box<dyn Fn(&mut EventContext, usize)>>;
 
+/// The active page tab of the vizia editor's pages. The webview editor
+/// (`crate::webview`) replaced that editor; the views stay until #367.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Data)]
+pub enum PageTab {
+    /// Mixer page.
+    Mixer,
+    /// Surround page.
+    Surround,
+    /// Tone Edit page.
+    ToneEdit,
+}
+
+/// Events the vizia pages emit to their editor.
+pub enum EditorEvent {
+    /// Switch to a different page tab.
+    SetTab(PageTab),
+}
+
 /// The colour of a Parameter family, from the core palette.
 pub(crate) fn family_colour(family: ParameterFamily) -> Color {
     let rgb = family.colour();

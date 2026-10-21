@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const WASM = "../pkg/integral_wasm.js";
 
-/** Layout modules the barrel and registry may not reach: each must import before wasm too. */
+/** Layout modules (and their users) the barrel and registry may not reach: each must import before wasm too. */
 const LAYOUT_MODULES = [
   "./layouts/drum/pcmDrum",
   "./layouts/drum/snDrum",
@@ -30,6 +30,7 @@ const LAYOUT_MODULES = [
   "./sn-synth/PartialRow",
   "./pcm-synth/PcmSynthScreen",
   "./pcm-synth/PartialSections",
+  "./plugin",
 ];
 
 describe("importing before wasm starts", () => {

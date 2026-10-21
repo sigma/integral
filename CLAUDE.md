@@ -157,11 +157,13 @@ The `justfile` provides standard targets. Run `just` to list them.
 | `just test` | Run all tests |
 | `just test-web` | Web component tests (Vitest + jsdom, against the packed WASM) |
 | `just lint-css` | Stylelint for CSS modules |
-| `just check` | Full pre-commit: fmt-check + lint + lint-web + lint-css + build + build-wasm + test + test-web |
+| `just build-web-plugin` | Build `web/dist-plugin`, the web UI the plugin embeds (no service worker) |
+| `just build-plugin` | Build the plugin (release) with its web UI embedded |
+| `just check` | Full pre-commit: fmt-check + lint + lint-web + lint-css + build-web-plugin + build + build-wasm + test + test-web + check-pwa |
 | `just clean` | Remove build artifacts |
 | `just ping` | Ping the INTEGRA-7 device |
 | `just bridge` | Bridge the wireless link to the `INTEGRA-7 (Wireless)` port |
-| `just run` | Run standalone VST binary (native app) |
+| `just run` | Run standalone VST binary (native app, web UI embedded) |
 | `just dev-web` | Start web dev server (pack WASM + Vite) |
 
 ## Agent Behavior

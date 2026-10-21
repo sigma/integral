@@ -1,23 +1,28 @@
 //! VST3 plugin for the Integral Integra-7 control surface.
 //!
-//! This crate integrates with nih-plug to expose the Integral core
-//! engine as a VST3/CLAP plugin for DAW integration. It provides
-//! MIDI SysEx I/O, with the Integra-7 state machine handled by
-//! [`integral_core::device::DeviceState`].
+//! This crate integrates with nih-plug to expose Integral as a VST3/CLAP
+//! plugin. Its editor runs the web UI in a webview ([`webview`], ADR 0004),
+//! and the page reaches the device through the plugin transport: today a
+//! direct MIDI link the plugin opens itself, since hosts drop plugin SysEx.
 
 use integral_core::device::DeviceState;
 use integral_core::sysex;
 use nih_plug::prelude::*;
-use nih_plug_vizia::ViziaState;
 use std::num::NonZeroU32;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 
-mod editor;
 pub mod views;
+// Only the macOS editor uses the transport so far; elsewhere it is built
+// and tested, but unused.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+mod webview;
 
 /// Default SysEx device ID for the Integra-7 (0x10 = device 17).
 const DEFAULT_DEVICE_ID: u8 = 0x10;
+
+/// The editor's size before the page asks for its own, logical px.
+const DEFAULT_EDITOR_SIZE: (u32, u32) = (1280, 820);
 
 /// Maximum SysEx message size (256 bytes per INTEGRA-7 spec).
 const MAX_SYSEX_SIZE: usize = 256;
@@ -57,7 +62,9 @@ impl SysExMessage for RawSysEx {
 // Shared state
 // ---------------------------------------------------------------------------
 
-/// Shared state accessible from both the process thread and the editor.
+/// Shared state accessible from both the process thread and the vizia
+/// views. The webview editor's page keeps its own device state; this goes
+/// with the views in #367.
 pub struct SharedState {
     /// The Integra-7 device state machine.
     pub device: Mutex<DeviceState>,
@@ -79,16 +86,16 @@ pub struct Integral {
 /// Plugin parameters (currently empty — Integral uses SysEx, not DAW automation).
 #[derive(Params)]
 struct IntegralParams {
-    /// Persisted editor window state (size, position).
-    #[persist = "editor-state"]
-    editor_state: Arc<ViziaState>,
+    /// The editor window's size in logical px, as the page last set it.
+    #[persist = "editor-size"]
+    editor_size: Arc<RwLock<(u32, u32)>>,
 }
 
 impl Default for Integral {
     fn default() -> Self {
         Self {
             params: Arc::new(IntegralParams {
-                editor_state: editor::default_state(),
+                editor_size: Arc::new(RwLock::new(DEFAULT_EDITOR_SIZE)),
             }),
             shared: Arc::new(SharedState {
                 device: Mutex::new(DeviceState::new(DEFAULT_DEVICE_ID)),
@@ -121,8 +128,21 @@ impl Plugin for Integral {
         self.params.clone()
     }
 
+    #[cfg(target_os = "macos")]
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        editor::create(self.shared.clone(), self.params.editor_state.clone())
+        use webview::link::{DeviceLink, MidirLink};
+        let link: webview::editor::LinkFactory =
+            Arc::new(|| Box::new(MidirLink::default()) as Box<dyn DeviceLink>);
+        Some(Box::new(webview::editor::WebviewEditor::new(
+            self.params.editor_size.clone(),
+            link,
+        )))
+    }
+
+    /// The webview editor is macOS-only so far (see [`webview`]).
+    #[cfg(not(target_os = "macos"))]
+    fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
+        None
     }
 
     fn process(

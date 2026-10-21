@@ -15,5 +15,22 @@ path = "src/standalone.rs"
 [dependencies]
 integral-core = { path = "../integral-core" }
 nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["standalone"] }
+# Only the vizia views use it now; #367 removes both.
 nih_plug_vizia = { git = "https://github.com/robbert-vdh/nih-plug.git" }
 cpal = "0.15"
+midir = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+# The webview editor (src/webview/editor.rs) is macOS-only so far.
+[target.'cfg(target_os = "macos")'.dependencies]
+# Exact: the editor leans on wry's platform behaviour (child views,
+# custom protocol, IPC); bump deliberately and re-check in a host.
+wry = "=0.57.0"
+# nih-plug's own baseview source and rev, so the workspace [patch] applies
+# and the editor shares one baseview with nih-plug. `opengl` only keeps
+# `WindowOpenOptions::gl_config` present.
+baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "579130ecb4f9f315ae52190af42f0ea46aeaa4a2", features = ["opengl"] }
+# baseview's handle version; wry re-exports the 0.6 it takes.
+raw-window-handle = "0.5"

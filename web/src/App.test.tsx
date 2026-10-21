@@ -1,7 +1,7 @@
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
-import { IDENTIFY_TIMEOUT_MS, LAST_PORT_KEY } from "./midi";
+import { IDENTIFY_TIMEOUT_MS, LAST_PORT_KEY, webMidiPorts } from "./midi";
 import { button, cleanup, click, render } from "./test/dom";
 import { fakeMidiAccess, type FakePortSpec } from "./test/midiAccess";
 import { memoryStorage } from "./test/storage";
@@ -44,8 +44,8 @@ async function settle(): Promise<void> {
 /** Mount the app on fake ports and storage, and let it start up. */
 async function open(specs: FakePortSpec[], storage = memoryStorage()) {
   const midi = fakeMidiAccess(specs);
-  const access = async () => midi.access;
-  const { container } = render(<App requestAccess={access} storage={storage} />);
+  const ports = async () => webMidiPorts(midi.access);
+  const { container } = render(<App openPorts={ports} storage={storage} />);
   await settle();
   return { container, storage, midi };
 }
