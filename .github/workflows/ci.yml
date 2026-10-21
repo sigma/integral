@@ -9,9 +9,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Incremental state only bloats the cache; CI never rebuilds in place.
+  CARGO_INCREMENTAL: 0
+
 jobs:
-  check:
-    name: Lint, Build & Test
+  rust:
+    name: Rust (fmt, clippy, build, test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,16 +23,24 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
+      # The Nix cache holds the toolchain, not cargo's build output. flake.lock pins
+      # the toolchain, so it keys the cache together with Cargo.lock.
+      - name: Restore cargo cache
+        id: cargo-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-rust-${{ runner.os }}-${{ hashFiles('flake.lock', 'Cargo.lock') }}
+          restore-keys: cargo-rust-${{ runner.os }}-
+
       - name: Format check (Rust + Nix)
         run: nix develop -c just fmt-check
 
-      - name: Pack WASM
-        run: nix develop -c just pack-wasm
-
-      - name: Install web dependencies
-        run: nix develop -c bash -c "cd web && npm ci"
-
-      # Before every step that compiles integral-vst, so it embeds the UI.
+      # Before every step that compiles integral-vst, so it embeds the UI. Also
+      # packs the WASM and installs the web dependencies it needs.
       - name: Build the plugin's web UI and check it
         run: nix develop -c just build-web-plugin
 
@@ -38,11 +50,46 @@ jobs:
       - name: Build (native)
         run: nix develop -c just build
 
-      - name: Build (WASM)
-        run: nix develop -c just build-wasm
-
       - name: Test
         run: nix develop -c just test
+
+      # Saved from main only, so PR caches don't evict it.
+      - name: Save cargo cache
+        if: github.ref == 'refs/heads/main' && steps.cargo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+
+  web:
+    name: Web (types, CSS, tests, builds)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      # Only the wasm32 build of integral-wasm lives here, so it gets its own key.
+      - name: Restore cargo cache
+        id: cargo-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-web-${{ runner.os }}-${{ hashFiles('flake.lock', 'Cargo.lock') }}
+          restore-keys: cargo-web-${{ runner.os }}-
+
+      - name: Pack WASM
+        run: nix develop -c just pack-wasm
+
+      - name: Install web dependencies
+        run: nix develop -c bash -c "cd web && npm ci"
 
       - name: CSS lint
         run: nix develop -c just lint-css
@@ -55,3 +102,13 @@ jobs:
 
       - name: Build web and check PWA output
         run: nix develop -c just check-pwa
+
+      - name: Save cargo cache
+        if: github.ref == 'refs/heads/main' && steps.cargo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
