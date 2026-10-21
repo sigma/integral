@@ -48,7 +48,7 @@
           ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
             pkgs.alsa-lib
             pkgs.libjack2
-            # baseview (via the Vizia editor): x11 crate (gl, x11, x11-xcb)
+            # baseview (via nih-plug's standalone): x11 crate (gl, x11, x11-xcb)
             pkgs.libGL
             pkgs.libx11
             pkgs.libxcb

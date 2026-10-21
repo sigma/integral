@@ -13,10 +13,7 @@ name = "integral-app"
 path = "src/standalone.rs"
 
 [dependencies]
-integral-core = { path = "../integral-core" }
 nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["standalone"] }
-# Only the vizia views use it now; #367 removes both.
-nih_plug_vizia = { git = "https://github.com/robbert-vdh/nih-plug.git" }
 cpal = "0.15"
 midir = "0.10"
 serde = { version = "1", features = ["derive"] }
