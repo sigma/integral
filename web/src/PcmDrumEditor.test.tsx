@@ -10,8 +10,8 @@ import {
 } from "../pkg/integral_wasm.js";
 import { PcmDrumEditor } from "./PcmDrumEditor";
 import { deviceSpec } from "./deviceSpec";
-import { PCMD_SECTION, pcmdScreen } from "./layouts/drum/pcmDrum";
-import { sectionCells, sideMiddle } from "./layouts/geometry";
+import { PCMD_OUTPUT_LAYOUT, PCMD_SECTION, pcmdScreen } from "./layouts/drum/pcmDrum";
+import { allElements, itemRect, sectionCells, sideMiddle } from "./layouts/geometry";
 import { routeScreenArrow } from "./layouts/routing";
 import { CELL } from "./synth-ui/grid";
 import { familyVar } from "./synth-ui";
@@ -62,8 +62,8 @@ const placed = (scope: ParentNode, id: string) => {
 /** Every WMT, 0-based. */
 const LAYERS = Array.from({ length: deviceSpec().pcm_drum_wmt_count }, (_, i) => i);
 
-/** The line the WMT rows sum into, left to right. */
-const LINE = ["pitchEnv", "filter", "filterEnv", "ampEnv", "misc", "output", PCMD_SECTION.mfx];
+/** The row the WMT rows sum into, left to right. */
+const ROW = ["pitchEnv", "filter", "filterEnv", "ampEnv", "misc", "output"];
 
 describe("PcmDrumEditor", () => {
   it("colours a knob by its field spec's family, not its section's", async () => {
@@ -170,22 +170,28 @@ describe("PcmDrumEditor", () => {
     for (const n of [1, 2, 3, 4]) expect(strip(container, n).closest("[inert]")).toBeNull();
   });
 
-  it("sets the Sections the WMTs share on one line right of the WMT rows, then the MFX", async () => {
+  it("sets the Sections the WMTs share in one even row right of the WMT rows, then the MFX", async () => {
     const { service } = fakeToneService(new WasmDeviceState(0x10));
     const { container } = render(<PcmDrumEditor partIndex={PART} service={service} />);
     await act(async () => {});
 
-    const line = LINE.map((id) => box(container, id));
-    // Their sides' middles share one Cell row: the line runs straight.
-    expect(new Set(line.map((b) => b.top + sideMiddle(b.height / CELL) * CELL)).size).toBe(1);
-    const lefts = line.map((b) => b.left);
-    expect(lefts).toEqual([...lefts].sort((a, b) => a - b));
-    expect(new Set(lefts).size).toBe(line.length);
+    const row = ROW.map((id) => box(container, id));
+    // One height, one top: the row is even, top and bottom.
+    expect(new Set(row.map((b) => b.height)).size).toBe(1);
+    expect(new Set(row.map((b) => b.top)).size).toBe(1);
+    // Abutting left to right, as the mixer's strips do.
+    for (const [i, b] of row.slice(1).entries()) expect(b.left).toBe(row[i]!.left + row[i]!.width);
     const stackRight = Math.max(...LAYERS.map((l) => box(container, `wmt-${l}.wave`)).map((b) => b.left + b.width));
-    expect(line[0]!.left).toBeGreaterThan(stackRight);
+    expect(row[0]!.left).toBeGreaterThan(stackRight);
+    // The MFX past the row, its side's middle level with the row's.
+    const mfx = box(container, PCMD_SECTION.mfx);
+    const out = row[row.length - 1]!;
+    expect(mfx.left).toBeGreaterThan(out.left + out.width);
+    const mid = (b: { top: number; height: number }) => b.top + sideMiddle(b.height / CELL) * CELL;
+    expect(mid(mfx)).toBe(mid(out));
   });
 
-  it("sums every WMT row at one + into Pitch Env, which feeds the line through to the MFX", () => {
+  it("sums every WMT row at one + into Pitch Env, and only Level / Pan feeds the MFX", () => {
     const screen = pcmdScreen();
     const route = (from: string, to: string) => {
       const arrow = screen.silkscreen.find((a) => a.from.section === from && a.to.section === to);
@@ -201,14 +207,33 @@ describe("PcmDrumEditor", () => {
     const head = screen.sections.find((p) => p.id === "pitchEnv")!;
     const { h } = sectionCells(head.section);
     expect(sums[0]!.at).toEqual([head.x - 0.5, head.y + sideMiddle(h) + 0.5]);
-    // Then one straight arrow from each Section of the line into the next.
-    for (const [i, to] of LINE.slice(1).entries()) {
-      const { points, glyph } = route(LINE[i]!, to);
-      expect(glyph).toBeUndefined();
-      expect(points).toHaveLength(2);
-      expect(points[0]![1]).toBe(points[1]![1]);
-    }
-    expect(screen.silkscreen).toHaveLength(LAYERS.length + LINE.length - 1);
+    // Level / Pan's one straight arrow into the MFX.
+    const { points, glyph } = route("output", PCMD_SECTION.mfx);
+    expect(glyph).toBeUndefined();
+    expect(points).toHaveLength(2);
+    expect(points[0]![1]).toBe(points[1]![1]);
+    // No arrow joins two Sections of the row.
+    const inRow = new Set(ROW);
+    expect(screen.silkscreen.filter((a) => inRow.has(a.from.section) && inRow.has(a.to.section))).toEqual([]);
+    expect(screen.silkscreen).toHaveLength(LAYERS.length + 1);
+  });
+
+  it("lays Level / Pan out as a mixer strip: Pan, the sends under it, then the level fader to the strip's foot", () => {
+    const items = allElements(PCMD_OUTPUT_LAYOUT.items);
+    const at = (field: PcmdPartialField) => {
+      const item = items.find((i) => "field" in i && i.field === field);
+      if (!item || !("field" in item)) throw new Error(`no ${PcmdPartialField[field]}`);
+      return { item, rect: itemRect(item) };
+    };
+    const pan = at(PcmdPartialField.Pan).rect;
+    const sends = [PcmdPartialField.ChorusSend, PcmdPartialField.ReverbSend].map((f) => at(f).rect);
+    const fader = at(PcmdPartialField.OutputLevel);
+    for (const s of sends) expect(s.y).toBeGreaterThanOrEqual(pan.y + pan.h);
+    expect(new Set(sends.map((s) => s.y)).size).toBe(1);
+    const knobsFoot = Math.max(pan.y + pan.h, ...sends.map((s) => s.y + s.h));
+    expect(fader.rect.y).toBeGreaterThanOrEqual(knobsFoot);
+    expect(fader.rect.y + fader.rect.h).toBe(PCMD_OUTPUT_LAYOUT.h);
+    expect(fader.item.kind === "fader" && fader.item.scale).toBe(true);
   });
 
   it("draws the WMT rows' sum as one + on the screen", async () => {

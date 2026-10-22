@@ -32,6 +32,7 @@ import {
   type SectionRow,
 } from "../geometry";
 import { freeLanes } from "../region";
+import { FOOTPRINT } from "../../synth-ui/grid";
 import { switchStrip } from "../switchStrip";
 import type { ScreenArrowSilk, ScreenLayout, SectionLayout } from "../types";
 
@@ -159,12 +160,19 @@ export const PCMD_AMP_ENV_LAYOUT = envelopeLayout({
   ],
 });
 
+/**
+ * The rows of every Section on the key's row, so it stands even:
+ * the envelopes', the tallest. A shorter Section keeps its Controls at the
+ * top, the rest free.
+ */
+const KEY_ROW_H = ENV_CELLS.h;
+
 /** The filter: its type, the response scope, cutoff and resonance with their velocity sensitivities. */
 export const PCMD_FILTER_LAYOUT: SectionLayout<PcmdPartialField> = {
   title: "FILTER",
   titleEdge: "top",
   w: 10,
-  h: 9,
+  h: KEY_ROW_H,
   fields: PCMD_PARTIAL_FIELDS,
   items: [
     // The list and scope keep a free Cell from the left and right borders.
@@ -183,7 +191,7 @@ export const PCMD_MISC_LAYOUT: SectionLayout<PcmdPartialField> = {
   title: "MISC",
   titleEdge: "top",
   w: 12,
-  h: 13,
+  h: KEY_ROW_H,
   fields: PCMD_PARTIAL_FIELDS,
   // The switches and lists keep a free Cell from the left, right and bottom borders.
   items: [
@@ -203,18 +211,33 @@ export const PCMD_MISC_LAYOUT: SectionLayout<PcmdPartialField> = {
   ],
 };
 
-/** The key's pan, effect sends and output level. */
+/** The rows of one of the Level / Pan strip's knobs; Pan, then the sends under it. */
+const KNOB_H = FOOTPRINT.knobSm.h;
+
+/**
+ * The key's pan, effect sends and output level, as a mixer part strip
+ * (`mixer/strip.ts`): Pan, the FX1 and FX2 sends under it, then the level
+ * fader, scale and all, down to the strip's last row.
+ */
 export const PCMD_OUTPUT_LAYOUT: SectionLayout<PcmdPartialField> = {
   title: "LEVEL / PAN",
   titleEdge: "top",
   w: 4,
-  h: 9,
+  h: KEY_ROW_H,
   fields: PCMD_PARTIAL_FIELDS,
   items: [
-    { kind: "knob", field: PcmdPartialField.Pan, x: 0, y: 0 },
-    { kind: "knob", field: PcmdPartialField.ChorusSend, x: 0, y: 3, label: "FX1" },
-    { kind: "knob", field: PcmdPartialField.ReverbSend, x: 0, y: 6, label: "FX2" },
-    { kind: "fader", field: PcmdPartialField.OutputLevel, x: 2, y: 0, h: 9, label: "Level" },
+    { kind: "knob", field: PcmdPartialField.Pan, x: 1, y: 0 },
+    { kind: "knob", field: PcmdPartialField.ChorusSend, x: 0, y: KNOB_H, label: "FX1" },
+    { kind: "knob", field: PcmdPartialField.ReverbSend, x: 2, y: KNOB_H, label: "FX2" },
+    {
+      kind: "fader",
+      field: PcmdPartialField.OutputLevel,
+      x: 1,
+      y: 2 * KNOB_H,
+      h: KEY_ROW_H - 2 * KNOB_H,
+      label: false,
+      scale: true,
+    },
   ],
 };
 
@@ -263,32 +286,41 @@ const wmtRow = (layer: number): SectionRow =>
   }));
 
 /**
- * The line the WMTs sum into, left to right: the Sections every WMT of the key
- * shares (`docs/midi/07-pcm-drum-kit.md`), then the MFX every key feeds.
+ * The row the WMTs sum into, left to right: the Sections every WMT of the key
+ * shares (`docs/midi/07-pcm-drum-kit.md`), abutting as the mixer's strips do.
  */
-const PCMD_KEY_LINE: SectionRow = [
+const PCMD_KEY_ROW: SectionRow = [
   { id: "pitchEnv", section: PCMD_PITCH_ENV_LAYOUT },
   { id: "filter", section: PCMD_FILTER_LAYOUT },
   { id: "filterEnv", section: PCMD_FILTER_ENV_LAYOUT },
   { id: "ampEnv", section: PCMD_AMP_ENV_LAYOUT },
   { id: "misc", section: PCMD_MISC_LAYOUT },
   { id: "output", section: PCMD_OUTPUT_LAYOUT },
-  { id: PCMD_SECTION.mfx, section: MFX_PANEL_FRAME },
 ];
 
-/** The Lane right of the WMT stack and between the line's Sections: the one free Cell an arrow needs. */
+/** The Lane right of the WMT stack and before the MFX: the one free Cell an arrow needs. */
 const LANE_W = 1;
 
 function buildScreen(): ScreenLayout {
   const wmt = rowCells(wmtRow(0));
   const stackH = layers().length * wmt.h;
-  // The line runs level with the middle of the WMT stack, where the WMTs' arrows meet.
-  const line = placeLine(PCMD_KEY_LINE, wmt.w + LANE_W, sideMiddle(stackH), LANE_W);
-  const last = line[line.length - 1]!;
-  const w = last.x + sectionCells(last.section).w;
-  const h = Math.max(stackH, ...line.map((p) => p.y + sectionCells(p.section).h));
-  const sections = [...layers().flatMap((layer) => placeRow(wmtRow(layer), layer * wmt.h)), ...line];
-  const into = line[0]!.id;
+  // The row runs level with the middle of the WMT stack, where the WMTs' arrows meet,
+  // then the MFX every key feeds, across a Lane for its arrow.
+  const axis = sideMiddle(stackH);
+  const row = placeLine(PCMD_KEY_ROW, wmt.w + LANE_W, axis, 0);
+  const out = row[row.length - 1]!;
+  const mfxCells = sectionCells(MFX_PANEL_FRAME);
+  const mfx = {
+    id: PCMD_SECTION.mfx,
+    section: MFX_PANEL_FRAME,
+    x: out.x + sectionCells(out.section).w + LANE_W,
+    y: axis - sideMiddle(mfxCells.h),
+  };
+  const placed = [...row, mfx];
+  const w = mfx.x + mfxCells.w;
+  const h = Math.max(stackH, ...placed.map((p) => p.y + sectionCells(p.section).h));
+  const sections = [...layers().flatMap((layer) => placeRow(wmtRow(layer), layer * wmt.h)), ...placed];
+  const into = row[0]!.id;
   return {
     name: "PCM Drum",
     w,
@@ -296,7 +328,7 @@ function buildScreen(): ScreenLayout {
     sections,
     lanes: freeLanes(w, h, sections),
     silkscreen: [
-      // Every WMT row sums into the line's head.
+      // Every WMT row sums into the row's head.
       ...layers().map(
         (layer): ScreenArrowSilk => ({
           kind: "arrow",
@@ -305,24 +337,18 @@ function buildScreen(): ScreenLayout {
           glyph: "+",
         }),
       ),
-      // Then each Section of the line feeds the next.
-      ...line.slice(1).map(
-        (p, i): ScreenArrowSilk => ({
-          kind: "arrow",
-          from: { section: line[i]!.id, side: "right" },
-          to: { section: p.id, side: "left" },
-        }),
-      ),
+      // The kit's keys all feed the MFX.
+      { kind: "arrow", from: { section: out.id, side: "right" }, to: { section: PCMD_SECTION.mfx, side: "left" } },
     ],
   };
 }
 
 /**
  * The PCM Drum editor's Grid: one row per WMT, its switch strip then its
- * WAVE, summed at a `+` into one straight line, level with the middle of the
- * rows, of the Sections the WMTs share (pitch, filter, amp, how the key
- * plays, its level and pan) and the MFX every key feeds. Built on first use:
- * it reads the WMT count from core.
+ * WAVE, summed at a `+` into one even row, level with the middle of the
+ * WMT rows, of the Sections the WMTs share (pitch, filter, amp, how the key
+ * plays, its level and pan strip), then the MFX every key feeds. Built on
+ * first use: it reads the WMT count from core.
  */
 export const pcmdScreen: () => ScreenLayout = memo(buildScreen);
 

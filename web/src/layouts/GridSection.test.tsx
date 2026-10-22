@@ -7,6 +7,7 @@ import {
   PcmsPartialField,
   SndNoteField,
   WasmDeviceState,
+  mixer_field_spec,
   pcms_partial_count,
   pcms_partial_spec,
   snd_note_spec,
@@ -696,6 +697,15 @@ describe("GridScreen Silkscreen arrows", () => {
   it("draws nothing for an arrow the Lanes can't carry", () => {
     const container = draw(screen([{ kind: "arrow", from: { section: "a", side: "top" }, to: { section: "b", side: "left" } }]));
     expect(arrowPaths(container)).toEqual([]);
+  });
+});
+
+describe("specBinding", () => {
+  it("carries the 0 dB mark a field's core spec declares, and none where it declares none", () => {
+    const bind = (field: MixerField) => specBinding("", mixer_field_spec(field), 0, () => {});
+    expect(bind(MixerField.PartLevel).zeroDb).toBe(mixer_field_spec(MixerField.PartLevel).zeroDb);
+    expect(bind(MixerField.PartLevel).zeroDb).toBeDefined();
+    expect(bind(MixerField.PartChorusSend).zeroDb).toBeUndefined();
   });
 });
 

@@ -15,9 +15,9 @@ const catalogOptions = cached((catalog: FieldCatalog): readonly BindingOption[] 
 
 /**
  * The {@link Binding} of a field from its core spec: range, default, centre,
- * family and readout, at `value`, written through `onChange`. A field core
- * names from a catalog (a Wave, an Inst) lists the catalog's entries, unless
- * `options` overrides them.
+ * 0 dB mark, family and readout, at `value`, written through `onChange`. A
+ * field core names from a catalog (a Wave, an Inst) lists the catalog's
+ * entries, unless `options` overrides them.
  */
 export function specBinding(
   name: string,
@@ -34,6 +34,7 @@ export function specBinding(
     defaultValue: spec.defaultValue,
     family: spec.family,
     center: spec.center,
+    zeroDb: spec.zeroDb,
     format: (v) => spec.formatValue(v),
     // A field naming its values from a catalog (a Wave, an Inst) lists its entries.
     options: options ?? (spec.catalog === undefined ? undefined : catalogOptions(spec.catalog)),
