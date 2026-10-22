@@ -16,18 +16,25 @@ import { enumFields } from "../fields";
 import { MFX_PANEL_FRAME } from "../fx/mfx";
 import { placeRow, rowCells, sectionCells, type SectionRow } from "../geometry";
 import type { ScreenLayout, SectionLayout } from "../types";
+import { LEVEL_PAN_MIN_H, levelPanStrip } from "./levelPanStrip";
 
 /** Height of the TONE's Variation list, in Cells: its options and its name. */
 const VARIATION_H = 9;
-/** Height of the key Sections, in Cells: the Variation list and a free row under it. */
-const KEY_H = VARIATION_H + 1;
+/**
+ * Height of the key Sections, in Cells: the Variation list and a free row
+ * under it, grown so the LEVEL / PAN strip's fader is long enough to use.
+ */
+const KEY_H = Math.max(VARIATION_H + 1, LEVEL_PAN_MIN_H);
+/** Length of the KIT Section's faders, in Cells. */
+const KIT_FADER_H = 9;
 
 /** The kit-wide levels. The editor sets them beside the key grid, off the key Sections' screen. */
 export const SND_KIT_LAYOUT: SectionLayout<SndCommonField> = {
   title: "KIT",
   titleEdge: "top",
   w: 4,
-  h: KEY_H,
+  // The faders and a free row under them.
+  h: KIT_FADER_H + 1,
   fields: enumFields("SndCommonField", SndCommonField, snd_common_spec),
   items: [
     {
@@ -35,7 +42,7 @@ export const SND_KIT_LAYOUT: SectionLayout<SndCommonField> = {
       field: SndCommonField.KitLevel,
       x: 0,
       y: 0,
-      h: 9,
+      h: KIT_FADER_H,
       label: "Kit Lv",
     },
     {
@@ -43,7 +50,7 @@ export const SND_KIT_LAYOUT: SectionLayout<SndCommonField> = {
       field: SndCommonField.AmbienceLevel,
       x: 2,
       y: 0,
-      h: 9,
+      h: KIT_FADER_H,
       label: "Amb Lv",
     },
   ],
@@ -101,20 +108,15 @@ export const SND_TONE_LAYOUT: SectionLayout<SndNoteField> = {
   ],
 };
 
-/** The key's pan, effect sends and level. */
-export const SND_OUTPUT_LAYOUT: SectionLayout<SndNoteField> = {
-  title: "LEVEL / PAN",
-  titleEdge: "top",
-  w: 4,
-  h: KEY_H,
+/** The key's pan, effect sends and level, as the drum kits' mixer strip. */
+export const SND_OUTPUT_LAYOUT: SectionLayout<SndNoteField> = levelPanStrip({
+  pan: SndNoteField.Pan,
+  fx1: SndNoteField.ChorusSend,
+  fx2: SndNoteField.ReverbSend,
+  level: SndNoteField.Level,
   fields: noteFields,
-  items: [
-    { kind: "knob", field: SndNoteField.Pan, x: 0, y: 0 },
-    { kind: "knob", field: SndNoteField.ChorusSend, x: 0, y: 3, label: "FX1" },
-    { kind: "knob", field: SndNoteField.ReverbSend, x: 0, y: 6, label: "FX2" },
-    { kind: "fader", field: SndNoteField.Level, x: 2, y: 0, h: 9 },
-  ],
-};
+  h: KEY_H,
+});
 
 /** Which family accents each Section's border, by placement id. */
 export const SND_FAMILIES: Readonly<Record<string, ParameterFamily>> = {
