@@ -982,15 +982,18 @@ describe("SN Synth and PCM Synth selectors", () => {
     ["OscWave", SnsPartialField.OscWave],
     ["FilterMode", SnsPartialField.FilterMode],
     ["FilterSlope", SnsPartialField.FilterSlope],
-    ["WaveGain", SnsPartialField.WaveGain],
     ["ModLfoShape", SnsPartialField.ModLfoShape],
     ["LfoShape", SnsPartialField.LfoShape],
   ])("SN Synth %s is a picker", (_, field) => {
     expect(kindOf(SNS_BOXES.map((b) => b.layout), field)).toBe("picker");
   });
 
-  it("SN Synth Wave Variation is a knob", () => {
-    expect(kindOf(SNS_BOXES.map((b) => b.layout), SnsPartialField.OscWaveVariation)).toBe("knob");
+  it.each([
+    ["Wave Variation", SnsPartialField.OscWaveVariation],
+    // #427: AMP's Gain sits in its row of knobs.
+    ["Wave Gain", SnsPartialField.WaveGain],
+  ])("SN Synth %s is a knob", (_, field) => {
+    expect(kindOf(SNS_BOXES.map((b) => b.layout), field)).toBe("knob");
   });
 
   it.each([
