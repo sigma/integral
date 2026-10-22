@@ -7,7 +7,8 @@
  * about 21 Cells long for a 4-Cell strip, so each strip is a fixed 36 rows,
  * a 21-row fader under the 15 rows the Comp+EQ unit's compressor needs. A
  * part strip's Controls sit just over its fader, leaving its top rows empty,
- * as the old mixer did; its name runs up the left of its fader. Controls in the strip's edge columns (M, S, the
+ * as the old mixer did, but for its input picker on the first row; its name
+ * runs up the left of its fader. Controls in the strip's edge columns (M, S, the
  * Comp+EQ Displays) are drawn clear of the border by the renderer.
  *
  * The EQ is its own Section (`eq.ts`), stacked above the strip by the mixer
@@ -86,7 +87,7 @@ export const STRIP_TITLES: Readonly<Partial<Record<MixerScopeKind, string>>> = {
 /** The row every level fader starts on, and its height: it ends on the strip's last row. */
 const FADER = { y: 15, h: 21 } as const;
 
-/** Rows of a part strip's Controls: Ch and Pan, the sends, Out, C+EQ, then M and S. */
+/** Rows of a part strip's Controls over its fader: Pan, the sends, Out, C+EQ, then M and S. */
 const PART_CONTROLS_H = 9;
 
 /** A strip's name, up the left of its level fader (the column beside it), as the old mixer had it. */
@@ -98,11 +99,15 @@ const TOP = FADER.y - PART_CONTROLS_H;
 /** The row of every strip's output picker. */
 const OUT_Y = TOP + 6;
 
-/** A part strip: channel and pan, the sends (or the ambience send), routing, mute and solo side by side, level. */
+/**
+ * A part strip: its input (receive channel) under its part number, the
+ * counterpart of its output; then pan, the sends (or the ambience send),
+ * routing, mute and solo side by side, level.
+ */
 const PART: SectionBody<MixerField> = {
   items: [
-    { kind: "knob", field: MixerField.PartReceiveChannel, x: 0, y: TOP, label: "Ch" },
-    { kind: "knob", field: MixerField.PartPan, x: 2, y: TOP, label: "Pan" },
+    { kind: "picker", field: MixerField.PartReceiveChannel, x: 0, y: 0, w: 4, label: "In" },
+    { kind: "knob", field: MixerField.PartPan, x: 1, y: TOP, label: "Pan" },
     // Surround replaces the FX sends with its ambience send.
     {
       kind: "alternatives",

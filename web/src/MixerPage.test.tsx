@@ -173,10 +173,6 @@ describe("MixerPage", () => {
     expect(setMixerField).toHaveBeenLastCalledWith(
       MixerScopeKind.Part, 4, MixerField.PartChorusSend, base.parts[4]!.chorusSend + 1,
     );
-    stepUp(control(strip, MixerField.PartReceiveChannel));
-    expect(setMixerField).toHaveBeenLastCalledWith(
-      MixerScopeKind.Part, 4, MixerField.PartReceiveChannel, base.parts[4]!.receiveChannel + 1,
-    );
     expect(value(control(strip, MixerField.PartLevel))).toBe(String(base.parts[4]!.level));
     press(el, "strip.part.4", MixerField.PartMute);
     expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Part, 4, MixerField.PartMute, 1);
@@ -185,7 +181,8 @@ describe("MixerPage", () => {
   it.each([
     ["strip.part.4", MixerScopeKind.Part, 4, MixerField.PartOutputAssign],
     ["strip.comp.1", MixerScopeKind.CompEqUnit, 1, MixerField.CompOutputAssign],
-  ] as const)("picks %s's output from core's names", (id, kind, index, field) => {
+    ["strip.part.4", MixerScopeKind.Part, 4, MixerField.PartReceiveChannel],
+  ] as const)("picks %s's input or output from core's names", (id, kind, index, field) => {
     const { el, setMixerField } = loaded();
     const picker = control(placed(el, id), field);
     const name = paramFormatter(field);
