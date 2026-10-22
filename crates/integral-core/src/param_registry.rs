@@ -167,6 +167,28 @@ pub enum ParamGroup {
     Global,
 }
 
+/// What a Studio Set common field of the Chorus or Reverb block does in
+/// its block: what an FX strip draws it as.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FxRole {
+    /// The block's on/off switch.
+    Switch,
+    /// The block's effect type.
+    Type,
+    /// The block's output level.
+    Level,
+    /// Where the block's output goes (an assign or a select).
+    Output,
+}
+
+/// The raw 0–127 level a mixer level fader marks 0 dB.
+///
+/// The MIDI Implementation gives no dB for the mixer's 0–127 levels; this
+/// is the pre-Grid mixer's convention (its faders put 0 dB at 100, the
+/// device's default part level), kept as core's statement so every level
+/// fader reads alike.
+pub const LEVEL_0DB: i32 = 100;
+
 /// A single mixer parameter definition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParamDef {
@@ -186,6 +208,12 @@ pub struct ParamDef {
     pub format: ParamFormat,
     /// The parameter's role in shaping the sound (ADR 0002).
     pub family: ParameterFamily,
+    /// The raw value a level fader marks 0 dB ([`LEVEL_0DB`]), or `None`
+    /// for a field drawn without a 0 dB mark.
+    pub zero_db: Option<i32>,
+    /// The field's role in its Chorus or Reverb block, for those blocks'
+    /// Studio Set common fields; `None` for every other field.
+    pub fx_role: Option<FxRole>,
 }
 
 /// Format a raw parameter value according to the parameter's [`ParamFormat`].
@@ -832,11 +860,23 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
         default,
         format,
         family,
+        zero_db: None,
+        fx_role: None,
+    };
+    // A level the mixer's faders draw with a 0 dB mark.
+    let level = |name, group, default| ParamDef {
+        zero_db: Some(LEVEL_0DB),
+        ..def(name, group, 127, default, Raw, Amp)
+    };
+    // A Chorus or Reverb Studio Set common field, in its role.
+    let fx = |role, def: ParamDef| ParamDef {
+        fx_role: Some(role),
+        ..def
     };
     let eq_gain = SignedCenter(15);
 
     match field {
-        F::PartLevel => def("Level", ParamGroup::Part, 127, 100, Raw, Amp),
+        F::PartLevel => level("Level", ParamGroup::Part, 100),
         F::PartPan => def("Pan", ParamGroup::Part, 127, 64, SignedCenter(64), Time),
         F::PartMute => def("Mute", ParamGroup::Part, 1, 0, OnOff, Common),
         F::PartChorusSend => def("FX1", ParamGroup::Part, 127, 0, Raw, Amp),
@@ -857,52 +897,73 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
             Named(channel_names()),
             Common,
         ),
-        F::MasterLevel => def("Master Level", ParamGroup::Master, 127, 100, Raw, Amp),
-        F::ExtLevel => def("Ext Level", ParamGroup::Ext, 127, 100, Raw, Amp),
+        F::MasterLevel => level("Master Level", ParamGroup::Master, 100),
+        F::ExtLevel => level("Ext Level", ParamGroup::Ext, 100),
         F::ExtMute => def("Ext Mute", ParamGroup::Ext, 1, 0, OnOff, Common),
-        F::ChorusSwitch => def("Chorus", ParamGroup::Chorus, 1, 1, OnOff, Common),
-        F::ChorusType => def(
-            "Chorus Type",
-            ParamGroup::Chorus,
-            last(spec.chorus_type_names),
-            0,
-            Named(spec.chorus_type_names),
-            Common,
+        F::ChorusSwitch => fx(
+            FxRole::Switch,
+            def("Chorus", ParamGroup::Chorus, 1, 1, OnOff, Common),
         ),
-        F::ChorusLevel => def("Chorus Level", ParamGroup::Chorus, 127, 0, Raw, Amp),
-        F::ChorusOutputAssign => def(
-            "Chorus Output Assign",
-            ParamGroup::Chorus,
-            last(spec.output_assign_names),
-            0,
-            Named(spec.output_assign_names),
-            Common,
+        F::ChorusType => fx(
+            FxRole::Type,
+            def(
+                "Chorus Type",
+                ParamGroup::Chorus,
+                last(spec.chorus_type_names),
+                0,
+                Named(spec.chorus_type_names),
+                Common,
+            ),
         ),
-        F::ChorusOutputSelect => def(
-            "Chorus Output Select",
-            ParamGroup::Chorus,
-            last(spec.chorus_output_names),
-            0,
-            Named(spec.chorus_output_names),
-            Common,
+        F::ChorusLevel => fx(FxRole::Level, level("Chorus Level", ParamGroup::Chorus, 0)),
+        F::ChorusOutputAssign => fx(
+            FxRole::Output,
+            def(
+                "Chorus Output Assign",
+                ParamGroup::Chorus,
+                last(spec.output_assign_names),
+                0,
+                Named(spec.output_assign_names),
+                Common,
+            ),
         ),
-        F::ReverbSwitch => def("Reverb", ParamGroup::Reverb, 1, 1, OnOff, Common),
-        F::ReverbType => def(
-            "Reverb Type",
-            ParamGroup::Reverb,
-            last(spec.reverb_type_names),
-            0,
-            Named(spec.reverb_type_names),
-            Common,
+        F::ChorusOutputSelect => fx(
+            FxRole::Output,
+            def(
+                "Chorus Output Select",
+                ParamGroup::Chorus,
+                last(spec.chorus_output_names),
+                0,
+                Named(spec.chorus_output_names),
+                Common,
+            ),
         ),
-        F::ReverbLevel => def("Reverb Level", ParamGroup::Reverb, 127, 0, Raw, Amp),
-        F::ReverbOutputAssign => def(
-            "Reverb Output Assign",
-            ParamGroup::Reverb,
-            last(spec.output_assign_names),
-            0,
-            Named(spec.output_assign_names),
-            Common,
+        F::ReverbSwitch => fx(
+            FxRole::Switch,
+            def("Reverb", ParamGroup::Reverb, 1, 1, OnOff, Common),
+        ),
+        F::ReverbType => fx(
+            FxRole::Type,
+            def(
+                "Reverb Type",
+                ParamGroup::Reverb,
+                last(spec.reverb_type_names),
+                0,
+                Named(spec.reverb_type_names),
+                Common,
+            ),
+        ),
+        F::ReverbLevel => fx(FxRole::Level, level("Reverb Level", ParamGroup::Reverb, 0)),
+        F::ReverbOutputAssign => fx(
+            FxRole::Output,
+            def(
+                "Reverb Output Assign",
+                ParamGroup::Reverb,
+                last(spec.output_assign_names),
+                0,
+                Named(spec.output_assign_names),
+                Common,
+            ),
         ),
         F::SoloPart => def(
             "Solo Part",
@@ -1431,6 +1492,56 @@ mod tests {
         let def = mixer_param(MixerField::PartLevel);
         assert_eq!((def.min, def.max, def.default), (0, 127, 100));
         assert_eq!(def.group, ParamGroup::Part);
+    }
+
+    #[test]
+    fn mixer_level_faders_declare_their_0db_point() {
+        use MixerField as F;
+        let marked = [
+            F::PartLevel,
+            F::ExtLevel,
+            F::MasterLevel,
+            F::ChorusLevel,
+            F::ReverbLevel,
+        ];
+        for field in MixerField::ALL {
+            let want = marked.contains(&field).then_some(LEVEL_0DB);
+            assert_eq!(mixer_param(field).zero_db, want, "{field:?}");
+        }
+        assert_eq!(LEVEL_0DB, 100);
+    }
+
+    #[test]
+    fn every_chorus_and_reverb_common_field_has_one_fx_role() {
+        use FxRole as R;
+        for group in [ParamGroup::Chorus, ParamGroup::Reverb] {
+            let fields: Vec<_> = MixerField::ALL
+                .into_iter()
+                .filter(|&f| f.in_scope(MixerScopeKind::Common) && mixer_param(f).group == group)
+                .collect();
+            assert!(!fields.is_empty(), "{group:?}");
+            for field in &fields {
+                assert!(mixer_param(*field).fx_role.is_some(), "{field:?}");
+            }
+            // One switch, one type and one level per block; the rest route it.
+            for role in [R::Switch, R::Type, R::Level] {
+                let n = fields
+                    .iter()
+                    .filter(|&&f| mixer_param(f).fx_role == Some(role))
+                    .count();
+                assert_eq!(n, 1, "{group:?} {role:?}");
+            }
+        }
+        // Only the two blocks' Common fields have a role.
+        for field in MixerField::ALL {
+            let def = mixer_param(field);
+            let fx = matches!(def.group, ParamGroup::Chorus | ParamGroup::Reverb);
+            assert_eq!(def.fx_role.is_some(), fx, "{field:?}");
+        }
+        assert_eq!(
+            mixer_param(MixerField::ChorusOutputSelect).fx_role,
+            Some(R::Output)
+        );
     }
 
     #[test]

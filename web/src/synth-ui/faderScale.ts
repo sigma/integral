@@ -18,14 +18,7 @@ export interface ScaleMark {
 /** The marks of a 0–127 level, the MIDI ruler. */
 const MIDI_MARKS = [127, 100, 80, 60, 40, 20, 0];
 
-/**
- * The 0–127 level the scale marks 0 dB, as the pre-Grid mixer's faders did.
- * Core has no dB for these raw levels; this is that UI's convention, kept
- * in this one place.
- */
-export const LEVEL_0DB = 100;
-
-/** What a scale is drawn for: the field's range, its formatter and its nominal value. */
+/** What a scale is drawn for: the field's range, its formatter, its 0 dB point and its nominal value. */
 export interface ScaleOf {
   /** Minimum raw value. */
   min: number;
@@ -33,18 +26,23 @@ export interface ScaleOf {
   max: number;
   /** A raw value's label; default its number. */
   format?: (value: number) => string;
+  /**
+   * The raw value core marks 0 dB on a 0–127 level (its spec's `zeroDb`);
+   * without one the ruler has no 0 dB mark.
+   */
+  zeroDb?: number;
   /** The 0 dB value of a range that isn't the 0–127 ruler (a dB field's 0). */
   nominal?: number;
 }
 
 /**
  * The scale of a fader over `min`–`max`: the MIDI ruler for 0–127, its 0 dB
- * mark at `LEVEL_0DB`, else quarters of the range labelled by `format`, the
+ * mark at `zeroDb`, else quarters of the range labelled by `format`, the
  * mark at `nominal` emphasised.
  */
-export function faderScale({ min, max, format = String, nominal }: ScaleOf): ScaleMark[] {
+export function faderScale({ min, max, format = String, zeroDb, nominal }: ScaleOf): ScaleMark[] {
   const midi = min === 0 && max === 127;
-  const zero = midi ? LEVEL_0DB : nominal;
+  const zero = midi ? zeroDb : nominal;
   const values = midi ? MIDI_MARKS : [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(max - f * (max - min)));
   return values.map((value) => ({
     value,

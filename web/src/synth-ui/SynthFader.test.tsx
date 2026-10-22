@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { MixerField, mixer_field_spec } from "../../pkg/integral_wasm.js";
 import { SynthFader, FADER_LABEL_HEIGHT, LEVEL_FRAME } from "./SynthFader";
 import { CELL, FOOTPRINT, NAME, READOUT } from "./grid";
 import { expectFillsFootprint, rootOf, stackedHeight } from "../test/grid";
@@ -38,7 +39,9 @@ describe("SynthFader", () => {
     expect(plain.textContent).not.toContain("0dB");
     // A plain fader fills from its default; a level fader never does.
     expect(plain.querySelector(`.${css.fill}`)).not.toBeNull();
-    const { container } = render(<SynthFader {...fader} value={60} gridRows={8} hideLabel scale />);
+    // The 0 dB point is core's, a Part Level's.
+    const zeroDb = mixer_field_spec(MixerField.PartLevel).zeroDb;
+    const { container } = render(<SynthFader {...fader} value={60} gridRows={8} hideLabel scale zeroDb={zeroDb} />);
     const root = rootOf(container);
     expectFillsFootprint(root, { w: FOOTPRINT.levelFaderW, h: 8 });
     expect(root.classList).toContain(css.level);

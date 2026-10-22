@@ -7,7 +7,7 @@ import { allElements, itemRect, sectionCells, variantLayout } from "../geometry"
 import { validateVariantSet } from "../validate";
 import { EQ_LAYOUT } from "./eq";
 import { mixerScreen } from "./screen";
-import { FX_STRIP_SET, STRIP_KINDS, STRIP_SET, stripFields } from "./strip";
+import { FX_STRIP_SET, STRIP_KINDS, STRIP_SET, fxStripFields, stripFields } from "./strip";
 import { mixerFields } from "../fields";
 
 /** The placed fields of a strip kind. */
@@ -143,6 +143,30 @@ describe("mixer screen", () => {
       const items = variantLayout(FX_STRIP_SET, fx).items;
       expect(level(items)).toEqual(part);
       expect(items.find((i) => i.kind === "fader" && i.h === part.h)).toMatchObject({ scale: true });
+    }
+  });
+
+  it("draws each FX field in the role core gives it", () => {
+    expect(fxStripFields("chorus")).toEqual({
+      switch: MixerField.ChorusSwitch,
+      type: MixerField.ChorusType,
+      level: MixerField.ChorusLevel,
+      outputs: [MixerField.ChorusOutputAssign, MixerField.ChorusOutputSelect],
+    });
+    expect(fxStripFields("reverb")).toEqual({
+      switch: MixerField.ReverbSwitch,
+      type: MixerField.ReverbType,
+      level: MixerField.ReverbLevel,
+      outputs: [MixerField.ReverbOutputAssign],
+    });
+    for (const fx of FX_STRIP_SET.keys) {
+      const { switch: sw, type, level, outputs } = fxStripFields(fx);
+      const layout = variantLayout(FX_STRIP_SET, fx);
+      expect(layout.titleSwitch).toBe(sw);
+      const items = allElements(layout.items);
+      expect(items.find((i) => i.kind === "list")).toMatchObject({ field: type });
+      expect(items.find((i) => i.kind === "fader")).toMatchObject({ field: level, scale: true });
+      expect(items.filter((i) => i.kind === "picker").map((i) => i.kind === "picker" && i.field)).toEqual(outputs);
     }
   });
 
