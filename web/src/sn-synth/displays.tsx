@@ -17,6 +17,7 @@ import {
 } from "../../pkg/integral_wasm.js";
 import { cached } from "../cached";
 import { EnvelopeScope } from "../synth-ui";
+import { FilterScope, SNS_FILTER_RESPONSES } from "../synth-ui/FilterScope";
 import { LfoScope } from "../synth-ui/LfoScope";
 import { OscWaveScope } from "./OscWaveScope";
 import css from "../SnSynthEditor.module.css";
@@ -64,6 +65,8 @@ export function SnsPartialDisplay({ kind, valueOf }: SnsPartialDisplayProps) {
   const unit = (prop: DisplayProp) => props.get(prop)?.unit;
   const raw = (prop: DisplayProp) => props.get(prop)?.raw ?? 0;
   const label = (prop: DisplayProp) => props.get(prop)?.label ?? "";
+  /** -1..1 across the prop's field's range, 0 at its center. */
+  const signed = (prop: DisplayProp) => 2 * (unit(prop) ?? 0.5) - 1;
   switch (kind) {
     case DisplayKind.PitchEnvelope:
     case DisplayKind.FilterEnvelope:
@@ -88,6 +91,26 @@ export function SnsPartialDisplay({ kind, valueOf }: SnsPartialDisplayProps) {
           pwmDepth={raw(DisplayProp.PwmDepth)}
           pwShift={raw(DisplayProp.PwShift)}
           superSawDetune={raw(DisplayProp.SuperSawDetune)}
+        />
+      );
+    case DisplayKind.FilterScope:
+      return (
+        <FilterScope
+          className={css.fill}
+          type={label(DisplayProp.FilterType)}
+          slope={label(DisplayProp.Slope)}
+          cutoff={raw(DisplayProp.Cutoff)}
+          resonance={raw(DisplayProp.Resonance)}
+          hpf={raw(DisplayProp.HpfCutoff)}
+          modulation={{
+            envDepth: signed(DisplayProp.EnvDepth),
+            envVelSens: signed(DisplayProp.EnvVelSens),
+            aftertouch: signed(DisplayProp.AftertouchSens),
+            lfo: signed(DisplayProp.LfoDepth),
+            modLfo: signed(DisplayProp.ModLfoDepth),
+            keyfollow: signed(DisplayProp.Keyfollow),
+          }}
+          responses={SNS_FILTER_RESPONSES}
         />
       );
     case DisplayKind.LfoScope:

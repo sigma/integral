@@ -36,8 +36,8 @@ pub enum DisplayKind {
     AmpEnvelope,
     /// SN Synth OSC waveform scope.
     OscScope,
-    /// Filter response scope: SN Acoustic offsets, PCM Synth and PCM Drum
-    /// TVF.
+    /// Filter response scope: SN Synth filter, SN Acoustic offsets, PCM
+    /// Synth and PCM Drum TVF.
     FilterScope,
     /// SN Synth LFO scope.
     LfoScope,
@@ -134,6 +134,22 @@ pub enum DisplayProp {
     Cutoff,
     /// Filter resonance.
     Resonance,
+    /// Filter slope, in dB per octave.
+    Slope,
+    /// High-pass filter cutoff, ahead of the main filter.
+    HpfCutoff,
+    /// Filter envelope depth: how far the envelope moves the cutoff.
+    EnvDepth,
+    /// Filter envelope velocity sensitivity: how velocity scales its depth.
+    EnvVelSens,
+    /// Cutoff aftertouch sensitivity.
+    AftertouchSens,
+    /// LFO filter depth.
+    LfoDepth,
+    /// Modulation LFO filter depth.
+    ModLfoDepth,
+    /// Cutoff keyfollow.
+    Keyfollow,
     /// Structure Type.
     Structure,
     /// Number of the first partial a Structure diagram shows.
@@ -330,6 +346,19 @@ fn sn_synth(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
             (P::PwmDepth, f(F::OscPwModDepth)),
             (P::PwShift, f(F::PwShift)),
             (P::SuperSawDetune, f(F::SuperSawDetune)),
+        ]),
+        DisplayKind::FilterScope => reads(&[
+            (P::FilterType, f(F::FilterMode)),
+            (P::Cutoff, f(F::FilterCutoff)),
+            (P::Resonance, f(F::FilterResonance)),
+            (P::Slope, f(F::FilterSlope)),
+            (P::HpfCutoff, f(F::HpfCutoff)),
+            (P::EnvDepth, f(F::FilterEnvDepth)),
+            (P::EnvVelSens, f(F::FilterEnvVelSens)),
+            (P::AftertouchSens, f(F::AftertouchCutoff)),
+            (P::LfoDepth, f(F::LfoFilterDepth)),
+            (P::ModLfoDepth, f(F::ModLfoFilterDepth)),
+            (P::Keyfollow, f(F::FilterKeyfollow)),
         ]),
         DisplayKind::LfoScope => reads(&[(P::Shape, f(F::LfoShape)), (P::Rate, f(F::LfoRate))]),
         DisplayKind::ModLfoScope => {
@@ -593,6 +622,30 @@ mod tests {
         assert_eq!(
             sources(K::ModLfoScope, SNS),
             [one(P::Shape, F::ModLfoShape), one(P::Rate, F::ModLfoRate)]
+        );
+    }
+
+    /// `layouts/sn-synth/partial.ts` FILTER (#430): `FilterScope` mode,
+    /// cutoff, resonance and slope, the OSC's HPF cutoff ahead of it, and
+    /// what sweeps the cutoff while playing.
+    #[test]
+    fn sns_filter_scope() {
+        use SnsPartialField as F;
+        assert_eq!(
+            sources(K::FilterScope, SNS),
+            [
+                one(P::FilterType, F::FilterMode),
+                one(P::Cutoff, F::FilterCutoff),
+                one(P::Resonance, F::FilterResonance),
+                one(P::Slope, F::FilterSlope),
+                one(P::HpfCutoff, F::HpfCutoff),
+                one(P::EnvDepth, F::FilterEnvDepth),
+                one(P::EnvVelSens, F::FilterEnvVelSens),
+                one(P::AftertouchSens, F::AftertouchCutoff),
+                one(P::LfoDepth, F::LfoFilterDepth),
+                one(P::ModLfoDepth, F::ModLfoFilterDepth),
+                one(P::Keyfollow, F::FilterKeyfollow),
+            ]
         );
     }
 
@@ -892,7 +945,7 @@ mod tests {
             match kind {
                 K::PitchEnvelope | K::FilterEnvelope => &[SNS, PCMS, PCMD],
                 K::AmpEnvelope => &[SNS, SNA, PCMS, PCMD],
-                K::FilterScope => &[SNA, PCMS, PCMD],
+                K::FilterScope => &[SNS, SNA, PCMS, PCMD],
                 K::OscScope | K::LfoScope | K::ModLfoScope => &[SNS],
                 K::Lfo1Scope | K::Lfo2Scope | K::StepLfoScope | K::Structure12 | K::Structure34 => {
                     &[PCMS]
