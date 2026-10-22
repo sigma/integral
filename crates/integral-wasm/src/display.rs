@@ -110,6 +110,20 @@ pub enum DisplayProp {
     Resonance,
     /// See [`core::DisplayProp::Slope`].
     Slope,
+    /// See [`core::DisplayProp::HpfCutoff`].
+    HpfCutoff,
+    /// See [`core::DisplayProp::EnvDepth`].
+    EnvDepth,
+    /// See [`core::DisplayProp::EnvVelSens`].
+    EnvVelSens,
+    /// See [`core::DisplayProp::AftertouchSens`].
+    AftertouchSens,
+    /// See [`core::DisplayProp::LfoDepth`].
+    LfoDepth,
+    /// See [`core::DisplayProp::ModLfoDepth`].
+    ModLfoDepth,
+    /// See [`core::DisplayProp::Keyfollow`].
+    Keyfollow,
     /// See [`core::DisplayProp::Structure`].
     Structure,
     /// See [`core::DisplayProp::First`].
@@ -156,6 +170,13 @@ mirror_core_enum!(DisplayProp <=> core::DisplayProp {
     Cutoff,
     Resonance,
     Slope,
+    HpfCutoff,
+    EnvDepth,
+    EnvVelSens,
+    AftertouchSens,
+    LfoDepth,
+    ModLfoDepth,
+    Keyfollow,
     Structure,
     First,
     Threshold,

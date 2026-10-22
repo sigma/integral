@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { PcmsPartialField, SnsPartialField, pcms_partial_spec, sns_partial_spec } from "../../pkg/integral_wasm.js";
-import { FilterScope, SNS_FILTER_RESPONSES } from "./FilterScope";
+import { type CutoffModulation, FilterScope, SNS_FILTER_RESPONSES } from "./FilterScope";
 import { switchOptions } from "../fieldSpec";
 import { cleanup, render } from "../test/dom";
 
@@ -20,9 +20,41 @@ function snsPathOf(mode: string, slope: string, cutoff = 64, resonance = 0): str
 
 /** The path `scope` draws. */
 function drawn(scope: ReactElement): string {
-  const d = render(scope).container.querySelector("path")?.getAttribute("d") ?? "";
+  return traces(scope).response;
+}
+
+/** The response and sweep band paths `scope` draws; "" for one it doesn't. */
+function traces(scope: ReactElement): { response: string; sweep: string } {
+  const { container } = render(scope);
+  const d = (trace: string) => container.querySelector(`path[data-trace="${trace}"]`)?.getAttribute("d") ?? "";
+  const out = { response: d("response"), sweep: d("sweep") };
   cleanup();
-  return d;
+  return out;
+}
+
+/** An SN Synth LPF at cutoff 64, its OSC HPF at `hpf`, swept by `modulation`. */
+function snsLpf(modulation: CutoffModulation = {}, hpf = 0) {
+  return traces(
+    <FilterScope
+      type="LPF"
+      slope="-12dB"
+      cutoff={64}
+      resonance={0}
+      hpf={hpf}
+      modulation={modulation}
+      responses={SNS_FILTER_RESPONSES}
+    />,
+  );
+}
+
+/** The band's top and bottom y at x; the band is `M x y L x y … Z`. */
+function bandAt(d: string, x: number): { top: number; bottom: number } {
+  const tokens = d.split(" ");
+  const ys: number[] = [];
+  for (let i = 0; i + 2 < tokens.length; i += 3) {
+    if (Number(tokens[i + 1]) === x) ys.push(Number(tokens[i + 2]));
+  }
+  return { top: Math.min(...ys), bottom: Math.max(...ys) };
 }
 
 /** y of the path's sample nearest x; the path is `M x y L x y …`. */
@@ -69,5 +101,43 @@ describe("FilterScope", () => {
     expect(snsPathOf("LPF", "-12dB", 64, 127)).not.toEqual(snsPathOf("LPF", "-12dB", 64, 0));
     expect(snsPathOf("LPF", "-12dB", 100)).not.toEqual(snsPathOf("LPF", "-12dB", 20));
     expect(yAt(snsPathOf("BYP", "-24dB"), 0)).toEqual(yAt(snsPathOf("BYP", "-24dB"), 1));
+  });
+
+  it("folds the OSC HPF in ahead of the filter, cutting the low end, and HPF 0 changes nothing", () => {
+    // y grows downwards
+    expect(yAt(snsLpf({}, 64).response, 0.1)).toBeGreaterThan(yAt(snsLpf({}, 0).response, 0.1));
+    expect(snsLpf({}, 0).response).toEqual(snsPathOf("LPF", "-12dB"));
+  });
+
+  it("draws no sweep band without modulation", () => {
+    expect(snsLpf().sweep).toBe("");
+    expect(snsLpf({ envDepth: 0, envVelSens: 1, aftertouch: 0, lfo: 0, modLfo: 0, keyfollow: 0 }).sweep).toBe("");
+  });
+
+  it("widens the band up for a positive Env Depth and down for a negative one", () => {
+    const x = 0.7;
+    const at = yAt(snsLpf().response, x);
+    const up = bandAt(snsLpf({ envDepth: 0.5 }).sweep, x);
+    expect(up.top).toBeLessThan(at);
+    expect(up.bottom).toBeCloseTo(at);
+    const down = bandAt(snsLpf({ envDepth: -0.5 }).sweep, x);
+    expect(down.top).toBeCloseTo(at);
+    expect(down.bottom).toBeGreaterThan(at);
+    // at velocity 127, a positive Env Velocity Sens deepens the envelope
+    expect(bandAt(snsLpf({ envDepth: 0.25, envVelSens: 1 }).sweep, x).top).toBeLessThan(
+      bandAt(snsLpf({ envDepth: 0.25 }).sweep, x).top,
+    );
+  });
+
+  it("widens the band for Aftertouch Sens and for Keyfollow", () => {
+    const x = 0.7;
+    const at = yAt(snsLpf().response, x);
+    expect(bandAt(snsLpf({ aftertouch: 0.5 }).sweep, x).top).toBeLessThan(at);
+    const key = bandAt(snsLpf({ keyfollow: 0.5 }).sweep, x);
+    expect(key.top).toBeLessThan(at);
+    expect(key.bottom).toBeGreaterThan(at);
+    const lfo = bandAt(snsLpf({ lfo: -0.5, modLfo: 0.25 }).sweep, x);
+    expect(lfo.top).toBeLessThan(at);
+    expect(lfo.bottom).toBeGreaterThan(at);
   });
 });
