@@ -43,6 +43,8 @@ export interface FieldSpace<F extends FieldKey> {
    * one element of by `index`. Absent, every field holds one.
    */
   elementCount?(field: F): number;
+  /** Each value's name as a switch or option list shows it, from `min` up; absent, the validator can't compare them. */
+  optionLabels?(field: F): string[];
 }
 
 /** How many elements `field` of `space` holds: 1 unless core says it is an array. */
@@ -58,6 +60,11 @@ export function elementCount<F extends FieldKey>(space: FieldSpace<F>, field: F)
 export function memo<T>(compute: () => T): () => T {
   let value: { v: T } | undefined;
   return () => (value ??= { v: compute() }).v;
+}
+
+/** `min..=max`. */
+function range(min: number, max: number): number[] {
+  return Array.from({ length: max - min + 1 }, (_, i) => min + i);
 }
 
 /** The members of a wasm-bindgen numeric enum, in declaration order. */
@@ -96,6 +103,10 @@ export function enumFields<E extends number>(
     optionCount: (field) => {
       const { min, max } = spec(field);
       return max - min + 1;
+    },
+    optionLabels: (field) => {
+      const s = spec(field);
+      return range(s.min, s.max).map((v) => s.formatValue(v));
     },
   };
 }
@@ -156,6 +167,10 @@ export function fxFields(block: FxBlock, type: number): FieldSpace<string> {
     optionCount: (field) => {
       const def = defs().get(field);
       return def === undefined ? 0 : def.max - def.min + 1;
+    },
+    optionLabels: (field) => {
+      const def = defs().get(field);
+      return def === undefined ? [] : range(def.min, def.max).map((v) => def.formatValue(v));
     },
   };
 }

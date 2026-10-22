@@ -18,6 +18,7 @@ Every **Layout** is a TypeScript object in `web/src/layouts/`: one module per Se
   - every parameter of a variant key placed;
   - Lanes left uncovered;
   - arrow endpoints that exist, arrows the Lanes (or a Section's free Cells) can route, and no two glyphs in one Cell;
-  - FX names that exist.
+  - FX names that exist;
+  - no two options of a list or switch that read the same once cut to its width.
 - **Positions are plain numbers, not branded types.** The validator enforces the lattice, so the layout files read as plain data.
 - **No visual-regression tests in this spec.** Positions are data, so the validator proves alignment and the pilot proves the renderer. Screenshot tests come back only if the renderer drifts.

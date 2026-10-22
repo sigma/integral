@@ -75,11 +75,13 @@ export interface FaderLayout<F extends FieldKey> extends ControlBase<F> {
   scale?: boolean;
 }
 
-/** A vertical option list, 2×`h`, one Cell row per option plus one for its name. */
+/** A vertical option list, `w`×`h`, one Cell row per option plus one for its name. */
 export interface OptionListLayout<F extends FieldKey> extends ControlBase<F> {
   kind: "list";
-  /** Height in Cells: the N of 2×N, at least `optionListRows` for the field. */
+  /** Height in Cells: at least `optionListRows` for the field. */
   h: number;
+  /** Width in Cells, for options whose names need more than the default. Default `FOOTPRINT.optionListW`. */
+  w?: number;
 }
 
 /**

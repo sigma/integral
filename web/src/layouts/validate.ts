@@ -6,7 +6,7 @@
  */
 
 import { DisplayKind } from "../../pkg/integral_wasm.js";
-import { optionListRows, type Cells } from "../synth-ui/grid";
+import { optionListRows, visibleOption, type Cells } from "../synth-ui/grid";
 import { elementCount, isTwoState, type FieldKey, type FieldSpace } from "./fields";
 import { DISPLAY_MIN_FOOTPRINT, allElements, itemRect, sectionCells, variantLayout } from "./geometry";
 import {
@@ -39,6 +39,8 @@ export type Check =
   | "containment"
   /** A Display under its kind's minimum, an option list shorter than its options, or a switch with more than two. */
   | "footprint"
+  /** Two options of a switch or list that read the same once cut to its width (`visibleOption`). */
+  | "label"
   /** A variant that leaves a parameter (or, in a region variant set, a Section) of its key out. */
   | "unplaced"
   /** A Section covering a Lane's Cell. */
@@ -164,6 +166,23 @@ function reportGlyphClashes(report: Report, arrows: readonly DrawnArrow[]): void
   }
 }
 
+/** Two of `field`'s option names that a `kind` Control `w` Cells wide shows as the same text, and that text; or none. */
+function sameVisibleOptions<F extends FieldKey>(
+  fields: FieldSpace<F>,
+  field: F,
+  kind: "list" | "switch",
+  w: number,
+): { first: string; second: string; shown: string } | undefined {
+  const seen = new Map<string, string>();
+  for (const label of fields.optionLabels?.(field) ?? []) {
+    const shown = visibleOption(label, kind, w);
+    const first = seen.get(shown);
+    if (first !== undefined && first !== label) return { first, second: label, shown };
+    seen.set(shown, label);
+  }
+  return undefined;
+}
+
 /** Problems with one Section's layout. */
 export function validateSection<F extends FieldKey>(
   layout: SectionLayout<F>,
@@ -197,6 +216,10 @@ export function validateSection<F extends FieldKey>(
         if (el.h < need) report("footprint", name, `${el.h} rows, needs ${need}`);
       } else if (el.kind === "switch" && !isTwoState(layout.fields, el.field)) {
         report("footprint", name, "a 2×1 switch needs a two-state field");
+      }
+      if (el.kind === "list" || el.kind === "switch") {
+        const clash = sameVisibleOptions(layout.fields, el.field, el.kind, rect.w);
+        if (clash) report("label", name, `${clash.first} and ${clash.second} both read "${clash.shown}"`);
       }
     }
   };
