@@ -1,7 +1,8 @@
 /**
  * A picker on the Grid, N×1 (6×1 by default): the field's name, then its current option's in a
- * button that opens a searchable list of the field's options (`SearchPopover`).
- * For fields with too many named values for an option list: a Wave, an Inst.
+ * button that opens a list of the field's options (`SearchPopover`): a
+ * dropdown for a short list (a Filter Mode, an LFO Shape), searchable once it
+ * has more than {@link SHORT_LIST_MAX} options (a Wave, an Inst).
  */
 
 // shortcut: entries from an Expansion that isn't loaded (SN Drum ExSN6 Insts 169-294) aren't marked; the options carry no Expansion.
@@ -10,6 +11,9 @@ import { useRef, useState } from "react";
 import { SearchPopover, type PickOption } from "../SearchPopover";
 import { FOOTPRINT, NAME, cellsPx, lineStyle, type Px } from "./grid";
 import css from "./SynthPicker.module.css";
+
+/** The most options a list opens without a search box. */
+export const SHORT_LIST_MAX = 12;
 
 /** Props of {@link SynthPicker}. */
 export interface SynthPickerProps {
@@ -65,6 +69,7 @@ export function SynthPicker({ value, options, onChange, label, title = label, bo
           onClose={() => setOpen(false)}
           placeholder={`Search ${label ?? title ?? ""}…`}
           noun="options"
+          searchable={options.length > SHORT_LIST_MAX}
         />
       )}
     </div>

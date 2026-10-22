@@ -2,6 +2,10 @@
 .section {
   position: relative;
   flex-shrink: 0;
+
+  /* A Silkscreen rule's line, shared by the rules and the separator between two Displays. */
+  --rule-color: #3a3a5a;
+  --rule-width: 2px;
 }
 
 /* The border, inset inside the Section's own Cells (inset, radius and widths
@@ -39,10 +43,6 @@
   background-clip: padding-box;
 }
 
-.sideTitle {
-  writing-mode: vertical-rl;
-}
-
 /* The title's text, and its power toggle (`titleSwitch`) beside it. */
 .titleText {
   display: inline-flex;
@@ -65,6 +65,14 @@
   height: 10px;
 }
 
+/* A power toggle Control fills its footprint (1×1), less any edge padding. */
+.powerControl {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+
 .silkscreen {
   position: absolute;
   top: 0;
@@ -74,8 +82,8 @@
 
 .rule {
   fill: none;
-  stroke: #3a3a5a;
-  stroke-width: 2;
+  stroke: var(--rule-color);
+  stroke-width: var(--rule-width);
 }
 
 /* A group named like a Section title (`.title`), drawn in Silkscreen. */
@@ -101,6 +109,15 @@
 
 .element {
   position: absolute;
+}
+
+/* The line between two Displays side by side, a Silkscreen rule centred on their shared edge. */
+.displaySeparator {
+  position: absolute;
+  width: var(--rule-width);
+  transform: translateX(-50%);
+  background: var(--rule-color);
+  pointer-events: none;
 }
 
 /* An inactive Control keeps its Cells, dimmed and inert. */

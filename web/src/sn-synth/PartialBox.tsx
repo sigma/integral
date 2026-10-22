@@ -2,7 +2,7 @@
  * The boxes of an SN Synth partial's row, drawn from their layouts
  * (`layouts/sn-synth/partial`) for the row's Scope; its switch strip is
  * `PartialSwitch`. Everything about the state comes from core: values, ranges,
- * relevance, which OSC alternative shows, and which field a synced rate
+ * relevance, which OSC alternatives show, and which field a synced rate
  * knob edits; the knob draws its tempo-sync toggle. A partial core holds
  * off (`sns_partial_scope_is_active`, via `active`) dims its boxes, inert,
  * each as one Section; the switch strip stays live. Within a box, each
@@ -21,7 +21,13 @@ import {
 } from "../../pkg/integral_wasm.js";
 import { GridSection, ScopeGate, specBinding, type Binding, type SectionLayout } from "../layouts";
 import { memo } from "../layouts/fields";
-import { OSC_WAVE_ALTERNATIVE, OSC_WAVE_GROUP, SNS_PARTIAL_FIELDS } from "../layouts/sn-synth/partial";
+import {
+  OSC_VARIATION_ALTERNATIVE,
+  OSC_VARIATION_GROUP,
+  OSC_WAVE_ALTERNATIVE,
+  OSC_WAVE_GROUP,
+  SNS_PARTIAL_FIELDS,
+} from "../layouts/sn-synth/partial";
 import { SnsPartialDisplay, partialSpec } from "./displays";
 import type { PartialParamHandler, SnSynthPartial } from "./types";
 
@@ -77,6 +83,16 @@ export function PartialBox({ idx, layout, family, partial, active, setP }: Parti
     };
   };
   const isPcm = valueOf(SnsPartialField.OscWave) === sns_osc_wave_pcm();
+  const alternative = (group: string) => {
+    if (group === OSC_WAVE_GROUP) return isPcm ? OSC_WAVE_ALTERNATIVE.pcm : OSC_WAVE_ALTERNATIVE.scope;
+    // S-Saw takes Var's place while core holds it relevant (an SP-SAW wave).
+    if (group === OSC_VARIATION_GROUP) {
+      return relevant.get(SnsPartialField.SuperSawDetune)
+        ? OSC_VARIATION_ALTERNATIVE.superSaw
+        : OSC_VARIATION_ALTERNATIVE.variation;
+    }
+    return undefined;
+  };
 
   return (
     <ScopeGate active={active}>
@@ -86,9 +102,7 @@ export function PartialBox({ idx, layout, family, partial, active, setP }: Parti
         bind={bind}
         family={family}
         isActive={(f) => relevant.get(f) ?? true}
-        alternative={(group) =>
-          group === OSC_WAVE_GROUP ? (isPcm ? OSC_WAVE_ALTERNATIVE.pcm : OSC_WAVE_ALTERNATIVE.scope) : undefined
-        }
+        alternative={alternative}
         renderDisplay={(kind) => <SnsPartialDisplay kind={kind} valueOf={valueOf} />}
       />
     </ScopeGate>

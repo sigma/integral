@@ -1,6 +1,7 @@
 /**
  * A searchable list of named options in a popover: a search box, family
- * chips and the filtered options. The Wave picker and the picker Control
+ * chips and the filtered options. A short list can leave the search box out
+ * (`searchable`), and lists its options alone. The Wave picker and the picker Control
  * both open it; the options and their families come from core.
  */
 
@@ -50,6 +51,8 @@ export interface SearchPopoverProps {
   numbered?: boolean;
   /** The families, in the order chips of equal size take; default the options' order. */
   families?: readonly string[];
+  /** Show the search box and the count; default `true`. Without it, the current option takes focus. */
+  searchable?: boolean;
 }
 
 /** Search box, family chips and the (filtered) options. */
@@ -64,6 +67,7 @@ export function SearchPopover({
   noun,
   numbered = false,
   families,
+  searchable = true,
 }: SearchPopoverProps) {
   const [query, setQuery] = useState("");
   const [family, setFamily] = useState<string | null>(null);
@@ -88,6 +92,7 @@ export function SearchPopover({
       key={o.value}
       role="option"
       aria-selected={o.value === current}
+      autoFocus={!searchable && o.value === current}
       className={`${css.item} ${o.value === current ? css.itemCurrent : ""}`}
       onClick={() => onPick(o.value)}
     >
@@ -98,13 +103,15 @@ export function SearchPopover({
 
   return (
     <Floating anchor={anchor} onClose={onClose}>
-      <input
-        autoFocus
-        className={css.search}
-        placeholder={placeholder}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
+      {searchable && (
+        <input
+          autoFocus
+          className={css.search}
+          placeholder={placeholder}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      )}
       {chips.length > 0 && (
         <div className={css.chips}>
           {chips.map((c) => (
@@ -120,9 +127,11 @@ export function SearchPopover({
           ))}
         </div>
       )}
-      <div className={css.dim}>
-        {shown.length} {noun}
-      </div>
+      {searchable && (
+        <div className={css.dim}>
+          {shown.length} {noun}
+        </div>
+      )}
       <div className={css.list} role="listbox">
         {pinned.map(item)}
         {shown.map(item)}

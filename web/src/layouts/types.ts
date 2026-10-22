@@ -63,6 +63,11 @@ export interface SwitchLayout<F extends FieldKey> extends ControlBase<F> {
   kind: "switch";
 }
 
+/** A power toggle (`PowerButton`), 1×1: a two-state field, lit at its maximum. */
+export interface PowerLayout<F extends FieldKey> extends ControlBase<F> {
+  kind: "power";
+}
+
 /** A vertical fader, 2×`h` (3×`h` with its scale: `FOOTPRINT.levelFaderW`). */
 export interface FaderLayout<F extends FieldKey> extends ControlBase<F> {
   kind: "fader";
@@ -86,7 +91,8 @@ export interface OptionListLayout<F extends FieldKey> extends ControlBase<F> {
 
 /**
  * A picker, `w`×1: the field's name and its current option's, opening a
- * searchable list of the options core names (a Wave, an Inst, an output).
+ * list of the options core names: a dropdown for a short list (a Filter
+ * Mode, an LFO Shape), searchable for a long one (a Wave, an Inst).
  */
 export interface PickerLayout<F extends FieldKey> extends ControlBase<F> {
   kind: "picker";
@@ -98,6 +104,7 @@ export interface PickerLayout<F extends FieldKey> extends ControlBase<F> {
 export type ControlLayout<F extends FieldKey> =
   | KnobLayout<F>
   | SwitchLayout<F>
+  | PowerLayout<F>
   | FaderLayout<F>
   | OptionListLayout<F>
   | PickerLayout<F>;

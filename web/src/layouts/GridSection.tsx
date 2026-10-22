@@ -11,11 +11,13 @@ import type { PickOption } from "../SearchPopover";
 import { SyncUnit } from "../SyncUnit";
 import { PowerButton, SynthFader, SynthKnob, SynthPicker, SynthSwitch, familyVar } from "../synth-ui";
 import { knobDialSide } from "../synth-ui/SynthKnob";
-import { CELL, cellsPx, type Px } from "../synth-ui/grid";
+import { BOTTOM_TO_TOP, CELL, cellsPx, type Px } from "../synth-ui/grid";
 import type { FieldKey } from "./fields";
 import {
   BORDER,
+  DISPLAY_INSET,
   INSET,
+  adjacentDisplays,
   drawnElements,
   edgePadding,
   itemRect,
@@ -175,6 +177,11 @@ function Control<F extends FieldKey>({
       return (
         <SynthSwitch grid box={box} label={label} title={b.name} value={b.value} options={optionsOf(b)} onChange={b.onChange} />
       );
+    case "power": {
+      const { isOn, toggle } = twoState(b);
+      // Named by its field, as a switch is; `aria-pressed` says whether it's on.
+      return <PowerButton isOn={isOn} onToggle={toggle} title={b.name} className={css.powerControl} />;
+    }
     case "list":
       return (
         <SynthSwitch
@@ -193,21 +200,22 @@ function Control<F extends FieldKey>({
   }
 }
 
+/** A two-state field as a power toggle: on at its maximum, and a toggle writes the other state. */
+function twoState(b: Binding): { isOn: boolean; toggle: () => void } {
+  const isOn = b.value === b.max;
+  return { isOn, toggle: () => b.onChange(isOn ? b.min : b.max) };
+}
+
 /**
- * The title's power toggle for a two-state field: on at its maximum, and a
- * click writes the other state. It never dims. The wrapper carries
- * `data-field` as a body Control's does, so a caller finds it the same way.
+ * The title's power toggle for a two-state field (`twoState`). It never dims.
+ * The wrapper carries `data-field` as a body Control's does, so a caller
+ * finds it the same way.
  */
 function TitleSwitch({ field, binding: b, title }: { field: FieldKey; binding: Binding; title: string }) {
-  const on = b.value === b.max;
+  const { isOn, toggle } = twoState(b);
   return (
     <span className={css.titleSwitch} data-field={String(field)} data-title-switch="">
-      <PowerButton
-        isOn={on}
-        onToggle={() => b.onChange(on ? b.min : b.max)}
-        title={`Switch ${title} ${on ? "off" : "on"}`}
-        className={css.power}
-      />
+      <PowerButton isOn={isOn} onToggle={toggle} title={`Switch ${title} ${isOn ? "off" : "on"}`} className={css.power} />
     </span>
   );
 }
@@ -259,10 +267,16 @@ export function GridSection<F extends FieldKey>({
   } as CSSProperties;
   const title = sectionTitle(layout, scope);
   const elements = drawnElements(layout.items, alternative);
+  // Displays side by side each give up DISPLAY_INSET on the edge they share; a separator fills the gap.
+  const pairs = adjacentDisplays(elements);
+  // `el` has a Display on its left when it is a pair's right one, and the other way round.
+  const sharedEdge = (el: ElementLayout<F>, side: "left" | "right") =>
+    pairs.some((p) => (side === "left" ? p.right : p.left) === el) ? DISPLAY_INSET : 0;
   // Each element's box: its Cells, less the edge padding that keeps it clear of the border.
   const drawn = elements.map((el) => {
     const rect = itemRect(el);
-    const pad = edgePadding(layout, el);
+    const edge = edgePadding(layout, el);
+    const pad = { ...edge, left: edge.left + sharedEdge(el, "left"), right: edge.right + sharedEdge(el, "right") };
     const full = cellsPx({ w: rect.w, h: rect.h });
     const size: Px = { width: full.width - pad.left - pad.right, height: full.height - pad.top - pad.bottom };
     const box = { left: ox + rect.x * CELL + pad.left, top: oy + rect.y * CELL + pad.top, ...size };
@@ -276,6 +290,13 @@ export function GridSection<F extends FieldKey>({
     const k = el.size ?? "sm";
     dialSide[k] = Math.min(dialSide[k], knobDialSide(k, size));
   }
+  // A separator down the middle of each gap between Displays, where both are drawn.
+  const boxOfElement = new Map(drawn.map((d) => [d.el, d.box]));
+  const separators = pairs.map(({ left, right }) => {
+    const [a, b] = [boxOfElement.get(left)!, boxOfElement.get(right)!];
+    const top = Math.max(a.top, b.top);
+    return { left: ox + right.x * CELL, top, height: Math.min(a.top + a.height, b.top + b.height) - top };
+  });
   // An arrow is drawn when both its ends are.
   const arrows = drawnArrows(
     (layout.silkscreen ?? []).filter((s) => s.kind === "arrow"),
@@ -286,7 +307,7 @@ export function GridSection<F extends FieldKey>({
     <div className={css.section} data-grid-section={title} style={{ width: W, height: H, ...style }}>
       <div className={css.border} style={border} />
       <div
-        className={`${css.title} ${side ? css.sideTitle : top ? css.topTitle : ""}`}
+        className={`${css.title} ${top ? css.topTitle : ""}`}
         style={{
           left: side ? 0 : INSET,
           top: INSET,
@@ -294,6 +315,8 @@ export function GridSection<F extends FieldKey>({
           height: top ? CELL - INSET : H - 2 * INSET,
           // A top title's transparent border lets the Section's accent and sides show through.
           ...(top ? { borderWidth: BORDER_WIDTHS } : {}),
+          // A side title reads bottom to top, as the mixer's strip names do.
+          ...(side ? BOTTOM_TO_TOP : {}),
         }}
       >
         <span className={css.titleText}>
@@ -315,6 +338,14 @@ export function GridSection<F extends FieldKey>({
         ))}
         <SilkArrows arrows={arrows} ox={ox} oy={oy} />
       </svg>
+      {separators.map(({ left, top, height }) => (
+        <div
+          key={`separator ${left},${top}`}
+          className={css.displaySeparator}
+          data-display-separator=""
+          style={{ left, top, height }}
+        />
+      ))}
       {drawn.map(({ el, box, size, binding }) => {
         if (el.kind === "display") {
           const dim = !isDisplayActive(el.display);

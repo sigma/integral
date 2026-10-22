@@ -144,8 +144,6 @@ export function SnDrumEditor({ partIndex, service }: Props) {
     switch (p.id) {
       case "mfx":
         return mfx && <MfxPanel mfx={mfx} {...mfxHandlers} />;
-      case "kit":
-        return <GridSection layout={SND_KIT_LAYOUT} bind={bindCommon} isActive={() => common !== null} />;
       case "tone":
         return (
           <GridSection
@@ -175,13 +173,14 @@ export function SnDrumEditor({ partIndex, service }: Props) {
     <div className={css.editor}>
       {common && <div className={css.kitName}>{common.kitName || "(unnamed kit)"}</div>}
 
-      {/* The key grid picks the Scope of the key Sections below it. */}
+      {/* The key grid picks the Scope of the key Sections below it; the kit's levels sit beside it. */}
       <DrumKeyGrid
         firstKey={keys.first}
         lastKey={keys.last}
         selectedKey={selectedKey}
         onSelect={drumKey.select}
         keyOutputAssigns={keyOutputAssigns}
+        kit={<GridSection layout={SND_KIT_LAYOUT} bind={bindCommon} isActive={() => common !== null} />}
       />
 
       {/* The key Sections, then the MFX they all feed */}

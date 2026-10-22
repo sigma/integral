@@ -7,19 +7,20 @@ import {
   PcmsPartialField,
   SndNoteField,
   WasmDeviceState,
+  mixer_field_spec,
   pcms_partial_count,
   pcms_partial_spec,
   snd_note_spec,
 } from "../../pkg/integral_wasm.js";
 import { paramFormatter, paramMeta } from "../paramDefaults";
-import { FOOTPRINT } from "../synth-ui/grid";
+import { CELL, FOOTPRINT } from "../synth-ui/grid";
 import { cleanup, click, render, typeInto } from "../test/dom";
 import { expectFillsFootprint, stackedHeight } from "../test/grid";
 import { arrowUp, dt1Drainer, slider } from "../test/toneService";
 import { specBinding } from "./binding";
 import { enumFields, mixerFields } from "./fields";
 import { GridScreen } from "./GridScreen";
-import { BORDER, INSET } from "./geometry";
+import { BORDER, DISPLAY_INSET, INSET } from "./geometry";
 import { GridSection, type Binding } from "./GridSection";
 import { EQ_LAYOUT } from "./mixer/eq";
 import type { ScreenLayout, SectionLayout } from "./types";
@@ -305,6 +306,63 @@ describe("GridSection edge padding", () => {
     const knob = wrapper(container, MixerField.EqLowGain).firstElementChild as HTMLElement;
     expect([knob.style.width, knob.style.height]).toEqual(["48px", "65px"]);
     expect(container.querySelector("[data-size]")!.getAttribute("data-size")).toBe("91×43");
+  });
+});
+
+describe("GridSection adjacent Displays", () => {
+  /** Top-titled, its Displays clear of the border: two side by side, and one alone below. */
+  const DISPLAYS: SectionLayout<MixerField> = {
+    title: "Displays",
+    titleEdge: "top",
+    w: 10,
+    h: 6,
+    fields: mixerFields([MixerScopeKind.Part]),
+    items: [
+      { kind: "display", display: DisplayKind.CompEnvelope, x: 1, y: 0, w: 4, h: 2 },
+      { kind: "display", display: DisplayKind.CompTransferCurve, x: 5, y: 0, w: 3, h: 3 },
+      { kind: "display", display: DisplayKind.FilterScope, x: 1, y: 3, w: 3, h: 2 },
+    ],
+  };
+  const draw = () =>
+    render(
+      <GridSection
+        layout={DISPLAYS}
+        bind={bindMixer}
+        renderDisplay={(_, { width, height }) => <div data-size={`${width}×${height}`} />}
+      />,
+    ).container;
+  const display = (container: HTMLElement, kind: DisplayKind) =>
+    container.querySelector<HTMLElement>(`[data-display="${kind}"]`)!;
+  /** `el`'s [left, right] edges, px. */
+  const span = (el: HTMLElement): [number, number] => {
+    const left = parseFloat(el.style.left);
+    return [left, left + parseFloat(el.style.width)];
+  };
+
+  it("draws two Displays side by side each inset on the edge they share, a separator in the gap", () => {
+    const container = draw();
+    const shared = 5 * CELL;
+    const [, envRight] = span(display(container, DisplayKind.CompEnvelope));
+    const [curveLeft] = span(display(container, DisplayKind.CompTransferCurve));
+    expect([envRight, curveLeft]).toEqual([shared - DISPLAY_INSET, shared + DISPLAY_INSET]);
+    // Each still fills its Cells on its other edges.
+    expect(span(display(container, DisplayKind.CompEnvelope))[0]).toBe(CELL);
+    expect(span(display(container, DisplayKind.CompTransferCurve))[1]).toBe(8 * CELL);
+    const separators = [...container.querySelectorAll<HTMLElement>("[data-display-separator]")];
+    expect(separators).toHaveLength(1);
+    // Centred on the shared edge (its CSS centres the rule's line there), so inside the gap.
+    expect(parseFloat(separators[0]!.style.left)).toBe(shared);
+    // Down the rows both Displays cover: the title row, then two rows.
+    expect([separators[0]!.style.top, separators[0]!.style.height]).toEqual([`${CELL}px`, `${2 * CELL}px`]);
+  });
+
+  it("hands each inset Display its narrower size", () => {
+    const sizes = [...draw().querySelectorAll("[data-size]")].map((el) => el.getAttribute("data-size"));
+    expect(sizes).toEqual([`${4 * CELL - DISPLAY_INSET}×${2 * CELL}`, `${3 * CELL - DISPLAY_INSET}×${3 * CELL}`, `${3 * CELL}×${2 * CELL}`]);
+  });
+
+  it("draws a Display with no Display beside it at its full width", () => {
+    expect(span(display(draw(), DisplayKind.FilterScope))).toEqual([CELL, 4 * CELL]);
   });
 });
 
@@ -639,6 +697,15 @@ describe("GridScreen Silkscreen arrows", () => {
   it("draws nothing for an arrow the Lanes can't carry", () => {
     const container = draw(screen([{ kind: "arrow", from: { section: "a", side: "top" }, to: { section: "b", side: "left" } }]));
     expect(arrowPaths(container)).toEqual([]);
+  });
+});
+
+describe("specBinding", () => {
+  it("carries the 0 dB mark a field's core spec declares, and none where it declares none", () => {
+    const bind = (field: MixerField) => specBinding("", mixer_field_spec(field), 0, () => {});
+    expect(bind(MixerField.PartLevel).zeroDb).toBe(mixer_field_spec(MixerField.PartLevel).zeroDb);
+    expect(bind(MixerField.PartLevel).zeroDb).toBeDefined();
+    expect(bind(MixerField.PartChorusSend).zeroDb).toBeUndefined();
   });
 });
 

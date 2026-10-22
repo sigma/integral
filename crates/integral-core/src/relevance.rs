@@ -14,6 +14,7 @@
 
 use crate::param_registry::MixerField;
 use crate::params;
+use crate::pcm_drum::PcmDrumPartial;
 use crate::pcm_structure;
 use crate::pcm_synth::{
     LFO_WAVEFORM_STEP, PCMS_PARTIAL_COUNT, PcmSynthPartial, PcmSynthPmt, PcmsPartialField,
@@ -124,6 +125,16 @@ pub fn pcms_pmt_is_active(field: PcmsPmtField, pmt: &PcmSynthPmt) -> bool {
         PcmsPmtField::Booster34 => pcms_pair_scope_is_active(pmt, 2),
         _ => true,
     }
+}
+
+// ---------------------------------------------------------------------------
+// PCM Drum
+// ---------------------------------------------------------------------------
+
+/// Whether WMT `wmt` (0-based) of a PCM Drum key in state `partial` is
+/// switched on (WMT Wave Switch). `false` for a WMT the key doesn't have.
+pub fn pcmd_wmt_scope_is_active(partial: &PcmDrumPartial, wmt: usize) -> bool {
+    partial.wmt.get(wmt).is_some_and(|w| w.switch != 0)
 }
 
 // ---------------------------------------------------------------------------
@@ -238,6 +249,7 @@ pub fn mixer_fx_is_active(field: MixerField, fx: &FxState) -> bool {
 mod tests {
     use super::*;
     use crate::field_spec::pcms_partial_spec;
+    use crate::pcm_drum::PCMD_WMT_COUNT;
     use crate::sn_synth::SNS_PARTIAL_COUNT;
 
     // -- SN Synth -----------------------------------------------------------
@@ -398,6 +410,15 @@ mod tests {
             &pmt,
             &p
         ));
+    }
+
+    #[test]
+    fn pcmd_wmt_switch_sets_its_scope_active() {
+        let mut key = PcmDrumPartial::default();
+        key.wmt[2].switch = 1;
+        assert!(pcmd_wmt_scope_is_active(&key, 2));
+        assert!(!pcmd_wmt_scope_is_active(&key, 0));
+        assert!(!pcmd_wmt_scope_is_active(&key, PCMD_WMT_COUNT));
     }
 
     #[test]

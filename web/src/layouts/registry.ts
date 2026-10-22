@@ -5,7 +5,7 @@
  */
 
 import type { FieldKey } from "./fields";
-import { PCMD_SCREEN, PCMD_SECTIONS } from "./drum/pcmDrum";
+import { PCMD_SECTIONS, pcmdScreen } from "./drum/pcmDrum";
 import { SND_KIT_LAYOUT, SND_OUTPUT_LAYOUT, SND_SCREEN, SND_TONE_LAYOUT } from "./drum/snDrum";
 import { MFX_SET } from "./fx/mfx";
 import { CHORUS_SET, REVERB_SET } from "./fx/strip";
@@ -37,9 +37,9 @@ import { surroundScreen } from "./surround/screen";
 import {
   SURROUND_AMBIENCE_LAYOUT,
   SURROUND_COMMON_LAYOUT,
-  SURROUND_EXT_LAYOUT,
   SURROUND_PAD_LAYOUT,
-  SURROUND_PART_LAYOUT,
+  surroundExtLayout,
+  surroundPartLayout,
 } from "./surround/sections";
 import type { RegionVariantSet, ScreenLayout, SectionLayout, VariantSet } from "./types";
 
@@ -49,8 +49,6 @@ export const SECTION_LAYOUTS: readonly SectionLayout<FieldKey>[] = [
   SURROUND_COMMON_LAYOUT,
   SURROUND_AMBIENCE_LAYOUT,
   SURROUND_PAD_LAYOUT,
-  SURROUND_PART_LAYOUT,
-  SURROUND_EXT_LAYOUT,
   SNA_COMMON_LAYOUT,
   SNA_VIBRATO_LAYOUT,
   SNA_FILTER_LAYOUT,
@@ -72,6 +70,11 @@ export const SECTION_LAYOUTS: readonly SectionLayout<FieldKey>[] = [
   RING_34_LAYOUT,
 ];
 
+/** Section layouts sized from the device spec; a function, as they read core. */
+export function specSectionLayouts(): readonly SectionLayout<FieldKey>[] {
+  return [surroundPartLayout(), surroundExtLayout()];
+}
+
 /** Variant sets; the validator walks every key core enumerates. */
 export const VARIANT_SETS: readonly VariantSet<FieldKey, FieldKey>[] = [
   STRIP_SET,
@@ -90,7 +93,7 @@ export function screenLayouts(): readonly ScreenLayout[] {
     surroundScreen(),
     SNA_SCREEN,
     SND_SCREEN,
-    PCMD_SCREEN,
+    pcmdScreen(),
     snsScreen(),
     ...pcmsScreens(),
   ];

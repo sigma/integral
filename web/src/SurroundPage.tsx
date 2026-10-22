@@ -5,9 +5,9 @@ import { SURROUND_IDS, surroundPartIds, surroundScreen } from "./layouts/surroun
 import {
   SURROUND_AMBIENCE_LAYOUT,
   SURROUND_COMMON_LAYOUT,
-  SURROUND_EXT_LAYOUT,
   SURROUND_PAD_LAYOUT,
-  SURROUND_PART_LAYOUT,
+  surroundExtLayout,
+  surroundPartLayout,
 } from "./layouts/surround/sections";
 import { mixerBinding } from "./paramDefaults";
 import { SurroundXYPad } from "./SurroundXYPad";
@@ -108,7 +108,7 @@ export function SurroundPage({ mixer }: Props) {
         onClick={() => setSelectedPart(index)}
       >
         <GridSection
-          layout={ext ? SURROUND_EXT_LAYOUT : SURROUND_PART_LAYOUT}
+          layout={ext ? surroundExtLayout() : surroundPartLayout()}
           bind={bindIn(padScope(index))}
           scope={ext ? undefined : { part: index }}
         />

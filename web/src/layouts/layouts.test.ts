@@ -7,6 +7,7 @@ import {
   MixerScopeKind,
   PcmdPartialField,
   PcmsPartialField,
+  SnsPartialField,
   mfx_params,
   mfx_type_names,
   pcms_partial_count,
@@ -15,7 +16,7 @@ import {
 import {
   PCMD_AMP_ENV_LAYOUT,
   PCMD_PITCH_ENV_LAYOUT,
-  PCMD_SCREEN,
+  pcmdScreen,
 } from "./drum/pcmDrum";
 import { SND_SCREEN } from "./drum/snDrum";
 import {
@@ -27,7 +28,7 @@ import {
   type FieldKey,
 } from "./fields";
 import { MFX_PANEL_FRAME } from "./fx/mfx";
-import { borderClearance, edgePadding } from "./geometry";
+import { allElements, borderClearance, edgePadding } from "./geometry";
 import { EQ_LAYOUT } from "./mixer/eq";
 import { mixerScreen } from "./mixer/screen";
 import { STRIP_SET } from "./mixer/strip";
@@ -36,8 +37,10 @@ import {
   SECTION_LAYOUTS,
   VARIANT_SETS,
   screenLayouts,
+  specSectionLayouts,
 } from "./registry";
 import { PCMS_BOXES } from "./pcm-synth/sections";
+import { SNS_BOXES } from "./sn-synth/partial";
 import { surroundScreen } from "./surround/screen";
 import { FOOTPRINT, visibleOption } from "../synth-ui/grid";
 import type {
@@ -59,7 +62,7 @@ import {
 } from "./validate";
 
 describe("every layout", () => {
-  it.each(SECTION_LAYOUTS.map((l) => [l.title, l] as const))(
+  it.each([...SECTION_LAYOUTS, ...specSectionLayouts()].map((l) => [l.title, l] as const))(
     "Section %s is valid",
     (_, layout) => {
       expect(validateSection(layout)).toEqual([]);
@@ -96,13 +99,13 @@ describe("every layout", () => {
   it("lists the Surround screen and every Section it places", () => {
     expect(screenLayouts()).toContain(surroundScreen());
     for (const { section } of surroundScreen().sections)
-      expect(SECTION_LAYOUTS).toContain(section);
+      expect([...SECTION_LAYOUTS, ...specSectionLayouts()]).toContain(section);
   });
   it("lists the drum editors and every Section they place", () => {
     expect(screenLayouts()).toEqual(
-      expect.arrayContaining([SND_SCREEN, PCMD_SCREEN]),
+      expect.arrayContaining([SND_SCREEN, pcmdScreen()]),
     );
-    for (const screen of [SND_SCREEN, PCMD_SCREEN]) {
+    for (const screen of [SND_SCREEN, pcmdScreen()]) {
       // The MFX placement hosts `MfxPanel`, a CSS Section around the MFX variant set.
       for (const p of screen.sections)
         if (p.section !== MFX_PANEL_FRAME)
@@ -162,6 +165,12 @@ describe("validateSection", () => {
     expect(validateSection({ ...BASE, items: body, titleSwitch: MixerField.EqSwitch })).toEqual([]);
     expect(checks(validateSection({ ...BASE, items: body, titleSwitch: MixerField.EqMidQ }))).toEqual(["footprint"]);
     expect(checks(validateSection({ ...BASE, items: body, titleSwitch: MixerField.ExtMute }))).toEqual(["field"]);
+  });
+
+  it("power toggle: a known two-state field passes; another doesn't", () => {
+    const power = (field: MixerField) => withItems([{ kind: "power", field, x: 2, y: 3 }]);
+    expect(validateSection(power(MixerField.PartMute))).toEqual([]);
+    expect(checks(validateSection(power(MixerField.EqMidQ)))).toEqual(["footprint"]);
   });
 
   it("lattice: a Control off whole Cells", () => {
@@ -961,5 +970,35 @@ describe("validateRegionSet", () => {
       ),
     );
     expect(checks(problems)).toEqual(["containment"]);
+  });
+});
+
+// #417: the synth boxes' selectors are dropdowns among the knobs, not tall option lists.
+describe("SN Synth and PCM Synth selectors", () => {
+  const kindOf = <F extends FieldKey>(layouts: readonly SectionLayout<F>[], field: F) =>
+    layouts.flatMap((l) => allElements(l.items)).find((el) => el.kind !== "display" && el.field === field)?.kind;
+
+  it.each([
+    ["OscWave", SnsPartialField.OscWave],
+    ["FilterMode", SnsPartialField.FilterMode],
+    ["FilterSlope", SnsPartialField.FilterSlope],
+    ["WaveGain", SnsPartialField.WaveGain],
+    ["ModLfoShape", SnsPartialField.ModLfoShape],
+    ["LfoShape", SnsPartialField.LfoShape],
+  ])("SN Synth %s is a picker", (_, field) => {
+    expect(kindOf(SNS_BOXES.map((b) => b.layout), field)).toBe("picker");
+  });
+
+  it("SN Synth Wave Variation is a knob", () => {
+    expect(kindOf(SNS_BOXES.map((b) => b.layout), SnsPartialField.OscWaveVariation)).toBe("knob");
+  });
+
+  it.each([
+    ["TvfFilterType", PcmsPartialField.TvfFilterType],
+    ["Lfo1Waveform", PcmsPartialField.Lfo1Waveform],
+    ["Lfo2Waveform", PcmsPartialField.Lfo2Waveform],
+    ["WaveGain", PcmsPartialField.WaveGain],
+  ])("PCM Synth %s is a picker", (_, field) => {
+    expect(kindOf(Object.values(PCMS_BOXES).map((b) => b.layout), field)).toBe("picker");
   });
 });

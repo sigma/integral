@@ -61,6 +61,15 @@ export function button(scope: ParentNode, name: string): HTMLButtonElement {
   return found;
 }
 
+/** The option of the open listbox in `scope` whose text is `name`. */
+export function option(scope: ParentNode, name: string): HTMLElement {
+  const found = [...scope.querySelectorAll<HTMLElement>('[role="option"]')].find(
+    (o) => o.textContent === name,
+  );
+  if (!found) throw new Error(`no option "${name}"`);
+  return found;
+}
+
 /** Text of every option of the open listbox in `scope`. */
 export function options(scope: ParentNode): string[] {
   return [...scope.querySelectorAll('[role="option"]')].map(

@@ -26,12 +26,10 @@
   white-space: nowrap;
 }
 
-/* A strip's name, run up the side of its level fader, read bottom to top. */
+/* A strip's name, run up the side of its level fader (read bottom to top: `BOTTOM_TO_TOP`). */
 .verticalName {
   height: 100%;
   overflow: hidden;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
   font-size: 15px;
   font-weight: 600;
   line-height: 19px;

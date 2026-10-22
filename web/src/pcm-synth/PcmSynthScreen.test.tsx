@@ -1,7 +1,9 @@
+import { act } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   ParameterFamily,
   PcmsPartialField,
+  PcmsPmtField,
   WasmDeviceState,
   pcms_partial_size,
   pcms_partial_spec,
@@ -99,6 +101,39 @@ describe("PcmSynthScreen", () => {
       const ids = ["p12.upper", "p12.lower", "p34.upper", "p34.lower"].map((lane) => `${lane}.${box}`);
       expect(new Set(ids.map(left)), box).toEqual(new Set([left(ids[0]!)]));
     }
+  });
+
+  it("switches a partial from its strip's power toggle, dimming its boxes while it is off", () => {
+    const writes: unknown[][] = [];
+    const off = pmt(0, 0);
+    off.partialEntries[1] = { ...off.partialEntries[1]!, partialSwitch: 0 };
+    const { container } = render(
+      <PcmSynthScreen
+        common={null}
+        pmt={off}
+        partials={[0, 1, 2, 3].map(partial)}
+        mfx={null}
+        mfxHandlers={{ onTypeChange: noop, onHeaderParam: noop, onNibParam: noop }}
+        onCommon={noop}
+        onPmt={noop}
+        onPmtEntry={(...args) => writes.push(args)}
+        onPartial={noop}
+      />,
+    );
+    const strip = (n: number) => container.querySelector(`[data-grid-section="Partial ${n}"]`)!;
+    // Partial 2's boxes: every Section of its lane but the strip.
+    const lane = strip(2).closest<HTMLElement>("[data-section]")!.dataset.section!.replace(/partial$/, "");
+    const boxes = [...container.querySelectorAll<HTMLElement>(`[data-section^="${lane}"]`)].filter(
+      (b) => !b.dataset.section!.endsWith("partial"),
+    );
+    expect(boxes.length).toBeGreaterThan(0);
+    expect(boxes.map((b) => b.querySelector("[data-scope-inactive]")?.hasAttribute("inert"))).toEqual(boxes.map(() => true));
+    const toggle = strip(2).querySelector("button")!;
+    expect(toggle.closest("[inert]")).toBeNull();
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    expect(strip(1).querySelector("button")!.getAttribute("aria-pressed")).toBe("true");
+    act(() => toggle.click());
+    expect(writes).toEqual([[1, PcmsPmtField.PartialSwitch, "partialSwitch", 1]]);
   });
 
   it("switches each partial from its own Section", () => {

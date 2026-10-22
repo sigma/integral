@@ -5,6 +5,7 @@ import {
   DisplayProp,
   PcmdCommonField,
   PcmdPartialField,
+  PcmdWmtField,
   ToneType,
   mfx_block_size,
   pcmd_common2_address,
@@ -17,8 +18,8 @@ import {
   pcmd_partial_count,
   pcmd_partial_size,
   pcmd_partial_spec,
+  pcmd_wmt_scope_is_active,
   pcmd_wmt_spec,
-  type PcmdWmtField,
   type WasmDisplaySlot,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
@@ -28,6 +29,7 @@ import {
   BreakpointDisplay,
   GridScreen,
   GridSection,
+  ScopeGate,
   slotField,
   slotOf,
   specBinding,
@@ -44,8 +46,12 @@ import {
   PCMD_MISC_LAYOUT,
   PCMD_OUTPUT_LAYOUT,
   PCMD_PITCH_ENV_LAYOUT,
-  PCMD_SCREEN,
+  PCMD_SECTION,
   PCMD_WMT_LAYOUT,
+  PCMD_WMT_FAMILY,
+  PCMD_WMT_SWITCH_LAYOUT,
+  pcmdScreen,
+  wmtRowSectionOf,
 } from "./layouts/drum/pcmDrum";
 import { MfxPanel } from "./MfxPanel";
 import type { MfxState } from "./MfxPanel";
@@ -64,7 +70,7 @@ import {
 } from "./pcm-drum/types";
 import css from "./PcmDrumEditor.module.css";
 
-/** The Partial Sections other than WMT, by placement id: they all bind the key's Partial. */
+/** The per-key Sections other than the WMTs, by placement id: they all bind the key's Partial. */
 const PARTIAL_SECTIONS = {
   pitchEnv: PCMD_PITCH_ENV_LAYOUT,
   filter: PCMD_FILTER_LAYOUT,
@@ -86,11 +92,9 @@ interface Props {
 
 export function PcmDrumEditor({ partIndex, service, marking }: Props) {
   const keys = deviceSpec().pcm_drum_keys;
-  const layers = deviceSpec().pcm_drum_wmt_count;
   const [common, setCommon] = useState<PcmDrumCommon | null>(null);
   const [mfx, setMfx] = useState<MfxState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [layer, setLayer] = useState(0);
 
   // Load common + common2 + MFX on mount / part change
   useEffect(() => {
@@ -166,19 +170,19 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
   );
 
   const setWmtParam = useCallback(
-    (field: PcmdWmtField, value: number) => {
+    (layer: number, field: PcmdWmtField, value: number) => {
       if (!current) return;
       service.device.setPcmdWmtParam(partIndex, selectedKey, layer, field, value);
       const { key } = PCMD_WMT_ENTRIES[field];
       update((n) => ({ ...n, wmt: n.wmt.map((w, i) => (i === layer ? { ...w, [key]: value } : w)) }));
     },
-    [current, layer, partIndex, selectedKey, service, update],
+    [current, partIndex, selectedKey, service, update],
   );
 
   const mfxHandlers = useMfxHandlers(service, partIndex, ToneType.PcmDrum, setMfx);
 
   // ---------------------------------------------------------------------------
-  // Bindings for the Scope: the selected key, and its selected layer
+  // Bindings for the Scope: the selected key, and a WMT row's layer
   // ---------------------------------------------------------------------------
 
   const bindKit = (field: PcmdCommonField): Binding => {
@@ -202,12 +206,12 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
     return specBinding(full, spec, partialValue(field, index), (v) => setPartialParam(field, index, v));
   };
 
-  /** A WMT field of the selected layer. */
-  const wmtValue = (field: PcmdWmtField): number =>
+  /** A field of WMT `layer`, for the selected key. */
+  const wmtValue = (layer: number, field: PcmdWmtField): number =>
     note?.wmt[layer]?.[PCMD_WMT_ENTRIES[field].key] ?? pcmd_wmt_spec(field).defaultValue;
 
-  const bindWmt = (field: PcmdWmtField): Binding =>
-    specBinding(PCMD_WMT_ENTRIES[field].name, pcmd_wmt_spec(field), wmtValue(field), (v) => setWmtParam(field, v));
+  const bindWmt = (layer: number, field: PcmdWmtField, name = PCMD_WMT_ENTRIES[field].name): Binding =>
+    specBinding(name, pcmd_wmt_spec(field), wmtValue(layer, field), (v) => setWmtParam(layer, field, v));
 
   const readPartial = (slot: WasmDisplaySlot): SlotValue => {
     const field = partialField(slot);
@@ -234,13 +238,13 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
     return <BreakpointDisplay kind={display} toneType={ToneType.PcmDrum} read={readPartial} />;
   };
 
-  const renderWmtDisplay = (display: DisplayKind): ReactNode =>
+  const renderWmtDisplay = (layer: number, display: DisplayKind): ReactNode =>
     display === DisplayKind.WavePicker && note ? (
       <WaveDisplay
         toneType={ToneType.PcmDrum}
         fieldOf={(s) => s.pcmdWmt}
-        value={wmtValue}
-        onChange={setWmtParam}
+        value={(f) => wmtValue(layer, f)}
+        onChange={(f, v) => setWmtParam(layer, f, v)}
         marking={marking}
       />
     ) : null;
@@ -254,7 +258,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
     const off = new Set<number>();
     for (const [k, n] of cache.current) {
       m.set(k, n.outputAssign);
-      if (n.wmt.every((w) => w.wmtSwitch !== 1)) off.add(k);
+      if (n.wmt.every((_, i) => !pcmd_wmt_scope_is_active(i, n))) off.add(k);
     }
     return [m, off] as const;
   }, [note, selectedKey, cacheVersion]);
@@ -265,20 +269,26 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
 
   const isCurrent = () => current;
   const section = (p: SectionPlacement): ReactNode => {
-    if (p.id === "mfx") return mfx && <MfxPanel mfx={mfx} {...mfxHandlers} />;
-    if (p.id === "kit") {
-      return <GridSection layout={PCMD_KIT_LAYOUT} bind={bindKit} isActive={() => common !== null} />;
-    }
-    if (p.id === "wmt") {
+    if (p.id === PCMD_SECTION.mfx) return mfx && <MfxPanel mfx={mfx} {...mfxHandlers} />;
+    const wmt = wmtRowSectionOf(p.id);
+    if (wmt) {
+      const { layer } = wmt;
+      const scope = { key: selectedKey, layer };
+      if (wmt.section === "switch") {
+        const binding = bindWmt(layer, PcmdWmtField.Switch, `WMT ${layer + 1}`);
+        return <GridSection layout={PCMD_WMT_SWITCH_LAYOUT} scope={scope} isActive={isCurrent} bind={() => binding} />;
+      }
       return (
-        <GridSection
-          layout={PCMD_WMT_LAYOUT}
-          bind={bindWmt}
-          scope={{ key: selectedKey, layer }}
-          isActive={isCurrent}
-          renderDisplay={renderWmtDisplay}
-          family={PCMD_FAMILIES.wmt}
-        />
+        <ScopeGate active={!!note && pcmd_wmt_scope_is_active(layer, note)}>
+          <GridSection
+            layout={PCMD_WMT_LAYOUT}
+            bind={(f) => bindWmt(layer, f)}
+            scope={scope}
+            isActive={isCurrent}
+            renderDisplay={(d) => renderWmtDisplay(layer, d)}
+            family={PCMD_WMT_FAMILY}
+          />
+        </ScopeGate>
       );
     }
     if (!(p.id in PARTIAL_SECTIONS)) return null;
@@ -298,7 +308,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
     <div className={css.editor}>
       {common && <div className={css.kitName}>{common.kitName || "(unnamed kit)"}</div>}
 
-      {/* The key grid and the layer tabs pick the Scope of the key Sections below them. */}
+      {/* The key grid picks the Scope of the key Sections below it; the kit's level sits beside the grid. */}
       <DrumKeyGrid
         firstKey={keys.first}
         lastKey={keys.last}
@@ -306,34 +316,15 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
         onSelect={drumKey.select}
         keyOutputAssigns={keyOutputAssigns}
         offKeys={offKeys}
+        kit={<GridSection layout={PCMD_KIT_LAYOUT} bind={bindKit} isActive={() => common !== null} />}
       />
-      <div className={css.selection}>
-        <span className={css.partialName}>
-          {noteName(selectedKey)}
-          {note?.partialName ? `: ${note.partialName}` : ""}
-        </span>
-        <div className={css.wmtTabs} role="tablist" aria-label="WMT layer">
-          {Array.from({ length: layers }, (_, i) => {
-            const on = note?.wmt[i]?.wmtSwitch === 1;
-            const tabClass = i === layer ? css.wmtTabActive : on ? css.wmtTab : css.wmtTabOff;
-            return (
-              <button
-                key={i}
-                type="button"
-                role="tab"
-                aria-selected={i === layer}
-                className={tabClass}
-                onClick={() => setLayer(i)}
-              >
-                WMT{i + 1}
-              </button>
-            );
-          })}
-        </div>
+      <div className={css.partialName}>
+        {noteName(selectedKey)}
+        {note?.partialName ? `: ${note.partialName}` : ""}
       </div>
 
-      {/* The key Sections, then the MFX they all feed */}
-      <GridScreen layout={PCMD_SCREEN}>{section}</GridScreen>
+      {/* The key's WMT rows, summed into one line of the Sections they share, then the MFX */}
+      <GridScreen layout={pcmdScreen()}>{section}</GridScreen>
     </div>
   );
 }

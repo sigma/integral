@@ -10,6 +10,7 @@ import type { FieldKey } from "./fields";
 import type {
   CellRect,
   ControlLayout,
+  DisplayLayout,
   ElementLayout,
   ItemLayout,
   Scope,
@@ -65,6 +66,8 @@ export function controlCells<F extends FieldKey>(control: ControlLayout<F>): Cel
       return control.size === "lg" ? FOOTPRINT.knobLg : FOOTPRINT.knobSm;
     case "switch":
       return FOOTPRINT.switch;
+    case "power":
+      return FOOTPRINT.power;
     case "fader":
       return faderCells(control.h, control.scale);
     case "list":
@@ -80,6 +83,31 @@ export function itemRect<F extends FieldKey>(item: ItemLayout<F>): CellRect {
     return { x: item.x, y: item.y, w: item.w, h: item.h };
   }
   return { x: item.x, y: item.y, ...controlCells(item) };
+}
+
+/**
+ * Px each of two Displays side by side is drawn in from the edge they share
+ * (#415), so a separator shows in the gap between them. A Display with no
+ * Display beside it fills its Cells.
+ */
+export const DISPLAY_INSET = 3;
+
+/** Two drawn Displays side by side: `left`'s right edge is `right`'s left edge, and their rows overlap. */
+export interface DisplayPair {
+  /** The Display on the left. */
+  left: DisplayLayout;
+  /** The Display on the right. */
+  right: DisplayLayout;
+}
+
+/** Every pair of Displays in `elements` (the ones a Section draws) that share a vertical edge. */
+export function adjacentDisplays<F extends FieldKey>(elements: readonly ElementLayout<F>[]): DisplayPair[] {
+  const displays = elements.filter((el): el is DisplayLayout => el.kind === "display");
+  return displays.flatMap((left) =>
+    displays
+      .filter((right) => left.x + left.w === right.x && left.y < right.y + right.h && right.y < left.y + left.h)
+      .map((right) => ({ left, right })),
+  );
 }
 
 /**
@@ -136,6 +164,27 @@ export function placeRow(row: SectionRow, y: number): SectionPlacement[] {
   return row.map(({ id, section }) => {
     const placed = { id, section, x, y };
     x += sectionCells(section).w;
+    return placed;
+  });
+}
+
+/**
+ * The Cell an arrow leaves or enters a side `n` Cells long at, from the
+ * side's start (`routing.ts`): the middle one, the first of the two on an
+ * even length.
+ */
+export const sideMiddle = (n: number): number => Math.floor((n - 1) / 2);
+
+/**
+ * `row`'s Sections left to right from column `x`, `gap` Cells apart, each
+ * centred on Cell row `axis`: the middle of each one's left and right sides
+ * lies on it, so arrows between neighbours run straight.
+ */
+export function placeLine(row: SectionRow, x: number, axis: number, gap: number): SectionPlacement[] {
+  return row.map(({ id, section }) => {
+    const { w, h } = sectionCells(section);
+    const placed = { id, section, x, y: axis - sideMiddle(h) };
+    x += w + gap;
     return placed;
   });
 }
@@ -213,4 +262,27 @@ export function drawnElements<F extends FieldKey>(
     out.push(...(chosen?.items ?? []));
   }
   return out.sort(readingOrder);
+}
+
+/**
+ * Looks up the placement ids of a screen's repeated rows (a synth's partials,
+ * a drum key's WMTs): `idOf(row, section)` names Section `section` of row
+ * `row` (0-based), for each of `rows()` rows. Built on first call, as the row
+ * count comes from core. The lookup returns the row and Section an id names,
+ * or `undefined` for another Section.
+ */
+export function rowSectionLookup<S extends string>(
+  rows: () => number,
+  sections: readonly S[],
+  idOf: (row: number, section: S) => string,
+): (id: string) => { row: number; section: S } | undefined {
+  let ids: Map<string, { row: number; section: S }> | undefined;
+  return (id) => {
+    ids ??= new Map(
+      Array.from({ length: rows() }, (_, row) =>
+        sections.map((section) => [idOf(row, section), { row, section }] as const),
+      ).flat(),
+    );
+    return ids.get(id);
+  };
 }
