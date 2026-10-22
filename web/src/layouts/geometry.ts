@@ -168,6 +168,27 @@ export function placeRow(row: SectionRow, y: number): SectionPlacement[] {
   });
 }
 
+/**
+ * The Cell an arrow leaves or enters a side `n` Cells long at, from the
+ * side's start (`routing.ts`): the middle one, the first of the two on an
+ * even length.
+ */
+export const sideMiddle = (n: number): number => Math.floor((n - 1) / 2);
+
+/**
+ * `row`'s Sections left to right from column `x`, `gap` Cells apart, each
+ * centred on Cell row `axis`: the middle of each one's left and right sides
+ * lies on it, so arrows between neighbours run straight.
+ */
+export function placeLine(row: SectionRow, x: number, axis: number, gap: number): SectionPlacement[] {
+  return row.map(({ id, section }) => {
+    const { w, h } = sectionCells(section);
+    const placed = { id, section, x, y: axis - sideMiddle(h) };
+    x += w + gap;
+    return placed;
+  });
+}
+
 /** The Cells `row` covers: its Sections' widths summed, and the tallest. */
 export function rowCells(row: SectionRow): Cells {
   return {

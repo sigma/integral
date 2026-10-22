@@ -323,7 +323,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
         {note?.partialName ? `: ${note.partialName}` : ""}
       </div>
 
-      {/* The key's WMT rows over its other Sections, then the MFX they all feed */}
+      {/* The key's WMT rows, summed into one line of the Sections they share, then the MFX */}
       <GridScreen layout={pcmdScreen()}>{section}</GridScreen>
     </div>
   );

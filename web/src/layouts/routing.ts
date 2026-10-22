@@ -11,7 +11,7 @@
  * always draws the same route.
  */
 
-import { allElements, itemRect, sectionCells } from "./geometry";
+import { allElements, itemRect, sectionCells, sideMiddle } from "./geometry";
 import type { FieldKey } from "./fields";
 import type {
   ArrowGlyph,
@@ -59,7 +59,7 @@ const STEPS: readonly Side[] = ["right", "bottom", "left", "top"];
 
 /** Where an arrow meets `anchor`'s side, and the Cell just outside it there. */
 export function sidePoint({ rect: r, side }: Anchor): { point: HalfCellPoint; cell: Cell } {
-  const across = Math.floor(((side === "top" || side === "bottom" ? r.w : r.h) - 1) / 2);
+  const across = sideMiddle(side === "top" || side === "bottom" ? r.w : r.h);
   switch (side) {
     case "top":
       return { point: [r.x + across + 0.5, r.y], cell: [r.x + across, r.y - 1] };

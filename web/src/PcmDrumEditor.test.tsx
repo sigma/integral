@@ -9,6 +9,11 @@ import {
   pcmd_wmt_spec,
 } from "../pkg/integral_wasm.js";
 import { PcmDrumEditor } from "./PcmDrumEditor";
+import { deviceSpec } from "./deviceSpec";
+import { PCMD_SECTION, pcmdScreen } from "./layouts/drum/pcmDrum";
+import { sectionCells, sideMiddle } from "./layouts/geometry";
+import { routeScreenArrow } from "./layouts/routing";
+import { CELL } from "./synth-ui/grid";
 import { familyVar } from "./synth-ui";
 import { cleanup, click, render } from "./test/dom";
 import { controlsOffGrid, drumKey, kitPlacement } from "./test/drum";
@@ -40,12 +45,25 @@ function strip(scope: ParentNode, n: number): Element {
   return found;
 }
 
-/** The placement of Section `id` on the screen, in px. */
-function placed(scope: ParentNode, id: string): { left: number; top: number } {
+/** The box of Section `id` on the screen, in px. */
+function box(scope: ParentNode, id: string): { left: number; top: number; width: number; height: number } {
   const el = scope.querySelector<HTMLElement>(`[data-section="${id}"]`);
   if (!el) throw new Error(`no Section ${id}`);
-  return { left: parseFloat(el.style.left), top: parseFloat(el.style.top) };
+  const px = (v: string) => parseFloat(v);
+  return { left: px(el.style.left), top: px(el.style.top), width: px(el.style.width), height: px(el.style.height) };
 }
+
+/** The placement of Section `id` on the screen, in px. */
+const placed = (scope: ParentNode, id: string) => {
+  const { left, top } = box(scope, id);
+  return { left, top };
+};
+
+/** Every WMT, 0-based. */
+const LAYERS = Array.from({ length: deviceSpec().pcm_drum_wmt_count }, (_, i) => i);
+
+/** The line the WMT rows sum into, left to right. */
+const LINE = ["pitchEnv", "filter", "filterEnv", "ampEnv", "misc", "output", PCMD_SECTION.mfx];
 
 describe("PcmDrumEditor", () => {
   it("colours a knob by its field spec's family, not its section's", async () => {
@@ -152,17 +170,55 @@ describe("PcmDrumEditor", () => {
     for (const n of [1, 2, 3, 4]) expect(strip(container, n).closest("[inert]")).toBeNull();
   });
 
-  it("sets every other per-key Section in one row under the WMTs, then the MFX", async () => {
+  it("sets the Sections the WMTs share on one line right of the WMT rows, then the MFX", async () => {
     const { service } = fakeToneService(new WasmDeviceState(0x10));
     const { container } = render(<PcmDrumEditor partIndex={PART} service={service} />);
     await act(async () => {});
 
-    const row = ["pitchEnv", "filter", "filterEnv", "ampEnv", "misc", "output", "mfx"].map((id) => placed(container, id));
-    expect(new Set(row.map((p) => p.top)).size).toBe(1);
-    const lefts = row.map((p) => p.left);
+    const line = LINE.map((id) => box(container, id));
+    // Their sides' middles share one Cell row: the line runs straight.
+    expect(new Set(line.map((b) => b.top + sideMiddle(b.height / CELL) * CELL)).size).toBe(1);
+    const lefts = line.map((b) => b.left);
     expect(lefts).toEqual([...lefts].sort((a, b) => a - b));
-    expect(new Set(lefts).size).toBe(row.length);
-    expect(row[0]!.top).toBeGreaterThan(placed(container, "wmt-3.wave").top);
+    expect(new Set(lefts).size).toBe(line.length);
+    const stackRight = Math.max(...LAYERS.map((l) => box(container, `wmt-${l}.wave`)).map((b) => b.left + b.width));
+    expect(line[0]!.left).toBeGreaterThan(stackRight);
+  });
+
+  it("sums every WMT row at one + into Pitch Env, which feeds the line through to the MFX", () => {
+    const screen = pcmdScreen();
+    const route = (from: string, to: string) => {
+      const arrow = screen.silkscreen.find((a) => a.from.section === from && a.to.section === to);
+      if (!arrow) throw new Error(`no arrow ${from} → ${to}`);
+      const r = routeScreenArrow(screen, arrow);
+      if (!r) throw new Error(`no route ${from} → ${to}`);
+      return { glyph: arrow.glyph, at: r.glyphAt, points: r.points };
+    };
+    // Each WMT row's arrow meets the others at one + just left of Pitch Env.
+    const sums = LAYERS.map((l) => route(PCMD_SECTION.wmt(l, "wave"), "pitchEnv"));
+    expect(sums.map((s) => s.glyph)).toEqual(LAYERS.map(() => "+"));
+    expect(new Set(sums.map((s) => s.at.join()))).toEqual(new Set([sums[0]!.at.join()]));
+    const head = screen.sections.find((p) => p.id === "pitchEnv")!;
+    const { h } = sectionCells(head.section);
+    expect(sums[0]!.at).toEqual([head.x - 0.5, head.y + sideMiddle(h) + 0.5]);
+    // Then one straight arrow from each Section of the line into the next.
+    for (const [i, to] of LINE.slice(1).entries()) {
+      const { points, glyph } = route(LINE[i]!, to);
+      expect(glyph).toBeUndefined();
+      expect(points).toHaveLength(2);
+      expect(points[0]![1]).toBe(points[1]![1]);
+    }
+    expect(screen.silkscreen).toHaveLength(LAYERS.length + LINE.length - 1);
+  });
+
+  it("draws the WMT rows' sum as one + on the screen", async () => {
+    const { service } = fakeToneService(new WasmDeviceState(0x10));
+    const { container } = render(<PcmDrumEditor partIndex={PART} service={service} />);
+    await act(async () => {});
+
+    const silk = container.querySelector("[data-screen-silkscreen]");
+    if (!silk) throw new Error("no Screen Silkscreen");
+    expect([...silk.querySelectorAll("[data-glyph]")].map((g) => g.textContent)).toEqual(["+"]);
   });
 
   it("rebinds the Partial Sections to another key without remounting them", async () => {
