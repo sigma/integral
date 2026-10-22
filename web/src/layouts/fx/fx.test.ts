@@ -117,6 +117,21 @@ describe("the Chorus and Reverb variant sets", () => {
     expect(delay.map((c) => [c.x, c.y])).toEqual(delay.map((_, i) => [(i % 2) * 2, i * 2]));
   });
 
+  it("start on the EQ's first knob's row and column, each knob level with, and in the column of, an EQ knob", () => {
+    const eqKnobs = EQ_LAYOUT.items.flatMap((i) => (i.kind === "knob" ? [[i.x, i.y]] : []));
+    const eqCells = new Set(eqKnobs.map(([x, y]) => `${x},${y}`));
+    for (const [block, set] of [["chorus", CHORUS_SET], ["reverb", REVERB_SET]] as const) {
+      for (const type of fxTypes(block)) {
+        const items = [...controls(set, type).values()];
+        if (items.length === 0) continue; // Off has nothing to place.
+        expect([items[0]!.x, items[0]!.y], `${block} ${type}`).toEqual(eqKnobs[0]);
+        for (const c of items.slice(0, eqKnobs.length)) {
+          if (c.kind === "knob") expect(eqCells.has(`${c.x},${c.y}`), `${block} ${type} ${c.field}`).toBe(true);
+        }
+      }
+    }
+  });
+
   it("are as tall as the mixer EQ, so the FX columns' strips start on the other strips' row", () => {
     for (const set of [CHORUS_SET, REVERB_SET]) expect(sectionCells(set)).toEqual(sectionCells(EQ_LAYOUT));
   });

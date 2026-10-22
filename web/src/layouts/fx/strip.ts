@@ -2,9 +2,11 @@
  * The Chorus and Reverb parameter Sections, at the top of the mixer's FX
  * columns where the other strips have their EQ, and as tall (#392). Every
  * type is generated, staggered as the EQ is (#405): one Control per 2-Cell
- * row, in core's order, zig-zagging down two columns, so every knob gets the
- * same footprint and the same dial. The footprint holds the type with the
- * most parameters, so changing the type never moves anything.
+ * row, in core's order, zig-zagging down two columns from the EQ's first
+ * knob's Cell, so every FX knob is level with, and in the column of, an EQ
+ * knob, and every knob gets the same footprint and the same dial. The
+ * footprint holds the type with the most parameters, so changing the type
+ * never moves anything.
  */
 
 import { FOOTPRINT } from "../../synth-ui/grid";
@@ -24,8 +26,15 @@ export const STRIP_CAPACITY = 8;
 /** Each column is one small knob wide. */
 const KNOB = FOOTPRINT.knobSm;
 
-/** The rows the staggered Controls take: the last one starts a pitch below the one before it. */
-export const STRIP_ROWS = (STRIP_CAPACITY - 1) * PITCH + KNOB.h;
+/** The EQ's first knob: the stagger starts on its Cell. */
+const FIRST_KNOB = (() => {
+  const knob = EQ_LAYOUT.items.find((i) => i.kind === "knob");
+  if (!knob) throw new Error("the mixer EQ has no knob");
+  return { x: knob.x, y: knob.y };
+})();
+
+/** The rows the staggered Controls reach: the last one starts a pitch below the one before it. */
+export const STRIP_ROWS = FIRST_KNOB.y + (STRIP_CAPACITY - 1) * PITCH + KNOB.h;
 
 /** The Section's frame: two knob columns, as tall as the mixer EQ beside it. */
 function frame(title: string): SectionFrame {
@@ -40,8 +49,8 @@ function rows(block: FxBlock): (type: number) => SectionBody<string> {
       (field, i): ControlLayout<string> => ({
         kind: isTwoState(fields, field) ? "switch" : "knob",
         field,
-        x: (i % 2) * KNOB.w,
-        y: i * PITCH,
+        x: FIRST_KNOB.x + (i % 2) * KNOB.w,
+        y: FIRST_KNOB.y + i * PITCH,
       }),
     );
     return { items };

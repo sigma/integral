@@ -41,8 +41,8 @@ function wrapper(container: HTMLElement, field: MixerField): HTMLElement {
 
 describe("GridSection draws the pilot mixer EQ", () => {
   // Every px below is what the pilot renderer (prototype/grid-pilot) drew, the knobs and
-  // Silkscreen a row lower since the EQ grew a free row under its switch (#405), which
-  // is now a power toggle in the title.
+  // Silkscreen a row higher since the switch moved into the title (#405), and blank rows
+  // under the last knob to match the staggered Chorus and Reverb Sections.
   const draw = () => render(<GridSection layout={EQ_LAYOUT} bind={bindMixer} />).container;
 
   it("at the pilot's size, title row included", () => {
@@ -63,13 +63,13 @@ describe("GridSection draws the pilot mixer EQ", () => {
   // The left column's knobs clear the border their LED rings reach.
   const SIDE = INSET + BORDER.width;
   it.each([
-    [MixerField.EqHighFreq, SIDE, 72],
-    [MixerField.EqHighGain, 48, 120],
-    [MixerField.EqMidFreq, SIDE, 168],
-    [MixerField.EqMidGain, 48, 216],
-    [MixerField.EqMidQ, SIDE, 264],
-    [MixerField.EqLowGain, 48, 312],
-    [MixerField.EqLowFreq, SIDE, 360],
+    [MixerField.EqHighFreq, SIDE, 24],
+    [MixerField.EqHighGain, 48, 72],
+    [MixerField.EqMidFreq, SIDE, 120],
+    [MixerField.EqMidGain, 48, 168],
+    [MixerField.EqMidQ, SIDE, 216],
+    [MixerField.EqLowGain, 48, 264],
+    [MixerField.EqLowFreq, SIDE, 312],
   ])("places field %i at (%ipx, %ipx)", (field, left, top) => {
     const el = wrapper(draw(), field);
     expect([el.style.left, el.style.top]).toEqual([`${left}px`, `${top}px`]);
@@ -128,13 +128,13 @@ describe("GridSection draws the pilot mixer EQ", () => {
     const svg = [...draw().querySelectorAll("svg")].find((s) => !s.closest("button"))!;
     expect(svg.style.clipPath).toBe("inset(5px round 6px)");
     expect([...svg.querySelectorAll("polyline")].map((p) => p.getAttribute("points"))).toEqual([
-      "0,156 24,156 72,204 96,204",
-      "0,348 24,348 72,300 96,300",
+      "0,108 24,108 72,156 96,156",
+      "0,300 24,300 72,252 96,252",
     ]);
     expect([...svg.querySelectorAll("text")].map((t) => [t.textContent, t.getAttribute("x"), t.getAttribute("y")])).toEqual([
-      ["HI", "72", "108"],
-      ["MID", "24", "252"],
-      ["LO", "72", "396"],
+      ["HI", "72", "60"],
+      ["MID", "24", "204"],
+      ["LO", "72", "348"],
     ]);
   });
 
