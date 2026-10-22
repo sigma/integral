@@ -288,9 +288,9 @@ const ROLE: Partial<Record<MixerScopeKind, { icon: string; name: (index: number)
   [MixerScopeKind.CompEqUnit]: { icon: "comp-eq", name: (i) => `Compressor ${i + 1} Gain`, role: (i) => `C+E${i + 1}` },
 };
 
-/** A strip's name: a part's tone, or the strip's role in full. */
+/** A strip's name: a part's number and tone (`1 - JP8Strings16`), or the strip's role in full. */
 function stripName(state: MixerState, { kind, index }: StripScope): string {
-  if (kind === MixerScopeKind.Part) return toneLabel(state.parts[index]!);
+  if (kind === MixerScopeKind.Part) return `${index + 1} - ${toneLabel(state.parts[index]!)}`;
   return ROLE[kind]?.name(index) ?? "";
 }
 

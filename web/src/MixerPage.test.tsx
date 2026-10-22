@@ -331,7 +331,7 @@ describe("MixerPage", () => {
     }));
     const name = (id: string) =>
       placed(el, id).querySelector(`[data-display="${DisplayKind.StripName}"]`)?.textContent;
-    expect(name("strip.part.2")).toBe("Pulse Lead 1");
+    expect(name("strip.part.2")).toBe("3 - Pulse Lead 1");
     expect(name("strip.ext")).toBe("External Input");
     expect(name("strip.comp.1")).toBe("Compressor 2 Gain");
     expect(name("strip.master")).toBe("Master");
