@@ -13,6 +13,7 @@ import {
 import { SnSynthEditor } from "./SnSynthEditor";
 import type { IntegraService } from "./integra";
 import { familyVar } from "./synth-ui";
+import { DISPLAY_INSET } from "./layouts/geometry";
 import { SNS_BOXES } from "./layouts/sn-synth/partial";
 import { SNS_ROW, SNS_SECTION, type SnsRowSection } from "./layouts/sn-synth/screen";
 import { button, cleanup, click, render } from "./test/dom";
@@ -233,6 +234,12 @@ describe("SnSynthEditor on the Grid", () => {
     expect(after.get(pcm)).toBe(`${scopeLeft},${scopeTop},144px,24px`);
     before.delete(scope);
     after.delete(pcm);
+    // The pitch envelope keeps its Cells; with no Display beside it now, it gives up no inset on its left (#415).
+    const env = `${SNS_SECTION.partial(0, "osc")} display ${DisplayKind.PitchEnvelope}`;
+    const [envLeft, envTop, envW, envH] = before.get(env)!.split(",").map(parseFloat) as [number, number, number, number];
+    expect(after.get(env)).toBe(`${envLeft - DISPLAY_INSET}px,${envTop}px,${envW + DISPLAY_INSET}px,${envH}px`);
+    before.delete(env);
+    after.delete(env);
     expect(after).toEqual(before);
 
     // And back to a scope: everything where it started.

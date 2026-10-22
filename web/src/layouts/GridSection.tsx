@@ -15,7 +15,9 @@ import { BOTTOM_TO_TOP, CELL, cellsPx, type Px } from "../synth-ui/grid";
 import type { FieldKey } from "./fields";
 import {
   BORDER,
+  DISPLAY_INSET,
   INSET,
+  adjacentDisplays,
   drawnElements,
   edgePadding,
   itemRect,
@@ -265,10 +267,16 @@ export function GridSection<F extends FieldKey>({
   } as CSSProperties;
   const title = sectionTitle(layout, scope);
   const elements = drawnElements(layout.items, alternative);
+  // Displays side by side each give up DISPLAY_INSET on the edge they share; a separator fills the gap.
+  const pairs = adjacentDisplays(elements);
+  // `el` has a Display on its left when it is a pair's right one, and the other way round.
+  const sharedEdge = (el: ElementLayout<F>, side: "left" | "right") =>
+    pairs.some((p) => (side === "left" ? p.right : p.left) === el) ? DISPLAY_INSET : 0;
   // Each element's box: its Cells, less the edge padding that keeps it clear of the border.
   const drawn = elements.map((el) => {
     const rect = itemRect(el);
-    const pad = edgePadding(layout, el);
+    const edge = edgePadding(layout, el);
+    const pad = { ...edge, left: edge.left + sharedEdge(el, "left"), right: edge.right + sharedEdge(el, "right") };
     const full = cellsPx({ w: rect.w, h: rect.h });
     const size: Px = { width: full.width - pad.left - pad.right, height: full.height - pad.top - pad.bottom };
     const box = { left: ox + rect.x * CELL + pad.left, top: oy + rect.y * CELL + pad.top, ...size };
@@ -282,6 +290,13 @@ export function GridSection<F extends FieldKey>({
     const k = el.size ?? "sm";
     dialSide[k] = Math.min(dialSide[k], knobDialSide(k, size));
   }
+  // A separator down the middle of each gap between Displays, where both are drawn.
+  const boxOfElement = new Map(drawn.map((d) => [d.el, d.box]));
+  const separators = pairs.map(({ left, right }) => {
+    const [a, b] = [boxOfElement.get(left)!, boxOfElement.get(right)!];
+    const top = Math.max(a.top, b.top);
+    return { left: ox + right.x * CELL, top, height: Math.min(a.top + a.height, b.top + b.height) - top };
+  });
   // An arrow is drawn when both its ends are.
   const arrows = drawnArrows(
     (layout.silkscreen ?? []).filter((s) => s.kind === "arrow"),
@@ -323,6 +338,14 @@ export function GridSection<F extends FieldKey>({
         ))}
         <SilkArrows arrows={arrows} ox={ox} oy={oy} />
       </svg>
+      {separators.map(({ left, top, height }) => (
+        <div
+          key={`separator ${left},${top}`}
+          className={css.displaySeparator}
+          data-display-separator=""
+          style={{ left, top, height }}
+        />
+      ))}
       {drawn.map(({ el, box, size, binding }) => {
         if (el.kind === "display") {
           const dim = !isDisplayActive(el.display);

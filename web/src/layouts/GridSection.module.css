@@ -2,6 +2,10 @@
 .section {
   position: relative;
   flex-shrink: 0;
+
+  /* A Silkscreen rule's line, shared by the rules and the separator between two Displays. */
+  --rule-color: #3a3a5a;
+  --rule-width: 2px;
 }
 
 /* The border, inset inside the Section's own Cells (inset, radius and widths
@@ -78,8 +82,8 @@
 
 .rule {
   fill: none;
-  stroke: #3a3a5a;
-  stroke-width: 2;
+  stroke: var(--rule-color);
+  stroke-width: var(--rule-width);
 }
 
 /* A group named like a Section title (`.title`), drawn in Silkscreen. */
@@ -105,6 +109,15 @@
 
 .element {
   position: absolute;
+}
+
+/* The line between two Displays side by side, a Silkscreen rule centred on their shared edge. */
+.displaySeparator {
+  position: absolute;
+  width: var(--rule-width);
+  transform: translateX(-50%);
+  background: var(--rule-color);
+  pointer-events: none;
 }
 
 /* An inactive Control keeps its Cells, dimmed and inert. */

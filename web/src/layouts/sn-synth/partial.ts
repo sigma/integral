@@ -68,7 +68,7 @@ export const SNS_OSC_LAYOUT = box("OSC", 17, [
   { kind: "fader", field: F.OscPwModDepth, x: 5, ...FADER, label: "PWM" },
   { kind: "fader", field: F.OscPulseWidth, x: 7, ...FADER, label: "PW" },
   { kind: "fader", field: F.PwShift, x: 9, ...FADER, label: "Shift" },
-  { kind: "display", display: DisplayKind.PitchEnvelope, x: 11, y: 0, w: 4, h: 2 },
+  { kind: "display", display: DisplayKind.PitchEnvelope, x: 11, y: 0, w: 6, h: 2 },
   { kind: "fader", field: F.OscPitchEnvAttack, x: 11, ...FADER, label: "A" },
   { kind: "fader", field: F.OscPitchEnvDecay, x: 13, ...FADER, label: "D" },
   { kind: "fader", field: F.OscPitchEnvDepth, x: 15, ...FADER, label: "Dep" },
@@ -78,7 +78,7 @@ export const SNS_OSC_LAYOUT = box("OSC", 17, [
 export const SNS_FILTER_LAYOUT = box("FILTER", 15, [
   { kind: "list", field: F.FilterMode, x: 1, y: 0, h: 9, label: "Mode" },
   { kind: "list", field: F.FilterSlope, x: 3, y: 0, h: 3, label: "Slope" },
-  { kind: "display", display: DisplayKind.FilterEnvelope, x: 5, y: 0, w: 8, h: 2 },
+  { kind: "display", display: DisplayKind.FilterEnvelope, x: 5, y: 0, w: 10, h: 2 },
   { kind: "knob", field: F.FilterCutoff, x: 5, y: 2, label: "Cutoff" },
   { kind: "knob", field: F.FilterResonance, x: 7, y: 2, label: "Reso" },
   { kind: "knob", field: F.FilterKeyfollow, x: 9, y: 2, label: "KeyF" },

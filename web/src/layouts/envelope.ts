@@ -8,6 +8,7 @@
 
 import { DisplayProp, type DisplayKind, type ToneType, type WasmDisplaySlot } from "../../pkg/integral_wasm.js";
 import { displaySlots } from "./displays";
+import { controlCells } from "./geometry";
 import type { FieldKey } from "./fields";
 import type { ControlLayout, ItemLayout } from "./types";
 
@@ -57,17 +58,36 @@ function envelopeFaders<F extends FieldKey>(
 }
 
 /**
- * The items of an envelope block at `(x, y)` in its Section, {@link ENV_CELLS}
- * in all. The curve keeps a free Cell each side, clear of a border the block
- * abuts. Reads core's Display binding, so call it on first use, not at import.
+ * Where an envelope block's curve sits across it: over exactly the columns of
+ * its faders (`faders`, #415), or a Cell in from each side of the block
+ * (`block`), clear of a border the block abuts.
  */
-export function envelopeItems<F extends FieldKey>(spec: EnvelopeSpec<F>, x: number, y: number): ItemLayout<F>[] {
+export type CurveSpan = "faders" | "block";
+
+/**
+ * The items of an envelope block at `(x, y)` in its Section, {@link ENV_CELLS}
+ * in all, its curve placed by `curve`. Reads core's Display binding, so call
+ * it on first use, not at import.
+ */
+export function envelopeItems<F extends FieldKey>(
+  spec: EnvelopeSpec<F>,
+  x: number,
+  y: number,
+  curve: CurveSpan = "block",
+): ItemLayout<F>[] {
+  const faders = [
+    ...envelopeFaders(spec, DisplayProp.Levels, "L", 0, x, y + ENV_ROWS.levels),
+    ...envelopeFaders(spec, DisplayProp.Times, "T", 1, x + 1, y + ENV_ROWS.times),
+  ];
+  const [from, to] =
+    curve === "faders"
+      ? [Math.min(...faders.map((f) => f.x)), Math.max(...faders.map((f) => f.x + controlCells(f).w))]
+      : [x + 1, x + ENV_CELLS.w - 1];
   return [
     ...spec.knobs.map(
       (k, i): ControlLayout<F> => ({ kind: "knob", field: k.field, x: x + 2 * i, y: y + ENV_ROWS.knobs, label: k.label }),
     ),
-    { kind: "display", display: spec.display, x: x + 1, y: y + ENV_ROWS.curve, w: ENV_CELLS.w - 2, h: 2 },
-    ...envelopeFaders(spec, DisplayProp.Levels, "L", 0, x, y + ENV_ROWS.levels),
-    ...envelopeFaders(spec, DisplayProp.Times, "T", 1, x + 1, y + ENV_ROWS.times),
+    { kind: "display", display: spec.display, x: from, y: y + ENV_ROWS.curve, w: to - from, h: 2 },
+    ...faders,
   ];
 }

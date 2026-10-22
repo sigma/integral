@@ -162,7 +162,7 @@ function envelopeBox(
 ): SectionLayout<F> {
   const items = memo(() => [
     ...own,
-    ...envelopeItems({ ...env, toneType: ToneType.PcmSynth, fieldOf: (s) => s.pcmsPartial }, 1, OWN_H),
+    ...envelopeItems({ ...env, toneType: ToneType.PcmSynth, fieldOf: (s) => s.pcmsPartial }, 1, OWN_H, "faders"),
   ]);
   return box(title, ENV_BOX_W, items);
 }

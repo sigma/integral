@@ -10,6 +10,7 @@ import type { FieldKey } from "./fields";
 import type {
   CellRect,
   ControlLayout,
+  DisplayLayout,
   ElementLayout,
   ItemLayout,
   Scope,
@@ -82,6 +83,31 @@ export function itemRect<F extends FieldKey>(item: ItemLayout<F>): CellRect {
     return { x: item.x, y: item.y, w: item.w, h: item.h };
   }
   return { x: item.x, y: item.y, ...controlCells(item) };
+}
+
+/**
+ * Px each of two Displays side by side is drawn in from the edge they share
+ * (#415), so a separator shows in the gap between them. A Display with no
+ * Display beside it fills its Cells.
+ */
+export const DISPLAY_INSET = 3;
+
+/** Two drawn Displays side by side: `left`'s right edge is `right`'s left edge, and their rows overlap. */
+export interface DisplayPair {
+  /** The Display on the left. */
+  left: DisplayLayout;
+  /** The Display on the right. */
+  right: DisplayLayout;
+}
+
+/** Every pair of Displays in `elements` (the ones a Section draws) that share a vertical edge. */
+export function adjacentDisplays<F extends FieldKey>(elements: readonly ElementLayout<F>[]): DisplayPair[] {
+  const displays = elements.filter((el): el is DisplayLayout => el.kind === "display");
+  return displays.flatMap((left) =>
+    displays
+      .filter((right) => left.x + left.w === right.x && left.y < right.y + right.h && right.y < left.y + left.h)
+      .map((right) => ({ left, right })),
+  );
 }
 
 /**
