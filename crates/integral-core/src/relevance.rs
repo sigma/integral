@@ -23,7 +23,7 @@ use crate::sn_acoustic::{SnAcousticCommon, SnaCommonField, sna_offsets};
 use crate::sn_synth::{
     OSC_WAVE_PCM, OSC_WAVE_SUPER_SAW, SnSynthCommon, SnSynthPartial, SnsPartialField,
 };
-use crate::state::{CompEqUnit, DrumCompEqState, PartState};
+use crate::state::{CompEqUnit, DrumCompEqState, FxState, PartState};
 
 // ---------------------------------------------------------------------------
 // SN Synth
@@ -149,12 +149,32 @@ pub fn sna_common_is_active(field: SnaCommonField, common: &SnAcousticCommon) ->
 // Mixer
 // ---------------------------------------------------------------------------
 
+/// Whether mixer EQ `field` is active on a strip (a part, a Drum Comp+EQ
+/// unit or the master) whose EQ switch is `eq_switch`: the EQ's settings act
+/// only while it is on. The switch itself, and every field outside the EQ,
+/// is always active.
+pub fn mixer_eq_is_active(field: MixerField, eq_switch: bool) -> bool {
+    use MixerField as F;
+    match field {
+        F::EqLowFreq
+        | F::EqLowGain
+        | F::EqMidFreq
+        | F::EqMidGain
+        | F::EqMidQ
+        | F::EqHighFreq
+        | F::EqHighGain => eq_switch,
+        _ => true,
+    }
+}
+
 /// Whether mixer `field` on the strip of part `part` (0-based, state
-/// `part_state`) is active, given the Drum Comp+EQ state. Only a drum kit
-/// routes keys to the Comp+EQ units, so the
-/// [`MixerField::DrumCompEqPart`] assignment is active on a drum kit part,
-/// or on the part it's assigned to so it can be turned off. Every other
-/// field is always active.
+/// `part_state`) is active, given the Drum Comp+EQ state:
+/// - only a drum kit routes keys to the Comp+EQ units, so the
+///   [`MixerField::DrumCompEqPart`] assignment is active on a drum kit part,
+///   or on the part it's assigned to so it can be turned off;
+/// - the part's EQ settings follow its EQ switch ([`mixer_eq_is_active`]).
+///
+/// Every other field is always active.
 pub fn mixer_is_active(
     field: MixerField,
     part: usize,
@@ -166,7 +186,7 @@ pub fn mixer_is_active(
             let assigned = drum_comp_eq.enabled && usize::from(drum_comp_eq.part) == part;
             assigned || params::is_drum_kit_bank(part_state.tone_bank_msb)
         }
-        _ => true,
+        _ => mixer_eq_is_active(field, part_state.eq.enabled),
     }
 }
 
@@ -182,14 +202,34 @@ pub fn mixer_output_is_active(field: MixerField, surround_enabled: bool) -> bool
 }
 
 /// Whether mixer `field` of a Drum Comp+EQ unit in state `unit` is active:
-/// the compressor's settings act only while its switch is on. The switch
-/// itself, the unit's EQ and its routing are always active.
+/// the compressor's settings act only while its switch is on, and the EQ's
+/// while the EQ switch is ([`mixer_eq_is_active`]). The switches themselves
+/// and the unit's routing are always active.
 pub fn comp_eq_unit_is_active(field: MixerField, unit: &CompEqUnit) -> bool {
     use MixerField as F;
     match field {
         F::CompAttack | F::CompRelease | F::CompThreshold | F::CompRatio | F::CompOutputGain => {
             unit.comp_switch
         }
+        _ => mixer_eq_is_active(field, unit.eq_switch),
+    }
+}
+
+/// Whether the Chorus or Reverb block in state `fx` acts: while its switch
+/// is on. A block switched off leaves every parameter of its type inactive.
+pub fn fx_block_is_active(fx: &FxState) -> bool {
+    fx.enabled
+}
+
+/// Whether Studio Set common `field` of the Chorus or Reverb block in state
+/// `fx` (the Chorus's state for a Chorus field, the Reverb's for a Reverb
+/// one) is active: its type and level act only while its switch is on
+/// ([`fx_block_is_active`]). The switch itself, the routing and every field
+/// outside the two blocks are always active.
+pub fn mixer_fx_is_active(field: MixerField, fx: &FxState) -> bool {
+    use MixerField as F;
+    match field {
+        F::ChorusType | F::ChorusLevel | F::ReverbType | F::ReverbLevel => fx_block_is_active(fx),
         _ => true,
     }
 }
@@ -529,6 +569,7 @@ mod tests {
     fn a_switched_off_compressor_leaves_its_settings_inactive() {
         let on = CompEqUnit {
             comp_switch: true,
+            eq_switch: true,
             ..CompEqUnit::default()
         };
         let off = CompEqUnit {
@@ -551,6 +592,77 @@ mod tests {
             MixerField::CompOutputAssign,
         ] {
             assert!(comp_eq_unit_is_active(field, &off), "{field:?}");
+        }
+    }
+
+    const EQ_SETTINGS: [MixerField; 7] = [
+        MixerField::EqLowFreq,
+        MixerField::EqLowGain,
+        MixerField::EqMidFreq,
+        MixerField::EqMidGain,
+        MixerField::EqMidQ,
+        MixerField::EqHighFreq,
+        MixerField::EqHighGain,
+    ];
+
+    #[test]
+    fn a_switched_off_eq_leaves_its_settings_inactive() {
+        for field in EQ_SETTINGS {
+            assert!(mixer_eq_is_active(field, true), "{field:?}");
+            assert!(!mixer_eq_is_active(field, false), "{field:?}");
+        }
+        assert!(mixer_eq_is_active(MixerField::EqSwitch, false));
+        assert!(mixer_eq_is_active(MixerField::PartLevel, false));
+    }
+
+    #[test]
+    fn a_part_and_a_comp_eq_unit_follow_their_own_eq_switch() {
+        let mut p = part(87);
+        p.eq.enabled = false;
+        let none = DrumCompEqState::default();
+        let unit = CompEqUnit {
+            comp_switch: true,
+            eq_switch: false,
+            ..CompEqUnit::default()
+        };
+        for field in EQ_SETTINGS {
+            assert!(!mixer_is_active(field, 0, &p, &none), "{field:?}");
+            assert!(!comp_eq_unit_is_active(field, &unit), "{field:?}");
+        }
+        assert!(mixer_is_active(MixerField::EqSwitch, 0, &p, &none));
+        assert!(comp_eq_unit_is_active(MixerField::EqSwitch, &unit));
+        assert!(comp_eq_unit_is_active(MixerField::CompAttack, &unit));
+        p.eq.enabled = true;
+        assert!(mixer_is_active(MixerField::EqMidQ, 0, &p, &none));
+    }
+
+    #[test]
+    fn a_switched_off_fx_leaves_its_type_level_and_parameters_inactive() {
+        let on = FxState::default();
+        assert!(on.enabled);
+        let off = FxState {
+            enabled: false,
+            ..FxState::default()
+        };
+        assert!(fx_block_is_active(&on));
+        assert!(!fx_block_is_active(&off));
+        for field in [
+            MixerField::ChorusType,
+            MixerField::ChorusLevel,
+            MixerField::ReverbType,
+            MixerField::ReverbLevel,
+        ] {
+            assert!(mixer_fx_is_active(field, &on), "{field:?}");
+            assert!(!mixer_fx_is_active(field, &off), "{field:?}");
+        }
+        for field in [
+            MixerField::ChorusSwitch,
+            MixerField::ChorusOutputAssign,
+            MixerField::ChorusOutputSelect,
+            MixerField::ReverbSwitch,
+            MixerField::ReverbOutputAssign,
+        ] {
+            assert!(mixer_fx_is_active(field, &off), "{field:?}");
         }
     }
 }
