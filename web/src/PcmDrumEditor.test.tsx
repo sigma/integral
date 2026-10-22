@@ -11,7 +11,7 @@ import {
 import { PcmDrumEditor } from "./PcmDrumEditor";
 import { familyVar } from "./synth-ui";
 import { cleanup, click, render } from "./test/dom";
-import { controlsOffGrid, drumKey } from "./test/drum";
+import { controlsOffGrid, drumKey, kitPlacement } from "./test/drum";
 import { arrowUp, dt1Drainer, fakeToneService, slider } from "./test/toneService";
 
 afterEach(cleanup);
@@ -52,6 +52,14 @@ describe("PcmDrumEditor", () => {
     const fills = [...titled(container, "Wave Pan").querySelectorAll("circle")].map((c) => c.style.fill);
     expect(fills).toContain(familyVar(family));
     expect(fills).not.toContain(familyVar(ParameterFamily.Pitch));
+  });
+
+  it("places the KIT Section beside the key matrix, out of the key Sections", async () => {
+    const { service } = fakeToneService(new WasmDeviceState(0x10));
+    const { container } = render(<PcmDrumEditor partIndex={PART} service={service} />);
+    await act(async () => {});
+
+    expect(kitPlacement(container, 36)).toEqual({ besideKeys: true, inKeyScreen: false });
   });
 
   it("lays every key Control out on the Grid", async () => {

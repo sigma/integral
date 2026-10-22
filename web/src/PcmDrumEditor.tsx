@@ -266,9 +266,6 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
   const isCurrent = () => current;
   const section = (p: SectionPlacement): ReactNode => {
     if (p.id === "mfx") return mfx && <MfxPanel mfx={mfx} {...mfxHandlers} />;
-    if (p.id === "kit") {
-      return <GridSection layout={PCMD_KIT_LAYOUT} bind={bindKit} isActive={() => common !== null} />;
-    }
     if (p.id === "wmt") {
       return (
         <GridSection
@@ -298,7 +295,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
     <div className={css.editor}>
       {common && <div className={css.kitName}>{common.kitName || "(unnamed kit)"}</div>}
 
-      {/* The key grid and the layer tabs pick the Scope of the key Sections below them. */}
+      {/* The key grid and the layer tabs pick the Scope of the key Sections below them; the kit's level sits beside the grid. */}
       <DrumKeyGrid
         firstKey={keys.first}
         lastKey={keys.last}
@@ -306,6 +303,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
         onSelect={drumKey.select}
         keyOutputAssigns={keyOutputAssigns}
         offKeys={offKeys}
+        kit={<GridSection layout={PCMD_KIT_LAYOUT} bind={bindKit} isActive={() => common !== null} />}
       />
       <div className={css.selection}>
         <span className={css.partialName}>

@@ -1,5 +1,6 @@
 /**
- * The PCM Drum Kit editor: the kit's level, then the selected key's Partial.
+ * The PCM Drum Kit editor: the kit's level, beside the key grid, and the
+ * selected key's Partial.
  * The Partial Sections take their Scope (`key`) from the key grid, and the
  * WMT Section adds the `layer` from the layer tabs, so one layout serves
  * every key and layer and changing either only rebinds it.
@@ -28,7 +29,7 @@ export const PCMD_PARTIAL_FIELDS = enumFields("PcmdPartialField", PcmdPartialFie
   count: pcmd_partial_count,
 });
 
-/** The kit-wide level, as tall as a key's Level fader. */
+/** The kit-wide level. The editor sets it beside the key grid, off the key Sections' screen. */
 export const PCMD_KIT_LAYOUT: SectionLayout<PcmdCommonField> = {
   title: "KIT",
   titleEdge: "top",
@@ -199,9 +200,8 @@ export const PCMD_FAMILIES: Readonly<Record<string, ParameterFamily>> = {
   output: ParameterFamily.Amp,
 };
 
-/** The top row: the kit, the wave and the pitch. */
+/** The top row: the wave, the pitch and how the key plays. */
 const TOP_ROW: SectionRow = [
-  { id: "kit", section: PCMD_KIT_LAYOUT },
   { id: "wmt", section: PCMD_WMT_LAYOUT },
   { id: "pitchEnv", section: PCMD_PITCH_ENV_LAYOUT },
   { id: "misc", section: PCMD_MISC_LAYOUT },

@@ -1,5 +1,6 @@
 /**
- * The SN Drum Kit editor: the kit's levels, then the selected key's Note.
+ * The SN Drum Kit editor: the kit's levels, beside the key grid, and the
+ * selected key's Note.
  * The Note Sections take their Scope (`key`) from the key grid, so one
  * layout serves every key and changing the key only rebinds it.
  */
@@ -21,7 +22,7 @@ const VARIATION_H = 9;
 /** Height of the key Sections, in Cells: the Variation list and a free row under it. */
 const KEY_H = VARIATION_H + 1;
 
-/** The kit-wide levels, as tall as a key's Level fader. */
+/** The kit-wide levels. The editor sets them beside the key grid, off the key Sections' screen. */
 export const SND_KIT_LAYOUT: SectionLayout<SndCommonField> = {
   title: "KIT",
   titleEdge: "top",
@@ -121,9 +122,8 @@ export const SND_FAMILIES: Readonly<Record<string, ParameterFamily>> = {
   output: ParameterFamily.Amp,
 };
 
-/** The kit levels, then the key's Sections. */
+/** The key's Sections. */
 const KEY_ROW: SectionRow = [
-  { id: "kit", section: SND_KIT_LAYOUT },
   { id: "tone", section: SND_TONE_LAYOUT },
   { id: "output", section: SND_OUTPUT_LAYOUT },
 ];
@@ -137,7 +137,7 @@ const MFX = sectionCells(MFX_PANEL_FRAME);
 const SCREEN_H = Math.max(KEYS.h, MFX.h);
 
 /**
- * The SN Drum editor's Grid: kit levels, then the key's tone and output, and
+ * The SN Drum editor's Grid: the key's tone and output, and
  * the MFX every key feeds across a Lane for its arrow.
  */
 export const SND_SCREEN: ScreenLayout = {

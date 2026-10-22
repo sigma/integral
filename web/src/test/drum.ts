@@ -17,3 +17,18 @@ export function controlsOffGrid(scope: ParentNode): Element[] {
     (c) => c.closest("[data-grid-section]") === null && c.closest('[data-section="mfx"]') === null,
   );
 }
+
+/**
+ * Where the kit-wide KIT Section sits: the key matrix's row holding it (the
+ * one holding the key grid too), and the Grid screen of key Sections holding
+ * it, if any.
+ */
+export function kitPlacement(scope: ParentNode, key: number): { besideKeys: boolean; inKeyScreen: boolean } {
+  const kit = scope.querySelector('[data-grid-section="KIT"]');
+  if (!kit) throw new Error("no KIT Section");
+  const row = kit.closest("[data-drum-matrix]");
+  return {
+    besideKeys: row !== null && row === drumKey(scope, key).closest("[data-drum-matrix]"),
+    inKeyScreen: kit.closest("[data-grid-screen]") !== null,
+  };
+}

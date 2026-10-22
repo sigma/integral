@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { noteName, isBlackKey } from "./pcm-drum/types";
 import css from "./DrumKeyGrid.module.css";
 
@@ -12,7 +13,10 @@ const CEQ_COLORS = [
   "#1abc9c", // C+EQ6 — teal
 ];
 
-/** Clickable grid of a drum kit's keys, one cell per note in `firstKey..=lastKey`. */
+/**
+ * Clickable grid of a drum kit's keys, one cell per note in `firstKey..=lastKey`,
+ * with its output legend and, beside them, the kit-wide `kit` Section.
+ */
 export function DrumKeyGrid({
   firstKey,
   lastKey,
@@ -20,6 +24,7 @@ export function DrumKeyGrid({
   onSelect,
   keyOutputAssigns,
   offKeys,
+  kit,
 }: {
   firstKey: number;
   lastKey: number;
@@ -29,6 +34,8 @@ export function DrumKeyGrid({
   keyOutputAssigns?: Map<number, number>;
   /** Keys that produce no sound; shown dimmed but still selectable. */
   offKeys?: Set<number>;
+  /** The kit-wide Section, top-aligned beside the grid and its legend. */
+  kit?: ReactNode;
 }) {
   const keys: number[] = [];
   for (let k = firstKey; k <= lastKey; k++) {
@@ -36,7 +43,7 @@ export function DrumKeyGrid({
   }
 
   return (
-    <div className={css.gridWithLegend}>
+    <div className={css.gridWithLegend} data-drum-matrix="">
       <div className={css.keyGrid}>
         {keys.map((k) => {
           const selected = k === selectedKey;
@@ -68,6 +75,7 @@ export function DrumKeyGrid({
           </span>
         ))}
       </div>
+      {kit}
     </div>
   );
 }
