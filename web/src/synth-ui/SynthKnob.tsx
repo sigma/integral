@@ -13,12 +13,8 @@ interface Props {
   label: string;
   onChange: (value: number) => void;
   formatValue?: (v: number) => string;
-  /**
-   * Parameter family: colours the lit LEDs only; pointer, label and value stay
-   * neutral. Absent (the registry may not give one): the LEDs light in the
-   * neutral Common family's colour.
-   */
-  family?: ParameterFamily;
+  /** Parameter family, from core: colours the lit LEDs only; pointer, label and value stay neutral. */
+  family: ParameterFamily;
   /** "sm" = 52px dial, "lg" = 72px dial. Default: "sm". */
   size?: "sm" | "lg";
   /**
@@ -54,8 +50,6 @@ const ANGLE_MIN = -135;
 const ANGLE_MAX = 135;
 /** LEDs on the ring of a wide-range knob; discrete ranges get one per value. */
 const LED_COUNT = 21;
-/** Family a knob without one lights in: Common is the palette's neutral grey. */
-const NEUTRAL_FAMILY = ParameterFamily.Common;
 
 /** Dial drawing: SVG side, cap radius, LED ring radius, LED dot radius, pointer width. */
 interface Dial {
@@ -111,7 +105,7 @@ export function SynthKnob({
   dialSide,
   unit,
 }: Props) {
-  const lit = familyVar(family ?? NEUTRAL_FAMILY);
+  const lit = familyVar(family);
   const { footprint, dial: natural } = SIZES[size];
   const box = boxProp ?? cellsPx(footprint);
   const fits = knobDialSide(size, box);
