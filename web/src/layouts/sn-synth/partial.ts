@@ -2,13 +2,14 @@
  * The SN Synth partial row: a strip with the partial's switch, then five
  * boxes, OSC, FILTER, AMP, MOD LFO and LFO, each its own top-titled Section,
  * repeated by Scope (`{ partial }`, 0-based) for partials 1–3. Every box
- * stacks three bands: dropdowns, scopes, the OSC's Wave knob and AMP's knobs
- * (rows 0–2), knobs or an envelope Display (rows 3–5) and faders (rows
- * 6–10), so the faders line up across the row (#427): an envelope Display
- * sits directly over its faders, OSC's Wave scope over its pitch envelope,
- * and an LFO's scope over its knobs. A box's
- * dropdowns sit at its left. Each box leaves its first column and last row
- * free of pickers and Displays.
+ * but FILTER stacks three bands: dropdowns, scopes, the OSC's Wave knob and
+ * AMP's knobs (rows 0–2), an envelope Display or knobs directly over their
+ * faders (rows 3–6) and faders (rows 7–11), so the faders line up across the row (#427): an
+ * envelope Display sits directly over its faders, OSC's Wave scope over its
+ * pitch envelope, and an LFO's scope over its knobs. FILTER stacks four
+ * (#430): its response scope, its knobs, its envelope and its faders. A
+ * box's dropdowns sit at its left. Each box leaves its first column and last
+ * row free of pickers and Displays.
  *
  * Two `alternatives` groups follow the OSC Wave, each on one rectangle: the
  * OSC's scope or its PCM Wave picker (a Control), and right of the Wave dropdown
@@ -45,14 +46,17 @@ export const OSC_VARIATION_ALTERNATIVE = { variation: "variation", superSaw: "su
 /** The SN Synth Partial fields. */
 export const SNS_PARTIAL_FIELDS = enumFields<F>("SnsPartialField", F, sns_partial_spec);
 
-/** Content height of every box: the top band, the knobs and the faders. */
-const H = 11;
-
-/** Knobs' top row in the boxes whose knobs sit over their faders: the middle band. */
-const KNOB_Y = 3;
+/** Content height of every box: the top band, the middle band and the faders. */
+const H = 12;
 
 /** Faders' top row and height: the bottom band. */
-const FADER = { y: KNOB_Y + 3, h: 5 } as const;
+const FADER = { y: H - 5, h: 5 } as const;
+
+/** The middle band's top row: an envelope Display there runs down to its faders. */
+const MID_Y = 3;
+
+/** Knobs' top row in the boxes whose knobs sit directly over their faders. */
+const KNOB_Y = FADER.y - FOOTPRINT.knobSm.h;
 
 /** A partial's box: top-titled, `w`×{@link H}, its items and Silkscreen given. */
 function box(
@@ -121,30 +125,51 @@ export const SNS_OSC_LAYOUT = box(
     { kind: "fader", field: F.OscPwModDepth, x: 1, ...FADER, label: "PWM" },
     { kind: "fader", field: F.OscPulseWidth, x: 3, ...FADER, label: "PW" },
     { kind: "fader", field: F.PwShift, x: 5, ...FADER, label: "Shift" },
-    { kind: "display", display: DisplayKind.PitchEnvelope, x: OSC_ENV_X, y: KNOB_Y, w: OSC_ENV_W, h: FADER.y - KNOB_Y },
+    { kind: "display", display: DisplayKind.PitchEnvelope, x: OSC_ENV_X, y: MID_Y, w: OSC_ENV_W, h: FADER.y - MID_Y },
     { kind: "fader", field: F.OscPitchEnvAttack, x: OSC_ENV_X, ...FADER, label: "A" },
     { kind: "fader", field: F.OscPitchEnvDecay, x: OSC_ENV_X + FOOTPRINT.faderW, ...FADER, label: "D" },
     { kind: "fader", field: F.OscPitchEnvDepth, x: OSC_ENV_X + 2 * FOOTPRINT.faderW, ...FADER, label: "Dep" },
   ],
   // The pitch envelope's column set apart from the PWM, PW and Shift column, down its free column.
-  [{ kind: "rule", points: [[OSC_ENV_X - 0.5, KNOB_Y], [OSC_ENV_X - 0.5, H]] }],
+  [{ kind: "rule", points: [[OSC_ENV_X - 0.5, MID_Y], [OSC_ENV_X - 0.5, H]] }],
 );
 
-/** FILTER: mode and slope, cutoff and its envelope. */
-export const SNS_FILTER_LAYOUT = box("FILTER", 15, [
+/** FILTER's response scope height: its Mode and Slope dropdowns, stacked. */
+const FILTER_SCOPE_H = 2;
+
+/** FILTER's knobs' top row: under the response scope and its dropdowns. */
+const FILTER_KNOB_Y = FILTER_SCOPE_H;
+
+/** FILTER's columns, past its free first column: five knobs, each over its fader. */
+const FILTER_X = [0, 1, 2, 3, 4].map((i) => 1 + i * FOOTPRINT.knobSm.w) as [number, number, number, number, number];
+
+/**
+ * FILTER, five knobs wide: the filter's response scope with the Mode and
+ * Slope dropdowns stacked at its left, then Cutoff, Reso, KeyF, Vel Sns and
+ * Aft Cut, then the filter envelope over its A, D, S, R and Dep faders.
+ */
+export const SNS_FILTER_LAYOUT = box("FILTER", 1 + FILTER_X.length * FOOTPRINT.knobSm.w, [
   { kind: "picker", field: F.FilterMode, x: 1, y: 0, w: FOOTPRINT.dropdownW, label: "Mode" },
   { kind: "picker", field: F.FilterSlope, x: 1, y: 1, w: FOOTPRINT.dropdownW, label: "Slope" },
-  { kind: "display", display: DisplayKind.FilterEnvelope, x: 5, y: 0, w: 10, h: 2 },
-  { kind: "knob", field: F.FilterCutoff, x: 1, y: KNOB_Y, label: "Cutoff" },
-  { kind: "knob", field: F.FilterResonance, x: 3, y: KNOB_Y, label: "Reso" },
-  { kind: "knob", field: F.FilterKeyfollow, x: 5, y: KNOB_Y, label: "KeyF" },
-  { kind: "knob", field: F.FilterEnvVelSens, x: 7, y: KNOB_Y, label: "Vel Sns" },
-  { kind: "knob", field: F.AftertouchCutoff, x: 9, y: KNOB_Y, label: "Aft Cut" },
-  { kind: "fader", field: F.FilterEnvAttack, x: 5, ...FADER, label: "A" },
-  { kind: "fader", field: F.FilterEnvDecay, x: 7, ...FADER, label: "D" },
-  { kind: "fader", field: F.FilterEnvSustain, x: 9, ...FADER, label: "S" },
-  { kind: "fader", field: F.FilterEnvRelease, x: 11, ...FADER, label: "R" },
-  { kind: "fader", field: F.FilterEnvDepth, x: 13, ...FADER, label: "Dep" },
+  { kind: "display", display: DisplayKind.FilterScope, x: 1 + FOOTPRINT.dropdownW, y: 0, w: FILTER_X.length * FOOTPRINT.knobSm.w - FOOTPRINT.dropdownW, h: FILTER_SCOPE_H },
+  { kind: "knob", field: F.FilterCutoff, x: FILTER_X[0], y: FILTER_KNOB_Y, label: "Cutoff" },
+  { kind: "knob", field: F.FilterResonance, x: FILTER_X[1], y: FILTER_KNOB_Y, label: "Reso" },
+  { kind: "knob", field: F.FilterKeyfollow, x: FILTER_X[2], y: FILTER_KNOB_Y, label: "KeyF" },
+  { kind: "knob", field: F.FilterEnvVelSens, x: FILTER_X[3], y: FILTER_KNOB_Y, label: "Vel Sns" },
+  { kind: "knob", field: F.AftertouchCutoff, x: FILTER_X[4], y: FILTER_KNOB_Y, label: "Aft Cut" },
+  {
+    kind: "display",
+    display: DisplayKind.FilterEnvelope,
+    x: FILTER_X[0],
+    y: FILTER_KNOB_Y + FOOTPRINT.knobSm.h,
+    w: FILTER_X.length * FOOTPRINT.knobSm.w,
+    h: FADER.y - FILTER_KNOB_Y - FOOTPRINT.knobSm.h,
+  },
+  { kind: "fader", field: F.FilterEnvAttack, x: FILTER_X[0], ...FADER, label: "A" },
+  { kind: "fader", field: F.FilterEnvDecay, x: FILTER_X[1], ...FADER, label: "D" },
+  { kind: "fader", field: F.FilterEnvSustain, x: FILTER_X[2], ...FADER, label: "S" },
+  { kind: "fader", field: F.FilterEnvRelease, x: FILTER_X[3], ...FADER, label: "R" },
+  { kind: "fader", field: F.FilterEnvDepth, x: FILTER_X[4], ...FADER, label: "Dep" },
 ]);
 
 /**
@@ -159,7 +184,7 @@ export const SNS_AMP_LAYOUT = box("AMP", 11, [
   { kind: "knob", field: F.AmpVelSens, x: 5, y: 0, label: "Vel Sns" },
   { kind: "knob", field: F.AftertouchLevel, x: 7, y: 0, label: "Aft Lvl" },
   { kind: "knob", field: F.AmpLevelKeyfollow, x: 9, y: 0, label: "KeyF" },
-  { kind: "display", display: DisplayKind.AmpEnvelope, x: 1, y: KNOB_Y, w: 8, h: FADER.y - KNOB_Y },
+  { kind: "display", display: DisplayKind.AmpEnvelope, x: 1, y: MID_Y, w: 8, h: FADER.y - MID_Y },
   { kind: "fader", field: F.AmpEnvAttack, x: 1, ...FADER, label: "A" },
   { kind: "fader", field: F.AmpEnvDecay, x: 3, ...FADER, label: "D" },
   { kind: "fader", field: F.AmpEnvSustain, x: 5, ...FADER, label: "S" },

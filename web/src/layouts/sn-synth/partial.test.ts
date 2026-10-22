@@ -1,9 +1,11 @@
 // The SN Synth partial boxes put each visualizer over the Controls it
 // describes (#427): OSC stacks its Wave scope over its pitch envelope, over
 // the envelope's faders; AMP's knobs sit over its envelope, over its faders;
-// the LFOs' knobs sit right, under their scopes.
+// the LFOs' knobs sit right, under their scopes. FILTER stacks its response
+// scope, its knobs, its envelope and its faders, five knobs wide (#430).
 import { describe, expect, it } from "vitest";
 import { DisplayKind, SnsPartialField as F } from "../../../pkg/integral_wasm.js";
+import { FOOTPRINT } from "../../synth-ui/grid";
 import { allElements, itemRect } from "../geometry";
 import type { CellRect, ElementLayout, SectionLayout } from "../types";
 import {
@@ -12,6 +14,7 @@ import {
   OSC_WAVE_GROUP,
   SNS_AMP_LAYOUT,
   SNS_BOXES,
+  SNS_FILTER_LAYOUT,
   SNS_LFO_LAYOUT,
   SNS_MOD_LFO_LAYOUT,
   SNS_OSC_LAYOUT,
@@ -109,6 +112,46 @@ describe("SN Synth OSC", () => {
       );
     });
     expect(between).toHaveLength(1);
+  });
+});
+
+describe("SN Synth FILTER", () => {
+  const scope = display(SNS_FILTER_LAYOUT, DisplayKind.FilterScope);
+  const env = display(SNS_FILTER_LAYOUT, DisplayKind.FilterEnvelope);
+  const knobFields = [F.FilterCutoff, F.FilterResonance, F.FilterKeyfollow, F.FilterEnvVelSens, F.AftertouchCutoff];
+  const faderFields = [F.FilterEnvAttack, F.FilterEnvDecay, F.FilterEnvSustain, F.FilterEnvRelease, F.FilterEnvDepth];
+  const knobs = knobFields.map((f) => control(SNS_FILTER_LAYOUT, f));
+  const faders = faderFields.map((f) => rect(SNS_FILTER_LAYOUT, f));
+
+  it("is five knobs wide, past its free first column", () => {
+    expect(SNS_FILTER_LAYOUT.w).toBe(1 + 5 * FOOTPRINT.knobSm.w);
+    expect(knobs.map((k) => k.kind)).toEqual(knobs.map(() => "knob"));
+    const rects = knobs.map(itemRect);
+    expect({ from: rects[0]!.x, to: right(rects[4]!) }).toEqual({ from: 1, to: SNS_FILTER_LAYOUT.w });
+  });
+
+  it("stacks the response scope, the knobs in one row, the envelope and the faders, top to bottom", () => {
+    const rects = knobs.map(itemRect);
+    expect(new Set(rects.map((r) => r.y)).size).toBe(1);
+    expect(bottom(scope)).toBeLessThanOrEqual(rects[0]!.y);
+    expect(bottom(rects[0]!)).toBeLessThanOrEqual(env.y);
+    for (const f of faders) expect(f.y).toBe(bottom(env));
+  });
+
+  it("aligns each knob over a fader, and spans the envelope across A to Dep", () => {
+    expect(knobs.map((k) => itemRect(k).x)).toEqual(faders.map((f) => f.x));
+    expect({ from: env.x, to: right(env) }).toEqual({ from: faders[0]!.x, to: right(faders[4]!) });
+  });
+
+  it("stacks the Mode and Slope dropdowns at the scope's left, on its rows", () => {
+    const [mode, slope] = [F.FilterMode, F.FilterSlope].map((f) => rect(SNS_FILTER_LAYOUT, f));
+    for (const r of [mode!, slope!]) {
+      expect(right(r)).toBeLessThanOrEqual(scope.x);
+      expect(rowsOverlap(r, scope)).toBe(true);
+    }
+    expect(mode!.x).toBe(slope!.x);
+    expect(bottom(mode!)).toBeLessThanOrEqual(slope!.y);
+    expect(right(scope)).toBe(SNS_FILTER_LAYOUT.w);
   });
 });
 

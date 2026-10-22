@@ -108,6 +108,8 @@ pub enum DisplayProp {
     Cutoff,
     /// See [`core::DisplayProp::Resonance`].
     Resonance,
+    /// See [`core::DisplayProp::Slope`].
+    Slope,
     /// See [`core::DisplayProp::Structure`].
     Structure,
     /// See [`core::DisplayProp::First`].
@@ -153,6 +155,7 @@ mirror_core_enum!(DisplayProp <=> core::DisplayProp {
     FilterType,
     Cutoff,
     Resonance,
+    Slope,
     Structure,
     First,
     Threshold,

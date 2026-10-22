@@ -36,8 +36,8 @@ pub enum DisplayKind {
     AmpEnvelope,
     /// SN Synth OSC waveform scope.
     OscScope,
-    /// Filter response scope: SN Acoustic offsets, PCM Synth and PCM Drum
-    /// TVF.
+    /// Filter response scope: SN Synth filter, SN Acoustic offsets, PCM
+    /// Synth and PCM Drum TVF.
     FilterScope,
     /// SN Synth LFO scope.
     LfoScope,
@@ -134,6 +134,8 @@ pub enum DisplayProp {
     Cutoff,
     /// Filter resonance.
     Resonance,
+    /// Filter slope, in dB per octave.
+    Slope,
     /// Structure Type.
     Structure,
     /// Number of the first partial a Structure diagram shows.
@@ -330,6 +332,12 @@ fn sn_synth(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
             (P::PwmDepth, f(F::OscPwModDepth)),
             (P::PwShift, f(F::PwShift)),
             (P::SuperSawDetune, f(F::SuperSawDetune)),
+        ]),
+        DisplayKind::FilterScope => reads(&[
+            (P::FilterType, f(F::FilterMode)),
+            (P::Cutoff, f(F::FilterCutoff)),
+            (P::Resonance, f(F::FilterResonance)),
+            (P::Slope, f(F::FilterSlope)),
         ]),
         DisplayKind::LfoScope => reads(&[(P::Shape, f(F::LfoShape)), (P::Rate, f(F::LfoRate))]),
         DisplayKind::ModLfoScope => {
@@ -593,6 +601,22 @@ mod tests {
         assert_eq!(
             sources(K::ModLfoScope, SNS),
             [one(P::Shape, F::ModLfoShape), one(P::Rate, F::ModLfoRate)]
+        );
+    }
+
+    /// `layouts/sn-synth/partial.ts` FILTER (#430): `FilterScope` mode,
+    /// cutoff, resonance and slope.
+    #[test]
+    fn sns_filter_scope() {
+        use SnsPartialField as F;
+        assert_eq!(
+            sources(K::FilterScope, SNS),
+            [
+                one(P::FilterType, F::FilterMode),
+                one(P::Cutoff, F::FilterCutoff),
+                one(P::Resonance, F::FilterResonance),
+                one(P::Slope, F::FilterSlope),
+            ]
         );
     }
 
@@ -892,7 +916,7 @@ mod tests {
             match kind {
                 K::PitchEnvelope | K::FilterEnvelope => &[SNS, PCMS, PCMD],
                 K::AmpEnvelope => &[SNS, SNA, PCMS, PCMD],
-                K::FilterScope => &[SNA, PCMS, PCMD],
+                K::FilterScope => &[SNS, SNA, PCMS, PCMD],
                 K::OscScope | K::LfoScope | K::ModLfoScope => &[SNS],
                 K::Lfo1Scope | K::Lfo2Scope | K::StepLfoScope | K::Structure12 | K::Structure34 => {
                     &[PCMS]

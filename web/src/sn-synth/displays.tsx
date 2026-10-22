@@ -17,6 +17,7 @@ import {
 } from "../../pkg/integral_wasm.js";
 import { cached } from "../cached";
 import { EnvelopeScope } from "../synth-ui";
+import { FilterScope, SNS_FILTER_RESPONSES } from "../synth-ui/FilterScope";
 import { LfoScope } from "../synth-ui/LfoScope";
 import { OscWaveScope } from "./OscWaveScope";
 import css from "../SnSynthEditor.module.css";
@@ -88,6 +89,17 @@ export function SnsPartialDisplay({ kind, valueOf }: SnsPartialDisplayProps) {
           pwmDepth={raw(DisplayProp.PwmDepth)}
           pwShift={raw(DisplayProp.PwShift)}
           superSawDetune={raw(DisplayProp.SuperSawDetune)}
+        />
+      );
+    case DisplayKind.FilterScope:
+      return (
+        <FilterScope
+          className={css.fill}
+          type={label(DisplayProp.FilterType)}
+          slope={label(DisplayProp.Slope)}
+          cutoff={raw(DisplayProp.Cutoff)}
+          resonance={raw(DisplayProp.Resonance)}
+          responses={SNS_FILTER_RESPONSES}
         />
       );
     case DisplayKind.LfoScope:
