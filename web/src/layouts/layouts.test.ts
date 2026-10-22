@@ -7,6 +7,7 @@ import {
   MixerScopeKind,
   PcmdPartialField,
   PcmsPartialField,
+  SnsPartialField,
   mfx_params,
   mfx_type_names,
   pcms_partial_count,
@@ -27,7 +28,7 @@ import {
   type FieldKey,
 } from "./fields";
 import { MFX_PANEL_FRAME } from "./fx/mfx";
-import { borderClearance, edgePadding } from "./geometry";
+import { allElements, borderClearance, edgePadding } from "./geometry";
 import { EQ_LAYOUT } from "./mixer/eq";
 import { mixerScreen } from "./mixer/screen";
 import { STRIP_SET } from "./mixer/strip";
@@ -39,6 +40,7 @@ import {
   specSectionLayouts,
 } from "./registry";
 import { PCMS_BOXES } from "./pcm-synth/sections";
+import { SNS_BOXES } from "./sn-synth/partial";
 import { surroundScreen } from "./surround/screen";
 import { FOOTPRINT, visibleOption } from "../synth-ui/grid";
 import type {
@@ -968,5 +970,35 @@ describe("validateRegionSet", () => {
       ),
     );
     expect(checks(problems)).toEqual(["containment"]);
+  });
+});
+
+// #417: the synth boxes' selectors are dropdowns among the knobs, not tall option lists.
+describe("SN Synth and PCM Synth selectors", () => {
+  const kindOf = <F extends FieldKey>(layouts: readonly SectionLayout<F>[], field: F) =>
+    layouts.flatMap((l) => allElements(l.items)).find((el) => el.kind !== "display" && el.field === field)?.kind;
+
+  it.each([
+    ["OscWave", SnsPartialField.OscWave],
+    ["FilterMode", SnsPartialField.FilterMode],
+    ["FilterSlope", SnsPartialField.FilterSlope],
+    ["WaveGain", SnsPartialField.WaveGain],
+    ["ModLfoShape", SnsPartialField.ModLfoShape],
+    ["LfoShape", SnsPartialField.LfoShape],
+  ])("SN Synth %s is a picker", (_, field) => {
+    expect(kindOf(SNS_BOXES.map((b) => b.layout), field)).toBe("picker");
+  });
+
+  it("SN Synth Wave Variation is a knob", () => {
+    expect(kindOf(SNS_BOXES.map((b) => b.layout), SnsPartialField.OscWaveVariation)).toBe("knob");
+  });
+
+  it.each([
+    ["TvfFilterType", PcmsPartialField.TvfFilterType],
+    ["Lfo1Waveform", PcmsPartialField.Lfo1Waveform],
+    ["Lfo2Waveform", PcmsPartialField.Lfo2Waveform],
+    ["WaveGain", PcmsPartialField.WaveGain],
+  ])("PCM Synth %s is a picker", (_, field) => {
+    expect(kindOf(Object.values(PCMS_BOXES).map((b) => b.layout), field)).toBe("picker");
   });
 });

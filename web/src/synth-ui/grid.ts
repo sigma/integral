@@ -34,10 +34,12 @@ export const FOOTPRINT = {
   /** Vertical option list: 2×N, one Cell row per option; a layout may pick a wider `w` for long names. */
   optionListW: 2,
   /**
-   * Picker: its name, then the current option's, opening a searchable list.
+   * Picker: its name, then the current option's, opening its list (searchable when long).
    * N×1: a layout may pick another width (a mixer strip's output, 2 or 4).
    */
   picker: { w: 6, h: 1 },
+  /** A synth box's dropdown (a picker over a short list): its name and the longest option's, N of N×1. */
+  dropdownW: 4,
 } as const satisfies Record<string, Cells | number>;
 
 /**

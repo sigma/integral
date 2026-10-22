@@ -91,7 +91,8 @@ export interface OptionListLayout<F extends FieldKey> extends ControlBase<F> {
 
 /**
  * A picker, `w`×1: the field's name and its current option's, opening a
- * searchable list of the options core names (a Wave, an Inst, an output).
+ * list of the options core names: a dropdown for a short list (a Filter
+ * Mode, an LFO Shape), searchable for a long one (a Wave, an Inst).
  */
 export interface PickerLayout<F extends FieldKey> extends ControlBase<F> {
   kind: "picker";

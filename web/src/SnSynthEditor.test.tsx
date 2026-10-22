@@ -16,7 +16,7 @@ import { familyVar } from "./synth-ui";
 import { DISPLAY_INSET } from "./layouts/geometry";
 import { SNS_BOXES } from "./layouts/sn-synth/partial";
 import { SNS_ROW, SNS_SECTION, type SnsRowSection } from "./layouts/sn-synth/screen";
-import { button, cleanup, click, render } from "./test/dom";
+import { cleanup, click, option, render } from "./test/dom";
 import { dt1Drainer } from "./test/toneService";
 
 // jsdom has no ResizeObserver, which the page's GridZoom watches its width with.
@@ -161,9 +161,10 @@ function boxes(container: HTMLElement): Map<string, string> {
   return out;
 }
 
-/** Picks OSC Wave `name` on partial `partial`. */
+/** Picks OSC Wave `name` on partial `partial`, from its dropdown. */
 function pickWave(container: HTMLElement, partial: number, name: string) {
-  click(button(control(row(container, partial), SnsPartialField.OscWave), name));
+  click(control(row(container, partial), SnsPartialField.OscWave).querySelector("button")!);
+  click(option(document, name));
 }
 
 describe("SnSynthEditor on the Grid", () => {
@@ -226,12 +227,15 @@ describe("SnSynthEditor on the Grid", () => {
     expect(sns_partial_spec(SnsPartialField.WaveNumber).formatValue(0)).toBe("OFF");
     expect(picker.querySelector("button")?.textContent).toBe("OFF");
 
-    // Only the alternative changed: every other element kept its box, and the picker took the scope's top-left Cells.
+    // Only the alternative changed: every other element kept its box, and the picker took the scope's
+    // bottom row, level with the Wave dropdown.
     const after = boxes(container);
     const scope = `${SNS_SECTION.partial(0, "osc")} display ${DisplayKind.OscScope}`;
     const pcm = `${SNS_SECTION.partial(0, "osc")} ${SnsPartialField.WaveNumber}`;
-    const [scopeLeft, scopeTop] = before.get(scope)!.split(",");
-    expect(after.get(pcm)).toBe(`${scopeLeft},${scopeTop},144px,24px`);
+    const wave = `${SNS_SECTION.partial(0, "osc")} ${SnsPartialField.OscWave}`;
+    const [scopeLeft] = before.get(scope)!.split(",");
+    const waveTop = after.get(wave)!.split(",")[1];
+    expect(after.get(pcm)).toBe(`${scopeLeft},${waveTop},96px,24px`);
     before.delete(scope);
     after.delete(pcm);
     // The pitch envelope keeps its Cells; with no Display beside it now, it gives up no inset on its left (#415).
@@ -243,30 +247,39 @@ describe("SnSynthEditor on the Grid", () => {
     expect(after).toEqual(before);
 
     // And back to a scope: everything where it started.
-    pickWave(container, 0, "SP-SAW");
+    pickWave(container, 0, "SAW");
     expect(boxes(container)).toEqual(original);
   });
 
-  it("hides Var and S-Saw in place, as core holds them inactive", () => {
+  it("puts S-Saw in Var's place under the Wave dropdown on SP-SAW, as core holds it relevant", () => {
     const { container } = loadedEditor();
     const r = row(container, 0);
-    const state = () =>
-      [SnsPartialField.OscWaveVariation, SnsPartialField.SuperSawDetune].map(
-        (f) => control(r, f).dataset.inactive ?? "active",
-      );
-    const at = () =>
+    const shown = () =>
       [SnsPartialField.OscWaveVariation, SnsPartialField.SuperSawDetune].map((f) => {
-        const { left, top } = control(r, f).style;
-        return `${left},${top}`;
+        const el = r.querySelector<HTMLElement>(`[data-field="${f}"]`);
+        return el ? (el.dataset.inactive ?? "active") : "absent";
       });
-    const where = at();
-    // SAW: Var applies, S-Saw doesn't.
-    expect(state()).toEqual(["active", "hide"]);
+    const at = (f: SnsPartialField) => {
+      const { left, top } = control(r, f).style;
+      return [parseFloat(left), parseFloat(top)];
+    };
+    // The Var knob sits directly below the Wave dropdown, in its column.
+    const wave = control(r, SnsPartialField.OscWave).style;
+    const [varLeft, varTop] = at(SnsPartialField.OscWaveVariation);
+    expect(varLeft).toBe(parseFloat(wave.left));
+    expect(varTop).toBe(parseFloat(wave.top) + parseFloat(wave.height));
+
+    // SAW has variations: Var shows, a knob.
+    expect(shown()).toEqual(["active", "absent"]);
+    expect(control(r, SnsPartialField.OscWaveVariation).querySelector('[role="slider"]')).toBeTruthy();
     pickWave(container, 0, "SP-SAW");
-    expect(state()).toEqual(["hide", "active"]);
+    expect(shown()).toEqual(["absent", "active"]);
+    expect(at(SnsPartialField.SuperSawDetune)).toEqual([varLeft, varTop]);
+    // PCM has neither: Var keeps its Cells, hidden.
     pickWave(container, 0, "PCM");
-    expect(state()).toEqual(["hide", "hide"]);
-    expect(at()).toEqual(where);
+    expect(shown()).toEqual(["hide", "absent"]);
+    pickWave(container, 0, "TRI");
+    expect(shown()).toEqual(["active", "absent"]);
   });
 
   it("dims each box of a partial's row, inert, while it is off; the switch heading the row stays live", () => {

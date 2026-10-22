@@ -8,8 +8,10 @@
  * (PITCH, FILTER, AMP) stack their own Controls over one envelope block
  * (`envelopeItems`) at the same rows, so their envelopes line up along a
  * lane. Envelope times and levels and the Step LFO's steps are elements of
- * array fields. Option lists, switches and Displays keep a free Cell from the
- * left, right and bottom borders.
+ * array fields. Option lists, pickers, switches and Displays keep a free Cell
+ * from the left, right and bottom borders. A box's dropdowns (pickers) sit at
+ * its top left, over its knobs; WAVE's Gain, under its wave picker, sits in
+ * the row of its switches.
  */
 
 import {
@@ -25,6 +27,7 @@ import {
   pcms_pmt_spec,
 } from "../../../pkg/integral_wasm.js";
 import { envelopeItems, ENV_CELLS, type EnvelopeSpec } from "../envelope";
+import { FOOTPRINT } from "../../synth-ui/grid";
 import { enumFields, memo } from "../fields";
 import { switchStrip } from "../switchStrip";
 import type { ControlLayout, ItemLayout, SectionLayout } from "../types";
@@ -192,15 +195,15 @@ const PITCH = envelopeBox(
 const FILTER = envelopeBox(
   "FILTER",
   [
-    { kind: "list", field: F.TvfFilterType, x: 1, y: 0, h: OWN_H, label: "Type" },
-    { kind: "display", display: DisplayKind.FilterScope, x: 3, y: 0, w: 8, h: 2 },
-    { kind: "knob", field: F.TvfCutoffFrequency, x: 3, y: 2, label: "Cutoff" },
-    { kind: "knob", field: F.TvfResonance, x: 5, y: 2, label: "Reso" },
-    { kind: "knob", field: F.TvfCutoffKeyfollow, x: 7, y: 2, label: "Key Trk" },
-    { kind: "knob", field: F.TvfCutoffVelocityCurve, x: 9, y: 2, label: "Vel Crv" },
-    { kind: "knob", field: F.TvfCutoffVelocitySens, x: 3, y: 5, label: "Cut Vel" },
-    { kind: "knob", field: F.TvfResonanceVelocitySens, x: 5, y: 5, label: "Res Vel" },
-    { kind: "knob", field: F.TvfEnvVelocityCurve, x: 7, y: 5, label: "Env Crv" },
+    { kind: "picker", field: F.TvfFilterType, x: 1, y: 1, w: FOOTPRINT.dropdownW, label: "Type" },
+    { kind: "display", display: DisplayKind.FilterScope, x: 5, y: 0, w: 6, h: 2 },
+    { kind: "knob", field: F.TvfCutoffFrequency, x: 1, y: 2, label: "Cutoff" },
+    { kind: "knob", field: F.TvfResonance, x: 3, y: 2, label: "Reso" },
+    { kind: "knob", field: F.TvfCutoffKeyfollow, x: 5, y: 2, label: "Key Trk" },
+    { kind: "knob", field: F.TvfCutoffVelocityCurve, x: 7, y: 2, label: "Vel Crv" },
+    { kind: "knob", field: F.TvfCutoffVelocitySens, x: 1, y: 5, label: "Cut Vel" },
+    { kind: "knob", field: F.TvfResonanceVelocitySens, x: 3, y: 5, label: "Res Vel" },
+    { kind: "knob", field: F.TvfEnvVelocityCurve, x: 5, y: 5, label: "Env Crv" },
   ],
   {
     display: DisplayKind.FilterEnvelope,
@@ -262,21 +265,21 @@ const LFO_DEPTH = { y: 10, h: 6 } as const;
 function lfoLayout(l: LfoFields): SectionLayout<F> {
   const depthLabels = ["Pitch", "Filter", "Amp", "Pan"] as const;
   const items: ItemLayout<F>[] = [
-    { kind: "list", field: l.waveform, x: 1, y: 0, h: 14, label: "Wave" },
-    { kind: "display", display: l.scope, x: 3, y: 0, w: 8, h: 2 },
-    { kind: "knob", field: l.rate, x: 3, y: 2, label: "Rate" },
-    { kind: "knob", field: l.detune, x: 5, y: 2, label: "Detune" },
-    { kind: "knob", field: l.delay, x: 7, y: 2, label: "Delay" },
-    { kind: "knob", field: l.delayKeyfollow, x: 9, y: 2, label: "Dly KF" },
-    { kind: "knob", field: l.offset, x: 3, y: 5, label: "Offset" },
-    { kind: "knob", field: l.fadeTime, x: 5, y: 5, label: "Fade T" },
-    { kind: "list", field: l.fadeMode, x: 7, y: 5, h: 5, label: "Fade" },
-    { kind: "switch", field: l.keyTrigger, x: 9, y: 5, label: "Key Trig" },
+    { kind: "picker", field: l.waveform, x: 1, y: 1, w: FOOTPRINT.dropdownW, label: "Wave" },
+    { kind: "display", display: l.scope, x: 5, y: 0, w: 4, h: 2 },
+    { kind: "knob", field: l.rate, x: 1, y: 2, label: "Rate" },
+    { kind: "knob", field: l.detune, x: 3, y: 2, label: "Detune" },
+    { kind: "knob", field: l.delay, x: 5, y: 2, label: "Delay" },
+    { kind: "knob", field: l.delayKeyfollow, x: 7, y: 2, label: "Dly KF" },
+    { kind: "knob", field: l.offset, x: 1, y: 5, label: "Offset" },
+    { kind: "knob", field: l.fadeTime, x: 3, y: 5, label: "Fade T" },
+    { kind: "list", field: l.fadeMode, x: 5, y: 5, h: 5, label: "Fade" },
+    { kind: "switch", field: l.keyTrigger, x: 7, y: 5, label: "Key Trig" },
     ...l.depths.map(
-      (field, i): ControlLayout<F> => ({ kind: "fader", field, x: 3 + 2 * i, ...LFO_DEPTH, label: depthLabels[i] }),
+      (field, i): ControlLayout<F> => ({ kind: "fader", field, x: 1 + 2 * i, ...LFO_DEPTH, label: depthLabels[i] }),
     ),
   ];
-  return box(l.title, 12, () => items);
+  return box(l.title, 10, () => items);
 }
 
 const LFO1 = lfoLayout({
@@ -335,9 +338,9 @@ const WAVE = box("WAVE", 10, () => [
   { kind: "display", display: DisplayKind.WavePicker, x: 1, y: 0, w: 8, h: 5 },
   { kind: "switch", field: F.WaveTempoSync, x: 1, y: 5, label: "Tempo" },
   { kind: "switch", field: F.WaveFxmSwitch, x: 3, y: 5, label: "FXM" },
-  { kind: "list", field: F.WaveGain, x: 1, y: 6, h: 5, label: "Gain" },
-  { kind: "knob", field: F.WaveFxmColor, x: 3, y: 6, label: "FXM Col" },
-  { kind: "knob", field: F.WaveFxmDepth, x: 5, y: 6, label: "FXM Dpt" },
+  { kind: "picker", field: F.WaveGain, x: 5, y: 5, w: FOOTPRINT.dropdownW, label: "Gain" },
+  { kind: "knob", field: F.WaveFxmColor, x: 1, y: 6, label: "FXM Col" },
+  { kind: "knob", field: F.WaveFxmDepth, x: 3, y: 6, label: "FXM Dpt" },
 ]);
 
 /** CTRL: how the partial responds to playing. */
