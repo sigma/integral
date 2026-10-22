@@ -6,13 +6,14 @@
 
 /* The border, inset inside the Section's own Cells (inset, radius and widths
    inline from `BORDER`, so the Silkscreen clip and edge padding match); the
-   top takes the family accent. */
+   top takes the family accent. A host may recolour its Sections (e.g. the
+   mixer's selected part) through --section-fill and --section-line. */
 .border {
   position: absolute;
   border-style: solid;
-  border-color: #2a2a4a;
-  border-top-color: var(--section-accent, #2a2a4a);
-  background: #161628;
+  border-color: var(--section-line, #2a2a4a);
+  border-top-color: var(--section-accent, var(--section-line, #2a2a4a));
+  background: var(--section-fill, #161628);
 }
 
 /* Section titles, in the same type as `SectionPanel`'s header, whatever the page's font. */
@@ -33,8 +34,8 @@
   box-sizing: border-box;
   border-style: solid;
   border-color: transparent;
-  border-bottom-color: #2a2a4a;
-  background: #1a1a30;
+  border-bottom-color: var(--section-line, #2a2a4a);
+  background: var(--section-title-fill, #1a1a30);
   background-clip: padding-box;
 }
 

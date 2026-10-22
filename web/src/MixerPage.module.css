@@ -13,8 +13,13 @@
   height: 100%;
 }
 
+/* The selected part: its Sections lit blue, as the old mixer's selected column. */
 .selected {
-  background: linear-gradient(to bottom, #262a4e, #1a1c38);
+  --section-fill: linear-gradient(to bottom, #2f3a7a, #1f2550);
+  --section-line: #5566c8;
+  --section-title-fill: #3a4790;
+
+  background: rgb(85 102 200 / 25%);
 }
 
 .loading {
