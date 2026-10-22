@@ -366,6 +366,18 @@ describe("MixerPage", () => {
     }
   });
 
+  it("dims a switched-off FX's type list, level and parameters, not its switch or outputs", () => {
+    const { el } = loaded((st) => ({ ...st, chorus: { ...st.chorus, enabled: false }, reverb: { ...st.reverb, enabled: true, type: 3 } }));
+    const chorus = placed(el, "strip.chorus");
+    expect(control(chorus, MixerField.ChorusType).dataset.inactive).toBe("dim");
+    expect(control(chorus, MixerField.ChorusLevel).dataset.inactive).toBe("dim");
+    expect(control(chorus, MixerField.ChorusSwitch).dataset.inactive).toBeUndefined();
+    expect(control(chorus, MixerField.ChorusOutputAssign).dataset.inactive).toBeUndefined();
+    const reverb = placed(el, "strip.reverb");
+    expect(control(reverb, MixerField.ReverbType).dataset.inactive).toBeUndefined();
+    expect(placed(el, "fx.reverb").querySelector("[data-inactive]")).toBeNull();
+  });
+
   it("selects a part from anywhere on its column", () => {
     const { el, selectPart } = loaded();
     act(() => {

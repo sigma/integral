@@ -10,9 +10,9 @@ import type { FxState } from "./types";
 
 afterEach(cleanup);
 
-function strip(block: FxStripKind, type: number, params: number[] = Array<number>(20).fill(0)) {
+function strip(block: FxStripKind, type: number, params: number[] = Array<number>(20).fill(0), enabled = true) {
   const onNibParam = vi.fn();
-  const fx: FxState = { enabled: true, type, level: 100, output: 0, outputAssign: 0, params };
+  const fx: FxState = { enabled, type, level: 100, output: 0, outputAssign: 0, params };
   const { container } = render(<FxParams block={block} fx={fx} onNibParam={onNibParam} />);
   return { container, onNibParam };
 }
@@ -28,6 +28,14 @@ describe("FxParams", () => {
     for (const def of chorus_params(2)) {
       expect(container.querySelector(`[data-field="${def.name}"]`), def.name).not.toBeNull();
     }
+  });
+
+  it("dims every parameter while the FX is switched off", () => {
+    const off = [...strip("reverb", 3, undefined, false).container.querySelectorAll<HTMLElement>("[data-field]")];
+    expect(off.length).toBeGreaterThan(0);
+    for (const c of off) expect(c.dataset.inactive).toBe("dim");
+    cleanup();
+    expect(strip("reverb", 3).container.querySelector("[data-inactive]")).toBeNull();
   });
 
   it("keeps tempo sync inside the Control", () => {

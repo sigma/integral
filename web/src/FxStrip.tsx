@@ -7,7 +7,13 @@
  */
 
 import { useMemo } from "react";
-import { DisplayKind, MixerField, MixerScopeKind } from "../pkg/integral_wasm.js";
+import {
+  DisplayKind,
+  MixerField,
+  MixerScopeKind,
+  fx_block_is_active,
+  mixer_fx_is_active,
+} from "../pkg/integral_wasm.js";
 import { CategoryPlate, VerticalName, type SetMixerField } from "./ChannelStrip";
 import { stripIcon } from "./categoryIcons";
 import { useFxBind } from "./fxBinding";
@@ -34,7 +40,8 @@ export function FxParams({ block, fx, onNibParam }: FxParamsProps) {
   // One footprint for every type, so nothing moves when the type changes.
   const layout = useMemo(() => variantLayout(SETS[block], fx.type), [block, fx.type]);
   const bind = useFxBind(block, fx.type, fx.params, onNibParam);
-  return <GridSection layout={layout} bind={bind} isActive={() => fx.enabled} />;
+  const active = fx_block_is_active(fx);
+  return <GridSection layout={layout} bind={bind} isActive={() => active} />;
 }
 
 /**
@@ -87,8 +94,8 @@ export function FxStrip({ block, fx, setField }: FxStripProps) {
       scope={{ fx: FX_STRIP_SET.keys.indexOf(block) }}
       // The accent of its level fader, as on every strip.
       family={paramMeta(level).family}
-      // The level greys out with the switch, as the old FX fader did.
-      isActive={(field) => fx.enabled || field !== level}
+      // The type list and level grey out with the switch, as the old FX fader did.
+      isActive={(field) => mixer_fx_is_active(field, fx)}
       renderDisplay={(display) =>
         display === DisplayKind.StripName ? <VerticalName name={paramFormatter(type)(fx.type)} /> : null
       }
