@@ -707,6 +707,18 @@ describe("specBinding", () => {
     expect(bind(MixerField.PartLevel).zeroDb).toBeDefined();
     expect(bind(MixerField.PartChorusSend).zeroDb).toBeUndefined();
   });
+
+  it("carries the family a field's core spec declares", () => {
+    const { family } = specBinding("", mixer_field_spec(MixerField.PartPan), 0, () => {});
+    expect(family).toBe(mixer_field_spec(MixerField.PartPan).family);
+  });
+
+  it("is a type error without a family", () => {
+    const { family: _, ...noFamily } = specBinding("", mixer_field_spec(MixerField.PartPan), 0, () => {});
+    // Type-level check: tsc fails if this line stops being an error.
+    // @ts-expect-error -- a Binding's family is required (ADR 0002)
+    void ((): Binding => noFamily);
+  });
 });
 
 describe("GridSection picker", () => {

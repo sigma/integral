@@ -13,6 +13,7 @@ const knob = {
   min: 0,
   max: 127,
   defaultValue: 64,
+  family: ParameterFamily.Filter,
   onChange: () => {},
 };
 
@@ -23,16 +24,16 @@ const ledFills = (container: HTMLElement) =>
 
 describe("SynthKnob", () => {
   it("lights its LEDs in its family's colour and keeps the pointer neutral", () => {
-    const { container } = render(
-      <SynthKnob {...knob} family={ParameterFamily.Filter} />,
-    );
+    const { container } = render(<SynthKnob {...knob} />);
     expect(ledFills(container)).toContain("var(--family-filter)");
     expect(container.querySelector("line")!.style.stroke).toBe("");
   });
 
-  it("lights its LEDs in the neutral Common family when it has no family", () => {
-    const { container } = render(<SynthKnob {...knob} />);
-    expect(ledFills(container)).toContain("var(--family-common)");
+  it("needs a family: none is a type error, not a neutral colour", () => {
+    const { family: _, ...noFamily } = knob;
+    // Type-level check: tsc fails if this line stops being an error.
+    // @ts-expect-error -- a knob's family is required (ADR 0002)
+    void (<SynthKnob {...noFamily} />);
   });
 
   it("takes its colour only from a family, never a literal", () => {

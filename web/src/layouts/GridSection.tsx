@@ -61,8 +61,8 @@ export interface Binding {
   max: number;
   /** Default raw value. */
   defaultValue: number;
-  /** Colours the Control's LEDs. */
-  family?: ParameterFamily;
+  /** Parameter family, from core: colours the Control's LEDs. */
+  family: ParameterFamily;
   /** Raw value a knob's arc grows from. */
   center?: number;
   /** Raw value a level fader's scale marks 0 dB, from core's spec; none without it. */

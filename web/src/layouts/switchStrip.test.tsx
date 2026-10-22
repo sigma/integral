@@ -1,6 +1,6 @@
 import { act } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { PcmsPmtField, SnsCommonField } from "../../pkg/integral_wasm.js";
+import { PcmsPmtField, SnsCommonField, pcms_pmt_spec, sns_common_spec, type ParameterFamily } from "../../pkg/integral_wasm.js";
 import { CELL } from "../synth-ui/grid";
 import { cleanup, render } from "../test/dom";
 import type { FieldKey } from "./fields";
@@ -14,14 +14,24 @@ import { validateSection } from "./validate";
 
 afterEach(cleanup);
 
-/** Both synth editors' partial strips, with the field each toggle writes. */
-const STRIPS: [string, SectionLayout<FieldKey>, FieldKey][] = [
-  ["SN Synth", SNS_PARTIAL_SWITCH_LAYOUT as SectionLayout<FieldKey>, SnsCommonField.Partial1Switch],
-  ["PCM Synth", PARTIAL_LAYOUT as SectionLayout<FieldKey>, PcmsPmtField.PartialSwitch],
+/** Both synth editors' partial strips, with the field each toggle writes and its family from core. */
+const STRIPS: [string, SectionLayout<FieldKey>, FieldKey, ParameterFamily][] = [
+  [
+    "SN Synth",
+    SNS_PARTIAL_SWITCH_LAYOUT as SectionLayout<FieldKey>,
+    SnsCommonField.Partial1Switch,
+    sns_common_spec(SnsCommonField.Partial1Switch).family,
+  ],
+  [
+    "PCM Synth",
+    PARTIAL_LAYOUT as SectionLayout<FieldKey>,
+    PcmsPmtField.PartialSwitch,
+    pcms_pmt_spec(PcmsPmtField.PartialSwitch).family,
+  ],
 ];
 
 /** `layout` for Partial 2 with its switch at `value`, recording what its toggle writes. */
-function draw(layout: SectionLayout<FieldKey>, value: number) {
+function draw(layout: SectionLayout<FieldKey>, value: number, family: ParameterFamily) {
   const writes: [FieldKey, number][] = [];
   const bind = (field: FieldKey): Binding => ({
     name: "Partial 2 Switch",
@@ -29,6 +39,7 @@ function draw(layout: SectionLayout<FieldKey>, value: number) {
     min: 0,
     max: 1,
     defaultValue: 0,
+    family,
     onChange: (v) => writes.push([field, v]),
   });
   const root = render(<GridSection layout={layout} scope={{ partial: 1 }} bind={bind} />).container
@@ -38,7 +49,7 @@ function draw(layout: SectionLayout<FieldKey>, value: number) {
   return { root, title, buttons, button: buttons[0]!, writes };
 }
 
-describe.each(STRIPS)("the %s partial strip", (_, layout, field) => {
+describe.each(STRIPS)("the %s partial strip", (_, layout, field, family) => {
   it("is the shared switch strip, valid", () => {
     expect(layout).toEqual(switchStrip({ title: "Partial {partial}", field, fields: layout.fields, h: layout.h }));
     expect(validateSection(layout)).toEqual([]);
@@ -46,11 +57,11 @@ describe.each(STRIPS)("the %s partial strip", (_, layout, field) => {
 
   it("is two Cells wide: the title column and the toggle's", () => {
     expect(sectionCells(layout).w).toBe(2);
-    expect(draw(layout, 1).root.style.width).toBe(`${2 * CELL}px`);
+    expect(draw(layout, 1, family).root.style.width).toBe(`${2 * CELL}px`);
   });
 
   it("draws its one Control as the power toggle, 1 Cell wide, beside the title", () => {
-    const { buttons, button } = draw(layout, 1);
+    const { buttons, button } = draw(layout, 1, family);
     expect(buttons).toHaveLength(1);
     // `PowerButton`: the power symbol, no text.
     expect(button.querySelector("svg path")).not.toBeNull();
@@ -63,20 +74,20 @@ describe.each(STRIPS)("the %s partial strip", (_, layout, field) => {
   });
 
   it("keeps the switch's name and pressed state, and writes the partial switch", () => {
-    const on = draw(layout, 1);
+    const on = draw(layout, 1, family);
     expect(on.button.title).toBe("Partial 2 Switch");
     expect(on.button.getAttribute("aria-pressed")).toBe("true");
     act(() => on.button.click());
     expect(on.writes).toEqual([[field, 0]]);
     cleanup();
-    const off = draw(layout, 0);
+    const off = draw(layout, 0, family);
     expect(off.button.getAttribute("aria-pressed")).toBe("false");
     act(() => off.button.click());
     expect(off.writes).toEqual([[field, 1]]);
   });
 
   it("reads its label bottom to top, as the mixer's strip names do", () => {
-    const { title } = draw(layout, 1);
+    const { title } = draw(layout, 1, family);
     expect(title.textContent).toBe("Partial 2");
     expect(title.style.writingMode).toBe("vertical-rl");
     expect(title.style.transform).toBe("rotate(180deg)");
