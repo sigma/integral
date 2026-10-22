@@ -65,6 +65,8 @@ export function controlCells<F extends FieldKey>(control: ControlLayout<F>): Cel
       return control.size === "lg" ? FOOTPRINT.knobLg : FOOTPRINT.knobSm;
     case "switch":
       return FOOTPRINT.switch;
+    case "power":
+      return FOOTPRINT.power;
     case "fader":
       return faderCells(control.h, control.scale);
     case "list":

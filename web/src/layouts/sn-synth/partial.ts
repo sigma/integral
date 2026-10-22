@@ -20,6 +20,7 @@ import {
   sns_partial_spec,
 } from "../../../pkg/integral_wasm.js";
 import { enumFields } from "../fields";
+import { switchStrip } from "../switchStrip";
 import type { SectionLayout } from "../types";
 import { SNS_COMMON_FIELDS } from "./common";
 
@@ -148,18 +149,14 @@ export function boxOf(id: SnsBox): (typeof SNS_BOXES)[number] {
 }
 
 /**
- * One partial's on/off switch, a strip at the head of its row with the title
- * down its side, as in PCM Synth. The switch lives in Common, one field per
- * partial: the layout names Partial 1's, and the caller binds the Scope's
- * (`sns_partial_switch_field`). It sits under the top border's row and clear
- * of the right edge.
+ * One partial's on/off, the switch strip (`switchStrip`) at the head of its
+ * row, as in PCM Synth. The switch lives in Common, one field per partial:
+ * the layout names Partial 1's, and the caller binds the Scope's
+ * (`sns_partial_switch_field`).
  */
-export const SNS_PARTIAL_SWITCH_LAYOUT: SectionLayout<SnsCommonField> = {
+export const SNS_PARTIAL_SWITCH_LAYOUT: SectionLayout<SnsCommonField> = switchStrip({
   title: "Partial {partial}",
-  titleEdge: "side",
-  w: 3,
-  h: H + 1,
+  field: SnsCommonField.Partial1Switch,
   fields: SNS_COMMON_FIELDS,
-  // The title already names the switch.
-  items: [{ kind: "switch", field: SnsCommonField.Partial1Switch, x: 0, y: 1, label: false }],
-};
+  h: H + 1,
+});

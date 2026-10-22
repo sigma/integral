@@ -26,6 +26,7 @@ import {
 } from "../../../pkg/integral_wasm.js";
 import { envelopeItems, ENV_CELLS, type EnvelopeSpec } from "../envelope";
 import { enumFields, memo } from "../fields";
+import { switchStrip } from "../switchStrip";
 import type { ControlLayout, ItemLayout, SectionLayout } from "../types";
 
 /** The Common fields. */
@@ -402,19 +403,15 @@ export const PCMS_BOXES: Readonly<Record<PcmsBox, PcmsBoxSpec>> = {
 };
 
 /**
- * One partial's on/off switch, a strip at the head of its lane with the title
- * down its side, as in SN Synth; a Partial Scope binds it. The switch sits
- * under the top border's row and clear of the right edge.
+ * One partial's on/off, the switch strip (`switchStrip`) at the head of its
+ * lane, as in SN Synth; a Partial Scope binds it.
  */
-export const PARTIAL_LAYOUT: SectionLayout<PcmsPmtField> = {
+export const PARTIAL_LAYOUT: SectionLayout<PcmsPmtField> = switchStrip({
   title: "Partial {partial}",
-  titleEdge: "side",
-  w: 3,
-  h: ROW_H,
+  field: PcmsPmtField.PartialSwitch,
   fields: PCMS_PMT_FIELDS,
-  // The title already names the switch.
-  items: [{ kind: "switch", field: PcmsPmtField.PartialSwitch, x: 0, y: 1, label: false }],
-};
+  h: ROW_H,
+});
 
 /** Content rows of a BOOST, as tall as a lane. */
 const BOOST_H = ROW_H - 1;

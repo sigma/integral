@@ -163,8 +163,15 @@ Cells is drawn clear of the border on that edge, so it loses those px, never
 a Cell.
 _Avoid_: Box, panel
 
+**Switch strip**:
+The narrow Section heading a row of Sections that one switch turns on or off
+(a synth partial's row). Its title runs down its side, read bottom to top, and
+its one Control is that switch as a power toggle. Turning it off dims the
+row; the strip stays live.
+_Avoid_: Partial header
+
 **Control**:
-One interactive element (knob, switch, fader, picker) bound to one
+One interactive element (knob, switch, power toggle, fader, picker) bound to one
 parameter. A picker chooses one of a parameter's named options from a list. It
 covers a rectangle of whole Cells and carries its own name and value readout.
 An array field, one field holding several values (an envelope's times or

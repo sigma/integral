@@ -22,6 +22,7 @@ import css from "./ChannelStrip.module.css";
 import { GridSection, variantLayout, type Binding, type Scope, type SectionLayout } from "./layouts";
 import { EQ_LAYOUT } from "./layouts/mixer/eq";
 import { PART_TOGGLES, STRIP_SET, STRIP_TITLES } from "./layouts/mixer/strip";
+import { BOTTOM_TO_TOP } from "./synth-ui/grid";
 import { mixerDisplaySlots, renderMixerDisplay } from "./mixerDisplays";
 import { NotLoadedMarker } from "./NotLoadedMarker";
 import { paramFormatter, paramMeta } from "./paramDefaults";
@@ -304,7 +305,7 @@ interface VerticalNameProps {
 /** A name run up the side of a fader, bottom to top, as the old mixer drew it. */
 export function VerticalName({ name, unloadedExpansion }: VerticalNameProps) {
   return (
-    <div className={css.verticalName} title={name}>
+    <div className={css.verticalName} style={BOTTOM_TO_TOP} title={name}>
       {/* Ahead of the tone name, so a long name can't clip it. */}
       {unloadedExpansion && <NotLoadedMarker expansion={unloadedExpansion} named />}
       {name}

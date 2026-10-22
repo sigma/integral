@@ -37,7 +37,7 @@ export type Check =
   | "overlap"
   /** Something outside its Section, its variant footprint, its group or its screen. */
   | "containment"
-  /** A Display under its kind's minimum, an option list shorter than its options, or a switch with more than two. */
+  /** A Display under its kind's minimum, an option list shorter than its options, or a switch or power toggle with more than two. */
   | "footprint"
   /** Two options of a switch or list that read the same once cut to its width (`visibleOption`). */
   | "label"
@@ -214,8 +214,8 @@ export function validateSection<F extends FieldKey>(
       } else if (el.kind === "list") {
         const need = optionListRows(layout.fields.optionCount(el.field), el.label !== false);
         if (el.h < need) report("footprint", name, `${el.h} rows, needs ${need}`);
-      } else if (el.kind === "switch" && !isTwoState(layout.fields, el.field)) {
-        report("footprint", name, "a 2×1 switch needs a two-state field");
+      } else if ((el.kind === "switch" || el.kind === "power") && !isTwoState(layout.fields, el.field)) {
+        report("footprint", name, `a ${el.kind === "switch" ? "2×1 switch" : "power toggle"} needs a two-state field`);
       }
       if (el.kind === "list" || el.kind === "switch") {
         const clash = sameVisibleOptions(layout.fields, el.field, el.kind, rect.w);

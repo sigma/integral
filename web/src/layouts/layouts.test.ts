@@ -165,6 +165,12 @@ describe("validateSection", () => {
     expect(checks(validateSection({ ...BASE, items: body, titleSwitch: MixerField.ExtMute }))).toEqual(["field"]);
   });
 
+  it("power toggle: a known two-state field passes; another doesn't", () => {
+    const power = (field: MixerField) => withItems([{ kind: "power", field, x: 2, y: 3 }]);
+    expect(validateSection(power(MixerField.PartMute))).toEqual([]);
+    expect(checks(validateSection(power(MixerField.EqMidQ)))).toEqual(["footprint"]);
+  });
+
   it("lattice: a Control off whole Cells", () => {
     const bad = withItems([
       { kind: "switch", field: MixerField.PartMute, x: 1.5, y: 4 },

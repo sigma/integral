@@ -39,10 +39,6 @@
   background-clip: padding-box;
 }
 
-.sideTitle {
-  writing-mode: vertical-rl;
-}
-
 /* The title's text, and its power toggle (`titleSwitch`) beside it. */
 .titleText {
   display: inline-flex;
@@ -63,6 +59,14 @@
 .power svg {
   width: 10px;
   height: 10px;
+}
+
+/* A power toggle Control fills its footprint (1×1), less any edge padding. */
+.powerControl {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0;
 }
 
 .silkscreen {

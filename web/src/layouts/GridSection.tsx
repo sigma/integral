@@ -11,7 +11,7 @@ import type { PickOption } from "../SearchPopover";
 import { SyncUnit } from "../SyncUnit";
 import { PowerButton, SynthFader, SynthKnob, SynthPicker, SynthSwitch, familyVar } from "../synth-ui";
 import { knobDialSide } from "../synth-ui/SynthKnob";
-import { CELL, cellsPx, type Px } from "../synth-ui/grid";
+import { BOTTOM_TO_TOP, CELL, cellsPx, type Px } from "../synth-ui/grid";
 import type { FieldKey } from "./fields";
 import {
   BORDER,
@@ -175,6 +175,11 @@ function Control<F extends FieldKey>({
       return (
         <SynthSwitch grid box={box} label={label} title={b.name} value={b.value} options={optionsOf(b)} onChange={b.onChange} />
       );
+    case "power": {
+      const { isOn, toggle } = twoState(b);
+      // Named by its field, as a switch is; `aria-pressed` says whether it's on.
+      return <PowerButton isOn={isOn} onToggle={toggle} title={b.name} className={css.powerControl} />;
+    }
     case "list":
       return (
         <SynthSwitch
@@ -193,21 +198,22 @@ function Control<F extends FieldKey>({
   }
 }
 
+/** A two-state field as a power toggle: on at its maximum, and a toggle writes the other state. */
+function twoState(b: Binding): { isOn: boolean; toggle: () => void } {
+  const isOn = b.value === b.max;
+  return { isOn, toggle: () => b.onChange(isOn ? b.min : b.max) };
+}
+
 /**
- * The title's power toggle for a two-state field: on at its maximum, and a
- * click writes the other state. It never dims. The wrapper carries
- * `data-field` as a body Control's does, so a caller finds it the same way.
+ * The title's power toggle for a two-state field (`twoState`). It never dims.
+ * The wrapper carries `data-field` as a body Control's does, so a caller
+ * finds it the same way.
  */
 function TitleSwitch({ field, binding: b, title }: { field: FieldKey; binding: Binding; title: string }) {
-  const on = b.value === b.max;
+  const { isOn, toggle } = twoState(b);
   return (
     <span className={css.titleSwitch} data-field={String(field)} data-title-switch="">
-      <PowerButton
-        isOn={on}
-        onToggle={() => b.onChange(on ? b.min : b.max)}
-        title={`Switch ${title} ${on ? "off" : "on"}`}
-        className={css.power}
-      />
+      <PowerButton isOn={isOn} onToggle={toggle} title={`Switch ${title} ${isOn ? "off" : "on"}`} className={css.power} />
     </span>
   );
 }
@@ -286,7 +292,7 @@ export function GridSection<F extends FieldKey>({
     <div className={css.section} data-grid-section={title} style={{ width: W, height: H, ...style }}>
       <div className={css.border} style={border} />
       <div
-        className={`${css.title} ${side ? css.sideTitle : top ? css.topTitle : ""}`}
+        className={`${css.title} ${top ? css.topTitle : ""}`}
         style={{
           left: side ? 0 : INSET,
           top: INSET,
@@ -294,6 +300,8 @@ export function GridSection<F extends FieldKey>({
           height: top ? CELL - INSET : H - 2 * INSET,
           // A top title's transparent border lets the Section's accent and sides show through.
           ...(top ? { borderWidth: BORDER_WIDTHS } : {}),
+          // A side title reads bottom to top, as the mixer's strip names do.
+          ...(side ? BOTTOM_TO_TOP : {}),
         }}
       >
         <span className={css.titleText}>

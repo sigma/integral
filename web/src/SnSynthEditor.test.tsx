@@ -274,6 +274,7 @@ describe("SnSynthEditor on the Grid", () => {
     const common = container.querySelector<HTMLElement>(`[data-section="${SNS_SECTION.common}"]`)!;
     expect(common.querySelector(`[data-field="${SnsCommonField.Partial1Switch}"]`)).toBeNull();
     const sw = rowSection(container, 0, "switch").querySelector("button")!;
+    expect(sw.getAttribute("aria-pressed")).toBe("false");
     expect(sw.closest("[inert]")).toBeNull();
     click(sw);
     expect(off(0)).toEqual(SNS_BOXES.map(() => undefined));

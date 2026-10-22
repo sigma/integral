@@ -25,6 +25,8 @@ export const FOOTPRINT = {
   knobLg: { w: 3, h: 4 },
   /** Two-state switch. */
   switch: { w: 2, h: 1 },
+  /** Power toggle (`PowerButton`): a two-state switch drawn as the power symbol, lit while on. */
+  power: { w: 1, h: 1 },
   /** Fader: 2×N. */
   faderW: 2,
   /** Level fader (a fader with its scale, as the mixer's): 3×N, the scale beside the wide cap. */
@@ -95,18 +97,25 @@ const ALL_EDGES = ["top", "right", "bottom", "left"] as const satisfies readonly
  * Every Control's name sits in its top line. A knob's LED ring spans its
  * box's width, so it reaches the sides too, and only its readout keeps a
  * margin at the bottom; a fader keeps its own margin on the sides and
- * bottom, but a level fader's panel fills its Cells, as a switch, an option
- * list, a picker or a Display does.
+ * bottom, but a level fader's panel fills its Cells, as a switch, a power
+ * toggle, an option list, a picker or a Display does.
  */
 export const BLEED = {
   knob: ["top", "left", "right"],
   fader: ["top"],
   levelFader: ALL_EDGES,
   switch: ALL_EDGES,
+  power: ALL_EDGES,
   list: ALL_EDGES,
   picker: ALL_EDGES,
   display: ALL_EDGES,
 } as const satisfies Record<string, readonly Edge[]>;
+
+/**
+ * The direction a vertical name reads: bottom to top, as the mixer's strip
+ * names and Section side titles do. Inline style, so the two can't drift.
+ */
+export const BOTTOM_TO_TOP = { writingMode: "vertical-rl", transform: "rotate(180deg)" } as const;
 
 /** A line of Control text on the Grid: its font size and line box, px. */
 export interface TextLine {

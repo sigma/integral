@@ -18,6 +18,7 @@ export type {
   Lane,
   OptionListLayout,
   PickerLayout,
+  PowerLayout,
   RegionVariantSet,
   RuleSilk,
   Scope,
@@ -63,5 +64,7 @@ export type { GridScreenProps } from "./GridScreen";
 export { GridZoom, MIN_ZOOM, ZOOM_STEP, fitZoom, naturalSize, roundZoom, useFitZoom } from "./zoom";
 export type { GridZoomProps, NaturalSize } from "./zoom";
 export { specBinding } from "./binding";
+export { switchStrip } from "./switchStrip";
+export type { SwitchStripSpec } from "./switchStrip";
 export { BreakpointDisplay, displaySlots, slotField, slotOf } from "./displays";
 export type { SlotReader, SlotValue } from "./displays";
