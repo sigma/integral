@@ -4,9 +4,8 @@
  * Sections follow its Structure Type, and the arrows between them run
  * through the layout's Lanes. Everything about the state comes from core:
  * ranges, relevance, Display bindings and tempo sync. A partial core holds
- * off (`pcms_partial_scope_is_active`) dims its boxes, inert; its switch
- * strip stays live. Within a box, each Control dims by
- * `pcms_partial_is_active`.
+ * switched off (`pcms_partial_scope_relevance`) dims its boxes, which stay
+ * editable. Within a box, each Control dims by `pcms_partial_relevance`.
  */
 
 import { useMemo, type ReactNode } from "react";
@@ -15,11 +14,12 @@ import {
   PcmsCommonField,
   PcmsPartialField,
   PcmsPmtField,
+  Relevance,
   pcms_common_spec,
-  pcms_pair_scope_is_active,
-  pcms_partial_is_active,
-  pcms_partial_scope_is_active,
-  pcms_pmt_is_active,
+  pcms_pair_scope_relevance,
+  pcms_partial_relevance,
+  pcms_partial_scope_relevance,
+  pcms_pmt_relevance,
   pcms_pmt_spec,
 } from "../../pkg/integral_wasm.js";
 import { GridScreen, GridSection, ScopeGate, specBinding, type Binding, type SectionPlacement } from "../layouts";
@@ -114,16 +114,18 @@ function PartialBox({ idx, box, merged, partial, pmt, onPartial, marking }: Part
   // follows the lower one's pan settings).
   const relevance = useMemo(() => {
     const lower = idx - (idx % 2) + 1;
-    const active = (field: PcmsPartialField, partialIdx: number) =>
-      !pmt || pcms_partial_is_active(field, partialIdx, pmt, partial);
+    const relevanceOf = (field: PcmsPartialField, partialIdx: number) =>
+      pmt ? pcms_partial_relevance(field, partialIdx, pmt, partial) : Relevance.Active;
     return new Map(
       PCMS_PARTIAL_FIELDS.ids.map((f) => {
-        const on = active(f, idx);
-        return [f, { active: on, follows: !on && lower !== idx && active(f, lower) ? lower : undefined }] as const;
+        const rel = relevanceOf(f, idx);
+        const follows =
+          rel !== Relevance.Active && lower !== idx && relevanceOf(f, lower) === Relevance.Active ? lower : undefined;
+        return [f, { relevance: rel, follows }] as const;
       }),
     );
   }, [idx, pmt, partial]);
-  const scopeActive = !pmt || pcms_partial_scope_is_active(idx, pmt);
+  const scopeRelevance = pmt ? pcms_partial_scope_relevance(idx, pmt) : Relevance.Active;
 
   const bind = (field: PcmsPartialField, index = 0): Binding => {
     const binding = partialBinding(field, index, partialValue(partial, field, index), (v) =>
@@ -136,13 +138,13 @@ function PartialBox({ idx, box, merged, partial, pmt, onPartial, marking }: Part
   };
 
   return (
-    <ScopeGate active={scopeActive}>
+    <ScopeGate relevance={scopeRelevance}>
       <GridSection
         layout={merged ? spec.numbered : spec.layout}
         scope={{ partial: idx }}
         bind={bind}
         family={spec.family}
-        isActive={(f) => relevance.get(f)?.active ?? true}
+        relevance={(f) => relevance.get(f)?.relevance ?? Relevance.Active}
         renderDisplay={(kind) => (
           <PartialDisplay
             kind={kind}
@@ -184,18 +186,18 @@ export function PcmSynthScreen({
         <GridSection
           layout={boost}
           bind={(f) => pmtBinding(f, pmt, onPmt)}
-          isActive={(f) => pcms_pmt_is_active(f, pmt)}
+          relevance={(f) => pcms_pmt_relevance(f, pmt)}
           family={ParameterFamily.Filter}
         />
       );
     }
     if (section === "ring") {
-      const active = !!pmt && pcms_pair_scope_is_active(first, pmt);
+      const scopeRelevance = pmt ? pcms_pair_scope_relevance(first, pmt) : Relevance.Irrelevant;
       return (
         <div
           title={`Ring modulator: multiplies partials ${first + 1} and ${first + 2}, adding new (often metallic) overtones. No settings; partial ${first + 1}'s AMP sets its depth.`}
         >
-          <ScopeGate active={active}>
+          <ScopeGate relevance={scopeRelevance}>
             <GridSection layout={ring} bind={noControls} family={ParameterFamily.Filter} />
           </ScopeGate>
         </div>

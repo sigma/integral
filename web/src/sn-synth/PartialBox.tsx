@@ -4,15 +4,16 @@
  * `PartialSwitch`. Everything about the state comes from core: values, ranges,
  * relevance, which OSC alternatives show, and which field a synced rate
  * knob edits; the knob draws its tempo-sync toggle. A partial core holds
- * off (`sns_partial_scope_is_active`, via `active`) dims its boxes, inert,
- * each as one Section; the switch strip stays live. Within a box, each
- * Control dims or hides by `sns_partial_is_active`.
+ * switched off (`sns_partial_scope_relevance`, via `scopeRelevance`) dims its boxes,
+ * each as one Section, and they stay editable. Within a box, each Control
+ * dims or hides by `sns_partial_relevance`.
  */
 
 import { useMemo } from "react";
 import {
   sns_osc_wave_pcm,
-  sns_partial_is_active,
+  Relevance,
+  sns_partial_relevance,
   sns_partial_sync,
   sns_partial_value,
   type ParameterFamily,
@@ -46,19 +47,19 @@ export interface PartialBoxProps {
   family: ParameterFamily;
   /** The partial's state, as core serialized it. */
   partial: SnSynthPartial;
-  /** Whether core holds the partial active: the box dims, inert, when not. */
-  active: boolean;
+  /** Core's relevance of the partial's Scope: the box dims when it isn't active. */
+  scopeRelevance: Relevance;
   /** Writes one of the partial's fields. */
   setP: PartialParamHandler;
 }
 
 /** One box of an SN Synth partial's row. */
-export function PartialBox({ idx, layout, family, partial, active, setP }: PartialBoxProps) {
-  const { values, relevant } = useMemo(() => {
+export function PartialBox({ idx, layout, family, partial, scopeRelevance, setP }: PartialBoxProps) {
+  const { values, relevance } = useMemo(() => {
     const ids = SNS_PARTIAL_FIELDS.ids;
     return {
       values: new Map(ids.map((f) => [f, sns_partial_value(f, partial)])),
-      relevant: new Map(ids.map((f) => [f, sns_partial_is_active(f, partial)])),
+      relevance: new Map(ids.map((f) => [f, sns_partial_relevance(f, partial)])),
     };
   }, [partial]);
   const valueOf = (f: SnsPartialField) => values.get(f) ?? 0;
@@ -87,7 +88,7 @@ export function PartialBox({ idx, layout, family, partial, active, setP }: Parti
     if (group === OSC_WAVE_GROUP) return isPcm ? OSC_WAVE_ALTERNATIVE.pcm : OSC_WAVE_ALTERNATIVE.scope;
     // S-Saw takes Var's place while core holds it relevant (an SP-SAW wave).
     if (group === OSC_VARIATION_GROUP) {
-      return relevant.get(SnsPartialField.SuperSawDetune)
+      return relevance.get(SnsPartialField.SuperSawDetune) === Relevance.Active
         ? OSC_VARIATION_ALTERNATIVE.superSaw
         : OSC_VARIATION_ALTERNATIVE.variation;
     }
@@ -95,13 +96,13 @@ export function PartialBox({ idx, layout, family, partial, active, setP }: Parti
   };
 
   return (
-    <ScopeGate active={active}>
+    <ScopeGate relevance={scopeRelevance}>
       <GridSection
         layout={layout}
         scope={{ partial: idx }}
         bind={bind}
         family={family}
-        isActive={(f) => relevant.get(f) ?? true}
+        relevance={(f) => relevance.get(f) ?? Relevance.Active}
         alternative={alternative}
         renderDisplay={(kind) => <SnsPartialDisplay kind={kind} valueOf={valueOf} />}
       />

@@ -1,10 +1,9 @@
-import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DisplayKind, MixerField, MixerScopeKind } from "../pkg/integral_wasm.js";
 import { SurroundPage } from "./SurroundPage";
 import { defaultMixerState, type MixerState } from "./types";
 import type { UseMixerResult } from "./useMixer";
-import { cleanup, click, render } from "./test/dom";
+import { cleanup, click, pointer, render } from "./test/dom";
 import { arrowUp, slider } from "./test/toneService";
 
 afterEach(cleanup);
@@ -22,16 +21,6 @@ function section(container: HTMLElement, title: string): HTMLElement {
   const found = container.querySelector<HTMLElement>(`[data-grid-section="${title}"]`);
   if (!found) throw new Error(`no Section "${title}"`);
   return found;
-}
-
-/** Dispatches a pointer event of `type` at `(x, y)` on `target`. */
-function pointer(target: Element, type: string, x: number, y: number): void {
-  act(() => {
-    // jsdom has no PointerEvent; React only reads the type and coordinates.
-    const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y });
-    Object.defineProperty(event, "pointerId", { value: 1 });
-    target.dispatchEvent(event);
-  });
 }
 
 describe("SurroundPage", () => {

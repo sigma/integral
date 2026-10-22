@@ -7,7 +7,7 @@ import { CELL } from "./synth-ui/grid";
 import type { UseMixerResult } from "./useMixer";
 import type { UseExpansionsResult } from "./useExpansions";
 import { defaultMixerState, type MixerState } from "./types";
-import { cleanup, click, render } from "./test/dom";
+import { cleanup, click, dragUp, render } from "./test/dom";
 import { paramFormatter, paramMeta } from "./paramDefaults";
 
 // jsdom lacks the ResizeObserver the FX strips' EQ plot measures with.
@@ -308,6 +308,20 @@ describe("MixerPage", () => {
     }
   });
 
+  it("keeps a switched-off EQ's knobs editable: dragging one writes it", () => {
+    const { el, state, setMixerField } = loaded((st) => ({
+      ...st,
+      parts: st.parts.map((p, i) => (i === 2 ? { ...p, eq: { ...p.eq, enabled: false } } : p)),
+    }));
+    const knob = control(placed(el, "eq.part.2"), MixerField.EqMidGain);
+    expect(knob.dataset.inactive).toBe("dim");
+    expect(knob.closest("[inert]")).toBeNull();
+    dragUp(knob.querySelector('[role="slider"]')!, 3);
+    expect(setMixerField).toHaveBeenLastCalledWith(
+      MixerScopeKind.Part, 2, MixerField.EqMidGain, state.parts[2]!.eq.midGain + 3,
+    );
+  });
+
   it("dims a switched-off compressor's Displays with its knobs", () => {
     const { el } = loaded((st) => ({
       ...st,
@@ -317,7 +331,8 @@ describe("MixerPage", () => {
       placed(el, `strip.comp.${i}`).querySelector<HTMLElement>(`[data-display="${d}"]`)!;
     for (const d of [DisplayKind.CompTransferCurve, DisplayKind.CompEnvelope]) {
       expect(display(1, d).dataset.inactive).toBe("dim");
-      expect(display(1, d).hasAttribute("inert")).toBe(true);
+      // Switched off, they stay live, as its knobs do.
+      expect(display(1, d).hasAttribute("inert")).toBe(false);
       expect(display(0, d).dataset.inactive).toBeUndefined();
     }
     expect(display(1, DisplayKind.StripName).dataset.inactive).toBeUndefined();
@@ -331,7 +346,11 @@ describe("MixerPage", () => {
     for (const c of out(loaded().el)) expect(c.dataset.inactive).toBeUndefined();
     cleanup();
     const { el } = loaded((st) => ({ ...st, surround: { ...st.surround, enabled: true } }));
-    for (const c of out(el)) expect(c.dataset.inactive).toBe("dim");
+    // Irrelevant under surround, they go inert.
+    for (const c of out(el)) {
+      expect(c.dataset.inactive).toBe("dim");
+      expect(c.hasAttribute("inert")).toBe(true);
+    }
   });
 
   it("draws the compressor's transfer curve and envelope as Displays", () => {

@@ -182,8 +182,13 @@ covers a rectangle of whole Cells and carries its own name and value readout.
 An array field, one field holding several values (an envelope's times or
 levels, the Step LFO's steps), gets one Control per element: each element is a
 parameter of its own.
-A Control is **inactive** when the device state makes its parameter
-irrelevant; it keeps its Cells, dimmed or hidden, and never reflows.
+A Control is **inactive** when the device state stops its parameter acting;
+it keeps its Cells, dimmed or hidden, and never reflows. It is inactive in
+one of two ways. **Switched off**: its block or Scope is off (an EQ, a COMP,
+an FX, a partial, a WMT); dimmed, it stays editable, as on the hardware where
+an EQ can be set up while it's off. **Irrelevant**: it has no effect in the
+current mode (Var on a wave with no variations, an Output Assign under
+Motional Surround); dimmed and inert, or hidden.
 _Avoid_: Widget
 
 **Display**:

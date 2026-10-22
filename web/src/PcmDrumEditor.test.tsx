@@ -158,15 +158,15 @@ describe("PcmDrumEditor", () => {
     }
   });
 
-  it("dims the rows of switched-off WMTs, their strips left live", async () => {
+  it("dims the rows of switched-off WMTs, still editable, their strips left live", async () => {
     const { service } = fakeToneService(new WasmDeviceState(0x10));
     const { container } = render(<PcmDrumEditor partIndex={PART} service={service} />);
     await act(async () => {});
     act(() => (strip(container, 1).querySelector("button") as HTMLElement).click());
 
-    const dimmed = (n: number) =>
-      container.querySelector(`[data-section="wmt-${n - 1}.wave"] [data-scope-inactive]`)?.hasAttribute("inert") ?? false;
-    expect([1, 2, 3, 4].map(dimmed)).toEqual([false, true, true, true]);
+    const gate = (n: number) => container.querySelector(`[data-section="wmt-${n - 1}.wave"] [data-scope-inactive]`);
+    expect([1, 2, 3, 4].map((n) => gate(n) !== null)).toEqual([false, true, true, true]);
+    for (const n of [2, 3, 4]) expect(gate(n)!.closest("[inert]")).toBeNull();
     for (const n of [1, 2, 3, 4]) expect(strip(container, n).closest("[inert]")).toBeNull();
   });
 

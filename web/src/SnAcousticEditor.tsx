@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, type ReactNode } from "react";
 import {
   display_binding,
-  sna_common_is_active,
+  sna_common_relevance,
   sna_common_spec,
   sna_common_address,
   sna_common_size,
@@ -9,6 +9,7 @@ import {
   mfx_block_size,
   DisplayKind,
   DisplayProp,
+  Relevance,
   SnaCommonField,
   ToneType,
   ParameterFamily,
@@ -283,8 +284,8 @@ function SnaScreen({
 
   const value = (field: SnaCommonField): number =>
     field === SnaCommonField.ModifyParameter ? 0 : common[COMMON_KEY[field]];
-  // Some instruments ignore some offsets: core holds them inactive.
-  const isActive = (field: SnaCommonField): boolean => sna_common_is_active(field, common);
+  // Some instruments ignore some offsets: core holds them irrelevant.
+  const relevance = (field: SnaCommonField): Relevance => sna_common_relevance(field, common);
 
   const bindCommon = (field: SnaCommonField): Binding => {
     const spec = sna_common_spec(field);
@@ -333,7 +334,7 @@ function SnaScreen({
       const field = slots.find((s) => s.prop === prop)?.snaCommon;
       return field === undefined ? undefined : { field, value: value(field) };
     };
-    const dim = slots.some((s) => s.snaCommon !== undefined && !isActive(s.snaCommon));
+    const dim = slots.some((s) => s.snaCommon !== undefined && relevance(s.snaCommon) !== Relevance.Active);
     let drawn: ReactNode = null;
     if (display === DisplayKind.FilterScope) {
       const cutoff = read(DisplayProp.Cutoff);
@@ -386,7 +387,7 @@ function SnaScreen({
               <GridSection
                 layout={tone.layout}
                 bind={bindCommon}
-                isActive={isActive}
+                relevance={relevance}
                 renderDisplay={renderDisplay}
                 family={tone.family}
               />

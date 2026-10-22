@@ -127,7 +127,8 @@ describe("PcmSynthScreen", () => {
       (b) => !b.dataset.section!.endsWith("partial"),
     );
     expect(boxes.length).toBeGreaterThan(0);
-    expect(boxes.map((b) => b.querySelector("[data-scope-inactive]")?.hasAttribute("inert"))).toEqual(boxes.map(() => true));
+    // Dimmed, still editable.
+    expect(boxes.map((b) => b.querySelector("[data-scope-inactive]")?.hasAttribute("inert"))).toEqual(boxes.map(() => false));
     const toggle = strip(2).querySelector("button")!;
     expect(toggle.closest("[inert]")).toBeNull();
     expect(toggle.getAttribute("aria-pressed")).toBe("false");

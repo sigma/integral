@@ -39,6 +39,25 @@ export function click(element: Element): void {
   });
 }
 
+/** Dispatch pointer event `type` at (`x`, `y`) on `target`. */
+export function pointer(target: Element, type: string, x: number, y: number): void {
+  act(() => {
+    // jsdom has no PointerEvent; React only reads the type and coordinates.
+    const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y });
+    Object.defineProperty(event, "pointerId", { value: 1 });
+    target.dispatchEvent(event);
+  });
+}
+
+/** Drag the slider `knob` (a knob or fader's `role="slider"`) up by `px` pixels. */
+export function dragUp(knob: Element, px: number): void {
+  // jsdom has no pointer capture.
+  (knob as Element & { setPointerCapture: () => void }).setPointerCapture = () => {};
+  pointer(knob, "pointerdown", 0, 100);
+  pointer(knob, "pointermove", 0, 100 - px);
+  pointer(knob, "pointerup", 0, 100 - px);
+}
+
 /** Type `value` into a React-controlled input. */
 export function typeInto(input: HTMLInputElement, value: string): void {
   const setter = Object.getOwnPropertyDescriptor(

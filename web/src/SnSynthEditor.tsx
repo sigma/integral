@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import {
   sns_mfx_address,
   mfx_block_size,
-  sns_partial_scope_is_active,
+  sns_partial_scope_relevance,
   ToneType,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
@@ -123,7 +123,7 @@ export function SnSynthEditor({ partIndex, service }: Props) {
                 layout={box.layout}
                 family={box.family}
                 partial={partial}
-                active={sns_partial_scope_is_active(idx, tone.common)}
+                scopeRelevance={sns_partial_scope_relevance(idx, tone.common)}
                 setP={setP}
               />
             );
