@@ -43,6 +43,28 @@
   writing-mode: vertical-rl;
 }
 
+/* The title's text, and its power toggle (`titleSwitch`) beside it. */
+.titleText {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.titleSwitch {
+  display: inline-flex;
+}
+
+/* A power toggle (`PowerButton`) small enough for the title band. */
+.power {
+  padding: 1px 3px;
+  border-radius: 4px;
+}
+
+.power svg {
+  width: 10px;
+  height: 10px;
+}
+
 .silkscreen {
   position: absolute;
   top: 0;

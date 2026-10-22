@@ -9,7 +9,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { DisplayKind, ParameterFamily } from "../../pkg/integral_wasm.js";
 import type { PickOption } from "../SearchPopover";
 import { SyncUnit } from "../SyncUnit";
-import { SynthFader, SynthKnob, SynthPicker, SynthSwitch, familyVar } from "../synth-ui";
+import { PowerButton, SynthFader, SynthKnob, SynthPicker, SynthSwitch, familyVar } from "../synth-ui";
 import { knobDialSide } from "../synth-ui/SynthKnob";
 import { CELL, cellsPx, type Px } from "../synth-ui/grid";
 import type { FieldKey } from "./fields";
@@ -190,6 +190,25 @@ function Control<F extends FieldKey>({
   }
 }
 
+/**
+ * The title's power toggle for a two-state field: on at its maximum, and a
+ * click writes the other state. It never dims. The wrapper carries
+ * `data-field` as a body Control's does, so a caller finds it the same way.
+ */
+function TitleSwitch({ field, binding: b, title }: { field: FieldKey; binding: Binding; title: string }) {
+  const on = b.value === b.max;
+  return (
+    <span className={css.titleSwitch} data-field={String(field)} data-title-switch="">
+      <PowerButton
+        isOn={on}
+        onToggle={() => b.onChange(on ? b.min : b.max)}
+        title={`Switch ${title} ${on ? "off" : "on"}`}
+        className={css.power}
+      />
+    </span>
+  );
+}
+
 /** A rule or group name, in px from the Section's origin; arrows are drawn by `SilkArrows`. */
 function Silk<F extends FieldKey>({ silk: s, ox, oy }: { silk: SectionSilk<F>; ox: number; oy: number }) {
   if (s.kind === "rule") {
@@ -274,7 +293,12 @@ export function GridSection<F extends FieldKey>({
           ...(top ? { borderWidth: BORDER_WIDTHS } : {}),
         }}
       >
-        {title}
+        <span className={css.titleText}>
+          {title}
+          {layout.titleSwitch !== undefined && (
+            <TitleSwitch field={layout.titleSwitch} binding={bind(layout.titleSwitch)} title={title} />
+          )}
+        </span>
       </div>
       {/* Silkscreen stops at the drawn border, which sits INSET inside the Section's Cells. */}
       <svg

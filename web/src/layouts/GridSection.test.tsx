@@ -41,7 +41,8 @@ function wrapper(container: HTMLElement, field: MixerField): HTMLElement {
 
 describe("GridSection draws the pilot mixer EQ", () => {
   // Every px below is what the pilot renderer (prototype/grid-pilot) drew, the knobs and
-  // Silkscreen a row lower since the EQ grew a free row under its switch (#405).
+  // Silkscreen a row lower since the EQ grew a free row under its switch (#405), which
+  // is now a power toggle in the title.
   const draw = () => render(<GridSection layout={EQ_LAYOUT} bind={bindMixer} />).container;
 
   it("at the pilot's size, title row included", () => {
@@ -62,7 +63,6 @@ describe("GridSection draws the pilot mixer EQ", () => {
   // The left column's knobs clear the border their LED rings reach.
   const SIDE = INSET + BORDER.width;
   it.each([
-    [MixerField.EqSwitch, 24, 24],
     [MixerField.EqHighFreq, SIDE, 72],
     [MixerField.EqHighGain, 48, 120],
     [MixerField.EqMidFreq, SIDE, 168],
@@ -77,20 +77,55 @@ describe("GridSection draws the pilot mixer EQ", () => {
 
   it("draws each Control at its footprint, unscaled, less the border it clears", () => {
     const container = draw();
-    expectFillsFootprint(wrapper(container, MixerField.EqSwitch).firstElementChild as HTMLElement, FOOTPRINT.switch);
     const knob = wrapper(container, MixerField.EqMidQ).firstElementChild as HTMLElement;
     expect([knob.style.width, knob.style.height]).toEqual([`${FOOTPRINT.knobSm.w * 24 - SIDE}px`, `${FOOTPRINT.knobSm.h * 24}px`]);
   });
 
-  it("names knobs as the layout says, and hides the switch's name", () => {
-    const container = draw();
-    expect(wrapper(container, MixerField.EqMidQ).querySelector("span")!.textContent).toBe("Q");
-    // Core names it "EQ Switch"; only its state shows.
-    expect(wrapper(container, MixerField.EqSwitch).textContent).not.toContain("EQ");
+  it("names knobs as the layout says", () => {
+    expect(wrapper(draw(), MixerField.EqMidQ).querySelector("span")!.textContent).toBe("Q");
+  });
+
+  /** The EQ with its switch at `value`, recording what the title toggle writes. */
+  const drawSwitch = (value: number, isActive?: (f: MixerField) => boolean) => {
+    const writes: number[] = [];
+    const bind = (field: MixerField): Binding =>
+      field === MixerField.EqSwitch ? { ...bindMixer(field), value, onChange: (v) => writes.push(v) } : bindMixer(field);
+    const container = render(<GridSection layout={EQ_LAYOUT} bind={bind} isActive={isActive} />).container;
+    const title = (container.firstElementChild as HTMLElement).children[1] as HTMLElement;
+    return { title, button: title.querySelector("button")!, writes };
+  };
+
+  it("draws its switch as a power toggle in the title, beside the title's text, and not in the body", () => {
+    const { title, button } = drawSwitch(1);
+    expect(title.textContent).toBe("EQ");
+    expect(button.closest("[data-field]")!.getAttribute("data-field")).toBe(String(MixerField.EqSwitch));
+    expect(button.querySelector("svg")).not.toBeNull();
+    expect(title.parentElement!.querySelectorAll(`[data-field="${MixerField.EqSwitch}"]`)).toHaveLength(1);
+  });
+
+  it("lights the title toggle while on, says what a click does, and writes the other state", () => {
+    const on = drawSwitch(1);
+    expect(on.button.getAttribute("aria-pressed")).toBe("true");
+    expect(on.button.title).toBe("Switch EQ off");
+    act(() => on.button.click());
+    expect(on.writes).toEqual([0]);
+    cleanup();
+    const off = drawSwitch(0);
+    expect(off.button.getAttribute("aria-pressed")).toBe("false");
+    expect(off.button.title).toBe("Switch EQ on");
+    act(() => off.button.click());
+    expect(off.writes).toEqual([1]);
+  });
+
+  it("never dims the title toggle", () => {
+    const { button } = drawSwitch(0, () => false);
+    const host = button.closest<HTMLElement>("[data-field]")!;
+    expect(host.dataset.inactive).toBeUndefined();
+    expect(button.closest("[inert]")).toBeNull();
   });
 
   it("draws the zig-zag rules and band names, clipped to the border", () => {
-    const svg = draw().querySelector("svg")!;
+    const svg = [...draw().querySelectorAll("svg")].find((s) => !s.closest("button"))!;
     expect(svg.style.clipPath).toBe("inset(5px round 6px)");
     expect([...svg.querySelectorAll("polyline")].map((p) => p.getAttribute("points"))).toEqual([
       "0,156 24,156 72,204 96,204",

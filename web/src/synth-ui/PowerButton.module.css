@@ -1,0 +1,28 @@
+/* A power toggle: dim while off, lit green while on. Hosts size and lay it out. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #3a3a5a;
+  border-radius: 6px;
+  background: #222240;
+  color: #888;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.button:hover {
+  border-color: #5a5a7a;
+}
+
+.on {
+  background: #2a4a2a;
+  color: #6fe87a;
+  border-color: #3a6a3a;
+}

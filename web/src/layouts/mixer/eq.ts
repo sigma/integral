@@ -20,9 +20,9 @@ export const EQ_LAYOUT: SectionLayout<MixerField> = {
   w: 4,
   h: 17,
   fields: mixerFields([MixerScopeKind.Part, MixerScopeKind.Master, MixerScopeKind.CompEqUnit]),
+  // The switch is a power toggle in the title: "EQ ⏻".
+  titleSwitch: MixerField.EqSwitch,
   items: [
-    // The title already names the switch.
-    { kind: "switch", field: MixerField.EqSwitch, x: 1, y: 0, label: false },
     { kind: "knob", field: MixerField.EqHighFreq, x: 0, y: 2, label: "Freq" },
     { kind: "knob", field: MixerField.EqHighGain, x: 2, y: 4, label: "Gain" },
     { kind: "knob", field: MixerField.EqMidFreq, x: 0, y: 6, label: "Freq" },

@@ -22,6 +22,7 @@ import {
   elementCount,
   enumFields,
   fxFields,
+  isTwoState,
   mixerFields,
   type FieldKey,
 } from "./fields";
@@ -152,6 +153,13 @@ function withItems(
 describe("validateSection", () => {
   it("passes the base fixture", () => {
     expect(validateSection(BASE)).toEqual([]);
+  });
+
+  it("title switch: a known two-state field passes; another doesn't", () => {
+    const body = BASE.items.filter((i) => i.kind !== "switch");
+    expect(validateSection({ ...BASE, items: body, titleSwitch: MixerField.EqSwitch })).toEqual([]);
+    expect(checks(validateSection({ ...BASE, items: body, titleSwitch: MixerField.EqMidQ }))).toEqual(["footprint"]);
+    expect(checks(validateSection({ ...BASE, items: body, titleSwitch: MixerField.ExtMute }))).toEqual(["field"]);
   });
 
   it("lattice: a Control off whole Cells", () => {
@@ -501,6 +509,14 @@ describe("validateVariantSet", () => {
       "containment",
       "field",
     ]);
+  });
+
+  it("counts a title switch as placed", () => {
+    const type = MFX_TYPES.find((t) => fxFields("mfx", t).ids.some((f) => isTwoState(fxFields("mfx", t), f)))!;
+    const sw = fxFields("mfx", type).ids.find((f) => isTwoState(fxFields("mfx", type), f))!;
+    const body = packKnobs(type).items.filter((i) => i.kind !== "knob" || i.field !== sw);
+    expect(validateVariantSet(mfxSet(new Map([[type, { items: body, titleSwitch: sw }]])))).toEqual([]);
+    expect(checks(validateVariantSet(mfxSet(new Map([[type, { items: body }]]))))).toEqual(["unplaced"]);
   });
 
   it("field: a hand variant for a key core doesn't define", () => {

@@ -4,29 +4,16 @@
   align-self: stretch;
 }
 
+/* The power button (`PowerButton`) as a column: the symbol over its label. */
 .button {
-  display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 8px;
   padding: 6px 4px;
-  border: 1px solid #3a3a5a;
-  border-radius: 6px;
-  background: #222240;
-  color: #888;
-  cursor: pointer;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
   white-space: nowrap;
-  transition: background 0.15s, color 0.15s;
-}
-
-.icon {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
 }
 
 .label {
@@ -34,14 +21,4 @@
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   text-align: center;
-}
-
-.button:hover {
-  border-color: #5a5a7a;
-}
-
-.on {
-  background: #2a4a2a;
-  color: #6fe87a;
-  border-color: #3a6a3a;
 }

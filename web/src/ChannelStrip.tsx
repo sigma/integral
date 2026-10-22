@@ -89,7 +89,6 @@ const SWITCH_TEXT: Partial<Record<MixerField, string>> = {
   [MixerField.ExtMute]: "M",
   [MixerField.SoloPart]: "S",
   [MixerField.DrumCompEqPart]: "C+EQ",
-  [MixerField.CompSwitch]: "COMP",
 };
 
 /** A strip's EQ, as the EQ Section reads it. */

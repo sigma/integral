@@ -224,6 +224,12 @@ export interface SectionBody<F extends FieldKey> {
   items: readonly ItemLayout<F>[];
   /** Rules, group names and arrows. */
   silkscreen?: readonly SectionSilk<F>[];
+  /**
+   * A two-state field drawn as a power toggle in the title, beside its text,
+   * in place of a switch in the body: "EQ ⏻". It counts as placed; it never
+   * dims, though the Controls it governs may.
+   */
+  titleSwitch?: F;
 }
 
 /** One Section's layout. One module per Section; a Scope binds each instance. */

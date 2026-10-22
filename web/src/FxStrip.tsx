@@ -78,15 +78,12 @@ interface FxStripProps {
   setField: SetMixerField;
 }
 
-/** An FX column's strip: switch, type, outputs and level, the type's name up the fader. */
+/** An FX column's strip: its switch in the title, type, outputs and level, the type's name up the fader. */
 export function FxStrip({ block, fx, setField }: FxStripProps) {
   const layout = useMemo(() => variantLayout(FX_STRIP_SET, block), [block]);
-  const { switch: sw, type, level } = FX_STRIP_FIELDS[block];
-  const bind = (field: MixerField): Binding => ({
-    ...mixerBinding(field, fxValue(fx, field), (v) => setField(MixerScopeKind.Common, 0, field, v)),
-    // The switch reads FX, on and off alike: its LED shows the state.
-    ...(field === sw ? { options: [{ value: 0, label: "FX" }, { value: 1, label: "FX" }] } : {}),
-  });
+  const { type, level } = FX_STRIP_FIELDS[block];
+  const bind = (field: MixerField): Binding =>
+    mixerBinding(field, fxValue(fx, field), (v) => setField(MixerScopeKind.Common, 0, field, v));
   return (
     <GridSection
       layout={layout}

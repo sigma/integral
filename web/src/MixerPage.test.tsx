@@ -154,6 +154,27 @@ describe("MixerPage", () => {
     );
   });
 
+  it("draws the EQ, compressor and FX switches as power toggles in their titles, writing their switch", () => {
+    const { el, base, setMixerField } = loaded();
+    const toggles: [string, MixerField, string, unknown[]][] = [
+      ["eq.part.2", MixerField.EqSwitch, "EQ", [MixerScopeKind.Part, 2, MixerField.EqSwitch, 0]],
+      ["eq.comp.0", MixerField.EqSwitch, "EQ", [MixerScopeKind.CompEqUnit, 0, MixerField.EqSwitch, Number(!base.drumCompEq.units[0]!.eqSwitch)]],
+      ["eq.master", MixerField.EqSwitch, "EQ", [MixerScopeKind.Master, 0, MixerField.EqSwitch, 0]],
+      ["strip.comp.0", MixerField.CompSwitch, "C+E1", [MixerScopeKind.CompEqUnit, 0, MixerField.CompSwitch, Number(!base.drumCompEq.units[0]!.compSwitch)]],
+      ["strip.chorus", MixerField.ChorusSwitch, "FX1", [MixerScopeKind.Common, 0, MixerField.ChorusSwitch, Number(!base.chorus.enabled)]],
+      ["strip.reverb", MixerField.ReverbSwitch, "FX2", [MixerScopeKind.Common, 0, MixerField.ReverbSwitch, Number(!base.reverb.enabled)]],
+    ];
+    for (const [id, field, title, write] of toggles) {
+      const host = control(placed(el, id), field);
+      expect(host.dataset.titleSwitch, id).toBe("");
+      expect(host.parentElement!.textContent, id).toBe(title);
+      const button = host.querySelector("button")!;
+      expect(button.getAttribute("aria-pressed"), id).not.toBeNull();
+      act(() => button.click());
+      expect(setMixerField, id).toHaveBeenLastCalledWith(...write);
+    }
+  });
+
   it("titles each strip: its part, EX, its Comp+EQ unit, Master", () => {
     const { el } = loaded();
     const title = (id: string) => placed(el, id).querySelector("[data-grid-section]")!.getAttribute("data-grid-section");
