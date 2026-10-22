@@ -17,7 +17,7 @@ import {
 import type { IntegraService } from "./integra";
 import { deviceSpec } from "./deviceSpec";
 import { switchOptions } from "./fieldSpec";
-import { GridScreen, GridSection, specBinding, type Binding, type SectionPlacement } from "./layouts";
+import { GridScreen, GridSection, loadedRelevance, specBinding, type Binding, type SectionPlacement } from "./layouts";
 import { SND_FAMILIES, SND_KIT_LAYOUT, SND_OUTPUT_LAYOUT, SND_SCREEN, SND_TONE_LAYOUT } from "./layouts/drum/snDrum";
 import { MfxPanel } from "./MfxPanel";
 import type { MfxState } from "./MfxPanel";
@@ -138,7 +138,7 @@ export function SnDrumEditor({ partIndex, service }: Props) {
     return <div className={css.loading}>Loading SN-D drum kit data...</div>;
   }
 
-  const isCurrent = () => current;
+  const keyRelevance = () => loadedRelevance(current);
   const scope = { key: selectedKey };
   const section = (p: SectionPlacement): ReactNode => {
     switch (p.id) {
@@ -150,7 +150,7 @@ export function SnDrumEditor({ partIndex, service }: Props) {
             layout={SND_TONE_LAYOUT}
             bind={bindNote}
             scope={scope}
-            isActive={isCurrent}
+            relevance={keyRelevance}
             family={SND_FAMILIES.tone}
           />
         );
@@ -160,7 +160,7 @@ export function SnDrumEditor({ partIndex, service }: Props) {
             layout={SND_OUTPUT_LAYOUT}
             bind={bindNote}
             scope={scope}
-            isActive={isCurrent}
+            relevance={keyRelevance}
             family={SND_FAMILIES.output}
           />
         );
@@ -180,7 +180,7 @@ export function SnDrumEditor({ partIndex, service }: Props) {
         selectedKey={selectedKey}
         onSelect={drumKey.select}
         keyOutputAssigns={keyOutputAssigns}
-        kit={<GridSection layout={SND_KIT_LAYOUT} bind={bindCommon} isActive={() => common !== null} />}
+        kit={<GridSection layout={SND_KIT_LAYOUT} bind={bindCommon} relevance={() => loadedRelevance(common !== null)} />}
       />
 
       {/* The key Sections, then the MFX they all feed */}

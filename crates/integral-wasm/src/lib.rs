@@ -12,7 +12,6 @@ use wasm_bindgen::prelude::*;
 
 mod expansion;
 mod librarian;
-mod relevance;
 mod sequencer;
 mod waves;
 pub use expansion::WasmExpansion;
@@ -316,9 +315,11 @@ macro_rules! mirror_core_enum {
     };
 }
 
-// Declared after `mirror_core_enum!`, which it uses.
+// Declared after `mirror_core_enum!`, which they use.
 mod display;
+mod relevance;
 pub use display::{DisplayKind, DisplayProp, WasmDisplaySlot, display_binding};
+pub use relevance::Relevance;
 
 /// Tone type of a Part's Temporary Tone, selecting which tone type block
 /// (and so which MFX block) an edit addresses (mirrors [`params::ToneType`]).

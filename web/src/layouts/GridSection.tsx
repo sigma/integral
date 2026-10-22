@@ -6,7 +6,7 @@
  */
 
 import type { CSSProperties, ReactNode } from "react";
-import type { DisplayKind, ParameterFamily } from "../../pkg/integral_wasm.js";
+import { Relevance, type DisplayKind, type ParameterFamily } from "../../pkg/integral_wasm.js";
 import type { PickOption } from "../SearchPopover";
 import { SyncUnit } from "../SyncUnit";
 import { PowerButton, SynthFader, SynthKnob, SynthPicker, SynthSwitch, familyVar } from "../synth-ui";
@@ -88,12 +88,16 @@ export interface GridSectionProps<F extends FieldKey> {
   bind: (field: F, index?: number) => Binding;
   /** This instance's indices; fills the title template. */
   scope?: Scope;
-  /** Whether core counts a field (element `index`, if named) active; default always. Inactive Controls dim or hide. */
-  isActive?: (field: F, index?: number) => boolean;
+  /**
+   * Core's relevance of a field (element `index`, if named); default always
+   * active. A switched-off Control dims and stays editable; an irrelevant one
+   * dims, inert, or hides, as its layout says.
+   */
+  relevance?: (field: F, index?: number) => Relevance;
   /** The alternative to draw for a group, by name; default (or unknown) the first. */
   alternative?: (group: string) => string | undefined;
-  /** Whether a Display's fields are active; default always. An inactive Display dims, as an inactive Control does. */
-  isDisplayActive?: (display: DisplayKind) => boolean;
+  /** Relevance of a Display's fields; default always active. An inactive Display dims, as an inactive Control does. */
+  displayRelevance?: (display: DisplayKind) => Relevance;
   /** Draws a Display filling `size` px; default an empty rectangle. */
   renderDisplay?: (display: DisplayKind, size: { width: number; height: number }) => ReactNode;
   /** Accents the border's top edge. */
@@ -105,7 +109,15 @@ export interface GridSectionProps<F extends FieldKey> {
 /** The border's widths as CSS: the accent on top, the line elsewhere. */
 const BORDER_WIDTHS = `${BORDER.accent}px ${BORDER.width}px ${BORDER.width}px`;
 
-const always = (): true => true;
+const always = (): Relevance => Relevance.Active;
+
+/**
+ * Relevance of a Control whose state may not be loaded yet: active once
+ * `loaded`, irrelevant (inert) until then, with nothing to edit.
+ */
+export function loadedRelevance(loaded: boolean): Relevance {
+  return loaded ? Relevance.Active : Relevance.Irrelevant;
+}
 const none = (): undefined => undefined;
 
 /** `b`'s options, or every value in its range, formatted. */
@@ -247,9 +259,9 @@ export function GridSection<F extends FieldKey>({
   layout,
   bind,
   scope,
-  isActive = always,
+  relevance = always,
   alternative = none,
-  isDisplayActive = always,
+  displayRelevance = always,
   renderDisplay,
   family,
   style,
@@ -348,21 +360,26 @@ export function GridSection<F extends FieldKey>({
       ))}
       {drawn.map(({ el, box, size, binding }) => {
         if (el.kind === "display") {
-          const dim = !isDisplayActive(el.display);
+          const rel = displayRelevance(el.display);
+          const dim = rel !== Relevance.Active;
           return (
             <div
               key={elementKey(el)}
               className={`${css.element} ${dim ? css.dim : ""}`}
               data-display={el.display}
               data-inactive={dim ? "dim" : undefined}
-              inert={dim}
+              // Switched off, it stays editable, as on the hardware.
+              inert={rel === Relevance.Irrelevant}
               style={box}
             >
               {renderDisplay?.(el.display, size)}
             </div>
           );
         }
-        const inactive = isActive(el.field, el.index) ? undefined : (el.inactive ?? "dim");
+        const rel = relevance(el.field, el.index);
+        // Switched off, it dims whatever the layout says, so it can still be edited.
+        const inactive =
+          rel === Relevance.Active ? undefined : rel === Relevance.SwitchedOff ? "dim" : (el.inactive ?? "dim");
         return (
           <div
             key={elementKey(el)}
@@ -370,7 +387,7 @@ export function GridSection<F extends FieldKey>({
             data-field={String(el.field)}
             data-index={el.index}
             data-inactive={inactive}
-            inert={inactive !== undefined}
+            inert={rel === Relevance.Irrelevant}
             style={box}
           >
             <Control control={el} binding={binding!} box={size} dialSide={dialSide} />

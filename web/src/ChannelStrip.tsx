@@ -11,10 +11,11 @@ import {
   DisplayKind,
   MixerField,
   MixerScopeKind,
-  comp_eq_unit_is_active,
-  mixer_eq_is_active,
-  mixer_is_active,
-  mixer_output_is_active,
+  Relevance,
+  comp_eq_unit_relevance,
+  mixer_eq_relevance,
+  mixer_output_relevance,
+  mixer_relevance,
 } from "../pkg/integral_wasm.js";
 import { CATEGORIES, lookupToneCategory } from "./categories";
 import { categoryIcon, stripIcon } from "./categoryIcons";
@@ -207,14 +208,14 @@ function titleScope({ kind, index }: StripScope): Scope {
 /** The EQ Section's accent: the family of its gain knobs. */
 const eqFamily = () => paramMeta(MixerField.EqMidGain).family;
 
-/** A strip's EQ Section, its settings dimmed while its EQ switch is off. */
+/** A strip's EQ Section, its settings dimmed (still editable) while its EQ switch is off. */
 export function StripEq(props: StripProps) {
   return (
     <GridSection
       layout={EQ_LAYOUT}
       bind={stripBinding(props)}
       family={eqFamily()}
-      isActive={(field) => stripIsActive(props.state, props, field)}
+      relevance={(field) => stripRelevance(props.state, props, field)}
     />
   );
 }
@@ -230,19 +231,24 @@ const STRIP_LAYOUTS = new Map<MixerScopeKind, SectionLayout<MixerField>>(
 /** The strip Section's accent: the family of its level fader. */
 const stripFamily = () => paramMeta(MixerField.PartLevel).family;
 
-/** Whether core counts `field` active on strip `scope` in `state`. */
-function stripIsActive(state: MixerState, { kind, index }: StripScope, field: MixerField): boolean {
-  if (!mixer_output_is_active(field, state.surround.enabled)) return false;
-  if (kind === MixerScopeKind.Part) return mixer_is_active(field, index, state.parts[index], state.drumCompEq);
-  if (kind === MixerScopeKind.CompEqUnit) return comp_eq_unit_is_active(field, state.drumCompEq.units[index]);
-  if (kind === MixerScopeKind.Master) return mixer_eq_is_active(field, state.masterEq.enabled);
-  return true;
+/** Core's relevance of `field` on strip `scope` in `state`. */
+function stripRelevance(state: MixerState, { kind, index }: StripScope, field: MixerField): Relevance {
+  const output = mixer_output_relevance(field, state.surround.enabled);
+  if (output !== Relevance.Active) return output;
+  if (kind === MixerScopeKind.Part) return mixer_relevance(field, index, state.parts[index], state.drumCompEq);
+  if (kind === MixerScopeKind.CompEqUnit) return comp_eq_unit_relevance(field, state.drumCompEq.units[index]);
+  if (kind === MixerScopeKind.Master) return mixer_eq_relevance(field, state.masterEq.enabled);
+  return Relevance.Active;
 }
 
-/** Whether a mixer Display on strip `scope` is active: while any field core binds it to is. */
-function stripDisplayIsActive(state: MixerState, scope: StripScope, display: DisplayKind): boolean {
+/**
+ * Relevance of a mixer Display on strip `scope`: the most live of the fields
+ * core binds it to (core orders `Relevance` from most to least live).
+ */
+function stripDisplayRelevance(state: MixerState, scope: StripScope, display: DisplayKind): Relevance {
   const slots = mixerDisplaySlots(display);
-  return slots.length === 0 || slots.some(({ field }) => stripIsActive(state, scope, field));
+  if (slots.length === 0) return Relevance.Active;
+  return Math.min(...slots.map(({ field }) => stripRelevance(state, scope, field))) as Relevance;
 }
 
 /** Props of {@link ChannelStrip}. */
@@ -261,8 +267,8 @@ export function ChannelStrip({ unloadedExpansion, ...props }: ChannelStripProps)
       bind={bind}
       scope={titleScope(props)}
       family={stripFamily()}
-      isActive={(field) => stripIsActive(state, props, field)}
-      isDisplayActive={(display) => stripDisplayIsActive(state, props, display)}
+      relevance={(field) => stripRelevance(state, props, field)}
+      displayRelevance={(display) => stripDisplayRelevance(state, props, display)}
       // Surround replaces the FX sends with its ambience send.
       alternative={(group) => (group === "sends" && state.surround.enabled ? "surround" : undefined)}
       renderDisplay={(display, size) =>

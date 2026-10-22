@@ -5,6 +5,7 @@ import {
   MixerField,
   MixerScopeKind,
   PcmsPartialField,
+  Relevance,
   SndNoteField,
   WasmDeviceState,
   mixer_field_spec,
@@ -87,11 +88,11 @@ describe("GridSection draws the pilot mixer EQ", () => {
   });
 
   /** The EQ with its switch at `value`, recording what the title toggle writes. */
-  const drawSwitch = (value: number, isActive?: (f: MixerField) => boolean) => {
+  const drawSwitch = (value: number, relevance?: (f: MixerField) => Relevance) => {
     const writes: number[] = [];
     const bind = (field: MixerField): Binding =>
       field === MixerField.EqSwitch ? { ...bindMixer(field), value, onChange: (v) => writes.push(v) } : bindMixer(field);
-    const container = render(<GridSection layout={EQ_LAYOUT} bind={bind} isActive={isActive} />).container;
+    const container = render(<GridSection layout={EQ_LAYOUT} bind={bind} relevance={relevance} />).container;
     const title = (container.firstElementChild as HTMLElement).children[1] as HTMLElement;
     return { title, button: title.querySelector("button")!, writes };
   };
@@ -119,7 +120,7 @@ describe("GridSection draws the pilot mixer EQ", () => {
   });
 
   it("never dims the title toggle", () => {
-    const { button } = drawSwitch(0, () => false);
+    const { button } = drawSwitch(0, () => Relevance.Irrelevant);
     const host = button.closest<HTMLElement>("[data-field]")!;
     expect(host.dataset.inactive).toBeUndefined();
     expect(button.closest("[inert]")).toBeNull();
@@ -208,10 +209,10 @@ describe("GridSection", () => {
     expect(container.querySelector("[inert]")).toBeNull();
   });
 
-  it("dims or hides an inactive Control in its Cells, inert", () => {
-    const { container } = render(
-      <GridSection layout={SCRAMBLED} bind={bindMixer} isActive={(f) => f !== MixerField.EqMidQ && f !== MixerField.EqSwitch} />,
-    );
+  it("dims or hides an irrelevant Control in its Cells, inert", () => {
+    const irrelevant = (f: MixerField) =>
+      f === MixerField.EqMidQ || f === MixerField.EqSwitch ? Relevance.Irrelevant : Relevance.Active;
+    const { container } = render(<GridSection layout={SCRAMBLED} bind={bindMixer} relevance={irrelevant} />);
     const hidden = wrapper(container, MixerField.EqMidQ);
     const dimmed = wrapper(container, MixerField.EqSwitch);
     expect(hidden.dataset.inactive).toBe("hide");
@@ -221,6 +222,34 @@ describe("GridSection", () => {
       expect([el.style.width, el.style.height]).toEqual(["48px", "24px"]);
     }
     expect(wrapper(container, MixerField.EqLowGain).hasAttribute("inert")).toBe(false);
+  });
+
+  it("dims a switched-off Control and a Display in their Cells, still editable", () => {
+    const { container } = render(
+      <GridSection
+        layout={SCRAMBLED}
+        bind={bindMixer}
+        relevance={(f) =>
+          f === MixerField.EqLowGain || f === MixerField.EqMidQ ? Relevance.SwitchedOff : Relevance.Active
+        }
+        displayRelevance={() => Relevance.SwitchedOff}
+      />,
+    );
+    const dimmed = wrapper(container, MixerField.EqLowGain);
+    // Laid out to hide, it dims all the same: hidden, it couldn't be edited.
+    const shown = wrapper(container, MixerField.EqMidQ);
+    const display = container.querySelector<HTMLElement>("[data-display]")!;
+    for (const el of [dimmed, shown, display]) {
+      expect(el.dataset.inactive).toBe("dim");
+      expect(el.hasAttribute("inert")).toBe(false);
+    }
+  });
+
+  it("goes inert on an irrelevant Display", () => {
+    const { container } = render(
+      <GridSection layout={SCRAMBLED} bind={bindMixer} displayRelevance={() => Relevance.Irrelevant} />,
+    );
+    expect(container.querySelector("[data-display]")!.hasAttribute("inert")).toBe(true);
   });
 
   it("fills the title from the Scope, 1-based", () => {
@@ -456,15 +485,15 @@ describe("GridSection array-field elements", () => {
       specBinding(`level ${index + 1}`, pcms_partial_spec(field), values[index]!, (v) =>
         device.setPcmsPartialParam(PART, PARTIAL, field, index, v),
       );
-    const isActive = vi.fn((_field: PcmsPartialField, _index?: number) => true);
-    const { container } = render(<GridSection layout={AMP} bind={bind} isActive={isActive} />);
-    return { container, isActive };
+    const relevance = vi.fn((_field: PcmsPartialField, _index?: number) => Relevance.Active);
+    const { container } = render(<GridSection layout={AMP} bind={bind} relevance={relevance} />);
+    return { container, relevance };
   }
 
   it("binds each fader to its element's value", () => {
-    const { container, isActive } = draw(new WasmDeviceState(0x10));
+    const { container, relevance } = draw(new WasmDeviceState(0x10));
     expect(["L1", "L2", "L3"].map((l) => slider(container, l).getAttribute("aria-valuenow"))).toEqual(["10", "20", "30"]);
-    expect(isActive.mock.calls).toEqual([[LEVELS, 0], [LEVELS, 1], [LEVELS, 2]]);
+    expect(relevance.mock.calls).toEqual([[LEVELS, 0], [LEVELS, 1], [LEVELS, 2]]);
     const levels = [...container.querySelectorAll(`[data-field="${LEVELS}"]`)].map((el) => el.getAttribute("data-index"));
     expect(levels).toEqual(["0", "1", "2"]);
   });
@@ -719,9 +748,9 @@ describe("GridSection picker", () => {
     fields,
     items: [{ kind: "picker", field: SndNoteField.InstNumber, x: 1, y: 0, label: "Inst", inactive }],
   });
-  const draw = (value: number, onChange = vi.fn(), active = true, inactive?: "dim" | "hide") => {
+  const draw = (value: number, onChange = vi.fn(), relevance = Relevance.Active, inactive?: "dim" | "hide") => {
     const bind = (field: SndNoteField) => specBinding("Inst Number", snd_note_spec(field), value, onChange);
-    const { container } = render(<GridSection layout={layout(inactive)} bind={bind} isActive={() => active} />);
+    const { container } = render(<GridSection layout={layout(inactive)} bind={bind} relevance={() => relevance} />);
     return container.querySelector<HTMLElement>(`[data-field="${SndNoteField.InstNumber}"]`)!;
   };
   /** The names the open list shows. */
@@ -748,8 +777,8 @@ describe("GridSection picker", () => {
     expect(onChange).toHaveBeenCalledWith(294);
   });
 
-  it.each(["dim", "hide"] as const)("goes inert in place when inactive (%s)", (inactive) => {
-    const el = draw(1, vi.fn(), false, inactive);
+  it.each(["dim", "hide"] as const)("goes inert in place when irrelevant (%s)", (inactive) => {
+    const el = draw(1, vi.fn(), Relevance.Irrelevant, inactive);
     expect(el.dataset.inactive).toBe(inactive);
     expect(el.hasAttribute("inert")).toBe(true);
     expect([el.style.left, el.style.top]).toEqual(["24px", "24px"]);

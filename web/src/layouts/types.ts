@@ -25,8 +25,9 @@ export interface CellRect {
 }
 
 /**
- * What an inactive Control does with its Cells: `dim` draws it dimmed and
- * inert, `hide` draws nothing. Either way it keeps its Cells; nothing reflows.
+ * What an inactive Control does with its Cells: `dim` draws it dimmed (and
+ * inert when irrelevant; switched off, it stays editable), `hide` draws
+ * nothing. Either way it keeps its Cells; nothing reflows.
  */
 export type Inactive = "dim" | "hide";
 

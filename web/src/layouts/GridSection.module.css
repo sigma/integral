@@ -120,7 +120,7 @@
   pointer-events: none;
 }
 
-/* An inactive Control keeps its Cells, dimmed and inert. */
+/* An inactive Control keeps its Cells, dimmed; inert only when irrelevant. */
 .dim {
   opacity: 0.35;
 }

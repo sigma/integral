@@ -11,8 +11,8 @@ import {
   DisplayKind,
   MixerField,
   MixerScopeKind,
-  fx_block_is_active,
-  mixer_fx_is_active,
+  fx_block_relevance,
+  mixer_fx_relevance,
   mixer_fx_value,
 } from "../pkg/integral_wasm.js";
 import { CategoryPlate, VerticalName, type SetMixerField } from "./ChannelStrip";
@@ -36,13 +36,13 @@ interface FxParamsProps {
   onNibParam: (slot: number, value: number) => void;
 }
 
-/** An FX column's parameter Section, dimmed while its switch is off. */
+/** An FX column's parameter Section, dimmed (still editable) while its switch is off. */
 export function FxParams({ block, fx, onNibParam }: FxParamsProps) {
   // One footprint for every type, so nothing moves when the type changes.
   const layout = useMemo(() => variantLayout(SETS[block], fx.type), [block, fx.type]);
   const bind = useFxBind(block, fx.type, fx.params, onNibParam);
-  const active = fx_block_is_active(fx);
-  return <GridSection layout={layout} bind={bind} isActive={() => active} />;
+  const relevance = fx_block_relevance(fx);
+  return <GridSection layout={layout} bind={bind} relevance={() => relevance} />;
 }
 
 /** The value of FX strip field `field` in `fx`, read by core. */
@@ -76,7 +76,7 @@ export function FxStrip({ block, fx, setField }: FxStripProps) {
       // The accent of its level fader, as on every strip.
       family={paramMeta(level).family}
       // The type list and level grey out with the switch, as the old FX fader did.
-      isActive={(field) => mixer_fx_is_active(field, fx)}
+      relevance={(field) => mixer_fx_relevance(field, fx)}
       renderDisplay={(display) =>
         display === DisplayKind.StripName ? <VerticalName name={paramFormatter(type)(fx.type)} /> : null
       }

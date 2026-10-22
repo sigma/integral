@@ -6,6 +6,7 @@ import {
   PcmdCommonField,
   PcmdPartialField,
   PcmdWmtField,
+  Relevance,
   ToneType,
   mfx_block_size,
   pcmd_common2_address,
@@ -18,7 +19,7 @@ import {
   pcmd_partial_count,
   pcmd_partial_size,
   pcmd_partial_spec,
-  pcmd_wmt_scope_is_active,
+  pcmd_wmt_scope_relevance,
   pcmd_wmt_spec,
   type WasmDisplaySlot,
 } from "../pkg/integral_wasm.js";
@@ -30,6 +31,7 @@ import {
   GridScreen,
   GridSection,
   ScopeGate,
+  loadedRelevance,
   slotField,
   slotOf,
   specBinding,
@@ -258,7 +260,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
     const off = new Set<number>();
     for (const [k, n] of cache.current) {
       m.set(k, n.outputAssign);
-      if (n.wmt.every((_, i) => !pcmd_wmt_scope_is_active(i, n))) off.add(k);
+      if (n.wmt.every((_, i) => pcmd_wmt_scope_relevance(i, n) !== Relevance.Active)) off.add(k);
     }
     return [m, off] as const;
   }, [note, selectedKey, cacheVersion]);
@@ -267,7 +269,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
     return <div className={css.loading}>Loading PCM drum kit data...</div>;
   }
 
-  const isCurrent = () => current;
+  const keyRelevance = () => loadedRelevance(current);
   const section = (p: SectionPlacement): ReactNode => {
     if (p.id === PCMD_SECTION.mfx) return mfx && <MfxPanel mfx={mfx} {...mfxHandlers} />;
     const wmt = wmtRowSectionOf(p.id);
@@ -276,15 +278,15 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
       const scope = { key: selectedKey, layer };
       if (wmt.section === "switch") {
         const binding = bindWmt(layer, PcmdWmtField.Switch, `WMT ${layer + 1}`);
-        return <GridSection layout={PCMD_WMT_SWITCH_LAYOUT} scope={scope} isActive={isCurrent} bind={() => binding} />;
+        return <GridSection layout={PCMD_WMT_SWITCH_LAYOUT} scope={scope} relevance={keyRelevance} bind={() => binding} />;
       }
       return (
-        <ScopeGate active={!!note && pcmd_wmt_scope_is_active(layer, note)}>
+        <ScopeGate relevance={note ? pcmd_wmt_scope_relevance(layer, note) : Relevance.Irrelevant}>
           <GridSection
             layout={PCMD_WMT_LAYOUT}
             bind={(f) => bindWmt(layer, f)}
             scope={scope}
-            isActive={isCurrent}
+            relevance={keyRelevance}
             renderDisplay={(d) => renderWmtDisplay(layer, d)}
             family={PCMD_WMT_FAMILY}
           />
@@ -297,7 +299,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
         layout={PARTIAL_SECTIONS[p.id as keyof typeof PARTIAL_SECTIONS]}
         bind={bindPartial}
         scope={{ key: selectedKey }}
-        isActive={isCurrent}
+        relevance={keyRelevance}
         renderDisplay={renderPartialDisplay}
         family={PCMD_FAMILIES[p.id]}
       />
@@ -316,7 +318,7 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
         onSelect={drumKey.select}
         keyOutputAssigns={keyOutputAssigns}
         offKeys={offKeys}
-        kit={<GridSection layout={PCMD_KIT_LAYOUT} bind={bindKit} isActive={() => common !== null} />}
+        kit={<GridSection layout={PCMD_KIT_LAYOUT} bind={bindKit} relevance={() => loadedRelevance(common !== null)} />}
       />
       <div className={css.partialName}>
         {noteName(selectedKey)}

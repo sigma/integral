@@ -15,7 +15,7 @@ import type { IntegraService } from "./integra";
 import { familyVar } from "./synth-ui";
 import { SNS_BOXES } from "./layouts/sn-synth/partial";
 import { SNS_ROW, SNS_SECTION, type SnsRowSection } from "./layouts/sn-synth/screen";
-import { cleanup, click, option, render } from "./test/dom";
+import { cleanup, click, dragUp, option, render } from "./test/dom";
 import { dt1Drainer } from "./test/toneService";
 
 // jsdom has no ResizeObserver, which the page's GridZoom watches its width with.
@@ -281,16 +281,18 @@ describe("SnSynthEditor on the Grid", () => {
     // PCM has neither: Var keeps its Cells, hidden.
     pickWave(container, 0, "PCM");
     expect(shown()).toEqual(["hide", "absent"]);
+    // Irrelevant, not switched off: it goes inert too.
+    expect(control(r, SnsPartialField.OscWaveVariation).hasAttribute("inert")).toBe(true);
     pickWave(container, 0, "TRI");
     expect(shown()).toEqual(["active", "absent"]);
   });
 
-  it("dims each box of a partial's row, inert, while it is off; the switch heading the row stays live", () => {
+  it("dims each box of a partial's row while it is off, still editable; the switch heading the row stays live", () => {
     const { container } = loadedEditor();
-    // The zeroed Common holds every partial off.
+    // The zeroed Common holds every partial off. Dimmed, a box stays editable (`inert` false).
     const off = (p: number) =>
       SNS_BOXES.map((b) => rowSection(container, p, b.id).querySelector("[data-scope-inactive]")?.hasAttribute("inert"));
-    expect(off(0)).toEqual(SNS_BOXES.map(() => true));
+    expect(off(0)).toEqual(SNS_BOXES.map(() => false));
     // Field relevance is apart: Cutoff always applies.
     expect(control(row(container, 0), SnsPartialField.FilterCutoff).dataset.inactive).toBeUndefined();
     // The switches moved out of COMMON, into their rows.
@@ -301,11 +303,24 @@ describe("SnSynthEditor on the Grid", () => {
     expect(sw.closest("[inert]")).toBeNull();
     click(sw);
     expect(off(0)).toEqual(SNS_BOXES.map(() => undefined));
-    expect(off(1)).toEqual(SNS_BOXES.map(() => true));
+    expect(off(1)).toEqual(SNS_BOXES.map(() => false));
     // Partial 2's strip binds Partial 2's switch.
     click(rowSection(container, 1, "switch").querySelector("button")!);
     expect(off(1)).toEqual(SNS_BOXES.map(() => undefined));
-    expect(off(2)).toEqual(SNS_BOXES.map(() => true));
+    expect(off(2)).toEqual(SNS_BOXES.map(() => false));
+  });
+
+  it("edits a knob of a switched-off partial: dragging it writes the partial", () => {
+    const { device, container, requests } = loadedEditor();
+    const cutoff = control(row(container, 0), SnsPartialField.FilterCutoff);
+    expect(cutoff.closest("[data-scope-inactive]")).not.toBeNull();
+    expect(cutoff.closest("[inert]")).toBeNull();
+    const knob = cutoff.querySelector('[role="slider"]')!;
+    const sentDt1s = dt1Drainer(device, 10_000);
+    dragUp(knob, 3);
+    expect(knob.getAttribute("aria-valuenow")).toBe("3");
+    // Partial 1 is the second block read.
+    expect(sentDt1s().map((m) => m.address.slice(0, 3))).toEqual([[...requests[1]!.address.slice(0, 3)]]);
   });
 
   it("edits the note with the rate knob while its LFO follows the tempo", () => {

@@ -1,14 +1,20 @@
-//! Field relevance: whether a field is active given the device state.
+//! Field relevance: whether a field is active given the device state, and
+//! if not, why.
 //!
 //! Relevance is device knowledge, so it lives here beside
 //! [`FieldSpec`](crate::field_spec::FieldSpec) rather than in a layout. A
 //! layout only says how an inactive Control looks (dimmed or hidden); it
-//! never holds the predicate. Each engine has one `*_is_active` function per
+//! never holds the predicate. Each engine has one `*_relevance` function per
 //! block, taking the field and the state it depends on.
+//!
+//! A field is inactive in one of two ways ([`Relevance`]). Switched off, its
+//! block or Scope is off: it acts again once switched on, so it stays
+//! editable, as on the hardware where an EQ can be set up while it's off.
+//! Irrelevant, it has no effect in the current mode.
 //!
 //! Relevance comes in two layers. A partial switched off makes its whole
 //! Scope inactive, and the Section holding it dims as one: the
-//! `*_scope_is_active` functions answer that. A field's own `*_is_active`
+//! `*_scope_relevance` functions answer that. A field's own `*_relevance`
 //! answers within an active Scope, so a Control stays as it is drawn when
 //! its Section is already dimmed.
 
@@ -26,44 +32,88 @@ use crate::sn_synth::{
 };
 use crate::state::{CompEqUnit, DrumCompEqState, FxState, PartState};
 
+/// Whether a field (or a Scope) acts in the device state, and if not, why.
+/// Ordered from most to least live, so the most live of several fields is
+/// their minimum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Relevance {
+    /// It acts.
+    Active,
+    /// Its block or Scope is switched off (an EQ, a COMP, an FX, a partial,
+    /// a WMT): it acts again once switched on, so it stays editable.
+    SwitchedOff,
+    /// It has no effect in the current mode (Var on a wave with no
+    /// variations, an Output Assign under Motional Surround), or doesn't
+    /// exist.
+    Irrelevant,
+}
+
+impl Relevance {
+    /// Whether it acts.
+    pub fn is_active(self) -> bool {
+        self == Self::Active
+    }
+
+    /// [`Active`](Self::Active) while the block's switch is `on`, else
+    /// [`SwitchedOff`](Self::SwitchedOff).
+    pub fn switched(on: bool) -> Self {
+        if on { Self::Active } else { Self::SwitchedOff }
+    }
+
+    /// [`Active`](Self::Active) while the field `applies` in this mode, else
+    /// [`Irrelevant`](Self::Irrelevant).
+    pub fn applies(applies: bool) -> Self {
+        if applies {
+            Self::Active
+        } else {
+            Self::Irrelevant
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // SN Synth
 // ---------------------------------------------------------------------------
 
-/// Whether SN Synth Partial `partial` (0-based) is switched on. `false` for
-/// a partial the tone doesn't have.
-pub fn sns_partial_scope_is_active(common: &SnSynthCommon, partial: usize) -> bool {
+/// Relevance of SN Synth Partial `partial`'s (0-based) Scope: switched off
+/// with its switch.
+/// [`Irrelevant`](Relevance::Irrelevant) for a partial the tone doesn't
+/// have.
+pub fn sns_partial_scope_relevance(common: &SnSynthCommon, partial: usize) -> Relevance {
     let switch = match partial {
         0 => common.partial1_switch,
         1 => common.partial2_switch,
         2 => common.partial3_switch,
-        _ => return false,
+        _ => return Relevance::Irrelevant,
     };
-    switch != 0
+    Relevance::switched(switch != 0)
 }
 
-/// Whether `field` of an SN Synth Partial in state `partial` is active: its
-/// OSC Wave uses it. Wave Variation has no effect on the PCM and Super Saw
-/// waves; Super Saw Detune acts on Super Saw only.
-pub fn sns_partial_is_active(field: SnsPartialField, partial: &SnSynthPartial) -> bool {
+/// Relevance of `field` of an SN Synth Partial in state `partial`: whether
+/// its OSC Wave uses it. Wave Variation has no effect on the PCM and Super
+/// Saw waves; Super Saw Detune acts on Super Saw only.
+pub fn sns_partial_relevance(field: SnsPartialField, partial: &SnSynthPartial) -> Relevance {
     let wave = partial.osc_wave;
-    match field {
+    Relevance::applies(match field {
         SnsPartialField::OscWaveVariation => wave != OSC_WAVE_PCM && wave != OSC_WAVE_SUPER_SAW,
         SnsPartialField::SuperSawDetune => wave == OSC_WAVE_SUPER_SAW,
         _ => true,
-    }
+    })
 }
 
 // ---------------------------------------------------------------------------
 // PCM Synth
 // ---------------------------------------------------------------------------
 
-/// Whether PCM Synth Partial `partial` (0-based) is switched on (PMT Partial
-/// Switch). `false` for a partial the tone doesn't have.
-pub fn pcms_partial_scope_is_active(pmt: &PcmSynthPmt, partial: usize) -> bool {
+/// Relevance of PCM Synth Partial `partial`'s (0-based) Scope: switched off
+/// with its PMT Partial Switch. [`Irrelevant`](Relevance::Irrelevant) for a partial the tone
+/// doesn't have.
+pub fn pcms_partial_scope_relevance(pmt: &PcmSynthPmt, partial: usize) -> Relevance {
     pmt.partial_entries
         .get(partial)
-        .is_some_and(|e| e.partial_switch != 0)
+        .map_or(Relevance::Irrelevant, |e| {
+            Relevance::switched(e.partial_switch != 0)
+        })
 }
 
 /// Whether the pair holding partial `partial` (0-based) merges its two
@@ -77,24 +127,24 @@ fn pair_is_merged(pmt: &PcmSynthPmt, partial: usize) -> bool {
     pcm_structure::routing(structure).is_some_and(|r| r.join.is_some())
 }
 
-/// Whether `field` of PCM Synth Partial `partial` (0-based, state
-/// `partial_state`) is active under `pmt`, `false` for a partial the tone
-/// doesn't have:
+/// Relevance of `field` of PCM Synth Partial `partial` (0-based, state
+/// `partial_state`) under `pmt`, [`Irrelevant`](Relevance::Irrelevant) for a
+/// partial the tone doesn't have and for:
 /// - the pan settings of a pair's upper partial (1 or 3) follow the lower
 ///   one's once the Structure merges the pair (Types 2-10): Pan Keyfollow,
 ///   Random and Alternate Pan Depth, and LFO1/LFO2 Pan Depth;
 /// - the Step LFO plays only while LFO1 or LFO2 has the STEP waveform.
-pub fn pcms_partial_is_active(
+pub fn pcms_partial_relevance(
     field: PcmsPartialField,
     partial: usize,
     pmt: &PcmSynthPmt,
     partial_state: &PcmSynthPartial,
-) -> bool {
+) -> Relevance {
     if partial >= PCMS_PARTIAL_COUNT {
-        return false;
+        return Relevance::Irrelevant;
     }
     use PcmsPartialField as F;
-    match field {
+    Relevance::applies(match field {
         F::PanKeyfollow
         | F::RandomPanDepth
         | F::AlternatePanDepth
@@ -105,25 +155,25 @@ pub fn pcms_partial_is_active(
                 || partial_state.lfo2_waveform == LFO_WAVEFORM_STEP
         }
         _ => true,
-    }
+    })
 }
 
-/// Whether the pair of PCM Synth partials holding partial `partial`
-/// (0-based) is active: either of its partials is switched on. The pair's
-/// own blocks (Booster, ring modulator) dim once both are off.
-pub fn pcms_pair_scope_is_active(pmt: &PcmSynthPmt, partial: usize) -> bool {
+/// Relevance of the pair of PCM Synth partials holding partial `partial`
+/// (0-based): the most live of its two partials' Scopes, so switched off
+/// once both are. The pair's own blocks (Booster, ring modulator) dim then.
+pub fn pcms_pair_scope_relevance(pmt: &PcmSynthPmt, partial: usize) -> Relevance {
     let first = partial - partial % 2;
-    pcms_partial_scope_is_active(pmt, first) || pcms_partial_scope_is_active(pmt, first + 1)
+    pcms_partial_scope_relevance(pmt, first).min(pcms_partial_scope_relevance(pmt, first + 1))
 }
 
-/// Whether PMT `field` is active in `pmt`. A pair's Booster is active while
-/// its pair is (see [`pcms_pair_scope_is_active`]); every other PMT field
-/// always is.
-pub fn pcms_pmt_is_active(field: PcmsPmtField, pmt: &PcmSynthPmt) -> bool {
+/// Relevance of PMT `field` in `pmt`. A pair's Booster follows its pair
+/// (see [`pcms_pair_scope_relevance`]); every other PMT field is always
+/// active.
+pub fn pcms_pmt_relevance(field: PcmsPmtField, pmt: &PcmSynthPmt) -> Relevance {
     match field {
-        PcmsPmtField::Booster12 => pcms_pair_scope_is_active(pmt, 0),
-        PcmsPmtField::Booster34 => pcms_pair_scope_is_active(pmt, 2),
-        _ => true,
+        PcmsPmtField::Booster12 => pcms_pair_scope_relevance(pmt, 0),
+        PcmsPmtField::Booster34 => pcms_pair_scope_relevance(pmt, 2),
+        _ => Relevance::Active,
     }
 }
 
@@ -131,40 +181,43 @@ pub fn pcms_pmt_is_active(field: PcmsPmtField, pmt: &PcmSynthPmt) -> bool {
 // PCM Drum
 // ---------------------------------------------------------------------------
 
-/// Whether WMT `wmt` (0-based) of a PCM Drum key in state `partial` is
-/// switched on (WMT Wave Switch). `false` for a WMT the key doesn't have.
-pub fn pcmd_wmt_scope_is_active(partial: &PcmDrumPartial, wmt: usize) -> bool {
-    partial.wmt.get(wmt).is_some_and(|w| w.switch != 0)
+/// Relevance of WMT `wmt`'s (0-based) Scope on a PCM Drum key in state
+/// `partial`: switched off with its WMT Wave Switch. [`Irrelevant`](Relevance::Irrelevant) for
+/// a WMT the key doesn't have.
+pub fn pcmd_wmt_scope_relevance(partial: &PcmDrumPartial, wmt: usize) -> Relevance {
+    partial.wmt.get(wmt).map_or(Relevance::Irrelevant, |w| {
+        Relevance::switched(w.switch != 0)
+    })
 }
 
 // ---------------------------------------------------------------------------
 // SN Acoustic
 // ---------------------------------------------------------------------------
 
-/// Whether SN Acoustic Common `field` is active for the instrument `common`
+/// Relevance of SN Acoustic Common `field` for the instrument `common`
 /// selects: some instruments ignore the tone-wide offsets (see
 /// [`sna_offsets`]).
-pub fn sna_common_is_active(field: SnaCommonField, common: &SnAcousticCommon) -> bool {
+pub fn sna_common_relevance(field: SnaCommonField, common: &SnAcousticCommon) -> Relevance {
     let offsets = sna_offsets(common.inst_variation, common.inst_number);
     use SnaCommonField as F;
-    match field {
+    Relevance::applies(match field {
         F::CutoffOffset | F::ResonanceOffset | F::AttackTimeOffset | F::ReleaseTimeOffset => {
             offsets.tone
         }
         F::PortamentoTimeOffset => offsets.portamento,
         _ => true,
-    }
+    })
 }
 
 // ---------------------------------------------------------------------------
 // Mixer
 // ---------------------------------------------------------------------------
 
-/// Whether mixer EQ `field` is active on a strip (a part, a Drum Comp+EQ
-/// unit or the master) whose EQ switch is `eq_switch`: the EQ's settings act
-/// only while it is on. The switch itself, and every field outside the EQ,
+/// Relevance of mixer EQ `field` on a strip (a part, a Drum Comp+EQ unit or
+/// the master) whose EQ switch is `eq_switch`: the EQ's settings are
+/// switched off with it. The switch itself, and every field outside the EQ,
 /// is always active.
-pub fn mixer_eq_is_active(field: MixerField, eq_switch: bool) -> bool {
+pub fn mixer_eq_relevance(field: MixerField, eq_switch: bool) -> Relevance {
     use MixerField as F;
     match field {
         F::EqLowFreq
@@ -173,75 +226,75 @@ pub fn mixer_eq_is_active(field: MixerField, eq_switch: bool) -> bool {
         | F::EqMidGain
         | F::EqMidQ
         | F::EqHighFreq
-        | F::EqHighGain => eq_switch,
-        _ => true,
+        | F::EqHighGain => Relevance::switched(eq_switch),
+        _ => Relevance::Active,
     }
 }
 
-/// Whether mixer `field` on the strip of part `part` (0-based, state
-/// `part_state`) is active, given the Drum Comp+EQ state:
+/// Relevance of mixer `field` on the strip of part `part` (0-based, state
+/// `part_state`), given the Drum Comp+EQ state:
 /// - only a drum kit routes keys to the Comp+EQ units, so the
-///   [`MixerField::DrumCompEqPart`] assignment is active on a drum kit part,
-///   or on the part it's assigned to so it can be turned off;
-/// - the part's EQ settings follow its EQ switch ([`mixer_eq_is_active`]).
+///   [`MixerField::DrumCompEqPart`] assignment is irrelevant on any other
+///   part, unless it's the one assigned, so it can be turned off;
+/// - the part's EQ settings follow its EQ switch ([`mixer_eq_relevance`]).
 ///
 /// Every other field is always active.
-pub fn mixer_is_active(
+pub fn mixer_relevance(
     field: MixerField,
     part: usize,
     part_state: &PartState,
     drum_comp_eq: &DrumCompEqState,
-) -> bool {
+) -> Relevance {
     match field {
         MixerField::DrumCompEqPart => {
             let assigned = drum_comp_eq.enabled && usize::from(drum_comp_eq.part) == part;
-            assigned || params::is_drum_kit_bank(part_state.tone_bank_msb)
+            Relevance::applies(assigned || params::is_drum_kit_bank(part_state.tone_bank_msb))
         }
-        _ => mixer_eq_is_active(field, part_state.eq.enabled),
+        _ => mixer_eq_relevance(field, part_state.eq.enabled),
     }
 }
 
-/// Whether mixer `field` is active while Motional Surround is
-/// `surround_enabled`: surround routes the parts and the Drum Comp+EQ units
-/// itself, so their Output Assigns have no effect while it is on. Every
-/// other field is always active.
-pub fn mixer_output_is_active(field: MixerField, surround_enabled: bool) -> bool {
-    match field {
+/// Relevance of mixer `field` while Motional Surround is `surround_enabled`:
+/// surround routes the parts and the Drum Comp+EQ units itself, so their
+/// Output Assigns are irrelevant while it is on. Every other field is
+/// always active.
+pub fn mixer_output_relevance(field: MixerField, surround_enabled: bool) -> Relevance {
+    Relevance::applies(match field {
         MixerField::PartOutputAssign | MixerField::CompOutputAssign => !surround_enabled,
         _ => true,
-    }
+    })
 }
 
-/// Whether mixer `field` of a Drum Comp+EQ unit in state `unit` is active:
-/// the compressor's settings act only while its switch is on, and the EQ's
-/// while the EQ switch is ([`mixer_eq_is_active`]). The switches themselves
-/// and the unit's routing are always active.
-pub fn comp_eq_unit_is_active(field: MixerField, unit: &CompEqUnit) -> bool {
+/// Relevance of mixer `field` of a Drum Comp+EQ unit in state `unit`: the
+/// compressor's settings are switched off with its switch, and the EQ's with
+/// the EQ switch ([`mixer_eq_relevance`]). The switches themselves and the
+/// unit's routing are always active.
+pub fn comp_eq_unit_relevance(field: MixerField, unit: &CompEqUnit) -> Relevance {
     use MixerField as F;
     match field {
         F::CompAttack | F::CompRelease | F::CompThreshold | F::CompRatio | F::CompOutputGain => {
-            unit.comp_switch
+            Relevance::switched(unit.comp_switch)
         }
-        _ => mixer_eq_is_active(field, unit.eq_switch),
+        _ => mixer_eq_relevance(field, unit.eq_switch),
     }
 }
 
-/// Whether the Chorus or Reverb block in state `fx` acts: while its switch
-/// is on. A block switched off leaves every parameter of its type inactive.
-pub fn fx_block_is_active(fx: &FxState) -> bool {
-    fx.enabled
+/// Relevance of the Chorus or Reverb block in state `fx`: switched off with
+/// its switch, and every parameter of its type with it.
+pub fn fx_block_relevance(fx: &FxState) -> Relevance {
+    Relevance::switched(fx.enabled)
 }
 
-/// Whether Studio Set common `field` of the Chorus or Reverb block in state
-/// `fx` (the Chorus's state for a Chorus field, the Reverb's for a Reverb
-/// one) is active: its type and level act only while its switch is on
-/// ([`fx_block_is_active`]). The switch itself, the routing and every field
+/// Relevance of Studio Set common `field` of the Chorus or Reverb block in
+/// state `fx` (the Chorus's state for a Chorus field, the Reverb's for a
+/// Reverb one): its type and level follow the block
+/// ([`fx_block_relevance`]). The switch itself, the routing and every field
 /// outside the two blocks are always active.
-pub fn mixer_fx_is_active(field: MixerField, fx: &FxState) -> bool {
+pub fn mixer_fx_relevance(field: MixerField, fx: &FxState) -> Relevance {
     use MixerField as F;
     match field {
-        F::ChorusType | F::ChorusLevel | F::ReverbType | F::ReverbLevel => fx_block_is_active(fx),
-        _ => true,
+        F::ChorusType | F::ChorusLevel | F::ReverbType | F::ReverbLevel => fx_block_relevance(fx),
+        _ => Relevance::Active,
     }
 }
 
@@ -265,29 +318,41 @@ mod tests {
     #[test]
     fn sns_variation_is_inactive_for_pcm_and_super_saw() {
         let f = SnsPartialField::OscWaveVariation;
-        assert!(!sns_partial_is_active(f, &sns(OSC_WAVE_PCM)));
-        assert!(!sns_partial_is_active(f, &sns(OSC_WAVE_SUPER_SAW)));
-        assert!(sns_partial_is_active(f, &sns(0))); // SAW
+        assert_eq!(
+            sns_partial_relevance(f, &sns(OSC_WAVE_PCM)),
+            Relevance::Irrelevant
+        );
+        assert_eq!(
+            sns_partial_relevance(f, &sns(OSC_WAVE_SUPER_SAW)),
+            Relevance::Irrelevant
+        );
+        assert_eq!(sns_partial_relevance(f, &sns(0)), Relevance::Active); // SAW
     }
 
     #[test]
     fn sns_super_saw_detune_is_active_for_super_saw_only() {
         let f = SnsPartialField::SuperSawDetune;
-        assert!(sns_partial_is_active(f, &sns(OSC_WAVE_SUPER_SAW)));
-        assert!(!sns_partial_is_active(f, &sns(OSC_WAVE_PCM)));
-        assert!(!sns_partial_is_active(f, &sns(0)));
+        assert_eq!(
+            sns_partial_relevance(f, &sns(OSC_WAVE_SUPER_SAW)),
+            Relevance::Active
+        );
+        assert_eq!(
+            sns_partial_relevance(f, &sns(OSC_WAVE_PCM)),
+            Relevance::Irrelevant
+        );
+        assert_eq!(sns_partial_relevance(f, &sns(0)), Relevance::Irrelevant);
     }
 
     #[test]
     fn sns_other_fields_are_always_active() {
-        assert!(sns_partial_is_active(
-            SnsPartialField::WaveNumber,
-            &sns(OSC_WAVE_PCM)
-        ));
-        assert!(sns_partial_is_active(
-            SnsPartialField::OscPitch,
-            &sns(OSC_WAVE_SUPER_SAW)
-        ));
+        assert_eq!(
+            sns_partial_relevance(SnsPartialField::WaveNumber, &sns(OSC_WAVE_PCM)),
+            Relevance::Active
+        );
+        assert_eq!(
+            sns_partial_relevance(SnsPartialField::OscPitch, &sns(OSC_WAVE_SUPER_SAW)),
+            Relevance::Active
+        );
     }
 
     #[test]
@@ -298,12 +363,21 @@ mod tests {
             partial3_switch: 1,
             ..SnSynthCommon::default()
         };
-        assert!(!sns_partial_scope_is_active(&common, 0));
-        assert!(sns_partial_scope_is_active(&common, 1));
-        assert!(sns_partial_scope_is_active(&common, 2));
+        assert_eq!(
+            sns_partial_scope_relevance(&common, 0),
+            Relevance::SwitchedOff
+        );
+        assert_eq!(sns_partial_scope_relevance(&common, 1), Relevance::Active);
+        assert_eq!(sns_partial_scope_relevance(&common, 2), Relevance::Active);
         common.partial3_switch = 0;
-        assert!(!sns_partial_scope_is_active(&common, 2));
-        assert!(!sns_partial_scope_is_active(&common, SNS_PARTIAL_COUNT));
+        assert_eq!(
+            sns_partial_scope_relevance(&common, 2),
+            Relevance::SwitchedOff
+        );
+        assert_eq!(
+            sns_partial_scope_relevance(&common, SNS_PARTIAL_COUNT),
+            Relevance::Irrelevant
+        );
     }
 
     // -- PCM Synth ----------------------------------------------------------
@@ -335,25 +409,32 @@ mod tests {
         for structure in 1..=9 {
             let pmt = pmt(structure);
             for f in PAN_FOLLOWERS {
-                assert!(
-                    !pcms_partial_is_active(f, 0, &pmt, &p),
+                assert_eq!(
+                    pcms_partial_relevance(f, 0, &pmt, &p),
+                    Relevance::Irrelevant,
                     "{f:?} type {structure}"
                 );
-                assert!(
-                    !pcms_partial_is_active(f, 2, &pmt, &p),
+                assert_eq!(
+                    pcms_partial_relevance(f, 2, &pmt, &p),
+                    Relevance::Irrelevant,
                     "{f:?} type {structure}"
                 );
-                assert!(
-                    pcms_partial_is_active(f, 1, &pmt, &p),
+                assert_eq!(
+                    pcms_partial_relevance(f, 1, &pmt, &p),
+                    Relevance::Active,
                     "{f:?} type {structure}"
                 );
-                assert!(
-                    pcms_partial_is_active(f, 3, &pmt, &p),
+                assert_eq!(
+                    pcms_partial_relevance(f, 3, &pmt, &p),
+                    Relevance::Active,
                     "{f:?} type {structure}"
                 );
             }
             // The partial's own Pan stays its own.
-            assert!(pcms_partial_is_active(PcmsPartialField::Pan, 0, &pmt, &p));
+            assert_eq!(
+                pcms_partial_relevance(PcmsPartialField::Pan, 0, &pmt, &p),
+                Relevance::Active
+            );
         }
     }
 
@@ -363,7 +444,10 @@ mod tests {
         let pmt = pmt(0);
         for f in PAN_FOLLOWERS {
             for partial in 0..PCMS_PARTIAL_COUNT {
-                assert!(pcms_partial_is_active(f, partial, &pmt, &p));
+                assert_eq!(
+                    pcms_partial_relevance(f, partial, &pmt, &p),
+                    Relevance::Active
+                );
             }
         }
     }
@@ -374,8 +458,11 @@ mod tests {
         let mut pmt = pmt(0);
         pmt.structure_type_34 = 4;
         let f = PcmsPartialField::PanKeyfollow;
-        assert!(pcms_partial_is_active(f, 0, &pmt, &p));
-        assert!(!pcms_partial_is_active(f, 2, &pmt, &p));
+        assert_eq!(pcms_partial_relevance(f, 0, &pmt, &p), Relevance::Active);
+        assert_eq!(
+            pcms_partial_relevance(f, 2, &pmt, &p),
+            Relevance::Irrelevant
+        );
     }
 
     #[test]
@@ -393,68 +480,92 @@ mod tests {
             ..PcmSynthPartial::default()
         };
         for f in [PcmsPartialField::LfoStepType, PcmsPartialField::LfoStep] {
-            assert!(!pcms_partial_is_active(f, 0, &pmt, &p));
+            assert_eq!(
+                pcms_partial_relevance(f, 0, &pmt, &p),
+                Relevance::Irrelevant
+            );
         }
         p.lfo2_waveform = LFO_WAVEFORM_STEP;
-        assert!(pcms_partial_is_active(
-            PcmsPartialField::LfoStep,
-            0,
-            &pmt,
-            &p
-        ));
+        assert_eq!(
+            pcms_partial_relevance(PcmsPartialField::LfoStep, 0, &pmt, &p),
+            Relevance::Active
+        );
         p.lfo2_waveform = 0;
         p.lfo1_waveform = LFO_WAVEFORM_STEP;
-        assert!(pcms_partial_is_active(
-            PcmsPartialField::LfoStepType,
-            0,
-            &pmt,
-            &p
-        ));
+        assert_eq!(
+            pcms_partial_relevance(PcmsPartialField::LfoStepType, 0, &pmt, &p),
+            Relevance::Active
+        );
     }
 
     #[test]
     fn pcmd_wmt_switch_sets_its_scope_active() {
         let mut key = PcmDrumPartial::default();
         key.wmt[2].switch = 1;
-        assert!(pcmd_wmt_scope_is_active(&key, 2));
-        assert!(!pcmd_wmt_scope_is_active(&key, 0));
-        assert!(!pcmd_wmt_scope_is_active(&key, PCMD_WMT_COUNT));
+        assert_eq!(pcmd_wmt_scope_relevance(&key, 2), Relevance::Active);
+        assert_eq!(pcmd_wmt_scope_relevance(&key, 0), Relevance::SwitchedOff);
+        assert_eq!(
+            pcmd_wmt_scope_relevance(&key, PCMD_WMT_COUNT),
+            Relevance::Irrelevant
+        );
     }
 
     #[test]
     fn pcms_partial_switch_sets_its_scope_active() {
         let mut pmt = pmt(0);
         pmt.partial_entries[1].partial_switch = 0;
-        assert!(!pcms_partial_scope_is_active(&pmt, 1));
-        assert!(pcms_partial_scope_is_active(&pmt, 0));
-        assert!(!pcms_partial_scope_is_active(&pmt, PCMS_PARTIAL_COUNT));
+        assert_eq!(
+            pcms_partial_scope_relevance(&pmt, 1),
+            Relevance::SwitchedOff
+        );
+        assert_eq!(pcms_partial_scope_relevance(&pmt, 0), Relevance::Active);
+        assert_eq!(
+            pcms_partial_scope_relevance(&pmt, PCMS_PARTIAL_COUNT),
+            Relevance::Irrelevant
+        );
     }
 
     #[test]
     fn pcms_fields_of_a_missing_partial_are_inactive() {
         let p = PcmSynthPartial::default();
         let pmt = pmt(0);
-        assert!(pcms_partial_is_active(PcmsPartialField::Level, 0, &pmt, &p));
-        assert!(!pcms_partial_is_active(
-            PcmsPartialField::Level,
-            PCMS_PARTIAL_COUNT,
-            &pmt,
-            &p
-        ));
+        assert_eq!(
+            pcms_partial_relevance(PcmsPartialField::Level, 0, &pmt, &p),
+            Relevance::Active
+        );
+        assert_eq!(
+            pcms_partial_relevance(PcmsPartialField::Level, PCMS_PARTIAL_COUNT, &pmt, &p),
+            Relevance::Irrelevant
+        );
     }
 
     #[test]
     fn pcms_booster_is_inactive_once_both_partials_of_its_pair_are_off() {
         let mut pmt = pmt(2);
         pmt.partial_entries[0].partial_switch = 0;
-        assert!(pcms_pmt_is_active(PcmsPmtField::Booster12, &pmt));
+        assert_eq!(
+            pcms_pmt_relevance(PcmsPmtField::Booster12, &pmt),
+            Relevance::Active
+        );
         pmt.partial_entries[1].partial_switch = 0;
-        assert!(!pcms_pmt_is_active(PcmsPmtField::Booster12, &pmt));
-        assert!(pcms_pmt_is_active(PcmsPmtField::Booster34, &pmt));
-        assert!(pcms_pmt_is_active(PcmsPmtField::StructureType12, &pmt));
-        assert!(!pcms_pair_scope_is_active(&pmt, 1));
-        assert!(pcms_pair_scope_is_active(&pmt, 3));
-        assert!(!pcms_pair_scope_is_active(&pmt, PCMS_PARTIAL_COUNT));
+        assert_eq!(
+            pcms_pmt_relevance(PcmsPmtField::Booster12, &pmt),
+            Relevance::SwitchedOff
+        );
+        assert_eq!(
+            pcms_pmt_relevance(PcmsPmtField::Booster34, &pmt),
+            Relevance::Active
+        );
+        assert_eq!(
+            pcms_pmt_relevance(PcmsPmtField::StructureType12, &pmt),
+            Relevance::Active
+        );
+        assert_eq!(pcms_pair_scope_relevance(&pmt, 1), Relevance::SwitchedOff);
+        assert_eq!(pcms_pair_scope_relevance(&pmt, 3), Relevance::Active);
+        assert_eq!(
+            pcms_pair_scope_relevance(&pmt, PCMS_PARTIAL_COUNT),
+            Relevance::Irrelevant
+        );
     }
 
     // -- SN Acoustic --------------------------------------------------------
@@ -478,29 +589,40 @@ mod tests {
     fn sna_tone_offsets_follow_the_instrument() {
         for (variation, number) in [(64, 0), (64, 8), (65, 0)] {
             for f in TONE_OFFSETS {
-                assert!(!sna_common_is_active(f, &sna(variation, number)), "{f:?}");
+                assert_eq!(
+                    sna_common_relevance(f, &sna(variation, number)),
+                    Relevance::Irrelevant,
+                    "{f:?}"
+                );
             }
         }
         for f in TONE_OFFSETS {
-            assert!(sna_common_is_active(f, &sna(64, 1)), "{f:?}"); // Grand Piano1
+            assert_eq!(
+                sna_common_relevance(f, &sna(64, 1)),
+                Relevance::Active,
+                "{f:?}"
+            ); // Grand Piano1
         }
     }
 
     #[test]
     fn sna_portamento_offset_is_inactive_for_tw_organ_only() {
         let f = SnaCommonField::PortamentoTimeOffset;
-        assert!(!sna_common_is_active(f, &sna(65, 0))); // TW Organ
-        assert!(sna_common_is_active(f, &sna(64, 0))); // Concert Grand
-        assert!(sna_common_is_active(f, &sna(0, 4)));
+        assert_eq!(sna_common_relevance(f, &sna(65, 0)), Relevance::Irrelevant); // TW Organ
+        assert_eq!(sna_common_relevance(f, &sna(64, 0)), Relevance::Active); // Concert Grand
+        assert_eq!(sna_common_relevance(f, &sna(0, 4)), Relevance::Active);
     }
 
     #[test]
     fn sna_other_fields_are_always_active() {
-        assert!(sna_common_is_active(SnaCommonField::ToneLevel, &sna(65, 0)));
-        assert!(sna_common_is_active(
-            SnaCommonField::VibratoRate,
-            &sna(65, 0)
-        ));
+        assert_eq!(
+            sna_common_relevance(SnaCommonField::ToneLevel, &sna(65, 0)),
+            Relevance::Active
+        );
+        assert_eq!(
+            sna_common_relevance(SnaCommonField::VibratoRate, &sna(65, 0)),
+            Relevance::Active
+        );
     }
 
     // -- Mixer --------------------------------------------------------------
@@ -516,24 +638,18 @@ mod tests {
     fn mixer_comp_eq_is_active_for_drum_kits_only() {
         let off = DrumCompEqState::default();
         assert!(!off.enabled);
-        assert!(mixer_is_active(
-            MixerField::DrumCompEqPart,
-            0,
-            &part(86),
-            &off
-        )); // PCM drum
-        assert!(mixer_is_active(
-            MixerField::DrumCompEqPart,
-            0,
-            &part(88),
-            &off
-        )); // SN drum
-        assert!(!mixer_is_active(
-            MixerField::DrumCompEqPart,
-            0,
-            &part(87),
-            &off
-        )); // PCM synth
+        assert_eq!(
+            mixer_relevance(MixerField::DrumCompEqPart, 0, &part(86), &off),
+            Relevance::Active
+        ); // PCM drum
+        assert_eq!(
+            mixer_relevance(MixerField::DrumCompEqPart, 0, &part(88), &off),
+            Relevance::Active
+        ); // SN drum
+        assert_eq!(
+            mixer_relevance(MixerField::DrumCompEqPart, 0, &part(87), &off),
+            Relevance::Irrelevant
+        ); // PCM synth
     }
 
     #[test]
@@ -543,47 +659,55 @@ mod tests {
             part: 3,
             ..DrumCompEqState::default()
         };
-        assert!(mixer_is_active(
-            MixerField::DrumCompEqPart,
-            3,
-            &part(87),
-            &assigned
-        ));
-        assert!(!mixer_is_active(
-            MixerField::DrumCompEqPart,
-            2,
-            &part(87),
-            &assigned
-        ));
+        assert_eq!(
+            mixer_relevance(MixerField::DrumCompEqPart, 3, &part(87), &assigned),
+            Relevance::Active
+        );
+        assert_eq!(
+            mixer_relevance(MixerField::DrumCompEqPart, 2, &part(87), &assigned),
+            Relevance::Irrelevant
+        );
         let disabled = DrumCompEqState {
             enabled: false,
             ..assigned
         };
-        assert!(!mixer_is_active(
-            MixerField::DrumCompEqPart,
-            3,
-            &part(87),
-            &disabled
-        ));
+        assert_eq!(
+            mixer_relevance(MixerField::DrumCompEqPart, 3, &part(87), &disabled),
+            Relevance::Irrelevant
+        );
     }
 
     #[test]
     fn mixer_other_controls_are_always_active() {
-        assert!(mixer_is_active(
-            MixerField::SoloPart,
-            0,
-            &part(87),
-            &DrumCompEqState::default()
-        ));
+        assert_eq!(
+            mixer_relevance(
+                MixerField::SoloPart,
+                0,
+                &part(87),
+                &DrumCompEqState::default()
+            ),
+            Relevance::Active
+        );
     }
 
     #[test]
     fn surround_overrides_the_output_assigns() {
         for field in [MixerField::PartOutputAssign, MixerField::CompOutputAssign] {
-            assert!(mixer_output_is_active(field, false), "{field:?}");
-            assert!(!mixer_output_is_active(field, true), "{field:?}");
+            assert_eq!(
+                mixer_output_relevance(field, false),
+                Relevance::Active,
+                "{field:?}"
+            );
+            assert_eq!(
+                mixer_output_relevance(field, true),
+                Relevance::Irrelevant,
+                "{field:?}"
+            );
         }
-        assert!(mixer_output_is_active(MixerField::PartLevel, true));
+        assert_eq!(
+            mixer_output_relevance(MixerField::PartLevel, true),
+            Relevance::Active
+        );
     }
 
     #[test]
@@ -604,15 +728,27 @@ mod tests {
             MixerField::CompRatio,
             MixerField::CompOutputGain,
         ] {
-            assert!(comp_eq_unit_is_active(field, &on), "{field:?}");
-            assert!(!comp_eq_unit_is_active(field, &off), "{field:?}");
+            assert_eq!(
+                comp_eq_unit_relevance(field, &on),
+                Relevance::Active,
+                "{field:?}"
+            );
+            assert_eq!(
+                comp_eq_unit_relevance(field, &off),
+                Relevance::SwitchedOff,
+                "{field:?}"
+            );
         }
         for field in [
             MixerField::CompSwitch,
             MixerField::EqLowGain,
             MixerField::CompOutputAssign,
         ] {
-            assert!(comp_eq_unit_is_active(field, &off), "{field:?}");
+            assert_eq!(
+                comp_eq_unit_relevance(field, &off),
+                Relevance::Active,
+                "{field:?}"
+            );
         }
     }
 
@@ -629,11 +765,25 @@ mod tests {
     #[test]
     fn a_switched_off_eq_leaves_its_settings_inactive() {
         for field in EQ_SETTINGS {
-            assert!(mixer_eq_is_active(field, true), "{field:?}");
-            assert!(!mixer_eq_is_active(field, false), "{field:?}");
+            assert_eq!(
+                mixer_eq_relevance(field, true),
+                Relevance::Active,
+                "{field:?}"
+            );
+            assert_eq!(
+                mixer_eq_relevance(field, false),
+                Relevance::SwitchedOff,
+                "{field:?}"
+            );
         }
-        assert!(mixer_eq_is_active(MixerField::EqSwitch, false));
-        assert!(mixer_eq_is_active(MixerField::PartLevel, false));
+        assert_eq!(
+            mixer_eq_relevance(MixerField::EqSwitch, false),
+            Relevance::Active
+        );
+        assert_eq!(
+            mixer_eq_relevance(MixerField::PartLevel, false),
+            Relevance::Active
+        );
     }
 
     #[test]
@@ -647,14 +797,34 @@ mod tests {
             ..CompEqUnit::default()
         };
         for field in EQ_SETTINGS {
-            assert!(!mixer_is_active(field, 0, &p, &none), "{field:?}");
-            assert!(!comp_eq_unit_is_active(field, &unit), "{field:?}");
+            assert_eq!(
+                mixer_relevance(field, 0, &p, &none),
+                Relevance::SwitchedOff,
+                "{field:?}"
+            );
+            assert_eq!(
+                comp_eq_unit_relevance(field, &unit),
+                Relevance::SwitchedOff,
+                "{field:?}"
+            );
         }
-        assert!(mixer_is_active(MixerField::EqSwitch, 0, &p, &none));
-        assert!(comp_eq_unit_is_active(MixerField::EqSwitch, &unit));
-        assert!(comp_eq_unit_is_active(MixerField::CompAttack, &unit));
+        assert_eq!(
+            mixer_relevance(MixerField::EqSwitch, 0, &p, &none),
+            Relevance::Active
+        );
+        assert_eq!(
+            comp_eq_unit_relevance(MixerField::EqSwitch, &unit),
+            Relevance::Active
+        );
+        assert_eq!(
+            comp_eq_unit_relevance(MixerField::CompAttack, &unit),
+            Relevance::Active
+        );
         p.eq.enabled = true;
-        assert!(mixer_is_active(MixerField::EqMidQ, 0, &p, &none));
+        assert_eq!(
+            mixer_relevance(MixerField::EqMidQ, 0, &p, &none),
+            Relevance::Active
+        );
     }
 
     #[test]
@@ -665,16 +835,24 @@ mod tests {
             enabled: false,
             ..FxState::default()
         };
-        assert!(fx_block_is_active(&on));
-        assert!(!fx_block_is_active(&off));
+        assert_eq!(fx_block_relevance(&on), Relevance::Active);
+        assert_eq!(fx_block_relevance(&off), Relevance::SwitchedOff);
         for field in [
             MixerField::ChorusType,
             MixerField::ChorusLevel,
             MixerField::ReverbType,
             MixerField::ReverbLevel,
         ] {
-            assert!(mixer_fx_is_active(field, &on), "{field:?}");
-            assert!(!mixer_fx_is_active(field, &off), "{field:?}");
+            assert_eq!(
+                mixer_fx_relevance(field, &on),
+                Relevance::Active,
+                "{field:?}"
+            );
+            assert_eq!(
+                mixer_fx_relevance(field, &off),
+                Relevance::SwitchedOff,
+                "{field:?}"
+            );
         }
         for field in [
             MixerField::ChorusSwitch,
@@ -683,7 +861,11 @@ mod tests {
             MixerField::ReverbSwitch,
             MixerField::ReverbOutputAssign,
         ] {
-            assert!(mixer_fx_is_active(field, &off), "{field:?}");
+            assert_eq!(
+                mixer_fx_relevance(field, &off),
+                Relevance::Active,
+                "{field:?}"
+            );
         }
     }
 }
