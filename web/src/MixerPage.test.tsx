@@ -7,7 +7,8 @@ import { CELL } from "./synth-ui/grid";
 import type { UseMixerResult } from "./useMixer";
 import type { UseExpansionsResult } from "./useExpansions";
 import { defaultMixerState, type MixerState } from "./types";
-import { cleanup, render } from "./test/dom";
+import { cleanup, click, render } from "./test/dom";
+import { paramFormatter, paramMeta } from "./paramDefaults";
 
 // jsdom lacks the ResizeObserver the FX strips' EQ plot measures with.
 globalThis.ResizeObserver ??= class {
@@ -176,13 +177,26 @@ describe("MixerPage", () => {
     expect(setMixerField).toHaveBeenLastCalledWith(
       MixerScopeKind.Part, 4, MixerField.PartReceiveChannel, base.parts[4]!.receiveChannel + 1,
     );
-    stepUp(control(strip, MixerField.PartOutputAssign));
-    expect(setMixerField).toHaveBeenLastCalledWith(
-      MixerScopeKind.Part, 4, MixerField.PartOutputAssign, base.parts[4]!.outputAssign + 1,
-    );
     expect(value(control(strip, MixerField.PartLevel))).toBe(String(base.parts[4]!.level));
     press(el, "strip.part.4", MixerField.PartMute);
     expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Part, 4, MixerField.PartMute, 1);
+  });
+
+  it.each([
+    ["strip.part.4", MixerScopeKind.Part, 4, MixerField.PartOutputAssign],
+    ["strip.comp.1", MixerScopeKind.CompEqUnit, 1, MixerField.CompOutputAssign],
+  ] as const)("picks %s's output from core's names", (id, kind, index, field) => {
+    const { el, setMixerField } = loaded();
+    const picker = control(placed(el, id), field);
+    const name = paramFormatter(field);
+    const button = picker.querySelector("button")!;
+    expect(button.textContent).toBe(name(paramMeta(field).defaultValue));
+    click(button);
+    const options = [...document.querySelectorAll<HTMLElement>('[role="option"]')];
+    const { min, max } = paramMeta(field);
+    expect(options.map((o) => o.textContent)).toEqual(Array.from({ length: max - min + 1 }, (_, i) => name(min + i)));
+    click(options[2]!);
+    expect(setMixerField).toHaveBeenLastCalledWith(kind, index, field, min + 2);
   });
 
   it("solos a part through the Studio Set's Solo Part, and un-solos it", () => {
@@ -238,10 +252,6 @@ describe("MixerPage", () => {
     expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Ext, 0, MixerField.ExtMute, 1);
     expect(value(control(placed(el, "strip.master"), MixerField.MasterLevel))).toBe(String(base.masterLevel));
     const unit = placed(el, "strip.comp.5");
-    stepUp(control(unit, MixerField.CompOutputAssign));
-    expect(setMixerField).toHaveBeenLastCalledWith(
-      MixerScopeKind.CompEqUnit, 5, MixerField.CompOutputAssign, base.drumCompEq.outputAssigns[5]! + 1,
-    );
     stepUp(control(unit, MixerField.CompAttack));
     expect(setMixerField).toHaveBeenLastCalledWith(
       MixerScopeKind.CompEqUnit, 5, MixerField.CompAttack, base.drumCompEq.units[5]!.compAttack + 1,
@@ -283,6 +293,45 @@ describe("MixerPage", () => {
 
   it("shows the Comp+EQ unit strips only while the Comp+EQ is on", () => {
     expect(loaded(undefined, false).el.querySelector('[data-section^="strip.comp."]')).toBeNull();
+  });
+
+  it("names each strip up the side of its fader, and puts its category or role under it", () => {
+    const { el } = loaded((st) => ({
+      ...st,
+      parts: st.parts.map((p, i) => (i === 2 ? { ...p, toneName: "Pulse Lead 1" } : p)),
+    }));
+    const name = (id: string) =>
+      placed(el, id).querySelector(`[data-display="${DisplayKind.StripName}"]`)?.textContent;
+    expect(name("strip.part.2")).toBe("Pulse Lead 1");
+    expect(name("strip.ext")).toBe("External Input");
+    expect(name("strip.comp.1")).toBe("Compressor 2 Gain");
+    expect(name("strip.master")).toBe("Master");
+    // The plate under the strip names the role, not the tone again.
+    expect(placed(el, "name.part.2").textContent).not.toContain("Pulse Lead 1");
+    expect(placed(el, "name.comp.1").textContent).toBe("C+E2");
+  });
+
+  it("draws the FX columns on the Grid, writing their strips in the Common Scope", () => {
+    const { el, base, setMixerField } = loaded((st) => ({ ...st, reverb: { ...st.reverb, type: 3, level: 90 } }));
+    expect(placed(el, "fx.chorus").querySelector('[data-grid-section="Chorus"]')).not.toBeNull();
+    expect(placed(el, "strip.chorus").querySelector("[data-grid-section]")!.getAttribute("data-grid-section")).toBe("FX1");
+    expect(placed(el, "strip.reverb").querySelector("[data-grid-section]")!.getAttribute("data-grid-section")).toBe("FX2");
+    // The type's name runs up the fader.
+    expect(placed(el, "strip.reverb").querySelector(`[data-display="${DisplayKind.StripName}"]`)!.textContent).toBe(
+      paramFormatter(MixerField.ReverbType)(3),
+    );
+    const reverb = placed(el, "strip.reverb");
+    expect(value(control(reverb, MixerField.ReverbLevel))).toBe("90");
+    stepUp(control(reverb, MixerField.ReverbLevel));
+    expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Common, 0, MixerField.ReverbLevel, 91);
+    press(el, "strip.chorus", MixerField.ChorusSwitch);
+    expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Common, 0, MixerField.ChorusSwitch, Number(!base.chorus.enabled));
+    const types = control(placed(el, "strip.chorus"), MixerField.ChorusType).querySelectorAll("button");
+    act(() => types[2]!.click());
+    expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Common, 0, MixerField.ChorusType, 2);
+    for (const field of [MixerField.ChorusOutputAssign, MixerField.ChorusOutputSelect]) {
+      expect(control(placed(el, "strip.chorus"), field).querySelector("button")).not.toBeNull();
+    }
   });
 
   it("selects a part from anywhere on its column", () => {

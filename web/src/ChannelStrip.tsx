@@ -1,12 +1,14 @@
 /**
  * A mixer channel strip on the Grid: its EQ Section, its strip Section (a
- * variant of `STRIP_SET` by strip kind) and its name plate. Each binds the
+ * variant of `STRIP_SET` by strip kind, its name up its fader) and the
+ * plate under it, its category or role. Each binds the
  * strip's Scope: a part, the external input, the master or a Drum Comp+EQ
  * unit. Values come from the mixer state, and every write goes through
  * `setMixerField` in that Scope.
  */
 
 import {
+  DisplayKind,
   MixerField,
   MixerScopeKind,
   comp_eq_unit_is_active,
@@ -228,8 +230,14 @@ function stripIsActive(state: MixerState, { kind, index }: StripScope, field: Mi
   return true;
 }
 
-/** A strip's Section: everything but its EQ. */
-export function ChannelStrip(props: StripProps) {
+/** Props of {@link ChannelStrip}. */
+interface ChannelStripProps extends StripProps {
+  /** The Expansion of a part's tone, when known not to be loaded. */
+  unloadedExpansion?: string | null;
+}
+
+/** A strip's Section: everything but its EQ, its name up the side of its fader. */
+export function ChannelStrip({ unloadedExpansion, ...props }: ChannelStripProps) {
   const { state, kind } = props;
   const bind = stripBinding(props);
   return (
@@ -241,7 +249,13 @@ export function ChannelStrip(props: StripProps) {
       isActive={(field) => stripIsActive(state, props, field)}
       // Surround replaces the FX sends with its ambience send.
       alternative={(group) => (group === "sends" && state.surround.enabled ? "surround" : undefined)}
-      renderDisplay={(display, size) => renderMixerDisplay(display, size, (field) => bind(field).value)}
+      renderDisplay={(display, size) =>
+        display === DisplayKind.StripName ? (
+          <VerticalName name={stripName(state, props)} unloadedExpansion={unloadedExpansion} />
+        ) : (
+          renderMixerDisplay(display, size, (field) => bind(field).value)
+        )
+      }
     />
   );
 }
@@ -251,50 +265,77 @@ function toneLabel(part: PartState): string {
   return part.toneName || `${part.toneBankMsb}-${part.toneBankLsb}-${part.tonePC + 1}`;
 }
 
-/** The icon and role each non-part strip's name plate shows. */
-const ROLE: Partial<Record<MixerScopeKind, { icon: string; label: (index: number) => string }>> = {
-  [MixerScopeKind.Ext]: { icon: "ext", label: () => "External Input" },
-  [MixerScopeKind.Master]: { icon: "master", label: () => "Master" },
-  [MixerScopeKind.CompEqUnit]: { icon: "comp-eq", label: (i) => `Compressor ${i + 1}` },
+/** Each non-part strip's icon, name (up its fader) and role (under its icon). */
+const ROLE: Partial<Record<MixerScopeKind, { icon: string; name: (index: number) => string; role: (index: number) => string }>> = {
+  [MixerScopeKind.Ext]: { icon: "ext", name: () => "External Input", role: () => "Ext In" },
+  [MixerScopeKind.Master]: { icon: "master", name: () => "Master", role: () => "Master" },
+  [MixerScopeKind.CompEqUnit]: { icon: "comp-eq", name: (i) => `Compressor ${i + 1} Gain`, role: (i) => `C+E${i + 1}` },
 };
 
-/** Props of {@link StripName}. */
-interface StripNameProps extends StripScope {
-  state: MixerState;
-  /** The Expansion of a part's tone, when known not to be loaded. */
+/** A strip's name: a part's tone, or the strip's role in full. */
+function stripName(state: MixerState, { kind, index }: StripScope): string {
+  if (kind === MixerScopeKind.Part) return toneLabel(state.parts[index]!);
+  return ROLE[kind]?.name(index) ?? "";
+}
+
+/** Props of {@link VerticalName}. */
+interface VerticalNameProps {
+  /** The name. */
+  name: string;
+  /** The Expansion of a part's tone, when known not to be loaded: marked ahead of the name. */
   unloadedExpansion?: string | null;
 }
 
-/** A strip's name plate: a part's tone and category, or the strip's role. */
-export function StripName({ state, kind, index, unloadedExpansion }: StripNameProps) {
+/** A name run up the side of a fader, bottom to top, as the old mixer drew it. */
+export function VerticalName({ name, unloadedExpansion }: VerticalNameProps) {
+  return (
+    <div className={css.verticalName} title={name}>
+      {/* Ahead of the tone name, so a long name can't clip it. */}
+      {unloadedExpansion && <NotLoadedMarker expansion={unloadedExpansion} named />}
+      {name}
+    </div>
+  );
+}
+
+/** Props of {@link StripCategory}. */
+interface StripCategoryProps extends StripScope {
+  state: MixerState;
+}
+
+/** The plate under a strip: a part's tone category, or the strip's role, under its icon. */
+export function StripCategory({ state, kind, index }: StripCategoryProps) {
   let icon = "";
-  let name: string;
-  let category: string | undefined;
+  let label: string | undefined;
   if (kind === MixerScopeKind.Part) {
     const p = state.parts[index]!;
     // The tone's own category covers user tones; the factory table fills in until it's read.
     const catId = p.toneCategory || lookupToneCategory(p.toneBankMsb, p.toneBankLsb, p.tonePC);
     if (catId !== 0 && CATEGORIES[catId]) {
       icon = categoryIcon(catId) ?? "";
-      category = CATEGORIES[catId];
+      label = CATEGORIES[catId];
     }
-    name = toneLabel(p);
   } else {
     const role = ROLE[kind];
     icon = role ? stripIcon(role.icon) : "";
-    name = role ? role.label(index) : "";
+    label = role?.role(index);
   }
+  return <CategoryPlate icon={icon} label={label} />;
+}
+
+/** Props of {@link CategoryPlate}. */
+interface CategoryPlateProps {
+  /** The icon's SVG markup; none when empty. */
+  icon: string;
+  /** Under the icon; none when absent. */
+  label?: string;
+}
+
+/** An icon over its label, the plate under a strip. */
+export function CategoryPlate({ icon, label }: CategoryPlateProps) {
   return (
-    <div className={css.namePlate} title={name}>
-      <span className={css.toneName}>
-        {/* Ahead of the tone name, so a long name can't clip it. */}
-        {unloadedExpansion && <NotLoadedMarker expansion={unloadedExpansion} />}
-        {name}
-      </span>
-      <div className={css.categoryRow}>
-        {icon && <div className={css.categoryIcon} dangerouslySetInnerHTML={{ __html: icon }} />}
-        {category && <span className={css.categoryLabel}>{category}</span>}
-      </div>
+    <div className={css.categoryArea}>
+      {icon && <div className={css.categoryIcon} dangerouslySetInnerHTML={{ __html: icon }} />}
+      {label && <span className={css.categoryLabel}>{label}</span>}
     </div>
   );
 }

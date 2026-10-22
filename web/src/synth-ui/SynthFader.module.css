@@ -126,3 +126,107 @@
 .grid .value {
   margin-top: 0;
 }
+
+/*
+ * A level fader, as the pre-Grid mixer's (#392): a recessed panel holding a
+ * thin groove, a wide white cap and the scale on its right. No fill. Its
+ * border width and padding come from SynthFader's LEVEL.
+ */
+.level {
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: #1a1a30;
+  border-radius: 4px;
+  background: #112;
+}
+
+.levelTrack {
+  position: relative;
+  flex-shrink: 0;
+  width: 60px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+/* Centred under the cap: 6px wide, border included, at x 17–23 as the cap's 3–37. */
+.groove {
+  position: absolute;
+  left: 17px;
+  width: 4px;
+  background: #0a0a18;
+  border: 1px solid #2a2a4a;
+  border-radius: 2px;
+}
+
+/* Height and centring come from SynthFader's LEVEL. */
+.cap {
+  position: absolute;
+  box-sizing: border-box;
+  left: 3px;
+  width: 34px;
+  background: linear-gradient(to bottom, #aaa 0%, #ddd 15%, #fff 30%, #eee 50%, #ccc 70%, #aaa 85%, #888 100%);
+  border: 1px solid #555;
+  border-radius: 3px;
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 50%),
+    inset 0 1px 0 rgb(255 255 255 / 30%);
+  cursor: grab;
+  z-index: 2;
+}
+
+/* The cap's centre line. */
+.cap::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  right: 6px;
+  height: 1px;
+  background: #666;
+}
+
+.cap:active {
+  cursor: grabbing;
+}
+
+/* A mark of the scale, on the groove's right: a tick, then its label, centred on its value. */
+.mark {
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.mark::before {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 1px;
+  background: #444;
+}
+
+.markZero::before {
+  width: 10px;
+  height: 2px;
+  background: #888;
+}
+
+.markLabel {
+  font-size: 8px;
+  color: #555;
+  font-variant-numeric: tabular-nums;
+}
+
+.markZero .markLabel {
+  color: #aaa;
+  font-weight: 700;
+}
+
+.level .value {
+  font-weight: 400;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}

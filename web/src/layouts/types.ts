@@ -63,11 +63,16 @@ export interface SwitchLayout<F extends FieldKey> extends ControlBase<F> {
   kind: "switch";
 }
 
-/** A vertical fader, 2×`h`. */
+/** A vertical fader, 2×`h` (3×`h` with its scale: `FOOTPRINT.levelFaderW`). */
 export interface FaderLayout<F extends FieldKey> extends ControlBase<F> {
   kind: "fader";
-  /** Height in Cells: the N of 2×N. */
+  /** Height in Cells: the N of 2×N (or 3×N). */
   h: number;
+  /**
+   * A level fader, as the pre-Grid mixer's: a recessed panel, a wide cap and
+   * the level scale (marks and their labels) beside it, no fill; 3×N Cells.
+   */
+  scale?: boolean;
 }
 
 /** A vertical option list, 2×`h`, one Cell row per option plus one for its name. */
@@ -78,11 +83,13 @@ export interface OptionListLayout<F extends FieldKey> extends ControlBase<F> {
 }
 
 /**
- * A picker, 6×1: the field's name and its current option's, opening a
- * searchable list of the options core names (a Wave, an Inst).
+ * A picker, `w`×1: the field's name and its current option's, opening a
+ * searchable list of the options core names (a Wave, an Inst, an output).
  */
 export interface PickerLayout<F extends FieldKey> extends ControlBase<F> {
   kind: "picker";
+  /** Width in Cells: the N of N×1. Default `FOOTPRINT.picker.w`. */
+  w?: number;
 }
 
 /** One interactive element bound to one parameter. */

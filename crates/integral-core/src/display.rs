@@ -65,11 +65,15 @@ pub enum DisplayKind {
     /// of one field (an SN Drum key's Inst, an SN Synth OSC's PCM Wave) is
     /// a Control, not this Display.
     WavePicker,
+    /// A mixer strip's name, up the side of its level fader: a part's
+    /// tone, or the strip's role. It reads no field; the screen names the
+    /// strip.
+    StripName,
 }
 
 impl DisplayKind {
     /// Every kind, in declaration order.
-    pub const ALL: [Self; 16] = [
+    pub const ALL: [Self; 17] = [
         Self::PitchEnvelope,
         Self::FilterEnvelope,
         Self::AmpEnvelope,
@@ -86,6 +90,7 @@ impl DisplayKind {
         Self::CompTransferCurve,
         Self::SurroundPad,
         Self::WavePicker,
+        Self::StripName,
     ];
 }
 
@@ -438,6 +443,7 @@ fn mixer(kind: DisplayKind) -> Option<Vec<DisplaySlot>> {
             (P::ExtLr, mixer(MixerField::SurroundLr)),
             (P::ExtFb, mixer(MixerField::SurroundFb)),
         ]),
+        DisplayKind::StripName => Vec::new(),
         _ => return None,
     })
 }
@@ -871,7 +877,7 @@ mod tests {
     /// [`DisplayKind::ALL`] lists every kind once, in order.
     #[test]
     fn all_lists_every_kind() {
-        assert_eq!(K::ALL.len(), K::WavePicker as usize + 1);
+        assert_eq!(K::ALL.len(), K::StripName as usize + 1);
         for (i, kind) in K::ALL.into_iter().enumerate() {
             assert_eq!(kind as usize, i, "{kind:?}");
         }
@@ -891,7 +897,7 @@ mod tests {
                 K::Lfo1Scope | K::Lfo2Scope | K::StepLfoScope | K::Structure12 | K::Structure34 => {
                     &[PCMS]
                 }
-                K::CompEnvelope | K::CompTransferCurve | K::SurroundPad => &[MIXER],
+                K::CompEnvelope | K::CompTransferCurve | K::SurroundPad | K::StripName => &[MIXER],
                 K::WavePicker => &[PCMS, PCMD],
             }
         };

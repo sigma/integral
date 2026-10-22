@@ -3,7 +3,7 @@ import { useDragControl } from "../useDragControl";
 import { MAX_TICKS } from "../EqKnob";
 import { ParameterFamily } from "../../pkg/integral_wasm.js";
 import { familyVar } from "./family";
-import { ADDON_LINE, CELL, FOOTPRINT, NAME, READOUT, cellsPx, lineStyle, type Cells } from "./grid";
+import { ADDON_LINE, FOOTPRINT, NAME, READOUT, cellsPx, lineStyle, type Cells, type Px } from "./grid";
 import { ControlAddon } from "./ControlAddon";
 import css from "./SynthKnob.module.css";
 
@@ -28,6 +28,16 @@ interface Props {
    * Cells, name and readout included. Off: today's natural size, for CSS layouts.
    */
   grid?: boolean;
+  /**
+   * On the Grid, the px box to fill instead of the whole footprint: the
+   * footprint less the edge padding a Section's renderer gives it.
+   */
+  box?: Px;
+  /**
+   * On the Grid, the largest dial side, px: a Section draws each size of
+   * knob at one side, the smallest any of them fits (`knobDialSide`).
+   */
+  dialSide?: number;
   /** Full name for tooltip. Defaults to label. */
   title?: string;
   /** Value the LED arc grows from, for relative controls. Default: 0 for signed ranges, else min. */
@@ -62,12 +72,19 @@ const SIZES: Record<"sm" | "lg", { dial: Dial; footprint: Cells }> = {
 };
 
 /**
- * `dial` redrawn for `footprint`: as large as the width and the height left
- * by name, readout and `extra` px allow, never larger than natural. Radii
- * follow the side, so a footprint changed in the table resizes the dial with it.
+ * The side of a `size` knob's dial on the Grid in `box`: as large as the
+ * width and the height left by name, readout and an addon line (when it has
+ * one) allow, never larger than natural.
  */
-function gridDial(dial: Dial, footprint: Cells, extra: number): Dial {
-  const svg = Math.min(dial.svg, footprint.w * CELL, footprint.h * CELL - NAME.line - READOUT.line - extra);
+export function knobDialSide(size: "sm" | "lg", box: Px, addon: boolean): number {
+  return Math.min(SIZES[size].dial.svg, box.width, box.height - NAME.line - READOUT.line - (addon ? ADDON_LINE : 0));
+}
+
+/**
+ * `dial` redrawn at side `svg`. Radii follow the side, so a footprint
+ * changed in the table resizes the dial with it.
+ */
+function scaledDial(dial: Dial, svg: number): Dial {
   const k = svg / dial.svg;
   return { svg, knobR: dial.knobR * k, ledR: dial.ledR * k, dotR: dial.dotR * k, pointer: dial.pointer };
 }
@@ -90,11 +107,15 @@ export function SynthKnob({
   center,
   family,
   grid = false,
+  box: boxProp,
+  dialSide,
   addon,
 }: Props) {
   const lit = familyVar(family ?? NEUTRAL_FAMILY);
   const { footprint, dial: natural } = SIZES[size];
-  const dial = grid ? gridDial(natural, footprint, addon === undefined ? 0 : ADDON_LINE) : natural;
+  const box = boxProp ?? cellsPx(footprint);
+  const fits = knobDialSide(size, box, addon !== undefined);
+  const dial = grid ? scaledDial(natural, Math.min(fits, dialSide ?? fits)) : natural;
   const { svg: svgSize, knobR, ledR } = dial;
   const cx = svgSize / 2;
   const cy = svgSize / 2;
@@ -139,7 +160,7 @@ export function SynthKnob({
   const classes = [css.knob, size === "lg" ? css.lg : "", grid ? css.grid : ""].join(" ");
 
   return (
-    <div className={classes} style={grid ? cellsPx(footprint) : undefined} title={title ?? label}>
+    <div className={classes} style={grid ? box : undefined} title={title ?? label}>
       <span className={css.label} style={grid ? lineStyle(NAME) : undefined}>
         {label}
       </span>

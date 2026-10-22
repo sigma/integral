@@ -104,10 +104,12 @@
   white-space: nowrap;
 }
 
+/* Tight enough that a four-letter state (COMP, C+EQ) fits beside its LED in 2 Cells. */
 .grid .toggleBtn {
   box-sizing: border-box;
   justify-content: center;
-  padding: 0 4px;
+  gap: 3px;
+  padding: 0 2px;
   overflow: hidden;
 }
 

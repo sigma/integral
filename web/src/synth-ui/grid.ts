@@ -27,9 +27,14 @@ export const FOOTPRINT = {
   switch: { w: 2, h: 1 },
   /** Fader: 2×N. */
   faderW: 2,
+  /** Level fader (a fader with its scale, as the mixer's): 3×N, the scale beside the wide cap. */
+  levelFaderW: 3,
   /** Vertical option list: 2×N, one Cell row per option. */
   optionListW: 2,
-  /** Picker: its name, then the current option's, opening a searchable list. */
+  /**
+   * Picker: its name, then the current option's, opening a searchable list.
+   * N×1: a layout may pick another width (a mixer strip's output, 2 or 4).
+   */
   picker: { w: 6, h: 1 },
 } as const satisfies Record<string, Cells | number>;
 
@@ -41,14 +46,18 @@ const ALL_EDGES = ["top", "right", "bottom", "left"] as const satisfies readonly
 /**
  * The edges of its footprint each kind of Control or Display draws right up
  * to. A Section's border runs through the Cells along its edges (`INSET`
- * inside them), so none of these edges may lie on one (`validateClearance`).
- * Every Control's name sits in its top line; a knob or fader keeps its own
- * margin on the other edges, while a switch, an option list, a picker or a
- * Display fills its Cells.
+ * inside them), so where one of these edges lies on a border Cell the
+ * renderer draws the element clear of the border on that edge (`edgePadding`).
+ * Every Control's name sits in its top line. A knob's LED ring spans its
+ * box's width, so it reaches the sides too, and only its readout keeps a
+ * margin at the bottom; a fader keeps its own margin on the sides and
+ * bottom, but a level fader's panel fills its Cells, as a switch, an option
+ * list, a picker or a Display does.
  */
 export const BLEED = {
-  knob: ["top"],
+  knob: ["top", "left", "right"],
   fader: ["top"],
+  levelFader: ALL_EDGES,
   switch: ALL_EDGES,
   list: ALL_EDGES,
   picker: ALL_EDGES,
@@ -87,8 +96,21 @@ export function optionListRows(options: number, named: boolean): number {
   return options + (named ? 1 : 0);
 }
 
+/** A box in px at zoom 1. */
+export interface Px {
+  /** Width, px. */
+  width: number;
+  /** Height, px. */
+  height: number;
+}
+
+/** A fader's footprint, N rows tall: a level fader's (`scale`) is wider, for its scale. */
+export function faderCells(h: number, scale = false): Cells {
+  return { w: scale ? FOOTPRINT.levelFaderW : FOOTPRINT.faderW, h };
+}
+
 /** `cells` in px at zoom 1. */
-export function cellsPx(cells: Cells): { width: number; height: number } {
+export function cellsPx(cells: Cells): Px {
   return { width: cells.w * CELL, height: cells.h * CELL };
 }
 

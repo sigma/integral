@@ -19,6 +19,7 @@ import { arrowUp, dt1Drainer, slider } from "../test/toneService";
 import { specBinding } from "./binding";
 import { enumFields, mixerFields } from "./fields";
 import { GridScreen } from "./GridScreen";
+import { BORDER, INSET } from "./geometry";
 import { GridSection, type Binding } from "./GridSection";
 import { EQ_LAYOUT } from "./mixer/eq";
 import type { ScreenLayout, SectionLayout } from "./types";
@@ -57,24 +58,27 @@ describe("GridSection draws the pilot mixer EQ", () => {
     ]);
   });
 
+  // The left column's knobs clear the border their LED rings reach.
+  const SIDE = INSET + BORDER.width;
   it.each([
     [MixerField.EqSwitch, 24, 24],
-    [MixerField.EqHighFreq, 0, 48],
+    [MixerField.EqHighFreq, SIDE, 48],
     [MixerField.EqHighGain, 48, 96],
-    [MixerField.EqMidFreq, 0, 144],
+    [MixerField.EqMidFreq, SIDE, 144],
     [MixerField.EqMidGain, 48, 192],
-    [MixerField.EqMidQ, 0, 240],
+    [MixerField.EqMidQ, SIDE, 240],
     [MixerField.EqLowGain, 48, 288],
-    [MixerField.EqLowFreq, 0, 336],
+    [MixerField.EqLowFreq, SIDE, 336],
   ])("places field %i at (%ipx, %ipx)", (field, left, top) => {
     const el = wrapper(draw(), field);
     expect([el.style.left, el.style.top]).toEqual([`${left}px`, `${top}px`]);
   });
 
-  it("draws each Control at its footprint, unscaled", () => {
+  it("draws each Control at its footprint, unscaled, less the border it clears", () => {
     const container = draw();
     expectFillsFootprint(wrapper(container, MixerField.EqSwitch).firstElementChild as HTMLElement, FOOTPRINT.switch);
-    expectFillsFootprint(wrapper(container, MixerField.EqMidQ).firstElementChild as HTMLElement, FOOTPRINT.knobSm);
+    const knob = wrapper(container, MixerField.EqMidQ).firstElementChild as HTMLElement;
+    expect([knob.style.width, knob.style.height]).toEqual([`${FOOTPRINT.knobSm.w * 24 - SIDE}px`, `${FOOTPRINT.knobSm.h * 24}px`]);
   });
 
   it("names knobs as the layout says, and hides the switch's name", () => {
@@ -113,12 +117,12 @@ describe("GridSection draws the pilot mixer EQ", () => {
   });
 });
 
-/** A Section of three switches listed out of reading order, plus a group and a Display. */
+/** A Section of three switches listed out of reading order, plus a group and a Display, all clear of its border. */
 const SCRAMBLED: SectionLayout<MixerField> = {
   title: "Part {part}",
   titleEdge: "side",
-  w: 4,
-  h: 4,
+  w: 5,
+  h: 5,
   fields: mixerFields([MixerScopeKind.Part]),
   items: [
     { kind: "switch", field: MixerField.EqMidQ, x: 2, y: 1, inactive: "hide" },
@@ -203,6 +207,110 @@ describe("GridSection", () => {
   });
 });
 
+describe("GridSection edge padding", () => {
+  /** Side-titled, so its top, right and bottom edges have no title: every element sits on one. */
+  const EDGES: SectionLayout<MixerField> = {
+    title: "Edges",
+    titleEdge: "side",
+    w: 4,
+    h: 5,
+    fields: mixerFields([MixerScopeKind.Part]),
+    items: [
+      { kind: "switch", field: MixerField.EqSwitch, x: 2, y: 0 },
+      { kind: "knob", field: MixerField.EqLowGain, x: 0, y: 0 },
+      { kind: "display", display: DisplayKind.CompEnvelope, x: 0, y: 3, w: 4, h: 2 },
+    ],
+  };
+  const draw = () =>
+    render(
+      <GridSection
+        layout={EDGES}
+        bind={bindMixer}
+        renderDisplay={(_, { width, height }) => <div data-size={`${width}×${height}`} />}
+      />,
+    ).container;
+  /** An element's box, px from the Section's origin: [left, top, right, bottom]. */
+  const boxOf = (el: HTMLElement) => {
+    const [l, t, w, h] = [el.style.left, el.style.top, el.style.width, el.style.height].map(parseFloat) as [
+      number,
+      number,
+      number,
+      number,
+    ];
+    return [l, t, l + w, t + h];
+  };
+
+  it("draws an element in an edge Cell inset on that edge, never over the border", () => {
+    const container = draw();
+    const root = container.firstElementChild as HTMLElement;
+    const [W, H] = [parseFloat(root.style.width), parseFloat(root.style.height)];
+    // Inside of the border's line: INSET in, plus the line (the accent on top).
+    const inside = [INSET + BORDER.width, INSET + BORDER.accent, W - INSET - BORDER.width, H - INSET - BORDER.width];
+    const elements = [...container.querySelectorAll<HTMLElement>("[data-field], [data-display]")];
+    expect(elements).toHaveLength(3);
+    for (const el of elements) {
+      const [l, t, r, b] = boxOf(el);
+      expect(l).toBeGreaterThanOrEqual(inside[0]!);
+      expect(t).toBeGreaterThanOrEqual(inside[1]!);
+      expect(r).toBeLessThanOrEqual(inside[2]!);
+      expect(b).toBeLessThanOrEqual(inside[3]!);
+    }
+    // Each edge loses exactly the border's clearance, and only on border Cells.
+    expect(boxOf(wrapper(container, MixerField.EqSwitch))).toEqual([72, 7, 115, 24]);
+    const display = container.querySelector<HTMLElement>("[data-display]")!;
+    expect(boxOf(display)).toEqual([24, 72, 115, 115]);
+  });
+
+  it("draws the Control and the Display to fill the padded box", () => {
+    const container = draw();
+    const toggle = wrapper(container, MixerField.EqSwitch).firstElementChild as HTMLElement;
+    expect([toggle.style.width, toggle.style.height]).toEqual(["43px", "17px"]);
+    // Behind the side title a knob's left edge is no border: it loses its top, keeps its width.
+    const knob = wrapper(container, MixerField.EqLowGain).firstElementChild as HTMLElement;
+    expect([knob.style.width, knob.style.height]).toEqual(["48px", "65px"]);
+    expect(container.querySelector("[data-size]")!.getAttribute("data-size")).toBe("91×43");
+  });
+});
+
+describe("GridSection knob dials", () => {
+  /** Three small knobs: one on the left border, one inside, one tempo-syncable. */
+  const KNOBS: SectionLayout<MixerField> = {
+    title: "K",
+    titleEdge: "top",
+    w: 8,
+    h: 3,
+    fields: mixerFields([MixerScopeKind.Part]),
+    items: [
+      { kind: "knob", field: MixerField.EqLowGain, x: 0, y: 0 },
+      { kind: "knob", field: MixerField.EqMidGain, x: 3, y: 0 },
+      { kind: "knob", field: MixerField.EqHighGain, x: 5, y: 0 },
+    ],
+  };
+  const dial = (container: HTMLElement, field: MixerField) => wrapper(container, field).querySelector("svg")!.getAttribute("width");
+
+  it("draws every knob of a size in a Section at one dial, the smallest any fits", () => {
+    const bind = (field: MixerField): Binding =>
+      field === MixerField.EqHighGain
+        ? { ...bindMixer(field), sync: { labels: ["ms", "♪"], noteMode: false, onChange: () => {} } }
+        : bindMixer(field);
+    const { container } = render(<GridSection layout={KNOBS} bind={bind} />);
+    const sides = [MixerField.EqLowGain, MixerField.EqMidGain, MixerField.EqHighGain].map((f) => dial(container, f));
+    expect(new Set(sides).size).toBe(1);
+    // The synced knob gives up an addon line under its readout.
+    expect(Number(sides[0])).toBeLessThan(FOOTPRINT.knobSm.w * 24 - INSET);
+  });
+
+  it("keeps that dial without a synced knob when the Section reserves the addon line", () => {
+    const synced = (field: MixerField): Binding =>
+      field === MixerField.EqHighGain
+        ? { ...bindMixer(field), sync: { labels: ["ms", "♪"], noteMode: false, onChange: () => {} } }
+        : bindMixer(field);
+    const withSync = dial(render(<GridSection layout={KNOBS} bind={synced} />).container, MixerField.EqMidGain);
+    const reserved = dial(render(<GridSection layout={KNOBS} bind={bindMixer} reserveAddon />).container, MixerField.EqMidGain);
+    expect(reserved).toBe(withSync);
+  });
+});
+
 describe("GridSection array-field elements", () => {
   const PART = 1;
   const PARTIAL = 0;
@@ -265,12 +373,12 @@ describe("GridSection tempo sync", () => {
   const SYNCED: SectionLayout<MixerField> = {
     title: "T",
     titleEdge: "top",
-    w: 4,
+    w: 6,
     h: 4,
     fields: mixerFields([MixerScopeKind.Part]),
     items: [
-      { kind: "knob", field: MixerField.EqLowGain, x: 0, y: 0 },
-      { kind: "fader", field: MixerField.EqMidGain, x: 2, y: 0, h: 4 },
+      { kind: "knob", field: MixerField.EqLowGain, x: 1, y: 0 },
+      { kind: "fader", field: MixerField.EqMidGain, x: 3, y: 0, h: 4 },
     ],
   };
 

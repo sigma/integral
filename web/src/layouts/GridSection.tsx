@@ -10,9 +10,19 @@ import type { DisplayKind, ParameterFamily } from "../../pkg/integral_wasm.js";
 import type { PickOption } from "../SearchPopover";
 import { SyncToggle } from "../SyncToggle";
 import { SynthFader, SynthKnob, SynthPicker, SynthSwitch, familyVar } from "../synth-ui";
-import { CELL, cellsPx, type Cells } from "../synth-ui/grid";
+import { knobDialSide } from "../synth-ui/SynthKnob";
+import { CELL, cellsPx, type Px } from "../synth-ui/grid";
 import type { FieldKey } from "./fields";
-import { INSET, drawnElements, itemRect, sectionCells, sectionTitle, titleCells } from "./geometry";
+import {
+  BORDER,
+  INSET,
+  drawnElements,
+  edgePadding,
+  itemRect,
+  sectionCells,
+  sectionTitle,
+  titleCells,
+} from "./geometry";
 import type { ControlLayout, ElementLayout, Scope, SectionLayout, SectionSilk } from "./types";
 import { drawnArrows, routeSectionArrow } from "./routing";
 import { SilkArrows } from "./SilkArrows";
@@ -79,12 +89,18 @@ export interface GridSectionProps<F extends FieldKey> {
   renderDisplay?: (display: DisplayKind, size: { width: number; height: number }) => ReactNode;
   /** Accents the border's top edge. */
   family?: ParameterFamily;
+  /**
+   * Size every knob's dial as if it drew an addon line (the tempo-sync
+   * toggle), whether or not it does: for Sections whose variants differ in
+   * sync, so their knobs keep one size from variant to variant.
+   */
+  reserveAddon?: boolean;
   /** Extra style for the Section's root (e.g. hiding it). */
   style?: CSSProperties;
 }
 
-/** The border's corner radius and side width, px; the Silkscreen clip follows both. */
-const BORDER = { radius: 6, width: 1 } as const;
+/** The border's widths as CSS: the accent on top, the line elsewhere. */
+const BORDER_WIDTHS = `${BORDER.accent}px ${BORDER.width}px ${BORDER.width}px`;
 
 const always = (): true => true;
 const none = (): undefined => undefined;
@@ -97,8 +113,19 @@ function optionsOf(b: Binding): BindingOption[] {
   return out;
 }
 
-/** The Control for a layout entry and its binding, at its footprint. */
-function Control<F extends FieldKey>({ control: c, binding: b }: { control: ControlLayout<F>; binding: Binding }) {
+/** The Control for a layout entry and its binding, filling `box` (its footprint, less any edge padding). */
+function Control<F extends FieldKey>({
+  control: c,
+  binding: b,
+  box,
+  dialSide,
+}: {
+  control: ControlLayout<F>;
+  binding: Binding;
+  box: Px;
+  /** The dial side of each size of knob in the Section. */
+  dialSide: Record<"sm" | "lg", number>;
+}) {
   const label = c.label === false ? undefined : (c.label ?? b.name);
   const addon = b.sync && <SyncToggle labels={b.sync.labels} noteMode={b.sync.noteMode} onChange={b.sync.onChange} />;
   switch (c.kind) {
@@ -106,6 +133,8 @@ function Control<F extends FieldKey>({ control: c, binding: b }: { control: Cont
       return (
         <SynthKnob
           grid
+          box={box}
+          dialSide={dialSide[c.size ?? "sm"]}
           size={c.size ?? "sm"}
           label={label ?? ""}
           title={b.name}
@@ -124,6 +153,8 @@ function Control<F extends FieldKey>({ control: c, binding: b }: { control: Cont
       return (
         <SynthFader
           gridRows={c.h}
+          box={box}
+          scale={c.scale}
           label={label ?? b.name}
           hideLabel={label === undefined}
           title={b.name}
@@ -138,13 +169,14 @@ function Control<F extends FieldKey>({ control: c, binding: b }: { control: Cont
       );
     case "switch":
       return (
-        <SynthSwitch grid label={label} title={b.name} value={b.value} options={optionsOf(b)} onChange={b.onChange} />
+        <SynthSwitch grid box={box} label={label} title={b.name} value={b.value} options={optionsOf(b)} onChange={b.onChange} />
       );
     case "list":
       return (
         <SynthSwitch
           vertical
           gridRows={c.h}
+          box={box}
           label={label}
           title={b.name}
           value={b.value}
@@ -153,7 +185,7 @@ function Control<F extends FieldKey>({ control: c, binding: b }: { control: Cont
         />
       );
     case "picker":
-      return <SynthPicker label={label} title={b.name} value={b.value} options={optionsOf(b)} onChange={b.onChange} />;
+      return <SynthPicker box={box} label={label} title={b.name} value={b.value} options={optionsOf(b)} onChange={b.onChange} />;
   }
 }
 
@@ -188,6 +220,7 @@ export function GridSection<F extends FieldKey>({
   alternative = none,
   renderDisplay,
   family,
+  reserveAddon = false,
   style,
 }: GridSectionProps<F>) {
   const { top, side } = titleCells(layout);
@@ -198,14 +231,28 @@ export function GridSection<F extends FieldKey>({
   const border = {
     inset: INSET,
     borderRadius: BORDER.radius,
-    // Sides and bottom only: the CSS draws the thicker accent top.
-    borderLeftWidth: BORDER.width,
-    borderRightWidth: BORDER.width,
-    borderBottomWidth: BORDER.width,
+    borderWidth: BORDER_WIDTHS,
     ...(family === undefined ? {} : { "--section-accent": familyVar(family) }),
   } as CSSProperties;
   const title = sectionTitle(layout, scope);
   const elements = drawnElements(layout.items, alternative);
+  // Each element's box: its Cells, less the edge padding that keeps it clear of the border.
+  const drawn = elements.map((el) => {
+    const rect = itemRect(el);
+    const pad = edgePadding(layout, el);
+    const full = cellsPx({ w: rect.w, h: rect.h });
+    const size: Px = { width: full.width - pad.left - pad.right, height: full.height - pad.top - pad.bottom };
+    const box = { left: ox + rect.x * CELL + pad.left, top: oy + rect.y * CELL + pad.top, ...size };
+    const binding = el.kind === "display" ? undefined : bind(el.field, el.index);
+    return { el, size, box, binding };
+  });
+  // Every knob of a size is drawn at the smallest dial any of them fits.
+  const dialSide = { sm: Infinity, lg: Infinity };
+  for (const { el, size, binding } of drawn) {
+    if (el.kind !== "knob") continue;
+    const k = el.size ?? "sm";
+    dialSide[k] = Math.min(dialSide[k], knobDialSide(k, size, reserveAddon || binding?.sync !== undefined));
+  }
   // An arrow is drawn when both its ends are.
   const arrows = drawnArrows(
     (layout.silkscreen ?? []).filter((s) => s.kind === "arrow"),
@@ -222,6 +269,8 @@ export function GridSection<F extends FieldKey>({
           top: INSET,
           width: side ? CELL : W - 2 * INSET,
           height: top ? CELL - INSET : H - 2 * INSET,
+          // A top title's transparent border lets the Section's accent and sides show through.
+          ...(top ? { borderWidth: BORDER_WIDTHS } : {}),
         }}
       >
         {title}
@@ -238,14 +287,11 @@ export function GridSection<F extends FieldKey>({
         ))}
         <SilkArrows arrows={arrows} ox={ox} oy={oy} />
       </svg>
-      {elements.map((el) => {
-        const rect = itemRect(el);
-        const cells: Cells = { w: rect.w, h: rect.h };
-        const box = { left: ox + rect.x * CELL, top: oy + rect.y * CELL, ...cellsPx(cells) };
+      {drawn.map(({ el, box, size, binding }) => {
         if (el.kind === "display") {
           return (
             <div key={elementKey(el)} className={css.element} data-display={el.display} style={box}>
-              {renderDisplay?.(el.display, cellsPx(cells))}
+              {renderDisplay?.(el.display, size)}
             </div>
           );
         }
@@ -260,7 +306,7 @@ export function GridSection<F extends FieldKey>({
             inert={inactive !== undefined}
             style={box}
           >
-            <Control control={el} binding={bind(el.field, el.index)} />
+            <Control control={el} binding={binding!} box={size} dialSide={dialSide} />
           </div>
         );
       })}

@@ -1,7 +1,14 @@
 /**
  * A mixer channel strip below its EQ: one variant set keyed by strip kind
- * (the mixer Scope kinds that draw a strip), all in one 4×22 footprint so
- * every strip's fader starts on the same row.
+ * (the mixer Scope kinds that draw a strip), all in one 4×36 footprint so
+ * every strip's fader starts and ends on the same row.
+ *
+ * The proportions are the pre-Grid mixer's (#392): its level faders were
+ * about 21 Cells long for a 4-Cell strip, so each strip is a fixed 36 rows,
+ * a 21-row fader under the 15 rows the Comp+EQ unit's compressor needs. A
+ * part strip's Controls sit just over its fader, leaving its top rows empty,
+ * as the old mixer did; its name runs up the left of its fader. Controls in the strip's edge columns (M, S, the
+ * Comp+EQ Displays) are drawn clear of the border by the renderer.
  *
  * The EQ is its own Section (`eq.ts`), stacked above the strip by the mixer
  * screen, so a strip places every field of its Scope except the EQ's.
@@ -15,9 +22,10 @@
  */
 
 import { DisplayKind, MixerField, MixerScopeKind, mixer_field_in_scope } from "../../../pkg/integral_wasm.js";
+import { optionListRows } from "../../synth-ui/grid";
 import { memo, mixerFields, type FieldSpace } from "../fields";
 import { allElements } from "../geometry";
-import type { SectionBody, VariantSet } from "../types";
+import type { ItemLayout, SectionBody, VariantSet } from "../types";
 import { EQ_LAYOUT } from "./eq";
 
 /** The strip kinds: every mixer Scope kind but the Studio Set common block, from core's enum. */
@@ -75,70 +83,87 @@ export const STRIP_TITLES: Readonly<Partial<Record<MixerScopeKind, string>>> = {
   [MixerScopeKind.CompEqUnit]: "C+E{unit}",
 };
 
-/** The row every full-height level fader starts on, and its height. */
-const FADER = { y: 10, h: 12 } as const;
+/** The row every level fader starts on, and its height: it ends on the strip's last row. */
+const FADER = { y: 15, h: 21 } as const;
 
-/** A part strip: channel and pan, the sends (or the ambience send), routing, mute and solo, level. */
+/** Rows of a part strip's Controls: Ch and Pan, the sends, Out, C+EQ, then M and S. */
+const PART_CONTROLS_H = 9;
+
+/** A strip's name, up the left of its level fader (the column beside it), as the old mixer had it. */
+const NAME = { kind: "display", display: DisplayKind.StripName, x: 0, y: FADER.y, w: 1, h: FADER.h } as const;
+
+/** The first row of a part strip's Controls, so they end just over its fader. */
+const TOP = FADER.y - PART_CONTROLS_H;
+
+/** The row of every strip's output picker. */
+const OUT_Y = TOP + 6;
+
+/** A part strip: channel and pan, the sends (or the ambience send), routing, mute and solo side by side, level. */
 const PART: SectionBody<MixerField> = {
   items: [
-    { kind: "knob", field: MixerField.PartReceiveChannel, x: 0, y: 0, label: "Ch" },
-    { kind: "knob", field: MixerField.PartPan, x: 2, y: 0, label: "Pan" },
+    { kind: "knob", field: MixerField.PartReceiveChannel, x: 0, y: TOP, label: "Ch" },
+    { kind: "knob", field: MixerField.PartPan, x: 2, y: TOP, label: "Pan" },
     // Surround replaces the FX sends with its ambience send.
     {
       kind: "alternatives",
       group: "sends",
       x: 0,
-      y: 3,
+      y: TOP + 3,
       w: 4,
       h: 3,
       options: [
         {
           name: "fx",
           items: [
-            { kind: "knob", field: MixerField.PartChorusSend, x: 0, y: 3 },
-            { kind: "knob", field: MixerField.PartReverbSend, x: 2, y: 3 },
+            { kind: "knob", field: MixerField.PartChorusSend, x: 0, y: TOP + 3 },
+            { kind: "knob", field: MixerField.PartReverbSend, x: 2, y: TOP + 3 },
           ],
         },
-        { name: "surround", items: [{ kind: "knob", field: MixerField.SurroundAmbienceSend, x: 1, y: 3, label: "AMB" }] },
+        { name: "surround", items: [{ kind: "knob", field: MixerField.SurroundAmbienceSend, x: 1, y: TOP + 3, label: "AMB" }] },
       ],
     },
-    { kind: "knob", field: MixerField.PartOutputAssign, x: 0, y: 6, label: "Out" },
-    { kind: "switch", field: MixerField.DrumCompEqPart, x: 2, y: 7, label: false },
-    { kind: "switch", field: MixerField.PartMute, x: 0, y: 9, label: false },
-    { kind: "switch", field: MixerField.SoloPart, x: 2, y: 9, label: false },
-    { kind: "fader", field: MixerField.PartLevel, x: 1, ...FADER, label: false },
+    // The output, as the old mixer's route chip: the current output's name, opening the list.
+    { kind: "picker", field: MixerField.PartOutputAssign, x: 0, y: OUT_Y, w: 4, label: "Out" },
+    { kind: "switch", field: MixerField.DrumCompEqPart, x: 1, y: TOP + 7, label: false },
+    { kind: "switch", field: MixerField.PartMute, x: 0, y: TOP + 8, label: false },
+    { kind: "switch", field: MixerField.SoloPart, x: 2, y: TOP + 8, label: false },
+    { kind: "fader", field: MixerField.PartLevel, x: 1, ...FADER, label: false, scale: true },
+    NAME,
   ],
 };
 
-/** The external input: mute and level. */
+/** The external input: mute, centred over its level. */
 const EXT: SectionBody<MixerField> = {
   items: [
-    { kind: "switch", field: MixerField.ExtMute, x: 0, y: 9, label: false },
-    { kind: "fader", field: MixerField.ExtLevel, x: 1, ...FADER, label: false },
+    { kind: "switch", field: MixerField.ExtMute, x: 1, y: FADER.y - 1, label: false },
+    { kind: "fader", field: MixerField.ExtLevel, x: 1, ...FADER, label: false, scale: true },
+    NAME,
   ],
 };
 
 /** The master: its level. */
 const MASTER: SectionBody<MixerField> = {
-  items: [{ kind: "fader", field: MixerField.MasterLevel, x: 1, ...FADER, label: false }],
+  items: [{ kind: "fader", field: MixerField.MasterLevel, x: 1, ...FADER, label: false, scale: true }, NAME],
 };
 
 /**
- * A Drum Comp+EQ unit's compressor: the switch, the transfer curve over
- * threshold and ratio, the envelope over attack and release, the routing,
- * and the output gain on a shorter fader that ends with the others.
+ * A Drum Comp+EQ unit's compressor, as in the old mixer: the switch, the
+ * envelope across the strip over attack and release on short faders, the
+ * transfer curve across the strip over threshold and ratio, the routing, and
+ * the output gain on a level-length fader.
  */
 const COMP_EQ_UNIT: SectionBody<MixerField> = {
   items: [
     { kind: "switch", field: MixerField.CompSwitch, x: 1, y: 0, label: false },
-    { kind: "display", display: DisplayKind.CompTransferCurve, x: 0, y: 1, w: 4, h: 3 },
-    { kind: "knob", field: MixerField.CompThreshold, x: 0, y: 4, label: "Thr" },
-    { kind: "knob", field: MixerField.CompRatio, x: 2, y: 4 },
-    { kind: "display", display: DisplayKind.CompEnvelope, x: 0, y: 7, w: 4, h: 2 },
-    { kind: "knob", field: MixerField.CompAttack, x: 0, y: 9, label: "Atk" },
-    { kind: "knob", field: MixerField.CompRelease, x: 2, y: 9, label: "Rel" },
-    { kind: "knob", field: MixerField.CompOutputAssign, x: 1, y: 12, label: "Out" },
-    { kind: "fader", field: MixerField.CompOutputGain, x: 1, y: 15, h: 7, label: "Gain" },
+    { kind: "display", display: DisplayKind.CompEnvelope, x: 0, y: 1, w: 4, h: 2 },
+    { kind: "fader", field: MixerField.CompAttack, x: 0, y: 3, h: 3, label: "Atk" },
+    { kind: "fader", field: MixerField.CompRelease, x: 2, y: 3, h: 3, label: "Rel" },
+    { kind: "display", display: DisplayKind.CompTransferCurve, x: 0, y: 6, w: 4, h: 3 },
+    { kind: "knob", field: MixerField.CompThreshold, x: 0, y: 9, label: "Thr" },
+    { kind: "knob", field: MixerField.CompRatio, x: 2, y: 9 },
+    { kind: "picker", field: MixerField.CompOutputAssign, x: 0, y: OUT_Y, w: 4, label: "Out" },
+    { kind: "fader", field: MixerField.CompOutputGain, x: 1, ...FADER, label: false, scale: true },
+    NAME,
   ],
 };
 
@@ -149,7 +174,7 @@ export const STRIP_SET: VariantSet<MixerScopeKind, MixerField> = {
   title: "{part}",
   titleEdge: "top",
   w: 4,
-  h: 22,
+  h: FADER.y + FADER.h,
   keys: STRIP_KINDS,
   fieldsOf: stripFields,
   variants: new Map([
@@ -161,4 +186,83 @@ export const STRIP_SET: VariantSet<MixerScopeKind, MixerField> = {
   generate: (kind) => {
     throw new Error(`no strip layout for ${MixerScopeKind[kind]}`);
   },
+};
+
+/** The FX columns' strips: the Chorus's and the Reverb's. */
+export type FxStripKind = "chorus" | "reverb";
+
+/**
+ * Each FX strip's fields, in the Studio Set common block, by role. Core
+ * groups them (`ParamGroup`) but doesn't export the group; a test checks
+ * that every Common field named for the block is here.
+ */
+export const FX_STRIP_FIELDS: Readonly<
+  Record<FxStripKind, { switch: MixerField; type: MixerField; level: MixerField; outputs: readonly MixerField[] }>
+> = {
+  chorus: {
+    switch: MixerField.ChorusSwitch,
+    type: MixerField.ChorusType,
+    level: MixerField.ChorusLevel,
+    outputs: [MixerField.ChorusOutputAssign, MixerField.ChorusOutputSelect],
+  },
+  reverb: {
+    switch: MixerField.ReverbSwitch,
+    type: MixerField.ReverbType,
+    level: MixerField.ReverbLevel,
+    outputs: [MixerField.ReverbOutputAssign],
+  },
+};
+
+/** The labels of an FX strip's output pickers, in `outputs` order. */
+const OUTPUT_LABELS = ["Out", "To"] as const;
+
+/** An FX strip's fields: its block's, from core's Common Scope. */
+function fxStripFields(kind: FxStripKind): FieldSpace<MixerField> {
+  const { switch: sw, type, level, outputs } = FX_STRIP_FIELDS[kind];
+  const mine = new Set([sw, type, level, ...outputs]);
+  const all = mixerFields([MixerScopeKind.Common]);
+  return {
+    name: `${kind} strip fields`,
+    get ids() {
+      return all.ids.filter((f) => mine.has(f));
+    },
+    nameOf: all.nameOf,
+    optionCount: all.optionCount,
+  };
+}
+
+/**
+ * An FX strip, laid out like a Comp+EQ unit's: the switch on top, the type
+ * list sitting on the output pickers, which sit on the part strips' Out row,
+ * then the level fader on every strip's fader rows, the type's name up its
+ * side. The list is as long as core's type count.
+ */
+function fxStrip(kind: FxStripKind): SectionBody<MixerField> {
+  const { switch: sw, type, level, outputs } = FX_STRIP_FIELDS[kind];
+  const listH = optionListRows(fxStripFields(kind).optionCount(type), true);
+  return {
+    items: [
+      { kind: "switch", field: sw, x: 1, y: 0, label: false },
+      { kind: "list", field: type, x: 1, y: OUT_Y - listH, h: listH, label: "Type" },
+      ...outputs.map(
+        (field, i): ItemLayout<MixerField> => ({ kind: "picker", field, x: 0, y: OUT_Y + i, w: 4, label: OUTPUT_LABELS[i] }),
+      ),
+      { kind: "fader", field: level, x: 1, ...FADER, label: false, scale: true },
+      NAME,
+    ],
+  };
+}
+
+/** The strip under each FX column's parameters, by FX: the strip footprint, so its fader is level with theirs. */
+export const FX_STRIP_SET: VariantSet<FxStripKind, MixerField> = {
+  name: "mixer FX strip",
+  // Its Scope's `fx` is its key's index: FX1 the Chorus, FX2 the Reverb.
+  title: "FX{fx}",
+  titleEdge: STRIP_SET.titleEdge,
+  w: STRIP_SET.w,
+  h: STRIP_SET.h,
+  keys: ["chorus", "reverb"],
+  fieldsOf: fxStripFields,
+  variants: new Map(),
+  generate: fxStrip,
 };

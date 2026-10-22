@@ -1,102 +1,109 @@
-import { VolumeFader } from "./VolumeFader";
-import type { FxState } from "./types";
-import { useMemo } from "react";
-import { stripIcon } from "./categoryIcons";
-import css from "./ChannelStrip.module.css";
-import fxCss from "./FxStrip.module.css";
-import box from "./PanelBox.module.css";
-import { RouteChip } from "./RouteChip";
-import { SynthSwitch } from "./synth-ui";
-import { CHORUS_SET, GridSection, REVERB_SET, variantLayout } from "./layouts";
-import { useFxBind } from "./fxBinding";
+/**
+ * A mixer FX column on the Grid (#392): the Chorus's or the Reverb's
+ * parameter Section where the other strips have their EQ, its strip (a
+ * variant of `FX_STRIP_SET`) and the plate under it. The strip writes
+ * through `setMixerField` in the Common Scope; the parameters write their
+ * block's nibblized slots.
+ */
 
-/** Each FX strip's parameter Section, by block. */
+import { useMemo } from "react";
+import { DisplayKind, MixerField, MixerScopeKind } from "../pkg/integral_wasm.js";
+import { CategoryPlate, VerticalName, type SetMixerField } from "./ChannelStrip";
+import { stripIcon } from "./categoryIcons";
+import { useFxBind } from "./fxBinding";
+import { CHORUS_SET, GridSection, REVERB_SET, variantLayout, type Binding } from "./layouts";
+import { FX_STRIP_SET, FX_STRIP_FIELDS, type FxStripKind } from "./layouts/mixer/strip";
+import { mixerBinding, paramFormatter, paramMeta } from "./paramDefaults";
+import type { FxState } from "./types";
+
+/** Each FX column's parameter Section, by block. */
 const SETS = { chorus: CHORUS_SET, reverb: REVERB_SET } as const;
 
-/** One output-routing select on an FX strip, wired to a core block offset. */
-interface FxRoute {
-  /** Raw offset within the FX core block. */
-  offset: number;
-  names: string[];
-  value: number;
-  title: string;
-}
-
-interface Props {
-  label: string;
-  /** Which FX block the strip edits: its params and their layouts come from core by type. */
-  block: keyof typeof SETS;
+/** Props of {@link FxParams}. */
+interface FxParamsProps {
+  /** Which FX block: its params and their layout come from core by type. */
+  block: FxStripKind;
+  /** The block's state. */
   fx: FxState;
-  typeNames: string[];
-  routes: FxRoute[];
-  onToggleSwitch: () => void;
-  onParam: (offset: number, value: number) => void;
-  onNibParam: (paramIndex: number, value: number) => void;
+  /** Writes one of the block's nibblized parameter slots. */
+  onNibParam: (slot: number, value: number) => void;
 }
 
-export function FxStrip({
-  label,
-  block,
-  fx,
-  typeNames,
-  routes,
-  onToggleSwitch,
-  onParam,
-  onNibParam,
-}: Props) {
-  // One footprint for every type, so the type list below never moves.
+/** An FX column's parameter Section, dimmed while its switch is off. */
+export function FxParams({ block, fx, onNibParam }: FxParamsProps) {
+  // One footprint for every type, so nothing moves when the type changes.
   const layout = useMemo(() => variantLayout(SETS[block], fx.type), [block, fx.type]);
   const bind = useFxBind(block, fx.type, fx.params, onNibParam);
+  // Some types' knobs carry a sync toggle: every type's knobs keep the dial they leave room for.
+  return <GridSection layout={layout} bind={bind} isActive={() => fx.enabled} reserveAddon />;
+}
 
+/**
+ * Where each FX strip field's value lives in `FxState`. The Chorus keeps its
+ * Output Assign apart from its Output Select; the Reverb's one output, its
+ * assign, is `output`.
+ */
+const FX_STATE: Readonly<Partial<Record<MixerField, (fx: FxState) => number>>> = {
+  [MixerField.ChorusSwitch]: (fx) => Number(fx.enabled),
+  [MixerField.ChorusType]: (fx) => fx.type,
+  [MixerField.ChorusLevel]: (fx) => fx.level,
+  [MixerField.ChorusOutputAssign]: (fx) => fx.outputAssign,
+  [MixerField.ChorusOutputSelect]: (fx) => fx.output,
+  [MixerField.ReverbSwitch]: (fx) => Number(fx.enabled),
+  [MixerField.ReverbType]: (fx) => fx.type,
+  [MixerField.ReverbLevel]: (fx) => fx.level,
+  [MixerField.ReverbOutputAssign]: (fx) => fx.output,
+};
+
+/** The value of FX strip field `field` in `fx`. */
+function fxValue(fx: FxState, field: MixerField): number {
+  const read = FX_STATE[field];
+  if (!read) throw new Error(`${MixerField[field]} is not on an FX strip`);
+  return read(fx);
+}
+
+/** Props of {@link FxStrip}. */
+interface FxStripProps {
+  /** Which FX. */
+  block: FxStripKind;
+  /** The block's state. */
+  fx: FxState;
+  /** Writes a mixer field; the strip's are in the Common Scope. */
+  setField: SetMixerField;
+}
+
+/** An FX column's strip: switch, type, outputs and level, the type's name up the fader. */
+export function FxStrip({ block, fx, setField }: FxStripProps) {
+  const layout = useMemo(() => variantLayout(FX_STRIP_SET, block), [block]);
+  const { switch: sw, type, level } = FX_STRIP_FIELDS[block];
+  const bind = (field: MixerField): Binding => ({
+    ...mixerBinding(field, fxValue(fx, field), (v) => setField(MixerScopeKind.Common, 0, field, v)),
+    // The switch reads FX, on and off alike: its LED shows the state.
+    ...(field === sw ? { options: [{ value: 0, label: "FX" }, { value: 1, label: "FX" }] } : {}),
+  });
   return (
-    <div className={`${css.strip} ${fxCss.override}`}>
-      <div className={css.partNumber}>{label}</div>
-
-      <div className={`${box.box} ${fxCss.box} ${fx.enabled ? "" : box.off}`}>
-        <button
-          className={`${box.switchButton} ${fx.enabled ? box.switchOn : box.switchOff}`}
-          onClick={onToggleSwitch}
-        >
-          {fx.enabled ? "FX ON" : "FX OFF"}
-        </button>
-
-        <GridSection layout={layout} bind={bind} />
-      </div>
-
-      {/* Type: a separate box pinned to the fader. */}
-      <div className={`${css.bottom} ${fxCss.fill}`}>
-        <div className={`${box.box} ${fxCss.typeList} ${fx.enabled ? "" : box.off}`}>
-          <SynthSwitch label="Type" vertical led={false} value={fx.type}
-            options={typeNames.map((name, i) => ({ value: i, label: name }))}
-            onChange={(v) => onParam(0, v)} />
-        </div>
-        {/* Route chips share the slots above M/S with part and Comp+EQ strips; the hidden M/S row aligns them. */}
-        <div className={css.toggles}>
-          {routes.map((route) => (
-            <div key={route.offset} className={css.muteRow}>
-              <RouteChip value={route.value} names={route.names}
-                onChange={(v) => onParam(route.offset, v)} title={route.title} />
-            </div>
-          ))}
-          <div className={css.muteRow} style={{ visibility: "hidden" }}>
-            <button className={css.muteButton}>M</button>
-          </div>
-        </div>
-      </div>
-
-      <div className={`${css.faderArea} ${fx.enabled ? "" : box.off}`}>
-        <span className={css.faderLabel}>{typeNames[fx.type]}</span>
-        <VolumeFader value={fx.level} onChange={(v) => onParam(1, v)} />
-      </div>
-
-      {/* Role icon for alignment with part strips */}
-      <div className={css.categoryArea}>
-        <div
-          className={css.categoryIcon}
-          dangerouslySetInnerHTML={{ __html: stripIcon(label === "FX1" ? "fx1" : "fx2") }}
-        />
-        <span className={css.categoryLabel}>{label === "FX1" ? "Chorus/Delay" : "Reverb"}</span>
-      </div>
-    </div>
+    <GridSection
+      layout={layout}
+      bind={bind}
+      scope={{ fx: FX_STRIP_SET.keys.indexOf(block) }}
+      // The accent of its level fader, as on every strip.
+      family={paramMeta(level).family}
+      // The level greys out with the switch, as the old FX fader did.
+      isActive={(field) => fx.enabled || field !== level}
+      renderDisplay={(display) =>
+        display === DisplayKind.StripName ? <VerticalName name={paramFormatter(type)(fx.type)} /> : null
+      }
+    />
   );
+}
+
+/** The plate under each FX strip: its icon and role. */
+const ROLE: Readonly<Record<FxStripKind, { icon: string; label: string }>> = {
+  chorus: { icon: "fx1", label: "Chorus/Delay" },
+  reverb: { icon: "fx2", label: "Reverb" },
+};
+
+/** The plate under an FX strip. */
+export function FxCategory({ block }: { block: FxStripKind }) {
+  return <CategoryPlate icon={stripIcon(ROLE[block].icon)} label={ROLE[block].label} />;
 }

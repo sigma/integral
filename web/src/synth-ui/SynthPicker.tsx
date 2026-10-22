@@ -1,5 +1,5 @@
 /**
- * A picker on the Grid, 6×1: the field's name, then its current option's in a
+ * A picker on the Grid, N×1 (6×1 by default): the field's name, then its current option's in a
  * button that opens a searchable list of the field's options (`SearchPopover`).
  * For fields with too many named values for an option list: a Wave, an Inst.
  */
@@ -8,7 +8,7 @@
 
 import { useRef, useState } from "react";
 import { SearchPopover, type PickOption } from "../SearchPopover";
-import { FOOTPRINT, NAME, cellsPx, lineStyle } from "./grid";
+import { FOOTPRINT, NAME, cellsPx, lineStyle, type Px } from "./grid";
 import css from "./SynthPicker.module.css";
 
 /** Props of {@link SynthPicker}. */
@@ -23,15 +23,20 @@ export interface SynthPickerProps {
   label?: string;
   /** Full name, for the tooltip and the search box. Defaults to `label`. */
   title?: string;
+  /**
+   * On the Grid, the px box to fill instead of the whole footprint: the
+   * footprint less the edge padding a Section's renderer gives it.
+   */
+  box?: Px;
 }
 
-/** A picker, filling its 6×1 footprint at scale 1. */
-export function SynthPicker({ value, options, onChange, label, title = label }: SynthPickerProps) {
+/** A picker, filling its footprint (`box`, or the default 6×1) at scale 1. */
+export function SynthPicker({ value, options, onChange, label, title = label, box }: SynthPickerProps) {
   const [open, setOpen] = useState(false);
   const anchor = useRef<HTMLButtonElement>(null);
   const current = options.find((o) => o.value === value)?.label ?? String(value);
   return (
-    <div className={css.picker} style={cellsPx(FOOTPRINT.picker)} title={title}>
+    <div className={css.picker} style={box ?? cellsPx(FOOTPRINT.picker)} title={title}>
       {label && (
         <span className={css.label} style={lineStyle(NAME)}>
           {label}

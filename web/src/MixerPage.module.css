@@ -17,17 +17,6 @@
   background: linear-gradient(to bottom, #262a4e, #1a1c38);
 }
 
-/*
- * A Chorus or Reverb strip fills its column, with the rows it shares with
- * the old CSS strips: label / FX box / free space / type and routing /
- * fader / role.
- */
-.fxHost {
-  display: grid;
-  grid-template-rows: auto auto 1fr auto minmax(200px, 588px) auto;
-  height: 100%;
-}
-
 .loading {
   padding: 48px 0;
   text-align: center;

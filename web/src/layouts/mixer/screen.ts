@@ -5,10 +5,10 @@
  * strip and its name; the external input has no EQ and leaves those Cells
  * empty, so its strip starts on the same row as the others.
  *
- * The Chorus and Reverb strips and the name plates are CSS Sections hosted in
- * whole-Cell placements. A Chorus or Reverb strip draws its parameters as a
- * Grid Section of its type's variant set (`layouts/fx/strip.ts`), one column
- * wide.
+ * The Chorus and Reverb columns stack the same way: their parameter Section
+ * (`layouts/fx/strip.ts`, as tall as an EQ) where the others have their EQ,
+ * their FX strip (`FX_STRIP_SET`, the strips' footprint) and their plate.
+ * The plates are CSS hosted in whole-Cell placements.
  */
 
 import { MixerScopeKind } from "../../../pkg/integral_wasm.js";
@@ -16,10 +16,11 @@ import { deviceSpec } from "../../deviceSpec";
 import { memo } from "../fields";
 import { sectionCells } from "../geometry";
 import type { ScreenLayout, SectionFrame, SectionPlacement } from "../types";
+import { CHORUS_SET, REVERB_SET } from "../fx/strip";
 import { EQ_LAYOUT } from "./eq";
-import { STRIP_SET } from "./strip";
+import { FX_STRIP_SET, STRIP_SET, type FxStripKind } from "./strip";
 
-/** A strip's name plate below its fader: the tone or role, and its icon. */
+/** The plate below a strip's fader: its tone's category or its role, under its icon. */
 export const NAME_FRAME: SectionFrame = { title: "", titleEdge: "top", w: 4, h: 2 };
 
 /** The width of every column, in Cells. */
@@ -28,11 +29,11 @@ const COLUMN = 4;
 const EQ_H = sectionCells(EQ_LAYOUT).h;
 const STRIP_H = sectionCells(STRIP_SET).h;
 const NAME_H = sectionCells(NAME_FRAME).h;
+/** Each FX column's parameter Section. */
+const FX_PARAMS: Readonly<Record<FxStripKind, SectionFrame>> = { chorus: CHORUS_SET, reverb: REVERB_SET };
+
 /** A column's height: EQ, strip and name. */
 const HEIGHT = EQ_H + STRIP_H + NAME_H;
-
-/** A Chorus or Reverb strip: a CSS Section filling a whole column, its unused title row included, around its Grid parameter Section. */
-export const FX_FRAME: SectionFrame = { title: "", titleEdge: "top", w: COLUMN, h: HEIGHT - 1 };
 
 /** What a placement on the mixer screen draws. */
 export type MixerSlot =
@@ -40,10 +41,10 @@ export type MixerSlot =
   | { role: "eq"; kind: MixerScopeKind; index: number }
   /** A strip, in its Scope. */
   | { role: "strip"; kind: MixerScopeKind; index: number }
-  /** A strip's name plate. */
+  /** The plate under a strip: its category or role. */
   | { role: "name"; kind: MixerScopeKind; index: number }
-  /** The Chorus or Reverb strip. */
-  | { role: "fx"; fx: "chorus" | "reverb" };
+  /** An FX column's parameter Section, strip or plate. */
+  | { role: "fx"; fx: FxStripKind; section: "params" | "strip" | "name" };
 
 /** A screen layout and what each of its placements draws, by placement id. */
 export interface MixerScreen {
@@ -74,8 +75,10 @@ function buildMixerScreen(compEq: boolean): MixerScreen {
   if (compEq) {
     for (let u = 0; u < spec.comp_eq_unit_count; u++) column(MixerScopeKind.CompEqUnit, u, `comp.${u}`, true);
   }
-  for (const fx of ["chorus", "reverb"] as const) {
-    place(fx, FX_FRAME, 0, { role: "fx", fx });
+  for (const fx of FX_STRIP_SET.keys) {
+    place(`fx.${fx}`, FX_PARAMS[fx], 0, { role: "fx", fx, section: "params" });
+    place(`strip.${fx}`, FX_STRIP_SET, EQ_H, { role: "fx", fx, section: "strip" });
+    place(`name.${fx}`, NAME_FRAME, EQ_H + STRIP_H, { role: "fx", fx, section: "name" });
     x += COLUMN;
   }
   column(MixerScopeKind.Master, 0, "master", true);
