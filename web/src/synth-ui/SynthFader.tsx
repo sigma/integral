@@ -36,9 +36,12 @@ interface Props {
    * Draw a level fader, as the pre-Grid mixer's (#392): a recessed panel, a
    * thin groove, a wide white cap and the level scale (`faderScale`) beside
    * it, with no fill. On the Grid its footprint is `FOOTPRINT.levelFaderW`
-   * wide. The 0 dB mark of a range other than 0–127 is `defaultValue`.
+   * wide. The 0 dB mark of a 0–127 level is `zeroDb`; of another range,
+   * `defaultValue`.
    */
   scale?: boolean;
+  /** The raw value core marks 0 dB on a 0–127 level fader's scale; none without it. */
+  zeroDb?: number;
   /**
    * The readout's unit, drawn after `formatValue`'s text on its line: a
    * tempo-syncable fader's free/note toggle.
@@ -80,6 +83,7 @@ export function SynthFader({
   gridRows,
   box: boxProp,
   scale = false,
+  zeroDb,
   unit,
 }: Props) {
   const grid = gridRows !== undefined;
@@ -178,7 +182,7 @@ export function SynthFader({
   // A level fader: its scale's marks, each level with the cap's centre at its value, then the groove and the cap.
   const trackArea = scale ? (
     <div className={css.levelTrack} style={{ height: areaH }} {...sliderProps}>
-      {faderScale({ min, max, format: formatValue, nominal: defaultValue }).map((mark) => (
+      {faderScale({ min, max, format: formatValue, zeroDb, nominal: defaultValue }).map((mark) => (
         <div
           key={mark.value}
           className={`${css.mark} ${mark.zero ? css.markZero : ""}`}

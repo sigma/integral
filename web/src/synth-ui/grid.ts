@@ -29,7 +29,7 @@ export const FOOTPRINT = {
   faderW: 2,
   /** Level fader (a fader with its scale, as the mixer's): 3×N, the scale beside the wide cap. */
   levelFaderW: 3,
-  /** Vertical option list: 2×N, one Cell row per option. */
+  /** Vertical option list: 2×N, one Cell row per option; a layout may pick a wider `w` for long names. */
   optionListW: 2,
   /**
    * Picker: its name, then the current option's, opening a searchable list.
@@ -37,6 +37,50 @@ export const FOOTPRINT = {
    */
   picker: { w: 6, h: 1 },
 } as const satisfies Record<string, Cells | number>;
+
+/**
+ * The type and spacing of an option's name on the Grid, px at zoom 1: a list
+ * row's (beside its LED) and a switch state's (beside its LED, inside the
+ * toggle's margin). `SynthSwitch` draws its Grid variant from these, and
+ * {@link visibleOption} measures from them, so the two can't drift.
+ */
+export const OPTION_TEXT = {
+  list: { fontSize: 8, padding: 3, led: 6, gap: 3, margin: 0 },
+  switch: { fontSize: 9, padding: 2, led: 6, gap: 3, margin: 2 },
+} as const;
+
+/**
+ * The average width of an uppercase option name's glyph, per px of font
+ * size, in the UI's bold system font (measured in Chrome: `KEY-OFF-NORMAL`
+ * is 77px at 8px, `NO-SUS` 38px at 9px). Wide glyphs (`M`, `W`) take more.
+ */
+export const GLYPH_EM = 0.72;
+
+/** What draws an option's name: a row of an option list, or a two-state switch. */
+export type OptionKind = keyof typeof OPTION_TEXT;
+
+/**
+ * Characters of an option's name a `kind` Control `w` Cells wide shows at
+ * zoom 1. A list row's name runs on into its right padding before the row
+ * clips it; a switch's state stops at its padding.
+ */
+export function optionChars(kind: OptionKind, w: number): number {
+  const t = OPTION_TEXT[kind];
+  const pads = kind === "list" ? t.padding : 2 * t.padding;
+  const px = w * CELL - 2 * t.margin - pads - t.led - t.gap;
+  return Math.floor(px / (t.fontSize * GLYPH_EM));
+}
+
+/**
+ * `label` as a `kind` Control `w` Cells wide shows it at zoom 1: whole, or
+ * cut. A list row clips it; a switch cuts it to one fewer than fits and an
+ * ellipsis.
+ */
+export function visibleOption(label: string, kind: OptionKind, w: number): string {
+  const n = optionChars(kind, w);
+  if (label.length <= n) return label;
+  return kind === "list" ? label.slice(0, n) : `${label.slice(0, n - 1)}…`;
+}
 
 /** An edge of a footprint. */
 export type Edge = "top" | "right" | "bottom" | "left";

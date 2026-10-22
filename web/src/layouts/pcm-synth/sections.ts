@@ -347,13 +347,17 @@ const CTRL = box("CTRL", 4, () => [
   { kind: "switch", field: F.ReceiveHold1, x: 1, y: 6, label: "RxHold" },
 ]);
 
-/** OUTPUT: delay (its time synced in the knob), effect sends and output level. */
+/**
+ * OUTPUT: delay (its time synced in the knob, under its mode), effect sends
+ * and output level. The mode list is 4 Cells wide, so core's names
+ * (KEY-OFF-NORMAL, KEY-OFF-DECAY) read whole (#400).
+ */
 const OUTPUT = box("OUTPUT", 7, () => [
-  { kind: "list", field: F.DelayMode, x: 1, y: 0, h: 5, label: "Delay" },
-  { kind: "knob", field: F.DelayTime, x: 3, y: 0, label: "Time" },
-  { kind: "knob", field: F.ChorusSend, x: 1, y: 5, label: "FX1" },
-  { kind: "knob", field: F.ReverbSend, x: 3, y: 5, label: "FX2" },
-  { kind: "fader", field: F.OutputLevel, x: 5, y: 0, h: 8, label: "Level" },
+  { kind: "list", field: F.DelayMode, x: 1, y: 0, w: 4, h: 5, label: "Delay" },
+  { kind: "knob", field: F.DelayTime, x: 1, y: 5, label: "Time" },
+  { kind: "knob", field: F.ChorusSend, x: 1, y: 9, label: "FX1" },
+  { kind: "knob", field: F.ReverbSend, x: 3, y: 9, label: "FX2" },
+  { kind: "fader", field: F.OutputLevel, x: 5, y: 0, h: 12, label: "Level" },
 ]);
 
 /** A partial's box, by its id in a lane. */

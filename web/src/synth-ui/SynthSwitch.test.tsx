@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { SynthSwitch } from "./SynthSwitch";
-import { CELL, FOOTPRINT, NAME } from "./grid";
+import { CELL, FOOTPRINT, NAME, OPTION_TEXT } from "./grid";
 import { expectFillsFootprint, rootOf, stackedHeight } from "../test/grid";
 import { cleanup, render } from "../test/dom";
 
@@ -40,6 +40,21 @@ describe("SynthSwitch on the Grid", () => {
     expectFillsFootprint(root, { w: FOOTPRINT.optionListW, h: waves.length });
     const rows = [...root.querySelectorAll<HTMLElement>('[role="radio"]')];
     expect(rows.map((r) => r.style.height)).toEqual(waves.map(() => `${CELL}px`));
+  });
+
+  it("draws option names in the type and spacing the layout validator measures with", () => {
+    const { container: list } = render(<SynthSwitch value={0} options={waves} onChange={() => {}} grid />);
+    const row = list.querySelector<HTMLElement>('[role="radio"]')!;
+    const l = OPTION_TEXT.list;
+    expect([row.style.fontSize, row.style.padding, row.style.gap]).toEqual([`${l.fontSize}px`, `0px ${l.padding}px`, `${l.gap}px`]);
+    expect(row.querySelector<HTMLElement>("span")!.style.width).toBe(`${l.led}px`);
+    cleanup();
+    const { container: toggle } = render(<SynthSwitch value={0} options={onOff} onChange={() => {}} grid />);
+    const button = toggle.querySelector<HTMLElement>("button")!;
+    const t = OPTION_TEXT.switch;
+    expect([button.style.fontSize, button.style.padding, button.style.gap]).toEqual([`${t.fontSize}px`, `0px ${t.padding}px`, `${t.gap}px`]);
+    expect(button.style.width).toBe(`calc(100% - ${2 * t.margin}px)`);
+    expect(button.querySelector<HTMLElement>("span")!.style.width).toBe(`${t.led}px`);
   });
 
   it("puts a list's name on its own row above the options", () => {

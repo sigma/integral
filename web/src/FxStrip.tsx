@@ -13,12 +13,13 @@ import {
   MixerScopeKind,
   fx_block_is_active,
   mixer_fx_is_active,
+  mixer_fx_value,
 } from "../pkg/integral_wasm.js";
 import { CategoryPlate, VerticalName, type SetMixerField } from "./ChannelStrip";
 import { stripIcon } from "./categoryIcons";
 import { useFxBind } from "./fxBinding";
 import { CHORUS_SET, GridSection, REVERB_SET, variantLayout, type Binding } from "./layouts";
-import { FX_STRIP_SET, FX_STRIP_FIELDS, type FxStripKind } from "./layouts/mixer/strip";
+import { FX_STRIP_SET, fxStripFields, type FxStripKind } from "./layouts/mixer/strip";
 import { mixerBinding, paramFormatter, paramMeta } from "./paramDefaults";
 import type { FxState } from "./types";
 
@@ -44,28 +45,11 @@ export function FxParams({ block, fx, onNibParam }: FxParamsProps) {
   return <GridSection layout={layout} bind={bind} isActive={() => active} />;
 }
 
-/**
- * Where each FX strip field's value lives in `FxState`. The Chorus keeps its
- * Output Assign apart from its Output Select; the Reverb's one output, its
- * assign, is `output`.
- */
-const FX_STATE: Readonly<Partial<Record<MixerField, (fx: FxState) => number>>> = {
-  [MixerField.ChorusSwitch]: (fx) => Number(fx.enabled),
-  [MixerField.ChorusType]: (fx) => fx.type,
-  [MixerField.ChorusLevel]: (fx) => fx.level,
-  [MixerField.ChorusOutputAssign]: (fx) => fx.outputAssign,
-  [MixerField.ChorusOutputSelect]: (fx) => fx.output,
-  [MixerField.ReverbSwitch]: (fx) => Number(fx.enabled),
-  [MixerField.ReverbType]: (fx) => fx.type,
-  [MixerField.ReverbLevel]: (fx) => fx.level,
-  [MixerField.ReverbOutputAssign]: (fx) => fx.output,
-};
-
-/** The value of FX strip field `field` in `fx`. */
+/** The value of FX strip field `field` in `fx`, read by core. */
 function fxValue(fx: FxState, field: MixerField): number {
-  const read = FX_STATE[field];
-  if (!read) throw new Error(`${MixerField[field]} is not on an FX strip`);
-  return read(fx);
+  const value = mixer_fx_value(field, fx);
+  if (value === undefined) throw new Error(`${MixerField[field]} is not on an FX strip`);
+  return value;
 }
 
 /** Props of {@link FxStrip}. */
@@ -81,7 +65,7 @@ interface FxStripProps {
 /** An FX column's strip: its switch in the title, type, outputs and level, the type's name up the fader. */
 export function FxStrip({ block, fx, setField }: FxStripProps) {
   const layout = useMemo(() => variantLayout(FX_STRIP_SET, block), [block]);
-  const { type, level } = FX_STRIP_FIELDS[block];
+  const { type, level } = fxStripFields(block);
   const bind = (field: MixerField): Binding =>
     mixerBinding(field, fxValue(fx, field), (v) => setField(MixerScopeKind.Common, 0, field, v));
   return (

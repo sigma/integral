@@ -104,12 +104,10 @@
   white-space: nowrap;
 }
 
-/* Tight enough that a four-letter state (COMP, C+EQ) fits beside its LED in 2 Cells. */
+/* Type and spacing come inline from OPTION_TEXT (grid.ts), which the layout validator measures with. */
 .grid .toggleBtn {
   box-sizing: border-box;
   justify-content: center;
-  gap: 3px;
-  padding: 0 2px;
   overflow: hidden;
 }
 
@@ -130,12 +128,10 @@
   outline-offset: -1px;
 }
 
-/* Tighter than off the Grid, so a six-letter option fits its 2-Cell width. */
+/* Type and spacing come inline from OPTION_TEXT (grid.ts), which the layout validator measures with. */
 .grid .option {
   box-sizing: border-box;
   max-width: 100%;
-  gap: 3px;
-  padding: 0 3px;
   flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;

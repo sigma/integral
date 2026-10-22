@@ -37,7 +37,9 @@ import {
   VARIANT_SETS,
   screenLayouts,
 } from "./registry";
+import { PCMS_BOXES } from "./pcm-synth/sections";
 import { surroundScreen } from "./surround/screen";
+import { FOOTPRINT, visibleOption } from "../synth-ui/grid";
 import type {
   ItemLayout,
   RegionVariantSet,
@@ -292,6 +294,44 @@ describe("validateSection", () => {
       { kind: "switch", field: MixerField.EqMidQ, x: 2, y: 3 },
     ]);
     expect(checks(validateSection(bad))).toEqual(["footprint"]);
+  });
+
+  it("label: two options a list or switch shows as the same text", () => {
+    // Core's names for PCM Synth Delay Mode: in a 2-Cell list both key-off ones read KEY-OF (#400).
+    const delay = pcms_partial_spec(PcmsPartialField.DelayMode);
+    const full = [0, 1, 2, 3].map((v) => delay.formatValue(v));
+    const common = mixerFields([MixerScopeKind.Common]);
+    const fields = { ...common, optionLabels: () => full };
+    const list = (w?: number): SectionLayout<MixerField> => ({
+      ...BASE,
+      fields,
+      items: [{ kind: "list", field: MixerField.ChorusOutputSelect, x: 0, y: 0, w, h: 5 }],
+      silkscreen: [],
+    });
+    const problems = validateSection(list());
+    expect(checks(problems)).toEqual(["label"]);
+    expect(problems[0]!.message).toBe('KEY-OFF-NORMAL and KEY-OFF-DECAY both read "KEY-OF"');
+    // 4 Cells wide, every name reads whole.
+    expect(validateSection(list(4))).toEqual([]);
+    // Labels core gives as the same (a reserved "---" twice) are not a clash.
+    const same = { ...common, optionLabels: () => ["---", "---"] };
+    expect(validateSection({ ...list(), fields: same })).toEqual([]);
+  });
+
+  it("label: a switch cuts its state to an ellipsis", () => {
+    expect(visibleOption("COMP", "switch", 2)).toBe("COMP");
+    expect(visibleOption("NO-SUS", "switch", 2)).toBe("NO-…");
+  });
+
+  it("label: the PCM Synth OUTPUT Delay list shows core's four names whole", () => {
+    const delay = PCMS_BOXES.out.layout.items.find(
+      (i) => i.kind === "list" && i.field === PcmsPartialField.DelayMode,
+    );
+    expect(delay?.kind).toBe("list");
+    const w = delay?.kind === "list" ? (delay.w ?? FOOTPRINT.optionListW) : 0;
+    const names = PCMS_BOXES.out.layout.fields.optionLabels!(PcmsPartialField.DelayMode);
+    expect(names).toHaveLength(4);
+    expect(names.map((l) => visibleOption(l, "list", w))).toEqual(names);
   });
 
   it("field: a Display id core doesn't define", () => {

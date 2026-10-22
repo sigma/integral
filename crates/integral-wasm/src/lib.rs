@@ -2189,6 +2189,7 @@ pub struct WasmFieldSpec {
     pub default_value: i32,
     format: param_registry::ParamFormat,
     family: family::ParameterFamily,
+    zero_db: Option<i32>,
 }
 
 #[wasm_bindgen]
@@ -2216,6 +2217,13 @@ impl WasmFieldSpec {
     #[wasm_bindgen(getter)]
     pub fn family(&self) -> ParameterFamily {
         self.family.into()
+    }
+
+    /// The raw value a level fader marks 0 dB, or `undefined` for a field
+    /// drawn without a 0 dB mark (see [`param_registry::ParamDef::zero_db`]).
+    #[wasm_bindgen(getter, js_name = zeroDb)]
+    pub fn zero_db(&self) -> Option<i32> {
+        self.zero_db
     }
 
     /// The catalog the field names its values from, or `undefined`: a
@@ -2287,6 +2295,7 @@ fn wrap_field_spec(spec: field_spec::FieldSpec) -> WasmFieldSpec {
         default_value: spec.default,
         format: spec.format,
         family: spec.family,
+        zero_db: None,
     }
 }
 
@@ -3278,13 +3287,90 @@ pub fn mfx_params(mfx_type: u8) -> Vec<WasmFxParamDef> {
 #[wasm_bindgen]
 pub fn mixer_field_spec(field: MixerField) -> WasmFieldSpec {
     let def = param_registry::mixer_param(field.into());
-    wrap_field_spec(field_spec::FieldSpec {
-        min: def.min,
-        max: def.max,
-        default: def.default,
-        format: def.format,
-        family: def.family,
-    })
+    WasmFieldSpec {
+        zero_db: def.zero_db,
+        ..wrap_field_spec(field_spec::FieldSpec {
+            min: def.min,
+            max: def.max,
+            default: def.default,
+            format: def.format,
+            family: def.family,
+        })
+    }
+}
+
+/// Logical grouping of a mixer parameter (mirrors
+/// [`param_registry::ParamGroup`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ParamGroup {
+    /// See [`param_registry::ParamGroup::Part`].
+    Part,
+    /// See [`param_registry::ParamGroup::Master`].
+    Master,
+    /// See [`param_registry::ParamGroup::Ext`].
+    Ext,
+    /// See [`param_registry::ParamGroup::Chorus`].
+    Chorus,
+    /// See [`param_registry::ParamGroup::Reverb`].
+    Reverb,
+    /// See [`param_registry::ParamGroup::Eq`].
+    Eq,
+    /// See [`param_registry::ParamGroup::Comp`].
+    Comp,
+    /// See [`param_registry::ParamGroup::Surround`].
+    Surround,
+    /// See [`param_registry::ParamGroup::Global`].
+    Global,
+}
+
+mirror_core_enum!(ParamGroup <=> param_registry::ParamGroup {
+    Part,
+    Master,
+    Ext,
+    Chorus,
+    Reverb,
+    Eq,
+    Comp,
+    Surround,
+    Global,
+});
+
+/// A Chorus or Reverb field's role in its block (mirrors
+/// [`param_registry::FxRole`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FxRole {
+    /// See [`param_registry::FxRole::Switch`].
+    Switch,
+    /// See [`param_registry::FxRole::Type`].
+    Type,
+    /// See [`param_registry::FxRole::Level`].
+    Level,
+    /// See [`param_registry::FxRole::Output`].
+    Output,
+}
+
+mirror_core_enum!(FxRole <=> param_registry::FxRole {
+    Switch,
+    Type,
+    Level,
+    Output,
+});
+
+/// The group a mixer field belongs to.
+#[wasm_bindgen]
+pub fn mixer_field_group(field: MixerField) -> ParamGroup {
+    param_registry::mixer_param(field.into()).group.into()
+}
+
+/// A mixer field's role in its Chorus or Reverb block, or `undefined` for a
+/// field of neither block.
+#[wasm_bindgen]
+pub fn mixer_fx_role(field: MixerField) -> Option<FxRole> {
+    param_registry::mixer_param(field.into())
+        .fx_role
+        .map(Into::into)
 }
 
 /// Display name of a mixer field.
@@ -3335,5 +3421,25 @@ mod tests {
             MixerField::EqSwitch,
             MixerScopeKind::Ext
         ));
+    }
+
+    #[test]
+    fn mixer_field_spec_carries_the_0db_point() {
+        let level = mixer_field_spec(MixerField::PartLevel);
+        assert_eq!(level.zero_db(), Some(param_registry::LEVEL_0DB));
+        assert_eq!(mixer_field_spec(MixerField::PartChorusSend).zero_db(), None);
+    }
+
+    #[test]
+    fn mixer_fx_fields_carry_their_group_and_role() {
+        assert_eq!(
+            mixer_field_group(MixerField::ChorusOutputSelect),
+            ParamGroup::Chorus
+        );
+        assert_eq!(
+            mixer_fx_role(MixerField::ReverbSwitch),
+            Some(FxRole::Switch)
+        );
+        assert_eq!(mixer_fx_role(MixerField::PartLevel), None);
     }
 }

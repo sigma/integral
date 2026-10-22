@@ -127,6 +127,15 @@ pub fn fx_block_is_active(fx: JsValue) -> Result<bool, JsError> {
     Ok(relevance::fx_block_is_active(&fx))
 }
 
+/// The raw value of Chorus or Reverb Studio Set common `field` in `fx` (an
+/// `FxState`, the field's own block's); `undefined` for a field of neither
+/// block. See [`integral_core::device::mixer_fx_value`].
+#[wasm_bindgen]
+pub fn mixer_fx_value(field: MixerField, fx: JsValue) -> Result<Option<u8>, JsError> {
+    let fx: state::FxState = from_js(fx)?;
+    Ok(integral_core::device::mixer_fx_value(field.into(), &fx))
+}
+
 /// Whether Studio Set common `field` of the Chorus or Reverb block in state
 /// `fx` (an `FxState`, the field's own block's) is active.
 #[wasm_bindgen]

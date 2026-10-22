@@ -1,4 +1,4 @@
-import { CELL, FOOTPRINT, NAME, cellsPx, lineStyle, optionListRows, type Px } from "./grid";
+import { CELL, FOOTPRINT, NAME, OPTION_TEXT, cellsPx, lineStyle, optionListRows, type OptionKind, type Px } from "./grid";
 import css from "./SynthSwitch.module.css";
 
 interface Props {
@@ -33,14 +33,23 @@ interface Props {
   box?: Px;
 }
 
-/** Margin around a toggle's button on the Grid, px. */
-const TOGGLE_MARGIN = 2;
+/** An option name's type and spacing on the Grid, from the one table the validator measures with. */
+function optionTextStyle(kind: OptionKind) {
+  const t = OPTION_TEXT[kind];
+  return { fontSize: t.fontSize, padding: `0 ${t.padding}px`, gap: t.gap };
+}
+
+/** An LED's size on the Grid. */
+function ledSize(kind: OptionKind) {
+  return { width: OPTION_TEXT[kind].led, height: OPTION_TEXT[kind].led };
+}
 
 /** A toggle's button on the Grid: its box `height`, less the name's line or a margin each side. */
-function toggleButtonStyle(named: boolean, height: number): { width: string; height: number } {
+function toggleButtonStyle(named: boolean, height: number) {
   return {
-    width: `calc(100% - ${2 * TOGGLE_MARGIN}px)`,
-    height: named ? height - NAME.line : height - 2 * TOGGLE_MARGIN,
+    ...optionTextStyle("switch"),
+    width: `calc(100% - ${2 * OPTION_TEXT.switch.margin}px)`,
+    height: named ? height - NAME.line : height - 2 * OPTION_TEXT.switch.margin,
   };
 }
 
@@ -80,7 +89,12 @@ export function SynthSwitch({
           style={grid ? toggleButtonStyle(named, toggleBox.height) : undefined}
           onClick={() => onChange(isOn ? options[0]!.value : options[1]!.value)}
         >
-          {led && <span className={css.led} style={isOn ? { background: ledColor } : undefined} />}
+          {led && (
+            <span
+              className={css.led}
+              style={{ ...(grid ? ledSize("switch") : {}), ...(isOn ? { background: ledColor } : {}) }}
+            />
+          )}
           <span>{isOn ? options[1]!.label : options[0]!.label}</span>
         </button>
       </div>
@@ -122,13 +136,13 @@ export function SynthSwitch({
               role="radio"
               aria-checked={isActive}
               className={`${css.option} ${isActive ? css.optionActive : ""}`}
-              style={grid ? row : undefined}
+              style={grid ? { ...row, ...optionTextStyle("list") } : undefined}
               onClick={() => onChange(opt.value)}
             >
               {led && (
                 <span
                   className={css.led}
-                  style={isActive ? { background: ledColor } : undefined}
+                  style={{ ...(grid ? ledSize("list") : {}), ...(isActive ? { background: ledColor } : {}) }}
                 />
               )}
               <span>{opt.label}</span>

@@ -63,6 +63,8 @@ export interface Binding {
   family?: ParameterFamily;
   /** Raw value a knob's arc grows from. */
   center?: number;
+  /** Raw value a level fader's scale marks 0 dB, from core's spec; none without it. */
+  zeroDb?: number;
   /** Readout of a raw value; default its number. */
   format?: (value: number) => string;
   /** Switch, list and picker options; default every value from `min` to `max`, formatted. */
@@ -156,6 +158,7 @@ function Control<F extends FieldKey>({
           gridRows={c.h}
           box={box}
           scale={c.scale}
+          zeroDb={b.zeroDb}
           label={label ?? b.name}
           hideLabel={label === undefined}
           title={b.name}

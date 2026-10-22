@@ -40,7 +40,7 @@ use crate::pcm_synth::{PcmsCommonField, PcmsPartialField, PcmsPmtField};
 use crate::sn_acoustic::SnaCommonField;
 use crate::sn_drum::{SndCommonField, SndNoteField};
 use crate::sn_synth::{SnSynthTone, SnSynthToneBlocks, SnsBlock, SnsCommonField, SnsPartialField};
-use crate::state::{EqState, MixerState, SurroundPartState};
+use crate::state::{EqState, FxState, MixerState, SurroundPartState};
 use crate::sysex;
 
 /// Minimum interval between SysEx sends (ms).
@@ -162,15 +162,14 @@ fn mixer_slot(state: &mut MixerState, scope: MixerScope, field: MixerField) -> O
             }
         }
         MixerScope::Common => match field {
-            F::ChorusSwitch => Flag(&mut state.chorus.enabled),
-            F::ChorusType => Byte(&mut state.chorus.fx_type),
-            F::ChorusLevel => Byte(&mut state.chorus.level),
-            F::ChorusOutputAssign => Byte(&mut state.chorus.output_assign),
-            F::ChorusOutputSelect => Byte(&mut state.chorus.output),
-            F::ReverbSwitch => Flag(&mut state.reverb.enabled),
-            F::ReverbType => Byte(&mut state.reverb.fx_type),
-            F::ReverbLevel => Byte(&mut state.reverb.level),
-            F::ReverbOutputAssign => Byte(&mut state.reverb.output),
+            F::ChorusSwitch
+            | F::ChorusType
+            | F::ChorusLevel
+            | F::ChorusOutputAssign
+            | F::ChorusOutputSelect => fx_slot(&mut state.chorus, field)?,
+            F::ReverbSwitch | F::ReverbType | F::ReverbLevel | F::ReverbOutputAssign => {
+                fx_slot(&mut state.reverb, field)?
+            }
             F::SoloPart => Byte(&mut state.solo_part),
             F::DrumCompEqSwitch => Flag(&mut state.drum_comp_eq.enabled),
             F::DrumCompEqPart => Byte(&mut state.drum_comp_eq.part),
@@ -198,6 +197,34 @@ fn surround_slot(position: &mut SurroundPartState, field: MixerField) -> Option<
         F::SurroundAmbienceSend => &mut position.ambience_send,
         _ => return None,
     }))
+}
+
+/// The [`FxState`] value a Chorus or Reverb Studio Set common field writes,
+/// in its own block's state. The Chorus keeps its Output Assign apart from
+/// its Output Select (`output`); the Reverb's one output, its assign, is
+/// `output`.
+fn fx_slot(fx: &mut FxState, field: MixerField) -> Option<Slot<'_>> {
+    use MixerField as F;
+    use Slot::{Byte, Flag};
+    Some(match field {
+        F::ChorusSwitch | F::ReverbSwitch => Flag(&mut fx.enabled),
+        F::ChorusType | F::ReverbType => Byte(&mut fx.fx_type),
+        F::ChorusLevel | F::ReverbLevel => Byte(&mut fx.level),
+        F::ChorusOutputAssign => Byte(&mut fx.output_assign),
+        F::ChorusOutputSelect | F::ReverbOutputAssign => Byte(&mut fx.output),
+        _ => return None,
+    })
+}
+
+/// The raw value of Chorus or Reverb Studio Set common `field` in `fx`, its
+/// own block's state (a switch reads 0 or 1), or `None` for a field of
+/// neither block.
+pub fn mixer_fx_value(field: MixerField, fx: &FxState) -> Option<u8> {
+    let mut fx = fx.clone();
+    fx_slot(&mut fx, field).map(|slot| match slot {
+        Slot::Byte(byte) => *byte,
+        Slot::Flag(flag) => u8::from(*flag),
+    })
 }
 
 /// The [`EqState`] value an EQ field writes.
@@ -1440,6 +1467,36 @@ fn stored_name(encoded: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn mixer_fx_value_reads_each_fx_field_from_its_block_state() {
+        use super::*;
+        use crate::param_registry::mixer_param;
+        let fx = FxState {
+            enabled: true,
+            fx_type: 2,
+            level: 90,
+            output: 3,
+            output_assign: 1,
+            params: Vec::new(),
+        };
+        assert_eq!(mixer_fx_value(MixerField::ChorusSwitch, &fx), Some(1));
+        assert_eq!(mixer_fx_value(MixerField::ReverbType, &fx), Some(2));
+        assert_eq!(mixer_fx_value(MixerField::ChorusLevel, &fx), Some(90));
+        assert_eq!(mixer_fx_value(MixerField::ChorusOutputAssign, &fx), Some(1));
+        assert_eq!(mixer_fx_value(MixerField::ChorusOutputSelect, &fx), Some(3));
+        assert_eq!(mixer_fx_value(MixerField::ReverbOutputAssign, &fx), Some(3));
+        assert_eq!(mixer_fx_value(MixerField::PartLevel, &fx), None);
+        // Every field with an FX role reads; no other does.
+        for field in MixerField::ALL {
+            let def = mixer_param(field);
+            assert_eq!(
+                mixer_fx_value(field, &fx).is_some(),
+                def.fx_role.is_some(),
+                "{field:?}"
+            );
+        }
+    }
+
     use super::*;
     use crate::expansions;
     use crate::sn_synth;

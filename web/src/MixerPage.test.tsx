@@ -384,6 +384,23 @@ describe("MixerPage", () => {
     }
   });
 
+  it("marks 0 dB on every level fader, at core's point", () => {
+    const { el } = loaded();
+    const levels: [string, MixerField][] = [
+      ["strip.part.0", MixerField.PartLevel],
+      ["strip.ext", MixerField.ExtLevel],
+      ["strip.master", MixerField.MasterLevel],
+      ["strip.chorus", MixerField.ChorusLevel],
+      ["strip.reverb", MixerField.ReverbLevel],
+    ];
+    for (const [id, field] of levels) {
+      const marks = [...control(placed(el, id), field).querySelectorAll<HTMLElement>('[role="slider"] > *')];
+      // The ruler, core's 0 dB value read as 0dB in its place.
+      const ruler = [127, 100, 80, 60, 40, 20, 0].map((v) => (v === paramMeta(field).zeroDb ? "0dB" : String(v)));
+      expect(marks.map((m) => m.textContent).filter(Boolean), MixerField[field]).toEqual(ruler);
+    }
+  });
+
   it("dims a switched-off FX's type list, level and parameters, not its switch or outputs", () => {
     const { el } = loaded((st) => ({ ...st, chorus: { ...st.chorus, enabled: false }, reverb: { ...st.reverb, enabled: true, type: 3 } }));
     const chorus = placed(el, "strip.chorus");

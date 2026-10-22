@@ -1,7 +1,7 @@
 import { mixer_field_name, mixer_field_spec, type MixerField, type ParameterFamily, type WasmFieldSpec } from "../pkg/integral_wasm.js";
 import type { Binding } from "./layouts";
 
-/** A mixer field's display name, range, default and Parameter family, from core. */
+/** A mixer field's display name, range, default, Parameter family and 0 dB point, from core. */
 export interface ParamMeta {
   name: string;
   min: number;
@@ -9,6 +9,8 @@ export interface ParamMeta {
   defaultValue: number;
   /** The parameter's role in shaping the sound; picks its colour. */
   family: ParameterFamily;
+  /** The raw value a level fader marks 0 dB; none for a field drawn without a 0 dB mark. */
+  zeroDb?: number;
 }
 
 /** Core's specs, one wasm object per field however often it is read. */
@@ -30,8 +32,8 @@ function specOf(field: MixerField): WasmFieldSpec {
 export function paramMeta(field: MixerField): ParamMeta {
   let meta = metas.get(field);
   if (!meta) {
-    const { min, max, defaultValue, family } = specOf(field);
-    meta = { name: mixer_field_name(field), min, max, defaultValue, family };
+    const { min, max, defaultValue, family, zeroDb } = specOf(field);
+    meta = { name: mixer_field_name(field), min, max, defaultValue, family, zeroDb };
     metas.set(field, meta);
   }
   return meta;

@@ -17,11 +17,30 @@ jobs:
   rust:
     name: Rust (fmt, clippy, build, test)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Lets the Nix cache step purge superseded entries on main.
+      actions: write
     steps:
       - uses: actions/checkout@v4
 
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/nix-installer-action@v23
+
+      # One /nix snapshot of the dev shell, shared by both jobs. Only main saves
+      # it (and purges the one it supersedes); pull requests restore it read-only,
+      # so they never upload. No prefix fallback: a flake.lock bump starts from an
+      # empty store, so a new snapshot never carries the old toolchain.
+      - name: Restore Nix store
+        uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}
+          save: ${{ github.ref == 'refs/heads/main' }}
+          # Backstop: never save a store bigger than this (NAR bytes).
+          gc-max-store-size-linux: 6G
+          purge: ${{ github.ref == 'refs/heads/main' }}
+          purge-prefixes: nix-${{ runner.os }}-
+          purge-created: 0
+          purge-primary-key: never
 
       # The Nix cache holds the toolchain, not cargo's build output. flake.lock pins
       # the toolchain, so it keys the cache together with Cargo.lock.
@@ -67,11 +86,25 @@ jobs:
   web:
     name: Web (types, CSS, tests, builds)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     steps:
       - uses: actions/checkout@v4
 
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/nix-installer-action@v23
+
+      # Same dev shell, same key as the Rust job: see there.
+      - name: Restore Nix store
+        uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}
+          save: ${{ github.ref == 'refs/heads/main' }}
+          gc-max-store-size-linux: 6G
+          purge: ${{ github.ref == 'refs/heads/main' }}
+          purge-prefixes: nix-${{ runner.os }}-
+          purge-created: 0
+          purge-primary-key: never
 
       # Only the wasm32 build of integral-wasm lives here, so it gets its own key.
       - name: Restore cargo cache
