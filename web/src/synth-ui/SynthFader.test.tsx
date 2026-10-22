@@ -25,11 +25,11 @@ describe("SynthFader", () => {
     expect(stackedHeight([...root.children])).toBe(rows * CELL);
   });
 
-  it("makes room for an addon line inside its Grid footprint", () => {
-    const { container } = render(<SynthFader {...fader} gridRows={4} addon={<button>♪</button>} />);
+  it("draws a unit on its readout's line, inside its Grid footprint", () => {
+    const { container } = render(<SynthFader {...fader} gridRows={4} unit={<button>ms</button>} />);
     const root = rootOf(container);
     expectFillsFootprint(root, { w: FOOTPRINT.faderW, h: 4 });
-    expect(root.querySelector("button")?.textContent).toBe("♪");
+    expect(root.lastElementChild!.textContent).toBe("100 ms");
     expect(stackedHeight([...root.children])).toBe(4 * CELL);
   });
 

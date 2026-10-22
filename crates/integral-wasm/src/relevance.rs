@@ -111,3 +111,26 @@ pub fn comp_eq_unit_is_active(field: MixerField, unit: JsValue) -> Result<bool, 
     let unit: state::CompEqUnit = from_js(unit)?;
     Ok(relevance::comp_eq_unit_is_active(field.into(), &unit))
 }
+
+/// Whether mixer EQ `field` is active on a strip whose EQ switch is
+/// `eq_switch`.
+#[wasm_bindgen]
+pub fn mixer_eq_is_active(field: MixerField, eq_switch: bool) -> bool {
+    relevance::mixer_eq_is_active(field.into(), eq_switch)
+}
+
+/// Whether the Chorus or Reverb block in state `fx` (an `FxState`) acts, so
+/// its type's parameters are active.
+#[wasm_bindgen]
+pub fn fx_block_is_active(fx: JsValue) -> Result<bool, JsError> {
+    let fx: state::FxState = from_js(fx)?;
+    Ok(relevance::fx_block_is_active(&fx))
+}
+
+/// Whether Studio Set common `field` of the Chorus or Reverb block in state
+/// `fx` (an `FxState`, the field's own block's) is active.
+#[wasm_bindgen]
+pub fn mixer_fx_is_active(field: MixerField, fx: JsValue) -> Result<bool, JsError> {
+    let fx: state::FxState = from_js(fx)?;
+    Ok(relevance::mixer_fx_is_active(field.into(), &fx))
+}

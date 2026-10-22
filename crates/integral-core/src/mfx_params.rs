@@ -10,7 +10,9 @@
 //! are left out.
 
 use crate::family::ParameterFamily::{Amp, Common, Filter, Modulation, Pitch, Time};
-use crate::fx_params::{FxParamDef, FxUnit, SYNC_HZ, SYNC_MS, param};
+use crate::fx_params::{
+    EQ_HIGH_FREQ, EQ_LOW_FREQ, FxParamDef, FxUnit, HZ, KHZ, SYNC_HZ, SYNC_MS, param,
+};
 use crate::mfx::MFX_PARAM_COUNT;
 
 /// Definition of an MFX effect type.
@@ -289,8 +291,11 @@ static MFX_CONTROL_TARGETS: [&[&str]; 68] = [
 
 // Display names for list-valued parameters, index = stored value.
 
-static BOOST_FREQ: &[&str] = &[
-    "50Hz", "56Hz", "63Hz", "71Hz", "80Hz", "90Hz", "100Hz", "112Hz", "125Hz",
+/// Low Boost frequencies, in [`HZ`].
+static BOOST_FREQ: &[&str] = &["50", "56", "63", "71", "80", "90", "100", "112", "125"];
+/// Phaser modes: its stage counts.
+static PHASER_STAGES: &[&str] = &[
+    "4-STAGE", "8-STAGE", "12-STAGE", "16-STAGE", "20-STAGE", "24-STAGE",
 ];
 static BOOST_WIDTH: &[&str] = &["WIDE", "MID", "NARROW"];
 static STEPFIL_FILT_TYPE: &[&str] = &["LPF", "BPF", "HPF", "NOTCH"];
@@ -354,7 +359,18 @@ const MFX_00_THRU: &[FxParamDef] = &[];
 
 // Type 1: EQUALIZER
 const MFX_01_EQUALIZER: &[FxParamDef] = &[
-    param(0, "Low Freq", Filter, 0, 1, 1, FxUnit::EqLowFreq),
+    param(
+        0,
+        "Low Freq",
+        Filter,
+        0,
+        1,
+        1,
+        FxUnit::Table {
+            values: EQ_LOW_FREQ,
+            unit: HZ,
+        },
+    ),
     param(1, "Low Gain", Filter, 0, 30, 15, GAIN_DB),
     param(2, "Mid1 Freq", Filter, 0, 16, 7, FxUnit::Freq),
     param(3, "Mid1 Gain", Filter, 0, 30, 15, GAIN_DB),
@@ -362,7 +378,18 @@ const MFX_01_EQUALIZER: &[FxParamDef] = &[
     param(5, "Mid2 Freq", Filter, 0, 16, 10, FxUnit::Freq),
     param(6, "Mid2 Gain", Filter, 0, 30, 15, GAIN_DB),
     param(7, "Mid2 Q", Filter, 0, 4, 0, FxUnit::EqQ),
-    param(8, "High Freq", Filter, 0, 2, 1, FxUnit::EqHighFreq),
+    param(
+        8,
+        "High Freq",
+        Filter,
+        0,
+        2,
+        1,
+        FxUnit::Table {
+            values: EQ_HIGH_FREQ,
+            unit: KHZ,
+        },
+    ),
     param(9, "High Gain", Filter, 0, 30, 15, GAIN_DB),
     param(10, "Level", Amp, 0, 127, 127, FxUnit::Plain),
 ];
@@ -390,7 +417,10 @@ const MFX_03_LOW_BOOST: &[FxParamDef] = &[
         0,
         8,
         4,
-        FxUnit::Names(BOOST_FREQ),
+        FxUnit::Table {
+            values: BOOST_FREQ,
+            unit: HZ,
+        },
     ),
     param(1, "Boost Gain", Filter, 0, 12, 6, FxUnit::Decibels),
     param(
@@ -556,19 +586,7 @@ const MFX_08_SPEAKER_SIMULATOR: &[FxParamDef] = &[
 
 // Type 9: PHASER 1
 const MFX_09_PHASER_1: &[FxParamDef] = &[
-    param(
-        0,
-        "Mode",
-        Common,
-        0,
-        2,
-        2,
-        FxUnit::Offset {
-            offset: -1,
-            step: 4,
-            suffix: "-STAGE",
-        },
-    ),
+    param(0, "Mode", Common, 0, 2, 2, FxUnit::Names(PHASER_STAGES)),
     param(1, "Manual", Filter, 0, 127, 64, FxUnit::Plain),
     param(3, "Rate", Modulation, 1, 200, 10, FxUnit::RateHz)
         .synced(18, SYNC_HZ)
@@ -618,19 +636,7 @@ const MFX_11_PHASER_3: &[FxParamDef] = &[
 
 // Type 12: STEP PHASER
 const MFX_12_STEP_PHASER: &[FxParamDef] = &[
-    param(
-        0,
-        "Mode",
-        Common,
-        0,
-        2,
-        2,
-        FxUnit::Offset {
-            offset: -1,
-            step: 4,
-            suffix: "-STAGE",
-        },
-    ),
+    param(0, "Mode", Common, 0, 2, 2, FxUnit::Names(PHASER_STAGES)),
     param(1, "Manual", Filter, 0, 127, 64, FxUnit::Plain),
     param(3, "Rate", Modulation, 1, 200, 30, FxUnit::RateHz)
         .synced(13, SYNC_HZ)
@@ -666,19 +672,7 @@ const MFX_12_STEP_PHASER: &[FxParamDef] = &[
 
 // Type 13: MULTI STAGE PHASER
 const MFX_13_MULTI_STAGE_PHASER: &[FxParamDef] = &[
-    param(
-        0,
-        "Mode",
-        Common,
-        0,
-        5,
-        5,
-        FxUnit::Offset {
-            offset: -1,
-            step: 4,
-            suffix: "-STAGE",
-        },
-    ),
+    param(0, "Mode", Common, 0, 5, 5, FxUnit::Names(PHASER_STAGES)),
     param(1, "Manual", Filter, 0, 127, 60, FxUnit::Plain),
     param(3, "Rate", Modulation, 1, 200, 10, FxUnit::RateHz)
         .synced(18, SYNC_HZ)
@@ -3029,6 +3023,33 @@ pub fn control_source_choices(kind: ControlSourceKind) -> impl Iterator<Item = (
 mod tests {
     use super::*;
 
+    /// A tempo-syncable parameter's free value reads as a number whose unit
+    /// is its toggle's free label, and its note as a note with no unit: the
+    /// readout draws the label as the unit.
+    #[test]
+    fn synced_params_split_their_unit_off_as_the_toggle_label() {
+        use crate::fx_params::{chorus_params, reverb_params};
+        let chorus = (0..4).flat_map(chorus_params);
+        let reverb = (0..7).flat_map(reverb_params);
+        let mfx = (0..=67).filter_map(mfx_type_def).flat_map(|t| t.params);
+        let mut seen = 0;
+        for def in chorus.chain(reverb).chain(mfx).filter(|d| d.sync.is_some()) {
+            let sync = def.sync.unwrap();
+            for v in def.min..=def.max {
+                let (number, unit) = def.unit.parts(v);
+                assert_eq!(unit, sync.labels[0], "{} {v}", def.name);
+                assert_eq!(def.format_number(v), number);
+                assert_eq!(def.format_value(v), format!("{number} {unit}"));
+            }
+            let note = def.note_param().unwrap();
+            for v in note.min..=note.max {
+                assert_eq!(note.unit.parts(v).1, "", "{} note {v}", def.name);
+            }
+            seen += 1;
+        }
+        assert!(seen > 20, "only {seen} synced params");
+    }
+
     #[test]
     fn control_source_names_follow_cc_numbers() {
         use ControlSourceKind::{Matrix, Mfx};
@@ -3107,8 +3128,8 @@ mod tests {
         assert_eq!(
             shown,
             [
-                "400Hz", "+0dB", "1000Hz", "+0dB", "0.5", "2000Hz", "+0dB", "0.5", "4kHz", "+0dB",
-                "127"
+                "400 Hz", "+0 dB", "1000 Hz", "+0 dB", "0.5", "2000 Hz", "+0 dB", "0.5", "4 kHz",
+                "+0 dB", "127"
             ]
         );
     }

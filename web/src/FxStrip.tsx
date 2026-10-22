@@ -7,7 +7,13 @@
  */
 
 import { useMemo } from "react";
-import { DisplayKind, MixerField, MixerScopeKind } from "../pkg/integral_wasm.js";
+import {
+  DisplayKind,
+  MixerField,
+  MixerScopeKind,
+  fx_block_is_active,
+  mixer_fx_is_active,
+} from "../pkg/integral_wasm.js";
 import { CategoryPlate, VerticalName, type SetMixerField } from "./ChannelStrip";
 import { stripIcon } from "./categoryIcons";
 import { useFxBind } from "./fxBinding";
@@ -34,8 +40,8 @@ export function FxParams({ block, fx, onNibParam }: FxParamsProps) {
   // One footprint for every type, so nothing moves when the type changes.
   const layout = useMemo(() => variantLayout(SETS[block], fx.type), [block, fx.type]);
   const bind = useFxBind(block, fx.type, fx.params, onNibParam);
-  // Some types' knobs carry a sync toggle: every type's knobs keep the dial they leave room for.
-  return <GridSection layout={layout} bind={bind} isActive={() => fx.enabled} reserveAddon />;
+  const active = fx_block_is_active(fx);
+  return <GridSection layout={layout} bind={bind} isActive={() => active} />;
 }
 
 /**
@@ -72,15 +78,12 @@ interface FxStripProps {
   setField: SetMixerField;
 }
 
-/** An FX column's strip: switch, type, outputs and level, the type's name up the fader. */
+/** An FX column's strip: its switch in the title, type, outputs and level, the type's name up the fader. */
 export function FxStrip({ block, fx, setField }: FxStripProps) {
   const layout = useMemo(() => variantLayout(FX_STRIP_SET, block), [block]);
-  const { switch: sw, type, level } = FX_STRIP_FIELDS[block];
-  const bind = (field: MixerField): Binding => ({
-    ...mixerBinding(field, fxValue(fx, field), (v) => setField(MixerScopeKind.Common, 0, field, v)),
-    // The switch reads FX, on and off alike: its LED shows the state.
-    ...(field === sw ? { options: [{ value: 0, label: "FX" }, { value: 1, label: "FX" }] } : {}),
-  });
+  const { type, level } = FX_STRIP_FIELDS[block];
+  const bind = (field: MixerField): Binding =>
+    mixerBinding(field, fxValue(fx, field), (v) => setField(MixerScopeKind.Common, 0, field, v));
   return (
     <GridSection
       layout={layout}
@@ -88,8 +91,8 @@ export function FxStrip({ block, fx, setField }: FxStripProps) {
       scope={{ fx: FX_STRIP_SET.keys.indexOf(block) }}
       // The accent of its level fader, as on every strip.
       family={paramMeta(level).family}
-      // The level greys out with the switch, as the old FX fader did.
-      isActive={(field) => fx.enabled || field !== level}
+      // The type list and level grey out with the switch, as the old FX fader did.
+      isActive={(field) => mixer_fx_is_active(field, fx)}
       renderDisplay={(display) =>
         display === DisplayKind.StripName ? <VerticalName name={paramFormatter(type)(fx.type)} /> : null
       }

@@ -94,6 +94,14 @@ describe("mixer strip", () => {
     }
   });
 
+  it("draws a part's input, its receive channel, as a picker on the strip's first row", () => {
+    const input = allElements(variantLayout(STRIP_SET, MixerScopeKind.Part).items).find(
+      (el) => el.kind !== "display" && el.field === MixerField.PartReceiveChannel,
+    );
+    expect(input?.kind).toBe("picker");
+    expect(input && itemRect(input)).toEqual({ x: 0, y: 0, w: STRIP_SET.w, h: 1 });
+  });
+
   it("draws the compressor's Displays across the strip", () => {
     for (const el of allElements(variantLayout(STRIP_SET, MixerScopeKind.CompEqUnit).items)) {
       if (el.kind === "display" && el.display !== DisplayKind.StripName) {

@@ -77,6 +77,7 @@ export function partialBinding(
     ...range,
     sync: {
       labels: sync.labels,
+      formatNumber: (v) => spec.formatNumber(v),
       noteMode,
       // One field holds both values, so switching mode starts from that mode's default.
       onChange: (on) => {

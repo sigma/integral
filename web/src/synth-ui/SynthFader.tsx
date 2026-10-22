@@ -1,6 +1,5 @@
 import { useCallback, useRef, type ReactNode } from "react";
-import { ADDON_LINE, NAME, READOUT, cellsPx, faderCells, lineStyle, type Px } from "./grid";
-import { ControlAddon } from "./ControlAddon";
+import { NAME, READOUT, cellsPx, faderCells, lineStyle, type Px } from "./grid";
 import { faderScale } from "./faderScale";
 import css from "./SynthFader.module.css";
 
@@ -41,10 +40,10 @@ interface Props {
    */
   scale?: boolean;
   /**
-   * A line under the readout, such as the tempo-sync toggle. On the Grid the
-   * track gives up an `ADDON_LINE` for it, so the footprint holds.
+   * The readout's unit, drawn after `formatValue`'s text on its line: a
+   * tempo-syncable fader's free/note toggle.
    */
-  addon?: ReactNode;
+  unit?: ReactNode;
 }
 
 const TRACK_HEIGHT = 100;
@@ -81,7 +80,7 @@ export function SynthFader({
   gridRows,
   box: boxProp,
   scale = false,
-  addon,
+  unit,
 }: Props) {
   const grid = gridRows !== undefined;
   const box = grid ? (boxProp ?? cellsPx(faderCells(gridRows, scale))) : undefined;
@@ -91,7 +90,7 @@ export function SynthFader({
   const nameH = hideLabel ? 0 : grid ? NAME.line : FADER_LABEL_HEIGHT;
   const frame = scale && grid ? 2 * LEVEL_FRAME : 0;
   const areaH = box
-    ? box.height - frame - nameH - READOUT.line - (addon === undefined ? 0 : ADDON_LINE)
+    ? box.height - frame - nameH - READOUT.line
     : (trackHeight ?? (compact ? TRACK_HEIGHT_COMPACT : TRACK_HEIGHT));
   const thumbH = scale ? LEVEL.cap : THUMB_H;
   const inset = scale ? LEVEL.groovePad + LEVEL.cap / 2 : grid ? THUMB_H / 2 : 0;
@@ -235,8 +234,8 @@ export function SynthFader({
       {trackArea}
       <span className={css.value} style={grid ? lineStyle(READOUT) : undefined}>
         {display}
+        {unit !== undefined && <> {unit}</>}
       </span>
-      {addon !== undefined && <ControlAddon grid={grid}>{addon}</ControlAddon>}
     </div>
   );
 }

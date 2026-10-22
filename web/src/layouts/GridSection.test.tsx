@@ -14,7 +14,7 @@ import {
 import { paramFormatter, paramMeta } from "../paramDefaults";
 import { FOOTPRINT } from "../synth-ui/grid";
 import { cleanup, click, render, typeInto } from "../test/dom";
-import { expectFillsFootprint } from "../test/grid";
+import { expectFillsFootprint, stackedHeight } from "../test/grid";
 import { arrowUp, dt1Drainer, slider } from "../test/toneService";
 import { specBinding } from "./binding";
 import { enumFields, mixerFields } from "./fields";
@@ -40,13 +40,15 @@ function wrapper(container: HTMLElement, field: MixerField): HTMLElement {
 }
 
 describe("GridSection draws the pilot mixer EQ", () => {
-  // Every px below is what the pilot renderer (prototype/grid-pilot) drew.
+  // Every px below is what the pilot renderer (prototype/grid-pilot) drew, the knobs and
+  // Silkscreen a row higher since the switch moved into the title (#405), and blank rows
+  // under the last knob to match the staggered Chorus and Reverb Sections.
   const draw = () => render(<GridSection layout={EQ_LAYOUT} bind={bindMixer} />).container;
 
   it("at the pilot's size, title row included", () => {
     const root = draw().firstElementChild as HTMLElement;
     expect(root.style.width).toBe("96px");
-    expect(root.style.height).toBe("408px");
+    expect(root.style.height).toBe("432px");
     const [border, title] = [...root.children] as HTMLElement[];
     expect(border!.style.inset).toBe("4px");
     expect(title!.textContent).toBe("EQ");
@@ -61,14 +63,13 @@ describe("GridSection draws the pilot mixer EQ", () => {
   // The left column's knobs clear the border their LED rings reach.
   const SIDE = INSET + BORDER.width;
   it.each([
-    [MixerField.EqSwitch, 24, 24],
-    [MixerField.EqHighFreq, SIDE, 48],
-    [MixerField.EqHighGain, 48, 96],
-    [MixerField.EqMidFreq, SIDE, 144],
-    [MixerField.EqMidGain, 48, 192],
-    [MixerField.EqMidQ, SIDE, 240],
-    [MixerField.EqLowGain, 48, 288],
-    [MixerField.EqLowFreq, SIDE, 336],
+    [MixerField.EqHighFreq, SIDE, 24],
+    [MixerField.EqHighGain, 48, 72],
+    [MixerField.EqMidFreq, SIDE, 120],
+    [MixerField.EqMidGain, 48, 168],
+    [MixerField.EqMidQ, SIDE, 216],
+    [MixerField.EqLowGain, 48, 264],
+    [MixerField.EqLowFreq, SIDE, 312],
   ])("places field %i at (%ipx, %ipx)", (field, left, top) => {
     const el = wrapper(draw(), field);
     expect([el.style.left, el.style.top]).toEqual([`${left}px`, `${top}px`]);
@@ -76,29 +77,64 @@ describe("GridSection draws the pilot mixer EQ", () => {
 
   it("draws each Control at its footprint, unscaled, less the border it clears", () => {
     const container = draw();
-    expectFillsFootprint(wrapper(container, MixerField.EqSwitch).firstElementChild as HTMLElement, FOOTPRINT.switch);
     const knob = wrapper(container, MixerField.EqMidQ).firstElementChild as HTMLElement;
     expect([knob.style.width, knob.style.height]).toEqual([`${FOOTPRINT.knobSm.w * 24 - SIDE}px`, `${FOOTPRINT.knobSm.h * 24}px`]);
   });
 
-  it("names knobs as the layout says, and hides the switch's name", () => {
-    const container = draw();
-    expect(wrapper(container, MixerField.EqMidQ).querySelector("span")!.textContent).toBe("Q");
-    // Core names it "EQ Switch"; only its state shows.
-    expect(wrapper(container, MixerField.EqSwitch).textContent).not.toContain("EQ");
+  it("names knobs as the layout says", () => {
+    expect(wrapper(draw(), MixerField.EqMidQ).querySelector("span")!.textContent).toBe("Q");
+  });
+
+  /** The EQ with its switch at `value`, recording what the title toggle writes. */
+  const drawSwitch = (value: number, isActive?: (f: MixerField) => boolean) => {
+    const writes: number[] = [];
+    const bind = (field: MixerField): Binding =>
+      field === MixerField.EqSwitch ? { ...bindMixer(field), value, onChange: (v) => writes.push(v) } : bindMixer(field);
+    const container = render(<GridSection layout={EQ_LAYOUT} bind={bind} isActive={isActive} />).container;
+    const title = (container.firstElementChild as HTMLElement).children[1] as HTMLElement;
+    return { title, button: title.querySelector("button")!, writes };
+  };
+
+  it("draws its switch as a power toggle in the title, beside the title's text, and not in the body", () => {
+    const { title, button } = drawSwitch(1);
+    expect(title.textContent).toBe("EQ");
+    expect(button.closest("[data-field]")!.getAttribute("data-field")).toBe(String(MixerField.EqSwitch));
+    expect(button.querySelector("svg")).not.toBeNull();
+    expect(title.parentElement!.querySelectorAll(`[data-field="${MixerField.EqSwitch}"]`)).toHaveLength(1);
+  });
+
+  it("lights the title toggle while on, says what a click does, and writes the other state", () => {
+    const on = drawSwitch(1);
+    expect(on.button.getAttribute("aria-pressed")).toBe("true");
+    expect(on.button.title).toBe("Switch EQ off");
+    act(() => on.button.click());
+    expect(on.writes).toEqual([0]);
+    cleanup();
+    const off = drawSwitch(0);
+    expect(off.button.getAttribute("aria-pressed")).toBe("false");
+    expect(off.button.title).toBe("Switch EQ on");
+    act(() => off.button.click());
+    expect(off.writes).toEqual([1]);
+  });
+
+  it("never dims the title toggle", () => {
+    const { button } = drawSwitch(0, () => false);
+    const host = button.closest<HTMLElement>("[data-field]")!;
+    expect(host.dataset.inactive).toBeUndefined();
+    expect(button.closest("[inert]")).toBeNull();
   });
 
   it("draws the zig-zag rules and band names, clipped to the border", () => {
-    const svg = draw().querySelector("svg")!;
+    const svg = [...draw().querySelectorAll("svg")].find((s) => !s.closest("button"))!;
     expect(svg.style.clipPath).toBe("inset(5px round 6px)");
     expect([...svg.querySelectorAll("polyline")].map((p) => p.getAttribute("points"))).toEqual([
-      "0,132 24,132 72,180 96,180",
-      "0,324 24,324 72,276 96,276",
+      "0,108 24,108 72,156 96,156",
+      "0,300 24,300 72,252 96,252",
     ]);
     expect([...svg.querySelectorAll("text")].map((t) => [t.textContent, t.getAttribute("x"), t.getAttribute("y")])).toEqual([
-      ["HI", "72", "84"],
-      ["MID", "24", "228"],
-      ["LO", "72", "372"],
+      ["HI", "72", "60"],
+      ["MID", "24", "204"],
+      ["LO", "72", "348"],
     ]);
   });
 
@@ -288,26 +324,56 @@ describe("GridSection knob dials", () => {
   };
   const dial = (container: HTMLElement, field: MixerField) => wrapper(container, field).querySelector("svg")!.getAttribute("width");
 
-  it("draws every knob of a size in a Section at one dial, the smallest any fits", () => {
-    const bind = (field: MixerField): Binding =>
+  /** The High Gain knob tempo-syncable, in `noteMode`, its readout split as core would. */
+  const synced =
+    (noteMode: boolean, onChange: (noteMode: boolean) => void = () => {}) =>
+    (field: MixerField): Binding =>
       field === MixerField.EqHighGain
-        ? { ...bindMixer(field), sync: { labels: ["ms", "♪"], noteMode: false, onChange: () => {} } }
+        ? {
+            ...bindMixer(field),
+            format: () => "200 ms",
+            sync: { labels: ["ms", "♪"], formatNumber: () => (noteMode ? "1/8" : "200"), noteMode, onChange },
+          }
         : bindMixer(field);
-    const { container } = render(<GridSection layout={KNOBS} bind={bind} />);
+  /** A knob's root: its name, dial and readout, stacked. */
+  const knobRoot = (container: HTMLElement, field: MixerField) => wrapper(container, field).firstElementChild!;
+
+  it("draws every knob of a size in a Section at one dial, the smallest any fits", () => {
+    const { container } = render(<GridSection layout={KNOBS} bind={bindMixer} />);
     const sides = [MixerField.EqLowGain, MixerField.EqMidGain, MixerField.EqHighGain].map((f) => dial(container, f));
     expect(new Set(sides).size).toBe(1);
-    // The synced knob gives up an addon line under its readout.
+    // The knob on the border gives up its edge padding.
     expect(Number(sides[0])).toBeLessThan(FOOTPRINT.knobSm.w * 24 - INSET);
   });
 
-  it("keeps that dial without a synced knob when the Section reserves the addon line", () => {
-    const synced = (field: MixerField): Binding =>
-      field === MixerField.EqHighGain
-        ? { ...bindMixer(field), sync: { labels: ["ms", "♪"], noteMode: false, onChange: () => {} } }
-        : bindMixer(field);
-    const withSync = dial(render(<GridSection layout={KNOBS} bind={synced} />).container, MixerField.EqMidGain);
-    const reserved = dial(render(<GridSection layout={KNOBS} bind={bindMixer} reserveAddon />).container, MixerField.EqMidGain);
-    expect(reserved).toBe(withSync);
+  it.each([false, true])("draws a synced knob (note mode %s) at the dial and height of an unsynced one", (noteMode) => {
+    const plain = render(<GridSection layout={KNOBS} bind={bindMixer} />).container;
+    const { container } = render(<GridSection layout={KNOBS} bind={synced(noteMode)} />);
+    for (const f of [MixerField.EqMidGain, MixerField.EqHighGain]) {
+      expect(dial(container, f), MixerField[f]).toBe(dial(plain, MixerField.EqMidGain));
+      const root = knobRoot(container, f);
+      // Name, dial and readout: no line under the readout.
+      expect(root.children.length, MixerField[f]).toBe(3);
+      expect(stackedHeight([...root.children]), MixerField[f]).toBe(stackedHeight([...knobRoot(plain, MixerField.EqMidGain).children]));
+    }
+  });
+
+  it("reads a synced knob as its number then its unit, the unit a button toggling sync", () => {
+    const onChange = vi.fn();
+    const { container } = render(<GridSection layout={KNOBS} bind={synced(false, onChange)} />);
+    const readout = knobRoot(container, MixerField.EqHighGain).lastElementChild!;
+    expect(readout.textContent).toBe("200 ms");
+    const unit = readout.querySelector("button")!;
+    expect(unit.getAttribute("aria-pressed")).toBe("false");
+    expect(unit.title).toMatch(/note/);
+    click(unit);
+    expect(onChange).toHaveBeenCalledWith(true);
+
+    const note = render(<GridSection layout={KNOBS} bind={synced(true, onChange)} />).container;
+    const noteReadout = knobRoot(note, MixerField.EqHighGain).lastElementChild!;
+    expect(noteReadout.textContent).toBe("1/8 ♪");
+    click(noteReadout.querySelector("button")!);
+    expect(onChange).toHaveBeenLastCalledWith(false);
   });
 });
 
@@ -382,11 +448,11 @@ describe("GridSection tempo sync", () => {
     ],
   };
 
-  it("keeps the free/note toggle inside each Control's footprint", () => {
+  it("keeps the free/note toggle inside each Control's footprint, as its readout's unit", () => {
     const onChange = vi.fn();
     const bind = (field: MixerField): Binding => ({
       ...bindMixer(field),
-      sync: { labels: ["ms", "♪"], noteMode: false, onChange },
+      sync: { labels: ["ms", "♪"], formatNumber: String, noteMode: false, onChange },
     });
     const { container } = render(<GridSection layout={SYNCED} bind={bind} />);
     const knob = wrapper(container, MixerField.EqLowGain);
@@ -394,8 +460,8 @@ describe("GridSection tempo sync", () => {
     expectFillsFootprint(knob.firstElementChild as HTMLElement, FOOTPRINT.knobSm);
     expectFillsFootprint(fader.firstElementChild as HTMLElement, { w: FOOTPRINT.faderW, h: 4 });
     for (const el of [knob, fader]) {
-      const note = [...el.querySelectorAll("button")].find((b) => b.textContent === "♪");
-      act(() => note?.click());
+      const unit = [...el.querySelectorAll("button")].find((b) => b.textContent === "ms");
+      act(() => unit?.click());
     }
     expect(onChange.mock.calls).toEqual([[true], [true]]);
   });

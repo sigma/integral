@@ -10,9 +10,9 @@ import type { FxState } from "./types";
 
 afterEach(cleanup);
 
-function strip(block: FxStripKind, type: number, params: number[] = Array<number>(20).fill(0)) {
+function strip(block: FxStripKind, type: number, params: number[] = Array<number>(20).fill(0), enabled = true) {
   const onNibParam = vi.fn();
-  const fx: FxState = { enabled: true, type, level: 100, output: 0, outputAssign: 0, params };
+  const fx: FxState = { enabled, type, level: 100, output: 0, outputAssign: 0, params };
   const { container } = render(<FxParams block={block} fx={fx} onNibParam={onNibParam} />);
   return { container, onNibParam };
 }
@@ -30,14 +30,25 @@ describe("FxParams", () => {
     }
   });
 
+  it("dims every parameter while the FX is switched off", () => {
+    const off = [...strip("reverb", 3, undefined, false).container.querySelectorAll<HTMLElement>("[data-field]")];
+    expect(off.length).toBeGreaterThan(0);
+    for (const c of off) expect(c.dataset.inactive).toBe("dim");
+    cleanup();
+    expect(strip("reverb", 3).container.querySelector("[data-inactive]")).toBeNull();
+  });
+
   it("keeps tempo sync inside the Control", () => {
     const def = chorus_params(2).find((d) => d.name === "Dly L");
     if (!def || def.syncIndex === undefined) throw new Error("no synced Dly L");
     const { container, onNibParam } = strip("chorus", 2);
     const control = container.querySelector<HTMLElement>('[data-field="Dly L"]');
-    const note = [...(control?.querySelectorAll("button") ?? [])].find((b) => b.textContent === def.syncLabels[1]);
-    if (!note) throw new Error("no note toggle in the Dly L Control");
-    act(() => note.click());
+    // The readout reads the free time, its unit the toggle.
+    const unit = control?.querySelector("button");
+    if (!unit) throw new Error("no sync unit in the Dly L Control");
+    expect(unit.parentElement!.textContent).toBe(`${def.formatNumber(0)} ${def.syncLabels[0]}`);
+    expect(unit.getAttribute("aria-pressed")).toBe("false");
+    act(() => unit.click());
     expect(onNibParam).toHaveBeenCalledWith(def.syncIndex, 1);
   });
 

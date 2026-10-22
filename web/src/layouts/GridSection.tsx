@@ -8,8 +8,8 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { DisplayKind, ParameterFamily } from "../../pkg/integral_wasm.js";
 import type { PickOption } from "../SearchPopover";
-import { SyncToggle } from "../SyncToggle";
-import { SynthFader, SynthKnob, SynthPicker, SynthSwitch, familyVar } from "../synth-ui";
+import { SyncUnit } from "../SyncUnit";
+import { PowerButton, SynthFader, SynthKnob, SynthPicker, SynthSwitch, familyVar } from "../synth-ui";
 import { knobDialSide } from "../synth-ui/SynthKnob";
 import { CELL, cellsPx, type Px } from "../synth-ui/grid";
 import type { FieldKey } from "./fields";
@@ -33,11 +33,14 @@ export type BindingOption = PickOption;
 
 /**
  * A tempo-syncable parameter's free/note toggle, from core's sync info. The
- * Control carries it; the layout knows nothing of it. Knobs and faders draw it.
+ * Control carries it; the layout knows nothing of it. Knobs and faders draw
+ * it as their readout's unit: `formatNumber`'s text, then the mode's label.
  */
 export interface SyncBinding {
-  /** Toggle labels from core, `[free, note]`. */
+  /** Toggle labels from core, `[free, note]`: the readout's unit in each mode. */
   labels: readonly string[];
+  /** Readout of a raw value without its unit, from core. */
+  formatNumber: (value: number) => string;
   /** Whether the Control edits the note value now. */
   noteMode: boolean;
   /** Switches between the free value and the note. */
@@ -66,7 +69,7 @@ export interface Binding {
   options?: readonly BindingOption[];
   /** Writes a new raw value. */
   onChange: (value: number) => void;
-  /** Tempo sync, when the parameter has it: the Control draws its toggle. */
+  /** Tempo sync, when the parameter has it: the Control draws its toggle as the readout's unit. */
   sync?: SyncBinding;
 }
 
@@ -85,16 +88,12 @@ export interface GridSectionProps<F extends FieldKey> {
   isActive?: (field: F, index?: number) => boolean;
   /** The alternative to draw for a group, by name; default (or unknown) the first. */
   alternative?: (group: string) => string | undefined;
+  /** Whether a Display's fields are active; default always. An inactive Display dims, as an inactive Control does. */
+  isDisplayActive?: (display: DisplayKind) => boolean;
   /** Draws a Display filling `size` px; default an empty rectangle. */
   renderDisplay?: (display: DisplayKind, size: { width: number; height: number }) => ReactNode;
   /** Accents the border's top edge. */
   family?: ParameterFamily;
-  /**
-   * Size every knob's dial as if it drew an addon line (the tempo-sync
-   * toggle), whether or not it does: for Sections whose variants differ in
-   * sync, so their knobs keep one size from variant to variant.
-   */
-  reserveAddon?: boolean;
   /** Extra style for the Section's root (e.g. hiding it). */
   style?: CSSProperties;
 }
@@ -127,7 +126,9 @@ function Control<F extends FieldKey>({
   dialSide: Record<"sm" | "lg", number>;
 }) {
   const label = c.label === false ? undefined : (c.label ?? b.name);
-  const addon = b.sync && <SyncToggle labels={b.sync.labels} noteMode={b.sync.noteMode} onChange={b.sync.onChange} />;
+  // A synced Control's readout is the number and, after it, its unit as the toggle.
+  const format = b.sync?.formatNumber ?? b.format;
+  const unit = b.sync && <SyncUnit labels={b.sync.labels} noteMode={b.sync.noteMode} onChange={b.sync.onChange} />;
   switch (c.kind) {
     case "knob":
       return (
@@ -144,9 +145,9 @@ function Control<F extends FieldKey>({
           defaultValue={b.defaultValue}
           center={b.center}
           family={b.family}
-          formatValue={b.format}
+          formatValue={format}
           onChange={b.onChange}
-          addon={addon}
+          unit={unit}
         />
       );
     case "fader":
@@ -162,9 +163,9 @@ function Control<F extends FieldKey>({
           min={b.min}
           max={b.max}
           defaultValue={b.defaultValue}
-          formatValue={b.format}
+          formatValue={format}
           onChange={b.onChange}
-          addon={addon}
+          unit={unit}
         />
       );
     case "switch":
@@ -187,6 +188,25 @@ function Control<F extends FieldKey>({
     case "picker":
       return <SynthPicker box={box} label={label} title={b.name} value={b.value} options={optionsOf(b)} onChange={b.onChange} />;
   }
+}
+
+/**
+ * The title's power toggle for a two-state field: on at its maximum, and a
+ * click writes the other state. It never dims. The wrapper carries
+ * `data-field` as a body Control's does, so a caller finds it the same way.
+ */
+function TitleSwitch({ field, binding: b, title }: { field: FieldKey; binding: Binding; title: string }) {
+  const on = b.value === b.max;
+  return (
+    <span className={css.titleSwitch} data-field={String(field)} data-title-switch="">
+      <PowerButton
+        isOn={on}
+        onToggle={() => b.onChange(on ? b.min : b.max)}
+        title={`Switch ${title} ${on ? "off" : "on"}`}
+        className={css.power}
+      />
+    </span>
+  );
 }
 
 /** A rule or group name, in px from the Section's origin; arrows are drawn by `SilkArrows`. */
@@ -218,9 +238,9 @@ export function GridSection<F extends FieldKey>({
   scope,
   isActive = always,
   alternative = none,
+  isDisplayActive = always,
   renderDisplay,
   family,
-  reserveAddon = false,
   style,
 }: GridSectionProps<F>) {
   const { top, side } = titleCells(layout);
@@ -248,10 +268,10 @@ export function GridSection<F extends FieldKey>({
   });
   // Every knob of a size is drawn at the smallest dial any of them fits.
   const dialSide = { sm: Infinity, lg: Infinity };
-  for (const { el, size, binding } of drawn) {
+  for (const { el, size } of drawn) {
     if (el.kind !== "knob") continue;
     const k = el.size ?? "sm";
-    dialSide[k] = Math.min(dialSide[k], knobDialSide(k, size, reserveAddon || binding?.sync !== undefined));
+    dialSide[k] = Math.min(dialSide[k], knobDialSide(k, size));
   }
   // An arrow is drawn when both its ends are.
   const arrows = drawnArrows(
@@ -273,7 +293,12 @@ export function GridSection<F extends FieldKey>({
           ...(top ? { borderWidth: BORDER_WIDTHS } : {}),
         }}
       >
-        {title}
+        <span className={css.titleText}>
+          {title}
+          {layout.titleSwitch !== undefined && (
+            <TitleSwitch field={layout.titleSwitch} binding={bind(layout.titleSwitch)} title={title} />
+          )}
+        </span>
       </div>
       {/* Silkscreen stops at the drawn border, which sits INSET inside the Section's Cells. */}
       <svg
@@ -289,8 +314,16 @@ export function GridSection<F extends FieldKey>({
       </svg>
       {drawn.map(({ el, box, size, binding }) => {
         if (el.kind === "display") {
+          const dim = !isDisplayActive(el.display);
           return (
-            <div key={elementKey(el)} className={css.element} data-display={el.display} style={box}>
+            <div
+              key={elementKey(el)}
+              className={`${css.element} ${dim ? css.dim : ""}`}
+              data-display={el.display}
+              data-inactive={dim ? "dim" : undefined}
+              inert={dim}
+              style={box}
+            >
               {renderDisplay?.(el.display, size)}
             </div>
           );

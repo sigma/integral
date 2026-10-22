@@ -12,6 +12,7 @@ import {
   MixerField,
   MixerScopeKind,
   comp_eq_unit_is_active,
+  mixer_eq_is_active,
   mixer_is_active,
   mixer_output_is_active,
 } from "../pkg/integral_wasm.js";
@@ -21,7 +22,7 @@ import css from "./ChannelStrip.module.css";
 import { GridSection, variantLayout, type Binding, type Scope, type SectionLayout } from "./layouts";
 import { EQ_LAYOUT } from "./layouts/mixer/eq";
 import { PART_TOGGLES, STRIP_SET, STRIP_TITLES } from "./layouts/mixer/strip";
-import { renderMixerDisplay } from "./mixerDisplays";
+import { mixerDisplaySlots, renderMixerDisplay } from "./mixerDisplays";
 import { NotLoadedMarker } from "./NotLoadedMarker";
 import { paramFormatter, paramMeta } from "./paramDefaults";
 import type { CompEqUnit, EqState, MixerState, PartState } from "./types";
@@ -88,7 +89,6 @@ const SWITCH_TEXT: Partial<Record<MixerField, string>> = {
   [MixerField.ExtMute]: "M",
   [MixerField.SoloPart]: "S",
   [MixerField.DrumCompEqPart]: "C+EQ",
-  [MixerField.CompSwitch]: "COMP",
 };
 
 /** A strip's EQ, as the EQ Section reads it. */
@@ -206,9 +206,16 @@ function titleScope({ kind, index }: StripScope): Scope {
 /** The EQ Section's accent: the family of its gain knobs. */
 const eqFamily = () => paramMeta(MixerField.EqMidGain).family;
 
-/** A strip's EQ Section. */
+/** A strip's EQ Section, its settings dimmed while its EQ switch is off. */
 export function StripEq(props: StripProps) {
-  return <GridSection layout={EQ_LAYOUT} bind={stripBinding(props)} family={eqFamily()} />;
+  return (
+    <GridSection
+      layout={EQ_LAYOUT}
+      bind={stripBinding(props)}
+      family={eqFamily()}
+      isActive={(field) => stripIsActive(props.state, props, field)}
+    />
+  );
 }
 
 /** Each strip kind's layout, titled for its kind. */
@@ -227,7 +234,14 @@ function stripIsActive(state: MixerState, { kind, index }: StripScope, field: Mi
   if (!mixer_output_is_active(field, state.surround.enabled)) return false;
   if (kind === MixerScopeKind.Part) return mixer_is_active(field, index, state.parts[index], state.drumCompEq);
   if (kind === MixerScopeKind.CompEqUnit) return comp_eq_unit_is_active(field, state.drumCompEq.units[index]);
+  if (kind === MixerScopeKind.Master) return mixer_eq_is_active(field, state.masterEq.enabled);
   return true;
+}
+
+/** Whether a mixer Display on strip `scope` is active: while any field core binds it to is. */
+function stripDisplayIsActive(state: MixerState, scope: StripScope, display: DisplayKind): boolean {
+  const slots = mixerDisplaySlots(display);
+  return slots.length === 0 || slots.some(({ field }) => stripIsActive(state, scope, field));
 }
 
 /** Props of {@link ChannelStrip}. */
@@ -247,6 +261,7 @@ export function ChannelStrip({ unloadedExpansion, ...props }: ChannelStripProps)
       scope={titleScope(props)}
       family={stripFamily()}
       isActive={(field) => stripIsActive(state, props, field)}
+      isDisplayActive={(display) => stripDisplayIsActive(state, props, display)}
       // Surround replaces the FX sends with its ambience send.
       alternative={(group) => (group === "sends" && state.surround.enabled ? "surround" : undefined)}
       renderDisplay={(display, size) =>
@@ -272,9 +287,9 @@ const ROLE: Partial<Record<MixerScopeKind, { icon: string; name: (index: number)
   [MixerScopeKind.CompEqUnit]: { icon: "comp-eq", name: (i) => `Compressor ${i + 1} Gain`, role: (i) => `C+E${i + 1}` },
 };
 
-/** A strip's name: a part's tone, or the strip's role in full. */
+/** A strip's name: a part's number and tone (`1 - JP8Strings16`), or the strip's role in full. */
 function stripName(state: MixerState, { kind, index }: StripScope): string {
-  if (kind === MixerScopeKind.Part) return toneLabel(state.parts[index]!);
+  if (kind === MixerScopeKind.Part) return `${index + 1} - ${toneLabel(state.parts[index]!)}`;
   return ROLE[kind]?.name(index) ?? "";
 }
 

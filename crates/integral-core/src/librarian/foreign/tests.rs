@@ -975,7 +975,7 @@ mod jv_patches {
                         "Chorus level 70, rate 24, depth 28, pre-delay 69, feedback 0, output MIX{studio}"
                     ),
                     format!(
-                        "Reverb STAGE2, level 100, time 60, HF damp 4000Hz, feedback 0{studio}"
+                        "Reverb STAGE2, level 100, time 60, HF damp 4000 Hz, feedback 0{studio}"
                     ),
                     "Partial 3: PCM card 3 Wave 30 has no INTEGRA-7 Wave".into(),
                 ],
@@ -984,7 +984,7 @@ mod jv_patches {
                         "Chorus level 80, rate 12, depth 11, pre-delay 69, feedback 0, output MIX{studio}"
                     ),
                     format!(
-                        "Reverb STAGE2, level 127, time 94, HF damp 4000Hz, feedback 0{studio}"
+                        "Reverb STAGE2, level 127, time 94, HF damp 4000 Hz, feedback 0{studio}"
                     ),
                 ],
                 vec![
@@ -992,7 +992,7 @@ mod jv_patches {
                         "Chorus level 127, rate 45, depth 13, pre-delay 69, feedback 0, output REV{studio}"
                     ),
                     format!(
-                        "Reverb STAGE2, level 127, time 127, HF damp 4000Hz, feedback 42{studio}"
+                        "Reverb STAGE2, level 127, time 127, HF damp 4000 Hz, feedback 42{studio}"
                     ),
                     "Partial 3: Delay Mode KEY-INTERVAL dropped".into(),
                 ],

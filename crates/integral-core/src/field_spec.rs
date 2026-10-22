@@ -10,7 +10,7 @@ use std::sync::OnceLock;
 
 use crate::block_field::BlockField;
 use crate::family::ParameterFamily;
-use crate::fx_params::{NOTE_NAMES, SYNC_HZ, SYNC_MS};
+use crate::fx_params::{NOTE_NAMES, SYNC_CLOCK, SYNC_HZ};
 use crate::param_registry::{FieldCatalog, NOTE_FROM, ParamFormat};
 use crate::pcm_drum::{self, PcmdCommonField, PcmdPartialField, PcmdWmtField};
 use crate::pcm_synth::{self, PcmsCommon2Field, PcmsCommonField, PcmsPartialField, PcmsPmtField};
@@ -1089,8 +1089,10 @@ pub fn pcms_partial_sync(field: PcmsPartialField) -> Option<InRangeSync> {
         .position(|n| *n == "1/4")
         .expect("1/4 is a note value") as i32;
     Some(InRangeSync {
+        // The delay time's free value is a bare 0-127 step, with no unit:
+        // its toggle reads as a clock.
         labels: if field == PcmsPartialField::DelayTime {
-            SYNC_MS
+            SYNC_CLOCK
         } else {
             SYNC_HZ
         },
@@ -1429,8 +1431,8 @@ mod tests {
         assert_eq!(fmt(PcmsPartialField::Pan, 127), "63R");
         assert_eq!(fmt(PcmsPartialField::TvaBiasPosition, 0), "C-1");
         assert_eq!(fmt(PcmsPartialField::TvaBiasPosition, 127), "G9");
-        assert_eq!(fmt(PcmsPartialField::Lfo1Rate, 0), "0.05Hz");
-        assert_eq!(fmt(PcmsPartialField::Lfo1Rate, 127), "27.1Hz");
+        assert_eq!(fmt(PcmsPartialField::Lfo1Rate, 0), "0.05 Hz");
+        assert_eq!(fmt(PcmsPartialField::Lfo1Rate, 127), "27.1 Hz");
         assert_eq!(fmt(PcmsPartialField::Lfo1Rate, 128), "1/64T");
         assert_eq!(fmt(PcmsPartialField::Lfo1Rate, 149), "2/1");
         assert_eq!(fmt(PcmsPartialField::LfoStep, 28), "-36");
@@ -1485,7 +1487,7 @@ mod tests {
             pcms_partial_sync(PcmsPartialField::DelayTime)
                 .unwrap()
                 .labels,
-            SYNC_MS
+            ["⏱", "♪"]
         );
         assert_eq!(pcms_partial_sync(PcmsPartialField::Lfo1DelayTime), None);
     }
@@ -1506,14 +1508,49 @@ mod tests {
         assert_eq!(sns_partial_sync(F::LfoPitchDepth), None);
     }
 
+    /// A synced field's free value reads as a number with no unit or its
+    /// toggle's free label as its unit, and its note with no unit: the
+    /// readout draws the label as the unit.
+    #[test]
+    fn synced_fields_split_their_unit_off_as_the_toggle_label() {
+        use PcmsPartialField as P;
+        use SnsPartialField as S;
+        // The delay time's free value is a bare 0-127, under its clock label.
+        for (field, free_unit) in [(P::Lfo1Rate, "Hz"), (P::Lfo2Rate, "Hz"), (P::DelayTime, "")] {
+            let sync = pcms_partial_sync(field).unwrap();
+            let spec = pcms_partial_spec(field);
+            for v in spec.min..=spec.max {
+                let expected = if v < sync.note_from { free_unit } else { "" };
+                assert_eq!(spec.format.parts(v).1, expected, "{field:?} {v}");
+            }
+            assert!(
+                free_unit.is_empty() || free_unit == sync.labels[0],
+                "{field:?}"
+            );
+        }
+        for field in [S::LfoRate, S::ModLfoRate] {
+            let sync = sns_partial_sync(field).unwrap();
+            let spec = sns_partial_spec(field);
+            for v in spec.min..=spec.max {
+                assert_eq!(spec.format.parts(v).1, sync.labels[0], "{field:?} {v}");
+            }
+            let note = sns_partial_spec(sync.note);
+            for v in note.min..=note.max {
+                assert_eq!(note.format.parts(v).1, "", "{:?} {v}", sync.note);
+            }
+        }
+        let (number, unit) = sns_partial_spec(S::LfoRate).format.parts(0);
+        assert_eq!((number.as_str(), unit), ("0.03", "Hz"));
+    }
+
     #[test]
     fn sn_lfo_rates_show_hz() {
         use SnsPartialField as F;
         let fmt = |f: SnsPartialField, v| sns_partial_spec(f).format.format(v);
-        assert_eq!(fmt(F::LfoRate, 0), "0.03Hz");
-        assert_eq!(fmt(F::LfoRate, 64), "1.9Hz");
-        assert_eq!(fmt(F::LfoRate, 127), "26.9Hz");
-        assert_eq!(fmt(F::ModLfoRate, 126), "25.6Hz");
+        assert_eq!(fmt(F::LfoRate, 0), "0.03 Hz");
+        assert_eq!(fmt(F::LfoRate, 64), "1.9 Hz");
+        assert_eq!(fmt(F::LfoRate, 127), "26.9 Hz");
+        assert_eq!(fmt(F::ModLfoRate, 126), "25.6 Hz");
     }
 
     #[test]

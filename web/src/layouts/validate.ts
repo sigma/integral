@@ -201,6 +201,13 @@ export function validateSection<F extends FieldKey>(
     }
   };
 
+  const sw = layout.titleSwitch;
+  if (sw !== undefined) {
+    const name = `title switch ${fieldName(layout.fields, sw)}`;
+    if (!known.has(sw)) report("field", name, `not in ${layout.fields.name}`);
+    else if (!isTwoState(layout.fields, sw)) report("footprint", name, "a title switch needs a two-state field");
+  }
+
   const coverage = new Coverage(report);
   for (const item of layout.items) {
     if (item.kind !== "alternatives") {
@@ -254,7 +261,7 @@ export function validateSection<F extends FieldKey>(
 /**
  * Problems with a variant set: every key's layout, and every parameter of
  * each key placed, each element of an array field on its own. A parameter
- * in any alternative counts as placed.
+ * in any alternative, or as the title switch, counts as placed.
  */
 export function validateVariantSet<K extends FieldKey, F extends FieldKey>(
   set: VariantSet<K, F>,
@@ -268,6 +275,7 @@ export function validateVariantSet<K extends FieldKey, F extends FieldKey>(
     const layout = variantLayout(set, key);
     problems.push(...validateSection(layout, `${set.name}[${key}]`));
     const placed = new Set<string>();
+    if (layout.titleSwitch !== undefined) placed.add(placementKey(layout.titleSwitch, 0));
     for (const el of allElements(layout.items)) {
       if (el.kind !== "display") placed.add(placementKey(el.field, el.index ?? 0));
     }

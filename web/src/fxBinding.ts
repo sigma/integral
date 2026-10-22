@@ -42,7 +42,12 @@ export function useFxBind(
       onChange: (v) => onNibParam(active.index, v),
       sync:
         note && sync !== undefined
-          ? { labels: def.syncLabels, noteMode: active === note, onChange: (on) => onNibParam(sync, on ? 1 : 0) }
+          ? {
+              labels: def.syncLabels,
+              formatNumber: (v) => active.formatNumber(v),
+              noteMode: active === note,
+              onChange: (on) => onNibParam(sync, on ? 1 : 0),
+            }
           : undefined,
     };
   };

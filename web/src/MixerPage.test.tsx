@@ -154,6 +154,27 @@ describe("MixerPage", () => {
     );
   });
 
+  it("draws the EQ, compressor and FX switches as power toggles in their titles, writing their switch", () => {
+    const { el, base, setMixerField } = loaded();
+    const toggles: [string, MixerField, string, unknown[]][] = [
+      ["eq.part.2", MixerField.EqSwitch, "EQ", [MixerScopeKind.Part, 2, MixerField.EqSwitch, 0]],
+      ["eq.comp.0", MixerField.EqSwitch, "EQ", [MixerScopeKind.CompEqUnit, 0, MixerField.EqSwitch, Number(!base.drumCompEq.units[0]!.eqSwitch)]],
+      ["eq.master", MixerField.EqSwitch, "EQ", [MixerScopeKind.Master, 0, MixerField.EqSwitch, 0]],
+      ["strip.comp.0", MixerField.CompSwitch, "C+E1", [MixerScopeKind.CompEqUnit, 0, MixerField.CompSwitch, Number(!base.drumCompEq.units[0]!.compSwitch)]],
+      ["strip.chorus", MixerField.ChorusSwitch, "FX1", [MixerScopeKind.Common, 0, MixerField.ChorusSwitch, Number(!base.chorus.enabled)]],
+      ["strip.reverb", MixerField.ReverbSwitch, "FX2", [MixerScopeKind.Common, 0, MixerField.ReverbSwitch, Number(!base.reverb.enabled)]],
+    ];
+    for (const [id, field, title, write] of toggles) {
+      const host = control(placed(el, id), field);
+      expect(host.dataset.titleSwitch, id).toBe("");
+      expect(host.parentElement!.textContent, id).toBe(title);
+      const button = host.querySelector("button")!;
+      expect(button.getAttribute("aria-pressed"), id).not.toBeNull();
+      act(() => button.click());
+      expect(setMixerField, id).toHaveBeenLastCalledWith(...write);
+    }
+  });
+
   it("titles each strip: its part, EX, its Comp+EQ unit, Master", () => {
     const { el } = loaded();
     const title = (id: string) => placed(el, id).querySelector("[data-grid-section]")!.getAttribute("data-grid-section");
@@ -173,10 +194,6 @@ describe("MixerPage", () => {
     expect(setMixerField).toHaveBeenLastCalledWith(
       MixerScopeKind.Part, 4, MixerField.PartChorusSend, base.parts[4]!.chorusSend + 1,
     );
-    stepUp(control(strip, MixerField.PartReceiveChannel));
-    expect(setMixerField).toHaveBeenLastCalledWith(
-      MixerScopeKind.Part, 4, MixerField.PartReceiveChannel, base.parts[4]!.receiveChannel + 1,
-    );
     expect(value(control(strip, MixerField.PartLevel))).toBe(String(base.parts[4]!.level));
     press(el, "strip.part.4", MixerField.PartMute);
     expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Part, 4, MixerField.PartMute, 1);
@@ -185,7 +202,8 @@ describe("MixerPage", () => {
   it.each([
     ["strip.part.4", MixerScopeKind.Part, 4, MixerField.PartOutputAssign],
     ["strip.comp.1", MixerScopeKind.CompEqUnit, 1, MixerField.CompOutputAssign],
-  ] as const)("picks %s's output from core's names", (id, kind, index, field) => {
+    ["strip.part.4", MixerScopeKind.Part, 4, MixerField.PartReceiveChannel],
+  ] as const)("picks %s's input or output from core's names", (id, kind, index, field) => {
     const { el, setMixerField } = loaded();
     const picker = control(placed(el, id), field);
     const name = paramFormatter(field);
@@ -273,6 +291,38 @@ describe("MixerPage", () => {
     expect(control(unit(0), MixerField.CompThreshold).dataset.inactive).toBeUndefined();
   });
 
+  it("dims a switched-off EQ's knobs, not its switch, on parts, Comp+EQ units and the master", () => {
+    const { el } = loaded((st) => ({
+      ...st,
+      parts: st.parts.map((p, i) => (i === 2 ? { ...p, eq: { ...p.eq, enabled: false } } : p)),
+      drumCompEq: { ...st.drumCompEq, units: st.drumCompEq.units.map((u, i) => ({ ...u, eqSwitch: i !== 4 })) },
+      masterEq: { ...st.masterEq, enabled: false },
+    }));
+    for (const id of ["eq.part.2", "eq.comp.4", "eq.master"]) {
+      expect(control(placed(el, id), MixerField.EqMidGain).dataset.inactive, id).toBe("dim");
+      expect(control(placed(el, id), MixerField.EqLowFreq).dataset.inactive, id).toBe("dim");
+      expect(control(placed(el, id), MixerField.EqSwitch).dataset.inactive, id).toBeUndefined();
+    }
+    for (const id of ["eq.part.1", "eq.comp.3"]) {
+      expect(control(placed(el, id), MixerField.EqMidGain).dataset.inactive, id).toBeUndefined();
+    }
+  });
+
+  it("dims a switched-off compressor's Displays with its knobs", () => {
+    const { el } = loaded((st) => ({
+      ...st,
+      drumCompEq: { ...st.drumCompEq, units: st.drumCompEq.units.map((u, i) => ({ ...u, compSwitch: i !== 1 })) },
+    }));
+    const display = (i: number, d: DisplayKind) =>
+      placed(el, `strip.comp.${i}`).querySelector<HTMLElement>(`[data-display="${d}"]`)!;
+    for (const d of [DisplayKind.CompTransferCurve, DisplayKind.CompEnvelope]) {
+      expect(display(1, d).dataset.inactive).toBe("dim");
+      expect(display(1, d).hasAttribute("inert")).toBe(true);
+      expect(display(0, d).dataset.inactive).toBeUndefined();
+    }
+    expect(display(1, DisplayKind.StripName).dataset.inactive).toBeUndefined();
+  });
+
   it("dims the Output Assigns while surround routes the strips", () => {
     const out = (el: HTMLElement) => [
       control(placed(el, "strip.part.0"), MixerField.PartOutputAssign),
@@ -302,7 +352,7 @@ describe("MixerPage", () => {
     }));
     const name = (id: string) =>
       placed(el, id).querySelector(`[data-display="${DisplayKind.StripName}"]`)?.textContent;
-    expect(name("strip.part.2")).toBe("Pulse Lead 1");
+    expect(name("strip.part.2")).toBe("3 - Pulse Lead 1");
     expect(name("strip.ext")).toBe("External Input");
     expect(name("strip.comp.1")).toBe("Compressor 2 Gain");
     expect(name("strip.master")).toBe("Master");
@@ -332,6 +382,18 @@ describe("MixerPage", () => {
     for (const field of [MixerField.ChorusOutputAssign, MixerField.ChorusOutputSelect]) {
       expect(control(placed(el, "strip.chorus"), field).querySelector("button")).not.toBeNull();
     }
+  });
+
+  it("dims a switched-off FX's type list, level and parameters, not its switch or outputs", () => {
+    const { el } = loaded((st) => ({ ...st, chorus: { ...st.chorus, enabled: false }, reverb: { ...st.reverb, enabled: true, type: 3 } }));
+    const chorus = placed(el, "strip.chorus");
+    expect(control(chorus, MixerField.ChorusType).dataset.inactive).toBe("dim");
+    expect(control(chorus, MixerField.ChorusLevel).dataset.inactive).toBe("dim");
+    expect(control(chorus, MixerField.ChorusSwitch).dataset.inactive).toBeUndefined();
+    expect(control(chorus, MixerField.ChorusOutputAssign).dataset.inactive).toBeUndefined();
+    const reverb = placed(el, "strip.reverb");
+    expect(control(reverb, MixerField.ReverbType).dataset.inactive).toBeUndefined();
+    expect(placed(el, "fx.reverb").querySelector("[data-inactive]")).toBeNull();
   });
 
   it("selects a part from anywhere on its column", () => {

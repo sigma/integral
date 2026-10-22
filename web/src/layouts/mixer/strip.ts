@@ -7,7 +7,8 @@
  * about 21 Cells long for a 4-Cell strip, so each strip is a fixed 36 rows,
  * a 21-row fader under the 15 rows the Comp+EQ unit's compressor needs. A
  * part strip's Controls sit just over its fader, leaving its top rows empty,
- * as the old mixer did; its name runs up the left of its fader. Controls in the strip's edge columns (M, S, the
+ * as the old mixer did, but for its input picker on the first row; its name
+ * runs up the left of its fader. Controls in the strip's edge columns (M, S, the
  * Comp+EQ Displays) are drawn clear of the border by the renderer.
  *
  * The EQ is its own Section (`eq.ts`), stacked above the strip by the mixer
@@ -37,9 +38,10 @@ export const STRIP_KINDS: readonly MixerScopeKind[] = Object.values(MixerScopeKi
 export const PART_TOGGLES: ReadonlySet<MixerField> = new Set([MixerField.SoloPart, MixerField.DrumCompEqPart]);
 
 /** Fields the EQ Section places; the strip leaves them to it. */
-const EQ_PLACED: ReadonlySet<MixerField> = new Set(
-  allElements(EQ_LAYOUT.items).flatMap((el) => (el.kind === "display" ? [] : [el.field])),
-);
+const EQ_PLACED: ReadonlySet<MixerField> = new Set([
+  ...allElements(EQ_LAYOUT.items).flatMap((el) => (el.kind === "display" ? [] : [el.field])),
+  ...(EQ_LAYOUT.titleSwitch === undefined ? [] : [EQ_LAYOUT.titleSwitch]),
+]);
 
 /** Surround position fields a part strip draws: its ambience send, in place of its FX sends. */
 const PART_SURROUND: ReadonlySet<MixerField> = new Set([MixerField.SurroundAmbienceSend]);
@@ -86,7 +88,7 @@ export const STRIP_TITLES: Readonly<Partial<Record<MixerScopeKind, string>>> = {
 /** The row every level fader starts on, and its height: it ends on the strip's last row. */
 const FADER = { y: 15, h: 21 } as const;
 
-/** Rows of a part strip's Controls: Ch and Pan, the sends, Out, C+EQ, then M and S. */
+/** Rows of a part strip's Controls over its fader: Pan, the sends, Out, C+EQ, then M and S. */
 const PART_CONTROLS_H = 9;
 
 /** A strip's name, up the left of its level fader (the column beside it), as the old mixer had it. */
@@ -98,11 +100,15 @@ const TOP = FADER.y - PART_CONTROLS_H;
 /** The row of every strip's output picker. */
 const OUT_Y = TOP + 6;
 
-/** A part strip: channel and pan, the sends (or the ambience send), routing, mute and solo side by side, level. */
+/**
+ * A part strip: its input (receive channel) under its part number, the
+ * counterpart of its output; then pan, the sends (or the ambience send),
+ * routing, mute and solo side by side, level.
+ */
 const PART: SectionBody<MixerField> = {
   items: [
-    { kind: "knob", field: MixerField.PartReceiveChannel, x: 0, y: TOP, label: "Ch" },
-    { kind: "knob", field: MixerField.PartPan, x: 2, y: TOP, label: "Pan" },
+    { kind: "picker", field: MixerField.PartReceiveChannel, x: 0, y: 0, w: 4, label: "In" },
+    { kind: "knob", field: MixerField.PartPan, x: 1, y: TOP, label: "Pan" },
     // Surround replaces the FX sends with its ambience send.
     {
       kind: "alternatives",
@@ -147,14 +153,14 @@ const MASTER: SectionBody<MixerField> = {
 };
 
 /**
- * A Drum Comp+EQ unit's compressor, as in the old mixer: the switch, the
- * envelope across the strip over attack and release on short faders, the
+ * A Drum Comp+EQ unit's compressor, as in the old mixer: the switch (a
+ * power toggle in the title, "C+E1 ⏻"), the envelope across the strip over attack and release on short faders, the
  * transfer curve across the strip over threshold and ratio, the routing, and
  * the output gain on a level-length fader.
  */
 const COMP_EQ_UNIT: SectionBody<MixerField> = {
+  titleSwitch: MixerField.CompSwitch,
   items: [
-    { kind: "switch", field: MixerField.CompSwitch, x: 1, y: 0, label: false },
     { kind: "display", display: DisplayKind.CompEnvelope, x: 0, y: 1, w: 4, h: 2 },
     { kind: "fader", field: MixerField.CompAttack, x: 0, y: 3, h: 3, label: "Atk" },
     { kind: "fader", field: MixerField.CompRelease, x: 2, y: 3, h: 3, label: "Rel" },
@@ -232,7 +238,8 @@ function fxStripFields(kind: FxStripKind): FieldSpace<MixerField> {
 }
 
 /**
- * An FX strip, laid out like a Comp+EQ unit's: the switch on top, the type
+ * An FX strip, laid out like a Comp+EQ unit's: the switch in the title
+ * ("FX1 ⏻"), the type
  * list sitting on the output pickers, which sit on the part strips' Out row,
  * then the level fader on every strip's fader rows, the type's name up its
  * side. The list is as long as core's type count.
@@ -241,8 +248,8 @@ function fxStrip(kind: FxStripKind): SectionBody<MixerField> {
   const { switch: sw, type, level, outputs } = FX_STRIP_FIELDS[kind];
   const listH = optionListRows(fxStripFields(kind).optionCount(type), true);
   return {
+    titleSwitch: sw,
     items: [
-      { kind: "switch", field: sw, x: 1, y: 0, label: false },
       { kind: "list", field: type, x: 1, y: OUT_Y - listH, h: listH, label: "Type" },
       ...outputs.map(
         (field, i): ItemLayout<MixerField> => ({ kind: "picker", field, x: 0, y: OUT_Y + i, w: 4, label: OUTPUT_LABELS[i] }),

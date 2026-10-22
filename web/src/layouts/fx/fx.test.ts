@@ -8,7 +8,7 @@ import { EQ_LAYOUT } from "../mixer/eq";
 import { VARIANT_SETS } from "../registry";
 import type { ControlLayout } from "../types";
 import { MFX_LEVEL, MFX_PARAMS_Y, MFX_SET } from "./mfx";
-import { CHORUS_SET, REVERB_SET, STRIP_CAPACITY } from "./strip";
+import { CHORUS_SET, REVERB_SET, STRIP_CAPACITY, STRIP_ROWS } from "./strip";
 
 const SETS = [
   ["mfx", MFX_SET, mfx_type_names],
@@ -112,12 +112,41 @@ describe("the Chorus and Reverb variant sets", () => {
     expect(Math.max(...most)).toBe(STRIP_CAPACITY);
   });
 
-  it("put two Controls to a row, a free row between rows", () => {
+  it("stagger their Controls as the EQ does, one per 2-Cell row down two columns", () => {
     const delay = [...controls(CHORUS_SET, 2).values()];
-    expect(delay.map((c) => [c.x, c.y])).toEqual(delay.map((_, i) => [(i % 2) * 2, Math.floor(i / 2) * 4]));
+    expect(delay.map((c) => [c.x, c.y])).toEqual(delay.map((_, i) => [(i % 2) * 2, i * 2]));
+  });
+
+  it("start on the EQ's first knob's row and column, each knob level with, and in the column of, an EQ knob", () => {
+    const eqKnobs = EQ_LAYOUT.items.flatMap((i) => (i.kind === "knob" ? [[i.x, i.y]] : []));
+    const eqCells = new Set(eqKnobs.map(([x, y]) => `${x},${y}`));
+    for (const [block, set] of [["chorus", CHORUS_SET], ["reverb", REVERB_SET]] as const) {
+      for (const type of fxTypes(block)) {
+        const items = [...controls(set, type).values()];
+        if (items.length === 0) continue; // Off has nothing to place.
+        expect([items[0]!.x, items[0]!.y], `${block} ${type}`).toEqual(eqKnobs[0]);
+        for (const c of items.slice(0, eqKnobs.length)) {
+          if (c.kind === "knob") expect(eqCells.has(`${c.x},${c.y}`), `${block} ${type} ${c.field}`).toBe(true);
+        }
+      }
+    }
   });
 
   it("are as tall as the mixer EQ, so the FX columns' strips start on the other strips' row", () => {
     for (const set of [CHORUS_SET, REVERB_SET]) expect(sectionCells(set)).toEqual(sectionCells(EQ_LAYOUT));
+  });
+
+  it("are exactly the largest type's stagger tall, every knob on a row the EQ's knobs use", () => {
+    expect(EQ_LAYOUT.h).toBe(STRIP_ROWS);
+    const parity = (y: number) => y % 2;
+    const eqRows = new Set(EQ_LAYOUT.items.flatMap((i) => (i.kind === "knob" ? [parity(i.y)] : [])));
+    expect(eqRows.size).toBe(1);
+    for (const [block, set] of [["chorus", CHORUS_SET], ["reverb", REVERB_SET]] as const) {
+      for (const type of fxTypes(block)) {
+        for (const c of controls(set, type).values()) {
+          if (c.kind === "knob") expect(eqRows.has(parity(c.y)), `${block} ${type} ${c.field}`).toBe(true);
+        }
+      }
+    }
   });
 });

@@ -291,10 +291,9 @@ describe("SnSynthEditor on the Grid", () => {
     expect(knob().getAttribute("aria-valuemax")).toBe(String(sns_partial_spec(SnsPartialField.LfoRate).max));
     // The tempo-sync toggle sits inside the rate knob; no separate Sync switch is placed.
     expect(row(container, 0).querySelector(`[data-field="${sync.switchField}"]`)).toBeNull();
-    const note = [...control(row(container, 0), SnsPartialField.LfoRate).querySelectorAll("button")].find(
-      (b) => b.textContent === sync.labels[1],
-    );
-    click(note!);
+    const unit = control(row(container, 0), SnsPartialField.LfoRate).querySelector("button")!;
+    expect(unit.textContent).toBe(sync.labels[0]);
+    click(unit);
     expect(knob().getAttribute("aria-valuemax")).toBe(String(sns_partial_spec(sync.noteField).max));
   });
 

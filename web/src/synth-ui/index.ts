@@ -4,6 +4,7 @@ export { SynthSwitch } from "./SynthSwitch";
 export { SynthPicker } from "./SynthPicker";
 export { SectionPanel } from "./SectionPanel";
 export { PartialPowerButton } from "./PartialPowerButton";
+export { PowerButton } from "./PowerButton";
 export { ADSREnvelope, envelopePath } from "./ADSREnvelope";
 export type { EnvelopeShape } from "./ADSREnvelope";
 export { EnvelopeScope } from "./EnvelopeScope";

@@ -76,8 +76,6 @@ export interface TextLine {
 export const NAME: TextLine = { font: 7, line: 10 };
 /** A Control's readout. */
 export const READOUT: TextLine = { font: 9, line: 12 };
-/** Height of a Control's addon line under its readout (the tempo-sync toggle), px. */
-export const ADDON_LINE = 12;
 
 /** Inline style setting `text`'s size and fixing its line box. */
 export function lineStyle(text: TextLine): {
