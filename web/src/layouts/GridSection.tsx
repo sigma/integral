@@ -88,6 +88,8 @@ export interface GridSectionProps<F extends FieldKey> {
   isActive?: (field: F, index?: number) => boolean;
   /** The alternative to draw for a group, by name; default (or unknown) the first. */
   alternative?: (group: string) => string | undefined;
+  /** Whether a Display's fields are active; default always. An inactive Display dims, as an inactive Control does. */
+  isDisplayActive?: (display: DisplayKind) => boolean;
   /** Draws a Display filling `size` px; default an empty rectangle. */
   renderDisplay?: (display: DisplayKind, size: { width: number; height: number }) => ReactNode;
   /** Accents the border's top edge. */
@@ -217,6 +219,7 @@ export function GridSection<F extends FieldKey>({
   scope,
   isActive = always,
   alternative = none,
+  isDisplayActive = always,
   renderDisplay,
   family,
   style,
@@ -287,8 +290,16 @@ export function GridSection<F extends FieldKey>({
       </svg>
       {drawn.map(({ el, box, size, binding }) => {
         if (el.kind === "display") {
+          const dim = !isDisplayActive(el.display);
           return (
-            <div key={elementKey(el)} className={css.element} data-display={el.display} style={box}>
+            <div
+              key={elementKey(el)}
+              className={`${css.element} ${dim ? css.dim : ""}`}
+              data-display={el.display}
+              data-inactive={dim ? "dim" : undefined}
+              inert={dim}
+              style={box}
+            >
               {renderDisplay?.(el.display, size)}
             </div>
           );

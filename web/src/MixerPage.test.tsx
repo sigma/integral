@@ -273,6 +273,38 @@ describe("MixerPage", () => {
     expect(control(unit(0), MixerField.CompThreshold).dataset.inactive).toBeUndefined();
   });
 
+  it("dims a switched-off EQ's knobs, not its switch, on parts, Comp+EQ units and the master", () => {
+    const { el } = loaded((st) => ({
+      ...st,
+      parts: st.parts.map((p, i) => (i === 2 ? { ...p, eq: { ...p.eq, enabled: false } } : p)),
+      drumCompEq: { ...st.drumCompEq, units: st.drumCompEq.units.map((u, i) => ({ ...u, eqSwitch: i !== 4 })) },
+      masterEq: { ...st.masterEq, enabled: false },
+    }));
+    for (const id of ["eq.part.2", "eq.comp.4", "eq.master"]) {
+      expect(control(placed(el, id), MixerField.EqMidGain).dataset.inactive, id).toBe("dim");
+      expect(control(placed(el, id), MixerField.EqLowFreq).dataset.inactive, id).toBe("dim");
+      expect(control(placed(el, id), MixerField.EqSwitch).dataset.inactive, id).toBeUndefined();
+    }
+    for (const id of ["eq.part.1", "eq.comp.3"]) {
+      expect(control(placed(el, id), MixerField.EqMidGain).dataset.inactive, id).toBeUndefined();
+    }
+  });
+
+  it("dims a switched-off compressor's Displays with its knobs", () => {
+    const { el } = loaded((st) => ({
+      ...st,
+      drumCompEq: { ...st.drumCompEq, units: st.drumCompEq.units.map((u, i) => ({ ...u, compSwitch: i !== 1 })) },
+    }));
+    const display = (i: number, d: DisplayKind) =>
+      placed(el, `strip.comp.${i}`).querySelector<HTMLElement>(`[data-display="${d}"]`)!;
+    for (const d of [DisplayKind.CompTransferCurve, DisplayKind.CompEnvelope]) {
+      expect(display(1, d).dataset.inactive).toBe("dim");
+      expect(display(1, d).hasAttribute("inert")).toBe(true);
+      expect(display(0, d).dataset.inactive).toBeUndefined();
+    }
+    expect(display(1, DisplayKind.StripName).dataset.inactive).toBeUndefined();
+  });
+
   it("dims the Output Assigns while surround routes the strips", () => {
     const out = (el: HTMLElement) => [
       control(placed(el, "strip.part.0"), MixerField.PartOutputAssign),
