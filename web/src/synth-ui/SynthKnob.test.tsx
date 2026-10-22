@@ -57,12 +57,13 @@ describe("SynthKnob", () => {
     );
   });
 
-  it("makes room for an addon line inside its Grid footprint", () => {
-    const { container } = render(<SynthKnob {...knob} grid addon={<button>♪</button>} />);
-    const root = rootOf(container);
+  it("draws a unit on its readout's line, at the dial it draws without one", () => {
+    const plain = rootOf(render(<SynthKnob {...knob} grid />).container);
+    const root = rootOf(render(<SynthKnob {...knob} grid unit={<button>ms</button>} />).container);
     expectFillsFootprint(root, FOOTPRINT.knobSm);
-    expect(root.querySelector("button")?.textContent).toBe("♪");
-    expect(stackedHeight([...root.children])).toBeLessThanOrEqual(FOOTPRINT.knobSm.h * CELL);
+    expect(root.lastElementChild!.textContent).toBe("127 ms");
+    expect(root.querySelector("svg")!.getAttribute("width")).toBe(plain.querySelector("svg")!.getAttribute("width"));
+    expect(stackedHeight([...root.children])).toBe(stackedHeight([...plain.children]));
   });
 
   it("keeps a 7px name and a 9px readout on the Grid", () => {

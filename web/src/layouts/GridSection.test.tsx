@@ -14,7 +14,7 @@ import {
 import { paramFormatter, paramMeta } from "../paramDefaults";
 import { FOOTPRINT } from "../synth-ui/grid";
 import { cleanup, click, render, typeInto } from "../test/dom";
-import { expectFillsFootprint } from "../test/grid";
+import { expectFillsFootprint, stackedHeight } from "../test/grid";
 import { arrowUp, dt1Drainer, slider } from "../test/toneService";
 import { specBinding } from "./binding";
 import { enumFields, mixerFields } from "./fields";
@@ -288,26 +288,56 @@ describe("GridSection knob dials", () => {
   };
   const dial = (container: HTMLElement, field: MixerField) => wrapper(container, field).querySelector("svg")!.getAttribute("width");
 
-  it("draws every knob of a size in a Section at one dial, the smallest any fits", () => {
-    const bind = (field: MixerField): Binding =>
+  /** The High Gain knob tempo-syncable, in `noteMode`, its readout split as core would. */
+  const synced =
+    (noteMode: boolean, onChange: (noteMode: boolean) => void = () => {}) =>
+    (field: MixerField): Binding =>
       field === MixerField.EqHighGain
-        ? { ...bindMixer(field), sync: { labels: ["ms", "♪"], noteMode: false, onChange: () => {} } }
+        ? {
+            ...bindMixer(field),
+            format: () => "200 ms",
+            sync: { labels: ["ms", "♪"], formatNumber: () => (noteMode ? "1/8" : "200"), noteMode, onChange },
+          }
         : bindMixer(field);
-    const { container } = render(<GridSection layout={KNOBS} bind={bind} />);
+  /** A knob's root: its name, dial and readout, stacked. */
+  const knobRoot = (container: HTMLElement, field: MixerField) => wrapper(container, field).firstElementChild!;
+
+  it("draws every knob of a size in a Section at one dial, the smallest any fits", () => {
+    const { container } = render(<GridSection layout={KNOBS} bind={bindMixer} />);
     const sides = [MixerField.EqLowGain, MixerField.EqMidGain, MixerField.EqHighGain].map((f) => dial(container, f));
     expect(new Set(sides).size).toBe(1);
-    // The synced knob gives up an addon line under its readout.
+    // The knob on the border gives up its edge padding.
     expect(Number(sides[0])).toBeLessThan(FOOTPRINT.knobSm.w * 24 - INSET);
   });
 
-  it("keeps that dial without a synced knob when the Section reserves the addon line", () => {
-    const synced = (field: MixerField): Binding =>
-      field === MixerField.EqHighGain
-        ? { ...bindMixer(field), sync: { labels: ["ms", "♪"], noteMode: false, onChange: () => {} } }
-        : bindMixer(field);
-    const withSync = dial(render(<GridSection layout={KNOBS} bind={synced} />).container, MixerField.EqMidGain);
-    const reserved = dial(render(<GridSection layout={KNOBS} bind={bindMixer} reserveAddon />).container, MixerField.EqMidGain);
-    expect(reserved).toBe(withSync);
+  it.each([false, true])("draws a synced knob (note mode %s) at the dial and height of an unsynced one", (noteMode) => {
+    const plain = render(<GridSection layout={KNOBS} bind={bindMixer} />).container;
+    const { container } = render(<GridSection layout={KNOBS} bind={synced(noteMode)} />);
+    for (const f of [MixerField.EqMidGain, MixerField.EqHighGain]) {
+      expect(dial(container, f), MixerField[f]).toBe(dial(plain, MixerField.EqMidGain));
+      const root = knobRoot(container, f);
+      // Name, dial and readout: no line under the readout.
+      expect(root.children.length, MixerField[f]).toBe(3);
+      expect(stackedHeight([...root.children]), MixerField[f]).toBe(stackedHeight([...knobRoot(plain, MixerField.EqMidGain).children]));
+    }
+  });
+
+  it("reads a synced knob as its number then its unit, the unit a button toggling sync", () => {
+    const onChange = vi.fn();
+    const { container } = render(<GridSection layout={KNOBS} bind={synced(false, onChange)} />);
+    const readout = knobRoot(container, MixerField.EqHighGain).lastElementChild!;
+    expect(readout.textContent).toBe("200 ms");
+    const unit = readout.querySelector("button")!;
+    expect(unit.getAttribute("aria-pressed")).toBe("false");
+    expect(unit.title).toMatch(/note/);
+    click(unit);
+    expect(onChange).toHaveBeenCalledWith(true);
+
+    const note = render(<GridSection layout={KNOBS} bind={synced(true, onChange)} />).container;
+    const noteReadout = knobRoot(note, MixerField.EqHighGain).lastElementChild!;
+    expect(noteReadout.textContent).toBe("1/8 ♪");
+    click(noteReadout.querySelector("button")!);
+    expect(onChange).toHaveBeenLastCalledWith(false);
   });
 });
 
@@ -382,11 +412,11 @@ describe("GridSection tempo sync", () => {
     ],
   };
 
-  it("keeps the free/note toggle inside each Control's footprint", () => {
+  it("keeps the free/note toggle inside each Control's footprint, as its readout's unit", () => {
     const onChange = vi.fn();
     const bind = (field: MixerField): Binding => ({
       ...bindMixer(field),
-      sync: { labels: ["ms", "♪"], noteMode: false, onChange },
+      sync: { labels: ["ms", "♪"], formatNumber: String, noteMode: false, onChange },
     });
     const { container } = render(<GridSection layout={SYNCED} bind={bind} />);
     const knob = wrapper(container, MixerField.EqLowGain);
@@ -394,8 +424,8 @@ describe("GridSection tempo sync", () => {
     expectFillsFootprint(knob.firstElementChild as HTMLElement, FOOTPRINT.knobSm);
     expectFillsFootprint(fader.firstElementChild as HTMLElement, { w: FOOTPRINT.faderW, h: 4 });
     for (const el of [knob, fader]) {
-      const note = [...el.querySelectorAll("button")].find((b) => b.textContent === "♪");
-      act(() => note?.click());
+      const unit = [...el.querySelectorAll("button")].find((b) => b.textContent === "ms");
+      act(() => unit?.click());
     }
     expect(onChange.mock.calls).toEqual([[true], [true]]);
   });

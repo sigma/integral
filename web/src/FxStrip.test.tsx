@@ -35,9 +35,12 @@ describe("FxParams", () => {
     if (!def || def.syncIndex === undefined) throw new Error("no synced Dly L");
     const { container, onNibParam } = strip("chorus", 2);
     const control = container.querySelector<HTMLElement>('[data-field="Dly L"]');
-    const note = [...(control?.querySelectorAll("button") ?? [])].find((b) => b.textContent === def.syncLabels[1]);
-    if (!note) throw new Error("no note toggle in the Dly L Control");
-    act(() => note.click());
+    // The readout reads the free time, its unit the toggle.
+    const unit = control?.querySelector("button");
+    if (!unit) throw new Error("no sync unit in the Dly L Control");
+    expect(unit.parentElement!.textContent).toBe(`${def.formatNumber(0)} ${def.syncLabels[0]}`);
+    expect(unit.getAttribute("aria-pressed")).toBe("false");
+    act(() => unit.click());
     expect(onNibParam).toHaveBeenCalledWith(def.syncIndex, 1);
   });
 

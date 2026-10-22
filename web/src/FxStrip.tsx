@@ -34,8 +34,7 @@ export function FxParams({ block, fx, onNibParam }: FxParamsProps) {
   // One footprint for every type, so nothing moves when the type changes.
   const layout = useMemo(() => variantLayout(SETS[block], fx.type), [block, fx.type]);
   const bind = useFxBind(block, fx.type, fx.params, onNibParam);
-  // Some types' knobs carry a sync toggle: every type's knobs keep the dial they leave room for.
-  return <GridSection layout={layout} bind={bind} isActive={() => fx.enabled} reserveAddon />;
+  return <GridSection layout={layout} bind={bind} isActive={() => fx.enabled} />;
 }
 
 /**

@@ -63,13 +63,17 @@ export function PartialBox({ idx, layout, family, partial, active, setP }: Parti
     const sync = syncs().get(field);
     const noteMode = sync !== undefined && valueOf(sync.switchField) !== 0;
     const edited = sync && noteMode ? sync.noteField : field;
-    const binding = specBinding(SNS_PARTIAL_FIELDS.nameOf(edited), partialSpec(edited), valueOf(edited), (v) =>
-      setP(edited, v),
-    );
+    const spec = partialSpec(edited);
+    const binding = specBinding(SNS_PARTIAL_FIELDS.nameOf(edited), spec, valueOf(edited), (v) => setP(edited, v));
     if (!sync) return binding;
     return {
       ...binding,
-      sync: { labels: sync.labels, noteMode, onChange: (on) => setP(sync.switchField, on ? 1 : 0) },
+      sync: {
+        labels: sync.labels,
+        formatNumber: (v) => spec.formatNumber(v),
+        noteMode,
+        onChange: (on) => setP(sync.switchField, on ? 1 : 0),
+      },
     };
   };
   const isPcm = valueOf(SnsPartialField.OscWave) === sns_osc_wave_pcm();

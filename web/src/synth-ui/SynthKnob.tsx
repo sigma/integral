@@ -1,10 +1,8 @@
 import type { ReactNode } from "react";
 import { useDragControl } from "../useDragControl";
-import { MAX_TICKS } from "../EqKnob";
 import { ParameterFamily } from "../../pkg/integral_wasm.js";
 import { familyVar } from "./family";
-import { ADDON_LINE, FOOTPRINT, NAME, READOUT, cellsPx, lineStyle, type Cells, type Px } from "./grid";
-import { ControlAddon } from "./ControlAddon";
+import { FOOTPRINT, NAME, READOUT, cellsPx, lineStyle, type Cells, type Px } from "./grid";
 import css from "./SynthKnob.module.css";
 
 interface Props {
@@ -43,11 +41,14 @@ interface Props {
   /** Value the LED arc grows from, for relative controls. Default: 0 for signed ranges, else min. */
   center?: number;
   /**
-   * A line under the readout, such as the tempo-sync toggle. On the Grid the
-   * dial gives up an `ADDON_LINE` for it, so the footprint holds.
+   * The readout's unit, drawn after `formatValue`'s text on its line: a
+   * tempo-syncable knob's free/note toggle.
    */
-  addon?: ReactNode;
+  unit?: ReactNode;
 }
+
+/** Ranges with at most this many values get one LED per value; wider ones read as continuous. */
+const MAX_TICKS = 24;
 
 const ANGLE_MIN = -135;
 const ANGLE_MAX = 135;
@@ -73,11 +74,10 @@ const SIZES: Record<"sm" | "lg", { dial: Dial; footprint: Cells }> = {
 
 /**
  * The side of a `size` knob's dial on the Grid in `box`: as large as the
- * width and the height left by name, readout and an addon line (when it has
- * one) allow, never larger than natural.
+ * width and the height left by name and readout allow, never larger than natural.
  */
-export function knobDialSide(size: "sm" | "lg", box: Px, addon: boolean): number {
-  return Math.min(SIZES[size].dial.svg, box.width, box.height - NAME.line - READOUT.line - (addon ? ADDON_LINE : 0));
+export function knobDialSide(size: "sm" | "lg", box: Px): number {
+  return Math.min(SIZES[size].dial.svg, box.width, box.height - NAME.line - READOUT.line);
 }
 
 /**
@@ -109,12 +109,12 @@ export function SynthKnob({
   grid = false,
   box: boxProp,
   dialSide,
-  addon,
+  unit,
 }: Props) {
   const lit = familyVar(family ?? NEUTRAL_FAMILY);
   const { footprint, dial: natural } = SIZES[size];
   const box = boxProp ?? cellsPx(footprint);
-  const fits = knobDialSide(size, box, addon !== undefined);
+  const fits = knobDialSide(size, box);
   const dial = grid ? scaledDial(natural, Math.min(fits, dialSide ?? fits)) : natural;
   const { svg: svgSize, knobR, ledR } = dial;
   const cx = svgSize / 2;
@@ -205,8 +205,8 @@ export function SynthKnob({
       </svg>
       <span className={css.value} style={grid ? lineStyle(READOUT) : undefined}>
         {display}
+        {unit !== undefined && <> {unit}</>}
       </span>
-      {addon !== undefined && <ControlAddon grid={grid}>{addon}</ControlAddon>}
     </div>
   );
 }

@@ -208,9 +208,33 @@ impl ParamFormat {
         }
     }
 
-    /// Format a raw value; out-of-range named indices fall back to the raw
-    /// number.
+    /// Format a raw value: its [`parts`](Self::parts), joined. Out-of-range
+    /// named indices fall back to the raw number.
     pub fn format(&self, value: i32) -> String {
+        let (number, unit) = self.parts(value);
+        crate::fx_params::join_parts(number, unit)
+    }
+
+    /// A raw value's readout in two parts: the value and its unit (empty for
+    /// a value without one, such as a note or a name). A tempo-syncable
+    /// Control draws the unit itself, as its free/note toggle.
+    pub fn parts(&self, value: i32) -> (String, &'static str) {
+        use crate::fx_params::{HZ, PERCENT};
+        use crate::lfo_rates::{format_hz, pcm_lfo_hz, sn_lfo_hz};
+        match self {
+            ParamFormat::PcmLfoRate => match note_name(value) {
+                Some(note) => (note.to_string(), ""),
+                None => (format_hz(pcm_lfo_hz(value)), HZ),
+            },
+            ParamFormat::SnLfoRate => (format_hz(sn_lfo_hz(value)), HZ),
+            ParamFormat::Percent => (value.to_string(), PERCENT),
+            _ => (self.number(value), ""),
+        }
+    }
+
+    /// The readout of a raw value in a format without a unit (those
+    /// [`parts`](Self::parts) doesn't give one).
+    fn number(&self, value: i32) -> String {
         match self {
             ParamFormat::Raw => value.to_string(),
             ParamFormat::SignedCenter(center) => {
@@ -260,14 +284,10 @@ impl ParamFormat {
                 Some(note) => note.to_string(),
                 None => value.to_string(),
             },
-            ParamFormat::PcmLfoRate => match note_name(value) {
-                Some(note) => note.to_string(),
-                None => crate::lfo_rates::format_hz(crate::lfo_rates::pcm_lfo_hz(value)),
-            },
-            ParamFormat::SnLfoRate => {
-                crate::lfo_rates::format_hz(crate::lfo_rates::sn_lfo_hz(value))
+            // `parts` gives these their unit.
+            ParamFormat::PcmLfoRate | ParamFormat::SnLfoRate | ParamFormat::Percent => {
+                value.to_string()
             }
-            ParamFormat::Percent => format!("{value}%"),
             ParamFormat::Catalog(catalog) => catalog
                 .name(value)
                 .map_or_else(|| value.to_string(), str::to_string),

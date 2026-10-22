@@ -67,13 +67,14 @@ pub fn sn_lfo_hz(rate: i32) -> f64 {
     log2.exp2()
 }
 
-/// Format a rate in Hz: two decimals under 1 Hz, one at and above.
+/// Format a rate in Hz, without the unit: two decimals under 1 Hz, one at
+/// and above.
 pub(crate) fn format_hz(hz: f64) -> String {
     let mut s = String::new();
     if hz >= 1.0 {
-        let _ = write!(s, "{hz:.1}Hz");
+        let _ = write!(s, "{hz:.1}");
     } else {
-        let _ = write!(s, "{hz:.2}Hz");
+        let _ = write!(s, "{hz:.2}");
     }
     s
 }
@@ -165,12 +166,12 @@ mod tests {
 
     #[test]
     fn rates_format_as_hz() {
-        assert_eq!(format_hz(pcm_lfo_hz(0)), "0.05Hz");
-        assert_eq!(format_hz(pcm_lfo_hz(64)), "1.2Hz");
-        assert_eq!(format_hz(pcm_lfo_hz(127)), "27.1Hz");
-        assert_eq!(format_hz(sn_lfo_hz(0)), "0.03Hz");
-        assert_eq!(format_hz(sn_lfo_hz(4)), "0.07Hz");
-        assert_eq!(format_hz(sn_lfo_hz(126)), "25.6Hz");
-        assert_eq!(format_hz(sn_lfo_hz(127)), "26.9Hz");
+        assert_eq!(format_hz(pcm_lfo_hz(0)), "0.05");
+        assert_eq!(format_hz(pcm_lfo_hz(64)), "1.2");
+        assert_eq!(format_hz(pcm_lfo_hz(127)), "27.1");
+        assert_eq!(format_hz(sn_lfo_hz(0)), "0.03");
+        assert_eq!(format_hz(sn_lfo_hz(4)), "0.07");
+        assert_eq!(format_hz(sn_lfo_hz(126)), "25.6");
+        assert_eq!(format_hz(sn_lfo_hz(127)), "26.9");
     }
 }

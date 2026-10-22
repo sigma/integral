@@ -79,10 +79,14 @@ pub enum FxUnit {
     Note,
     /// Signed decibels (`+3dB`).
     Decibels,
-    /// EQ low band frequency: index into [`EQ_LOW_FREQ`].
-    EqLowFreq,
-    /// EQ high band frequency: index into [`EQ_HIGH_FREQ`].
-    EqHighFreq,
+    /// Index into a table of numbers that share one unit, e.g.
+    /// [`EQ_LOW_FREQ`] in [`HZ`].
+    Table {
+        /// The numbers, index = stored value.
+        values: &'static [&'static str],
+        /// Their unit.
+        unit: &'static str,
+    },
     /// EQ band Q: index into [`EQ_Q`].
     EqQ,
     /// Rate in 0.01 Hz steps from 0.10 Hz at stored 1.
@@ -104,11 +108,11 @@ pub enum FxUnit {
     Names(&'static [&'static str]),
 }
 
-/// EQ low band frequencies.
-pub static EQ_LOW_FREQ: &[&str] = &["200Hz", "400Hz"];
+/// EQ low band frequencies, in [`HZ`].
+pub static EQ_LOW_FREQ: &[&str] = &["200", "400"];
 
-/// EQ high band frequencies.
-pub static EQ_HIGH_FREQ: &[&str] = &["2kHz", "4kHz", "8kHz"];
+/// EQ high band frequencies, in [`KHZ`].
+pub static EQ_HIGH_FREQ: &[&str] = &["2", "4", "8"];
 
 /// EQ band Q values.
 pub static EQ_Q: &[&str] = &["0.5", "1.0", "2.0", "4.0", "8.0"];
@@ -132,11 +136,47 @@ pub static FREQ_HZ: &[u16] = &[
     200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000,
 ];
 
+/// Milliseconds' unit: a time's readout and its sync toggle's free label.
+pub(crate) const MS: &str = "ms";
+
+/// Hertz' unit: a rate's readout and its sync toggle's free label.
+pub(crate) const HZ: &str = "Hz";
+
+/// A free time without a unit (a bare 0-127 step), as its sync toggle's
+/// free label: a clock.
+pub(crate) const CLOCK: &str = "⏱";
+
+/// Kilohertz' unit.
+pub(crate) const KHZ: &str = "kHz";
+
+/// Percent's unit, written against its number (`20%`).
+pub(crate) const PERCENT: &str = "%";
+
+/// Degrees' unit, written against its number (`180°`).
+pub(crate) const DEGREES: &str = "°";
+
+/// Units a readout writes against its number; every other unit follows it
+/// after a space (`200 ms`, `+3 dB`).
+const TIGHT_UNITS: [&str; 2] = [PERCENT, DEGREES];
+
+/// A readout from its [`parts`](FxUnit::parts): the number, then its unit,
+/// after a space unless it is one of [`TIGHT_UNITS`].
+pub(crate) fn join_parts(number: String, unit: &str) -> String {
+    if unit.is_empty() || TIGHT_UNITS.contains(&unit) {
+        number + unit
+    } else {
+        format!("{number} {unit}")
+    }
+}
+
 /// Switch labels for msec/note times.
-pub(crate) const SYNC_MS: [&str; 2] = ["ms", "♪"];
+pub(crate) const SYNC_MS: [&str; 2] = [MS, "♪"];
+
+/// Switch labels for unitless-time/note times.
+pub(crate) const SYNC_CLOCK: [&str; 2] = [CLOCK, "♪"];
 
 /// Switch labels for Hz/note rates.
-pub(crate) const SYNC_HZ: [&str; 2] = ["Hz", "♪"];
+pub(crate) const SYNC_HZ: [&str; 2] = [HZ, "♪"];
 
 /// Highest note index.
 const NOTE_MAX: i32 = NOTE_NAMES.len() as i32 - 1;
@@ -155,50 +195,63 @@ pub(crate) fn pre_delay_tenths(v: i32) -> i32 {
 }
 
 impl FxUnit {
-    /// Format a stored value for display.
+    /// Format a stored value for display: its [`parts`](Self::parts), joined.
     pub fn format(self, v: i32) -> String {
+        let (number, unit) = self.parts(v);
+        join_parts(number, unit)
+    }
+
+    /// A stored value's readout in two parts: the value and its unit (empty
+    /// for a value without one, such as a note or a name). A tempo-syncable
+    /// Control draws the unit itself, as its free/note toggle.
+    pub fn parts(self, v: i32) -> (String, &'static str) {
         match self {
-            FxUnit::Plain => v.to_string(),
-            FxUnit::Percent => format!("{v}%"),
-            FxUnit::Hz => format!("{v}Hz"),
-            FxUnit::MillisTenths => format!("{:.1}ms", v as f64 / 10.0),
-            FxUnit::Millis => format!("{v}ms"),
-            FxUnit::Degrees => format!("{v}°"),
-            FxUnit::SecondsTenths => format!("{:.1}s", v as f64 / 10.0),
-            FxUnit::FilterType => match v {
-                0 => "OFF".to_string(),
-                1 => "LPF".to_string(),
-                2 => "HPF".to_string(),
-                _ => v.to_string(),
-            },
+            FxUnit::Plain => (v.to_string(), ""),
+            FxUnit::Percent => (v.to_string(), PERCENT),
+            FxUnit::Hz => (v.to_string(), HZ),
+            FxUnit::MillisTenths => (format!("{:.1}", v as f64 / 10.0), MS),
+            FxUnit::Millis => (v.to_string(), MS),
+            FxUnit::Degrees => (v.to_string(), DEGREES),
+            FxUnit::SecondsTenths => (format!("{:.1}", v as f64 / 10.0), "s"),
+            FxUnit::FilterType => (
+                match v {
+                    0 => "OFF".to_string(),
+                    1 => "LPF".to_string(),
+                    2 => "HPF".to_string(),
+                    _ => v.to_string(),
+                },
+                "",
+            ),
             FxUnit::Freq => match usize::try_from(v).ok().and_then(|i| FREQ_HZ.get(i)) {
-                Some(hz) => format!("{hz}Hz"),
-                None if v == FREQ_MAX + 1 => "BYP".to_string(),
-                None => v.to_string(),
+                Some(hz) => (hz.to_string(), HZ),
+                None if v == FREQ_MAX + 1 => ("BYP".to_string(), ""),
+                None => (v.to_string(), ""),
             },
             FxUnit::PreDelay => {
                 let t = pre_delay_tenths(v);
                 if t < 100 {
-                    format!("{:.1}ms", t as f64 / 10.0)
+                    (format!("{:.1}", t as f64 / 10.0), MS)
                 } else {
-                    format!("{}ms", t / 10)
+                    ((t / 10).to_string(), MS)
                 }
             }
-            FxUnit::RateHz => format!("{:.2}Hz", v as f64 * 0.05),
-            FxUnit::DegreesX2 => format!("{}°", v * 2),
-            FxUnit::FeedbackPercent => format!("{}%", v * 2 - 98),
-            FxUnit::Note => label(NOTE_NAMES, v),
-            FxUnit::Decibels => format!("{v:+}dB"),
-            FxUnit::EqLowFreq => label(EQ_LOW_FREQ, v),
-            FxUnit::EqHighFreq => label(EQ_HIGH_FREQ, v),
-            FxUnit::EqQ => label(EQ_Q, v),
-            FxUnit::StepRateHz => format!("{:.2}Hz", (v + 9) as f64 * 0.01),
-            FxUnit::Pan => match v - 64 {
-                p if p < 0 => format!("L{}", -p),
-                0 => "0".to_string(),
-                p => format!("{p}R"),
-            },
-            FxUnit::Balance => format!("D{}:{v}W", 100 - v),
+            FxUnit::RateHz => (format!("{:.2}", v as f64 * 0.05), HZ),
+            FxUnit::DegreesX2 => ((v * 2).to_string(), DEGREES),
+            FxUnit::FeedbackPercent => ((v * 2 - 98).to_string(), PERCENT),
+            FxUnit::Note => (label(NOTE_NAMES, v), ""),
+            FxUnit::Decibels => (format!("{v:+}"), "dB"),
+            FxUnit::Table { values, unit } => (label(values, v), unit),
+            FxUnit::EqQ => (label(EQ_Q, v), ""),
+            FxUnit::StepRateHz => (format!("{:.2}", (v + 9) as f64 * 0.01), HZ),
+            FxUnit::Pan => (
+                match v - 64 {
+                    p if p < 0 => format!("L{}", -p),
+                    0 => "0".to_string(),
+                    p => format!("{p}R"),
+                },
+                "",
+            ),
+            FxUnit::Balance => (format!("D{}:{v}W", 100 - v), ""),
             FxUnit::Offset {
                 offset,
                 step,
@@ -206,12 +259,12 @@ impl FxUnit {
             } => {
                 let d = (v - offset) * step;
                 if offset > 0 {
-                    format!("{d:+}{suffix}")
+                    (format!("{d:+}"), suffix)
                 } else {
-                    format!("{d}{suffix}")
+                    (d.to_string(), suffix)
                 }
             }
-            FxUnit::Names(names) => label(names, v),
+            FxUnit::Names(names) => (label(names, v), ""),
         }
     }
 }
@@ -220,6 +273,12 @@ impl FxParamDef {
     /// Format a stored parameter value for display.
     pub fn format_value(&self, v: i32) -> String {
         self.unit.format(v)
+    }
+
+    /// A stored value's readout without its unit ([`FxUnit::parts`]): a
+    /// tempo-syncable parameter's readout draws its unit as the toggle.
+    pub fn format_number(&self, v: i32) -> String {
+        self.unit.parts(v).0
     }
 
     /// The note-mode view of a tempo-syncable parameter: same name, but it
@@ -452,11 +511,11 @@ mod tests {
     fn delay_msec_mode_reads_msec_slot() {
         let slots = [0, 200, 6, 1, 400, 9, 0, 600, 12, 49, 6, 127, 127, 127];
         let shown = show(chorus_params(2), &slots);
-        assert_eq!(shown[0].1, "200ms");
+        assert_eq!(shown[0].1, "200 ms");
         assert_eq!(shown[1].1, "1/8");
-        assert_eq!(shown[2].1, "600ms");
+        assert_eq!(shown[2].1, "600 ms");
         assert_eq!(shown[3].1, "0%");
-        assert_eq!(shown[4].1, "800Hz");
+        assert_eq!(shown[4].1, "800 Hz");
     }
 
     #[test]
@@ -469,7 +528,7 @@ mod tests {
             .collect();
         assert_eq!(
             shown,
-            ["0ms", "2.1s", "127", "127", "50", "50", "127", "64"]
+            ["0 ms", "2.1 s", "127", "127", "50", "50", "127", "64"]
         );
         assert!(reverb_params(3).iter().all(|d| d.index != 0));
     }
@@ -490,7 +549,7 @@ mod tests {
             .collect();
         assert_eq!(
             shown,
-            ["HPF", "800Hz", "2.0ms", "0.50Hz", "30", "180°", "0"]
+            ["HPF", "800 Hz", "2.0 ms", "0.50 Hz", "30", "180°", "0"]
         );
         let mut note = slots;
         note[3] = 1;
@@ -522,7 +581,7 @@ mod tests {
         assert_eq!(
             [f(0), f(49), f(50), f(59), f(60), f(99), f(100), f(125)],
             [
-                "0.0ms", "4.9ms", "5.0ms", "9.5ms", "10ms", "49ms", "50ms", "100ms"
+                "0.0 ms", "4.9 ms", "5.0 ms", "9.5 ms", "10 ms", "49 ms", "50 ms", "100 ms"
             ]
         );
     }
@@ -530,8 +589,8 @@ mod tests {
     #[test]
     fn rate_phase_feedback_encodings() {
         let rate = &chorus_params(1)[3];
-        assert_eq!(rate.format_value(1), "0.05Hz");
-        assert_eq!(rate.format_value(200), "10.00Hz");
+        assert_eq!(rate.format_value(1), "0.05 Hz");
+        assert_eq!(rate.format_value(200), "10.00 Hz");
         assert_eq!(chorus_params(1)[5].format_value(45), "90°");
         let fb = &chorus_params(2)[3];
         assert_eq!(fb.format_value(0), "-98%");

@@ -2126,6 +2126,13 @@ impl WasmFxParamDef {
         self.inner.format_value(value)
     }
 
+    /// A stored value's readout without its unit: a tempo-syncable
+    /// parameter's readout draws its unit as the toggle (`syncLabels`).
+    #[wasm_bindgen(js_name = formatNumber)]
+    pub fn format_number(&self, value: i32) -> String {
+        self.inner.format_number(value)
+    }
+
     /// Slot of the msec/Hz-vs-note switch, if this parameter has one.
     #[wasm_bindgen(getter, js_name = syncIndex)]
     pub fn sync_index(&self) -> Option<u8> {
@@ -2190,6 +2197,13 @@ impl WasmFieldSpec {
     #[wasm_bindgen(js_name = formatValue)]
     pub fn format_value(&self, value: i32) -> String {
         self.format.format(value)
+    }
+
+    /// A raw value's readout without its unit: a tempo-syncable field's
+    /// readout draws its unit as the toggle (its sync's `labels`).
+    #[wasm_bindgen(js_name = formatNumber)]
+    pub fn format_number(&self, value: i32) -> String {
+        self.format.parts(value).0
     }
 
     /// The raw value a knob centres on, for signed formats.

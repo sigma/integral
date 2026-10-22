@@ -14,6 +14,8 @@ describe("partialBinding", () => {
     expect(binding.sync?.noteMode).toBe(false);
     expect(binding.sync?.labels).toEqual(["Hz", "♪"]);
     expect([binding.min, binding.max]).toEqual([0, 127]);
+    // Core gives the readout's number without its unit: the toggle draws that.
+    expect(`${binding.sync?.formatNumber(10)} ${binding.sync?.labels[0]}`).toBe(binding.format?.(10));
   });
 
   it("ranges it over the notes in note mode, named by core", () => {
@@ -33,8 +35,8 @@ describe("partialBinding", () => {
     expect(note.writes).toEqual([92]); // INIT TONE's LFO1 Rate
   });
 
-  it("labels the partial Delay in ms", () => {
-    expect(bound(PcmsPartialField.DelayTime, 0).binding.sync?.labels).toEqual(["ms", "♪"]);
+  it("labels the partial Delay with a clock: its free time has no unit", () => {
+    expect(bound(PcmsPartialField.DelayTime, 0).binding.sync?.labels).toEqual(["⏱", "♪"]);
   });
 
   it("carries no sync for a plain field, and names an array field's element", () => {

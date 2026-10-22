@@ -71,7 +71,7 @@ describe("MfxPanel params", () => {
     params[8] = 15;
     const { container } = typePanel(22, params);
     const knob = container.querySelector('[title="Low Gain"]');
-    expect(knob?.textContent).toContain("+0dB");
+    expect(knob?.textContent).toContain("+0 dB");
   });
 
   it("colours a knob by its def's family", () => {
@@ -88,9 +88,12 @@ describe("MfxPanel params", () => {
     params[0] = 1;
     params[2] = 12;
     const { container, onNibParam } = typePanel(34, params);
-    expect(container.querySelector('[title="Delay Left"]')?.textContent).toContain("1/4");
-    const ms = [...container.querySelectorAll("button")].find((b) => b.textContent === "ms");
-    act(() => ms?.click());
+    // The readout reads the note, its unit the toggle back to msec.
+    const control = container.querySelector('[title="Delay Left"]');
+    expect(control?.textContent).toContain("1/4 ♪");
+    const unit = control?.querySelector("button");
+    expect(unit?.getAttribute("aria-pressed")).toBe("true");
+    act(() => unit?.click());
     expect(onNibParam).toHaveBeenCalledWith(0, 0);
   });
 });
