@@ -40,13 +40,14 @@ function wrapper(container: HTMLElement, field: MixerField): HTMLElement {
 }
 
 describe("GridSection draws the pilot mixer EQ", () => {
-  // Every px below is what the pilot renderer (prototype/grid-pilot) drew.
+  // Every px below is what the pilot renderer (prototype/grid-pilot) drew, the knobs and
+  // Silkscreen a row lower since the EQ grew a free row under its switch (#405).
   const draw = () => render(<GridSection layout={EQ_LAYOUT} bind={bindMixer} />).container;
 
   it("at the pilot's size, title row included", () => {
     const root = draw().firstElementChild as HTMLElement;
     expect(root.style.width).toBe("96px");
-    expect(root.style.height).toBe("408px");
+    expect(root.style.height).toBe("432px");
     const [border, title] = [...root.children] as HTMLElement[];
     expect(border!.style.inset).toBe("4px");
     expect(title!.textContent).toBe("EQ");
@@ -62,13 +63,13 @@ describe("GridSection draws the pilot mixer EQ", () => {
   const SIDE = INSET + BORDER.width;
   it.each([
     [MixerField.EqSwitch, 24, 24],
-    [MixerField.EqHighFreq, SIDE, 48],
-    [MixerField.EqHighGain, 48, 96],
-    [MixerField.EqMidFreq, SIDE, 144],
-    [MixerField.EqMidGain, 48, 192],
-    [MixerField.EqMidQ, SIDE, 240],
-    [MixerField.EqLowGain, 48, 288],
-    [MixerField.EqLowFreq, SIDE, 336],
+    [MixerField.EqHighFreq, SIDE, 72],
+    [MixerField.EqHighGain, 48, 120],
+    [MixerField.EqMidFreq, SIDE, 168],
+    [MixerField.EqMidGain, 48, 216],
+    [MixerField.EqMidQ, SIDE, 264],
+    [MixerField.EqLowGain, 48, 312],
+    [MixerField.EqLowFreq, SIDE, 360],
   ])("places field %i at (%ipx, %ipx)", (field, left, top) => {
     const el = wrapper(draw(), field);
     expect([el.style.left, el.style.top]).toEqual([`${left}px`, `${top}px`]);
@@ -92,13 +93,13 @@ describe("GridSection draws the pilot mixer EQ", () => {
     const svg = draw().querySelector("svg")!;
     expect(svg.style.clipPath).toBe("inset(5px round 6px)");
     expect([...svg.querySelectorAll("polyline")].map((p) => p.getAttribute("points"))).toEqual([
-      "0,132 24,132 72,180 96,180",
-      "0,324 24,324 72,276 96,276",
+      "0,156 24,156 72,204 96,204",
+      "0,348 24,348 72,300 96,300",
     ]);
     expect([...svg.querySelectorAll("text")].map((t) => [t.textContent, t.getAttribute("x"), t.getAttribute("y")])).toEqual([
-      ["HI", "72", "84"],
-      ["MID", "24", "228"],
-      ["LO", "72", "372"],
+      ["HI", "72", "108"],
+      ["MID", "24", "252"],
+      ["LO", "72", "396"],
     ]);
   });
 
