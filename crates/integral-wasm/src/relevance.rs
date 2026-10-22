@@ -2,7 +2,7 @@
 //! field is active given the state the web holds. The state arguments are
 //! the objects core serialized for the editors (a tone, a PMT, a part).
 
-use integral_core::{pcm_synth, relevance, sn_acoustic, sn_synth, state};
+use integral_core::{pcm_drum, pcm_synth, relevance, sn_acoustic, sn_synth, state};
 use serde::Deserialize;
 use wasm_bindgen::prelude::*;
 
@@ -34,6 +34,14 @@ pub fn sns_partial_is_active(field: SnsPartialField, partial: JsValue) -> Result
 pub fn pcms_partial_scope_is_active(partial: usize, pmt: JsValue) -> Result<bool, JsError> {
     let pmt: pcm_synth::PcmSynthPmt = from_js(pmt)?;
     Ok(relevance::pcms_partial_scope_is_active(&pmt, partial))
+}
+
+/// Whether WMT `wmt` (0-based) of a PCM Drum key in state `partial` (the
+/// key's Partial) is switched on.
+#[wasm_bindgen]
+pub fn pcmd_wmt_scope_is_active(wmt: usize, partial: JsValue) -> Result<bool, JsError> {
+    let partial: pcm_drum::PcmDrumPartial = from_js(partial)?;
+    Ok(relevance::pcmd_wmt_scope_is_active(&partial, wmt))
 }
 
 /// Whether the pair of PCM Synth partials holding partial `partial`

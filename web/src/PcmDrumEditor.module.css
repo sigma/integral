@@ -1,6 +1,6 @@
 /* ================================================================
-   PCM Drum Kit Editor: the key grid and layer tabs over the key
-   Sections on the Grid
+   PCM Drum Kit Editor: the key grid over the key Sections on the
+   Grid
    ================================================================ */
 
 .editor {
@@ -30,51 +30,11 @@
   letter-spacing: 0.5px;
 }
 
-/* The selected key's name, and the tabs picking the WMT layer the WMT Section binds */
-.selection {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-}
-
+/* The selected key's name, over the Sections it binds */
 .partialName {
   font-size: 12px;
   color: #ccc;
   font-weight: 600;
-}
-
-.wmtTabs {
-  display: flex;
-  gap: 2px;
-}
-
-.wmtTab {
-  padding: 2px 10px;
-  font: inherit;
-  font-size: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px solid #333;
-  border-radius: 3px 3px 0 0;
-  background: #181828;
-  color: #888;
-  user-select: none;
-}
-
-.wmtTab:hover {
-  background: #252540;
-}
-
-.wmtTabActive {
-  composes: wmtTab;
-  background: #2a2a50;
-  border-color: #88f;
-  color: #ddf;
-}
-
-.wmtTabOff {
-  composes: wmtTab;
-  opacity: 0.4;
 }
 
 /* A Display filling its Cells. */

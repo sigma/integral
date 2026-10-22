@@ -12,7 +12,7 @@
 import { sns_partial_count } from "../../../pkg/integral_wasm.js";
 import { memo } from "../fields";
 import { MFX_PANEL_FRAME } from "../fx/mfx";
-import { placeRow, rowCells, sectionCells, type SectionRow } from "../geometry";
+import { placeRow, rowCells, rowSectionLookup, sectionCells, type SectionRow } from "../geometry";
 import type { ScreenArrowSilk, ScreenLayout, SectionPlacement } from "../types";
 import { SNS_COMMON_LAYOUT } from "./common";
 import { SNS_BOXES, SNS_PARTIAL_SWITCH_LAYOUT, boxOf, type SnsBox } from "./partial";
@@ -34,18 +34,12 @@ const partials = memo(() => Array.from({ length: sns_partial_count() }, (_, i) =
 /** Every row Section, left to right. */
 export const SNS_ROW: readonly SnsRowSection[] = ["switch", ...SNS_BOXES.map((b) => b.id)];
 
-const rowIds = memo(
-  () =>
-    new Map(
-      partials().flatMap((partial) =>
-        SNS_ROW.map((section) => [SNS_SECTION.partial(partial, section), { partial, section }] as const),
-      ),
-    ),
-);
+const rowIds = rowSectionLookup(() => partials().length, SNS_ROW, SNS_SECTION.partial);
 
 /** The partial (0-based) and row Section a placement id names, or `undefined` for another Section. */
 export function rowSectionOf(id: string): { partial: number; section: SnsRowSection } | undefined {
-  return rowIds().get(id);
+  const at = rowIds(id);
+  return at && { partial: at.row, section: at.section };
 }
 
 /** Each row Section's outline. */

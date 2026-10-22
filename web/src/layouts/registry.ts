@@ -5,7 +5,7 @@
  */
 
 import type { FieldKey } from "./fields";
-import { PCMD_SCREEN, PCMD_SECTIONS } from "./drum/pcmDrum";
+import { PCMD_SECTIONS, pcmdScreen } from "./drum/pcmDrum";
 import { SND_KIT_LAYOUT, SND_OUTPUT_LAYOUT, SND_SCREEN, SND_TONE_LAYOUT } from "./drum/snDrum";
 import { MFX_SET } from "./fx/mfx";
 import { CHORUS_SET, REVERB_SET } from "./fx/strip";
@@ -93,7 +93,7 @@ export function screenLayouts(): readonly ScreenLayout[] {
     surroundScreen(),
     SNA_SCREEN,
     SND_SCREEN,
-    PCMD_SCREEN,
+    pcmdScreen(),
     snsScreen(),
     ...pcmsScreens(),
   ];

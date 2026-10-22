@@ -16,7 +16,7 @@ import {
 import {
   PCMD_AMP_ENV_LAYOUT,
   PCMD_PITCH_ENV_LAYOUT,
-  PCMD_SCREEN,
+  pcmdScreen,
 } from "./drum/pcmDrum";
 import { SND_SCREEN } from "./drum/snDrum";
 import {
@@ -103,9 +103,9 @@ describe("every layout", () => {
   });
   it("lists the drum editors and every Section they place", () => {
     expect(screenLayouts()).toEqual(
-      expect.arrayContaining([SND_SCREEN, PCMD_SCREEN]),
+      expect.arrayContaining([SND_SCREEN, pcmdScreen()]),
     );
-    for (const screen of [SND_SCREEN, PCMD_SCREEN]) {
+    for (const screen of [SND_SCREEN, pcmdScreen()]) {
       // The MFX placement hosts `MfxPanel`, a CSS Section around the MFX variant set.
       for (const p of screen.sections)
         if (p.section !== MFX_PANEL_FRAME)

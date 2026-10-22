@@ -242,3 +242,26 @@ export function drawnElements<F extends FieldKey>(
   }
   return out.sort(readingOrder);
 }
+
+/**
+ * Looks up the placement ids of a screen's repeated rows (a synth's partials,
+ * a drum key's WMTs): `idOf(row, section)` names Section `section` of row
+ * `row` (0-based), for each of `rows()` rows. Built on first call, as the row
+ * count comes from core. The lookup returns the row and Section an id names,
+ * or `undefined` for another Section.
+ */
+export function rowSectionLookup<S extends string>(
+  rows: () => number,
+  sections: readonly S[],
+  idOf: (row: number, section: S) => string,
+): (id: string) => { row: number; section: S } | undefined {
+  let ids: Map<string, { row: number; section: S }> | undefined;
+  return (id) => {
+    ids ??= new Map(
+      Array.from({ length: rows() }, (_, row) =>
+        sections.map((section) => [idOf(row, section), { row, section }] as const),
+      ).flat(),
+    );
+    return ids.get(id);
+  };
+}

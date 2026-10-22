@@ -33,11 +33,18 @@ function titled(scope: ParentNode, title: string): Element {
   return found;
 }
 
-/** The WMT layer tab reading `name`. */
-function tab(scope: ParentNode, name: string): Element {
-  const found = [...scope.querySelectorAll('[role="tab"]')].find((t) => t.textContent === name);
-  if (!found) throw new Error(`no ${name} tab`);
+/** The switch strip heading WMT `n`'s row (1-based). */
+function strip(scope: ParentNode, n: number): Element {
+  const found = scope.querySelector(`[data-grid-section="WMT ${n}"]`);
+  if (!found) throw new Error(`no WMT ${n} strip`);
   return found;
+}
+
+/** The placement of Section `id` on the screen, in px. */
+function placed(scope: ParentNode, id: string): { left: number; top: number } {
+  const el = scope.querySelector<HTMLElement>(`[data-section="${id}"]`);
+  if (!el) throw new Error(`no Section ${id}`);
+  return { left: parseFloat(el.style.left), top: parseFloat(el.style.top) };
 }
 
 describe("PcmDrumEditor", () => {
@@ -106,19 +113,56 @@ describe("PcmDrumEditor", () => {
     );
   });
 
-  it("rebinds the WMT Section to another layer without remounting it", async () => {
+  it("shows every WMT as a row headed by a strip whose toggle writes its switch, with no tabs", async () => {
     const { service, sentDt1s } = fakeToneService(new WasmDeviceState(0x10));
     const { container } = render(<PcmDrumEditor partIndex={PART} service={service} />);
     await act(async () => {});
-    const pan = titled(container, "Wave Pan");
-    expect(pan.closest("[data-grid-section]")?.getAttribute("data-grid-section")).toBe("WMT 1");
 
-    click(tab(container, "WMT2"));
+    expect(container.querySelector('[role="tab"]')).toBeNull();
+    const waves = [...container.querySelectorAll('[data-grid-section="WAVE"]')];
+    expect(waves).toHaveLength(4);
+    for (const n of [1, 2, 3, 4]) {
+      const head = placed(container, `wmt-${n - 1}.switch`);
+      expect(placed(container, `wmt-${n - 1}.wave`).top).toBe(head.top);
+      expect(strip(container, n).closest("[data-section]")?.getAttribute("data-section")).toBe(`wmt-${n - 1}.switch`);
+    }
+    // Each row's WAVE binds its own WMT.
+    arrowUp(titled(waves[2]!, "Wave Pan"));
+    expect(sentDt1s()).toEqual(expected((d) => d.setPcmdWmtParam(PART, 36, 2, PcmdWmtField.Pan, 1)));
 
-    expect(titled(container, "Wave Pan")).toBe(pan);
-    expect(pan.closest("[data-grid-section]")?.getAttribute("data-grid-section")).toBe("WMT 2");
-    arrowUp(pan);
-    expect(sentDt1s()).toEqual(expected((d) => d.setPcmdWmtParam(PART, 36, 1, PcmdWmtField.Pan, 1)));
+    // The zeroed key has every WMT off: each strip's toggle switches its own on.
+    for (const n of [1, 2, 3, 4]) {
+      const toggle = strip(container, n).querySelector("button")!;
+      expect(toggle.getAttribute("aria-pressed")).toBe("false");
+      act(() => (toggle as HTMLElement).click());
+      expect(sentDt1s()).toEqual(expected((d) => d.setPcmdWmtParam(PART, 36, n - 1, PcmdWmtField.Switch, 1)));
+      expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    }
+  });
+
+  it("dims the rows of switched-off WMTs, their strips left live", async () => {
+    const { service } = fakeToneService(new WasmDeviceState(0x10));
+    const { container } = render(<PcmDrumEditor partIndex={PART} service={service} />);
+    await act(async () => {});
+    act(() => (strip(container, 1).querySelector("button") as HTMLElement).click());
+
+    const dimmed = (n: number) =>
+      container.querySelector(`[data-section="wmt-${n - 1}.wave"] [data-scope-inactive]`)?.hasAttribute("inert") ?? false;
+    expect([1, 2, 3, 4].map(dimmed)).toEqual([false, true, true, true]);
+    for (const n of [1, 2, 3, 4]) expect(strip(container, n).closest("[inert]")).toBeNull();
+  });
+
+  it("sets every other per-key Section in one row under the WMTs, then the MFX", async () => {
+    const { service } = fakeToneService(new WasmDeviceState(0x10));
+    const { container } = render(<PcmDrumEditor partIndex={PART} service={service} />);
+    await act(async () => {});
+
+    const row = ["pitchEnv", "filter", "filterEnv", "ampEnv", "misc", "output", "mfx"].map((id) => placed(container, id));
+    expect(new Set(row.map((p) => p.top)).size).toBe(1);
+    const lefts = row.map((p) => p.left);
+    expect(lefts).toEqual([...lefts].sort((a, b) => a - b));
+    expect(new Set(lefts).size).toBe(row.length);
+    expect(row[0]!.top).toBeGreaterThan(placed(container, "wmt-3.wave").top);
   });
 
   it("rebinds the Partial Sections to another key without remounting them", async () => {
