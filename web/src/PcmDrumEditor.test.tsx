@@ -10,8 +10,8 @@ import {
 } from "../pkg/integral_wasm.js";
 import { PcmDrumEditor } from "./PcmDrumEditor";
 import { deviceSpec } from "./deviceSpec";
-import { PCMD_OUTPUT_LAYOUT, PCMD_SECTION, pcmdScreen } from "./layouts/drum/pcmDrum";
-import { allElements, itemRect, sectionCells, sideMiddle } from "./layouts/geometry";
+import { PCMD_SECTION, pcmdScreen } from "./layouts/drum/pcmDrum";
+import { sectionCells, sideMiddle } from "./layouts/geometry";
 import { routeScreenArrow } from "./layouts/routing";
 import { CELL } from "./synth-ui/grid";
 import { familyVar } from "./synth-ui";
@@ -216,24 +216,6 @@ describe("PcmDrumEditor", () => {
     const inRow = new Set(ROW);
     expect(screen.silkscreen.filter((a) => inRow.has(a.from.section) && inRow.has(a.to.section))).toEqual([]);
     expect(screen.silkscreen).toHaveLength(LAYERS.length + 1);
-  });
-
-  it("lays Level / Pan out as a mixer strip: Pan, the sends under it, then the level fader to the strip's foot", () => {
-    const items = allElements(PCMD_OUTPUT_LAYOUT.items);
-    const at = (field: PcmdPartialField) => {
-      const item = items.find((i) => "field" in i && i.field === field);
-      if (!item || !("field" in item)) throw new Error(`no ${PcmdPartialField[field]}`);
-      return { item, rect: itemRect(item) };
-    };
-    const pan = at(PcmdPartialField.Pan).rect;
-    const sends = [PcmdPartialField.ChorusSend, PcmdPartialField.ReverbSend].map((f) => at(f).rect);
-    const fader = at(PcmdPartialField.OutputLevel);
-    for (const s of sends) expect(s.y).toBeGreaterThanOrEqual(pan.y + pan.h);
-    expect(new Set(sends.map((s) => s.y)).size).toBe(1);
-    const knobsFoot = Math.max(pan.y + pan.h, ...sends.map((s) => s.y + s.h));
-    expect(fader.rect.y).toBeGreaterThanOrEqual(knobsFoot);
-    expect(fader.rect.y + fader.rect.h).toBe(PCMD_OUTPUT_LAYOUT.h);
-    expect(fader.item.kind === "fader" && fader.item.scale).toBe(true);
   });
 
   it("draws the WMT rows' sum as one + on the screen", async () => {

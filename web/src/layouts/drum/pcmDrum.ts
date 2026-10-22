@@ -32,8 +32,8 @@ import {
   type SectionRow,
 } from "../geometry";
 import { freeLanes } from "../region";
-import { FOOTPRINT } from "../../synth-ui/grid";
 import { switchStrip } from "../switchStrip";
+import { levelPanStrip } from "./levelPanStrip";
 import type { ScreenArrowSilk, ScreenLayout, SectionLayout } from "../types";
 
 /** The Partial fields outside the WMT layers; an envelope's times and levels are array fields. */
@@ -211,35 +211,15 @@ export const PCMD_MISC_LAYOUT: SectionLayout<PcmdPartialField> = {
   ],
 };
 
-/** The rows of one of the Level / Pan strip's knobs; Pan, then the sends under it. */
-const KNOB_H = FOOTPRINT.knobSm.h;
-
-/**
- * The key's pan, effect sends and output level, as a mixer part strip
- * (`mixer/strip.ts`): Pan, the FX1 and FX2 sends under it, then the level
- * fader, scale and all, down to the strip's last row.
- */
-export const PCMD_OUTPUT_LAYOUT: SectionLayout<PcmdPartialField> = {
-  title: "LEVEL / PAN",
-  titleEdge: "top",
-  w: 4,
-  h: KEY_ROW_H,
+/** The key's pan, effect sends and output level, as the drum kits' mixer strip. */
+export const PCMD_OUTPUT_LAYOUT: SectionLayout<PcmdPartialField> = levelPanStrip({
+  pan: PcmdPartialField.Pan,
+  fx1: PcmdPartialField.ChorusSend,
+  fx2: PcmdPartialField.ReverbSend,
+  level: PcmdPartialField.OutputLevel,
   fields: PCMD_PARTIAL_FIELDS,
-  items: [
-    { kind: "knob", field: PcmdPartialField.Pan, x: 1, y: 0 },
-    { kind: "knob", field: PcmdPartialField.ChorusSend, x: 0, y: KNOB_H, label: "FX1" },
-    { kind: "knob", field: PcmdPartialField.ReverbSend, x: 2, y: KNOB_H, label: "FX2" },
-    {
-      kind: "fader",
-      field: PcmdPartialField.OutputLevel,
-      x: 1,
-      y: 2 * KNOB_H,
-      h: KEY_ROW_H - 2 * KNOB_H,
-      label: false,
-      scale: true,
-    },
-  ],
-};
+  h: KEY_ROW_H,
+});
 
 /** The family accenting a WMT row's WAVE border. */
 export const PCMD_WMT_FAMILY = ParameterFamily.Pitch;

@@ -170,6 +170,11 @@ its one Control is that switch as a power toggle. Turning it off dims the
 row; the strip stays live.
 _Avoid_: Partial header
 
+**Level / Pan strip**:
+A drum kit key's LEVEL / PAN Section, laid out as a mixer part strip: Pan on
+top, the FX1 and FX2 sends side by side under it, then the scaled level fader
+down to the Section's last row. Every drum kit builds it the same way.
+
 **Control**:
 One interactive element (knob, switch, power toggle, fader, picker) bound to one
 parameter. A picker chooses one of a parameter's named options from a list. It
