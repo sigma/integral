@@ -13,7 +13,6 @@ import {
 import { SnSynthEditor } from "./SnSynthEditor";
 import type { IntegraService } from "./integra";
 import { familyVar } from "./synth-ui";
-import { DISPLAY_INSET } from "./layouts/geometry";
 import { SNS_BOXES } from "./layouts/sn-synth/partial";
 import { SNS_ROW, SNS_SECTION, type SnsRowSection } from "./layouts/sn-synth/screen";
 import { cleanup, click, option, render } from "./test/dom";
@@ -213,6 +212,13 @@ describe("SnSynthEditor on the Grid", () => {
     }
   });
 
+  it("draws AMP's Gain as a knob, its value named as core names it (#427)", () => {
+    const { container } = loadedEditor();
+    const gain = control(rowSection(container, 0, "amp"), SnsPartialField.WaveGain);
+    expect(gain.querySelector('[role="slider"]')).toBeTruthy();
+    expect(gain.textContent).toContain(sns_partial_spec(SnsPartialField.WaveGain).formatValue(0));
+  });
+
   it("swaps the OSC scope for the PCM Wave picker without moving a Control", () => {
     const { container } = loadedEditor();
     const original = boxes(container);
@@ -238,12 +244,6 @@ describe("SnSynthEditor on the Grid", () => {
     expect(after.get(pcm)).toBe(`${scopeLeft},${waveTop},96px,24px`);
     before.delete(scope);
     after.delete(pcm);
-    // The pitch envelope keeps its Cells; with no Display beside it now, it gives up no inset on its left (#415).
-    const env = `${SNS_SECTION.partial(0, "osc")} display ${DisplayKind.PitchEnvelope}`;
-    const [envLeft, envTop, envW, envH] = before.get(env)!.split(",").map(parseFloat) as [number, number, number, number];
-    expect(after.get(env)).toBe(`${envLeft - DISPLAY_INSET}px,${envTop}px,${envW + DISPLAY_INSET}px,${envH}px`);
-    before.delete(env);
-    after.delete(env);
     expect(after).toEqual(before);
 
     // And back to a scope: everything where it started.
@@ -251,7 +251,7 @@ describe("SnSynthEditor on the Grid", () => {
     expect(boxes(container)).toEqual(original);
   });
 
-  it("puts S-Saw in Var's place under the Wave dropdown on SP-SAW, as core holds it relevant", () => {
+  it("puts S-Saw in Var's place beside the Wave dropdown on SP-SAW, as core holds it relevant", () => {
     const { container } = loadedEditor();
     const r = row(container, 0);
     const shown = () =>
@@ -261,13 +261,16 @@ describe("SnSynthEditor on the Grid", () => {
       });
     const at = (f: SnsPartialField) => {
       const { left, top } = control(r, f).style;
-      return [parseFloat(left), parseFloat(top)];
+      return [parseFloat(left), parseFloat(top)] as const;
     };
-    // The Var knob sits directly below the Wave dropdown, in its column.
+    // The Var knob sits right of the Wave dropdown, on its rows (#427).
     const wave = control(r, SnsPartialField.OscWave).style;
     const [varLeft, varTop] = at(SnsPartialField.OscWaveVariation);
-    expect(varLeft).toBe(parseFloat(wave.left));
-    expect(varTop).toBe(parseFloat(wave.top) + parseFloat(wave.height));
+    expect(varLeft).toBe(parseFloat(wave.left) + parseFloat(wave.width));
+    // Its rows take in the dropdown's.
+    const varEl = control(r, SnsPartialField.OscWaveVariation).style;
+    expect(varTop).toBeLessThanOrEqual(parseFloat(wave.top));
+    expect(varTop + parseFloat(varEl.height)).toBeGreaterThanOrEqual(parseFloat(wave.top) + parseFloat(wave.height));
 
     // SAW has variations: Var shows, a knob.
     expect(shown()).toEqual(["active", "absent"]);
