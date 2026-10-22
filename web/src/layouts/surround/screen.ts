@@ -1,6 +1,7 @@
 /**
- * The Surround page: the common Sections on top, the pad below them, and a
- * block of part Sections (16 parts, then the Ext Part) beside the pad.
+ * The Surround page: the common Sections on top, the pad below them, a
+ * square grid of part Sections the pad's size beside it, and the Ext Part's
+ * Section beside the grid.
  */
 
 import { deviceSpec } from "../../deviceSpec";
@@ -10,13 +11,11 @@ import type { ScreenLayout, SectionPlacement } from "../types";
 import {
   SURROUND_AMBIENCE_LAYOUT,
   SURROUND_COMMON_LAYOUT,
-  SURROUND_EXT_LAYOUT,
   SURROUND_PAD_LAYOUT,
-  SURROUND_PART_LAYOUT,
+  surroundExtLayout,
+  surroundGridSide,
+  surroundPartLayout,
 } from "./sections";
-
-/** Part Sections per row of the block. */
-const PARTS_PER_ROW = 6;
 
 /** The ids of the part Sections' placements, by 0-based part. */
 function partIds(partCount: number): string[] {
@@ -27,33 +26,34 @@ function partIds(partCount: number): string[] {
 export const SURROUND_IDS = { common: "common", ambience: "ambience", pad: "pad", ext: "ext" } as const;
 
 /**
- * The Surround screen for `partCount` parts: the part Sections fill rows of
- * `PARTS_PER_ROW` beside the pad, the Ext Part's last.
+ * The Surround screen for `partCount` parts: their Sections fill a square
+ * grid, row by row, top-aligned right of the pad; the Ext Part's sits right
+ * of the grid.
  */
 function buildSurroundScreen(partCount: number): ScreenLayout {
   const top = sectionCells(SURROUND_COMMON_LAYOUT);
   const pad = sectionCells(SURROUND_PAD_LAYOUT);
-  const cell = sectionCells(SURROUND_PART_LAYOUT);
-  const slot = (i: number) => ({
-    x: pad.w + (i % PARTS_PER_ROW) * cell.w,
-    y: top.h + Math.floor(i / PARTS_PER_ROW) * cell.h,
-  });
+  const side = surroundGridSide(partCount);
+  const part = surroundPartLayout();
+  const cell = sectionCells(part);
   const parts: SectionPlacement[] = partIds(partCount).map((id, i) => ({
     id,
-    section: SURROUND_PART_LAYOUT,
-    ...slot(i),
+    section: part,
+    x: pad.w + (i % side) * cell.w,
+    y: top.h + Math.floor(i / side) * cell.h,
   }));
-  const rows = Math.ceil((partCount + 1) / PARTS_PER_ROW);
+  const ext = surroundExtLayout();
+  const extX = pad.w + side * cell.w;
   return {
     name: "Surround",
-    w: pad.w + PARTS_PER_ROW * cell.w,
-    h: top.h + Math.max(pad.h, rows * cell.h),
+    w: Math.max(top.w + sectionCells(SURROUND_AMBIENCE_LAYOUT).w, extX + sectionCells(ext).w),
+    h: top.h + Math.max(pad.h, side * cell.h),
     sections: [
       { id: SURROUND_IDS.common, section: SURROUND_COMMON_LAYOUT, x: 0, y: 0 },
       { id: SURROUND_IDS.ambience, section: SURROUND_AMBIENCE_LAYOUT, x: top.w, y: 0 },
       { id: SURROUND_IDS.pad, section: SURROUND_PAD_LAYOUT, x: 0, y: top.h },
       ...parts,
-      { id: SURROUND_IDS.ext, section: SURROUND_EXT_LAYOUT, ...slot(partCount) },
+      { id: SURROUND_IDS.ext, section: ext, x: extX, y: top.h },
     ],
     lanes: [],
     silkscreen: [],

@@ -37,9 +37,9 @@ import { surroundScreen } from "./surround/screen";
 import {
   SURROUND_AMBIENCE_LAYOUT,
   SURROUND_COMMON_LAYOUT,
-  SURROUND_EXT_LAYOUT,
   SURROUND_PAD_LAYOUT,
-  SURROUND_PART_LAYOUT,
+  surroundExtLayout,
+  surroundPartLayout,
 } from "./surround/sections";
 import type { RegionVariantSet, ScreenLayout, SectionLayout, VariantSet } from "./types";
 
@@ -49,8 +49,6 @@ export const SECTION_LAYOUTS: readonly SectionLayout<FieldKey>[] = [
   SURROUND_COMMON_LAYOUT,
   SURROUND_AMBIENCE_LAYOUT,
   SURROUND_PAD_LAYOUT,
-  SURROUND_PART_LAYOUT,
-  SURROUND_EXT_LAYOUT,
   SNA_COMMON_LAYOUT,
   SNA_VIBRATO_LAYOUT,
   SNA_FILTER_LAYOUT,
@@ -71,6 +69,11 @@ export const SECTION_LAYOUTS: readonly SectionLayout<FieldKey>[] = [
   RING_12_LAYOUT,
   RING_34_LAYOUT,
 ];
+
+/** Section layouts sized from the device spec; a function, as they read core. */
+export function specSectionLayouts(): readonly SectionLayout<FieldKey>[] {
+  return [surroundPartLayout(), surroundExtLayout()];
+}
 
 /** Variant sets; the validator walks every key core enumerates. */
 export const VARIANT_SETS: readonly VariantSet<FieldKey, FieldKey>[] = [

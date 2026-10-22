@@ -36,6 +36,7 @@ import {
   SECTION_LAYOUTS,
   VARIANT_SETS,
   screenLayouts,
+  specSectionLayouts,
 } from "./registry";
 import { PCMS_BOXES } from "./pcm-synth/sections";
 import { surroundScreen } from "./surround/screen";
@@ -59,7 +60,7 @@ import {
 } from "./validate";
 
 describe("every layout", () => {
-  it.each(SECTION_LAYOUTS.map((l) => [l.title, l] as const))(
+  it.each([...SECTION_LAYOUTS, ...specSectionLayouts()].map((l) => [l.title, l] as const))(
     "Section %s is valid",
     (_, layout) => {
       expect(validateSection(layout)).toEqual([]);
@@ -96,7 +97,7 @@ describe("every layout", () => {
   it("lists the Surround screen and every Section it places", () => {
     expect(screenLayouts()).toContain(surroundScreen());
     for (const { section } of surroundScreen().sections)
-      expect(SECTION_LAYOUTS).toContain(section);
+      expect([...SECTION_LAYOUTS, ...specSectionLayouts()]).toContain(section);
   });
   it("lists the drum editors and every Section they place", () => {
     expect(screenLayouts()).toEqual(
