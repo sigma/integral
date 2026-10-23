@@ -251,3 +251,30 @@ the device through it. It shows the link to other apps as an ordinary MIDI
 port, present only while the link is up.
 _Avoid_: Bridge (its former name, when it only held a Wireless link), proxy,
 daemon
+
+## DAW plugins
+
+**Studio Set plugin**:
+The plugin for what the whole Studio Set shares: the mixer of every Part and
+Ext, Chorus, Reverb, the Master EQ, Motional Surround and the Drum COMP+EQ
+assignment. One per project.
+_Avoid_: Global plugin, mixer plugin (it owns more than the mixer)
+
+**Tone plugin**:
+The plugin for one synth tone type (SN Synth, SN Acoustic or PCM Synth),
+bound to one Part. It owns the Part's tone, its MFX included, and which tone
+of its type the Part plays.
+_Avoid_: Part plugin, instrument plugin
+
+**Kit plugin**:
+The plugin for one drum kit type (SN Drum or PCM Drum), bound to one Part and
+either one key or the whole kit. Bound to the kit, it owns the kit-wide
+parameters, the kit's MFX and COMP+EQ settings included; bound to a key, it
+owns that key's.
+_Avoid_: Drum plugin, pad plugin
+
+**Binding**:
+What ties a plugin instance to its target: a Part, or a Part and a key (or
+the kit). It is chosen in the plugin and saved with the DAW project; when the
+bound Part holds another type, the plugin shows the mismatch and stays inert.
+_Avoid_: Assignment (a device term for output routing)
