@@ -445,7 +445,21 @@ impl DeviceState {
 
     /// Queue a DT1 message.  If a DT1 for the same address is already
     /// queued, replace it (coalescing).
+    ///
+    /// Data longer than one message is split into DT1s at consecutive
+    /// addresses. Cuts fall on multiples of 4 bytes from `address`, so a
+    /// 4-byte nibblized value that starts on such a multiple stays whole.
     pub fn send_dt1(&mut self, address: &Address, data: &[u8]) {
+        // Whole 4-byte groups that fit in one message.
+        const CHUNK: usize = sysex::MAX_DT1_DATA / 4 * 4;
+        if data.len() > sysex::MAX_DT1_DATA {
+            for (i, chunk) in data.chunks(CHUNK).enumerate() {
+                let offset = DataSize::from_value((i * CHUNK) as u32)
+                    .expect("a payload offset fits in 28 bits");
+                self.send_dt1(&address.offset(*offset.as_bytes()), chunk);
+            }
+            return;
+        }
         let bytes = sysex::build_dt1(self.device_id, address, data);
         let key = format!("dt1:{address}");
 
@@ -465,7 +479,15 @@ impl DeviceState {
     }
 
     /// Queue a raw SysEx message (non-DT1, e.g. catalog queries).
+    ///
+    /// Raw bytes are not split: callers keep each message within
+    /// [`sysex::MAX_MESSAGE_LEN`].
     pub fn send_raw(&mut self, key: &str, bytes: Vec<u8>) {
+        debug_assert!(
+            bytes.len() <= sysex::MAX_MESSAGE_LEN,
+            "raw message of {} bytes exceeds the packet limit",
+            bytes.len()
+        );
         self.queue.push(QueuedMessage {
             key: key.to_string(),
             bytes,
@@ -1937,6 +1959,26 @@ mod tests {
         // After the window, it should be accepted.
         assert!(dev.handle_dt1(&addr, &[50], 200.0));
         assert_eq!(dev.state().parts[0].level, 50);
+    }
+
+    #[test]
+    fn long_dt1_is_split_into_messages_of_at_most_256_bytes() {
+        let mut dev = DeviceState::new(0x10);
+        let start = Address::new(0x19, 0x00, 0x7F, 0x00);
+        let data: Vec<u8> = (0..500).map(|i| (i % 128) as u8).collect();
+        dev.send_dt1(&start, &data);
+
+        let sent = drain_until(&mut dev, 0.0, 1_000.0);
+        assert!(sent.len() > 1);
+        let mut joined = Vec::new();
+        for msg in &sent {
+            assert!(msg.len() <= 256, "{} bytes", msg.len());
+            let dt1 = sysex::parse_dt1(msg).unwrap();
+            // Each part starts where the previous one ended (7-bit carry).
+            assert_eq!(dt1.address.value(), start.value() + joined.len() as u32);
+            joined.extend(dt1.data);
+        }
+        assert_eq!(joined, data);
     }
 
     #[test]

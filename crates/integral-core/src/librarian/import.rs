@@ -1299,7 +1299,10 @@ mod tests {
         for m in USER_MEMORY {
             for (addr, size) in m.blocks(m.temporary_base(15)) {
                 let data = vec![0; size.value() as usize];
-                assert!(sysex::build_dt1(0x10, &addr, &data).len() <= 256, "{addr}");
+                assert!(
+                    sysex::build_dt1(0x10, &addr, &data).len() <= sysex::MAX_MESSAGE_LEN,
+                    "{addr}"
+                );
             }
         }
     }

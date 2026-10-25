@@ -158,9 +158,12 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
     never treated as echoes.
 - `DeviceState` tracked reads are resent after 2000 ms and abandoned after
   2 retries.
-- No code here enforces the 256-byte SysEx packet limit. Callers rely on
-  block sizes from the address map staying under it
-  ([#436](https://github.com/sigma/integral/issues/436)).
+- Packet limit: `sysex::MAX_MESSAGE_LEN` (256). `DeviceState::send_dt1`
+  splits data over `MAX_DT1_DATA` (243) into DT1s at consecutive addresses,
+  cut on multiples of 4 bytes from the start address. `send_raw`
+  debug-asserts the limit. `build_dt1` itself does not check: callers that
+  build DT1s directly (Librarian import) rely on block sizes staying under
+  the limit, which a test guards.
 - Address bytes stay within `0x00-0x7F`, and arithmetic carries into the next
   byte. `DataSize::from_value` rejects values of `2^28` or more.
 - Device constants (part count 16, drum key ranges, Expansion slots) come

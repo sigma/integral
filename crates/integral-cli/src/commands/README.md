@@ -80,6 +80,8 @@ offline.
 - `parse_assignments` rejects the same Expansion in two slots. ExPCM takes
   every slot.
 - `raw_read` fails if any requested byte is missing from the replies.
+- `raw-send` and `raw-hex` refuse input over one message (`MAX_DT1_DATA`
+  data bytes, `MAX_MESSAGE_LEN` bytes) before opening a port.
 - `wave` and `pack check` never open a MIDI port.
 - DT1 bursts go through `Throttle`, which uses `DeviceState`'s raw queue so
   that writes are not merged.

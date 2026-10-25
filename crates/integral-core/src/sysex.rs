@@ -243,19 +243,33 @@ pub fn parse_dt1(raw: &[u8]) -> Result<Dt1Message, Dt1ParseError> {
 // DT1 / RQ1 builders
 // ---------------------------------------------------------------------------
 
+/// Longest SysEx message the INTEGRA-7 accepts, in bytes.
+pub const MAX_MESSAGE_LEN: usize = 256;
+
+/// DT1 header bytes: `F0 41 <dev_id> <model> 12`.
+const DT1_HEADER: usize = 3 + MODEL_ID.len() + 1;
+
+/// Most data bytes one DT1 can carry: [`MAX_MESSAGE_LEN`] minus the
+/// header, the 4-byte address, the checksum and `F7`.
+pub const MAX_DT1_DATA: usize = MAX_MESSAGE_LEN - (DT1_HEADER + 4 + 2);
+
 /// Build a DT1 (Data Set 1) SysEx message.
 ///
 /// ```text
 /// F0 41 <dev_id> 00 00 64 12 <addr[4]> <data[..]> <checksum> F7
 /// ```
 ///
-/// The checksum covers the address and data bytes.
+/// The checksum covers the address and data bytes. No length check: the
+/// device accepts at most [`MAX_DT1_DATA`] data bytes, and
+/// [`DeviceState::send_dt1`] splits longer payloads.
+///
+/// [`DeviceState::send_dt1`]: crate::device::DeviceState::send_dt1
 pub fn build_dt1(device_id: u8, address: &Address, data: &[u8]) -> Vec<u8> {
     let addr = address.as_bytes();
     let chk_data: Vec<u8> = addr.iter().chain(data.iter()).copied().collect();
     let chk = checksum(&chk_data);
 
-    let mut msg = Vec::with_capacity(7 + 4 + data.len() + 2);
+    let mut msg = Vec::with_capacity(DT1_HEADER + 4 + data.len() + 2);
     msg.push(SYSEX_START);
     msg.push(ROLAND_ID);
     msg.push(device_id);
@@ -438,6 +452,12 @@ mod tests {
             parse_dt1(&msg),
             Err(Dt1ParseError::ChecksumMismatch { .. })
         ));
+    }
+
+    #[test]
+    fn a_full_dt1_is_exactly_one_packet() {
+        let addr = Address::new(0x19, 0x00, 0x00, 0x00);
+        assert_eq!(build_dt1(0x10, &addr, &[0; MAX_DT1_DATA]).len(), 256);
     }
 
     #[test]

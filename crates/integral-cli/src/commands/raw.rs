@@ -3,7 +3,7 @@
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use integral_core::librarian::reader::BlockData;
 use integral_core::sysex;
 
@@ -66,6 +66,12 @@ pub fn raw_rq1_multi(
 /// Send raw hex bytes as SysEx and capture all responses.
 pub fn send_raw_hex(port_pattern: &str, timeout: Duration, hex: &str) -> Result<()> {
     let bytes = parse_hex_bytes(hex)?;
+    ensure!(
+        bytes.len() <= sysex::MAX_MESSAGE_LEN,
+        "message is {} bytes; the INTEGRA-7 accepts at most {}",
+        bytes.len(),
+        sysex::MAX_MESSAGE_LEN
+    );
     let (_conn_in, mut conn_out, rx) = midi::open_midi(port_pattern)?;
 
     eprintln!("Sending raw: {}", format_hex(&bytes, " "));
@@ -84,6 +90,12 @@ pub fn raw_send(
 ) -> Result<()> {
     let addr = parse_hex_addr(addr_hex)?;
     let data = parse_hex_bytes(data_hex)?;
+    ensure!(
+        data.len() <= sysex::MAX_DT1_DATA,
+        "DT1 data is {} bytes; one message carries at most {}",
+        data.len(),
+        sysex::MAX_DT1_DATA
+    );
     let (_conn_in, mut conn_out, rx) = midi::open_midi(port_pattern)?;
 
     let dt1 = sysex::build_dt1(device_id, &addr, &data);
