@@ -25,7 +25,7 @@ use std::collections::HashMap;
 
 use crate::address::{Address, DataSize};
 use crate::block_field::{BlockField, FieldIndexError};
-use crate::device_spec::KeyOutOfRange;
+use crate::device_spec::{INTEGRA7, KeyOutOfRange};
 use thiserror::Error;
 
 use crate::expansion_load::{self, LoadAction, LoadMachine, LoadOutcome, LoadPlan};
@@ -547,7 +547,7 @@ impl DeviceState {
         let value = data[0];
 
         // Match against part parameters.
-        for part_idx in 0u8..16 {
+        for part_idx in 0..Self::NUM_PARTS {
             let level_addr = params::part_address(part_idx, part::LEVEL);
             if *address == level_addr {
                 self.state.parts[part_idx as usize].level = value;
@@ -578,12 +578,12 @@ impl DeviceState {
     // -----------------------------------------------------------------------
 
     /// Number of parts on the INTEGRA-7.
-    pub const NUM_PARTS: u8 = 16;
+    pub const NUM_PARTS: u8 = INTEGRA7.part_count;
 
     /// Set a part's level (0–127).
     ///
     /// # Panics
-    /// Debug-asserts that `part` < 16.
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
     pub fn set_part_level(&mut self, part: u8, value: u8) {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         self.state.parts[part as usize].level = value;
@@ -594,7 +594,7 @@ impl DeviceState {
     /// Set a part's pan (0–127, 64=centre).
     ///
     /// # Panics
-    /// Debug-asserts that `part` < 16.
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
     pub fn set_part_pan(&mut self, part: u8, value: u8) {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         self.state.parts[part as usize].pan = value;
@@ -605,7 +605,7 @@ impl DeviceState {
     /// Set a part's mute state.
     ///
     /// # Panics
-    /// Debug-asserts that `part` < 16.
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
     pub fn set_part_mute(&mut self, part: u8, muted: bool) {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         self.state.parts[part as usize].muted = muted;
@@ -616,7 +616,7 @@ impl DeviceState {
     /// Toggle a part's mute state.
     ///
     /// # Panics
-    /// Debug-asserts that `part` < 16.
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
     pub fn toggle_part_mute(&mut self, part: u8) {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         let muted = !self.state.parts[part as usize].muted;
@@ -626,7 +626,7 @@ impl DeviceState {
     /// Set a part's chorus send level (0–127).
     ///
     /// # Panics
-    /// Debug-asserts that `part` < 16.
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
     pub fn set_part_chorus_send(&mut self, part: u8, value: u8) {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         self.state.parts[part as usize].chorus_send = value;
@@ -637,7 +637,7 @@ impl DeviceState {
     /// Set a part's reverb send level (0–127).
     ///
     /// # Panics
-    /// Debug-asserts that `part` < 16.
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
     pub fn set_part_reverb_send(&mut self, part: u8, value: u8) {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         self.state.parts[part as usize].reverb_send = value;
@@ -648,7 +648,7 @@ impl DeviceState {
     /// Set a part's receive channel (0–15).
     ///
     /// # Panics
-    /// Debug-asserts that `part` < 16.
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
     pub fn set_part_receive_channel(&mut self, part: u8, channel: u8) {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         self.state.parts[part as usize].receive_channel = channel;
@@ -659,7 +659,7 @@ impl DeviceState {
     /// Set a part's output assign (0=A, 1=B, 2=C, 3=D, 4–11=1–8).
     ///
     /// # Panics
-    /// Debug-asserts that `part` < 16.
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
     pub fn set_part_output_assign(&mut self, part: u8, value: u8) {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         self.state.parts[part as usize].output_assign = value;
@@ -672,7 +672,7 @@ impl DeviceState {
     /// This enqueues 3 DT1 messages for the tone bank MSB, LSB, and PC.
     ///
     /// # Panics
-    /// Debug-asserts that `part` < 16.
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
     pub fn change_part_tone(&mut self, part: u8, msb: u8, lsb: u8, pc: u8) {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         mixer_load::set_tone(&mut self.state.parts[part as usize], msb, lsb, pc);
@@ -718,7 +718,7 @@ impl DeviceState {
     /// to a known tone type.
     ///
     /// # Panics
-    /// Debug-asserts that `part` < 16.
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
     pub fn rename_tone(&mut self, part: u8, name: &str) -> bool {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         let p = &mut self.state.parts[part as usize];
@@ -962,7 +962,7 @@ impl DeviceState {
     /// drops the cached tone and its outstanding requests.
     ///
     /// # Panics
-    /// Debug-asserts that `part` < 16.
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
     pub fn load_sns_tone(&mut self, part: u8) -> bool {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         let tone = self.part_tone(part);
@@ -990,7 +990,7 @@ impl DeviceState {
     /// that ran out of retries, is read anew.
     ///
     /// # Panics
-    /// Debug-asserts that `part` < 16.
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
     pub fn reload_sns_tone(&mut self, part: u8) {
         self.invalidate_sns_tone(part);
         self.load_sns_tone(part);
@@ -1429,7 +1429,11 @@ impl DeviceState {
     /// the hardware VOLUME knob. If preview is already active on another
     /// part, sends OFF first.
     pub fn preview_start(&mut self, part: u8) {
-        assert!((1..=16).contains(&part), "part must be 1–16");
+        assert!(
+            (1..=Self::NUM_PARTS).contains(&part),
+            "part must be 1–{}",
+            Self::NUM_PARTS
+        );
         if self.state.preview_part != 0 {
             self.preview_stop();
         }

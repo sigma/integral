@@ -8,8 +8,10 @@ pub mod parse;
 
 use std::collections::HashMap;
 
+use crate::device_spec::INTEGRA7;
+
 /// Number of parts in the INTEGRA-7 mixer.
-pub const NUM_PARTS: usize = 16;
+pub const NUM_PARTS: usize = INTEGRA7.part_count as usize;
 
 // ---------------------------------------------------------------------------
 // EQ

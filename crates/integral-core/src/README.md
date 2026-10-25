@@ -167,9 +167,8 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
   byte. `DataSize::from_value` rejects values of `2^28` or more.
 - Device constants (part count 16, drum key ranges, Expansion slots) come
   from `device_spec.rs` and the engine maps. Views and commands must not copy
-  them. Exceptions inside core: `handle_dt1` loops over a literal `0..16`,
-  and `state::NUM_PARTS` is its own `16`
-  ([#438](https://github.com/sigma/integral/issues/438)). `Pattern::new` takes `DeviceSpec::part_count`.
+  them. `DeviceState::NUM_PARTS` and `state::NUM_PARTS` derive from
+  `INTEGRA7.part_count`. `Pattern::new` takes `DeviceSpec::part_count`.
 - Field specs:
   - Each spec function matches its field enum exhaustively, so a new field
     fails to build until it has a spec.
