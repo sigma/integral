@@ -492,15 +492,16 @@ impl DeviceState {
         }
         let msg = self.queue.remove(0);
         self.last_send_time = now_ms;
+        // Start this DT1's echo window now that it has actually left.
+        if let Some(ts) = msg
+            .key
+            .strip_prefix("dt1:")
+            .and_then(|addr| self.echo_tracker.get_mut(addr))
+        {
+            *ts = now_ms;
+        }
         if msg.tracked {
             self.requests.register_request(msg.key, now_ms);
-        }
-
-        // Stamp echo tracker entries that were queued but not yet sent.
-        for ts in self.echo_tracker.values_mut() {
-            if *ts == f64::NEG_INFINITY {
-                *ts = now_ms;
-            }
         }
 
         Some(msg.bytes)
@@ -1936,6 +1937,23 @@ mod tests {
         // After the window, it should be accepted.
         assert!(dev.handle_dt1(&addr, &[50], 200.0));
         assert_eq!(dev.state().parts[0].level, 50);
+    }
+
+    #[test]
+    fn echo_window_starts_when_that_dt1_is_sent() {
+        let mut dev = DeviceState::new(0x10);
+        for part in 0..5 {
+            dev.set_part_level(part, 100);
+        }
+        // Throttled: the fifth DT1 leaves at 160 ms.
+        for now in [0.0, 40.0, 80.0, 120.0, 160.0] {
+            assert!(dev.drain(now).is_some());
+        }
+
+        // Its echo at 260 ms is 100 ms after its own send: suppressed.
+        let addr = params::part_address(4, part::LEVEL);
+        assert!(!dev.handle_dt1(&addr, &[50], 260.0));
+        assert_eq!(dev.state().parts[4].level, 100);
     }
 
     #[test]

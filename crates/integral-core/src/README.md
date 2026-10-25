@@ -154,9 +154,7 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
   - The queue is held while an Expansion load runs.
 - `DeviceState` incoming DT1s:
   - An incoming DT1 that matches a local send within `ECHO_SUPPRESS_MS = 150`
-    counts as an echo and is ignored. The window starts at the first drain
-    after the send was queued, which can be before that DT1 itself leaves
-    ([#439](https://github.com/sigma/integral/issues/439)). Block replies are
+    after that DT1 was drained counts as an echo and is ignored. Block replies are
     never treated as echoes.
 - `DeviceState` tracked reads are resent after 2000 ms and abandoned after
   2 retries.
