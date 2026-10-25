@@ -32,14 +32,13 @@ per Track, in Part order, named `Part N`.
   (`Format` / `Timing` errors otherwise).
 - Track count minus the conductor must equal `part_count` (`TrackCount`).
 - Every Note On, Note Off and End-of-Track tick is a multiple of 24
-  (`OffGrid`); other events are not grid-checked; a Track's length is the
+  (`OffGrid`); other events are ignored wherever they fall; a Track's length is the
   tick of its End-of-Track and must be 1..=64 Steps (`Length`).
 - Every Note On (velocity > 0) needs a matching Note Off or velocity-0 Note On
-  (`Unpaired`). A repeated Note On of an open pitch replaces the open
-  note instead of raising `Unpaired`
-  ([#440](https://github.com/sigma/integral/issues/440)).
-- Encode clamps notes to the Track end and drops notes starting at or after
-  it; on one tick, Note Off sorts before Note On.
+  (`Unpaired`). A repeated Note On of an open pitch cuts the open note at
+  the retrigger (at least 1 Step); a Note Off with no open note is ignored.
+- Encode clamps notes to the Track end and to the next onset of the same
+  pitch, and drops notes starting at or after the end; on one tick, Note Off sorts before Note On.
 - Tempo is `60_000_000 / bpm` (rounded); decode takes the first Tempo meta in
   track 0, flooring tempo at 1.
 - Track numbers in errors are 1-based, matching the `Part N` names.

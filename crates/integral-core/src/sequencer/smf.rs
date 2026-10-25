@@ -3,6 +3,11 @@
 //! Layout: type 1, PPQ 96 (one Step = 24 ticks). Track 0 is the conductor
 //! (tempo and 4/4), then one `MTrk` per Track in Part order, named `Part N`.
 //! A Track's length is the time of its End-of-Track event.
+//!
+//! A note retriggered by a later onset of its pitch ends there, both when
+//! written and when read, so overlapping same-pitch notes round-trip as they
+//! play. Only notes and End-of-Track must sit on the Step grid; other events
+//! are ignored wherever they fall.
 
 use std::collections::BTreeMap;
 
@@ -42,7 +47,7 @@ pub enum SmfError {
         /// Tracks found in the file.
         found: usize,
     },
-    /// An event does not fall on the 16th-note grid.
+    /// A note or End-of-Track does not fall on the 16th-note grid.
     #[error("track {track}: event at tick {tick} is off the step grid")]
     OffGrid {
         /// Track number (1-based, as in `Part N`).
@@ -73,8 +78,9 @@ impl Pattern {
     ///
     /// Each Track's channel nibble is its Part's receive channel in `state`;
     /// pass [`MixerState::default`] when no device is connected.
-    /// Notes are written as they play: clamped at the Track end, and notes
-    /// starting past the end are dropped.
+    /// Notes are written as they play: clamped at the Track end and at the
+    /// next onset of the same pitch, and notes starting past the end are
+    /// dropped.
     pub fn to_smf(&self, state: &MixerState) -> Vec<u8> {
         let tempo = (MICROS_PER_MINUTE / f64::from(self.bpm)).round() as u32;
         let conductor = vec![
@@ -93,7 +99,15 @@ impl Pattern {
             let mut events: Vec<(u32, bool, MidiMessage)> = Vec::new();
             for (start, notes) in track.steps().filter(|(s, _)| *s < track.length) {
                 for note in notes {
-                    let end = start + note.length.min(track.length - start);
+                    // A later onset of the same pitch retriggers it: end there.
+                    // shortcut: a pitch repeated within one chord (only a foreign file
+                    // with two same-tick Note Ons; the editor's chords are sets) does
+                    // not round-trip; dedupe in `Track::set_step` if that matters.
+                    let retrigger = track
+                        .steps()
+                        .find(|(s, ns)| *s > start && ns.iter().any(|n| n.pitch == note.pitch))
+                        .map_or(track.length, |(s, _)| s.min(track.length));
+                    let end = start + note.length.min(retrigger - start);
                     let key = u7::new(note.pitch);
                     let vel = u7::new(note.velocity);
                     events.push((
@@ -199,6 +213,10 @@ fn read_track(events: &[TrackEvent], number: usize) -> Result<Track, SmfError> {
                 ..
             } if vel.as_int() > 0 => {
                 let start = step_of(tick)?;
+                // A retrigger cuts the open note, as the device plays it.
+                if let Some((s, i)) = open.remove(&key.as_int()) {
+                    steps.get_mut(&s).expect("open note has a step")[i].length = (start - s).max(1);
+                }
                 let chord = steps.entry(start).or_default();
                 open.insert(key.as_int(), (start, chord.len()));
                 chord.push(Note::new(key.as_int(), vel.as_int(), 1));
@@ -363,6 +381,83 @@ mod tests {
                 message,
             },
         }
+    }
+
+    fn first_track_steps(p: &Pattern) -> Vec<(u8, Vec<Note>)> {
+        p.tracks()[0]
+            .steps()
+            .map(|(s, n)| (s, n.to_vec()))
+            .collect()
+    }
+
+    /// Read a file whose first Track is `track` and whose other Tracks are
+    /// one empty Step.
+    fn read_first_track(track: Vec<TrackEvent<'static>>) -> Pattern {
+        let empty = vec![meta(24, MetaMessage::EndOfTrack)];
+        let mut tracks = vec![empty; usize::from(INTEGRA7.part_count) + 1];
+        tracks[1] = track;
+        Pattern::from_smf(&file(Format::Parallel, PPQ, tracks), INTEGRA7.part_count).unwrap()
+    }
+
+    #[test]
+    fn a_retriggered_note_is_cut_at_the_retrigger() {
+        // On 0, On 2 (same pitch), Off 4, Off 8: the second On cuts the first.
+        let eot = meta(0, MetaMessage::EndOfTrack);
+        let track = vec![
+            note(0, true),
+            note(48, true),
+            note(48, false),
+            note(96, false),
+            eot,
+        ];
+        assert_eq!(
+            first_track_steps(&read_first_track(track)),
+            vec![
+                (0, vec![Note::new(60, 100, 2)]),
+                (2, vec![Note::new(60, 100, 2)])
+            ]
+        );
+    }
+
+    #[test]
+    fn overlapping_same_pitch_notes_round_trip_cut_at_the_retrigger() {
+        let mut p = Pattern::new(INTEGRA7.part_count);
+        let t = p.track_mut(0).unwrap();
+        t.set_step(0, vec![Note::new(60, 100, 2)]);
+        t.set_step(1, vec![Note::new(60, 90, 8)]);
+
+        let bytes = p.to_smf(&state());
+        let back = Pattern::from_smf(&bytes, INTEGRA7.part_count).unwrap();
+        // The first note ends where the second starts; the second keeps its length.
+        assert_eq!(
+            first_track_steps(&back),
+            vec![
+                (0, vec![Note::new(60, 100, 1)]),
+                (1, vec![Note::new(60, 90, 8)])
+            ]
+        );
+        assert_eq!(back.to_smf(&state()), bytes);
+    }
+
+    #[test]
+    fn off_grid_events_other_than_notes_are_ignored() {
+        let controller = TrackEvent {
+            delta: u28::new(10),
+            kind: TrackEventKind::Midi {
+                channel: u4::new(0),
+                message: MidiMessage::Controller {
+                    controller: u7::new(7),
+                    value: u7::new(100),
+                },
+            },
+        };
+        // On at 0, a controller at tick 10, Off and End-of-Track at 24.
+        let eot = meta(0, MetaMessage::EndOfTrack);
+        let back = read_first_track(vec![note(0, true), controller, note(14, false), eot]);
+        assert_eq!(
+            first_track_steps(&back),
+            vec![(0, vec![Note::new(60, 100, 1)])]
+        );
     }
 
     #[test]
