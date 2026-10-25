@@ -48,9 +48,6 @@ types derive `Serialize`/`Deserialize` in camelCase for the WASM bridge.
   `DrumCompEqState::default()` assigns Part 10.
 - Documented value ranges (level 0-127, pan 64 = centre, EQ gain 0-30) are
   not enforced: fields are raw `u8`.
-- Known doc drift: `parse_part_dump`'s comment says a 0x29-byte dump, but it
-  requires `PART_DUMP_SIZE` (0x2A) and reads Output Assign at 0x29
-  ([#437](https://github.com/sigma/integral/issues/437)).
 
 ## Side Effects
 

@@ -8,8 +8,10 @@
 //!
 //! ```text
 //! loop {
-//!     // 1. Feed incoming MIDI
-//!     let changes = device.handle_incoming(raw_bytes, now_ms);
+//!     // 1. Feed incoming DT1s
+//!     if let Ok(dt1) = sysex::parse_dt1(&raw_bytes) {
+//!         let changed = device.handle_dt1(&dt1.address, &dt1.data, now_ms);
+//!     }
 //!     // 2. Drain outbound queue
 //!     while let Some(msg) = device.drain(now_ms) {
 //!         midi_output.send(&msg);

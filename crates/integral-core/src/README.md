@@ -188,9 +188,6 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
   back as `13 14 15 16`.
 - `Relevance::SwitchedOff` fields stay editable. Relevance rules live here,
   never in UI layouts.
-- Known doc drift: the `device.rs` module doc example calls
-  `handle_incoming`, which does not exist. The entry point is `handle_dt1`
-  ([#437](https://github.com/sigma/integral/issues/437)).
 
 ## Side Effects
 

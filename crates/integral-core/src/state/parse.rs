@@ -11,7 +11,7 @@ pub const PART_EQ_DUMP_SIZE: usize = 8;
 /// Master EQ dump size (7 bytes: no switch, just 7 band params).
 pub const MASTER_EQ_DUMP_SIZE: usize = 7;
 
-/// Parse a 0x29-byte part mixer dump into a [`PartState`].
+/// Parse a [`PART_DUMP_SIZE`]-byte (0x2A) part mixer dump into a [`PartState`].
 ///
 /// The dump layout matches the Studio Set Part block starting at offset
 /// 0x00 (receive channel) through 0x28 (reverb send).
