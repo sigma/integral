@@ -99,15 +99,7 @@ impl Pattern {
             let mut events: Vec<(u32, bool, MidiMessage)> = Vec::new();
             for (start, notes) in track.steps().filter(|(s, _)| *s < track.length) {
                 for note in notes {
-                    // A later onset of the same pitch retriggers it: end there.
-                    // shortcut: a pitch repeated within one chord (only a foreign file
-                    // with two same-tick Note Ons; the editor's chords are sets) does
-                    // not round-trip; dedupe in `Track::set_step` if that matters.
-                    let retrigger = track
-                        .steps()
-                        .find(|(s, ns)| *s > start && ns.iter().any(|n| n.pitch == note.pitch))
-                        .map_or(track.length, |(s, _)| s.min(track.length));
-                    let end = start + note.length.min(retrigger - start);
+                    let end = start + track.sounding_length(start, note);
                     let key = u7::new(note.pitch);
                     let vel = u7::new(note.velocity);
                     events.push((

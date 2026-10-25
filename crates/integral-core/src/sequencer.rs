@@ -109,6 +109,22 @@ impl Track {
     pub fn steps(&self) -> impl Iterator<Item = (u8, &[Note])> {
         self.steps.iter().map(|(s, n)| (*s, n.as_slice()))
     }
+
+    /// The number of Steps `note`, starting on `start`, sounds for: its
+    /// length, cut at the Track end and at the next onset of its pitch (a
+    /// retrigger, which the device plays as a release). Notes never ring into
+    /// the next loop pass.
+    pub(crate) fn sounding_length(&self, start: u8, note: &Note) -> u8 {
+        // shortcut: a pitch repeated within one chord (only a foreign file
+        // with two same-tick Note Ons; the editor's chords are sets) is not
+        // cut and won't round-trip; dedupe in `set_step` if that matters.
+        let until = self
+            .steps
+            .range(start.saturating_add(1)..)
+            .find(|(_, ns)| ns.iter().any(|n| n.pitch == note.pitch))
+            .map_or(self.length, |(&s, _)| s.min(self.length));
+        note.length.min(until.saturating_sub(start))
+    }
 }
 
 /// All Tracks together, plus the tempo they play at.
@@ -257,6 +273,9 @@ impl Sequencer {
     /// Every event in `[now_ms, now_ms + horizon_ms]` not returned before,
     /// in time order. A Note Off sorts before a Note On on the same tick.
     ///
+    /// A note ends at the Track end or where its pitch starts again,
+    /// whichever comes first, so it never rings into the next loop pass.
+    ///
     /// Note Ons read Track N's channel from Part N's receive channel in
     /// `state`. Steps that fell entirely behind `now_ms` (a frozen tab) are
     /// skipped rather than sent late.
@@ -284,7 +303,7 @@ impl Sequencer {
                 }
                 let channel = track_channel(state.state(), i);
                 for note in notes {
-                    let length = note.length.min(track.length - local);
+                    let length = track.sounding_length(local, note);
                     events.push((step, true, vec![0x90 | channel, note.pitch, note.velocity]));
                     self.sounding.push(Sounding {
                         channel,
@@ -461,6 +480,43 @@ mod tests {
         seq.play(0.0);
         let off = offs(&seq.due(&state(), 0.0, 16.0 * STEP));
         assert_eq!(off, vec![(4.0 * STEP, 0, 60), (16.0 * STEP, 0, 62)]);
+    }
+
+    #[test]
+    fn a_retrigger_ends_the_sounding_note_of_that_pitch() {
+        let mut seq = seq_with(|p| {
+            let t = p.track_mut(0).unwrap();
+            t.set_step(0, vec![Note::new(60, 100, 2)]);
+            t.set_step(1, vec![Note::new(60, 90, 8)]);
+        });
+        seq.play(0.0);
+        let events = seq.due(&state(), 0.0, 10.0 * STEP);
+        // The first note ends where the second starts; the second keeps its 8 Steps.
+        assert_eq!(offs(&events), vec![(STEP, 0, 60), (9.0 * STEP, 0, 60)]);
+        let at_step_1: Vec<u8> = events
+            .iter()
+            .filter(|e| e.t_ms == STEP)
+            .map(|e| e.bytes[0] & 0xF0)
+            .collect();
+        assert_eq!(at_step_1, vec![0x80, 0x90]);
+    }
+
+    #[test]
+    fn a_note_on_the_last_step_ends_before_the_next_pass_retriggers_it() {
+        let mut seq = seq_with(|p| {
+            let t = p.track_mut(0).unwrap();
+            t.set_length(4);
+            t.set_step(0, vec![Note::new(60, 100, 1)]);
+            t.set_step(3, vec![Note::new(60, 100, 8)]);
+        });
+        seq.play(0.0);
+        let events = seq.due(&state(), 0.0, 4.0 * STEP);
+        let at_wrap: Vec<u8> = events
+            .iter()
+            .filter(|e| e.t_ms == 4.0 * STEP)
+            .map(|e| e.bytes[0] & 0xF0)
+            .collect();
+        assert_eq!(at_wrap, vec![0x80, 0x90]);
     }
 
     #[test]

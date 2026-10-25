@@ -38,7 +38,9 @@ per Track, in Part order, named `Part N`.
   (`Unpaired`). A repeated Note On of an open pitch cuts the open note at
   the retrigger (at least 1 Step); a Note Off with no open note is ignored.
 - Encode clamps notes to the Track end and to the next onset of the same
-  pitch, and drops notes starting at or after the end; on one tick, Note Off sorts before Note On.
+  pitch (`Track::sounding_length`, the rule live playback uses too, so a
+  note never rings into the next loop pass), and drops notes starting at or
+  after the end; on one tick, Note Off sorts before Note On.
 - Tempo is `60_000_000 / bpm` (rounded); decode takes the first Tempo meta in
   track 0, flooring tempo at 1.
 - Track numbers in errors are 1-based, matching the `Part N` names.
