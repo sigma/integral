@@ -13,7 +13,10 @@ const bridge = windowBridge(window);
 // reads the device spec from core, so it waits for the wasm core.
 if (bridge) {
   // A wasm core that fails to load is reported by App.
-  initWasm().then(() => resizePluginWindow(bridge, 1, window.screen), () => {});
+  initWasm().then(
+    () => resizePluginWindow(bridge, 1, window.screen),
+    () => {},
+  );
 }
 
 // Offline support: PwaUpdateBanner registers the service worker. In prompt
@@ -27,6 +30,7 @@ createRoot(document.getElementById("root")!).render(
     <App
       openPorts={bridge ? () => pluginPorts(bridge) : undefined}
       connectOnlyPort={bridge !== null}
+      plugin={bridge ?? undefined}
     />
   </StrictMode>,
 );
