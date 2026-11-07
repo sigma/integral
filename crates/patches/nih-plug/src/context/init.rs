@@ -1,5 +1,8 @@
 //! A context passed during plugin initialization.
 
+use std::sync::Arc;
+
+use super::gui::{AsyncExecutor, GuiContext};
 use super::PluginApi;
 use crate::prelude::Plugin;
 
@@ -22,6 +25,34 @@ pub trait InitContext<P: Plugin> {
     /// There is no asynchronous alternative for this function as that may result in incorrect
     /// behavior when doing offline rendering.
     fn execute(&self, task: P::BackgroundTask);
+
+    /// A [`GuiContext`] the plugin may keep, to set parameter values and tell the host about
+    /// them (gestures, or a whole [`PluginState`][crate::prelude::PluginState]) without an
+    /// editor. Its calls are meant for the host's main thread, so a plugin on another thread
+    /// should hand them to [`ProcessContext::execute_gui()`][crate::prelude::ProcessContext::execute_gui()]'s
+    /// task executor. It refers to the plugin weakly: keeping it does not keep the plugin alive,
+    /// and once the plugin is gone its calls do nothing.
+    ///
+    /// Only the VST3 wrapper provides this so far; the others return `None`.
+    ///
+    /// *Patch (see `crates/patches/PATCHES.md` in Integral): not in upstream nih-plug.*
+    fn gui_context(&self) -> Option<Arc<dyn GuiContext>> {
+        None
+    }
+
+    /// An [`AsyncExecutor`] the plugin may keep and use from any thread, to have the host's main
+    /// thread (or a background thread) run its tasks without going through `process()`. Like
+    /// [`gui_context()`][Self::gui_context()] it refers to the plugin weakly: keeping it does not
+    /// keep the plugin alive, and once the plugin is gone the tasks are dropped. Unlike the one
+    /// passed to [`Plugin::editor()`][crate::prelude::Plugin::editor()], which holds the wrapper
+    /// strongly.
+    ///
+    /// Only the VST3 wrapper provides this so far; the others return `None`.
+    ///
+    /// *Patch (see `crates/patches/PATCHES.md` in Integral): not in upstream nih-plug.*
+    fn async_executor(&self) -> Option<AsyncExecutor<P>> {
+        None
+    }
 
     /// Update the current latency of the plugin. If the plugin is currently processing audio, then
     /// this may cause audio playback to be restarted.

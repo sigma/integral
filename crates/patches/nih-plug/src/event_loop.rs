@@ -67,6 +67,17 @@ where
     /// Whether the calling thread is the event loop's main thread. This is usually the thread the
     /// event loop instance was initialized on.
     fn is_main_thread(&self) -> bool;
+
+    /// A function that posts a task to the main thread from any other thread, which does not
+    /// refer to the executor at all: it never upgrades the wrapper, so the thread that calls it
+    /// can never be the one that tears the wrapper down. It returns false if the task was not
+    /// queued (the queue is full, or the event loop is gone). `None` where the backend cannot
+    /// offer that; only macOS does, so far.
+    ///
+    /// *Patch (see `crates/patches/PATCHES.md` in Integral): not in upstream nih-plug.*
+    fn off_thread_gui_poster(&self) -> Option<Box<dyn Fn(T) -> bool + Send + Sync>> {
+        None
+    }
 }
 
 /// Something that can execute tasks of type `T`.

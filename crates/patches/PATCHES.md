@@ -1,0 +1,57 @@
+# Patches to vendored crates
+
+Third-party code that Integral patches lives here, apart from the project's own
+crates. Each vendored crate is first committed unmodified, so that the commit
+that patches it shows the whole patch. It is wired in by the root
+`Cargo.toml`'s `[patch]` table; this directory is excluded from the workspace
+because nih-plug brings a workspace of its own.
+
+## nih-plug (`nih-plug/`, upstream rev 28b149e)
+
+Vendored: the `nih_plug` crate and its `nih_plug_derive`, with the license.
+
+**Patch: `InitContext::gui_context()`, `InitContext::async_executor()` and
+`GuiContext::try_set_state()`**
+(`src/context/{init,gui}.rs`, `src/wrapper/vst3/{context,inner}.rs`,
+`src/event_loop{,/macos}.rs`), and a crate-level
+`allow(unexpected_cfgs, unused_imports)` in `src/lib.rs` for three upstream lint warnings.
+
+- *Why.* A plugin can tell the host about a value it changed itself (a
+  gesture, or a bulk update with one `kParamValuesChanged`) only through a
+  `GuiContext`, and upstream creates one only for `Editor::spawn`, when the
+  host attaches the editor view. Every parameter setter is `pub(crate)`.
+  So a plugin with its editor closed cannot show a change that came from
+  elsewhere (another client, the device) to the host, and the host records no
+  automation for it. Integral's plugins follow the device, whether or not an
+  editor is open.
+- *What.* `InitContext::gui_context()` returns an `Arc<dyn GuiContext>` the plugin
+  may keep, in `initialize()`. The default is `None`; only the VST3 wrapper
+  returns one. The wrapper's `WrapperInner` keeps a weak reference to itself
+  (`Arc::new_cyclic`) to build it from `&self`.
+- *Lifetime.* A kept context must not keep the wrapper alive: the plugin lives
+  inside the wrapper, so a strong reference would be a cycle. `WrapperGuiContext`
+  now refers to the wrapper weakly, for the editor's context too; once the
+  wrapper is gone its calls do nothing (`get_state` returns an empty state).
+- *Threads.* Unchanged from upstream: the context's calls are for the host's
+  main thread. `InitContext::async_executor()` gives the way there: an
+  `AsyncExecutor` the plugin keeps and uses from any thread (its worker), whose
+  closures refer to the wrapper weakly (the one upstream hands to
+  `Plugin::editor()` holds it strongly). Without it a task could reach the main
+  thread only through `ProcessContext::execute_gui`, i.e. only while the host
+  calls `process()`.
+- *Teardown.* The executor must not be the thread that releases the last
+  reference to the wrapper (a worker doing so would run the plugin's teardown,
+  which joins the worker). So `async_executor()`'s closure never upgrades the
+  wrapper: it holds only the event loop's channel sender and a retained
+  run-loop source (`EventLoop::off_thread_gui_poster()`), queues the task and
+  wakes the main thread. After the wrapper is gone posting fails quietly.
+  macOS only; other backends return `None`, so `async_executor()` is `None`
+  there. It has no background route (`execute_background` drops its tasks), and
+  a full queue (4096 tasks) drops tasks silently, as for every poster.
+- *Bounded state restore.* `GuiContext::set_state` while the plugin is
+  processing retries every second until the audio thread takes the state, for
+  ever if the host stopped calling `process()` without clearing the flag, or if
+  the caller is the audio thread. `try_set_state(state, timeout)` gives the
+  state back if it was not taken in time. The default calls `set_state`.
+- *Upstream.* Not yet proposed. A candidate for an upstream PR, which would
+  also need the CLAP and standalone wrappers (they return `None` here).

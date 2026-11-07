@@ -60,6 +60,10 @@ pub(crate) struct WrapperInner<P: Vst3Plugin> {
     /// TODO: Is there a better type for Send+Sync late initialization?
     pub event_loop: AtomicRefCell<Option<OsEventLoop<Task<P>, Self>>>,
 
+    /// A weak reference to this wrapper, so that a context can be made from `&self`, see
+    /// [`make_long_lived_gui_context()`][Self::make_long_lived_gui_context()].
+    pub this: std::sync::Weak<Self>,
+
     /// Whether the plugin is currently processing audio. In other words, the last state
     /// `IAudioProcessor::setActive()` has been called with.
     pub is_processing: AtomicBool,
@@ -274,7 +278,8 @@ impl<P: Vst3Plugin> WrapperInner<P> {
             .map(|(_, hash, ptr, _)| (ptr, hash))
             .collect();
 
-        let wrapper = Arc::new(Self {
+        let wrapper = Arc::new_cyclic(|this| Self {
+            this: this.clone(),
             plugin: Mutex::new(plugin),
             task_executor,
             params,
@@ -355,9 +360,35 @@ impl<P: Vst3Plugin> WrapperInner<P> {
 
     pub fn make_gui_context(self: Arc<Self>) -> Arc<WrapperGuiContext<P>> {
         Arc::new(WrapperGuiContext {
-            inner: self,
+            inner: Arc::downgrade(&self),
             #[cfg(debug_assertions)]
             param_gesture_checker: Default::default(),
+        })
+    }
+
+    /// A GUI context for the plugin to keep. It only refers to the wrapper weakly, so a plugin
+    /// that stores it does not keep itself alive; its calls do nothing once the wrapper is gone.
+    pub fn make_long_lived_gui_context(&self) -> Option<Arc<WrapperGuiContext<P>>> {
+        Some(self.this.upgrade()?.make_gui_context())
+    }
+
+    /// An executor for the plugin to keep, which posts tasks to the main thread from any thread
+    /// without ever touching the wrapper: its closure holds only what the event loop needs to
+    /// queue a task and wake the main thread, so the calling thread cannot end up releasing the
+    /// last reference to the wrapper and tearing it down. Once the wrapper is gone, posting
+    /// does nothing. `None` if the event loop cannot offer that
+    /// ([`EventLoop::off_thread_gui_poster()`]).
+    ///
+    /// There is no background route: `execute_background` drops its tasks. A full queue
+    /// ([`TASK_QUEUE_CAPACITY`][crate::event_loop::TASK_QUEUE_CAPACITY] tasks) drops tasks
+    /// silently, as it does for every other poster.
+    pub fn make_long_lived_async_executor(&self) -> Option<AsyncExecutor<P>> {
+        let post = self.event_loop.borrow().as_ref()?.off_thread_gui_poster()?;
+        Some(AsyncExecutor {
+            execute_background: Arc::new(|_| ()),
+            execute_gui: Arc::new(move |task| {
+                let _ = post(Task::PluginTask(task));
+            }),
         })
     }
 
@@ -459,6 +490,48 @@ impl<P: Vst3Plugin> WrapperInner<P> {
             }
             _ => kInvalidArgument,
         }
+    }
+
+    /// Like [`set_state_object_from_gui()`][Self::set_state_object_from_gui()], but gives up and
+    /// returns the state if the audio thread has not taken it within `timeout` while the plugin
+    /// is processing. A host that stops calling `process()` without clearing the flag, or whose
+    /// audio thread is the one calling this, would otherwise keep the caller here for ever.
+    pub fn try_set_state_object_from_gui(
+        &self,
+        mut state: PluginState,
+        timeout: Duration,
+    ) -> Option<PluginState> {
+        let deadline = std::time::Instant::now() + timeout;
+        loop {
+            if self.is_processing.load(Ordering::SeqCst) {
+                let left = deadline.saturating_duration_since(std::time::Instant::now());
+                match self.updated_state_sender.send_timeout(state, left) {
+                    Ok(_) => {
+                        drop(self.updated_state_receiver.recv());
+                        break;
+                    }
+                    Err(SendTimeoutError::Timeout(value)) => return Some(value),
+                    Err(SendTimeoutError::Disconnected(_)) => {
+                        nih_debug_assert_failure!("State update channel got disconnected");
+                        return None;
+                    }
+                }
+            } else {
+                self.set_state_inner(&mut state);
+                break;
+            }
+        }
+
+        let task_posted =
+            self.event_loop
+                .borrow()
+                .as_ref()
+                .unwrap()
+                .schedule_gui(Task::TriggerRestart(
+                    RestartFlags::kParamValuesChanged as i32,
+                ));
+        nih_debug_assert!(task_posted, "The task queue is full, dropping task...");
+        None
     }
 
     /// Get the plugin's state object, may be called by the plugin's GUI as part of its own preset

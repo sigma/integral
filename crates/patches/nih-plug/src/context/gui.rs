@@ -63,6 +63,17 @@ pub trait GuiContext: Send + Sync + 'static {
     /// host. If the plugin is currently processing audio, then the parameter values will be
     /// restored at the end of the current processing cycle.
     fn set_state(&self, state: PluginState);
+
+    /// Like [`set_state()`][Self::set_state()], but if the plugin is processing audio and the
+    /// audio thread has not taken the state within `timeout`, gives it back instead of waiting
+    /// for ever. `None` means it was restored (or, for a context whose plugin is gone, dropped).
+    /// The default waits like `set_state()`.
+    ///
+    /// *Patch (see `crates/patches/PATCHES.md` in Integral): not in upstream nih-plug.*
+    fn try_set_state(&self, state: PluginState, _timeout: std::time::Duration) -> Option<PluginState> {
+        self.set_state(state);
+        None
+    }
 }
 
 /// An way to run background tasks from the plugin's GUI, equivalent to the

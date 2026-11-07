@@ -1,6 +1,6 @@
 //! An event loop implementation for macOS.
 
-use core_foundation::base::kCFAllocatorDefault;
+use core_foundation::base::{kCFAllocatorDefault, CFRelease, CFRetain};
 use core_foundation::runloop::{
     kCFRunLoopCommonModes, CFRunLoopAddSource, CFRunLoopGetMain, CFRunLoopRemoveSource,
     CFRunLoopSourceContext, CFRunLoopSourceCreate, CFRunLoopSourceInvalidate, CFRunLoopSourceRef,
@@ -18,6 +18,19 @@ struct LoopSourceWrapper(CFRunLoopSourceRef);
 
 unsafe impl Send for LoopSourceWrapper {}
 unsafe impl Sync for LoopSourceWrapper {}
+
+/// A retained run-loop source: signalling it after the event loop has invalidated it does nothing,
+/// and the retain keeps the memory valid until this is dropped.
+struct RetainedSource(CFRunLoopSourceRef);
+
+unsafe impl Send for RetainedSource {}
+unsafe impl Sync for RetainedSource {}
+
+impl Drop for RetainedSource {
+    fn drop(&mut self) {
+        unsafe { CFRelease(self.0 as *const c_void) };
+    }
+}
 
 /// See [`EventLoop`][super::EventLoop].
 pub(crate) struct MacOSEventLoop<T, E> {
@@ -114,6 +127,26 @@ where
 
     fn is_main_thread(&self) -> bool {
         unsafe { msg_send![class!(NSThread), isMainThread] }
+    }
+
+    fn off_thread_gui_poster(&self) -> Option<Box<dyn Fn(T) -> bool + Send + Sync>> {
+        let sender = self.main_thread_sender.clone();
+        let source = RetainedSource(unsafe { CFRetain(self.loop_source.0 as *const c_void) }
+            as CFRunLoopSourceRef);
+        Some(Box::new(move |task| {
+            // Capture the whole wrapper, not its pointer field.
+            let source = &source;
+            // Once the event loop is dropped the receiver is gone, so this fails
+            let success = sender.try_send(task).is_ok();
+            if success {
+                unsafe {
+                    CFRunLoopSourceSignal(source.0);
+                    CFRunLoopWakeUp(CFRunLoopGetMain());
+                }
+            }
+
+            success
+        }))
     }
 }
 

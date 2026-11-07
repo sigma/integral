@@ -6,7 +6,7 @@ use std::sync::Arc;
 use vst3_sys::vst::IComponentHandler;
 
 use crate::prelude::{
-    GuiContext, InitContext, ParamPtr, PluginApi, PluginNoteEvent, PluginState, ProcessContext,
+    AsyncExecutor, GuiContext, InitContext, ParamPtr, PluginApi, PluginNoteEvent, PluginState, ProcessContext,
     Transport, Vst3Plugin,
 };
 
@@ -48,7 +48,9 @@ pub(crate) struct WrapperProcessContext<'a, P: Vst3Plugin> {
 /// [`Editor::spawn()`][crate::prelude::Editor::spawn()] so it can interact with the rest of the plugin and
 /// with the host for things like setting parameters.
 pub(crate) struct WrapperGuiContext<P: Vst3Plugin> {
-    pub(super) inner: Arc<WrapperInner<P>>,
+    /// Weak, so that a plugin can hold on to its context without a reference cycle through the
+    /// wrapper.
+    pub(super) inner: std::sync::Weak<WrapperInner<P>>,
     #[cfg(debug_assertions)]
     pub(super) param_gesture_checker:
         atomic_refcell::AtomicRefCell<crate::wrapper::util::context_checks::ParamGestureChecker>,
@@ -69,6 +71,16 @@ impl<P: Vst3Plugin> InitContext<P> for WrapperInitContext<'_, P> {
 
     fn execute(&self, task: P::BackgroundTask) {
         (self.inner.task_executor.lock())(task);
+    }
+
+    fn gui_context(&self) -> Option<Arc<dyn GuiContext>> {
+        self.inner
+            .make_long_lived_gui_context()
+            .map(|context| context as Arc<dyn GuiContext>)
+    }
+
+    fn async_executor(&self) -> Option<AsyncExecutor<P>> {
+        self.inner.make_long_lived_async_executor()
     }
 
     fn set_latency_samples(&self, samples: u32) {
@@ -124,7 +136,10 @@ impl<P: Vst3Plugin> GuiContext for WrapperGuiContext<P> {
     }
 
     fn request_resize(&self) -> bool {
-        let task_posted = self.inner.schedule_gui(Task::RequestResize);
+        let Some(inner) = self.inner.upgrade() else {
+            return true;
+        };
+        let task_posted = inner.schedule_gui(Task::RequestResize);
         nih_debug_assert!(task_posted, "The task queue is full, dropping task...");
 
         // TODO: We don't handle resize request failures right now. In practice this should however
@@ -135,18 +150,21 @@ impl<P: Vst3Plugin> GuiContext for WrapperGuiContext<P> {
     // All of these functions are supposed to be called from the main thread, so we'll put some
     // trust in the caller and assume that this is indeed the case
     unsafe fn raw_begin_set_parameter(&self, param: ParamPtr) {
-        match &*self.inner.component_handler.borrow() {
-            Some(handler) => match self.inner.param_ptr_to_hash.get(&param) {
+        let Some(inner) = self.inner.upgrade() else {
+            return;
+        };
+        match &*inner.component_handler.borrow() {
+            Some(handler) => match inner.param_ptr_to_hash.get(&param) {
                 Some(hash) => {
                     handler.begin_edit(*hash);
                 }
                 None => nih_debug_assert_failure!("Unknown parameter: {:?}", param),
             },
             None => nih_debug_assert_failure!("Component handler not yet set"),
-        }
+        };
 
         #[cfg(debug_assertions)]
-        match self.inner.param_id_from_ptr(param) {
+        match inner.param_id_from_ptr(param) {
             Some(param_id) => self
                 .param_gesture_checker
                 .borrow_mut()
@@ -158,8 +176,11 @@ impl<P: Vst3Plugin> GuiContext for WrapperGuiContext<P> {
     }
 
     unsafe fn raw_set_parameter_normalized(&self, param: ParamPtr, normalized: f32) {
-        match &*self.inner.component_handler.borrow() {
-            Some(handler) => match self.inner.param_ptr_to_hash.get(&param) {
+        let Some(inner) = self.inner.upgrade() else {
+            return;
+        };
+        match &*inner.component_handler.borrow() {
+            Some(handler) => match inner.param_ptr_to_hash.get(&param) {
                 Some(hash) => {
                     // Only update the parameters manually if the host is not processing audio. If
                     // the plugin is currently processing audio, the host will pass this change back
@@ -168,11 +189,11 @@ impl<P: Vst3Plugin> GuiContext for WrapperGuiContext<P> {
                     // FIXME: So this doesn't work for REAPER, because they just silently stop
                     //        processing audio when you bypass the plugin. Great. We can add a time
                     //        based heuristic to work around this in the meantime.
-                    if !self.inner.is_processing.load(Ordering::SeqCst) {
-                        self.inner.set_normalized_value_by_hash(
+                    if !inner.is_processing.load(Ordering::SeqCst) {
+                        inner.set_normalized_value_by_hash(
                             *hash,
                             normalized,
-                            self.inner
+                            inner
                                 .current_buffer_config
                                 .load()
                                 .map(|c| c.sample_rate),
@@ -184,10 +205,10 @@ impl<P: Vst3Plugin> GuiContext for WrapperGuiContext<P> {
                 None => nih_debug_assert_failure!("Unknown parameter: {:?}", param),
             },
             None => nih_debug_assert_failure!("Component handler not yet set"),
-        }
+        };
 
         #[cfg(debug_assertions)]
-        match self.inner.param_id_from_ptr(param) {
+        match inner.param_id_from_ptr(param) {
             Some(param_id) => self
                 .param_gesture_checker
                 .borrow_mut()
@@ -199,18 +220,21 @@ impl<P: Vst3Plugin> GuiContext for WrapperGuiContext<P> {
     }
 
     unsafe fn raw_end_set_parameter(&self, param: ParamPtr) {
-        match &*self.inner.component_handler.borrow() {
-            Some(handler) => match self.inner.param_ptr_to_hash.get(&param) {
+        let Some(inner) = self.inner.upgrade() else {
+            return;
+        };
+        match &*inner.component_handler.borrow() {
+            Some(handler) => match inner.param_ptr_to_hash.get(&param) {
                 Some(hash) => {
                     handler.end_edit(*hash);
                 }
                 None => nih_debug_assert_failure!("Unknown parameter: {:?}", param),
             },
             None => nih_debug_assert_failure!("Component handler not yet set"),
-        }
+        };
 
         #[cfg(debug_assertions)]
-        match self.inner.param_id_from_ptr(param) {
+        match inner.param_id_from_ptr(param) {
             Some(param_id) => self
                 .param_gesture_checker
                 .borrow_mut()
@@ -222,10 +246,31 @@ impl<P: Vst3Plugin> GuiContext for WrapperGuiContext<P> {
     }
 
     fn get_state(&self) -> PluginState {
-        self.inner.get_state_object()
+        let Some(inner) = self.inner.upgrade() else {
+            return PluginState {
+                version: String::new(),
+                params: Default::default(),
+                fields: Default::default(),
+            };
+        };
+        inner.get_state_object()
+    }
+
+    fn try_set_state(
+        &self,
+        state: PluginState,
+        timeout: std::time::Duration,
+    ) -> Option<PluginState> {
+        let Some(inner) = self.inner.upgrade() else {
+            return None;
+        };
+        inner.try_set_state_object_from_gui(state, timeout)
     }
 
     fn set_state(&self, state: PluginState) {
-        self.inner.set_state_object_from_gui(state)
+        let Some(inner) = self.inner.upgrade() else {
+            return;
+        };
+        inner.set_state_object_from_gui(state)
     }
 }
