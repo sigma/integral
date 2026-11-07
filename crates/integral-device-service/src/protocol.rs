@@ -40,6 +40,12 @@
 //! answered [`Reject::Malformed`]. A change an old peer would misread (a field
 //! changing meaning) bumps the version.
 //!
+//! `Bind`, `Claim` and the `Hello`'s `bound` were added within version 1: a
+//! service without them answers `Bind` and `Claim` with
+//! [`Reject::Malformed`] and ignores `bound`, and a client without them skips
+//! [`Message::Claimed`]. A plugin instance that gets such a refusal to its
+//! `Bind` or `Claim` treats the service as incompatible.
+//!
 //! # A session
 //!
 //! ```text
@@ -112,6 +118,15 @@ impl ParamId {
     }
 }
 
+/// A plugin instance's identity: its plugin and the target it is bound to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Bound {
+    /// The plugin.
+    pub plugin: PluginKind,
+    /// Its Binding: [`Binding::ANY`] for the Studio Set plugin.
+    pub binding: Binding,
+}
+
 /// What a client asks of the service.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -127,6 +142,10 @@ pub enum Request {
         /// As [`Request::ReceiveRaw`].
         #[serde(default)]
         raw: bool,
+        /// As [`Request::Bind`], so that a reconnect binds before anything
+        /// else. An older service ignores it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        bound: Option<Bound>,
     },
     /// Receive [`Message::Changed`] for changes in `binding` (a filter: see
     /// [`Binding::matches`]) and [`Message::Bulk`] events. Several
@@ -145,6 +164,27 @@ pub enum Request {
     ReceiveRaw {
         /// Whether to receive them.
         on: bool,
+    },
+    /// Say what this client is: the plugin it is an instance of and the
+    /// Binding it acts on, or `None` to be no instance. For a restored
+    /// Binding or one the user picked. The service refuses a Binding the
+    /// plugin cannot have ([`PluginKind::accepts`]) with [`Reject::Invalid`].
+    /// It lasts as long as the connection (the client library says it again
+    /// in its `Hello` after a reconnect).
+    Bind {
+        /// The plugin, if any, with its Binding.
+        bound: Option<Bound>,
+    },
+    /// Take the first target of `plugin` that is free, and bind this client
+    /// to it, in one step so that two instances never get the same one. A
+    /// Part is taken if any Tone plugin, or a Kit plugin bound to the whole
+    /// kit, is bound to it (of any kind); a key-bound Kit plugin takes
+    /// nothing. Among the free Parts the service prefers one that holds a tone
+    /// of the plugin's type, if it knows, else the first. The answer is
+    /// [`Message::Claimed`], to this client only.
+    Claim {
+        /// The plugin kind a new instance of which is looking for a target.
+        plugin: PluginKind,
     },
     /// Set a parameter. Goes through the service's paced queue.
     Write {
@@ -304,6 +344,14 @@ pub enum Message {
         /// The raw value the device gave.
         value: i32,
     },
+    /// The answer to [`Request::Claim`].
+    Claimed {
+        /// The plugin kind asked about.
+        plugin: PluginKind,
+        /// The target now bound to the client, or none if every one is
+        /// taken (and nothing changed).
+        binding: Option<Binding>,
+    },
     /// A SysEx message the device sent, to clients that asked
     /// ([`Request::ReceiveRaw`]).
     Sysex {
@@ -427,8 +475,38 @@ mod tests {
             Request::Hello {
                 version: PROTOCOL_VERSION,
                 subscriptions: vec![Binding::of_part(2)],
-                raw: false
+                raw: false,
+                bound: None
             }
+        );
+    }
+
+    #[test]
+    fn bind_and_claim_have_a_readable_wire_form() {
+        let bind = Request::Bind {
+            bound: Some(Bound {
+                plugin: PluginKind::PcmSynth,
+                binding: Binding::of_part(2),
+            }),
+        };
+        assert_eq!(
+            serde_json::to_string(&bind).unwrap(),
+            r#"{"type":"bind","bound":{"plugin":"pcm_synth","binding":{"part":2}}}"#
+        );
+        let claimed = Message::Claimed {
+            plugin: PluginKind::StudioSet,
+            binding: None,
+        };
+        assert_eq!(
+            serde_json::to_string(&claimed).unwrap(),
+            r#"{"type":"claimed","plugin":"studio_set","binding":null}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&Request::Claim {
+                plugin: PluginKind::SnDrum
+            })
+            .unwrap(),
+            r#"{"type":"claim","plugin":"sn_drum"}"#
         );
     }
 

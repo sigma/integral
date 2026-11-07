@@ -7,9 +7,9 @@
 
 use std::collections::BTreeMap;
 
-use integral_core::host_params::Binding;
+use integral_core::host_params::{Binding, PluginKind};
 
-use crate::protocol::{BulkKind, ClientId, Message, ParamId};
+use crate::protocol::{Bound, BulkKind, ClientId, Message, ParamId};
 use crate::session::SessionId;
 
 /// Where the service puts what it says to one client.
@@ -30,6 +30,8 @@ struct Client {
     greeted: bool,
     subscriptions: Vec<Binding>,
     raw: bool,
+    /// What it said it is bound to, if anything.
+    bound: Option<Bound>,
 }
 
 /// Every connected client.
@@ -48,6 +50,7 @@ impl Clients {
                 greeted: false,
                 subscriptions: Vec::new(),
                 raw: false,
+                bound: None,
             },
         );
     }
@@ -90,6 +93,61 @@ impl Clients {
         if let Some(client) = self.clients.get_mut(&id) {
             client.raw = on;
         }
+    }
+
+    /// Record what `id` is bound to (`None`: nothing).
+    pub(crate) fn bind(&mut self, id: ClientId, bound: Option<Bound>) {
+        if let Some(client) = self.clients.get_mut(&id) {
+            client.bound = bound;
+        }
+    }
+
+    /// Bind `id` to the first free target of `plugin`, preferring one on
+    /// a Part for which `fits` says the Part holds a tone of the plugin's
+    /// type. `None` if every target is taken.
+    pub(crate) fn claim(
+        &mut self,
+        id: ClientId,
+        plugin: PluginKind,
+        fits: impl Fn(u8) -> bool,
+    ) -> Option<Binding> {
+        let free: Vec<Binding> = plugin
+            .targets()
+            .into_iter()
+            .filter(|target| !self.is_taken(id, plugin, target))
+            .collect();
+        let pick = free
+            .iter()
+            .find(|target| target.part.is_some_and(&fits))
+            .or_else(|| free.first())
+            .copied()?;
+        self.bind(
+            id,
+            Some(Bound {
+                plugin,
+                binding: pick,
+            }),
+        );
+        Some(pick)
+    }
+
+    /// Whether a client other than `me` holds `target` for a `plugin`.
+    fn is_taken(&self, me: ClientId, plugin: PluginKind, target: &Binding) -> bool {
+        self.clients
+            .iter()
+            .filter(|(id, _)| **id != me)
+            .filter_map(|(_, c)| c.bound)
+            .any(|other| {
+                if plugin == PluginKind::StudioSet {
+                    other.plugin == PluginKind::StudioSet
+                } else {
+                    // A Part is taken by any Tone plugin, or a Kit plugin
+                    // bound to the whole kit; a key takes nothing.
+                    other.plugin != PluginKind::StudioSet
+                        && other.binding.key.is_none()
+                        && other.binding.part == target.part
+                }
+            })
     }
 
     /// Send `message` to `id`; drop the client if it cannot take it.

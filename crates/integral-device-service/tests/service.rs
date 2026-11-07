@@ -450,6 +450,7 @@ fn client(service: &mut Service, id: u64) -> (ClientId, Inbox) {
             version: PROTOCOL_VERSION,
             subscriptions: vec![Binding::ANY],
             raw: false,
+            bound: None,
         },
     );
     inbox.take();

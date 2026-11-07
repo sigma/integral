@@ -22,14 +22,17 @@ use integral_core::address::{Address, DataSize};
 use integral_core::device::{Coalesce, DeviceState, coalesce, dt1_span, selects};
 use integral_core::expansion_load::LoadAction;
 use integral_core::host_params::{
-    Anchor, Binding, EffectKind, Located, ParamHandle, ParamIndex, temporary_tone_part,
+    Anchor, Binding, EffectKind, Located, ParamHandle, ParamIndex, PluginKind, temporary_tone_part,
 };
+use integral_core::params;
 use integral_core::sysex::{self, DEFAULT_DEVICE_ID};
 
 use crate::clients::{Clients, Outbox};
 use crate::link::{DeviceLink, LinkError, LinkEvent};
 use crate::note::is_note_traffic;
-use crate::protocol::{BulkKind, ClientId, Message, PROTOCOL_VERSION, ParamId, Reject, Request};
+use crate::protocol::{
+    Bound, BulkKind, ClientId, Message, PROTOCOL_VERSION, ParamId, Reject, Request,
+};
 use crate::session::{RandomSessionIds, SessionId, SessionIdSource};
 
 /// How long the service waits for the Identity Reply that settles the device
@@ -107,6 +110,18 @@ enum IdWait {
     /// The request left; SysEx is held until the reply or this time.
     Sent { until: f64 },
 }
+
+/// How long after the service starts (its clock's origin) a [`Request::Claim`]
+/// waits for an answer: the time the clients that were bound to the service
+/// before a restart take to reconnect, so that their `Hello`'s bind lands
+/// before a new instance is given a Part one of them holds.
+#[cfg(unix)]
+const CLAIM_HOLD: Duration = crate::client::RECONNECT_WINDOW;
+#[cfg(not(unix))]
+const CLAIM_HOLD: Duration = Duration::ZERO;
+
+/// [`CLAIM_HOLD`] in the milliseconds of the service's clock.
+const CLAIM_HOLD_MS: f64 = CLAIM_HOLD.as_secs_f64() * 1000.0;
 
 /// What the service is built with.
 pub struct Config {
@@ -216,6 +231,11 @@ pub struct Service {
     /// The link went down during an Expansion load; applied when it ends.
     down_deferred: bool,
     notes: VecDeque<Vec<u8>>,
+    /// The clock at the last input or pump: the service's time origin is
+    /// its start (see [`CLAIM_HOLD_MS`]).
+    now_ms: f64,
+    /// Claims waiting for [`CLAIM_HOLD_MS`] to pass, in arrival order.
+    held_claims: Vec<(ClientId, PluginKind)>,
     listener: Box<dyn Listener>,
     clients: Clients,
     /// Client work checked and waiting for the device's queue to empty, each
@@ -259,6 +279,8 @@ impl Service {
             id_wait: IdWait::Idle,
             down_deferred: false,
             notes: VecDeque::new(),
+            now_ms: 0.0,
+            held_claims: Vec::new(),
             listener: Box::new(NoListener),
             clients: Clients::default(),
             pending: VecDeque::new(),
@@ -296,6 +318,7 @@ impl Service {
     /// Apply one input at `now_ms` (a monotonic clock). Returns `false` once
     /// the service is told to stop.
     pub fn handle(&mut self, input: Input, now_ms: f64) -> bool {
+        self.now_ms = now_ms;
         match input {
             Input::Link(LinkEvent::Up { device_id }) => {
                 if self.down_deferred {
@@ -338,7 +361,10 @@ impl Service {
             Input::Malformed { client, message } => {
                 self.reject(client, Reject::Malformed { message });
             }
-            Input::Disconnect { client } => self.clients.disconnect(client),
+            Input::Disconnect { client } => {
+                self.held_claims.retain(|(held, _)| *held != client);
+                self.clients.disconnect(client);
+            }
             Input::Run(work) => work(self),
             Input::Stop => return false,
         }
@@ -386,6 +412,46 @@ impl Service {
             .send(client, &Message::Rejected { reason, param });
     }
 
+    /// Bind `client` to the first free target of `plugin` and tell it.
+    fn answer_claim(&mut self, client: ClientId, plugin: PluginKind) {
+        let state = self.device.state();
+        let binding = self.clients.claim(client, plugin, |part| {
+            plugin.tone_type().is_some()
+                && params::tone_type_from_bank_msb(state.parts[usize::from(part)].tone_bank_msb)
+                    == plugin.tone_type()
+        });
+        self.clients
+            .send(client, &Message::Claimed { plugin, binding });
+    }
+
+    /// Answer the held claims once [`CLAIM_HOLD_MS`] has passed. Returns how
+    /// long until then, if any are still held.
+    fn pump_claims(&mut self, now_ms: f64) -> Option<Duration> {
+        self.now_ms = now_ms;
+        if self.held_claims.is_empty() {
+            return None;
+        }
+        if now_ms < CLAIM_HOLD_MS {
+            return Some(Duration::from_secs_f64((CLAIM_HOLD_MS - now_ms) / 1000.0));
+        }
+        for (client, plugin) in std::mem::take(&mut self.held_claims) {
+            self.answer_claim(client, plugin);
+        }
+        None
+    }
+
+    /// Record what `client` is bound to, unless the plugin cannot have that
+    /// Binding, which is refused.
+    fn bind_client(&mut self, client: ClientId, bound: Option<Bound>) {
+        match bound {
+            Some(b) if !b.plugin.accepts(&b.binding) => {
+                let message = format!("{:?} cannot be bound to {:?}", b.plugin, b.binding);
+                self.reject_for(client, Reject::Invalid { message }, None);
+            }
+            _ => self.clients.bind(client, bound),
+        }
+    }
+
     /// Refuse a client's request and drop the client: what it sent cannot be
     /// recovered from.
     fn reject_and_drop(&mut self, client: ClientId, reason: Reject) {
@@ -404,7 +470,10 @@ impl Service {
                 self.reject_and_drop(client, reason);
             }
             Request::Hello {
-                subscriptions, raw, ..
+                subscriptions,
+                raw,
+                bound,
+                ..
             } => {
                 self.clients.greet(client);
                 for binding in subscriptions {
@@ -417,6 +486,7 @@ impl Service {
                     session: self.session,
                 };
                 self.clients.send(client, &welcome);
+                self.bind_client(client, bound);
             }
             _ if !self.clients.is_greeted(client) => {
                 self.reject_and_drop(client, Reject::NotGreeted);
@@ -424,6 +494,14 @@ impl Service {
             Request::Subscribe { binding } => self.clients.subscribe(client, binding),
             Request::Unsubscribe { binding } => self.clients.unsubscribe(client, &binding),
             Request::ReceiveRaw { on } => self.clients.set_raw(client, on),
+            Request::Bind { bound } => self.bind_client(client, bound),
+            Request::Claim { plugin } => {
+                if self.now_ms < CLAIM_HOLD_MS {
+                    self.held_claims.push((client, plugin));
+                } else {
+                    self.answer_claim(client, plugin);
+                }
+            }
             work => {
                 let param = match &work {
                     Request::Write { param, .. } | Request::Read { param, .. } => {
@@ -639,7 +717,9 @@ impl Service {
             Request::Hello { .. }
             | Request::Subscribe { .. }
             | Request::Unsubscribe { .. }
-            | Request::ReceiveRaw { .. } => {}
+            | Request::ReceiveRaw { .. }
+            | Request::Bind { .. }
+            | Request::Claim { .. } => {}
         }
     }
 
@@ -919,6 +999,16 @@ impl Service {
     /// still go but no SysEx does, for up to a second: then the ID in use
     /// stands.
     pub fn pump(&mut self, now_ms: f64) -> Option<Duration> {
+        let claims = self.pump_claims(now_ms);
+        let device = self.pump_device(now_ms);
+        match (device, claims) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        }
+    }
+
+    /// The device side of [`pump`](Self::pump).
+    fn pump_device(&mut self, now_ms: f64) -> Option<Duration> {
         self.session?;
         self.expire_reads(now_ms);
         self.feed_one(now_ms);

@@ -405,3 +405,56 @@ fn text_no_value_has_does_not_parse() {
     assert_eq!(pct.parse("50", 0, 100), Some(50));
     assert_eq!(pct.parse("50hz", 0, 100), None);
 }
+
+#[test]
+fn a_new_instance_has_a_target_per_part_except_the_studio_set_plugin() {
+    use integral_core::device_spec::INTEGRA7;
+    use integral_core::host_params::Binding;
+
+    assert_eq!(PluginKind::StudioSet.targets(), [Binding::ANY]);
+    for kind in PluginKind::ALL.into_iter().skip(1) {
+        let targets = kind.targets();
+        assert_eq!(targets.len(), usize::from(INTEGRA7.part_count));
+        assert_eq!(targets[0], Binding::of_part(0));
+        assert!(targets.iter().all(|t| t.key.is_none()));
+    }
+}
+
+#[test]
+fn a_plugin_accepts_the_bindings_it_can_have() {
+    use integral_core::host_params::Binding;
+
+    let part = Binding::of_part(3);
+    assert!(PluginKind::StudioSet.accepts(&Binding::ANY));
+    assert!(!PluginKind::StudioSet.accepts(&part));
+    for tone in [
+        PluginKind::SnSynth,
+        PluginKind::SnAcoustic,
+        PluginKind::PcmSynth,
+    ] {
+        assert!(tone.accepts(&part) && tone.accepts(&Binding::of_part(15)));
+        assert!(!tone.accepts(&Binding::ANY));
+        assert!(!tone.accepts(&Binding::of_part(16)));
+        assert!(
+            !tone.accepts(&part.with_key(40)),
+            "a Tone plugin has no key"
+        );
+    }
+    // The key ranges of the device spec: SN Drum 27-88, PCM Drum 21-108.
+    assert!(PluginKind::SnDrum.accepts(&part) && PluginKind::PcmDrum.accepts(&part));
+    assert!(!PluginKind::SnDrum.accepts(&Binding::ANY));
+    assert!(PluginKind::SnDrum.accepts(&part.with_key(27)));
+    assert!(PluginKind::SnDrum.accepts(&part.with_key(88)));
+    assert!(!PluginKind::SnDrum.accepts(&part.with_key(26)));
+    assert!(!PluginKind::SnDrum.accepts(&part.with_key(89)));
+    assert!(PluginKind::PcmDrum.accepts(&part.with_key(21)));
+    assert!(PluginKind::PcmDrum.accepts(&part.with_key(108)));
+    assert!(!PluginKind::PcmDrum.accepts(&part.with_key(20)));
+    assert!(!PluginKind::PcmDrum.accepts(&part.with_key(109)));
+}
+
+#[test]
+fn plugin_names_are_unique() {
+    let names: HashSet<_> = PluginKind::ALL.iter().map(|k| k.name()).collect();
+    assert_eq!(names.len(), PluginKind::ALL.len());
+}

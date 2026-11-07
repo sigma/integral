@@ -123,6 +123,18 @@ pub enum PluginKind {
 }
 
 impl PluginKind {
+    /// The name the plugin has in a host's plugin list.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::StudioSet => "Integral Studio Set",
+            Self::SnSynth => "Integral SN Synth",
+            Self::SnAcoustic => "Integral SN Acoustic",
+            Self::PcmSynth => "Integral PCM Synth",
+            Self::SnDrum => "Integral SN Drum",
+            Self::PcmDrum => "Integral PCM Drum",
+        }
+    }
+
     /// Every plugin of the family.
     pub const ALL: [Self; 6] = [
         Self::StudioSet,
@@ -144,6 +156,35 @@ impl PluginKind {
             Self::SnDrum => Some(ToneType::SnDrum),
             Self::PcmDrum => Some(ToneType::PcmDrum),
         }
+    }
+
+    /// The targets a new instance can take, in the order it takes them: the
+    /// Studio Set plugin's one (no Part), else each Part's kit or tone in
+    /// turn. A key of a Kit plugin is chosen by hand, so none is listed.
+    pub fn targets(self) -> Vec<Binding> {
+        match self {
+            Self::StudioSet => vec![Binding::ANY],
+            _ => (0..INTEGRA7.part_count).map(Binding::of_part).collect(),
+        }
+    }
+
+    /// Whether `binding` is a target a plugin of this kind can have: the
+    /// Studio Set plugin has only [`Binding::ANY`] (its IDs hold their Part),
+    /// a Tone plugin a Part, and a Kit plugin a Part and, for one key, a key
+    /// in the kit type's [`KeyRange`](crate::device_spec::KeyRange).
+    pub fn accepts(self, binding: &Binding) -> bool {
+        let Some(tone_type) = self.tone_type() else {
+            return *binding == Binding::ANY;
+        };
+        let part_ok = binding.part.is_some_and(|p| p < INTEGRA7.part_count);
+        part_ok
+            && match (binding.key, tone_type) {
+                (None, _) => true,
+                (Some(key), ToneType::SnDrum | ToneType::PcmDrum) => {
+                    key_range(tone_type).check(key).is_ok()
+                }
+                (Some(_), _) => false,
+            }
     }
 
     /// The plugin's host parameter list.
