@@ -18,7 +18,7 @@ use integral_core::host_params::{Binding, HostParam, PluginKind};
 use integral_core::sysex;
 use integral_device_service::protocol::{ClientId, ParamId, Request};
 use integral_device_service::{Client, ClientEvent, Events};
-use integral_vst::family::host::{HostEdits, HostTask, Replace};
+use integral_vst::family::host::{self, HostEdits, HostTask, Replace};
 use integral_vst::family::link::Connection;
 use integral_vst::family::out::Outbound;
 use integral_vst::family::{Instance, Status};
@@ -718,4 +718,197 @@ fn nothing_is_posted_while_the_plugin_is_deactivated_and_gestures_resume_after()
     wait_for("the end", || {
         rig.recorder.edits().last() == Some(&Edit::End(host.id.clone()))
     });
+}
+
+#[test]
+fn an_editor_gesture_writes_nothing_to_the_device_beyond_what_the_page_wrote() {
+    // The page writes the device itself (its raw DT1 is not in this rig); the
+    // host's view of the drag must not be written back as a typed write.
+    let mut rig = Rig::new();
+    let (i, host) = rig.param(CUTOFF);
+    let bank = &rig.instance.bank;
+
+    assert!(host::editor_begin(bank, i));
+    for value in [host.max - 2, host.max - 1, host.max] {
+        host::editor_perform(bank, i, value);
+        rig.outbound.poll(&rig.instance);
+    }
+    host::editor_end(bank, i, Some(host.max));
+    rig.outbound.poll(&rig.instance);
+    std::thread::sleep(Duration::from_millis(150));
+
+    assert_eq!(rig.dt1s(), [], "no typed write: {:?}", rig.dt1s());
+    assert_eq!(
+        rig.recorder.edits(),
+        [
+            Edit::Begin(host.id.clone()),
+            Edit::Perform(host.id.clone(), host.max - 2),
+            Edit::Perform(host.id.clone(), host.max - 1),
+            Edit::Perform(host.id.clone(), host.max),
+            Edit::End(host.id.clone()),
+        ]
+    );
+
+    // The host's own edit afterwards is still written.
+    rig.host_sets(i, host.max - 5);
+    wait_for("the host's own write", || !rig.dt1_at(&host).is_empty());
+}
+
+#[test]
+fn a_late_echo_of_a_drags_last_value_is_not_written_either() {
+    // The host passes a gesture's value back in a later audio callback: the
+    // editor's end comes first.
+    let mut rig = Rig::new();
+    let (i, host) = rig.param(CUTOFF);
+    let bank = &rig.instance.bank;
+
+    assert!(host::editor_begin(bank, i));
+    bank.expect(i, host.max);
+    // The host has not applied the value yet when the drag ends.
+    host::editor_end(bank, i, Some(host.max));
+    bank.host_changed(i, host.max);
+    rig.outbound.poll(&rig.instance);
+    std::thread::sleep(Duration::from_millis(150));
+    assert_eq!(rig.dt1s(), []);
+}
+
+/// Run the host tasks the worker has posted until `done` says enough.
+fn run_tasks_until(rig: &Rig, what: &str, done: impl Fn(&[HostTask]) -> bool) -> Vec<HostTask> {
+    let mut ran = Vec::new();
+    let deadline = Instant::now() + WAIT;
+    while !done(&ran) {
+        ran.extend(rig.run_tasks());
+        assert!(Instant::now() < deadline, "{what}; tasks so far: {ran:?}");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    ran
+}
+
+#[test]
+fn a_drag_on_a_parameter_the_follower_has_open_ends_the_followers_gesture_first() {
+    let rig = Rig::with(Setup { ring: true, ..OPEN });
+    let (i, host) = rig.param(CUTOFF);
+    let (other, _events, _id) = rig.other_client();
+    other.write(param_id(&host), BINDING, host.max - 1);
+    run_tasks_until(&rig, "the follower's gesture to begin", |ran| {
+        ran.len() >= 2
+    });
+    let bank = &rig.instance.bank;
+
+    // The user drags the same Control.
+    assert!(host::editor_begin(bank, i));
+    host::editor_perform(bank, i, host.max);
+    // The follower's later tasks for the parameter wait for nothing: its
+    // perform is left out, and so is its end (the drag's is the one).
+    other.write(param_id(&host), BINDING, host.max - 3);
+    run_tasks_until(&rig, "the follower's end", |ran| {
+        ran.contains(&HostTask::End(i as u32))
+    });
+    host::editor_end(bank, i, Some(host.max));
+
+    let id = || host.id.clone();
+    assert_eq!(
+        rig.recorder.edits(),
+        [
+            Edit::Begin(id()),
+            Edit::Perform(id(), host.max - 1),
+            // The drag takes the parameter over.
+            Edit::End(id()),
+            Edit::Begin(id()),
+            Edit::Perform(id(), host.max),
+            Edit::End(id()),
+        ]
+    );
+}
+
+#[test]
+fn the_follower_does_not_begin_a_second_gesture_on_a_parameter_being_dragged() {
+    let rig = Rig::with(Setup { ring: true, ..OPEN });
+    let (i, host) = rig.param(CUTOFF);
+    let bank = &rig.instance.bank;
+    assert!(host::editor_begin(bank, i));
+
+    let (other, _events, _id) = rig.other_client();
+    other.write(param_id(&host), BINDING, host.max - 1);
+    run_tasks_until(&rig, "the follower's tasks", |ran| {
+        ran.contains(&HostTask::End(i as u32))
+    });
+    // Still the drag's: nothing of the follower's reached the host.
+    assert_eq!(rig.recorder.edits(), [Edit::Begin(host.id.clone())]);
+    host::editor_end(bank, i, None);
+    assert_eq!(
+        rig.recorder.edits(),
+        [Edit::Begin(host.id.clone()), Edit::End(host.id.clone())]
+    );
+}
+
+/// A [`GuiContext`](nih_plug::prelude::GuiContext) that does nothing: an
+/// editor's context, for the instance to adopt.
+struct EditorContext;
+
+impl nih_plug::prelude::GuiContext for EditorContext {
+    fn plugin_api(&self) -> nih_plug::prelude::PluginApi {
+        nih_plug::prelude::PluginApi::Standalone
+    }
+    fn request_resize(&self) -> bool {
+        false
+    }
+    unsafe fn raw_begin_set_parameter(&self, _: nih_plug::prelude::ParamPtr) {}
+    unsafe fn raw_set_parameter_normalized(&self, _: nih_plug::prelude::ParamPtr, _: f32) {}
+    unsafe fn raw_end_set_parameter(&self, _: nih_plug::prelude::ParamPtr) {}
+    fn get_state(&self) -> nih_plug::wrapper::state::PluginState {
+        unimplemented!("not read")
+    }
+    fn set_state(&self, _: nih_plug::wrapper::state::PluginState) {
+        unimplemented!("not written")
+    }
+}
+
+#[test]
+fn an_editor_opened_before_activation_gives_the_instance_its_way_to_the_host() {
+    let instance = Instance::new(PluginKind::PcmSynth);
+    assert!(instance.bank.edits().is_none());
+    assert!(host::editor_context(
+        &instance.bank,
+        Arc::new(EditorContext)
+    ));
+    assert!(instance.bank.edits().is_some());
+    // What the instance has already is kept: the second is not taken.
+    assert!(!host::editor_context(
+        &instance.bank,
+        Arc::new(EditorContext)
+    ));
+    // The editor withdraws its own when it closes.
+    instance.bank.withdraw_editor_edits();
+    assert!(instance.bank.edits().is_none());
+
+    // `initialize()` replaces an editor's with the long-lived one, which the
+    // editor's closing then leaves alone.
+    assert!(host::editor_context(
+        &instance.bank,
+        Arc::new(EditorContext)
+    ));
+    assert!(instance.bank.set_edits_once(Arc::new(EditorContext2)));
+    instance.bank.withdraw_editor_edits();
+    assert!(instance.bank.edits().is_some());
+    instance.bank.set_edits(None);
+
+    // A context from `initialize()` is not displaced by an editor's.
+    instance.bank.set_edits(Some(Arc::new(EditorContext2)));
+    assert!(!host::editor_context(
+        &instance.bank,
+        Arc::new(EditorContext)
+    ));
+}
+
+/// Stands in for the long-lived context.
+struct EditorContext2;
+
+impl HostEdits for EditorContext2 {
+    fn begin(&self, _: &IntParam) {}
+    fn perform(&self, _: &IntParam, _: i32) {}
+    fn end(&self, _: &IntParam) {}
+    fn replace(&self, _: &[Replace<'_>]) -> bool {
+        true
+    }
 }

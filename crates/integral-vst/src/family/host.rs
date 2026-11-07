@@ -51,6 +51,7 @@ use integral_core::host_params::HostParam;
 use nih_plug::prelude::*;
 use nih_plug::wrapper::state::ParamValue;
 
+use super::bank::{Gesturer, ParamBank};
 use super::instance::Instance;
 
 /// How long a bulk replace waits for the audio thread to pick the state up
@@ -104,22 +105,30 @@ pub enum HostTask {
 pub fn run(instance: &Instance, task: HostTask) {
     let bank = &instance.bank;
     let edits = bank.edits();
+    // The host sees one gesture per parameter. While the editor has it (a
+    // Control drag), the follower's begin, performs and end for the same
+    // parameter are left out: the drag is the edit, and the device's changes
+    // reach the follower from the drag's own writes.
     match task {
         HostTask::Begin(i) => {
-            if let Some(edits) = &edits {
+            if let (Some(edits), None) = (&edits, bank.gesturer(i as usize)) {
                 edits.begin(&bank.list()[i as usize].1);
+                bank.set_gesturer(i as usize, Some(Gesturer::Follower));
             }
         }
         HostTask::Perform(i, value) => {
-            if let Some(edits) = &edits {
+            if let (Some(edits), Some(Gesturer::Follower)) = (&edits, bank.gesturer(i as usize)) {
                 edits.perform(&bank.list()[i as usize].1, value);
             }
         }
         HostTask::End(i) => {
-            if let Some(edits) = &edits {
+            if let (Some(edits), Some(Gesturer::Follower)) = (&edits, bank.gesturer(i as usize)) {
                 edits.end(&bank.list()[i as usize].1);
+                bank.set_gesturer(i as usize, None);
             }
-            bank.settle(i as usize);
+            if bank.gesturer(i as usize) != Some(Gesturer::Editor) {
+                bank.settle(i as usize);
+            }
         }
         HostTask::Replace => {
             let changes = bank.take_replace();
@@ -155,6 +164,61 @@ pub fn run(instance: &Instance, task: HostTask) {
                 }
             }
         }
+    }
+}
+
+/// The editor's `context` becomes the way to the host when the instance has
+/// none yet (the host opened the editor before activating the plugin).
+/// Returns whether it was taken. The editor withdraws it when its window
+/// closes ([`ParamBank::withdraw_editor_edits`]), since this context, unlike
+/// the one kept from `initialize()`, is not held weakly; `initialize()`
+/// replaces it. Main thread.
+pub fn editor_context(bank: &ParamBank, context: Arc<dyn GuiContext>) -> bool {
+    bank.set_editor_edits(Arc::new(GuiEdits::new(context)))
+}
+
+/// The editor begins a gesture on parameter `i`: a Control drag. If the
+/// follower has the host's gesture on it (another client's edit), that one
+/// ends first, so the host sees one gesture per parameter. Returns false if
+/// the instance has no way to tell the host ([`ParamBank::edits`]).
+/// Main thread.
+pub fn editor_begin(bank: &ParamBank, i: usize) -> bool {
+    let Some(edits) = bank.edits() else {
+        return false;
+    };
+    let param = &bank.list()[i].1;
+    match bank.gesturer(i) {
+        Some(Gesturer::Editor) => return true,
+        Some(Gesturer::Follower) => edits.end(param),
+        None => {}
+    }
+    edits.begin(param);
+    bank.set_gesturer(i, Some(Gesturer::Editor));
+    true
+}
+
+/// The editor sets parameter `i` to `value` within its gesture. The page
+/// writes the device itself, so the value is noted as one the device's side
+/// gave ([`ParamBank::expect`]): the audio thread does not take it for the
+/// host's edit and write it again. Main thread.
+pub fn editor_perform(bank: &ParamBank, i: usize, value: i32) {
+    if let (Some(edits), Some(Gesturer::Editor)) = (bank.edits(), bank.gesturer(i)) {
+        bank.expect(i, value);
+        edits.perform(&bank.list()[i].1, value);
+    }
+}
+
+/// The editor ends its gesture on parameter `i`, which last took `last`. If
+/// the host already holds that value it is settled; else the host's echo is
+/// still to come and the bank recognises it. Main thread.
+pub fn editor_end(bank: &ParamBank, i: usize, last: Option<i32>) {
+    let (Some(edits), Some(Gesturer::Editor)) = (bank.edits(), bank.gesturer(i)) else {
+        return;
+    };
+    edits.end(&bank.list()[i].1);
+    bank.set_gesturer(i, None);
+    if last.is_none_or(|last| bank.value(i) == last) {
+        bank.settle(i);
     }
 }
 

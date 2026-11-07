@@ -27,6 +27,7 @@ pub mod instance;
 pub mod kind;
 #[cfg(unix)]
 pub mod link;
+pub mod notice;
 #[cfg(unix)]
 pub mod out;
 pub mod params;
@@ -40,6 +41,7 @@ use nih_plug::prelude::*;
 pub use host::HostTask;
 pub use instance::Instance;
 pub use kind::{Kind, PcmDrum, PcmSynth, SnAcoustic, SnDrum, SnSynth, StudioSet};
+pub use notice::Notice;
 pub use status::Status;
 
 #[cfg(unix)]
@@ -100,7 +102,7 @@ impl<K: Kind> Family<K> {
         Some(Box::new(crate::webview::editor::WebviewEditor::new(
             self.params.editor_size.clone(),
             link,
-            Arc::clone(&self.params.instance),
+            Arc::clone(&self.params),
         )))
     }
 

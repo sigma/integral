@@ -16,6 +16,8 @@ use std::time::{Duration, Instant};
 use nih_plug::prelude::{Editor, GuiContext, ParentWindowHandle, nih_error};
 
 use crate::family::Instance;
+use crate::family::host;
+use crate::family::params::FamilyParams;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use wry::dpi::{LogicalPosition, LogicalSize};
 use wry::http::{Response, header};
@@ -41,24 +43,21 @@ pub(crate) struct WebviewEditor {
     /// The window size in logical px, persisted with the plugin's state.
     size: Arc<RwLock<(u32, u32)>>,
     link: LinkFactory,
-    /// The plugin instance the window belongs to: it settles when the window
-    /// opens, which the host does after restoring the instance's state.
-    instance: Arc<Instance>,
+    /// The plugin the window belongs to. Its instance settles when the
+    /// window opens, which the host does after restoring the instance's
+    /// state; its parameters take the page's host gestures.
+    params: Arc<FamilyParams>,
 }
 
 impl WebviewEditor {
     /// An editor of the persisted `size` whose pages reach the device
-    /// through links made by `link`, for `instance`.
+    /// through links made by `link`, for the plugin with `params`.
     pub(crate) fn new(
         size: Arc<RwLock<(u32, u32)>>,
         link: LinkFactory,
-        instance: Arc<Instance>,
+        params: Arc<FamilyParams>,
     ) -> Self {
-        Self {
-            size,
-            link,
-            instance,
-        }
+        Self { size, link, params }
     }
 }
 
@@ -68,7 +67,11 @@ impl Editor for WebviewEditor {
         parent: ParentWindowHandle,
         context: Arc<dyn GuiContext>,
     ) -> Box<dyn Any + Send> {
-        self.instance.settle();
+        self.params.instance.settle();
+        // A host that opens the editor before it activates the plugin has
+        // given the instance no context yet: the editor's is the way to it
+        // while the window is open.
+        host::editor_context(&self.params.instance.bank, Arc::clone(&context));
         let (width, height) = *self.size.read().expect("size lock");
         let options = baseview::WindowOpenOptions {
             title: "Integral".into(),
@@ -78,14 +81,19 @@ impl Editor for WebviewEditor {
         };
         let size = self.size.clone();
         let link = self.link.clone();
+        let params = Arc::clone(&self.params);
         let window = baseview::Window::open_parented(&parent, options, move |_| View {
             size,
             context,
             link,
+            params,
             page: Page::Pending,
             next_poll: Instant::now(),
         });
-        Box::new(EditorHandle(window))
+        Box::new(EditorHandle {
+            window,
+            instance: Arc::clone(&self.params.instance),
+        })
     }
 
     fn size(&self) -> (u32, u32) {
@@ -106,7 +114,12 @@ impl Editor for WebviewEditor {
 
 /// The open editor window; dropping it closes the window, the page and its
 /// link.
-struct EditorHandle(baseview::WindowHandle);
+struct EditorHandle {
+    window: baseview::WindowHandle,
+    /// The instance whose host context may be this editor's, to withdraw when
+    /// the window closes.
+    instance: Arc<Instance>,
+}
 
 // SAFETY: hosts create and destroy editors on the GUI thread, so the window
 // handle is only touched there; nih-plug only requires `Send` to store it.
@@ -114,7 +127,8 @@ unsafe impl Send for EditorHandle {}
 
 impl Drop for EditorHandle {
     fn drop(&mut self) {
-        self.0.close();
+        self.window.close();
+        self.instance.bank.withdraw_editor_edits();
     }
 }
 
@@ -136,6 +150,7 @@ struct View {
     size: Arc<RwLock<(u32, u32)>>,
     context: Arc<dyn GuiContext>,
     link: LinkFactory,
+    params: Arc<FamilyParams>,
     page: Page,
     next_poll: Instant,
 }
@@ -185,7 +200,10 @@ impl View {
             nih_error!("baseview gave no NSView");
             return Page::Failed;
         };
-        let bridge = Rc::new(RefCell::new(Bridge::new((self.link)())));
+        let bridge = Rc::new(RefCell::new(Bridge::new(
+            (self.link)(),
+            Arc::clone(&self.params.instance),
+        )));
         let ipc_bridge = bridge.clone();
         let (width, height) = *self.size.read().expect("size lock");
         let built = WebViewBuilder::new()
@@ -245,6 +263,7 @@ impl baseview::WindowHandler for View {
             bridge.borrow_mut().refresh_ports();
         }
         // Release the bridge before calling into the webview.
+        bridge.borrow_mut().refresh_instance();
         let outgoing = bridge.borrow().take_outgoing();
         if let Some(script) = ipc::delivery_script(&outgoing)
             && let Err(e) = webview.evaluate_script(&script)

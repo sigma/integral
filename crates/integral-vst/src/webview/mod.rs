@@ -5,7 +5,9 @@
 //! - [`link`]: the device link behind the plugin transport.
 //! - `service_link` (unix): that link as a raw SysEx client of the Device
 //!   service of ADR 0006.
-//! - [`bridge`]: page messages to link calls, and back.
+//! - [`gestures`]: the page's host gestures, forwarded to the host.
+//! - [`bridge`]: page messages to link calls, the instance's Binding and
+//!   host gestures, and back.
 //! - `editor` (macOS): the nih-plug editor, a wry webview in a baseview
 //!   window.
 
@@ -13,6 +15,7 @@ pub(crate) mod assets;
 pub(crate) mod bridge;
 #[cfg(target_os = "macos")]
 pub(crate) mod editor;
+pub(crate) mod gestures;
 pub(crate) mod ipc;
 pub(crate) mod link;
 #[cfg(unix)]

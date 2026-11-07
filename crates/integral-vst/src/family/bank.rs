@@ -33,7 +33,7 @@
 //! worker and the main thread share the bank without locks.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicI32, AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicI64, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
 use integral_core::address::Address;
@@ -92,6 +92,45 @@ pub struct ParamBank {
     /// What changes the host's view from the device's side, if anything can
     /// (see [`host`](super::host)).
     edits: RwLock<Option<Arc<dyn HostEdits>>>,
+    /// The edits are an editor's context, taken while the instance had none
+    /// ([`set_editor_edits`](Self::set_editor_edits)).
+    editor_edits: AtomicBool,
+    /// Who holds the host's gesture on each parameter (see [`Gesturer`]).
+    /// Read and written on the host's main thread, where gestures are made.
+    gesture: Vec<AtomicU8>,
+}
+
+/// Who has a gesture open on a host parameter. The host sees one gesture per
+/// parameter: begin, performs, end. The device's side (another client's
+/// edit, followed by the instance) and the editor (this instance's own
+/// Control drag) can both want one, so whoever has it is kept here, and the
+/// other waits or gives way ([`host`](super::host)).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Gesturer {
+    /// The follower, giving the host the device's changes.
+    Follower,
+    /// The editor, relaying a Control drag.
+    Editor,
+}
+
+impl Gesturer {
+    const NONE: u8 = 0;
+
+    fn code(gesturer: Option<Self>) -> u8 {
+        match gesturer {
+            None => Self::NONE,
+            Some(Self::Follower) => 1,
+            Some(Self::Editor) => 2,
+        }
+    }
+
+    fn decode(code: u8) -> Option<Self> {
+        match code {
+            1 => Some(Self::Follower),
+            2 => Some(Self::Editor),
+            _ => None,
+        }
+    }
 }
 
 impl std::fmt::Debug for ParamBank {
@@ -181,6 +220,8 @@ impl ParamBank {
             replace: Mutex::new(Vec::new()),
             retry: AtomicBool::new(false),
             edits: RwLock::new(None),
+            editor_edits: AtomicBool::new(false),
+            gesture: (0..n).map(|_| AtomicU8::new(Gesturer::NONE)).collect(),
         }
     }
 
@@ -447,6 +488,16 @@ impl ParamBank {
         self.retry.swap(false, Ordering::AcqRel)
     }
 
+    /// Who has the host's gesture on parameter `i`.
+    pub fn gesturer(&self, i: usize) -> Option<Gesturer> {
+        Gesturer::decode(self.gesture[i].load(Ordering::Acquire))
+    }
+
+    /// Note who has the host's gesture on parameter `i`.
+    pub fn set_gesturer(&self, i: usize, gesturer: Option<Gesturer>) {
+        self.gesture[i].store(Gesturer::code(gesturer), Ordering::Release);
+    }
+
     /// Take the queued replacements.
     pub fn take_replace(&self) -> Vec<(usize, i32)> {
         std::mem::take(&mut *self.replace.lock().expect("replace lock"))
@@ -460,18 +511,46 @@ impl ParamBank {
 
     /// Set (or, with `None`, withdraw) what changes the host's view.
     pub fn set_edits(&self, edits: Option<Arc<dyn HostEdits>>) {
-        *self.edits.write().expect("edits lock") = edits;
+        let mut slot = self.edits.write().expect("edits lock");
+        *slot = edits;
+        self.editor_edits.store(false, Ordering::Release);
     }
 
-    /// Set what changes the host's view unless something does already.
-    /// Returns whether `edits` was taken.
+    /// Set what changes the host's view unless something does already; an
+    /// editor's context ([`set_editor_edits`](Self::set_editor_edits)) gives
+    /// way. Returns whether `edits` was taken.
     pub fn set_edits_once(&self, edits: Arc<dyn HostEdits>) -> bool {
+        let mut slot = self.edits.write().expect("edits lock");
+        if slot.is_some() && !self.editor_edits.load(Ordering::Acquire) {
+            return false;
+        }
+        *slot = Some(edits);
+        self.editor_edits.store(false, Ordering::Release);
+        true
+    }
+
+    /// An editor's context, for the host's view while the instance has none
+    /// (the host opened the editor before activating the plugin). Returns
+    /// whether it was taken. [`set_edits_once`](Self::set_edits_once) replaces
+    /// it later; [`withdraw_editor_edits`](Self::withdraw_editor_edits) takes
+    /// it away.
+    pub fn set_editor_edits(&self, edits: Arc<dyn HostEdits>) -> bool {
         let mut slot = self.edits.write().expect("edits lock");
         if slot.is_some() {
             return false;
         }
         *slot = Some(edits);
+        self.editor_edits.store(true, Ordering::Release);
         true
+    }
+
+    /// The editor closes: withdraw its context, if that is what the instance
+    /// has.
+    pub fn withdraw_editor_edits(&self) {
+        let mut slot = self.edits.write().expect("edits lock");
+        if self.editor_edits.swap(false, Ordering::AcqRel) {
+            *slot = None;
+        }
     }
 }
 

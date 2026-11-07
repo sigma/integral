@@ -8,11 +8,21 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use integral_core::host_params::{Binding, PluginKind};
 use integral_device_service::protocol::{Bound, ClientId};
+use thiserror::Error;
 
 use super::bank::ParamBank;
 use super::binding::BindingCell;
 use super::host::{self, HostTask};
+use super::notice::NoticeCell;
 use super::status::StatusCell;
+
+/// A Binding the plugin cannot have.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[error("{} cannot be bound to part {:?}, key {:?}", kind.name(), binding.part, binding.key)]
+pub struct BindRefused {
+    kind: PluginKind,
+    binding: Binding,
+}
 
 /// The Binding and status of an instance, and whether it has settled.
 #[derive(Debug)]
@@ -31,6 +41,8 @@ pub struct Instance {
     /// restore it causes is no restore from the host (see
     /// [`replacing`](Self::replacing)).
     replacing: AtomicBool,
+    /// What else the editor should show.
+    pub notices: NoticeCell,
     /// The host has finished restoring this instance's state: set by the
     /// first `process()` or by the editor opening, never before.
     settled: AtomicBool,
@@ -60,6 +72,7 @@ impl Instance {
             bank: ParamBank::new(kind),
             armed: AtomicBool::new(false),
             replacing: AtomicBool::new(false),
+            notices: NoticeCell::default(),
             settled: AtomicBool::new(false),
             restored: AtomicBool::new(false),
             socket: OnceLock::new(),
@@ -108,6 +121,24 @@ impl Instance {
     /// The plugin kind.
     pub fn kind(&self) -> PluginKind {
         self.kind
+    }
+
+    /// Bind the instance to `binding`, the editor's choice. The service is
+    /// told within a worker tick, and the Binding is saved with the project.
+    ///
+    /// # Errors
+    ///
+    /// [`BindRefused`] if the plugin cannot have `binding`
+    /// ([`PluginKind::accepts`]); the Binding is left as it was.
+    pub fn bind(&self, binding: Binding) -> Result<(), BindRefused> {
+        if !self.kind.accepts(&binding) {
+            return Err(BindRefused {
+                kind: self.kind,
+                binding,
+            });
+        }
+        self.binding.set(Some(binding));
+        Ok(())
     }
 
     /// What the service should know this instance as: its plugin and, once
@@ -244,5 +275,44 @@ impl Poster {
 impl std::fmt::Debug for Poster {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Poster")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn binding_takes_a_target_the_kind_accepts() {
+        let instance = Instance::new(PluginKind::PcmDrum);
+        assert_eq!(instance.binding.get(), None);
+        instance.bind(Binding::of_part(3)).unwrap();
+        assert_eq!(instance.binding.get(), Some(Binding::of_part(3)));
+        instance.bind(Binding::of_part(4).with_key(36)).unwrap();
+        assert_eq!(
+            instance.binding.get(),
+            Some(Binding::of_part(4).with_key(36))
+        );
+        assert_eq!(
+            instance.bound().map(|b| b.binding),
+            Some(Binding::of_part(4).with_key(36))
+        );
+    }
+
+    #[test]
+    fn binding_refuses_what_the_kind_cannot_have_and_keeps_the_old() {
+        let instance = Instance::new(PluginKind::SnSynth);
+        instance.bind(Binding::of_part(1)).unwrap();
+        for refused in [
+            Binding::ANY,
+            Binding::of_part(16),
+            Binding::of_part(2).with_key(36),
+        ] {
+            assert!(instance.bind(refused).is_err(), "{refused:?}");
+            assert_eq!(instance.binding.get(), Some(Binding::of_part(1)));
+        }
+        let studio_set = Instance::new(PluginKind::StudioSet);
+        assert!(studio_set.bind(Binding::of_part(0)).is_err());
+        assert!(studio_set.bind(Binding::ANY).is_ok());
     }
 }

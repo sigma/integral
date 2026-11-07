@@ -2,9 +2,12 @@
 
 use std::sync::atomic::{AtomicU8, Ordering};
 
+use serde::Serialize;
+
 /// What an instance can say about its connection to the Device service and,
 /// through it, the device.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[repr(u8)]
 pub enum Status {
     /// The service is not running (or not reachable); the instance keeps

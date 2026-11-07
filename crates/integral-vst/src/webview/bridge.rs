@@ -3,12 +3,21 @@
 //!
 //! The bridge does not throttle: the page paces its sends with core's
 //! `DeviceState`, as on the web (ADR 0004).
+//!
+//! It also carries the page's half of the instance: the page binds the
+//! instance (`bind`), hears what it is and how it is doing (`instance`), and
+//! edits host parameters in gestures (`beginEdit`, `performEdit`, `endEdit`).
+//! A gesture the page leaves open when it reloads or goes away is ended, so
+//! the host never waits on one for ever.
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
-use super::ipc::{self, PageMessage, PluginMessage};
+use super::gestures::{self, Gesture};
+use super::ipc::{self, NoticeView, PageMessage, PluginMessage};
 use super::link::{DeviceLink, Incoming, LinkError};
+use crate::family::Instance;
+use integral_core::host_params::Binding;
 
 /// Messages waiting for the page, beyond which the oldest are dropped: a
 /// page that stops draining (a hidden window) must not grow memory forever.
@@ -61,11 +70,21 @@ pub(crate) struct Bridge {
     told: Option<String>,
     /// The window size the page asked for and the editor hasn't applied.
     resize: Option<(u32, u32)>,
+    /// The instance the page is the editor of.
+    instance: Arc<Instance>,
+    /// The gestures the page has begun and not ended, in order.
+    editing: Vec<Gesture>,
+    /// The IDs whose begin was refused, until the page ends them: the rest of
+    /// that gesture is dropped without a word, the refusal having been said.
+    refused: Vec<String>,
+    /// The `instance` message the page last heard.
+    reported: Option<PluginMessage>,
 }
 
 impl Bridge {
-    /// A bridge over `link`, with nothing open.
-    pub(crate) fn new(link: Box<dyn DeviceLink>) -> Self {
+    /// A bridge over `link` for `instance`, with nothing open. The page's host
+    /// gestures go to the instance's [`HostEdits`](crate::family::host::HostEdits).
+    pub(crate) fn new(link: Box<dyn DeviceLink>, instance: Arc<Instance>) -> Self {
         Self {
             link,
             outbox: Arc::default(),
@@ -74,6 +93,10 @@ impl Bridge {
             listed: None,
             told: None,
             resize: None,
+            instance,
+            editing: Vec::new(),
+            refused: Vec::new(),
+            reported: None,
         }
     }
 
@@ -97,7 +120,11 @@ impl Bridge {
                 self.outbox.take();
                 self.listed = None;
                 self.told = None;
+                self.reported = None;
+                self.end_edits();
+                self.refused.clear();
                 self.refresh_ports();
+                self.refresh_instance();
             }
             PageMessage::Open { port } => self.open(port),
             PageMessage::Send { port, data } => {
@@ -115,6 +142,28 @@ impl Bridge {
                     });
                 }
             }
+            PageMessage::Bind { part, key } => match self.instance.bind(Binding { part, key }) {
+                Ok(()) => self.refresh_instance(),
+                Err(e) => self.fail(e.to_string()),
+            },
+            PageMessage::BeginEdit { id } => self.begin_edit(id),
+            PageMessage::PerformEdit { id, value } => {
+                match self.editing.iter_mut().find(|g| g.id == id) {
+                    Some(gesture) => gestures::perform(&self.instance, gesture, value),
+                    None if self.refused.contains(&id) => {}
+                    None => self.fail(format!("no edit of {id:?} is begun")),
+                }
+            }
+            PageMessage::EndEdit { id } => {
+                let Some(at) = self.editing.iter().position(|g| g.id == id) else {
+                    if let Some(at) = self.refused.iter().position(|r| *r == id) {
+                        self.refused.remove(at);
+                        return;
+                    }
+                    return self.fail(format!("no edit of {id:?} is begun"));
+                };
+                gestures::end(&self.instance, self.editing.remove(at));
+            }
             PageMessage::Resize { width, height } => {
                 if WINDOW_SIDE.contains(&width) && WINDOW_SIDE.contains(&height) {
                     self.resize = Some((width, height));
@@ -125,6 +174,32 @@ impl Bridge {
                     });
                 }
             }
+        }
+    }
+
+    /// Tell the page the plugin refused a request about the instance.
+    fn fail(&self, message: String) {
+        self.outbox.push(PluginMessage::Refused { message });
+    }
+
+    /// Begin the edit of `id`; one already begun stays as it is.
+    fn begin_edit(&mut self, id: String) {
+        if self.editing.iter().any(|g| g.id == id) || self.refused.contains(&id) {
+            return;
+        }
+        match gestures::begin(&self.instance, &id) {
+            Ok(gesture) => self.editing.push(gesture),
+            Err(e) => {
+                self.refused.push(id);
+                self.fail(e.to_string());
+            }
+        }
+    }
+
+    /// End every edit the page left begun.
+    fn end_edits(&mut self) {
+        for gesture in std::mem::take(&mut self.editing) {
+            gestures::end(&self.instance, gesture);
         }
     }
 
@@ -209,6 +284,36 @@ impl Bridge {
         }
     }
 
+    /// Tell a ready page what the instance is and how it is doing, if that
+    /// changed since it last heard.
+    pub(crate) fn refresh_instance(&mut self) {
+        if !self.ready {
+            return;
+        }
+        let status = self.instance.status.get();
+        let message = PluginMessage::Instance {
+            plugin: self.instance.kind(),
+            binding: self.instance.binding.get(),
+            status,
+            status_text: status.text(),
+            host_edits: self.instance.bank.edits().is_some(),
+            notices: self
+                .instance
+                .notices
+                .get()
+                .into_iter()
+                .map(|notice| NoticeView {
+                    notice,
+                    text: notice.text(),
+                })
+                .collect(),
+        };
+        if self.reported.as_ref() != Some(&message) {
+            self.reported = Some(message.clone());
+            self.outbox.push(message);
+        }
+    }
+
     /// What the page should hear now, in order; nothing before `ready`.
     pub(crate) fn take_outgoing(&self) -> Vec<PluginMessage> {
         if self.ready {
@@ -226,7 +331,8 @@ impl Bridge {
 
 impl Drop for Bridge {
     fn drop(&mut self) {
-        // The page is gone with the editor; so is its link.
+        // The page is gone with the editor; so are its edits and its link.
+        self.end_edits();
         self.link.close();
     }
 }
@@ -235,7 +341,86 @@ impl Drop for Bridge {
 mod tests {
     use super::super::link::{Inbound, Incoming, LinkError};
     use super::*;
+    use crate::family::host::{HostEdits, Replace};
+    use crate::family::{Notice, Status};
+    use integral_core::host_params::PluginKind;
     use std::sync::Mutex;
+
+    /// What the page's gestures asked of the host, in order.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    enum Edit {
+        Begin(String),
+        Perform(String, i32),
+        End(String),
+    }
+
+    /// The host, as the instance's [`HostEdits`] reach it: records what it is
+    /// asked.
+    struct Host {
+        instance: std::sync::Weak<Instance>,
+        edits: Arc<Mutex<Vec<Edit>>>,
+    }
+
+    impl Host {
+        fn id_of(&self, param: &nih_plug::prelude::IntParam) -> String {
+            let instance = self.instance.upgrade().expect("the instance");
+            let (host, _) = instance
+                .bank
+                .list()
+                .iter()
+                .find(|(_, p)| std::ptr::eq(p, param))
+                .expect("one of the instance's parameters");
+            host.id.clone()
+        }
+    }
+
+    impl HostEdits for Host {
+        fn begin(&self, param: &nih_plug::prelude::IntParam) {
+            let id = self.id_of(param);
+            self.edits.lock().unwrap().push(Edit::Begin(id));
+        }
+        fn perform(&self, param: &nih_plug::prelude::IntParam, value: i32) {
+            let id = self.id_of(param);
+            self.edits.lock().unwrap().push(Edit::Perform(id, value));
+        }
+        fn end(&self, param: &nih_plug::prelude::IntParam) {
+            let id = self.id_of(param);
+            self.edits.lock().unwrap().push(Edit::End(id));
+        }
+        fn replace(&self, _: &[Replace<'_>]) -> bool {
+            true
+        }
+    }
+
+    /// A [`Bridge`] under test, with the sides it talks to.
+    struct Editor {
+        bridge: Bridge,
+        instance: Arc<Instance>,
+        device: Arc<Mutex<Device>>,
+        edits: Arc<Mutex<Vec<Edit>>>,
+    }
+
+    /// A bridge for an instance of `kind` over a link to a device with
+    /// `ports`.
+    fn editor(kind: PluginKind, ports: &[&str]) -> Editor {
+        let device = Arc::new(Mutex::new(Device {
+            ports: ports.iter().map(|p| p.to_string()).collect(),
+            ..Device::default()
+        }));
+        let instance = Arc::new(Instance::new(kind));
+        let edits = Arc::new(Mutex::new(Vec::new()));
+        instance.bank.set_edits(Some(Arc::new(Host {
+            instance: Arc::downgrade(&instance),
+            edits: Arc::clone(&edits),
+        })));
+        let bridge = Bridge::new(Box::new(FakeLink(device.clone())), Arc::clone(&instance));
+        Editor {
+            bridge,
+            instance,
+            device,
+            edits,
+        }
+    }
 
     /// What the fake link was asked to do, and its device side.
     #[derive(Default)]
@@ -288,11 +473,8 @@ mod tests {
     }
 
     fn bridge(ports: &[&str]) -> (Bridge, Arc<Mutex<Device>>) {
-        let device = Arc::new(Mutex::new(Device {
-            ports: ports.iter().map(|p| p.to_string()).collect(),
-            ..Device::default()
-        }));
-        (Bridge::new(Box::new(FakeLink(device.clone()))), device)
+        let Editor { bridge, device, .. } = editor(PluginKind::StudioSet, ports);
+        (bridge, device)
     }
 
     /// The device sends `data` on the open pair.
@@ -312,7 +494,7 @@ mod tests {
     fn ready_lists_the_ports() {
         let (mut b, _) = bridge(&["INTEGRA-7"]);
         b.handle(r#"{"type":"ready"}"#);
-        assert_eq!(b.take_outgoing(), vec![ports(&["INTEGRA-7"])]);
+        assert_eq!(outgoing(&b), vec![ports(&["INTEGRA-7"])]);
     }
 
     #[test]
@@ -342,7 +524,7 @@ mod tests {
         device.lock().unwrap().unavailable = true;
         b.handle(r#"{"type":"ready"}"#);
         b.refresh_ports();
-        let out = b.take_outgoing();
+        let out = outgoing(&b);
         assert_eq!(out.len(), 2);
         assert!(matches!(&out[0], PluginMessage::Error { port: None, .. }));
         assert_eq!(out[1], ports(&[]));
@@ -356,7 +538,7 @@ mod tests {
         b.handle(r#"{"type":"send","port":"A","data":[240,65,247]}"#);
         device_sends(&device, &[0xF0, 0x7E, 0xF7]);
         assert_eq!(
-            b.take_outgoing(),
+            outgoing(&b),
             vec![
                 ports(&["A"]),
                 PluginMessage::Opened { port: "A".into() },
@@ -516,7 +698,7 @@ mod tests {
         b.handle(r#"{"type":"ready"}"#);
         b.take_outgoing();
         b.handle(r#"{"type":"ready"}"#);
-        assert_eq!(b.take_outgoing(), vec![ports(&["A"])]);
+        assert_eq!(outgoing(&b), vec![ports(&["A"])]);
     }
 
     #[test]
@@ -537,6 +719,359 @@ mod tests {
                 data: vec![1]
             }
         );
+    }
+
+    /// What `bridge` has for the page, less the `instance` messages.
+    fn outgoing(bridge: &Bridge) -> Vec<PluginMessage> {
+        bridge
+            .take_outgoing()
+            .into_iter()
+            .filter(|m| !matches!(m, PluginMessage::Instance { .. }))
+            .collect()
+    }
+
+    /// The messages `bridge` has for the page, less the port lists.
+    fn heard(bridge: &Bridge) -> Vec<PluginMessage> {
+        bridge
+            .take_outgoing()
+            .into_iter()
+            .filter(|m| !matches!(m, PluginMessage::Ports { .. }))
+            .collect()
+    }
+
+    fn is_error(message: &PluginMessage) -> bool {
+        matches!(message, PluginMessage::Refused { .. })
+    }
+
+    fn begin(id: &str) -> String {
+        format!(r#"{{"type":"beginEdit","id":"{id}"}}"#)
+    }
+
+    fn perform(id: &str, value: i32) -> String {
+        format!(r#"{{"type":"performEdit","id":"{id}","value":{value}}}"#)
+    }
+
+    fn end(id: &str) -> String {
+        format!(r#"{{"type":"endEdit","id":"{id}"}}"#)
+    }
+
+    #[test]
+    fn a_control_drag_reaches_the_host_as_one_gesture_in_order() {
+        let Editor {
+            bridge: mut b,
+            edits,
+            ..
+        } = editor(PluginKind::StudioSet, &[]);
+        b.handle(r#"{"type":"ready"}"#);
+        for text in [
+            begin("part07/0x09"),
+            perform("part07/0x09", 10),
+            perform("part07/0x09", 11),
+            perform("part07/0x09", 12),
+            end("part07/0x09"),
+        ] {
+            b.handle(&text);
+        }
+        let id = || "part07/0x09".to_string();
+        assert_eq!(
+            *edits.lock().unwrap(),
+            [
+                Edit::Begin(id()),
+                Edit::Perform(id(), 10),
+                Edit::Perform(id(), 11),
+                Edit::Perform(id(), 12),
+                Edit::End(id()),
+            ]
+        );
+        assert!(heard(&b).iter().all(|m| !is_error(m)));
+    }
+
+    #[test]
+    fn gestures_on_two_parameters_interleave_as_sent() {
+        let Editor {
+            bridge: mut b,
+            edits,
+            ..
+        } = editor(PluginKind::StudioSet, &[]);
+        b.handle(r#"{"type":"ready"}"#);
+        for text in [
+            begin("part07/0x09"),
+            begin("part07/0x0A"),
+            perform("part07/0x0A", 1),
+            end("part07/0x09"),
+            end("part07/0x0A"),
+        ] {
+            b.handle(&text);
+        }
+        let (a, c) = ("part07/0x09".to_string(), "part07/0x0A".to_string());
+        assert_eq!(
+            *edits.lock().unwrap(),
+            [
+                Edit::Begin(a.clone()),
+                Edit::Begin(c.clone()),
+                Edit::Perform(c.clone(), 1),
+                Edit::End(a),
+                Edit::End(c),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_gesture_out_of_order_or_on_an_unknown_parameter_is_an_error_and_not_forwarded() {
+        let Editor {
+            bridge: mut b,
+            edits,
+            ..
+        } = editor(PluginKind::StudioSet, &[]);
+        b.handle(r#"{"type":"ready"}"#);
+        heard(&b);
+        b.handle(&perform("part07/0x09", 1));
+        b.handle(&end("part07/0x09"));
+        b.handle(&begin("nope/0x00"));
+        b.handle(&begin("part07/0x09"));
+        b.handle(&end("part07/0x09"));
+        b.handle(&perform("part07/0x09", 2));
+        assert_eq!(
+            *edits.lock().unwrap(),
+            [
+                Edit::Begin("part07/0x09".into()),
+                Edit::End("part07/0x09".into())
+            ]
+        );
+        assert_eq!(heard(&b).iter().filter(|m| is_error(m)).count(), 4);
+    }
+
+    #[test]
+    fn beginning_a_begun_gesture_does_nothing() {
+        let Editor {
+            bridge: mut b,
+            edits,
+            ..
+        } = editor(PluginKind::StudioSet, &[]);
+        b.handle(r#"{"type":"ready"}"#);
+        b.handle(&begin("part07/0x09"));
+        b.handle(&begin("part07/0x09"));
+        b.handle(&end("part07/0x09"));
+        assert_eq!(edits.lock().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn a_gesture_the_page_leaves_open_is_ended_when_it_reloads_or_goes() {
+        let Editor {
+            bridge: mut b,
+            edits,
+            ..
+        } = editor(PluginKind::StudioSet, &[]);
+        b.handle(r#"{"type":"ready"}"#);
+        b.handle(&begin("part07/0x09"));
+        b.handle(&perform("part07/0x09", 5));
+        b.handle(r#"{"type":"ready"}"#);
+        let id = || "part07/0x09".to_string();
+        assert_eq!(
+            edits.lock().unwrap().last(),
+            Some(&Edit::End(id())),
+            "a reload ends it"
+        );
+        // The ended gesture is not open any more.
+        b.handle(&perform("part07/0x09", 6));
+        b.handle(&begin("part07/0x0A"));
+        drop(b);
+        assert_eq!(
+            *edits.lock().unwrap(),
+            [
+                Edit::Begin(id()),
+                Edit::Perform(id(), 5),
+                Edit::End(id()),
+                Edit::Begin("part07/0x0A".into()),
+                Edit::End("part07/0x0A".into()),
+            ],
+            "going away ends it"
+        );
+    }
+
+    #[test]
+    fn ready_tells_the_page_what_the_instance_is_and_changes_are_sent_once() {
+        let Editor {
+            bridge: mut b,
+            instance,
+            ..
+        } = editor(PluginKind::PcmDrum, &[]);
+        let instance_message = |status, binding, notices: &[Notice]| PluginMessage::Instance {
+            plugin: PluginKind::PcmDrum,
+            binding,
+            status,
+            status_text: Status::text(status),
+            host_edits: true,
+            notices: notices
+                .iter()
+                .map(|&notice| NoticeView {
+                    notice,
+                    text: notice.text(),
+                })
+                .collect(),
+        };
+        b.refresh_instance();
+        assert_eq!(b.take_outgoing(), [], "nothing before ready");
+
+        b.handle(r#"{"type":"ready"}"#);
+        assert_eq!(
+            heard(&b),
+            [instance_message(Status::ServiceNotRunning, None, &[])]
+        );
+        b.refresh_instance();
+        assert_eq!(heard(&b), [], "unchanged");
+
+        instance.status.set(Status::Connected);
+        instance.notices.set(Notice::Recalling, true);
+        b.refresh_instance();
+        b.refresh_instance();
+        assert_eq!(
+            heard(&b),
+            [instance_message(
+                Status::Connected,
+                None,
+                &[Notice::Recalling]
+            )]
+        );
+
+        // A reloaded page hears it all again.
+        b.handle(r#"{"type":"ready"}"#);
+        assert_eq!(heard(&b).len(), 1);
+    }
+
+    #[test]
+    fn the_page_is_told_whether_the_instance_can_tell_the_host() {
+        let Editor {
+            bridge: mut b,
+            instance,
+            ..
+        } = editor(PluginKind::StudioSet, &[]);
+        let host_edits = |out: &[PluginMessage]| match out {
+            [PluginMessage::Instance { host_edits, .. }] => *host_edits,
+            other => panic!("{other:?}"),
+        };
+        b.handle(r#"{"type":"ready"}"#);
+        assert!(host_edits(&heard(&b)));
+        // The host's context goes away (or never was): said once, on change.
+        instance.bank.set_edits(None);
+        b.refresh_instance();
+        b.refresh_instance();
+        assert!(!host_edits(&heard(&b)));
+    }
+
+    #[test]
+    fn a_refused_begin_is_said_once_and_the_rest_of_its_gesture_is_dropped() {
+        let Editor {
+            bridge: mut b,
+            instance,
+            edits,
+            ..
+        } = editor(PluginKind::StudioSet, &[]);
+        instance.bank.set_edits(None);
+        b.handle(r#"{"type":"ready"}"#);
+        heard(&b);
+        b.handle(&begin("part07/0x09"));
+        for value in 0..50 {
+            b.handle(&perform("part07/0x09", value));
+        }
+        b.handle(&end("part07/0x09"));
+        let out = heard(&b);
+        assert!(
+            matches!(&out[..], [PluginMessage::Refused { .. }]),
+            "{out:?}"
+        );
+        assert_eq!(*edits.lock().unwrap(), []);
+
+        // The next gesture is asked again, and works once the host is there.
+        let host = Arc::new(Host {
+            instance: Arc::downgrade(&instance),
+            edits: Arc::clone(&edits),
+        });
+        instance.bank.set_edits(Some(host));
+        b.handle(&begin("part07/0x09"));
+        b.handle(&end("part07/0x09"));
+        assert_eq!(edits.lock().unwrap().len(), 2);
+        assert!(heard(&b).iter().all(|m| !is_error(m)));
+    }
+
+    #[test]
+    fn binding_sets_the_instances_binding_and_the_page_hears_it() {
+        let Editor {
+            bridge: mut b,
+            instance,
+            ..
+        } = editor(PluginKind::SnDrum, &[]);
+        b.handle(r#"{"type":"ready"}"#);
+        heard(&b);
+        b.handle(r#"{"type":"bind","part":4,"key":38}"#);
+        assert_eq!(
+            instance.binding.get(),
+            Some(Binding::of_part(4).with_key(38))
+        );
+        let out = heard(&b);
+        assert!(
+            matches!(
+                &out[..],
+                [PluginMessage::Instance { binding: Some(got), .. }]
+                    if *got == Binding::of_part(4).with_key(38)
+            ),
+            "{out:?}"
+        );
+    }
+
+    #[test]
+    fn binding_while_a_gesture_is_open_leaves_the_gesture_to_end_as_begun() {
+        let Editor {
+            bridge: mut b,
+            instance,
+            edits,
+            ..
+        } = editor(PluginKind::SnSynth, &[]);
+        let tone_id = instance.bank.list()[0].0.id.clone();
+        b.handle(r#"{"type":"ready"}"#);
+        b.handle(r#"{"type":"bind","part":1}"#);
+        b.handle(&begin(&tone_id));
+        b.handle(&perform(&tone_id, 3));
+        b.handle(r#"{"type":"bind","part":2}"#);
+        assert_eq!(instance.binding.get(), Some(Binding::of_part(2)));
+        b.handle(&perform(&tone_id, 4));
+        b.handle(&end(&tone_id));
+        let id = || tone_id.clone();
+        assert_eq!(
+            *edits.lock().unwrap(),
+            [
+                Edit::Begin(id()),
+                Edit::Perform(id(), 3),
+                Edit::Perform(id(), 4),
+                Edit::End(id()),
+            ]
+        );
+        assert!(heard(&b).iter().all(|m| !is_error(m)));
+    }
+
+    #[test]
+    fn a_binding_the_kind_cannot_have_is_refused_and_the_old_one_stays() {
+        let Editor {
+            bridge: mut b,
+            instance,
+            ..
+        } = editor(PluginKind::SnSynth, &[]);
+        b.handle(r#"{"type":"ready"}"#);
+        b.handle(r#"{"type":"bind","part":2}"#);
+        heard(&b);
+        for refused in [
+            r#"{"type":"bind","part":2,"key":36}"#,
+            r#"{"type":"bind","part":16}"#,
+            r#"{"type":"bind"}"#,
+        ] {
+            b.handle(refused);
+            let out = heard(&b);
+            assert!(
+                matches!(&out[..], [PluginMessage::Refused { .. }]),
+                "{out:?}"
+            );
+            assert_eq!(instance.binding.get(), Some(Binding::of_part(2)));
+        }
     }
 
     #[test]

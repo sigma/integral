@@ -303,7 +303,7 @@ mod tests {
             });
             let link = ServiceLink::new(Arc::clone(&instance));
             Self {
-                bridge: Bridge::new(Box::new(link)),
+                bridge: Bridge::new(Box::new(link), Arc::clone(&instance)),
                 instance,
                 _connection: connection,
                 service: Some(service),
