@@ -11,6 +11,24 @@ clients. The embedded page runs the WASM core, and the webview side only serves
 the page and passes SysEx between the page and the Device service. The plugins
 open no MIDI port.
 
+## Using the plugins in Ableton Live
+
+The plugins are audio effects that pass audio through; they play no notes
+([ADR 0007](../../docs/adr/0007-plugins-per-tone-type.md)). Live's External
+Instrument plays the notes and returns the INTEGRA-7's audio.
+
+1. Install: `just bundle-plugin`, then copy `target/bundle/Integral.vst3` to
+   `~/Library/Audio/Plug-Ins/VST3/` and rescan in Live's Plug-ins preferences.
+2. Run the Device service: `just bridge`, or for RTP-MIDI
+   `just bridge --link rtp --port <name>`.
+3. For each Part, on a MIDI track:
+   1. Insert External Instrument in the instrument slot. Set MIDI To to
+      `Integral Device Service` and the channel to the Part's receive channel.
+      Set Audio From to the inputs the INTEGRA-7 is wired to.
+   2. Insert the Tone or Kit plugin for the Part's tone type after it, and
+      pick the Part in its editor.
+4. Insert Integral Studio Set on the master track for the mixer and effects.
+
 ## Interface
 
 - [`./src/README.md`](./src/README.md): the plugin family, the standalone
