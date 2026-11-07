@@ -8,23 +8,14 @@ use anyhow::{Context, Result, bail};
 use integral_core::address::{Address, DataSize};
 use integral_core::librarian::reader::{BlockData, BlockReader};
 use integral_core::sysex;
+use integral_device_service::{PortMatch, matching_pairs, port_named};
 use midir::{MidiInput, MidiOutput};
 
 /// Default MIDI port name pattern for the INTEGRA-7.
 pub const DEFAULT_PORT_PATTERN: &str = "Integra";
 
 /// Default SysEx device ID (broadcast for the INTEGRA-7).
-pub const DEFAULT_DEVICE_ID: u8 = 0x10;
-
-/// Find a MIDI port whose name contains `pattern` (case-insensitive).
-pub fn find_port_by_name<T: midir::MidiIO>(midi_io: &T, pattern: &str) -> Option<T::Port> {
-    let pattern_lower = pattern.to_lowercase();
-    midi_io.ports().into_iter().find(|port| {
-        midi_io
-            .port_name(port)
-            .is_ok_and(|name| name.to_lowercase().contains(&pattern_lower))
-    })
-}
+pub use integral_core::sysex::DEFAULT_DEVICE_ID;
 
 /// How long to wait for an Identity Reply when choosing between ports.
 const PORT_PROBE_TIMEOUT: Duration = Duration::from_millis(500);
@@ -42,14 +33,11 @@ type MidiConnection = (
 /// next to the wireless Bridge), use the first that answers an Identity
 /// Request, falling back to the first match.
 pub fn open_midi(port_pattern: &str) -> Result<MidiConnection> {
-    let midi_out = MidiOutput::new("integral-out").context("failed to create MIDI output")?;
-    let pattern_lower = port_pattern.to_lowercase();
-    let names: Vec<String> = midi_out
-        .ports()
-        .iter()
-        .filter_map(|port| midi_out.port_name(port).ok())
-        .filter(|name| name.to_lowercase().contains(&pattern_lower))
-        .collect();
+    // Only a name that is both an input and an output is a device; the
+    // Device service's note port ("Integral Device Service", an input only)
+    // contains "Integra" but never matches.
+    let names = matching_pairs(&PortMatch::Contains(port_pattern.to_string()))
+        .map_err(|e| anyhow::anyhow!("failed to list MIDI ports: {e}"))?;
     if names.len() > 1 {
         for name in &names {
             let Ok((conn_in, mut conn_out, rx)) = connect(name) else {
@@ -67,7 +55,7 @@ pub fn open_midi(port_pattern: &str) -> Result<MidiConnection> {
     }
     let name = names
         .first()
-        .with_context(|| format!("no MIDI output port matching '{port_pattern}'"))?;
+        .with_context(|| format!("no MIDI port pair matching '{port_pattern}'"))?;
     let connection = connect(name)?;
     eprintln!("Using MIDI port: {name}");
     Ok(connection)
@@ -78,10 +66,10 @@ fn connect(name: &str) -> Result<MidiConnection> {
     let midi_out = MidiOutput::new("integral-out").context("failed to create MIDI output")?;
     let midi_in = MidiInput::new("integral-in").context("failed to create MIDI input")?;
 
-    let out_port = find_port_by_name(&midi_out, name)
-        .with_context(|| format!("no MIDI output port matching '{name}'"))?;
-    let in_port = find_port_by_name(&midi_in, name)
-        .with_context(|| format!("no MIDI input port matching '{name}'"))?;
+    let out_port = port_named(&midi_out, name)
+        .with_context(|| format!("no MIDI output port named '{name}'"))?;
+    let in_port =
+        port_named(&midi_in, name).with_context(|| format!("no MIDI input port named '{name}'"))?;
 
     let (tx, rx) = mpsc::channel::<Vec<u8>>();
 

@@ -1,203 +1,90 @@
-//! Bridge command: expose the INTEGRA-7 Wireless link as a virtual MIDI port.
+//! Bridge command: launch the Device service.
 //!
-//! Spec: `docs/specs/wireless-transport.md`. The protocol lives sans-IO in
-//! `integral_core::wireless`; this module owns the sockets and the port.
+//! The service itself lives in `integral-device-service`
+//! ([ADR 0006](../../../../docs/adr/0006-device-service-owns-the-link.md)).
+//! This module only turns arguments into a link and runs the service until
+//! the process is killed, whose exit closes the link and removes the ports.
 
-use std::collections::BTreeMap;
-use std::io::{ErrorKind, Read, Write};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream, UdpSocket};
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::{Duration, Instant};
+use std::net::IpAddr;
 
-use anyhow::{Context, Result, anyhow, bail};
-use integral_core::wireless::{self, DeviceInfo, Event, Reconnect, Session};
-use midir::os::unix::{VirtualInput, VirtualOutput};
-use midir::{MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
+use anyhow::{Context, Result, bail};
+use clap::{Args, ValueEnum};
+use integral_core::device_spec::INTEGRA7;
+use integral_device_service::{
+    Config, DeviceLink, MidirLink, NOTE_PORT_NAME, PortMatch, Service, VirtualNotePort,
+    WirelessLink, spawn, stderr_log,
+};
 
-const PROBE_INTERVAL: Duration = Duration::from_millis(wireless::PROBE_INTERVAL_MS);
-const DISCOVERY_WINDOW: Duration = Duration::from_millis(wireless::DISCOVERY_WINDOW_MS);
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
+/// How the service reaches the INTEGRA-7.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum LinkKind {
+    /// The wireless LAN session (also shared as the MIDI port
+    /// "INTEGRA-7 (Wireless)").
+    Wireless,
+    /// An RTP-MIDI session; `--port` names it (a substring).
+    Rtp,
+    /// A USB port; `--port` defaults to "INTEGRA-7".
+    Usb,
+}
 
-/// Run the Bridge forever (until Ctrl-C, whose process exit closes the TCP
-/// connection and removes the port).
-///
-/// With `host`, connect there and never rediscover; otherwise find the
-/// device by RDDP and rediscover it per [`Reconnect`].
-pub fn bridge(host: Option<IpAddr>) -> Result<()> {
-    let mut addr = match host {
-        Some(ip) => ip,
-        None => discover()?,
-    };
-    let start = Instant::now();
-    let now = || start.elapsed().as_millis() as u64;
-    let mut reconnect = Reconnect::new(host.is_none());
-    loop {
-        let mut went_up = false;
-        if let Err(e) = run_session(addr, start, &mut went_up) {
-            eprintln!("Session with {addr} failed: {e:#}");
-        }
-        let next = reconnect.after_attempt(went_up, now());
-        thread::sleep(Duration::from_millis(next.at.saturating_sub(now())));
-        if next.rediscover {
-            match discover() {
-                Ok(ip) => addr = ip,
-                Err(e) => eprintln!("Rediscovery failed, keeping {addr}: {e:#}"),
+/// Arguments of the `bridge` command.
+#[derive(Args)]
+pub struct BridgeArgs {
+    /// The link to the INTEGRA-7.
+    #[arg(long, value_enum, default_value_t = LinkKind::Wireless)]
+    link: LinkKind,
+    /// Wireless: device IP address. Discovered on the LAN if omitted.
+    #[arg(long)]
+    host: Option<IpAddr>,
+    /// Rtp, usb: the MIDI port pair to open.
+    #[arg(long)]
+    port: Option<String>,
+    /// SysEx device ID (hex, e.g. 10), instead of the one the device gives
+    /// in its Identity Reply.
+    #[arg(long, value_parser = crate::parse_device_id)]
+    device_id: Option<u8>,
+}
+
+/// Build the link the arguments name.
+fn link(args: &BridgeArgs) -> Result<Box<dyn DeviceLink>> {
+    let log = stderr_log();
+    match args.link {
+        LinkKind::Wireless => {
+            if args.port.is_some() {
+                bail!("--port applies to --link rtp and --link usb");
             }
+            Ok(Box::new(
+                WirelessLink::new(args.host, log).with_shared_port(true),
+            ))
+        }
+        LinkKind::Rtp | LinkKind::Usb if args.host.is_some() => {
+            bail!("--host applies to --link wireless")
+        }
+        LinkKind::Rtp => {
+            let name = args
+                .port
+                .clone()
+                .context("--link rtp needs --port <name of the RTP-MIDI session>")?;
+            Ok(Box::new(MidirLink::new(PortMatch::Contains(name), log)))
+        }
+        LinkKind::Usb => {
+            let name = args
+                .port
+                .clone()
+                .unwrap_or_else(|| INTEGRA7.name.to_string());
+            Ok(Box::new(MidirLink::new(PortMatch::Exact(name), log)))
         }
     }
 }
 
-/// Find the one INTEGRA-7 on the LAN by RDDP broadcast.
-fn discover() -> Result<IpAddr> {
-    let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, 0)).context("RDDP listener")?;
-    listener.set_nonblocking(true)?;
-    let probe = wireless::rddp_probe(listener.local_addr()?.port());
-    let udp = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).context("RDDP socket")?;
-    udp.set_broadcast(true)?;
-
-    eprintln!("Discovering INTEGRA-7 on the LAN...");
-    let start = Instant::now();
-    let mut next_probe = start;
-    let mut found: BTreeMap<String, (IpAddr, DeviceInfo)> = BTreeMap::new();
-    while start.elapsed() < DISCOVERY_WINDOW {
-        if Instant::now() >= next_probe {
-            // Stop at the end of the first probe round that got answers.
-            if !found.is_empty() {
-                break;
-            }
-            udp.send_to(&probe, (Ipv4Addr::BROADCAST, wireless::DISCOVERY_PORT))
-                .context("RDDP probe")?;
-            next_probe += PROBE_INTERVAL;
-        }
-        match listener.accept() {
-            Ok((stream, peer)) => match read_rddp_reply(stream) {
-                Ok(info) => {
-                    found.insert(info.wireless_id.clone(), (peer.ip(), info));
-                }
-                Err(e) => eprintln!("Ignoring RDDP reply from {}: {e:#}", peer.ip()),
-            },
-            Err(e) if e.kind() == ErrorKind::WouldBlock => thread::sleep(Duration::from_millis(20)),
-            Err(e) => return Err(e).context("RDDP accept"),
-        }
-    }
-
-    let mut devices = found.into_values();
-    match (devices.next(), devices.len()) {
-        (None, _) => bail!("no INTEGRA-7 answered discovery; try --host <ip>"),
-        (Some((ip, info)), 0) => {
-            eprintln!(
-                "Found INTEGRA-7 {} at {ip} (system {})",
-                info.wireless_id, info.version
-            );
-            Ok(ip)
-        }
-        (Some(first), _) => {
-            eprintln!("Several INTEGRA-7s answered:");
-            for (ip, info) in std::iter::once(first).chain(devices) {
-                eprintln!("  {}  {ip}  system {}", info.wireless_id, info.version);
-            }
-            bail!("pick one with --host <ip>")
-        }
-    }
-}
-
-/// Read one RDDP reply from a device's callback connection.
-fn read_rddp_reply(stream: TcpStream) -> Result<DeviceInfo> {
-    // Accepted sockets inherit the listener's non-blocking mode on BSDs.
-    stream.set_nonblocking(false)?;
-    stream.set_read_timeout(Some(PROBE_INTERVAL))?;
-    let mut reply = Vec::new();
-    stream.take(256).read_to_end(&mut reply)?;
-    Ok(wireless::parse_rddp_reply(&reply)?)
-}
-
-/// The virtual port pair, alive only while the session is up.
-type Port = (MidiInputConnection<()>, MidiOutputConnection);
-
-/// Hold one TCP session until it dies. Sets `went_up` once greeted.
-fn run_session(addr: IpAddr, start: Instant, went_up: &mut bool) -> Result<()> {
-    let now = || start.elapsed().as_millis() as u64;
-    let target = SocketAddr::new(addr, wireless::SESSION_PORT);
-    let mut reader = TcpStream::connect_timeout(&target, CONNECT_TIMEOUT)
-        .with_context(|| format!("connect to {target}"))?;
-    reader.set_nodelay(true)?;
-    let writer = Arc::new(Mutex::new(reader.try_clone()?));
-    eprintln!("Connected to {target}, waiting for greeting...");
-
-    let mut session = Session::new(now());
-    let mut port: Option<Port> = None;
-    let mut buf = [0; 4096];
-    loop {
-        let mut events = session.tick(now());
-        if !events.contains(&Event::Dead) {
-            let wait = session.next_deadline().saturating_sub(now()).max(1);
-            reader.set_read_timeout(Some(Duration::from_millis(wait)))?;
-            match reader.read(&mut buf) {
-                Ok(0) => bail!("closed by the device"),
-                Ok(n) => events.extend(session.receive(&buf[..n], now())),
-                Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {}
-                Err(e) => return Err(e).context("read"),
-            }
-        }
-        for event in events {
-            match event {
-                Event::Transmit(bytes) => send(&writer, &bytes)?,
-                Event::Up { uptime_ms } => {
-                    *went_up = true;
-                    port = Some(open_port(Arc::clone(&writer))?);
-                    eprintln!(
-                        "Session up (device uptime {} s); port '{}' ready",
-                        uptime_ms / 1000,
-                        wireless::port_name()
-                    );
-                }
-                Event::InUse => {
-                    eprintln!("INTEGRA-7 in use by another editor; waiting for it to leave...")
-                }
-                Event::Midi(msg) => {
-                    if let Some((_, out)) = port.as_mut() {
-                        out.send(&msg).context("forward to port")?;
-                    }
-                }
-                Event::Skipped { kind, len } => {
-                    eprintln!("Skipped unknown frame type {kind:02X} ({len} bytes)")
-                }
-                Event::Dead => bail!("no traffic for {} ms", wireless::LIVENESS_TIMEOUT_MS),
-            }
-        }
-    }
-}
-
-fn send(writer: &Mutex<TcpStream>, bytes: &[u8]) -> Result<()> {
-    writer
-        .lock()
-        .map_err(|_| anyhow!("writer lock poisoned"))?
-        .write_all(bytes)
-        .context("write")
-}
-
-/// Create the virtual port pair; MIDI sent to it goes out as `02` frames.
-fn open_port(writer: Arc<Mutex<TcpStream>>) -> Result<Port> {
-    let name = wireless::port_name();
-    let input = MidiInput::new("integral-bridge-in")
-        .context("MIDI input")?
-        .create_virtual(
-            &name,
-            move |_ts, msg, _| match wireless::encode_midi(msg) {
-                Some(frame) => {
-                    if let Err(e) = send(&writer, &frame) {
-                        eprintln!("Dropping MIDI to device: {e:#}");
-                    }
-                }
-                None => eprintln!("Dropping malformed MIDI: {msg:02X?}"),
-            },
-            (),
-        )
-        .map_err(|e| anyhow!("create virtual input: {e}"))?;
-    let output = MidiOutput::new("integral-bridge-out")
-        .context("MIDI output")?
-        .create_virtual(&name)
-        .map_err(|e| anyhow!("create virtual output: {e}"))?;
-    Ok((input, output))
+/// Run the Device service until the process is killed.
+pub fn bridge(args: &BridgeArgs) -> Result<()> {
+    let link = link(args)?;
+    let config = Config::new(args.device_id);
+    let service = Service::new(link, config);
+    let running = spawn(service, Some(Box::new(VirtualNotePort::new())))
+        .context("start the Device service")?;
+    eprintln!("Device service running; notes go to the MIDI port '{NOTE_PORT_NAME}'");
+    running.join();
+    Ok(())
 }

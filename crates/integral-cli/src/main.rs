@@ -107,14 +107,11 @@ enum Cli {
         #[arg(long)]
         bridge: Option<String>,
     },
-    /// Expose the INTEGRA-7's wireless LAN link as the virtual MIDI port
-    /// "INTEGRA-7 (Wireless)" (runs until Ctrl+C).
+    /// Run the Device service: it owns the link to the INTEGRA-7 (Wireless,
+    /// RTP-MIDI or USB) and exposes the MIDI port "Integral Device Service"
+    /// for notes (runs until Ctrl+C).
     #[cfg(unix)]
-    Bridge {
-        /// Device IP address. Discovered on the LAN if omitted.
-        #[arg(long)]
-        host: Option<std::net::IpAddr>,
-    },
+    Bridge(commands::bridge::BridgeArgs),
     /// Validate SVD decode against the device by comparing SysEx reads.
     SvdValidate {
         #[command(flatten)]
@@ -414,7 +411,7 @@ fn main() -> Result<()> {
         }
         Cli::Monitor { port, bridge } => commands::monitor::monitor(&port, bridge.as_deref()),
         #[cfg(unix)]
-        Cli::Bridge { host } => commands::bridge::bridge(host),
+        Cli::Bridge(args) => commands::bridge::bridge(&args),
         Cli::SvdValidate {
             conn,
             file,

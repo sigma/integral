@@ -22,11 +22,11 @@ offline.
 - `raw.rs`: `raw_read`, `raw_rq1_multi`, `raw_send` (DT1) and `send_raw_hex`.
 - `monitor.rs`: `monitor(port_pattern, bridge)` prints incoming MIDI as hex
   and decodes DT1s. With a bridge port it also forwards traffic both ways.
-- `bridge.rs`: `bridge(host)` finds the INTEGRA-7 by an RDDP broadcast, or
-  uses the given host. It holds a TCP session and exposes the virtual port
-  `wireless::port_name()` (`INTEGRA-7 (Wireless)`), through the midir clients
-  `integral-bridge-in` and `integral-bridge-out`. It reconnects through
-  `wireless::Reconnect`.
+- `bridge.rs`: `bridge(&BridgeArgs)` launches the Device service
+  (`integral-device-service`) on the link `--link` names: `wireless` (RDDP
+  discovery or `--host`; also shares the port `INTEGRA-7 (Wireless)`), `rtp`
+  (`--port` names the session) or `usb`. It opens the note port
+  `Integral Device Service` and runs until killed.
 - `pack.rs`:
   - `list` reads a Pack file.
   - `export` reads User slots, and with `--current-part` / `--current-set`
@@ -97,8 +97,9 @@ offline.
   - Raw hex SysEx.
 - MIDI in: replies are read with a deadline. If the input disconnects the
   command fails.
-- Virtual MIDI ports and network (`bridge`): an RDDP UDP broadcast, then a
-  TCP session to the device.
+- Virtual MIDI ports and network (`bridge`): the Device service opens the
+  note port, and for Wireless an RDDP UDP broadcast, then a TCP session to the
+  device.
 - Disk: reads Pack, SVD and directory trees. Writes the export SVD and the
   undo SVD.
 - `stdin` prompts. Results and JSON go to `stdout`, and progress and

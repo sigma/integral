@@ -31,9 +31,9 @@ live in sibling modules, and the command bodies live in
   - `quiet` turns off per-request RQ1/DT1 logging. `conn_out_mut`, `rx`, `device_id` and
     `timeout` give low-level access.
 - `midi.rs`
-  - `DEFAULT_PORT_PATTERN` is `Integra`, and `DEFAULT_DEVICE_ID` is `0x10`,
-    the fallback when detection fails.
-  - `open_midi` returns a `MidiConnection`. `find_port_by_name` picks a port.
+  - `DEFAULT_PORT_PATTERN` is `Integra`, and `DEFAULT_DEVICE_ID` is core's
+    `sysex::DEFAULT_DEVICE_ID`, the fallback when detection fails.
+  - `open_midi` returns a `MidiConnection`. the port is a name-matched input and output pair.
   - `read_block` and `request_data` read a block, `detect_device_id` finds
     the device ID, and `format_ranges` prints byte ranges.
 - `hex.rs`: `parse_hex_addr`, `parse_hex_size`, `parse_read_size`,

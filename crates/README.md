@@ -29,8 +29,11 @@ graph TD
   and must compile for `wasm32-unknown-unknown`.
 - integral-cli: [`./integral-cli/README.md`](./integral-cli/README.md) - the
   `integral` binary. It covers device diagnostics, raw SysEx, the monitor,
-  the Wireless bridge, Pack import and export, and Expansion and Wave tools.
+  the Device service launcher, Pack import and export, and Expansion and Wave tools.
   It does MIDI I/O through `midir`.
+- integral-device-service: [`./integral-device-service/README.md`](./integral-device-service/README.md) -
+  the Device service: owns the device link and the one `DeviceState`, and
+  exposes a virtual note port. Native only; `integral-cli bridge` launches it.
 - integral-vst: [`./integral-vst/README.md`](./integral-vst/README.md) - the
   `nih-plug` VST3/CLAP plugin and the `integral-app` standalone. It runs a
   macOS webview editor that serves the embedded web UI and links it to MIDI

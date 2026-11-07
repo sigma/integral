@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 integral-core = { path = "../integral-core", features = ["serde", "smf"] }
+integral-device-service = { path = "../integral-device-service" }
 midir = "0.10"
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }

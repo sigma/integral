@@ -25,6 +25,7 @@ just dev-web         # start the web dev server (packs the WASM first)
   - `integral-core`: [./crates/integral-core/README.md](./crates/integral-core/README.md) - the portable, I/O-free engine. It covers SysEx build and parse, the address map, the device spec layer, `DeviceState` with its throttled queue, the Librarian, SVD, Expansions, Waves and the sequencer.
   - `integral-wasm`: [./crates/integral-wasm/README.md](./crates/integral-wasm/README.md) - wasm-bindgen bindings that the web frontend uses. JS owns the clock and the MIDI I/O.
   - `integral-cli`: [./crates/integral-cli/README.md](./crates/integral-cli/README.md) - the `integral` CLI. It covers diagnostics, raw SysEx, monitor, the Wireless bridge, the Librarian, Expansions and Waves.
+  - `integral-device-service`: [./crates/integral-device-service/README.md](./crates/integral-device-service/README.md) - the Device service: one process owning the device link and `DeviceState`, with a virtual note port. `integral-cli bridge` launches it.
   - `integral-vst`: [./crates/integral-vst/README.md](./crates/integral-vst/README.md) - the nih-plug VST3/CLAP plugin and the `integral-app` standalone. Both embed the web build in a webview (macOS only).
 - `web/`: [./web/README.md](./web/README.md) - the React + TypeScript frontend (Vite). It ships as a PWA and as the plugin's embedded UI.
 - `docs/`: [./docs/README.md](./docs/README.md) - the MIDI Implementation, Parameter Guide, SVD format, ADRs, specs and research. `docs/research` also holds two research scripts.
@@ -38,7 +39,7 @@ Run `just` for the full list. Key targets:
 | `just fmt` | Format all code (Rust + Nix) |
 | `just check` | Full pre-commit gate: fmt, lint (Rust, TS, CSS), build (native, WASM, plugin web), tests (Rust, web), PWA check |
 | `just ping` | Ping the Integra-7 via SysEx Identity Request |
-| `just bridge` | Expose the Integra-7's wireless LAN link as the MIDI port `INTEGRA-7 (Wireless)` |
+| `just bridge` | Run the Device service on a link (`--link wireless\|rtp --port <name>\|usb`); it exposes the note port `Integral Device Service` |
 | `just pack-wasm` | Build the WASM package for the web app |
 | `just dev-web` | Start the Vite dev server |
 | `just build-web` | Production web build (includes WASM pack) |
@@ -79,7 +80,7 @@ inside its embedded web UI and only passes MIDI bytes through
 ## Global Side Effects
 
 - MIDI SysEx traffic to the INTEGRA-7 via Web MIDI, midir (CLI, plugin) or
-  the Wireless bridge (virtual MIDI ports, RDDP UDP broadcast, TCP).
+  the Device service (virtual MIDI ports, RDDP UDP broadcast, TCP).
 - Librarian imports overwrite the device's User memory.
 - Build time: `integral-core/build.rs` generates tables from the JSON in `docs/sounds`, `docs/waves`,
   `docs/sn-*-insts` and `docs/research`, and

@@ -92,7 +92,7 @@ clean:
 ping *ARGS:
     cargo run -p integral-cli -- ping {{ARGS}}
 
-# bridge the INTEGRA-7 wireless link to a virtual MIDI port
+# run the Device service on a link: --link wireless (default), rtp --port <name>, or usb
 bridge *ARGS:
     cargo run -p integral-cli -- bridge {{ARGS}}
 

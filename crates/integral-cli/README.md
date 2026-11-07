@@ -6,11 +6,11 @@ The `integral` command-line tool for the INTEGRA-7. It covers several jobs:
 
 - Device diagnostics: ping, read and write parameters, raw SysEx, and a MIDI
   monitor.
-- The Wireless bridge (Unix only).
+- The Device service launcher, `bridge` (Unix only).
 - The Librarian: list, check, export, import and reinit Packs.
 - Expansion slot management and Wave catalog browsing.
 
-It depends on `integral-core` with the `serde` and `smf` features, and uses
+It depends on `integral-core` with the `serde` and `smf` features and on `integral-device-service`, and uses
 `midir` for MIDI, `clap` for arguments and `anyhow` for errors.
 
 ## Subdirectories & Boundaries
