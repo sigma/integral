@@ -19,10 +19,10 @@ pub const MODEL_ID: [u8; 3] = [0x00, 0x00, 0x64];
 pub const INTEGRA7_FAMILY: [u8; 2] = [0x64, 0x02];
 
 /// SysEx start byte.
-const SYSEX_START: u8 = 0xF0;
+pub const SYSEX_START: u8 = 0xF0;
 
 /// SysEx end byte.
-const SYSEX_END: u8 = 0xF7;
+pub const SYSEX_END: u8 = 0xF7;
 
 /// Universal Non-realtime message ID.
 const UNIVERSAL_NON_REALTIME: u8 = 0x7E;

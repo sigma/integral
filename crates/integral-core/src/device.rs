@@ -77,9 +77,36 @@ struct QueuedMessage {
 }
 
 /// The device addresses a DT1 of `len` data bytes at `address` writes.
-fn dt1_span(address: &Address, len: usize) -> Range<u32> {
+pub fn dt1_span(address: &Address, len: usize) -> Range<u32> {
     let start = address.value();
     start..start + len as u32
+}
+
+/// What a queued write means for a new one that comes after it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Coalesce {
+    /// The new write covers it and may take its place.
+    Replace,
+    /// It is unrelated: look further back.
+    PassOver,
+    /// Nothing before it may be touched: the new write would move across a
+    /// write it overlaps or a select, or across a message that is not a
+    /// DT1.
+    Stop,
+}
+
+/// The rule by which a new write of `new` coalesces into the queue: asked
+/// of each queued item from the newest back, with the addresses `queued`
+/// writes (`None` if it is not a DT1). [`DeviceState::send_dt1`] applies it
+/// to its own queue, and so can any queue of writes in front of it.
+pub fn coalesce(new: &Range<u32>, queued: Option<&Range<u32>>) -> Coalesce {
+    match queued {
+        Some(q) if new.start <= q.start && q.end <= new.end => Coalesce::Replace,
+        Some(q) if !(touches_select(new) || touches_select(q) || overlaps(new, q)) => {
+            Coalesce::PassOver
+        }
+        _ => Coalesce::Stop,
+    }
 }
 
 /// Whether two address ranges share an address.
@@ -106,6 +133,59 @@ fn touches_select(span: &Range<u32>) -> bool {
     let from = span.start.saturating_sub(last) / STRIDE;
     let to = (span.end.saturating_sub(first).div_ceil(STRIDE)).min(parts);
     (from..to).any(|n| overlaps(first + n * STRIDE, last + n * STRIDE))
+}
+
+/// The address whose [`Address::value`] is `value`.
+fn address_at(value: u32) -> Address {
+    let bytes = DataSize::from_value(value).expect("an address fits in 28 bits");
+    Address(*bytes.as_bytes())
+}
+
+/// A tone select (a Part's bank MSB, LSB and PC) or the Studio Set select
+/// that a write touches.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SelectHit {
+    /// The Part, or `None` for the Studio Set select.
+    pub part: Option<u8>,
+    /// The write covers all three bytes of the select.
+    pub whole: bool,
+}
+
+/// The selects a write of `len` bytes at `address` touches, by address.
+pub fn selects(address: &Address, len: usize) -> Vec<SelectHit> {
+    let span = dt1_span(address, len);
+    select_ranges(&span)
+        .into_iter()
+        .map(|(range, part)| SelectHit {
+            part,
+            whole: span.start <= range.start && range.end <= span.end,
+        })
+        .collect()
+}
+
+/// The select ranges `span` overlaps, by address, with their Part.
+fn select_ranges(span: &Range<u32>) -> Vec<(Range<u32>, Option<u8>)> {
+    let mut selects = vec![(
+        params::SETUP_STUDIO_SET_BS_MSB.value()..params::SETUP_STUDIO_SET_PC.value() + 1,
+        None,
+    )];
+    for part_idx in 0..DeviceState::NUM_PARTS {
+        let first = params::part_address(part_idx, part::TONE_BANK_MSB).value();
+        let last = params::part_address(part_idx, part::TONE_PC).value();
+        selects.push((first..last + 1, Some(part_idx)));
+    }
+    selects.retain(|(range, _)| overlaps(range, span));
+    selects.sort_by_key(|(range, _)| range.start);
+    selects
+}
+
+/// What a [`DeviceState::write_dt1`] did besides queueing data.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LocalWrite {
+    /// The Parts whose tone it selected, in order.
+    pub tones: Vec<u8>,
+    /// Whether it selected a Studio Set.
+    pub studio_set: bool,
 }
 
 /// A part's SN Synth Tone being read from the device: the tone it was
@@ -513,13 +593,12 @@ impl DeviceState {
         // after them (but other replaced DT1s) overlaps it, selects, or is
         // not a DT1. A new write touching a select replaces only what
         // nothing else follows.
-        let strict = touches_select(&span);
         let mut replaced = Vec::new();
         for (i, m) in self.queue.iter().enumerate().rev() {
-            match &m.span {
-                Some(q) if span.start <= q.start && q.end <= span.end => replaced.push(i),
-                Some(q) if !(strict || touches_select(q) || overlaps(&span, q)) => {}
-                _ => break,
+            match coalesce(&span, m.span.as_ref()) {
+                Coalesce::Replace => replaced.push(i),
+                Coalesce::PassOver => {}
+                Coalesce::Stop => break,
             }
         }
         replaced.reverse();
@@ -676,33 +755,99 @@ impl DeviceState {
         if data.is_empty() {
             return false;
         }
-        let value = data[0];
+        self.cache_part_param(address, data[0])
+    }
 
-        // Match against part parameters.
+    /// Update the cached Part parameter (level, pan, mute, output assign)
+    /// at `address` to `value`. Returns whether `address` is one.
+    fn cache_part_param(&mut self, address: &Address, value: u8) -> bool {
         for part_idx in 0..Self::NUM_PARTS {
-            let level_addr = params::part_address(part_idx, part::LEVEL);
-            if *address == level_addr {
-                self.state.parts[part_idx as usize].level = value;
-                return true;
+            let part = &mut self.state.parts[part_idx as usize];
+            if *address == params::part_address(part_idx, part::LEVEL) {
+                part.level = value;
+            } else if *address == params::part_address(part_idx, part::PAN) {
+                part.pan = value;
+            } else if *address == params::part_address(part_idx, part::MUTE) {
+                part.muted = value == 1;
+            } else if *address == params::part_address(part_idx, part::OUTPUT_ASSIGN) {
+                part.output_assign = value;
+            } else {
+                continue;
             }
-            let pan_addr = params::part_address(part_idx, part::PAN);
-            if *address == pan_addr {
-                self.state.parts[part_idx as usize].pan = value;
-                return true;
-            }
-            let mute_addr = params::part_address(part_idx, part::MUTE);
-            if *address == mute_addr {
-                self.state.parts[part_idx as usize].muted = value == 1;
-                return true;
-            }
-            let oa_addr = params::part_address(part_idx, part::OUTPUT_ASSIGN);
-            if *address == oa_addr {
-                self.state.parts[part_idx as usize].output_assign = value;
-                return true;
-            }
+            return true;
         }
-
         false
+    }
+
+    /// Write `data` at `address` on behalf of a client: the DT1 is queued
+    /// like [`send_dt1`](Self::send_dt1) and the cache takes it at once, as
+    /// the setters do. Unlike [`handle_dt1`](Self::handle_dt1), which takes
+    /// what the device says, it is never taken for an echo (so a fader moved
+    /// twice within the echo window lands twice) and never for a reply.
+    ///
+    /// A write that touches a Part's tone select or the Studio Set select
+    /// goes through [`change_part_tone`](Self::change_part_tone) or
+    /// [`switch_studio_set`](Self::switch_studio_set), so the state that
+    /// depends on the tone (the Comp+EQ kit, the mixer reads) follows. A
+    /// partial select write takes the other bytes from the state. The bytes
+    /// of `data` before, between and after selects are written as data.
+    pub fn write_dt1(&mut self, address: &Address, data: &[u8]) -> LocalWrite {
+        let span = dt1_span(address, data.len());
+        let selects = select_ranges(&span);
+
+        let mut done = LocalWrite::default();
+        let mut cursor = span.start;
+        for (range, part_idx) in selects {
+            self.write_piece(&span, data, cursor..range.start.max(cursor));
+            let (from, to) = (range.start.max(span.start), range.end.min(span.end));
+            let mut bytes = match part_idx {
+                Some(p) => {
+                    let part = &self.state.parts[p as usize];
+                    [part.tone_bank_msb, part.tone_bank_lsb, part.tone_pc]
+                }
+                None => [85, 0, self.state.studio_set_pc],
+            };
+            for at in from..to {
+                bytes[(at - range.start) as usize] = data[(at - span.start) as usize];
+            }
+            match part_idx {
+                Some(p) => {
+                    self.change_part_tone(p, bytes[0], bytes[1], bytes[2]);
+                    done.tones.push(p);
+                }
+                None => {
+                    self.switch_studio_set(bytes[2]);
+                    done.studio_set = true;
+                }
+            }
+            cursor = to;
+        }
+        self.write_piece(&span, data, cursor..span.end);
+        done
+    }
+
+    /// Write `data` at `address` as plain data, selects included: the cache
+    /// takes the Part parameters in it and the DT1 is queued, but a tone or
+    /// Studio Set select in it is not acted on. For a write whose select
+    /// bytes are only part of a select (see [`selects`]) that the caller
+    /// cannot fill in.
+    pub fn write_data(&mut self, address: &Address, data: &[u8]) {
+        let span = dt1_span(address, data.len());
+        self.write_piece(&span, data, span.clone());
+    }
+
+    /// Write the bytes of `data` (which starts at `span`) within `part` as
+    /// plain data: cache them and queue them.
+    fn write_piece(&mut self, span: &Range<u32>, data: &[u8], part: Range<u32>) {
+        if part.start >= part.end {
+            return;
+        }
+        let bytes = &data[(part.start - span.start) as usize..(part.end - span.start) as usize];
+        let address = address_at(part.start);
+        for (i, byte) in bytes.iter().enumerate() {
+            self.cache_part_param(&address.offset([0, 0, 0, i as u8]), *byte);
+        }
+        self.send_dt1(&address, bytes);
     }
 
     // -----------------------------------------------------------------------
@@ -1632,6 +1777,81 @@ mod tests {
                 "{field:?}"
             );
         }
+    }
+
+    #[test]
+    fn the_coalescing_rule_replaces_covered_passes_unrelated_and_stops_at_overlaps() {
+        let new = 10..14;
+        assert_eq!(coalesce(&new, Some(&(11..12))), Coalesce::Replace);
+        assert_eq!(coalesce(&new, Some(&(20..21))), Coalesce::PassOver);
+        assert_eq!(coalesce(&new, Some(&(12..16))), Coalesce::Stop);
+        assert_eq!(coalesce(&new, None), Coalesce::Stop);
+        // A select is never passed over.
+        let select = params::part_address(0, part::TONE_BANK_MSB).value();
+        assert_eq!(
+            coalesce(&(select..select + 1), Some(&(20..21))),
+            Coalesce::Stop
+        );
+    }
+
+    #[test]
+    fn write_dt1_takes_every_write_in_the_echo_window_and_never_a_reply() {
+        let mut device = DeviceState::new(0x10);
+        let level = params::part_address(2, part::LEVEL);
+        for (now, value) in [(0.0, 100), (10.0, 50), (20.0, 70)] {
+            device.write_dt1(&level, &[value]);
+            device.drain(now);
+            assert_eq!(device.state().parts[2].level, value);
+        }
+    }
+
+    #[test]
+    fn write_dt1_to_a_tone_select_changes_the_tone_and_a_partial_one_keeps_the_rest() {
+        let mut device = DeviceState::new(0x10);
+        let select = params::part_address(4, part::TONE_BANK_MSB);
+        let done = device.write_dt1(&select, &[95, 0, 7]);
+        assert_eq!(
+            done,
+            LocalWrite {
+                tones: vec![4],
+                studio_set: false
+            }
+        );
+        let part = &device.state().parts[4];
+        assert_eq!(
+            (part.tone_bank_msb, part.tone_bank_lsb, part.tone_pc),
+            (95, 0, 7)
+        );
+        // Only the program number: the bank stays.
+        let pc = params::part_address(4, part::TONE_PC);
+        device.write_dt1(&pc, &[9]);
+        let part = &device.state().parts[4];
+        assert_eq!(
+            (part.tone_bank_msb, part.tone_bank_lsb, part.tone_pc),
+            (95, 0, 9)
+        );
+    }
+
+    #[test]
+    fn write_dt1_to_the_studio_set_select_switches_the_set() {
+        let mut device = DeviceState::new(0x10);
+        let done = device.write_dt1(&params::SETUP_STUDIO_SET_BS_MSB, &[85, 0, 12]);
+        assert!(done.studio_set && done.tones.is_empty());
+        assert_eq!(device.state().studio_set_pc, 12);
+    }
+
+    #[test]
+    fn write_dt1_splits_a_block_around_the_select_and_caches_the_data() {
+        let mut device = DeviceState::new(0x10);
+        // Part 2's block from its Receive Channel through its Pan.
+        let start = params::part_address(1, part::RECEIVE_CHANNEL);
+        let mut data = vec![0u8; 0x0B];
+        data[0x06] = 89; // bank MSB
+        data[0x09] = 33; // level
+        let done = device.write_dt1(&start, &data);
+        assert_eq!(done.tones, vec![1]);
+        assert_eq!(device.state().parts[1].level, 33);
+        assert_eq!(device.state().parts[1].tone_bank_msb, 89);
     }
 
     use super::*;

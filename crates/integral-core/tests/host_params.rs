@@ -206,3 +206,132 @@ fn a_tempo_synced_parameter_lists_its_switch_value_and_note() {
     }
     assert!(synced > 20);
 }
+
+mod param_index {
+    use integral_core::address::Address;
+    use integral_core::device_spec::INTEGRA7;
+    use integral_core::host_params::{Anchor, Binding, ParamIndex};
+
+    use super::PluginKind;
+
+    /// The binding a test gives a parameter that needs one.
+    fn binding_for(anchor: Anchor) -> Binding {
+        match anchor {
+            Anchor::Absolute => Binding::ANY,
+            Anchor::Part => Binding::of_part(5),
+            Anchor::Key(tone_type) => {
+                let first = match tone_type {
+                    integral_core::params::ToneType::SnDrum => INTEGRA7.sn_drum_keys.first,
+                    _ => INTEGRA7.pcm_drum_keys.first,
+                };
+                Binding::of_part(5).with_key(first + 3)
+            }
+        }
+    }
+
+    #[test]
+    fn every_parameter_is_found_again_at_its_address() {
+        let index = ParamIndex::new();
+        for plugin in PluginKind::ALL {
+            for (position, param) in plugin.host_params().iter().enumerate() {
+                let handle = index.find(plugin, &param.id).expect("found by ID");
+                assert_eq!(handle.index as usize, position, "{}", param.id);
+                let binding = binding_for(param.anchor);
+                let address = param.device_address(&binding).expect("address");
+                let found = index.locate(&address);
+                let hit = found
+                    .iter()
+                    .find(|l| l.handle == handle)
+                    .unwrap_or_else(|| panic!("{plugin:?} {} not at {address}", param.id));
+                assert_eq!(hit.binding, binding, "{plugin:?} {}", param.id);
+            }
+        }
+    }
+
+    #[test]
+    fn a_binding_moves_a_tone_parameter_to_its_part_and_key() {
+        let index = ParamIndex::new();
+        let handle = index
+            .find(PluginKind::PcmSynth, "pcms/common/0x0E")
+            .expect("param");
+        let param = index.get(handle);
+        let part0 = param.device_address(&Binding::of_part(0)).unwrap();
+        let part3 = param.device_address(&Binding::of_part(3)).unwrap();
+        assert_ne!(part0, part3);
+        assert_eq!(part0, param.address);
+        assert!(param.device_address(&Binding::ANY).is_err());
+        assert!(
+            param
+                .device_address(&Binding::of_part(INTEGRA7.part_count))
+                .is_err()
+        );
+        let key = PluginKind::PcmDrum
+            .host_params()
+            .into_iter()
+            .find(|p| matches!(p.anchor, Anchor::Key(_)))
+            .expect("a key parameter");
+        assert!(
+            key.device_address(&Binding::of_part(0)).is_err(),
+            "needs a key"
+        );
+        let a = key
+            .device_address(&Binding::of_part(0).with_key(INTEGRA7.pcm_drum_keys.first))
+            .unwrap();
+        let b = key
+            .device_address(&Binding::of_part(0).with_key(INTEGRA7.pcm_drum_keys.first + 1))
+            .unwrap();
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn values_encode_and_decode_through_width_and_bias() {
+        let index = ParamIndex::new();
+        for plugin in PluginKind::ALL {
+            for param in plugin.host_params() {
+                for value in [param.min, param.max, (param.min + param.max) / 2] {
+                    let bytes = param.encode(value);
+                    assert_eq!(bytes.len(), param.width, "{}", param.id);
+                    assert!(bytes.iter().all(|b| *b < 0x80), "{}", param.id);
+                    assert_eq!(param.decode(&bytes), Some(value), "{}", param.id);
+                }
+            }
+        }
+        let _ = (index, Address::new(0, 0, 0, 0));
+    }
+
+    #[test]
+    fn effect_slots_share_an_address_across_types() {
+        let index = ParamIndex::new();
+        let a = index.find(PluginKind::SnSynth, "mfx/1/1").expect("param");
+        let address = index.get(a).device_address(&Binding::of_part(0)).unwrap();
+        let types: Vec<_> = index
+            .locate(&address)
+            .into_iter()
+            .filter(|l| index.get(l.handle).id.ends_with("/1"))
+            .collect();
+        assert!(types.len() > 1);
+    }
+
+    #[test]
+    fn an_effect_types_parameters_say_where_the_type_is() {
+        let index = ParamIndex::new();
+        for plugin in PluginKind::ALL {
+            for param in plugin.host_params() {
+                let Some(effect) = param.effect else { continue };
+                let binding = binding_for(param.anchor);
+                let at = param
+                    .effect_type_address(&binding)
+                    .expect("an effect parameter")
+                    .expect("address");
+                let type_param = index
+                    .locate(&at)
+                    .into_iter()
+                    .find(|l| l.handle.plugin == plugin)
+                    .unwrap_or_else(|| panic!("{} type byte not a parameter", param.id));
+                let def = index.get(type_param.handle);
+                assert_eq!(def.width, 1, "{}", param.id);
+                assert!(def.max >= i32::from(effect.type_id), "{}", param.id);
+            }
+        }
+    }
+}
