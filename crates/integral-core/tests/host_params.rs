@@ -210,7 +210,7 @@ fn a_tempo_synced_parameter_lists_its_switch_value_and_note() {
 mod param_index {
     use integral_core::address::Address;
     use integral_core::device_spec::INTEGRA7;
-    use integral_core::host_params::{Anchor, Binding, ParamIndex};
+    use integral_core::host_params::{Anchor, Binding, EffectKind, ParamIndex};
 
     use super::PluginKind;
 
@@ -297,6 +297,119 @@ mod param_index {
             }
         }
         let _ = (index, Address::new(0, 0, 0, 0));
+    }
+
+    #[test]
+    fn a_write_at_a_parameters_address_sets_it_to_the_value() {
+        let index = ParamIndex::new();
+        for plugin in PluginKind::ALL {
+            for param in plugin.host_params() {
+                let handle = index.find(plugin, &param.id).expect("found by ID");
+                let binding = binding_for(param.anchor);
+                let address = param.device_address(&binding).expect("address");
+                // The effect type the parameter is for is the active one.
+                let active =
+                    |kind: EffectKind| param.effect.filter(|e| e.kind == kind).map(|e| e.type_id);
+                for value in [param.min, param.max] {
+                    let writes =
+                        index.writes_at(plugin, &binding, &address, &param.encode(value), active);
+                    assert!(
+                        writes
+                            .iter()
+                            .any(|w| w.handle == handle && w.value == value),
+                        "{plugin:?} {}: {value} not seen in {writes:?}",
+                        param.id
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_write_belongs_to_the_binding_it_lands_in() {
+        let index = ParamIndex::new();
+        let handle = index
+            .find(PluginKind::PcmSynth, "pcms/common/0x0E")
+            .expect("param");
+        let param = index.get(handle);
+        let at = param.device_address(&Binding::of_part(3)).unwrap();
+        let data = param.encode(param.max);
+        let none = |_| None;
+        let seen = |binding: Binding, plugin| index.writes_at(plugin, &binding, &at, &data, none);
+        assert_eq!(seen(Binding::of_part(3), PluginKind::PcmSynth).len(), 1);
+        // Another Part, another plugin's list, or a key: nothing.
+        assert!(seen(Binding::of_part(4), PluginKind::PcmSynth).is_empty());
+        assert!(seen(Binding::of_part(3), PluginKind::SnSynth).is_empty());
+        // A key owns only a key's parameters, which a Tone list has none of.
+        assert!(seen(Binding::of_part(3).with_key(40), PluginKind::PcmSynth).is_empty());
+    }
+
+    #[test]
+    fn a_kit_plugin_hears_its_kit_or_its_key_and_not_the_other() {
+        let index = ParamIndex::new();
+        let list = PluginKind::PcmDrum.host_params();
+        let key_param = list
+            .iter()
+            .find(|p| matches!(p.anchor, Anchor::Key(_)))
+            .expect("a key parameter");
+        let kit_param = list
+            .iter()
+            .find(|p| p.anchor == Anchor::Part && p.effect.is_none())
+            .expect("a kit parameter");
+        let key = INTEGRA7.pcm_drum_keys.first + 2;
+        let by_key = Binding::of_part(1).with_key(key);
+        let by_kit = Binding::of_part(1);
+        let hears = |binding: &Binding, param: &integral_core::host_params::HostParam| {
+            let at = param.device_address(binding).or_else(|_| {
+                // The address the other role would write, for the same Part.
+                param.device_address(&Binding::of_part(1).with_key(key))
+            });
+            let at = at.expect("address");
+            !index
+                .writes_at(
+                    PluginKind::PcmDrum,
+                    binding,
+                    &at,
+                    &param.encode(param.min),
+                    |_| None,
+                )
+                .is_empty()
+        };
+        assert!(hears(&by_key, key_param));
+        assert!(hears(&by_kit, kit_param));
+        assert!(
+            !hears(&by_kit, key_param),
+            "a kit binding has no key parameters"
+        );
+        assert!(
+            !hears(&by_key, kit_param),
+            "a key binding has no kit parameters"
+        );
+    }
+
+    #[test]
+    fn an_effect_slot_belongs_to_the_active_type_only() {
+        let index = ParamIndex::new();
+        let a = index.find(PluginKind::SnSynth, "mfx/1/1").expect("param");
+        let param = index.get(a);
+        let EffectKind::Mfx = param.effect.expect("effect").kind else {
+            panic!("an MFX slot");
+        };
+        let binding = Binding::of_part(0);
+        let at = param.device_address(&binding).unwrap();
+        let data = param.encode(0);
+        let of_type = |active: Option<u8>| {
+            index
+                .writes_at(PluginKind::SnSynth, &binding, &at, &data, |k| {
+                    (k == EffectKind::Mfx).then_some(active).flatten()
+                })
+                .into_iter()
+                .map(|w| index.get(w.handle).id.clone())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(of_type(Some(1)), ["mfx/1/1"]);
+        assert_eq!(of_type(Some(2)), ["mfx/2/1"]);
+        assert!(of_type(None).is_empty(), "an unknown type sets nothing");
     }
 
     #[test]

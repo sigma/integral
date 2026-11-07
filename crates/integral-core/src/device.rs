@@ -21,7 +21,7 @@
 //! }
 //! ```
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::ops::Range;
 
 use crate::address::{Address, DataSize};
@@ -395,6 +395,25 @@ pub struct DeviceState {
     stale_replies: Vec<(Address, usize, f64)>,
     /// Sent SN Synth block and mixer requests awaiting their reply.
     requests: RequestTracker,
+    /// The DT1s queued since [`take_writes`](Self::take_writes), while
+    /// [`record_writes`](Self::record_writes) is on.
+    writes: Option<VecDeque<QueuedWrite>>,
+    /// The type of each Part's MFX, as far as this state has written or
+    /// read it (see [`mfx_type`](Self::mfx_type)).
+    mfx_types: HashMap<u8, u8>,
+}
+
+/// The most [`QueuedWrite`]s kept for a caller that does not take them: the
+/// oldest go first.
+pub const WRITE_LOG_LIMIT: usize = 1024;
+
+/// A DT1 as it was queued: where it writes and what.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QueuedWrite {
+    /// The first address written.
+    pub address: Address,
+    /// The bytes written from there.
+    pub data: Vec<u8>,
 }
 
 /// Why an Expansion load can't start.
@@ -424,7 +443,45 @@ impl DeviceState {
             mixer_failed: Vec::new(),
             stale_replies: Vec::new(),
             requests: RequestTracker::new(),
+            writes: None,
+            mfx_types: HashMap::new(),
         }
+    }
+
+    /// Start (or stop) logging the DT1s this state queues, for a caller that
+    /// reacts to the writes as they are made rather than as they are paced
+    /// out (the plugin editor's host gestures). Stopping drops the log.
+    pub fn record_writes(&mut self, on: bool) {
+        self.writes = on.then(VecDeque::new);
+    }
+
+    /// The DT1s queued since the last call, oldest first, each as it was
+    /// queued (before coalescing and splitting into packets): empty unless
+    /// [`record_writes`](Self::record_writes) is on. At most
+    /// [`WRITE_LOG_LIMIT`] are kept.
+    pub fn take_writes(&mut self) -> Vec<QueuedWrite> {
+        self.writes
+            .as_mut()
+            .map(|log| std::mem::take(log).into())
+            .unwrap_or_default()
+    }
+
+    /// Whether any DT1 is logged, for a caller that polls
+    /// ([`take_writes`](Self::take_writes) would give something).
+    pub fn has_writes(&self) -> bool {
+        self.writes.as_ref().is_some_and(|log| !log.is_empty())
+    }
+
+    /// The type of `part`'s MFX, if this state wrote it (a type change, the
+    /// header's Type field) or was told it ([`note_mfx_type`](Self::note_mfx_type))
+    /// since the Part's tone last changed.
+    pub fn mfx_type(&self, part: u8) -> Option<u8> {
+        self.mfx_types.get(&part).copied()
+    }
+
+    /// Record the type of `part`'s MFX, as a caller read it from the device.
+    pub fn note_mfx_type(&mut self, part: u8, mfx_type: u8) {
+        self.mfx_types.insert(part, mfx_type);
     }
 
     /// The SysEx device ID this state addresses.
@@ -586,6 +643,15 @@ impl DeviceState {
                 self.send_dt1(&address.offset(*offset.as_bytes()), chunk);
             }
             return;
+        }
+        if let Some(log) = &mut self.writes {
+            if log.len() >= WRITE_LOG_LIMIT {
+                log.pop_front();
+            }
+            log.push_back(QueuedWrite {
+                address: *address,
+                data: data.to_vec(),
+            });
         }
         let bytes = sysex::build_dt1(self.device_id, address, data);
         let key = format!("dt1:{address}");
@@ -957,6 +1023,8 @@ impl DeviceState {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         mixer_load::set_tone(&mut self.state.parts[part as usize], msb, lsb, pc);
         self.invalidate_sns_tone(part);
+        // The new tone has its own MFX, which nothing has read yet.
+        self.mfx_types.remove(&part);
 
         // Reads of the old tone would undo the change: read the new one,
         // after the change is sent.
@@ -1175,6 +1243,9 @@ impl DeviceState {
     ) -> Result<(), crate::mfx::MfxHeaderIndexError> {
         let offset = crate::mfx::mfx_header_offset(field, index)?;
         let addr = crate::mfx::mfx_address(part, tone_type, offset);
+        if field == crate::mfx::MfxHeaderField::Type {
+            self.note_mfx_type(part, value);
+        }
         self.send_dt1(&addr, &[value]);
         Ok(())
     }
@@ -1192,6 +1263,7 @@ impl DeviceState {
     ) -> Option<[i32; crate::mfx::MFX_PARAM_COUNT]> {
         use crate::mfx::{MfxHeaderField, mfx_header_offset};
         let slots = crate::mfx_params::default_slots(mfx_type)?;
+        self.note_mfx_type(part, mfx_type);
         self.send_dt1(&crate::mfx::mfx_address(part, tone_type, 0), &[mfx_type]);
         // Control Assign 1-4 back to OFF (each type has its own destination
         // list), then the 32 parameter slots right after them.
@@ -2308,6 +2380,93 @@ mod tests {
         dev.set_part_level(0, 80);
         // Should have coalesced to one message.
         assert_eq!(dev.queue.len(), 1);
+    }
+
+    #[test]
+    fn recorded_writes_are_each_edit_before_coalescing_and_only_while_on() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_part_level(0, 50);
+        assert!(dev.take_writes().is_empty(), "off by default");
+
+        dev.record_writes(true);
+        dev.set_part_level(0, 60);
+        dev.set_part_level(0, 80);
+        dev.set_part_pan(1, 10);
+        let writes = dev.take_writes();
+        // The queue coalesced the two levels; the log kept both edits.
+        assert_eq!(
+            writes,
+            [
+                QueuedWrite {
+                    address: params::part_address(0, part::LEVEL),
+                    data: vec![60]
+                },
+                QueuedWrite {
+                    address: params::part_address(0, part::LEVEL),
+                    data: vec![80]
+                },
+                QueuedWrite {
+                    address: params::part_address(1, part::PAN),
+                    data: vec![10]
+                },
+            ]
+        );
+        assert!(dev.take_writes().is_empty(), "taken once");
+
+        dev.record_writes(false);
+        dev.set_part_level(0, 90);
+        assert!(dev.take_writes().is_empty());
+    }
+
+    #[test]
+    fn a_parts_mfx_type_is_remembered_from_what_is_written_or_read_until_its_tone_changes() {
+        use crate::mfx::MfxHeaderField;
+        let mut dev = DeviceState::new(0x10);
+        assert_eq!(dev.mfx_type(2), None);
+        dev.set_mfx_type(2, ToneType::SnSynth, 34).unwrap();
+        assert_eq!(dev.mfx_type(2), Some(34));
+        assert_eq!(dev.mfx_type(3), None, "per Part");
+        dev.set_mfx_header_param(2, ToneType::SnSynth, MfxHeaderField::Type, 0, 5)
+            .unwrap();
+        assert_eq!(dev.mfx_type(2), Some(5));
+        // Another header field is not the type.
+        dev.set_mfx_header_param(2, ToneType::SnSynth, MfxHeaderField::ChorusSend, 0, 9)
+            .unwrap();
+        assert_eq!(dev.mfx_type(2), Some(5));
+        dev.note_mfx_type(3, 7);
+        assert_eq!(dev.mfx_type(3), Some(7));
+        dev.change_part_tone(2, 89, 0, 1);
+        assert_eq!(dev.mfx_type(2), None, "a new tone has its own MFX");
+        assert_eq!(dev.mfx_type(3), Some(7));
+        // An unknown type is not remembered.
+        assert!(dev.set_mfx_type(4, ToneType::SnSynth, 200).is_none());
+        assert_eq!(dev.mfx_type(4), None);
+    }
+
+    #[test]
+    fn has_writes_says_whether_the_log_holds_any() {
+        let mut dev = DeviceState::new(0x10);
+        assert!(!dev.has_writes());
+        dev.record_writes(true);
+        assert!(!dev.has_writes());
+        dev.set_part_level(0, 70);
+        assert!(dev.has_writes());
+        dev.take_writes();
+        assert!(!dev.has_writes());
+    }
+
+    #[test]
+    fn the_write_log_keeps_the_newest_up_to_its_limit() {
+        let mut dev = DeviceState::new(0x10);
+        dev.record_writes(true);
+        for value in 0..=127u8 {
+            for _ in 0..=(WRITE_LOG_LIMIT / 128) {
+                dev.set_part_level(0, value);
+            }
+        }
+        let writes = dev.take_writes();
+        assert_eq!(writes.len(), WRITE_LOG_LIMIT);
+        assert_eq!(writes.last().map(|w| w.data.clone()), Some(vec![127]));
     }
 
     /// The DT1s drained, in order, as (address bytes, data).

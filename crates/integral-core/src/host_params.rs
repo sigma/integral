@@ -707,6 +707,67 @@ impl ParamIndex {
     }
 }
 
+/// A host parameter a write set, and the raw value it set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HostWrite {
+    /// The parameter.
+    pub handle: ParamHandle,
+    /// The raw value (what [`HostParam::decode`] reads), within its range.
+    pub value: i32,
+}
+
+impl ParamIndex {
+    /// The parameters of `plugin` that a DT1 of `data` at `address` sets, as
+    /// an instance bound to `binding` has them, in address order.
+    ///
+    /// A parameter counts only if its address for `binding` is where the
+    /// write lands, `data` holds all of its bytes, and the binding owns it:
+    /// a Binding with a key owns that key's parameters and not the kit's
+    /// (ADR 0007), and one without owns the kit's and no key's. An
+    /// effect type's parameter counts only while `active_type` says its
+    /// effect has that type; `None` (not known) leaves it out.
+    pub fn writes_at(
+        &self,
+        plugin: PluginKind,
+        binding: &Binding,
+        address: &Address,
+        data: &[u8],
+        active_type: impl Fn(EffectKind) -> Option<u8>,
+    ) -> Vec<HostWrite> {
+        let mut writes = Vec::new();
+        for from in 0..data.len() {
+            let Some(at) = u32::try_from(from)
+                .ok()
+                .and_then(|n| Address::from_value(address.value() + n))
+            else {
+                break;
+            };
+            for located in self.locate(&at) {
+                if located.handle.plugin != plugin {
+                    continue;
+                }
+                let param = self.get(located.handle);
+                let owned = binding.key.is_none() || matches!(param.anchor, Anchor::Key(_));
+                let sets_here = owned
+                    && param.device_address(binding) == Ok(at)
+                    && param
+                        .effect
+                        .is_none_or(|e| active_type(e.kind) == Some(e.type_id));
+                let Some(bytes) = data.get(from..from + param.width) else {
+                    continue;
+                };
+                if let (true, Some(value)) = (sets_here, param.decode(bytes)) {
+                    writes.push(HostWrite {
+                        handle: located.handle,
+                        value,
+                    });
+                }
+            }
+        }
+        writes
+    }
+}
+
 /// A list as its snapshot text: one `id<TAB>min<TAB>max` line per
 /// parameter, which the checked-in snapshots hold so a change shows in
 /// review (ADR 0008).

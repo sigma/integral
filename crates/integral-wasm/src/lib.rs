@@ -348,8 +348,10 @@ macro_rules! mirror_core_enum {
 
 // Declared after `mirror_core_enum!`, which they use.
 mod display;
+mod plugin;
 mod relevance;
 pub use display::{DisplayKind, DisplayProp, WasmDisplaySlot, display_binding};
+pub use plugin::PluginKind;
 pub use relevance::Relevance;
 
 /// Tone type of a Part's Temporary Tone, selecting which tone type block
@@ -3180,8 +3182,9 @@ impl WasmDeviceState {
 
     /// Apply a full MFX block dump to the part's MFX state.
     #[wasm_bindgen(js_name = applyMfxBlock)]
-    pub fn apply_mfx_block(&mut self, _part: u8, data: &[u8]) -> JsValue {
+    pub fn apply_mfx_block(&mut self, part: u8, data: &[u8]) -> JsValue {
         let state = mfx::parse_mfx_block(data);
+        self.inner.note_mfx_type(part, state.mfx_type);
         serde_wasm_bindgen::to_value(&state).unwrap_or(JsValue::NULL)
     }
 }
