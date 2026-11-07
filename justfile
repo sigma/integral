@@ -72,6 +72,10 @@ pack-wasm:
 test:
     cargo test --workspace
 
+# rewrite the host parameter list snapshots (review the diff: it moves saved automation)
+regen-host-params:
+    cargo run -p integral-core --example regen_host_params
+
 # build the web app for production (includes WASM pack)
 build-web: pack-wasm
     cd web && npx vite build

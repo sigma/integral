@@ -1436,6 +1436,7 @@ version = "0.1.0"
 dependencies = [
  "baseview",
  "cpal",
+ "integral-core",
  "midir 0.10.3",
  "nih_plug",
  "raw-window-handle 0.5.2",

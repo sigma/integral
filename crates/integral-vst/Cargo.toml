@@ -13,6 +13,7 @@ name = "integral-app"
 path = "src/standalone.rs"
 
 [dependencies]
+integral-core = { path = "../integral-core" }
 nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["standalone"] }
 cpal = "0.15"
 midir = "0.10"

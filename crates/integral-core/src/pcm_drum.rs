@@ -365,6 +365,35 @@ impl BlockField for PcmdCommonField {
     }
 }
 
+/// A field of the PCM Drum Kit Common 2 block. The discriminant is the
+/// field's byte position within the block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PcmdCommon2Field {
+    /// Phrase Number (nibblized, 2 bytes).
+    PhraseNumber = COMMON2_PHRASE_NUMBER,
+    /// TFX Switch.
+    TfxSwitch = COMMON2_TFX_SWITCH,
+}
+
+impl PcmdCommon2Field {
+    /// Every field, in block (device address) order.
+    pub const ALL: &[Self] = &[Self::PhraseNumber, Self::TfxSwitch];
+}
+
+impl BlockField for PcmdCommon2Field {
+    fn position(self) -> usize {
+        self as usize
+    }
+
+    fn width(self) -> usize {
+        match self {
+            Self::PhraseNumber => 2,
+            Self::TfxSwitch => 1,
+        }
+    }
+}
+
 /// Compute the absolute address for a single PCM Drum Kit Common parameter.
 pub const fn pcmd_common_param_address(part_index: u8, offset: u8) -> Address {
     pcmd_common_address(part_index).offset([0x00, 0x00, 0x00, offset])

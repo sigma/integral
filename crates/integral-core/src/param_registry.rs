@@ -539,20 +539,41 @@ pub enum MixerScopeKind {
 }
 
 impl MixerScopeKind {
+    /// Whether `field` of a scope of this kind sits in a drum kit rather
+    /// than the Studio Set: a Drum Comp+EQ unit's own settings. Its Output
+    /// Assign is the Studio Set's.
+    fn is_kit_field(self, field: MixerField) -> bool {
+        self == MixerScopeKind::CompEqUnit && field != MixerField::CompOutputAssign
+    }
+
+    /// Whether `field` of a scope of this kind sits in the System area, not
+    /// the Studio Set: the Master Level. ADR 0007 gives the plugin the
+    /// Master EQ only.
+    fn is_system_field(self, field: MixerField) -> bool {
+        self == MixerScopeKind::Master && field == MixerField::MasterLevel
+    }
+
     /// The fields the Studio Set plugin exposes in a scope of this kind
     /// (ADR 0007): every Part's mixer block and EQ, the Ext input, the
-    /// master, and the common block (Chorus, Reverb, Solo Part, Motional
+    /// Master EQ, and the common block (Chorus, Reverb, Solo Part, Motional
     /// Surround, the Drum Comp/EQ switch and assigned Part). Of a Drum
     /// Comp+EQ unit only its Output Assign is the Studio Set's; the units'
     /// own settings sit in the kit, which a Kit plugin bound to the whole
-    /// kit owns.
+    /// kit owns ([`kit_fields`](Self::kit_fields)).
     pub fn studio_set_fields(self) -> Vec<MixerField> {
         MixerField::ALL
             .into_iter()
             .filter(|field| field.in_scope(self))
-            .filter(|field| {
-                self != MixerScopeKind::CompEqUnit || *field == MixerField::CompOutputAssign
-            })
+            .filter(|field| !self.is_kit_field(*field) && !self.is_system_field(*field))
+            .collect()
+    }
+
+    /// The fields of a scope of this kind that sit in a drum kit: a Drum
+    /// Comp+EQ unit's own settings. No other kind has any.
+    pub fn kit_fields(self) -> Vec<MixerField> {
+        MixerField::ALL
+            .into_iter()
+            .filter(|field| field.in_scope(self) && self.is_kit_field(*field))
             .collect()
     }
 }
@@ -1312,7 +1333,6 @@ fn mixer_host_name(field: MixerField) -> &'static str {
 
 /// The scopes the Studio Set plugin lists, one of each kind but for the
 /// Parts and Comp+EQ units, which the device spec counts.
-#[cfg(test)]
 pub(crate) fn studio_set_scopes() -> Vec<MixerScope> {
     let kit = CompEqKit {
         part: 0,
@@ -1872,12 +1892,14 @@ mod tests {
         }
         assert!(seen.contains("Part 7 Level"));
         assert!(seen.contains("Master EQ Low Gain"));
+        // The Master Level is in the System area, not the Studio Set's.
+        assert!(!seen.contains("Master Level"));
         assert!(seen.contains("Drum Comp/EQ 3 Output Assign"));
         assert!(!seen.iter().any(|n| n.contains("Comp Attack")));
         // The set is chosen here from ADR 0007's ownership list, not from
         // its "about 1,300" estimate. It leaves out the Chorus and Reverb
         // type parameters, which `fx_params` names.
-        assert_eq!(seen.len(), 345, "the Studio Set plugin's mixer parameters");
+        assert_eq!(seen.len(), 344, "the Studio Set plugin's mixer parameters");
     }
 
     /// The doc rows of the Studio Set tables (and the System Common one),

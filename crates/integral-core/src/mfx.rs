@@ -6,6 +6,7 @@
 //! sends, 4 control source slots, and up to 32 nibblized parameters.
 
 use crate::address::{Address, DataSize};
+use crate::block_field::BlockField;
 use crate::family::ParameterFamily;
 use crate::params::ToneType;
 use thiserror::Error;
@@ -107,6 +108,23 @@ impl MfxHeaderField {
             Self::ControlSource => 0x05 + index * 2,
             Self::ControlSens => 0x06 + index * 2,
             Self::ControlAssign => 0x0D + index,
+        }
+    }
+}
+
+impl BlockField for MfxHeaderField {
+    fn position(self) -> usize {
+        usize::from(self.raw_offset(0))
+    }
+
+    fn count(self) -> usize {
+        Self::count(self)
+    }
+
+    fn stride(self) -> usize {
+        match self {
+            Self::ControlSource | Self::ControlSens => 2,
+            _ => 1,
         }
     }
 }

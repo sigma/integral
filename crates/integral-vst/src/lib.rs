@@ -14,6 +14,9 @@ use std::sync::{Arc, RwLock};
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 mod webview;
 
+#[cfg(test)]
+mod host_param_probe;
+
 /// The editor's size before the page asks for its own, logical px.
 const DEFAULT_EDITOR_SIZE: (u32, u32) = (1280, 820);
 

@@ -34,8 +34,10 @@ use std::sync::OnceLock;
 use crate::block_field::BlockField;
 use crate::family::ParameterFamily;
 use crate::fx_params::{NOTE_NAMES, SYNC_CLOCK, SYNC_HZ};
+use crate::mfx::{MfxCtrlSlot, MfxHeaderField, MfxState};
+use crate::mfx_params::{ControlSourceKind, MFX_TYPE_NAMES};
 use crate::param_registry::{FieldCatalog, NOTE_FROM, ParamFormat};
-use crate::pcm_drum::{self, PcmdCommonField, PcmdPartialField, PcmdWmtField};
+use crate::pcm_drum::{self, PcmdCommon2Field, PcmdCommonField, PcmdPartialField, PcmdWmtField};
 use crate::pcm_synth::{self, PcmsCommon2Field, PcmsCommonField, PcmsPartialField, PcmsPmtField};
 use crate::sn_acoustic::{self, SnaCommonField};
 use crate::sn_drum::{self, SND_INST_NUMBER_MAX, SndCommonField, SndNoteField};
@@ -433,6 +435,56 @@ pub fn pcmd_common_spec(field: PcmdCommonField) -> FieldSpec {
         pcmd_common_family(field),
         pcmd_common_host_name(field),
     )
+}
+
+/// The spec of a PCM Drum Kit Common 2 field.
+pub fn pcmd_common2_spec(field: PcmdCommon2Field) -> FieldSpec {
+    // Common 2 has no block encoder: read the default off the struct.
+    let init = pcm_drum::PcmDrumCommon2::default();
+    let (Shape { min, max, format }, default) = match field {
+        PcmdCommon2Field::PhraseNumber => (shape(0, 255, Raw), init.phrase_number.into()),
+        PcmdCommon2Field::TfxSwitch => (ON_OFF, init.tfx_switch.into()),
+    };
+    FieldSpec {
+        min,
+        max,
+        default,
+        format,
+        family: ParameterFamily::Common,
+        host_name: pcmd_common2_host_name(field),
+    }
+}
+
+/// The spec of an MFX header field, which every Tone plugin and every
+/// kit-bound Kit plugin lists ahead of the MFX types' parameters.
+pub fn mfx_header_spec(field: MfxHeaderField) -> FieldSpec {
+    let init = MfxState::default();
+    let control = MfxCtrlSlot::default();
+    use MfxHeaderField as F;
+    let (Shape { min, max, format }, default) = match field {
+        F::Type => (
+            shape(0, MFX_TYPE_NAMES.len() as i32 - 1, Named(MFX_TYPE_NAMES)),
+            init.mfx_type,
+        ),
+        F::ChorusSend => (RAW_127, init.chorus_send),
+        F::ReverbSend => (RAW_127, init.reverb_send),
+        // shortcut: Source and Assign show raw indices; name them when an editor shows them (`control_source_name`, `control_targets`).
+        F::ControlSource => (
+            shape(0, ControlSourceKind::Mfx.max().into(), Raw),
+            control.source,
+        ),
+        F::ControlSens => (SIGNED_63, control.sens),
+        // The doc's 0-16 (OFF, 1-16), though no type lists more than eight destinations.
+        F::ControlAssign => (shape(0, 16, Raw), control.assign),
+    };
+    FieldSpec {
+        min,
+        max,
+        default: default.into(),
+        format,
+        family: field.family(),
+        host_name: field.host_name(),
+    }
 }
 
 /// The INIT PCM Drum Kit Partial block, which holds both the WMT and the
@@ -937,6 +989,14 @@ fn pcms_common2_host_name(field: PcmsCommon2Field) -> &'static str {
         F::PhraseOctaveShift => "Phrase Octave Shift",
         F::TfxSwitch => "TFX Switch",
         F::PhraseNumber => "Phrase Number",
+    }
+}
+
+/// The host name of a PCM Drum Kit Common 2 field.
+fn pcmd_common2_host_name(field: PcmdCommon2Field) -> &'static str {
+    match field {
+        PcmdCommon2Field::PhraseNumber => "Phrase Number",
+        PcmdCommon2Field::TfxSwitch => "TFX Switch",
     }
 }
 
@@ -2028,6 +2088,30 @@ mod tests {
     }
 
     #[test]
+    fn pcmd_common2_specs_match_the_doc() {
+        assert_matches_doc(
+            PCMD_DOC,
+            "PCM Drum Kit Common 2",
+            |_| true,
+            PcmdCommon2Field::ALL,
+            PLAIN,
+            pcmd_common2_spec,
+        );
+    }
+
+    #[test]
+    fn mfx_header_specs_match_the_doc() {
+        assert_matches_doc(
+            PCMS_DOC,
+            "PCM Synth Tone Common MFX",
+            |name| name.starts_with("MFX"),
+            MfxHeaderField::ALL,
+            PLAIN,
+            mfx_header_spec,
+        );
+    }
+
+    #[test]
     fn pcmd_wmt_specs_match_the_doc() {
         assert_matches_doc(
             PCMD_DOC,
@@ -2199,6 +2283,7 @@ mod tests {
         assert_ascending("PCM Synth Partial", PcmsPartialField::ALL);
         assert_ascending("PCM Synth Common 2", PcmsCommon2Field::ALL);
         assert_ascending("PCM Drum Common", PcmdCommonField::ALL);
+        assert_ascending("PCM Drum Common 2", PcmdCommon2Field::ALL);
         assert_ascending("PCM Drum WMT", PcmdWmtField::ALL);
         assert_ascending("PCM Drum Partial", PcmdPartialField::ALL);
         assert_ascending("SN Synth Common", SnsCommonField::ALL);
@@ -2236,6 +2321,11 @@ mod tests {
             pcms_common2_spec,
         );
         check("PCM Drum Common", PcmdCommonField::ALL, pcmd_common_spec);
+        check(
+            "PCM Drum Common 2",
+            PcmdCommon2Field::ALL,
+            pcmd_common2_spec,
+        );
         check("PCM Drum WMT", PcmdWmtField::ALL, pcmd_wmt_spec);
         check("PCM Drum Partial", PcmdPartialField::ALL, pcmd_partial_spec);
         check("SN Synth Common", SnsCommonField::ALL, sns_common_spec);
@@ -2327,6 +2417,7 @@ mod tests {
         assert_distinct("PCM Synth", &pcms);
         let pcmd: Vec<String> = [
             host_names(PcmdCommonField::ALL, "", pcmd_common_spec),
+            host_names(PcmdCommon2Field::ALL, "", pcmd_common2_spec),
             host_names(PcmdPartialField::ALL, KEY_PREFIX, pcmd_partial_spec),
             host_names(PcmdWmtField::ALL, KEY_PREFIX, pcmd_wmt_spec),
             mfx_names(),

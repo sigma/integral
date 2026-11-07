@@ -134,6 +134,94 @@ pub const REVERB_PARAMS_SIZE: DataSize =
     DataSize::new(0x00, 0x00, 0x00, (REVERB_PARAM_COUNT * 4) as u8);
 
 // ---------------------------------------------------------------------------
+// Studio Set blocks
+// ---------------------------------------------------------------------------
+
+/// A block of the Studio Set that a host parameter ID names (`part07`,
+/// `chorus/head`): its ID and where it starts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StudioSetBlock {
+    /// The block's name in a host parameter ID.
+    pub id: String,
+    /// The block's first address.
+    pub base: Address,
+    /// The block's size in bytes.
+    pub size: u32,
+}
+
+/// ID of the Studio Set Common block.
+const COMMON_BLOCK_ID: &str = "common";
+/// ID of the Chorus block's fixed fields, ahead of its type parameters.
+const CHORUS_BLOCK_ID: &str = "chorus/head";
+/// ID of the Reverb block's fixed fields, ahead of its type parameters.
+const REVERB_BLOCK_ID: &str = "reverb/head";
+/// ID of the Motional Surround common block.
+const SURROUND_BLOCK_ID: &str = "surround";
+/// ID of the Master EQ block.
+const MASTER_EQ_BLOCK_ID: &str = "mastereq";
+/// ID suffix of a Part's EQ block, after the Part's own ID.
+const PART_EQ_BLOCK_ID: &str = "eq";
+
+/// The Studio Set's blocks that hold parameters, for a device with
+/// `part_count` Parts: Common, Chorus, Reverb, Motional Surround, Master EQ,
+/// and per Part its own block (`part07`) and its EQ (`part07/eq`).
+pub fn studio_set_blocks(part_count: u8) -> Vec<StudioSetBlock> {
+    let block = |id: &str, base, size: u32| StudioSetBlock {
+        id: id.to_string(),
+        base,
+        size,
+    };
+    // A Part's block ends with its Motional Surround positions.
+    let part_size = u32::from(part_surround::LR[2]) + PART_SURROUND_SIZE.value();
+    let parts = (0..part_count).flat_map(|part| {
+        let id = format!("part{:02}", part + 1);
+        let eq = format!("{id}/{PART_EQ_BLOCK_ID}");
+        [
+            block(&id, part_address(part, [0, 0, 0]), part_size),
+            block(&eq, part_eq_address(part, 0), PART_EQ_SIZE.value()),
+        ]
+    });
+    [
+        // The common block runs up to the Chorus block.
+        block(
+            COMMON_BLOCK_ID,
+            crate::address::STUDIO_SET,
+            CHORUS_BASE.value() - crate::address::STUDIO_SET.value(),
+        ),
+        block(CHORUS_BLOCK_ID, CHORUS_BASE, CHORUS_CORE_SIZE.value()),
+        block(REVERB_BLOCK_ID, REVERB_BASE, REVERB_CORE_SIZE.value()),
+        block(
+            SURROUND_BLOCK_ID,
+            SURROUND_BASE,
+            SURROUND_COMMON_SIZE.value(),
+        ),
+        block(
+            MASTER_EQ_BLOCK_ID,
+            master_eq_address(0),
+            MASTER_EQ_SIZE.value(),
+        ),
+    ]
+    .into_iter()
+    .chain(parts)
+    .collect()
+}
+
+/// The block of `blocks` that `address` lies in (the last one starting at or
+/// before it) and its linear byte offset from the block's start, or `None`
+/// ahead of the first block or past the end of the block it follows.
+pub fn studio_set_block_offset(
+    blocks: &[StudioSetBlock],
+    address: Address,
+) -> Option<(&StudioSetBlock, u32)> {
+    blocks
+        .iter()
+        .filter(|block| block.base.value() <= address.value())
+        .max_by_key(|block| block.base.value())
+        .map(|block| (block, address.value() - block.base.value()))
+        .filter(|(block, offset)| *offset < block.size)
+}
+
+// ---------------------------------------------------------------------------
 // Studio Set Part offsets (within a Part block)
 // ---------------------------------------------------------------------------
 
@@ -555,6 +643,24 @@ mod tests {
         }
     }
     use crate::address::Address;
+
+    #[test]
+    fn studio_set_block_offsets_stop_at_a_blocks_end() {
+        let blocks = studio_set_blocks(16);
+        let (block, offset) = studio_set_block_offset(&blocks, part_address(6, [0, 0, 9])).unwrap();
+        assert_eq!((block.id.as_str(), offset), ("part07", 9));
+        // The gap between the last Part and the first Part EQ, and the one
+        // after a Part's last byte, belong to no block.
+        assert_eq!(
+            studio_set_block_offset(&blocks, part_address(15, [0, 0, 0]).offset([0, 0, 1, 0])),
+            None
+        );
+        assert_eq!(
+            studio_set_block_offset(&blocks, part_address(0, [0, 0, 0x7F])),
+            None
+        );
+        assert_eq!(studio_set_block_offset(&blocks, SYSTEM_MASTER_LEVEL), None);
+    }
 
     #[test]
     fn fx_params_sizes_cover_all_params() {
