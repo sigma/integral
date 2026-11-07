@@ -31,7 +31,7 @@ Notes by topic:
   `wave-names.md`, `lfo-rates.md` (+ `.json`), `audio-output-routing.md`.
 - Transport and hosting: `integra-wireless-capture.md` (+ `.pcap`),
   `midi-port-ownership.md`, `webview-plugin.md`, `host-parameter-limits.md`,
-  `hardware-plugin-precedents.md`.
+  `hardware-plugin-precedents.md`, `plugin-test-host.md`.
 
 ## Interface
 
