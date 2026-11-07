@@ -502,10 +502,6 @@ impl DeviceState {
         let bytes = sysex::build_dt1(self.device_id, address, data);
         let key = format!("dt1:{address}");
 
-        // Mark for echo suppression (sentinel = not yet sent).
-        self.echo_tracker
-            .insert(format!("{address}"), f64::NEG_INFINITY);
-
         let span = dt1_span(address, data.len());
 
         // Queued DT1s the new one may replace: it covers them and nothing
@@ -599,7 +595,7 @@ impl DeviceState {
     fn is_suppressed(&mut self, address: &Address, now_ms: f64) -> bool {
         let key = format!("{address}");
         if let Some(&ts) = self.echo_tracker.get(&key) {
-            if ts != f64::NEG_INFINITY && now_ms - ts < ECHO_SUPPRESS_MS {
+            if now_ms - ts < ECHO_SUPPRESS_MS {
                 return true;
             }
             self.echo_tracker.remove(&key);
@@ -2203,6 +2199,18 @@ mod tests {
             dev.send_dt1(&start.offset(*off.as_bytes()), &[1]);
         }
         assert_eq!(dev.queue.len(), 1000);
+    }
+
+    #[test]
+    fn a_queued_write_keeps_the_previous_writes_echo_window() {
+        let pan = params::part_address(0, part::PAN);
+        let mut dev = DeviceState::new(0x10);
+        dev.set_part_pan(0, 1);
+        assert!(dev.drain(0.0).is_some());
+        dev.set_part_pan(0, 2);
+        // The echo of the first write arrives while the second is queued.
+        assert!(!dev.handle_dt1(&pan, &[1], 20.0));
+        assert_eq!(dev.state().parts[0].pan, 2);
     }
 
     #[test]
