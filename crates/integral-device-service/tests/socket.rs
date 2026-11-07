@@ -179,12 +179,19 @@ fn dt1(part_index: u8, value: u8) -> Vec<u8> {
 }
 
 /// Make sure the service has handled everything `client` sent so far, by
-/// round-tripping a change through its own subscription: it writes Part 16's
-/// mute, which the tests leave alone.
+/// round-tripping a change through its own subscription: it pushes Part 16's
+/// mute, which the tests leave alone. A push, because the service drops a
+/// write of a value it knows the device has, and `settle` may be called twice.
 fn settle(client: &Client, events: &Events) {
     let mute = param_at(&params::part_address(15, part::MUTE));
     client.subscribe(Binding::ANY);
-    client.write(mute.clone(), Binding::ANY, 0);
+    client.send(Request::Push {
+        requests: vec![Request::Write {
+            param: mute.clone(),
+            binding: Binding::ANY,
+            value: 0,
+        }],
+    });
     next(events, "its own change back", |event| match event {
         ClientEvent::Message(Message::Changed { param, .. }) if param == mute => Some(()),
         _ => None,

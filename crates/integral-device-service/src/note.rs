@@ -56,9 +56,30 @@ pub(crate) fn is_note_traffic(message: &[u8]) -> bool {
         .is_some_and(|status| *status >= 0x80 && !matches!(status, 0xF0 | 0xF7))
 }
 
+/// Status nibble of a Program Change.
+const PROGRAM_CHANGE: u8 = 0xC0;
+
+/// The MIDI channel (0-based) of a Program Change. The device applies it to
+/// every Part that receives on the channel, behind anything the service has
+/// cached. (A Bank Select only sets the bank the next Program Change uses.)
+pub(crate) fn program_change_channel(message: &[u8]) -> Option<u8> {
+    let status = *message.first()?;
+    (status & 0xF0 == PROGRAM_CHANGE).then_some(status & 0x0F)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_a_program_change_chooses_a_tone() {
+        assert_eq!(program_change_channel(&[0xC3, 5]), Some(3));
+        assert_eq!(program_change_channel(&[0xB0, 0, 87]), None, "bank select");
+        assert_eq!(program_change_channel(&[0xB2, 7, 90]), None, "volume");
+        assert_eq!(program_change_channel(&[0x92, 60, 100]), None, "note");
+        assert_eq!(program_change_channel(&[0xF8]), None);
+        assert_eq!(program_change_channel(&[]), None);
+    }
 
     #[test]
     fn sysex_is_dropped_and_everything_else_passes() {

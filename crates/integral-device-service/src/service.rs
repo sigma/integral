@@ -6,10 +6,35 @@
 //! notes first, then at most one paced SysEx message.
 //!
 //! Clients reach it the same way: a request is an [`Input::Client`], checked
-//! on arrival and queued with its client's ID. `pump` moves one queued item
-//! into the device's own queue whenever that is empty, so the client queue is
-//! the real one and an item's writer is known until the moment its DT1s are
-//! queued for sending, which is when subscribers hear of it.
+//! on arrival and queued in its client's own queue. `pump` moves queued items
+//! into the device's own queue whenever that is empty, one client's turn after
+//! another's (see [`Queues`]), so the client queues are the real ones and an
+//! item's writer is known until the moment its DT1s are queued for sending,
+//! which is when subscribers hear of it. That is also where the cache rules
+//! apply: a write the session knows the device already has is dropped there,
+//! except in a push.
+//!
+//! # Session boundaries
+//!
+//! A session is one span of one link. When it ends (the link drops, or the
+//! device ID turns out to be another device's) the service forgets the old
+//! device: every field becomes unknown, and what was waiting is dropped, both
+//! the clients' queued work and what was in the [`DeviceState`] queue. Clients
+//! hear [`Message::LinkDown`] and [`Message::LinkUp`] and push or re-read for
+//! the new session; nothing is replayed to a device that may be another one,
+//! or a power-cycled one that no longer holds what the writes assumed.
+//!
+//! # Tone baselines and tones changed behind the cache
+//!
+//! After a Preset or Expansion tone is selected through the service, the tone
+//! is read back, a block at a time in the selecting client's turns, and kept
+//! as the Part's [`ToneBaseline`]. A Program Change that reaches the device
+//! through the note port changes the tone of the Parts it reaches (and
+//! possibly the Studio Set) without the service writing it, so for those it
+//! forgets the tone (its cache and baseline), tells subscribers
+//! [`BulkKind::Tone`] or [`BulkKind::StudioSet`] and reads the Part's tone
+//! again, which then gets its baseline too. Which Parts it reaches depends on
+//! settings the service reads from the device the first time it needs them.
 
 use std::collections::VecDeque;
 use std::time::Duration;
@@ -19,20 +44,27 @@ use std::ops::Range;
 use std::sync::OnceLock;
 
 use integral_core::address::{Address, DataSize};
-use integral_core::device::{Coalesce, DeviceState, coalesce, dt1_span, selects};
+use integral_core::device::{DeviceState, dt1_span, selects};
+use integral_core::device_spec::tone_read_blocks;
 use integral_core::expansion_load::LoadAction;
 use integral_core::host_params::{
     Anchor, Binding, EffectKind, Located, ParamHandle, ParamIndex, PluginKind, temporary_tone_part,
 };
-use integral_core::params;
+use integral_core::mixer_load::MixerBlock;
+use integral_core::params::{self, tone_type_from_bank_msb};
 use integral_core::sysex::{self, DEFAULT_DEVICE_ID};
+use integral_core::tone_banks::{find_bank, is_fixed_tone};
 
+use crate::baseline::{Baselines, Begin, Outcome, Reply, Selected, Settled, Step, ToneBaseline};
 use crate::clients::{Clients, Outbox};
 use crate::link::{DeviceLink, LinkError, LinkEvent};
-use crate::note::is_note_traffic;
+use crate::note::{is_note_traffic, program_change_channel};
 use crate::protocol::{
-    Bound, BulkKind, ClientId, Message, PROTOCOL_VERSION, ParamId, Reject, Request,
+    BaselineRun, Bound, BulkKind, ClientId, Message, PROTOCOL_VERSION, ParamId, Reject, Request,
+    ToneSelect,
 };
+use crate::queues::{Pending, Queues, Work};
+use crate::rx::RxMap;
 use crate::session::{RandomSessionIds, SessionId, SessionIdSource};
 
 /// How long the service waits for the Identity Reply that settles the device
@@ -46,8 +78,13 @@ const IDENTITY_KEY: &str = "identity";
 /// (the device ignored the request) is forgotten, oldest first.
 const MAX_PENDING_READS: usize = 256;
 
-/// How long the device has to answer a typed read (ms).
+/// How long the device has to answer a typed read, or a request for part of
+/// a tone baseline, from the moment the request leaves (ms).
 const READ_TIMEOUT_MS: f64 = 2000.0;
+
+/// How long Program Changes wait for the receive settings they need to be
+/// read before the Parts that cannot be ruled out are taken to be reached (ms).
+const RX_WAIT_MS: f64 = 5000.0;
 
 /// Most parameters one write or device message announces one by one; past
 /// that, a bulk event.
@@ -63,21 +100,16 @@ pub(crate) fn shared_params() -> &'static ParamIndex {
     PARAMS.get_or_init(ParamIndex::new)
 }
 
-/// A checked request of a client waiting for the device's queue.
-struct Pending {
-    client: ClientId,
-    request: Request,
-    /// The addresses it writes, if it is a write (the rule that lets a later
-    /// write replace it is [`coalesce`]).
-    span: Option<Range<u32>>,
-}
-
 /// A typed read sent to the device and not yet answered.
 struct PendingRead {
     client: ClientId,
     handle: ParamHandle,
     binding: Binding,
     address: Address,
+    /// The RQ1, to recognise it leaving the queue.
+    rq1: Vec<u8>,
+    /// When to give up: [`f64::INFINITY`] until the request has left, then
+    /// [`READ_TIMEOUT_MS`] later.
     deadline: f64,
 }
 
@@ -238,13 +270,24 @@ pub struct Service {
     held_claims: Vec<(ClientId, PluginKind)>,
     listener: Box<dyn Listener>,
     clients: Clients,
-    /// Client work checked and waiting for the device's queue to empty, each
-    /// item with its client.
-    ///
-    /// One FIFO for now. Each item keeps its [`ClientId`] until `feed_one`
-    /// applies it, which is where per-client queues served round-robin, push
-    /// requests and unchanged-write dropping slot in.
-    pending: VecDeque<Pending>,
+    /// Client work checked and waiting for the device's queue to empty: a
+    /// queue per client, served in turn. Each item keeps its [`ClientId`]
+    /// until `feed` applies it, which is where the cache rules apply.
+    queues: Queues,
+    /// The tone baselines, finished or being read.
+    baselines: Baselines,
+    /// The receive settings that say which Parts a Program Change reaches.
+    rx: RxMap,
+    /// Program Changes (MIDI channels) waiting for `rx` to be read.
+    deferred: Vec<u8>,
+    /// When to stop waiting for it.
+    rx_deadline: Option<f64>,
+    /// An Expansion load was running at the last pump.
+    expansion_loading: bool,
+    /// The Parts whose tone was changed behind the cache and whose dump has
+    /// been asked for again: when it arrives the tone is known, and its
+    /// baseline is read.
+    rereads: HashSet<u8>,
     /// Typed reads the device has not answered.
     reads: Vec<PendingRead>,
     /// The client whose `LoadMixer` is still being read.
@@ -253,8 +296,9 @@ pub struct Service {
     params: &'static ParamIndex,
     /// What this session knows of the device: the last bytes written or
     /// heard at each parameter's address. An address not in it is unknown
-    /// (its first sighting is silent). This is the cache #452's
-    /// unchanged-write filter should read, not a second one.
+    /// (its first sighting is silent, and a write to it is never dropped as
+    /// unchanged): a session starts with nothing, and a default the service
+    /// never read is not a value.
     known: HashMap<Address, Vec<u8>>,
     /// The tone selects (a Part's, or `None` for the Studio Set's) whose
     /// bytes this session has seen whole.
@@ -283,7 +327,13 @@ impl Service {
             held_claims: Vec::new(),
             listener: Box::new(NoListener),
             clients: Clients::default(),
-            pending: VecDeque::new(),
+            queues: Queues::default(),
+            baselines: Baselines::default(),
+            rx: RxMap::default(),
+            deferred: Vec::new(),
+            rx_deadline: None,
+            expansion_loading: false,
+            rereads: HashSet::new(),
             reads: Vec::new(),
             mixer_load: None,
         }
@@ -327,10 +377,7 @@ impl Service {
                     self.down_deferred = false;
                     return true;
                 }
-                if let Some(id) = device_id {
-                    self.adopt_device_id(id);
-                }
-                self.begin_session();
+                self.begin_session(self.adopted_id(device_id));
                 if device_id.is_none() && !self.id_fixed {
                     // The link did not learn the ID. Ask the device, ahead
                     // of anything queued, and hold the rest until it answers.
@@ -353,6 +400,9 @@ impl Service {
             }
             Input::Note(message) => {
                 if self.session.is_some() && is_note_traffic(&message) {
+                    if let Some(channel) = program_change_channel(&message) {
+                        self.program_change_on(channel, now_ms);
+                    }
                     self.notes.push_back(message);
                 }
             }
@@ -364,6 +414,7 @@ impl Service {
             Input::Disconnect { client } => {
                 self.held_claims.retain(|(held, _)| *held != client);
                 self.clients.disconnect(client);
+                self.queues.forget(client);
             }
             Input::Run(work) => work(self),
             Input::Stop => return false,
@@ -371,7 +422,17 @@ impl Service {
         true
     }
 
-    fn begin_session(&mut self) {
+    /// Begin a session with the device whose SysEx device ID is `device_id`.
+    ///
+    /// A session that was running, or another device ID, means the state
+    /// belongs to another span of the link, or to another device: it is
+    /// replaced, so its queue and cache (what the service believed of the
+    /// device) are gone. The first session keeps what the caller queued on
+    /// the state before the link came up.
+    fn begin_session(&mut self, device_id: u8) {
+        if self.session.is_some() || device_id != self.device.device_id() {
+            self.device = DeviceState::new(device_id);
+        }
         let id = self.ids.next_id();
         self.session = Some(id);
         self.forget_client_work();
@@ -385,6 +446,10 @@ impl Service {
         self.down_deferred = false;
         // Notes are for now; they are worthless late.
         self.notes.clear();
+        // What the device held before is not known of what comes back (a
+        // power cycle empties the Temporary Tones), and what was queued for
+        // it would land on a device in another state.
+        self.device = DeviceState::new(self.device.device_id());
         self.forget_client_work();
         self.listener.event(Event::LinkDown);
         self.clients.link_down();
@@ -392,13 +457,43 @@ impl Service {
 
     /// Drop what clients asked for in the session that ended: it would go to
     /// a device that is not the one they asked, and what was known of the
-    /// old one is not known of the new.
+    /// old one is not known of the new. Every request still outstanding (a
+    /// queued item, a read, a baseline, a push not yet handed over) is
+    /// answered [`Reject::LinkDown`], so a client does not wait for an answer
+    /// that cannot come; the session's end is also told to all as
+    /// [`Message::LinkDown`] or [`Message::LinkUp`].
     fn forget_client_work(&mut self) {
-        self.pending.clear();
-        self.reads.clear();
+        for Pending { client, work, .. } in self.queues.drain() {
+            match work {
+                Work::Request(request) => {
+                    let param = match &request {
+                        Request::Write { param, .. } | Request::Read { param, .. } => {
+                            Some(param.clone())
+                        }
+                        _ => None,
+                    };
+                    self.reject_for(client, Reject::LinkDown, param);
+                }
+                Work::PushDone => self.reject(client, Reject::LinkDown),
+                Work::ReadBaseline { .. } => {}
+            }
+        }
+        for read in std::mem::take(&mut self.reads) {
+            let param = ParamId::of(self.params, read.handle);
+            self.reject_for(read.client, Reject::LinkDown, Some(param));
+        }
+        for (client, _) in self.baselines.reset() {
+            self.reject(client, Reject::LinkDown);
+        }
+        if let Some(client) = self.mixer_load.take() {
+            self.reject(client, Reject::LinkDown);
+        }
         self.known.clear();
         self.selects_known.clear();
-        self.mixer_load = None;
+        self.rereads.clear();
+        self.rx.clear();
+        self.deferred.clear();
+        self.rx_deadline = None;
     }
 
     /// Refuse a client's request.
@@ -512,8 +607,8 @@ impl Service {
                 if self.session.is_none() {
                     self.reject_for(client, Reject::LinkDown, param);
                 } else {
-                    match self.check(&work) {
-                        Ok(span) => self.enqueue(client, work, span),
+                    match self.enqueue(client, work) {
+                        Ok(()) => {}
                         Err(message) => {
                             self.reject_for(client, Reject::Invalid { message }, param);
                         }
@@ -523,40 +618,88 @@ impl Service {
         }
     }
 
-    /// Queue a checked request. A write replaces the earlier write it
-    /// covers, whoever wrote it, by the rule of the device's own queue (so a
-    /// fader dragged faster than the device takes writes sends the latest
-    /// value, not every one; the last writer wins, and the surviving item
-    /// is announced as theirs): looking back, it passes unrelated items and
-    /// stops at an overlap, a select, or a message that is not a write.
-    fn enqueue(&mut self, client: ClientId, request: Request, span: Option<Range<u32>>) {
-        if let Some(new) = &span {
-            let mut replaced = Vec::new();
-            for (i, item) in self.pending.iter().enumerate().rev() {
-                match coalesce(new, item.span.as_ref()) {
-                    Coalesce::Replace => replaced.push(i),
-                    Coalesce::PassOver => {}
-                    Coalesce::Stop => break,
+    /// Check a request and queue it with its client. A write replaces the
+    /// earlier write it covers, whoever wrote it (see [`Queues::enqueue`]),
+    /// so a fader dragged faster than the device takes writes sends the
+    /// latest value, not every one; the last writer wins, and the surviving
+    /// item is announced as theirs.
+    ///
+    /// A push is queued whole, as items that nothing replaces and that
+    /// writes queued later never pass, ending with a marker that tells the
+    /// client the push was handed to the device's queue.
+    ///
+    /// Its writes are sent whatever the session believes the device holds,
+    /// except those to the tone of a Part that the push selected earlier
+    /// (`ChangeTone`): that item's read-back comes first, and is what the
+    /// writes after it are compared with, so a push of a select and a whole
+    /// tone sends only what differs from the tone as selected.
+    fn enqueue(&mut self, client: ClientId, request: Request) -> Result<(), String> {
+        if let Request::Push { requests } = request {
+            for (i, item) in requests.iter().enumerate() {
+                if !matches!(
+                    item,
+                    Request::Write { .. }
+                        | Request::Raw { .. }
+                        | Request::ChangeTone { .. }
+                        | Request::SwitchStudioSet { .. }
+                ) {
+                    return Err(format!("request {i} of a push is not one a push holds"));
                 }
+                self.check(item)
+                    .map_err(|message| format!("request {i} of a push: {message}"))?;
             }
-            replaced.reverse();
-            if let Some((&first, rest)) = replaced.split_first() {
-                for &i in rest.iter().rev() {
-                    self.pending.remove(i);
-                }
-                self.pending[first] = Pending {
-                    client,
-                    request,
-                    span,
+            let mut selected = HashSet::new();
+            for item in requests {
+                let force = match &item {
+                    Request::ChangeTone { part, .. } => {
+                        selected.insert(*part);
+                        true
+                    }
+                    Request::Write { .. } => {
+                        // Checked above, so it resolves.
+                        let part = self
+                            .write_target(&item)
+                            .and_then(|a| temporary_tone_part(&a));
+                        !part.is_some_and(|p| selected.contains(&p))
+                    }
+                    _ => true,
                 };
-                return;
+                self.queues.push(Pending {
+                    client,
+                    work: Work::Request(item),
+                    span: None,
+                    push: true,
+                    force,
+                });
             }
+            self.queues.push(Pending {
+                client,
+                work: Work::PushDone,
+                span: None,
+                push: true,
+                force: true,
+            });
+            return Ok(());
         }
-        self.pending.push_back(Pending {
+        let span = self.check(&request)?;
+        self.queues.enqueue(Pending {
             client,
-            request,
+            work: Work::Request(request),
             span,
+            push: false,
+            force: false,
         });
+        Ok(())
+    }
+
+    /// The address a typed write writes.
+    fn write_target(&self, request: &Request) -> Option<Address> {
+        let Request::Write { param, binding, .. } = request else {
+            return None;
+        };
+        self.resolve(param, binding)
+            .ok()
+            .map(|(_, address)| address)
     }
 
     /// The parameter a request names, where it is for the request's binding,
@@ -634,29 +777,46 @@ impl Service {
                 data_byte("pc", *pc)
             }
             Request::SwitchStudioSet { pc } => data_byte("pc", *pc),
+            Request::Baseline { binding } => match binding.part {
+                Some(part) if part < DeviceState::NUM_PARTS => Ok(None),
+                _ => Err("a baseline is of a Part, which the binding must name".to_string()),
+            },
             _ => Ok(None),
         }
     }
 
-    /// Move one item of client work into the device's queue if that queue is
-    /// empty, so the per-client queue is the real one: the device's holds
-    /// one item at a time (a write can be several DT1s) and an item's writer
-    /// is still known when it leaves the line.
-    fn feed_one(&mut self, now_ms: f64) {
-        if self.device.has_pending() {
-            return;
-        }
-        if let Some(Pending {
-            client, request, ..
-        }) = self.pending.pop_front()
-        {
-            self.apply(client, request, now_ms);
+    /// Move client work into the device's queue while that queue is empty, a
+    /// client's item at a time in turn, so the client queues are the real
+    /// ones: the device's holds one item at a time (a write can be several
+    /// DT1s) and an item's writer is still known when it leaves the line. An
+    /// item that puts nothing in it (a write dropped as unchanged, an answer)
+    /// leaves the next one its turn.
+    fn feed(&mut self) {
+        while !self.device.has_pending() {
+            let baselines = &self.baselines;
+            let Some(Pending {
+                client,
+                work,
+                force,
+                ..
+            }) = self.queues.pop(|client| baselines.blocked(client))
+            else {
+                break;
+            };
+            match work {
+                Work::Request(request) => self.apply(client, request, force),
+                Work::PushDone => self.clients.send(client, &Message::Pushed),
+                Work::ReadBaseline { part, generation } => {
+                    self.read_baseline_block(part, generation);
+                }
+            }
         }
     }
 
     /// Apply one checked request of `client`: queue it for the device and
-    /// announce what it changes, with `client` as the writer.
-    fn apply(&mut self, client: ClientId, request: Request, now_ms: f64) {
+    /// announce what it changes, with `client` as the writer. A write is
+    /// dropped as unchanged unless it is `force`d (see [`Pending::force`]).
+    fn apply(&mut self, client: ClientId, request: Request, force: bool) {
         match request {
             Request::Write {
                 param,
@@ -667,6 +827,12 @@ impl Service {
                     return;
                 };
                 let bytes = self.params.get(handle).encode(value);
+                // Only a field the session has read or written can be known
+                // to hold the value already; a push is the project's word
+                // against whatever the device holds.
+                if !force && self.known.get(&address) == Some(&bytes) {
+                    return;
+                }
                 self.write_dt1(client, &address, &bytes, Some(handle));
             }
             Request::Read { param, binding } => {
@@ -676,7 +842,8 @@ impl Service {
                 let width = self.params.get(handle).width;
                 let size = DataSize::from_value(width as u32).expect("a parameter is a few bytes");
                 let rq1 = sysex::build_rq1(self.device.device_id(), &address, &size);
-                self.device.send_raw(&format!("read:{address}"), rq1);
+                self.device
+                    .send_raw(&format!("read:{address}"), rq1.clone());
                 if self.reads.len() >= MAX_PENDING_READS {
                     self.reads.remove(0);
                 }
@@ -685,7 +852,8 @@ impl Service {
                     handle,
                     binding,
                     address,
-                    deadline: now_ms + READ_TIMEOUT_MS,
+                    rq1,
+                    deadline: f64::INFINITY,
                 });
             }
             Request::Raw { mut bytes } => {
@@ -703,6 +871,7 @@ impl Service {
                 self.device.change_part_tone(part, msb, lsb, pc);
                 self.selects_known.insert(Some(part));
                 self.announce_select(client, Some(part));
+                self.start_baseline(client, part);
             }
             Request::SwitchStudioSet { pc } => {
                 self.device.switch_studio_set(pc);
@@ -713,13 +882,20 @@ impl Service {
                 self.device.load_mixer();
                 self.mixer_load = Some(client);
             }
+            Request::Baseline { binding } => {
+                let part = binding.part.expect("checked on arrival");
+                if let Some(settled) = self.baselines.ask(client, part) {
+                    self.answer_baselines(vec![settled]);
+                }
+            }
             // Handled on arrival.
             Request::Hello { .. }
             | Request::Subscribe { .. }
             | Request::Unsubscribe { .. }
             | Request::ReceiveRaw { .. }
             | Request::Bind { .. }
-            | Request::Claim { .. } => {}
+            | Request::Claim { .. }
+            | Request::Push { .. } => {}
         }
     }
 
@@ -746,18 +922,33 @@ impl Service {
             self.device.write_data(address, data);
             for hit in &hits {
                 self.announce_select(client, hit.part);
+                if let Some(part) = hit.part {
+                    // The tone is whatever the bytes written and the ones the
+                    // service never saw make: ask the device.
+                    self.reread_tone(part);
+                }
             }
         } else {
             let done = self.device.write_dt1(address, data);
             for part in done.tones {
                 self.announce_select(client, Some(part));
+                self.start_baseline(client, part);
             }
             if done.studio_set {
                 self.announce_select(client, None);
             }
         }
         self.remember_selects(address, data.len());
+        self.rx.observe(address, data);
+        // A tone being read back is no longer the preset's alone.
+        let last = dt1_span(address, data.len()).end.saturating_sub(1);
+        for at in [address.value(), last] {
+            if let Some(part) = Address::from_value(at).and_then(|a| temporary_tone_part(&a)) {
+                self.baselines.touch(part);
+            }
+        }
         self.announce(client, address, data, exact, Source::Client);
+        self.program_changes_ready();
     }
 
     /// Announce that a Part's tone (or, for `None`, the Studio Set) was
@@ -767,19 +958,218 @@ impl Service {
     /// everything for a Studio Set) says nothing of the new, so it is
     /// forgotten here, where typed and raw selects meet: the reads that
     /// follow are first sightings, and quiet.
+    ///
+    /// Nor does the Part's baseline say anything of the new tone (a Studio
+    /// Set select changes every Part's), and a read of its dump that was
+    /// asked for is of the old one.
     fn announce_select(&mut self, writer: ClientId, part: Option<u8>) {
+        let mut out = Outcome::default();
         match part {
             Some(part) => {
                 self.known
                     .retain(|a, _| temporary_tone_part(a) != Some(part));
+                self.baselines.cancel(part, &mut out);
+                self.rereads.remove(&part);
                 self.clients
                     .bulk(writer, BulkKind::Tone, Binding::of_part(part));
             }
             None => {
                 self.known.clear();
+                self.baselines.cancel_all(&mut out);
+                self.rereads.clear();
+                // Another Studio Set has other receive settings.
+                self.rx.clear();
                 self.clients.bulk(writer, BulkKind::StudioSet, Binding::ANY);
             }
         }
+        self.apply_outcome(out);
+    }
+
+    /// Carry out what the baselines ask: answer the clients waiting for one,
+    /// and queue the next block of a reading in front of its client's items.
+    fn apply_outcome(&mut self, out: Outcome) {
+        self.answer_baselines(out.settled);
+        for (client, part, generation) in out.resume {
+            self.queues.push_front(Pending {
+                client,
+                work: Work::ReadBaseline { part, generation },
+                span: None,
+                push: false,
+                force: true,
+            });
+        }
+    }
+
+    /// The tone `part` was just given by a select the service wrote for
+    /// `client`: if it is a Preset or Expansion tone, read it back, as its
+    /// baseline, a block at a time in `client`'s turns, ahead of its later
+    /// items. A tone read before is not read again. A User tone, or one the
+    /// device does not read back, keeps no baseline.
+    fn start_baseline(&mut self, client: ClientId, part: u8) {
+        let state = &self.device.state().parts[usize::from(part)];
+        let tone = ToneSelect {
+            msb: state.tone_bank_msb,
+            lsb: state.tone_bank_lsb,
+            pc: state.tone_pc,
+        };
+        let Some(tone_type) =
+            tone_type_from_bank_msb(tone.msb).filter(|_| is_fixed_tone(tone.msb, tone.lsb))
+        else {
+            return;
+        };
+        let board = find_bank(tone.msb, tone.lsb).and_then(|bank| bank.expansion);
+        if board.is_some_and(|e| self.device.is_loaded(e) != Some(true)) {
+            // An Expansion tone is not the same tone, or any, unless its
+            // board is in a slot.
+            return;
+        }
+        let expansion = board.is_some();
+        let blocks = tone_read_blocks(tone_type, part);
+        let mut out = Outcome::default();
+        let selected = Selected {
+            part,
+            tone,
+            client,
+            expansion,
+        };
+        let begun = self
+            .baselines
+            .begin(selected, blocks, self.device.device_id(), &mut out);
+        match begun {
+            Begin::Cached(baseline) => {
+                // The tone as the device holds it right now: read, so known.
+                for (address, bytes) in baseline.runs() {
+                    self.announce(ClientId::DEVICE, &address, &bytes, None, Source::Quiet);
+                }
+            }
+            Begin::Reading(generation) => out.resume.push((client, part, generation)),
+            Begin::Nothing => {}
+        }
+        self.apply_outcome(out);
+    }
+
+    /// A client's turn for the reading of `part`'s tone: ask the device for
+    /// its next block.
+    fn read_baseline_block(&mut self, part: u8, generation: u64) {
+        let mut out = Outcome::default();
+        if let Step::Send(rq1) = self.baselines.step(part, generation, &mut out) {
+            self.device.send_raw(&format!("baseline:{part}"), rq1);
+        }
+        self.apply_outcome(out);
+    }
+
+    /// Read `part`'s tone from the device, whose select the service did not
+    /// see whole: when the dump arrives the tone is known, and its baseline
+    /// is read.
+    fn reread_tone(&mut self, part: u8) {
+        self.device.reread_part(part);
+        self.rereads.insert(part);
+    }
+
+    /// A Program Change arrived on the note port for MIDI channel `channel`.
+    /// It is still forwarded; what it selects (see [`RxMap`]) is not what
+    /// the service believes any more, so the Studio Set or each Part's tone
+    /// it reaches is forgotten, announced to subscribers and read again.
+    ///
+    /// Which Parts it reaches is read from the device first if the session
+    /// has not: the Parts that could be on the channel meanwhile have the
+    /// tone they were believed to have taken out of the cache (so nothing is
+    /// dropped as unchanged against it), and the Program Change waits for the
+    /// answer, or [`RX_WAIT_MS`], when everything not ruled out is reached.
+    fn program_change_on(&mut self, channel: u8, now_ms: f64) {
+        if self.rx.is_complete() {
+            self.program_change_reaches(channel, false);
+            return;
+        }
+        for part in self.rx.unknown_parts() {
+            self.known
+                .retain(|a, _| temporary_tone_part(a) != Some(part));
+            // Its tone may change under a reading of it.
+            self.baselines.touch(part);
+        }
+        if !self.rx.studio_set_known() {
+            // It may be a Studio Set change, which replaces everything.
+            self.known.clear();
+            for part in 0..DeviceState::NUM_PARTS {
+                self.baselines.touch(part);
+            }
+        }
+        self.deferred.push(channel);
+        if self.rx_deadline.is_none() {
+            for rq1 in self.rx.requests(self.device.device_id()) {
+                self.device.send_raw("rx", rq1);
+            }
+            self.rx_deadline = Some(now_ms + RX_WAIT_MS);
+        }
+    }
+
+    /// Carry out the Program Changes that waited for the receive settings,
+    /// once they are all known.
+    fn program_changes_ready(&mut self) {
+        if !self.deferred.is_empty() && self.rx.is_complete() {
+            self.rx_deadline = None;
+            for channel in std::mem::take(&mut self.deferred) {
+                self.program_change_reaches(channel, false);
+            }
+        }
+    }
+
+    /// Give up waiting for the receive settings at `now_ms`.
+    fn expire_rx(&mut self, now_ms: f64) {
+        if self.rx_deadline.is_some_and(|d| d <= now_ms) {
+            self.rx_deadline = None;
+            for channel in std::mem::take(&mut self.deferred) {
+                self.program_change_reaches(channel, true);
+            }
+        }
+    }
+
+    /// The Studio Set and the Parts a Program Change on `channel` reaches
+    /// change what they hold. `unknown_reaches`: a setting still not known
+    /// counts as reaching it.
+    fn program_change_reaches(&mut self, channel: u8, unknown_reaches: bool) {
+        let reached = self.rx.reached(channel, unknown_reaches);
+        if reached.studio_set {
+            self.announce_select(ClientId::DEVICE, None);
+        }
+        for part in reached.parts {
+            // Its select bytes in the cache are the old tone's.
+            self.selects_known.remove(&Some(part));
+            self.announce_select(ClientId::DEVICE, Some(part));
+            self.reread_tone(part);
+        }
+    }
+
+    /// Tell the clients that asked for a baseline what became of it.
+    fn answer_baselines(&mut self, settled: Vec<Settled>) {
+        for Settled {
+            client,
+            part,
+            baseline,
+        } in settled
+        {
+            let message = Message::Baseline {
+                binding: Binding::of_part(part),
+                tone: baseline.as_ref().map(ToneBaseline::tone),
+                runs: baseline.map_or_else(Vec::new, |b| {
+                    b.runs()
+                        .into_iter()
+                        .map(|(address, bytes)| BaselineRun {
+                            address: *address.as_bytes(),
+                            bytes,
+                        })
+                        .collect()
+                }),
+            };
+            self.clients.send(client, &message);
+        }
+    }
+
+    /// The baseline of `part`'s tone, if it has one: its tone was a Preset or
+    /// Expansion tone selected through the service (or read after a Program
+    /// Change on the note port), and the device has answered.
+    pub fn baseline(&self, part: u8) -> Option<&ToneBaseline> {
+        self.baselines.get(part)
     }
 
     /// Note the selects a write of `len` bytes at `address` covers whole.
@@ -943,42 +1333,91 @@ impl Service {
         }
     }
 
-    /// Use the SysEx device ID the device gave, unless the caller fixed one.
-    /// A different ID replaces the state, dropping the cache and queue built
-    /// for the old one. Returns whether it did.
-    fn adopt_device_id(&mut self, id: u8) -> bool {
-        if self.id_fixed || id == self.device.device_id() {
-            return false;
+    /// The SysEx device ID to use when the link or the device reports
+    /// `reported`: that, unless the caller fixed one or nothing was reported.
+    fn adopted_id(&self, reported: Option<u8>) -> u8 {
+        match reported {
+            Some(id) if !self.id_fixed => id,
+            _ => self.device.device_id(),
         }
-        self.device = DeviceState::new(id);
-        true
+    }
+
+    /// Take a DT1 from the device into the state and the cache.
+    fn take_dt1(&mut self, address: &Address, data: &[u8], now_ms: f64) -> bool {
+        let mut changed = self.device.handle_expansion_dt1(address, data, now_ms);
+        let applied = self.device.handle_dt1(address, data, now_ms);
+        changed |= applied;
+        // Only what the state took: a reply it dropped (the receive settings
+        // read of a Part's block) says nothing of the select bytes it covers,
+        // which the state still holds as defaults.
+        if applied {
+            self.remember_selects(address, data.len());
+        }
+        self.rx.observe(address, data);
+        self.tone_dump_arrived(address, data.len());
+        let mut out = Outcome::default();
+        let reply = self.baselines.reply(address, data, &mut out);
+        self.apply_outcome(out);
+        match reply {
+            // Of a tone the Part no longer has: it says nothing of the
+            // device now, so the cache does not take it either.
+            Reply::Stale => {}
+            // Read, so known; the select announced the change.
+            Reply::Stored => self.announce(ClientId::DEVICE, address, data, None, Source::Quiet),
+            Reply::NotMine => {
+                if !self.answer_read(address, data) {
+                    let source = if self.mixer_load.is_some() {
+                        Source::Quiet
+                    } else {
+                        Source::Device
+                    };
+                    self.announce(ClientId::DEVICE, address, data, None, source);
+                }
+            }
+        }
+        self.program_changes_ready();
+        changed
+    }
+
+    /// If `address` is the dump of a Part's mixer settings that was asked for
+    /// because its tone changed behind the cache, the tone is now known: read
+    /// its baseline.
+    fn tone_dump_arrived(&mut self, address: &Address, len: usize) {
+        let waiting: Vec<u8> = self.rereads.iter().copied().collect();
+        for part in waiting {
+            let dump = MixerBlock::Part(part).request();
+            // The receive settings are read from the same address, longer.
+            if dump.is_some_and(|(at, size)| at == *address && size.value() as usize == len) {
+                self.rereads.remove(&part);
+                self.start_baseline(ClientId::DEVICE, part);
+            }
+        }
     }
 
     /// Parse what the device sent into the cache, then tell the listener.
     fn receive_from_device(&mut self, message: &[u8], now_ms: f64) {
         let mut changed = false;
         if let Ok(dt1) = sysex::parse_dt1(message) {
-            changed = self
-                .device
-                .handle_expansion_dt1(&dt1.address, &dt1.data, now_ms);
-            changed |= self.device.handle_dt1(&dt1.address, &dt1.data, now_ms);
-            self.remember_selects(&dt1.address, dt1.data.len());
-            if !self.answer_read(&dt1.address, &dt1.data) {
-                let source = if self.mixer_load.is_some() {
-                    Source::Quiet
-                } else {
-                    Source::Device
-                };
-                self.announce(ClientId::DEVICE, &dt1.address, &dt1.data, None, source);
+            if self.device.take_stale_reply(&dt1.address, dt1.data.len()) {
+                // The late answer to a read a tone change dropped: it is of
+                // the tone before, so neither the state, the cache nor the
+                // subscribers take it.
+            } else {
+                changed = self.take_dt1(&dt1.address, &dt1.data, now_ms);
             }
         } else if let Ok(identity) = sysex::parse_identity_reply(message)
             && identity.is_integra7()
         {
             self.id_wait = IdWait::Idle;
-            if self.adopt_device_id(identity.device_id) && self.session.is_some() {
-                // The device the session began with is not the one that
-                // answered: a new session, for a new state.
-                self.begin_session();
+            let id = self.adopted_id(Some(identity.device_id));
+            if id != self.device.device_id() {
+                if self.session.is_some() {
+                    // The device the session began with is not the one that
+                    // answered: a new session, for a new state.
+                    self.begin_session(id);
+                } else {
+                    self.device = DeviceState::new(id);
+                }
             }
         }
         if message.first() == Some(&sysex::SYSEX_START) {
@@ -1011,7 +1450,16 @@ impl Service {
     fn pump_device(&mut self, now_ms: f64) -> Option<Duration> {
         self.session?;
         self.expire_reads(now_ms);
-        self.feed_one(now_ms);
+        self.expire_baselines(now_ms);
+        self.expire_rx(now_ms);
+        let loading = self.device.expansion_load_target().is_some();
+        if self.expansion_loading && !loading {
+            // The boards in the slots changed: Expansion tones read before are
+            // not these.
+            self.baselines.expansion_changed();
+        }
+        self.expansion_loading = loading;
+        self.feed();
         while let Some(note) = self.notes.pop_front() {
             self.send(&note, true);
         }
@@ -1048,7 +1496,7 @@ impl Service {
             }
         }
         // Refill the device's queue, so its deadline covers the next item.
-        self.feed_one(now_ms);
+        self.feed();
         self.settle_mixer_load();
         let mut due = match self.id_wait {
             // Nothing drains until then; wake for the fallback, or for an
@@ -1058,7 +1506,17 @@ impl Service {
             }
             _ => self.device.next_deadline(),
         };
-        if let Some(read) = self.reads.iter().map(|r| r.deadline).min_by(f64::total_cmp) {
+        let reads = self
+            .reads
+            .iter()
+            .map(|r| r.deadline)
+            .filter(|d| d.is_finite());
+        let others = self
+            .baselines
+            .next_deadline()
+            .into_iter()
+            .chain(self.rx_deadline);
+        if let Some(read) = reads.chain(others).min_by(f64::total_cmp) {
             due = Some(due.map_or(read, |d| d.min(read)));
         }
         if held {
@@ -1073,8 +1531,23 @@ impl Service {
 
     fn drain_one(&mut self, now_ms: f64) {
         if let Some(message) = self.device.drain(now_ms) {
+            self.baselines.sent(&message, now_ms, READ_TIMEOUT_MS);
+            for read in &mut self.reads {
+                if read.deadline.is_infinite() && read.rq1 == message {
+                    read.deadline = now_ms + READ_TIMEOUT_MS;
+                    break;
+                }
+            }
             self.send(&message, false);
         }
+    }
+
+    /// Give up on the baseline requests the device has not answered by
+    /// `now_ms`.
+    fn expire_baselines(&mut self, now_ms: f64) {
+        let mut out = Outcome::default();
+        self.baselines.expire(now_ms, &mut out);
+        self.apply_outcome(out);
     }
 
     fn send(&mut self, message: &[u8], is_note: bool) {

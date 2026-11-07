@@ -28,26 +28,38 @@
 //! The client protocol is not built from closures that call `DeviceState`
 //! directly. A client's request is data: an [`Input::Client`] carrying the
 //! [`ClientId`](protocol::ClientId) and a [`Request`](protocol::Request),
-//! checked when it arrives and queued with its client. [`Service::pump`] moves
-//! one queued item into the device's queue whenever that is empty, so the
-//! client queue is the real one: the writer's ID is known where a change is
-//! queued for sending and announced, and per-client queues, unchanged-write
-//! filtering and push requests belong there. Subscribers hear changes as
+//! checked when it arrives and queued in its client's own queue.
+//! [`Service::pump`] moves queued items into the device's queue whenever that
+//! is empty, one client's turn after another's, so the client queues are the
+//! real ones: the writer's ID is known where a change is queued for sending
+//! and announced, and that is where the cache rules apply (a write the
+//! session knows the device already has is dropped, except in a push). A
+//! session is one span of one link; when it ends, everything queued and
+//! everything known is dropped. Subscribers hear changes as
 //! [`Message`](protocol::Message)s. A raw SysEx client's DT1 goes the same
 //! way as a typed write; the device's SysEx goes to every raw client.
+//!
+//! After a Preset or Expansion tone is selected the service reads the tone
+//! back and keeps it as the Part's [`ToneBaseline`], which a client asks for
+//! with [`Request::Baseline`](protocol::Request::Baseline). A Program Change
+//! on the note port invalidates the tone of the Parts it reaches and has them
+//! read again.
 //!
 //! The wire is JSON frames described in [`protocol`], over a Unix socket
 //! ([`SocketServer`] for the service, [`Client`] for a plugin instance). The
 //! socket and the note port are separate from the core, like the link, so a
 //! Windows port adds implementations and changes none of this.
 
+mod baseline;
 mod clients;
 mod link;
 mod midir_link;
 mod note;
 mod probe;
 pub mod protocol;
+mod queues;
 mod runtime;
+mod rx;
 mod service;
 mod session;
 mod websocket;
@@ -65,6 +77,7 @@ mod fake;
 #[cfg(unix)]
 mod virtual_port;
 
+pub use baseline::ToneBaseline;
 #[cfg(unix)]
 pub use client::{Client, ClientEvent, Events, Sender};
 #[doc(hidden)]
