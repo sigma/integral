@@ -37,25 +37,26 @@ Result values: **Pass**, **Fail**, or **Blocked** (say why in the notes).
 
 ## Checks at a glance
 
-| # | Check | Source | Lands with |
-|---|---|---|---|
-| 1 | Only the service holds the device port | [integral-vst README](../../crates/integral-vst/README.md), [PR #476], [PR #485] | none |
-| 2 | Live lists all six plugins, each loads | [PR #482] | none |
-| 3 | Configure mode and Push | [#463], [#345] | none |
-| 4 | Placement | [#463], [ADR 0007](../adr/0007-plugins-per-tone-type.md) | none |
-| 5 | Track input | [#463], [#345] | none |
-| 6 | SysEx echo into the note port (reproduction) | [#443] | none |
-| 7 | Save and reopen keeps the Binding | [PR #482], [ADR 0008](../adr/0008-host-parameter-ids-from-device-addresses.md) | none |
-| 8 | Tone-type mismatch | [#455], [ADR 0007] | [#455] |
-| 9 | Kit-bound and key-bound Kit plugins | [#455] | [#455] |
-| 10 | Duplicate Bindings | [#455], [ADR 0006](../adr/0006-device-service-owns-the-link.md) | [#455] |
-| 11 | Automation of a Tone parameter moves the bound Part | [PR #487], [ADR 0008] | none |
-| 12 | UI drag recorded as automation, Session and Arrangement | [#463], [#443], [PR #488] | none |
-| 13 | Web-app edit with the editor closed recorded as a lane | [PR #487], [#454] | none |
-| 14 | Recall smoke test | [#463], [ADR 0009](../adr/0009-recall-pushes-the-project-state.md), [#458] | [#458] |
-| 15 | PCM Synth performance | [#463], [load.rs](../../crates/integral-plugin-host/src/load.rs) | none |
-| 16 | Active Sensing during an Expansion load | [PR #476], [MIDI 01-protocol](../midi/01-protocol.md) | none (hardware) |
-| 17 | Plug-in test host drag against the #444 spike (not Live) | [PR #477], [#444] | none |
+| #   | Check                                                    | Source                                                                           | Lands with      |
+| --- | -------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------- |
+| 1   | Only the service holds the device port                   | [integral-vst README](../../crates/integral-vst/README.md), [PR #476], [PR #485] | none            |
+| 2   | Live lists all six plugins, each loads                   | [PR #482]                                                                        | none            |
+| 3   | Configure mode and Push                                  | [#463], [#345]                                                                   | none            |
+| 4   | Placement                                                | [#463], [ADR 0007](../adr/0007-plugins-per-tone-type.md)                         | none            |
+| 5   | Track input                                              | [#463], [#345]                                                                   | none            |
+| 6   | SysEx echo into the note port (reproduction)             | [#443]                                                                           | none            |
+| 7   | Save and reopen keeps the Binding                        | [PR #482], [ADR 0008](../adr/0008-host-parameter-ids-from-device-addresses.md)   | none            |
+| 8   | Tone-type mismatch                                       | [#455], [ADR 0007]                                                               | [#455]          |
+| 9   | Kit-bound and key-bound Kit plugins                      | [#455]                                                                           | [#455]          |
+| 10  | Duplicate Bindings                                       | [#455], [ADR 0006](../adr/0006-device-service-owns-the-link.md)                  | [#455]          |
+| 11  | Automation of a Tone parameter moves the bound Part      | [PR #487], [ADR 0008]                                                            | none            |
+| 12  | UI drag recorded as automation, Session and Arrangement  | [#463], [#443], [PR #488]                                                        | none            |
+| 13  | Web-app edit with the editor closed recorded as a lane   | [PR #487], [#454]                                                                | none            |
+| 14  | Recall smoke test                                        | [#463], [ADR 0009](../adr/0009-recall-pushes-the-project-state.md), [#458]       | [#458]          |
+| 15  | PCM Synth performance                                    | [#463], [load.rs](../../crates/integral-plugin-host/src/load.rs)                 | none            |
+| 16  | Active Sensing during an Expansion load                  | [PR #476], [MIDI 01-protocol](../midi/01-protocol.md)                            | none (hardware) |
+| 17  | Plug-in test host drag against the #444 spike (not Live) | [PR #477], [#444]                                                                | none            |
+| 18  | The Binding as automatable Part and Key parameters       | [#495], [ADR 0007]                                                               | [#495]          |
 
 [ADR 0007]: ../adr/0007-plugins-per-tone-type.md
 
@@ -83,8 +84,8 @@ binary is named `integral`, per [integral-cli Cargo.toml](../../crates/integral-
 and check again. The README expects one line; this workaround is not yet tested.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 2. Live lists all six plugins, each loads
 
@@ -106,8 +107,8 @@ categories ([family/mod.rs](../../crates/integral-vst/src/family/mod.rs), lines
 235-236). Record the category Live shows.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 3. Configure mode and Push
 
@@ -142,8 +143,8 @@ sets `-_PluginAutoPopulateThreshold`: the research note reports, from users, tha
 it fills Configure up to 128.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 4. Placement
 
@@ -197,8 +198,8 @@ the mapping you used. Step 8: [CONTEXT.md](../../CONTEXT.md) says the port is
 process. Record what Live shows, and whether a rescan changes it.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 5. Track input
 
@@ -220,8 +221,8 @@ Sources: [#463], [#345] (2026-11-07: drags record only when the input is not All
 computer keyboard or a controller, never All Ins or the device's own port.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 6. SysEx echo into the note port (reproduction)
 
@@ -254,8 +255,8 @@ check is a reproduction, so a result that shows the echo is a finding to file,
 not a blocked check. Record the meter and the device's behaviour.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 7. Save and reopen keeps the Binding
 
@@ -275,8 +276,8 @@ bound to key K (for the key variant).
 where one was bound. Recall of device state is check 14, not this one.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 8. Tone-type mismatch
 
@@ -304,8 +305,8 @@ An automation lane on a Tone parameter, as in check 11. Playback running.
 - Step 6: the plugin resumes, and the lane moves Part N again.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 9. Kit-bound and key-bound Kit plugins
 
@@ -328,8 +329,8 @@ PCM Drum in a pad chain, bound to key K. Configure both so the parameters show.
 - Steps 2 and 3: the device does not change (inert).
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 10. Duplicate Bindings
 
@@ -353,8 +354,8 @@ Part N.
 last-writer-wins. Record which one you saw last.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 11. Automation of a Tone parameter moves the bound Part
 
@@ -382,8 +383,8 @@ TVF Cutoff Frequency` (check 3). Part B exists on the device.
 - Step 4: Part B follows the lane. Part A stays where it was left.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 12. UI drag recorded as automation, Session and Arrangement
 
@@ -396,14 +397,14 @@ views with the input not All Ins).
 **Setup.** Tone plugin (PCM Synth) on a MIDI track. Track In set per check 5.
 Editor open. Automation Arm on. Use `Partial 1 TVF Cutoff Frequency` from check 11.
 
-*Session view*
+_Session view_
 
 1. Create a MIDI clip in a slot on the track. Loop it.
 2. Arm the track. Start the clip. Turn on Session Record.
 3. Drag the plugin's slider from low to high, then back. Release each time.
 4. Stop. Look at the clip's envelope.
 
-*Arrangement view*
+_Arrangement view_
 
 5. Stop the clip. Turn on Arrangement Record. Play from the start.
 6. Drag the same slider. Stop.
@@ -415,8 +416,8 @@ dragged. No other parameter gets an envelope. Playback moves the slider and the
 device's value.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 13. Web-app edit with the editor closed recorded as a lane
 
@@ -448,8 +449,8 @@ closed. The web app open and connected to the device through the service.
 or whether it joins an existing lane). Record what you see.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 14. Recall smoke test
 
@@ -496,8 +497,8 @@ Studio Set plugin on the master track with Part N's level moved.
 make both `Tone Level` and `Tone Pan` pass.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 15. PCM Synth performance
 
@@ -526,8 +527,8 @@ finish, and the lanes play without the UI freezing.
 threshold separately.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 16. Active Sensing during an Expansion load (hardware)
 
@@ -551,7 +552,7 @@ deferred).
 
 **Part A: no service, so no probes.**
 
-*Setup.* Live closed. Device service stopped. Wireless has no device port while
+_Setup._ Live closed. Device service stopped. Wireless has no device port while
 the service is stopped, since the service creates the `INTEGRA-7 (Wireless)`
 port, so use USB (port `INTEGRA-7`) or an RTP-MIDI session.
 
@@ -560,26 +561,26 @@ port, so use USB (port `INTEGRA-7`) or an RTP-MIDI session.
 3. Start an Expansion load on the device from its own controls.
 4. Watch through the load and after it ends. Note the longest gap.
 
-*Expected.* Before the load, Active Sensing about every 250 ms.
+_Expected._ Before the load, Active Sensing about every 250 ms.
 
-*Open.* During the load: record whether FE continues, and the longest gap.
+_Open._ During the load: record whether FE continues, and the longest gap.
 
 **Part B: service running, so probes run (RTP or USB only).**
 
-*Setup.* `just bridge --link rtp --port <name>` or USB. A plugin editor open in
+_Setup._ `just bridge --link rtp --port <name>` or USB. A plugin editor open in
 Live, so the status shows.
 
 1. Start a front-panel Expansion load.
 2. Watch the plugin status and the service output for a link Down.
 
-*Expected.* Nothing is reported Down during the load.
+_Expected._ Nothing is reported Down during the load.
 
-*Open.* This is the case the code may not cover (see above). Record whether
+_Open._ This is the case the code may not cover (see above). Record whether
 "Device offline" appears, and when.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 ## 17. Plug-in test host drag against the #444 spike (not Live)
 
@@ -621,8 +622,51 @@ above is the example from the justfile. Confirm the spike's class name from the
 `load` output.
 
 | Date | Live version | Result | Notes |
-|---|---|---|---|
-|  |  |  |  |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
+
+## 18. The Binding as automatable Part and Key parameters
+
+**Purpose.** The Part (and the Key on a Kit plugin) is a host parameter: set it
+from Live's device view, and automate it. A host change rebinds exactly as the
+editor's bind does.
+Sources: [#495], [ADR 0007].
+
+**Setup.** Device service running. A Tone plugin (for example Integral PCM Synth)
+and an Integral PCM Drum, each on its own track, with the Parts they claim noted.
+Parts N and M hold tones of the plugin's type.
+
+1. Open Configure on the Tone plugin. Read its parameters.
+2. Open Configure on the PCM Drum. Read its parameters.
+3. Add an Integral Studio Set plugin. Read its parameters.
+4. On the Tone plugin, move `Part` to M. Read the editor's Binding.
+5. In the editor, choose Part N. Read `Part` in Configure.
+6. Save the set, quit Live and reopen it. Read `Part` and the editor's Binding.
+7. On the PCM Drum, set `Key` to one key, then back to `Whole kit`. Read the
+   editor's Binding each time.
+8. Draw an automation lane on the Tone plugin's `Part` that steps between N and
+   M. Play a note from the External Instrument track while the lane plays.
+9. Drop a second Tone plugin of the same type on a new track. Read its `Part`.
+
+**Expected.**
+
+- Step 1: `Part` (1-16) shows, in a Binding group. Step 2: `Part` and `Key`
+  (`Whole kit` or a key of the kit type's range) show. Step 3: neither shows.
+- Step 4: the editor shows Part M, the tone and parameters follow it, and the
+  duplicate notice shows if another instance has Part M.
+- Step 5: `Part` shows N, and the host records the change (undo or a lane in
+  Touch or Latch).
+- Step 6: `Part` and the editor's Binding agree and are what was saved. A project saved before
+  this feature is marked modified on open: the plugin sets `Part` (and `Key`) once
+  to its saved Binding, as one gesture.
+- Step 7: the editor shows the key, then the whole kit.
+- Step 8: the note sounds on the Part the lane selects at that moment, and the
+  editor's Binding follows the lane.
+- Step 9: `Part` shows the Part the new instance claimed, not 1.
+
+| Date | Live version | Result | Notes |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
 
 [#345]: https://github.com/sigma/integral/issues/345
 [#443]: https://github.com/sigma/integral/issues/443
@@ -630,6 +674,7 @@ above is the example from the justfile. Confirm the spike's class name from the
 [#446]: https://github.com/sigma/integral/issues/446
 [#447]: https://github.com/sigma/integral/issues/447
 [#454]: https://github.com/sigma/integral/issues/454
+[#495]: https://github.com/sigma/integral/issues/495
 [#455]: https://github.com/sigma/integral/issues/455
 [#458]: https://github.com/sigma/integral/issues/458
 [#463]: https://github.com/sigma/integral/issues/463

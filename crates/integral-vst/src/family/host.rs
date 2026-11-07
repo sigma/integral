@@ -98,6 +98,9 @@ pub enum HostTask {
     /// Replace the values the bank has queued
     /// ([`ParamBank::queue_replace`](super::bank::ParamBank::queue_replace)).
     Replace,
+    /// Set the Binding's host parameters to the instance's Binding, as one
+    /// gesture each ([`Instance::follow_binding_params`]).
+    SyncBinding,
 }
 
 /// Carry out `task` for `instance` through its [`HostEdits`], if it has any:
@@ -128,6 +131,25 @@ pub fn run(instance: &Instance, task: HostTask) {
             }
             if bank.gesturer(i as usize) != Some(Gesturer::Editor) {
                 bank.settle(i as usize);
+            }
+        }
+        HostTask::SyncBinding => {
+            let params = &instance.binding_params;
+            params.sync_done();
+            let (Some(edits), Some(binding)) = (&edits, instance.binding.get()) else {
+                return;
+            };
+            // A host edit waiting to be bound wins over the Binding it
+            // is about to replace.
+            if params.edited() {
+                return;
+            }
+            for (i, value) in params.differing(&binding) {
+                let param = &params.list()[i].1;
+                params.expect(i, value);
+                edits.begin(param);
+                edits.perform(param, value);
+                edits.end(param);
             }
         }
         HostTask::Replace => {

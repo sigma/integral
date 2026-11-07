@@ -100,6 +100,10 @@ impl Tracker {
         }
         let mut actions = Vec::new();
 
+        // A host change of the Binding's parameters binds first, so that
+        // what follows announces it.
+        self.instance.follow_binding_params();
+
         let wanted = self.instance.bound();
         if self.announced != wanted {
             self.announced = wanted;
@@ -396,6 +400,44 @@ mod tests {
         );
         assert_eq!(instance.binding.get(), Some(Binding::of_part(4)));
         assert_eq!(tracker.step(None), []);
+    }
+
+    #[test]
+    fn a_new_instances_default_claim_sets_its_binding_parameters() {
+        use super::super::host::{HostEdits, Replace};
+        use nih_plug::prelude::{IntParam, Param};
+        use std::sync::Mutex;
+
+        /// The values performed on the parameters, by name.
+        struct Host(Mutex<Vec<(String, i32)>>);
+        impl HostEdits for Host {
+            fn begin(&self, _: &IntParam) {}
+            fn perform(&self, param: &IntParam, value: i32) {
+                self.0
+                    .lock()
+                    .unwrap()
+                    .push((param.name().to_string(), value));
+            }
+            fn end(&self, _: &IntParam) {}
+            fn replace(&self, _: &[Replace<'_>]) -> bool {
+                true
+            }
+        }
+
+        let kind = PluginKind::PcmSynth;
+        let (mut tracker, instance) = tracker(kind);
+        let host = Arc::new(Host(Mutex::new(Vec::new())));
+        instance.bank.set_edits(Some(host.clone()));
+        instance.settle();
+        assert_eq!(
+            tracker.step(Some(&connected(Some(1)))),
+            [Action::Claim(kind)]
+        );
+
+        // Part 4 (the 0-based 3) is what the service answers.
+        tracker.step(Some(&claimed(kind, Some(3))));
+        assert_eq!(instance.binding.get(), Some(Binding::of_part(3)));
+        assert_eq!(*host.0.lock().unwrap(), [("Part".to_string(), 4)]);
     }
 
     #[test]

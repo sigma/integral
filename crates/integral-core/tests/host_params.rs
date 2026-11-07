@@ -571,3 +571,78 @@ fn plugin_names_are_unique() {
     let names: HashSet<_> = PluginKind::ALL.iter().map(|k| k.name()).collect();
     assert_eq!(names.len(), PluginKind::ALL.len());
 }
+
+#[test]
+fn only_tone_and_kit_plugins_have_binding_params_and_only_kits_a_key() {
+    use integral_core::device_spec::INTEGRA7;
+    assert!(PluginKind::StudioSet.binding_params().is_empty());
+    for kind in PluginKind::ALL.into_iter().skip(1) {
+        let params = kind.binding_params();
+        let kit = matches!(kind, PluginKind::SnDrum | PluginKind::PcmDrum);
+        assert_eq!(params.len(), if kit { 2 } else { 1 }, "{kind:?}");
+        assert_eq!(
+            (params[0].min, params[0].max),
+            (1, i32::from(INTEGRA7.part_count))
+        );
+    }
+    let key = PluginKind::SnDrum.binding_params()[1];
+    let keys = INTEGRA7.sn_drum_keys;
+    assert_eq!(key.max, i32::from(keys.last - keys.first) + 1);
+}
+
+#[test]
+fn binding_param_ids_are_not_device_address_ids() {
+    let device: HashSet<_> = PluginKind::ALL
+        .iter()
+        .flat_map(|k| k.host_params())
+        .map(|p| p.id)
+        .collect();
+    for kind in PluginKind::ALL {
+        for param in kind.binding_params() {
+            assert!(!device.contains(param.id), "{}", param.id);
+            // An address ID ends in a hex offset; these do not.
+            assert!(!param.id.contains("/0x"), "{}", param.id);
+        }
+    }
+}
+
+#[test]
+fn every_accepted_binding_round_trips_through_its_raw_values() {
+    use integral_core::host_params::{Binding, binding_of};
+    for kind in PluginKind::ALL.into_iter().skip(1) {
+        let params = kind.binding_params();
+        let mut bindings = kind.targets();
+        if params.len() == 2 {
+            let (first, last) = (params[1].raw_of(&Binding::ANY), params[1].max);
+            assert_eq!(first, 0);
+            bindings.extend((1..=last).map(|n| {
+                let part = Binding::of_part(3);
+                // The nth key, found by the inverse.
+                binding_of(&params, &[4, n])
+                    .key
+                    .map_or(part, |key| part.with_key(key))
+            }));
+        }
+        for binding in bindings {
+            assert!(kind.accepts(&binding), "{kind:?} {binding:?}");
+            let raw: Vec<i32> = params.iter().map(|p| p.raw_of(&binding)).collect();
+            assert_eq!(binding_of(&params, &raw), binding, "{kind:?}");
+        }
+    }
+}
+
+#[test]
+fn binding_param_text_reads_back() {
+    for kind in PluginKind::ALL.into_iter().skip(1) {
+        for param in kind.binding_params() {
+            for raw in param.min..=param.max {
+                assert_eq!(param.parse(&param.format(raw)), Some(raw), "{}", param.id);
+            }
+            assert_eq!(param.parse(&param.format(param.max + 1)), None);
+        }
+    }
+    let key = PluginKind::PcmDrum.binding_params()[1];
+    assert_eq!(key.format(0), "Whole kit");
+    assert_eq!(key.parse("whole kit"), Some(0));
+    assert_eq!(key.format(1), "21");
+}

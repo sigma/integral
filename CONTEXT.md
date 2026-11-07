@@ -275,6 +275,7 @@ _Avoid_: Drum plugin, pad plugin
 
 **Binding**:
 What ties a plugin instance to its target: a Part, or a Part and a key (or
-the kit). It is chosen in the plugin and saved with the DAW project; when the
+the kit). It is chosen in the plugin or from the host's Part and Key parameters
+(automatable) and saved with the DAW project; when the
 bound Part holds another type, the plugin shows the mismatch and stays inert.
 _Avoid_: Assignment (a device term for output routing)

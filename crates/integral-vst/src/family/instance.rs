@@ -15,6 +15,7 @@ use thiserror::Error;
 
 use super::bank::ParamBank;
 use super::binding::BindingCell;
+use super::binding_params::BindingParams;
 use super::host::{self, HostTask};
 use super::notice::{Notice, NoticeCell};
 use super::status::StatusCell;
@@ -97,6 +98,8 @@ pub struct Instance {
     kind: PluginKind,
     /// Where the instance is bound; `None` until it takes a target.
     pub binding: BindingCell,
+    /// The Binding as host parameters: a Part, and a key on a Kit plugin.
+    pub binding_params: BindingParams,
     /// How the connection is doing.
     pub status: StatusCell,
     /// The host parameters and what is known of their values.
@@ -157,6 +160,7 @@ impl Instance {
         Self {
             kind,
             binding: BindingCell::new(binding),
+            binding_params: BindingParams::new(kind),
             status: StatusCell::default(),
             bank: ParamBank::new(kind),
             armed: AtomicBool::new(false),
@@ -233,6 +237,57 @@ impl Instance {
         }
         self.binding.set(Some(binding));
         Ok(())
+    }
+
+    /// Reconcile the Binding with its host parameters, once per worker tick.
+    /// A host change of a parameter binds the instance, as the editor's bind
+    /// does (the tick that follows announces it to the service, which checks
+    /// the duplicate, and the follower reads the new target). Otherwise a
+    /// Binding the parameters do not hold yet (the editor's, a claim's, a
+    /// restore's) is set on them as a gesture, on the host's main thread.
+    ///
+    /// A host change before the host has had its say ([`settle`](Self::settle))
+    /// is the project being restored or initialised, not an edit: the Binding
+    /// stands.
+    pub fn follow_binding_params(&self) {
+        self.follow_binding_params_at(std::time::Instant::now());
+    }
+
+    /// [`follow_binding_params`](Self::follow_binding_params) at the time `now`.
+    pub fn follow_binding_params_at(&self, now: std::time::Instant) {
+        let params = &self.binding_params;
+        if !self.is_settled() {
+            params.discard_host_edit();
+            return;
+        }
+        let held_back = params.rebinding();
+        let mut rebound = false;
+        if let Some(edit) = params.take_host_edit(self.binding.get())
+            && self.binding.get() != Some(edit)
+            // The host's ranges are the plugin's: a refusal is not possible.
+            && self.bind(edit).is_ok()
+        {
+            // Host edits made for the old target stay dirty until the read
+            // of the new one re-arms the instance: the host wins there.
+            self.disarm();
+            rebound = true;
+        }
+        if params.bound() && held_back && !rebound {
+            // Nothing rebinds (the same target again, a refusal), so no read
+            // will re-arm: have the next poll write what was held back.
+            self.bank.nudge();
+        }
+        // An edit that came in meanwhile is bound by the next tick, not undone.
+        if params.edited() || self.bank.edits().is_none() {
+            return;
+        }
+        if let Some(binding) = self.binding.get()
+            && !params.differing(&binding).is_empty()
+            && params.try_queue_sync(now)
+            && !self.post(HostTask::SyncBinding)
+        {
+            params.sync_done();
+        }
     }
 
     /// What the service should know this instance as: its plugin and, once
@@ -435,10 +490,13 @@ impl Instance {
         self.armed.store(false, Ordering::Release);
     }
 
-    /// Whether host changes go to the device: armed, and on a Part of the
-    /// plugin's type. Wait-free.
+    /// Whether host changes go to the device: armed, on a Part of the
+    /// plugin's type, and with no host change of the Binding waiting to be
+    /// bound (it would write to the old target). Wait-free.
     pub fn is_armed(&self) -> bool {
-        self.armed.load(Ordering::Acquire) && self.fit() == ToneFit::Fits
+        self.armed.load(Ordering::Acquire)
+            && self.fit() == ToneFit::Fits
+            && !self.binding_params.rebinding()
     }
 
     /// Mark that the values are being replaced from the device's side (or

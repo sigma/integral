@@ -434,6 +434,11 @@ impl ParamBank {
         }
     }
 
+    /// Have the next [`poll`](Self::poll) look at every parameter again.
+    pub fn nudge(&self) {
+        self.mirror.changed.store(true, Ordering::Release);
+    }
+
     /// Note that the device's side is about to give parameter `i` `value`, so
     /// that the audio thread does not take it for the host's.
     pub fn expect(&self, i: usize, value: i32) {

@@ -21,6 +21,12 @@ the webview UI, available only on macOS.
     over the raw range, with value text and string-to-value from the list's
     `HostFormat`, no smoothing, and the group from `HostParam.group`. It also
     saves the editor size (`editor-size`) and the Binding (`binding`).
+  - `binding_params.rs`: the Binding as host parameters (`binding/part`,
+    and `binding/key` on a Kit plugin; none on the Studio Set plugin). A host
+    change rebinds within a worker tick (`Instance::follow_binding_params`);
+    a Binding the parameters do not hold is set on them as a gesture
+    (`HostTask::SyncBinding`), noted as expected so it does not rebind. On
+    restore the saved Binding wins over the saved parameter values.
   - `binding.rs`: `BindingCell`, an `Option<Binding>` in one atomic, so the
     audio thread can read it. Saved as JSON (`null`, `{"part":2}` or
     `{"part":2,"key":36}`); a saved Binding the plugin cannot have is ignored.

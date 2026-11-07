@@ -4,6 +4,11 @@
 //!
 //! - **Parameters** are the kind's host list as `IntParam`s over the raw
 //!   range ([`params`]).
+//! - **The Binding is also host parameters** ([`binding_params`]): a Part, and a
+//!   key on a Kit plugin, that the host can set and automate. A host change
+//!   rebinds the instance as the editor's bind does, and the Binding sets the
+//!   parameters back as a gesture. When a project is restored the saved
+//!   Binding stands and the parameters follow it.
 //! - **Audio** passes through; the plugins neither receive nor send host
 //!   MIDI. Notes go to the service's note port.
 //! - **The Binding** is saved with the host's state ([`binding`]). A new
@@ -24,6 +29,7 @@
 
 pub mod bank;
 pub mod binding;
+pub mod binding_params;
 pub mod follow;
 pub mod host;
 pub mod instance;

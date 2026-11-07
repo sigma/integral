@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, RwLock};
 
-use integral_core::host_params::{HostParam, PluginKind};
+use integral_core::host_params::{BINDING_GROUP, HostParam, PluginKind};
 use nih_plug::prelude::*;
 
 use super::binding::PERSIST_KEY;
@@ -16,6 +16,14 @@ const EDITOR_SIZE_KEY: &str = "editor-size";
 
 /// The editor's size before the page asks for its own, logical px.
 const DEFAULT_EDITOR_SIZE: (u32, u32) = (1280, 820);
+
+#[cfg(test)]
+thread_local! {
+    /// The instance this thread built last: how a test reaches the one a
+    /// nih-plug wrapper builds inside itself.
+    pub(crate) static LAST_INSTANCE: std::cell::RefCell<Option<std::sync::Weak<Instance>>> =
+        const { std::cell::RefCell::new(None) };
+}
 
 /// A plugin kind's host parameters over their raw range, and what is saved
 /// with them: the editor's size, the instance's Binding and its tone
@@ -31,9 +39,12 @@ pub struct FamilyParams {
 impl FamilyParams {
     /// The parameters of `kind`, and a new [`Instance`] of it.
     pub fn new(kind: PluginKind) -> Self {
+        let instance = Arc::new(Instance::new(kind));
+        #[cfg(test)]
+        LAST_INSTANCE.with(|last| *last.borrow_mut() = Some(Arc::downgrade(&instance)));
         Self {
             editor_size: Arc::new(RwLock::new(DEFAULT_EDITOR_SIZE)),
-            instance: Arc::new(Instance::new(kind)),
+            instance,
         }
     }
 
@@ -47,9 +58,22 @@ impl FamilyParams {
 // which `self` keeps alive, and the bank's list is never resized.
 unsafe impl Params for FamilyParams {
     fn param_map(&self) -> Vec<(String, ParamPtr, String)> {
+        let bindings = self
+            .instance
+            .binding_params
+            .list()
+            .iter()
+            .map(|(spec, param)| {
+                (
+                    spec.id.to_string(),
+                    param.as_ptr(),
+                    BINDING_GROUP.to_string(),
+                )
+            });
         self.list()
             .iter()
             .map(|(host, param)| (host.id.clone(), param.as_ptr(), host.group.clone()))
+            .chain(bindings)
             .collect()
     }
 
@@ -77,8 +101,15 @@ unsafe impl Params for FamilyParams {
         {
             *self.editor_size.write().expect("size lock") = size;
         }
+        // (A restore in mid-session sets the parameters before this runs, so a
+        // worker tick in between may take that for a host edit: a window of
+        // a few instructions that only another nih-plug patch could close.)
         // A state was restored, so the host has had its say: settle, even
-        // if the Binding in it is missing or one the plugin cannot have.
+        // if the Binding in it is missing or one the plugin cannot have. The
+        // saved Binding stands over the saved parameters (one source of
+        // truth): the values just restored are no host edit, and the worker
+        // sets the parameters to the Binding.
+        self.instance.binding_params.discard_host_edit();
         self.instance.settle();
         if let Some(text) = serialized.get(PERSIST_KEY)
             && self
@@ -110,7 +141,12 @@ mod tests {
         for kind in PluginKind::ALL {
             let declared = params(kind).param_map();
             let list = kind.host_params();
-            assert_eq!(declared.len(), list.len(), "{kind:?}");
+            let bindings = kind.binding_params();
+            assert_eq!(declared.len(), list.len() + bindings.len(), "{kind:?}");
+            // The Binding's follow the device's.
+            for ((id, _, group), spec) in declared[list.len()..].iter().zip(&bindings) {
+                assert_eq!((id.as_str(), group.as_str()), (spec.id, BINDING_GROUP));
+            }
             for ((id, _, group), host) in declared.iter().zip(&list) {
                 assert_eq!((id, group), (&host.id, &host.group), "{kind:?}");
             }

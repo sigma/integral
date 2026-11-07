@@ -187,6 +187,36 @@ impl PluginKind {
             }
     }
 
+    /// The host parameters that set a plugin's [`Binding`], in list order: a
+    /// Part for a Tone or Kit plugin, then a key for a Kit plugin. The Studio
+    /// Set plugin has none. They are apart from [`host_params`](Self::host_params):
+    /// they live in no device address.
+    pub fn binding_params(self) -> Vec<BindingParam> {
+        let Some(tone_type) = self.tone_type() else {
+            return Vec::new();
+        };
+        let mut params = vec![BindingParam {
+            field: BindingField::Part,
+            id: BINDING_PART_ID,
+            name: "Part",
+            min: 1,
+            max: i32::from(INTEGRA7.part_count),
+            default: 1,
+        }];
+        if matches!(tone_type, ToneType::SnDrum | ToneType::PcmDrum) {
+            let range = key_range(tone_type);
+            params.push(BindingParam {
+                field: BindingField::Key(range),
+                id: BINDING_KEY_ID,
+                name: "Key",
+                min: 0,
+                max: i32::from(range.last - range.first) + 1,
+                default: 0,
+            });
+        }
+        params
+    }
+
     /// The plugin's host parameter list.
     pub fn host_params(self) -> Vec<HostParam> {
         match self {
@@ -298,6 +328,91 @@ fn split_number(text: &str) -> Option<(f64, &str)> {
     }
     let number = text[..end].parse().ok()?;
     Some((number, &text[end..]))
+}
+
+/// ID of the Part host parameter. A device-address ID is
+/// `<block>/0x<offset>` (see the module docs), so no block is named
+/// `binding`: these two cannot collide with one.
+pub const BINDING_PART_ID: &str = "binding/part";
+/// ID of the Key host parameter of a Kit plugin.
+pub const BINDING_KEY_ID: &str = "binding/key";
+/// The group a host lists the Binding parameters under.
+pub const BINDING_GROUP: &str = "Binding";
+
+/// Which half of a [`Binding`] a [`BindingParam`] sets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BindingField {
+    /// The Part: raw `1..=part_count`, one more than the 0-based Part.
+    Part,
+    /// The key of a Kit plugin: raw 0 is the whole kit, raw `n` the `n`th
+    /// key of the range (the first key is raw 1).
+    Key(crate::device_spec::KeyRange),
+}
+
+/// A host parameter that sets a [`Binding`] ([`PluginKind::binding_params`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BindingParam {
+    /// The half of the Binding it sets.
+    pub field: BindingField,
+    /// The ID the host saves automation against.
+    pub id: &'static str,
+    /// The name in the host's list.
+    pub name: &'static str,
+    /// Minimum raw value (inclusive).
+    pub min: i32,
+    /// Maximum raw value (inclusive).
+    pub max: i32,
+    /// Default raw value.
+    pub default: i32,
+}
+
+impl BindingParam {
+    /// The raw value that sets this half to `binding`'s.
+    pub fn raw_of(&self, binding: &Binding) -> i32 {
+        match self.field {
+            BindingField::Part => binding.part.map_or(self.default, |p| i32::from(p) + 1),
+            BindingField::Key(range) => binding
+                .key
+                .map_or(0, |key| i32::from(key) - i32::from(range.first) + 1),
+        }
+    }
+
+    /// The text of raw value `raw`: the Part number, `Whole kit` or the key
+    /// number.
+    pub fn format(&self, raw: i32) -> String {
+        match self.field {
+            BindingField::Key(_) if raw == 0 => "Whole kit".to_string(),
+            BindingField::Key(range) => (i32::from(range.first) + raw - 1).to_string(),
+            BindingField::Part => raw.to_string(),
+        }
+    }
+
+    /// The raw value `text` reads as: the inverse of [`format`](Self::format).
+    pub fn parse(&self, text: &str) -> Option<i32> {
+        let text = text.trim();
+        let raw = match self.field {
+            BindingField::Key(_) if text.eq_ignore_ascii_case("whole kit") => 0,
+            BindingField::Key(range) => text.parse::<i32>().ok()? - i32::from(range.first) + 1,
+            BindingField::Part => text.parse().ok()?,
+        };
+        (self.min..=self.max).contains(&raw).then_some(raw)
+    }
+}
+
+/// The Binding that the raw values `raw` of `params` (one each, in order)
+/// set.
+pub fn binding_of(params: &[BindingParam], raw: &[i32]) -> Binding {
+    let mut binding = Binding::ANY;
+    for (param, raw) in params.iter().zip(raw) {
+        match param.field {
+            BindingField::Part => binding.part = u8::try_from(raw - 1).ok(),
+            BindingField::Key(range) if *raw > 0 => {
+                binding.key = u8::try_from(i32::from(range.first) + raw - 1).ok();
+            }
+            BindingField::Key(_) => {}
+        }
+    }
+    binding
 }
 
 /// One parameter of a plugin's host list.
