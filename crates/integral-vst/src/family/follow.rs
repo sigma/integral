@@ -1360,6 +1360,31 @@ mod tests {
     }
 
     #[test]
+    fn a_tone_selected_for_the_bound_part_becomes_a_fresh_instances_saved_tone() {
+        let instance = instance(PluginKind::SnSynth, Binding::of_part(1));
+        let wire = FakeWire::default();
+        let mut follower = Follower::new(Arc::clone(&instance), sysex::DEFAULT_DEVICE_ID);
+        let now = Instant::now();
+        follower.step(Some(&connected()), now, &wire);
+        follower.step(Some(&holds(1, ToneType::SnSynth)), now, &wire);
+        let tone = ToneSelect {
+            msb: default_tone(ToneType::SnSynth).expect("a default tone").msb,
+            lsb: 0,
+            pc: 42,
+        };
+        let own = ClientEvent::Message(Message::Bulk {
+            writer: ClientId(7),
+            kind: BulkKind::Tone,
+            binding: Binding::of_part(1),
+            selected: true,
+            tone: Some(tone),
+        });
+        follower.step(Some(&own), now, &wire);
+        let saved = instance.tone.get().expect("a saved tone");
+        assert_eq!((saved.msb, saved.lsb, saved.pc), (tone.msb, 0, 42));
+    }
+
+    #[test]
     fn a_binding_subscribes_by_part_and_a_new_one_replaces_it() {
         let instance = instance(PluginKind::PcmDrum, Binding::of_part(2).with_key(40));
         let wire = FakeWire::default();
@@ -1858,6 +1883,42 @@ mod tests {
         follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
         follower.step(None, now + Duration::from_secs(80), &wire);
         assert_eq!(pushes(&wire), 3, "a new session");
+    }
+
+    #[test]
+    fn a_tone_selected_after_the_recall_replaces_the_restored_saved_tone() {
+        let (instance, mut follower, wire, now) = recalling();
+        let saved = |instance: &Instance| {
+            let t = instance.tone.get().expect("a saved tone");
+            (t.msb, t.lsb, t.pc)
+        };
+        assert_eq!(saved(&instance), (87, 64, 3), "tone A, as restored");
+        // The baseline, then the pushes, complete the recall.
+        let baseline = ClientEvent::Message(Message::Baseline {
+            binding: Binding::of_part(0),
+            tone: None,
+            runs: Vec::new(),
+        });
+        follower.step(Some(&baseline), now, &wire);
+        for _ in 0..3 {
+            follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        }
+        assert!(instance.notices.get().is_empty(), "the recall is out");
+        // A selection of tone B for the Part, from any writer, becomes the saved tone.
+        let b = ToneSelect {
+            msb: 87,
+            lsb: 64,
+            pc: 9,
+        };
+        let selection = ClientEvent::Message(Message::Bulk {
+            writer: ClientId(9),
+            kind: BulkKind::Tone,
+            binding: Binding::of_part(0),
+            selected: true,
+            tone: Some(b),
+        });
+        follower.step(Some(&selection), now, &wire);
+        assert_eq!(saved(&instance), (87, 64, 9), "tone B");
     }
 
     /// A restored PCM Synth instance on Part 0 with a Preset tone, whose

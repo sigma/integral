@@ -8,9 +8,12 @@
 
 import {
   tone_bank_groups,
+  tone_type_from_bank_msb,
   user_tone_bank,
+  type ToneType,
   type WasmToneBank,
 } from "../pkg/integral_wasm.js";
+import type { PartState } from "./types";
 import { expansionByLoadValue, type Expansion } from "./expansionCatalog";
 
 /** Program numbers per LSB (MIDI Program Change range). */
@@ -69,6 +72,32 @@ export function toneBankGroups(): ToneBankGroup[] {
   return cachedGroups;
 }
 
+/** Whether tones of Bank Select `msb` are of `type` (core's rule), or `type` is unrestricted. */
+export function isToneTypeBank(
+  msb: number,
+  type: ToneType | undefined,
+): boolean {
+  return type === undefined || tone_type_from_bank_msb(msb) === type;
+}
+
+/**
+ * The groups of {@link toneBankGroups} cut down to the banks of tone type
+ * `type` (Expansion banks included), without the groups left empty. All of
+ * them when `type` is undefined.
+ */
+export function toneBankGroupsOfType(
+  type: ToneType | undefined,
+): ToneBankGroup[] {
+  const groups = toneBankGroups();
+  if (type === undefined) return groups;
+  return groups
+    .map((group) => ({
+      ...group,
+      banks: group.banks.filter((bank) => isToneTypeBank(bank.msb, type)),
+    }))
+    .filter((group) => group.banks.length > 0);
+}
+
 /** The bank holding the tone at (msb, lsb), or null for unknown banks. */
 export function findToneBank(msb: number, lsb: number): ToneBank | null {
   for (const group of toneBankGroups()) {
@@ -96,4 +125,19 @@ export function toneSlotLabel(index: number): string {
 export function userToneBank(msb: number): ToneBank | null {
   const bank = user_tone_bank(msb);
   return bank ? fromWasm(bank) : null;
+}
+
+/** How the bar shows a Part's tone: its source, number and name. */
+export function toneDisplay(part: PartState): string {
+  if (part.toneName) {
+    return `${toneSourceLabel(part)} : ${part.tonePC + 1} : ${part.toneName}`;
+  }
+  return `Bank ${part.toneBankMsb}-${part.toneBankLsb} : PC ${part.tonePC + 1}`;
+}
+
+/** The part's tone bank group, or its Expansion for Expansion banks. */
+function toneSourceLabel(part: PartState): string {
+  const bank = findToneBank(part.toneBankMsb, part.toneBankLsb);
+  if (!bank) return `Bank ${part.toneBankMsb}`;
+  return bank.expansion?.name ?? bank.group;
 }

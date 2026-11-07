@@ -1,8 +1,16 @@
 import type { PluginKind } from "../pkg/integral_wasm.js";
 import { deviceSpec } from "./deviceSpec";
 import { noteName } from "./pcm-drum/types";
-import type { InstanceInfo, PluginBinding } from "./plugin";
+import { TYPE_MISMATCH_NOTICE, type InstanceInfo, type PluginBinding } from "./plugin";
 import { acceptsBinding, kitKeys, pluginToneType } from "./pluginPages";
+import { useEffect, useState } from "react";
+import { ToneSelector } from "./ToneSelector";
+import { toneDisplay } from "./toneBanks";
+import type { ToneCatalog } from "./toneCatalog";
+import type { UseExpansionsResult } from "./useExpansions";
+import type { Expansion } from "./expansionCatalog";
+import { NotLoadedMarker } from "./NotLoadedMarker";
+import type { PartState } from "./types";
 import css from "./PluginBar.module.css";
 
 interface Props {
@@ -13,6 +21,15 @@ interface Props {
   refusal?: string | null;
   /** Choose the Binding: the plugin takes it if its kind accepts it. */
   onBind: (binding: PluginBinding) => void;
+  /** The bound Part as the mixer holds it; `undefined` while unbound or until the mixer is read. */
+  part?: PartState;
+  /** The tone catalog the picker lists from. */
+  catalog: ToneCatalog | null;
+  expansions: UseExpansionsResult;
+  /** Change a Part's tone, as the browser's top bar does. */
+  onChangeTone: (part: number, msb: number, lsb: number, pc: number) => void;
+  /** Open the Expansions page with `expansion` staged. */
+  onLoadExpansion: (expansion: Expansion) => void;
 }
 
 /** The value of a select whose option means "no key": the whole kit. */
@@ -29,9 +46,51 @@ function numberOf(value: string): number | undefined {
  * with whatever else the instance reports. The Studio Set plugin has one
  * target and no picker.
  */
-export function PluginBar({ kind, info, refusal, onBind }: Props) {
+export function PluginBar({
+  kind,
+  info,
+  refusal,
+  onBind,
+  part,
+  catalog,
+  expansions,
+  onChangeTone,
+  onLoadExpansion,
+}: Props) {
   const binding = info.binding ?? {};
   const keys = kitKeys(kind);
+  const toneType = pluginToneType(kind);
+  // The plugin owns its Part's tone, but only while the Part holds its type:
+  // unbound, unread or on another type, it is inert and picks nothing. A
+  // Kit plugin bound to a key never selects: the kit is the whole-kit
+  // plugin's (ADR 0009).
+  const inert = info.notices.some((notice) => notice.notice === TYPE_MISMATCH_NOTICE);
+  const keyBound = binding.key !== undefined;
+  const picking =
+    toneType !== undefined &&
+    binding.part !== undefined &&
+    !keyBound &&
+    part !== undefined &&
+    catalog !== null &&
+    !inert
+      ? { toneType, index: binding.part, part, catalog }
+      : null;
+  const whyNot = picking
+    ? "Choose tone"
+    : binding.part === undefined
+      ? "Choose a Part first"
+      : inert
+        ? "The Part holds another tone type"
+        : keyBound
+          ? "Bound to a key: the kit belongs to the plugin bound to the whole kit"
+          : "Waiting for the device";
+  // The Part the picker was opened for. It shows only while that Part is the
+  // bound one and the plugin can still pick; any change of either closes it.
+  const [openFor, setOpenFor] = useState<number | null>(null);
+  const canPick = picking !== null;
+  useEffect(() => setOpenFor(null), [canPick, binding.part]);
+  const pickerOpen = picking !== null && openFor === picking.index;
+  const unloaded = part ? expansions.unloadedExpansionOf(part.toneBankMsb, part.toneBankLsb) : null;
   return (
     <div className={css.bar}>
       {pluginToneType(kind) !== undefined && (
@@ -73,6 +132,42 @@ export function PluginBar({ kind, info, refusal, onBind }: Props) {
             </label>
           )}
         </div>
+      )}
+      {toneType !== undefined && (
+        <button
+          type="button"
+          className={css.toneButton}
+          data-tone-button
+          disabled={picking === null}
+          onClick={() => picking && setOpenFor(picking.index)}
+          title={whyNot}
+        >
+          <span className={css.toneName}>
+            {binding.part === undefined ? "No Part" : part ? toneDisplay(part) : "…"}
+          </span>
+          {picking && unloaded && <NotLoadedMarker expansion={unloaded} named />}
+          <span aria-hidden>&#x25BC;</span>
+        </button>
+      )}
+      {pickerOpen && picking && (
+        <ToneSelector
+          partIndex={picking.index}
+          currentMsb={picking.part.toneBankMsb}
+          currentLsb={picking.part.toneBankLsb}
+          currentPC={picking.part.tonePC}
+          catalog={picking.catalog}
+          expansions={expansions}
+          toneType={picking.toneType}
+          onSelect={(msb, lsb, pc) => {
+            onChangeTone(picking.index, msb, lsb, pc);
+            setOpenFor(null);
+          }}
+          onLoadExpansion={(expansion) => {
+            setOpenFor(null);
+            onLoadExpansion(expansion);
+          }}
+          onClose={() => setOpenFor(null)}
+        />
       )}
       <div className={css.status} role="status">
         <span className={`${css.statusText} ${info.status === "connected" ? css.ok : css.warn}`}>

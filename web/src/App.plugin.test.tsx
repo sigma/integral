@@ -77,7 +77,7 @@ async function tell(fake: ReturnType<typeof fakeBridge>, info: InstanceInfo): Pr
 }
 
 const tabs = (scope: ParentNode) =>
-  [...scope.querySelectorAll("nav button")].map((b) => b.textContent);
+  [...scope.querySelectorAll("nav button:not([data-tone-button])")].map((b) => b.textContent);
 
 const select = (scope: ParentNode, label: string): HTMLSelectElement => {
   const found = [...scope.querySelectorAll("label")].find((l) => l.textContent?.startsWith(label));

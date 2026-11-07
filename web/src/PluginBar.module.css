@@ -63,3 +63,15 @@
 .refusal {
   color: #f08080;
 }
+
+.toneButton {
+  composes: button from "./StudioSetSelector.module.css";
+  min-width: 0;
+  max-width: 320px;
+}
+
+.toneName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

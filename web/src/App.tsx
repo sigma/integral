@@ -379,6 +379,16 @@ export function App({
         info={instance.info}
         refusal={instance.refusal}
         onBind={instance.bind}
+        // Only once the mixer is read: before, the Parts hold defaults.
+        part={
+          pluginBinding?.part === undefined || mixer.state.loading
+            ? undefined
+            : mixer.state.parts[pluginBinding.part]
+        }
+        catalog={catalog}
+        expansions={expansions}
+        onChangeTone={mixer.changePartTone}
+        onLoadExpansion={loadExpansion}
       />
     ) : plugin && wasmReady && instance.info ? (
       // The plugin is newer than this page, which cannot show it.

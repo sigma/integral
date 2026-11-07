@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   findToneBank,
-  toneBankGroups,
+  isToneTypeBank,
+  toneBankGroupsOfType,
   type ToneBank,
   type ToneBankGroup,
 } from "./toneBanks";
-import { is_drum_kit_bank } from "../pkg/integral_wasm.js";
+import { is_drum_kit_bank, type ToneType } from "../pkg/integral_wasm.js";
 import type { ToneCatalog, ToneEntry } from "./toneCatalog";
 import { CATEGORIES, CATEGORY_IDS, categoryAbbrev } from "./categories";
 import { useBankEntries } from "./useBankEntries";
@@ -35,6 +36,8 @@ interface Props {
   /** Load an Expansion that is not loaded (stages it; nothing loads yet). */
   onLoadExpansion: (expansion: Expansion) => void;
   onClose: () => void;
+  /** List only tones of this type (a plugin's); all tones when absent. */
+  toneType?: ToneType;
 }
 
 /** Short bank badge for category-mode rows. */
@@ -76,8 +79,13 @@ export function ToneSelector({
   onSelect,
   onLoadExpansion,
   onClose,
+  toneType,
 }: Props) {
-  const initialBank = findToneBank(currentMsb, currentLsb);
+  const initialBank = isToneTypeBank(currentMsb, toneType)
+    ? findToneBank(currentMsb, currentLsb)
+    : null;
+
+  const bankGroups = useMemo(() => toneBankGroupsOfType(toneType), [toneType]);
 
   const [mode, setMode] = useState<BrowseMode>("bank");
   const [selectedBank, setSelectedBank] = useState<ToneBank | null>(
@@ -97,8 +105,12 @@ export function ToneSelector({
       return;
     }
     catalog.ensureAllFactoryLoaded();
-    setCategoryTones(catalog.getByCategory(selectedCategory));
-  }, [mode, selectedCategory, catalog]);
+    setCategoryTones(
+      catalog
+        .getByCategory(selectedCategory)
+        .filter((entry) => isToneTypeBank(entry.msb, toneType)),
+    );
+  }, [mode, selectedCategory, catalog, toneType]);
 
   const loading = mode === "bank" && bankTones.loading;
   const tones: DisplayEntry[] = useMemo(
@@ -165,7 +177,7 @@ export function ToneSelector({
           {/* Left panel: bank list or category grid */}
           {mode === "bank" ? (
             <div className={css.bankList}>
-              {toneBankGroups().map((group) => (
+              {bankGroups.map((group) => (
                 <details key={group.label} open>
                   <summary className={css.groupLabel}>{group.label}</summary>
                   {bankListEntries(group).map((entry) =>

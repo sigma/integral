@@ -4,7 +4,7 @@ import { PartSelector } from "./PartSelector";
 import { ToneSelector } from "./ToneSelector";
 import type { ToneCatalog } from "./toneCatalog";
 import { SaveDialog } from "./SaveDialog";
-import { findToneBank, userToneBank, type ToneBank } from "./toneBanks";
+import { toneDisplay, userToneBank, type ToneBank } from "./toneBanks";
 import { studioSetUserSlots, toneUserSlots, type UserSlot } from "./userSlots";
 import { studioSetType } from "./librarian";
 import { useBankEntries } from "./useBankEntries";
@@ -14,7 +14,6 @@ import type { UseMixerResult } from "./useMixer";
 import type { UseExpansionsResult } from "./useExpansions";
 import type { Expansion } from "./expansionCatalog";
 import { NotLoadedMarker } from "./NotLoadedMarker";
-import type { PartState } from "./types";
 import css from "./TopBar.module.css";
 
 interface Props {
@@ -25,20 +24,6 @@ interface Props {
   expansions: UseExpansionsResult;
   /** Open the Expansions page with `expansion` staged. */
   onLoadExpansion: (expansion: Expansion) => void;
-}
-
-function toneDisplay(part: PartState): string {
-  if (part.toneName) {
-    return `${toneSourceLabel(part)} : ${part.tonePC + 1} : ${part.toneName}`;
-  }
-  return `Bank ${part.toneBankMsb}-${part.toneBankLsb} : PC ${part.tonePC + 1}`;
-}
-
-/** The part's tone bank group, or its Expansion for Expansion banks. */
-function toneSourceLabel(part: PartState): string {
-  const bank = findToneBank(part.toneBankMsb, part.toneBankLsb);
-  if (!bank) return `Bank ${part.toneBankMsb}`;
-  return bank.expansion?.name ?? bank.group;
 }
 
 interface ToneSaveDialogProps {

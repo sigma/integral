@@ -57,6 +57,7 @@ Result values: **Pass**, **Fail**, or **Blocked** (say why in the notes).
 | 16  | Active Sensing during an Expansion load                  | [PR #476], [MIDI 01-protocol](../midi/01-protocol.md)                            | none (hardware) |
 | 17  | Plug-in test host drag against the #444 spike (not Live) | [PR #477], [#444]                                                                | none            |
 | 18  | The Binding as automatable Part and Key parameters       | [#495], [ADR 0007]                                                               | [#495]          |
+| 19  | A Tone plugin picks its Part's tone                      | [#496], [ADR 0007], [ADR 0009]                                                   | [#496]          |
 
 [ADR 0007]: ../adr/0007-plugins-per-tone-type.md
 
@@ -675,6 +676,7 @@ Parts N and M hold tones of the plugin's type.
 [#447]: https://github.com/sigma/integral/issues/447
 [#454]: https://github.com/sigma/integral/issues/454
 [#495]: https://github.com/sigma/integral/issues/495
+[#496]: https://github.com/sigma/integral/issues/496
 [#455]: https://github.com/sigma/integral/issues/455
 [#458]: https://github.com/sigma/integral/issues/458
 [#463]: https://github.com/sigma/integral/issues/463
@@ -689,3 +691,37 @@ Parts N and M hold tones of the plugin's type.
 [ADR 0008]: ../adr/0008-host-parameter-ids-from-device-addresses.md
 [ADR 0009]: ../adr/0009-recall-pushes-the-project-state.md
 [load.rs]: ../../crates/integral-plugin-host/src/load.rs
+
+## 19. A Tone plugin picks its Part's tone
+
+**Purpose.** A Tone or Kit plugin's editor shows its Part's tone and opens a picker
+limited to tones of the plugin's type. Choosing one changes the device's Part, and
+the project keeps it.
+Sources: [#496], [ADR 0007], [ADR 0009] (the instance's saved tone).
+
+**Setup.** Device service running. An Integral SN Synth plugin on a track, bound to
+Part N, which holds an SN Synth tone. A Studio Set plugin on the master track.
+
+1. Open the SN Synth editor. Read the tone button in the bar.
+2. Click it. Read the banks listed, then switch to By Category and read the tones.
+3. Choose another SN Synth tone. Read the button and Part N on the device.
+4. Save the set, quit Live and reopen it. Read Part N on the device.
+5. Open the editor. Read the tone button.
+6. On the device, change Part N to a PCM Synth tone. Read the button.
+7. Open the Studio Set plugin's editor. Look for a tone button.
+
+**Expected.**
+
+- Step 1: the button shows the Part's tone (source, number, name).
+- Step 2: only SN Synth banks (and SN Synth Expansion banks) show, and only SN Synth
+  tones by category.
+- Step 3: the picker closes, the button shows the chosen tone, and Part N on the
+  device plays it.
+- Step 4: Part N holds the chosen tone, not the one from step 1.
+- Step 5: the button shows the chosen tone.
+- Step 6: the button is disabled while the plugin shows the type-mismatch notice.
+- Step 7: none. The Studio Set plugin shows no tone button and changes no tone.
+
+| Date | Live version | Result | Notes |
+| ---- | ------------ | ------ | ----- |
+|      |              |        |       |
