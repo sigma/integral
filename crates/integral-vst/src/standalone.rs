@@ -1,6 +1,6 @@
 //! Standalone binary for the Integral Integra-7 control surface.
 //!
-//! Runs the same editor as the VST3/CLAP plugin, but outside a DAW
+//! Runs the same editor as the VST3 plugins (here the Studio Set plugin), but outside a DAW
 //! with direct MIDI port access via CoreMIDI (macOS), ALSA/JACK (Linux),
 //! or WASAPI (Windows).
 //!
@@ -9,7 +9,7 @@
 //!
 //! Use `--help` for all options (provided by nih-plug's standalone wrapper).
 
-use integral_vst::Integral;
+use integral_vst::StudioSetPlugin;
 
 /// Query the default audio output device's sample rate via cpal.
 /// Returns None if no device is available or the config can't be read.
@@ -28,15 +28,15 @@ fn main() {
     let has_sample_rate = user_args.iter().any(|a| a.starts_with("--sample-rate"));
 
     if has_sample_rate {
-        nih_plug::wrapper::standalone::nih_export_standalone::<Integral>();
+        nih_plug::wrapper::standalone::nih_export_standalone::<StudioSetPlugin>();
     } else if let Some(rate) = detect_sample_rate() {
         eprintln!("[integral] Detected system sample rate: {rate} Hz");
         let mut args = user_args;
         args.push("--sample-rate".to_string());
         args.push(rate.to_string());
-        nih_plug::wrapper::standalone::nih_export_standalone_with_args::<Integral, _>(args);
+        nih_plug::wrapper::standalone::nih_export_standalone_with_args::<StudioSetPlugin, _>(args);
     } else {
         // No audio device — fall back to default (nih-plug will use dummy backend)
-        nih_plug::wrapper::standalone::nih_export_standalone::<Integral>();
+        nih_plug::wrapper::standalone::nih_export_standalone::<StudioSetPlugin>();
     }
 }

@@ -21,6 +21,8 @@ mod gesture;
 #[cfg(target_os = "macos")]
 mod host;
 #[cfg(target_os = "macos")]
+mod load;
+#[cfg(target_os = "macos")]
 mod pointer;
 #[cfg(target_os = "macos")]
 mod report;
@@ -35,7 +37,7 @@ mod cli {
 
     use clap::{Parser, Subcommand};
 
-    use crate::{drag, driver, report::Report};
+    use crate::{drag, driver, load, report::Report};
 
     #[derive(Parser)]
     #[command(about = "Dev-only VST3 test host for the Integral plugin")]
@@ -43,6 +45,14 @@ mod cli {
         /// The `.vst3` bundle to load (`just bundle-plugin` makes it).
         #[arg(long)]
         bundle: PathBuf,
+        /// The plugin class to load, by name, from a bundle that exports
+        /// several (the family's does). Default: the first.
+        #[arg(long, global = true)]
+        class: Option<String>,
+        /// Run even if a Device service is listening at the default socket,
+        /// to which the plugins would connect.
+        #[arg(long, global = true)]
+        allow_service: bool,
         /// Where screenshots (window-only) are written.
         #[arg(long)]
         out_dir: PathBuf,
@@ -52,6 +62,9 @@ mod cli {
 
     #[derive(Subcommand)]
     enum Scenario {
+        /// Load every plugin class of the bundle without opening an editor,
+        /// check each against its parameter list, and round-trip its state.
+        Load,
         /// Drag a slider and check the gestures on the matching host parameter.
         Drag {
             /// Name of the host parameter the drag must move.
@@ -81,7 +94,13 @@ mod cli {
     pub fn main() -> ExitCode {
         let cli = Cli::parse();
         let report = Arc::new(Report::new());
+        let guard = crate::host::refuse_live_service(cli.allow_service);
         let (name, outcome) = match cli.scenario {
+            _ if guard.is_err() => ("guard", guard.map(|()| false)),
+            Scenario::Load => (
+                "load",
+                load::run(&cli.bundle, cli.class.as_deref(), &report),
+            ),
             Scenario::Drag { param, control, to } => (
                 "drag",
                 drag::run(
@@ -90,6 +109,7 @@ mod cli {
                         param,
                         control,
                         to,
+                        class: cli.class,
                         out_dir: cli.out_dir,
                     },
                     &report,

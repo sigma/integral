@@ -30,6 +30,8 @@ pub struct Options {
     /// Where on the slider to release, as a fraction of its width. Default:
     /// the far side of the parameter's current value, so it always moves.
     pub to: Option<f64>,
+    /// The plugin class to load (by name); the bundle's first if none.
+    pub class: Option<String>,
     /// Where screenshots go.
     pub out_dir: PathBuf,
 }
@@ -41,7 +43,7 @@ fn far_side(value: f64) -> f64 {
 
 /// Runs the scenario; `Ok(true)` when every assertion held.
 pub fn run(bundle: &Path, options: &Options, report: &Arc<Report>) -> Result<bool> {
-    let plugin = host::load(bundle)?;
+    let plugin = host::load(bundle, options.class.as_deref())?;
     let params = plugin
         .get_parameters()
         .map_err(|e| anyhow!("listing parameters: {e}"))?;

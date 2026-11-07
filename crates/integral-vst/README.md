@@ -2,22 +2,24 @@
 
 ## Overview
 
-The DAW plugin (VST3 and CLAP, via `nih-plug`) and the `integral-app`
-standalone. Both embed the web UI in a macOS webview
-([ADR 0004](../../docs/adr/0004-plugin-ui-in-a-webview.md)). The crate does
-not depend on `integral-core`. The embedded page runs the WASM core, and this
-crate only serves the page and passes MIDI bytes between the page and the
-device.
+The DAW plugins (six VST3 plugins from one bundle, via `nih-plug`) and the
+`integral-app` standalone. Both embed the web UI in a macOS webview
+([ADR 0004](../../docs/adr/0004-plugin-ui-in-a-webview.md)). The plugins
+declare the host parameter lists of `integral-core` and connect to the Device
+service ([ADR 0006](../../docs/adr/0006-device-service-owns-the-link.md)) as
+clients. The embedded page runs the WASM core, and the webview side only serves
+the page and passes MIDI bytes between the page and the device.
 
 ## Interface
 
-- [`./src/README.md`](./src/README.md): the plugin (`Integral`), the
-  standalone entry point and the webview editor.
+- [`./src/README.md`](./src/README.md): the plugin family, the standalone
+  entry point and the webview editor.
 - `build.rs` embeds `web/dist-plugin` (built by `just build-web-plugin`). It
   writes a sorted `(path, bytes)` table to `$OUT_DIR/web_assets.rs`, which
   `src/webview/assets.rs` serves.
 - Build outputs:
-  - a `cdylib` and `lib` library (the plugin)
+  - a `cdylib` and `lib` library (the six plugins; `just bundle-plugin` makes
+    `target/bundle/Integral.vst3` from it)
   - the `integral-app` binary (the standalone)
 
 ## Invariants

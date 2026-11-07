@@ -14,6 +14,8 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use nih_plug::prelude::{Editor, GuiContext, ParentWindowHandle, nih_error};
+
+use crate::family::Instance;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use wry::dpi::{LogicalPosition, LogicalSize};
 use wry::http::{Response, header};
@@ -39,13 +41,24 @@ pub(crate) struct WebviewEditor {
     /// The window size in logical px, persisted with the plugin's state.
     size: Arc<RwLock<(u32, u32)>>,
     link: LinkFactory,
+    /// The plugin instance the window belongs to: it settles when the window
+    /// opens, which the host does after restoring the instance's state.
+    instance: Arc<Instance>,
 }
 
 impl WebviewEditor {
     /// An editor of the persisted `size` whose pages reach the device
-    /// through links made by `link`.
-    pub(crate) fn new(size: Arc<RwLock<(u32, u32)>>, link: LinkFactory) -> Self {
-        Self { size, link }
+    /// through links made by `link`, for `instance`.
+    pub(crate) fn new(
+        size: Arc<RwLock<(u32, u32)>>,
+        link: LinkFactory,
+        instance: Arc<Instance>,
+    ) -> Self {
+        Self {
+            size,
+            link,
+            instance,
+        }
     }
 }
 
@@ -55,6 +68,7 @@ impl Editor for WebviewEditor {
         parent: ParentWindowHandle,
         context: Arc<dyn GuiContext>,
     ) -> Box<dyn Any + Send> {
+        self.instance.settle();
         let (width, height) = *self.size.read().expect("size lock");
         let options = baseview::WindowOpenOptions {
             title: "Integral".into(),
