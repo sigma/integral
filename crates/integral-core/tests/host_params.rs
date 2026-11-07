@@ -335,3 +335,73 @@ mod param_index {
         }
     }
 }
+
+/// Raw values worth trying in `p`'s range: both ends, the default and the
+/// middle.
+fn probes(p: &integral_core::host_params::HostParam) -> [i32; 4] {
+    [p.min, p.default, p.min + (p.max - p.min) / 2, p.max]
+}
+
+#[test]
+fn a_values_text_parses_back_to_a_value_with_the_same_text() {
+    for kind in PluginKind::ALL {
+        for p in kind.host_params() {
+            for raw in probes(&p) {
+                let text = p.format.format(raw);
+                let parsed = p
+                    .parse(&text)
+                    .unwrap_or_else(|| panic!("{kind:?} {}: {text:?} does not parse", p.id));
+                assert_eq!(
+                    p.format.format(parsed),
+                    text,
+                    "{kind:?} {}: {text:?} parsed as {parsed}",
+                    p.id
+                );
+                if raw == parsed {
+                    continue;
+                }
+                // Only a text two values share may parse as the other one,
+                // and then as the lowest.
+                assert!(parsed < raw, "{kind:?} {}: {text:?}", p.id);
+            }
+        }
+    }
+}
+
+#[test]
+fn typed_text_may_drop_case_spaces_and_the_unit() {
+    use integral_core::fx_params::FxUnit;
+    use integral_core::host_params::HostFormat;
+    use integral_core::param_registry::ParamFormat;
+
+    let pan = HostFormat::Field(ParamFormat::Pan);
+    assert_eq!(pan.parse("l 64", 0, 127), Some(0));
+    assert_eq!(pan.parse("C", 0, 127), Some(64));
+    assert_eq!(pan.parse("63r", 0, 127), Some(127));
+
+    let signed = HostFormat::Field(ParamFormat::SignedCenter(64));
+    assert_eq!(signed.parse("-64", 0, 127), Some(0));
+    assert_eq!(signed.parse("+63", 0, 127), Some(127));
+    assert_eq!(signed.parse("63", 0, 127), Some(127));
+
+    let db = HostFormat::Fx(FxUnit::Decibels);
+    let three = db.parse("+3dB", -15, 15).expect("+3dB");
+    assert_eq!(db.format(three), "+3 dB");
+    assert_eq!(db.parse("+3", -15, 15), Some(three));
+    assert_eq!(db.parse("3 db", -15, 15), Some(three));
+}
+
+#[test]
+fn text_no_value_has_does_not_parse() {
+    use integral_core::host_params::HostFormat;
+    use integral_core::param_registry::ParamFormat;
+
+    let signed = HostFormat::Field(ParamFormat::SignedCenter(64));
+    assert_eq!(signed.parse("", 0, 127), None);
+    assert_eq!(signed.parse("loud", 0, 127), None);
+    assert_eq!(signed.parse("64000", 0, 127), None);
+    // The unit must be the value's, once given.
+    let pct = HostFormat::Field(ParamFormat::Percent);
+    assert_eq!(pct.parse("50", 0, 100), Some(50));
+    assert_eq!(pct.parse("50hz", 0, 100), None);
+}

@@ -176,6 +176,87 @@ impl HostFormat {
             Self::Fx(unit) => unit.format(raw),
         }
     }
+
+    /// The raw value in `min..=max` that `text` reads as: the inverse of
+    /// [`format`](Self::format), for a host that takes typed values.
+    ///
+    /// A plain number format reads the number. The other formats are too
+    /// varied (names, tempo-synced notes, tables, piecewise scales) for a
+    /// grammar each, so this searches the range, which has up to 65,536
+    /// values, formatting each as it goes, in two passes. The lowest raw
+    /// value wins a tie in either.
+    ///
+    /// 1. The text equals a value's text, ignoring case and whitespace
+    ///    (`l 30` reads as `L30`, `1.5 s` as `1.5s`).
+    /// 2. The text's leading number equals a value's leading number, and
+    ///    its unit, if it gives one, is that value's (`+3` reads as
+    ///    `+3 dB`, `50` as `50%`, `3dB` as `+3 dB` too).
+    ///
+    /// Returns `None` if nothing matches.
+    pub fn parse(&self, text: &str, min: i32, max: i32) -> Option<i32> {
+        if matches!(
+            self,
+            Self::Field(ParamFormat::Raw) | Self::Fx(FxUnit::Plain)
+        ) {
+            return text
+                .trim()
+                .parse::<i32>()
+                .ok()
+                .filter(|raw| (min..=max).contains(raw));
+        }
+        let wanted = squash(text);
+        if wanted.is_empty() {
+            return None;
+        }
+        if let Some(raw) = (min..=max).find(|&v| squash(&self.format(v)) == wanted) {
+            return Some(raw);
+        }
+        let (number, unit) = split_number(&wanted)?;
+        (min..=max).find(|&v| {
+            let formatted = squash(&self.format(v));
+            split_number(&formatted)
+                .is_some_and(|(n, u)| n == number && (unit.is_empty() || u == unit))
+        })
+    }
+}
+
+/// `text` without whitespace, lower-cased: the form two texts are compared in.
+fn squash(text: &str) -> String {
+    text.chars()
+        .filter(|c| !c.is_whitespace())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+/// The number `text` starts with (an optional sign, digits and one decimal
+/// point) and the rest of it, or `None` if it starts with no number.
+fn split_number(text: &str) -> Option<(f64, &str)> {
+    let mut end = 0;
+    let mut digits = false;
+    let mut point = false;
+    for (i, c) in text.char_indices() {
+        let take = match c {
+            '+' | '-' => i == 0,
+            '.' if !point => {
+                point = true;
+                true
+            }
+            _ if c.is_ascii_digit() => {
+                digits = true;
+                true
+            }
+            _ => false,
+        };
+        if !take {
+            break;
+        }
+        end = i + c.len_utf8();
+    }
+    if !digits {
+        return None;
+    }
+    let number = text[..end].parse().ok()?;
+    Some((number, &text[end..]))
 }
 
 /// One parameter of a plugin's host list.
@@ -317,6 +398,12 @@ pub enum BindingError {
 }
 
 impl HostParam {
+    /// The raw value `text` reads as for this parameter (see
+    /// [`HostFormat::parse`]).
+    pub fn parse(&self, text: &str) -> Option<i32> {
+        self.format.parse(text, self.min, self.max)
+    }
+
     /// The address of the parameter for `binding`.
     ///
     /// # Errors
