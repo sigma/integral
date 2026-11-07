@@ -11,6 +11,7 @@ import {
   type MidiPorts,
   type DeviceIdentity,
 } from "./midi";
+import { browserPorts } from "./deviceService";
 import { IntegraService } from "./integra";
 import { installFamilyPalette } from "./synth-ui/family";
 import { useMixer } from "./useMixer";
@@ -22,6 +23,7 @@ import {
   Identifying,
   Connected,
   Disconnected,
+  NotesUnavailable,
   Failed,
   NoDevices,
   MidiError,
@@ -69,11 +71,15 @@ function Lockable({ locked, children }: { locked: boolean; children: ReactNode }
   );
 }
 
+/** The browser's ports: Web MIDI's, and the Device service beside them. */
+const openBrowserPorts = () => browserPorts(webMidi);
+
 /** Where the app reaches MIDI and keeps state across page loads. Both are
  *  read once, on mount. */
 interface AppProps {
-  /** Opens the transport's port list: the browser's Web MIDI by default,
-   *  the plugin transport inside the plugin (`main.tsx`). */
+  /** Opens the transport's port list: the browser's Web MIDI and the Device
+   *  service by default, the plugin transport inside the plugin
+   *  (`main.tsx`). */
   openPorts?: () => Promise<MidiPorts>;
   /** Keeps the last port across page loads; `localStorage` by default. */
   storage?: Storage | null;
@@ -81,7 +87,7 @@ interface AppProps {
 
 /** The control surface: connects to a device, then shows its pages. */
 export function App({
-  openPorts = webMidi,
+  openPorts = openBrowserPorts,
   storage = browserStorage(),
 }: AppProps = {}) {
   const [{ memory, connectPorts }] = useState(() => ({
@@ -114,6 +120,7 @@ export function App({
         setStatus({
           step: "failed",
           reason:
+            port.failure?.() ??
             "No response — device may not be an Integra-7, or is powered off.",
         });
       }
@@ -225,6 +232,31 @@ export function App({
 
   const selectedPort = ports.find((p) => p.id === selectedId);
 
+  // A port whose link can drop while it stays listed (the Device service)
+  // says so itself: mark the device gone, and look for it again when the
+  // link is back, or comes up after a failed first try.
+  const stepRef = useRef(status.step);
+  useEffect(() => {
+    stepRef.current = status.step;
+  }, [status.step]);
+  useEffect(() => {
+    if (!selectedPort?.watch) return;
+    return selectedPort.watch((up) => {
+      if (!up) {
+        setStatus((s) =>
+          s.step === "connected" || s.step === "identifying"
+            ? { step: "disconnected" }
+            : s,
+        );
+      } else if (stepRef.current === "disconnected" || stepRef.current === "failed") {
+        identify(selectedPort);
+      }
+    });
+  }, [selectedPort, identify]);
+
+  // A pair that holds its link open lets go of it when another is chosen.
+  useEffect(() => () => selectedPort?.release?.(), [selectedPort]);
+
   // Create IntegraService when connected to an Integra-7
   const service = useMemo(() => {
     if (
@@ -290,6 +322,7 @@ export function App({
     return (
       <div className={css.shell}>
         {loading && <ExpansionLoadBanner load={loading} />}
+        {selectedPort?.carriesNotes === false && <NotesUnavailable />}
         {/* A running Expansion load holds every edit: the app is inert. */}
         <div
           className={`${css.body} ${loading ? css.bodyBusy : ""}`}
@@ -429,6 +462,7 @@ export function App({
                 identity={status.identity}
               />
             )}
+
 
             {status.step === "failed" && selectedPort && (
               <Failed

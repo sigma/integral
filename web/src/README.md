@@ -68,6 +68,22 @@ Device link and transports (`.ts`):
   - Identity: `identifyDevice`, `DeviceIdentity`, `IDENTIFY_TIMEOUT_MS`
     (2000).
   - `PortMemory` (the port-memory interface).
+- `deviceService.ts`:
+  - The Device service as a port (ADR 0006): `deviceServicePair` is a
+    `MidiPortPair` over the service's localhost WebSocket (one binary frame
+    per SysEx message each way; the URL comes from core through
+    `deviceServiceUrl`). Lazy: it connects on `open()`, then reconnects with
+    a wait growing from `RECONNECT_MIN_MS` to `RECONNECT_MAX_MS`. `watch`
+    reports the link going down and up, `failure` gives `NOT_RUNNING_HINT`
+    (not running, or this page's origin is not allowed) or `LINK_DOWN_HINT`
+    (the service closed the page with 1013: it lost the device), and
+    `release` stops reconnecting when another pair is chosen. SysEx only:
+    `carriesNotes` is `false` (App says so, notes are #480) and `timestamp`
+    is ignored, the service pacing SysEx itself.
+  - `withDeviceService`, `browserPorts`: the service listed beside Web MIDI's
+    pairs (alone where the browser has no Web MIDI), `DEVICE_SERVICE_NAME`.
+- `devPorts.ts`: `DEV_SERVER_PORT` (5181) and `PREVIEW_PORT` (4181), pinned in
+  `vite.config.ts` and equal to core's, which the service admits as origins.
 - `plugin.ts`:
   - The plugin transport: `windowBridge`, `PluginBridge`, `pluginPorts`.
   - The IPC wire format: `encodePageMessage`, `decodePluginMessage`,

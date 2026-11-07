@@ -1,6 +1,12 @@
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
+import {
+  DEVICE_SERVICE_NAME,
+  NOT_RUNNING_HINT,
+  deviceServicePair,
+  withDeviceService,
+} from "./deviceService";
 import { IDENTIFY_TIMEOUT_MS, LAST_PORT_KEY, webMidiPorts } from "./midi";
 import { button, cleanup, click, render } from "./test/dom";
 import { fakeMidiAccess, type FakePortSpec } from "./test/midiAccess";
@@ -127,5 +133,116 @@ describe("reconnect on open", () => {
     await act(() => vi.advanceTimersByTimeAsync(IDENTIFY_TIMEOUT_MS));
     expect(container.textContent).toContain("No response");
     expect(storage.getItem(LAST_PORT_KEY)).toBeNull();
+  });
+});
+
+/** The `index`th socket the service port opened. */
+function socket<T>(sockets: T[], index: number): T {
+  const found = sockets[index];
+  if (!found) throw new Error(`no socket ${index}`);
+  return found;
+}
+
+describe("the Device service port", () => {
+  /** A service port whose sockets the test holds. */
+  function serviceApp(midi?: ReturnType<typeof fakeMidiAccess>) {
+    const sockets: {
+      readyState: number;
+      sent: Uint8Array[];
+      onopen: ((e: Event) => void) | null;
+      onclose: ((e: CloseEvent) => void) | null;
+      onmessage: ((e: MessageEvent) => void) | null;
+    }[] = [];
+    let retry: () => void = () => {};
+    const pair = deviceServicePair(
+      "ws://service",
+      () => {
+        const socket = {
+          binaryType: "",
+          readyState: 0,
+          sent: [] as Uint8Array[],
+          send(data: Uint8Array) {
+            this.sent.push(data);
+          },
+          close() {},
+          onopen: null,
+          onclose: null,
+          onerror: null,
+          onmessage: null,
+        };
+        sockets.push(socket);
+        return socket;
+      },
+      {
+        set: (callback) => {
+          retry = callback;
+          return 1;
+        },
+        clear: () => {},
+      },
+    );
+    const ports = async () =>
+      withDeviceService(midi ? webMidiPorts(midi.access) : null, pair);
+    const { container } = render(
+      <App
+        openPorts={ports}
+        storage={memoryStorage({ [LAST_PORT_KEY]: DEVICE_SERVICE_NAME })}
+      />,
+    );
+    return { container, sockets, retry: () => retry() };
+  }
+
+  it("says the service is not running, and asks the device once it is up", async () => {
+    const { container, sockets, retry } = serviceApp();
+    await settle();
+    act(() => socket(sockets, 0).onclose?.(new CloseEvent("close")));
+    await settle();
+    expect(container.textContent).toContain(NOT_RUNNING_HINT);
+    expect(onMixer(container)).toBe(false);
+
+    // The next try finds the service: the page asks the device again.
+    act(() => retry());
+    expect(sockets).toHaveLength(2);
+    const second = socket(sockets, 1);
+    second.readyState = 1;
+    act(() => second.onopen?.(new Event("open")));
+    await settle();
+    expect(second.sent.length).toBeGreaterThan(0);
+
+    // The device answers: the page is connected, and says notes are not carried.
+    const reply = Uint8Array.from([
+      0xf0, 0x7e, 0x10, 0x06, 0x02, 0x41, 0x64, 0x02, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0xf7,
+    ]);
+    act(() =>
+      second.onmessage?.(new MessageEvent("message", { data: reply.buffer })),
+    );
+    await settle();
+    expect(container.textContent).toContain("Notes do not reach the device");
+  });
+
+  it("lets go of the service quietly when another port is chosen", async () => {
+    const midi = fakeMidiAccess([{ name: "INTEGRA-7", answers: true }]);
+    const { container, sockets } = serviceApp(midi);
+    await settle();
+    // The service socket is open and the device has not answered yet.
+    const service = socket(sockets, 0);
+    service.readyState = 1;
+    act(() => service.onopen?.(new Event("open")));
+    await settle();
+    expect(container.textContent).toContain("Identifying");
+
+    const select = container.querySelector("select");
+    if (!select) throw new Error("no port selector");
+    act(() => {
+      select.value = [...select.options].find((o) => o.text === "INTEGRA-7")?.value ?? "";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+
+    // Asked once, not twice, and never told the device was gone.
+    expect(midi.identified).toEqual(["INTEGRA-7"]);
+    expect(container.textContent).not.toContain("Waiting for reconnection");
+    expect(onMixer(container)).toBe(true);
   });
 });

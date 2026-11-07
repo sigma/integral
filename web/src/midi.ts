@@ -11,6 +11,8 @@ import init, {
   type DeviceIdentity,
 } from "../pkg/integral_wasm.js";
 
+import { DEVICE_SERVICE_ID } from "./deviceService";
+
 export type { DeviceIdentity };
 
 let wasmReady: Promise<void> | null = null;
@@ -44,6 +46,21 @@ export interface MidiPortPair {
   send(data: Uint8Array | number[], timestamp?: number): void;
   /** Hand every received message to `listener`. Returns its unsubscribe. */
   listen(listener: MidiListener): () => void;
+  /**
+   * For a pair whose link can drop while it stays listed (the Device
+   * service): call `listener(false)` when the link goes down and
+   * `listener(true)` when it is back. Returns its unsubscribe.
+   */
+  watch?(listener: (up: boolean) => void): () => void;
+  /** Why the pair is unreachable, in words for the user, or `null`. */
+  failure?(): string | null;
+  /**
+   * Stop holding the link (and stop trying to get it) because the user chose
+   * another pair. `open()` starts again.
+   */
+  release?(): void;
+  /** `false` for a pair that carries SysEx only: notes sent to it are lost. */
+  carriesNotes?: boolean;
 }
 
 /** The port pairs a transport offers, and word of when they change. */
@@ -134,9 +151,15 @@ export async function webMidi(): Promise<MidiPorts> {
   return webMidiPorts(await requestMidiAccess());
 }
 
-/** Find the first port whose name contains "integra" (case-insensitive). */
+/**
+ * Find the first port whose name contains "integra" (case-insensitive). The
+ * Device service is never a default: it is the user's choice.
+ */
 export function findIntegraPort(pairs: MidiPortPair[]): MidiPortPair | undefined {
-  return pairs.find((p) => p.name.toLowerCase().includes("integra"));
+  return pairs.find(
+    (p) =>
+      p.id !== DEVICE_SERVICE_ID && p.name.toLowerCase().includes("integra"),
+  );
 }
 
 /** Find the pair named exactly `name`, if there is one. */

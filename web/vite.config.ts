@@ -2,6 +2,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import { DEV_SERVER_PORT, PREVIEW_PORT } from "./src/devPorts";
 
 /** App background, as in index.html; also the installed window's colour. */
 const BACKGROUND = "#0f0f1a";
@@ -59,7 +60,13 @@ export default defineConfig(({ mode }) => {
     ],
     base,
     build: plugin ? { outDir: "dist-plugin" } : {},
+    // Pinned: the Device service admits these origins and no other port
+    // (see src/devPorts.ts), so a server that moved to a free port would be
+    // refused.
+    preview: { port: PREVIEW_PORT, strictPort: true },
     server: {
+      port: DEV_SERVER_PORT,
+      strictPort: true,
       fs: {
         // Allow serving files from the pkg directory (wasm-pack output)
         allow: [".", "pkg"],
