@@ -22,7 +22,7 @@ use crate::clients::Outbox;
 use crate::protocol::{ClientId, FrameError, Message, Request, encode_frame, read_frame};
 use crate::runtime::Handle;
 use crate::service::Input;
-use crate::sock::{PATH_LIMIT, Quiet, my_uid, no_sigpipe, peer_is_me, try_lock};
+use crate::sock::{PATH_LIMIT, Quiet, my_uid, no_sigpipe, peer_is_me, peer_pid, try_lock};
 
 /// File name of the socket within its directory.
 pub const SOCKET_FILE_NAME: &str = "integral-device-service.sock";
@@ -187,6 +187,34 @@ impl SocketServer {
     /// directory is not private, `InvalidInput` if the path is too long,
     /// else the OS error.
     pub fn bind(path: impl Into<PathBuf>, handle: Handle) -> io::Result<Self> {
+        Self::bind_only(path, handle, None)
+    }
+
+    /// As [`bind`](Self::bind), but with `only_pid` set serving only the
+    /// process with that ID: any other connection is closed before it can
+    /// say hello. For a process that serves the socket on behalf of the
+    /// clients it loads itself (a test host), not for a service.
+    ///
+    /// # Errors
+    ///
+    /// As [`bind`](Self::bind).
+    pub fn bind_only(
+        path: impl Into<PathBuf>,
+        handle: Handle,
+        only_pid: Option<u32>,
+    ) -> io::Result<Self> {
+        Self::claim(path)?.serve(handle, only_pid)
+    }
+
+    /// Take the right to serve `path` without serving it yet, for a process
+    /// that wants to be sure of the path before it starts anything (a link to
+    /// the device) that it would then have to undo. Nothing listens until
+    /// [`SocketClaim::serve`].
+    ///
+    /// # Errors
+    ///
+    /// As [`bind`](Self::bind), except for what only listening can fail.
+    pub fn claim(path: impl Into<PathBuf>) -> io::Result<SocketClaim> {
         let path = path.into();
         check_length(&path)?;
         let dir = path
@@ -207,6 +235,32 @@ impl SocketServer {
                 format!("a Device service already serves {}", path.display()),
             ));
         }
+        Ok(SocketClaim { path, lock })
+    }
+
+    /// The path the server listens on.
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+/// The right to serve a socket path, held through its lock file: see
+/// [`SocketServer::claim`].
+pub struct SocketClaim {
+    path: PathBuf,
+    lock: fs::File,
+}
+
+impl SocketClaim {
+    /// Replace a socket left by a dead service and listen, serving the
+    /// service behind `handle` as [`SocketServer::bind_only`] does.
+    ///
+    /// # Errors
+    ///
+    /// `AlreadyExists` if something that is not a socket is at the path, else
+    /// the OS error.
+    pub fn serve(self, handle: Handle, only_pid: Option<u32>) -> io::Result<SocketServer> {
+        let Self { path, lock } = self;
         match fs::symlink_metadata(&path) {
             Ok(meta) if meta.file_type().is_socket() => fs::remove_file(&path)?,
             Ok(_) => {
@@ -224,19 +278,14 @@ impl SocketServer {
             let stop = Arc::clone(&stop);
             thread::Builder::new()
                 .name("device-service-accept".into())
-                .spawn(move || accept_loop(&listener, &handle, &stop))?
+                .spawn(move || accept_loop(&listener, &handle, &stop, only_pid))?
         };
-        Ok(Self {
+        Ok(SocketServer {
             path,
             stop,
             thread: Some(thread),
             _lock: lock,
         })
-    }
-
-    /// The path the server listens on.
-    pub fn path(&self) -> &Path {
-        &self.path
     }
 }
 
@@ -252,8 +301,7 @@ impl Drop for SocketServer {
     }
 }
 
-fn accept_loop(listener: &UnixListener, handle: &Handle, stop: &AtomicBool) {
-    let mut next = 1_u64; // 0 is the device
+fn accept_loop(listener: &UnixListener, handle: &Handle, stop: &AtomicBool, only_pid: Option<u32>) {
     let mut retry = Duration::from_millis(10);
     loop {
         let accepted = listener.accept();
@@ -273,8 +321,11 @@ fn accept_loop(listener: &UnixListener, handle: &Handle, stop: &AtomicBool) {
         if !peer_is_me(&stream) {
             continue;
         }
-        let client = ClientId(next);
-        next += 1;
+        // A failure to tell is no.
+        if only_pid.is_some_and(|pid| peer_pid(&stream).ok() != Some(pid)) {
+            continue;
+        }
+        let client = handle.new_client_id();
         let handle = handle.clone();
         let _ = thread::Builder::new()
             .name(format!("device-service-client-{client}"))

@@ -49,11 +49,12 @@ check-pwa: pack-wasm web-deps
 build-web-plugin: pack-wasm web-deps
     cd web && npx vite build --mode plugin --logLevel warn --emptyOutDir && node scripts/check-plugin-build.mjs dist-plugin
 
-# build the plugin (VST3/CLAP library and integral-app) with its web UI embedded
+# build the plugins (the VST3 library and integral-app) with their web UI embedded
 build-plugin: build-web-plugin
     cargo build -p integral-vst --release
 
-# assemble target/bundle/Integral.vst3 from a fresh plugin build, ad-hoc signed (macOS)
+# assemble target/bundle/Integral.vst3 from a fresh plugin build, ad-hoc signed (macOS).
+# One bundle exports the six plugins of the family; hosts list each class.
 [macos]
 bundle-plugin: build-plugin
     #!/usr/bin/env bash
@@ -88,7 +89,12 @@ bundle-plugin: build-plugin
     codesign --force -s - "$bundle"
     echo "$bundle"
 
-# run a test-host scenario (e.g. drag) against the bundled plugin; JSON lines on stdout (macOS)
+# run a test-host scenario (load, drag, recall, automate, binding-mismatch) against the bundled plugins; JSON lines on stdout (macOS).
+# `load` checks every plugin class; `drag` needs `--class "Integral Studio Set"` (or another) to pick one.
+# `recall`, `automate` and `binding-mismatch` run the Device service themselves on a fake link (or the INTEGRA-7 with
+# `--device rtp:<session>` / `usb`) at the socket the plugins look for; `binding-mismatch --no-editor` opens no window.
+# `load` and `drag` refuse to run while a Device service listens (the plugins would connect to it) unless `--allow-service`;
+# the others always refuse.
 [macos]
 [positional-arguments]
 plugin-test scenario *ARGS: bundle-plugin

@@ -6,20 +6,20 @@
 //! The driver runs on its own thread while the main thread keeps AppKit
 //! alive (see [`crate::host`]).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
-use std::thread::sleep;
+use std::thread::{self, sleep};
 use std::time::{Duration, Instant};
 
 use anyhow::{Result, anyhow, bail};
 use objc2_core_foundation::{CGPoint, CGRect};
 use serde_json::{Value, json};
-use vst3_host::{ParameterEdit, ParameterEditKind};
+use vst3_host::{ParameterEdit, ParameterEditKind, Plugin};
 
 use crate::ax::{self, Element, Pick};
 use crate::cgwindow::{self, WindowInfo};
-use crate::host::Shared;
+use crate::host::{Host, Shared};
 use crate::pointer;
 use crate::report::Report;
 use crate::screenshot;
@@ -241,9 +241,8 @@ impl Session {
         );
     }
 
-    /// Finds the slider labelled `control` and drags it from its centre to
-    /// `to` (a fraction of its width), with screenshots before and after.
-    pub fn drag_slider(&self, control: &str, to: f64) -> Result<Driven> {
+    /// The editor's window once it shows. Needs the Accessibility grant.
+    fn editor_window(&self) -> Result<WindowInfo> {
         if !ax::trusted() {
             bail!(
                 "Accessibility is not granted to this process (macOS attributes it to the \
@@ -256,6 +255,40 @@ impl Session {
             "window",
             json!({ "id": window.id, "via": self.via, "frame": rect(window.bounds) }),
         );
+        Ok(window)
+    }
+
+    /// Waits for text containing `needle` to show in the editor, and takes a
+    /// screenshot called `shot` either way. Whether it showed within
+    /// [`WAIT`]: that it did not is a finding, not an abort.
+    pub fn wait_for_text(&self, needle: &str, shot: &str) -> Result<bool> {
+        self.editor_window()?;
+        let app = Element::application(self.pid)
+            .ok_or_else(|| anyhow!("no accessibility element for pid {}", self.pid))?;
+        let deadline = Instant::now() + WAIT;
+        let shown = loop {
+            let found = app.descendants_where(|e| {
+                e.role().as_deref() == Some(ax::STATIC_TEXT_ROLE)
+                    && e.texts().iter().any(|t| t.contains(needle))
+            });
+            if !found.is_empty() {
+                break found.len();
+            }
+            if Instant::now() >= deadline {
+                break 0;
+            }
+            sleep(Duration::from_millis(250));
+        };
+        self.report
+            .emit("text", json!({ "contains": needle, "elements": shown }));
+        self.shot(shot);
+        Ok(shown > 0)
+    }
+
+    /// Finds the slider labelled `control` and drags it from its centre to
+    /// `to` (a fraction of its width), with screenshots before and after.
+    pub fn drag_slider(&self, control: &str, to: f64) -> Result<Driven> {
+        self.editor_window()?;
         let slider = self.locate(control)?;
         self.report.emit(
             "control",
@@ -289,4 +322,60 @@ impl Session {
         self.shot("drag-after.png");
         Ok(Driven { window, frame })
     }
+}
+
+/// Opens `plugin`'s editor in this process and brings it to the front: what
+/// every scenario that drives the editor starts with. Edits the plugin
+/// reports while loading are recorded in `edits`, so a spurious one fails
+/// the run.
+pub fn open_editor(
+    plugin: Plugin,
+    report: &Arc<Report>,
+    out_dir: &Path,
+    edits: &mut Vec<ParameterEdit>,
+) -> Result<(Host, Session)> {
+    std::fs::create_dir_all(out_dir)?;
+    let host = Host::open(plugin)?;
+    // Let the window show and come to the front.
+    for _ in 0..2 {
+        let until = Instant::now() + Duration::from_millis(500);
+        host.run(
+            || Instant::now() < until,
+            Duration::ZERO,
+            |e| record_edit(report, edits, e),
+        )?;
+        host.activate();
+    }
+    let (window_id, via) = host.editor_window_id()?;
+    let session = Session {
+        pid: i32::try_from(std::process::id())?,
+        window_id,
+        via,
+        shared: host.shared(),
+        report: Arc::clone(report),
+        out_dir: out_dir.to_owned(),
+    };
+    Ok((host, session))
+}
+
+/// Runs `work` on its own thread (it may use AX, which must not run on the
+/// thread pumping AppKit) while the main thread pumps `host`, recording
+/// edits. Returns how the pump ended and what `work` returned.
+pub fn drive<T: Send + 'static>(
+    host: &Host,
+    report: &Report,
+    edits: &mut Vec<ParameterEdit>,
+    work: impl FnOnce() -> Result<T> + Send + 'static,
+) -> (Result<()>, Result<T>) {
+    let worker = thread::spawn(work);
+    let pumped = host.run(
+        || !worker.is_finished(),
+        Duration::from_millis(600),
+        |e| record_edit(report, edits, e),
+    );
+    let driven = worker
+        .join()
+        .map_err(|_| anyhow!("the driver panicked"))
+        .and_then(|r| r);
+    (pumped, driven)
 }

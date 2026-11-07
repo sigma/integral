@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { identity_request } from "../pkg/integral_wasm.js";
+import { DEVICE_SERVICE_ID, DEVICE_SERVICE_NAME } from "./deviceService";
 import { mixerScreen } from "./layouts/mixer/screen";
 import { naturalSize } from "./layouts/zoom";
 import { identifyDevice } from "./midi";
+import { fakeBridge } from "./test/pluginBridge";
 import {
   OPEN_TIMEOUT_MS,
   PLUGIN_EVENT,
+  SERVICE_UNAVAILABLE_HINT,
   pluginGrid,
   decodePluginMessage,
   encodePageMessage,
@@ -13,44 +16,8 @@ import {
   pluginWindowSize,
   resizePluginWindow,
   windowBridge,
-  type PageMessage,
-  type PluginBridge,
   type PluginMessage,
 } from "./plugin";
-
-/** A bridge standing in for the plugin: records what the page posts and
- *  delivers what the test sends. */
-function fakeBridge() {
-  const posted: PageMessage[] = [];
-  const listeners = new Set<(message: string) => void>();
-  let answer: ((message: PageMessage) => PluginMessage[]) | null = null;
-  const deliver = (message: PluginMessage) => {
-    for (const l of [...listeners]) l(JSON.stringify(message));
-  };
-  const bridge: PluginBridge = {
-    post(text) {
-      const message = JSON.parse(text) as PageMessage;
-      posted.push(message);
-      for (const reply of answer?.(message) ?? []) queueMicrotask(() => deliver(reply));
-    },
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-  };
-  return {
-    bridge,
-    posted,
-    deliver,
-    /** Answer each posted message with what `reply` returns. */
-    answerWith(reply: (message: PageMessage) => PluginMessage[]) {
-      answer = reply;
-    },
-    rawDeliver(text: string) {
-      for (const l of [...listeners]) l(text);
-    },
-  };
-}
 
 /** Ports from a fake plugin that lists `names` on `ready`. */
 async function listed(names: string[]) {
@@ -101,6 +68,66 @@ describe("plugin message codec", () => {
     });
   });
 
+  it("encodes the binding and host gesture messages the plugin decodes", () => {
+    // As `ipc.rs` decodes them.
+    expect(encodePageMessage({ type: "bind", part: 3, key: 36 })).toBe(
+      '{"type":"bind","part":3,"key":36}',
+    );
+    expect(encodePageMessage({ type: "bind", part: 3 })).toBe('{"type":"bind","part":3}');
+    expect(encodePageMessage({ type: "beginEdit", id: "part07/0x09" })).toBe(
+      '{"type":"beginEdit","id":"part07/0x09"}',
+    );
+    expect(encodePageMessage({ type: "performEdit", id: "part07/0x09", value: -12 })).toBe(
+      '{"type":"performEdit","id":"part07/0x09","value":-12}',
+    );
+    expect(encodePageMessage({ type: "endEdit", id: "part07/0x09" })).toBe(
+      '{"type":"endEdit","id":"part07/0x09"}',
+    );
+    expect(encodePageMessage({ type: "loadDefaultTone" })).toBe('{"type":"loadDefaultTone"}');
+  });
+
+  it("decodes the instance message the plugin encodes", () => {
+    // As `ipc.rs` encodes it.
+    expect(
+      decodePluginMessage(
+        '{"type":"instance","plugin":"pcm_drum","binding":{"part":2,"key":36},"status":"deviceOffline","statusText":"Device offline","hostEdits":true,"notices":[{"notice":"recalling","text":"Recalling\\u2026"}],"defaultTone":"Studio Kit","defaultTonePending":true}',
+      ),
+    ).toEqual({
+      type: "instance",
+      plugin: "pcm_drum",
+      binding: { part: 2, key: 36 },
+      status: "deviceOffline",
+      statusText: "Device offline",
+      hostEdits: true,
+      notices: [{ notice: "recalling", text: "Recalling\u2026" }],
+      defaultTone: "Studio Kit",
+      defaultTonePending: true,
+    });
+    expect(
+      decodePluginMessage(
+        '{"type":"instance","plugin":"studio_set","binding":{},"status":"connected","statusText":"Connected","hostEdits":false,"notices":[],"defaultTone":null,"defaultTonePending":false}',
+      ),
+    ).toMatchObject({ plugin: "studio_set", binding: {}, status: "connected", hostEdits: false });
+    expect(
+      decodePluginMessage(
+        '{"type":"instance","plugin":"sn_synth","binding":null,"status":"serviceNotRunning","statusText":"x","hostEdits":true,"notices":[],"defaultTone":null,"defaultTonePending":false}',
+      ),
+    ).toMatchObject({ binding: null });
+  });
+
+  it("decodes a refusal, and takes any status code the plugin names", () => {
+    // As `ipc.rs` encodes it.
+    expect(decodePluginMessage('{"type":"refused","message":"no"}')).toEqual({
+      type: "refused",
+      message: "no",
+    });
+    expect(
+      decodePluginMessage(
+        '{"type":"instance","plugin":"sn_synth","binding":null,"status":"aNewStatus","statusText":"New","hostEdits":true,"notices":[],"defaultTone":null,"defaultTonePending":false}',
+      ),
+    ).toMatchObject({ status: "aNewStatus", statusText: "New" });
+  });
+
   it("rejects malformed messages", () => {
     for (const text of [
       "not json",
@@ -112,6 +139,16 @@ describe("plugin message codec", () => {
       '{"type":"receive","port":"A","data":[1.5]}',
       '{"type":"receive","port":7,"data":[]}',
       '{"type":"error","port":"A"}',
+      '{"type":"refused"}',
+      '{"type":"instance","plugin":"sn_synth","binding":{"part":256},"status":"connected","statusText":"x","notices":[],"defaultTone":null,"defaultTonePending":false}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","notices":[1]}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x"}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","notices":[],"defaultTone":null,"defaultTonePending":false}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":"yes","notices":[],"defaultTone":null,"defaultTonePending":false}',
+      // The default tone is a name or null, and always said.
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":true,"notices":[],"defaultTonePending":false}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":true,"notices":[],"defaultTone":7,"defaultTonePending":false}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":true,"notices":[],"defaultTone":null}',
     ]) {
       expect(decodePluginMessage(text), text).toBeNull();
     }
@@ -141,35 +178,75 @@ describe("windowBridge", () => {
 });
 
 describe("pluginPorts", () => {
-  it("says ready, then offers the pairs the plugin lists", async () => {
-    const { fake, ports } = await listed(["INTEGRA-7", "Network Integra"]);
+  const S = DEVICE_SERVICE_NAME;
+
+  it("says ready, then offers the Device service as the one pair", async () => {
+    const { fake, ports } = await listed([S]);
     expect(fake.posted[0]).toEqual({ type: "ready" });
-    expect(ports.pairs().map((p) => [p.id, p.name])).toEqual([
-      ["INTEGRA-7", "INTEGRA-7"],
-      ["Network Integra", "Network Integra"],
+    expect(ports.pairs().map((p) => [p.id, p.name, p.carriesNotes])).toEqual([
+      [DEVICE_SERVICE_ID, DEVICE_SERVICE_NAME, false],
     ]);
+    expect(ports.pairs()[0]!.failure?.()).toBeNull();
   });
 
-  it("reports a changed list, keeping each pair's identity", async () => {
-    const { fake, ports } = await listed(["A"]);
-    const a = ports.pairs()[0];
+  it("lists the pair when the service is unavailable, saying why", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fake = fakeBridge();
+    fake.answerWith((m) =>
+      m.type === "ready"
+        ? [
+            { type: "error", port: null, message: "Device service not running" },
+            { type: "ports", ports: [] },
+          ]
+        : [],
+    );
+    const ports = await pluginPorts(fake.bridge);
+    const pair = ports.pairs()[0]!;
+    expect(pair.failure?.()).toBe("Device service not running");
     const onChange = vi.fn();
     ports.onChange(onChange);
-    fake.deliver({ type: "ports", ports: ["A", "B"] });
+    fake.deliver({ type: "ports", ports: [S] });
     expect(onChange).toHaveBeenCalledTimes(1);
-    expect(ports.pairs()[0]).toBe(a);
-    expect(ports.pairs().map((p) => p.name)).toEqual(["A", "B"]);
+    expect(ports.pairs()[0]).toBe(pair);
+    expect(pair.failure?.()).toBeNull();
   });
 
-  it("opens a pair through the plugin", async () => {
-    const { fake, ports } = await listed(["A"]);
+  it("tells a watcher when the service goes away and comes back", async () => {
+    const { fake, ports } = await listed([S]);
+    const watcher = vi.fn();
+    const stop = ports.pairs()[0]!.watch!(watcher);
+    fake.deliver({ type: "ports", ports: [] });
+    fake.deliver({ type: "ports", ports: [] });
+    expect(watcher.mock.calls).toEqual([[false]]);
+    fake.deliver({ type: "ports", ports: [S] });
+    expect(watcher.mock.calls).toEqual([[false], [true]]);
+    stop();
+    fake.deliver({ type: "ports", ports: [] });
+    expect(watcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("tells a watcher when the service appears after the editor opened", async () => {
+    const { fake, ports } = await listed([]);
+    const watcher = vi.fn();
+    ports.pairs()[0]!.watch!(watcher);
+    fake.deliver({ type: "ports", ports: [S] });
+    expect(watcher.mock.calls).toEqual([[true]]);
+  });
+
+  it("falls back to a general reason when the plugin gave none", async () => {
+    const { ports } = await listed([]);
+    expect(ports.pairs()[0]!.failure?.()).toBe(SERVICE_UNAVAILABLE_HINT);
+  });
+
+  it("opens the service through the plugin", async () => {
+    const { fake, ports } = await listed([S]);
     fake.answerWith((m) => (m.type === "open" ? [{ type: "opened", port: m.port }] : []));
     await ports.pairs()[0]!.open();
-    expect(fake.posted).toContainEqual({ type: "open", port: "A" });
+    expect(fake.posted).toContainEqual({ type: "open", port: S });
   });
 
   it("rejects an open the plugin refuses", async () => {
-    const { fake, ports } = await listed(["A"]);
+    const { fake, ports } = await listed([S]);
     fake.answerWith((m) =>
       m.type === "open" ? [{ type: "openFailed", port: m.port, message: "gone" }] : [],
     );
@@ -177,16 +254,16 @@ describe("pluginPorts", () => {
   });
 
   it("keeps an open waiting through another request's error", async () => {
-    const { fake, ports } = await listed(["A"]);
+    const { fake, ports } = await listed([S]);
     const open = ports.pairs()[0]!.open();
     vi.spyOn(console, "error").mockImplementation(() => {});
-    fake.deliver({ type: "error", port: "A", message: "send failed" });
-    fake.deliver({ type: "opened", port: "A" });
+    fake.deliver({ type: "error", port: S, message: "send failed" });
+    fake.deliver({ type: "opened", port: S });
     await expect(open).resolves.toBeUndefined();
   });
 
   it("gives up on an open the plugin never answers", async () => {
-    const { ports } = await listed(["A"]);
+    const { ports } = await listed([S]);
     vi.useFakeTimers();
     const open = ports.pairs()[0]!.open();
     vi.advanceTimersByTime(OPEN_TIMEOUT_MS);
@@ -194,48 +271,52 @@ describe("pluginPorts", () => {
   });
 
   it("stops listening once closed", async () => {
-    const { fake, ports } = await listed(["A"]);
+    const { fake, ports } = await listed([S]);
     const onChange = vi.fn();
     ports.onChange(onChange);
     ports.close?.();
-    fake.deliver({ type: "ports", ports: ["A", "B"] });
+    fake.deliver({ type: "ports", ports: [] });
     expect(onChange).not.toHaveBeenCalled();
   });
 
   it("sends bytes to its own pair", async () => {
-    const { fake, ports } = await listed(["A"]);
-    ports.pairs()[0]!.send(new Uint8Array([0x90, 60, 100]));
-    expect(fake.posted[fake.posted.length - 1]).toEqual({ type: "send", port: "A", data: [0x90, 60, 100] });
+    const { fake, ports } = await listed([S]);
+    ports.pairs()[0]!.send(new Uint8Array([0xf0, 0x7e, 0xf7]));
+    expect(fake.posted[fake.posted.length - 1]).toEqual({
+      type: "send",
+      port: S,
+      data: [0xf0, 0x7e, 0xf7],
+    });
   });
 
   it("holds a timestamped send until its time", async () => {
-    const { fake, ports } = await listed(["A"]);
+    const { fake, ports } = await listed([S]);
     vi.useFakeTimers();
-    ports.pairs()[0]!.send([0x80, 60, 0], performance.now() + 50);
+    ports.pairs()[0]!.send([0xf0, 0xf7], performance.now() + 50);
     expect(fake.posted.some((m) => m.type === "send")).toBe(false);
     vi.advanceTimersByTime(50);
-    expect(fake.posted[fake.posted.length - 1]).toEqual({ type: "send", port: "A", data: [0x80, 60, 0] });
+    expect(fake.posted[fake.posted.length - 1]).toEqual({
+      type: "send",
+      port: S,
+      data: [0xf0, 0xf7],
+    });
   });
 
-  it("hands each pair only its own messages, until unsubscribed", async () => {
-    const { fake, ports } = await listed(["A", "B"]);
-    const [a, b] = ports.pairs();
-    const heardA: number[][] = [];
-    const heardB: number[][] = [];
-    const stopA = a!.listen((d) => heardA.push([...d]));
-    b!.listen((d) => heardB.push([...d]));
+  it("hands its messages to listeners, until unsubscribed", async () => {
+    const { fake, ports } = await listed([S]);
+    const heard: number[][] = [];
+    const stop = ports.pairs()[0]!.listen((d) => heard.push([...d]));
 
-    fake.deliver({ type: "receive", port: "A", data: [1] });
-    fake.deliver({ type: "receive", port: "B", data: [2] });
-    stopA();
-    fake.deliver({ type: "receive", port: "A", data: [3] });
+    fake.deliver({ type: "receive", port: S, data: [1] });
+    fake.deliver({ type: "receive", port: "other", data: [2] });
+    stop();
+    fake.deliver({ type: "receive", port: S, data: [3] });
 
-    expect(heardA).toEqual([[1]]);
-    expect(heardB).toEqual([[2]]);
+    expect(heard).toEqual([[1]]);
   });
 
   it("ignores a malformed message", async () => {
-    const { fake, ports } = await listed(["A"]);
+    const { fake, ports } = await listed([S]);
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const heard = vi.fn();
     ports.pairs()[0]!.listen(heard);
@@ -246,11 +327,11 @@ describe("pluginPorts", () => {
   it("identifies an INTEGRA-7 over the plugin transport", async () => {
     const reply: PluginMessage = {
       type: "receive",
-      port: "A",
+      port: S,
       data: [0xf0, 0x7e, 0x10, 0x06, 0x02, 0x41, 0x64, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf7],
     };
     const request = [...identity_request()];
-    const { fake, ports } = await listed(["A"]);
+    const { fake, ports } = await listed([S]);
     fake.answerWith((m) => {
       if (m.type === "open") return [{ type: "opened", port: m.port }];
       if (m.type === "send" && m.data.join() === request.join()) return [reply];
@@ -262,7 +343,7 @@ describe("pluginPorts", () => {
   });
 
   it("identifies nothing on a pair that fails to open", async () => {
-    const { fake, ports } = await listed(["A"]);
+    const { fake, ports } = await listed([S]);
     fake.answerWith((m) =>
       m.type === "open" ? [{ type: "openFailed", port: m.port, message: "busy" }] : [],
     );

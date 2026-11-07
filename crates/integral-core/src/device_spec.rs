@@ -122,6 +122,21 @@ pub struct BlockRun {
     pub count: u8,
     /// Distance between consecutive blocks, in `00 xx 00` units.
     pub stride: u8,
+    /// Offsets within each block of bytes proven on hardware to ignore a
+    /// write (`docs/midi/99-undocumented.md`, "Some reserves ignore writes"),
+    /// so a write may span them with any value. Not every byte the MIDI
+    /// Implementation marks `<*>`: some of those accept writes (Part `00 26`,
+    /// `00 45`, `00 47`, Common `00 10`, `00 14`), and the others were not
+    /// tried, so they are not listed.
+    pub reserved: &'static [u8],
+}
+
+impl BlockRun {
+    /// The run with `reserved` as its ignored-on-receive offsets.
+    const fn reserving(mut self, reserved: &'static [u8]) -> Self {
+        self.reserved = reserved;
+        self
+    }
 }
 
 const fn run(offset: [u8; 3], size: DataSize, count: u8, stride: u8) -> BlockRun {
@@ -130,6 +145,7 @@ const fn run(offset: [u8; 3], size: DataSize, count: u8, stride: u8) -> BlockRun
         size,
         count,
         stride,
+        reserved: &[],
     }
 }
 
@@ -200,19 +216,51 @@ impl UserMemorySpec {
         }
     }
 
+    /// The whole blocks to request to read back the tone in Part `part`'s
+    /// Temporary Tone, in address order: the documented blocks of the layout
+    /// (a PCM Synth tone is Common, MFX, PMT, four Partials and Common 2).
+    /// A drum kit's per-key blocks (a run of more than one block that is not
+    /// a Partial) are left out, so a kit's read-back is its kit-wide blocks.
+    pub fn tone_read_blocks(&self, part: u8) -> Vec<(Address, DataSize)> {
+        let kit = matches!(self.tone_type, Some(ToneType::SnDrum | ToneType::PcmDrum));
+        let mut blocks = Vec::new();
+        for run in self.blocks.iter().filter(|r| !(kit && r.count > 1)) {
+            let one = UserMemorySpec {
+                blocks: std::slice::from_ref(run),
+                ..*self
+            };
+            blocks.extend(one.blocks(self.temporary_base(part)));
+        }
+        blocks
+    }
+
     /// Every block of the layout rebased at `base`, as `(address, size)`.
     pub fn blocks(&self, base: Address) -> impl Iterator<Item = (Address, DataSize)> + '_ {
-        self.blocks.iter().flat_map(move |r| {
-            let [a, b, c] = r.offset;
-            (0..r.count).map(move |i| {
-                let step = u16::from(i) * u16::from(r.stride);
-                let addr = base.offset([0, a, b, c]).offset([
-                    0,
-                    (step / 128) as u8,
-                    (step % 128) as u8,
-                    0,
-                ]);
-                (addr, r.size)
+        self.blocks
+            .iter()
+            .flat_map(move |r| Self::starts(r, base).map(|addr| (addr, r.size)))
+    }
+
+    /// The start of each block of `run` rebased at `base`.
+    fn starts(run: &BlockRun, base: Address) -> impl Iterator<Item = Address> {
+        let [a, b, c] = run.offset;
+        let (count, stride) = (run.count, run.stride);
+        (0..count).map(move |i| {
+            let step = u16::from(i) * u16::from(stride);
+            base.offset([0, a, b, c])
+                .offset([0, (step / 128) as u8, (step % 128) as u8, 0])
+        })
+    }
+
+    /// Whether the byte at linear address `at` (an [`Address::value`]) is one
+    /// the device ignores on receive (`<*>`) in the layout for `part`'s
+    /// Temporary Tone, or in the Temporary Studio Set.
+    pub fn is_reserved(&self, part: u8, at: u32) -> bool {
+        let base = self.temporary_base(part);
+        self.blocks.iter().any(|run| {
+            Self::starts(run, base).any(|start| {
+                at.checked_sub(start.value())
+                    .is_some_and(|offset| run.reserved.iter().any(|r| u32::from(*r) == offset))
             })
         })
     }
@@ -220,6 +268,16 @@ impl UserMemorySpec {
 
 const fn size(n: u8) -> DataSize {
     DataSize::new(0, 0, 0, n)
+}
+
+/// The whole blocks to request to read back the tone of type `tone_type` in
+/// Part `part`'s Temporary Tone (see [`UserMemorySpec::tone_read_blocks`]).
+pub fn tone_read_blocks(tone_type: ToneType, part: u8) -> Vec<(Address, DataSize)> {
+    USER_MEMORY
+        .iter()
+        .find(|spec| spec.tone_type == Some(tone_type))
+        .map(|spec| spec.tone_read_blocks(part))
+        .unwrap_or_default()
 }
 
 /// User memory of every librarian type, Studio Set first.
@@ -232,10 +290,11 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         slot_stride: 1,
         tone_type: None,
         blocks: &[
-            one([0x00, 0x00, 0x00], size(0x54)), // Common
-            one([0x00, 0x04, 0x00], size(0x54)), // Chorus
-            one([0x00, 0x06, 0x00], size(0x63)), // Reverb
-            one([0x00, 0x08, 0x00], size(0x10)), // Motional Surround
+            // Common bytes `00 17` and `00 38` ignored a write on hardware.
+            one([0x00, 0x00, 0x00], size(0x54)).reserving(&[0x17, 0x38]),
+            one([0x00, 0x04, 0x00], size(0x54)),
+            one([0x00, 0x06, 0x00], size(0x63)),
+            one([0x00, 0x08, 0x00], size(0x10)),
             one([0x00, 0x09, 0x00], params::MASTER_EQ_SIZE),
             run([0x00, 0x10, 0x00], DataSize::ONE, 16, 1), // MIDI 1–16
             run([0x00, 0x20, 0x00], size(0x4D), 16, 1),    // Parts 1–16
@@ -600,6 +659,37 @@ mod tests {
     }
 
     #[test]
+    fn a_tones_read_back_is_its_documented_blocks_in_address_order() {
+        let sizes = |tone_type| -> Vec<u32> {
+            tone_read_blocks(tone_type, 0)
+                .iter()
+                .map(|(_, size)| size.value())
+                .collect()
+        };
+        // Common, MFX, PMT, four Partials and Common 2 (sizes are 7-bit
+        // numbers: MFX is `00 00 01 11`).
+        assert_eq!(
+            sizes(ToneType::PcmSynth),
+            [80, 145, 41, 154, 154, 154, 154, 60]
+        );
+        assert_eq!(sizes(ToneType::SnSynth).len(), 5);
+        assert_eq!(sizes(ToneType::SnAcoustic).len(), 2);
+        // A kit's per-key blocks are not read.
+        assert_eq!(sizes(ToneType::SnDrum).len(), 3);
+        for tone_type in [ToneType::PcmSynth, ToneType::SnSynth, ToneType::PcmDrum] {
+            let blocks = tone_read_blocks(tone_type, 3);
+            let addresses: Vec<_> = blocks.iter().map(|(a, _)| a.value()).collect();
+            assert!(addresses.windows(2).all(|w| w[0] < w[1]), "{tone_type:?}");
+            let base = params::temporary_tone_base(3).value();
+            assert!(
+                addresses
+                    .iter()
+                    .all(|a| (base..base + 0x20_0000).contains(a))
+            );
+        }
+    }
+
+    #[test]
     fn blocks_rebase_on_slot_and_temporary_area() {
         let sns = spec("sn-synth");
         let blocks: Vec<_> = sns.blocks(sns.user_address(0).unwrap()).collect();
@@ -626,5 +716,46 @@ mod tests {
             last,
             (Address::new(0x18, 0x00, 0x5F, 0x00), params::PART_EQ_SIZE)
         );
+    }
+}
+
+#[cfg(test)]
+mod reserved_tests {
+    use super::*;
+
+    fn spec(tone_type: Option<ToneType>) -> &'static UserMemorySpec {
+        USER_MEMORY
+            .iter()
+            .find(|s| s.tone_type == tone_type)
+            .expect("a spec")
+    }
+
+    #[test]
+    fn only_the_bytes_proven_ignored_on_hardware_are_reserved() {
+        let studio = spec(None);
+        let at = |a, b, c, d| {
+            address::STUDIO_SET
+                .offset([0, a, b, c])
+                .offset([0, 0, 0, d])
+                .value()
+        };
+        assert!(studio.is_reserved(0, at(0, 0, 0, 0x17)));
+        assert!(studio.is_reserved(0, at(0, 0, 0, 0x38)));
+        // Marked `<*>`, but they took a write (or were not tried).
+        for untrusted in [0x10, 0x14, 0x4B] {
+            assert!(
+                !studio.is_reserved(0, at(0, 0, 0, untrusted)),
+                "{untrusted:#x}"
+            );
+        }
+        for part in 0..INTEGRA7.part_count {
+            for data in [0x02, 0x26, 0x45, 0x47] {
+                assert!(!studio.is_reserved(0, at(0, 0x20 + part, 0, data)));
+            }
+        }
+        // No tone lists any.
+        for spec in USER_MEMORY.iter().filter(|s| s.tone_type.is_some()) {
+            assert!(spec.blocks.iter().all(|r| r.reserved.is_empty()));
+        }
     }
 }

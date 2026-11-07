@@ -40,6 +40,50 @@
 //! answered [`Reject::Malformed`]. A change an old peer would misread (a field
 //! changing meaning) bumps the version.
 //!
+//! `Bind`, `Claim`, the `Hello`'s `bound`, `Push`, `Baseline`, `Pushed`,
+//! `Claimed` and the `Baseline` answer are part of version 1: no earlier peer
+//! shipped, so nothing had to be added compatibly. From here on, a request
+//! type added within a version is answered [`Reject::Malformed`] by a peer
+//! that predates it, and a message type is skipped. A plugin instance that
+//! gets such a refusal to its `Bind` or `Claim` treats the service as
+//! incompatible. [`Message::Shared`] is of this kind: a client that predates
+//! it skips it and never warns of a duplicate.
+//!
+//! # Pacing and cache
+//!
+//! Requests of one client run in the order it sent them. The service takes
+//! one item at a time from the client served least recently, so sixteen
+//! instances that each push a tone fill in together, and a client that has
+//! been idle (a fader that starts to move) is served at the next turn. A
+//! [`Request::Write`] that covers an earlier write still queued, whoever's,
+//! replaces it (the survivor is announced as the last writer's), so a fader
+//! dragged faster than the device takes writes costs one message per slot. A
+//! write whose value the service knows the device already has is dropped, but
+//! only against what this session has read or written: every field is unknown
+//! when a session begins, and a [`Request::Push`] is never dropped from. Two
+//! pushes that touch the same Part interleave item by item; the later item
+//! wins as each reaches the device.
+//!
+//! When a session ends (the link drops, or the device turns out to be
+//! another) everything outstanding is refused with [`Reject::LinkDown`]: each
+//! queued request, a read, a baseline, a push not yet handed over. The
+//! service forgets the device (the cache, the queue, the baselines of Expansion
+//! tones) and does not replay anything to the next one.
+//!
+//! # Tone baselines and recall
+//!
+//! After a client selects a Preset or Expansion tone on a Part
+//! ([`Request::ChangeTone`], or a DT1 on the select), the service reads the
+//! tone back, a block at a time, in that client's turns and ahead of the
+//! client's later requests. What it read is the Part's baseline
+//! ([`Request::Baseline`]). A tone read once is kept for every Part for the
+//! life of the service (Expansion tones for the session), so a repeat recall
+//! reads nothing.
+//!
+//! A recall that selects a Preset or Expansion tone asks for the baseline
+//! after the selection and sends what differs from it in a second push: the
+//! service never drops from a push.
+//!
 //! # A session
 //!
 //! ```text
@@ -112,6 +156,26 @@ impl ParamId {
     }
 }
 
+/// A plugin instance's identity: its plugin and the target it is bound to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Bound {
+    /// The plugin.
+    pub plugin: PluginKind,
+    /// Its Binding: [`Binding::ANY`] for the Studio Set plugin.
+    pub binding: Binding,
+}
+
+impl Bound {
+    /// Whether the two instances are duplicates: the same plugin, and (but
+    /// for the Studio Set plugin, which has one target) the same Binding, a
+    /// Part and for a key-bound Kit plugin the key. Two plugins of different
+    /// kinds on one Part are not: they cannot both match its tone type.
+    pub fn shares_target(&self, other: &Self) -> bool {
+        self.plugin == other.plugin
+            && (self.plugin == PluginKind::StudioSet || self.binding == other.binding)
+    }
+}
+
 /// What a client asks of the service.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -127,6 +191,10 @@ pub enum Request {
         /// As [`Request::ReceiveRaw`].
         #[serde(default)]
         raw: bool,
+        /// As [`Request::Bind`], so that a reconnect binds before anything
+        /// else. An older service ignores it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        bound: Option<Bound>,
     },
     /// Receive [`Message::Changed`] for changes in `binding` (a filter: see
     /// [`Binding::matches`]) and [`Message::Bulk`] events. Several
@@ -145,6 +213,27 @@ pub enum Request {
     ReceiveRaw {
         /// Whether to receive them.
         on: bool,
+    },
+    /// Say what this client is: the plugin it is an instance of and the
+    /// Binding it acts on, or `None` to be no instance. For a restored
+    /// Binding or one the user picked. The service refuses a Binding the
+    /// plugin cannot have ([`PluginKind::accepts`]) with [`Reject::Invalid`].
+    /// It lasts as long as the connection (the client library says it again
+    /// in its `Hello` after a reconnect).
+    Bind {
+        /// The plugin, if any, with its Binding.
+        bound: Option<Bound>,
+    },
+    /// Take the first target of `plugin` that is free, and bind this client
+    /// to it, in one step so that two instances never get the same one. A
+    /// Part is taken if any Tone plugin, or a Kit plugin bound to the whole
+    /// kit, is bound to it (of any kind); a key-bound Kit plugin takes
+    /// nothing. Among the free Parts the service prefers one that holds a tone
+    /// of the plugin's type, if it knows, else the first. The answer is
+    /// [`Message::Claimed`], to this client only.
+    Claim {
+        /// The plugin kind a new instance of which is looking for a target.
+        plugin: PluginKind,
     },
     /// Set a parameter. Goes through the service's paced queue.
     Write {
@@ -193,6 +282,29 @@ pub enum Request {
     /// Read the whole mixer from the device. When the primary blocks have
     /// arrived the service announces [`BulkKind::StudioSet`].
     LoadMixer,
+    /// Recall: push saved state to the device (ADR 0009). The requests run
+    /// in order, each in the client's turn of the round-robin like any other,
+    /// and the project wins: unlike [`Request::Write`] outside a push, a write
+    /// is sent even if the service believes the device already has the value.
+    /// A write the client queues after the push is applied after all of it.
+    /// The service answers [`Message::Pushed`] when the last has been handed
+    /// to the device's queue (not when it has left: the queue paces them).
+    ///
+    /// Only [`Request::Write`], [`Request::Raw`], [`Request::ChangeTone`] and
+    /// [`Request::SwitchStudioSet`] may be in it; if any request is not valid
+    /// the whole push is refused ([`Reject::Invalid`]) and none is queued.
+    Push {
+        /// What to send, in order.
+        requests: Vec<Request>,
+    },
+    /// Ask for the baseline of a Part's tone: the tone as the device reported
+    /// it right after a Preset or Expansion tone was selected, for recall to
+    /// diff against. The answer is [`Message::Baseline`], once the service
+    /// has read the tone back if it is doing so.
+    Baseline {
+        /// The Part ([`Binding::part`]).
+        binding: Binding,
+    },
 }
 
 /// What a bulk event stands for.
@@ -217,6 +329,26 @@ pub enum BulkKind {
     /// The Reverb changed in a slot that no one parameter is named by. Sent
     /// as [`BulkKind::StudioSet`] is.
     Reverb,
+}
+
+/// A tone as the device selects it: Bank Select and Program Change.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ToneSelect {
+    /// Bank Select MSB.
+    pub msb: u8,
+    /// Bank Select LSB.
+    pub lsb: u8,
+    /// Program Change number.
+    pub pc: u8,
+}
+
+/// A run of consecutive bytes of a Part's Temporary Tone.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BaselineRun {
+    /// The device address of the first byte, as in a DT1.
+    pub address: [u8; 4],
+    /// The bytes from there, as the device holds them.
+    pub bytes: Vec<u8>,
 }
 
 /// Why a request was refused.
@@ -294,6 +426,24 @@ pub enum Message {
         kind: BulkKind,
         /// The Part, for [`BulkKind::Tone`]; empty otherwise.
         binding: Binding,
+        /// The event may have changed the Part's tone selection (or, for a
+        /// Studio Set event, every Part's): a tone or Studio Set select, or a
+        /// mixer load. `false` for a bulk of parameters, which leaves the
+        /// selection as it was. Absent (`false`) from a service that predates
+        /// it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        selected: bool,
+        /// With `selected` on a [`BulkKind::Tone`] event: the Part's tone
+        /// selection now, if the service knows it (it was selected through
+        /// the service, or written whole, or has been read). Else absent, and
+        /// the service reads the Part's select itself (after a Studio Set
+        /// switch, a Program Change on the note port, a partial select write,
+        /// a mixer load) and announces it with another such event, with the
+        /// tone, or without it again if the read fails. A client therefore
+        /// does not ask the device itself after one: its answer could be of
+        /// the selection before.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tone: Option<ToneSelect>,
     },
     /// The answer to a [`Request::Read`].
     Value {
@@ -304,11 +454,50 @@ pub enum Message {
         /// The raw value the device gave.
         value: i32,
     },
+    /// The answer to [`Request::Claim`].
+    Claimed {
+        /// The plugin kind asked about.
+        plugin: PluginKind,
+        /// The target now bound to the client, or none if every one is
+        /// taken (and nothing changed).
+        binding: Option<Binding>,
+    },
+    /// How many other clients are bound to the same target as this one
+    /// ([`Bound::shares_target`]), sent to a client whenever that number
+    /// changes: another instance took its Binding or left it, or this client
+    /// bound. Never sent as `0` before a first non-zero count; a client that
+    /// is unsure it has the latest (it lost events, or bound again) sends
+    /// [`Request::Bind`], which has the service tell it again if the count is
+    /// not zero. Only clients that said what they are bound to hear it.
+    Shared {
+        /// The other clients on the same target.
+        others: u32,
+    },
     /// A SysEx message the device sent, to clients that asked
     /// ([`Request::ReceiveRaw`]).
     Sysex {
         /// The whole message, `F0` to `F7`.
         bytes: Vec<u8>,
+    },
+    /// The last request of a [`Request::Push`] has been handed to the device's
+    /// queue; it leaves at the device's pace. One per push, in the order they
+    /// were made.
+    Pushed,
+    /// The answer to [`Request::Baseline`].
+    Baseline {
+        /// The Part asked about.
+        binding: Binding,
+        /// The tone the baseline is of, or `None` if the Part has no
+        /// baseline: its tone is a User tone (which can be overwritten), is
+        /// not one the device reads back (GM2, ExPCM), was not selected
+        /// through the service, changed again while the tone was being read,
+        /// or the device did not answer in time.
+        tone: Option<ToneSelect>,
+        /// The tone's bytes the service read: every Part-wide parameter of
+        /// the tone (a drum kit's per-key parameters are not in it), as
+        /// consecutive runs in address order. Empty if `tone` is `None`. A
+        /// field no run covers has no baseline and is pushed in full.
+        runs: Vec<BaselineRun>,
     },
     /// A request was refused.
     Rejected {
@@ -427,9 +616,60 @@ mod tests {
             Request::Hello {
                 version: PROTOCOL_VERSION,
                 subscriptions: vec![Binding::of_part(2)],
-                raw: false
+                raw: false,
+                bound: None
             }
         );
+    }
+
+    #[test]
+    fn bind_and_claim_have_a_readable_wire_form() {
+        let bind = Request::Bind {
+            bound: Some(Bound {
+                plugin: PluginKind::PcmSynth,
+                binding: Binding::of_part(2),
+            }),
+        };
+        assert_eq!(
+            serde_json::to_string(&bind).unwrap(),
+            r#"{"type":"bind","bound":{"plugin":"pcm_synth","binding":{"part":2}}}"#
+        );
+        let claimed = Message::Claimed {
+            plugin: PluginKind::StudioSet,
+            binding: None,
+        };
+        assert_eq!(
+            serde_json::to_string(&claimed).unwrap(),
+            r#"{"type":"claimed","plugin":"studio_set","binding":null}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&Request::Claim {
+                plugin: PluginKind::SnDrum
+            })
+            .unwrap(),
+            r#"{"type":"claim","plugin":"sn_drum"}"#
+        );
+    }
+
+    #[test]
+    fn shared_is_plain_json_and_only_instances_on_one_target_share_it() {
+        assert_eq!(
+            serde_json::to_string(&Message::Shared { others: 2 }).unwrap(),
+            r#"{"type":"shared","others":2}"#
+        );
+        let on = |plugin, binding| Bound { plugin, binding };
+        let part = Binding::of_part(3);
+        let tone = on(PluginKind::PcmSynth, part);
+        assert!(tone.shares_target(&on(PluginKind::PcmSynth, part)));
+        assert!(!tone.shares_target(&on(PluginKind::SnSynth, part)));
+        assert!(!tone.shares_target(&on(PluginKind::PcmSynth, Binding::of_part(4))));
+        // A key is not the whole kit.
+        let key = on(PluginKind::PcmDrum, part.with_key(36));
+        assert!(!key.shares_target(&on(PluginKind::PcmDrum, part)));
+        assert!(key.shares_target(&on(PluginKind::PcmDrum, part.with_key(36))));
+        let studio = on(PluginKind::StudioSet, Binding::ANY);
+        assert!(studio.shares_target(&studio));
+        assert!(!studio.shares_target(&tone));
     }
 
     #[test]
@@ -463,6 +703,53 @@ mod tests {
         assert_eq!(
             read_frame::<Request>(&mut reader).unwrap(),
             Request::LoadMixer
+        );
+    }
+
+    #[test]
+    fn a_push_and_a_baseline_round_trip_and_are_plain_json() {
+        let push = Request::Push {
+            requests: vec![
+                Request::ChangeTone {
+                    part: 1,
+                    msb: 87,
+                    lsb: 64,
+                    pc: 0,
+                },
+                Request::Write {
+                    param: level(),
+                    binding: Binding::ANY,
+                    value: 3,
+                },
+            ],
+        };
+        let json = serde_json::to_string(&push).unwrap();
+        assert!(json.starts_with(r#"{"type":"push","requests":[{"type":"change_tone""#));
+        assert_eq!(serde_json::from_str::<Request>(&json).unwrap(), push);
+
+        let ask = Request::Baseline {
+            binding: Binding::of_part(2),
+        };
+        let json = serde_json::to_string(&ask).unwrap();
+        assert_eq!(serde_json::from_str::<Request>(&json).unwrap(), ask);
+
+        let answer = Message::Baseline {
+            binding: Binding::of_part(2),
+            tone: Some(ToneSelect {
+                msb: 87,
+                lsb: 64,
+                pc: 5,
+            }),
+            runs: vec![BaselineRun {
+                address: [0x19, 0x40, 0x00, 0x00],
+                bytes: vec![1, 2, 3],
+            }],
+        };
+        let json = serde_json::to_string(&answer).unwrap();
+        assert_eq!(serde_json::from_str::<Message>(&json).unwrap(), answer);
+        assert_eq!(
+            serde_json::to_string(&Message::Pushed).unwrap(),
+            r#"{"type":"pushed"}"#
         );
     }
 

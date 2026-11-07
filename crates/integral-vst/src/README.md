@@ -2,46 +2,98 @@
 
 ## Overview
 
-The nih-plug `Integral` plugin, exported as VST3 and CLAP, and a standalone
-binary that wraps the same plugin. The plugin has stereo audio in and out,
-passes MIDI through unchanged, and has no automatable parameters. The only
-state it persists is the editor size. The editor is the webview UI, available
-only on macOS.
+The six nih-plug plugins of the family
+([ADR 0007](../../../docs/adr/0007-plugins-per-tone-type.md)), exported as VST3
+only, and a standalone binary that wraps the Studio Set plugin. They are one
+generic plugin, `Family<K>`, over a `Kind` that names the plugin. The editor is
+the webview UI, available only on macOS.
 
 ## Interface
 
-- `lib.rs`
-  - `Integral` is the plugin type, with name `Integral` and vendor `sigma`.
-  - CLAP: ID `com.sigma.integral`, with features Utility and NoteEffect.
-  - VST3: class ID `IntgrI7CtrlSurf\0`, subcategory Tools.
-  - `IntegralParams.editor_size` is the persisted editor size,
-    `DEFAULT_EDITOR_SIZE = (1280, 820)`.
-  - `Plugin::editor` returns a `WebviewEditor` with a `MidirLink` factory on
-    macOS, and `None` on other targets.
-  - `Plugin::process` forwards MIDI events and leaves audio untouched.
-- `standalone.rs`: the `integral-app` binary, which runs the plugin through
-  `nih_export_standalone`. `detect_sample_rate()` reads the sample rate of
-  the default `cpal` output device.
+- `lib.rs`: the type aliases `StudioSetPlugin`, `SnSynthPlugin`,
+  `SnAcousticPlugin`, `PcmSynthPlugin`, `SnDrumPlugin` and `PcmDrumPlugin`,
+  and the one `nih_export_vst3!` of all six, in `PluginKind::ALL` order.
+- `family/`
+  - `kind.rs`: `Kind` (the `PluginKind`, the host name and the VST3 class ID
+    of a plugin) and its six implementations. Class IDs are `IntgrI7` and a
+    tag; they identify the plugin in saved projects and never change.
+  - `params.rs`: `FamilyParams` declares the kind's host list as `IntParam`s
+    over the raw range, with value text and string-to-value from the list's
+    `HostFormat`, no smoothing, and the group from `HostParam.group`. It also
+    saves the editor size (`editor-size`) and the Binding (`binding`).
+  - `binding.rs`: `BindingCell`, an `Option<Binding>` in one atomic, so the
+    audio thread can read it. Saved as JSON (`null`, `{"part":2}` or
+    `{"part":2,"key":36}`); a saved Binding the plugin cannot have is ignored.
+  - `instance.rs`: `Instance`, what the plugin, the connection worker and
+    the editor share: the Binding, the `Status`, the notices, whether the
+    host has restored the state, and the `ToneFit` (whether the bound Part
+    holds the plugin's tone type: `Unknown` until the follower has read the
+    Part's tone select, `Fits`, or `Mismatch`, which makes the instance inert
+    and reports the mismatch notice). The editor's request for the default
+    tone is a flag the follower takes.
+  - `status.rs`: `Status`: "Device service not running", "Device offline",
+    "Connected", and "Device service version mismatch" (the service speaks
+    another protocol version or lacks `Bind` and `Claim`; not retried).
+  - `link.rs` (unix): `Connection` is the Device service client and a worker
+    thread; `Tracker` is the sans-IO state machine that maps client events to
+    the status and to `Bind` and `Claim` requests.
+- `standalone.rs`: the `integral-app` binary, which runs the Studio Set plugin
+  through `nih_export_standalone`. `detect_sample_rate()` reads the sample
+  rate of the default `cpal` output device. `midi_flag` finds the
+  `--midi-input` and `--midi-output` flags, which `main` refuses because
+  they would open MIDI ports of its own.
 - [`./webview/README.md`](./webview/README.md): the editor, the IPC protocol,
   the asset server and the `DeviceLink` seam.
 
 ## Invariants
 
-- Audio is 2 in and 2 out. MIDI input and output use
-  `MidiConfig::Basic`. Sample-accurate automation is off.
-- The plugin has no DAW-automatable parameters: the page edits the device
-  directly.
+- Audio is 2 in and 2 out and passes through untouched. The plugins have no
+  host MIDI in or out: notes go to the service's note port. Sample-accurate
+  automation is off.
+- `process()` only marks the instance as settled (a wait-free store). The
+  connection runs on its own threads.
+- **Adoption.** A new Tone or Kit plugin claims a free target from the
+  service (`Request::Claim`, atomic: the service picks the first free Part,
+  preferring one that holds a tone of the plugin's type, and binds the client
+  to it), but only once settled (`Instance::settle`). The host restores state
+  after creating the instance, so settling happens at a restore
+  (`deserialize_fields`), the first `process()`, or when the editor window
+  opens (`Editor::spawn`). It does **not** happen in `Plugin::editor()`:
+  nih-plug calls that while it builds the wrapper, before any `setState`.
+  An instance with a restored Binding keeps it. `Instance::was_restored` says
+  a state with a valid Binding was restored. The recall (ADR 0009, #458) keys
+  on `was_restored()`, not on `is_settled()`, which a fresh instance reaches too. The
+  Studio Set plugin is bound from the start, to `Binding::ANY`. A key of a Kit
+  plugin is never claimed, it is chosen. What a plugin may be bound to is
+  `PluginKind::accepts` in core.
+- Every Binding the instance holds is announced to the service
+  (`Request::Bind`, and in the `Hello` after a reconnect). A service that
+  refuses `Bind` or `Claim` as malformed is too old: the status becomes
+  `ServiceIncompatible` rather than the instance waiting for a target.
+- The connection starts in `initialize()`, not on construction, so a host that
+  only scans the plugins connects nothing.
 - Device SysEx never goes through the host, because hosts such as Live drop
-  plugin SysEx. The editor opens its own MIDI link instead.
+  plugin SysEx. The editor reaches the device through the service.
 - In the standalone, a `--sample-rate` given by the user takes priority.
   Otherwise the detected rate is used.
 
 ## Side Effects
 
-- The standalone opens audio and MIDI through nih-plug's backends, and prints
+- Each initialized instance connects to the Device service socket under the
+  user's temp directory (creating the private `Integral` directory), retrying
+  while the service is away.
+- The standalone opens audio through nih-plug's backends, and prints
   the detected sample rate to `stderr`.
-- On macOS the editor opens MIDI ports directly (see `webview/`).
+- On macOS the editor opens a second client of the Device service while a
+  page has the port open (see `webview/`). No MIDI port is opened.
 
 ## Verification
 
-- Run: `cargo test -p integral-vst`
+- Run: `cargo test -p integral-vst`. `tests/connection.rs` runs instances
+  against a real service on a fake link.
+- Run: `just plugin-test load`, which loads every class of the bundle in the
+  test host and round-trips its state. Loading activates the plugins, which
+  connect to the user's Device service: the host refuses to run while one is
+  listening, unless given `--allow-service`.
+- The bundle is one `Integral.vst3` with six classes; hosts list each class.
+  The test host picks one by name (`--class`).

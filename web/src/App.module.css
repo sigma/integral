@@ -112,3 +112,10 @@
   color: #e0e0e0;
   border-bottom-color: #4a6cf7;
 }
+
+/* A plugin's tone editor before the instance is bound to a Part. */
+.unbound {
+  padding: 48px;
+  color: #888;
+  text-align: center;
+}

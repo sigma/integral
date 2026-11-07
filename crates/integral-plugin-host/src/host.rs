@@ -16,7 +16,10 @@ use objc2::MainThreadMarker;
 use objc2::rc::Retained;
 use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSEventMask};
 use objc2_foundation::{NSDate, NSDefaultRunLoopMode};
-use vst3_host::{ParameterEdit, Plugin, simple, window::PluginWindow};
+use vst3_host::{
+    ClassInfo, ParameterEdit, Plugin, Vst3Host, get_detailed_plugin_info, simple,
+    window::PluginWindow,
+};
 
 /// State the main thread publishes for the driver thread, which must not
 /// touch AppKit itself.
@@ -60,10 +63,51 @@ pub struct Host {
     shared: Arc<Shared>,
 }
 
-/// Loads the VST3 bundle at `bundle` (no editor yet).
-pub fn load(bundle: &Path) -> Result<Plugin> {
-    simple::load_plugin(bundle).map_err(|e| anyhow!("loading {}: {e}", bundle.display()))
+/// Loads the VST3 bundle at `bundle` (no editor yet): the class named
+/// `class` if given, else the bundle's first.
+pub fn load(bundle: &Path, class: Option<&str>) -> Result<Plugin> {
+    let Some(name) = class else {
+        return simple::load_plugin(bundle)
+            .map_err(|e| anyhow!("loading {}: {e}", bundle.display()));
+    };
+    let found = classes(bundle)?
+        .into_iter()
+        .find(|c| c.name == name)
+        .ok_or_else(|| anyhow!("{} has no plugin class named {name:?}", bundle.display()))?;
+    load_class(bundle, &found.class_id)
 }
+
+/// The audio plugin classes the bundle's factory exports, in factory order.
+pub fn classes(bundle: &Path) -> Result<Vec<ClassInfo>> {
+    let info = get_detailed_plugin_info(bundle)
+        .map_err(|e| anyhow!("reading {}: {e}", bundle.display()))?;
+    Ok(info
+        .classes
+        .into_iter()
+        .filter(|c| c.category == AUDIO_CLASS_CATEGORY)
+        .collect())
+}
+
+/// Loads the class with the hex ID `class_id` from the bundle (no editor).
+pub fn load_class(bundle: &Path, class_id: &str) -> Result<Plugin> {
+    let mut host = Vst3Host::builder()
+        .sample_rate(SAMPLE_RATE)
+        .block_size(BLOCK_SIZE)
+        .input_channels(2)
+        .output_channels(2)
+        .build()
+        .map_err(|e| anyhow!("creating the host: {e}"))?;
+    host.load_plugin_class(bundle, class_id)
+        .map_err(|e| anyhow!("loading class {class_id} of {}: {e}", bundle.display()))
+}
+
+/// The category the VST3 SDK gives a factory's audio component classes.
+const AUDIO_CLASS_CATEGORY: &str = "Audio Module Class";
+
+/// What `vst3_host::simple::load_plugin` loads with: the sample rate, in Hz.
+pub const SAMPLE_RATE: f64 = 44100.0;
+/// The block size it loads with, in samples.
+pub const BLOCK_SIZE: usize = 512;
 
 impl Host {
     /// Starts the AppKit application and opens `plugin`'s editor.
@@ -208,5 +252,54 @@ impl Host {
     pub fn close(&mut self) {
         self.shared.cancel();
         self.window.close();
+    }
+}
+
+/// Refuses to go on if a Device service is listening at the default socket,
+/// unless `allow` is set.
+///
+/// Loading a plugin activates it, and an activated instance connects to the
+/// user's service as a client (and, from the recall slice on, pushes state
+/// to the device). The socket path does not come from the environment, so a
+/// run cannot be pointed elsewhere: it has to be kept away from a live one.
+pub fn refuse_live_service(allow: bool) -> Result<()> {
+    // No path means no service could be listening.
+    match integral_device_service::default_socket_path() {
+        Ok(path) => refuse_service_at(&path, allow),
+        Err(_) => Ok(()),
+    }
+}
+
+/// [`refuse_live_service`] for the socket at `path`. A refused or missing
+/// socket is a service that is not there (a stale file).
+fn refuse_service_at(path: &Path, allow: bool) -> Result<()> {
+    if !allow && std::os::unix::net::UnixStream::connect(path).is_ok() {
+        return Err(anyhow!(
+            "a Device service is running at {}: the plugins would connect to it as clients \
+             and could write to the device. Stop it, or pass --allow-service",
+            path.display()
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::refuse_service_at;
+    use std::os::unix::net::UnixListener;
+
+    #[test]
+    fn a_listening_socket_is_refused_unless_allowed_and_a_stale_one_is_not() {
+        let dir = std::env::temp_dir().join(format!("ph{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("s.sock");
+        assert!(refuse_service_at(&path, false).is_ok(), "no socket");
+        let listener = UnixListener::bind(&path).unwrap();
+        let error = refuse_service_at(&path, false).unwrap_err().to_string();
+        assert!(error.contains("--allow-service"), "{error}");
+        assert!(refuse_service_at(&path, true).is_ok());
+        drop(listener);
+        assert!(refuse_service_at(&path, false).is_ok(), "stale socket file");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

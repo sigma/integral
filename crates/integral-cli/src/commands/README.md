@@ -14,13 +14,13 @@ offline.
 
 - `mod.rs` declares the submodules. `bridge` exists only on Unix
   (`#[cfg(unix)]`).
-- `ping.rs`: `ping(port_pattern, timeout, quiet) -> Result<u8>` sends an
+- `ping.rs`: `ping(endpoint, timeout, quiet) -> Result<u8>` sends an
   Identity Request and returns the device ID.
 - `dump.rs`: `read_param` reads a named parameter with RQ1 (Studio Set name,
   master level, Part mixer, tone name, and `tone-waves` through
   `tone_waves::read`). `write_param` sends one DT1.
 - `raw.rs`: `raw_read`, `raw_rq1_multi`, `raw_send` (DT1) and `send_raw_hex`.
-- `monitor.rs`: `monitor(port_pattern, bridge)` prints incoming MIDI as hex
+- `monitor.rs`: `monitor(endpoint, bridge)` prints incoming MIDI as hex
   and decodes DT1s. With a bridge port it also forwards traffic both ways.
 - `bridge.rs`: `bridge(&BridgeArgs)` launches the Device service
   (`integral-device-service`) on the link `--link` names: `wireless` (RDDP

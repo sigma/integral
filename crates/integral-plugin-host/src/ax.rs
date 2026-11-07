@@ -23,6 +23,9 @@ use objc2_core_foundation::{
 /// The role WebKit gives an `<input type="range">`.
 pub const SLIDER_ROLE: &str = "AXSlider";
 
+/// The role WebKit gives text on the page.
+pub const STATIC_TEXT_ROLE: &str = "AXStaticText";
+
 /// Cap on the tree walk: the page is a few hundred nodes, not thousands.
 const MAX_NODES: usize = 20_000;
 const MAX_DEPTH: usize = 60;
@@ -156,22 +159,41 @@ impl Element {
 
     /// Every descendant (and `self`) with `role`, depth-first.
     pub fn descendants(&self, role: &str) -> Vec<Element> {
+        self.descendants_where(|e| e.role().as_deref() == Some(role))
+    }
+
+    /// Every descendant (and `self`) that `keep` accepts, depth-first.
+    pub fn descendants_where(&self, keep: impl Fn(&Element) -> bool) -> Vec<Element> {
         let mut found = Vec::new();
         let mut seen = 0;
-        self.collect(role, 0, &mut seen, &mut found);
+        self.collect(&keep, 0, &mut seen, &mut found);
         found
     }
 
-    fn collect(&self, role: &str, depth: usize, seen: &mut usize, found: &mut Vec<Element>) {
+    /// The element's text: its value if that is a string (static text), and
+    /// each label.
+    pub fn texts(&self) -> Vec<String> {
+        let mut texts = self.labels();
+        texts.extend(self.string(kAXValueAttribute));
+        texts
+    }
+
+    fn collect(
+        &self,
+        keep: &dyn Fn(&Element) -> bool,
+        depth: usize,
+        seen: &mut usize,
+        found: &mut Vec<Element>,
+    ) {
         *seen += 1;
         if *seen > MAX_NODES || depth > MAX_DEPTH {
             return;
         }
-        if self.role().as_deref() == Some(role) {
+        if keep(self) {
             found.push(Element(self.0.clone()));
         }
         for child in self.children() {
-            child.collect(role, depth + 1, seen, found);
+            child.collect(keep, depth + 1, seen, found);
         }
     }
 }

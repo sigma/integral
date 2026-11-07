@@ -13,11 +13,11 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use integral_core::address::{Address, DataSize};
-use integral_core::host_params::{Binding, ParamIndex};
+use integral_core::host_params::{Binding, ParamIndex, PluginKind};
 use integral_core::params::{self, part};
 use integral_core::sysex;
 use integral_device_service::protocol::{
-    BulkKind, ClientId, Message, PROTOCOL_VERSION, ParamId, Reject, Request, read_frame,
+    Bound, BulkKind, ClientId, Message, PROTOCOL_VERSION, ParamId, Reject, Request, read_frame,
     write_frame,
 };
 use integral_device_service::{
@@ -179,12 +179,19 @@ fn dt1(part_index: u8, value: u8) -> Vec<u8> {
 }
 
 /// Make sure the service has handled everything `client` sent so far, by
-/// round-tripping a change through its own subscription: it writes Part 16's
-/// mute, which the tests leave alone.
+/// round-tripping a change through its own subscription: it pushes Part 16's
+/// mute, which the tests leave alone. A push, because the service drops a
+/// write of a value it knows the device has, and `settle` may be called twice.
 fn settle(client: &Client, events: &Events) {
     let mute = param_at(&params::part_address(15, part::MUTE));
     client.subscribe(Binding::ANY);
-    client.write(mute.clone(), Binding::ANY, 0);
+    client.send(Request::Push {
+        requests: vec![Request::Write {
+            param: mute.clone(),
+            binding: Binding::ANY,
+            value: 0,
+        }],
+    });
     next(events, "its own change back", |event| match event {
         ClientEvent::Message(Message::Changed { param, .. }) if param == mute => Some(()),
         _ => None,
@@ -350,6 +357,7 @@ fn a_tone_change_is_one_bulk_event() {
             writer,
             kind,
             binding,
+            ..
         }) => Some((writer, kind, binding)),
         _ => None,
     });
@@ -429,6 +437,7 @@ fn hello() -> Request {
         version: PROTOCOL_VERSION,
         subscriptions: Vec::new(),
         raw: false,
+        bound: None,
     }
 }
 
@@ -443,6 +452,7 @@ fn a_client_with_another_version_is_turned_away() {
             version: PROTOCOL_VERSION + 1,
             subscriptions: Vec::new(),
             raw: false,
+            bound: None,
         },
     )
     .expect("hello");
@@ -740,6 +750,7 @@ fn a_client_that_never_reads_is_dropped_and_the_others_carry_on() {
             version: PROTOCOL_VERSION,
             subscriptions: Vec::new(),
             raw: true,
+            bound: None,
         },
     )
     .expect("hello");
@@ -818,4 +829,292 @@ fn dropping_the_client_stops_it_and_closes_its_connection() {
     let started = Instant::now();
     while events.wait_event(WAIT).is_some() {}
     assert!(started.elapsed() < Duration::from_secs(2));
+}
+
+/// What `client` is given when it claims a target of `plugin`.
+fn claim(client: &Client, events: &Events, plugin: PluginKind) -> Option<Binding> {
+    client.claim(plugin);
+    next(events, "the claim", |event| match event {
+        ClientEvent::Message(Message::Claimed {
+            plugin: p, binding, ..
+        }) if p == plugin => Some(binding),
+        _ => None,
+    })
+}
+
+fn bound(plugin: PluginKind, binding: Binding) -> Option<Bound> {
+    Some(Bound { plugin, binding })
+}
+
+/// Bind `client` and wait until the service has taken it: it refuses a write
+/// to a parameter that does not exist right behind, on the same connection.
+fn bind(client: &Client, events: &Events, bound: Option<Bound>) {
+    client.bind(bound);
+    let nothing = ParamId {
+        plugin: PluginKind::StudioSet,
+        id: "no/such/parameter".to_string(),
+    };
+    client.write(nothing.clone(), Binding::ANY, 0);
+    next(events, "the end of the bind", |event| match event {
+        ClientEvent::Message(Message::Rejected { param, .. })
+            if param.as_ref() == Some(&nothing) =>
+        {
+            Some(())
+        }
+        _ => None,
+    });
+}
+
+fn part(n: u8) -> Option<Binding> {
+    Some(Binding::of_part(n))
+}
+
+#[test]
+fn claims_take_the_next_free_part_and_a_leaver_frees_its_own() {
+    let dir = TempDir::new();
+    let _service = Fixture::start(&dir.socket(), 1);
+    let (first, first_events, _) = join(&dir.socket());
+    let (second, second_events, _) = join(&dir.socket());
+    let (third, third_events, _) = join(&dir.socket());
+
+    assert_eq!(claim(&first, &first_events, PluginKind::PcmSynth), part(0));
+    assert_eq!(
+        claim(&second, &second_events, PluginKind::PcmSynth),
+        part(1)
+    );
+    // Claiming again keeps the claimer's own Part.
+    assert_eq!(claim(&first, &first_events, PluginKind::PcmSynth), part(0));
+
+    drop((first, first_events));
+    wait_for("the first to leave", || {
+        claim(&third, &third_events, PluginKind::SnSynth) == part(0)
+    });
+}
+
+#[test]
+fn a_part_is_taken_by_any_tone_plugin_or_a_kit_wide_kit_plugin_but_not_by_a_key() {
+    let dir = TempDir::new();
+    let _service = Fixture::start(&dir.socket(), 1);
+    let (asker, asker_events, _) = join(&dir.socket());
+    let holders: Vec<_> = [
+        (PluginKind::SnSynth, Binding::of_part(0)),
+        (PluginKind::PcmDrum, Binding::of_part(1)),
+        (PluginKind::SnDrum, Binding::of_part(2).with_key(40)),
+        (PluginKind::StudioSet, Binding::ANY),
+    ]
+    .into_iter()
+    .map(|(plugin, binding)| {
+        let (client, events, _) = join(&dir.socket());
+        bind(&client, &events, bound(plugin, binding));
+        (client, events)
+    })
+    .collect();
+
+    // Part 0 (a Tone plugin of another type) and Part 1 (a whole kit) are
+    // taken; Part 2 has only a key bound, and the Studio Set takes no Part.
+    assert_eq!(claim(&asker, &asker_events, PluginKind::PcmSynth), part(2));
+    assert_eq!(claim(&asker, &asker_events, PluginKind::SnDrum), part(2));
+    drop(holders);
+}
+
+#[test]
+fn the_studio_set_plugin_has_one_target_and_a_full_kind_has_none() {
+    let dir = TempDir::new();
+    let _service = Fixture::start(&dir.socket(), 1);
+    let (first, first_events, _) = join(&dir.socket());
+    let (second, second_events, _) = join(&dir.socket());
+    let studio = PluginKind::StudioSet;
+    assert_eq!(claim(&first, &first_events, studio), Some(Binding::ANY));
+    assert_eq!(claim(&second, &second_events, studio), None);
+
+    let kind = PluginKind::SnDrum;
+    let fillers: Vec<_> = kind
+        .targets()
+        .into_iter()
+        .map(|target| {
+            let (client, events, _) = join(&dir.socket());
+            assert_eq!(claim(&client, &events, kind), Some(target));
+            (client, events)
+        })
+        .collect();
+    assert_eq!(claim(&second, &second_events, kind), None);
+    drop(fillers);
+}
+
+#[test]
+fn concurrent_claims_get_distinct_parts() {
+    let dir = TempDir::new();
+    let _service = Fixture::start(&dir.socket(), 1);
+    let path = dir.socket();
+    let clients: Vec<_> = (0..12).map(|_| join(&path)).collect();
+    // All twelve ask at once, each from a thread of its own.
+    let start = std::sync::Arc::new(std::sync::Barrier::new(clients.len()));
+    let handles: Vec<_> = clients
+        .into_iter()
+        .map(|(client, events, _)| {
+            let start = std::sync::Arc::clone(&start);
+            std::thread::spawn(move || {
+                start.wait();
+                let got = claim(&client, &events, PluginKind::PcmSynth);
+                (got, client, events)
+            })
+        })
+        .collect();
+    let got: Vec<_> = handles
+        .into_iter()
+        .map(|h| h.join().expect("claimer"))
+        .collect();
+    let got: Vec<Option<Binding>> = got.iter().map(|(b, ..)| *b).collect();
+    let mut parts: Vec<u8> = got
+        .iter()
+        .map(|b| b.expect("a free part").part.unwrap())
+        .collect();
+    parts.sort_unstable();
+    assert_eq!(parts, (0..12).collect::<Vec<u8>>());
+}
+
+#[test]
+fn a_free_part_holding_the_plugins_tone_type_is_preferred() {
+    let dir = TempDir::new();
+    let _service = Fixture::start(&dir.socket(), 1);
+    let (client, events, _) = join(&dir.socket());
+    client.subscribe(Binding::ANY);
+    // Part 6 (index 5) plays an SN Acoustic tone (Bank Select MSB 89).
+    client.send(Request::ChangeTone {
+        part: 5,
+        msb: 89,
+        lsb: 64,
+        pc: 0,
+    });
+    next(&events, "the tone change", |event| match event {
+        ClientEvent::Message(Message::Bulk {
+            kind: BulkKind::Tone,
+            ..
+        }) => Some(()),
+        _ => None,
+    });
+    let (other, other_events, _) = join(&dir.socket());
+    assert_eq!(
+        claim(&other, &other_events, PluginKind::SnAcoustic),
+        part(5)
+    );
+    // Taken now: the next one falls back to the first free Part.
+    let (third, third_events, _) = join(&dir.socket());
+    assert_eq!(
+        claim(&third, &third_events, PluginKind::SnAcoustic),
+        part(0)
+    );
+}
+
+#[test]
+fn a_binding_the_plugin_cannot_have_is_refused_and_binds_nothing() {
+    let dir = TempDir::new();
+    let _service = Fixture::start(&dir.socket(), 1);
+    let (client, events, _) = join(&dir.socket());
+    let (other, other_events, _) = join(&dir.socket());
+    for (plugin, binding) in [
+        (PluginKind::PcmSynth, Binding::of_part(16)),
+        (PluginKind::PcmSynth, Binding::of_part(0).with_key(40)),
+        (PluginKind::SnDrum, Binding::of_part(0).with_key(26)),
+        (PluginKind::PcmDrum, Binding::of_part(0).with_key(109)),
+        (PluginKind::StudioSet, Binding::of_part(0)),
+    ] {
+        client.bind(bound(plugin, binding));
+        next(&events, "a refusal", |event| match event {
+            ClientEvent::Message(Message::Rejected {
+                reason: Reject::Invalid { .. },
+                ..
+            }) => Some(()),
+            _ => None,
+        });
+    }
+    assert_eq!(claim(&other, &other_events, PluginKind::PcmSynth), part(0));
+}
+
+#[test]
+fn a_reconnecting_client_is_bound_again_before_it_is_welcomed() {
+    let dir = TempDir::new();
+    let first = Fixture::start(&dir.socket(), 10);
+    let (client, events) = Client::connect(dir.socket());
+    connected(&events);
+    let kind = PluginKind::SnAcoustic;
+    bind(&client, &events, bound(kind, Binding::of_part(3)));
+
+    first.kill();
+    next(&events, "the disconnect", |event| {
+        matches!(event, ClientEvent::Disconnected).then_some(())
+    });
+    let _second = Fixture::start(&dir.socket(), 20);
+    connected(&events);
+
+    // Parts 0 to 2 are claimed by others and Part 3 by the reconnected
+    // client, which the new service knew from the Hello: the next free is 4.
+    let fillers: Vec<_> = (0..3)
+        .map(|n| {
+            let (filler, filler_events, _) = join(&dir.socket());
+            assert_eq!(claim(&filler, &filler_events, kind), part(n));
+            (filler, filler_events)
+        })
+        .collect();
+    let (asker, asker_events, _) = join(&dir.socket());
+    assert_eq!(claim(&asker, &asker_events, kind), part(4));
+    drop(fillers);
+}
+
+#[test]
+fn after_a_restart_a_claim_waits_for_the_restored_clients_to_say_what_they_hold() {
+    let dir = TempDir::new();
+    let first = Fixture::start(&dir.socket(), 10);
+    let (restored, restored_events, _) = join(&dir.socket());
+    bind(
+        &restored,
+        &restored_events,
+        bound(PluginKind::PcmSynth, Binding::of_part(0)),
+    );
+    first.kill();
+    next(&restored_events, "the disconnect", |event| {
+        matches!(event, ClientEvent::Disconnected).then_some(())
+    });
+
+    // A fresh instance reaches the new service and claims before the
+    // restored one is back (it retries with a delay); it must not be given
+    // Part 0, which the restored one will say it holds.
+    let _second = Fixture::start(&dir.socket(), 20);
+    let (fresh, fresh_events, _) = join(&dir.socket());
+    assert_eq!(claim(&fresh, &fresh_events, PluginKind::PcmSynth), part(1));
+    connected(&restored_events);
+}
+
+#[test]
+fn a_server_for_one_process_refuses_every_other() {
+    let dir = TempDir::new();
+    let link = FakeLink::new();
+    let running = spawn(
+        Service::new(
+            Box::new(link.clone()),
+            Config {
+                device_id: Some(DEVICE_ID),
+                session_ids: Box::new(SequentialSessionIds(1)),
+            },
+        ),
+        None,
+    )
+    .expect("spawn");
+    link.bring_up(Some(DEVICE_ID));
+    let ours = std::process::id();
+
+    // Not this process: the connection is closed before any hello.
+    let other = dir.0.join("o.sock");
+    let server = SocketServer::bind_only(&other, running.handle(), Some(ours + 1)).expect("bind");
+    let mut stream = UnixStream::connect(&other).expect("connect");
+    stream.set_read_timeout(Some(WAIT)).expect("a read timeout");
+    let mut byte = [0u8; 1];
+    assert_eq!(stream.read(&mut byte).expect("closed, not timed out"), 0);
+    drop(server);
+
+    // This process: served.
+    let own = dir.0.join("p.sock");
+    let _server = SocketServer::bind_only(&own, running.handle(), Some(ours)).expect("bind");
+    let _joined = join(&own);
+    running.stop();
 }

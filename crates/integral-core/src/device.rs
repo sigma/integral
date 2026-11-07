@@ -21,7 +21,7 @@
 //! }
 //! ```
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::ops::Range;
 
 use crate::address::{Address, DataSize};
@@ -137,8 +137,7 @@ fn touches_select(span: &Range<u32>) -> bool {
 
 /// The address whose [`Address::value`] is `value`.
 fn address_at(value: u32) -> Address {
-    let bytes = DataSize::from_value(value).expect("an address fits in 28 bits");
-    Address(*bytes.as_bytes())
+    Address::from_value(value).expect("an address fits in 28 bits")
 }
 
 /// A tone select (a Part's bank MSB, LSB and PC) or the Studio Set select
@@ -391,8 +390,30 @@ pub struct DeviceState {
     /// Mixer blocks whose read gave up, or that nothing could build a read
     /// for (see [`queue_mixer_reads`](Self::queue_mixer_reads)).
     mixer_failed: Vec<MixerBlock>,
+    /// Mixer reads that were dropped after their request left: the address,
+    /// the size and when it was sent. The reply is still on its way.
+    stale_replies: Vec<(Address, usize, f64)>,
     /// Sent SN Synth block and mixer requests awaiting their reply.
     requests: RequestTracker,
+    /// The DT1s queued since [`take_writes`](Self::take_writes), while
+    /// [`record_writes`](Self::record_writes) is on.
+    writes: Option<VecDeque<QueuedWrite>>,
+    /// The type of each Part's MFX, as far as this state has written or
+    /// read it (see [`mfx_type`](Self::mfx_type)).
+    mfx_types: HashMap<u8, u8>,
+}
+
+/// The most [`QueuedWrite`]s kept for a caller that does not take them: the
+/// oldest go first.
+pub const WRITE_LOG_LIMIT: usize = 1024;
+
+/// A DT1 as it was queued: where it writes and what.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QueuedWrite {
+    /// The first address written.
+    pub address: Address,
+    /// The bytes written from there.
+    pub data: Vec<u8>,
 }
 
 /// Why an Expansion load can't start.
@@ -420,8 +441,47 @@ impl DeviceState {
             sns_tones: HashMap::new(),
             mixer_reads: Vec::new(),
             mixer_failed: Vec::new(),
+            stale_replies: Vec::new(),
             requests: RequestTracker::new(),
+            writes: None,
+            mfx_types: HashMap::new(),
         }
+    }
+
+    /// Start (or stop) logging the DT1s this state queues, for a caller that
+    /// reacts to the writes as they are made rather than as they are paced
+    /// out (the plugin editor's host gestures). Stopping drops the log.
+    pub fn record_writes(&mut self, on: bool) {
+        self.writes = on.then(VecDeque::new);
+    }
+
+    /// The DT1s queued since the last call, oldest first, each as it was
+    /// queued (before coalescing and splitting into packets): empty unless
+    /// [`record_writes`](Self::record_writes) is on. At most
+    /// [`WRITE_LOG_LIMIT`] are kept.
+    pub fn take_writes(&mut self) -> Vec<QueuedWrite> {
+        self.writes
+            .as_mut()
+            .map(|log| std::mem::take(log).into())
+            .unwrap_or_default()
+    }
+
+    /// Whether any DT1 is logged, for a caller that polls
+    /// ([`take_writes`](Self::take_writes) would give something).
+    pub fn has_writes(&self) -> bool {
+        self.writes.as_ref().is_some_and(|log| !log.is_empty())
+    }
+
+    /// The type of `part`'s MFX, if this state wrote it (a type change, the
+    /// header's Type field) or was told it ([`note_mfx_type`](Self::note_mfx_type))
+    /// since the Part's tone last changed.
+    pub fn mfx_type(&self, part: u8) -> Option<u8> {
+        self.mfx_types.get(&part).copied()
+    }
+
+    /// Record the type of `part`'s MFX, as a caller read it from the device.
+    pub fn note_mfx_type(&mut self, part: u8, mfx_type: u8) {
+        self.mfx_types.insert(part, mfx_type);
     }
 
     /// The SysEx device ID this state addresses.
@@ -583,6 +643,15 @@ impl DeviceState {
                 self.send_dt1(&address.offset(*offset.as_bytes()), chunk);
             }
             return;
+        }
+        if let Some(log) = &mut self.writes {
+            if log.len() >= WRITE_LOG_LIMIT {
+                log.pop_front();
+            }
+            log.push_back(QueuedWrite {
+                address: *address,
+                data: data.to_vec(),
+            });
         }
         let bytes = sysex::build_dt1(self.device_id, address, data);
         let key = format!("dt1:{address}");
@@ -954,6 +1023,8 @@ impl DeviceState {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         mixer_load::set_tone(&mut self.state.parts[part as usize], msb, lsb, pc);
         self.invalidate_sns_tone(part);
+        // The new tone has its own MFX, which nothing has read yet.
+        self.mfx_types.remove(&part);
 
         // Reads of the old tone would undo the change: read the new one,
         // after the change is sent.
@@ -982,6 +1053,32 @@ impl DeviceState {
             && params::comp_eq_block_address_for_bank(part, msb).is_some()
         {
             reads.push(MixerBlock::CompEq { part, msb });
+        }
+        self.queue_mixer_reads(reads);
+    }
+
+    /// Read `part`'s tone again after something other than this state changed
+    /// it (a Program Change that reached the device by another route): the
+    /// part's dump (its bank and PC, which then chain the name and category
+    /// reads) and, if the part holds the Comp+EQ kit, the Comp+EQ block. The
+    /// cached tone and the reads of the old one are dropped.
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
+    pub fn reread_part(&mut self, part: u8) {
+        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
+        self.invalidate_sns_tone(part);
+        let stale: Vec<_> = (self.mixer_reads.iter())
+            .filter(|r| r.block.reads_tone_of(part))
+            .map(|r| r.address)
+            .collect();
+        for address in &stale {
+            self.drop_mixer_read(address);
+        }
+        let mut reads = vec![MixerBlock::Part(part)];
+        if self.state.drum_comp_eq.enabled && self.state.drum_comp_eq.part == part {
+            // Its reply names the kit's bank, which the part's reply sets.
+            reads.push(MixerBlock::DrumCompEqCommon);
         }
         self.queue_mixer_reads(reads);
     }
@@ -1146,6 +1243,9 @@ impl DeviceState {
     ) -> Result<(), crate::mfx::MfxHeaderIndexError> {
         let offset = crate::mfx::mfx_header_offset(field, index)?;
         let addr = crate::mfx::mfx_address(part, tone_type, offset);
+        if field == crate::mfx::MfxHeaderField::Type {
+            self.note_mfx_type(part, value);
+        }
         self.send_dt1(&addr, &[value]);
         Ok(())
     }
@@ -1163,6 +1263,7 @@ impl DeviceState {
     ) -> Option<[i32; crate::mfx::MFX_PARAM_COUNT]> {
         use crate::mfx::{MfxHeaderField, mfx_header_offset};
         let slots = crate::mfx_params::default_slots(mfx_type)?;
+        self.note_mfx_type(part, mfx_type);
         self.send_dt1(&crate::mfx::mfx_address(part, tone_type, 0), &[mfx_type]);
         // Control Assign 1-4 back to OFF (each type has its own destination
         // list), then the 32 parameter slots right after them.
@@ -1311,6 +1412,8 @@ impl DeviceState {
 
     /// Queue again the requests whose reply timed out, while retries remain.
     fn retry_requests(&mut self, now_ms: f64) {
+        self.stale_replies
+            .retain(|(_, _, sent_at)| now_ms - sent_at < REPLY_TIMEOUT_MS);
         for key in self.requests.expire_old(now_ms, REPLY_TIMEOUT_MS) {
             self.retry_sns_request(&key);
             self.retry_mixer_read(&key);
@@ -1433,10 +1536,32 @@ impl DeviceState {
 
     /// Forget the mixer read at `address` and its outstanding request.
     fn drop_mixer_read(&mut self, address: &Address) {
+        let size = (self.mixer_reads.iter())
+            .find(|r| r.address == *address)
+            .and_then(|r| r.block.request())
+            .map(|(_, size)| size.value() as usize);
         self.mixer_reads.retain(|r| r.address != *address);
         let key = mixer_request_key(address);
+        if let (Some(sent_at), Some(size)) = (self.requests.sent_at(&key), size) {
+            self.stale_replies.push((*address, size, sent_at));
+        }
         self.requests.cancel(&key);
         self.queue.retain(|m| m.key != key);
+    }
+
+    /// Whether the DT1 of `len` bytes at `address` is the late reply to a
+    /// mixer read that
+    /// was dropped (a tone change dropped the read of the old tone after its
+    /// request had left). If so it is forgotten, and the caller should
+    /// neither apply nor cache it: it describes a tone the Part no longer
+    /// has. Call before [`handle_dt1`](Self::handle_dt1).
+    pub fn take_stale_reply(&mut self, address: &Address, len: usize) -> bool {
+        let Some(i) = (self.stale_replies.iter()).position(|(a, n, _)| a == address && *n == len)
+        else {
+            return false;
+        };
+        self.stale_replies.remove(i);
+        true
     }
 
     /// Queue again the mixer read of tracker key `key`, if it is one, while
@@ -2257,6 +2382,93 @@ mod tests {
         assert_eq!(dev.queue.len(), 1);
     }
 
+    #[test]
+    fn recorded_writes_are_each_edit_before_coalescing_and_only_while_on() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_part_level(0, 50);
+        assert!(dev.take_writes().is_empty(), "off by default");
+
+        dev.record_writes(true);
+        dev.set_part_level(0, 60);
+        dev.set_part_level(0, 80);
+        dev.set_part_pan(1, 10);
+        let writes = dev.take_writes();
+        // The queue coalesced the two levels; the log kept both edits.
+        assert_eq!(
+            writes,
+            [
+                QueuedWrite {
+                    address: params::part_address(0, part::LEVEL),
+                    data: vec![60]
+                },
+                QueuedWrite {
+                    address: params::part_address(0, part::LEVEL),
+                    data: vec![80]
+                },
+                QueuedWrite {
+                    address: params::part_address(1, part::PAN),
+                    data: vec![10]
+                },
+            ]
+        );
+        assert!(dev.take_writes().is_empty(), "taken once");
+
+        dev.record_writes(false);
+        dev.set_part_level(0, 90);
+        assert!(dev.take_writes().is_empty());
+    }
+
+    #[test]
+    fn a_parts_mfx_type_is_remembered_from_what_is_written_or_read_until_its_tone_changes() {
+        use crate::mfx::MfxHeaderField;
+        let mut dev = DeviceState::new(0x10);
+        assert_eq!(dev.mfx_type(2), None);
+        dev.set_mfx_type(2, ToneType::SnSynth, 34).unwrap();
+        assert_eq!(dev.mfx_type(2), Some(34));
+        assert_eq!(dev.mfx_type(3), None, "per Part");
+        dev.set_mfx_header_param(2, ToneType::SnSynth, MfxHeaderField::Type, 0, 5)
+            .unwrap();
+        assert_eq!(dev.mfx_type(2), Some(5));
+        // Another header field is not the type.
+        dev.set_mfx_header_param(2, ToneType::SnSynth, MfxHeaderField::ChorusSend, 0, 9)
+            .unwrap();
+        assert_eq!(dev.mfx_type(2), Some(5));
+        dev.note_mfx_type(3, 7);
+        assert_eq!(dev.mfx_type(3), Some(7));
+        dev.change_part_tone(2, 89, 0, 1);
+        assert_eq!(dev.mfx_type(2), None, "a new tone has its own MFX");
+        assert_eq!(dev.mfx_type(3), Some(7));
+        // An unknown type is not remembered.
+        assert!(dev.set_mfx_type(4, ToneType::SnSynth, 200).is_none());
+        assert_eq!(dev.mfx_type(4), None);
+    }
+
+    #[test]
+    fn has_writes_says_whether_the_log_holds_any() {
+        let mut dev = DeviceState::new(0x10);
+        assert!(!dev.has_writes());
+        dev.record_writes(true);
+        assert!(!dev.has_writes());
+        dev.set_part_level(0, 70);
+        assert!(dev.has_writes());
+        dev.take_writes();
+        assert!(!dev.has_writes());
+    }
+
+    #[test]
+    fn the_write_log_keeps_the_newest_up_to_its_limit() {
+        let mut dev = DeviceState::new(0x10);
+        dev.record_writes(true);
+        for value in 0..=127u8 {
+            for _ in 0..=(WRITE_LOG_LIMIT / 128) {
+                dev.set_part_level(0, value);
+            }
+        }
+        let writes = dev.take_writes();
+        assert_eq!(writes.len(), WRITE_LOG_LIMIT);
+        assert_eq!(writes.last().map(|w| w.data.clone()), Some(vec![127]));
+    }
+
     /// The DT1s drained, in order, as (address bytes, data).
     fn drain_dt1s(dev: &mut DeviceState) -> Vec<(Address, Vec<u8>)> {
         let mut out = Vec::new();
@@ -2581,6 +2793,65 @@ mod tests {
         assert_eq!(dev.state().parts[0].tone_bank_msb, 89);
         assert_eq!(dev.state().parts[0].tone_bank_lsb, 64);
         assert_eq!(dev.state().parts[0].tone_pc, 12);
+    }
+
+    #[test]
+    fn reread_part_reads_the_part_dump_then_its_name_and_category() {
+        let mut dev = DeviceState::new(0x10);
+        dev.change_part_tone(0, 87, 64, 3);
+        drain_until(&mut dev, 0.0, 1_000.0);
+        dev.reread_part(0);
+        let (dump_at, dump_size) = MixerBlock::Part(0).request().unwrap();
+        let sent = drain_until(&mut dev, 2_000.0, 3_000.0);
+        assert_eq!(sent, [sysex::build_rq1(0x10, &dump_at, &dump_size)]);
+
+        // The reply names a new tone; its name and category follow.
+        let mut dump = vec![0u8; 0x2A];
+        dump[0x06..0x09].copy_from_slice(&[89, 64, 12]);
+        assert!(dev.handle_dt1(&dump_at, &dump, 3_000.0));
+        assert_eq!(dev.state().parts[0].tone_bank_msb, 89);
+        let name = params::tone_name_address(0, ToneType::SnAcoustic);
+        let category = params::tone_category_address(0, 89).unwrap();
+        let sent = drain_until(&mut dev, 3_100.0, 4_000.0);
+        assert_eq!(
+            sent,
+            [
+                sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE),
+                sysex::build_rq1(0x10, &category, &DataSize::ONE),
+            ]
+        );
+    }
+
+    #[test]
+    fn the_late_reply_to_a_dropped_read_is_stale_once_and_only_for_a_while() {
+        const N: usize = params::TONE_NAME_SIZE.value() as usize;
+        let mut dev = DeviceState::new(0x10);
+        dev.change_part_tone(0, 89, 64, 1);
+        let name = params::tone_name_address(0, ToneType::SnAcoustic);
+        assert!(!dev.take_stale_reply(&name, N));
+        drain_until(&mut dev, 0.0, 200.0); // the select and both reads left
+        dev.change_part_tone(0, 89, 64, 2); // drops them
+        assert!(
+            !dev.take_stale_reply(&name, N + 1),
+            "another length is another read"
+        );
+        assert!(dev.take_stale_reply(&name, N));
+        assert!(!dev.take_stale_reply(&name, N), "once");
+
+        // A reply that never comes is forgotten.
+        dev.change_part_tone(0, 89, 64, 3);
+        drain_until(&mut dev, 300.0, 500.0);
+        dev.change_part_tone(0, 89, 64, 4);
+        drain_until(&mut dev, 600.0, 10_000.0);
+        assert!(!dev.take_stale_reply(&name, N));
+    }
+
+    #[test]
+    fn reread_part_twice_queues_one_read() {
+        let mut dev = DeviceState::new(0x10);
+        dev.reread_part(2);
+        dev.reread_part(2);
+        assert_eq!(drain_until(&mut dev, 0.0, 100.0).len(), 1);
     }
 
     #[test]

@@ -57,6 +57,16 @@ export function Connected({ portName, identity }: ConnectedProps) {
   );
 }
 
+/** Shown on a port that carries SysEx only: notes never reach the device. */
+export function NotesUnavailable() {
+  return (
+    <p className={css.warning}>
+      Notes do not reach the device through the Device service yet: the
+      keyboard, the sequencer and the drum preview are silent.
+    </p>
+  );
+}
+
 export function Disconnected() {
   return (
     <p className={css.warning}>

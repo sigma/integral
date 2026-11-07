@@ -10,10 +10,11 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, ValueEnum};
+use integral_core::device_service::{WEBSOCKET_PORT, default_origins};
 use integral_core::device_spec::INTEGRA7;
 use integral_device_service::{
     Config, DeviceLink, MidirLink, NOTE_PORT_NAME, PortMatch, Service, SocketServer,
-    VirtualNotePort, WirelessLink, default_socket_path, spawn, stderr_log,
+    VirtualNotePort, WebSocketServer, WirelessLink, spawn, stderr_log,
 };
 
 /// How the service reaches the INTEGRA-7.
@@ -49,6 +50,18 @@ pub struct BridgeArgs {
     /// per-user temporary directory, under `Integral`.
     #[arg(long)]
     socket: Option<PathBuf>,
+    /// TCP port of the WebSocket endpoint the web app connects to, on
+    /// 127.0.0.1 only. The web app always uses the default, so change it only
+    /// for tests or when the port is taken.
+    #[arg(long, default_value_t = WEBSOCKET_PORT)]
+    ws_port: u16,
+    /// An `Origin` allowed to use the WebSocket endpoint, as a browser writes
+    /// it (`scheme://host[:port]`, no path). Repeat for several; given at
+    /// all, these replace the defaults (the `just dev-web` and `vite preview`
+    /// servers, and the app on GitHub Pages: `https://sigma.github.io` admits
+    /// every Pages site of that user). A refused origin is logged here.
+    #[arg(long = "ws-origin", value_name = "ORIGIN", default_values_t = default_origins())]
+    ws_origins: Vec<String>,
 }
 
 /// Build the link the arguments name.
@@ -85,10 +98,7 @@ fn link(args: &BridgeArgs) -> Result<Box<dyn DeviceLink>> {
 
 /// Run the Device service until the process is killed.
 pub fn bridge(args: &BridgeArgs) -> Result<()> {
-    let path = match &args.socket {
-        Some(path) => path.clone(),
-        None => default_socket_path().context("find the default socket path")?,
-    };
+    let path = crate::service::socket_path(args.socket.as_deref())?;
     let link = link(args)?;
     let config = Config::new(args.device_id);
     let service = Service::new(link, config);
@@ -101,9 +111,27 @@ pub fn bridge(args: &BridgeArgs) -> Result<()> {
             return Err(e).with_context(|| format!("listen on {}", path.display()));
         }
     };
+    let web = match WebSocketServer::bind(
+        args.ws_port,
+        &args.ws_origins,
+        running.handle(),
+        stderr_log(),
+    ) {
+        Ok(web) => web,
+        Err(e) => {
+            drop(server);
+            running.stop();
+            return Err(e).with_context(|| {
+                format!("start the WebSocket endpoint on 127.0.0.1:{}", args.ws_port)
+            });
+        }
+    };
     eprintln!(
-        "Device service running; notes go to the MIDI port '{NOTE_PORT_NAME}', clients to {}",
-        server.path().display()
+        "Device service running; notes go to the MIDI port '{NOTE_PORT_NAME}', clients to {}, \
+         the web app to ws://{} (origins: {})",
+        server.path().display(),
+        web.local_addr(),
+        args.ws_origins.join(", ")
     );
     running.join();
     Ok(())

@@ -251,13 +251,32 @@ pub mod part {
     pub const REVERB_SEND: [u8; 3] = [0x00, 0x00, 0x28];
     /// Output Assign (0=A, 1=B, 2=C, 3=D, 4–11=1–8).
     pub const OUTPUT_ASSIGN: [u8; 3] = [0x00, 0x00, 0x29];
+    /// Receive Program Change (0=OFF, 1=ON).
+    pub const RECEIVE_PROGRAM_CHANGE: [u8; 3] = [0x00, 0x00, 0x39];
 }
+
+/// System Studio Set Control Channel (0–15 → ch 1–16, 16=OFF): a Program
+/// Change on it selects a Studio Set.
+pub const SYSTEM_STUDIO_SET_CONTROL_CHANNEL: Address = Address::new(0x02, 0x00, 0x00, 0x11);
 
 /// Compute the absolute address for a Studio Set Part parameter.
 ///
 /// `part_index` is 0-based (0 = Part 1, 15 = Part 16).
 pub const fn part_address(part_index: u8, param_offset: [u8; 3]) -> Address {
     crate::address::studio_set_part(part_index, param_offset)
+}
+
+/// Where a Part's tone select (Bank Select MSB, LSB and Program Change, three
+/// consecutive bytes) is, and its length: the one block to read or write to
+/// find or set the tone a Part holds.
+pub fn tone_select_block(part_index: u8) -> (Address, DataSize) {
+    let first = part_address(part_index, part::TONE_BANK_MSB);
+    let last = part_address(part_index, part::TONE_PC);
+    let len = last.value() - first.value() + 1;
+    (
+        first,
+        DataSize::from_value(len).expect("a select is three bytes"),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -806,6 +825,13 @@ mod tests {
         // SN Acoustic offset is 02 00 00, so byte 1 of the tone block gets +2
         let addr = tone_name_address(0, ToneType::SnAcoustic);
         assert_eq!(addr, Address::new(0x19, 0x02, 0x00, 0x00));
+    }
+
+    #[test]
+    fn a_tone_select_block_is_the_three_bytes_from_the_bank_msb() {
+        let (at, size) = tone_select_block(5);
+        assert_eq!(at, part_address(5, part::TONE_BANK_MSB));
+        assert_eq!(size.value(), 3);
     }
 
     #[test]

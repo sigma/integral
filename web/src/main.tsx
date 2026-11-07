@@ -24,6 +24,9 @@ if (bridge) {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {!bridge && <PwaUpdateBanner />}
-    <App openPorts={bridge ? () => pluginPorts(bridge) : undefined} />
+    <App
+      openPorts={bridge ? () => pluginPorts(bridge) : undefined}
+      connectOnlyPort={bridge !== null}
+    />
   </StrictMode>,
 );

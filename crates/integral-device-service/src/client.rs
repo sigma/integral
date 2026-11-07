@@ -24,7 +24,8 @@
 //! - **It reconnects.** When the service goes away the client reports
 //!   [`ClientEvent::Disconnected`], retries with a growing delay and, once it
 //!   is back, says `Hello` again with its subscriptions and raw setting, so
-//!   they are in force before [`ClientEvent::Connected`] is reported. The new
+//!   they are in force before [`ClientEvent::Connected`] is reported (and
+//!   so is its [`Client::bind`], carried in the `Hello`). The new
 //!   connection has a new [`ClientId`] and, with a restarted service, a new
 //!   session: re-read what you care about. A service that refuses the
 //!   protocol version ([`ClientEvent::Incompatible`]) is not retried.
@@ -35,8 +36,8 @@
 //!
 //! A write to a device you cannot reach is stale by the time you could send
 //! it. Anything sent while the client is not connected is discarded (the
-//! methods still return `true` if the queue took it); only subscriptions and
-//! the raw setting are remembered, and replayed on reconnect. After
+//! methods still return `true` if the queue took it); only subscriptions, the
+//! raw setting and the bind are remembered, and replayed on reconnect. After
 //! [`ClientEvent::Connected`] the instance pushes its state again.
 //!
 //! Dropping the last [`Client`] stops the client threads and waits for them,
@@ -53,11 +54,11 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use integral_core::host_params::{Binding, ParamHandle, ParamIndex};
+use integral_core::host_params::{Binding, ParamHandle, ParamIndex, PluginKind};
 use rtrb::{Consumer, Producer, RingBuffer};
 
 use crate::protocol::{
-    ClientId, Message, PROTOCOL_VERSION, ParamId, Reject, Request, read_frame, write_frame,
+    Bound, ClientId, Message, PROTOCOL_VERSION, ParamId, Reject, Request, read_frame, write_frame,
 };
 use crate::service::shared_params;
 use crate::session::SessionId;
@@ -77,6 +78,18 @@ const FIRST_RETRY: Duration = Duration::from_millis(20);
 
 /// Longest wait between connection attempts.
 const LONGEST_RETRY: Duration = Duration::from_millis(500);
+
+/// Time allowed for a connection attempt and its `Hello` on top of the retry
+/// delay and the polling that follows it.
+const CONNECT_MARGIN: Duration = Duration::from_millis(100);
+
+/// How long, after a service starts, the clients that were connected to its
+/// predecessor take to be back with their `Hello`: the longest retry delay,
+/// the polling that follows it, and [`CONNECT_MARGIN`]. The service holds
+/// [`Request::Claim`] answers for this long.
+pub const RECONNECT_WINDOW: Duration = Duration::from_millis(
+    (LONGEST_RETRY.as_millis() + IDLE_POLL.as_millis() + CONNECT_MARGIN.as_millis()) as u64,
+);
 
 /// How often the client thread looks at its queues while there is
 /// activity.
@@ -134,6 +147,9 @@ enum Realtime {
 enum Command {
     Request(Request),
     Ring(Consumer<Realtime>),
+    /// Answers `true` once everything queued before it has been written to
+    /// the socket, `false` if there was no connection to write to.
+    Flush(SyncSender<bool>),
 }
 
 /// What the client and its thread share.
@@ -273,9 +289,33 @@ impl Client {
         self.send(Request::ReceiveRaw { on })
     }
 
+    /// Say which plugin instance this client is and what it is bound to
+    /// (`None`: none), now and after every reconnect.
+    pub fn bind(&self, bound: Option<Bound>) -> bool {
+        self.send(Request::Bind { bound })
+    }
+
+    /// Take the first free target of `plugin` (see [`Request::Claim`]); the
+    /// answer is a [`Message::Claimed`]. Follow it with
+    /// [`bind`](Self::bind) so that a reconnect remembers it.
+    pub fn claim(&self, plugin: PluginKind) -> bool {
+        self.send(Request::Claim { plugin })
+    }
+
     /// Send one whole SysEx message through the service's paced queue.
     pub fn raw(&self, bytes: Vec<u8>) -> bool {
         self.send(Request::Raw { bytes })
+    }
+
+    /// Wait up to `timeout` until everything queued so far has been written
+    /// to the socket. Dropping the last [`Client`] discards what is still
+    /// queued, so a program that sends and exits calls this first. `false`
+    /// if the client is not connected, has stopped, or took too long. Not
+    /// for a real-time thread.
+    pub fn flush(&self, timeout: Duration) -> bool {
+        let (done, written) = mpsc::sync_channel(1);
+        self.control.try_send(Command::Flush(done)).is_ok()
+            && written.recv_timeout(timeout) == Ok(true)
     }
 }
 
@@ -351,6 +391,7 @@ impl Sink {
 struct Remembered {
     subscriptions: Vec<Binding>,
     raw: bool,
+    bound: Option<Bound>,
 }
 
 impl Remembered {
@@ -364,6 +405,7 @@ impl Remembered {
             }
             Request::Unsubscribe { binding } => self.subscriptions.retain(|s| s != binding),
             Request::ReceiveRaw { on } => self.raw = *on,
+            Request::Bind { bound } => self.bound = *bound,
             _ => {}
         }
     }
@@ -374,6 +416,7 @@ impl Remembered {
             version: PROTOCOL_VERSION,
             subscriptions: self.subscriptions.clone(),
             raw: self.raw,
+            bound: self.bound,
         }
     }
 }
@@ -415,6 +458,9 @@ impl Io<'_> {
                     }
                 }
                 Ok(Command::Ring(consumer)) => self.rings.push(consumer),
+                Ok(Command::Flush(done)) => {
+                    let _ = done.try_send(out.is_some());
+                }
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => {
                     open = false;

@@ -8,14 +8,14 @@ use integral_core::librarian::reader::BlockData;
 use integral_core::sysex;
 
 use crate::hex::{format_hex, parse_hex_addr, parse_hex_bytes, parse_hex_size, parse_read_size};
-use crate::midi;
+use crate::midi::{self, Connection, Endpoint};
 
 /// Read raw bytes from a SysEx address.
 ///
 /// Collects every DT1 packet of the reply within `timeout`, places each by
 /// its address, and fails if any byte is missing.
 pub fn raw_read(
-    port_pattern: &str,
+    endpoint: Endpoint<'_>,
     timeout: Duration,
     device_id: u8,
     addr_hex: &str,
@@ -23,7 +23,10 @@ pub fn raw_read(
 ) -> Result<()> {
     let addr = parse_hex_addr(addr_hex)?;
     let size = parse_read_size(size_arg)?;
-    let (_conn_in, mut conn_out, rx) = midi::open_midi(port_pattern)?;
+    let Connection {
+        output: mut conn_out,
+        rx,
+    } = midi::open_midi(endpoint)?;
 
     let read = midi::read_block(&mut conn_out, &rx, device_id, &addr, &size, timeout, true)?;
     let (data, missing) = match &read {
@@ -46,7 +49,7 @@ pub fn raw_read(
 
 /// Send RQ1 and capture all responses (for multi-response queries).
 pub fn raw_rq1_multi(
-    port_pattern: &str,
+    endpoint: Endpoint<'_>,
     timeout: Duration,
     device_id: u8,
     addr_hex: &str,
@@ -54,7 +57,10 @@ pub fn raw_rq1_multi(
 ) -> Result<()> {
     let addr = parse_hex_addr(addr_hex)?;
     let size = parse_hex_size(size_hex)?;
-    let (_conn_in, mut conn_out, rx) = midi::open_midi(port_pattern)?;
+    let Connection {
+        output: mut conn_out,
+        rx,
+    } = midi::open_midi(endpoint)?;
 
     let rq1 = sysex::build_rq1(device_id, &addr, &size);
     eprintln!("Sending RQ1: addr={}, size={}", addr, size);
@@ -64,7 +70,7 @@ pub fn raw_rq1_multi(
 }
 
 /// Send raw hex bytes as SysEx and capture all responses.
-pub fn send_raw_hex(port_pattern: &str, timeout: Duration, hex: &str) -> Result<()> {
+pub fn send_raw_hex(endpoint: Endpoint<'_>, timeout: Duration, hex: &str) -> Result<()> {
     let bytes = parse_hex_bytes(hex)?;
     ensure!(
         bytes.len() <= sysex::MAX_MESSAGE_LEN,
@@ -72,7 +78,10 @@ pub fn send_raw_hex(port_pattern: &str, timeout: Duration, hex: &str) -> Result<
         bytes.len(),
         sysex::MAX_MESSAGE_LEN
     );
-    let (_conn_in, mut conn_out, rx) = midi::open_midi(port_pattern)?;
+    let Connection {
+        output: mut conn_out,
+        rx,
+    } = midi::open_midi(endpoint)?;
 
     eprintln!("Sending raw: {}", format_hex(&bytes, " "));
     conn_out.send(&bytes).context("send failed")?;
@@ -82,7 +91,7 @@ pub fn send_raw_hex(port_pattern: &str, timeout: Duration, hex: &str) -> Result<
 
 /// Send a raw DT1 message and capture responses.
 pub fn raw_send(
-    port_pattern: &str,
+    endpoint: Endpoint<'_>,
     timeout: Duration,
     device_id: u8,
     addr_hex: &str,
@@ -96,7 +105,10 @@ pub fn raw_send(
         data.len(),
         sysex::MAX_DT1_DATA
     );
-    let (_conn_in, mut conn_out, rx) = midi::open_midi(port_pattern)?;
+    let Connection {
+        output: mut conn_out,
+        rx,
+    } = midi::open_midi(endpoint)?;
 
     let dt1 = sysex::build_dt1(device_id, &addr, &data);
     eprintln!("Sending DT1: addr={}, data={}", addr, data_hex);

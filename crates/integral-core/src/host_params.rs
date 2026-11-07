@@ -123,6 +123,18 @@ pub enum PluginKind {
 }
 
 impl PluginKind {
+    /// The name the plugin has in a host's plugin list.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::StudioSet => "Integral Studio Set",
+            Self::SnSynth => "Integral SN Synth",
+            Self::SnAcoustic => "Integral SN Acoustic",
+            Self::PcmSynth => "Integral PCM Synth",
+            Self::SnDrum => "Integral SN Drum",
+            Self::PcmDrum => "Integral PCM Drum",
+        }
+    }
+
     /// Every plugin of the family.
     pub const ALL: [Self; 6] = [
         Self::StudioSet,
@@ -144,6 +156,35 @@ impl PluginKind {
             Self::SnDrum => Some(ToneType::SnDrum),
             Self::PcmDrum => Some(ToneType::PcmDrum),
         }
+    }
+
+    /// The targets a new instance can take, in the order it takes them: the
+    /// Studio Set plugin's one (no Part), else each Part's kit or tone in
+    /// turn. A key of a Kit plugin is chosen by hand, so none is listed.
+    pub fn targets(self) -> Vec<Binding> {
+        match self {
+            Self::StudioSet => vec![Binding::ANY],
+            _ => (0..INTEGRA7.part_count).map(Binding::of_part).collect(),
+        }
+    }
+
+    /// Whether `binding` is a target a plugin of this kind can have: the
+    /// Studio Set plugin has only [`Binding::ANY`] (its IDs hold their Part),
+    /// a Tone plugin a Part, and a Kit plugin a Part and, for one key, a key
+    /// in the kit type's [`KeyRange`](crate::device_spec::KeyRange).
+    pub fn accepts(self, binding: &Binding) -> bool {
+        let Some(tone_type) = self.tone_type() else {
+            return *binding == Binding::ANY;
+        };
+        let part_ok = binding.part.is_some_and(|p| p < INTEGRA7.part_count);
+        part_ok
+            && match (binding.key, tone_type) {
+                (None, _) => true,
+                (Some(key), ToneType::SnDrum | ToneType::PcmDrum) => {
+                    key_range(tone_type).check(key).is_ok()
+                }
+                (Some(_), _) => false,
+            }
     }
 
     /// The plugin's host parameter list.
@@ -176,6 +217,87 @@ impl HostFormat {
             Self::Fx(unit) => unit.format(raw),
         }
     }
+
+    /// The raw value in `min..=max` that `text` reads as: the inverse of
+    /// [`format`](Self::format), for a host that takes typed values.
+    ///
+    /// A plain number format reads the number. The other formats are too
+    /// varied (names, tempo-synced notes, tables, piecewise scales) for a
+    /// grammar each, so this searches the range, which has up to 65,536
+    /// values, formatting each as it goes, in two passes. The lowest raw
+    /// value wins a tie in either.
+    ///
+    /// 1. The text equals a value's text, ignoring case and whitespace
+    ///    (`l 30` reads as `L30`, `1.5 s` as `1.5s`).
+    /// 2. The text's leading number equals a value's leading number, and
+    ///    its unit, if it gives one, is that value's (`+3` reads as
+    ///    `+3 dB`, `50` as `50%`, `3dB` as `+3 dB` too).
+    ///
+    /// Returns `None` if nothing matches.
+    pub fn parse(&self, text: &str, min: i32, max: i32) -> Option<i32> {
+        if matches!(
+            self,
+            Self::Field(ParamFormat::Raw) | Self::Fx(FxUnit::Plain)
+        ) {
+            return text
+                .trim()
+                .parse::<i32>()
+                .ok()
+                .filter(|raw| (min..=max).contains(raw));
+        }
+        let wanted = squash(text);
+        if wanted.is_empty() {
+            return None;
+        }
+        if let Some(raw) = (min..=max).find(|&v| squash(&self.format(v)) == wanted) {
+            return Some(raw);
+        }
+        let (number, unit) = split_number(&wanted)?;
+        (min..=max).find(|&v| {
+            let formatted = squash(&self.format(v));
+            split_number(&formatted)
+                .is_some_and(|(n, u)| n == number && (unit.is_empty() || u == unit))
+        })
+    }
+}
+
+/// `text` without whitespace, lower-cased: the form two texts are compared in.
+fn squash(text: &str) -> String {
+    text.chars()
+        .filter(|c| !c.is_whitespace())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+/// The number `text` starts with (an optional sign, digits and one decimal
+/// point) and the rest of it, or `None` if it starts with no number.
+fn split_number(text: &str) -> Option<(f64, &str)> {
+    let mut end = 0;
+    let mut digits = false;
+    let mut point = false;
+    for (i, c) in text.char_indices() {
+        let take = match c {
+            '+' | '-' => i == 0,
+            '.' if !point => {
+                point = true;
+                true
+            }
+            _ if c.is_ascii_digit() => {
+                digits = true;
+                true
+            }
+            _ => false,
+        };
+        if !take {
+            break;
+        }
+        end = i + c.len_utf8();
+    }
+    if !digits {
+        return None;
+    }
+    let number = text[..end].parse().ok()?;
+    Some((number, &text[end..]))
 }
 
 /// One parameter of a plugin's host list.
@@ -317,6 +439,12 @@ pub enum BindingError {
 }
 
 impl HostParam {
+    /// The raw value `text` reads as for this parameter (see
+    /// [`HostFormat::parse`]).
+    pub fn parse(&self, text: &str) -> Option<i32> {
+        self.format.parse(text, self.min, self.max)
+    }
+
     /// The address of the parameter for `binding`.
     ///
     /// # Errors
@@ -430,8 +558,7 @@ fn tone_part_of(address: &Address) -> Option<(u8, Address)> {
 
 /// `address` moved down by `delta` bytes.
 fn shifted_down(address: Address, delta: u32) -> Address {
-    let bytes = DataSize::from_value(address.value() - delta).expect("an address fits in 28 bits");
-    Address(*bytes.as_bytes())
+    Address::from_value(address.value() - delta).expect("an address fits in 28 bits")
 }
 
 /// A plugin and the position of one of its parameters in its list
@@ -577,6 +704,67 @@ impl ParamIndex {
             }
         }
         found
+    }
+}
+
+/// A host parameter a write set, and the raw value it set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HostWrite {
+    /// The parameter.
+    pub handle: ParamHandle,
+    /// The raw value (what [`HostParam::decode`] reads), within its range.
+    pub value: i32,
+}
+
+impl ParamIndex {
+    /// The parameters of `plugin` that a DT1 of `data` at `address` sets, as
+    /// an instance bound to `binding` has them, in address order.
+    ///
+    /// A parameter counts only if its address for `binding` is where the
+    /// write lands, `data` holds all of its bytes, and the binding owns it:
+    /// a Binding with a key owns that key's parameters and not the kit's
+    /// (ADR 0007), and one without owns the kit's and no key's. An
+    /// effect type's parameter counts only while `active_type` says its
+    /// effect has that type; `None` (not known) leaves it out.
+    pub fn writes_at(
+        &self,
+        plugin: PluginKind,
+        binding: &Binding,
+        address: &Address,
+        data: &[u8],
+        active_type: impl Fn(EffectKind) -> Option<u8>,
+    ) -> Vec<HostWrite> {
+        let mut writes = Vec::new();
+        for from in 0..data.len() {
+            let Some(at) = u32::try_from(from)
+                .ok()
+                .and_then(|n| Address::from_value(address.value() + n))
+            else {
+                break;
+            };
+            for located in self.locate(&at) {
+                if located.handle.plugin != plugin {
+                    continue;
+                }
+                let param = self.get(located.handle);
+                let owned = binding.key.is_none() || matches!(param.anchor, Anchor::Key(_));
+                let sets_here = owned
+                    && param.device_address(binding) == Ok(at)
+                    && param
+                        .effect
+                        .is_none_or(|e| active_type(e.kind) == Some(e.type_id));
+                let Some(bytes) = data.get(from..from + param.width) else {
+                    continue;
+                };
+                if let (true, Some(value)) = (sets_here, param.decode(bytes)) {
+                    writes.push(HostWrite {
+                        handle: located.handle,
+                        value,
+                    });
+                }
+            }
+        }
+        writes
     }
 }
 

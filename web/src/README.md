@@ -10,8 +10,14 @@ plus the I/O the browser has to do.
 - **Entry.** `main.tsx` checks for a plugin bridge (`windowBridge(window)`).
   Inside the plugin webview
   ([ADR 0004](../../docs/adr/0004-plugin-ui-in-a-webview.md)) it sizes the
-  window after wasm loads and hands `App` the plugin transport. In a browser
-  it mounts `PwaUpdateBanner`, and `App` uses Web MIDI.
+  window after wasm loads and hands `App` the plugin transport and the
+  bridge (`plugin`). In a browser it mounts `PwaUpdateBanner`, and `App`
+  uses Web MIDI.
+- **Plugin editor.** Given a bridge, `App` shows only what the plugin's
+  instance owns (ADR 0007, `pluginPages.ts`): the Mixer and Surround pages
+  for the Studio Set plugin, the tone editor of the plugin's type, scoped to
+  the bound Part (and key), for a Tone or Kit plugin. `PluginBar` replaces the
+  top bar with the Binding picker and the status line.
 - **App.** `App.tsx` shows a connection card until an INTEGRA-7 is
   identified. Then it shows tabs held in local state, with no router: Mixer,
   Surround, Tone Edit, Sequencer, Expansions and Library. The Sequencer tab
@@ -68,12 +74,46 @@ Device link and transports (`.ts`):
   - Identity: `identifyDevice`, `DeviceIdentity`, `IDENTIFY_TIMEOUT_MS`
     (2000).
   - `PortMemory` (the port-memory interface).
+- `deviceService.ts`:
+  - The Device service as a port (ADR 0006): `deviceServicePair` is a
+    `MidiPortPair` over the service's localhost WebSocket (one binary frame
+    per SysEx message each way; the URL comes from core through
+    `deviceServiceUrl`). Lazy: it connects on `open()`, then reconnects with
+    a wait growing from `RECONNECT_MIN_MS` to `RECONNECT_MAX_MS`. `watch`
+    reports the link going down and up, `failure` gives `NOT_RUNNING_HINT`
+    (not running, or this page's origin is not allowed) or `LINK_DOWN_HINT`
+    (the service closed the page with 1013: it lost the device), and
+    `release` stops reconnecting when another pair is chosen. SysEx only:
+    `carriesNotes` is `false` (App says so, notes are #480) and `timestamp`
+    is ignored, the service pacing SysEx itself.
+  - `withDeviceService`, `browserPorts`: the service listed beside Web MIDI's
+    pairs (alone where the browser has no Web MIDI), `DEVICE_SERVICE_NAME`.
+- `devPorts.ts`: `DEV_SERVER_PORT` (5181) and `PREVIEW_PORT` (4181), pinned in
+  `vite.config.ts` and equal to core's, which the service admits as origins.
 - `plugin.ts`:
-  - The plugin transport: `windowBridge`, `PluginBridge`, `pluginPorts`.
+  - The plugin transport: `windowBridge`, `PluginBridge`, `pluginPorts`. It
+    offers the Device service as the one pair (`DEVICE_SERVICE_ID` and
+    `DEVICE_SERVICE_NAME`, as in the browser), SysEx only (`carriesNotes` is
+    `false`). While the plugin has no port to offer, `failure` gives the
+    reason it sent, else `SERVICE_UNAVAILABLE_HINT`.
   - The IPC wire format: `encodePageMessage`, `decodePluginMessage`,
     `PLUGIN_EVENT`, and the wire types `PageMessage` and `PluginMessage`.
+  - The instance: `InstanceInfo` (the plugin kind, Binding, status, notices
+    and default tone the plugin reports), `subscribeInstance`, `bindInstance`
+    and `loadDefaultTone`. `ToneMismatch` replaces the tone editor, with the
+    button, while the plugin reports the `TYPE_MISMATCH_NOTICE`.
+    `usePluginInstance` is the hook.
   - `OPEN_TIMEOUT_MS` (2000) and `ScreenArea`.
   - Window sizing: `pluginGrid`, `pluginWindowSize`, `resizePluginWindow`.
+
+- `pluginPages.ts`: `pluginPages` (the pages a plugin kind shows),
+  `pluginToneType`, `DrumScope` (`pluginDrumScope`, `drumScope`,
+  `lockedKey`), `kitKeys` and `acceptsBinding` (core's rule, through wasm).
+- `hostGestures.ts`: `HostGestures` turns a drag's writes into `beginEdit`,
+  `performEdit` and `endEdit` (begin on the first write, end on the pointer's
+  release; a write with no pointer held is its own gesture). `useHostGestures`
+  collects the writes from the core (`takeHostWrites`, which names the host
+  parameter each sets for the Binding) every `GESTURE_POLL_MS`.
 
 Catalogs from the core spec:
 
