@@ -35,3 +35,5 @@ else is Markdown and data.
 - design: `./design/` - Design notes (e.g. `output-routing.md`).
 - agents: `./agents/` - Agent workflow: issue tracker, triage labels, domain
   docs.
+- testing: [./testing/live-checks.md](./testing/live-checks.md) - The Ableton
+  Live 12 runbook: the checks only Live can run, with results to record.

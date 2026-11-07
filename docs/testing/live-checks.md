@@ -1,0 +1,646 @@
+# Live runbook
+
+Checks that need Ableton Live 12 on macOS. Each check runs once, and its result
+goes in the table under it. The ticket is [#463], under the PRD [#447].
+
+[#443] moved the rest to the test host: unit tests, pacing, gestures and state
+round-trips run there, not here. This runbook covers what needs Live itself,
+plus the items the stack's PRs deferred to it ([PR #476], [PR #477], [PR #482],
+[PR #485], [PR #487], [PR #488]).
+
+Expected results come from the issue or ADR each check cites. Where the spec is
+not in the code yet, or two sources disagree, the check says **Open**. Record
+what you see; do not mark it a pass or a fail until the expectation is settled.
+
+Terms (Part, Binding, Tone plugin, Kit plugin, Studio Set plugin, Device service)
+are defined in [CONTEXT.md](../../CONTEXT.md).
+
+Result values: **Pass**, **Fail**, or **Blocked** (say why in the notes).
+
+## Before you start
+
+1. Build and install the bundle. Run `just bundle-plugin`, then copy
+   `target/bundle/Integral.vst3` to `~/Library/Audio/Plug-Ins/VST3/`, replacing
+   any older copy.
+2. Start the Device service for the Live checks: `just bridge` (Wireless by
+   default), or `just bridge --link rtp --port <name>` for RTP-MIDI.
+3. Do not open the INTEGRA-7's MIDI port from another app during a check: the
+   CLI monitor, a DAW track, or a second bridge. The web app is fine, because it
+   reaches the device through the Device service. Two uncoordinated clients hung
+   the INTEGRA-7 once, tracked in [#446] (see [#345] comments, 2026-11-07).
+4. In Live, rescan plug-ins from the Plug-ins preferences.
+5. Record the Live version (Live > About Live) in every results table.
+6. Stop the Device service before any `just plugin-test` run. The scenarios
+   refuse to run while a service listens on the default socket. They do not
+   detect a service started with another socket, so stop that one yourself.
+   `--allow-service` overrides the guard; do not use it for these checks.
+
+## Checks at a glance
+
+| # | Check | Source | Lands with |
+|---|---|---|---|
+| 1 | Only the service holds the device port | [integral-vst README](../../crates/integral-vst/README.md), [PR #476], [PR #485] | none |
+| 2 | Live lists all six plugins, each loads | [PR #482] | none |
+| 3 | Configure mode and Push | [#463], [#345] | none |
+| 4 | Placement | [#463], [ADR 0007](../adr/0007-plugins-per-tone-type.md) | none |
+| 5 | Track input | [#463], [#345] | none |
+| 6 | SysEx echo into the note port (reproduction) | [#443] | none |
+| 7 | Save and reopen keeps the Binding | [PR #482], [ADR 0008](../adr/0008-host-parameter-ids-from-device-addresses.md) | none |
+| 8 | Tone-type mismatch | [#455], [ADR 0007] | [#455] |
+| 9 | Kit-bound and key-bound Kit plugins | [#455] | [#455] |
+| 10 | Duplicate Bindings | [#455], [ADR 0006](../adr/0006-device-service-owns-the-link.md) | [#455] |
+| 11 | Automation of a Tone parameter moves the bound Part | [PR #487], [ADR 0008] | none |
+| 12 | UI drag recorded as automation, Session and Arrangement | [#463], [#443], [PR #488] | none |
+| 13 | Web-app edit with the editor closed recorded as a lane | [PR #487], [#454] | none |
+| 14 | Recall smoke test | [#463], [ADR 0009](../adr/0009-recall-pushes-the-project-state.md), [#458] | [#458] |
+| 15 | PCM Synth performance | [#463], [load.rs](../../crates/integral-plugin-host/src/load.rs) | none |
+| 16 | Active Sensing during an Expansion load | [PR #476], [MIDI 01-protocol](../midi/01-protocol.md) | none (hardware) |
+| 17 | Plug-in test host drag against the #444 spike (not Live) | [PR #477], [#444] | none |
+
+[ADR 0007]: ../adr/0007-plugins-per-tone-type.md
+
+## 1. Only the service holds the device port
+
+**Purpose.** The plugins open no MIDI port, and `integral-app` holds none. The
+Device service is the only process on the device port.
+
+**Setup.** Device service running (`just bridge`). Live open, with one plugin
+editor open on a track.
+
+1. In a terminal, run `pgrep -fl 'integral.* bridge'`.
+2. In Live, open Preferences > Link, Tempo & MIDI. Turn off Track and Remote for
+   the INTEGRA-7 port. Then play a note through a plugin track.
+
+**Expected.**
+
+- Step 1 prints exactly one line, the service.
+- Step 2: the plugin track still sounds Part N, with Live's device port off.
+
+**Open.** `just bridge` runs through cargo and a recipe shell, and both match the
+pattern too. If `pgrep` prints more than one line, stop the service, run
+`cargo build -p integral-cli`, start `target/debug/integral bridge` directly (the
+binary is named `integral`, per [integral-cli Cargo.toml](../../crates/integral-cli/Cargo.toml)),
+and check again. The README expects one line; this workaround is not yet tested.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 2. Live lists all six plugins, each loads
+
+**Purpose.** One bundle exports six classes. Live lists each one and loads it.
+Source: [PR #482] (listing and loading all six). Class names are from
+[host_params.rs](../../crates/integral-core/src/host_params.rs).
+
+**Setup.** Bundle installed, plug-ins rescanned.
+
+1. Find these six entries: `Integral Studio Set`, `Integral SN Synth`,
+   `Integral SN Acoustic`, `Integral PCM Synth`, `Integral SN Drum`,
+   `Integral PCM Drum`.
+2. Drag each onto a new track. Open each editor.
+3. Close the editors. Delete the plugins.
+
+**Expected.** All six appear, each loads with no error, and each editor opens.
+Live files all six as audio effects: each class declares the `Fx` and `Tools`
+categories ([family/mod.rs](../../crates/integral-vst/src/family/mod.rs), lines
+235-236). Record the category Live shows.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 3. Configure mode and Push
+
+**Purpose.** Live shows only a bounded set of parameters until you pick them in
+Configure mode. The panel and Push need the same step.
+Sources: [#463], [#345], and the
+[Live parameter notes](../research/host-parameter-limits.md#many-parameters).
+
+**Setup.** A Tone plugin (PCM Synth) on a track, bound to a Part that holds a PCM
+Synth tone. Device service running. Push connected. If Push is not available,
+mark its steps Blocked and run the panel steps.
+
+1. Select the track and open the plugin's device view in Live.
+2. Look at the device view and at Push. Count the parameters each shows.
+3. Turn on Configure. Choose three or four parameters.
+4. Look at the device view and Push again.
+5. Read the plugin's editor. Look for how to add parameters.
+
+**Expected.**
+
+- Step 2: an empty device panel, because every class has more than 64 parameters
+  and a larger list opens empty until Configure
+  ([Live parameter notes](../research/host-parameter-limits.md#many-parameters)).
+  Push shows none.
+- Step 4: the chosen parameters appear in the device view and on Push.
+- Step 5: the page explains how to add them.
+
+**Open.** Step 5: no "Configure" text exists in `web/` or `crates/` yet. Record
+what the page shows. [#345] recorded 64 sliders before Configure, not an empty
+panel, so record the count you see. Also record whether Live's `Options.txt`
+sets `-_PluginAutoPopulateThreshold`: the research note reports, from users, that
+it fills Configure up to 128.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 4. Placement
+
+**Purpose.** The Tone plugin follows External Instrument on the Part's track, and
+the instrument sends notes to the service's note port. The Studio Set plugin
+sits on the master track. A key-bound Kit plugin sits in a Drum Rack pad chain.
+Source: [ADR 0007] (Placement); [PR #476] (the "Integral Device Service"
+placement, not checked there).
+
+```mermaid
+flowchart LR
+  subgraph T["MIDI track: Part N"]
+    EI["External Instrument<br/>MIDI To: Integral Device Service"] --> TP["Integral PCM Synth<br/>Tone plugin, pass-through"]
+  end
+  EI -->|"notes, Part N's channel"| NP["Device service note port"]
+  NP --> SVC["Device service"]
+  SVC --> DEV["INTEGRA-7"]
+  MT["Master track: Integral Studio Set"] -.->|"client"| SVC
+  DR["Drum Rack pad chain: Integral PCM Drum<br/>bound to one key"] -.->|"client"| SVC
+```
+
+**Setup.** Device service running. Device on. Studio Set plugin shows Part N's
+receive channel.
+
+1. Create a MIDI track named for Part N. Insert External Instrument.
+2. In External Instrument, set MIDI To to `Integral Device Service`. Set the
+   channel to Part N's receive channel.
+3. Insert Integral PCM Synth after External Instrument.
+4. On the master track, insert Integral Studio Set. Change Part N's level in it.
+5. Create a Drum Rack. Put Integral PCM Drum in one pad chain. In the plugin,
+   bind it to one key.
+6. Play a note on Part N's track.
+7. Turn the device off with the service running. Watch the MIDI To list.
+8. Stop the Device service. Watch the MIDI To list.
+
+**Expected.**
+
+- Step 6: the note sounds on Part N's tone. The Tone plugin passes audio through
+  unchanged.
+- Step 4: Part N's level on the device moves with the Studio Set plugin.
+- Step 5: triggering that pad sounds only the bound key.
+- Step 7: `Integral Device Service` stays in the list. The note port belongs to
+  the service process, not to the device
+  ([runtime.rs](../../crates/integral-device-service/src/runtime.rs), lines
+  104-113).
+- Step 8: the port leaves the list once the service process stops.
+
+**Open.** Step 5: the spec does not say which pad note maps to the bound key. Record
+the mapping you used. Step 8: [CONTEXT.md](../../CONTEXT.md) says the port is
+"present only while the link is up", but the code ties the note port to the
+process. Record what Live shows, and whether a rescan changes it.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 5. Track input
+
+**Purpose.** A track whose input is All Ins also hears the INTEGRA-7's own port.
+That lets device SysEx reach the note port. Use the computer keyboard or a
+controller, never All Ins or the device's own port.
+Sources: [#463], [#345] (2026-11-07: drags record only when the input is not All Ins).
+
+**Setup.** The track from check 4.
+
+1. Open the track's In menu. Choose the computer keyboard. The spec calls it
+   Computer Keyboard; if Live labels it another way, pick the computer keyboard
+   entry.
+2. Arm the track. Play a note.
+3. Open the In menu again. Confirm All Ins and the INTEGRA-7's own port are not
+   selected.
+
+**Expected.** Notes from the computer keyboard reach Part N. The track's In is the
+computer keyboard or a controller, never All Ins or the device's own port.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 6. SysEx echo into the note port (reproduction)
+
+**Purpose.** Reproduce the echo. When a monitored track with All Ins hears device
+SysEx, the note port must drop it, so no SysEx reaches the device.
+Sources: [#443] (row 11, Live-only reproduction; row 4, the unit test of the drop
+rule), [ADR 0006] (notes never go inside SysEx).
+
+**Setup.** Track In set to All Ins, track armed, Monitor set to In. Device on.
+
+1. Set the track In to All Ins. Arm the track. Monitor In.
+2. Stop the Device service with Ctrl+C, then start it again with `just bridge`.
+   On link open, the service asks for the device ID with an Identity Request
+   when the link has not learned it ([service.rs](../../crates/integral-device-service/src/service.rs),
+   line 381). RTP and USB links also probe with Identity Requests
+   ([probe.rs](../../crates/integral-device-service/src/probe.rs)). Wireless sends
+   the request only without `--device-id`. The device's Identity Reply then
+   arrives on the device port.
+3. Watch the track's meter, and the device.
+4. Set the track In to the computer keyboard. Repeat step 2.
+
+**Expected.**
+
+- Step 3: whatever reaches the note port, it must not reach the device. The
+  device stays responsive, and the service stays up.
+- Step 4: no SysEx reaches the note port.
+
+**Open.** The path from the device port into the track is not confirmed. This
+check is a reproduction, so a result that shows the echo is a finding to file,
+not a blocked check. Record the meter and the device's behaviour.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 7. Save and reopen keeps the Binding
+
+**Purpose.** The Binding is saved with the project. It is a Part, or a Part and a
+key. Reopening the set restores it.
+Sources: [PR #482] (save and reopen), [ADR 0007] (Binding is explicit and saved),
+[ADR 0008] (IDs relative to the Binding).
+
+**Setup.** A Tone plugin bound to Part N. A key-bound Kit plugin in a pad chain,
+bound to key K (for the key variant).
+
+1. Note the Binding each plugin shows: Part N, and key K for the Kit plugin.
+2. Save the set. Quit Live. Reopen the set.
+3. Open each plugin's editor. Read its Binding.
+
+**Expected.** After reopening, each plugin shows the same Part, and the same key
+where one was bound. Recall of device state is check 14, not this one.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 8. Tone-type mismatch
+
+**Purpose.** When the bound Part holds another tone type, the plugin shows the
+mismatch and stays inert. Its automation lanes stay, and resume when the type
+matches.
+Sources: [#455] (item 1), [ADR 0007] (Type mismatch).
+
+**Setup.** A Tone plugin (PCM Synth) bound to Part N, which holds a PCM Synth tone.
+An automation lane on a Tone parameter, as in check 11. Playback running.
+
+1. Play. Confirm Part N moves with the lane.
+2. On the device (web app or front panel), change Part N to an SN Synth tone.
+3. Look at the plugin. Do not accept its offer to load a default tone.
+4. Play the lane again. Watch the device.
+5. On the device, change Part N back to a PCM Synth tone.
+6. Play the lane again.
+
+**Expected.**
+
+- Step 3: the plugin shows the notice "The bound Part holds another tone type"
+  and stays inert ([notice.rs](../../crates/integral-vst/src/family/notice.rs),
+  lines 33-34).
+- Step 4: the lane writes nothing. Part N's SN Synth tone is unchanged.
+- Step 6: the plugin resumes, and the lane moves Part N again.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 9. Kit-bound and key-bound Kit plugins
+
+**Purpose.** A kit-bound Kit plugin leaves its key parameters inert. A key-bound
+one leaves the kit-wide parameters inert.
+Source: [#455] (item 2), [ADR 0007].
+
+**Setup.** Track A: Integral PCM Drum bound to the whole kit. Track B: Integral
+PCM Drum in a pad chain, bound to key K. Configure both so the parameters show.
+
+1. On track A, move a kit-wide parameter (a kit MFX parameter, for example). Watch
+   the device.
+2. On track A, move a key parameter. Watch the device.
+3. On track B, move a kit-wide parameter. Watch the device.
+4. On track B, move a key parameter. Watch the device.
+
+**Expected.**
+
+- Steps 1 and 4: the device changes.
+- Steps 2 and 3: the device does not change (inert).
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 10. Duplicate Bindings
+
+**Purpose.** Two instances bound to the same Part both work, and each warns.
+Sources: [#455] (item 3), [ADR 0006] (duplicates work with a warning).
+
+**Setup.** Two tracks. Each has External Instrument into a Tone plugin bound to
+Part N.
+
+1. Open both editors. Read each plugin's notice.
+2. Change `Tone Level` on the first plugin. Watch the device.
+3. Change `Tone Level` on the second plugin. Watch the device.
+
+**Expected.**
+
+- Step 1: each plugin shows the notice "Another instance is bound to this target"
+  ([notice.rs](../../crates/integral-vst/src/family/notice.rs), line 34).
+- Steps 2 and 3: the device changes each time.
+
+**Open.** Which write wins when both change: [ADR 0006] says writes are
+last-writer-wins. Record which one you saw last.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 11. Automation of a Tone parameter moves the bound Part
+
+**Purpose.** Automation writes to the bound Part. When the Binding changes, the
+automation follows it.
+Sources: [PR #487] (not checked: automation of Partial 1 cutoff against Live),
+[ADR 0008] (IDs are relative to the Binding).
+
+**Name.** The PR text says "Partial 1 Cutoff Freq". The host name in code is
+`Partial 1 TVF Cutoff Frequency`
+([field_spec.rs](../../crates/integral-core/src/field_spec.rs), where index 1
+gives "Partial 2 TVF Cutoff Frequency"). Use the code name.
+
+**Setup.** A Tone plugin (PCM Synth) bound to Part A. Configure shows `Partial 1
+TVF Cutoff Frequency` (check 3). Part B exists on the device.
+
+1. Draw an automation lane for `Partial 1 TVF Cutoff Frequency`.
+2. Play. Watch Part A's Partial 1 cutoff on the device.
+3. Change the plugin's Binding to Part B.
+4. Play again. Watch Parts A and B on the device.
+
+**Expected.**
+
+- Step 2: Part A's Partial 1 cutoff follows the lane. No other Part changes.
+- Step 4: Part B follows the lane. Part A stays where it was left.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 12. UI drag recorded as automation, Session and Arrangement
+
+**Purpose.** A drag in the plugin's editor records as an automation lane in both
+Session and Arrangement view.
+Sources: [#463], [#443] (row 12), [PR #488] (not checked: recording a lane by
+dragging in Live), [#345] (2026-11-07 run, Live 12.4.16: drags recorded in both
+views with the input not All Ins).
+
+**Setup.** Tone plugin (PCM Synth) on a MIDI track. Track In set per check 5.
+Editor open. Automation Arm on. Use `Partial 1 TVF Cutoff Frequency` from check 11.
+
+*Session view*
+
+1. Create a MIDI clip in a slot on the track. Loop it.
+2. Arm the track. Start the clip. Turn on Session Record.
+3. Drag the plugin's slider from low to high, then back. Release each time.
+4. Stop. Look at the clip's envelope.
+
+*Arrangement view*
+
+5. Stop the clip. Turn on Arrangement Record. Play from the start.
+6. Drag the same slider. Stop.
+7. Look at the track's automation lane.
+8. Play back. Watch the editor's slider and the device.
+
+**Expected.** Each view gives an envelope for that parameter, with points where you
+dragged. No other parameter gets an envelope. Playback moves the slider and the
+device's value.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 13. Web-app edit with the editor closed recorded as a lane
+
+**Purpose.** A change made elsewhere reaches Live as an automation lane even with
+the plugin's editor closed. The nih-plug patch is for this case: without it, a
+plugin with its editor closed cannot show Live a change that came from another
+client
+([PATCHES.md](../../crates/patches/PATCHES.md), lines 19-26).
+Sources: [PR #487] (not checked: "a web-UI edit recorded as a lane"), [#454]
+(the patch).
+
+**Note.** Automation playback alone does not need the patch. Check 11 covers it.
+
+**Setup.** A Tone plugin on a track, bound to Part N. Automation Arm on. Editor
+closed. The web app open and connected to the device through the service.
+
+1. Start Live's Session Record, with the track armed.
+2. While it records, change `Tone Level` in the web app. The change reaches the
+   device through the service.
+3. Stop. Look at the track.
+4. Play the lane. Watch Part N on the device.
+
+**Expected.**
+
+- Step 3: an automation lane for `Tone Level`, holding the web-app change.
+- Step 4: the lane moves Part N on the device.
+
+**Open.** The PR text does not spell out the exact form of the lane (its points,
+or whether it joins an existing lane). Record what you see.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 14. Recall smoke test
+
+**Purpose.** Reopening a project pushes the project's saved state to the device.
+The device's own edit made outside Live is lost, not merged. The device does not
+win.
+Sources: [#463], [ADR 0009], [#458] (status texts and acceptance), [#345]
+(2026-11-07 run: Level came back, Pan did not, because the no-op filter dropped
+Pan).
+
+**Setup.** Device service running. A project with a Tone plugin on Part N (note
+which tone it is), with its `Tone Level` and `Tone Pan` moved off their defaults.
+Studio Set plugin on the master track with Part N's level moved.
+
+1. Save the set.
+2. Change the device, not through Live: change Part N's tone, `Tone Level` and
+   `Tone Pan`, on the device or in the web app.
+3. Quit Live. Reopen the set.
+4. Watch the Tone plugin's status and notices.
+5. Read Part N on the device: tone, `Tone Level`, `Tone Pan`. Read Part N's level
+   in the Studio Set plugin (the name is `Part N Level` as the code builds it;
+   confirm the exact name in Live).
+6. Play a note on Part N while "Recalling…" is showing.
+7. Drop a fresh Integral PCM Synth onto an empty track. It claims a free Part
+   itself, preferring one that holds a PCM Synth tone
+   ([integral-vst src README](../../crates/integral-vst/src/README.md), lines
+   51-58). Note which Part it claimed (M). Read Part M on the device before and
+   after.
+
+**Expected.**
+
+- Step 4: "Recalling…" is a notice beside the status while the push is queued and
+  sent ([notice.rs](../../crates/integral-vst/src/family/notice.rs), line 32). It
+  can show together with "Device offline", which the plugin reports while it
+  waits for a session. When the push is out, the notice clears and the status
+  reads Connected.
+- Step 5: Part N shows the project's tone, `Tone Level` and `Tone Pan`. The
+  device's edit from step 2 is gone.
+- Step 6: the note sounds. Recall does not gate notes.
+- Step 7: Part M does not change. A fresh instance adopts the device and sends
+  nothing (ADR 0009).
+
+**Known failure.** In the 2026-11-07 run, Pan did not come back. The fix must
+make both `Tone Level` and `Tone Pan` pass.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 15. PCM Synth performance
+
+**Purpose.** A PCM Synth plugin with its full host list opens, saves, reopens and
+automates without stalls. It declares 1,524 parameters (every MFX type's slots
+included), as `just plugin-test load` reported in [PR #482]; [#463]'s "about
+1,430" predates the tempo-sync slots. Confirm the count from the `load` report
+and record it below.
+Sources: [#463], [load.rs] (times load, save and reopen against this list).
+
+**Setup.** Stop the Device service. Run `just plugin-test load`, then start the
+service for Live.
+
+1. Stop the service. Run `just plugin-test load`. Record the count and the load,
+   save and reopen times for `Integral PCM Synth`.
+2. Start the service. In Live, add one PCM Synth Tone plugin bound to Part N.
+   Open its editor. Note how long it takes to open.
+3. Turn on Configure. Add ten parameters. Draw a lane on each.
+4. Play. Note any dropouts, and whether the UI stops responding.
+5. Save. Quit Live. Reopen. Open the editor. Play the lanes.
+
+**Expected.** Nothing stalls at any step: the editor opens, the save and reopen
+finish, and the lanes play without the UI freezing.
+
+**Open.** The spec gives no time limit for a stall. Record the timings; set the
+threshold separately.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 16. Active Sensing during an Expansion load (hardware)
+
+**Purpose.** The INTEGRA-7 sends Active Sensing about every 250 ms
+([01-protocol](../midi/01-protocol.md)). Does it keep sending during an Expansion
+load, and what does the service do when the link goes quiet?
+
+The service defers Down only for loads it started itself
+([service.rs](../../crates/integral-device-service/src/service.rs), line 390). A
+load started from the front panel is not covered. [PR #476] says "Down is
+deferred during loads either way", which the code does not show. That gap is the
+open hardware question.
+
+The probe logic counts any device message, Active Sensing included, as life. It
+probes after one second of silence and marks the link Down after three
+unanswered probes ([probe.rs](../../crates/integral-device-service/src/probe.rs),
+lines 24-30). Only RTP and USB links probe; the Wireless link does not.
+
+Sources: [PR #476] (merge danger; a link Down during an Expansion load is
+deferred).
+
+**Part A: no service, so no probes.**
+
+*Setup.* Live closed. Device service stopped. Wireless has no device port while
+the service is stopped, since the service creates the `INTEGRA-7 (Wireless)`
+port, so use USB (port `INTEGRA-7`) or an RTP-MIDI session.
+
+1. Run `just monitor --port INTEGRA-7` (USB) or `just monitor --port "<RTP session name>"`.
+2. Watch the Active Sensing messages (status byte FE). Note the interval.
+3. Start an Expansion load on the device from its own controls.
+4. Watch through the load and after it ends. Note the longest gap.
+
+*Expected.* Before the load, Active Sensing about every 250 ms.
+
+*Open.* During the load: record whether FE continues, and the longest gap.
+
+**Part B: service running, so probes run (RTP or USB only).**
+
+*Setup.* `just bridge --link rtp --port <name>` or USB. A plugin editor open in
+Live, so the status shows.
+
+1. Start a front-panel Expansion load.
+2. Watch the plugin status and the service output for a link Down.
+
+*Expected.* Nothing is reported Down during the load.
+
+*Open.* This is the case the code may not cover (see above). Record whether
+"Device offline" appears, and when.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+## 17. Plug-in test host drag against the #444 spike (not Live)
+
+**Purpose.** The `drag` scenario sends real mouse events to the plugin window. The
+gesture log should show begin, values and end for the parameter it drags. It needs
+no Live, but [PR #477] deferred it to this runbook.
+Sources: [PR #477] (the restore command), [justfile](../../justfile) (`plugin-test`,
+`drag` needs `--class`), [plugin-test-host research](../research/plugin-test-host.md)
+(TCC grants), [#444] (the spike).
+
+**Setup.**
+
+- Stop the Device service.
+- Grant Accessibility and Screen Recording to the terminal that runs the command.
+  The grant goes to the process that posts events, not to the host.
+- Run at the desk, with the display unlocked. [PR #477] advises against screen
+  sharing.
+
+**Scratch change.** Run the spike restore in a change you will abandon.
+
+1. `jj new`
+2. `jj restore --from 803883fdeb7f crates/integral-vst/src/lib.rs crates/integral-vst/src/webview/editor.rs`
+3. `just plugin-test drag --class "Integral Studio Set"`. The default `--param` is
+   `Level`, and `--control` defaults to the parameter name, so neither flag is
+   needed.
+4. Read the JSON lines on stdout: the gesture log.
+5. `jj abandon`. Then `jj st` must be clean.
+
+**On main (no restore), untested.** `just plugin-test drag --class "Integral Studio
+Set" --param "Part 1 Level"`. No class on main has a parameter named exactly
+`Level`, so the default fails there. The exact host name of Part 1's level is not
+confirmed in code: read it from the `just plugin-test load` output first.
+
+**Expected.** The gesture log shows begin, one or more values, and end, all for
+the dragged parameter, and the gestures balance.
+
+**Open.** [PR #477] shows no `--class`; the justfile says `drag` needs one. The class
+above is the example from the justfile. Confirm the spike's class name from the
+`load` output.
+
+| Date | Live version | Result | Notes |
+|---|---|---|---|
+|  |  |  |  |
+
+[#345]: https://github.com/sigma/integral/issues/345
+[#443]: https://github.com/sigma/integral/issues/443
+[#444]: https://github.com/sigma/integral/issues/444
+[#446]: https://github.com/sigma/integral/issues/446
+[#447]: https://github.com/sigma/integral/issues/447
+[#454]: https://github.com/sigma/integral/issues/454
+[#455]: https://github.com/sigma/integral/issues/455
+[#458]: https://github.com/sigma/integral/issues/458
+[#463]: https://github.com/sigma/integral/issues/463
+[PR #476]: https://github.com/sigma/integral/pull/476
+[PR #477]: https://github.com/sigma/integral/pull/477
+[PR #482]: https://github.com/sigma/integral/pull/482
+[PR #485]: https://github.com/sigma/integral/pull/485
+[PR #487]: https://github.com/sigma/integral/pull/487
+[PR #488]: https://github.com/sigma/integral/pull/488
+[ADR 0006]: ../adr/0006-device-service-owns-the-link.md
+[ADR 0007]: ../adr/0007-plugins-per-tone-type.md
+[ADR 0008]: ../adr/0008-host-parameter-ids-from-device-addresses.md
+[ADR 0009]: ../adr/0009-recall-pushes-the-project-state.md
+[load.rs]: ../../crates/integral-plugin-host/src/load.rs
