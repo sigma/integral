@@ -47,7 +47,7 @@ use crate::state::{EqState, FxState, MixerState, SurroundPartState};
 use crate::sysex;
 
 /// Minimum interval between SysEx sends (ms).
-const THROTTLE_MS: f64 = 40.0;
+pub const THROTTLE_MS: f64 = 40.0;
 
 /// Duration to suppress incoming DT1 echoes after a local send (ms).
 const ECHO_SUPPRESS_MS: f64 = 150.0;
@@ -344,6 +344,11 @@ impl DeviceState {
         }
     }
 
+    /// The SysEx device ID this state addresses.
+    pub fn device_id(&self) -> u8 {
+        self.device_id
+    }
+
     /// Read-only access to the current mixer state.
     pub fn state(&self) -> &MixerState {
         &self.state
@@ -553,6 +558,27 @@ impl DeviceState {
         });
     }
 
+    /// Queue a raw SysEx message to go out before everything already queued.
+    /// It is still paced: it leaves when the throttle allows, and its send
+    /// time counts for the next message. For a message that must precede the
+    /// queue, such as an Identity Request that settles the device ID.
+    pub fn send_raw_first(&mut self, key: &str, bytes: Vec<u8>) {
+        debug_assert!(
+            bytes.len() <= sysex::MAX_MESSAGE_LEN,
+            "raw message of {} bytes exceeds the packet limit",
+            bytes.len()
+        );
+        self.queue.insert(
+            0,
+            QueuedMessage {
+                key: key.to_string(),
+                bytes,
+                tracked: false,
+                span: None,
+            },
+        );
+    }
+
     /// Drain the next outbound message if the throttle window has elapsed.
     ///
     /// `now_ms` is a monotonic timestamp in milliseconds. Before draining,
@@ -581,6 +607,35 @@ impl DeviceState {
         }
 
         Some(msg.bytes)
+    }
+
+    /// The monotonic time (ms, the clock of `drain`) the state next has work
+    /// without further input, or `None` if it has none. A time at or before
+    /// `now_ms` means work is due: call [`drain`](Self::drain) and
+    /// [`next_load_action`](Self::next_load_action).
+    ///
+    /// - During an Expansion load (which holds the queue): the load's next
+    ///   poll or timeout, no earlier than the throttle allows a send; at
+    ///   once if the load is over.
+    /// - Otherwise: when the throttle lets the next queued message go, and
+    ///   when the earliest unanswered tracked read is sent again.
+    pub fn next_deadline(&self) -> Option<f64> {
+        let throttle = self.last_send_time + THROTTLE_MS;
+        if let Some(load) = &self.load {
+            // A finished load only needs collecting; a step to send waits
+            // for the throttle.
+            return Some(if load.outcome().is_some() {
+                f64::NEG_INFINITY
+            } else {
+                load.next_deadline().max(throttle)
+            });
+        }
+        let send = (!self.queue.is_empty()).then_some(throttle);
+        let retry = self.requests.next_expiry(REPLY_TIMEOUT_MS);
+        match (send, retry) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        }
     }
 
     /// Returns `true` if there are queued messages waiting to be sent.
@@ -3109,5 +3164,73 @@ mod tests {
         assert!(serve(&mut dev, &memory, 1_000.0).contains(&name));
         assert_eq!(dev.state().parts[0].tone_name, "User Bass");
         assert!(!dev.mixer_loading(), "a tone read alone isn't a mixer load");
+    }
+
+    #[test]
+    fn next_deadline_follows_the_throttle() {
+        let mut dev = DeviceState::new(0x10);
+        assert_eq!(dev.next_deadline(), None);
+        dev.set_part_level(0, 100);
+        dev.set_part_level(1, 100);
+        assert!(dev.next_deadline().unwrap() <= 0.0, "the first send is due");
+        assert!(dev.drain(10.0).is_some());
+        assert_eq!(dev.next_deadline(), Some(10.0 + THROTTLE_MS));
+        assert!(dev.drain(10.0 + THROTTLE_MS).is_some());
+        assert_eq!(dev.next_deadline(), None);
+    }
+
+    #[test]
+    fn next_deadline_covers_a_lost_sns_reply() {
+        let mut dev = loading_sns(3);
+        drain_until(&mut dev, 0.0, 200.0);
+        // All requests are out; the first expires REPLY_TIMEOUT_MS after it left.
+        let due = dev.next_deadline().unwrap();
+        assert_eq!(due, REPLY_TIMEOUT_MS);
+        assert!(!dev.has_pending());
+        // Driving only to the deadline sends the first request again.
+        let resent = dev.drain(due).expect("the expired read is sent again");
+        assert_eq!(resent[..7], [0xF0, 0x41, 0x10, 0x00, 0x00, 0x64, 0x11]);
+    }
+
+    #[test]
+    fn next_deadline_drives_an_expansion_load() {
+        let mut dev = DeviceState::new(0x10);
+        let current = ExpansionSlots::from_values(&[0x03, 0x05, 0x07, 0x08]).unwrap();
+        dev.set_expansion_slots(current);
+        dev.start_expansion_load(current.with(0, None)).unwrap();
+        assert!(dev.next_deadline().unwrap() <= 0.0, "the request is due");
+        assert!(matches!(
+            dev.next_load_action(0.0),
+            Some(LoadAction::Send(_))
+        ));
+        // Awaiting the ack: next is the timeout.
+        let timeout = dev.next_deadline().unwrap();
+        assert!(timeout > 1_000.0);
+        let started = Address::new(0x0F, 0x00, 0x30, 0x01);
+        assert!(dev.handle_expansion_dt1(&started, &[0; 4], 100.0));
+        // Polling: the next poll comes before the timeout.
+        assert!(dev.next_deadline().unwrap() < timeout);
+        let at = dev.next_deadline().unwrap();
+        assert!(matches!(
+            dev.next_load_action(at),
+            Some(LoadAction::Poll(_))
+        ));
+        // The timeout ends the load and releases the queue.
+        let end = dev.next_deadline().unwrap();
+        assert!(matches!(
+            dev.next_load_action(end + 100_000.0),
+            Some(LoadAction::Done(LoadOutcome::TimedOut))
+        ));
+        assert_eq!(dev.next_deadline(), None);
+    }
+
+    #[test]
+    fn send_raw_first_goes_out_first_and_is_paced() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_part_level(0, 100);
+        dev.send_raw_first("first", vec![0xF0, 0x7E, 0xF7]);
+        assert_eq!(dev.drain(0.0), Some(vec![0xF0, 0x7E, 0xF7]));
+        assert_eq!(dev.drain(THROTTLE_MS - 1.0), None, "its send time counts");
+        assert!(dev.drain(THROTTLE_MS).is_some());
     }
 }

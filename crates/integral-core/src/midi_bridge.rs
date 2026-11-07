@@ -85,6 +85,15 @@ impl RequestTracker {
         expired
     }
 
+    /// When the earliest pending request expires under `timeout_ms`, or
+    /// `None` if none is pending.
+    pub fn next_expiry(&self, timeout_ms: f64) -> Option<f64> {
+        self.pending
+            .values()
+            .map(|req| req.sent_at + timeout_ms)
+            .min_by(f64::total_cmp)
+    }
+
     /// Returns `true` if there are any pending requests.
     pub fn has_pending(&self) -> bool {
         !self.pending.is_empty()

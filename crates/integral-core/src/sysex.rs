@@ -49,6 +49,10 @@ pub const CMD_RQ1: u8 = 0x11;
 // Identity
 // ---------------------------------------------------------------------------
 
+/// The SysEx device ID an INTEGRA-7 has until told otherwise. A device
+/// states its own in its Identity Reply, which callers should prefer.
+pub const DEFAULT_DEVICE_ID: u8 = 0x10;
+
 /// Build a Universal Non-realtime Identity Request message.
 ///
 /// ```text

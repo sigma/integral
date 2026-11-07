@@ -215,6 +215,20 @@ impl LoadMachine {
         }
     }
 
+    /// The monotonic time the machine next has something to do without
+    /// further DT1s: `f64::NEG_INFINITY` if that is now (a step to send, or
+    /// the load is over), else the next poll or the timeout. A step to send
+    /// still waits for the SysEx throttle, which the machine does not know.
+    pub fn next_deadline(&self) -> f64 {
+        match self.phase {
+            Phase::Pending | Phase::Done(_) => f64::NEG_INFINITY,
+            Phase::AwaitingAck => self.last_answer + TIMEOUT_MS,
+            Phase::Polling { last_poll } => {
+                (last_poll + POLL_INTERVAL_MS).min(self.last_answer + TIMEOUT_MS)
+            }
+        }
+    }
+
     /// Feed an incoming DT1. Returns `true` if it belonged to the load.
     ///
     /// Slot reads answered before the "started" ack are stale and consumed
