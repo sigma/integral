@@ -98,8 +98,10 @@ Device link and transports (`.ts`):
     reason it sent, else `SERVICE_UNAVAILABLE_HINT`.
   - The IPC wire format: `encodePageMessage`, `decodePluginMessage`,
     `PLUGIN_EVENT`, and the wire types `PageMessage` and `PluginMessage`.
-  - The instance: `InstanceInfo` (the plugin kind, Binding, status and
-    notices the plugin reports), `subscribeInstance` and `bindInstance`.
+  - The instance: `InstanceInfo` (the plugin kind, Binding, status, notices
+    and default tone the plugin reports), `subscribeInstance`, `bindInstance`
+    and `loadDefaultTone`. `ToneMismatch` replaces the tone editor, with the
+    button, while the plugin reports the `TYPE_MISMATCH_NOTICE`.
     `usePluginInstance` is the hook.
   - `OPEN_TIMEOUT_MS` (2000) and `ScreenArea`.
   - Window sizing: `pluginGrid`, `pluginWindowSize`, `resizePluginWindow`.

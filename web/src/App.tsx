@@ -31,9 +31,10 @@ import {
 } from "./DeviceStatus";
 import { TopBar } from "./TopBar";
 import { PluginBar } from "./PluginBar";
+import { ToneMismatch } from "./ToneMismatch";
 import { usePluginInstance } from "./usePluginInstance";
 import { useHostGestures } from "./hostGestures";
-import type { PluginBridge } from "./plugin";
+import { TYPE_MISMATCH_NOTICE, type PluginBridge } from "./plugin";
 import { pluginDrumScope, pluginPages, pluginToneType, type PageTab } from "./pluginPages";
 import { MixerPage } from "./MixerPage";
 import { SurroundPage } from "./SurroundPage";
@@ -369,9 +370,16 @@ export function App({
 
   // The plugin's Binding, and what its editor edits within it.
   const pluginBinding = instance.info?.binding ?? null;
+  // The Part holds another tone type, as the plugin reports it.
+  const mismatch = instance.info?.notices.find((notice) => notice.notice === TYPE_MISMATCH_NOTICE);
   const pluginBar =
     plugin && instance.info && pluginKind !== undefined ? (
-      <PluginBar kind={pluginKind} info={instance.info} refusal={instance.refusal} onBind={instance.bind} />
+      <PluginBar
+        kind={pluginKind}
+        info={instance.info}
+        refusal={instance.refusal}
+        onBind={instance.bind}
+      />
     ) : plugin && wasmReady && instance.info ? (
       // The plugin is newer than this page, which cannot show it.
       <div className={css.unbound} role="alert">
@@ -438,6 +446,14 @@ export function App({
                 {plugin && pluginKind !== undefined ? (
                   pluginBinding?.part === undefined ? (
                     <div className={css.unbound}>Choose a Part above to edit its tone.</div>
+                  ) : mismatch ? (
+                    // The plugin is inert: its own report is the one source.
+                    <ToneMismatch
+                      text={mismatch.text}
+                      defaultTone={instance.info?.defaultTone ?? null}
+                      pending={instance.info?.defaultTonePending ?? false}
+                      onLoad={instance.loadDefaultTone}
+                    />
                   ) : (
                     <ToneEditorPage
                       mixer={mixer}

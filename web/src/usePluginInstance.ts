@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   bindInstance,
+  loadDefaultTone,
   subscribeInstance,
   subscribeRefusals,
   type InstanceInfo,
@@ -16,6 +17,8 @@ export interface PluginInstance {
   refusal: string | null;
   /** Bind the instance; the plugin answers with the new `info`, or an error. */
   bind: (binding: PluginBinding) => void;
+  /** Load the plugin's default tone onto the bound Part, which holds another tone type. */
+  loadDefaultTone: () => void;
 }
 
 /**
@@ -44,5 +47,8 @@ export function usePluginInstance(bridge: PluginBridge | null): PluginInstance {
     },
     [bridge],
   );
-  return { info, refusal, bind };
+  const loadDefault = useCallback(() => {
+    if (bridge) loadDefaultTone(bridge);
+  }, [bridge]);
+  return { info, refusal, bind, loadDefaultTone: loadDefault };
 }

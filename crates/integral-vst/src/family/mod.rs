@@ -39,7 +39,7 @@ use std::sync::Arc;
 use nih_plug::prelude::*;
 
 pub use host::HostTask;
-pub use instance::Instance;
+pub use instance::{DefaultToneRefused, Instance, ToneFit};
 pub use kind::{Kind, PcmDrum, PcmSynth, SnAcoustic, SnDrum, SnSynth, StudioSet};
 pub use notice::Notice;
 pub use status::Status;

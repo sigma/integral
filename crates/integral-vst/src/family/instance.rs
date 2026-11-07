@@ -4,16 +4,19 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 
+use integral_core::factory_catalog::FactoryTone;
 use integral_core::host_params::{Binding, PluginKind};
+use integral_core::params::tone_type_from_bank_msb;
+use integral_core::tone_banks::default_tone;
 use integral_device_service::protocol::{Bound, ClientId};
 use thiserror::Error;
 
 use super::bank::ParamBank;
 use super::binding::BindingCell;
 use super::host::{self, HostTask};
-use super::notice::NoticeCell;
+use super::notice::{Notice, NoticeCell};
 use super::status::StatusCell;
 
 /// A Binding the plugin cannot have.
@@ -22,6 +25,69 @@ use super::status::StatusCell;
 pub struct BindRefused {
     kind: PluginKind,
     binding: Binding,
+}
+
+/// No request for the default tone.
+const DEFAULT_TONE_IDLE: u8 = 0;
+/// The editor asked; the worker has not taken the request.
+const DEFAULT_TONE_REQUESTED: u8 = 1;
+/// The worker selected the tone and waits for the Part to hold it.
+const DEFAULT_TONE_SENT: u8 = 2;
+
+/// Why a request to load the plugin's default tone was refused.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum DefaultToneRefused {
+    /// The instance is not bound to a Part.
+    #[error("the instance is not bound to a Part")]
+    Unbound,
+    /// The Part holds a tone of the plugin's type, or the instance has not
+    /// found what it holds: there is no mismatch to repair.
+    #[error("the Part is not known to hold another tone type")]
+    NoMismatch,
+    /// The default tone was asked for already and is being loaded.
+    #[error("the default tone is being loaded")]
+    Pending,
+}
+
+/// Whether the Part an instance is bound to holds a tone of the plugin's
+/// type (ADR 0007). Anything but [`Fits`](Self::Fits) leaves the instance
+/// inert: it writes nothing and takes no change from the device.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ToneFit {
+    /// Not known: the instance has not asked the device yet, or the Part's
+    /// tone may have just changed (a bulk event, a new connection or a new
+    /// Binding). The instance waits for the answer. Where every Tone and Kit
+    /// plugin starts.
+    Unknown = 0,
+    /// The Part holds a tone of the plugin's type (always, for the Studio Set
+    /// plugin, which acts on any).
+    Fits = 1,
+    /// The Part holds another type: [`Notice::TypeMismatch`] is reported and
+    /// the instance stays inert until the Part holds the plugin's type
+    /// again. Its automation lanes stay.
+    Mismatch = 2,
+}
+
+impl ToneFit {
+    /// The fit of a plugin of `kind` on a Part whose tone is selected with
+    /// Bank Select MSB `msb`. A bank that is no tone bank at all is another
+    /// type.
+    pub fn of(kind: PluginKind, msb: u8) -> Self {
+        match kind.tone_type() {
+            None => Self::Fits,
+            Some(wanted) if tone_type_from_bank_msb(msb) == Some(wanted) => Self::Fits,
+            Some(_) => Self::Mismatch,
+        }
+    }
+
+    fn from_u8(value: u8) -> Self {
+        match value {
+            1 => Self::Fits,
+            2 => Self::Mismatch,
+            _ => Self::Unknown,
+        }
+    }
 }
 
 /// The Binding and status of an instance, and whether it has settled.
@@ -43,6 +109,14 @@ pub struct Instance {
     replacing: AtomicBool,
     /// What else the editor should show.
     pub notices: NoticeCell,
+    /// Whether the bound Part holds the plugin's tone type ([`ToneFit`]).
+    fit: AtomicU8,
+    /// Where a request for the plugin's default tone has got to
+    /// ([`DEFAULT_TONE_IDLE`] and the following).
+    default_tone: AtomicU8,
+    /// A request for the default tone was dropped unserved since the editor
+    /// last heard.
+    default_tone_dropped: AtomicBool,
     /// The host has finished restoring this instance's state: set by the
     /// first `process()` or by the editor opening, never before.
     settled: AtomicBool,
@@ -65,6 +139,12 @@ impl Instance {
     /// one target; the others wait to take one.
     pub fn new(kind: PluginKind) -> Self {
         let binding = (kind == PluginKind::StudioSet).then_some(Binding::ANY);
+        // The Studio Set plugin acts on any tone.
+        let fit = if kind.tone_type().is_none() {
+            ToneFit::Fits
+        } else {
+            ToneFit::Unknown
+        };
         Self {
             kind,
             binding: BindingCell::new(binding),
@@ -73,6 +153,9 @@ impl Instance {
             armed: AtomicBool::new(false),
             replacing: AtomicBool::new(false),
             notices: NoticeCell::default(),
+            fit: AtomicU8::new(fit as u8),
+            default_tone: AtomicU8::new(DEFAULT_TONE_IDLE),
+            default_tone_dropped: AtomicBool::new(false),
             settled: AtomicBool::new(false),
             restored: AtomicBool::new(false),
             socket: OnceLock::new(),
@@ -188,9 +271,130 @@ impl Instance {
     /// device holds into its parameters, and what the host held before is
     /// not a change to send (except what it edited while writing was off,
     /// see [`ParamBank::arm`]).
+    ///
+    /// Only an instance whose Part holds the plugin's type ([`ToneFit::Fits`])
+    /// can be armed: elsewhere this does nothing.
     pub fn arm(&self) {
+        if self.fit() != ToneFit::Fits {
+            return;
+        }
         self.bank.arm();
         self.armed.store(true, Ordering::Release);
+    }
+
+    /// Say whether the bound Part holds the plugin's tone type. Anything but
+    /// [`ToneFit::Fits`] stops host changes going to the device (as
+    /// [`disarm`](Self::disarm)), and [`ToneFit::Mismatch`] reports
+    /// [`Notice::TypeMismatch`]. The follower sets it; moving to
+    /// [`ToneFit::Fits`] does not arm the instance, which the read that
+    /// follows does. Wait-free.
+    pub fn set_fit(&self, fit: ToneFit) {
+        self.fit.store(fit as u8, Ordering::Release);
+        self.notices
+            .set(Notice::TypeMismatch, fit == ToneFit::Mismatch);
+        if fit != ToneFit::Fits {
+            self.disarm();
+        }
+        if fit == ToneFit::Mismatch {
+            // What the host edited before is for a tone that is gone: the
+            // device's values win when the type fits again.
+            self.bank.forget_edits();
+        }
+        if fit == ToneFit::Fits {
+            self.clear_default_tone();
+        }
+    }
+
+    /// The instance's own request selected a tone with Bank Select MSB `msb`
+    /// on its Part (the recall's `ChangeTone`, the editor's default tone):
+    /// the Part's type is that, with no need to ask the device. Does not arm.
+    pub fn selected(&self, msb: u8) {
+        self.set_fit(ToneFit::of(self.kind, msb));
+    }
+
+    /// Whether the bound Part holds the plugin's tone type. Wait-free.
+    pub fn fit(&self) -> ToneFit {
+        ToneFit::from_u8(self.fit.load(Ordering::Acquire))
+    }
+
+    /// Whether the instance is known to be on a Part of another tone type,
+    /// and so writes nothing. Wait-free.
+    pub fn is_inert(&self) -> bool {
+        self.fit() == ToneFit::Mismatch
+    }
+
+    /// The tone the plugin loads onto a Part that holds another type (see
+    /// [`default_tone`]); `None` for the Studio Set plugin.
+    pub fn default_tone(&self) -> Option<&'static FactoryTone> {
+        default_tone(self.kind.tone_type()?)
+    }
+
+    /// Ask for the plugin's default tone to be loaded onto the bound Part,
+    /// which the worker does (the editor has no connection of the instance's
+    /// own). Until the Part holds the tone, or the request is dropped, further
+    /// requests are refused.
+    ///
+    /// # Errors
+    ///
+    /// [`DefaultToneRefused`] if the instance is not bound or is not known to
+    /// be on another tone type, or a request is pending.
+    pub fn request_default_tone(&self) -> Result<(), DefaultToneRefused> {
+        if self.binding.get().is_none() {
+            return Err(DefaultToneRefused::Unbound);
+        }
+        if !self.is_inert() || self.default_tone().is_none() {
+            return Err(DefaultToneRefused::NoMismatch);
+        }
+        self.default_tone
+            .compare_exchange(
+                DEFAULT_TONE_IDLE,
+                DEFAULT_TONE_REQUESTED,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            )
+            .map(drop)
+            .map_err(|_| DefaultToneRefused::Pending)
+    }
+
+    /// Whether the default tone was requested and not yet taken; taking it
+    /// is the worker's, which then selects the tone or
+    /// [drops](Self::drop_default_tone) the request.
+    pub fn take_default_tone_request(&self) -> bool {
+        self.default_tone
+            .compare_exchange(
+                DEFAULT_TONE_REQUESTED,
+                DEFAULT_TONE_SENT,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            )
+            .is_ok()
+    }
+
+    /// Whether a request for the default tone is pending: made, and the Part
+    /// does not hold the tone yet. The editor disables its button meanwhile.
+    pub fn default_tone_pending(&self) -> bool {
+        self.default_tone.load(Ordering::Acquire) != DEFAULT_TONE_IDLE
+    }
+
+    /// The worker could not serve the request (no connection, no longer on
+    /// another type): it is over, and the editor is told
+    /// ([`take_default_tone_dropped`](Self::take_default_tone_dropped)).
+    pub fn drop_default_tone(&self) {
+        self.default_tone_dropped.store(true, Ordering::Release);
+        self.clear_default_tone();
+    }
+
+    /// The request is over without the editor needing to hear of it: the Part
+    /// holds the plugin's type, or what it was about is gone (a connection, a
+    /// Binding).
+    pub fn clear_default_tone(&self) {
+        self.default_tone
+            .store(DEFAULT_TONE_IDLE, Ordering::Release);
+    }
+
+    /// Whether a request was dropped since the last call.
+    pub fn take_default_tone_dropped(&self) -> bool {
+        self.default_tone_dropped.swap(false, Ordering::AcqRel)
     }
 
     /// Stop host changes going to the device, until the next
@@ -200,9 +404,10 @@ impl Instance {
         self.armed.store(false, Ordering::Release);
     }
 
-    /// Whether host changes go to the device. Wait-free.
+    /// Whether host changes go to the device: armed, and on a Part of the
+    /// plugin's type. Wait-free.
     pub fn is_armed(&self) -> bool {
-        self.armed.load(Ordering::Acquire)
+        self.armed.load(Ordering::Acquire) && self.fit() == ToneFit::Fits
     }
 
     /// Mark that the values are being replaced from the device's side (or
@@ -281,6 +486,145 @@ impl std::fmt::Debug for Poster {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_fit_follows_the_banks_tone_type() {
+        let sn_synth = default_tone(integral_core::params::ToneType::SnSynth).unwrap();
+        let pcm_synth = default_tone(integral_core::params::ToneType::PcmSynth).unwrap();
+        assert_eq!(
+            ToneFit::of(PluginKind::SnSynth, sn_synth.msb),
+            ToneFit::Fits
+        );
+        assert_eq!(
+            ToneFit::of(PluginKind::SnSynth, pcm_synth.msb),
+            ToneFit::Mismatch
+        );
+        // Not a tone bank at all.
+        assert_eq!(ToneFit::of(PluginKind::SnSynth, 0), ToneFit::Mismatch);
+        assert_eq!(ToneFit::of(PluginKind::StudioSet, 0), ToneFit::Fits);
+    }
+
+    #[test]
+    fn a_mismatch_reports_its_notice_and_stops_writing_and_a_fit_clears_it() {
+        let instance = Instance::new(PluginKind::PcmSynth);
+        assert_eq!(
+            instance.fit(),
+            ToneFit::Unknown,
+            "a Tone plugin starts unsure"
+        );
+        instance.set_fit(ToneFit::Fits);
+        instance.arm();
+        assert!(instance.is_armed());
+        assert_eq!(instance.notices.get(), []);
+
+        instance.set_fit(ToneFit::Mismatch);
+        assert!(instance.is_inert());
+        assert!(!instance.is_armed());
+        assert_eq!(instance.notices.get(), [Notice::TypeMismatch]);
+
+        // Fitting again clears the notice but arms nothing: the read does.
+        instance.set_fit(ToneFit::Fits);
+        assert_eq!(instance.notices.get(), []);
+        assert!(!instance.is_armed());
+
+        // Unsure again (a bulk event) stops writing without a notice.
+        instance.arm();
+        instance.set_fit(ToneFit::Unknown);
+        assert!(!instance.is_armed());
+        assert_eq!(instance.notices.get(), []);
+    }
+
+    #[test]
+    fn only_an_instance_on_a_part_of_its_type_can_be_armed() {
+        let instance = Instance::new(PluginKind::PcmSynth);
+        instance.arm();
+        assert!(!instance.is_armed(), "unsure");
+        instance.set_fit(ToneFit::Mismatch);
+        instance.arm();
+        assert!(!instance.is_armed(), "another type");
+        instance.set_fit(ToneFit::Fits);
+        assert!(!instance.is_armed(), "arming is the read's");
+        instance.arm();
+        assert!(instance.is_armed());
+        // The fit going is what disarms, whoever armed.
+        instance.set_fit(ToneFit::Unknown);
+        assert!(!instance.is_armed());
+    }
+
+    #[test]
+    fn an_edit_made_while_unsure_is_dropped_by_a_mismatch_and_not_written_when_it_fits_again() {
+        let instance = Instance::new(PluginKind::PcmSynth);
+        instance.bind(Binding::of_part(0)).unwrap();
+        let writes = std::cell::RefCell::new(Vec::new());
+        let poll = |instance: &Instance| {
+            instance.bank.poll(
+                instance.binding.get().filter(|_| !instance.is_inert()),
+                instance.is_armed(),
+                |handle, _, value| {
+                    writes.borrow_mut().push((handle.index, value));
+                    true
+                },
+            );
+        };
+        // Writing has been on once, so edits made while it is off are kept.
+        instance.set_fit(ToneFit::Fits);
+        instance.arm();
+        instance.set_fit(ToneFit::Unknown);
+
+        let i = instance
+            .bank
+            .position("pcms/partial1/0x0F")
+            .expect("a parameter");
+        let host = instance.bank.list()[i].0.clone();
+        let away = if host.default == host.max {
+            host.min
+        } else {
+            host.max
+        };
+        instance.bank.host_changed(i, away);
+        poll(&instance);
+        assert!(instance.bank.is_dirty(i), "kept for when it is back on");
+
+        instance.set_fit(ToneFit::Mismatch);
+        assert!(!instance.bank.is_dirty(i), "it was for a tone that is gone");
+        instance.set_fit(ToneFit::Fits);
+        instance.arm();
+        poll(&instance);
+        assert_eq!(*writes.borrow(), [], "nothing stale is written");
+    }
+
+    #[test]
+    fn the_studio_set_plugin_always_fits() {
+        assert_eq!(Instance::new(PluginKind::StudioSet).fit(), ToneFit::Fits);
+    }
+
+    #[test]
+    fn the_default_tone_is_asked_for_only_while_bound_and_inert_and_taken_once() {
+        let instance = Instance::new(PluginKind::SnDrum);
+        assert_eq!(
+            instance.request_default_tone(),
+            Err(DefaultToneRefused::Unbound)
+        );
+        instance.bind(Binding::of_part(2)).unwrap();
+        assert_eq!(
+            instance.request_default_tone(),
+            Err(DefaultToneRefused::NoMismatch)
+        );
+        instance.set_fit(ToneFit::Mismatch);
+        assert_eq!(instance.request_default_tone(), Ok(()));
+        assert!(instance.take_default_tone_request());
+        assert!(!instance.take_default_tone_request());
+        let tone = instance.default_tone().expect("a default tone");
+        assert_eq!(
+            tone_type_from_bank_msb(tone.msb),
+            PluginKind::SnDrum.tone_type()
+        );
+        assert!(
+            Instance::new(PluginKind::StudioSet)
+                .default_tone()
+                .is_none()
+        );
+    }
 
     #[test]
     fn binding_takes_a_target_the_kind_accepts() {

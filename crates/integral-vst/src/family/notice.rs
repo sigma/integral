@@ -1,9 +1,10 @@
 //! What an instance can tell its editor besides its connection status.
 //!
 //! The editor shows each notice the instance reports and hides it when the
-//! instance stops reporting it. Nothing sets one yet: the recall (#458)
-//! reports [`Notice::Recalling`], and the mismatch and duplicate checks
-//! (#455) the other two.
+//! instance stops reporting it. The recall (#458) reports
+//! [`Notice::Recalling`]; [`Instance::set_fit`](super::Instance::set_fit)
+//! reports [`Notice::TypeMismatch`] and the connection
+//! ([`Tracker`](super::link::Tracker)) [`Notice::Duplicate`].
 
 use std::sync::atomic::{AtomicU8, Ordering};
 
@@ -30,8 +31,12 @@ impl Notice {
     pub const fn text(self) -> &'static str {
         match self {
             Self::Recalling => "Recalling\u{2026}",
-            Self::TypeMismatch => "The bound Part holds another tone type",
-            Self::Duplicate => "Another instance is bound to this target",
+            Self::TypeMismatch => {
+                "The bound Part holds another tone type, so this plugin does nothing until it holds one of its own"
+            }
+            Self::Duplicate => {
+                "Another instance of this plugin is bound to this target: both work, and the last to write wins"
+            }
         }
     }
 

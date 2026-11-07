@@ -83,13 +83,14 @@ describe("plugin message codec", () => {
     expect(encodePageMessage({ type: "endEdit", id: "part07/0x09" })).toBe(
       '{"type":"endEdit","id":"part07/0x09"}',
     );
+    expect(encodePageMessage({ type: "loadDefaultTone" })).toBe('{"type":"loadDefaultTone"}');
   });
 
   it("decodes the instance message the plugin encodes", () => {
     // As `ipc.rs` encodes it.
     expect(
       decodePluginMessage(
-        '{"type":"instance","plugin":"pcm_drum","binding":{"part":2,"key":36},"status":"deviceOffline","statusText":"Device offline","hostEdits":true,"notices":[{"notice":"recalling","text":"Recalling\\u2026"}]}',
+        '{"type":"instance","plugin":"pcm_drum","binding":{"part":2,"key":36},"status":"deviceOffline","statusText":"Device offline","hostEdits":true,"notices":[{"notice":"recalling","text":"Recalling\\u2026"}],"defaultTone":"Studio Kit","defaultTonePending":true}',
       ),
     ).toEqual({
       type: "instance",
@@ -99,15 +100,17 @@ describe("plugin message codec", () => {
       statusText: "Device offline",
       hostEdits: true,
       notices: [{ notice: "recalling", text: "Recalling\u2026" }],
+      defaultTone: "Studio Kit",
+      defaultTonePending: true,
     });
     expect(
       decodePluginMessage(
-        '{"type":"instance","plugin":"studio_set","binding":{},"status":"connected","statusText":"Connected","hostEdits":false,"notices":[]}',
+        '{"type":"instance","plugin":"studio_set","binding":{},"status":"connected","statusText":"Connected","hostEdits":false,"notices":[],"defaultTone":null,"defaultTonePending":false}',
       ),
     ).toMatchObject({ plugin: "studio_set", binding: {}, status: "connected", hostEdits: false });
     expect(
       decodePluginMessage(
-        '{"type":"instance","plugin":"sn_synth","binding":null,"status":"serviceNotRunning","statusText":"x","hostEdits":true,"notices":[]}',
+        '{"type":"instance","plugin":"sn_synth","binding":null,"status":"serviceNotRunning","statusText":"x","hostEdits":true,"notices":[],"defaultTone":null,"defaultTonePending":false}',
       ),
     ).toMatchObject({ binding: null });
   });
@@ -120,7 +123,7 @@ describe("plugin message codec", () => {
     });
     expect(
       decodePluginMessage(
-        '{"type":"instance","plugin":"sn_synth","binding":null,"status":"aNewStatus","statusText":"New","hostEdits":true,"notices":[]}',
+        '{"type":"instance","plugin":"sn_synth","binding":null,"status":"aNewStatus","statusText":"New","hostEdits":true,"notices":[],"defaultTone":null,"defaultTonePending":false}',
       ),
     ).toMatchObject({ status: "aNewStatus", statusText: "New" });
   });
@@ -137,11 +140,15 @@ describe("plugin message codec", () => {
       '{"type":"receive","port":7,"data":[]}',
       '{"type":"error","port":"A"}',
       '{"type":"refused"}',
-      '{"type":"instance","plugin":"sn_synth","binding":{"part":256},"status":"connected","statusText":"x","notices":[]}',
+      '{"type":"instance","plugin":"sn_synth","binding":{"part":256},"status":"connected","statusText":"x","notices":[],"defaultTone":null,"defaultTonePending":false}',
       '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","notices":[1]}',
       '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x"}',
-      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","notices":[]}',
-      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":"yes","notices":[]}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","notices":[],"defaultTone":null,"defaultTonePending":false}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":"yes","notices":[],"defaultTone":null,"defaultTonePending":false}',
+      // The default tone is a name or null, and always said.
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":true,"notices":[],"defaultTonePending":false}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":true,"notices":[],"defaultTone":7,"defaultTonePending":false}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":true,"notices":[],"defaultTone":null}',
     ]) {
       expect(decodePluginMessage(text), text).toBeNull();
     }

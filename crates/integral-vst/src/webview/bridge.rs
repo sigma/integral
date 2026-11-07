@@ -6,7 +6,9 @@
 //!
 //! It also carries the page's half of the instance: the page binds the
 //! instance (`bind`), hears what it is and how it is doing (`instance`), and
-//! edits host parameters in gestures (`beginEdit`, `performEdit`, `endEdit`).
+//! edits host parameters in gestures (`beginEdit`, `performEdit`, `endEdit`),
+//! and asks for the plugin's default tone when the Part holds another type
+//! (`loadDefaultTone`).
 //! A gesture the page leaves open when it reloads or goes away is ended, so
 //! the host never waits on one for ever.
 
@@ -146,6 +148,11 @@ impl Bridge {
                 Ok(()) => self.refresh_instance(),
                 Err(e) => self.fail(e.to_string()),
             },
+            PageMessage::LoadDefaultTone => {
+                if let Err(e) = self.instance.request_default_tone() {
+                    self.fail(e.to_string());
+                }
+            }
             PageMessage::BeginEdit { id } => self.begin_edit(id),
             PageMessage::PerformEdit { id, value } => {
                 match self.editing.iter_mut().find(|g| g.id == id) {
@@ -307,7 +314,15 @@ impl Bridge {
                     text: notice.text(),
                 })
                 .collect(),
+            default_tone: self.instance.default_tone().map(|tone| tone.name),
+            default_tone_pending: self.instance.default_tone_pending(),
         };
+        if self.instance.take_default_tone_dropped() {
+            self.fail(
+                "The default tone could not be loaded: the plugin has no connection to the device"
+                    .into(),
+            );
+        }
         if self.reported.as_ref() != Some(&message) {
             self.reported = Some(message.clone());
             self.outbox.push(message);
@@ -909,6 +924,8 @@ mod tests {
                     text: notice.text(),
                 })
                 .collect(),
+            default_tone: instance.default_tone().map(|tone| tone.name),
+            default_tone_pending: false,
         };
         b.refresh_instance();
         assert_eq!(b.take_outgoing(), [], "nothing before ready");
@@ -937,6 +954,98 @@ mod tests {
         // A reloaded page hears it all again.
         b.handle(r#"{"type":"ready"}"#);
         assert_eq!(heard(&b).len(), 1);
+    }
+
+    #[test]
+    fn the_page_is_told_the_default_tone_by_name_and_the_mismatch_as_a_notice() {
+        let Editor {
+            bridge: mut b,
+            instance,
+            ..
+        } = editor(PluginKind::SnSynth, &[]);
+        b.handle(r#"{"type":"ready"}"#);
+        let tone = |out: &[PluginMessage]| match out {
+            [
+                PluginMessage::Instance {
+                    default_tone,
+                    notices,
+                    ..
+                },
+            ] => (
+                *default_tone,
+                notices.iter().map(|n| n.notice).collect::<Vec<_>>(),
+            ),
+            other => panic!("{other:?}"),
+        };
+        assert_eq!(tone(&heard(&b)), (Some("JP8 Strings1"), vec![]));
+        instance.set_fit(crate::family::ToneFit::Mismatch);
+        b.refresh_instance();
+        assert_eq!(
+            tone(&heard(&b)),
+            (Some("JP8 Strings1"), vec![Notice::TypeMismatch])
+        );
+    }
+
+    #[test]
+    fn the_default_tone_is_requested_only_for_a_bound_instance_on_another_type() {
+        let Editor {
+            bridge: mut b,
+            instance,
+            ..
+        } = editor(PluginKind::SnSynth, &[]);
+        b.handle(r#"{"type":"ready"}"#);
+        heard(&b);
+        let load = r#"{"type":"loadDefaultTone"}"#;
+
+        // Unbound, then bound to a Part that fits: nothing to load.
+        b.handle(load);
+        instance.bind(Binding::of_part(1)).unwrap();
+        instance.set_fit(crate::family::ToneFit::Fits);
+        b.handle(load);
+        let refusals = heard(&b);
+        assert_eq!(refusals.len(), 2, "{refusals:?}");
+        assert!(
+            refusals
+                .iter()
+                .all(|m| matches!(m, PluginMessage::Refused { .. })),
+            "{refusals:?}"
+        );
+        assert!(!instance.take_default_tone_request());
+
+        instance.set_fit(crate::family::ToneFit::Mismatch);
+        b.handle(load);
+        assert_eq!(heard(&b), []);
+
+        // Pending until the Part holds the tone: the page hears it, and a
+        // second request is refused.
+        b.refresh_instance();
+        let pending = |out: &[PluginMessage]| {
+            out.iter().any(|m| {
+                matches!(
+                    m,
+                    PluginMessage::Instance {
+                        default_tone_pending: true,
+                        ..
+                    }
+                )
+            })
+        };
+        assert!(pending(&heard(&b)));
+        b.handle(load);
+        assert!(matches!(&heard(&b)[..], [PluginMessage::Refused { .. }]));
+        assert!(instance.take_default_tone_request());
+
+        // A request the worker could not serve is said to the page, and the
+        // button comes back.
+        instance.drop_default_tone();
+        b.refresh_instance();
+        let out = heard(&b);
+        assert!(
+            out.iter()
+                .any(|m| matches!(m, PluginMessage::Refused { .. })),
+            "{out:?}"
+        );
+        assert!(!pending(&out));
     }
 
     #[test]

@@ -69,6 +69,10 @@ pub(crate) enum PageMessage {
         /// The host parameter ID.
         id: String,
     },
+    /// Load the plugin's default tone onto the bound Part, which holds
+    /// another tone type (the mismatch notice's button). Refused, as
+    /// `refused`, if the instance is not on another type.
+    LoadDefaultTone,
 }
 
 /// A [`Notice`] with its text, as the page shows it.
@@ -126,6 +130,14 @@ pub(crate) enum PluginMessage {
         host_edits: bool,
         /// What else the instance reports, in listing order.
         notices: Vec<NoticeView>,
+        /// The name of the tone the plugin loads onto a Part that holds
+        /// another tone type; none for the Studio Set plugin.
+        #[serde(rename = "defaultTone")]
+        default_tone: Option<&'static str>,
+        /// A request for the default tone is pending: the page disables its
+        /// button until the Part holds the tone or the request is dropped.
+        #[serde(rename = "defaultTonePending")]
+        default_tone_pending: bool,
     },
     /// The plugin refused a request about the instance: a `bind` its kind
     /// cannot have, or a host gesture out of order or on a parameter it
@@ -248,6 +260,10 @@ mod tests {
                 id: "part07/0x09".into()
             }
         );
+        assert_eq!(
+            decode(r#"{"type":"loadDefaultTone"}"#).unwrap(),
+            PageMessage::LoadDefaultTone
+        );
     }
 
     #[test]
@@ -334,6 +350,8 @@ mod tests {
                     notice: Notice::Recalling,
                     text: Notice::Recalling.text()
                 }],
+                default_tone: Some("Studio Kit"),
+                default_tone_pending: true,
             }),
             serde_json::json!({
                 "type": "instance",
@@ -343,6 +361,8 @@ mod tests {
                 "statusText": "Device offline",
                 "hostEdits": true,
                 "notices": [{ "notice": "recalling", "text": Notice::Recalling.text() }],
+                "defaultTone": "Studio Kit",
+                "defaultTonePending": true,
             })
         );
         assert_eq!(
@@ -353,8 +373,10 @@ mod tests {
                 status_text: Status::ServiceNotRunning.text(),
                 host_edits: false,
                 notices: vec![],
+                default_tone: None,
+                default_tone_pending: false,
             }),
-            r#"{"type":"instance","plugin":"studio_set","binding":null,"status":"serviceNotRunning","statusText":"Device service not running","hostEdits":false,"notices":[]}"#
+            r#"{"type":"instance","plugin":"studio_set","binding":null,"status":"serviceNotRunning","statusText":"Device service not running","hostEdits":false,"notices":[],"defaultTone":null,"defaultTonePending":false}"#
         );
     }
 

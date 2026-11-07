@@ -44,7 +44,13 @@ export type PageMessage =
   /** Move the parameter `id`, which has a gesture open, to the raw `value`. */
   | { type: "performEdit"; id: string; value: number }
   /** End the gesture on the parameter `id`: the `change` of a Control drag. */
-  | { type: "endEdit"; id: string };
+  | { type: "endEdit"; id: string }
+  /**
+   * Load the plugin's default tone onto the bound Part, which holds another
+   * tone type (the mismatch notice's button). Refused (`refused`) if the
+   * instance is not on another type.
+   */
+  | { type: "loadDefaultTone" };
 
 /** What an instance is bound to: a Part (0-based) and, for a key, the key. */
 export interface PluginBinding {
@@ -73,7 +79,18 @@ export interface InstanceInfo {
   /** Whether the instance can tell the host of edits; if not, the page sends no host gestures. */
   hostEdits: boolean;
   notices: PluginNotice[];
+  /**
+   * The name of the tone the plugin loads onto a Part that holds another
+   * tone type, which the page offers beside the mismatch notice; `null` for
+   * the Studio Set plugin.
+   */
+  defaultTone: string | null;
+  /** A request to load it is pending; the page waits for the Part to hold the tone or for a refusal. */
+  defaultTonePending: boolean;
 }
+
+/** The notice an instance on a Part of another tone type reports (`Notice::TypeMismatch`). */
+export const TYPE_MISMATCH_NOTICE = "typeMismatch";
 
 /** A message from the plugin to the page. */
 export type PluginMessage =
@@ -149,7 +166,9 @@ export function decodePluginMessage(text: string): PluginMessage | null {
         typeof m.statusText === "string" &&
         typeof m.hostEdits === "boolean" &&
         Array.isArray(m.notices) &&
-        m.notices.every(isNotice)
+        m.notices.every(isNotice) &&
+        (m.defaultTone === null || typeof m.defaultTone === "string") &&
+        typeof m.defaultTonePending === "boolean"
         ? {
             type: "instance",
             plugin: m.plugin,
@@ -158,6 +177,8 @@ export function decodePluginMessage(text: string): PluginMessage | null {
             statusText: m.statusText,
             hostEdits: m.hostEdits,
             notices: m.notices,
+            defaultTone: m.defaultTone,
+            defaultTonePending: m.defaultTonePending,
           }
         : null;
     case "refused":
@@ -418,8 +439,8 @@ export function subscribeInstance(
   return bridge.subscribe((text) => {
     const message = decodePluginMessage(text);
     if (message?.type === "instance") {
-      const { plugin, binding, status, statusText, hostEdits, notices } = message;
-      listener({ plugin, binding, status, statusText, hostEdits, notices });
+      const { plugin, binding, status, statusText, hostEdits, notices, defaultTone, defaultTonePending } = message;
+      listener({ plugin, binding, status, statusText, hostEdits, notices, defaultTone, defaultTonePending });
     }
   });
 }
@@ -438,4 +459,9 @@ export function subscribeRefusals(
 /** Ask the plugin to bind the instance to `binding`. */
 export function bindInstance(bridge: PluginBridge, binding: PluginBinding): void {
   bridge.post(encodePageMessage({ type: "bind", ...binding }));
+}
+
+/** Ask the plugin to load its default tone onto the bound Part, which holds another tone type. */
+export function loadDefaultTone(bridge: PluginBridge): void {
+  bridge.post(encodePageMessage({ type: "loadDefaultTone" }));
 }

@@ -47,6 +47,8 @@ const CONNECTED: Omit<InstanceInfo, "plugin" | "binding"> = {
   statusText: "Connected",
   hostEdits: true,
   notices: [],
+  defaultTone: null,
+  defaultTonePending: false,
 };
 
 /**
@@ -206,7 +208,7 @@ describe("the status line", () => {
   ] as const)("says %s even when there is no device to show", async (code, text) => {
     // No device: the editor has only the plugin's word.
     const { container } = await openPlugin(
-      { plugin: "pcm_synth", binding: { part: 0 }, status: code, statusText: text, hostEdits: false, notices: [] },
+      { plugin: "pcm_synth", binding: { part: 0 }, status: code, statusText: text, hostEdits: false, notices: [], defaultTone: null, defaultTonePending: false },
       [],
     );
     expect(status(container)).toBe(text);
@@ -214,7 +216,7 @@ describe("the status line", () => {
 
   it("follows the instance as the plugin reports it", async () => {
     const { container, fake } = await openPlugin(
-      { plugin: "pcm_synth", binding: { part: 0 }, status: "serviceNotRunning", statusText: "Device service not running", hostEdits: false, notices: [] },
+      { plugin: "pcm_synth", binding: { part: 0 }, status: "serviceNotRunning", statusText: "Device service not running", hostEdits: false, notices: [], defaultTone: null, defaultTonePending: false },
       [],
     );
     await tell(fake, { plugin: "pcm_synth", binding: { part: 0 }, ...CONNECTED });
@@ -228,7 +230,7 @@ describe("the status line", () => {
     const notices = [
       { notice: "recalling", text: "Recalling…" },
       { notice: "typeMismatch", text: "The bound Part holds another tone type" },
-      { notice: "duplicate", text: "Another instance is bound to this target" },
+      { notice: "duplicate", text: "Another instance of this plugin is bound to this target" },
     ];
     await tell(fake, { plugin: "pcm_synth", binding: { part: 0 }, ...CONNECTED, notices });
     const shown = [...container.querySelectorAll("[data-notice]")].map((n) => [
@@ -241,6 +243,64 @@ describe("the status line", () => {
     expect(container.querySelectorAll("[data-notice]")).toHaveLength(1);
     await tell(fake, { plugin: "pcm_synth", binding: { part: 0 }, ...CONNECTED });
     expect(container.querySelector("[data-notice]")).toBeNull();
+  });
+});
+
+describe("a Part that holds another tone type", () => {
+  const MISMATCH = {
+    notice: "typeMismatch",
+    text: "The bound Part holds another tone type, so this plugin does nothing until it holds one of its own",
+  };
+  const loading = (container: ParentNode) =>
+    [...container.querySelectorAll("button")].find((b) => b.textContent?.startsWith("Load "));
+  const INERT = {
+    plugin: "sn_synth",
+    binding: { part: 1 },
+    ...CONNECTED,
+    notices: [MISMATCH],
+    defaultTone: "JP8 Strings1",
+  };
+
+  it("replaces the tone editor with the plugin's word and its default tone, by name, as a button", async () => {
+    const { container, fake } = await openPlugin(INERT);
+    expect(container.querySelector("[data-mismatch]")?.textContent).toContain(MISMATCH.text);
+    // The status line lists the notice too: one report, two places.
+    expect(container.querySelector('[data-notice="typeMismatch"]')?.textContent).toBe(MISMATCH.text);
+    const load = loading(container);
+    expect(load?.textContent).toBe("Load JP8 Strings1");
+    click(load as HTMLButtonElement);
+    expect(fake.posted).toContainEqual({ type: "loadDefaultTone" });
+  });
+
+  it("disables the button while the request is pending, and enables it when the plugin says it is over", async () => {
+    const { container, fake } = await openPlugin({ ...INERT, defaultTonePending: true });
+    expect(loading(container)?.disabled).toBe(true);
+    await tell(fake, { ...INERT, defaultTonePending: false });
+    expect(loading(container)?.disabled).toBe(false);
+  });
+
+  it("shows why a request the plugin dropped came to nothing", async () => {
+    const { container, fake } = await openPlugin({ ...INERT, defaultTonePending: true });
+    act(() => fake.deliver({ type: "refused", message: "The default tone could not be loaded" }));
+    await settle();
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe("The default tone could not be loaded");
+  });
+
+  it("gives the tone editor back once the plugin stops reporting the mismatch", async () => {
+    const { container, fake } = await openPlugin(INERT);
+    expect(container.querySelector("[data-mismatch]")).not.toBeNull();
+    await tell(fake, { ...INERT, notices: [] });
+    expect(container.querySelector("[data-mismatch]")).toBeNull();
+    expect(loading(container)).toBeUndefined();
+    expect(container.querySelector("[data-notice]")).toBeNull();
+  });
+
+  it("offers nothing for a duplicate Binding, which only warns", async () => {
+    const duplicate = { notice: "duplicate", text: "Another instance of this plugin is bound to this target" };
+    const { container } = await openPlugin({ ...INERT, notices: [duplicate] });
+    expect(container.querySelector('[data-notice="duplicate"]')?.textContent).toBe(duplicate.text);
+    expect(container.querySelector("[data-mismatch]")).toBeNull();
+    expect(loading(container)).toBeUndefined();
   });
 });
 

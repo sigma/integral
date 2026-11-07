@@ -25,8 +25,12 @@ the webview UI, available only on macOS.
     audio thread can read it. Saved as JSON (`null`, `{"part":2}` or
     `{"part":2,"key":36}`); a saved Binding the plugin cannot have is ignored.
   - `instance.rs`: `Instance`, what the plugin, the connection worker and
-    the editor share: the Binding, the `Status`, and whether the host has
-    restored the state.
+    the editor share: the Binding, the `Status`, the notices, whether the
+    host has restored the state, and the `ToneFit` (whether the bound Part
+    holds the plugin's tone type: `Unknown` until the follower has read the
+    Part's tone select, `Fits`, or `Mismatch`, which makes the instance inert
+    and reports the mismatch notice). The editor's request for the default
+    tone is a flag the follower takes.
   - `status.rs`: `Status`: "Device service not running", "Device offline",
     "Connected", and "Device service version mismatch" (the service speaks
     another protocol version or lacks `Bind` and `Claim`; not retried).

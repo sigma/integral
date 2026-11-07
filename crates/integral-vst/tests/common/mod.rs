@@ -87,9 +87,15 @@ pub fn wait_for(what: &str, condition: impl Fn() -> bool) {
     }
 }
 
+/// Whether `message` is a request to read (RQ1).
+pub fn is_rq1(message: &[u8]) -> bool {
+    message.first() == Some(&integral_core::sysex::SYSEX_START)
+        && message.get(6) == Some(&integral_core::sysex::CMD_RQ1)
+}
+
 /// A device that answers reads: its memory by address, and a thread that
 /// replies to every RQ1 the service sends on the fake link with the bytes it
-/// holds (0 where nothing was put).
+/// holds (0 where nothing was put), and keeps what every DT1 writes.
 pub struct Memory {
     bytes: std::sync::Arc<std::sync::Mutex<std::collections::BTreeMap<u32, u8>>>,
     stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -114,8 +120,17 @@ impl Memory {
                     // A test clears the recording now and then.
                     done = done.min(sent.len());
                     for message in &sent[done..] {
+                        // A write is kept, as a device would keep it.
+                        if message.get(6) == Some(&integral_core::sysex::CMD_DT1)
+                            && let Ok(dt1) = integral_core::sysex::parse_dt1(message)
+                        {
+                            let mut memory = bytes.lock().expect("memory");
+                            for (k, byte) in dt1.data.iter().enumerate() {
+                                memory.insert(dt1.address.value() + k as u32, *byte);
+                            }
+                        }
                         // F0 41 id 00 00 64 11 a0..a3 s0..s3 cs F7
-                        if message.len() == 17 && message[6] == 0x11 {
+                        if is_rq1(message) {
                             let address =
                                 Address([message[7], message[8], message[9], message[10]]);
                             let size =

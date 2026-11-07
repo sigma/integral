@@ -24,14 +24,16 @@ impl Outbound {
     /// sent for a change that is an echo of a value the instance applied
     /// from the device, for a parameter that does nothing now (an inactive
     /// effect type, a Binding the plugin does not use it for), while the
-    /// instance is unbound, or while it is not armed
-    /// ([`Instance::arm`](Instance::arm)).
+    /// instance is unbound, while it is not armed
+    /// ([`Instance::arm`](Instance::arm)), or while its Part holds another
+    /// tone type ([`Instance::is_inert`]): a host edit then (automation
+    /// playing back) is taken as seen, not kept to be written later.
     ///
     /// Real-time safe.
     pub fn poll(&mut self, instance: &Instance) {
         let sender = &mut self.sender;
         instance.bank.poll(
-            instance.binding.get(),
+            instance.binding.get().filter(|_| !instance.is_inert()),
             instance.is_armed(),
             |handle, binding, value| sender.write(handle, binding, value),
         );

@@ -28,9 +28,13 @@ plugin opens no MIDI port.
     `send { port, data }`, `resize { width, height }`,
     `bind { part?, key? }` and the host gestures `beginEdit { id }`,
     `performEdit { id, value }` and `endEdit { id }` (`id` is the host
-    parameter ID of ADR 0008, `value` the raw value).
+    parameter ID of ADR 0008, `value` the raw value), and `loadDefaultTone`
+    (the mismatch notice's button).
   - `PluginMessage` is sent by the plugin: `ports`, `opened`, `openFailed`,
-    `receive`, `instance { plugin, binding, status, statusText, notices }`,
+    `receive`, `instance { plugin, binding, status, statusText, hostEdits, notices,
+    defaultTone, defaultTonePending }` (`defaultTone`: the name of the tone the
+    plugin loads onto a Part of another type; `defaultTonePending`: a request
+    for it is pending),
     `refused { message }` and `error`.
   - `PLUGIN_EVENT` is the event name. `decode` and `encode` convert messages,
     and `delivery_script` builds the delivery script.

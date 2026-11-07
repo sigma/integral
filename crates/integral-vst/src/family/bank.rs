@@ -470,6 +470,16 @@ impl ParamBank {
         self.mirror.changed.store(true, Ordering::Release);
     }
 
+    /// Forget the host's edits made while writing was off: they were taken as
+    /// seen, and are not written when it is back on.
+    pub fn forget_edits(&self) {
+        for i in 0..self.list.len() {
+            if self.dirty[i].swap(false, Ordering::AcqRel) {
+                self.seen[i].store(self.value(i), Ordering::Relaxed);
+            }
+        }
+    }
+
     /// Queue `changes` (position, value) for the next replace task.
     pub fn queue_replace(&self, changes: impl IntoIterator<Item = (usize, i32)>) {
         self.replace.lock().expect("replace lock").extend(changes);

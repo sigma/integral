@@ -20,6 +20,7 @@ use integral_device_service::{Client, ClientEvent, Events, Sender};
 
 use super::follow::Follower;
 use super::instance::Instance;
+use super::notice::Notice;
 use super::status::Status;
 
 /// How long the worker waits for an event before it looks at the instance.
@@ -131,6 +132,8 @@ impl Tracker {
                 self.claim_pending = false;
                 self.bind_sent = None;
                 self.announced = None;
+                // The service tells a duplicate again, after the `Bind`.
+                self.instance.notices.set(Notice::Duplicate, false);
                 status.set(if session.is_some() {
                     Status::Connected
                 } else {
@@ -141,16 +144,20 @@ impl Tracker {
                 self.connected = false;
                 self.asked = false;
                 self.claim_pending = false;
+                self.instance.notices.set(Notice::Duplicate, false);
                 status.set(Status::ServiceNotRunning);
             }
             ClientEvent::Incompatible { .. } => {
                 self.connected = false;
+                self.instance.notices.set(Notice::Duplicate, false);
                 status.set(Status::ServiceIncompatible);
             }
             ClientEvent::Overflowed => {
-                // Events were dropped: say what we are again, and if the
-                // answer to a claim may have been among them, claim again.
+                // Events were dropped: say what we are again (the service
+                // then tells a duplicate again too), and if the answer to a
+                // claim may have been among them, claim again.
                 self.announced = None;
+                self.instance.notices.set(Notice::Duplicate, false);
                 if self.claim_pending {
                     self.claim_pending = false;
                     self.asked = false;
@@ -161,6 +168,9 @@ impl Tracker {
             }
             ClientEvent::Message(Message::LinkDown) if !self.incompatible => {
                 status.set(Status::DeviceOffline);
+            }
+            ClientEvent::Message(Message::Shared { others }) => {
+                self.instance.notices.set(Notice::Duplicate, *others > 0);
             }
             ClientEvent::Message(Message::Claimed { plugin, binding })
                 if *plugin == self.instance.kind() =>
@@ -310,6 +320,30 @@ mod tests {
             plugin: kind,
             binding: Binding::of_part(part),
         }
+    }
+
+    #[test]
+    fn a_duplicate_is_reported_while_the_service_says_another_instance_shares_the_target() {
+        let (mut tracker, instance) = tracker(PluginKind::SnSynth);
+        let shared = |others| ClientEvent::Message(Message::Shared { others });
+        tracker.step(Some(&connected(Some(1))));
+        assert_eq!(instance.notices.get(), []);
+
+        tracker.step(Some(&shared(2)));
+        assert_eq!(instance.notices.get(), [Notice::Duplicate]);
+        tracker.step(Some(&shared(1)));
+        assert_eq!(instance.notices.get(), [Notice::Duplicate]);
+        tracker.step(Some(&shared(0)));
+        assert_eq!(instance.notices.get(), []);
+
+        // What was said does not outlive the connection, and a lost event is
+        // asked again by binding again.
+        tracker.step(Some(&shared(1)));
+        tracker.step(Some(&ClientEvent::Overflowed));
+        assert_eq!(instance.notices.get(), []);
+        tracker.step(Some(&shared(1)));
+        tracker.step(Some(&ClientEvent::Disconnected));
+        assert_eq!(instance.notices.get(), []);
     }
 
     #[test]

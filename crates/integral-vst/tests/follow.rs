@@ -15,18 +15,20 @@ use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 
 use integral_core::host_params::{Binding, HostParam, PluginKind};
+use integral_core::params::{self, ToneType, part};
 use integral_core::sysex;
+use integral_core::tone_banks::default_tone;
 use integral_device_service::protocol::{ClientId, ParamId, Request};
 use integral_device_service::{Client, ClientEvent, Events};
 use integral_vst::family::host::{self, HostEdits, HostTask, Replace};
 use integral_vst::family::link::Connection;
 use integral_vst::family::out::Outbound;
-use integral_vst::family::{Instance, Status};
+use integral_vst::family::{Instance, Notice, Status, ToneFit};
 use nih_plug::prelude::IntParam;
 
 mod common;
 
-use common::{Memory, TempDir, TestService, WAIT, wait_for};
+use common::{Memory, TempDir, TestService, WAIT, is_rq1, wait_for};
 
 /// What the host would hear.
 #[derive(Debug, Clone, PartialEq)]
@@ -142,13 +144,27 @@ struct Setup {
     ring: bool,
     /// The host restored a state into the instance.
     restored: bool,
+    /// The type of tone the bound Part holds on the device.
+    holds: ToneType,
 }
 
 const OPEN: Setup = Setup {
     editor: true,
     ring: false,
     restored: false,
+    holds: ToneType::PcmSynth,
 };
+
+/// Where Part `part` has its tone select on the device.
+fn select_address(part: u8) -> integral_core::address::Address {
+    params::part_address(part, part::TONE_BANK_MSB)
+}
+
+/// Put a tone of `holds` in `memory` as Part `part`'s.
+fn put_tone(memory: &Memory, part: u8, holds: ToneType) {
+    let tone = default_tone(holds).expect("a default tone");
+    memory.put(select_address(part).value(), &[tone.msb, tone.lsb, tone.pc]);
+}
 
 impl Rig {
     fn new() -> Self {
@@ -159,6 +175,7 @@ impl Rig {
         let dir = TempDir::new();
         let service = TestService::start(&dir.socket());
         let memory = Memory::answer(&service.link);
+        put_tone(&memory, 0, setup.holds);
         let instance = Arc::new(Instance::new(PluginKind::PcmSynth));
         let recorder = Arc::new(Recorder {
             instance: Arc::downgrade(&instance),
@@ -187,13 +204,19 @@ impl Rig {
         });
         service.link.bring_up(Some(LINK_DEVICE_ID));
         wait_for("a Part and the first read", || {
-            instance.binding.get() == Some(BINDING) && instance.is_armed()
+            instance.binding.get() == Some(BINDING)
+                && if setup.holds == ToneType::PcmSynth {
+                    instance.is_armed()
+                } else {
+                    instance.fit() == ToneFit::Mismatch
+                }
         });
+        // The blocks of the tone, not the question which tone the Part holds.
         let first_reads = service
             .link
             .sent()
             .iter()
-            .filter(|m| m.len() == 17 && m[6] == 0x11)
+            .filter(|m| is_rq1(m) && m[7..11] != *select_address(0).as_bytes())
             .count();
         // The first read applied the device's values (zeros) as a bulk.
         recorder.clear();
@@ -911,4 +934,154 @@ impl HostEdits for EditorContext2 {
     fn replace(&self, _: &[Replace<'_>]) -> bool {
         true
     }
+}
+
+/// A Part that holds another type of tone: the instance writes nothing and
+/// ignores the device, until its default tone is loaded.
+/// A value of `host` other than its default and than zero, which is what a
+/// device with nothing in its memory holds (so the service does not drop a
+/// write of it as unchanged).
+fn away(host: &HostParam) -> i32 {
+    if host.default == host.max {
+        host.max - 1
+    } else {
+        host.max
+    }
+}
+
+const ELSEWHERE: Setup = Setup {
+    holds: ToneType::SnSynth,
+    ..OPEN
+};
+
+#[test]
+fn a_part_of_another_type_makes_the_instance_inert_and_its_default_tone_resumes_it() {
+    let mut rig = Rig::with(ELSEWHERE);
+    assert_eq!(rig.instance.notices.get(), [Notice::TypeMismatch]);
+    assert!(!rig.instance.is_armed());
+    // It read nothing of the tone's blocks (it would only be garbage).
+    assert_eq!(rig.first_reads, 0);
+
+    // The host edits a lane, and automation lanes stay: the parameters are
+    // there. Nothing is written, now or later.
+    let (i, cutoff) = rig.param(CUTOFF);
+    assert_eq!(
+        rig.instance.bank.len(),
+        PluginKind::PcmSynth.host_params().len()
+    );
+    rig.host_sets(i, away(&cutoff));
+    std::thread::sleep(Duration::from_millis(250));
+    assert_eq!(rig.dt1s(), [], "nothing written to a tone of another type");
+
+    // Another client changes the Part: the instance does not follow it.
+    let (other, _events, _id) = rig.other_client();
+    let (j, level) = rig.param("Partial 1 Level");
+    other.write(param_id(&level), BINDING, away(&level));
+    wait_for("the other client's write", || {
+        !rig.dt1_at(&level).is_empty()
+    });
+    std::thread::sleep(Duration::from_millis(250));
+    assert_eq!(rig.recorder.edits(), [], "no gesture on an inert instance");
+    assert_ne!(rig.instance.bank.value(j), away(&level));
+    assert_eq!(rig.instance.notices.get(), [Notice::TypeMismatch]);
+
+    // The editor's button: the plugin's default tone, the first Preset tone of
+    // its type, is selected on the Part.
+    let tone = default_tone(ToneType::PcmSynth).expect("a default tone");
+    rig.service.link.clear();
+    rig.instance
+        .request_default_tone()
+        .expect("bound, and on another type");
+    wait_for("the tone select", || {
+        rig.dt1s()
+            .contains(&(select_address(0).value(), vec![tone.msb, tone.lsb, tone.pc]))
+    });
+    wait_for("the instance to resume", || {
+        rig.instance.fit() == ToneFit::Fits && rig.instance.is_armed()
+    });
+    assert_eq!(rig.instance.notices.get(), []);
+
+    // It writes again, and follows the device again.
+    rig.service.link.clear();
+    rig.host_sets(i, away(&cutoff));
+    wait_for("the write", || !rig.dt1_at(&cutoff).is_empty());
+    assert_eq!(rig.dt1_at(&cutoff), [cutoff.encode(away(&cutoff))]);
+    other.write(param_id(&cutoff), BINDING, cutoff.min);
+    wait_for("the gesture", || !rig.recorder.edits().is_empty());
+}
+
+#[test]
+fn an_instance_resumes_when_the_part_is_given_its_type_by_another_client() {
+    let rig = Rig::with(ELSEWHERE);
+    let (other, _events, _id) = rig.other_client();
+    let tone = default_tone(ToneType::PcmSynth).expect("a default tone");
+    other.send(Request::ChangeTone {
+        part: 0,
+        msb: tone.msb,
+        lsb: tone.lsb,
+        pc: tone.pc,
+    });
+    wait_for("the instance to resume", || {
+        rig.instance.fit() == ToneFit::Fits && rig.instance.is_armed()
+    });
+    assert_eq!(rig.instance.notices.get(), []);
+    // The service named the tone it selected: the device was not asked.
+    let select = select_address(0);
+    assert!(
+        !rig.service
+            .link
+            .sent()
+            .iter()
+            .any(|m| is_rq1(m) && m[7..11] == *select.as_bytes()),
+        "no probe"
+    );
+
+    // And it is inert again when the Part is given another type.
+    let drum = default_tone(ToneType::PcmDrum).expect("a default tone");
+    other.send(Request::ChangeTone {
+        part: 0,
+        msb: drum.msb,
+        lsb: drum.lsb,
+        pc: drum.pc,
+    });
+    wait_for("the instance to stop", || {
+        rig.instance.fit() == ToneFit::Mismatch && !rig.instance.is_armed()
+    });
+    assert_eq!(rig.instance.notices.get(), [Notice::TypeMismatch]);
+}
+
+#[test]
+fn two_instances_on_one_binding_both_work_and_both_warn_until_one_leaves() {
+    let mut rig = Rig::new();
+    assert_eq!(rig.instance.notices.get(), []);
+
+    let second = Arc::new(Instance::new(PluginKind::PcmSynth));
+    second.settle();
+    second.bind(BINDING).expect("a Part a Tone plugin has");
+    let second_connection = Connection::start(rig.dir.socket(), Arc::clone(&second));
+    let mut second_out = Outbound::new(second_connection.sender().expect("a sender"));
+    wait_for("the second instance", || {
+        second.binding.get() == Some(BINDING) && second.is_armed()
+    });
+    wait_for("both warnings", || {
+        rig.instance.notices.get() == [Notice::Duplicate]
+            && second.notices.get() == [Notice::Duplicate]
+    });
+
+    // Both write.
+    rig.service.link.clear();
+    let (i, cutoff) = rig.param(CUTOFF);
+    let (j, level) = rig.param("Partial 1 Level");
+    rig.host_sets(i, away(&cutoff));
+    second.bank.host_changed(j, away(&level));
+    second_out.poll(&second);
+    wait_for("the first's write", || !rig.dt1_at(&cutoff).is_empty());
+    wait_for("the second's write", || !rig.dt1_at(&level).is_empty());
+
+    // The one that leaves takes its warning with it, and frees the other's.
+    drop(second_out);
+    drop(second_connection);
+    wait_for("the warning to go", || {
+        rig.instance.notices.get().is_empty()
+    });
 }
