@@ -104,9 +104,10 @@ pub fn load_class(bundle: &Path, class_id: &str) -> Result<Plugin> {
 /// The category the VST3 SDK gives a factory's audio component classes.
 const AUDIO_CLASS_CATEGORY: &str = "Audio Module Class";
 
-/// What `vst3_host::simple::load_plugin` loads with.
-const SAMPLE_RATE: f64 = 44100.0;
-const BLOCK_SIZE: usize = 512;
+/// What `vst3_host::simple::load_plugin` loads with: the sample rate, in Hz.
+pub const SAMPLE_RATE: f64 = 44100.0;
+/// The block size it loads with, in samples.
+pub const BLOCK_SIZE: usize = 512;
 
 impl Host {
     /// Starts the AppKit application and opens `plugin`'s editor.

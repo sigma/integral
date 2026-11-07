@@ -8,41 +8,11 @@
 
 use std::sync::atomic::{AtomicU8, Ordering};
 
-use serde::Serialize;
+pub use integral_core::notice::Notice;
 
-/// Something the editor shows beside the status.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum Notice {
-    /// The project's state is being pushed to the device (ADR 0009).
-    Recalling,
-    /// The bound Part holds another tone type than the plugin's: the plugin
-    /// stays inert (ADR 0007).
-    TypeMismatch,
-    /// Another instance is bound to the same target.
-    Duplicate,
-}
-
-impl Notice {
-    /// Every notice, in the order the editor lists them.
-    pub const ALL: [Self; 3] = [Self::Recalling, Self::TypeMismatch, Self::Duplicate];
-
-    /// The text the editor shows.
-    pub const fn text(self) -> &'static str {
-        match self {
-            Self::Recalling => "Recalling\u{2026}",
-            Self::TypeMismatch => {
-                "The bound Part holds another tone type, so this plugin does nothing until it holds one of its own"
-            }
-            Self::Duplicate => {
-                "Another instance of this plugin is bound to this target: both work, and the last to write wins"
-            }
-        }
-    }
-
-    const fn bit(self) -> u8 {
-        1 << self as u8
-    }
+/// The bit that stands for `notice` in a set of them.
+const fn bit(notice: Notice) -> u8 {
+    1 << notice as u8
 }
 
 /// The notices an instance reports, which one thread sets and any other
@@ -54,9 +24,9 @@ impl NoticeCell {
     /// Report `notice` while `on`, and stop reporting it otherwise.
     pub fn set(&self, notice: Notice, on: bool) {
         if on {
-            self.0.fetch_or(notice.bit(), Ordering::AcqRel);
+            self.0.fetch_or(bit(notice), Ordering::AcqRel);
         } else {
-            self.0.fetch_and(!notice.bit(), Ordering::AcqRel);
+            self.0.fetch_and(!bit(notice), Ordering::AcqRel);
         }
     }
 
@@ -65,7 +35,7 @@ impl NoticeCell {
         let bits = self.0.load(Ordering::Acquire);
         Notice::ALL
             .into_iter()
-            .filter(|notice| bits & notice.bit() != 0)
+            .filter(|notice| bits & bit(*notice) != 0)
             .collect()
     }
 }

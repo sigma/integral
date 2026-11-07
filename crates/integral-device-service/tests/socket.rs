@@ -1084,3 +1084,37 @@ fn after_a_restart_a_claim_waits_for_the_restored_clients_to_say_what_they_hold(
     assert_eq!(claim(&fresh, &fresh_events, PluginKind::PcmSynth), part(1));
     connected(&restored_events);
 }
+
+#[test]
+fn a_server_for_one_process_refuses_every_other() {
+    let dir = TempDir::new();
+    let link = FakeLink::new();
+    let running = spawn(
+        Service::new(
+            Box::new(link.clone()),
+            Config {
+                device_id: Some(DEVICE_ID),
+                session_ids: Box::new(SequentialSessionIds(1)),
+            },
+        ),
+        None,
+    )
+    .expect("spawn");
+    link.bring_up(Some(DEVICE_ID));
+    let ours = std::process::id();
+
+    // Not this process: the connection is closed before any hello.
+    let other = dir.0.join("o.sock");
+    let server = SocketServer::bind_only(&other, running.handle(), Some(ours + 1)).expect("bind");
+    let mut stream = UnixStream::connect(&other).expect("connect");
+    stream.set_read_timeout(Some(WAIT)).expect("a read timeout");
+    let mut byte = [0u8; 1];
+    assert_eq!(stream.read(&mut byte).expect("closed, not timed out"), 0);
+    drop(server);
+
+    // This process: served.
+    let own = dir.0.join("p.sock");
+    let _server = SocketServer::bind_only(&own, running.handle(), Some(ours)).expect("bind");
+    let _joined = join(&own);
+    running.stop();
+}

@@ -5,16 +5,13 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::thread;
-use std::time::{Duration, Instant};
 
 use anyhow::{Result, anyhow};
 use serde_json::json;
 use vst3_host::ParameterEdit;
 
-use crate::driver::{self, Session};
 use crate::report::Report;
-use crate::{gesture, host};
+use crate::{driver, gesture, host};
 
 /// How many parameters to list: enough to see the plugin's shape without a
 /// line per parameter when a plugin declares thousands.
@@ -78,48 +75,16 @@ pub fn run(bundle: &Path, options: &Options, report: &Arc<Report>) -> Result<boo
         json!({ "name": options.param, "id": target_id }),
     );
 
-    std::fs::create_dir_all(&options.out_dir)?;
-    let mut host = host::Host::open(plugin)?;
     let mut edits: Vec<ParameterEdit> = Vec::new();
-
-    // Let the window show and come to the front. Edits the plugin reports
-    // while loading count: a spurious one must fail the run.
-    let mut until = Instant::now() + Duration::from_millis(500);
-    host.run(
-        || Instant::now() < until,
-        Duration::ZERO,
-        |e| driver::record_edit(report, &mut edits, e),
-    )?;
-    host.activate();
-    until = Instant::now() + Duration::from_millis(500);
-    host.run(
-        || Instant::now() < until,
-        Duration::ZERO,
-        |e| driver::record_edit(report, &mut edits, e),
-    )?;
-
-    let (window_id, via) = host.editor_window_id()?;
-    let session = Session {
-        pid: i32::try_from(std::process::id())?,
-        window_id,
-        via,
-        shared: host.shared(),
-        report: Arc::clone(report),
-        out_dir: options.out_dir.clone(),
-    };
+    let (mut host, session) = driver::open_editor(plugin, report, &options.out_dir, &mut edits)?;
     let control = options
         .control
         .clone()
         .unwrap_or_else(|| options.param.clone());
     let to = options.to.unwrap_or_else(|| far_side(before));
-    let worker = thread::spawn(move || session.drag_slider(&control, to));
-
-    let result = host.run(
-        || !worker.is_finished(),
-        Duration::from_millis(600),
-        |e| driver::record_edit(report, &mut edits, e),
-    );
-    let driven = worker.join().map_err(|_| anyhow!("the driver panicked"))?;
+    let (result, driven) = driver::drive(&host, report, &mut edits, move || {
+        session.drag_slider(&control, to)
+    });
     let after = host.plugin().get_parameter(target_id);
     host.close();
     result?;

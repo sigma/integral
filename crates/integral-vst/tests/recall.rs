@@ -28,7 +28,7 @@ use integral_vst::family::{Instance, Notice, Status};
 
 mod common;
 
-use common::{Memory, TempDir, TestService, wait_for};
+use common::{Memory, TempDir, TestService, addr, wait_for};
 
 const LINK_DEVICE_ID: u8 = 0x10;
 
@@ -166,7 +166,7 @@ impl Rig {
             for i in 0..bank.len() {
                 if bank.placed(i, &self.binding) && bank.host_active(i) == active_pass {
                     let host = &bank.list()[i].0;
-                    let at = host.device_address(&self.binding).unwrap().value();
+                    let at = host.device_address(&self.binding).unwrap();
                     self.memory.put(at, &host.encode(bank.value(i)));
                 }
             }
@@ -366,7 +366,7 @@ fn a_preset_with_edits_in_a_block_recalls_the_selection_and_one_dt1_over_the_bas
                 bank.list()[i].0.encode(bank.value(i))[(at - live[f].1) as usize]
             }
             // Between the changes: what the device holds.
-            None => rig.memory.get(at),
+            None => rig.memory.get(addr(at)),
         };
         assert_eq!(*b, wanted, "{at:#x}");
     }
@@ -411,7 +411,12 @@ fn a_preset_edited_all_over_recalls_about_a_dt1_per_block() {
             if let Some(b2) = edited_or_equal {
                 assert_eq!(b2, b, "{}", host.id);
             } else {
-                assert_eq!(rig.memory.get(at + k as u32), *b, "{} left out", host.id);
+                assert_eq!(
+                    rig.memory.get(addr(at + k as u32)),
+                    *b,
+                    "{} left out",
+                    host.id
+                );
             }
         }
     }
@@ -479,9 +484,9 @@ fn the_studio_set_pushes_its_blocks_in_full_and_never_a_parts_tone_select() {
 fn a_new_instance_sends_nothing_and_takes_the_tone_the_device_holds() {
     let rig = Rig::new(PluginKind::PcmSynth, PART0, None, false);
     // The device's Part 0: a PCM Synth preset, named.
-    rig.memory.put(rig.select_at(), &[87, 64, 9]);
+    rig.memory.put(addr(rig.select_at()), &[87, 64, 9]);
     rig.memory.put(
-        params::tone_name_address(0, integral_core::params::ToneType::PcmSynth).value(),
+        params::tone_name_address(0, integral_core::params::ToneType::PcmSynth),
         b"Soft Strings",
     );
     rig.up();
@@ -505,7 +510,7 @@ fn a_new_instance_sends_nothing_and_takes_the_tone_the_device_holds() {
 #[test]
 fn a_restored_instance_without_a_saved_tone_adopts_from_the_start() {
     let rig = Rig::new(PluginKind::PcmSynth, PART0, None, true);
-    rig.memory.put(rig.select_at(), &[87, 64, 9]);
+    rig.memory.put(addr(rig.select_at()), &[87, 64, 9]);
     rig.up();
 
     wait_for("the tone to be learned", || {
@@ -546,7 +551,7 @@ fn a_new_session_pushes_again_and_a_socket_drop_within_one_does_not() {
 #[test]
 fn an_instance_that_adopted_the_device_pushes_what_it_holds_after_a_power_cycle() {
     let rig = Rig::new(PluginKind::PcmSynth, PART0, None, false);
-    rig.memory.put(rig.select_at(), &[87, 64, 9]);
+    rig.memory.put(addr(rig.select_at()), &[87, 64, 9]);
     rig.device_holds_the_hosts_values();
     rig.up();
     wait_for("the tone to be learned", || {
@@ -629,7 +634,7 @@ fn a_key_plugins_fields_survive_the_whole_kits_selection_that_follows() {
     let key = Binding::of_part(0).with_key(INTEGRA7.pcm_drum_keys.first);
     let rig = Rig::new(PluginKind::PcmDrum, key, Some(kit.clone()), true);
     // The device's Part 0 holds the saved kit.
-    rig.memory.put(rig.select_at(), &[86, 64, 0]);
+    rig.memory.put(addr(rig.select_at()), &[86, 64, 0]);
     let live = rig.live_params();
     assert!(!live.is_empty(), "the key's fields");
     rig.host_edits(live[0].0);
@@ -676,7 +681,7 @@ fn a_restored_instance_on_a_part_of_another_type_recalls_its_tone_and_fits_after
     let rig = Rig::new(PluginKind::PcmSynth, PART0, Some(user()), true);
     // The Part holds an SN Synth tone: the plugin is inert until the recall's
     // selection puts its own back.
-    rig.memory.put(rig.select_at(), &[95, 0, 1]);
+    rig.memory.put(addr(rig.select_at()), &[95, 0, 1]);
     let full = full_runs(&rig.instance.bank, &PART0, None);
     rig.up();
 
@@ -721,7 +726,7 @@ fn key_plugins_fields_survive_a_kit_selected_again_and_again() {
         .map(|k| Binding::of_part(0).with_key(first + k))
         .collect();
     let rig = Rig::new(PluginKind::PcmDrum, keys[0], Some(kit.clone()), true);
-    rig.memory.put(rig.select_at(), &[86, 64, 0]);
+    rig.memory.put(addr(rig.select_at()), &[86, 64, 0]);
     let mut edited = vec![edit_first_field(&rig.instance, &keys[0])];
     let mut others = Vec::new();
     for key in &keys[1..] {
@@ -786,7 +791,7 @@ fn a_key_plugin_on_a_part_of_another_type_does_not_hide_the_default_tone() {
     let key = Binding::of_part(0).with_key(INTEGRA7.pcm_drum_keys.first);
     let rig = Rig::new(PluginKind::PcmDrum, key, Some(kit), true);
     // The Part holds a PCM Synth tone, and nothing selects the kit.
-    rig.memory.put(rig.select_at(), &[87, 64, 3]);
+    rig.memory.put(addr(rig.select_at()), &[87, 64, 3]);
     rig.up();
 
     wait_for("the mismatch", || {

@@ -18,7 +18,7 @@ path = "src/main.rs"
 # deliberately and re-run the scenarios (#444).
 vst3-host = { version = "=0.11.0", default-features = false }
 integral-core = { path = "../integral-core" }
-integral-device-service = { path = "../integral-device-service" }
+integral-device-service = { path = "../integral-device-service", features = ["test-util"] }
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"

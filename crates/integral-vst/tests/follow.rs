@@ -163,7 +163,7 @@ fn select_address(part: u8) -> integral_core::address::Address {
 /// Put a tone of `holds` in `memory` as Part `part`'s.
 fn put_tone(memory: &Memory, part: u8, holds: ToneType) {
     let tone = default_tone(holds).expect("a default tone");
-    memory.put(select_address(part).value(), &[tone.msb, tone.lsb, tone.pc]);
+    memory.put(select_address(part), &[tone.msb, tone.lsb, tone.pc]);
 }
 
 impl Rig {
@@ -420,7 +420,7 @@ fn a_bulk_change_replaces_the_values_silently_and_tells_the_host_once() {
     let rig = Rig::new();
     let (i, cutoff) = rig.param(CUTOFF);
     let (_, resonance) = rig.param("Partial 1 TVF Resonance");
-    let at = |h: &HostParam| h.device_address(&BINDING).expect("an address").value();
+    let at = |h: &HostParam| h.device_address(&BINDING).expect("an address");
     rig.memory.put(at(&cutoff), &cutoff.encode(77));
     rig.memory.put(at(&resonance), &resonance.encode(33));
 
@@ -605,7 +605,7 @@ fn a_restored_instance_keeps_its_projects_values_on_its_first_read_and_takes_the
         ..OPEN
     });
     let (i, cutoff) = rig.param(CUTOFF);
-    let at = cutoff.device_address(&BINDING).expect("an address").value();
+    let at = cutoff.device_address(&BINDING).expect("an address");
     // The first read changed nothing in the host (the device holds zeros).
     assert_eq!(rig.recorder.edits(), []);
     assert_eq!(rig.instance.bank.value(i), cutoff.default);
@@ -666,7 +666,7 @@ fn a_bulk_forgets_the_effect_types_until_the_read_tells_them_again() {
     let holder_host = bank.list()[holder].0.clone();
     // The device's effect is type 1, and the read said so.
     rig.memory.put(
-        holder_host.device_address(&BINDING).unwrap().value(),
+        holder_host.device_address(&BINDING).unwrap(),
         &holder_host.encode(1),
     );
     let (other, _events, _id) = rig.other_client();
@@ -683,7 +683,7 @@ fn a_bulk_forgets_the_effect_types_until_the_read_tells_them_again() {
     // Another tone is loaded: until the read has told the type, the slot is
     // inert, whatever the host holds.
     rig.memory.put(
-        holder_host.device_address(&BINDING).unwrap().value(),
+        holder_host.device_address(&BINDING).unwrap(),
         &holder_host.encode(2),
     );
     other.send(Request::ChangeTone {
@@ -716,7 +716,7 @@ fn a_replace_the_host_does_not_take_is_tried_again_later_with_nothing_lost() {
     let rig = Rig::new();
     let (i, cutoff) = rig.param(CUTOFF);
     let before = rig.instance.bank.value(i);
-    let at = cutoff.device_address(&BINDING).expect("an address").value();
+    let at = cutoff.device_address(&BINDING).expect("an address");
     rig.memory.put(at, &cutoff.encode(77));
     rig.recorder
         .refuse

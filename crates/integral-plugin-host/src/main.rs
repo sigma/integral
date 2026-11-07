@@ -9,6 +9,8 @@
 //! (bad arguments); 3 the run aborted (a safety guard, a timeout, setup).
 
 #[cfg(target_os = "macos")]
+mod automate;
+#[cfg(target_os = "macos")]
 mod ax;
 #[cfg(target_os = "macos")]
 mod cgwindow;
@@ -17,15 +19,23 @@ mod drag;
 #[cfg(target_os = "macos")]
 mod driver;
 #[cfg(target_os = "macos")]
+mod family;
+#[cfg(target_os = "macos")]
 mod gesture;
 #[cfg(target_os = "macos")]
 mod host;
 #[cfg(target_os = "macos")]
 mod load;
 #[cfg(target_os = "macos")]
+mod mismatch;
+#[cfg(target_os = "macos")]
 mod pointer;
 #[cfg(target_os = "macos")]
+mod recall;
+#[cfg(target_os = "macos")]
 mod report;
+#[cfg(target_os = "macos")]
+mod rig;
 #[cfg(target_os = "macos")]
 mod screenshot;
 
@@ -37,7 +47,8 @@ mod cli {
 
     use clap::{Parser, Subcommand};
 
-    use crate::{drag, driver, load, report::Report};
+    use crate::rig::Device;
+    use crate::{automate, drag, driver, load, mismatch, recall, report::Report};
 
     #[derive(Parser)]
     #[command(about = "Dev-only VST3 test host for the Integral plugin")]
@@ -49,10 +60,24 @@ mod cli {
         /// several (the family's does). Default: the first.
         #[arg(long, global = true)]
         class: Option<String>,
-        /// Run even if a Device service is listening at the default socket,
-        /// to which the plugins would connect.
+        /// Run `load` or `drag` even if a Device service is listening at the
+        /// default socket, to which the plugins would connect. The scenarios
+        /// that run a service of their own (`recall`, `automate`,
+        /// `binding-mismatch`) listen there themselves and refuse always.
         #[arg(long, global = true)]
         allow_service: bool,
+        /// Let the scenarios that run a Device service write to a real
+        /// INTEGRA-7 (`--device rtp:...` or `usb`). They save the blocks they
+        /// touch first and write them back at the end. Without this flag a
+        /// real device is refused.
+        #[arg(long, global = true)]
+        write_device: bool,
+        /// What the scenarios that run a Device service talk to: `fake` (a
+        /// fake link in front of a memory that answers reads, the default),
+        /// `rtp:<session name>` or `usb[:<port name>]` for the real
+        /// INTEGRA-7, to which the plugins' writes then go.
+        #[arg(long, global = true, default_value = "fake", value_parser = Device::parse)]
+        device: Device,
         /// Where screenshots (window-only) are written.
         #[arg(long)]
         out_dir: PathBuf,
@@ -79,6 +104,48 @@ mod cli {
             #[arg(long, value_parser = fraction)]
             to: Option<f64>,
         },
+        /// Save a plugin's state, load it into a fresh instance and check what
+        /// comes back and what the instance pushes to the device (ADR 0009).
+        /// Runs the cases of `--class`, or all of them.
+        Recall,
+        /// Play a parameter ramp with `set_parameter_at` and check the writes
+        /// it makes, and their rate.
+        Automate {
+            /// Name of the Studio Set host parameter the ramp moves.
+            #[arg(long, default_value = "Part 1 Level")]
+            param: String,
+            /// How long the ramp lasts, in seconds.
+            #[arg(long, default_value_t = 1.0, value_parser = positive)]
+            seconds: f64,
+        },
+        /// Open a project in a plugin whose Part holds another tone type: the
+        /// instance writes nothing, and the editor shows the mismatch.
+        BindingMismatch {
+            /// Check the headless part alone: open no window.
+            #[arg(long)]
+            no_editor: bool,
+        },
+    }
+
+    impl Scenario {
+        /// Whether the scenario runs the Device service itself, so that
+        /// nothing else may listen where the plugins look for it.
+        fn owns_service(&self) -> bool {
+            matches!(
+                self,
+                Self::Recall | Self::Automate { .. } | Self::BindingMismatch { .. }
+            )
+        }
+    }
+
+    /// A number above 0 (NaN and infinities are rejected).
+    fn positive(text: &str) -> Result<f64, String> {
+        let value: f64 = text.parse().map_err(|e| format!("{e}"))?;
+        if value.is_finite() && value > 0.0 {
+            Ok(value)
+        } else {
+            Err(format!("{text} is not above 0"))
+        }
     }
 
     /// A number from 0 to 1 (NaN and infinities are rejected).
@@ -94,7 +161,31 @@ mod cli {
     pub fn main() -> ExitCode {
         let cli = Cli::parse();
         let report = Arc::new(Report::new());
-        let guard = crate::host::refuse_live_service(cli.allow_service);
+        let owns_service = cli.scenario.owns_service();
+        if !owns_service && !cli.device.is_fake() {
+            eprintln!("--device applies to recall, automate and binding-mismatch");
+            return ExitCode::from(2);
+        }
+        if !cli.device.is_fake() && !cli.write_device {
+            eprintln!(
+                "--device {:?} would be written to: pass --write-device to allow it",
+                cli.device
+            );
+            return ExitCode::from(2);
+        }
+        if cli.class.is_some()
+            && matches!(
+                cli.scenario,
+                Scenario::Automate { .. } | Scenario::BindingMismatch { .. }
+            )
+        {
+            eprintln!(
+                "--class applies to load, drag and recall: automate and binding-mismatch use the plugin they are about"
+            );
+            return ExitCode::from(2);
+        }
+        // A scenario that runs the service cannot share the socket with one.
+        let guard = crate::host::refuse_live_service(cli.allow_service && !owns_service);
         let (name, outcome) = match cli.scenario {
             _ if guard.is_err() => ("guard", guard.map(|()| false)),
             Scenario::Load => (
@@ -110,6 +201,31 @@ mod cli {
                         control,
                         to,
                         class: cli.class,
+                        out_dir: cli.out_dir,
+                    },
+                    &report,
+                ),
+            ),
+            Scenario::Recall => (
+                "recall",
+                recall::run(&cli.bundle, &cli.device, cli.class.as_deref(), &report),
+            ),
+            Scenario::Automate { param, seconds } => (
+                "automate",
+                automate::run(
+                    &cli.bundle,
+                    &cli.device,
+                    &automate::Options { param, seconds },
+                    &report,
+                ),
+            ),
+            Scenario::BindingMismatch { no_editor } => (
+                "binding-mismatch",
+                mismatch::run(
+                    &cli.bundle,
+                    &cli.device,
+                    &mismatch::Options {
+                        no_editor,
                         out_dir: cli.out_dir,
                     },
                     &report,

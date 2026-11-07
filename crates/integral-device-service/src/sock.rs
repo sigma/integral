@@ -127,6 +127,59 @@ pub(crate) fn peer_uid(stream: &UnixStream) -> io::Result<u32> {
     }
 }
 
+/// The ID of the process at the other end of `stream`.
+///
+/// # Errors
+///
+/// The OS error, or `Unsupported` on a platform with neither
+/// `LOCAL_PEERPID` nor `SO_PEERCRED`.
+pub(crate) fn peer_pid(stream: &UnixStream) -> io::Result<u32> {
+    #[cfg(target_vendor = "apple")]
+    {
+        let mut pid: libc::pid_t = 0;
+        let mut size = size_of::<libc::pid_t>() as libc::socklen_t;
+        // SAFETY: the fd is open, and `pid` and `size` are valid for the call.
+        let status = unsafe {
+            libc::getsockopt(
+                stream.as_raw_fd(),
+                libc::SOL_LOCAL,
+                libc::LOCAL_PEERPID,
+                (&raw mut pid).cast(),
+                &raw mut size,
+            )
+        };
+        if status != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(pid as u32)
+    }
+    #[cfg(target_os = "linux")]
+    {
+        // SAFETY: an all-zero `ucred` is a valid value.
+        let mut cred: libc::ucred = unsafe { std::mem::zeroed() };
+        let mut size = size_of::<libc::ucred>() as libc::socklen_t;
+        // SAFETY: the fd is open, and `cred` and `size` are valid for the call.
+        let status = unsafe {
+            libc::getsockopt(
+                stream.as_raw_fd(),
+                libc::SOL_SOCKET,
+                libc::SO_PEERCRED,
+                (&raw mut cred).cast(),
+                &raw mut size,
+            )
+        };
+        if status != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(cred.pid as u32)
+    }
+    #[cfg(not(any(target_vendor = "apple", target_os = "linux")))]
+    {
+        let _ = stream;
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+}
+
 /// Whether the process at the other end of `stream` is this user's. Anything
 /// else, including a failure to tell, is no.
 pub(crate) fn peer_is_me(stream: &UnixStream) -> bool {
@@ -210,6 +263,12 @@ mod write_tests {
     fn the_peer_of_a_pair_is_this_user() {
         let (stream, _other) = UnixStream::pair().expect("pair");
         assert!(peer_is_me(&stream));
+    }
+
+    #[test]
+    fn the_peer_of_a_pair_is_this_process() {
+        let (stream, _other) = UnixStream::pair().expect("pair");
+        assert_eq!(peer_pid(&stream).expect("pid"), std::process::id());
     }
 
     #[test]

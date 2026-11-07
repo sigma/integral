@@ -39,6 +39,7 @@ pub mod mfx;
 pub mod mfx_params;
 pub mod midi_bridge;
 pub mod mixer_load;
+pub mod notice;
 pub mod param_registry;
 pub mod params;
 pub mod parse_helpers;

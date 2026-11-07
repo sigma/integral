@@ -3,7 +3,7 @@
 //! `#[path]`, by the link's unit tests, so it reads no build-time
 //! environment.
 
-#![allow(dead_code)]
+#![allow(dead_code, unused_imports)]
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -87,100 +87,13 @@ pub fn wait_for(what: &str, condition: impl Fn() -> bool) {
     }
 }
 
+/// The address whose linear value is `n`.
+pub fn addr(n: u32) -> integral_core::address::Address {
+    integral_core::address::Address::from_value(n).expect("an address")
+}
+
 /// Whether `message` is a request to read (RQ1).
-pub fn is_rq1(message: &[u8]) -> bool {
-    message.first() == Some(&integral_core::sysex::SYSEX_START)
-        && message.get(6) == Some(&integral_core::sysex::CMD_RQ1)
-}
+pub use integral_device_service::is_rq1;
 
-/// A device that answers reads: its memory by address, and a thread that
-/// replies to every RQ1 the service sends on the fake link with the bytes it
-/// holds (0 where nothing was put), and keeps what every DT1 writes.
-pub struct Memory {
-    bytes: std::sync::Arc<std::sync::Mutex<std::collections::BTreeMap<u32, u8>>>,
-    stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
-    thread: Option<std::thread::JoinHandle<()>>,
-}
-
-impl Memory {
-    /// Start answering reads on `link`.
-    pub fn answer(link: &integral_device_service::FakeLink) -> Self {
-        use integral_core::address::{Address, DataSize};
-        use integral_core::sysex;
-        use std::sync::atomic::Ordering;
-
-        let bytes = std::sync::Arc::new(std::sync::Mutex::new(std::collections::BTreeMap::new()));
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let thread = {
-            let (link, bytes, stop) = (link.clone(), bytes.clone(), stop.clone());
-            std::thread::spawn(move || {
-                let mut done = 0;
-                while !stop.load(Ordering::Acquire) {
-                    let sent = link.sent();
-                    // A test clears the recording now and then.
-                    done = done.min(sent.len());
-                    for message in &sent[done..] {
-                        // A write is kept, as a device would keep it.
-                        if message.get(6) == Some(&integral_core::sysex::CMD_DT1)
-                            && let Ok(dt1) = integral_core::sysex::parse_dt1(message)
-                        {
-                            let mut memory = bytes.lock().expect("memory");
-                            for (k, byte) in dt1.data.iter().enumerate() {
-                                memory.insert(dt1.address.value() + k as u32, *byte);
-                            }
-                        }
-                        // F0 41 id 00 00 64 11 a0..a3 s0..s3 cs F7
-                        if is_rq1(message) {
-                            let address =
-                                Address([message[7], message[8], message[9], message[10]]);
-                            let size =
-                                DataSize([message[11], message[12], message[13], message[14]])
-                                    .value();
-                            let memory = bytes.lock().expect("memory");
-                            let start = address.value();
-                            let data: Vec<u8> = (0..size)
-                                .map(|k| memory.get(&(start + k)).copied().unwrap_or(0))
-                                .collect();
-                            drop(memory);
-                            for (n, chunk) in data.chunks(64).enumerate() {
-                                let at = Address::from_value(start + (n * 64) as u32)
-                                    .expect("an address");
-                                link.device_says(&sysex::build_dt1(message[2], &at, chunk));
-                            }
-                        }
-                    }
-                    done = sent.len();
-                    std::thread::sleep(Duration::from_millis(5));
-                }
-            })
-        };
-        Self {
-            bytes,
-            stop,
-            thread: Some(thread),
-        }
-    }
-
-    /// The byte at `address` (a linear address value); 0 where nothing was put.
-    pub fn get(&self, address: u32) -> u8 {
-        let memory = self.bytes.lock().expect("memory");
-        memory.get(&address).copied().unwrap_or(0)
-    }
-
-    /// Put `data` at `address` (a linear address value).
-    pub fn put(&self, address: u32, data: &[u8]) {
-        let mut memory = self.bytes.lock().expect("memory");
-        for (k, byte) in data.iter().enumerate() {
-            memory.insert(address + k as u32, *byte);
-        }
-    }
-}
-
-impl Drop for Memory {
-    fn drop(&mut self) {
-        self.stop.store(true, std::sync::atomic::Ordering::Release);
-        if let Some(thread) = self.thread.take() {
-            let _ = thread.join();
-        }
-    }
-}
+/// A device that answers reads: see [`integral_device_service::FakeMemory`].
+pub use integral_device_service::FakeMemory as Memory;

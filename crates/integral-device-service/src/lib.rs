@@ -83,7 +83,7 @@ pub use client::{Client, ClientEvent, Events, Sender};
 #[doc(hidden)]
 pub use clients::Outbox;
 #[cfg(feature = "test-util")]
-pub use fake::FakeLink;
+pub use fake::{FakeLink, FakeMemory, is_rq1};
 pub use link::{DeviceLink, LinkError, LinkEvent, LinkSink, Log, stderr_log};
 pub use midir_link::{MidirLink, PortMatch, matching_pairs, port_named};
 pub use note::{NOTE_PORT_NAME, NotePort, NoteSink, PortError};
@@ -95,7 +95,7 @@ pub use session::SequentialSessionIds;
 pub use session::{RandomSessionIds, SessionId, SessionIdSource};
 #[cfg(unix)]
 pub use socket::{
-    SOCKET_FILE_NAME, SocketServer, check_default_path_length, default_socket_dir,
+    SOCKET_FILE_NAME, SocketClaim, SocketServer, check_default_path_length, default_socket_dir,
     default_socket_path, ensure_private_dir, socket_dir_in, socket_path_in, user_temp_dir,
 };
 #[cfg(unix)]
