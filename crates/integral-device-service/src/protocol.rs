@@ -60,9 +60,9 @@
 //! dragged faster than the device takes writes costs one message per slot. A
 //! write whose value the service knows the device already has is dropped, but
 //! only against what this session has read or written: every field is unknown
-//! when a session begins, and a [`Request::Push`] is never dropped from, with
-//! one exception, below. Two pushes that touch the same Part interleave
-//! item by item; the later item wins as each reaches the device.
+//! when a session begins, and a [`Request::Push`] is never dropped from. Two
+//! pushes that touch the same Part interleave item by item; the later item
+//! wins as each reaches the device.
 //!
 //! When a session ends (the link drops, or the device turns out to be
 //! another) everything outstanding is refused with [`Reject::LinkDown`]: each
@@ -80,12 +80,9 @@
 //! life of the service (Expansion tones for the session), so a repeat recall
 //! reads nothing.
 //!
-//! A push that holds a `ChangeTone` for a Part treats its later writes to that
-//! Part's tone differently: they wait for the read-back, then are dropped as
-//! unchanged against it like any write. A recall can therefore send the
-//! selection and the whole tone in one push and only what differs from the
-//! tone as selected goes out. A write to a field the read-back did not cover
-//! (a User tone has none; a drum kit's per-key fields are not read) is sent.
+//! A recall that selects a Preset or Expansion tone asks for the baseline
+//! after the selection and sends what differs from it in a second push: the
+//! service never drops from a push.
 //!
 //! # A session
 //!
@@ -292,9 +289,6 @@ pub enum Request {
     /// A write the client queues after the push is applied after all of it.
     /// The service answers [`Message::Pushed`] when the last has been handed
     /// to the device's queue (not when it has left: the queue paces them).
-    ///
-    /// A write to the tone of a Part that the push selected earlier is the
-    /// exception to "sent anyway": see the module docs.
     ///
     /// Only [`Request::Write`], [`Request::Raw`], [`Request::ChangeTone`] and
     /// [`Request::SwitchStudioSet`] may be in it; if any request is not valid

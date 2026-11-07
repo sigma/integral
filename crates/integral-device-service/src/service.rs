@@ -640,11 +640,8 @@ impl Service {
     /// writes queued later never pass, ending with a marker that tells the
     /// client the push was handed to the device's queue.
     ///
-    /// Its writes are sent whatever the session believes the device holds,
-    /// except those to the tone of a Part that the push selected earlier
-    /// (`ChangeTone`): that item's read-back comes first, and is what the
-    /// writes after it are compared with, so a push of a select and a whole
-    /// tone sends only what differs from the tone as selected.
+    /// Its writes are sent whatever the session believes the device holds:
+    /// the project is the push's word against it.
     fn enqueue(&mut self, client: ClientId, request: Request) -> Result<(), String> {
         if let Request::Push { requests } = request {
             for (i, item) in requests.iter().enumerate() {
@@ -660,28 +657,13 @@ impl Service {
                 self.check(item)
                     .map_err(|message| format!("request {i} of a push: {message}"))?;
             }
-            let mut selected = HashSet::new();
             for item in requests {
-                let force = match &item {
-                    Request::ChangeTone { part, .. } => {
-                        selected.insert(*part);
-                        true
-                    }
-                    Request::Write { .. } => {
-                        // Checked above, so it resolves.
-                        let part = self
-                            .write_target(&item)
-                            .and_then(|a| temporary_tone_part(&a));
-                        !part.is_some_and(|p| selected.contains(&p))
-                    }
-                    _ => true,
-                };
                 self.queues.push(Pending {
                     client,
                     work: Work::Request(item),
                     span: None,
                     push: true,
-                    force,
+                    force: true,
                 });
             }
             self.queues.push(Pending {
@@ -702,16 +684,6 @@ impl Service {
             force: false,
         });
         Ok(())
-    }
-
-    /// The address a typed write writes.
-    fn write_target(&self, request: &Request) -> Option<Address> {
-        let Request::Write { param, binding, .. } = request else {
-            return None;
-        };
-        self.resolve(param, binding)
-            .ok()
-            .map(|(_, address)| address)
     }
 
     /// The parameter a request names, where it is for the request's binding,

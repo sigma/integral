@@ -1706,47 +1706,6 @@ fn a_late_reply_after_a_studio_set_switch_does_not_make_a_field_known() {
 }
 
 #[test]
-fn a_push_of_a_select_and_a_whole_tone_sends_only_what_differs_from_the_read_back() {
-    let (mut service, link) = service();
-    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
-    let (a, inbox) = client(&mut service, 1);
-    let blocks = tone_requests(2, params::ToneType::PcmSynth);
-    let (same, same_at, min) = pcm_param_in(&blocks[0], 2, 0);
-    let (other, other_at, _) = pcm_param_in(&blocks[0], 2, 1);
-    let other_value = 5;
-    let write = |param: ParamId, value| Request::Write {
-        param,
-        binding: Binding::of_part(2),
-        value,
-    };
-    // The device holds `min` everywhere in the preset (bytes of `min`).
-    let mut device = Device::new(blocks, min as u8);
-    ask(
-        &mut service,
-        a,
-        Request::Push {
-            requests: vec![
-                change_tone(2, 87, 64, 5),
-                write(same, min),
-                write(other, other_value),
-            ],
-        },
-    );
-    device.run(&mut service, &link, 0.0, 3000.0);
-
-    let writes: Vec<_> = sysex_sent(&link)
-        .into_iter()
-        .filter(|m| {
-            m[6] == 0x12 && m[7..11] != *params::part_address(2, part::TONE_BANK_MSB).as_bytes()
-        })
-        .collect();
-    assert_eq!(writes.len(), 1, "only the field that differs: {writes:?}");
-    assert_eq!(&writes[0][7..11], other_at.as_bytes());
-    assert_ne!(same_at, other_at);
-    assert!(inbox.take().contains(&Message::Pushed));
-}
-
-#[test]
 fn a_push_to_a_part_it_did_not_select_is_sent_whatever_the_cache_holds() {
     let (mut service, link) = service();
     service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
