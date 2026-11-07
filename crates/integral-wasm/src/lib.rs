@@ -3296,6 +3296,7 @@ pub fn mixer_field_spec(field: MixerField) -> WasmFieldSpec {
             default: def.default,
             format: def.format,
             family: def.family,
+            host_name: def.host_name,
         })
     }
 }

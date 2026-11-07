@@ -140,6 +140,34 @@ impl BlockField for SnsCommonField {
 }
 
 impl SnsCommonField {
+    /// Every field, in block (device address) order.
+    pub const ALL: &[Self] = &[
+        Self::ToneLevel,
+        Self::PortamentoSwitch,
+        Self::PortamentoTime,
+        Self::MonoSwitch,
+        Self::OctaveShift,
+        Self::PitchBendRangeUp,
+        Self::PitchBendRangeDown,
+        Self::Partial1Switch,
+        Self::Partial1Select,
+        Self::Partial2Switch,
+        Self::Partial2Select,
+        Self::Partial3Switch,
+        Self::Partial3Select,
+        Self::RingSwitch,
+        Self::TfxSwitch,
+        Self::UnisonSwitch,
+        Self::PortamentoMode,
+        Self::LegatoSwitch,
+        Self::AnalogFeel,
+        Self::WaveShape,
+        Self::ToneCategory,
+        Self::PhraseNumber,
+        Self::PhraseOctaveShift,
+        Self::UnisonSize,
+    ];
+
     /// The Partial1–3 Switch fields, by Partial index.
     pub const PARTIAL_SWITCHES: [Self; SNS_PARTIAL_COUNT] = [
         Self::Partial1Switch,
@@ -261,6 +289,66 @@ pub enum SnsPartialField {
     ModLfoRateControl = 0x3B,
     /// AMP Level Keyfollow.
     AmpLevelKeyfollow = 0x3C,
+}
+
+impl SnsPartialField {
+    /// Every field, in block (device address) order.
+    pub const ALL: &[Self] = &[
+        Self::OscWave,
+        Self::OscWaveVariation,
+        Self::OscPitch,
+        Self::OscDetune,
+        Self::OscPwModDepth,
+        Self::OscPulseWidth,
+        Self::OscPitchEnvAttack,
+        Self::OscPitchEnvDecay,
+        Self::OscPitchEnvDepth,
+        Self::FilterMode,
+        Self::FilterSlope,
+        Self::FilterCutoff,
+        Self::FilterKeyfollow,
+        Self::FilterEnvVelSens,
+        Self::FilterResonance,
+        Self::FilterEnvAttack,
+        Self::FilterEnvDecay,
+        Self::FilterEnvSustain,
+        Self::FilterEnvRelease,
+        Self::FilterEnvDepth,
+        Self::AmpLevel,
+        Self::AmpVelSens,
+        Self::AmpEnvAttack,
+        Self::AmpEnvDecay,
+        Self::AmpEnvSustain,
+        Self::AmpEnvRelease,
+        Self::AmpPan,
+        Self::LfoShape,
+        Self::LfoRate,
+        Self::LfoTempoSync,
+        Self::LfoTempoSyncNote,
+        Self::LfoFadeTime,
+        Self::LfoKeyTrigger,
+        Self::LfoPitchDepth,
+        Self::LfoFilterDepth,
+        Self::LfoAmpDepth,
+        Self::LfoPanDepth,
+        Self::ModLfoShape,
+        Self::ModLfoRate,
+        Self::ModLfoTempoSync,
+        Self::ModLfoTempoSyncNote,
+        Self::PwShift,
+        Self::ModLfoPitchDepth,
+        Self::ModLfoFilterDepth,
+        Self::ModLfoAmpDepth,
+        Self::ModLfoPanDepth,
+        Self::AftertouchCutoff,
+        Self::AftertouchLevel,
+        Self::WaveGain,
+        Self::WaveNumber,
+        Self::HpfCutoff,
+        Self::SuperSawDetune,
+        Self::ModLfoRateControl,
+        Self::AmpLevelKeyfollow,
+    ];
 }
 
 impl BlockField for SnsPartialField {

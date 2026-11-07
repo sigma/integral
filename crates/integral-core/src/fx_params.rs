@@ -16,6 +16,13 @@ pub struct FxParamDef {
     pub index: u8,
     /// Human-readable name.
     pub name: &'static str,
+    /// The name in a host's parameter list, before the effect and type it
+    /// sits under ([`FxParamDef::qualified_name`]). It is
+    /// [`name`](Self::name), spelled out where that is an abbreviation:
+    /// Chorus and Reverb follow the Parameter Guide's names
+    /// (`docs/midi/11-fx-parameters.md`), MFX the Editor's names written
+    /// out in full (`mfx_params.rs`).
+    pub host_name: &'static str,
     /// Minimum value (inclusive).
     pub min: i32,
     /// Maximum value (inclusive).
@@ -312,6 +319,43 @@ impl FxParamDef {
     }
 }
 
+/// Label of the MFX block in a host parameter name.
+pub const MFX_LABEL: &str = "MFX";
+/// Label of the Studio Set Chorus block in a host parameter name.
+pub const CHORUS_LABEL: &str = "Chorus";
+/// Label of the Studio Set Reverb block in a host parameter name.
+pub const REVERB_LABEL: &str = "Reverb";
+
+/// Chorus type names as a host lists them (the doc's), index = type.
+pub static CHORUS_TYPE_HOST_NAMES: &[&str] = &["OFF", "Chorus", "Delay", "GM2 Chorus"];
+
+/// Reverb type names as a host lists them (the doc's), index = type.
+pub static REVERB_TYPE_HOST_NAMES: &[&str] = &[
+    "OFF",
+    "Room 1",
+    "Room 2",
+    "Hall 1",
+    "Hall 2",
+    "Plate",
+    "GM2 Reverb",
+];
+
+impl FxParamDef {
+    /// The parameter's name in a host's parameter list, with its effect and
+    /// type: `MFX Phaser 1: Rate` for `block` `MFX`, `type_name`
+    /// `Phaser 1`. Only the active type's parameters do anything, so the
+    /// type is part of the name. A type name that already says the block
+    /// stands alone (`GM2 Reverb: Time`, `Chorus: Rate`).
+    pub fn qualified_name(&self, block: &str, type_name: &str) -> String {
+        let says_block = type_name.split_whitespace().any(|word| word == block);
+        if says_block {
+            format!("{type_name}: {}", self.host_name)
+        } else {
+            format!("{block} {type_name}: {}", self.host_name)
+        }
+    }
+}
+
 impl fmt::Display for FxParamDef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.name)
@@ -331,6 +375,7 @@ pub(crate) const fn param(
     FxParamDef {
         index,
         name,
+        host_name: name,
         min,
         max,
         default_value,
@@ -341,6 +386,12 @@ pub(crate) const fn param(
 }
 
 impl FxParamDef {
+    /// Give the parameter the name a host lists it under, where
+    /// [`name`](Self::name) is an abbreviation.
+    pub(crate) const fn with_host_name(self, host_name: &'static str) -> FxParamDef {
+        FxParamDef { host_name, ..self }
+    }
+
     /// Make this a tempo-syncable parameter: switch at `index − 1`, value at
     /// `index`, note at `index + 1` (the only layout the device uses).
     pub(crate) const fn synced(self, note_default: i32, labels: [&'static str; 2]) -> FxParamDef {
@@ -376,20 +427,26 @@ impl FxParamDef {
 // ---------------------------------------------------------------------------
 
 const CHORUS_CHORUS: &[FxParamDef] = &[
-    param(0, "Filter", Filter, 0, 2, 2, FxUnit::FilterType),
-    param(1, "Cutoff", Filter, 0, FREQ_MAX, 6, FxUnit::Freq),
-    param(2, "PreDly", Time, 0, 125, 20, FxUnit::PreDelay),
+    param(0, "Filter", Filter, 0, 2, 2, FxUnit::FilterType).with_host_name("Filter Type"),
+    param(1, "Cutoff", Filter, 0, FREQ_MAX, 6, FxUnit::Freq).with_host_name("Cutoff Freq"),
+    param(2, "PreDly", Time, 0, 125, 20, FxUnit::PreDelay).with_host_name("Pre Delay"),
     param(4, "Rate", Modulation, 1, 200, 10, FxUnit::RateHz).synced(18, SYNC_HZ),
     param(6, "Depth", Modulation, 0, 127, 30, FxUnit::Plain),
     param(7, "Phase", Modulation, 0, 90, 90, FxUnit::DegreesX2),
-    param(8, "Fdbk", Filter, 0, 127, 0, FxUnit::Plain),
+    param(8, "Fdbk", Filter, 0, 127, 0, FxUnit::Plain).with_host_name("Feedback"),
 ];
 
 const CHORUS_DELAY: &[FxParamDef] = &[
-    param(1, "Dly L", Time, 0, 1000, 200, FxUnit::Millis).synced(7, SYNC_MS),
-    param(4, "Dly R", Time, 0, 1000, 400, FxUnit::Millis).synced(10, SYNC_MS),
-    param(7, "Dly C", Time, 0, 1000, 600, FxUnit::Millis).synced(12, SYNC_MS),
-    param(9, "C Fdbk", Time, 0, 98, 59, FxUnit::FeedbackPercent),
+    param(1, "Dly L", Time, 0, 1000, 200, FxUnit::Millis)
+        .synced(7, SYNC_MS)
+        .with_host_name("Delay Left"),
+    param(4, "Dly R", Time, 0, 1000, 400, FxUnit::Millis)
+        .synced(10, SYNC_MS)
+        .with_host_name("Delay Right"),
+    param(7, "Dly C", Time, 0, 1000, 600, FxUnit::Millis)
+        .synced(12, SYNC_MS)
+        .with_host_name("Delay Center"),
+    param(9, "C Fdbk", Time, 0, 98, 59, FxUnit::FeedbackPercent).with_host_name("Center Feedback"),
     param(
         10,
         "HFDamp",
@@ -398,20 +455,21 @@ const CHORUS_DELAY: &[FxParamDef] = &[
         FREQ_MAX + 1,
         FREQ_MAX + 1,
         FxUnit::Freq,
-    ),
-    param(11, "Lv L", Amp, 0, 127, 127, FxUnit::Plain),
-    param(12, "Lv R", Amp, 0, 127, 127, FxUnit::Plain),
-    param(13, "Lv C", Amp, 0, 127, 127, FxUnit::Plain),
+    )
+    .with_host_name("HF Damp"),
+    param(11, "Lv L", Amp, 0, 127, 127, FxUnit::Plain).with_host_name("Left Level"),
+    param(12, "Lv R", Amp, 0, 127, 127, FxUnit::Plain).with_host_name("Right Level"),
+    param(13, "Lv C", Amp, 0, 127, 127, FxUnit::Plain).with_host_name("Center Level"),
 ];
 
 const CHORUS_GM2: &[FxParamDef] = &[
-    param(0, "PreLPF", Filter, 0, 7, 0, FxUnit::Plain),
+    param(0, "PreLPF", Filter, 0, 7, 0, FxUnit::Plain).with_host_name("Pre-LPF"),
     param(1, "Level", Amp, 0, 127, 64, FxUnit::Plain),
-    param(2, "Fdbk", Filter, 0, 127, 8, FxUnit::Plain),
+    param(2, "Fdbk", Filter, 0, 127, 8, FxUnit::Plain).with_host_name("Feedback"),
     param(3, "Delay", Time, 0, 127, 80, FxUnit::Plain),
     param(4, "Rate", Modulation, 0, 127, 3, FxUnit::Plain),
     param(5, "Depth", Modulation, 0, 127, 19, FxUnit::Plain),
-    param(6, "→Rev", Amp, 0, 127, 0, FxUnit::Plain),
+    param(6, "→Rev", Amp, 0, 127, 0, FxUnit::Plain).with_host_name("Send Level to Reverb"),
 ];
 
 /// Chorus parameter definitions indexed by chorus type (0=OFF, 1=Chorus,
@@ -438,18 +496,18 @@ pub static CHORUS_TYPE_NAMES: &[&str] = &["OFF", "Chorus", "Delay", "GM2 Cho"];
 // ponytail: one table for five types; Roland's inits differ per type (Time 9
 // for Rooms, Pre Delay 20 for Plate). Split it if per-type reset matters.
 const REVERB_ROOM_HALL_PLATE: &[FxParamDef] = &[
-    param(1, "PreDly", Time, 0, 100, 0, FxUnit::Millis),
+    param(1, "PreDly", Time, 0, 100, 0, FxUnit::Millis).with_host_name("Pre Delay"),
     param(2, "Time", Time, 1, 100, 26, FxUnit::SecondsTenths),
-    param(3, "Densty", Time, 0, 127, 127, FxUnit::Plain),
-    param(4, "Diffus", Time, 0, 127, 127, FxUnit::Plain),
-    param(5, "LFDamp", Filter, 0, 100, 50, FxUnit::Plain),
-    param(6, "HFDamp", Filter, 0, 100, 50, FxUnit::Plain),
+    param(3, "Densty", Time, 0, 127, 127, FxUnit::Plain).with_host_name("Density"),
+    param(4, "Diffus", Time, 0, 127, 127, FxUnit::Plain).with_host_name("Diffusion"),
+    param(5, "LFDamp", Filter, 0, 100, 50, FxUnit::Plain).with_host_name("LF Damp"),
+    param(6, "HFDamp", Filter, 0, 100, 50, FxUnit::Plain).with_host_name("HF Damp"),
     param(7, "Spread", Time, 0, 127, 127, FxUnit::Plain),
     param(8, "Tone", Filter, 0, 127, 64, FxUnit::Plain),
 ];
 
 const REVERB_GM2: &[FxParamDef] = &[
-    param(0, "Char", Time, 0, 5, 4, FxUnit::Plain),
+    param(0, "Char", Time, 0, 5, 4, FxUnit::Plain).with_host_name("Character"),
     param(3, "Time", Time, 0, 127, 64, FxUnit::Plain),
 ];
 

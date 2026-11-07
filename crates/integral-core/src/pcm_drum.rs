@@ -111,6 +111,32 @@ pub enum PcmdWmtField {
     VelocityFadeUpper = 28,
 }
 
+impl PcmdWmtField {
+    /// Every field, in block (device address) order.
+    pub const ALL: &[Self] = &[
+        Self::Switch,
+        Self::WaveGroupType,
+        Self::WaveGroupId,
+        Self::WaveNumberL,
+        Self::WaveNumberR,
+        Self::WaveGain,
+        Self::WaveFxmSwitch,
+        Self::WaveFxmColor,
+        Self::WaveFxmDepth,
+        Self::WaveTempoSync,
+        Self::CoarseTune,
+        Self::FineTune,
+        Self::Pan,
+        Self::RandomPanSwitch,
+        Self::AlternatePanSwitch,
+        Self::Level,
+        Self::VelocityRangeLower,
+        Self::VelocityRangeUpper,
+        Self::VelocityFadeLower,
+        Self::VelocityFadeUpper,
+    ];
+}
+
 impl BlockField for PcmdWmtField {
     fn position(self) -> usize {
         WMT1_START + self as usize
@@ -228,6 +254,56 @@ pub enum PcmdPartialField {
     OneShotMode = 0x80 + 0x41,
 }
 
+impl PcmdPartialField {
+    /// Every field, in block (device address) order.
+    pub const ALL: &[Self] = &[
+        Self::AssignType,
+        Self::MuteGroup,
+        Self::Level,
+        Self::CoarseTune,
+        Self::FineTune,
+        Self::RandomPitchDepth,
+        Self::Pan,
+        Self::RandomPanDepth,
+        Self::AlternatePanDepth,
+        Self::EnvMode,
+        Self::OutputLevel,
+        Self::ChorusSend,
+        Self::ReverbSend,
+        Self::OutputAssign,
+        Self::PitchBendRange,
+        Self::ReceiveExpression,
+        Self::ReceiveHold1,
+        Self::WmtVelocityControl,
+        Self::PitchEnvDepth,
+        Self::PitchEnvVelocitySens,
+        Self::PitchEnvT1VelocitySens,
+        Self::PitchEnvT4VelocitySens,
+        Self::PitchEnvTime,
+        Self::PitchEnvLevel,
+        Self::TvfFilterType,
+        Self::TvfCutoffFrequency,
+        Self::TvfCutoffVelocityCurve,
+        Self::TvfCutoffVelocitySens,
+        Self::TvfResonance,
+        Self::TvfResonanceVelocitySens,
+        Self::TvfEnvDepth,
+        Self::TvfEnvVelocityCurve,
+        Self::TvfEnvVelocitySens,
+        Self::TvfEnvT1VelocitySens,
+        Self::TvfEnvT4VelocitySens,
+        Self::TvfEnvTime,
+        Self::TvfEnvLevel,
+        Self::TvaLevelVelocityCurve,
+        Self::TvaLevelVelocitySens,
+        Self::TvaEnvT1VelocitySens,
+        Self::TvaEnvT4VelocitySens,
+        Self::TvaEnvTime,
+        Self::TvaEnvLevel,
+        Self::OneShotMode,
+    ];
+}
+
 impl BlockField for PcmdPartialField {
     fn position(self) -> usize {
         self as usize
@@ -276,6 +352,11 @@ pub const fn pcmd_common_address(part_index: u8) -> Address {
 pub enum PcmdCommonField {
     /// Kit Level.
     KitLevel = 0x0C,
+}
+
+impl PcmdCommonField {
+    /// Every field, in block (device address) order.
+    pub const ALL: &[Self] = &[Self::KitLevel];
 }
 
 impl BlockField for PcmdCommonField {

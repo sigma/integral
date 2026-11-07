@@ -162,6 +162,16 @@ pub enum SndCommonField {
     TfxSwitch = 0x13,
 }
 
+impl SndCommonField {
+    /// Every field, in block (device address) order.
+    pub const ALL: &[Self] = &[
+        Self::KitLevel,
+        Self::AmbienceLevel,
+        Self::PhraseNumber,
+        Self::TfxSwitch,
+    ];
+}
+
 impl BlockField for SndCommonField {
     fn position(self) -> usize {
         self as usize
@@ -200,6 +210,25 @@ pub enum SndNoteField {
     StereoWidth = 0x11,
     /// Output Assign.
     OutputAssign = 0x12,
+}
+
+impl SndNoteField {
+    /// Every field, in block (device address) order.
+    pub const ALL: &[Self] = &[
+        Self::InstNumber,
+        Self::Level,
+        Self::Pan,
+        Self::ChorusSend,
+        Self::ReverbSend,
+        Self::Tune,
+        Self::Attack,
+        Self::Decay,
+        Self::Brilliance,
+        Self::Variation,
+        Self::DynamicRange,
+        Self::StereoWidth,
+        Self::OutputAssign,
+    ];
 }
 
 impl BlockField for SndNoteField {

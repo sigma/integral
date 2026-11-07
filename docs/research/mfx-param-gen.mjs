@@ -348,7 +348,7 @@ const consts = T.map((x, id) => {
     if (m && m[2] === "sync sw") continue;
     if (m && m[2] === "note") continue;
     const st = (v) => v - 32768;
-    let line = `    param(${k}, ${JSON.stringify(label)}, ${familyOf(id, label)}, ${st(l.min)}, ${st(l.max)}, ${st(l.init)}, ${unitFor(l, disp)})`;
+    let line = `    mfx_param(${k}, ${JSON.stringify(label)}, ${familyOf(id, label)}, ${st(l.min)}, ${st(l.max)}, ${st(l.init)}, ${unitFor(l, disp)})`;
     if (m) {
       const sw = leaves[k - 1],
         note = leaves[k + 1];
