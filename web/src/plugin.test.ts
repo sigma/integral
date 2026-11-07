@@ -4,6 +4,7 @@ import { DEVICE_SERVICE_ID, DEVICE_SERVICE_NAME } from "./deviceService";
 import { mixerScreen } from "./layouts/mixer/screen";
 import { naturalSize } from "./layouts/zoom";
 import { identifyDevice } from "./midi";
+import { fakeBridge } from "./test/pluginBridge";
 import {
   OPEN_TIMEOUT_MS,
   PLUGIN_EVENT,
@@ -15,44 +16,8 @@ import {
   pluginWindowSize,
   resizePluginWindow,
   windowBridge,
-  type PageMessage,
-  type PluginBridge,
   type PluginMessage,
 } from "./plugin";
-
-/** A bridge standing in for the plugin: records what the page posts and
- *  delivers what the test sends. */
-function fakeBridge() {
-  const posted: PageMessage[] = [];
-  const listeners = new Set<(message: string) => void>();
-  let answer: ((message: PageMessage) => PluginMessage[]) | null = null;
-  const deliver = (message: PluginMessage) => {
-    for (const l of [...listeners]) l(JSON.stringify(message));
-  };
-  const bridge: PluginBridge = {
-    post(text) {
-      const message = JSON.parse(text) as PageMessage;
-      posted.push(message);
-      for (const reply of answer?.(message) ?? []) queueMicrotask(() => deliver(reply));
-    },
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-  };
-  return {
-    bridge,
-    posted,
-    deliver,
-    /** Answer each posted message with what `reply` returns. */
-    answerWith(reply: (message: PageMessage) => PluginMessage[]) {
-      answer = reply;
-    },
-    rawDeliver(text: string) {
-      for (const l of [...listeners]) l(text);
-    },
-  };
-}
 
 /** Ports from a fake plugin that lists `names` on `ready`. */
 async function listed(names: string[]) {
@@ -103,6 +68,63 @@ describe("plugin message codec", () => {
     });
   });
 
+  it("encodes the binding and host gesture messages the plugin decodes", () => {
+    // As `ipc.rs` decodes them.
+    expect(encodePageMessage({ type: "bind", part: 3, key: 36 })).toBe(
+      '{"type":"bind","part":3,"key":36}',
+    );
+    expect(encodePageMessage({ type: "bind", part: 3 })).toBe('{"type":"bind","part":3}');
+    expect(encodePageMessage({ type: "beginEdit", id: "part07/0x09" })).toBe(
+      '{"type":"beginEdit","id":"part07/0x09"}',
+    );
+    expect(encodePageMessage({ type: "performEdit", id: "part07/0x09", value: -12 })).toBe(
+      '{"type":"performEdit","id":"part07/0x09","value":-12}',
+    );
+    expect(encodePageMessage({ type: "endEdit", id: "part07/0x09" })).toBe(
+      '{"type":"endEdit","id":"part07/0x09"}',
+    );
+  });
+
+  it("decodes the instance message the plugin encodes", () => {
+    // As `ipc.rs` encodes it.
+    expect(
+      decodePluginMessage(
+        '{"type":"instance","plugin":"pcm_drum","binding":{"part":2,"key":36},"status":"deviceOffline","statusText":"Device offline","hostEdits":true,"notices":[{"notice":"recalling","text":"Recalling\\u2026"}]}',
+      ),
+    ).toEqual({
+      type: "instance",
+      plugin: "pcm_drum",
+      binding: { part: 2, key: 36 },
+      status: "deviceOffline",
+      statusText: "Device offline",
+      hostEdits: true,
+      notices: [{ notice: "recalling", text: "Recalling\u2026" }],
+    });
+    expect(
+      decodePluginMessage(
+        '{"type":"instance","plugin":"studio_set","binding":{},"status":"connected","statusText":"Connected","hostEdits":false,"notices":[]}',
+      ),
+    ).toMatchObject({ plugin: "studio_set", binding: {}, status: "connected", hostEdits: false });
+    expect(
+      decodePluginMessage(
+        '{"type":"instance","plugin":"sn_synth","binding":null,"status":"serviceNotRunning","statusText":"x","hostEdits":true,"notices":[]}',
+      ),
+    ).toMatchObject({ binding: null });
+  });
+
+  it("decodes a refusal, and takes any status code the plugin names", () => {
+    // As `ipc.rs` encodes it.
+    expect(decodePluginMessage('{"type":"refused","message":"no"}')).toEqual({
+      type: "refused",
+      message: "no",
+    });
+    expect(
+      decodePluginMessage(
+        '{"type":"instance","plugin":"sn_synth","binding":null,"status":"aNewStatus","statusText":"New","hostEdits":true,"notices":[]}',
+      ),
+    ).toMatchObject({ status: "aNewStatus", statusText: "New" });
+  });
+
   it("rejects malformed messages", () => {
     for (const text of [
       "not json",
@@ -114,6 +136,12 @@ describe("plugin message codec", () => {
       '{"type":"receive","port":"A","data":[1.5]}',
       '{"type":"receive","port":7,"data":[]}',
       '{"type":"error","port":"A"}',
+      '{"type":"refused"}',
+      '{"type":"instance","plugin":"sn_synth","binding":{"part":256},"status":"connected","statusText":"x","notices":[]}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","notices":[1]}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x"}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","notices":[]}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":"yes","notices":[]}',
     ]) {
       expect(decodePluginMessage(text), text).toBeNull();
     }

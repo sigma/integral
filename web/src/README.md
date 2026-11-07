@@ -10,8 +10,14 @@ plus the I/O the browser has to do.
 - **Entry.** `main.tsx` checks for a plugin bridge (`windowBridge(window)`).
   Inside the plugin webview
   ([ADR 0004](../../docs/adr/0004-plugin-ui-in-a-webview.md)) it sizes the
-  window after wasm loads and hands `App` the plugin transport. In a browser
-  it mounts `PwaUpdateBanner`, and `App` uses Web MIDI.
+  window after wasm loads and hands `App` the plugin transport and the
+  bridge (`plugin`). In a browser it mounts `PwaUpdateBanner`, and `App`
+  uses Web MIDI.
+- **Plugin editor.** Given a bridge, `App` shows only what the plugin's
+  instance owns (ADR 0007, `pluginPages.ts`): the Mixer and Surround pages
+  for the Studio Set plugin, the tone editor of the plugin's type, scoped to
+  the bound Part (and key), for a Tone or Kit plugin. `PluginBar` replaces the
+  top bar with the Binding picker and the status line.
 - **App.** `App.tsx` shows a connection card until an INTEGRA-7 is
   identified. Then it shows tabs held in local state, with no router: Mixer,
   Surround, Tone Edit, Sequencer, Expansions and Library. The Sequencer tab
@@ -92,8 +98,20 @@ Device link and transports (`.ts`):
     reason it sent, else `SERVICE_UNAVAILABLE_HINT`.
   - The IPC wire format: `encodePageMessage`, `decodePluginMessage`,
     `PLUGIN_EVENT`, and the wire types `PageMessage` and `PluginMessage`.
+  - The instance: `InstanceInfo` (the plugin kind, Binding, status and
+    notices the plugin reports), `subscribeInstance` and `bindInstance`.
+    `usePluginInstance` is the hook.
   - `OPEN_TIMEOUT_MS` (2000) and `ScreenArea`.
   - Window sizing: `pluginGrid`, `pluginWindowSize`, `resizePluginWindow`.
+
+- `pluginPages.ts`: `pluginPages` (the pages a plugin kind shows),
+  `pluginToneType`, `DrumScope` (`pluginDrumScope`, `drumScope`,
+  `lockedKey`), `kitKeys` and `acceptsBinding` (core's rule, through wasm).
+- `hostGestures.ts`: `HostGestures` turns a drag's writes into `beginEdit`,
+  `performEdit` and `endEdit` (begin on the first write, end on the pointer's
+  release; a write with no pointer held is its own gesture). `useHostGestures`
+  collects the writes from the core (`takeHostWrites`, which names the host
+  parameter each sets for the Binding) every `GESTURE_POLL_MS`.
 
 Catalogs from the core spec:
 

@@ -31,7 +31,8 @@ export interface DrumKey<N> {
  * The selected key of a drum kit in `partIndex`, its data fetched with
  * `fetchKey` (stable, from `useCallback`) and cached, and every key in
  * `first..=last` prefetched once `enabled`. Changing the key only changes
- * the Scope: the editor's Sections stay mounted.
+ * the Scope: the editor's Sections stay mounted. A `locked` key (a Kit
+ * plugin bound to one key) is the selected key, whatever is selected.
  */
 export function useDrumKey<N>(
   service: IntegraService,
@@ -39,8 +40,10 @@ export function useDrumKey<N>(
   { first, last }: { first: number; last: number },
   enabled: boolean,
   fetchKey: (key: number) => Promise<N | null>,
+  locked?: number,
 ): DrumKey<N> {
-  const [key, setKey] = useState(FIRST_SELECTED);
+  const [picked, setKey] = useState(FIRST_SELECTED);
+  const key = locked ?? picked;
   const [note, setNote] = useState<{ key: number; data: N } | null>(null);
   const cache = useRef<Map<number, N>>(new Map());
 

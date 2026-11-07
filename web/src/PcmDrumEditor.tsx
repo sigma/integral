@@ -61,6 +61,7 @@ import { FilterScope } from "./synth-ui/FilterScope";
 import { useMfxHandlers } from "./useMfxHandlers";
 import { DrumKeyGrid } from "./DrumKeyGrid";
 import { useDrumKey } from "./useDrumKey";
+import { lockedKey, type DrumScope } from "./pluginPages";
 import { WaveDisplay } from "./WaveDisplay";
 import {
   PCMD_COMMON_ENTRIES,
@@ -90,9 +91,11 @@ interface Props {
   service: IntegraService;
   /** Loaded state of the Expansions behind SRX Wave Groups. */
   marking?: ExpansionMarking;
+  /** What of the kit to edit: all of it by default; a Kit plugin's Binding narrows it. */
+  scope?: DrumScope;
 }
 
-export function PcmDrumEditor({ partIndex, service, marking }: Props) {
+export function PcmDrumEditor({ partIndex, service, marking, scope }: Props) {
   const keys = deviceSpec().pcm_drum_keys;
   const [common, setCommon] = useState<PcmDrumCommon | null>(null);
   const [mfx, setMfx] = useState<MfxState | null>(null);
@@ -147,7 +150,8 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
       ) as PcmDrumPartial | null,
     [partIndex, service],
   );
-  const drumKey = useDrumKey(service, partIndex, keys, !loading, fetchPartial);
+  // A Kit plugin edits the kit or one key, and prefetches none.
+  const drumKey = useDrumKey(service, partIndex, keys, !loading && scope === undefined, fetchPartial, lockedKey(scope));
   const { key: selectedKey, note, current, update } = drumKey;
 
   const setKitLevel = useCallback(
@@ -270,8 +274,12 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
   }
 
   const keyRelevance = () => loadedRelevance(current);
+  const kitSection = (
+    <GridSection layout={PCMD_KIT_LAYOUT} bind={bindKit} relevance={() => loadedRelevance(common !== null)} />
+  );
   const section = (p: SectionPlacement): ReactNode => {
-    if (p.id === PCMD_SECTION.mfx) return mfx && <MfxPanel mfx={mfx} {...mfxHandlers} />;
+    // The MFX is the kit's, which a key does not own.
+    if (p.id === PCMD_SECTION.mfx) return scope === undefined ? mfx && <MfxPanel mfx={mfx} {...mfxHandlers} /> : null;
     const wmt = wmtRowSectionOf(p.id);
     if (wmt) {
       const { layer } = wmt;
@@ -311,22 +319,32 @@ export function PcmDrumEditor({ partIndex, service, marking }: Props) {
       {common && <div className={css.kitName}>{common.kitName || "(unnamed kit)"}</div>}
 
       {/* The key grid picks the Scope of the key Sections below it; the kit's level sits beside the grid. */}
-      <DrumKeyGrid
-        firstKey={keys.first}
-        lastKey={keys.last}
-        selectedKey={selectedKey}
-        onSelect={drumKey.select}
-        keyOutputAssigns={keyOutputAssigns}
-        offKeys={offKeys}
-        kit={<GridSection layout={PCMD_KIT_LAYOUT} bind={bindKit} relevance={() => loadedRelevance(common !== null)} />}
-      />
-      <div className={css.partialName}>
-        {noteName(selectedKey)}
-        {note?.partialName ? `: ${note.partialName}` : ""}
-      </div>
+      {scope === undefined ? (
+        <DrumKeyGrid
+          firstKey={keys.first}
+          lastKey={keys.last}
+          selectedKey={selectedKey}
+          onSelect={drumKey.select}
+          keyOutputAssigns={keyOutputAssigns}
+          offKeys={offKeys}
+          kit={kitSection}
+        />
+      ) : (
+        scope === "kit" && kitSection
+      )}
+      {scope !== "kit" && (
+        <div className={css.partialName}>
+          {noteName(selectedKey)}
+          {note?.partialName ? `: ${note.partialName}` : ""}
+        </div>
+      )}
 
-      {/* The key's WMT rows, summed into one line of the Sections they share, then the MFX */}
-      <GridScreen layout={pcmdScreen()}>{section}</GridScreen>
+      {/* The key's WMT rows, summed into one line of the Sections they share, then the MFX; a kit's own are just the MFX */}
+      {scope === "kit" ? (
+        mfx && <MfxPanel mfx={mfx} {...mfxHandlers} />
+      ) : (
+        <GridScreen layout={pcmdScreen()}>{section}</GridScreen>
+      )}
     </div>
   );
 }

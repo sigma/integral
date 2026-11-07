@@ -32,7 +32,48 @@ export type PageMessage =
   /** Send one MIDI message to the open pair `port`. */
   | { type: "send"; port: string; data: number[] }
   /** Resize the plugin window to `width` × `height` logical px. */
-  | { type: "resize"; width: number; height: number };
+  | { type: "resize"; width: number; height: number }
+  /**
+   * Bind the instance to a Part and, for a Kit plugin, a key (absent: the
+   * whole kit). The plugin takes only what its kind accepts; the answer is
+   * `instance`, or `error`.
+   */
+  | { type: "bind"; part?: number; key?: number }
+  /** Begin a host gesture on the host parameter `id`: the first `input` of a Control drag. */
+  | { type: "beginEdit"; id: string }
+  /** Move the parameter `id`, which has a gesture open, to the raw `value`. */
+  | { type: "performEdit"; id: string; value: number }
+  /** End the gesture on the parameter `id`: the `change` of a Control drag. */
+  | { type: "endEdit"; id: string };
+
+/** What an instance is bound to: a Part (0-based) and, for a key, the key. */
+export interface PluginBinding {
+  part?: number;
+  key?: number;
+}
+
+/** Something the instance reports besides its status (recalling, a mismatch, a duplicate). */
+export interface PluginNotice {
+  /** Which notice, as the plugin names it. */
+  notice: string;
+  /** What the editor shows. */
+  text: string;
+}
+
+/** What the plugin says about the instance the page is the editor of. */
+export interface InstanceInfo {
+  /** The plugin kind, as core names it (`plugin_kind_from_wire`). */
+  plugin: string;
+  /** Where the instance is bound; `null` before it has taken a target. */
+  binding: PluginBinding | null;
+  /** The status code as the plugin names it; the page shows `statusText` and knows no list of codes. */
+  status: string;
+  /** The status as the editor shows it. */
+  statusText: string;
+  /** Whether the instance can tell the host of edits; if not, the page sends no host gestures. */
+  hostEdits: boolean;
+  notices: PluginNotice[];
+}
 
 /** A message from the plugin to the page. */
 export type PluginMessage =
@@ -44,6 +85,10 @@ export type PluginMessage =
   | { type: "openFailed"; port: string; message: string }
   /** A message `port` received. */
   | { type: "receive"; port: string; data: number[] }
+  /** What the instance is and how it is doing. Sent on `ready` and on change. */
+  | ({ type: "instance" } & InstanceInfo)
+  /** The plugin refused a request about the instance (a `bind`, a host gesture). */
+  | { type: "refused"; message: string }
   /** A request other than an open failed; `port` names the pair it was about, if any. */
   | { type: "error"; port: string | null; message: string };
 
@@ -59,6 +104,18 @@ const isByte = (v: unknown): v is number =>
   typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 0xff;
 
 const isBytes = (v: unknown): v is number[] => Array.isArray(v) && v.every(isByte);
+
+const isBinding = (v: unknown): v is PluginBinding => {
+  if (typeof v !== "object" || v === null) return false;
+  const b = v as Record<string, unknown>;
+  return (b.part === undefined || isByte(b.part)) && (b.key === undefined || isByte(b.key));
+};
+
+const isNotice = (v: unknown): v is PluginNotice => {
+  if (typeof v !== "object" || v === null) return false;
+  const n = v as Record<string, unknown>;
+  return typeof n.notice === "string" && typeof n.text === "string";
+};
 
 /** Decode a plugin message, or `null` for anything malformed. */
 export function decodePluginMessage(text: string): PluginMessage | null {
@@ -85,6 +142,26 @@ export function decodePluginMessage(text: string): PluginMessage | null {
       return typeof m.port === "string" && isBytes(m.data)
         ? { type: "receive", port: m.port, data: m.data }
         : null;
+    case "instance":
+      return typeof m.plugin === "string" &&
+        (m.binding === null || isBinding(m.binding)) &&
+        typeof m.status === "string" &&
+        typeof m.statusText === "string" &&
+        typeof m.hostEdits === "boolean" &&
+        Array.isArray(m.notices) &&
+        m.notices.every(isNotice)
+        ? {
+            type: "instance",
+            plugin: m.plugin,
+            binding: m.binding,
+            status: m.status,
+            statusText: m.statusText,
+            hostEdits: m.hostEdits,
+            notices: m.notices,
+          }
+        : null;
+    case "refused":
+      return typeof m.message === "string" ? { type: "refused", message: m.message } : null;
     case "error":
       return (m.port === null || typeof m.port === "string") && typeof m.message === "string"
         ? { type: "error", port: m.port, message: m.message }
@@ -269,6 +346,10 @@ export function pluginPorts(bridge: PluginBridge): Promise<MidiPorts> {
           if (message.port === null) reason = message.message;
           console.error(`[plugin] ${message.port ?? ""} ${message.message}`);
           break;
+        case "instance":
+        case "refused":
+          // The instance is the editor shell's business ({@link subscribeInstance}).
+          break;
       }
     });
     post({ type: "ready" });
@@ -322,4 +403,39 @@ export function pluginWindowSize(
 export function resizePluginWindow(bridge: PluginBridge, zoom: number, screen: ScreenArea): void {
   const { width, height } = pluginWindowSize(naturalSize(pluginGrid()), zoom, screen);
   bridge.post(encodePageMessage({ type: "resize", width, height }));
+}
+
+/**
+ * Call `listener` with the instance each time the plugin reports it, which
+ * it does on `ready` and whenever any of it changes. Returns its
+ * unsubscribe. Subscribe before the page says `ready`
+ * ({@link pluginPorts}).
+ */
+export function subscribeInstance(
+  bridge: PluginBridge,
+  listener: (instance: InstanceInfo) => void,
+): () => void {
+  return bridge.subscribe((text) => {
+    const message = decodePluginMessage(text);
+    if (message?.type === "instance") {
+      const { plugin, binding, status, statusText, hostEdits, notices } = message;
+      listener({ plugin, binding, status, statusText, hostEdits, notices });
+    }
+  });
+}
+
+/** Call `listener` with why the plugin refused a request about the instance. Returns its unsubscribe. */
+export function subscribeRefusals(
+  bridge: PluginBridge,
+  listener: (message: string) => void,
+): () => void {
+  return bridge.subscribe((text) => {
+    const message = decodePluginMessage(text);
+    if (message?.type === "refused") listener(message.message);
+  });
+}
+
+/** Ask the plugin to bind the instance to `binding`. */
+export function bindInstance(bridge: PluginBridge, binding: PluginBinding): void {
+  bridge.post(encodePageMessage({ type: "bind", ...binding }));
 }
