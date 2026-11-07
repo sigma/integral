@@ -6,11 +6,14 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use integral_core::sysex;
 
-use crate::midi;
+use crate::midi::{self, Connection, Endpoint};
 
 /// Ping the device and return the detected device ID on success.
-pub fn ping(port_pattern: &str, timeout: Duration, quiet: bool) -> Result<u8> {
-    let (_conn_in, mut conn_out, rx) = midi::open_midi(port_pattern)?;
+pub fn ping(endpoint: Endpoint<'_>, timeout: Duration, quiet: bool) -> Result<u8> {
+    let Connection {
+        output: mut conn_out,
+        rx,
+    } = midi::open_midi(endpoint)?;
 
     if !quiet {
         eprint!("Pinging... ");

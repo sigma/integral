@@ -11,11 +11,11 @@ use integral_core::svd::{ChunkType, SvdFile};
 use integral_core::svd_convert::svd_to_sysex;
 use integral_core::svd_specs::SNS_TONE_SPEC;
 
-use crate::midi;
+use crate::midi::{self, Connection, Endpoint};
 
 /// Validate SVD decode against the device by comparing SysEx reads.
 pub fn svd_validate(
-    port_pattern: &str,
+    endpoint: Endpoint<'_>,
     timeout: Duration,
     device_id: u8,
     path: &Path,
@@ -65,7 +65,10 @@ pub fn svd_validate(
     println!("SVD entry {index}: \"{svd_name}\"");
 
     // Open MIDI and read from the device.
-    let (_conn_in, mut conn_out, rx) = midi::open_midi(port_pattern)?;
+    let Connection {
+        output: mut conn_out,
+        rx,
+    } = midi::open_midi(endpoint)?;
 
     // Read each SN-S section from the device.
     let common_addr = sn_synth::sns_common_address(part_index);

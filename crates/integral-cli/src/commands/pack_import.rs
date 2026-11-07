@@ -35,6 +35,7 @@ use super::pack::{
     warn_file_report,
 };
 use crate::device::IntegraDevice;
+use crate::midi::Endpoint;
 
 /// Exit code when some entries were stored and others not.
 pub const EXIT_PARTIAL: u8 = 2;
@@ -616,7 +617,7 @@ fn store(
 /// Returns the exit code: 0 when everything was stored, 1 when nothing
 /// was, [`EXIT_PARTIAL`] otherwise. `Err` means nothing was stored.
 pub fn import(
-    port_pattern: &str,
+    endpoint: Endpoint<'_>,
     device_id: Option<u8>,
     timeout: Duration,
     file: &Path,
@@ -629,7 +630,7 @@ pub fn import(
         bail!("{} holds nothing to import", file.display());
     }
 
-    let mut dev = IntegraDevice::connect_detecting(port_pattern, device_id, timeout)?.quiet();
+    let mut dev = IntegraDevice::connect_detecting(endpoint, device_id, timeout)?.quiet();
     let mut throttle = Throttle::new(dev.device_id());
     let mut kinds = Vec::new();
     for e in &pack.entries {
@@ -700,14 +701,14 @@ pub fn import(
 ///
 /// Returns the exit code, as [`import`] does.
 pub fn reinit(
-    port_pattern: &str,
+    endpoint: Endpoint<'_>,
     device_id: Option<u8>,
     timeout: Duration,
     opts: &ReinitOptions,
 ) -> Result<u8> {
     let (kind, slots) = opts.slots()?;
     let memory = spec(kind);
-    let mut dev = IntegraDevice::connect_detecting(port_pattern, device_id, timeout)?.quiet();
+    let mut dev = IntegraDevice::connect_detecting(endpoint, device_id, timeout)?.quiet();
     let mut throttle = Throttle::new(dev.device_id());
     let names =
         read_names(&mut dev, &mut throttle, &[kind]).context("could not read slot names")?;

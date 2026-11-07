@@ -13,18 +13,15 @@ use integral_core::params;
 use integral_core::state::PartState;
 use integral_core::state::parse::parse_surround_common;
 use integral_core::sysex;
-use midir::MidiOutputConnection;
 
-use crate::midi;
+use crate::midi::{self, Connection, Endpoint, Output};
 
 /// A high-level handle to a connected INTEGRA-7 device.
 ///
 /// Encapsulates the MIDI output connection, an inbound message receiver,
 /// the resolved SysEx device ID, and a response timeout.
 pub struct IntegraDevice {
-    /// Guard that keeps the MIDI input connection alive.
-    _conn_in: midir::MidiInputConnection<()>,
-    conn_out: MidiOutputConnection,
+    conn_out: Output,
     rx: Receiver<Vec<u8>>,
     device_id: u8,
     timeout: Duration,
@@ -33,12 +30,11 @@ pub struct IntegraDevice {
 
 #[allow(dead_code)]
 impl IntegraDevice {
-    /// Open MIDI ports matching `port_pattern` and return a connected device.
-    pub fn connect(port_pattern: &str, device_id: u8, timeout: Duration) -> Result<Self> {
-        let (conn_in, conn_out, rx) = midi::open_midi(port_pattern)?;
+    /// Open the connection `endpoint` names and return a connected device.
+    pub fn connect(endpoint: Endpoint<'_>, device_id: u8, timeout: Duration) -> Result<Self> {
+        let Connection { output, rx } = midi::open_midi(endpoint)?;
         Ok(Self {
-            _conn_in: conn_in,
-            conn_out,
+            conn_out: output,
             rx,
             device_id,
             timeout,
@@ -46,20 +42,22 @@ impl IntegraDevice {
         })
     }
 
-    /// Open MIDI ports matching `port_pattern` and use `device_id`, or the ID
+    /// Open the connection `endpoint` names and use `device_id`, or the ID
     /// from the device's Identity Reply when `None`.
     pub fn connect_detecting(
-        port_pattern: &str,
+        endpoint: Endpoint<'_>,
         device_id: Option<u8>,
         timeout: Duration,
     ) -> Result<Self> {
-        let (conn_in, mut conn_out, rx) = midi::open_midi(port_pattern)?;
+        let Connection {
+            output: mut conn_out,
+            rx,
+        } = midi::open_midi(endpoint)?;
         let device_id = match device_id {
             Some(id) => id,
             None => midi::detect_device_id(&mut conn_out, &rx, timeout)?,
         };
         Ok(Self {
-            _conn_in: conn_in,
             conn_out,
             rx,
             device_id,
@@ -145,7 +143,7 @@ impl IntegraDevice {
     ///
     /// Useful for callers that need low-level access (e.g. sending raw
     /// messages) while still holding the device handle.
-    pub fn conn_out_mut(&mut self) -> &mut MidiOutputConnection {
+    pub fn conn_out_mut(&mut self) -> &mut Output {
         &mut self.conn_out
     }
 

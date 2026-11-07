@@ -12,11 +12,11 @@ use integral_core::sysex;
 
 use super::tone_waves;
 use crate::device::IntegraDevice;
-use crate::midi;
+use crate::midi::{self, Connection, Endpoint};
 
 /// Read a named parameter from the device via RQ1.
 pub fn read_param(
-    port_pattern: &str,
+    endpoint: Endpoint<'_>,
     timeout: Duration,
     device_id: u8,
     what: &str,
@@ -24,18 +24,18 @@ pub fn read_param(
 ) -> Result<()> {
     match what {
         "studio-set-name" => {
-            let mut dev = IntegraDevice::connect(port_pattern, device_id, timeout)?;
+            let mut dev = IntegraDevice::connect(endpoint, device_id, timeout)?;
             let name = dev.read_studio_set_name()?;
             println!("Studio Set Name: \"{name}\"");
         }
         "master-level" => {
-            let mut dev = IntegraDevice::connect(port_pattern, device_id, timeout)?;
+            let mut dev = IntegraDevice::connect(endpoint, device_id, timeout)?;
             let level = dev.read_master_level()?;
             println!("Master Level: {level}");
         }
         "part-mixer" => {
             let p = part.context("--part is required for part-mixer")? - 1;
-            let mut dev = IntegraDevice::connect(port_pattern, device_id, timeout)?;
+            let mut dev = IntegraDevice::connect(endpoint, device_id, timeout)?;
             let state = dev.read_part_mixer(p)?;
             println!("Part {} mixer state:", p + 1);
             println!("  Receive Channel: {}", state.receive_channel + 1);
@@ -53,7 +53,7 @@ pub fn read_param(
             // name address), so we use the raw helpers via IntegraDevice's
             // request_data method.
             let p = part.context("--part is required for tone-name")? - 1;
-            let mut dev = IntegraDevice::connect(port_pattern, device_id, timeout)?;
+            let mut dev = IntegraDevice::connect(endpoint, device_id, timeout)?;
 
             let bank_addr = params::part_address(p, params::part::TONE_BANK_MSB);
             let bank_data = dev.request_data(&bank_addr, &params::SINGLE_BYTE_SIZE)?;
@@ -69,7 +69,7 @@ pub fn read_param(
         }
         "tone-waves" => {
             let p = part.context("--part is required for tone-waves")? - 1;
-            let mut dev = IntegraDevice::connect(port_pattern, device_id, timeout)?;
+            let mut dev = IntegraDevice::connect(endpoint, device_id, timeout)?;
             for line in tone_waves::read(&mut dev, p)? {
                 println!("{line}");
             }
@@ -84,13 +84,16 @@ pub fn read_param(
 
 /// Write a named parameter to the device via DT1.
 pub fn write_param(
-    port_pattern: &str,
+    endpoint: Endpoint<'_>,
     device_id: u8,
     what: &str,
     part: u8,
     value: u8,
 ) -> Result<()> {
-    let (_conn_in, mut conn_out, _rx) = midi::open_midi(port_pattern)?;
+    let Connection {
+        output: mut conn_out,
+        ..
+    } = midi::open_midi(endpoint)?;
 
     let p = part - 1;
     let (addr, display) = match what {

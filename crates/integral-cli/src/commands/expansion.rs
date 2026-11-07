@@ -19,6 +19,7 @@ use integral_core::{params, sysex};
 use serde_json::{Value, json};
 
 use crate::device::IntegraDevice;
+use crate::midi::Endpoint;
 
 /// Exit code when a load was sent but failed or timed out.
 pub const EXIT_LOAD_FAILED: u8 = 2;
@@ -326,12 +327,12 @@ fn read_part_banks(dev: &mut IntegraDevice) -> Result<Vec<(u8, u8)>> {
 /// `expansion list`: print the slots, then the catalog with a slot column.
 /// The catalog prints even when the device doesn't answer.
 pub fn list(
-    port_pattern: &str,
+    endpoint: Endpoint<'_>,
     device_id: Option<u8>,
     timeout: Duration,
     format: OutputFormat,
 ) -> Result<()> {
-    let slots = IntegraDevice::connect_detecting(port_pattern, device_id, timeout)
+    let slots = IntegraDevice::connect_detecting(endpoint, device_id, timeout)
         .and_then(|dev| read_slots(&mut dev.quiet()));
     let slots = match slots {
         Ok(slots) => Some(slots),
@@ -417,7 +418,7 @@ fn run_load(
 /// [`EXIT_LOAD_FAILED`] when the load was sent but failed or timed out.
 /// `Err` (exit 1) means nothing was sent.
 pub fn load(
-    port_pattern: &str,
+    endpoint: Endpoint<'_>,
     device_id: Option<u8>,
     timeout: Duration,
     args: &[String],
@@ -426,7 +427,7 @@ pub fn load(
     format: OutputFormat,
 ) -> Result<u8> {
     let assignments = parse_assignments(args)?;
-    let mut dev = IntegraDevice::connect_detecting(port_pattern, device_id, timeout)?.quiet();
+    let mut dev = IntegraDevice::connect_detecting(endpoint, device_id, timeout)?.quiet();
     let current = read_slots(&mut dev).context("could not read the Expansion slots")?;
     let target = stage(&current, &assignments);
     let banks = read_part_banks(&mut dev)?;

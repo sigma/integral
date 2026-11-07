@@ -147,6 +147,9 @@ enum Realtime {
 enum Command {
     Request(Request),
     Ring(Consumer<Realtime>),
+    /// Answers `true` once everything queued before it has been written to
+    /// the socket, `false` if there was no connection to write to.
+    Flush(SyncSender<bool>),
 }
 
 /// What the client and its thread share.
@@ -303,6 +306,17 @@ impl Client {
     pub fn raw(&self, bytes: Vec<u8>) -> bool {
         self.send(Request::Raw { bytes })
     }
+
+    /// Wait up to `timeout` until everything queued so far has been written
+    /// to the socket. Dropping the last [`Client`] discards what is still
+    /// queued, so a program that sends and exits calls this first. `false`
+    /// if the client is not connected, has stopped, or took too long. Not
+    /// for a real-time thread.
+    pub fn flush(&self, timeout: Duration) -> bool {
+        let (done, written) = mpsc::sync_channel(1);
+        self.control.try_send(Command::Flush(done)).is_ok()
+            && written.recv_timeout(timeout) == Ok(true)
+    }
 }
 
 impl Sender {
@@ -444,6 +458,9 @@ impl Io<'_> {
                     }
                 }
                 Ok(Command::Ring(consumer)) => self.rings.push(consumer),
+                Ok(Command::Flush(done)) => {
+                    let _ = done.try_send(out.is_some());
+                }
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => {
                     open = false;

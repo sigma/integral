@@ -14,7 +14,7 @@ use integral_core::device_service::{WEBSOCKET_PORT, default_origins};
 use integral_core::device_spec::INTEGRA7;
 use integral_device_service::{
     Config, DeviceLink, MidirLink, NOTE_PORT_NAME, PortMatch, Service, SocketServer,
-    VirtualNotePort, WebSocketServer, WirelessLink, default_socket_path, spawn, stderr_log,
+    VirtualNotePort, WebSocketServer, WirelessLink, spawn, stderr_log,
 };
 
 /// How the service reaches the INTEGRA-7.
@@ -98,10 +98,7 @@ fn link(args: &BridgeArgs) -> Result<Box<dyn DeviceLink>> {
 
 /// Run the Device service until the process is killed.
 pub fn bridge(args: &BridgeArgs) -> Result<()> {
-    let path = match &args.socket {
-        Some(path) => path.clone(),
-        None => default_socket_path().context("find the default socket path")?,
-    };
+    let path = crate::service::socket_path(args.socket.as_deref())?;
     let link = link(args)?;
     let config = Config::new(args.device_id);
     let service = Service::new(link, config);
