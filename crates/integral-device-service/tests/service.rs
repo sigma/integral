@@ -12,7 +12,7 @@ use integral_core::mixer_load::MixerBlock;
 use integral_core::params::{self, part};
 use integral_core::sysex;
 use integral_device_service::protocol::{
-    BulkKind, ClientId, Message, PROTOCOL_VERSION, ParamId, Reject, Request,
+    BulkKind, ClientId, Message, PROTOCOL_VERSION, ParamId, Reject, Request, ToneSelect,
 };
 use integral_device_service::{
     Config, FakeLink, Input, LinkEvent, Outbox, SequentialSessionIds, Service, SessionId, spawn,
@@ -577,7 +577,13 @@ fn a_raw_dt1_to_a_tone_select_is_a_tone_change() {
         [Message::Bulk {
             writer: a,
             kind: BulkKind::Tone,
-            binding: Binding::of_part(3)
+            binding: Binding::of_part(3),
+            selected: true,
+            tone: Some(ToneSelect {
+                msb: 95,
+                lsb: 0,
+                pc: 7
+            }),
         }]
     );
     assert!(!link.sent().is_empty());
@@ -597,7 +603,9 @@ fn a_raw_dt1_to_the_studio_set_select_is_a_studio_set_change() {
         [Message::Bulk {
             writer: a,
             kind: BulkKind::StudioSet,
-            binding: Binding::ANY
+            binding: Binding::ANY,
+            selected: true,
+            tone: None,
         }]
     );
 }
@@ -724,7 +732,9 @@ fn a_multi_byte_dt1_is_a_change_per_parameter_or_one_bulk_past_the_threshold() {
         [Message::Bulk {
             writer: a,
             kind: BulkKind::Tone,
-            binding: Binding::of_part(3)
+            binding: Binding::of_part(3),
+            selected: false,
+            tone: None,
         }]
     );
 }
@@ -951,7 +961,9 @@ fn an_effect_slot_names_the_active_type_when_the_session_knows_it_and_else_one_b
         [Message::Bulk {
             writer: a,
             kind: BulkKind::Mfx,
-            binding: Binding::of_part(0)
+            binding: Binding::of_part(0),
+            selected: false,
+            tone: None,
         }]
     );
 
@@ -1047,7 +1059,9 @@ fn a_select_written_in_part_passes_through_as_data_while_its_bytes_are_unknown()
         [Message::Bulk {
             writer: a,
             kind: BulkKind::Tone,
-            binding: Binding::of_part(2)
+            binding: Binding::of_part(2),
+            selected: true,
+            tone: None,
         }]
     );
 
@@ -1681,7 +1695,8 @@ fn a_late_reply_after_a_studio_set_switch_does_not_make_a_field_known() {
             value: min,
         },
     );
-    run_until(&mut service, 700.0, 1000.0);
+    // (The service reads every Part's select after the switch first.)
+    run_until(&mut service, 700.0, 2500.0);
     assert!(
         sysex_sent(&link)[before.min(sysex_sent(&link).len())..]
             .iter()
@@ -1843,6 +1858,7 @@ fn tone_bulks(messages: Vec<Message>) -> Vec<Option<u8>> {
                 writer: ClientId::DEVICE,
                 kind: BulkKind::Tone,
                 binding,
+                ..
             } => Some(binding.part),
             _ => None,
         })
@@ -1948,7 +1964,9 @@ fn a_program_change_on_the_studio_set_control_channel_is_a_studio_set_change() {
         [Message::Bulk {
             writer: ClientId::DEVICE,
             kind: BulkKind::StudioSet,
-            binding: Binding::ANY
+            binding: Binding::ANY,
+            selected: true,
+            tone: None,
         }]
     );
 }
@@ -2316,4 +2334,253 @@ fn a_receive_settings_read_does_not_make_the_select_bytes_seen() {
     let select = params::part_address(2, part::TONE_BANK_MSB);
     let completed = sysex::build_dt1(DEVICE_ID, &select, &[0, 0, 9]);
     assert!(!sysex_sent(&link).contains(&completed));
+}
+
+fn bound(plugin: PluginKind, binding: Binding) -> Request {
+    Request::Bind {
+        bound: Some(integral_device_service::protocol::Bound { plugin, binding }),
+    }
+}
+
+/// The counts a client was told of its duplicates, in order.
+fn shared(messages: Vec<Message>) -> Vec<u32> {
+    messages
+        .into_iter()
+        .filter_map(|m| match m {
+            Message::Shared { others } => Some(others),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn clients_on_one_target_hear_of_each_other_and_stop_when_one_leaves_or_moves() {
+    let (mut service, _link) = service();
+    let (a, a_inbox) = client(&mut service, 1);
+    let (b, b_inbox) = client(&mut service, 2);
+    let (c, c_inbox) = client(&mut service, 3);
+    let part = Binding::of_part(2);
+
+    // A lone instance hears nothing, not even a zero.
+    ask(&mut service, a, bound(PluginKind::PcmSynth, part));
+    assert_eq!(shared(a_inbox.take()), Vec::<u32>::new());
+
+    ask(&mut service, b, bound(PluginKind::PcmSynth, part));
+    assert_eq!(shared(a_inbox.take()), [1]);
+    assert_eq!(shared(b_inbox.take()), [1]);
+
+    // A third makes two others for each. Another plugin on the Part is no
+    // duplicate: it cannot match the Part's tone type as well.
+    let (d, d_inbox) = client(&mut service, 4);
+    ask(&mut service, d, bound(PluginKind::SnSynth, part));
+    assert_eq!(shared(d_inbox.take()), Vec::<u32>::new());
+    assert_eq!(shared(a_inbox.take()), Vec::<u32>::new());
+    ask(&mut service, c, bound(PluginKind::PcmSynth, part));
+    assert_eq!(shared(a_inbox.take()), [2]);
+    assert_eq!(shared(b_inbox.take()), [2]);
+    assert_eq!(shared(c_inbox.take()), [2]);
+
+    // Moving away, and leaving, are both a change for those left.
+    ask(
+        &mut service,
+        c,
+        bound(PluginKind::SnDrum, Binding::of_part(3)),
+    );
+    assert_eq!(shared(a_inbox.take()), [1]);
+    assert_eq!(shared(b_inbox.take()), [1]);
+    assert_eq!(shared(c_inbox.take()), [0]);
+    service.handle(Input::Disconnect { client: b }, 1.0);
+    assert_eq!(shared(a_inbox.take()), [0]);
+}
+
+#[test]
+fn a_key_is_not_the_kit_and_the_studio_set_plugins_share_among_themselves() {
+    let (mut service, _link) = service();
+    let (a, a_inbox) = client(&mut service, 1);
+    let (b, b_inbox) = client(&mut service, 2);
+    let (c, c_inbox) = client(&mut service, 3);
+    let part = Binding::of_part(0);
+    ask(&mut service, a, bound(PluginKind::PcmDrum, part));
+    ask(
+        &mut service,
+        b,
+        bound(PluginKind::PcmDrum, part.with_key(36)),
+    );
+    ask(&mut service, c, bound(PluginKind::StudioSet, Binding::ANY));
+    assert_eq!(shared(a_inbox.take()), Vec::<u32>::new());
+    assert_eq!(shared(b_inbox.take()), Vec::<u32>::new());
+    assert_eq!(shared(c_inbox.take()), Vec::<u32>::new());
+    ask(
+        &mut service,
+        b,
+        bound(PluginKind::PcmDrum, part.with_key(36)),
+    );
+    assert_eq!(shared(b_inbox.take()), Vec::<u32>::new());
+    let (d, d_inbox) = client(&mut service, 4);
+    ask(&mut service, d, bound(PluginKind::StudioSet, Binding::ANY));
+    assert_eq!(shared(c_inbox.take()), [1]);
+    assert_eq!(shared(d_inbox.take()), [1]);
+}
+
+#[test]
+fn a_client_that_binds_again_is_told_its_count_again_in_case_it_lost_it() {
+    let (mut service, _link) = service();
+    let (a, a_inbox) = client(&mut service, 1);
+    let (b, _b_inbox) = client(&mut service, 2);
+    let target = Binding::of_part(1);
+    ask(&mut service, a, bound(PluginKind::SnSynth, target));
+    ask(&mut service, b, bound(PluginKind::SnSynth, target));
+    assert_eq!(shared(a_inbox.take()), [1]);
+    ask(&mut service, a, bound(PluginKind::SnSynth, target));
+    assert_eq!(shared(a_inbox.take()), [1]);
+}
+
+/// A client whose outbox refuses everything once told to.
+#[derive(Clone, Default)]
+struct Refusing(Arc<Mutex<(Vec<Message>, bool)>>);
+
+impl Outbox for Refusing {
+    fn deliver(&mut self, message: &Message) -> bool {
+        let mut inner = self.0.lock().unwrap();
+        if inner.1 {
+            return false;
+        }
+        inner.0.push(message.clone());
+        true
+    }
+}
+
+#[test]
+fn a_client_dropped_for_not_keeping_up_stops_being_a_duplicate() {
+    let (mut service, _link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (a, a_inbox) = client(&mut service, 1);
+    let (b, outbox) = (ClientId(2), Refusing::default());
+    service.handle(
+        Input::Connect {
+            client: b,
+            outbox: Box::new(outbox.clone()),
+        },
+        0.0,
+    );
+    ask(
+        &mut service,
+        b,
+        Request::Hello {
+            version: PROTOCOL_VERSION,
+            subscriptions: vec![Binding::ANY],
+            raw: false,
+            bound: None,
+        },
+    );
+    let target = Binding::of_part(5);
+    ask(&mut service, a, bound(PluginKind::PcmSynth, target));
+    ask(&mut service, b, bound(PluginKind::PcmSynth, target));
+    assert_eq!(shared(a_inbox.take()), [1]);
+
+    // The service drops b when it cannot deliver a change; a hears of it.
+    outbox.0.lock().unwrap().1 = true;
+    ask(&mut service, a, write_level(0, 90));
+    service.pump(0.0);
+    assert_eq!(shared(a_inbox.take()), [0]);
+}
+
+#[test]
+fn a_tone_selected_through_the_service_is_announced_with_the_tone_and_a_parameter_bulk_is_not_a_selection()
+ {
+    let (mut service, _link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (a, inbox) = client(&mut service, 1);
+    ask(
+        &mut service,
+        a,
+        Request::ChangeTone {
+            part: 4,
+            msb: 87,
+            lsb: 64,
+            pc: 9,
+        },
+    );
+    service.pump(0.0);
+    let bulks: Vec<_> = inbox
+        .take()
+        .into_iter()
+        .filter_map(|m| match m {
+            Message::Bulk {
+                kind: BulkKind::Tone,
+                selected,
+                tone,
+                ..
+            } => Some((selected, tone)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        bulks,
+        [(
+            true,
+            Some(ToneSelect {
+                msb: 87,
+                lsb: 64,
+                pc: 9
+            })
+        )]
+    );
+}
+
+/// The bulks of tone selections `inbox` was told of: (Part, tone).
+fn tone_selections(messages: Vec<Message>) -> Vec<(u8, Option<ToneSelect>)> {
+    messages
+        .into_iter()
+        .filter_map(|m| match m {
+            Message::Bulk {
+                kind: BulkKind::Tone,
+                binding,
+                selected: true,
+                tone,
+                ..
+            } => Some((binding.part.expect("a Part"), tone)),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn after_a_studio_set_switch_each_part_is_read_and_announced_with_its_tone() {
+    let (mut service, link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (a, inbox) = client(&mut service, 1);
+
+    // The device is the new Studio Set's: its Part 2 holds an SN Synth tone.
+    // Nothing is named until the service has read it.
+    ask(&mut service, a, Request::SwitchStudioSet { pc: 4 });
+    let mut device = Device::new(vec![MixerBlock::Part(2).request().expect("a block")], 95);
+    device.run(&mut service, &link, 200.0, 2500.0);
+    let told = tone_selections(inbox.take());
+    let part_2: Vec<_> = told.iter().filter(|(part, _)| *part == 2).collect();
+    assert_eq!(part_2.len(), 1, "{told:?}");
+    assert_eq!(part_2[0].1.map(|tone| tone.msb), Some(95), "{told:?}");
+}
+
+#[test]
+fn a_partial_select_write_after_a_studio_set_switch_goes_out_blind() {
+    let (mut service, _link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (a, inbox) = client(&mut service, 1);
+    ask(&mut service, a, change_tone(3, 87, 64, 0));
+    run_until(&mut service, 0.0, 200.0);
+    ask(&mut service, a, Request::SwitchStudioSet { pc: 4 });
+    run_until(&mut service, 200.0, 300.0);
+    inbox.take();
+
+    // Only the program number: the bank is whatever the new set has.
+    let pc_at = params::part_address(3, part::TONE_PC);
+    let bytes = sysex::build_dt1(DEVICE_ID, &pc_at, &[9]);
+    ask(&mut service, a, Request::Raw { bytes });
+    run_until(&mut service, 300.0, 30000.0);
+    // The blind write is announced first, without a tone; the reads that
+    // nobody answered fail after it.
+    let told = tone_selections(inbox.take());
+    assert_eq!(told.first(), Some(&(3, None)), "{told:?}");
+    assert!(told.iter().all(|(_, tone)| tone.is_none()), "{told:?}");
 }

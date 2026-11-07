@@ -303,6 +303,10 @@ pub struct Service {
     /// The tone selects (a Part's, or `None` for the Studio Set's) whose
     /// bytes this session has seen whole.
     selects_known: HashSet<Option<u8>>,
+    /// The Parts whose tone select a selection left unknown and that the
+    /// service is reading: when the read answers, the Part's tone is
+    /// announced (or, if the read fails, that it is not known).
+    select_pending: HashSet<u8>,
 }
 
 impl Service {
@@ -316,6 +320,7 @@ impl Service {
             params: shared_params(),
             known: HashMap::new(),
             selects_known: HashSet::new(),
+            select_pending: HashSet::new(),
             device,
             id_fixed: config.device_id.is_some(),
             ids: config.session_ids,
@@ -368,6 +373,12 @@ impl Service {
     /// Apply one input at `now_ms` (a monotonic clock). Returns `false` once
     /// the service is told to stop.
     pub fn handle(&mut self, input: Input, now_ms: f64) -> bool {
+        let running = self.handle_input(input, now_ms);
+        self.clients.announce_sharing();
+        running
+    }
+
+    fn handle_input(&mut self, input: Input, now_ms: f64) -> bool {
         self.now_ms = now_ms;
         match input {
             Input::Link(LinkEvent::Up { device_id }) => {
@@ -490,6 +501,7 @@ impl Service {
         }
         self.known.clear();
         self.selects_known.clear();
+        self.select_pending.clear();
         self.rereads.clear();
         self.rx.clear();
         self.deferred.clear();
@@ -893,6 +905,9 @@ impl Service {
             Request::LoadMixer => {
                 self.device.load_mixer();
                 self.mixer_load = Some(client);
+                // The load reads every Part's select again.
+                self.selects_known.retain(Option::is_none);
+                self.select_pending.extend(0..DeviceState::NUM_PARTS);
             }
             Request::Baseline { binding } => {
                 let part = binding.part.expect("checked on arrival");
@@ -942,6 +957,8 @@ impl Service {
             }
         } else {
             let done = self.device.write_dt1(address, data);
+            // A select written whole is known now: the bulk says which.
+            self.remember_selects(address, data.len());
             for part in done.tones {
                 self.announce_select(client, Some(part));
                 self.start_baseline(client, part);
@@ -982,19 +999,49 @@ impl Service {
                     .retain(|a, _| temporary_tone_part(a) != Some(part));
                 self.baselines.cancel(part, &mut out);
                 self.rereads.remove(&part);
+                let tone = self.known_tone(part);
+                // A tone the service cannot name is read, and announced when
+                // the answer is in: a client that asks the device itself
+                // could be answered before the selection took effect.
+                if tone.is_some() {
+                    self.select_pending.remove(&part);
+                } else {
+                    self.select_pending.insert(part);
+                }
                 self.clients
-                    .bulk(writer, BulkKind::Tone, Binding::of_part(part));
+                    .bulk(writer, BulkKind::Tone, Binding::of_part(part), Some(tone));
             }
             None => {
                 self.known.clear();
                 self.baselines.cancel_all(&mut out);
                 self.rereads.clear();
-                // Another Studio Set has other receive settings.
+                // Another Studio Set has other receive settings, and holds
+                // other tones: what was seen of the selects is stale, and
+                // each Part's is read and announced.
                 self.rx.clear();
-                self.clients.bulk(writer, BulkKind::StudioSet, Binding::ANY);
+                self.selects_known.retain(Option::is_none);
+                self.clients
+                    .bulk(writer, BulkKind::StudioSet, Binding::ANY, Some(None));
+                for part in 0..DeviceState::NUM_PARTS {
+                    self.select_pending.insert(part);
+                    self.device.reread_part(part);
+                }
             }
         }
         self.apply_outcome(out);
+    }
+
+    /// The tone `part` holds, if the session has seen its select whole
+    /// (selected it, written it whole, or read it).
+    fn known_tone(&self, part: u8) -> Option<ToneSelect> {
+        self.selects_known.contains(&Some(part)).then(|| {
+            let state = &self.device.state().parts[usize::from(part)];
+            ToneSelect {
+                msb: state.tone_bank_msb,
+                lsb: state.tone_bank_lsb,
+                pc: state.tone_pc,
+            }
+        })
     }
 
     /// Carry out what the baselines ask: answer the clients waiting for one,
@@ -1285,7 +1332,7 @@ impl Service {
             self.clients.changed(writer, param, located.binding, value);
         }
         for (kind, binding) in bulks {
-            self.clients.bulk(writer, kind, binding);
+            self.clients.bulk(writer, kind, binding, None);
         }
     }
 
@@ -1309,7 +1356,34 @@ impl Service {
             && !self.device.mixer_loading()
             && let Some(client) = self.mixer_load.take()
         {
-            self.clients.bulk(client, BulkKind::StudioSet, Binding::ANY);
+            // The parameters were replaced. Any Part's tone may have been
+            // too, but each is announced as its select is read.
+            self.clients
+                .bulk(client, BulkKind::StudioSet, Binding::ANY, None);
+        }
+    }
+
+    /// Announce the Parts whose select has been read since a selection left
+    /// it unknown, with the tone they hold, and those whose read failed,
+    /// without.
+    fn announce_selects_read(&mut self) {
+        if self.select_pending.is_empty() {
+            return;
+        }
+        let failed = self.device.mixer_failed_blocks().to_vec();
+        let mut parts: Vec<u8> = self.select_pending.iter().copied().collect();
+        parts.sort_unstable();
+        for part in parts {
+            let tone = self.known_tone(part);
+            if tone.is_some() || failed.contains(&MixerBlock::Part(part)) {
+                self.select_pending.remove(&part);
+                self.clients.bulk(
+                    ClientId::DEVICE,
+                    BulkKind::Tone,
+                    Binding::of_part(part),
+                    Some(tone),
+                );
+            }
         }
     }
 
@@ -1388,6 +1462,7 @@ impl Service {
             }
         }
         self.program_changes_ready();
+        self.announce_selects_read();
         changed
     }
 
@@ -1452,6 +1527,9 @@ impl Service {
     pub fn pump(&mut self, now_ms: f64) -> Option<Duration> {
         let claims = self.pump_claims(now_ms);
         let device = self.pump_device(now_ms);
+        // A client the pump dropped for being too far behind may have been a
+        // duplicate.
+        self.clients.announce_sharing();
         match (device, claims) {
             (Some(a), Some(b)) => Some(a.min(b)),
             (a, b) => a.or(b),
@@ -1510,6 +1588,7 @@ impl Service {
         // Refill the device's queue, so its deadline covers the next item.
         self.feed();
         self.settle_mixer_load();
+        self.announce_selects_read();
         let mut due = match self.id_wait {
             // Nothing drains until then; wake for the fallback, or for an
             // Expansion load step if that is sooner.

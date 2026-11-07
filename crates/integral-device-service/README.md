@@ -92,7 +92,9 @@ independent of it.
   or more than 16 parameters changed, or an effect slot whose type the session
   does not know, scoped to that effect: one event, not N),
   `Value` (a read's answer, to the reader only), `Pushed`, `Baseline` (the
-  tone and its bytes as address runs, or no tone), `Sysex` and `Rejected`.
+  tone and its bytes as address runs, or no tone), `Shared` (how many other
+  clients are bound to the same target; only to clients that said what they
+  are bound to, when the number changes), `Sysex` and `Rejected`.
   Unknown messages decode as `Unknown` and are skipped; a frame that does not
   decode costs only itself.
 - Client work enters as `Input::Connect`/`Client`/`Malformed`/`Disconnect` and

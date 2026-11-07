@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 
 use integral_core::host_params::{Binding, PluginKind};
 
-use crate::protocol::{Bound, BulkKind, ClientId, Message, ParamId};
+use crate::protocol::{Bound, BulkKind, ClientId, Message, ParamId, ToneSelect};
 use crate::session::SessionId;
 
 /// Where the service puts what it says to one client.
@@ -32,12 +32,21 @@ struct Client {
     raw: bool,
     /// What it said it is bound to, if anything.
     bound: Option<Bound>,
+    /// How many others sharing its target it was last told of: `None` if
+    /// nothing was said (zero is the default and is not said).
+    told_shared: Option<u32>,
+    /// It said what it is bound to since it was last told, which it does
+    /// when it may have lost what it was told: a non-zero count is said
+    /// again.
+    retell_shared: bool,
 }
 
 /// Every connected client.
 #[derive(Default)]
 pub(crate) struct Clients {
     clients: BTreeMap<ClientId, Client>,
+    /// Who shares a target may have changed since it was last announced.
+    sharing_changed: bool,
 }
 
 impl Clients {
@@ -51,13 +60,22 @@ impl Clients {
                 subscriptions: Vec::new(),
                 raw: false,
                 bound: None,
+                told_shared: None,
+                retell_shared: false,
             },
         );
     }
 
     /// A client went away.
     pub(crate) fn disconnect(&mut self, id: ClientId) {
-        self.clients.remove(&id);
+        self.remove(id);
+    }
+
+    /// Forget `id`; if it was bound, others may have lost a duplicate.
+    fn remove(&mut self, id: ClientId) {
+        if self.clients.remove(&id).is_some_and(|c| c.bound.is_some()) {
+            self.sharing_changed = true;
+        }
     }
 
     /// Whether `id` has said `Hello`.
@@ -99,6 +117,49 @@ impl Clients {
     pub(crate) fn bind(&mut self, id: ClientId, bound: Option<Bound>) {
         if let Some(client) = self.clients.get_mut(&id) {
             client.bound = bound;
+            client.retell_shared = true;
+            self.sharing_changed = true;
+        }
+    }
+
+    /// Tell each client whose number of others on its target changed since
+    /// it was told ([`Message::Shared`]). Cheap when nothing was bound or
+    /// dropped since the last call.
+    pub(crate) fn announce_sharing(&mut self) {
+        if !std::mem::take(&mut self.sharing_changed) {
+            return;
+        }
+        let counts: Vec<(ClientId, u32)> = self
+            .clients
+            .iter()
+            .filter(|(_, c)| c.greeted)
+            .map(|(id, client)| {
+                let others = client.bound.map_or(0, |mine| {
+                    self.clients
+                        .iter()
+                        .filter(|(other, _)| *other != id)
+                        .filter_map(|(_, c)| c.bound)
+                        .filter(|theirs| mine.shares_target(theirs))
+                        .count()
+                });
+                (*id, u32::try_from(others).unwrap_or(u32::MAX))
+            })
+            .collect();
+        for (id, others) in counts {
+            let Some(client) = self.clients.get_mut(&id) else {
+                continue;
+            };
+            // Nothing is said of a count that was never other than zero.
+            let silent = match client.told_shared {
+                Some(told) => told == others && !(client.retell_shared && others > 0),
+                None => others == 0,
+            };
+            client.told_shared = Some(others);
+            client.retell_shared = false;
+            if silent {
+                continue;
+            }
+            self.send(id, &Message::Shared { others });
         }
     }
 
@@ -156,16 +217,20 @@ impl Clients {
             return;
         };
         if !client.outbox.deliver(message) {
-            self.clients.remove(&id);
+            self.remove(id);
         }
     }
 
     /// Send `message` to every greeted client `wants`, dropping any that
     /// cannot take it.
     fn broadcast(&mut self, message: &Message, wants: impl Fn(&Client) -> bool) {
+        let before = self.clients.values().filter(|c| c.bound.is_some()).count();
         self.clients.retain(|_, client| {
             !(client.greeted && wants(client)) || client.outbox.deliver(message)
         });
+        if self.clients.values().filter(|c| c.bound.is_some()).count() != before {
+            self.sharing_changed = true;
+        }
     }
 
     /// Tell every client the link came up.
@@ -197,13 +262,22 @@ impl Clients {
         });
     }
 
-    /// Announce a bulk change. A Studio Set reaches every subscriber, a tone
+    /// Announce a bulk change. `selection` is `Some` if it may have changed
+    /// a tone selection, with the Part's new one if known. A Studio Set reaches every subscriber, a tone
     /// the ones subscribed to its scope.
-    pub(crate) fn bulk(&mut self, writer: ClientId, kind: BulkKind, binding: Binding) {
+    pub(crate) fn bulk(
+        &mut self,
+        writer: ClientId,
+        kind: BulkKind,
+        binding: Binding,
+        selection: Option<Option<ToneSelect>>,
+    ) {
         let message = Message::Bulk {
             writer,
             kind,
             binding,
+            selected: selection.is_some(),
+            tone: selection.flatten(),
         };
         self.broadcast(&message, |c| match kind {
             BulkKind::StudioSet | BulkKind::Chorus | BulkKind::Reverb => {

@@ -357,6 +357,7 @@ fn a_tone_change_is_one_bulk_event() {
             writer,
             kind,
             binding,
+            ..
         }) => Some((writer, kind, binding)),
         _ => None,
     });

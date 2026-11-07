@@ -7,7 +7,8 @@
 //! Reference: `docs/midi/03-bank-select-tables.md`
 
 use crate::expansions::{EXPANSIONS, Expansion};
-use crate::params::{is_editable_bank, tone_type_from_bank_msb};
+use crate::factory_catalog::{FactoryTone, factory_tone};
+use crate::params::{ToneType, is_editable_bank, tone_type_from_bank_msb};
 
 /// A single tone bank identified by its Bank Select MSB and one or more LSB
 /// values.
@@ -37,6 +38,9 @@ pub struct ToneBankGroup {
 /// Label of the user-memory bank in each writable tone group.
 pub const USER_LABEL: &str = "User";
 
+/// Label of the factory bank in each built-in tone group.
+pub const PRESET_LABEL: &str = "Preset";
+
 /// All tone bank groups available on the INTEGRA-7.
 pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
     ToneBankGroup {
@@ -44,7 +48,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
         badge: "SN-A",
         banks: &[
             ToneBank {
-                label: "Preset",
+                label: PRESET_LABEL,
                 msb: 89,
                 lsbs: &[64, 65],
                 expansion: None,
@@ -62,7 +66,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
         badge: "SN-S",
         banks: &[
             ToneBank {
-                label: "Preset",
+                label: PRESET_LABEL,
                 msb: 95,
                 lsbs: &[64, 65, 66, 67, 68, 69, 70, 71, 72],
                 expansion: None,
@@ -80,7 +84,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
         badge: "SN-D",
         banks: &[
             ToneBank {
-                label: "Preset",
+                label: PRESET_LABEL,
                 msb: 88,
                 lsbs: &[64],
                 expansion: None,
@@ -98,7 +102,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
         badge: "PCM-S",
         banks: &[
             ToneBank {
-                label: "Preset",
+                label: PRESET_LABEL,
                 msb: 87,
                 lsbs: &[64, 65, 66, 67, 68, 69, 70],
                 expansion: None,
@@ -116,7 +120,7 @@ pub static TONE_BANK_GROUPS: &[ToneBankGroup] = &[
         badge: "PCM-D",
         banks: &[
             ToneBank {
-                label: "Preset",
+                label: PRESET_LABEL,
                 msb: 86,
                 lsbs: &[64],
                 expansion: None,
@@ -370,6 +374,22 @@ pub fn is_fixed_tone(msb: u8, lsb: u8) -> bool {
     is_editable_bank(msb) && find_bank(msb, lsb).is_some_and(|bank| bank.label != USER_LABEL)
 }
 
+/// The tone a plugin of `tone_type` loads on a Part that holds another type:
+/// the first tone of the type's built-in Preset bank. A Preset tone is the
+/// same on every device, which a User tone is not, and its name says what the
+/// plugin loaded.
+pub fn default_tone(tone_type: ToneType) -> Option<&'static FactoryTone> {
+    let bank = TONE_BANK_GROUPS
+        .iter()
+        .flat_map(|group| group.banks)
+        .find(|bank| {
+            bank.label == PRESET_LABEL
+                && bank.expansion.is_none()
+                && tone_type_from_bank_msb(bank.msb) == Some(tone_type)
+        })?;
+    factory_tone(bank.msb, *bank.lsbs.first()?, 0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -409,6 +429,27 @@ mod tests {
     }
 
     #[test]
+    fn every_tone_type_has_a_preset_default_of_its_own_type() {
+        for tone_type in [
+            ToneType::SnSynth,
+            ToneType::SnAcoustic,
+            ToneType::PcmSynth,
+            ToneType::SnDrum,
+            ToneType::PcmDrum,
+        ] {
+            let tone = default_tone(tone_type).expect("a default tone");
+            assert_eq!(tone_type_from_bank_msb(tone.msb), Some(tone_type));
+            assert!(is_fixed_tone(tone.msb, tone.lsb), "{tone:?}");
+            assert_eq!(tone.pc, 0);
+            assert!(!tone.name.is_empty());
+        }
+        assert_eq!(
+            default_tone(ToneType::SnSynth).unwrap().name,
+            "JP8 Strings1"
+        );
+    }
+
+    #[test]
     fn user_bank_for_unknown_msb() {
         assert!(user_bank_for(0).is_none());
     }
@@ -416,14 +457,14 @@ mod tests {
     #[test]
     fn find_sn_acoustic_preset() {
         let bank = find_bank(89, 64).unwrap();
-        assert_eq!(bank.label, "Preset");
+        assert_eq!(bank.label, PRESET_LABEL);
         assert_eq!(bank.msb, 89);
     }
 
     #[test]
     fn find_sn_synth_preset_last_lsb() {
         let bank = find_bank(95, 72).unwrap();
-        assert_eq!(bank.label, "Preset");
+        assert_eq!(bank.label, PRESET_LABEL);
         assert_eq!(bank.msb, 95);
     }
 

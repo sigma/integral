@@ -46,7 +46,8 @@
 //! type added within a version is answered [`Reject::Malformed`] by a peer
 //! that predates it, and a message type is skipped. A plugin instance that
 //! gets such a refusal to its `Bind` or `Claim` treats the service as
-//! incompatible.
+//! incompatible. [`Message::Shared`] is of this kind: a client that predates
+//! it skips it and never warns of a duplicate.
 //!
 //! # Pacing and cache
 //!
@@ -165,6 +166,17 @@ pub struct Bound {
     pub plugin: PluginKind,
     /// Its Binding: [`Binding::ANY`] for the Studio Set plugin.
     pub binding: Binding,
+}
+
+impl Bound {
+    /// Whether the two instances are duplicates: the same plugin, and (but
+    /// for the Studio Set plugin, which has one target) the same Binding, a
+    /// Part and for a key-bound Kit plugin the key. Two plugins of different
+    /// kinds on one Part are not: they cannot both match its tone type.
+    pub fn shares_target(&self, other: &Self) -> bool {
+        self.plugin == other.plugin
+            && (self.plugin == PluginKind::StudioSet || self.binding == other.binding)
+    }
 }
 
 /// What a client asks of the service.
@@ -420,6 +432,24 @@ pub enum Message {
         kind: BulkKind,
         /// The Part, for [`BulkKind::Tone`]; empty otherwise.
         binding: Binding,
+        /// The event may have changed the Part's tone selection (or, for a
+        /// Studio Set event, every Part's): a tone or Studio Set select, or a
+        /// mixer load. `false` for a bulk of parameters, which leaves the
+        /// selection as it was. Absent (`false`) from a service that predates
+        /// it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        selected: bool,
+        /// With `selected` on a [`BulkKind::Tone`] event: the Part's tone
+        /// selection now, if the service knows it (it was selected through
+        /// the service, or written whole, or has been read). Else absent, and
+        /// the service reads the Part's select itself (after a Studio Set
+        /// switch, a Program Change on the note port, a partial select write,
+        /// a mixer load) and announces it with another such event, with the
+        /// tone, or without it again if the read fails. A client therefore
+        /// does not ask the device itself after one: its answer could be of
+        /// the selection before.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tone: Option<ToneSelect>,
     },
     /// The answer to a [`Request::Read`].
     Value {
@@ -437,6 +467,17 @@ pub enum Message {
         /// The target now bound to the client, or none if every one is
         /// taken (and nothing changed).
         binding: Option<Binding>,
+    },
+    /// How many other clients are bound to the same target as this one
+    /// ([`Bound::shares_target`]), sent to a client whenever that number
+    /// changes: another instance took its Binding or left it, or this client
+    /// bound. Never sent as `0` before a first non-zero count; a client that
+    /// is unsure it has the latest (it lost events, or bound again) sends
+    /// [`Request::Bind`], which has the service tell it again if the count is
+    /// not zero. Only clients that said what they are bound to hear it.
+    Shared {
+        /// The other clients on the same target.
+        others: u32,
     },
     /// A SysEx message the device sent, to clients that asked
     /// ([`Request::ReceiveRaw`]).
@@ -614,6 +655,27 @@ mod tests {
             .unwrap(),
             r#"{"type":"claim","plugin":"sn_drum"}"#
         );
+    }
+
+    #[test]
+    fn shared_is_plain_json_and_only_instances_on_one_target_share_it() {
+        assert_eq!(
+            serde_json::to_string(&Message::Shared { others: 2 }).unwrap(),
+            r#"{"type":"shared","others":2}"#
+        );
+        let on = |plugin, binding| Bound { plugin, binding };
+        let part = Binding::of_part(3);
+        let tone = on(PluginKind::PcmSynth, part);
+        assert!(tone.shares_target(&on(PluginKind::PcmSynth, part)));
+        assert!(!tone.shares_target(&on(PluginKind::SnSynth, part)));
+        assert!(!tone.shares_target(&on(PluginKind::PcmSynth, Binding::of_part(4))));
+        // A key is not the whole kit.
+        let key = on(PluginKind::PcmDrum, part.with_key(36));
+        assert!(!key.shares_target(&on(PluginKind::PcmDrum, part)));
+        assert!(key.shares_target(&on(PluginKind::PcmDrum, part.with_key(36))));
+        let studio = on(PluginKind::StudioSet, Binding::ANY);
+        assert!(studio.shares_target(&studio));
+        assert!(!studio.shares_target(&tone));
     }
 
     #[test]
