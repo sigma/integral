@@ -36,6 +36,14 @@ impl Handle {
     pub fn run(&self, work: impl FnOnce(&mut Service) + Send + 'static) -> bool {
         self.0.send(Input::Run(Box::new(work))).is_ok()
     }
+
+    /// Feed a client's input (connect, request, disconnect) to the service.
+    /// Crate-private: the socket layer is the one source of these, so a
+    /// handle still cannot forge link events, notes or a stop.
+    #[cfg(unix)]
+    pub(crate) fn client_input(&self, input: Input) -> bool {
+        self.0.send(input).is_ok()
+    }
 }
 
 /// A [`Service`] running on its thread.

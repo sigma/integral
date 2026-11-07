@@ -6,9 +6,17 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-integral-core = { path = "../integral-core" }
+integral-core = { path = "../integral-core", features = ["serde"] }
 midir = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 thiserror = "2"
+
+# Sockets: SO_NOSIGPIPE and send(2) flags, which std does not expose.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+# The lock-free ring a real-time thread writes through (nih-plug uses it too).
+rtrb = "0.3"
 
 [features]
 # FakeLink and SequentialSessionIds, for tests of this crate and its clients.

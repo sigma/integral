@@ -8,8 +8,9 @@ process owns the link to the INTEGRA-7 and the one core `DeviceState`, with
 its 40 ms throttle, queue and cache. It generalises the Bridge of
 [ADR 0003](../../docs/adr/0003-wireless-via-virtual-midi-port.md) from the
 Wireless link to every link. `integral-cli bridge` launches it. Native only;
-the link, the note port and (next slice) the socket are traits, so a Windows
-port adds implementations.
+the link and the note port are traits, so a Windows port adds
+implementations; the socket layer is Unix-only, with the protocol itself
+independent of it.
 
 ## Interface
 
@@ -36,10 +37,47 @@ port adds implementations.
 - `SessionId`, `SessionIdSource`: a new ID each time the link comes up. A
   second `LinkUp` with no `LinkDown` between (the device ID changed and the
   state was replaced) means "re-read everything", like a first.
+- Clients (Unix only): `SocketServer::bind(path, handle)` serves a running
+  service on a Unix socket. The socket's directory must be private
+  (`ensure_private_dir`, mode 0700); a lock file beside the socket makes two
+  services unable to take one path, and lets a new one replace the socket a
+  killed one left; only this user's connections are served.
+  `default_socket_path()` is the path service and plugins agree on, in a
+  private `Integral` directory under the per-user temporary one (macOS:
+  `confstr`, not `$TMPDIR`). `Client::connect(path)` returns a cloneable
+  `Client` and an `Events`; it never blocks, sets `SO_NOSIGPIPE`, reconnects
+  on its own and says `Hello` with its subscriptions again. A real-time thread
+  writes through its own `Sender` (wait-free `rtrb` ring, `Copy` arguments).
+  `ClientEvent`: `Connected`, `Disconnected`, `Overflowed` (the bounded queue
+  dropped events: re-read), `Incompatible` (final) and each `Message`.
+- The protocol (`protocol.rs` has the full description): length-prefixed JSON
+  frames, versioned by a `Hello`. A parameter is named by plugin and the
+  host-parameter ID of core's `ParamIndex` (ADR 0008), with a `Binding` (Part,
+  key) for IDs that are Binding-relative; values are the raw `i32`. `Request`:
+  `Subscribe`/`Unsubscribe`, `ReceiveRaw`, `Write`/`Read`, `Raw` (one SysEx
+  message), `ChangeTone`, `SwitchStudioSet`, `LoadMixer`. `Message`: `Welcome`,
+  `LinkUp`, `LinkDown`, `Changed` (with the writer's `ClientId`;
+  `ClientId::DEVICE` for the device, only when the value differs from the last
+  known and never as a read's answer), `Bulk` (a tone or Studio Set replaced,
+  or more than 16 parameters changed, or an effect slot whose type the session
+  does not know, scoped to that effect: one event, not N),
+  `Value` (a read's answer, to the reader only), `Sysex` and `Rejected`.
+  Unknown messages decode as `Unknown` and are skipped; a frame that does not
+  decode costs only itself.
+- Client work enters as `Input::Connect`/`Client`/`Malformed`/`Disconnect` and
+  is checked on arrival. It waits in `Service::pending`, one item moving into
+  the device's queue whenever that is empty, so the pending queue is the real
+  one, and each item is announced with its writer as it moves. A write
+  replaces the same client's earlier one it covers (the device queue's own
+  coalescing rule, `integral_core::device::coalesce`), so a fader dragged
+  faster than the device takes it sends the latest value. Any write goes
+  through `DeviceState::write_dt1`: no echo suppression, and a tone or Studio
+  Set select is a tone or Studio Set change.
 - `Listener` / `Event`: what the service tells an observer (link up with the
   session ID, link down, every message from the device with whether it changed
   the cache). It runs on the service thread and must not block. The client
-  protocol (#451) adds data-shaped `Input`s and implements `Listener`.
+  protocol is data-shaped `Input`s (see above); a `Listener` still sees the link
+events and the device's messages.
 
 ## Invariants
 

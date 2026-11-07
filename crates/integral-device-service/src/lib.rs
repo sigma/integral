@@ -25,29 +25,49 @@
 //! [`Handle::run`], which runs a closure there, and observes it through a
 //! [`Listener`], which runs on the service thread and must not block.
 //!
-//! The client protocol (a socket server beside this core) will not be built
-//! from closures that call `DeviceState` directly. It needs what the core
-//! does not have yet: a writer client ID on every change, per-client queues
-//! served round-robin, unchanged-write filtering, and raw DT1s from a client
-//! parsed into the cache. Those arrive as data-shaped [`Input`] variants,
-//! handled inside [`Service::handle`], with the matching [`Event`]s for
-//! subscribers. The socket and the note port are traits like the link, so a
+//! The client protocol is not built from closures that call `DeviceState`
+//! directly. A client's request is data: an [`Input::Client`] carrying the
+//! [`ClientId`](protocol::ClientId) and a [`Request`](protocol::Request),
+//! checked when it arrives and queued with its client. [`Service::pump`] moves
+//! one queued item into the device's queue whenever that is empty, so the
+//! client queue is the real one: the writer's ID is known where a change is
+//! queued for sending and announced, and per-client queues, unchanged-write
+//! filtering and push requests belong there. Subscribers hear changes as
+//! [`Message`](protocol::Message)s. A raw SysEx client's DT1 goes the same
+//! way as a typed write; the device's SysEx goes to every raw client.
+//!
+//! The wire is JSON frames described in [`protocol`], over a Unix socket
+//! ([`SocketServer`] for the service, [`Client`] for a plugin instance). The
+//! socket and the note port are separate from the core, like the link, so a
 //! Windows port adds implementations and changes none of this.
 
+mod clients;
 mod link;
 mod midir_link;
 mod note;
 mod probe;
+pub mod protocol;
 mod runtime;
 mod service;
 mod session;
 mod wireless_link;
+
+#[cfg(unix)]
+mod client;
+#[cfg(unix)]
+mod sock;
+#[cfg(unix)]
+mod socket;
 
 #[cfg(feature = "test-util")]
 mod fake;
 #[cfg(unix)]
 mod virtual_port;
 
+#[cfg(unix)]
+pub use client::{Client, ClientEvent, Events, Sender};
+#[doc(hidden)]
+pub use clients::Outbox;
 #[cfg(feature = "test-util")]
 pub use fake::FakeLink;
 pub use link::{DeviceLink, LinkError, LinkEvent, LinkSink, Log, stderr_log};
@@ -59,6 +79,11 @@ pub use service::{Config, Event, Input, Listener, Service};
 #[cfg(feature = "test-util")]
 pub use session::SequentialSessionIds;
 pub use session::{RandomSessionIds, SessionId, SessionIdSource};
+#[cfg(unix)]
+pub use socket::{
+    SOCKET_FILE_NAME, SocketServer, check_default_path_length, default_socket_dir,
+    default_socket_path, ensure_private_dir, socket_dir_in, socket_path_in, user_temp_dir,
+};
 #[cfg(unix)]
 pub use virtual_port::VirtualNotePort;
 pub use wireless_link::WirelessLink;

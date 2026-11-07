@@ -26,7 +26,9 @@ offline.
   (`integral-device-service`) on the link `--link` names: `wireless` (RDDP
   discovery or `--host`; also shares the port `INTEGRA-7 (Wireless)`), `rtp`
   (`--port` names the session) or `usb`. It opens the note port
-  `Integral Device Service` and runs until killed.
+  `Integral Device Service`, listens for clients on the Unix socket
+  `--socket` names (default: `default_socket_path()` of the service crate,
+  in a private per-user directory) and runs until killed.
 - `pack.rs`:
   - `list` reads a Pack file.
   - `export` reads User slots, and with `--current-part` / `--current-set`

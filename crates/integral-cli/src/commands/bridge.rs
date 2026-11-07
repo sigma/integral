@@ -6,13 +6,14 @@
 //! the process is killed, whose exit closes the link and removes the ports.
 
 use std::net::IpAddr;
+use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, ValueEnum};
 use integral_core::device_spec::INTEGRA7;
 use integral_device_service::{
-    Config, DeviceLink, MidirLink, NOTE_PORT_NAME, PortMatch, Service, VirtualNotePort,
-    WirelessLink, spawn, stderr_log,
+    Config, DeviceLink, MidirLink, NOTE_PORT_NAME, PortMatch, Service, SocketServer,
+    VirtualNotePort, WirelessLink, default_socket_path, spawn, stderr_log,
 };
 
 /// How the service reaches the INTEGRA-7.
@@ -43,6 +44,11 @@ pub struct BridgeArgs {
     /// in its Identity Reply.
     #[arg(long, value_parser = crate::parse_device_id)]
     device_id: Option<u8>,
+    /// Unix socket the plugins and other clients connect to, in a directory
+    /// only you can enter. Defaults to the one the plugins look for: in the
+    /// per-user temporary directory, under `Integral`.
+    #[arg(long)]
+    socket: Option<PathBuf>,
 }
 
 /// Build the link the arguments name.
@@ -79,12 +85,26 @@ fn link(args: &BridgeArgs) -> Result<Box<dyn DeviceLink>> {
 
 /// Run the Device service until the process is killed.
 pub fn bridge(args: &BridgeArgs) -> Result<()> {
+    let path = match &args.socket {
+        Some(path) => path.clone(),
+        None => default_socket_path().context("find the default socket path")?,
+    };
     let link = link(args)?;
     let config = Config::new(args.device_id);
     let service = Service::new(link, config);
     let running = spawn(service, Some(Box::new(VirtualNotePort::new())))
         .context("start the Device service")?;
-    eprintln!("Device service running; notes go to the MIDI port '{NOTE_PORT_NAME}'");
+    let server = match SocketServer::bind(&path, running.handle()) {
+        Ok(server) => server,
+        Err(e) => {
+            running.stop();
+            return Err(e).with_context(|| format!("listen on {}", path.display()));
+        }
+    };
+    eprintln!(
+        "Device service running; notes go to the MIDI port '{NOTE_PORT_NAME}', clients to {}",
+        server.path().display()
+    );
     running.join();
     Ok(())
 }
