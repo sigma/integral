@@ -65,6 +65,11 @@ impl RequestTracker {
         self.pending.remove(address_key).is_some()
     }
 
+    /// When the pending request for `address_key` was sent, if there is one.
+    pub fn sent_at(&self, address_key: &str) -> Option<f64> {
+        self.pending.get(address_key).map(|req| req.sent_at)
+    }
+
     /// Forget the pending request for `address_key`, if any.
     pub fn cancel(&mut self, address_key: &str) {
         self.pending.remove(address_key);

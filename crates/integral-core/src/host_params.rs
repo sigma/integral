@@ -558,8 +558,7 @@ fn tone_part_of(address: &Address) -> Option<(u8, Address)> {
 
 /// `address` moved down by `delta` bytes.
 fn shifted_down(address: Address, delta: u32) -> Address {
-    let bytes = DataSize::from_value(address.value() - delta).expect("an address fits in 28 bits");
-    Address(*bytes.as_bytes())
+    Address::from_value(address.value() - delta).expect("an address fits in 28 bits")
 }
 
 /// A plugin and the position of one of its parameters in its list

@@ -50,6 +50,12 @@ impl Address {
         seven_bit(self.0)
     }
 
+    /// The address whose [`value`](Self::value) is `n`, or `None` past 28
+    /// bits.
+    pub fn from_value(n: u32) -> Option<Self> {
+        DataSize::from_value(n).map(|size| Self(*size.as_bytes()))
+    }
+
     /// Convert address to a string key suitable for hash map lookups.
     ///
     /// Returns a 4-byte string of the raw address bytes.
@@ -188,6 +194,9 @@ mod tests {
             Some(DataSize::new(0, 0, 0x01, 0x11))
         );
         assert_eq!(DataSize::from_value(1 << 28), None);
+        let at = Address::new(0x19, 0x20, 0x01, 0x05);
+        assert_eq!(Address::from_value(at.value()), Some(at));
+        assert_eq!(Address::from_value(1 << 28), None);
         let mfx = Address::new(0x50, 0x00, 0x02, 0x00);
         assert_eq!(
             Address::new(0x50, 0x00, 0x02, 0x3D).value() - mfx.value(),

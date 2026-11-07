@@ -200,6 +200,24 @@ impl UserMemorySpec {
         }
     }
 
+    /// The whole blocks to request to read back the tone in Part `part`'s
+    /// Temporary Tone, in address order: the documented blocks of the layout
+    /// (a PCM Synth tone is Common, MFX, PMT, four Partials and Common 2).
+    /// A drum kit's per-key blocks (a run of more than one block that is not
+    /// a Partial) are left out, so a kit's read-back is its kit-wide blocks.
+    pub fn tone_read_blocks(&self, part: u8) -> Vec<(Address, DataSize)> {
+        let kit = matches!(self.tone_type, Some(ToneType::SnDrum | ToneType::PcmDrum));
+        let mut blocks = Vec::new();
+        for run in self.blocks.iter().filter(|r| !(kit && r.count > 1)) {
+            let one = UserMemorySpec {
+                blocks: std::slice::from_ref(run),
+                ..*self
+            };
+            blocks.extend(one.blocks(self.temporary_base(part)));
+        }
+        blocks
+    }
+
     /// Every block of the layout rebased at `base`, as `(address, size)`.
     pub fn blocks(&self, base: Address) -> impl Iterator<Item = (Address, DataSize)> + '_ {
         self.blocks.iter().flat_map(move |r| {
@@ -220,6 +238,16 @@ impl UserMemorySpec {
 
 const fn size(n: u8) -> DataSize {
     DataSize::new(0, 0, 0, n)
+}
+
+/// The whole blocks to request to read back the tone of type `tone_type` in
+/// Part `part`'s Temporary Tone (see [`UserMemorySpec::tone_read_blocks`]).
+pub fn tone_read_blocks(tone_type: ToneType, part: u8) -> Vec<(Address, DataSize)> {
+    USER_MEMORY
+        .iter()
+        .find(|spec| spec.tone_type == Some(tone_type))
+        .map(|spec| spec.tone_read_blocks(part))
+        .unwrap_or_default()
 }
 
 /// User memory of every librarian type, Studio Set first.
@@ -596,6 +624,37 @@ mod tests {
             let blocks: Vec<_> = spec(name).blocks(Address::new(0, 0, 0, 0)).collect();
             let sum: u32 = blocks.iter().map(|(_, s)| s.value()).sum();
             assert_eq!((blocks.len(), sum), (count, total), "{name}");
+        }
+    }
+
+    #[test]
+    fn a_tones_read_back_is_its_documented_blocks_in_address_order() {
+        let sizes = |tone_type| -> Vec<u32> {
+            tone_read_blocks(tone_type, 0)
+                .iter()
+                .map(|(_, size)| size.value())
+                .collect()
+        };
+        // Common, MFX, PMT, four Partials and Common 2 (sizes are 7-bit
+        // numbers: MFX is `00 00 01 11`).
+        assert_eq!(
+            sizes(ToneType::PcmSynth),
+            [80, 145, 41, 154, 154, 154, 154, 60]
+        );
+        assert_eq!(sizes(ToneType::SnSynth).len(), 5);
+        assert_eq!(sizes(ToneType::SnAcoustic).len(), 2);
+        // A kit's per-key blocks are not read.
+        assert_eq!(sizes(ToneType::SnDrum).len(), 3);
+        for tone_type in [ToneType::PcmSynth, ToneType::SnSynth, ToneType::PcmDrum] {
+            let blocks = tone_read_blocks(tone_type, 3);
+            let addresses: Vec<_> = blocks.iter().map(|(a, _)| a.value()).collect();
+            assert!(addresses.windows(2).all(|w| w[0] < w[1]), "{tone_type:?}");
+            let base = params::temporary_tone_base(3).value();
+            assert!(
+                addresses
+                    .iter()
+                    .all(|a| (base..base + 0x20_0000).contains(a))
+            );
         }
     }
 

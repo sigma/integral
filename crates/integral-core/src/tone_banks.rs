@@ -7,7 +7,7 @@
 //! Reference: `docs/midi/03-bank-select-tables.md`
 
 use crate::expansions::{EXPANSIONS, Expansion};
-use crate::params::tone_type_from_bank_msb;
+use crate::params::{is_editable_bank, tone_type_from_bank_msb};
 
 /// A single tone bank identified by its Bank Select MSB and one or more LSB
 /// values.
@@ -362,9 +362,29 @@ pub fn user_bank_for(msb: u8) -> Option<&'static ToneBank> {
         })
 }
 
+/// Whether the tone at (`msb`, `lsb`) is one that never changes and whose
+/// Temporary Tone the device reads back: a Preset or Expansion tone, not a
+/// User tone (a User slot can be overwritten at any time) and not one of
+/// the banks that cannot be edited (GM2, ExPCM; see [`is_editable_bank`]).
+pub fn is_fixed_tone(msb: u8, lsb: u8) -> bool {
+    is_editable_bank(msb) && find_bank(msb, lsb).is_some_and(|bank| bank.label != USER_LABEL)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn preset_and_expansion_tones_are_fixed_and_user_gm2_and_unknown_are_not() {
+        assert!(is_fixed_tone(87, 64)); // Preset PCM Synth
+        assert!(is_fixed_tone(89, 96)); // Expansion SN Tone (ExSN1)
+        assert!(is_fixed_tone(93, 0)); // Expansion PCM Tone (SRX-01)
+        assert!(!is_fixed_tone(87, 0)); // User PCM Synth
+        assert!(!is_fixed_tone(95, 3)); // User SN Synth
+        assert!(!is_fixed_tone(121, 0)); // GM2: cannot be read back
+        assert!(!is_fixed_tone(97, 0)); // ExPCM: cannot be read back
+        assert!(!is_fixed_tone(0, 0)); // not a tone bank
+    }
 
     #[test]
     fn user_bank_for_native_types() {

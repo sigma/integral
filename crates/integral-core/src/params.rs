@@ -251,7 +251,13 @@ pub mod part {
     pub const REVERB_SEND: [u8; 3] = [0x00, 0x00, 0x28];
     /// Output Assign (0=A, 1=B, 2=C, 3=D, 4–11=1–8).
     pub const OUTPUT_ASSIGN: [u8; 3] = [0x00, 0x00, 0x29];
+    /// Receive Program Change (0=OFF, 1=ON).
+    pub const RECEIVE_PROGRAM_CHANGE: [u8; 3] = [0x00, 0x00, 0x39];
 }
+
+/// System Studio Set Control Channel (0–15 → ch 1–16, 16=OFF): a Program
+/// Change on it selects a Studio Set.
+pub const SYSTEM_STUDIO_SET_CONTROL_CHANNEL: Address = Address::new(0x02, 0x00, 0x00, 0x11);
 
 /// Compute the absolute address for a Studio Set Part parameter.
 ///
