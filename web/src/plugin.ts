@@ -3,8 +3,10 @@
  * when it runs in the plugin's webview.
  *
  * WKWebView has no Web MIDI, and the host does not pass plugin SysEx
- * through, so the plugin opens the device port itself and relays bytes over
- * the webview's IPC. This module is the page's half: a {@link MidiPorts}
+ * through, so the plugin relays bytes over the webview's IPC to the Device
+ * service (ADR 0006), the one process that holds the device port. The only
+ * port it offers is the service, and none while the service or the device
+ * is unavailable. This module is the page's half: a {@link MidiPorts}
  * over a {@link PluginBridge}. It does not pretend to be Web MIDI.
  *
  * The page paces its own sends (`WasmDeviceState.drain`), as on the web; the
@@ -15,6 +17,7 @@
  * the tests on each side.
  */
 
+import { DEVICE_SERVICE_ID, DEVICE_SERVICE_NAME } from "./deviceService";
 import { mixerScreen } from "./layouts/mixer/screen";
 import { naturalSize, type NaturalSize } from "./layouts/zoom";
 import type { MidiListener, MidiPortPair, MidiPorts } from "./midi";
@@ -135,74 +138,90 @@ interface Opening {
   reject: (error: Error) => void;
 }
 
+/** What {@link MidiPortPair.failure} says when the plugin gave no reason. */
+export const SERVICE_UNAVAILABLE_HINT = "The Device service is unavailable.";
+
 /**
- * The plugin's ports, once it has listed them. Pairs are named by the
- * plugin and opened through it; one pair is open at a time.
+ * The plugin's one port, the Device service, once the plugin has answered
+ * `ready`. The pair is always listed, so the page can say why it is
+ * unreachable ({@link MidiPortPair.failure}): the plugin lists the port
+ * only while the service and the device are up, and says why otherwise.
+ * The pair's `watch` tells the page when the plugin starts or stops
+ * offering the port (the service or the device going away or coming back).
+ * One pair is open at a time. The plugin carries SysEx only
+ * (`carriesNotes` is `false`).
  *
  * A send with a future `timestamp` (the Sequencer's) is held in the page
  * until then, as Web MIDI would hold it in the browser.
  */
 export function pluginPorts(bridge: PluginBridge): Promise<MidiPorts> {
   const post = (message: PageMessage) => bridge.post(encodePageMessage(message));
-  const listeners = new Map<string, Set<MidiListener>>();
-  const openings = new Map<string, Opening[]>();
-  const byName = new Map<string, MidiPortPair>();
-  let names: string[] | null = null;
+  const listeners = new Set<MidiListener>();
+  const watchers = new Set<(up: boolean) => void>();
+  let openings: Opening[] = [];
+  let available = false;
+  let reason: string | null = null;
+  let heard = false;
   let changed: (() => void) | null = null;
 
-  function settle(port: string, error: Error | null): void {
-    const waiting = openings.get(port) ?? [];
-    openings.delete(port);
+  function settle(error: Error | null): void {
+    const waiting = openings;
+    openings = [];
     for (const w of waiting) {
       if (error) w.reject(error);
       else w.resolve();
     }
   }
 
-  function pair(name: string): MidiPortPair {
-    const existing = byName.get(name);
-    if (existing) return existing;
-    const created: MidiPortPair = {
-      id: name,
-      name,
-      open: () =>
-        new Promise<void>((resolve, reject) => {
-          const timer = setTimeout(() => {
-            openings.set(name, (openings.get(name) ?? []).filter((w) => w !== waiting));
-            reject(new Error(`no answer opening ${name}`));
-          }, OPEN_TIMEOUT_MS);
-          const waiting: Opening = {
-            resolve: () => {
-              clearTimeout(timer);
-              resolve();
-            },
-            reject: (error) => {
-              clearTimeout(timer);
-              reject(error);
-            },
-          };
-          openings.set(name, [...(openings.get(name) ?? []), waiting]);
-          post({ type: "open", port: name });
-        }),
-      send(data, timestamp) {
-        const message: PageMessage = { type: "send", port: name, data: Array.from(data) };
-        const delay = timestamp === undefined ? 0 : timestamp - performance.now();
-        if (delay > 0) setTimeout(() => post(message), delay);
-        else post(message);
-      },
-      listen(listener) {
-        const set = listeners.get(name) ?? new Set<MidiListener>();
-        listeners.set(name, set);
-        set.add(listener);
-        return () => set.delete(listener);
-      },
-    };
-    byName.set(name, created);
-    return created;
-  }
+  const pair: MidiPortPair = {
+    id: DEVICE_SERVICE_ID,
+    name: DEVICE_SERVICE_NAME,
+    // The plugin's link carries SysEx only (#480 brings notes).
+    carriesNotes: false,
+    open: () =>
+      new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          openings = openings.filter((w) => w !== waiting);
+          reject(new Error(`no answer opening ${DEVICE_SERVICE_NAME}`));
+        }, OPEN_TIMEOUT_MS);
+        const waiting: Opening = {
+          resolve: () => {
+            clearTimeout(timer);
+            resolve();
+          },
+          reject: (error) => {
+            clearTimeout(timer);
+            reject(error);
+          },
+        };
+        openings.push(waiting);
+        post({ type: "open", port: DEVICE_SERVICE_NAME });
+      }),
+    send(data, timestamp) {
+      const message: PageMessage = {
+        type: "send",
+        port: DEVICE_SERVICE_NAME,
+        data: Array.from(data),
+      };
+      const delay = timestamp === undefined ? 0 : timestamp - performance.now();
+      if (delay > 0) setTimeout(() => post(message), delay);
+      else post(message);
+    },
+    listen(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    watch(listener) {
+      watchers.add(listener);
+      return () => {
+        watchers.delete(listener);
+      };
+    },
+    failure: () => (available ? null : (reason ?? SERVICE_UNAVAILABLE_HINT)),
+  };
 
   const ports: MidiPorts = {
-    pairs: () => (names ?? []).map(pair),
+    pairs: () => (heard ? [pair] : []),
     onChange(listener) {
       changed = listener;
       return () => {
@@ -223,24 +242,31 @@ export function pluginPorts(bridge: PluginBridge): Promise<MidiPorts> {
       }
       switch (message.type) {
         case "ports": {
-          const first = names === null;
-          names = message.ports;
+          const first = !heard;
+          heard = true;
+          const was = available;
+          available = message.ports.includes(DEVICE_SERVICE_NAME);
+          if (available) reason = null;
+          if (available !== was) for (const w of [...watchers]) w(available);
           if (first) resolve(ports);
           else changed?.();
           break;
         }
         case "opened":
-          settle(message.port, null);
+          if (message.port === DEVICE_SERVICE_NAME) settle(null);
           break;
         case "receive": {
+          if (message.port !== DEVICE_SERVICE_NAME) break;
           const data = Uint8Array.from(message.data);
-          for (const l of [...(listeners.get(message.port) ?? [])]) l(data);
+          for (const l of [...listeners]) l(data);
           break;
         }
         case "openFailed":
-          settle(message.port, new Error(message.message));
+          if (message.port === DEVICE_SERVICE_NAME) settle(new Error(message.message));
           break;
         case "error":
+          // Said without a port, it is why the plugin has no port to offer.
+          if (message.port === null) reason = message.message;
           console.error(`[plugin] ${message.port ?? ""} ${message.message}`);
           break;
       }

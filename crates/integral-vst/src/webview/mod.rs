@@ -2,8 +2,9 @@
 //!
 //! - [`assets`]: the embedded web build and how each path is served.
 //! - [`ipc`]: the page ↔ plugin message codec.
-//! - [`link`]: the device link behind the plugin transport, the seam the
-//!   Device service of ADR 0006 replaces.
+//! - [`link`]: the device link behind the plugin transport.
+//! - `service_link` (unix): that link as a raw SysEx client of the Device
+//!   service of ADR 0006.
 //! - [`bridge`]: page messages to link calls, and back.
 //! - `editor` (macOS): the nih-plug editor, a wry webview in a baseview
 //!   window.
@@ -14,3 +15,5 @@ pub(crate) mod bridge;
 pub(crate) mod editor;
 pub(crate) mod ipc;
 pub(crate) mod link;
+#[cfg(unix)]
+pub(crate) mod service_link;

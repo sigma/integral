@@ -1586,7 +1586,6 @@ dependencies = [
  "cpal",
  "integral-core",
  "integral-device-service",
- "midir 0.10.3",
  "nih_plug",
  "raw-window-handle 0.5.2",
  "serde",

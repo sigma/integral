@@ -17,7 +17,6 @@ integral-core = { path = "../integral-core", features = ["serde"] }
 integral-device-service = { path = "../integral-device-service" }
 nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["standalone"] }
 cpal = "0.15"
-midir = "0.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"

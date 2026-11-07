@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  DEVICE_SERVICE_ID,
   DEVICE_SERVICE_NAME,
   LINK_DOWN_CLOSE_CODE,
   LINK_DOWN_HINT,
@@ -15,6 +16,8 @@ import {
 import { findIntegraPort, type MidiPortPair, type MidiPorts } from "./midi";
 import {
   devServerPort,
+  deviceServicePairId,
+  deviceServicePairName,
   deviceServiceUrl,
   previewPort,
 } from "../pkg/integral_wasm.js";
@@ -325,6 +328,11 @@ describe("the ports of a browser", () => {
   it("pins the servers to the ports the service admits", () => {
     expect(DEV_SERVER_PORT).toBe(devServerPort());
     expect(PREVIEW_PORT).toBe(previewPort());
+  });
+
+  it("names the pair as the core does, as the plugin offers it", () => {
+    expect(DEVICE_SERVICE_NAME).toBe(deviceServicePairName());
+    expect(DEVICE_SERVICE_ID).toBe(deviceServicePairId());
   });
 
   it("takes the URL from the core", async () => {

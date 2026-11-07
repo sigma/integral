@@ -5,6 +5,14 @@
 
 use std::net::Ipv4Addr;
 
+/// The name of the page's Device service port pair: what the port picker
+/// shows and the last-port memory keeps, and the port the plugin editor
+/// offers its page. The page's `DEVICE_SERVICE_NAME` is checked against it.
+pub const PAIR_NAME: &str = "Integral Device Service";
+
+/// The page's `id` for the Device service pair, as [`PAIR_NAME`].
+pub const PAIR_ID: &str = "integral-device-service";
+
 /// The default TCP port of the service's WebSocket endpoint.
 pub const WEBSOCKET_PORT: u16 = 4707;
 

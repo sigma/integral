@@ -63,6 +63,18 @@ pub fn device_service_url() -> String {
     integral_core::device_service::websocket_url(integral_core::device_service::WEBSOCKET_PORT)
 }
 
+/// The name of the page's Device service port pair.
+#[wasm_bindgen(js_name = "deviceServicePairName")]
+pub fn device_service_pair_name() -> String {
+    integral_core::device_service::PAIR_NAME.to_owned()
+}
+
+/// The `id` of the page's Device service port pair.
+#[wasm_bindgen(js_name = "deviceServicePairId")]
+pub fn device_service_pair_id() -> String {
+    integral_core::device_service::PAIR_ID.to_owned()
+}
+
 /// The port the web dev server is pinned to, which the Device service admits
 /// as an origin by default. `web/vite.config.ts` must pin the same one.
 #[wasm_bindgen(js_name = "devServerPort")]

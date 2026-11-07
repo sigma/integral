@@ -7,6 +7,8 @@ import {
   deviceServicePair,
   withDeviceService,
 } from "./deviceService";
+import { identity_request } from "../pkg/integral_wasm.js";
+import { pluginPorts, type PageMessage, type PluginBridge } from "./plugin";
 import { IDENTIFY_TIMEOUT_MS, LAST_PORT_KEY, webMidiPorts } from "./midi";
 import { button, cleanup, click, render } from "./test/dom";
 import { fakeMidiAccess, type FakePortSpec } from "./test/midiAccess";
@@ -48,10 +50,16 @@ async function settle(): Promise<void> {
 }
 
 /** Mount the app on fake ports and storage, and let it start up. */
-async function open(specs: FakePortSpec[], storage = memoryStorage()) {
+async function open(
+  specs: FakePortSpec[],
+  storage = memoryStorage(),
+  connectOnlyPort = false,
+) {
   const midi = fakeMidiAccess(specs);
   const ports = async () => webMidiPorts(midi.access);
-  const { container } = render(<App openPorts={ports} storage={storage} />);
+  const { container } = render(
+    <App openPorts={ports} storage={storage} connectOnlyPort={connectOnlyPort} />,
+  );
   await settle();
   return { container, storage, midi };
 }
@@ -80,6 +88,25 @@ describe("reconnect on open", () => {
     expect(midi.identified).toEqual([]);
     expect(onMixer(container)).toBe(false);
     expect(button(container, "Identify Device")).toBeTruthy();
+  });
+
+  it("connects to the only port without a click where that is the choice", async () => {
+    const { container, midi } = await open(
+      [{ name: "INTEGRA-7", answers: true }],
+      memoryStorage(),
+      true,
+    );
+    expect(midi.identified).toEqual(["INTEGRA-7"]);
+    expect(onMixer(container)).toBe(true);
+  });
+
+  it("still waits for a click when there is a choice of ports", async () => {
+    const { midi } = await open(
+      [{ name: "INTEGRA-7", answers: true }, { name: "IAC Bus" }],
+      memoryStorage(),
+      true,
+    );
+    expect(midi.identified).toEqual([]);
   });
 
   it("falls back to the default port when the remembered one is gone", async () => {
@@ -244,5 +271,72 @@ describe("the Device service port", () => {
     expect(midi.identified).toEqual(["INTEGRA-7"]);
     expect(container.textContent).not.toContain("Waiting for reconnection");
     expect(onMixer(container)).toBe(true);
+  });
+});
+
+describe("the plugin transport", () => {
+  it("connects once the service, unavailable at start, comes up", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const listeners = new Set<(message: string) => void>();
+    const deliver = (message: object) => {
+      for (const l of [...listeners]) l(JSON.stringify(message));
+    };
+    let up = false;
+    const request = [...identity_request()].join();
+    const reply = [
+      0xf0, 0x7e, 0x10, 0x06, 0x02, 0x41, 0x64, 0x02, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0xf7,
+    ];
+    const bridge: PluginBridge = {
+      post(text) {
+        const m = JSON.parse(text) as PageMessage;
+        const port = DEVICE_SERVICE_NAME;
+        queueMicrotask(() => {
+          if (m.type === "ready") {
+            // As the plugin does: the reason, then the (empty) list.
+            if (!up)
+              deliver({
+                type: "error",
+                port: null,
+                message: "Device service not running",
+              });
+            deliver({ type: "ports", ports: up ? [port] : [] });
+          } else if (m.type === "open") {
+            deliver(
+              up
+                ? { type: "opened", port }
+                : { type: "openFailed", port, message: "Device service not running" },
+            );
+          } else if (m.type === "send" && up && m.data.join() === request) {
+            deliver({ type: "receive", port, data: reply });
+          }
+        });
+      },
+      subscribe(listener) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    };
+    const { container } = render(
+      <App
+        openPorts={() => pluginPorts(bridge)}
+        connectOnlyPort
+        storage={memoryStorage()}
+      />,
+    );
+    await settle();
+    expect(container.textContent).toContain("Device service not running");
+    expect(onMixer(container)).toBe(false);
+
+    up = true;
+    deliver({ type: "ports", ports: [DEVICE_SERVICE_NAME] });
+    await settle();
+    expect(onMixer(container)).toBe(true);
+
+    // The service goes away again: the page says so.
+    up = false;
+    deliver({ type: "ports", ports: [] });
+    await settle();
+    expect(onMixer(container)).toBe(false);
   });
 });

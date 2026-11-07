@@ -81,6 +81,10 @@ interface AppProps {
    *  service by default, the plugin transport inside the plugin
    *  (`main.tsx`). */
   openPorts?: () => Promise<MidiPorts>;
+  /** Connect to the only port without a click, which is the choice there is
+   *  (the plugin, whose one port is the Device service). Off in the browser,
+   *  where the service is never a default. */
+  connectOnlyPort?: boolean;
   /** Keeps the last port across page loads; `localStorage` by default. */
   storage?: Storage | null;
 }
@@ -88,6 +92,7 @@ interface AppProps {
 /** The control surface: connects to a device, then shows its pages. */
 export function App({
   openPorts = openBrowserPorts,
+  connectOnlyPort = false,
   storage = browserStorage(),
 }: AppProps = {}) {
   const [{ memory, connectPorts }] = useState(() => ({
@@ -172,6 +177,7 @@ export function App({
         awaitedPortRef.current = remembered;
         const integra = findIntegraPort(pairs);
         setSelectedId(integra?.id ?? pairs[0]?.id ?? null);
+        if (connectOnlyPort && pairs.length === 1) identify(pairs[0]!);
       }
 
       // Monitor port connect/disconnect events.
@@ -196,7 +202,7 @@ export function App({
       stopWatching?.();
       opened?.close?.();
     };
-  }, [connectPorts, memory, identify]);
+  }, [connectPorts, connectOnlyPort, memory, identify]);
 
   const handleSelect = useCallback(
     (portId: string) => {

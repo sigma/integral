@@ -8,7 +8,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
 use super::ipc::{self, PageMessage, PluginMessage};
-use super::link::DeviceLink;
+use super::link::{DeviceLink, Incoming, LinkError};
 
 /// Messages waiting for the page, beyond which the oldest are dropped: a
 /// page that stops draining (a hidden window) must not grow memory forever.
@@ -35,16 +35,30 @@ impl Outbox {
     }
 }
 
+/// Where the page's `open` has got to.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+enum OpenState {
+    /// Nothing is open.
+    #[default]
+    Closed,
+    /// The link began to open the pair and has not said it is ready.
+    Opening(String),
+    /// The link said the pair is open.
+    Open(String),
+}
+
 /// Connects one page to one [`DeviceLink`].
 pub(crate) struct Bridge {
     link: Box<dyn DeviceLink>,
     outbox: Arc<Outbox>,
     /// Whether the page said `ready`; nothing is delivered before.
     ready: bool,
-    /// The pair open on the link.
-    open: Option<String>,
+    /// The pair open on the link, and whether it has reported itself open.
+    open: Arc<Mutex<OpenState>>,
     /// The port list the page last heard.
     listed: Option<Vec<String>>,
+    /// Why the link was last unavailable, as the page heard it.
+    told: Option<String>,
     /// The window size the page asked for and the editor hasn't applied.
     resize: Option<(u32, u32)>,
 }
@@ -56,8 +70,9 @@ impl Bridge {
             link,
             outbox: Arc::default(),
             ready: false,
-            open: None,
+            open: Arc::default(),
             listed: None,
+            told: None,
             resize: None,
         }
     }
@@ -81,14 +96,17 @@ impl Bridge {
                 self.ready = true;
                 self.outbox.take();
                 self.listed = None;
+                self.told = None;
                 self.refresh_ports();
             }
             PageMessage::Open { port } => self.open(port),
             PageMessage::Send { port, data } => {
-                let result = if self.open.as_deref() == Some(port.as_str()) {
+                let is_open =
+                    *self.open.lock().expect("open lock") == OpenState::Open(port.clone());
+                let result = if is_open {
                     self.link.send(&data)
                 } else {
-                    Err(super::link::LinkError::NotOpen)
+                    Err(LinkError::NotOpen)
                 };
                 if let Err(e) = result {
                     self.outbox.push(PluginMessage::Error {
@@ -111,28 +129,54 @@ impl Bridge {
     }
 
     fn open(&mut self, port: String) {
-        if self.open.as_deref() == Some(port.as_str()) {
-            self.outbox.push(PluginMessage::Opened { port });
-            return;
-        }
-        let outbox = self.outbox.clone();
-        let name = port.clone();
-        let inbound = Box::new(move |data: &[u8]| {
-            outbox.push(PluginMessage::Receive {
-                port: name.clone(),
-                data: data.to_vec(),
-            });
-        });
-        self.open = None;
-        match self.link.open(&port, inbound) {
-            Ok(()) => {
-                self.open = Some(port.clone());
-                self.outbox.push(PluginMessage::Opened { port });
+        {
+            let state = self.open.lock().expect("open lock");
+            match &*state {
+                OpenState::Open(open) if *open == port => {
+                    self.outbox.push(PluginMessage::Opened { port });
+                    return;
+                }
+                // The answer is on its way.
+                OpenState::Opening(opening) if *opening == port => return,
+                _ => {}
             }
-            Err(e) => self.outbox.push(PluginMessage::OpenFailed {
-                port,
-                message: e.to_string(),
-            }),
+        }
+        let (outbox, state, name) = (self.outbox.clone(), self.open.clone(), port.clone());
+        let inbound = Box::new(move |incoming: Incoming<'_>| {
+            let mut state = state.lock().expect("open lock");
+            let message = match incoming {
+                Incoming::Opened => {
+                    *state = OpenState::Open(name.clone());
+                    PluginMessage::Opened { port: name.clone() }
+                }
+                Incoming::OpenFailed(message) => {
+                    *state = OpenState::Closed;
+                    PluginMessage::OpenFailed {
+                        port: name.clone(),
+                        message,
+                    }
+                }
+                Incoming::Receive(data) => PluginMessage::Receive {
+                    port: name.clone(),
+                    data: data.to_vec(),
+                },
+                Incoming::Error(message) => PluginMessage::Error {
+                    port: Some(name.clone()),
+                    message,
+                },
+            };
+            outbox.push(message);
+        });
+        *self.open.lock().expect("open lock") = OpenState::Opening(port.clone());
+        match self.link.open(&port, inbound) {
+            Ok(()) => {}
+            Err(e) => {
+                *self.open.lock().expect("open lock") = OpenState::Closed;
+                self.outbox.push(PluginMessage::OpenFailed {
+                    port,
+                    message: e.to_string(),
+                });
+            }
         }
     }
 
@@ -142,13 +186,18 @@ impl Bridge {
             return;
         }
         let ports = match self.link.ports() {
-            Ok(ports) => ports,
+            Ok(ports) => {
+                self.told = None;
+                ports
+            }
             Err(e) => {
-                // Said once per change of state, not on every poll.
-                if self.listed.as_ref().is_none_or(|l| !l.is_empty()) {
+                // Said once per change of reason, not on every poll.
+                let why = e.to_string();
+                if self.told.as_ref() != Some(&why) {
+                    self.told = Some(why.clone());
                     self.outbox.push(PluginMessage::Error {
                         port: None,
-                        message: e.to_string(),
+                        message: why,
                     });
                 }
                 Vec::new()
@@ -184,7 +233,7 @@ impl Drop for Bridge {
 
 #[cfg(test)]
 mod tests {
-    use super::super::link::{Inbound, LinkError};
+    use super::super::link::{Inbound, Incoming, LinkError};
     use super::*;
     use std::sync::Mutex;
 
@@ -194,6 +243,8 @@ mod tests {
         ports: Vec<String>,
         unavailable: bool,
         refuse: bool,
+        /// The link has not said the pair is open yet.
+        slow: bool,
         opened: Vec<String>,
         sent: Vec<Vec<u8>>,
         closed: usize,
@@ -218,6 +269,10 @@ mod tests {
                 return Err(LinkError::NoSuchPort(port.into()));
             }
             d.opened.push(port.into());
+            let mut inbound = inbound;
+            if !d.slow {
+                inbound(Incoming::Opened);
+            }
             d.inbound = Some(inbound);
             Ok(())
         }
@@ -243,7 +298,7 @@ mod tests {
     /// The device sends `data` on the open pair.
     fn device_sends(device: &Arc<Mutex<Device>>, data: &[u8]) {
         let mut inbound = device.lock().unwrap().inbound.take().expect("open");
-        inbound(data);
+        inbound(Incoming::Receive(data));
         device.lock().unwrap().inbound = Some(inbound);
     }
 
@@ -329,6 +384,75 @@ mod tests {
             .filter(|m| matches!(m, PluginMessage::Opened { .. }))
             .count();
         assert_eq!(opened, 2);
+    }
+
+    /// The link says, from its own thread, what became of the open.
+    fn link_says(device: &Arc<Mutex<Device>>, incoming: Incoming<'_>) {
+        let mut inbound = device.lock().unwrap().inbound.take().expect("open");
+        inbound(incoming);
+        device.lock().unwrap().inbound = Some(inbound);
+    }
+
+    #[test]
+    fn a_slow_open_is_answered_when_the_link_is_ready_and_sends_wait_for_it() {
+        let (mut b, device) = bridge(&["A"]);
+        device.lock().unwrap().slow = true;
+        b.handle(r#"{"type":"ready"}"#);
+        b.take_outgoing();
+        b.handle(r#"{"type":"open","port":"A"}"#);
+        // A second open while waiting asks the link nothing.
+        b.handle(r#"{"type":"open","port":"A"}"#);
+        b.handle(r#"{"type":"send","port":"A","data":[1]}"#);
+        assert_eq!(device.lock().unwrap().opened.len(), 1);
+        assert!(device.lock().unwrap().sent.is_empty());
+        let heard = b.take_outgoing();
+        assert!(
+            matches!(heard.as_slice(), [PluginMessage::Error { port: Some(p), .. }] if p == "A"),
+            "{heard:?}"
+        );
+
+        link_says(&device, Incoming::Opened);
+        assert_eq!(
+            b.take_outgoing(),
+            vec![PluginMessage::Opened { port: "A".into() }]
+        );
+        b.handle(r#"{"type":"send","port":"A","data":[1]}"#);
+        assert_eq!(device.lock().unwrap().sent, vec![vec![1]]);
+    }
+
+    #[test]
+    fn an_open_the_link_gives_up_on_can_be_asked_again() {
+        let (mut b, device) = bridge(&["A"]);
+        device.lock().unwrap().slow = true;
+        b.handle(r#"{"type":"ready"}"#);
+        b.take_outgoing();
+        b.handle(r#"{"type":"open","port":"A"}"#);
+        link_says(&device, Incoming::OpenFailed("no answer".into()));
+        assert_eq!(
+            b.take_outgoing(),
+            vec![PluginMessage::OpenFailed {
+                port: "A".into(),
+                message: "no answer".into()
+            }]
+        );
+        b.handle(r#"{"type":"open","port":"A"}"#);
+        assert_eq!(device.lock().unwrap().opened.len(), 2);
+    }
+
+    #[test]
+    fn what_the_link_reports_while_open_reaches_the_page() {
+        let (mut b, device) = bridge(&["A"]);
+        b.handle(r#"{"type":"ready"}"#);
+        b.handle(r#"{"type":"open","port":"A"}"#);
+        b.take_outgoing();
+        link_says(&device, Incoming::Error("refused".into()));
+        assert_eq!(
+            b.take_outgoing(),
+            vec![PluginMessage::Error {
+                port: Some("A".into()),
+                message: "refused".into()
+            }]
+        );
     }
 
     #[test]

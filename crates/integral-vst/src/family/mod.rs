@@ -77,9 +77,12 @@ impl<K: Kind> Family<K> {
     /// `setState`. The window settles it when it opens.
     #[cfg(target_os = "macos")]
     fn make_editor(&self) -> Option<Box<dyn Editor>> {
-        use crate::webview::link::{DeviceLink, MidirLink};
-        let link: crate::webview::editor::LinkFactory =
-            Arc::new(|| Box::new(MidirLink::default()) as Box<dyn DeviceLink>);
+        use crate::webview::link::DeviceLink;
+        use crate::webview::service_link::ServiceLink;
+        let instance = Arc::clone(&self.params.instance);
+        let link: crate::webview::editor::LinkFactory = Arc::new(move || {
+            Box::new(ServiceLink::new(Arc::clone(&instance))) as Box<dyn DeviceLink>
+        });
         Some(Box::new(crate::webview::editor::WebviewEditor::new(
             self.params.editor_size.clone(),
             link,

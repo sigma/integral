@@ -85,7 +85,11 @@ Device link and transports (`.ts`):
 - `devPorts.ts`: `DEV_SERVER_PORT` (5181) and `PREVIEW_PORT` (4181), pinned in
   `vite.config.ts` and equal to core's, which the service admits as origins.
 - `plugin.ts`:
-  - The plugin transport: `windowBridge`, `PluginBridge`, `pluginPorts`.
+  - The plugin transport: `windowBridge`, `PluginBridge`, `pluginPorts`. It
+    offers the Device service as the one pair (`DEVICE_SERVICE_ID` and
+    `DEVICE_SERVICE_NAME`, as in the browser), SysEx only (`carriesNotes` is
+    `false`). While the plugin has no port to offer, `failure` gives the
+    reason it sent, else `SERVICE_UNAVAILABLE_HINT`.
   - The IPC wire format: `encodePageMessage`, `decodePluginMessage`,
     `PLUGIN_EVENT`, and the wire types `PageMessage` and `PluginMessage`.
   - `OPEN_TIMEOUT_MS` (2000) and `ScreenArea`.

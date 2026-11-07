@@ -8,7 +8,8 @@ The DAW plugins (six VST3 plugins from one bundle, via `nih-plug`) and the
 declare the host parameter lists of `integral-core` and connect to the Device
 service ([ADR 0006](../../docs/adr/0006-device-service-owns-the-link.md)) as
 clients. The embedded page runs the WASM core, and the webview side only serves
-the page and passes MIDI bytes between the page and the device.
+the page and passes SysEx between the page and the Device service. The plugins
+open no MIDI port.
 
 ## Interface
 
@@ -37,10 +38,17 @@ the page and passes MIDI bytes between the page and the device.
 
 - Build time: reads `web/dist-plugin`, writes `$OUT_DIR/web_assets.rs`, and
   emits `rerun-if-changed`.
-- Runtime: see [`./src/README.md`](./src/README.md) (MIDI ports, audio
-  backend, window).
+- Runtime: see [`./src/README.md`](./src/README.md) (the service socket,
+  audio backend, window).
 
 ## Verification
 
 - Run: `cargo test -p integral-vst`
+- Live runbook ([#463](https://github.com/sigma/integral/issues/463)): with
+  Live running and a plugin editor open, only the service holds the device
+  port. The service is the one process this prints (exactly one line):
+  `pgrep -fl 'integral.* bridge'`. No other process, Live included, opens a
+  MIDI port of the device. The plugins have no MIDI code (`midir` is not a
+  dependency of this crate), and `integral-app` holds no port either: it
+  refuses nih-plug's `--midi-input` and `--midi-output`.
 - Run: `just build-plugin` (release, with the web UI embedded)

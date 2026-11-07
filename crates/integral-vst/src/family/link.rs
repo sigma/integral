@@ -203,6 +203,8 @@ impl Connection {
     /// Connect `instance` to the service at `path`. Returns at once; the
     /// client connects, and keeps retrying, in the background.
     pub fn start(path: impl Into<PathBuf>, instance: Arc<Instance>) -> Self {
+        let path = path.into();
+        instance.set_socket(path.clone());
         let (client, events) = Client::connect(path);
         let stop = Arc::new(AtomicBool::new(false));
         let worker = {

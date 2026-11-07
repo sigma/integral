@@ -18,10 +18,10 @@
 import { deviceServiceUrl } from "../pkg/integral_wasm.js";
 import type { MidiListener, MidiPortPair, MidiPorts } from "./midi";
 
-/** What the port picker shows and the last-port memory keeps. */
+/** What the port picker shows and the last-port memory keeps (the core's `PAIR_NAME`, checked by the tests). */
 export const DEVICE_SERVICE_NAME = "Integral Device Service";
 
-/** The pair's `id`. */
+/** The pair's `id` (the core's `PAIR_ID`, checked by the tests). */
 export const DEVICE_SERVICE_ID = "integral-device-service";
 
 /** Wait before the first reconnect, then doubled up to {@link RECONNECT_MAX_MS}. */

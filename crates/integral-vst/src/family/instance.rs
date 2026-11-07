@@ -1,10 +1,12 @@
 //! What one plugin instance shares between the plugin, its worker thread and
 //! (later) its editor.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use integral_core::host_params::{Binding, PluginKind};
-use integral_device_service::protocol::Bound;
+use integral_device_service::protocol::{Bound, ClientId};
 
 use super::binding::BindingCell;
 use super::status::StatusCell;
@@ -23,6 +25,10 @@ pub struct Instance {
     /// The host gave this instance a saved state: set by
     /// [`restored`](Self::mark_restored) and never cleared.
     restored: AtomicBool,
+    /// The Device service socket the instance's connection uses.
+    socket: OnceLock<PathBuf>,
+    /// The editor's client (`ClientId` + 1; 0 when it has none).
+    editor_client: AtomicU64,
 }
 
 impl Instance {
@@ -36,6 +42,44 @@ impl Instance {
             status: StatusCell::default(),
             settled: AtomicBool::new(false),
             restored: AtomicBool::new(false),
+            socket: OnceLock::new(),
+            editor_client: AtomicU64::new(0),
+        }
+    }
+
+    /// Note the Device service socket the instance connects to. The first
+    /// one stays: it is the single source for the connection and the
+    /// editor's link.
+    pub fn set_socket(&self, path: PathBuf) {
+        let _ = self.socket.set(path);
+    }
+
+    /// The Device service socket the instance connects to, once its
+    /// connection has started.
+    pub fn socket(&self) -> Option<&Path> {
+        self.socket.get().map(PathBuf::as_path)
+    }
+
+    /// Publish the ID of the editor's own client of the service (`None`: it
+    /// has none, because the editor is closed or its connection is down).
+    /// Wait-free.
+    pub fn set_editor_client(&self, client: Option<ClientId>) {
+        let stored = client.map_or(0, |id| id.0.saturating_add(1));
+        self.editor_client.store(stored, Ordering::Release);
+    }
+
+    /// The ID of the editor's own client of the service, while it is
+    /// connected.
+    ///
+    /// The editor talks to the service through a second client (see
+    /// `webview::service_link`), so a change the service reports with that
+    /// client as its `writer` is the instance's own: treat writes from either
+    /// this instance's client or its editor's client as its own, not as
+    /// another writer's. Wait-free.
+    pub fn editor_client(&self) -> Option<ClientId> {
+        match self.editor_client.load(Ordering::Acquire) {
+            0 => None,
+            stored => Some(ClientId(stored - 1)),
         }
     }
 

@@ -35,7 +35,9 @@ the webview UI, available only on macOS.
     the status and to `Bind` and `Claim` requests.
 - `standalone.rs`: the `integral-app` binary, which runs the Studio Set plugin
   through `nih_export_standalone`. `detect_sample_rate()` reads the sample
-  rate of the default `cpal` output device.
+  rate of the default `cpal` output device. `midi_flag` finds the
+  `--midi-input` and `--midi-output` flags, which `main` refuses because
+  they would open MIDI ports of its own.
 - [`./webview/README.md`](./webview/README.md): the editor, the IPC protocol,
   the asset server and the `DeviceLink` seam.
 
@@ -67,8 +69,7 @@ the webview UI, available only on macOS.
 - The connection starts in `initialize()`, not on construction, so a host that
   only scans the plugins connects nothing.
 - Device SysEx never goes through the host, because hosts such as Live drop
-  plugin SysEx. The editor still opens its own MIDI link, until it goes through
-  the service.
+  plugin SysEx. The editor reaches the device through the service.
 - In the standalone, a `--sample-rate` given by the user takes priority.
   Otherwise the detected rate is used.
 
@@ -77,9 +78,10 @@ the webview UI, available only on macOS.
 - Each initialized instance connects to the Device service socket under the
   user's temp directory (creating the private `Integral` directory), retrying
   while the service is away.
-- The standalone opens audio and MIDI through nih-plug's backends, and prints
+- The standalone opens audio through nih-plug's backends, and prints
   the detected sample rate to `stderr`.
-- On macOS the editor opens MIDI ports directly (see `webview/`).
+- On macOS the editor opens a second client of the Device service while a
+  page has the port open (see `webview/`). No MIDI port is opened.
 
 ## Verification
 
