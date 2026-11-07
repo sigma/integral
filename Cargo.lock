@@ -1415,6 +1415,7 @@ dependencies = [
  "anyhow",
  "clap",
  "integral-core",
+ "integral-device-service",
  "midir 0.10.3",
  "serde",
  "serde_json",
@@ -1427,6 +1428,16 @@ dependencies = [
  "midly",
  "serde",
  "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "integral-device-service"
+version = "0.1.0"
+dependencies = [
+ "integral-core",
+ "integral-device-service",
+ "midir 0.10.3",
  "thiserror 2.0.18",
 ]
 

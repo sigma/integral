@@ -1,0 +1,18 @@
+[package]
+name = "integral-device-service"
+description = "The Device service: one process owning the INTEGRA-7 link and its DeviceState"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+integral-core = { path = "../integral-core" }
+midir = "0.10"
+thiserror = "2"
+
+[features]
+# FakeLink and SequentialSessionIds, for tests of this crate and its clients.
+test-util = []
+
+[dev-dependencies]
+integral-device-service = { path = ".", features = ["test-util"] }
