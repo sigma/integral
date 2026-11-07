@@ -122,6 +122,21 @@ pub struct BlockRun {
     pub count: u8,
     /// Distance between consecutive blocks, in `00 xx 00` units.
     pub stride: u8,
+    /// Offsets within each block of bytes proven on hardware to ignore a
+    /// write (`docs/midi/99-undocumented.md`, "Some reserves ignore writes"),
+    /// so a write may span them with any value. Not every byte the MIDI
+    /// Implementation marks `<*>`: some of those accept writes (Part `00 26`,
+    /// `00 45`, `00 47`, Common `00 10`, `00 14`), and the others were not
+    /// tried, so they are not listed.
+    pub reserved: &'static [u8],
+}
+
+impl BlockRun {
+    /// The run with `reserved` as its ignored-on-receive offsets.
+    const fn reserving(mut self, reserved: &'static [u8]) -> Self {
+        self.reserved = reserved;
+        self
+    }
 }
 
 const fn run(offset: [u8; 3], size: DataSize, count: u8, stride: u8) -> BlockRun {
@@ -130,6 +145,7 @@ const fn run(offset: [u8; 3], size: DataSize, count: u8, stride: u8) -> BlockRun
         size,
         count,
         stride,
+        reserved: &[],
     }
 }
 
@@ -220,17 +236,31 @@ impl UserMemorySpec {
 
     /// Every block of the layout rebased at `base`, as `(address, size)`.
     pub fn blocks(&self, base: Address) -> impl Iterator<Item = (Address, DataSize)> + '_ {
-        self.blocks.iter().flat_map(move |r| {
-            let [a, b, c] = r.offset;
-            (0..r.count).map(move |i| {
-                let step = u16::from(i) * u16::from(r.stride);
-                let addr = base.offset([0, a, b, c]).offset([
-                    0,
-                    (step / 128) as u8,
-                    (step % 128) as u8,
-                    0,
-                ]);
-                (addr, r.size)
+        self.blocks
+            .iter()
+            .flat_map(move |r| Self::starts(r, base).map(|addr| (addr, r.size)))
+    }
+
+    /// The start of each block of `run` rebased at `base`.
+    fn starts(run: &BlockRun, base: Address) -> impl Iterator<Item = Address> {
+        let [a, b, c] = run.offset;
+        let (count, stride) = (run.count, run.stride);
+        (0..count).map(move |i| {
+            let step = u16::from(i) * u16::from(stride);
+            base.offset([0, a, b, c])
+                .offset([0, (step / 128) as u8, (step % 128) as u8, 0])
+        })
+    }
+
+    /// Whether the byte at linear address `at` (an [`Address::value`]) is one
+    /// the device ignores on receive (`<*>`) in the layout for `part`'s
+    /// Temporary Tone, or in the Temporary Studio Set.
+    pub fn is_reserved(&self, part: u8, at: u32) -> bool {
+        let base = self.temporary_base(part);
+        self.blocks.iter().any(|run| {
+            Self::starts(run, base).any(|start| {
+                at.checked_sub(start.value())
+                    .is_some_and(|offset| run.reserved.iter().any(|r| u32::from(*r) == offset))
             })
         })
     }
@@ -260,10 +290,11 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         slot_stride: 1,
         tone_type: None,
         blocks: &[
-            one([0x00, 0x00, 0x00], size(0x54)), // Common
-            one([0x00, 0x04, 0x00], size(0x54)), // Chorus
-            one([0x00, 0x06, 0x00], size(0x63)), // Reverb
-            one([0x00, 0x08, 0x00], size(0x10)), // Motional Surround
+            // Common bytes `00 17` and `00 38` ignored a write on hardware.
+            one([0x00, 0x00, 0x00], size(0x54)).reserving(&[0x17, 0x38]),
+            one([0x00, 0x04, 0x00], size(0x54)),
+            one([0x00, 0x06, 0x00], size(0x63)),
+            one([0x00, 0x08, 0x00], size(0x10)),
             one([0x00, 0x09, 0x00], params::MASTER_EQ_SIZE),
             run([0x00, 0x10, 0x00], DataSize::ONE, 16, 1), // MIDI 1–16
             run([0x00, 0x20, 0x00], size(0x4D), 16, 1),    // Parts 1–16
@@ -685,5 +716,46 @@ mod tests {
             last,
             (Address::new(0x18, 0x00, 0x5F, 0x00), params::PART_EQ_SIZE)
         );
+    }
+}
+
+#[cfg(test)]
+mod reserved_tests {
+    use super::*;
+
+    fn spec(tone_type: Option<ToneType>) -> &'static UserMemorySpec {
+        USER_MEMORY
+            .iter()
+            .find(|s| s.tone_type == tone_type)
+            .expect("a spec")
+    }
+
+    #[test]
+    fn only_the_bytes_proven_ignored_on_hardware_are_reserved() {
+        let studio = spec(None);
+        let at = |a, b, c, d| {
+            address::STUDIO_SET
+                .offset([0, a, b, c])
+                .offset([0, 0, 0, d])
+                .value()
+        };
+        assert!(studio.is_reserved(0, at(0, 0, 0, 0x17)));
+        assert!(studio.is_reserved(0, at(0, 0, 0, 0x38)));
+        // Marked `<*>`, but they took a write (or were not tried).
+        for untrusted in [0x10, 0x14, 0x4B] {
+            assert!(
+                !studio.is_reserved(0, at(0, 0, 0, untrusted)),
+                "{untrusted:#x}"
+            );
+        }
+        for part in 0..INTEGRA7.part_count {
+            for data in [0x02, 0x26, 0x45, 0x47] {
+                assert!(!studio.is_reserved(0, at(0, 0x20 + part, 0, data)));
+            }
+        }
+        // No tone lists any.
+        for spec in USER_MEMORY.iter().filter(|s| s.tone_type.is_some()) {
+            assert!(spec.blocks.iter().all(|r| r.reserved.is_empty()));
+        }
     }
 }
