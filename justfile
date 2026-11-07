@@ -3,6 +3,9 @@
 
 set dotenv-load := false
 
+# the plugin bundle `bundle-plugin` assembles under target/bundle (and its executable)
+bundle_name := "Integral"
+
 # default: list available targets
 default:
     @just --list
@@ -49,6 +52,47 @@ build-web-plugin: pack-wasm web-deps
 # build the plugin (VST3/CLAP library and integral-app) with its web UI embedded
 build-plugin: build-web-plugin
     cargo build -p integral-vst --release
+
+# assemble target/bundle/Integral.vst3 from a fresh plugin build, ad-hoc signed (macOS)
+[macos]
+bundle-plugin: build-plugin
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # The cargo target dir may be shared between workspaces, so copy the
+    # dylib straight after the build, before another build replaces it.
+    meta=$(cargo metadata --format-version 1 --no-deps)
+    target=$(jq -r .target_directory <<<"$meta")
+    version=$(jq -r '.packages[] | select(.name == "integral-vst") | .version' <<<"$meta")
+    bundle="{{justfile_directory()}}/target/bundle/{{bundle_name}}.vst3"
+    rm -rf "$bundle"
+    mkdir -p "$bundle/Contents/MacOS"
+    cp "$target/release/libintegral_vst.dylib" "$bundle/Contents/MacOS/{{bundle_name}}"
+    printf 'BNDL????' > "$bundle/Contents/PkgInfo"
+    cat > "$bundle/Contents/Info.plist" <<PLIST
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>CFBundleDevelopmentRegion</key><string>en</string>
+      <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+      <key>CFBundleExecutable</key><string>{{bundle_name}}</string>
+      <key>CFBundleIdentifier</key><string>com.sigma.integral.vst3</string>
+      <key>CFBundleName</key><string>{{bundle_name}}</string>
+      <key>CFBundlePackageType</key><string>BNDL</string>
+      <key>CFBundleSignature</key><string>????</string>
+      <key>CFBundleShortVersionString</key><string>$version</string>
+      <key>CFBundleVersion</key><string>$version</string>
+    </dict>
+    </plist>
+    PLIST
+    codesign --force -s - "$bundle"
+    echo "$bundle"
+
+# run a test-host scenario (e.g. drag) against the bundled plugin; JSON lines on stdout (macOS)
+[macos]
+[positional-arguments]
+plugin-test scenario *ARGS: bundle-plugin
+    cargo run -q -p integral-plugin-host -- --bundle "target/bundle/{{bundle_name}}.vst3" --out-dir target/plugin-test "$@"
 
 # render the PWA icons from web/public/icon.svg (librsvg from the pinned nixpkgs)
 web-icons:
