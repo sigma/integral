@@ -1,0 +1,29 @@
+[package]
+name = "integral-plugin-host"
+description = "Dev-only VST3 test host: loads the plugin, opens its editor and drives it for local checks (macOS only)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "integral-plugin-host"
+path = "src/main.rs"
+
+# The whole crate is macOS-only (AppKit, Accessibility, CGEvent); elsewhere
+# the binary only says so, which keeps `cargo build --workspace` and clippy
+# working. It is never built for wasm (`just build-wasm` selects crates).
+[target.'cfg(target_os = "macos")'.dependencies]
+# Exact: the host leans on its window and gesture-recording behaviour; bump
+# deliberately and re-run the scenarios (#444).
+vst3-host = { version = "=0.11.0", default-features = false }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde_json = "1"
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSArray", "NSDate", "NSString", "NSRunLoop"] }
+objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSEvent", "NSResponder", "NSWindow"] }
+objc2-core-foundation = { version = "0.3", features = ["CFArray", "CFCGTypes", "CFDictionary", "CFNumber", "CFString"] }
+objc2-core-graphics = { version = "0.3", features = ["CGEvent", "CGEventSource", "CGEventTypes", "CGGeometry", "CGWindow", "CGRemoteOperation"] }
+accessibility-sys = "0.2"
+core-foundation-sys = "0.8"
