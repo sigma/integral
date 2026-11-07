@@ -975,6 +975,57 @@ fn an_effect_slot_names_the_active_type_when_the_session_knows_it_and_else_one_b
 }
 
 #[test]
+fn a_typed_write_to_a_slot_of_another_effect_type_than_the_known_one_is_dropped() {
+    let (mut service, link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (a, _inbox) = client(&mut service, 1);
+    let index = ParamIndex::new();
+    let (two, slot_at) = mfx_slot(2, 1);
+    let def = index.get(two);
+    let type_at = def
+        .effect_type_address(&Binding::of_part(0))
+        .unwrap()
+        .unwrap();
+    let write = Request::Write {
+        param: ParamId::of(&index, two),
+        binding: Binding::of_part(0),
+        value: 7,
+    };
+
+    // The effect is type 3 as far as the session knows.
+    ask(
+        &mut service,
+        a,
+        Request::Raw {
+            bytes: sysex::build_dt1(DEVICE_ID, &type_at, &[3]),
+        },
+    );
+    service.pump(0.0);
+    link.clear();
+    ask(&mut service, a, write.clone());
+    service.pump(40.0);
+    service.pump(80.0);
+    assert_eq!(link.sent(), Vec::<Vec<u8>>::new(), "type 2 is not active");
+
+    // Type 2 becomes the effect's: the write goes.
+    ask(
+        &mut service,
+        a,
+        Request::Raw {
+            bytes: sysex::build_dt1(DEVICE_ID, &type_at, &[2]),
+        },
+    );
+    service.pump(120.0);
+    link.clear();
+    ask(&mut service, a, write);
+    service.pump(160.0);
+    assert_eq!(
+        link.sent(),
+        [sysex::build_dt1(DEVICE_ID, &slot_at, &def.encode(7))]
+    );
+}
+
+#[test]
 fn a_select_written_in_part_passes_through_as_data_while_its_bytes_are_unknown() {
     let (mut service, link) = service();
     service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);

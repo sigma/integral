@@ -19,27 +19,17 @@ const DEFAULT_EDITOR_SIZE: (u32, u32) = (1280, 820);
 /// A plugin kind's host parameters over their raw range, and what is saved
 /// with them: the editor's size and the instance's Binding.
 pub struct FamilyParams {
-    /// Each host parameter and the nih-plug integer that declares it.
-    params: Vec<(HostParam, IntParam)>,
     /// The editor window's size in logical px, as the page last set it.
     pub editor_size: Arc<RwLock<(u32, u32)>>,
-    /// The instance whose Binding is saved.
+    /// The instance whose Binding is saved, and whose bank holds the
+    /// parameters.
     pub instance: Arc<Instance>,
 }
 
 impl FamilyParams {
     /// The parameters of `kind`, and a new [`Instance`] of it.
     pub fn new(kind: PluginKind) -> Self {
-        let params = kind
-            .host_params()
-            .into_iter()
-            .map(|host| {
-                let param = int_param(&host);
-                (host, param)
-            })
-            .collect();
         Self {
-            params,
             editor_size: Arc::new(RwLock::new(DEFAULT_EDITOR_SIZE)),
             instance: Arc::new(Instance::new(kind)),
         }
@@ -47,29 +37,15 @@ impl FamilyParams {
 
     /// The host parameters with their nih-plug counterparts, in list order.
     pub fn list(&self) -> &[(HostParam, IntParam)] {
-        &self.params
+        self.instance.bank.list()
     }
 }
 
-/// The nih-plug parameter for `host`: an integer over its raw range, with
-/// the list's text both ways and no smoothing.
-fn int_param(host: &HostParam) -> IntParam {
-    let range = IntRange::Linear {
-        min: host.min,
-        max: host.max,
-    };
-    let (to_text, from_text) = (host.format.clone(), host.format.clone());
-    let (min, max) = (host.min, host.max);
-    IntParam::new(host.name.clone(), host.default, range)
-        .with_value_to_string(Arc::new(move |raw| to_text.format(raw)))
-        .with_string_to_value(Arc::new(move |text| from_text.parse(text, min, max)))
-}
-
-// SAFETY: the pointers `param_map` returns point into `self`, which the
-// wrapper keeps alive in an `Arc`, and the vector is never resized.
+// SAFETY: the pointers `param_map` returns point into the instance's bank,
+// which `self` keeps alive, and the bank's list is never resized.
 unsafe impl Params for FamilyParams {
     fn param_map(&self) -> Vec<(String, ParamPtr, String)> {
-        self.params
+        self.list()
             .iter()
             .map(|(host, param)| (host.id.clone(), param.as_ptr(), host.group.clone()))
             .collect()
@@ -87,6 +63,11 @@ unsafe impl Params for FamilyParams {
     }
 
     fn deserialize_fields(&self, serialized: &BTreeMap<String, String>) {
+        if self.instance.replacing() {
+            // The device's side replacing the values through the wrapper's
+            // state restore: no host restore, and the Binding is the same.
+            return;
+        }
         if let Some(size) = serialized
             .get(EDITOR_SIZE_KEY)
             .and_then(|text| serde_json::from_str(text).ok())
@@ -226,5 +207,16 @@ mod tests {
         fresh.instance.binding.set(Some(Binding::of_part(1)));
         fresh.deserialize_fields(&saved.serialize_fields());
         assert_eq!(fresh.instance.binding.get(), None);
+    }
+
+    #[test]
+    fn a_state_the_device_side_replaces_values_with_is_no_host_restore() {
+        let params = FamilyParams::new(PluginKind::SnSynth);
+        let fields = BTreeMap::from([(PERSIST_KEY.to_string(), r#"{"part":4}"#.to_string())]);
+        params.instance.set_replacing(true);
+        params.deserialize_fields(&fields);
+        params.instance.set_replacing(false);
+        assert!(!params.instance.was_restored() && !params.instance.is_settled());
+        assert_eq!(params.instance.binding.get(), None);
     }
 }

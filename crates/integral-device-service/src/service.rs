@@ -826,7 +826,19 @@ impl Service {
                 let Ok((handle, address)) = self.resolve(&param, &binding) else {
                     return;
                 };
-                let bytes = self.params.get(handle).encode(value);
+                let def = self.params.get(handle);
+                // A slot of an effect type the session knows the effect does
+                // not have would overwrite another type's slot: a stale
+                // client's write (the type changed behind its back).
+                if !force
+                    && let Some(effect) = def.effect
+                    && let Some(Ok(type_at)) = def.effect_type_address(&binding)
+                    && let Some(known) = self.known.get(&type_at).and_then(|b| b.first())
+                    && *known != effect.type_id
+                {
+                    return;
+                }
+                let bytes = def.encode(value);
                 // Only a field the session has read or written can be known
                 // to hold the value already; a push is the project's word
                 // against whatever the device holds.

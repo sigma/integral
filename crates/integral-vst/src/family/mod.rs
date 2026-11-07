@@ -12,15 +12,23 @@
 //!   creating the instance (nih-plug even builds the editor then) and before
 //!   processing audio or opening the editor window, and a restore replaces any
 //!   target taken before it. See [`Instance::settle`].
+//! - **Host parameters follow the device.** The audio thread writes the
+//!   host's changes ([`out`]); the worker gives the host the device's
+//!   ([`follow`], [`host`]), posted to the host's main thread.
 //! - **The connection** to the service reports one [`Status`] ([`link`]).
 //!   It starts in `initialize()`, so a host that only scans the plugin
 //!   connects nothing.
 
+pub mod bank;
 pub mod binding;
+pub mod follow;
+pub mod host;
 pub mod instance;
 pub mod kind;
 #[cfg(unix)]
 pub mod link;
+#[cfg(unix)]
+pub mod out;
 pub mod params;
 pub mod status;
 
@@ -29,12 +37,15 @@ use std::sync::Arc;
 
 use nih_plug::prelude::*;
 
+pub use host::HostTask;
 pub use instance::Instance;
 pub use kind::{Kind, PcmDrum, PcmSynth, SnAcoustic, SnDrum, SnSynth, StudioSet};
 pub use status::Status;
 
 #[cfg(unix)]
 use link::Connection;
+#[cfg(unix)]
+use out::Outbound;
 use params::FamilyParams;
 
 /// The Studio Set plugin.
@@ -56,6 +67,9 @@ pub struct Family<K: Kind> {
     /// The connection to the Device service, once `initialize()` has made it.
     #[cfg(unix)]
     connection: Option<Connection>,
+    /// The audio thread's way to send host changes to the device.
+    #[cfg(unix)]
+    outbound: Option<Outbound>,
     kind: std::marker::PhantomData<K>,
 }
 
@@ -103,6 +117,8 @@ impl<K: Kind> Default for Family<K> {
             params: Arc::new(FamilyParams::new(K::KIND)),
             #[cfg(unix)]
             connection: None,
+            #[cfg(unix)]
+            outbound: None,
             kind: std::marker::PhantomData,
         }
     }
@@ -126,10 +142,17 @@ impl<K: Kind> Plugin for Family<K> {
     const SAMPLE_ACCURATE_AUTOMATION: bool = false;
     // No host SysEx: the device is reached through the service.
     type SysExMessage = ();
-    type BackgroundTask = ();
+    // What the instance's worker asks of the host's main thread.
+    type BackgroundTask = HostTask;
 
     fn params(&self) -> Arc<dyn Params> {
         self.params.clone()
+    }
+
+    fn task_executor(&mut self) -> TaskExecutor<Self> {
+        // Runs on the host's main thread (`ProcessContext::execute_gui`).
+        let instance = Arc::clone(&self.params.instance);
+        Box::new(move |task| host::run(&instance, task))
     }
 
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
@@ -140,8 +163,29 @@ impl<K: Kind> Plugin for Family<K> {
         &mut self,
         _audio_io_layout: &AudioIOLayout,
         _buffer_config: &BufferConfig,
-        _context: &mut impl InitContext<Self>,
+        context: &mut impl InitContext<Self>,
     ) -> bool {
+        // The context the device's changes reach the host through, and the
+        // executor that takes them to its main thread, with or without an
+        // editor and whether or not the host calls `process()` (the vendored
+        // nih-plug). Set once: restoring a state for a bulk update initializes
+        // again, on the audio thread, and must not replace them.
+        let instance = &self.params.instance;
+        instance.set_posting(true);
+        if instance.bank.edits().is_none()
+            && let Some(gui) = context.gui_context()
+        {
+            instance
+                .bank
+                .set_edits_once(Arc::new(host::GuiEdits::new(gui)));
+        }
+        if !instance.has_poster()
+            && let Some(executor) = context.async_executor()
+        {
+            instance.set_poster(instance::Poster::new(move |task| {
+                executor.execute_gui(task);
+            }));
+        }
         // A host may initialize more than once; keep the one connection. A
         // socket path that cannot be made leaves the status at "not
         // running" and is tried again at the next initialize.
@@ -149,13 +193,22 @@ impl<K: Kind> Plugin for Family<K> {
         if self.connection.is_none() {
             match integral_device_service::default_socket_path() {
                 Ok(path) => {
-                    self.connection =
-                        Some(Connection::start(path, Arc::clone(&self.params.instance)));
+                    let connection = Connection::start(path, Arc::clone(&self.params.instance));
+                    // Made here, off the audio thread: `process()` only
+                    // pushes to its ring.
+                    self.outbound = connection.sender().map(Outbound::new);
+                    self.connection = Some(connection);
                 }
                 Err(error) => nih_log!("no Device service socket path: {error}"),
             }
         }
         true
+    }
+
+    fn deactivate(&mut self) {
+        // The host may destroy the plugin next: the worker posts nothing more
+        // to the main thread until `initialize()`.
+        self.params.instance.set_posting(false);
     }
 
     fn process(
@@ -166,6 +219,11 @@ impl<K: Kind> Plugin for Family<K> {
     ) -> ProcessStatus {
         // Audio passes through; the host restores state before it gets here.
         self.params.instance.settle();
+        // The host's changes go to the device.
+        #[cfg(unix)]
+        if let Some(outbound) = &mut self.outbound {
+            outbound.poll(&self.params.instance);
+        }
         ProcessStatus::Normal
     }
 }

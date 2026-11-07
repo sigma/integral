@@ -2,7 +2,8 @@
 //! thread that reads its events, and the [`Tracker`] that decides what they
 //! mean.
 //!
-//! The audio thread is not involved: it only calls [`Instance::settle`]. The
+//! The audio thread only calls [`Instance::settle`] and sends the host's
+//! parameter changes ([`Outbound`](super::out::Outbound)). The
 //! worker polls every [`TICK`], so a Binding set elsewhere (a restored
 //! state, a picker) is announced to the service within one tick.
 
@@ -13,9 +14,11 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use integral_core::host_params::PluginKind;
+use integral_core::sysex::DEFAULT_DEVICE_ID;
 use integral_device_service::protocol::{Bound, Message, Reject};
-use integral_device_service::{Client, ClientEvent, Events};
+use integral_device_service::{Client, ClientEvent, Events, Sender};
 
+use super::follow::Follower;
 use super::instance::Instance;
 use super::status::Status;
 
@@ -223,27 +226,48 @@ impl Connection {
     }
 }
 
+impl Connection {
+    /// A [`Sender`] for the audio thread's host-parameter writes. Call it
+    /// off that thread.
+    pub fn sender(&self) -> Option<Sender> {
+        self._client.sender()
+    }
+}
+
 impl Drop for Connection {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Release);
         if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
+            // The worker itself may be the one that drops the plugin, if
+            // the host's last release lands while it holds a reference: it
+            // cannot join itself, and is stopping anyway.
+            if worker.thread().id() != thread::current().id() {
+                let _ = worker.join();
+            }
         }
     }
 }
 
 /// The worker: feed events to a [`Tracker`] and carry out what it says.
 fn work(client: &Client, events: &Events, instance: Arc<Instance>, stop: &AtomicBool) {
-    let mut tracker = Tracker::new(instance);
+    let mut tracker = Tracker::new(Arc::clone(&instance));
+    // The service puts its own device ID in the read requests.
+    let mut follower = Follower::new(instance, DEFAULT_DEVICE_ID);
     while !stop.load(Ordering::Acquire) {
-        let event = events.wait_event(TICK);
+        // Wake for the follower's own deadlines too (a gesture to end).
+        let wait = follower
+            .next_wake(Instant::now())
+            .map_or(TICK, |due| due.min(TICK));
+        let event = events.wait_event(wait);
         for action in tracker.step(event.as_ref()) {
             match action {
                 Action::Bind(bound) => client.bind(bound),
                 Action::Claim(plugin) => client.claim(plugin),
             };
         }
+        follower.step(event.as_ref(), Instant::now(), client);
     }
+    follower.end_all();
 }
 
 #[cfg(test)]
