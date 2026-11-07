@@ -102,10 +102,15 @@
 //! values are not to be applied, only the blocks holding effect types are read.
 //!
 //! **The project wins.** An instance whose state the host restored does not
-//! take the device's values on its first read (ADR 0009): the project's are
-//! the push's to send (the recall, #458, must therefore run after this first
-//! read has settled the instance, and write with `Push`, which bypasses the
-//! service's cache). Later reads take the device's values.
+//! take the device's values on its first read, nor on the first of a session
+//! that has not had its push (ADR 0009): the project's are the push's to
+//! send. The [`Recall`] starts once that read has settled the instance, and
+//! sends with `Push`, which bypasses the service's cache; no read applies
+//! while it is under way. Later reads take the device's values.
+//!
+//! A read that applies also learns the tone the Part holds, for the instance
+//! to save ([`recall::capture`]): the Part's tone-select bytes are read with
+//! its blocks.
 //!
 //! A change another writer makes while the read is under way is patched into
 //! the bytes read, so the older bytes of the reply do not undo it.
@@ -122,12 +127,13 @@ use integral_core::host_params::{Anchor, Binding, PluginKind};
 use integral_core::params;
 use integral_core::sysex;
 use integral_device_service::protocol::{
-    BaselineRun, BulkKind, ClientId, Message, ParamId, Request, ToneSelect,
+    BaselineRun, BulkKind, ClientId, Message, ParamId, Reject, Request, ToneSelect,
 };
-use integral_device_service::{Client, ClientEvent};
+use integral_device_service::{Client, ClientEvent, SessionId};
 
 use super::host::HostTask;
 use super::instance::{Instance, ToneFit};
+use super::recall::{self, Context, Recall};
 
 /// How long a parameter goes without a change by another writer before the
 /// gesture on it ends.
@@ -171,6 +177,8 @@ pub trait Wire {
     fn change_tone(&self, part: u8, msb: u8, lsb: u8, pc: u8);
     /// Ask for the baseline of a Part's tone (`Request::Baseline`).
     fn baseline(&self, part: u8);
+    /// Queue `requests` as one push (`Request::Push`).
+    fn push(&self, requests: Vec<Request>);
 }
 
 impl Wire for Client {
@@ -201,6 +209,10 @@ impl Wire for Client {
                 binding: Binding::of_part(part),
             },
         );
+    }
+
+    fn push(&self, requests: Vec<Request>) {
+        Client::send(self, Request::Push { requests });
     }
 }
 
@@ -248,6 +260,9 @@ struct Reading {
     /// Whether the values are to be applied to the host, or only the effect
     /// types learned.
     apply: bool,
+    /// Whether the instance takes what the device holds as its own state
+    /// (the tone it saves), as opposed to a restored project's.
+    adopt: bool,
     /// When the read gives up unless the device says something.
     deadline: Instant,
     /// When the read gives up whatever the device says.
@@ -305,9 +320,16 @@ pub struct Follower {
     stale: bool,
     /// The host could be told of changes at the last step.
     had_edits: bool,
-    /// No read has finished yet (a restored instance keeps its project's
-    /// values through it).
-    first_read: bool,
+    /// How many restores the follower has seen the instance have: a new one
+    /// is a new state to push.
+    seen_restores: u64,
+    /// A restore came with the Binding change the next step sees: the new
+    /// Binding is the project's, not the user's.
+    restored_now: bool,
+    /// The device session the link is in, while it is up.
+    session: Option<SessionId>,
+    /// The push of the project's state to the device.
+    recall: Recall,
     reading: Option<Reading>,
     /// The Part's tone type must be (re)read before anything else.
     needs_probe: bool,
@@ -343,7 +365,10 @@ impl Follower {
             subscribed: None,
             stale: true,
             had_edits: false,
-            first_read: true,
+            seen_restores: 0,
+            restored_now: false,
+            session: None,
+            recall: Recall::default(),
             reading: None,
             needs_probe: false,
             probe: None,
@@ -368,6 +393,9 @@ impl Follower {
             .chain(self.probe_retry)
             .min()
             .map(|deadline| deadline.saturating_duration_since(now))
+            .into_iter()
+            .chain(self.recall.next_wake(now))
+            .min()
     }
 
     /// Take the next event, if there was one, and carry out what follows
@@ -376,7 +404,18 @@ impl Follower {
         if let Some(event) = event {
             self.on_event(event, now, wire);
         }
+        // The host gave the instance a state (a preset load, a revert): the
+        // Binding it sets with it is the project's, and the state is owed a
+        // push, after a read that keeps its values.
+        let restores = self.instance.restores();
+        if restores != self.seen_restores {
+            self.seen_restores = restores;
+            self.restored_now = true;
+            self.recall.abort(&self.instance);
+            self.stale = true;
+        }
         self.follow_binding(wire);
+        self.restored_now = false;
         // The host becoming reachable is a reason to read: until then the
         // device's values could not be applied.
         let has_edits = self.instance.bank.edits().is_some();
@@ -391,6 +430,7 @@ impl Follower {
         self.probe_if_due(now, wire);
         self.read_if_due(now, wire);
         self.finish_read(now);
+        self.recall_if_due(now, wire);
         self.sync_raw(wire);
     }
 
@@ -416,26 +456,48 @@ impl Follower {
                 self.me = Some(*client);
                 self.connected = true;
                 self.link_up = session.is_some();
+                self.session = *session;
+                self.recall.abort(&self.instance);
                 self.out_of_date(true);
             }
             ClientEvent::Disconnected | ClientEvent::Incompatible { .. } => {
                 self.me = None;
                 self.connected = false;
                 self.link_up = false;
+                self.recall.abort(&self.instance);
                 self.instance.disarm();
                 self.forget_fit();
                 self.out_of_date(true);
             }
-            ClientEvent::Overflowed => self.out_of_date(true),
-            ClientEvent::Message(Message::LinkUp { .. }) => {
+            ClientEvent::Overflowed => {
+                // `Pushed` or the baseline may be among what was lost.
+                self.recall.abort_lost(&self.instance);
+                self.out_of_date(true);
+            }
+            ClientEvent::Message(Message::LinkUp { session }) => {
                 self.link_up = true;
+                self.session = Some(*session);
+                self.recall.abort(&self.instance);
                 self.out_of_date(true);
             }
             ClientEvent::Message(Message::LinkDown) => {
                 self.link_up = false;
+                self.session = None;
+                self.recall.abort(&self.instance);
                 self.instance.disarm();
                 self.forget_fit();
                 self.out_of_date(true);
+            }
+            ClientEvent::Message(message @ Message::Pushed) => {
+                if let Some(binding) = self.bound {
+                    let cx = Context {
+                        instance: &self.instance,
+                        binding,
+                        device_id: self.device_id,
+                        wire,
+                    };
+                    self.recall.on_message(&cx, message, now);
+                }
             }
             ClientEvent::Message(Message::Changed {
                 writer,
@@ -443,6 +505,10 @@ impl Follower {
                 binding,
                 value,
             }) => self.on_changed(*writer, param, binding, *value, now),
+            // What the instance's own push does to the device is not news: the
+            // values the host holds are what it sent.
+            ClientEvent::Message(Message::Bulk { writer, .. })
+                if self.recall.active() && Some(*writer) == self.me => {}
             ClientEvent::Message(Message::Bulk {
                 writer,
                 kind,
@@ -450,6 +516,16 @@ impl Follower {
                 selected,
                 tone,
             }) if self.bulk_concerns_us(*kind, binding) => {
+                // The whole kit's selection reloads every key under a key's
+                // plugin.
+                if *kind == BulkKind::Tone
+                    && *selected
+                    && Some(*writer) != self.instance.editor_client()
+                    && let Some(mine) = self.bound
+                {
+                    self.recall
+                        .kit_reloaded(&self.instance, &mine, self.session);
+                }
                 self.on_bulk(*writer, *kind, *selected, tone.as_ref(), now, wire);
             }
             ClientEvent::Message(Message::Baseline {
@@ -466,6 +542,23 @@ impl Follower {
                     _ => self.stale = true,
                 }
             }
+            ClientEvent::Message(message @ Message::Baseline { .. }) => {
+                if let Some(binding) = self.bound {
+                    let cx = Context {
+                        instance: &self.instance,
+                        binding,
+                        device_id: self.device_id,
+                        wire,
+                    };
+                    self.recall.on_message(&cx, message, now);
+                }
+            }
+            ClientEvent::Message(Message::Rejected {
+                reason,
+                param: None,
+            }) if self.recall.active() && !matches!(reason, Reject::LinkDown) => {
+                self.recall.refused(&self.instance);
+            }
             ClientEvent::Message(Message::Sysex { bytes }) => {
                 if let Ok(dt1) = sysex::parse_dt1(bytes) {
                     if let Some(reading) = &mut self.reading {
@@ -479,6 +572,9 @@ impl Follower {
                         .is_some_and(|p| p.address == dt1.address)
                         && let Some(&msb) = dt1.data.first()
                     {
+                        if let [msb, lsb, pc, ..] = dt1.data[..] {
+                            self.learn_tone((msb, lsb, pc));
+                        }
                         self.resolve_fit(ToneFit::of(self.instance.kind(), msb));
                     }
                 }
@@ -505,6 +601,12 @@ impl Follower {
         };
         let retype = selected && matches!(kind, BulkKind::Tone | BulkKind::StudioSet);
         self.out_of_date(false);
+        if let Some(tone) = tone
+            && selected
+            && kind == BulkKind::Tone
+        {
+            self.learn_tone((tone.msb, tone.lsb, tone.pc));
+        }
         if let Some(msb) = announced {
             self.resolve_fit(ToneFit::of(self.instance.kind(), msb));
         } else if retype {
@@ -523,6 +625,18 @@ impl Follower {
             self.stale = false;
             self.baseline_part = Some(part);
             wire.baseline(part);
+        }
+    }
+
+    /// The device says which tone the Part holds: the instance saves it as its
+    /// own unless a push of the project's is owed or under way, which the
+    /// device's tone must not replace.
+    fn learn_tone(&mut self, tone: (u8, u8, u8)) {
+        if !self.recall.active() && !self.recall.owes(&self.instance, self.session) {
+            recall::save_tone(&self.instance, tone, None);
+            // A tone the instance takes from the device is not one to push
+            // back in the session it came from.
+            self.recall.adopted(&self.instance, self.session);
         }
     }
 
@@ -565,16 +679,24 @@ impl Follower {
             bytes,
             patched: Default::default(),
             apply: self.applies(),
+            adopt: !self.keeps_project(),
             deadline: now,
             last_chance: now,
         };
         self.conclude(reading);
     }
 
+    /// Whether the project's values stand: a push of them is owed (a restored
+    /// state, or one the instance adopted, in a session it has not been pushed
+    /// in), and is to bring them to the device.
+    fn keeps_project(&self) -> bool {
+        self.recall.owes(&self.instance, self.session)
+    }
+
     /// Whether a read's values go to the host: it can be told, and the
-    /// project's stand on a restored instance's first read.
+    /// project's do not stand.
     fn applies(&self) -> bool {
-        self.instance.bank.edits().is_some() && !(self.first_read && self.instance.was_restored())
+        self.instance.bank.edits().is_some() && !self.keeps_project()
     }
 
     /// The values are out of date: drop a read under way and read again when
@@ -707,6 +829,12 @@ impl Follower {
         if now == self.bound {
             return;
         }
+        // The project's state was not saved for another target: a user who
+        // binds the instance elsewhere gets no push of it there. The Binding a
+        // restore sets is the project's own.
+        if self.bound.is_some() && !self.restored_now {
+            self.recall.abandon(&self.instance, self.session);
+        }
         self.bound = now;
         let wanted = now.map(subscription);
         if wanted != self.subscribed {
@@ -765,6 +893,11 @@ impl Follower {
         if Some(writer) == self.me || Some(writer) == self.instance.editor_client() {
             return;
         }
+        if self.recall.active() {
+            // Another writer's change meets the push: the device may end up
+            // with either, so read it when the push is out.
+            self.stale = true;
+        }
         if !bank.is_active(i) || bank.edits().is_none() || bank.value(i) == value {
             return;
         }
@@ -806,6 +939,9 @@ impl Follower {
         if !self.stale
             || self.reading.is_some()
             || self.instance.fit() != ToneFit::Fits
+            // Whatever the device holds meanwhile is the preset's, or the old
+            // project's: no read applies, and the push is the one to say.
+            || self.recall.active()
             || !self.connected
             || !self.link_up
             || !self.instance.is_settled()
@@ -814,11 +950,20 @@ impl Follower {
             return;
         }
         self.stale = false;
-        // The project's values stand on a restored instance's first read.
+        // The project's values stand while a push of them is owed (a restored
+        // state, or one the instance adopted, in a session it has not been
+        // pushed in): the push is to bring them to the device.
+        let keeps_project = self.keeps_project();
         let apply = self.applies();
-        let blocks = plan(&self.instance, &binding, !apply);
+        let mut blocks = plan(&self.instance, &binding, !apply);
+        let checking = self.recall.checking();
+        if !keeps_project || checking {
+            blocks.extend(tone_blocks(&self.instance, &binding, !apply, checking));
+        }
         if blocks.is_empty() {
-            self.first_read = false;
+            if !keeps_project {
+                self.recall.adopted(&self.instance, self.session);
+            }
             self.instance.arm();
             return;
         }
@@ -836,6 +981,7 @@ impl Follower {
             bytes: HashMap::new(),
             patched: Default::default(),
             apply,
+            adopt: !keeps_project,
             deadline: now + READ_QUIET,
             last_chance: now + READ_AT_MOST,
         });
@@ -843,6 +989,50 @@ impl Follower {
         self.sync_raw(wire);
         for rq1 in requests {
             wire.raw(rq1);
+        }
+    }
+
+    /// Start the push of the project's state when it is owed and the instance
+    /// can tell where it stands.
+    ///
+    /// - On a Part that holds the plugin's type, once the first read of the
+    ///   session has kept the project's values.
+    /// - On a Part known to hold another type, at once: the push's selection
+    ///   of the saved tone is what fixes the mismatch. A Tone or Kit plugin
+    ///   bound to a key selects nothing, so it waits for the Part to fit.
+    /// - Not while the Part's tone is unknown: a probe is under way, and its
+    ///   answer, from before the selection, would undo the fit the selection
+    ///   sets.
+    fn recall_if_due(&mut self, now: Instant, wire: &dyn Wire) {
+        let was_active = self.recall.active();
+        // A default tone is not offered while a push of the saved one is owed.
+        // (A key's plugin selects nothing, so its Mismatch is no recall's to
+        // fix.)
+        let selects = self.bound.is_some_and(|b| b.key.is_none());
+        self.instance.set_recall_owed(
+            selects && (was_active || self.recall.owes(&self.instance, self.session)),
+        );
+        let Some(binding) = self.bound else { return };
+        let cx = Context {
+            instance: &self.instance,
+            binding,
+            device_id: self.device_id,
+            wire,
+        };
+        self.recall.tick(&cx, now);
+        let can_select = binding.key.is_none() && self.checks_tone();
+        let placed = match self.instance.fit() {
+            ToneFit::Fits => !self.stale && self.reading.is_none(),
+            ToneFit::Mismatch => can_select,
+            ToneFit::Unknown => false,
+        };
+        if placed && self.connected && self.link_up && self.instance.is_settled() {
+            self.recall.begin(&cx, self.session, now);
+        }
+        // The push is over and the instance is not armed (it was not on a
+        // Part that fits when it ended): a read arms it.
+        if was_active && !self.recall.active() && !self.instance.is_armed() {
+            self.stale = true;
         }
     }
 
@@ -861,7 +1051,18 @@ impl Follower {
 
     /// Give the host what a finished read found, and arm the instance.
     fn conclude(&mut self, reading: Reading) {
-        self.first_read = false;
+        let byte = |at: u32| reading.bytes.get(&at).copied();
+        if reading.adopt {
+            recall::capture(&self.instance, &reading.binding, &byte);
+            self.recall.adopted(&self.instance, self.session);
+        } else if self.recall.checking()
+            && !self
+                .recall
+                .select_matches(&self.instance, &reading.binding, self.session, &byte)
+        {
+            // Someone else's kit is on the Part: the instance takes it.
+            self.stale = true;
+        }
         let bank = &self.instance.bank;
         let Read { types, changes } = values(&self.instance, &reading);
         for (holder, value) in types {
@@ -932,6 +1133,34 @@ fn plan(instance: &Instance, binding: &Binding, types_only: bool) -> Vec<Block> 
                 .any(|(start, end)| *start < block.start + block.len && block.start < *end)
         })
         .collect()
+}
+
+/// The blocks that tell the instance what to save of the tone a Part holds:
+/// the tone's name, if the instance reads only effect types (`types_only`;
+/// the full read has it with the tone's Common block), and with `select` the
+/// tone-select bytes too. Those are otherwise the probe's and the service's to
+/// tell ([`Follower::learn_tone`]).
+fn tone_blocks(
+    instance: &Instance,
+    binding: &Binding,
+    types_only: bool,
+    select: bool,
+) -> Vec<Block> {
+    let (Some(part), Some(_)) = (binding.part, instance.kind().tone_type()) else {
+        return Vec::new();
+    };
+    let mut blocks = Vec::new();
+    if select {
+        let (address, size) = params::tone_select_block(part);
+        blocks.push(Block {
+            start: address.value(),
+            len: size.value(),
+        });
+    }
+    if types_only && let Some((start, len)) = recall::name_block(instance.kind(), binding) {
+        blocks.push(Block { start, len });
+    }
+    blocks
 }
 
 /// What a read gives (see [`values`]): the effect types it read (holder
@@ -1036,6 +1265,11 @@ mod tests {
         }
         fn raw(&self, bytes: Vec<u8>) {
             self.raws.borrow_mut().push(bytes);
+        }
+        fn push(&self, requests: Vec<Request>) {
+            self.calls
+                .borrow_mut()
+                .push(format!("push {}", requests.len()));
         }
         fn change_tone(&self, part: u8, msb: u8, lsb: u8, pc: u8) {
             self.tones.borrow_mut().push((part, msb, lsb, pc));
@@ -1536,6 +1770,267 @@ mod tests {
         );
     }
 
+    #[test]
+    fn the_recall_waits_for_the_first_read_ignores_its_own_bulk_and_holds_reads_until_it_is_out() {
+        use integral_device_service::protocol::ToneSelect;
+        let instance = Arc::new(Instance::new(PluginKind::PcmSynth));
+        instance.binding.set(Some(Binding::of_part(0)));
+        instance
+            .tone
+            .set(Some(super::super::tone::SavedTone::new(87, 64, 3, "")));
+        instance.mark_restored();
+        let wire = FakeWire::default();
+        let mut follower = Follower::new(Arc::clone(&instance), sysex::DEFAULT_DEVICE_ID);
+        let now = Instant::now();
+        follower.step(Some(&connected()), now, &wire);
+        // The device says the Part holds a tone of the plugin's type.
+        follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
+        let pushes = |wire: &FakeWire| {
+            wire.calls
+                .borrow()
+                .iter()
+                .filter(|c| c.starts_with("push"))
+                .count()
+        };
+        assert_eq!(pushes(&wire), 0, "the first read comes first");
+        assert!(instance.notices.get().is_empty());
+
+        // The read gives up (the device is quiet): the selection and a
+        // request for the baseline go out, and the instance says so.
+        let now = now + Duration::from_secs(2);
+        follower.step(None, now, &wire);
+        assert_eq!(pushes(&wire), 1);
+        assert_eq!(wire.baselines.borrow().len(), 1);
+        assert_eq!(
+            instance.notices.get(),
+            [super::super::notice::Notice::Recalling]
+        );
+        assert!(!instance.is_armed());
+
+        // Its own select announces a bulk: no news. Another writer's is
+        // news, but no read applies while the push is under way.
+        let bulk = |writer| {
+            ClientEvent::Message(Message::Bulk {
+                writer: ClientId(writer),
+                kind: BulkKind::Tone,
+                binding: Binding::of_part(0),
+                selected: false,
+                tone: None,
+            })
+        };
+        let asked = wire.raws.borrow().len();
+        follower.step(Some(&bulk(7)), now, &wire);
+        follower.step(Some(&bulk(9)), now, &wire);
+        assert_eq!(wire.raws.borrow().len(), asked, "nothing is read");
+
+        // The baseline arrives: everything differs from none, so the fields go
+        // as one more push, and the instance is done at its `Pushed`.
+        let baseline = ClientEvent::Message(Message::Baseline {
+            binding: Binding::of_part(0),
+            tone: Some(ToneSelect {
+                msb: 87,
+                lsb: 64,
+                pc: 3,
+            }),
+            runs: Vec::new(),
+        });
+        follower.step(Some(&baseline), now, &wire);
+        assert_eq!(pushes(&wire), 2);
+        follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        assert!(!instance.notices.get().is_empty(), "one push to go");
+        follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        assert!(instance.notices.get().is_empty());
+        assert!(instance.is_armed());
+
+        // The other writer's bulk is read now, and the session has had its
+        // push: the same session pushes nothing more, a new one does.
+        assert!(wire.raws.borrow().len() > asked, "read after the push");
+        follower.step(Some(&ClientEvent::Disconnected), now, &wire);
+        follower.step(Some(&connected()), now, &wire);
+        // The device says the Part holds a tone of the plugin's type.
+        follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
+        follower.step(None, now + Duration::from_secs(40), &wire);
+        assert_eq!(pushes(&wire), 2, "the same session");
+        let up = ClientEvent::Message(Message::LinkUp {
+            session: SessionId(2),
+        });
+        follower.step(Some(&up), now, &wire);
+        follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
+        follower.step(None, now + Duration::from_secs(80), &wire);
+        assert_eq!(pushes(&wire), 3, "a new session");
+    }
+
+    /// A restored PCM Synth instance on Part 0 with a Preset tone, whose
+    /// recall has begun: the selection is pushed and the baseline asked for.
+    fn recalling() -> (Arc<Instance>, Follower, FakeWire, Instant) {
+        let instance = Arc::new(Instance::new(PluginKind::PcmSynth));
+        instance.binding.set(Some(Binding::of_part(0)));
+        instance
+            .tone
+            .set(Some(super::super::tone::SavedTone::new(87, 64, 3, "")));
+        instance.mark_restored();
+        let wire = FakeWire::default();
+        let mut follower = Follower::new(Arc::clone(&instance), sysex::DEFAULT_DEVICE_ID);
+        let now = Instant::now();
+        follower.step(Some(&connected()), now, &wire);
+        // The device says the Part holds a tone of the plugin's type.
+        follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
+        let now = now + Duration::from_secs(2);
+        follower.step(None, now, &wire);
+        assert!(instance.notices.get().contains(&Notice::Recalling));
+        (instance, follower, wire, now)
+    }
+
+    fn calls(wire: &FakeWire, prefix: &str) -> usize {
+        wire.calls
+            .borrow()
+            .iter()
+            .filter(|c| c.starts_with(prefix))
+            .count()
+    }
+
+    #[test]
+    fn a_refused_push_clears_the_status_is_tried_again_and_is_given_up_on_after_a_few() {
+        let (instance, mut follower, wire, now) = recalling();
+        let refused = ClientEvent::Message(Message::Rejected {
+            reason: Reject::Invalid {
+                message: "no".into(),
+            },
+            param: None,
+        });
+        follower.step(Some(&refused), now, &wire);
+        // The push begins again at once.
+        assert_eq!(calls(&wire, "push"), 2);
+        follower.step(Some(&refused), now, &wire);
+        assert_eq!(calls(&wire, "push"), 3);
+        follower.step(Some(&refused), now, &wire);
+        assert_eq!(calls(&wire, "push"), 3, "given up on the session");
+        assert!(instance.notices.get().is_empty());
+        assert!(instance.is_armed());
+    }
+
+    #[test]
+    fn lost_events_do_not_let_an_old_pushed_complete_the_next_push() {
+        let (instance, mut follower, wire, now) = recalling();
+        // The select push is out; its `Pushed` is among the lost events, or
+        // late. A new push starts.
+        follower.step(Some(&ClientEvent::Overflowed), now, &wire);
+        follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
+        follower.step(None, now + Duration::from_secs(2), &wire);
+        assert_eq!(calls(&wire, "push"), 2);
+        // The old push's answer is not the new one's.
+        follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        assert!(!instance.notices.get().is_empty(), "still recalling");
+        // The new push's `Pushed` is not enough either: its select was one and
+        // its fields are to come with the baseline.
+        let baseline = ClientEvent::Message(Message::Baseline {
+            binding: Binding::of_part(0),
+            tone: None,
+            runs: Vec::new(),
+        });
+        follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        follower.step(Some(&baseline), now, &wire);
+        follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        assert!(instance.notices.get().is_empty());
+    }
+
+    #[test]
+    fn a_baseline_of_another_tone_selects_ours_again_and_a_missing_one_pushes_in_full() {
+        use integral_device_service::protocol::ToneSelect;
+        let (_instance, mut follower, wire, now) = recalling();
+        let other = ClientEvent::Message(Message::Baseline {
+            binding: Binding::of_part(0),
+            tone: Some(ToneSelect {
+                msb: 87,
+                lsb: 64,
+                pc: 9,
+            }),
+            runs: Vec::new(),
+        });
+        follower.step(Some(&other), now, &wire);
+        assert_eq!(calls(&wire, "push"), 2, "selected again");
+        assert_eq!(wire.baselines.borrow().len(), 2, "and asked again");
+        let none = ClientEvent::Message(Message::Baseline {
+            binding: Binding::of_part(0),
+            tone: None,
+            runs: Vec::new(),
+        });
+        follower.step(Some(&none), now, &wire);
+        assert_eq!(calls(&wire, "push"), 3, "the fields");
+    }
+
+    #[test]
+    fn another_writers_change_during_the_recall_is_read_when_it_is_out() {
+        let (instance, mut follower, wire, now) = recalling();
+        let host = instance.bank.list()[5].0.clone();
+        let changed = ClientEvent::Message(Message::Changed {
+            writer: ClientId(9),
+            param: ParamId {
+                plugin: PluginKind::PcmSynth,
+                id: host.id.clone(),
+            },
+            binding: Binding::of_part(0),
+            value: host.max,
+        });
+        follower.step(Some(&changed), now, &wire);
+        let asked = wire.raws.borrow().len();
+        for _ in 0..2 {
+            follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        }
+        // (The baseline never came: the first `Pushed` was the select's.)
+        let none = ClientEvent::Message(Message::Baseline {
+            binding: Binding::of_part(0),
+            tone: None,
+            runs: Vec::new(),
+        });
+        follower.step(Some(&none), now, &wire);
+        follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        assert!(instance.notices.get().is_empty());
+        follower.step(None, now, &wire);
+        assert!(wire.raws.borrow().len() > asked, "read after the push");
+    }
+
+    #[test]
+    fn a_rebind_before_the_push_pushes_nothing_to_the_new_part() {
+        let instance = Arc::new(Instance::new(PluginKind::PcmSynth));
+        instance.binding.set(Some(Binding::of_part(0)));
+        instance
+            .tone
+            .set(Some(super::super::tone::SavedTone::new(87, 64, 3, "")));
+        instance.mark_restored();
+        let wire = FakeWire::default();
+        let mut follower = Follower::new(Arc::clone(&instance), sysex::DEFAULT_DEVICE_ID);
+        let now = Instant::now();
+        follower.step(Some(&connected()), now, &wire);
+        // The device says the Part holds a tone of the plugin's type.
+        follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
+        // The user picks another Part while the first read is under way.
+        instance.binding.set(Some(Binding::of_part(5)));
+        follower.step(None, now + Duration::from_secs(2), &wire);
+        follower.step(None, now + Duration::from_secs(4), &wire);
+        assert_eq!(calls(&wire, "push"), 0);
+        assert!(instance.notices.get().is_empty());
+    }
+
+    #[test]
+    fn a_restore_that_changes_the_binding_is_the_projects_and_is_pushed() {
+        let (instance, mut follower, wire, now) = recalling();
+        for _ in 0..2 {
+            follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        }
+        // A DAW preset: another Part, another tone.
+        instance.binding.set(Some(Binding::of_part(4)));
+        instance
+            .tone
+            .set(Some(super::super::tone::SavedTone::new(87, 0, 1, "")));
+        instance.mark_restored();
+        follower.step(None, now, &wire);
+        follower.step(Some(&holds(4, ToneType::PcmSynth)), now, &wire);
+        follower.step(None, now + Duration::from_secs(2), &wire);
+        follower.step(None, now + Duration::from_secs(4), &wire);
+        assert!(calls(&wire, "push") >= 2, "{:?}", wire.calls.borrow());
+    }
+
     /// Applies a replace to the bank, as the wrapper does, and logs it.
     struct Log {
         instance: std::sync::Weak<Instance>,
@@ -1581,6 +2076,8 @@ mod tests {
         let mut follower = Follower::new(Arc::clone(&instance), sysex::DEFAULT_DEVICE_ID);
         let now = Instant::now();
         follower.step(Some(&connected()), now, &wire);
+        // The device says the Part holds a tone of the plugin's type.
+        follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
         follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
         assert!(block_reads(&wire, 0) > 0, "a full read is under way");
 

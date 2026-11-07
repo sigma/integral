@@ -194,6 +194,13 @@ impl Rig {
             instance.bank.set_edits(Some(recorder.clone()));
         }
         if setup.restored {
+            // A saved tone makes the state one the recall pushes: the
+            // project's values stand until it has.
+            instance
+                .tone
+                .set(Some(integral_vst::family::tone::SavedTone::new(
+                    87, 0, 0, "",
+                )));
             instance.mark_restored();
         }
         instance.settle();
@@ -518,7 +525,12 @@ fn with_the_editor_closed_only_the_effect_types_are_read_and_the_devices_type_ga
         editor: false,
         ..OPEN
     });
-    assert_eq!(rig.first_reads, 1, "only the MFX header's block");
+    // The MFX header's block and the tone's name (which the instance saves);
+    // the Part's tone select is the probe's, which is no read of a block.
+    assert_eq!(
+        rig.first_reads, 2,
+        "only the MFX header's block and the tone's name"
+    );
     let bank = &rig.instance.bank;
     let slot_of = |type_id: u8| {
         bank.list()

@@ -161,6 +161,12 @@ impl Memory {
         }
     }
 
+    /// The byte at `address` (a linear address value); 0 where nothing was put.
+    pub fn get(&self, address: u32) -> u8 {
+        let memory = self.bytes.lock().expect("memory");
+        memory.get(&address).copied().unwrap_or(0)
+    }
+
     /// Put `data` at `address` (a linear address value).
     pub fn put(&self, address: u32, data: &[u8]) {
         let mut memory = self.bytes.lock().expect("memory");

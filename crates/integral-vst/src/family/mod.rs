@@ -15,6 +15,9 @@
 //! - **Host parameters follow the device.** The audio thread writes the
 //!   host's changes ([`out`]); the worker gives the host the device's
 //!   ([`follow`], [`host`]), posted to the host's main thread.
+//! - **The project's state is recalled** ([`recall`]): an instance the host
+//!   restored pushes its state to the device once per device session, and
+//!   saves the tone selection ([`tone`]) beside its parameters for it.
 //! - **The connection** to the service reports one [`Status`] ([`link`]).
 //!   It starts in `initialize()`, so a host that only scans the plugin
 //!   connects nothing.
@@ -31,7 +34,9 @@ pub mod notice;
 #[cfg(unix)]
 pub mod out;
 pub mod params;
+pub mod recall;
 pub mod status;
+pub mod tone;
 
 use std::num::NonZeroU32;
 use std::sync::Arc;

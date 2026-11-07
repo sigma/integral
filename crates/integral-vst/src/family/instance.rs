@@ -18,6 +18,7 @@ use super::binding::BindingCell;
 use super::host::{self, HostTask};
 use super::notice::{Notice, NoticeCell};
 use super::status::StatusCell;
+use super::tone::ToneCell;
 
 /// A Binding the plugin cannot have.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
@@ -111,18 +112,26 @@ pub struct Instance {
     pub notices: NoticeCell,
     /// Whether the bound Part holds the plugin's tone type ([`ToneFit`]).
     fit: AtomicU8,
+    /// A recall of the saved tone is owed or under way: the push selects it, so
+    /// the default tone is not offered meanwhile.
+    recall_owed: AtomicBool,
     /// Where a request for the plugin's default tone has got to
     /// ([`DEFAULT_TONE_IDLE`] and the following).
     default_tone: AtomicU8,
     /// A request for the default tone was dropped unserved since the editor
     /// last heard.
     default_tone_dropped: AtomicBool,
+    /// The tone selection saved with the project: what the instance last
+    /// learned the device holds, and what the recall selects (ADR 0009). A
+    /// Studio Set instance has none.
+    pub tone: ToneCell,
     /// The host has finished restoring this instance's state: set by the
     /// first `process()` or by the editor opening, never before.
     settled: AtomicBool,
-    /// The host gave this instance a saved state: set by
-    /// [`restored`](Self::mark_restored) and never cleared.
-    restored: AtomicBool,
+    /// How many times the host gave this instance a saved state (a project
+    /// load, and again for a preset load, a revert or a hot swap): counted by
+    /// [`mark_restored`](Self::mark_restored) and never reset.
+    restores: AtomicU64,
     /// The Device service socket the instance's connection uses.
     socket: OnceLock<PathBuf>,
     /// How the worker has the host's main thread run a task: nih-plug's
@@ -154,10 +163,12 @@ impl Instance {
             replacing: AtomicBool::new(false),
             notices: NoticeCell::default(),
             fit: AtomicU8::new(fit as u8),
+            recall_owed: AtomicBool::new(false),
             default_tone: AtomicU8::new(DEFAULT_TONE_IDLE),
             default_tone_dropped: AtomicBool::new(false),
+            tone: ToneCell::default(),
             settled: AtomicBool::new(false),
-            restored: AtomicBool::new(false),
+            restores: AtomicU64::new(0),
             socket: OnceLock::new(),
             poster: OnceLock::new(),
             posting: AtomicBool::new(true),
@@ -253,18 +264,25 @@ impl Instance {
     }
 
     /// Note that the host restored a saved state into this instance, which
-    /// also settles it.
+    /// also settles it. Each restore counts: a state restored in the middle
+    /// of a device session is owed a push again.
     pub fn mark_restored(&self) {
-        self.restored.store(true, Ordering::Release);
+        self.restores.fetch_add(1, Ordering::AcqRel);
         self.settle();
     }
 
     /// Whether a saved state was restored into this instance: the recall
-    /// (ADR 0009) pushes only then, and a fresh instance adopts the device.
-    /// A state without a valid Binding (one the plugin cannot have, or
-    /// missing) does not count.
+    /// (ADR 0009) pushes only then, or once the instance has adopted the
+    /// device's state, and a fresh instance adopts the device. A state without
+    /// a valid Binding (one the plugin cannot have, or missing) does not
+    /// count.
     pub fn was_restored(&self) -> bool {
-        self.restored.load(Ordering::Acquire)
+        self.restores() > 0
+    }
+
+    /// How many saved states the host restored into this instance.
+    pub fn restores(&self) -> u64 {
+        self.restores.load(Ordering::Acquire)
     }
 
     /// Let host changes go to the device: the instance has read what the
@@ -325,8 +343,21 @@ impl Instance {
 
     /// The tone the plugin loads onto a Part that holds another type (see
     /// [`default_tone`]); `None` for the Studio Set plugin.
+    ///
+    /// Not offered while a recall of the project's saved tone is owed or
+    /// under way ([`set_recall_owed`](Self::set_recall_owed)): that selection
+    /// is what puts the Part right.
     pub fn default_tone(&self) -> Option<&'static FactoryTone> {
+        if self.recall_owed.load(Ordering::Acquire) {
+            return None;
+        }
         default_tone(self.kind.tone_type()?)
+    }
+
+    /// Say whether a recall of the saved tone is owed or under way. The
+    /// worker sets it.
+    pub fn set_recall_owed(&self, owed: bool) {
+        self.recall_owed.store(owed, Ordering::Release);
     }
 
     /// Ask for the plugin's default tone to be loaded onto the bound Part,

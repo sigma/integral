@@ -1,8 +1,8 @@
 //! What an instance can tell its editor besides its connection status.
 //!
 //! The editor shows each notice the instance reports and hides it when the
-//! instance stops reporting it. The recall (#458) reports
-//! [`Notice::Recalling`]; [`Instance::set_fit`](super::Instance::set_fit)
+//! instance stops reporting it. The recall
+//! ([`recall`](super::recall)) reports [`Notice::Recalling`]; [`Instance::set_fit`](super::Instance::set_fit)
 //! reports [`Notice::TypeMismatch`] and the connection
 //! ([`Tracker`](super::link::Tracker)) [`Notice::Duplicate`].
 

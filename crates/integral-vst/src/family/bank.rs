@@ -325,8 +325,9 @@ impl ParamBank {
     }
 
     /// Whether parameter `i` is not an effect slot, or the effect has its type
-    /// as far as the host's own value of the type parameter says.
-    fn host_active(&self, i: usize) -> bool {
+    /// as far as the host's own value of the type parameter says: the slots a
+    /// recall sends, whatever the device held before.
+    pub fn host_active(&self, i: usize) -> bool {
         match (self.list[i].0.effect, self.type_slot[i]) {
             (None, _) => true,
             (Some(effect), Some(holder)) => self.value(holder) == i32::from(effect.type_id),

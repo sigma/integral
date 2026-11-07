@@ -9,6 +9,7 @@ use nih_plug::prelude::*;
 
 use super::binding::PERSIST_KEY;
 use super::instance::Instance;
+use super::tone::PERSIST_KEY as TONE_KEY;
 
 /// The state key the editor's size is saved under.
 const EDITOR_SIZE_KEY: &str = "editor-size";
@@ -17,7 +18,8 @@ const EDITOR_SIZE_KEY: &str = "editor-size";
 const DEFAULT_EDITOR_SIZE: (u32, u32) = (1280, 820);
 
 /// A plugin kind's host parameters over their raw range, and what is saved
-/// with them: the editor's size and the instance's Binding.
+/// with them: the editor's size, the instance's Binding and its tone
+/// selection.
 pub struct FamilyParams {
     /// The editor window's size in logical px, as the page last set it.
     pub editor_size: Arc<RwLock<(u32, u32)>>,
@@ -59,6 +61,7 @@ unsafe impl Params for FamilyParams {
                 serde_json::to_string(&size).expect("a pair of integers"),
             ),
             (PERSIST_KEY.to_string(), self.instance.binding.to_json()),
+            (TONE_KEY.to_string(), self.instance.tone.to_json()),
         ])
     }
 
@@ -84,6 +87,11 @@ unsafe impl Params for FamilyParams {
                 .restore_json(self.instance.kind(), text)
         {
             self.instance.mark_restored();
+        }
+        // The tone the recall selects: one this plugin cannot take is as
+        // good as none, and the recall then leaves the tone alone.
+        if let Some(text) = serialized.get(TONE_KEY) {
+            self.instance.tone.restore_json(self.instance.kind(), text);
         }
     }
 }
@@ -184,6 +192,41 @@ mod tests {
             assert_eq!(reopened.instance.binding.get(), Some(target), "{kind:?}");
             assert_eq!(*reopened.editor_size.read().unwrap(), (900, 600));
         }
+    }
+
+    #[test]
+    fn the_tone_selection_survives_a_save_and_reopen_for_a_tone_of_the_plugins_type() {
+        use super::super::tone::SavedTone;
+        let msbs = [
+            (PluginKind::SnSynth, 95),
+            (PluginKind::SnAcoustic, 89),
+            (PluginKind::PcmSynth, 87),
+            (PluginKind::SnDrum, 88),
+            (PluginKind::PcmDrum, 86),
+        ];
+        for (kind, msb) in msbs {
+            let saved = params(kind);
+            saved.instance.binding.set(Some(Binding::of_part(2)));
+            let tone = SavedTone::new(msb, 64, 7, "A Name");
+            saved.instance.tone.set(Some(tone.clone()));
+            let fields = saved.serialize_fields();
+
+            let reopened = params(kind);
+            reopened.deserialize_fields(&fields);
+            assert_eq!(reopened.instance.tone.get(), Some(tone), "{kind:?}");
+        }
+        // The Studio Set plugin has none, and saves `null`.
+        let studio = params(PluginKind::StudioSet);
+        assert_eq!(studio.serialize_fields()[TONE_KEY], "null");
+        // A tone of another type is ignored.
+        let mut fields = params(PluginKind::PcmSynth).serialize_fields();
+        fields.insert(
+            TONE_KEY.to_string(),
+            serde_json::to_string(&SavedTone::new(95, 0, 0, "")).unwrap(),
+        );
+        let reopened = params(PluginKind::PcmSynth);
+        reopened.deserialize_fields(&fields);
+        assert_eq!(reopened.instance.tone.get(), None);
     }
 
     #[test]
