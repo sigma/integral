@@ -50,6 +50,7 @@ pub mod protocol;
 mod runtime;
 mod service;
 mod session;
+mod websocket;
 mod wireless_link;
 
 #[cfg(unix)]
@@ -86,4 +87,5 @@ pub use socket::{
 };
 #[cfg(unix)]
 pub use virtual_port::VirtualNotePort;
+pub use websocket::{MAX_CLIENTS, WebSocketServer};
 pub use wireless_link::WirelessLink;

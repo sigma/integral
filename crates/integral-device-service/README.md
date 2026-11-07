@@ -50,6 +50,36 @@ independent of it.
   writes through its own `Sender` (wait-free `rtrb` ring, `Copy` arguments).
   `ClientEvent`: `Connected`, `Disconnected`, `Overflowed` (the bounded queue
   dropped events: re-read), `Incompatible` (final) and each `Message`.
+- The web app (`WebSocketServer::bind(port, origins, handle, log)`;
+  `integral-cli bridge --ws-port N --ws-origin ORIGIN...`): a localhost
+  WebSocket endpoint where a browser is a raw SysEx client, with `tungstenite`
+  (blocking, thread per client like the Unix socket, so the service thread
+  never waits on it). One binary frame is one whole SysEx message each way:
+  the page's frames go through the paced queue as `Request::Raw`, and every
+  SysEx the device sends comes back as a frame, as on a shared MIDI port. Text
+  frames are ignored, pings answered, and a frame the service refuses is not
+  answered. Listens on 127.0.0.1 only, default port
+  `integral_core::device_service::WEBSOCKET_PORT` (4707); the web app always
+  uses the default, so `--ws-port` is for tests and port clashes. Browsers
+  carry no notes through it (those go to the note port: #480).
+  - Link: when the service's link goes down every page is closed with code
+    1013 and reason "INTEGRA-7 link down", and a page that connects while it
+    is down is accepted and closed the same way at once (a browser sees a
+    refused handshake only as a generic failure, but reads the close code),
+    so a page's reconnect covers link state. A client the service drops
+    (a full queue, say) has its socket closed.
+  - Origins: the handshake needs exactly one `Origin` that, parsed as
+    `scheme://host[:port]` and lowercased, is on the allow-list (also parsed
+    at `bind`: a bad entry, `null` or one with a path is `InvalidInput`);
+    else `403`, logged with the origin through `log`. The defaults,
+    `integral_core::device_service::default_origins()`, are the `just dev-web`
+    server (pinned to port 5181 by `web/vite.config.ts`, and a web test checks
+    the two agree), `vite preview` (4181), each as `localhost` and `127.0.0.1`,
+    and the GitHub Pages app, `https://sigma.github.io`, which as an origin
+    has no path and so admits every Pages site of that user. `--ws-origin`
+    given replaces them. This keeps another page in the user's browser from
+    driving the device; a local program can send any header, and another
+    user of the machine can connect to the loopback port (accepted).
 - The protocol (`protocol.rs` has the full description): length-prefixed JSON
   frames, versioned by a `Hello`. A parameter is named by plugin and the
   host-parameter ID of core's `ParamIndex` (ADR 0008), with a `Binding` (Part,

@@ -57,6 +57,25 @@ pub fn device_spec_json() -> Result<String, JsError> {
         .map_err(|e| JsError::new(&e.to_string()))
 }
 
+/// The URL of the Device service's WebSocket endpoint at its default port.
+#[wasm_bindgen(js_name = "deviceServiceUrl")]
+pub fn device_service_url() -> String {
+    integral_core::device_service::websocket_url(integral_core::device_service::WEBSOCKET_PORT)
+}
+
+/// The port the web dev server is pinned to, which the Device service admits
+/// as an origin by default. `web/vite.config.ts` must pin the same one.
+#[wasm_bindgen(js_name = "devServerPort")]
+pub fn dev_server_port() -> u16 {
+    integral_core::device_service::DEV_SERVER_PORT
+}
+
+/// The port `vite preview` is pinned to, as [`dev_server_port`].
+#[wasm_bindgen(js_name = "previewPort")]
+pub fn preview_port() -> u16 {
+    integral_core::device_service::PREVIEW_PORT
+}
+
 /// Returns the SysEx Identity Request message bytes.
 ///
 /// Send these bytes to a MIDI output to request device identification.

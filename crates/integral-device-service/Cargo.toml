@@ -11,6 +11,7 @@ midir = "0.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+tungstenite = { version = "0.30.0", default-features = false, features = ["handshake"] }
 
 # Sockets: SO_NOSIGPIPE and send(2) flags, which std does not expose.
 [target.'cfg(unix)'.dependencies]

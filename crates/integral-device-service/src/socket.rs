@@ -253,7 +253,6 @@ impl Drop for SocketServer {
 }
 
 fn accept_loop(listener: &UnixListener, handle: &Handle, stop: &AtomicBool) {
-    let mut next = 1_u64; // 0 is the device
     let mut retry = Duration::from_millis(10);
     loop {
         let accepted = listener.accept();
@@ -273,8 +272,7 @@ fn accept_loop(listener: &UnixListener, handle: &Handle, stop: &AtomicBool) {
         if !peer_is_me(&stream) {
             continue;
         }
-        let client = ClientId(next);
-        next += 1;
+        let client = handle.new_client_id();
         let handle = handle.clone();
         let _ = thread::Builder::new()
             .name(format!("device-service-client-{client}"))
