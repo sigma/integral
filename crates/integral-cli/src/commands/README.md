@@ -14,19 +14,21 @@ offline.
 
 - `mod.rs` declares the submodules. `bridge` exists only on Unix
   (`#[cfg(unix)]`).
-- `ping.rs`: `ping(port_pattern, timeout, quiet) -> Result<u8>` sends an
+- `ping.rs`: `ping(endpoint, timeout, quiet) -> Result<u8>` sends an
   Identity Request and returns the device ID.
 - `dump.rs`: `read_param` reads a named parameter with RQ1 (Studio Set name,
   master level, Part mixer, tone name, and `tone-waves` through
   `tone_waves::read`). `write_param` sends one DT1.
 - `raw.rs`: `raw_read`, `raw_rq1_multi`, `raw_send` (DT1) and `send_raw_hex`.
-- `monitor.rs`: `monitor(port_pattern, bridge)` prints incoming MIDI as hex
+- `monitor.rs`: `monitor(endpoint, bridge)` prints incoming MIDI as hex
   and decodes DT1s. With a bridge port it also forwards traffic both ways.
-- `bridge.rs`: `bridge(host)` finds the INTEGRA-7 by an RDDP broadcast, or
-  uses the given host. It holds a TCP session and exposes the virtual port
-  `wireless::port_name()` (`INTEGRA-7 (Wireless)`), through the midir clients
-  `integral-bridge-in` and `integral-bridge-out`. It reconnects through
-  `wireless::Reconnect`.
+- `bridge.rs`: `bridge(&BridgeArgs)` launches the Device service
+  (`integral-device-service`) on the link `--link` names: `wireless` (RDDP
+  discovery or `--host`; also shares the port `INTEGRA-7 (Wireless)`), `rtp`
+  (`--port` names the session) or `usb`. It opens the note port
+  `Integral Device Service`, listens for clients on the Unix socket
+  `--socket` names (default: `default_socket_path()` of the service crate,
+  in a private per-user directory) and runs until killed.
 - `pack.rs`:
   - `list` reads a Pack file.
   - `export` reads User slots, and with `--current-part` / `--current-set`
@@ -97,8 +99,9 @@ offline.
   - Raw hex SysEx.
 - MIDI in: replies are read with a deadline. If the input disconnects the
   command fails.
-- Virtual MIDI ports and network (`bridge`): an RDDP UDP broadcast, then a
-  TCP session to the device.
+- Virtual MIDI ports and network (`bridge`): the Device service opens the
+  note port, and for Wireless an RDDP UDP broadcast, then a TCP session to the
+  device.
 - Disk: reads Pack, SVD and directory trees. Writes the export SVD and the
   undo SVD.
 - `stdin` prompts. Results and JSON go to `stdout`, and progress and

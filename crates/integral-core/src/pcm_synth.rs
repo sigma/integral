@@ -205,6 +205,43 @@ pub enum PcmsCommonField {
 }
 
 impl PcmsCommonField {
+    /// Every field, in block (device address) order.
+    pub const ALL: &[Self] = &[
+        Self::ToneLevel,
+        Self::TonePan,
+        Self::TonePriority,
+        Self::CoarseTune,
+        Self::FineTune,
+        Self::OctaveShift,
+        Self::StretchTuneDepth,
+        Self::AnalogFeel,
+        Self::MonoPoly,
+        Self::LegatoSwitch,
+        Self::LegatoRetrigger,
+        Self::PortamentoSwitch,
+        Self::PortamentoMode,
+        Self::PortamentoType,
+        Self::PortamentoStart,
+        Self::PortamentoTime,
+        Self::CutoffOffset,
+        Self::ResonanceOffset,
+        Self::AttackTimeOffset,
+        Self::ReleaseTimeOffset,
+        Self::VelocitySensOffset,
+        Self::PmtControlSwitch,
+        Self::PitchBendRangeUp,
+        Self::PitchBendRangeDown,
+        Self::MatrixControlSource,
+        Self::MatrixControlDestination1,
+        Self::MatrixControlSens1,
+        Self::MatrixControlDestination2,
+        Self::MatrixControlSens2,
+        Self::MatrixControlDestination3,
+        Self::MatrixControlSens3,
+        Self::MatrixControlDestination4,
+        Self::MatrixControlSens4,
+    ];
+
     /// The Destination 1–4 fields of a Matrix Control, in order.
     pub const MATRIX_CONTROL_DESTINATIONS: [Self; 4] = [
         Self::MatrixControlDestination1,
@@ -287,6 +324,24 @@ pub enum PcmsPmtField {
 }
 
 impl PcmsPmtField {
+    /// Every field, in block (device address) order.
+    pub const ALL: &[Self] = &[
+        Self::StructureType12,
+        Self::Booster12,
+        Self::StructureType34,
+        Self::Booster34,
+        Self::PmtVelocityControl,
+        Self::PartialSwitch,
+        Self::KeyRangeLower,
+        Self::KeyRangeUpper,
+        Self::KeyFadeLower,
+        Self::KeyFadeUpper,
+        Self::VelocityRangeLower,
+        Self::VelocityRangeUpper,
+        Self::VelocityFadeLower,
+        Self::VelocityFadeUpper,
+    ];
+
     /// Whether the field holds one value per Partial.
     const fn is_per_partial(self) -> bool {
         self as u8 >= Self::PartialSwitch as u8
@@ -508,6 +563,104 @@ pub enum PcmsPartialField {
     LfoStep = 0x80 + 0x0A,
 }
 
+impl PcmsPartialField {
+    /// Every field, in block (device address) order.
+    pub const ALL: &[Self] = &[
+        Self::Level,
+        Self::CoarseTune,
+        Self::FineTune,
+        Self::RandomPitchDepth,
+        Self::Pan,
+        Self::PanKeyfollow,
+        Self::RandomPanDepth,
+        Self::AlternatePanDepth,
+        Self::EnvMode,
+        Self::DelayMode,
+        Self::DelayTime,
+        Self::OutputLevel,
+        Self::ChorusSend,
+        Self::ReverbSend,
+        Self::ReceiveBender,
+        Self::ReceiveExpression,
+        Self::ReceiveHold1,
+        Self::RedamperSwitch,
+        Self::Control1Switch,
+        Self::Control2Switch,
+        Self::Control3Switch,
+        Self::Control4Switch,
+        Self::WaveGroupType,
+        Self::WaveGroupId,
+        Self::WaveNumberL,
+        Self::WaveNumberR,
+        Self::WaveGain,
+        Self::WaveFxmSwitch,
+        Self::WaveFxmColor,
+        Self::WaveFxmDepth,
+        Self::WaveTempoSync,
+        Self::WavePitchKeyfollow,
+        Self::PitchEnvDepth,
+        Self::PitchEnvVelocitySens,
+        Self::PitchEnvT1VelocitySens,
+        Self::PitchEnvT4VelocitySens,
+        Self::PitchEnvTimeKeyfollow,
+        Self::PitchEnvTime,
+        Self::PitchEnvLevel,
+        Self::TvfFilterType,
+        Self::TvfCutoffFrequency,
+        Self::TvfCutoffKeyfollow,
+        Self::TvfCutoffVelocityCurve,
+        Self::TvfCutoffVelocitySens,
+        Self::TvfResonance,
+        Self::TvfResonanceVelocitySens,
+        Self::TvfEnvDepth,
+        Self::TvfEnvVelocityCurve,
+        Self::TvfEnvVelocitySens,
+        Self::TvfEnvT1VelocitySens,
+        Self::TvfEnvT4VelocitySens,
+        Self::TvfEnvTimeKeyfollow,
+        Self::TvfEnvTime,
+        Self::TvfEnvLevel,
+        Self::TvaBiasLevel,
+        Self::TvaBiasPosition,
+        Self::TvaBiasDirection,
+        Self::TvaLevelVelocityCurve,
+        Self::TvaLevelVelocitySens,
+        Self::TvaEnvT1VelocitySens,
+        Self::TvaEnvT4VelocitySens,
+        Self::TvaEnvTimeKeyfollow,
+        Self::TvaEnvTime,
+        Self::TvaEnvLevel,
+        Self::Lfo1Waveform,
+        Self::Lfo1Rate,
+        Self::Lfo1Offset,
+        Self::Lfo1RateDetune,
+        Self::Lfo1DelayTime,
+        Self::Lfo1DelayTimeKeyfollow,
+        Self::Lfo1FadeMode,
+        Self::Lfo1FadeTime,
+        Self::Lfo1KeyTrigger,
+        Self::Lfo1PitchDepth,
+        Self::Lfo1TvfDepth,
+        Self::Lfo1TvaDepth,
+        Self::Lfo1PanDepth,
+        Self::Lfo2Waveform,
+        Self::Lfo2Rate,
+        Self::Lfo2Offset,
+        Self::Lfo2RateDetune,
+        Self::Lfo2DelayTime,
+        Self::Lfo2DelayTimeKeyfollow,
+        Self::Lfo2FadeMode,
+        Self::Lfo2FadeTime,
+        Self::Lfo2KeyTrigger,
+        Self::Lfo2PitchDepth,
+        Self::Lfo2TvfDepth,
+        Self::Lfo2TvaDepth,
+        Self::Lfo2PanDepth,
+        Self::LfoStepType,
+        Self::LfoStep,
+    ];
+}
+
 impl BlockField for PcmsPartialField {
     fn position(self) -> usize {
         self as usize
@@ -553,6 +706,17 @@ pub enum PcmsCommon2Field {
     TfxSwitch = 0x33,
     /// Phrase Number (nibblized, 4 bytes).
     PhraseNumber = 0x38,
+}
+
+impl PcmsCommon2Field {
+    /// Every field, in block (device address) order.
+    pub const ALL: &[Self] = &[
+        Self::ToneCategory,
+        Self::ToneNumber,
+        Self::PhraseOctaveShift,
+        Self::TfxSwitch,
+        Self::PhraseNumber,
+    ];
 }
 
 impl BlockField for PcmsCommon2Field {

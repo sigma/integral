@@ -32,7 +32,9 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
   sizes, plus `ToneType`, `tone_type_from_bank_msb`, `temporary_tone_base`
   and `part_address`.
 - `device.rs`: `DeviceState`, the state machine that every host drives.
-  - `send_dt1` merges a queued DT1 with a later one to the same address.
+  - `send_dt1` replaces a queued DT1 in place only when the new one covers
+    its whole range and no later message overlaps, selects a Part tone or a
+    Studio Set, or is not a DT1; otherwise it appends.
     `send_raw` only appends to the queue.
   - `drain(now_ms)` returns the next message once the throttle allows it.
   - `handle_dt1` applies an incoming DT1 to the state.

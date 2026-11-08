@@ -87,6 +87,30 @@ pub enum SnaCommonField {
     ModifyParameter = 0x22,
 }
 
+impl SnaCommonField {
+    /// Every field, in block (device address) order.
+    pub const ALL: &[Self] = &[
+        Self::ToneLevel,
+        Self::MonoPoly,
+        Self::PortamentoTimeOffset,
+        Self::CutoffOffset,
+        Self::ResonanceOffset,
+        Self::AttackTimeOffset,
+        Self::ReleaseTimeOffset,
+        Self::VibratoRate,
+        Self::VibratoDepth,
+        Self::VibratoDelay,
+        Self::OctaveShift,
+        Self::Category,
+        Self::PhraseNumber,
+        Self::PhraseOctaveShift,
+        Self::TfxSwitch,
+        Self::InstVariation,
+        Self::InstNumber,
+        Self::ModifyParameter,
+    ];
+}
+
 impl BlockField for SnaCommonField {
     fn position(self) -> usize {
         self as usize

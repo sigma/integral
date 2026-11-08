@@ -3,6 +3,9 @@
 
 set dotenv-load := false
 
+# the plugin bundle `bundle-plugin` assembles under target/bundle (and its executable)
+bundle_name := "Integral"
+
 # default: list available targets
 default:
     @just --list
@@ -46,9 +49,56 @@ check-pwa: pack-wasm web-deps
 build-web-plugin: pack-wasm web-deps
     cd web && npx vite build --mode plugin --logLevel warn --emptyOutDir && node scripts/check-plugin-build.mjs dist-plugin
 
-# build the plugin (VST3/CLAP library and integral-app) with its web UI embedded
+# build the plugins (the VST3 library and integral-app) with their web UI embedded
 build-plugin: build-web-plugin
     cargo build -p integral-vst --release
+
+# assemble target/bundle/Integral.vst3 from a fresh plugin build, ad-hoc signed (macOS).
+# One bundle exports the six plugins of the family; hosts list each class.
+[macos]
+bundle-plugin: build-plugin
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # The cargo target dir may be shared between workspaces, so copy the
+    # dylib straight after the build, before another build replaces it.
+    meta=$(cargo metadata --format-version 1 --no-deps)
+    target=$(jq -r .target_directory <<<"$meta")
+    version=$(jq -r '.packages[] | select(.name == "integral-vst") | .version' <<<"$meta")
+    bundle="{{justfile_directory()}}/target/bundle/{{bundle_name}}.vst3"
+    rm -rf "$bundle"
+    mkdir -p "$bundle/Contents/MacOS"
+    cp "$target/release/libintegral_vst.dylib" "$bundle/Contents/MacOS/{{bundle_name}}"
+    printf 'BNDL????' > "$bundle/Contents/PkgInfo"
+    cat > "$bundle/Contents/Info.plist" <<PLIST
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>CFBundleDevelopmentRegion</key><string>en</string>
+      <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+      <key>CFBundleExecutable</key><string>{{bundle_name}}</string>
+      <key>CFBundleIdentifier</key><string>com.sigma.integral.vst3</string>
+      <key>CFBundleName</key><string>{{bundle_name}}</string>
+      <key>CFBundlePackageType</key><string>BNDL</string>
+      <key>CFBundleSignature</key><string>????</string>
+      <key>CFBundleShortVersionString</key><string>$version</string>
+      <key>CFBundleVersion</key><string>$version</string>
+    </dict>
+    </plist>
+    PLIST
+    codesign --force -s - "$bundle"
+    echo "$bundle"
+
+# run a test-host scenario (load, drag, recall, automate, binding-mismatch) against the bundled plugins; JSON lines on stdout (macOS).
+# `load` checks every plugin class; `drag` needs `--class "Integral Studio Set"` (or another) to pick one.
+# `recall`, `automate` and `binding-mismatch` run the Device service themselves on a fake link (or the INTEGRA-7 with
+# `--device rtp:<session>` / `usb`) at the socket the plugins look for; `binding-mismatch --no-editor` opens no window.
+# `load` and `drag` refuse to run while a Device service listens (the plugins would connect to it) unless `--allow-service`;
+# the others always refuse.
+[macos]
+[positional-arguments]
+plugin-test scenario *ARGS: bundle-plugin
+    cargo run -q -p integral-plugin-host -- --bundle "target/bundle/{{bundle_name}}.vst3" --out-dir target/plugin-test "$@"
 
 # render the PWA icons from web/public/icon.svg (librsvg from the pinned nixpkgs)
 web-icons:
@@ -72,6 +122,10 @@ pack-wasm:
 test:
     cargo test --workspace
 
+# rewrite the host parameter list snapshots (review the diff: it moves saved automation)
+regen-host-params:
+    cargo run -p integral-core --example regen_host_params
+
 # build the web app for production (includes WASM pack)
 build-web: pack-wasm
     cd web && npx vite build
@@ -88,7 +142,7 @@ clean:
 ping *ARGS:
     cargo run -p integral-cli -- ping {{ARGS}}
 
-# bridge the INTEGRA-7 wireless link to a virtual MIDI port
+# run the Device service on a link: --link wireless (default), rtp --port <name>, or usb
 bridge *ARGS:
     cargo run -p integral-cli -- bridge {{ARGS}}
 

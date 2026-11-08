@@ -112,4 +112,30 @@ describe("SnDrumEditor", () => {
     if (!list) throw new Error("no Variation list");
     expect(list.querySelectorAll('[role="radio"]')).toHaveLength(supported.length);
   });
+
+  describe("for a Kit plugin's Binding", () => {
+    it("edits only the kit when bound to the kit", async () => {
+      const { service, sentDt1s } = fakeToneService(new WasmDeviceState(0x10));
+      const { container } = render(<SnDrumEditor partIndex={PART} service={service} scope="kit" />);
+      await act(async () => {});
+
+      // The kit's Controls, without the key matrix or the key Sections.
+      expect(container.querySelector("[data-drum-matrix]")).toBeNull();
+      expect(container.querySelector('[data-grid-screen="SN Drum"]')).toBeNull();
+      arrowUp(slider(container, "Amb Lv"));
+      expect(sentDt1s()).toEqual([{ address: [...snd_common_address(PART).slice(0, 3), 17], data: [1] }]);
+      expect(container.querySelector('[role="slider"][aria-label="Attack"]')).toBeNull();
+    });
+
+    it("edits only that key when bound to a key, and cannot pick another", async () => {
+      const { service, sentDt1s } = fakeToneService(new WasmDeviceState(0x10));
+      const { container } = render(<SnDrumEditor partIndex={PART} service={service} scope={{ key: 40 }} />);
+      await act(async () => {});
+
+      expect(container.querySelector("[data-drum-matrix]")).toBeNull();
+      expect(container.querySelector('[role="slider"][aria-label="Amb Lv"]')).toBeNull();
+      arrowUp(slider(container, "Attack"));
+      expect(sentDt1s()).toEqual([{ address: [...snd_note_address(PART, 40).slice(0, 3), 12], data: [1] }]);
+    });
+  });
 });

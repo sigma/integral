@@ -24,6 +24,7 @@ import type { MfxState } from "./MfxPanel";
 import { useMfxHandlers } from "./useMfxHandlers";
 import { DrumKeyGrid } from "./DrumKeyGrid";
 import { useDrumKey } from "./useDrumKey";
+import { lockedKey, type DrumScope } from "./pluginPages";
 import { SND_COMMON_ENTRIES, SND_NOTE_ENTRIES, type SnDrumCommon, type SnDrumNote } from "./sn-drum/types";
 import css from "./SnDrumEditor.module.css";
 
@@ -41,9 +42,11 @@ function variationOptions(note: { instNumber: number; variation: number }) {
 interface Props {
   partIndex: number;
   service: IntegraService;
+  /** What of the kit to edit: all of it by default; a Kit plugin's Binding narrows it. */
+  scope?: DrumScope;
 }
 
-export function SnDrumEditor({ partIndex, service }: Props) {
+export function SnDrumEditor({ partIndex, service, scope }: Props) {
   const keys = deviceSpec().sn_drum_keys;
   const [common, setCommon] = useState<SnDrumCommon | null>(null);
   const [mfx, setMfx] = useState<MfxState | null>(null);
@@ -90,7 +93,8 @@ export function SnDrumEditor({ partIndex, service }: Props) {
       ) as SnDrumNote | null,
     [partIndex, service],
   );
-  const drumKey = useDrumKey(service, partIndex, keys, !loading, fetchNote);
+  // A Kit plugin edits the kit or one key, and prefetches none.
+  const drumKey = useDrumKey(service, partIndex, keys, !loading && scope === undefined, fetchNote, lockedKey(scope));
   const { key: selectedKey, note, current, update } = drumKey;
 
   const setCommonParam = useCallback(
@@ -139,17 +143,21 @@ export function SnDrumEditor({ partIndex, service }: Props) {
   }
 
   const keyRelevance = () => loadedRelevance(current);
-  const scope = { key: selectedKey };
+  const keyScope = { key: selectedKey };
+  const kitSection = (
+    <GridSection layout={SND_KIT_LAYOUT} bind={bindCommon} relevance={() => loadedRelevance(common !== null)} />
+  );
   const section = (p: SectionPlacement): ReactNode => {
     switch (p.id) {
       case "mfx":
-        return mfx && <MfxPanel mfx={mfx} {...mfxHandlers} />;
+        // The kit's, which a key does not own.
+        return scope === undefined ? mfx && <MfxPanel mfx={mfx} {...mfxHandlers} /> : null;
       case "tone":
         return (
           <GridSection
             layout={SND_TONE_LAYOUT}
             bind={bindNote}
-            scope={scope}
+            scope={keyScope}
             relevance={keyRelevance}
             family={SND_FAMILIES.tone}
           />
@@ -159,7 +167,7 @@ export function SnDrumEditor({ partIndex, service }: Props) {
           <GridSection
             layout={SND_OUTPUT_LAYOUT}
             bind={bindNote}
-            scope={scope}
+            scope={keyScope}
             relevance={keyRelevance}
             family={SND_FAMILIES.output}
           />
@@ -174,17 +182,25 @@ export function SnDrumEditor({ partIndex, service }: Props) {
       {common && <div className={css.kitName}>{common.kitName || "(unnamed kit)"}</div>}
 
       {/* The key grid picks the Scope of the key Sections below it; the kit's levels sit beside it. */}
-      <DrumKeyGrid
-        firstKey={keys.first}
-        lastKey={keys.last}
-        selectedKey={selectedKey}
-        onSelect={drumKey.select}
-        keyOutputAssigns={keyOutputAssigns}
-        kit={<GridSection layout={SND_KIT_LAYOUT} bind={bindCommon} relevance={() => loadedRelevance(common !== null)} />}
-      />
+      {scope === undefined ? (
+        <DrumKeyGrid
+          firstKey={keys.first}
+          lastKey={keys.last}
+          selectedKey={selectedKey}
+          onSelect={drumKey.select}
+          keyOutputAssigns={keyOutputAssigns}
+          kit={kitSection}
+        />
+      ) : (
+        scope === "kit" && kitSection
+      )}
 
-      {/* The key Sections, then the MFX they all feed */}
-      <GridScreen layout={SND_SCREEN}>{section}</GridScreen>
+      {/* The key Sections, then the MFX they all feed; a kit's own are just the MFX */}
+      {scope === "kit" ? (
+        mfx && <MfxPanel mfx={mfx} {...mfxHandlers} />
+      ) : (
+        <GridScreen layout={SND_SCREEN}>{section}</GridScreen>
+      )}
     </div>
   );
 }

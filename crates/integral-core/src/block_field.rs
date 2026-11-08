@@ -147,6 +147,95 @@ pub struct FieldIndexError<F: Debug> {
 pub(crate) mod test_support {
     use super::BlockField;
 
+    /// A documented parameter: its offset in its section, its name, and its
+    /// range if it has one.
+    pub(crate) struct DocRow {
+        pub(crate) name: String,
+        /// The row's offset bytes, as the doc writes them.
+        pub(crate) offset: [u8; 2],
+        /// The offset as a byte position: `hi * 128 + lo`.
+        pub(crate) position: usize,
+        pub(crate) range: Option<(i32, i32)>,
+    }
+
+    /// The `## <heading>` section of a MIDI Implementation file; the heading
+    /// may go on with an `(offset ...)`.
+    fn doc_section<'a>(doc: &'a str, heading: &str) -> &'a str {
+        doc.split("\n## ")
+            .find(|s| {
+                s.lines().next().is_some_and(|l| {
+                    l.strip_prefix(heading)
+                        .is_some_and(|rest| rest.is_empty() || rest.starts_with(" ("))
+                })
+            })
+            .unwrap_or_else(|| panic!("no section {heading}"))
+    }
+
+    /// The parameter rows of a section. Cells are split on `|`; reserves,
+    /// unnamed rows, `...` rows and rows `keep` rejects are left out.
+    pub(crate) fn doc_rows(doc: &str, heading: &str, keep: impl Fn(&str) -> bool) -> Vec<DocRow> {
+        doc_section(doc, heading)
+            .lines()
+            .filter_map(|line| {
+                let cells: Vec<&str> = line.trim_matches('|').split('|').map(str::trim).collect();
+                let [offset, _bits, name, range, ..] = cells[..] else {
+                    return None;
+                };
+                let offset: String = offset.chars().filter(|c| !"`#".contains(*c)).collect();
+                let bytes: Vec<u8> = offset
+                    .split_whitespace()
+                    .map(|b| {
+                        (b.len() == 2)
+                            .then(|| u8::from_str_radix(b, 16).ok())
+                            .flatten()
+                    })
+                    .collect::<Option<_>>()?;
+                let [hi, lo] = bytes[..] else {
+                    return None;
+                };
+                if name.starts_with('(') || !keep(name) {
+                    return None;
+                }
+                // The PCM Synth doc separates the range with " - ", the others with " -- ".
+                let range = range
+                    .split_once(" -- ")
+                    .or_else(|| range.split_once(" - "))
+                    .and_then(|(min, max)| Some((min.parse().ok()?, max.parse().ok()?)));
+                Some(DocRow {
+                    name: name.to_string(),
+                    offset: [hi, lo],
+                    position: usize::from(hi) * 128 + usize::from(lo),
+                    range,
+                })
+            })
+            .collect()
+    }
+
+    /// The base a section's offsets count from, right-aligned in four
+    /// bytes: its `Base address: 02 00 00 00`, or its `Offset from base:
+    /// 00 08 00` (three bytes, from the file's base address).
+    pub(crate) fn doc_section_base(doc: &str, heading: &str) -> [u8; 4] {
+        let line = doc_section(doc, heading)
+            .lines()
+            .find(|l| l.starts_with("Base address:") || l.starts_with("Offset from base:"))
+            .unwrap_or_else(|| panic!("{heading}: no base"));
+        let bytes: Vec<u8> = line
+            .split_once(':')
+            .unwrap()
+            .1
+            .split_whitespace()
+            .map_while(|t| {
+                let t: String = t.chars().filter(|c| !"*`.".contains(*c)).collect();
+                (t.len() == 2)
+                    .then(|| u8::from_str_radix(&t, 16).ok())
+                    .flatten()
+            })
+            .collect();
+        let mut base = [0; 4];
+        base[4 - bytes.len()..].copy_from_slice(&bytes);
+        base
+    }
+
     /// A block dump whose byte at each position is the position itself, so
     /// that every field reads a value of its own.
     pub(crate) fn positional_block(len: usize) -> Vec<u8> {

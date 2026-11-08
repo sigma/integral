@@ -1,24 +1,45 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::{Args, Parser, Subcommand};
 
 mod commands;
 mod device;
 mod hex;
 mod midi;
+#[cfg(unix)]
+mod service;
 
 use commands::expansion::OutputFormat;
 use commands::pack::{ListFormat, UserSlots};
 use commands::pack_import::{ImportOptions, ReinitOptions};
 use integral_core::device_spec::INTEGRA7;
-use midi::DEFAULT_PORT_PATTERN;
+use midi::{Connection, DEFAULT_PORT_PATTERN, Endpoint};
 
 /// Integral -- CLI tools for the Roland INTEGRA-7.
 #[derive(Parser)]
 #[command(version)]
-enum Cli {
+struct Cli {
+    /// Reach the device through a running Device service (`integral bridge`)
+    /// instead of opening a MIDI port. Optionally names its Unix socket
+    /// (`--service=PATH`); defaults to the one the plugins look for.
+    /// `--port` is then ignored; `monitor` and `bridge` refuse it.
+    #[arg(
+        long,
+        global = true,
+        num_args = 0..=1,
+        require_equals = true,
+        value_name = "PATH"
+    )]
+    service: Option<Option<PathBuf>>,
+    #[command(subcommand)]
+    command: Command,
+}
+
+/// The `integral` subcommands.
+#[derive(Subcommand)]
+enum Command {
     /// Ping the INTEGRA-7 via SysEx Identity Request.
     Ping {
         #[command(flatten)]
@@ -79,8 +100,9 @@ enum Cli {
     RawHex {
         #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
         port: String,
-        #[arg(long, default_value_t = 5.0)]
-        timeout: f64,
+        /// Seconds to wait for replies [default: 5, 8 with --service].
+        #[arg(long)]
+        timeout: Option<f64>,
         /// Raw hex string (e.g. "F04110000064110F000302550017F7")
         hex: String,
     },
@@ -88,8 +110,9 @@ enum Cli {
     RawSend {
         #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
         port: String,
-        #[arg(long, default_value_t = 3.0)]
-        timeout: f64,
+        /// Seconds to wait for replies [default: 3, 6 with --service].
+        #[arg(long)]
+        timeout: Option<f64>,
         /// 4-byte hex address
         addr: String,
         /// Hex data bytes (e.g. "5500" for two bytes 0x55 0x00)
@@ -107,14 +130,11 @@ enum Cli {
         #[arg(long)]
         bridge: Option<String>,
     },
-    /// Expose the INTEGRA-7's wireless LAN link as the virtual MIDI port
-    /// "INTEGRA-7 (Wireless)" (runs until Ctrl+C).
+    /// Run the Device service: it owns the link to the INTEGRA-7 (Wireless,
+    /// RTP-MIDI or USB) and exposes the MIDI port "Integral Device Service"
+    /// for notes (runs until Ctrl+C).
     #[cfg(unix)]
-    Bridge {
-        /// Device IP address. Discovered on the LAN if omitted.
-        #[arg(long)]
-        host: Option<std::net::IpAddr>,
-    },
+    Bridge(commands::bridge::BridgeArgs),
     /// Validate SVD decode against the device by comparing SysEx reads.
     SvdValidate {
         #[command(flatten)]
@@ -155,14 +175,15 @@ enum Cli {
 struct PortTimeoutArgs {
     #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
     port: String,
-    #[arg(long, default_value_t = 2.0)]
-    timeout: f64,
+    /// Seconds to wait for a reply [default: 2, 5 with --service].
+    #[arg(long)]
+    timeout: Option<f64>,
 }
 
 impl PortTimeoutArgs {
-    /// The `--timeout` value as a `Duration`.
-    fn timeout(&self) -> Duration {
-        Duration::from_secs_f64(self.timeout)
+    /// The `--timeout` value, or the default (longer through the service).
+    fn timeout(&self, service: bool) -> Duration {
+        midi::timeout(self.timeout, 2.0, service)
     }
 }
 
@@ -183,9 +204,9 @@ impl ConnectionArgs {
         &self.base.port
     }
 
-    /// The `--timeout` value as a `Duration`.
-    fn timeout(&self) -> Duration {
-        self.base.timeout()
+    /// The `--timeout` value, or the default (longer through the service).
+    fn timeout(&self, service: bool) -> Duration {
+        self.base.timeout(service)
     }
 }
 
@@ -195,17 +216,18 @@ impl ConnectionArgs {
 struct RawConnectionArgs {
     #[arg(long, default_value = DEFAULT_PORT_PATTERN)]
     port: String,
-    #[arg(long, default_value_t = 5.0)]
-    timeout: f64,
+    /// Seconds to wait for a reply [default: 5, 8 with --service].
+    #[arg(long)]
+    timeout: Option<f64>,
     /// SysEx device ID (hex, e.g. 10). Auto-detected if omitted.
     #[arg(long, value_parser = parse_device_id)]
     device_id: Option<u8>,
 }
 
 impl RawConnectionArgs {
-    /// The `--timeout` value as a `Duration`.
-    fn timeout(&self) -> Duration {
-        Duration::from_secs_f64(self.timeout)
+    /// The `--timeout` value, or the default (longer through the service).
+    fn timeout(&self, service: bool) -> Duration {
+        midi::timeout(self.timeout, 5.0, service)
     }
 }
 
@@ -348,12 +370,19 @@ fn parse_device_id(s: &str) -> Result<u8, String> {
 
 /// Resolve the device ID: use the explicit value if provided, otherwise
 /// auto-detect via identity request, falling back to the default.
-fn resolve_device_id(port_pattern: &str, explicit: Option<u8>) -> Result<u8> {
+fn resolve_device_id(endpoint: Endpoint<'_>, explicit: Option<u8>) -> Result<u8> {
     if let Some(id) = explicit {
         return Ok(id);
     }
-    let (_conn_in, mut conn_out, rx) = midi::open_midi(port_pattern)?;
-    midi::detect_device_id(&mut conn_out, &rx, Duration::from_secs(2))
+    let Connection {
+        output: mut conn_out,
+        rx,
+    } = midi::open_midi(endpoint)?;
+    midi::detect_device_id(
+        &mut conn_out,
+        &rx,
+        midi::timeout(None, 2.0, matches!(endpoint, Endpoint::Service(_))),
+    )
 }
 
 /// Exit the process with `code` unless it is zero.
@@ -364,68 +393,131 @@ fn exit_nonzero(code: u8) -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
-    let cli = Cli::parse();
+impl Command {
+    /// Why this command cannot run with `--service`, if it cannot.
+    fn refuses_service(&self) -> Option<&'static str> {
+        match self {
+            Self::Monitor { .. } => {
+                Some("monitor dumps all MIDI, but the service shares only SysEx")
+            }
+            Self::Bridge(_) => Some("bridge runs the Device service itself"),
+            Self::Expansion {
+                command: ExpansionCommand::Load { .. },
+            } => Some(
+                "expansion load needs the service to hold its queue for a load it starts itself",
+            ),
+            _ => None,
+        }
+    }
+}
 
-    match cli {
-        Cli::Ping { conn, quiet } => {
-            commands::ping::ping(&conn.port, conn.timeout(), quiet)?;
+fn main() -> Result<()> {
+    let Cli { service, command } = Cli::parse();
+    if service.is_some()
+        && let Some(why) = command.refuses_service()
+    {
+        bail!("--service does not apply: {why}");
+    }
+    // Where a command reaches the device: the service, else its `--port`.
+    let service = service.as_ref().map(|socket| socket.as_deref());
+    let slow = service.is_some();
+
+    match command {
+        Command::Ping { conn, quiet } => {
+            commands::ping::ping(
+                Endpoint::select(service, &conn.port),
+                conn.timeout(slow),
+                quiet,
+            )?;
             Ok(())
         }
-        Cli::Read {
+        Command::Read {
             conn,
             what,
             part,
             device_id,
         } => {
-            let did = resolve_device_id(&conn.port, device_id)?;
-            commands::dump::read_param(&conn.port, conn.timeout(), did, &what, part)
+            let did = resolve_device_id(Endpoint::select(service, &conn.port), device_id)?;
+            commands::dump::read_param(
+                Endpoint::select(service, &conn.port),
+                conn.timeout(slow),
+                did,
+                &what,
+                part,
+            )
         }
-        Cli::Write {
+        Command::Write {
             port,
             what,
             part,
             value,
             device_id,
         } => {
-            let did = resolve_device_id(&port, device_id)?;
-            commands::dump::write_param(&port, did, &what, part, value)
+            let did = resolve_device_id(Endpoint::select(service, &port), device_id)?;
+            commands::dump::write_param(Endpoint::select(service, &port), did, &what, part, value)
         }
-        Cli::RawRead { conn, addr, size } => {
-            let did = resolve_device_id(&conn.port, conn.device_id)?;
-            commands::raw::raw_read(&conn.port, conn.timeout(), did, &addr, &size)
+        Command::RawRead { conn, addr, size } => {
+            let did = resolve_device_id(Endpoint::select(service, &conn.port), conn.device_id)?;
+            commands::raw::raw_read(
+                Endpoint::select(service, &conn.port),
+                conn.timeout(slow),
+                did,
+                &addr,
+                &size,
+            )
         }
-        Cli::RawHex { port, timeout, hex } => {
-            commands::raw::send_raw_hex(&port, Duration::from_secs_f64(timeout), &hex)
+        Command::RawHex { port, timeout, hex } => commands::raw::send_raw_hex(
+            Endpoint::select(service, &port),
+            midi::timeout(timeout, 5.0, slow),
+            &hex,
+        ),
+        Command::RawRq1 { conn, addr, size } => {
+            let did = resolve_device_id(Endpoint::select(service, &conn.port), conn.device_id)?;
+            commands::raw::raw_rq1_multi(
+                Endpoint::select(service, &conn.port),
+                conn.timeout(slow),
+                did,
+                &addr,
+                &size,
+            )
         }
-        Cli::RawRq1 { conn, addr, size } => {
-            let did = resolve_device_id(&conn.port, conn.device_id)?;
-            commands::raw::raw_rq1_multi(&conn.port, conn.timeout(), did, &addr, &size)
-        }
-        Cli::RawSend {
+        Command::RawSend {
             port,
             timeout,
             addr,
             data,
             device_id,
         } => {
-            let did = resolve_device_id(&port, device_id)?;
-            commands::raw::raw_send(&port, Duration::from_secs_f64(timeout), did, &addr, &data)
+            let did = resolve_device_id(Endpoint::select(service, &port), device_id)?;
+            commands::raw::raw_send(
+                Endpoint::select(service, &port),
+                midi::timeout(timeout, 3.0, slow),
+                did,
+                &addr,
+                &data,
+            )
         }
-        Cli::Monitor { port, bridge } => commands::monitor::monitor(&port, bridge.as_deref()),
+        Command::Monitor { port, bridge } => commands::monitor::monitor(&port, bridge.as_deref()),
         #[cfg(unix)]
-        Cli::Bridge { host } => commands::bridge::bridge(host),
-        Cli::SvdValidate {
+        Command::Bridge(args) => commands::bridge::bridge(&args),
+        Command::SvdValidate {
             conn,
             file,
             part,
             index,
             device_id,
         } => {
-            let did = resolve_device_id(&conn.port, device_id)?;
-            commands::svd::svd_validate(&conn.port, conn.timeout(), did, &file, part, index)
+            let did = resolve_device_id(Endpoint::select(service, &conn.port), device_id)?;
+            commands::svd::svd_validate(
+                Endpoint::select(service, &conn.port),
+                conn.timeout(slow),
+                did,
+                &file,
+                part,
+                index,
+            )
         }
-        Cli::Pack {
+        Command::Pack {
             command:
                 PackCommand::List {
                     file,
@@ -435,7 +527,7 @@ fn main() -> Result<()> {
                     format,
                 },
         } => commands::pack::list(&file, r#type.as_deref(), category, name.as_deref(), format),
-        Cli::Pack {
+        Command::Pack {
             command:
                 PackCommand::Export {
                     conn,
@@ -446,19 +538,19 @@ fn main() -> Result<()> {
                     force,
                 },
         } => commands::pack::export(
-            conn.port(),
+            Endpoint::select(service, conn.port()),
             conn.device_id,
-            conn.timeout(),
+            conn.timeout(slow),
             &file,
             slots,
             current_part,
             current_set,
             force,
         ),
-        Cli::Pack {
+        Command::Pack {
             command: PackCommand::Check { paths, top, format },
         } => exit_nonzero(commands::pack_check::run(&paths, top, format)?),
-        Cli::Pack {
+        Command::Pack {
             command:
                 PackCommand::Import {
                     conn,
@@ -466,24 +558,29 @@ fn main() -> Result<()> {
                     options,
                 },
         } => exit_nonzero(commands::pack_import::import(
-            conn.port(),
+            Endpoint::select(service, conn.port()),
             conn.device_id,
-            conn.timeout(),
+            conn.timeout(slow),
             &file,
             &options,
         )?),
-        Cli::Pack {
+        Command::Pack {
             command: PackCommand::Reinit { conn, options },
         } => exit_nonzero(commands::pack_import::reinit(
-            conn.port(),
+            Endpoint::select(service, conn.port()),
             conn.device_id,
-            conn.timeout(),
+            conn.timeout(slow),
             &options,
         )?),
-        Cli::Expansion {
+        Command::Expansion {
             command: ExpansionCommand::List { conn, format },
-        } => commands::expansion::list(conn.port(), conn.device_id, conn.timeout(), format),
-        Cli::Expansion {
+        } => commands::expansion::list(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
+            format,
+        ),
+        Command::Expansion {
             command:
                 ExpansionCommand::Load {
                     conn,
@@ -493,15 +590,15 @@ fn main() -> Result<()> {
                     format,
                 },
         } => exit_nonzero(commands::expansion::load(
-            conn.port(),
+            Endpoint::select(service, conn.port()),
             conn.device_id,
-            conn.timeout(),
+            conn.timeout(slow),
             &assignments,
             dry_run,
             yes,
             format,
         )?),
-        Cli::Wave {
+        Command::Wave {
             command: WaveCommand::List { group, all, format },
         } => commands::wave::list(group.as_deref(), all, format),
     }

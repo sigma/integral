@@ -21,7 +21,8 @@
 //! }
 //! ```
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
+use std::ops::Range;
 
 use crate::address::{Address, DataSize};
 use crate::block_field::{BlockField, FieldIndexError};
@@ -46,7 +47,7 @@ use crate::state::{EqState, FxState, MixerState, SurroundPartState};
 use crate::sysex;
 
 /// Minimum interval between SysEx sends (ms).
-const THROTTLE_MS: f64 = 40.0;
+pub const THROTTLE_MS: f64 = 40.0;
 
 /// Duration to suppress incoming DT1 echoes after a local send (ms).
 const ECHO_SUPPRESS_MS: f64 = 150.0;
@@ -62,12 +63,128 @@ const MAX_RETRIES: u8 = 2;
 // Send queue
 // ---------------------------------------------------------------------------
 
+/// Whole 4-byte groups that fit in one DT1.
+const CHUNK: usize = sysex::MAX_DT1_DATA / 4 * 4;
+
 struct QueuedMessage {
     key: String,
     bytes: Vec<u8>,
     /// Whether `key` is a request whose reply the request tracker awaits
     /// once the message is sent.
     tracked: bool,
+    /// The device addresses a DT1 writes (`None` for other messages).
+    span: Option<Range<u32>>,
+}
+
+/// The device addresses a DT1 of `len` data bytes at `address` writes.
+pub fn dt1_span(address: &Address, len: usize) -> Range<u32> {
+    let start = address.value();
+    start..start + len as u32
+}
+
+/// What a queued write means for a new one that comes after it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Coalesce {
+    /// The new write covers it and may take its place.
+    Replace,
+    /// It is unrelated: look further back.
+    PassOver,
+    /// Nothing before it may be touched: the new write would move across a
+    /// write it overlaps or a select, or across a message that is not a
+    /// DT1.
+    Stop,
+}
+
+/// The rule by which a new write of `new` coalesces into the queue: asked
+/// of each queued item from the newest back, with the addresses `queued`
+/// writes (`None` if it is not a DT1). [`DeviceState::send_dt1`] applies it
+/// to its own queue, and so can any queue of writes in front of it.
+pub fn coalesce(new: &Range<u32>, queued: Option<&Range<u32>>) -> Coalesce {
+    match queued {
+        Some(q) if new.start <= q.start && q.end <= new.end => Coalesce::Replace,
+        Some(q) if !(touches_select(new) || touches_select(q) || overlaps(new, q)) => {
+            Coalesce::PassOver
+        }
+        _ => Coalesce::Stop,
+    }
+}
+
+/// Whether two address ranges share an address.
+fn overlaps(a: &Range<u32>, b: &Range<u32>) -> bool {
+    a.start < b.end && b.start < a.end
+}
+
+/// Whether `span` holds a Part tone select (bank MSB, LSB, PC) or the
+/// Studio Set select. Those load a tone or set that resets the fields
+/// written before them, so a write must not move across one.
+fn touches_select(span: &Range<u32>) -> bool {
+    let overlaps = |first: u32, last: u32| span.start <= last && first < span.end;
+    if overlaps(
+        params::SETUP_STUDIO_SET_BS_MSB.value(),
+        params::SETUP_STUDIO_SET_PC.value(),
+    ) {
+        return true;
+    }
+    const STRIDE: u32 = params::part_address(1, part::TONE_BANK_MSB).value()
+        - params::part_address(0, part::TONE_BANK_MSB).value();
+    let first = params::part_address(0, part::TONE_BANK_MSB).value();
+    let last = params::part_address(0, part::TONE_PC).value();
+    let parts = u32::from(DeviceState::NUM_PARTS);
+    let from = span.start.saturating_sub(last) / STRIDE;
+    let to = (span.end.saturating_sub(first).div_ceil(STRIDE)).min(parts);
+    (from..to).any(|n| overlaps(first + n * STRIDE, last + n * STRIDE))
+}
+
+/// The address whose [`Address::value`] is `value`.
+fn address_at(value: u32) -> Address {
+    Address::from_value(value).expect("an address fits in 28 bits")
+}
+
+/// A tone select (a Part's bank MSB, LSB and PC) or the Studio Set select
+/// that a write touches.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SelectHit {
+    /// The Part, or `None` for the Studio Set select.
+    pub part: Option<u8>,
+    /// The write covers all three bytes of the select.
+    pub whole: bool,
+}
+
+/// The selects a write of `len` bytes at `address` touches, by address.
+pub fn selects(address: &Address, len: usize) -> Vec<SelectHit> {
+    let span = dt1_span(address, len);
+    select_ranges(&span)
+        .into_iter()
+        .map(|(range, part)| SelectHit {
+            part,
+            whole: span.start <= range.start && range.end <= span.end,
+        })
+        .collect()
+}
+
+/// The select ranges `span` overlaps, by address, with their Part.
+fn select_ranges(span: &Range<u32>) -> Vec<(Range<u32>, Option<u8>)> {
+    let mut selects = vec![(
+        params::SETUP_STUDIO_SET_BS_MSB.value()..params::SETUP_STUDIO_SET_PC.value() + 1,
+        None,
+    )];
+    for part_idx in 0..DeviceState::NUM_PARTS {
+        let first = params::part_address(part_idx, part::TONE_BANK_MSB).value();
+        let last = params::part_address(part_idx, part::TONE_PC).value();
+        selects.push((first..last + 1, Some(part_idx)));
+    }
+    selects.retain(|(range, _)| overlaps(range, span));
+    selects.sort_by_key(|(range, _)| range.start);
+    selects
+}
+
+/// What a [`DeviceState::write_dt1`] did besides queueing data.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LocalWrite {
+    /// The Parts whose tone it selected, in order.
+    pub tones: Vec<u8>,
+    /// Whether it selected a Studio Set.
+    pub studio_set: bool,
 }
 
 /// A part's SN Synth Tone being read from the device: the tone it was
@@ -273,8 +390,30 @@ pub struct DeviceState {
     /// Mixer blocks whose read gave up, or that nothing could build a read
     /// for (see [`queue_mixer_reads`](Self::queue_mixer_reads)).
     mixer_failed: Vec<MixerBlock>,
+    /// Mixer reads that were dropped after their request left: the address,
+    /// the size and when it was sent. The reply is still on its way.
+    stale_replies: Vec<(Address, usize, f64)>,
     /// Sent SN Synth block and mixer requests awaiting their reply.
     requests: RequestTracker,
+    /// The DT1s queued since [`take_writes`](Self::take_writes), while
+    /// [`record_writes`](Self::record_writes) is on.
+    writes: Option<VecDeque<QueuedWrite>>,
+    /// The type of each Part's MFX, as far as this state has written or
+    /// read it (see [`mfx_type`](Self::mfx_type)).
+    mfx_types: HashMap<u8, u8>,
+}
+
+/// The most [`QueuedWrite`]s kept for a caller that does not take them: the
+/// oldest go first.
+pub const WRITE_LOG_LIMIT: usize = 1024;
+
+/// A DT1 as it was queued: where it writes and what.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QueuedWrite {
+    /// The first address written.
+    pub address: Address,
+    /// The bytes written from there.
+    pub data: Vec<u8>,
 }
 
 /// Why an Expansion load can't start.
@@ -302,8 +441,52 @@ impl DeviceState {
             sns_tones: HashMap::new(),
             mixer_reads: Vec::new(),
             mixer_failed: Vec::new(),
+            stale_replies: Vec::new(),
             requests: RequestTracker::new(),
+            writes: None,
+            mfx_types: HashMap::new(),
         }
+    }
+
+    /// Start (or stop) logging the DT1s this state queues, for a caller that
+    /// reacts to the writes as they are made rather than as they are paced
+    /// out (the plugin editor's host gestures). Stopping drops the log.
+    pub fn record_writes(&mut self, on: bool) {
+        self.writes = on.then(VecDeque::new);
+    }
+
+    /// The DT1s queued since the last call, oldest first, each as it was
+    /// queued (before coalescing and splitting into packets): empty unless
+    /// [`record_writes`](Self::record_writes) is on. At most
+    /// [`WRITE_LOG_LIMIT`] are kept.
+    pub fn take_writes(&mut self) -> Vec<QueuedWrite> {
+        self.writes
+            .as_mut()
+            .map(|log| std::mem::take(log).into())
+            .unwrap_or_default()
+    }
+
+    /// Whether any DT1 is logged, for a caller that polls
+    /// ([`take_writes`](Self::take_writes) would give something).
+    pub fn has_writes(&self) -> bool {
+        self.writes.as_ref().is_some_and(|log| !log.is_empty())
+    }
+
+    /// The type of `part`'s MFX, if this state wrote it (a type change, the
+    /// header's Type field) or was told it ([`note_mfx_type`](Self::note_mfx_type))
+    /// since the Part's tone last changed.
+    pub fn mfx_type(&self, part: u8) -> Option<u8> {
+        self.mfx_types.get(&part).copied()
+    }
+
+    /// Record the type of `part`'s MFX, as a caller read it from the device.
+    pub fn note_mfx_type(&mut self, part: u8, mfx_type: u8) {
+        self.mfx_types.insert(part, mfx_type);
+    }
+
+    /// The SysEx device ID this state addresses.
+    pub fn device_id(&self) -> u8 {
+        self.device_id
     }
 
     /// Read-only access to the current mixer state.
@@ -443,15 +626,16 @@ impl DeviceState {
     // Send queue
     // -----------------------------------------------------------------------
 
-    /// Queue a DT1 message.  If a DT1 for the same address is already
-    /// queued, replace it (coalescing).
+    /// Queue a DT1 message. It replaces (coalesces) a queued DT1 in place
+    /// only if it covers that DT1's whole range, and no message queued
+    /// after that one overlaps the new range or selects a Part tone or a
+    /// Studio Set. Otherwise it is appended, so the device ends up in the
+    /// state the writes describe, in queue order.
     ///
     /// Data longer than one message is split into DT1s at consecutive
     /// addresses. Cuts fall on multiples of 4 bytes from `address`, so a
     /// 4-byte nibblized value that starts on such a multiple stays whole.
     pub fn send_dt1(&mut self, address: &Address, data: &[u8]) {
-        // Whole 4-byte groups that fit in one message.
-        const CHUNK: usize = sysex::MAX_DT1_DATA / 4 * 4;
         if data.len() > sysex::MAX_DT1_DATA {
             for (i, chunk) in data.chunks(CHUNK).enumerate() {
                 let offset = DataSize::from_value((i * CHUNK) as u32)
@@ -460,22 +644,48 @@ impl DeviceState {
             }
             return;
         }
+        if let Some(log) = &mut self.writes {
+            if log.len() >= WRITE_LOG_LIMIT {
+                log.pop_front();
+            }
+            log.push_back(QueuedWrite {
+                address: *address,
+                data: data.to_vec(),
+            });
+        }
         let bytes = sysex::build_dt1(self.device_id, address, data);
         let key = format!("dt1:{address}");
 
-        // Mark for echo suppression (sentinel = not yet sent).
-        self.echo_tracker
-            .insert(format!("{address}"), f64::NEG_INFINITY);
+        let span = dt1_span(address, data.len());
 
-        if let Some(existing) = self.queue.iter_mut().find(|m| m.key == key) {
-            existing.bytes = bytes;
-        } else {
-            self.queue.push(QueuedMessage {
-                key,
-                bytes,
-                tracked: false,
-            });
+        // Queued DT1s the new one may replace: it covers them and nothing
+        // after them (but other replaced DT1s) overlaps it, selects, or is
+        // not a DT1. A new write touching a select replaces only what
+        // nothing else follows.
+        let mut replaced = Vec::new();
+        for (i, m) in self.queue.iter().enumerate().rev() {
+            match coalesce(&span, m.span.as_ref()) {
+                Coalesce::Replace => replaced.push(i),
+                Coalesce::PassOver => {}
+                Coalesce::Stop => break,
+            }
         }
+        replaced.reverse();
+
+        let message = QueuedMessage {
+            key,
+            bytes,
+            tracked: false,
+            span: Some(span),
+        };
+        let Some((&first, rest)) = replaced.split_first() else {
+            self.queue.push(message);
+            return;
+        };
+        for &i in rest.iter().rev() {
+            self.queue.remove(i);
+        }
+        self.queue[first] = message;
     }
 
     /// Queue a raw SysEx message (non-DT1, e.g. catalog queries).
@@ -492,7 +702,29 @@ impl DeviceState {
             key: key.to_string(),
             bytes,
             tracked: false,
+            span: None,
         });
+    }
+
+    /// Queue a raw SysEx message to go out before everything already queued.
+    /// It is still paced: it leaves when the throttle allows, and its send
+    /// time counts for the next message. For a message that must precede the
+    /// queue, such as an Identity Request that settles the device ID.
+    pub fn send_raw_first(&mut self, key: &str, bytes: Vec<u8>) {
+        debug_assert!(
+            bytes.len() <= sysex::MAX_MESSAGE_LEN,
+            "raw message of {} bytes exceeds the packet limit",
+            bytes.len()
+        );
+        self.queue.insert(
+            0,
+            QueuedMessage {
+                key: key.to_string(),
+                bytes,
+                tracked: false,
+                span: None,
+            },
+        );
     }
 
     /// Drain the next outbound message if the throttle window has elapsed.
@@ -515,18 +747,43 @@ impl DeviceState {
         let msg = self.queue.remove(0);
         self.last_send_time = now_ms;
         // Start this DT1's echo window now that it has actually left.
-        if let Some(ts) = msg
-            .key
-            .strip_prefix("dt1:")
-            .and_then(|addr| self.echo_tracker.get_mut(addr))
-        {
-            *ts = now_ms;
+        if let Some(addr) = msg.key.strip_prefix("dt1:") {
+            self.echo_tracker.insert(addr.to_string(), now_ms);
         }
         if msg.tracked {
             self.requests.register_request(msg.key, now_ms);
         }
 
         Some(msg.bytes)
+    }
+
+    /// The monotonic time (ms, the clock of `drain`) the state next has work
+    /// without further input, or `None` if it has none. A time at or before
+    /// `now_ms` means work is due: call [`drain`](Self::drain) and
+    /// [`next_load_action`](Self::next_load_action).
+    ///
+    /// - During an Expansion load (which holds the queue): the load's next
+    ///   poll or timeout, no earlier than the throttle allows a send; at
+    ///   once if the load is over.
+    /// - Otherwise: when the throttle lets the next queued message go, and
+    ///   when the earliest unanswered tracked read is sent again.
+    pub fn next_deadline(&self) -> Option<f64> {
+        let throttle = self.last_send_time + THROTTLE_MS;
+        if let Some(load) = &self.load {
+            // A finished load only needs collecting; a step to send waits
+            // for the throttle.
+            return Some(if load.outcome().is_some() {
+                f64::NEG_INFINITY
+            } else {
+                load.next_deadline().max(throttle)
+            });
+        }
+        let send = (!self.queue.is_empty()).then_some(throttle);
+        let retry = self.requests.next_expiry(REPLY_TIMEOUT_MS);
+        match (send, retry) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        }
     }
 
     /// Returns `true` if there are queued messages waiting to be sent.
@@ -541,7 +798,7 @@ impl DeviceState {
     fn is_suppressed(&mut self, address: &Address, now_ms: f64) -> bool {
         let key = format!("{address}");
         if let Some(&ts) = self.echo_tracker.get(&key) {
-            if ts != f64::NEG_INFINITY && now_ms - ts < ECHO_SUPPRESS_MS {
+            if now_ms - ts < ECHO_SUPPRESS_MS {
                 return true;
             }
             self.echo_tracker.remove(&key);
@@ -567,33 +824,99 @@ impl DeviceState {
         if data.is_empty() {
             return false;
         }
-        let value = data[0];
+        self.cache_part_param(address, data[0])
+    }
 
-        // Match against part parameters.
+    /// Update the cached Part parameter (level, pan, mute, output assign)
+    /// at `address` to `value`. Returns whether `address` is one.
+    fn cache_part_param(&mut self, address: &Address, value: u8) -> bool {
         for part_idx in 0..Self::NUM_PARTS {
-            let level_addr = params::part_address(part_idx, part::LEVEL);
-            if *address == level_addr {
-                self.state.parts[part_idx as usize].level = value;
-                return true;
+            let part = &mut self.state.parts[part_idx as usize];
+            if *address == params::part_address(part_idx, part::LEVEL) {
+                part.level = value;
+            } else if *address == params::part_address(part_idx, part::PAN) {
+                part.pan = value;
+            } else if *address == params::part_address(part_idx, part::MUTE) {
+                part.muted = value == 1;
+            } else if *address == params::part_address(part_idx, part::OUTPUT_ASSIGN) {
+                part.output_assign = value;
+            } else {
+                continue;
             }
-            let pan_addr = params::part_address(part_idx, part::PAN);
-            if *address == pan_addr {
-                self.state.parts[part_idx as usize].pan = value;
-                return true;
-            }
-            let mute_addr = params::part_address(part_idx, part::MUTE);
-            if *address == mute_addr {
-                self.state.parts[part_idx as usize].muted = value == 1;
-                return true;
-            }
-            let oa_addr = params::part_address(part_idx, part::OUTPUT_ASSIGN);
-            if *address == oa_addr {
-                self.state.parts[part_idx as usize].output_assign = value;
-                return true;
-            }
+            return true;
         }
-
         false
+    }
+
+    /// Write `data` at `address` on behalf of a client: the DT1 is queued
+    /// like [`send_dt1`](Self::send_dt1) and the cache takes it at once, as
+    /// the setters do. Unlike [`handle_dt1`](Self::handle_dt1), which takes
+    /// what the device says, it is never taken for an echo (so a fader moved
+    /// twice within the echo window lands twice) and never for a reply.
+    ///
+    /// A write that touches a Part's tone select or the Studio Set select
+    /// goes through [`change_part_tone`](Self::change_part_tone) or
+    /// [`switch_studio_set`](Self::switch_studio_set), so the state that
+    /// depends on the tone (the Comp+EQ kit, the mixer reads) follows. A
+    /// partial select write takes the other bytes from the state. The bytes
+    /// of `data` before, between and after selects are written as data.
+    pub fn write_dt1(&mut self, address: &Address, data: &[u8]) -> LocalWrite {
+        let span = dt1_span(address, data.len());
+        let selects = select_ranges(&span);
+
+        let mut done = LocalWrite::default();
+        let mut cursor = span.start;
+        for (range, part_idx) in selects {
+            self.write_piece(&span, data, cursor..range.start.max(cursor));
+            let (from, to) = (range.start.max(span.start), range.end.min(span.end));
+            let mut bytes = match part_idx {
+                Some(p) => {
+                    let part = &self.state.parts[p as usize];
+                    [part.tone_bank_msb, part.tone_bank_lsb, part.tone_pc]
+                }
+                None => [85, 0, self.state.studio_set_pc],
+            };
+            for at in from..to {
+                bytes[(at - range.start) as usize] = data[(at - span.start) as usize];
+            }
+            match part_idx {
+                Some(p) => {
+                    self.change_part_tone(p, bytes[0], bytes[1], bytes[2]);
+                    done.tones.push(p);
+                }
+                None => {
+                    self.switch_studio_set(bytes[2]);
+                    done.studio_set = true;
+                }
+            }
+            cursor = to;
+        }
+        self.write_piece(&span, data, cursor..span.end);
+        done
+    }
+
+    /// Write `data` at `address` as plain data, selects included: the cache
+    /// takes the Part parameters in it and the DT1 is queued, but a tone or
+    /// Studio Set select in it is not acted on. For a write whose select
+    /// bytes are only part of a select (see [`selects`]) that the caller
+    /// cannot fill in.
+    pub fn write_data(&mut self, address: &Address, data: &[u8]) {
+        let span = dt1_span(address, data.len());
+        self.write_piece(&span, data, span.clone());
+    }
+
+    /// Write the bytes of `data` (which starts at `span`) within `part` as
+    /// plain data: cache them and queue them.
+    fn write_piece(&mut self, span: &Range<u32>, data: &[u8], part: Range<u32>) {
+        if part.start >= part.end {
+            return;
+        }
+        let bytes = &data[(part.start - span.start) as usize..(part.end - span.start) as usize];
+        let address = address_at(part.start);
+        for (i, byte) in bytes.iter().enumerate() {
+            self.cache_part_param(&address.offset([0, 0, 0, i as u8]), *byte);
+        }
+        self.send_dt1(&address, bytes);
     }
 
     // -----------------------------------------------------------------------
@@ -692,7 +1015,7 @@ impl DeviceState {
 
     /// Change a part's tone (bank select MSB + LSB + PC).
     ///
-    /// This enqueues 3 DT1 messages for the tone bank MSB, LSB, and PC.
+    /// This enqueues one DT1 for the tone bank MSB, LSB, and PC.
     ///
     /// # Panics
     /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
@@ -700,13 +1023,8 @@ impl DeviceState {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         mixer_load::set_tone(&mut self.state.parts[part as usize], msb, lsb, pc);
         self.invalidate_sns_tone(part);
-
-        let msb_addr = params::part_address(part, part::TONE_BANK_MSB);
-        self.send_dt1(&msb_addr, &[msb]);
-        let lsb_addr = params::part_address(part, part::TONE_BANK_LSB);
-        self.send_dt1(&lsb_addr, &[lsb]);
-        let pc_addr = params::part_address(part, part::TONE_PC);
-        self.send_dt1(&pc_addr, &[pc]);
+        // The new tone has its own MFX, which nothing has read yet.
+        self.mfx_types.remove(&part);
 
         // Reads of the old tone would undo the change: read the new one,
         // after the change is sent.
@@ -717,6 +1035,11 @@ impl DeviceState {
         for (_, address) in &stale {
             self.drop_mixer_read(address);
         }
+        // Sent after the stale reads left the queue, so that a select
+        // queued before them can coalesce. One DT1: the three fields are
+        // contiguous (see `tone_select_fields_are_contiguous`).
+        let msb_addr = params::part_address(part, part::TONE_BANK_MSB);
+        self.send_dt1(&msb_addr, &[msb, lsb, pc]);
         let mut reads = if stale.iter().any(|(b, _)| *b == MixerBlock::Part(part)) {
             vec![MixerBlock::Part(part)]
         } else {
@@ -730,6 +1053,32 @@ impl DeviceState {
             && params::comp_eq_block_address_for_bank(part, msb).is_some()
         {
             reads.push(MixerBlock::CompEq { part, msb });
+        }
+        self.queue_mixer_reads(reads);
+    }
+
+    /// Read `part`'s tone again after something other than this state changed
+    /// it (a Program Change that reached the device by another route): the
+    /// part's dump (its bank and PC, which then chain the name and category
+    /// reads) and, if the part holds the Comp+EQ kit, the Comp+EQ block. The
+    /// cached tone and the reads of the old one are dropped.
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
+    pub fn reread_part(&mut self, part: u8) {
+        debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
+        self.invalidate_sns_tone(part);
+        let stale: Vec<_> = (self.mixer_reads.iter())
+            .filter(|r| r.block.reads_tone_of(part))
+            .map(|r| r.address)
+            .collect();
+        for address in &stale {
+            self.drop_mixer_read(address);
+        }
+        let mut reads = vec![MixerBlock::Part(part)];
+        if self.state.drum_comp_eq.enabled && self.state.drum_comp_eq.part == part {
+            // Its reply names the kit's bank, which the part's reply sets.
+            reads.push(MixerBlock::DrumCompEqCommon);
         }
         self.queue_mixer_reads(reads);
     }
@@ -873,9 +1222,8 @@ impl DeviceState {
         for part in 0..Self::NUM_PARTS {
             self.invalidate_sns_tone(part);
         }
-        self.send_dt1(&params::SETUP_STUDIO_SET_BS_MSB, &[85]);
-        self.send_dt1(&params::SETUP_STUDIO_SET_BS_LSB, &[0]);
-        self.send_dt1(&params::SETUP_STUDIO_SET_PC, &[pc]);
+        // One DT1: the three fields are contiguous.
+        self.send_dt1(&params::SETUP_STUDIO_SET_BS_MSB, &[85, 0, pc]);
     }
 
     // -----------------------------------------------------------------------
@@ -895,6 +1243,9 @@ impl DeviceState {
     ) -> Result<(), crate::mfx::MfxHeaderIndexError> {
         let offset = crate::mfx::mfx_header_offset(field, index)?;
         let addr = crate::mfx::mfx_address(part, tone_type, offset);
+        if field == crate::mfx::MfxHeaderField::Type {
+            self.note_mfx_type(part, value);
+        }
         self.send_dt1(&addr, &[value]);
         Ok(())
     }
@@ -912,6 +1263,7 @@ impl DeviceState {
     ) -> Option<[i32; crate::mfx::MFX_PARAM_COUNT]> {
         use crate::mfx::{MfxHeaderField, mfx_header_offset};
         let slots = crate::mfx_params::default_slots(mfx_type)?;
+        self.note_mfx_type(part, mfx_type);
         self.send_dt1(&crate::mfx::mfx_address(part, tone_type, 0), &[mfx_type]);
         // Control Assign 1-4 back to OFF (each type has its own destination
         // list), then the 32 parameter slots right after them.
@@ -1042,6 +1394,7 @@ impl DeviceState {
             key,
             bytes,
             tracked: true,
+            span: None,
         });
     }
 
@@ -1059,6 +1412,8 @@ impl DeviceState {
 
     /// Queue again the requests whose reply timed out, while retries remain.
     fn retry_requests(&mut self, now_ms: f64) {
+        self.stale_replies
+            .retain(|(_, _, sent_at)| now_ms - sent_at < REPLY_TIMEOUT_MS);
         for key in self.requests.expire_old(now_ms, REPLY_TIMEOUT_MS) {
             self.retry_sns_request(&key);
             self.retry_mixer_read(&key);
@@ -1175,15 +1530,38 @@ impl DeviceState {
             key,
             bytes,
             tracked: true,
+            span: None,
         });
     }
 
     /// Forget the mixer read at `address` and its outstanding request.
     fn drop_mixer_read(&mut self, address: &Address) {
+        let size = (self.mixer_reads.iter())
+            .find(|r| r.address == *address)
+            .and_then(|r| r.block.request())
+            .map(|(_, size)| size.value() as usize);
         self.mixer_reads.retain(|r| r.address != *address);
         let key = mixer_request_key(address);
+        if let (Some(sent_at), Some(size)) = (self.requests.sent_at(&key), size) {
+            self.stale_replies.push((*address, size, sent_at));
+        }
         self.requests.cancel(&key);
         self.queue.retain(|m| m.key != key);
+    }
+
+    /// Whether the DT1 of `len` bytes at `address` is the late reply to a
+    /// mixer read that
+    /// was dropped (a tone change dropped the read of the old tone after its
+    /// request had left). If so it is forgotten, and the caller should
+    /// neither apply nor cache it: it describes a tone the Part no longer
+    /// has. Call before [`handle_dt1`](Self::handle_dt1).
+    pub fn take_stale_reply(&mut self, address: &Address, len: usize) -> bool {
+        let Some(i) = (self.stale_replies.iter()).position(|(a, n, _)| a == address && *n == len)
+        else {
+            return false;
+        };
+        self.stale_replies.remove(i);
+        true
     }
 
     /// Queue again the mixer read of tracker key `key`, if it is one, while
@@ -1524,6 +1902,81 @@ mod tests {
                 "{field:?}"
             );
         }
+    }
+
+    #[test]
+    fn the_coalescing_rule_replaces_covered_passes_unrelated_and_stops_at_overlaps() {
+        let new = 10..14;
+        assert_eq!(coalesce(&new, Some(&(11..12))), Coalesce::Replace);
+        assert_eq!(coalesce(&new, Some(&(20..21))), Coalesce::PassOver);
+        assert_eq!(coalesce(&new, Some(&(12..16))), Coalesce::Stop);
+        assert_eq!(coalesce(&new, None), Coalesce::Stop);
+        // A select is never passed over.
+        let select = params::part_address(0, part::TONE_BANK_MSB).value();
+        assert_eq!(
+            coalesce(&(select..select + 1), Some(&(20..21))),
+            Coalesce::Stop
+        );
+    }
+
+    #[test]
+    fn write_dt1_takes_every_write_in_the_echo_window_and_never_a_reply() {
+        let mut device = DeviceState::new(0x10);
+        let level = params::part_address(2, part::LEVEL);
+        for (now, value) in [(0.0, 100), (10.0, 50), (20.0, 70)] {
+            device.write_dt1(&level, &[value]);
+            device.drain(now);
+            assert_eq!(device.state().parts[2].level, value);
+        }
+    }
+
+    #[test]
+    fn write_dt1_to_a_tone_select_changes_the_tone_and_a_partial_one_keeps_the_rest() {
+        let mut device = DeviceState::new(0x10);
+        let select = params::part_address(4, part::TONE_BANK_MSB);
+        let done = device.write_dt1(&select, &[95, 0, 7]);
+        assert_eq!(
+            done,
+            LocalWrite {
+                tones: vec![4],
+                studio_set: false
+            }
+        );
+        let part = &device.state().parts[4];
+        assert_eq!(
+            (part.tone_bank_msb, part.tone_bank_lsb, part.tone_pc),
+            (95, 0, 7)
+        );
+        // Only the program number: the bank stays.
+        let pc = params::part_address(4, part::TONE_PC);
+        device.write_dt1(&pc, &[9]);
+        let part = &device.state().parts[4];
+        assert_eq!(
+            (part.tone_bank_msb, part.tone_bank_lsb, part.tone_pc),
+            (95, 0, 9)
+        );
+    }
+
+    #[test]
+    fn write_dt1_to_the_studio_set_select_switches_the_set() {
+        let mut device = DeviceState::new(0x10);
+        let done = device.write_dt1(&params::SETUP_STUDIO_SET_BS_MSB, &[85, 0, 12]);
+        assert!(done.studio_set && done.tones.is_empty());
+        assert_eq!(device.state().studio_set_pc, 12);
+    }
+
+    #[test]
+    fn write_dt1_splits_a_block_around_the_select_and_caches_the_data() {
+        let mut device = DeviceState::new(0x10);
+        // Part 2's block from its Receive Channel through its Pan.
+        let start = params::part_address(1, part::RECEIVE_CHANNEL);
+        let mut data = vec![0u8; 0x0B];
+        data[0x06] = 89; // bank MSB
+        data[0x09] = 33; // level
+        let done = device.write_dt1(&start, &data);
+        assert_eq!(done.tones, vec![1]);
+        assert_eq!(device.state().parts[1].level, 33);
+        assert_eq!(device.state().parts[1].tone_bank_msb, 89);
     }
 
     use super::*;
@@ -1930,6 +2383,324 @@ mod tests {
     }
 
     #[test]
+    fn recorded_writes_are_each_edit_before_coalescing_and_only_while_on() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_part_level(0, 50);
+        assert!(dev.take_writes().is_empty(), "off by default");
+
+        dev.record_writes(true);
+        dev.set_part_level(0, 60);
+        dev.set_part_level(0, 80);
+        dev.set_part_pan(1, 10);
+        let writes = dev.take_writes();
+        // The queue coalesced the two levels; the log kept both edits.
+        assert_eq!(
+            writes,
+            [
+                QueuedWrite {
+                    address: params::part_address(0, part::LEVEL),
+                    data: vec![60]
+                },
+                QueuedWrite {
+                    address: params::part_address(0, part::LEVEL),
+                    data: vec![80]
+                },
+                QueuedWrite {
+                    address: params::part_address(1, part::PAN),
+                    data: vec![10]
+                },
+            ]
+        );
+        assert!(dev.take_writes().is_empty(), "taken once");
+
+        dev.record_writes(false);
+        dev.set_part_level(0, 90);
+        assert!(dev.take_writes().is_empty());
+    }
+
+    #[test]
+    fn a_parts_mfx_type_is_remembered_from_what_is_written_or_read_until_its_tone_changes() {
+        use crate::mfx::MfxHeaderField;
+        let mut dev = DeviceState::new(0x10);
+        assert_eq!(dev.mfx_type(2), None);
+        dev.set_mfx_type(2, ToneType::SnSynth, 34).unwrap();
+        assert_eq!(dev.mfx_type(2), Some(34));
+        assert_eq!(dev.mfx_type(3), None, "per Part");
+        dev.set_mfx_header_param(2, ToneType::SnSynth, MfxHeaderField::Type, 0, 5)
+            .unwrap();
+        assert_eq!(dev.mfx_type(2), Some(5));
+        // Another header field is not the type.
+        dev.set_mfx_header_param(2, ToneType::SnSynth, MfxHeaderField::ChorusSend, 0, 9)
+            .unwrap();
+        assert_eq!(dev.mfx_type(2), Some(5));
+        dev.note_mfx_type(3, 7);
+        assert_eq!(dev.mfx_type(3), Some(7));
+        dev.change_part_tone(2, 89, 0, 1);
+        assert_eq!(dev.mfx_type(2), None, "a new tone has its own MFX");
+        assert_eq!(dev.mfx_type(3), Some(7));
+        // An unknown type is not remembered.
+        assert!(dev.set_mfx_type(4, ToneType::SnSynth, 200).is_none());
+        assert_eq!(dev.mfx_type(4), None);
+    }
+
+    #[test]
+    fn has_writes_says_whether_the_log_holds_any() {
+        let mut dev = DeviceState::new(0x10);
+        assert!(!dev.has_writes());
+        dev.record_writes(true);
+        assert!(!dev.has_writes());
+        dev.set_part_level(0, 70);
+        assert!(dev.has_writes());
+        dev.take_writes();
+        assert!(!dev.has_writes());
+    }
+
+    #[test]
+    fn the_write_log_keeps_the_newest_up_to_its_limit() {
+        let mut dev = DeviceState::new(0x10);
+        dev.record_writes(true);
+        for value in 0..=127u8 {
+            for _ in 0..=(WRITE_LOG_LIMIT / 128) {
+                dev.set_part_level(0, value);
+            }
+        }
+        let writes = dev.take_writes();
+        assert_eq!(writes.len(), WRITE_LOG_LIMIT);
+        assert_eq!(writes.last().map(|w| w.data.clone()), Some(vec![127]));
+    }
+
+    /// The DT1s drained, in order, as (address bytes, data).
+    fn drain_dt1s(dev: &mut DeviceState) -> Vec<(Address, Vec<u8>)> {
+        let mut out = Vec::new();
+        let mut now = 0.0;
+        while let Some(msg) = dev.drain(now) {
+            if let Ok(dt1) = sysex::parse_dt1(&msg) {
+                out.push((dt1.address, dt1.data));
+            }
+            now += 100.0;
+        }
+        out
+    }
+
+    /// The value the device holds at `at` after the DT1s, if written.
+    fn final_byte(dt1s: &[(Address, Vec<u8>)], at: &Address) -> Option<u8> {
+        let mut value = None;
+        for (addr, data) in dt1s {
+            let start = addr.value();
+            let target = at.value();
+            if (start..start + data.len() as u32).contains(&target) {
+                value = Some(data[(target - start) as usize]);
+            }
+        }
+        value
+    }
+
+    #[test]
+    fn dt1_inside_queued_block_does_not_replace_it() {
+        let x = params::part_address(0, part::PAN);
+        let mut dev = DeviceState::new(0x10);
+        dev.send_dt1(&x, &[1, 2, 3, 4]);
+        dev.send_dt1(&x, &[9]);
+        let sent = drain_dt1s(&mut dev);
+        for (i, want) in [9, 2, 3, 4].into_iter().enumerate() {
+            assert_eq!(final_byte(&sent, &x.offset([0, 0, 0, i as u8])), Some(want));
+        }
+    }
+
+    #[test]
+    fn newer_block_wins_over_write_inside_older_block() {
+        let x = params::part_address(0, part::PAN);
+        let mut dev = DeviceState::new(0x10);
+        dev.send_dt1(&x, &[1, 2, 3, 4]);
+        dev.send_dt1(&x.offset([0, 0, 0, 2]), &[9]);
+        dev.send_dt1(&x, &[5, 6, 7, 8]);
+        let sent = drain_dt1s(&mut dev);
+        for (i, want) in [5, 6, 7, 8].into_iter().enumerate() {
+            assert_eq!(final_byte(&sent, &x.offset([0, 0, 0, i as u8])), Some(want));
+        }
+    }
+
+    #[test]
+    fn covering_write_replaces_several_queued_dt1s() {
+        let x = params::part_address(0, part::PAN);
+        let mut dev = DeviceState::new(0x10);
+        dev.send_dt1(&x, &[1]);
+        dev.send_dt1(&x.offset([0, 0, 0, 1]), &[2]);
+        dev.send_dt1(&x, &[5, 6]);
+        assert_eq!(dev.queue.len(), 1);
+        assert_eq!(drain_dt1s(&mut dev), vec![(x, vec![5, 6])]);
+    }
+
+    #[test]
+    fn write_does_not_move_ahead_of_a_part_tone_select() {
+        let level = params::part_address(0, part::LEVEL);
+        let mut dev = DeviceState::new(0x10);
+        dev.send_dt1(&level, &[10]);
+        dev.change_part_tone(0, 1, 2, 3);
+        dev.send_dt1(&level, &[20]);
+        let sent = drain_dt1s(&mut dev);
+        let select = sent
+            .iter()
+            .position(|(a, _)| *a == params::part_address(0, part::TONE_BANK_MSB))
+            .expect("select drained");
+        let last = sent.iter().rposition(|(a, _)| *a == level).unwrap();
+        assert!(last > select);
+        assert_eq!(final_byte(&sent, &level), Some(20));
+    }
+
+    #[test]
+    fn write_does_not_move_ahead_of_a_studio_set_select() {
+        let level = params::part_address(0, part::LEVEL);
+        let mut dev = DeviceState::new(0x10);
+        dev.send_dt1(&level, &[10]);
+        dev.send_dt1(&params::SETUP_STUDIO_SET_PC, &[3]);
+        dev.send_dt1(&level, &[20]);
+        let sent = drain_dt1s(&mut dev);
+        assert_eq!(sent.len(), 3);
+        assert_eq!(sent[2], (level, vec![20]));
+    }
+
+    #[test]
+    fn split_write_loses_no_chunk_to_a_write_at_a_chunk_start() {
+        let x = params::part_address(0, part::PAN);
+        let data: Vec<u8> = (0..300).map(|i| (i % 100) as u8).collect();
+        let mut dev = DeviceState::new(0x10);
+        dev.send_dt1(&x, &data);
+        let second = CHUNK;
+        let at = DataSize::from_value(second as u32).unwrap();
+        dev.send_dt1(&x.offset(*at.as_bytes()), &[127]);
+        let sent = drain_dt1s(&mut dev);
+        for (i, want) in data.iter().enumerate() {
+            let want = if i == second { 127 } else { *want };
+            let off = DataSize::from_value(i as u32).unwrap();
+            assert_eq!(final_byte(&sent, &x.offset(*off.as_bytes())), Some(want));
+        }
+    }
+
+    #[test]
+    fn a_raw_message_between_two_writes_keeps_them_apart() {
+        let level = params::part_address(0, part::LEVEL);
+        let mut dev = DeviceState::new(0x10);
+        dev.send_dt1(&level, &[10]);
+        dev.send_raw("store", vec![0xF0, 0x41, 0xF7]);
+        dev.send_dt1(&level, &[20]);
+        assert_eq!(dev.queue.len(), 3);
+        assert_eq!(dev.queue[2].key, format!("dt1:{level}"));
+        assert_eq!(dev.queue[1].key, "store");
+    }
+
+    #[test]
+    fn a_select_does_not_jump_over_a_write_queued_after_a_select() {
+        let msb = params::part_address(0, part::TONE_BANK_MSB);
+        let tone_write = Address::new(0x19, 0x00, 0x00, 0x10);
+        let mut dev = DeviceState::new(0x10);
+        dev.send_dt1(&msb, &[1, 2, 3]);
+        dev.send_dt1(&tone_write, &[7]);
+        dev.send_dt1(&msb, &[4, 5, 6]);
+        let sent = drain_dt1s(&mut dev);
+        assert_eq!(sent.len(), 3);
+        assert_eq!(sent[2], (msb, vec![4, 5, 6]));
+    }
+
+    #[test]
+    fn tone_select_fields_are_contiguous() {
+        for part in 0..DeviceState::NUM_PARTS {
+            let msb = params::part_address(part, part::TONE_BANK_MSB);
+            assert_eq!(
+                params::part_address(part, part::TONE_BANK_LSB),
+                msb.offset([0, 0, 0, 1])
+            );
+            assert_eq!(
+                params::part_address(part, part::TONE_PC),
+                msb.offset([0, 0, 0, 2])
+            );
+        }
+        let msb = params::SETUP_STUDIO_SET_BS_MSB;
+        assert_eq!(params::SETUP_STUDIO_SET_BS_LSB, msb.offset([0, 0, 0, 1]));
+        assert_eq!(params::SETUP_STUDIO_SET_PC, msb.offset([0, 0, 0, 2]));
+    }
+
+    #[test]
+    fn touches_select_matches_each_part_and_the_studio_set() {
+        for part in 0..DeviceState::NUM_PARTS {
+            for off in [part::TONE_BANK_MSB, part::TONE_BANK_LSB, part::TONE_PC] {
+                let v = params::part_address(part, off).value();
+                assert!(touches_select(&(v..v + 1)));
+            }
+            let level = params::part_address(part, part::LEVEL).value();
+            assert!(!touches_select(&(level..level + 1)));
+        }
+        let v = params::SETUP_STUDIO_SET_PC.value();
+        assert!(touches_select(&(v..v + 1)));
+    }
+
+    #[test]
+    fn ten_tone_changes_drain_as_one_select() {
+        let mut dev = DeviceState::new(0x10);
+        for pc in 0..10 {
+            dev.change_part_tone(0, 89, 64, pc);
+        }
+        let msb = params::part_address(0, part::TONE_BANK_MSB);
+        let selects: Vec<_> = drain_dt1s(&mut dev)
+            .into_iter()
+            .filter(|(a, _)| *a == msb)
+            .collect();
+        assert_eq!(selects, vec![(msb, vec![89, 64, 9])]);
+    }
+
+    #[test]
+    fn ten_studio_set_switches_drain_as_one_select() {
+        let mut dev = DeviceState::new(0x10);
+        for pc in 0..10 {
+            dev.switch_studio_set(pc);
+        }
+        let msb = params::SETUP_STUDIO_SET_BS_MSB;
+        let selects: Vec<_> = drain_dt1s(&mut dev)
+            .into_iter()
+            .filter(|(a, _)| *a == msb)
+            .collect();
+        assert_eq!(selects, vec![(msb, vec![85, 0, 9])]);
+    }
+
+    #[test]
+    fn each_of_two_queued_dt1s_at_one_address_opens_its_echo_window() {
+        let x = params::part_address(0, part::PAN);
+        let mut dev = DeviceState::new(0x10);
+        dev.send_dt1(&x, &[1, 2]);
+        dev.send_dt1(&x, &[3]); // inside the block: appended
+        assert_eq!(dev.queue.len(), 2);
+        assert!(dev.drain(0.0).is_some());
+        // An incoming DT1 past the window removes the first window.
+        assert!(dev.handle_dt1(&x, &[5], 200.0));
+        assert!(dev.drain(1000.0).is_some());
+        // The second DT1's echo is still recognised.
+        assert!(!dev.handle_dt1(&x, &[3], 1050.0));
+    }
+
+    #[test]
+    fn disjoint_writes_all_queue() {
+        let mut dev = DeviceState::new(0x10);
+        let start = Address::new(0x19, 0, 0, 0);
+        for i in 0..1000u32 {
+            let off = DataSize::from_value(i).unwrap();
+            dev.send_dt1(&start.offset(*off.as_bytes()), &[1]);
+        }
+        assert_eq!(dev.queue.len(), 1000);
+    }
+
+    #[test]
+    fn a_queued_write_keeps_the_previous_writes_echo_window() {
+        let pan = params::part_address(0, part::PAN);
+        let mut dev = DeviceState::new(0x10);
+        dev.set_part_pan(0, 1);
+        assert!(dev.drain(0.0).is_some());
+        dev.set_part_pan(0, 2);
+        // The echo of the first write arrives while the second is queued.
+        assert!(!dev.handle_dt1(&pan, &[1], 20.0));
+        assert_eq!(dev.state().parts[0].pan, 2);
+    }
+
+    #[test]
     fn drain_respects_throttle() {
         let mut dev = DeviceState::new(0x10);
         dev.set_part_level(0, 100);
@@ -2005,15 +2776,82 @@ mod tests {
         let name = params::tone_name_address(0, ToneType::SnAcoustic);
         let category = params::tone_category_address(0, 89).unwrap();
         let sent = drain_until(&mut dev, 0.0, 1_000.0);
-        assert_eq!(sent.len(), 5);
+        assert_eq!(sent.len(), 3);
         assert_eq!(
-            sent[3],
+            sent[0],
+            sysex::build_dt1(
+                0x10,
+                &params::part_address(0, part::TONE_BANK_MSB),
+                &[89, 64, 12]
+            )
+        );
+        assert_eq!(
+            sent[1],
             sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE)
         );
-        assert_eq!(sent[4], sysex::build_rq1(0x10, &category, &DataSize::ONE));
+        assert_eq!(sent[2], sysex::build_rq1(0x10, &category, &DataSize::ONE));
         assert_eq!(dev.state().parts[0].tone_bank_msb, 89);
         assert_eq!(dev.state().parts[0].tone_bank_lsb, 64);
         assert_eq!(dev.state().parts[0].tone_pc, 12);
+    }
+
+    #[test]
+    fn reread_part_reads_the_part_dump_then_its_name_and_category() {
+        let mut dev = DeviceState::new(0x10);
+        dev.change_part_tone(0, 87, 64, 3);
+        drain_until(&mut dev, 0.0, 1_000.0);
+        dev.reread_part(0);
+        let (dump_at, dump_size) = MixerBlock::Part(0).request().unwrap();
+        let sent = drain_until(&mut dev, 2_000.0, 3_000.0);
+        assert_eq!(sent, [sysex::build_rq1(0x10, &dump_at, &dump_size)]);
+
+        // The reply names a new tone; its name and category follow.
+        let mut dump = vec![0u8; 0x2A];
+        dump[0x06..0x09].copy_from_slice(&[89, 64, 12]);
+        assert!(dev.handle_dt1(&dump_at, &dump, 3_000.0));
+        assert_eq!(dev.state().parts[0].tone_bank_msb, 89);
+        let name = params::tone_name_address(0, ToneType::SnAcoustic);
+        let category = params::tone_category_address(0, 89).unwrap();
+        let sent = drain_until(&mut dev, 3_100.0, 4_000.0);
+        assert_eq!(
+            sent,
+            [
+                sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE),
+                sysex::build_rq1(0x10, &category, &DataSize::ONE),
+            ]
+        );
+    }
+
+    #[test]
+    fn the_late_reply_to_a_dropped_read_is_stale_once_and_only_for_a_while() {
+        const N: usize = params::TONE_NAME_SIZE.value() as usize;
+        let mut dev = DeviceState::new(0x10);
+        dev.change_part_tone(0, 89, 64, 1);
+        let name = params::tone_name_address(0, ToneType::SnAcoustic);
+        assert!(!dev.take_stale_reply(&name, N));
+        drain_until(&mut dev, 0.0, 200.0); // the select and both reads left
+        dev.change_part_tone(0, 89, 64, 2); // drops them
+        assert!(
+            !dev.take_stale_reply(&name, N + 1),
+            "another length is another read"
+        );
+        assert!(dev.take_stale_reply(&name, N));
+        assert!(!dev.take_stale_reply(&name, N), "once");
+
+        // A reply that never comes is forgotten.
+        dev.change_part_tone(0, 89, 64, 3);
+        drain_until(&mut dev, 300.0, 500.0);
+        dev.change_part_tone(0, 89, 64, 4);
+        drain_until(&mut dev, 600.0, 10_000.0);
+        assert!(!dev.take_stale_reply(&name, N));
+    }
+
+    #[test]
+    fn reread_part_twice_queues_one_read() {
+        let mut dev = DeviceState::new(0x10);
+        dev.reread_part(2);
+        dev.reread_part(2);
+        assert_eq!(drain_until(&mut dev, 0.0, 100.0).len(), 1);
     }
 
     #[test]
@@ -2799,7 +3637,11 @@ mod tests {
         let sent = drain_until(&mut dev, 0.0, 10_000.0);
         let dump = params::part_address(3, part::RECEIVE_CHANNEL);
         let dump = sysex::build_rq1(0x10, &dump, &params::PART_MIXER_SIZE);
-        let pc = sysex::build_dt1(0x10, &params::part_address(3, part::TONE_PC), &[3]);
+        let pc = sysex::build_dt1(
+            0x10,
+            &params::part_address(3, part::TONE_BANK_MSB),
+            &[87, 0, 3],
+        );
         let at = |m: &Vec<u8>| sent.iter().position(|s| s == m).unwrap();
         assert!(at(&dump) > at(&pc), "the dump shows the new tone");
     }
@@ -2813,5 +3655,73 @@ mod tests {
         assert!(serve(&mut dev, &memory, 1_000.0).contains(&name));
         assert_eq!(dev.state().parts[0].tone_name, "User Bass");
         assert!(!dev.mixer_loading(), "a tone read alone isn't a mixer load");
+    }
+
+    #[test]
+    fn next_deadline_follows_the_throttle() {
+        let mut dev = DeviceState::new(0x10);
+        assert_eq!(dev.next_deadline(), None);
+        dev.set_part_level(0, 100);
+        dev.set_part_level(1, 100);
+        assert!(dev.next_deadline().unwrap() <= 0.0, "the first send is due");
+        assert!(dev.drain(10.0).is_some());
+        assert_eq!(dev.next_deadline(), Some(10.0 + THROTTLE_MS));
+        assert!(dev.drain(10.0 + THROTTLE_MS).is_some());
+        assert_eq!(dev.next_deadline(), None);
+    }
+
+    #[test]
+    fn next_deadline_covers_a_lost_sns_reply() {
+        let mut dev = loading_sns(3);
+        drain_until(&mut dev, 0.0, 200.0);
+        // All requests are out; the first expires REPLY_TIMEOUT_MS after it left.
+        let due = dev.next_deadline().unwrap();
+        assert_eq!(due, REPLY_TIMEOUT_MS);
+        assert!(!dev.has_pending());
+        // Driving only to the deadline sends the first request again.
+        let resent = dev.drain(due).expect("the expired read is sent again");
+        assert_eq!(resent[..7], [0xF0, 0x41, 0x10, 0x00, 0x00, 0x64, 0x11]);
+    }
+
+    #[test]
+    fn next_deadline_drives_an_expansion_load() {
+        let mut dev = DeviceState::new(0x10);
+        let current = ExpansionSlots::from_values(&[0x03, 0x05, 0x07, 0x08]).unwrap();
+        dev.set_expansion_slots(current);
+        dev.start_expansion_load(current.with(0, None)).unwrap();
+        assert!(dev.next_deadline().unwrap() <= 0.0, "the request is due");
+        assert!(matches!(
+            dev.next_load_action(0.0),
+            Some(LoadAction::Send(_))
+        ));
+        // Awaiting the ack: next is the timeout.
+        let timeout = dev.next_deadline().unwrap();
+        assert!(timeout > 1_000.0);
+        let started = Address::new(0x0F, 0x00, 0x30, 0x01);
+        assert!(dev.handle_expansion_dt1(&started, &[0; 4], 100.0));
+        // Polling: the next poll comes before the timeout.
+        assert!(dev.next_deadline().unwrap() < timeout);
+        let at = dev.next_deadline().unwrap();
+        assert!(matches!(
+            dev.next_load_action(at),
+            Some(LoadAction::Poll(_))
+        ));
+        // The timeout ends the load and releases the queue.
+        let end = dev.next_deadline().unwrap();
+        assert!(matches!(
+            dev.next_load_action(end + 100_000.0),
+            Some(LoadAction::Done(LoadOutcome::TimedOut))
+        ));
+        assert_eq!(dev.next_deadline(), None);
+    }
+
+    #[test]
+    fn send_raw_first_goes_out_first_and_is_paced() {
+        let mut dev = DeviceState::new(0x10);
+        dev.set_part_level(0, 100);
+        dev.send_raw_first("first", vec![0xF0, 0x7E, 0xF7]);
+        assert_eq!(dev.drain(0.0), Some(vec![0xF0, 0x7E, 0xF7]));
+        assert_eq!(dev.drain(THROTTLE_MS - 1.0), None, "its send time counts");
+        assert!(dev.drain(THROTTLE_MS).is_some());
     }
 }

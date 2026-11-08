@@ -65,6 +65,11 @@ impl RequestTracker {
         self.pending.remove(address_key).is_some()
     }
 
+    /// When the pending request for `address_key` was sent, if there is one.
+    pub fn sent_at(&self, address_key: &str) -> Option<f64> {
+        self.pending.get(address_key).map(|req| req.sent_at)
+    }
+
     /// Forget the pending request for `address_key`, if any.
     pub fn cancel(&mut self, address_key: &str) {
         self.pending.remove(address_key);
@@ -83,6 +88,15 @@ impl RequestTracker {
             self.pending.remove(key);
         }
         expired
+    }
+
+    /// When the earliest pending request expires under `timeout_ms`, or
+    /// `None` if none is pending.
+    pub fn next_expiry(&self, timeout_ms: f64) -> Option<f64> {
+        self.pending
+            .values()
+            .map(|req| req.sent_at + timeout_ms)
+            .min_by(f64::total_cmp)
     }
 
     /// Returns `true` if there are any pending requests.

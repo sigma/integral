@@ -5,7 +5,12 @@ members = [
     "crates/integral-wasm",
     "crates/integral-vst",
     "crates/integral-cli",
+    "crates/integral-device-service",
+    "crates/integral-plugin-host",
 ]
+
+# Vendored third-party crates with a nested workspace of their own.
+exclude = ["crates/patches"]
 
 [workspace.package]
 version = "0.1.0"
@@ -16,3 +21,8 @@ license = "MIT"
 # crash (#10). The www host makes Cargo treat this as a different source.
 [patch."https://github.com/RustAudio/baseview.git"]
 baseview = { git = "https://www.github.com/RustAudio/baseview", rev = "3e12973" }
+
+# nih-plug at the pinned rev, vendored so that it can carry a patch
+# (crates/patches/PATCHES.md). Same source as the git dependency.
+[patch."https://github.com/robbert-vdh/nih-plug.git"]
+nih_plug = { path = "crates/patches/nih-plug" }

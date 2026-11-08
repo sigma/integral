@@ -11,8 +11,10 @@ import {
   type MidiPorts,
   type DeviceIdentity,
 } from "./midi";
+import { browserPorts } from "./deviceService";
 import { IntegraService } from "./integra";
 import { installFamilyPalette } from "./synth-ui/family";
+import { plugin_kind_from_wire } from "../pkg/integral_wasm.js";
 import { useMixer } from "./useMixer";
 import { useExpansions } from "./useExpansions";
 import { useExpansionStaging } from "./useExpansionStaging";
@@ -22,11 +24,18 @@ import {
   Identifying,
   Connected,
   Disconnected,
+  NotesUnavailable,
   Failed,
   NoDevices,
   MidiError,
 } from "./DeviceStatus";
 import { TopBar } from "./TopBar";
+import { PluginBar } from "./PluginBar";
+import { ToneMismatch } from "./ToneMismatch";
+import { usePluginInstance } from "./usePluginInstance";
+import { useHostGestures } from "./hostGestures";
+import { TYPE_MISMATCH_NOTICE, type PluginBridge } from "./plugin";
+import { pluginDrumScope, pluginPages, pluginToneType, type PageTab } from "./pluginPages";
 import { MixerPage } from "./MixerPage";
 import { SurroundPage } from "./SurroundPage";
 import { ToneEditorPage } from "./ToneEditorPage";
@@ -45,13 +54,27 @@ import type { ExpansionMarking } from "./WavePicker";
 import { sequencerEngine, type SequencerEngine } from "./sequencer";
 import css from "./App.module.css";
 
-type PageTab =
-  | "mixer"
-  | "surround"
-  | "toneEdit"
-  | "sequencer"
-  | "expansions"
-  | "library";
+/** The pages' tab labels. */
+const TAB_LABELS: Record<PageTab, string> = {
+  mixer: "Mixer",
+  surround: "Surround",
+  toneEdit: "Tone Edit",
+  sequencer: "Sequencer",
+  expansions: "Expansions",
+  library: "Library",
+};
+
+/** The pages of the app in a browser, the Sequencer once it is up. */
+function browserPages(sequencer: boolean): readonly PageTab[] {
+  return [
+    "mixer",
+    "surround",
+    "toneEdit",
+    ...(sequencer ? (["sequencer"] as const) : []),
+    "expansions",
+    "library",
+  ];
+}
 
 type DeviceStatus =
   | { step: "idle" }
@@ -69,20 +92,37 @@ function Lockable({ locked, children }: { locked: boolean; children: ReactNode }
   );
 }
 
+/** The browser's ports: Web MIDI's, and the Device service beside them. */
+const openBrowserPorts = () => browserPorts(webMidi);
+
 /** Where the app reaches MIDI and keeps state across page loads. Both are
  *  read once, on mount. */
 interface AppProps {
-  /** Opens the transport's port list: the browser's Web MIDI by default,
-   *  the plugin transport inside the plugin (`main.tsx`). */
+  /** Opens the transport's port list: the browser's Web MIDI and the Device
+   *  service by default, the plugin transport inside the plugin
+   *  (`main.tsx`). */
   openPorts?: () => Promise<MidiPorts>;
+  /** Connect to the only port without a click, which is the choice there is
+   *  (the plugin, whose one port is the Device service). Off in the browser,
+   *  where the service is never a default. */
+  connectOnlyPort?: boolean;
   /** Keeps the last port across page loads; `localStorage` by default. */
   storage?: Storage | null;
+  /**
+   * The plugin hosting the page (`main.tsx`), none in a browser. A plugin's
+   * editor shows only what its instance owns ({@link pluginPages}), with the
+   * instance's Binding and status in place of the top bar, and relays the
+   * page's Control drags to the host as gestures.
+   */
+  plugin?: PluginBridge;
 }
 
 /** The control surface: connects to a device, then shows its pages. */
 export function App({
-  openPorts = webMidi,
+  openPorts = openBrowserPorts,
+  connectOnlyPort = false,
   storage = browserStorage(),
+  plugin,
 }: AppProps = {}) {
   const [{ memory, connectPorts }] = useState(() => ({
     memory: portMemory(storage),
@@ -96,6 +136,12 @@ export function App({
   const [status, setStatus] = useState<DeviceStatus>({ step: "idle" });
   const identifyGenRef = useRef(0);
   const [sequencer, setSequencer] = useState<SequencerEngine | null>(null);
+  // The plugin instance this page edits, once the plugin has said what it is
+  // and the core can name its kind.
+  const instance = usePluginInstance(plugin ?? null);
+  const [wasmReady, setWasmReady] = useState(false);
+  const pluginKind =
+    wasmReady && instance.info ? plugin_kind_from_wire(instance.info.plugin) : undefined;
 
   const identify = useCallback(
     async (port: MidiPortPair) => {
@@ -114,6 +160,7 @@ export function App({
         setStatus({
           step: "failed",
           reason:
+            port.failure?.() ??
             "No response — device may not be an Integra-7, or is powered off.",
         });
       }
@@ -131,6 +178,7 @@ export function App({
         if (!cancelled) setMidiError("Failed to load WASM module.");
         return;
       }
+      setWasmReady(true);
       installFamilyPalette(document.documentElement);
       // Load the Pattern before any device connects.
       setSequencer(sequencerEngine());
@@ -165,6 +213,7 @@ export function App({
         awaitedPortRef.current = remembered;
         const integra = findIntegraPort(pairs);
         setSelectedId(integra?.id ?? pairs[0]?.id ?? null);
+        if (connectOnlyPort && pairs.length === 1) identify(pairs[0]!);
       }
 
       // Monitor port connect/disconnect events.
@@ -189,7 +238,7 @@ export function App({
       stopWatching?.();
       opened?.close?.();
     };
-  }, [connectPorts, memory, identify]);
+  }, [connectPorts, connectOnlyPort, memory, identify]);
 
   const handleSelect = useCallback(
     (portId: string) => {
@@ -225,6 +274,31 @@ export function App({
 
   const selectedPort = ports.find((p) => p.id === selectedId);
 
+  // A port whose link can drop while it stays listed (the Device service)
+  // says so itself: mark the device gone, and look for it again when the
+  // link is back, or comes up after a failed first try.
+  const stepRef = useRef(status.step);
+  useEffect(() => {
+    stepRef.current = status.step;
+  }, [status.step]);
+  useEffect(() => {
+    if (!selectedPort?.watch) return;
+    return selectedPort.watch((up) => {
+      if (!up) {
+        setStatus((s) =>
+          s.step === "connected" || s.step === "identifying"
+            ? { step: "disconnected" }
+            : s,
+        );
+      } else if (stepRef.current === "disconnected" || stepRef.current === "failed") {
+        identify(selectedPort);
+      }
+    });
+  }, [selectedPort, identify]);
+
+  // A pair that holds its link open lets go of it when another is chosen.
+  useEffect(() => () => selectedPort?.release?.(), [selectedPort]);
+
   // Create IntegraService when connected to an Integra-7
   const service = useMemo(() => {
     if (
@@ -258,7 +332,20 @@ export function App({
   useEffect(() => {
     sequencer?.setTrack(mixer.state.selectedPart);
   }, [sequencer, mixer.state.selectedPart]);
+  useHostGestures(
+    service,
+    plugin ?? null,
+    pluginKind,
+    instance.info?.binding ?? null,
+    instance.info?.hostEdits ?? false,
+  );
   const [activeTab, setActiveTab] = useState<PageTab>("mixer");
+  // A plugin shows the pages its kind owns; a browser, all of them.
+  const pages = useMemo(
+    () => (plugin ? (pluginKind === undefined ? [] : pluginPages(pluginKind)) : browserPages(sequencer !== null)),
+    [plugin, pluginKind, sequencer],
+  );
+  const tab = pages.includes(activeTab) ? activeTab : pages[0];
   // One tone catalog for the top bar and the Library.
   const catalog = useMemo(
     () => (service ? new ToneCatalog(service) : null),
@@ -281,8 +368,37 @@ export function App({
     [isUnloaded, loadExpansion],
   );
 
+  // The plugin's Binding, and what its editor edits within it.
+  const pluginBinding = instance.info?.binding ?? null;
+  // The Part holds another tone type, as the plugin reports it.
+  const mismatch = instance.info?.notices.find((notice) => notice.notice === TYPE_MISMATCH_NOTICE);
+  const pluginBar =
+    plugin && instance.info && pluginKind !== undefined ? (
+      <PluginBar
+        kind={pluginKind}
+        info={instance.info}
+        refusal={instance.refusal}
+        onBind={instance.bind}
+        // Only once the mixer is read: before, the Parts hold defaults.
+        part={
+          pluginBinding?.part === undefined || mixer.state.loading
+            ? undefined
+            : mixer.state.parts[pluginBinding.part]
+        }
+        catalog={catalog}
+        expansions={expansions}
+        onChangeTone={mixer.changePartTone}
+        onLoadExpansion={loadExpansion}
+      />
+    ) : plugin && wasmReady && instance.info ? (
+      // The plugin is newer than this page, which cannot show it.
+      <div className={css.unbound} role="alert">
+        This page does not know the plugin kind {instance.info.plugin}. Update the plugin and the page together.
+      </div>
+    ) : null;
+
   // Show connected UI when connected to an Integra-7
-  if (service && catalog) {
+  if (service && catalog && (!plugin || pluginKind !== undefined)) {
     const loading = expansions.running;
     // A running Pack import borrows a Part and the Temporary Studio Set:
     // what edits them is inert until it ends. Notes and the tabs stay live.
@@ -290,6 +406,7 @@ export function App({
     return (
       <div className={css.shell}>
         {loading && <ExpansionLoadBanner load={loading} />}
+        {selectedPort?.carriesNotes === false && <NotesUnavailable />}
         {/* A running Expansion load holds every edit: the app is inert. */}
         <div
           className={`${css.body} ${loading ? css.bodyBusy : ""}`}
@@ -297,84 +414,83 @@ export function App({
         >
           <nav className={css.tabBar}>
             <div className={css.tabs}>
-              <button
-                className={`${css.tab} ${activeTab === "mixer" ? css.tabActive : ""}`}
-                onClick={() => setActiveTab("mixer")}
-              >
-                Mixer
-              </button>
-              <button
-                className={`${css.tab} ${activeTab === "surround" ? css.tabActive : ""}`}
-                onClick={() => setActiveTab("surround")}
-              >
-                Surround
-              </button>
-              <button
-                className={`${css.tab} ${activeTab === "toneEdit" ? css.tabActive : ""}`}
-                onClick={() => setActiveTab("toneEdit")}
-              >
-                Tone Edit
-              </button>
-              {sequencer && (
-                <button
-                  className={`${css.tab} ${activeTab === "sequencer" ? css.tabActive : ""}`}
-                  onClick={() => setActiveTab("sequencer")}
-                >
-                  Sequencer
-                </button>
-              )}
-              <button
-                className={`${css.tab} ${activeTab === "expansions" ? css.tabActive : ""}`}
-                onClick={() => setActiveTab("expansions")}
-              >
-                Expansions
-              </button>
-              <button
-                className={`${css.tab} ${activeTab === "library" ? css.tabActive : ""}`}
-                onClick={() => setActiveTab("library")}
-              >
-                Library
-              </button>
-              {sequencer && <Transport engine={sequencer} />}
+              {pages.length > 1 &&
+                pages.map((page) => (
+                  <button
+                    key={page}
+                    className={`${css.tab} ${tab === page ? css.tabActive : ""}`}
+                    onClick={() => setActiveTab(page)}
+                  >
+                    {TAB_LABELS[page]}
+                  </button>
+                ))}
+              {!plugin && sequencer && <Transport engine={sequencer} />}
             </div>
-            <Lockable locked={importing}>
-              <TopBar
-                mixer={mixer}
-                service={service}
-                catalog={catalog}
-                expansions={expansions}
-                onLoadExpansion={loadExpansion}
-              />
-            </Lockable>
+            {plugin ? (
+              pluginBar
+            ) : (
+              <Lockable locked={importing}>
+                <TopBar
+                  mixer={mixer}
+                  service={service}
+                  catalog={catalog}
+                  expansions={expansions}
+                  onLoadExpansion={loadExpansion}
+                />
+              </Lockable>
+            )}
           </nav>
           <Lockable locked={importing}>
-            {activeTab === "mixer" && (
+            {tab === "mixer" && (
               <ErrorBoundary section="Mixer">
                 <MixerPage mixer={mixer} expansions={expansions} />
               </ErrorBoundary>
             )}
-            {activeTab === "surround" && (
+            {tab === "surround" && (
               <ErrorBoundary section="Surround">
                 <SurroundPage mixer={mixer} />
               </ErrorBoundary>
             )}
-            {activeTab === "toneEdit" && (
+            {tab === "toneEdit" && (
               <ErrorBoundary section="Tone Editor">
-                <ToneEditorPage
-                  mixer={mixer}
-                  service={service}
-                  marking={waveMarking}
-                  onBack={() => setActiveTab("mixer")}
-                />
+                {plugin && pluginKind !== undefined ? (
+                  pluginBinding?.part === undefined ? (
+                    <div className={css.unbound}>Choose a Part above to edit its tone.</div>
+                  ) : mismatch ? (
+                    // The plugin is inert: its own report is the one source.
+                    <ToneMismatch
+                      text={mismatch.text}
+                      defaultTone={instance.info?.defaultTone ?? null}
+                      pending={instance.info?.defaultTonePending ?? false}
+                      onLoad={instance.loadDefaultTone}
+                    />
+                  ) : (
+                    <ToneEditorPage
+                      mixer={mixer}
+                      service={service}
+                      marking={waveMarking}
+                      part={pluginBinding.part}
+                      only={pluginToneType(pluginKind)}
+                      drum={pluginDrumScope(pluginKind, pluginBinding)}
+                    />
+                  )
+                ) : (
+                  <ToneEditorPage
+                    mixer={mixer}
+                    service={service}
+                    marking={waveMarking}
+                    onBack={() => setActiveTab("mixer")}
+                  />
+                )}
               </ErrorBoundary>
             )}
-            {activeTab === "expansions" && (
+            {tab === "expansions" && (
               <ErrorBoundary section="Expansions">
                 <ExpansionsPage expansions={expansions} staging={expansionStaging} />
               </ErrorBoundary>
             )}
           </Lockable>
-          {activeTab === "library" && (
+          {tab === "library" && (
             <ErrorBoundary section="Library">
               <LibraryPage
                 service={service}
@@ -385,7 +501,8 @@ export function App({
               />
             </ErrorBoundary>
           )}
-          {activeTab === "sequencer" && sequencer ? (
+          {/* The plugin's notes go to the Device service's note port, not through its editor. */}
+          {plugin ? null : tab === "sequencer" && sequencer ? (
             <ErrorBoundary section="Sequencer">
               <SequencerPage engine={sequencer} mixer={mixer} keyboard={keyboard} />
             </ErrorBoundary>
@@ -404,6 +521,8 @@ export function App({
 
       <div className={css.card}>
         <h2 className={css.cardTitle}>MIDI Connection</h2>
+        {/* Why a plugin has no device to show yet, and what it is bound to. */}
+        {pluginBar}
 
         {midiError ? (
           <MidiError message={midiError} />
@@ -429,6 +548,7 @@ export function App({
                 identity={status.identity}
               />
             )}
+
 
             {status.step === "failed" && selectedPort && (
               <Failed

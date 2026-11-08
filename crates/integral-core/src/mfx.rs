@@ -6,6 +6,7 @@
 //! sends, 4 control source slots, and up to 32 nibblized parameters.
 
 use crate::address::{Address, DataSize};
+use crate::block_field::BlockField;
 use crate::family::ParameterFamily;
 use crate::params::ToneType;
 use thiserror::Error;
@@ -52,6 +53,30 @@ pub enum MfxHeaderField {
 }
 
 impl MfxHeaderField {
+    /// Every header field, in block (device address) order.
+    pub const ALL: &[Self] = &[
+        Self::Type,
+        Self::ChorusSend,
+        Self::ReverbSend,
+        Self::ControlSource,
+        Self::ControlSens,
+        Self::ControlAssign,
+    ];
+
+    /// The field's name in a host's parameter list, as the MIDI
+    /// Implementation spells it. A per-control field's name is a template:
+    /// `{}` is the control's number counted from 1.
+    pub const fn host_name(self) -> &'static str {
+        match self {
+            Self::Type => "MFX Type",
+            Self::ChorusSend => "MFX Chorus Send Level",
+            Self::ReverbSend => "MFX Reverb Send Level",
+            Self::ControlSource => "MFX Control {} Source",
+            Self::ControlSens => "MFX Control {} Sens",
+            Self::ControlAssign => "MFX Control Assign {}",
+        }
+    }
+
     /// Number of instances of the field: [`MFX_CONTROL_COUNT`] for the
     /// per-control fields, 1 otherwise.
     pub const fn count(self) -> usize {
@@ -83,6 +108,23 @@ impl MfxHeaderField {
             Self::ControlSource => 0x05 + index * 2,
             Self::ControlSens => 0x06 + index * 2,
             Self::ControlAssign => 0x0D + index,
+        }
+    }
+}
+
+impl BlockField for MfxHeaderField {
+    fn position(self) -> usize {
+        usize::from(self.raw_offset(0))
+    }
+
+    fn count(self) -> usize {
+        Self::count(self)
+    }
+
+    fn stride(self) -> usize {
+        match self {
+            Self::ControlSource | Self::ControlSens => 2,
+            _ => 1,
         }
     }
 }
@@ -405,5 +447,24 @@ mod tests {
         assert_eq!(state.controls[0].source, 1);
         assert_eq!(state.controls[0].sens, 100);
         assert_eq!(state.controls[0].assign, 3);
+    }
+
+    #[test]
+    fn header_fields_have_distinct_host_names() {
+        use crate::field_spec::fill_name_template;
+        let mut seen = std::collections::HashSet::new();
+        for field in MfxHeaderField::ALL {
+            assert_eq!(
+                field.host_name().contains("{}"),
+                field.count() > 1,
+                "{field:?}: {}",
+                field.host_name()
+            );
+            for index in 0..field.count() {
+                let name = fill_name_template(field.host_name(), index);
+                assert!(seen.insert(name.clone()), "{name:?} named twice");
+            }
+        }
+        assert_eq!(seen.len(), 3 + 3 * MFX_CONTROL_COUNT);
     }
 }

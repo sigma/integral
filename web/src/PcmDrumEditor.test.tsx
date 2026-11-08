@@ -246,4 +246,32 @@ describe("PcmDrumEditor", () => {
       expected((d) => d.setPcmdPartialField(PART, 38, PcmdPartialField.Level, 0, 1)),
     );
   });
+
+  describe("for a Kit plugin's Binding", () => {
+    it("edits only the kit when bound to the kit", async () => {
+      const { service, sentDt1s } = fakeToneService(new WasmDeviceState(0x10));
+      const { container } = render(<PcmDrumEditor partIndex={PART} service={service} scope="kit" />);
+      await act(async () => {});
+
+      // The kit's Level, without the key matrix or the key Sections.
+      expect(container.querySelector("[data-drum-matrix]")).toBeNull();
+      expect(container.querySelector('[data-grid-screen="PCM Drum"]')).toBeNull();
+      expect(container.querySelector('[role="slider"][aria-label="T2"]')).toBeNull();
+      arrowUp(slider(container, "Kit Lv"));
+      expect(sentDt1s()).toEqual(expected((d) => d.setPcmdKitLevel(PART, 1)));
+    });
+
+    it("edits only that key when bound to a key, and cannot pick another", async () => {
+      const { service, sentDt1s } = fakeToneService(new WasmDeviceState(0x10));
+      const { container } = render(<PcmDrumEditor partIndex={PART} service={service} scope={{ key: 40 }} />);
+      await act(async () => {});
+
+      expect(container.querySelector("[data-drum-matrix]")).toBeNull();
+      expect(container.querySelector('[role="slider"][aria-label="Kit Lv"]')).toBeNull();
+      arrowUp(slider(container, "T2"));
+      expect(sentDt1s()).toEqual(
+        expected((d) => d.setPcmdPartialField(PART, 40, PcmdPartialField.PitchEnvTime, 1, 1)),
+      );
+    });
+  });
 });

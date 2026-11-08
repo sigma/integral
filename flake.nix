@@ -42,6 +42,7 @@
             pkgs.typescript
             pkgs.cargo-watch
             pkgs.just
+            pkgs.jq
             pkgs.nixfmt
             pkgs.pkg-config
           ]

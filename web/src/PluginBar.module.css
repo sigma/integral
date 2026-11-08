@@ -1,0 +1,77 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+}
+
+.select {
+  height: 28px;
+  padding: 0 6px;
+  font-size: 12px;
+  color: #c0c0e0;
+  background: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+}
+
+.select:disabled {
+  opacity: 0.5;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.statusText {
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid #2a2a4a;
+}
+
+.ok {
+  color: #7fd99a;
+}
+
+.warn {
+  color: #f0b060;
+  border-color: #6a4a1a;
+}
+
+.notice {
+  color: #c0c0e0;
+}
+
+.refusal {
+  color: #f08080;
+}
+
+.toneButton {
+  composes: button from "./StudioSetSelector.module.css";
+  min-width: 0;
+  max-width: 320px;
+}
+
+.toneName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

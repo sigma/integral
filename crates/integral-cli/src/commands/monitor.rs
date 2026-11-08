@@ -6,10 +6,9 @@ use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
 use integral_core::sysex;
-use midir::MidiOutputConnection;
 
 use crate::hex::format_hex;
-use crate::midi;
+use crate::midi::{self, Connection, Endpoint, Output};
 
 /// Monitor all incoming MIDI messages (blocks until Ctrl+C).
 ///
@@ -19,14 +18,20 @@ use crate::midi;
 /// network MIDI session) and the device, so both sides of a conversation
 /// can be captured.
 pub fn monitor(port_pattern: &str, bridge: Option<&str>) -> Result<()> {
-    let (_conn_in, conn_out, rx) = midi::open_midi(port_pattern)?;
+    let Connection {
+        output: conn_out,
+        rx,
+    } = midi::open_midi(Endpoint::Port(port_pattern))?;
     let start = Instant::now();
     let Some(bridge) = bridge else {
         eprintln!("Monitoring incoming MIDI messages (Ctrl+C to stop)...");
         return relay(&rx, None, "", start);
     };
 
-    let (_bridge_in, bridge_out, bridge_rx) = midi::open_midi(bridge)?;
+    let Connection {
+        output: bridge_out,
+        rx: bridge_rx,
+    } = midi::open_midi(Endpoint::Port(bridge))?;
     eprintln!("Bridging '{port_pattern}' <-> '{bridge}' (Ctrl+C to stop)...");
     let to_port = format!("{bridge} -> {port_pattern}: ");
     let back = thread::spawn(move || relay(&bridge_rx, Some(conn_out), &to_port, start));
@@ -42,7 +47,7 @@ pub fn monitor(port_pattern: &str, bridge: Option<&str>) -> Result<()> {
 /// Print each message from `rx`, forwarding it to `out` when given.
 fn relay(
     rx: &Receiver<Vec<u8>>,
-    mut out: Option<MidiOutputConnection>,
+    mut out: Option<Output>,
     label: &str,
     start: Instant,
 ) -> Result<()> {

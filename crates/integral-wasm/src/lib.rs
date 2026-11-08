@@ -57,6 +57,37 @@ pub fn device_spec_json() -> Result<String, JsError> {
         .map_err(|e| JsError::new(&e.to_string()))
 }
 
+/// The URL of the Device service's WebSocket endpoint at its default port.
+#[wasm_bindgen(js_name = "deviceServiceUrl")]
+pub fn device_service_url() -> String {
+    integral_core::device_service::websocket_url(integral_core::device_service::WEBSOCKET_PORT)
+}
+
+/// The name of the page's Device service port pair.
+#[wasm_bindgen(js_name = "deviceServicePairName")]
+pub fn device_service_pair_name() -> String {
+    integral_core::device_service::PAIR_NAME.to_owned()
+}
+
+/// The `id` of the page's Device service port pair.
+#[wasm_bindgen(js_name = "deviceServicePairId")]
+pub fn device_service_pair_id() -> String {
+    integral_core::device_service::PAIR_ID.to_owned()
+}
+
+/// The port the web dev server is pinned to, which the Device service admits
+/// as an origin by default. `web/vite.config.ts` must pin the same one.
+#[wasm_bindgen(js_name = "devServerPort")]
+pub fn dev_server_port() -> u16 {
+    integral_core::device_service::DEV_SERVER_PORT
+}
+
+/// The port `vite preview` is pinned to, as [`dev_server_port`].
+#[wasm_bindgen(js_name = "previewPort")]
+pub fn preview_port() -> u16 {
+    integral_core::device_service::PREVIEW_PORT
+}
+
 /// Returns the SysEx Identity Request message bytes.
 ///
 /// Send these bytes to a MIDI output to request device identification.
@@ -317,8 +348,10 @@ macro_rules! mirror_core_enum {
 
 // Declared after `mirror_core_enum!`, which they use.
 mod display;
+mod plugin;
 mod relevance;
 pub use display::{DisplayKind, DisplayProp, WasmDisplaySlot, display_binding};
+pub use plugin::PluginKind;
 pub use relevance::Relevance;
 
 /// Tone type of a Part's Temporary Tone, selecting which tone type block
@@ -3149,8 +3182,9 @@ impl WasmDeviceState {
 
     /// Apply a full MFX block dump to the part's MFX state.
     #[wasm_bindgen(js_name = applyMfxBlock)]
-    pub fn apply_mfx_block(&mut self, _part: u8, data: &[u8]) -> JsValue {
+    pub fn apply_mfx_block(&mut self, part: u8, data: &[u8]) -> JsValue {
         let state = mfx::parse_mfx_block(data);
+        self.inner.note_mfx_type(part, state.mfx_type);
         serde_wasm_bindgen::to_value(&state).unwrap_or(JsValue::NULL)
     }
 }
@@ -3296,6 +3330,7 @@ pub fn mixer_field_spec(field: MixerField) -> WasmFieldSpec {
             default: def.default,
             format: def.format,
             family: def.family,
+            host_name: def.host_name,
         })
     }
 }

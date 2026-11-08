@@ -19,10 +19,10 @@ pub const MODEL_ID: [u8; 3] = [0x00, 0x00, 0x64];
 pub const INTEGRA7_FAMILY: [u8; 2] = [0x64, 0x02];
 
 /// SysEx start byte.
-const SYSEX_START: u8 = 0xF0;
+pub const SYSEX_START: u8 = 0xF0;
 
 /// SysEx end byte.
-const SYSEX_END: u8 = 0xF7;
+pub const SYSEX_END: u8 = 0xF7;
 
 /// Universal Non-realtime message ID.
 const UNIVERSAL_NON_REALTIME: u8 = 0x7E;
@@ -48,6 +48,10 @@ pub const CMD_RQ1: u8 = 0x11;
 // ---------------------------------------------------------------------------
 // Identity
 // ---------------------------------------------------------------------------
+
+/// The SysEx device ID an INTEGRA-7 has until told otherwise. A device
+/// states its own in its Identity Reply, which callers should prefer.
+pub const DEFAULT_DEVICE_ID: u8 = 0x10;
 
 /// Build a Universal Non-realtime Identity Request message.
 ///

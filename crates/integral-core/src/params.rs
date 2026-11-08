@@ -134,6 +134,94 @@ pub const REVERB_PARAMS_SIZE: DataSize =
     DataSize::new(0x00, 0x00, 0x00, (REVERB_PARAM_COUNT * 4) as u8);
 
 // ---------------------------------------------------------------------------
+// Studio Set blocks
+// ---------------------------------------------------------------------------
+
+/// A block of the Studio Set that a host parameter ID names (`part07`,
+/// `chorus/head`): its ID and where it starts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StudioSetBlock {
+    /// The block's name in a host parameter ID.
+    pub id: String,
+    /// The block's first address.
+    pub base: Address,
+    /// The block's size in bytes.
+    pub size: u32,
+}
+
+/// ID of the Studio Set Common block.
+const COMMON_BLOCK_ID: &str = "common";
+/// ID of the Chorus block's fixed fields, ahead of its type parameters.
+const CHORUS_BLOCK_ID: &str = "chorus/head";
+/// ID of the Reverb block's fixed fields, ahead of its type parameters.
+const REVERB_BLOCK_ID: &str = "reverb/head";
+/// ID of the Motional Surround common block.
+const SURROUND_BLOCK_ID: &str = "surround";
+/// ID of the Master EQ block.
+const MASTER_EQ_BLOCK_ID: &str = "mastereq";
+/// ID suffix of a Part's EQ block, after the Part's own ID.
+const PART_EQ_BLOCK_ID: &str = "eq";
+
+/// The Studio Set's blocks that hold parameters, for a device with
+/// `part_count` Parts: Common, Chorus, Reverb, Motional Surround, Master EQ,
+/// and per Part its own block (`part07`) and its EQ (`part07/eq`).
+pub fn studio_set_blocks(part_count: u8) -> Vec<StudioSetBlock> {
+    let block = |id: &str, base, size: u32| StudioSetBlock {
+        id: id.to_string(),
+        base,
+        size,
+    };
+    // A Part's block ends with its Motional Surround positions.
+    let part_size = u32::from(part_surround::LR[2]) + PART_SURROUND_SIZE.value();
+    let parts = (0..part_count).flat_map(|part| {
+        let id = format!("part{:02}", part + 1);
+        let eq = format!("{id}/{PART_EQ_BLOCK_ID}");
+        [
+            block(&id, part_address(part, [0, 0, 0]), part_size),
+            block(&eq, part_eq_address(part, 0), PART_EQ_SIZE.value()),
+        ]
+    });
+    [
+        // The common block runs up to the Chorus block.
+        block(
+            COMMON_BLOCK_ID,
+            crate::address::STUDIO_SET,
+            CHORUS_BASE.value() - crate::address::STUDIO_SET.value(),
+        ),
+        block(CHORUS_BLOCK_ID, CHORUS_BASE, CHORUS_CORE_SIZE.value()),
+        block(REVERB_BLOCK_ID, REVERB_BASE, REVERB_CORE_SIZE.value()),
+        block(
+            SURROUND_BLOCK_ID,
+            SURROUND_BASE,
+            SURROUND_COMMON_SIZE.value(),
+        ),
+        block(
+            MASTER_EQ_BLOCK_ID,
+            master_eq_address(0),
+            MASTER_EQ_SIZE.value(),
+        ),
+    ]
+    .into_iter()
+    .chain(parts)
+    .collect()
+}
+
+/// The block of `blocks` that `address` lies in (the last one starting at or
+/// before it) and its linear byte offset from the block's start, or `None`
+/// ahead of the first block or past the end of the block it follows.
+pub fn studio_set_block_offset(
+    blocks: &[StudioSetBlock],
+    address: Address,
+) -> Option<(&StudioSetBlock, u32)> {
+    blocks
+        .iter()
+        .filter(|block| block.base.value() <= address.value())
+        .max_by_key(|block| block.base.value())
+        .map(|block| (block, address.value() - block.base.value()))
+        .filter(|(block, offset)| *offset < block.size)
+}
+
+// ---------------------------------------------------------------------------
 // Studio Set Part offsets (within a Part block)
 // ---------------------------------------------------------------------------
 
@@ -163,13 +251,32 @@ pub mod part {
     pub const REVERB_SEND: [u8; 3] = [0x00, 0x00, 0x28];
     /// Output Assign (0=A, 1=B, 2=C, 3=D, 4–11=1–8).
     pub const OUTPUT_ASSIGN: [u8; 3] = [0x00, 0x00, 0x29];
+    /// Receive Program Change (0=OFF, 1=ON).
+    pub const RECEIVE_PROGRAM_CHANGE: [u8; 3] = [0x00, 0x00, 0x39];
 }
+
+/// System Studio Set Control Channel (0–15 → ch 1–16, 16=OFF): a Program
+/// Change on it selects a Studio Set.
+pub const SYSTEM_STUDIO_SET_CONTROL_CHANNEL: Address = Address::new(0x02, 0x00, 0x00, 0x11);
 
 /// Compute the absolute address for a Studio Set Part parameter.
 ///
 /// `part_index` is 0-based (0 = Part 1, 15 = Part 16).
 pub const fn part_address(part_index: u8, param_offset: [u8; 3]) -> Address {
     crate::address::studio_set_part(part_index, param_offset)
+}
+
+/// Where a Part's tone select (Bank Select MSB, LSB and Program Change, three
+/// consecutive bytes) is, and its length: the one block to read or write to
+/// find or set the tone a Part holds.
+pub fn tone_select_block(part_index: u8) -> (Address, DataSize) {
+    let first = part_address(part_index, part::TONE_BANK_MSB);
+    let last = part_address(part_index, part::TONE_PC);
+    let len = last.value() - first.value() + 1;
+    (
+        first,
+        DataSize::from_value(len).expect("a select is three bytes"),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -557,6 +664,24 @@ mod tests {
     use crate::address::Address;
 
     #[test]
+    fn studio_set_block_offsets_stop_at_a_blocks_end() {
+        let blocks = studio_set_blocks(16);
+        let (block, offset) = studio_set_block_offset(&blocks, part_address(6, [0, 0, 9])).unwrap();
+        assert_eq!((block.id.as_str(), offset), ("part07", 9));
+        // The gap between the last Part and the first Part EQ, and the one
+        // after a Part's last byte, belong to no block.
+        assert_eq!(
+            studio_set_block_offset(&blocks, part_address(15, [0, 0, 0]).offset([0, 0, 1, 0])),
+            None
+        );
+        assert_eq!(
+            studio_set_block_offset(&blocks, part_address(0, [0, 0, 0x7F])),
+            None
+        );
+        assert_eq!(studio_set_block_offset(&blocks, SYSTEM_MASTER_LEVEL), None);
+    }
+
+    #[test]
     fn fx_params_sizes_cover_all_params() {
         assert_eq!(CHORUS_PARAMS_SIZE, DataSize::new(0x00, 0x00, 0x00, 0x50));
         assert_eq!(REVERB_PARAMS_SIZE, DataSize::new(0x00, 0x00, 0x00, 0x60));
@@ -700,6 +825,13 @@ mod tests {
         // SN Acoustic offset is 02 00 00, so byte 1 of the tone block gets +2
         let addr = tone_name_address(0, ToneType::SnAcoustic);
         assert_eq!(addr, Address::new(0x19, 0x02, 0x00, 0x00));
+    }
+
+    #[test]
+    fn a_tone_select_block_is_the_three_bytes_from_the_bank_msb() {
+        let (at, size) = tone_select_block(5);
+        assert_eq!(at, part_address(5, part::TONE_BANK_MSB));
+        assert_eq!(size.value(), 3);
     }
 
     #[test]

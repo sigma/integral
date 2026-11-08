@@ -18,6 +18,9 @@ use crate::family::ParameterFamily;
 use crate::params::{self, ToneType};
 use crate::state::{CompEqUnit, DrumCompEqState, EqState, SurroundPartState, SurroundState};
 
+/// The Drum Comp/EQ's name in host names (the unit prefix, `Drum Comp/EQ 3`).
+const DRUM_COMP_EQ: &str = "Drum Comp/EQ";
+
 /// How a parameter value should be displayed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
@@ -196,6 +199,11 @@ pub struct ParamDef {
     pub field: MixerField,
     /// Human-readable display name.
     pub name: &'static str,
+    /// The name in a host's parameter list, within the scope it is used in
+    /// (see [`MixerScope::host_prefix`] and the `field_spec` module docs):
+    /// the MIDI Implementation's wording (`docs/midi/05-studio-set.md`),
+    /// where [`name`](Self::name) is a label the mixer draws in place.
+    pub host_name: &'static str,
     /// Which group this parameter belongs to.
     pub group: ParamGroup,
     /// Minimum raw value (inclusive).
@@ -530,6 +538,46 @@ pub enum MixerScopeKind {
     Common,
 }
 
+impl MixerScopeKind {
+    /// Whether `field` of a scope of this kind sits in a drum kit rather
+    /// than the Studio Set: a Drum Comp+EQ unit's own settings. Its Output
+    /// Assign is the Studio Set's.
+    fn is_kit_field(self, field: MixerField) -> bool {
+        self == MixerScopeKind::CompEqUnit && field != MixerField::CompOutputAssign
+    }
+
+    /// Whether `field` of a scope of this kind sits in the System area, not
+    /// the Studio Set: the Master Level. ADR 0007 gives the plugin the
+    /// Master EQ only.
+    fn is_system_field(self, field: MixerField) -> bool {
+        self == MixerScopeKind::Master && field == MixerField::MasterLevel
+    }
+
+    /// The fields the Studio Set plugin exposes in a scope of this kind
+    /// (ADR 0007): every Part's mixer block and EQ, the Ext input, the
+    /// Master EQ, and the common block (Chorus, Reverb, Solo Part, Motional
+    /// Surround, the Drum Comp/EQ switch and assigned Part). Of a Drum
+    /// Comp+EQ unit only its Output Assign is the Studio Set's; the units'
+    /// own settings sit in the kit, which a Kit plugin bound to the whole
+    /// kit owns ([`kit_fields`](Self::kit_fields)).
+    pub fn studio_set_fields(self) -> Vec<MixerField> {
+        MixerField::ALL
+            .into_iter()
+            .filter(|field| field.in_scope(self))
+            .filter(|field| !self.is_kit_field(*field) && !self.is_system_field(*field))
+            .collect()
+    }
+
+    /// The fields of a scope of this kind that sit in a drum kit: a Drum
+    /// Comp+EQ unit's own settings. No other kind has any.
+    pub fn kit_fields(self) -> Vec<MixerField> {
+        MixerField::ALL
+            .into_iter()
+            .filter(|field| field.in_scope(self) && self.is_kit_field(*field))
+            .collect()
+    }
+}
+
 /// The drum kit whose tone holds the Drum Comp+EQ units: the assigned
 /// part and its tone type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -562,6 +610,20 @@ pub enum MixerScope {
 }
 
 impl MixerScope {
+    /// The prefix a host parameter name takes in this scope: `Part 7`,
+    /// `Ext Part`, `Master`, `Drum Comp/EQ 3`, or none for the Studio Set
+    /// common block. Join it to a [`ParamDef::host_name`] with
+    /// [`qualified_name`](crate::field_spec::qualified_name).
+    pub fn host_prefix(&self) -> String {
+        match self {
+            Self::Part(part) => format!("Part {}", part + 1),
+            Self::Ext => "Ext Part".to_string(),
+            Self::Master => "Master".to_string(),
+            Self::CompEqUnit { unit, .. } => format!("{DRUM_COMP_EQ} {}", unit + 1),
+            Self::Common => String::new(),
+        }
+    }
+
     /// The scope's kind.
     pub fn kind(&self) -> MixerScopeKind {
         match self {
@@ -854,6 +916,7 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
     let def = |name, group, max, default, format, family| ParamDef {
         field,
         name,
+        host_name: name,
         group,
         min: 0,
         max,
@@ -875,7 +938,7 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
     };
     let eq_gain = SignedCenter(15);
 
-    match field {
+    let param = match field {
         F::PartLevel => level("Level", ParamGroup::Part, 100),
         F::PartPan => def("Pan", ParamGroup::Part, 127, 64, SignedCenter(64), Time),
         F::PartMute => def("Mute", ParamGroup::Part, 1, 0, OnOff, Common),
@@ -1208,7 +1271,78 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
             Raw,
             Amp,
         ),
+    };
+    ParamDef {
+        host_name: mixer_host_name(field),
+        ..param
     }
+}
+
+/// The name of a mixer field in a host's parameter list, within its
+/// scope: [`ParamDef::host_name`].
+fn mixer_host_name(field: MixerField) -> &'static str {
+    use MixerField as F;
+    match field {
+        F::PartLevel | F::MasterLevel | F::ExtLevel => "Level",
+        F::PartPan => "Pan",
+        F::PartMute | F::ExtMute => "Mute Switch",
+        F::PartChorusSend => "Chorus Send Level",
+        F::PartReverbSend => "Reverb Send Level",
+        F::PartOutputAssign | F::CompOutputAssign => "Output Assign",
+        F::PartReceiveChannel => "Receive Channel",
+        F::ChorusSwitch => "Chorus Switch",
+        F::ChorusType => "Chorus Type",
+        F::ChorusLevel => "Chorus Level",
+        F::ChorusOutputAssign => "Chorus Output Assign",
+        F::ChorusOutputSelect => "Chorus Output Select",
+        F::ReverbSwitch => "Reverb Switch",
+        F::ReverbType => "Reverb Type",
+        F::ReverbLevel => "Reverb Level",
+        F::ReverbOutputAssign => "Reverb Output Assign",
+        F::SoloPart => "Solo Part",
+        F::DrumCompEqSwitch => "Drum Comp/EQ Switch",
+        F::DrumCompEqPart => "Drum Comp/EQ Part",
+        F::EqSwitch => "EQ Switch",
+        F::EqLowFreq => "EQ Low Freq",
+        F::EqLowGain => "EQ Low Gain",
+        F::EqMidFreq => "EQ Mid Freq",
+        F::EqMidGain => "EQ Mid Gain",
+        F::EqMidQ => "EQ Mid Q",
+        F::EqHighFreq => "EQ High Freq",
+        F::EqHighGain => "EQ High Gain",
+        F::CompSwitch => "Comp Switch",
+        F::CompAttack => "Comp Attack Time",
+        F::CompRelease => "Comp Release Time",
+        F::CompThreshold => "Comp Threshold",
+        F::CompRatio => "Comp Ratio",
+        F::CompOutputGain => "Comp Output Gain",
+        F::SurroundSwitch => "Motional Surround Switch",
+        F::SurroundRoomType => "Motional Surround Room Type",
+        F::SurroundRoomSize => "Motional Surround Room Size",
+        F::SurroundDepth => "Motional Surround Depth",
+        F::SurroundAmbienceLevel => "Motional Surround Ambience Level",
+        F::SurroundAmbienceTime => "Motional Surround Ambience Time",
+        F::SurroundAmbienceDensity => "Motional Surround Ambience Density",
+        F::SurroundAmbienceHfDamp => "Motional Surround Ambience HF Damp",
+        F::SurroundLr => "Motional Surround L-R",
+        F::SurroundFb => "Motional Surround F-B",
+        F::SurroundWidth => "Motional Surround Width",
+        F::SurroundAmbienceSend => "Motional Surround Ambience Send Level",
+    }
+}
+
+/// The scopes the Studio Set plugin lists, one of each kind but for the
+/// Parts and Comp+EQ units, which the device spec counts.
+pub(crate) fn studio_set_scopes() -> Vec<MixerScope> {
+    let kit = CompEqKit {
+        part: 0,
+        tone_type: ToneType::PcmDrum,
+    };
+    (0..INTEGRA7.part_count)
+        .map(MixerScope::Part)
+        .chain([MixerScope::Ext, MixerScope::Master, MixerScope::Common])
+        .chain((0..INTEGRA7.comp_eq_unit_count).map(|unit| MixerScope::CompEqUnit { kit, unit }))
+        .collect()
 }
 
 #[cfg(test)]
@@ -1735,5 +1869,120 @@ mod tests {
             mixer_param(MixerField::SurroundSwitch).format,
             ParamFormat::OnOff
         );
+    }
+
+    const STUDIO_SET_DOC: &str = include_str!("../../../docs/midi/05-studio-set.md");
+    const SYSTEM_DOC: &str = include_str!("../../../docs/midi/04-address-map.md");
+
+    /// The Studio Set plugin lists every scope's fields under names that
+    /// are non-empty and that no other parameter of the plugin shares.
+    #[test]
+    fn studio_set_host_names_are_distinct() {
+        use crate::field_spec::qualified_name;
+        let mut seen = std::collections::HashSet::new();
+        for scope in super::studio_set_scopes() {
+            let fields = scope.kind().studio_set_fields();
+            assert!(!fields.is_empty(), "{scope:?} has no fields");
+            for field in fields {
+                let label = mixer_param(field).host_name;
+                assert!(!label.trim().is_empty(), "{field:?} has no host name");
+                let name = qualified_name(&scope.host_prefix(), label);
+                assert!(seen.insert(name.clone()), "{name:?} named twice");
+            }
+        }
+        assert!(seen.contains("Part 7 Level"));
+        assert!(seen.contains("Master EQ Low Gain"));
+        // The Master Level is in the System area, not the Studio Set's.
+        assert!(!seen.contains("Master Level"));
+        assert!(seen.contains("Drum Comp/EQ 3 Output Assign"));
+        assert!(!seen.iter().any(|n| n.contains("Comp Attack")));
+        // The set is chosen here from ADR 0007's ownership list, not from
+        // its "about 1,300" estimate. It leaves out the Chorus and Reverb
+        // type parameters, which `fx_params` names.
+        assert_eq!(seen.len(), 344, "the Studio Set plugin's mixer parameters");
+    }
+
+    /// The doc rows of the Studio Set tables (and the System Common one),
+    /// by the address they sit at. A row's name is cut at its first ` (`,
+    /// which opens a CC number or a `#` footnote.
+    fn doc_names_by_address() -> std::collections::HashMap<Address, String> {
+        use crate::block_field::test_support::{doc_rows, doc_section_base};
+        let studio_set = Address::new(0x18, 0, 0, 0);
+        let mut rows = std::collections::HashMap::new();
+        for heading in [
+            "1. Studio Set Common",
+            "2. Studio Set Common Chorus",
+            "3. Studio Set Common Reverb",
+            "4. Studio Set Common Motional Surround",
+            "5. Studio Set Master EQ",
+            "7. Studio Set Part",
+            "8. Studio Set Part EQ",
+        ] {
+            let base = studio_set.offset(doc_section_base(STUDIO_SET_DOC, heading));
+            for row in doc_rows(STUDIO_SET_DOC, heading, |_| true) {
+                let [hi, lo] = row.offset;
+                let name = row.name.split(" (").next().unwrap().to_string();
+                rows.insert(base.offset([0, 0, hi, lo]), name);
+            }
+        }
+        let system = "System Common Parameters";
+        let base = Address(doc_section_base(SYSTEM_DOC, system));
+        for row in doc_rows(SYSTEM_DOC, system, |_| true) {
+            let [hi, lo] = row.offset;
+            rows.insert(base.offset([0, 0, hi, lo]), row.name);
+        }
+        rows
+    }
+
+    /// Each host name is the MIDI Implementation's name for the row at the
+    /// field's address: `Part Level` is the Part scope's `Level`,
+    /// `Ext Part L-R` the Ext scope's `Motional Surround L-R` less the words
+    /// the Ext rows leave out, `Room Type` the common block's
+    /// `Motional Surround Room Type`.
+    #[test]
+    fn studio_set_host_names_follow_the_doc() {
+        let doc = doc_names_by_address();
+        for scope in studio_set_scopes() {
+            // Every Part's rows are the first Part's.
+            if matches!(scope, MixerScope::Part(part) if part > 0) {
+                continue;
+            }
+            for field in scope.kind().studio_set_fields() {
+                // The Chorus Output Assign is a reserve row in 05; 11 names it.
+                if field == MixerField::ChorusOutputAssign {
+                    continue;
+                }
+                let address = mixer_field_address(field, scope).unwrap();
+                let row = doc
+                    .get(&address)
+                    .unwrap_or_else(|| panic!("{field:?} in {scope:?}: no doc row at {address:?}"));
+                let label = mixer_param(field).host_name;
+                let matches = match scope {
+                    MixerScope::Part(_) => row == label || *row == format!("Part {label}"),
+                    MixerScope::Ext => {
+                        let rest = label.strip_prefix("Motional Surround ").unwrap_or(label);
+                        *row == format!("Ext Part {rest}")
+                    }
+                    MixerScope::Master => row == label || *row == format!("Master {label}"),
+                    MixerScope::Common => {
+                        row == label || label == format!("Motional Surround {row}")
+                    }
+                    MixerScope::CompEqUnit { unit, .. } => {
+                        *row == format!("{DRUM_COMP_EQ} {} {label}", unit + 1)
+                    }
+                };
+                assert!(
+                    matches,
+                    "{field:?} in {scope:?}: host name {label:?}, doc row {row:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn every_mixer_field_has_a_host_name() {
+        for field in MixerField::ALL {
+            assert!(!mixer_param(field).host_name.trim().is_empty(), "{field:?}");
+        }
     }
 }

@@ -5,14 +5,39 @@
 //! and formats follow the MIDI Implementation (`docs/midi/`); defaults are
 //! the field's value in the engine's `Default` block, which the codebase
 //! treats as INIT (not yet checked against the device: #250).
+//!
+//! # Host-facing names
+//!
+//! Every spec also carries a `host_name`, the name its parameter has in a
+//! DAW's list. The same word means the same thing on [`FieldSpec`],
+//! [`ParamDef`](crate::param_registry::ParamDef) and
+//! [`FxParamDef`](crate::fx_params::FxParamDef): the name *within its
+//! block*, as the MIDI Implementation spells it (`docs/midi/`). Two things
+//! can still be missing from it, and a caller adds them with
+//! [`qualified_name`]:
+//!
+//! - **The instance prefix** of a block that repeats: [`partial_prefix`]
+//!   (`Partial 2`), [`KEY_PREFIX`], and the Studio Set scopes'
+//!   [`host_prefix`](crate::param_registry::MixerScope::host_prefix)
+//!   (`Part 7`, `Ext Part`, `Master`, `Drum Comp/EQ 3`).
+//! - **The effect type**, for a MFX, Chorus or Reverb parameter, which only
+//!   does anything while its type is active
+//!   ([`FxParamDef::qualified_name`](crate::fx_params::FxParamDef::qualified_name)).
+//!
+//! The block *word* the doc itself writes (`PMT`, `WMT`, `TVF`, `Tone`,
+//! `Kit`) stays in the name, never in a prefix. A field holding several
+//! values has a template: `{}` is the value's number counted from 1 and
+//! `{n0}` the number the doc counts from 0 ([`FieldSpec::element_name`]).
 
 use std::sync::OnceLock;
 
 use crate::block_field::BlockField;
 use crate::family::ParameterFamily;
 use crate::fx_params::{NOTE_NAMES, SYNC_CLOCK, SYNC_HZ};
+use crate::mfx::{MfxCtrlSlot, MfxHeaderField, MfxState};
+use crate::mfx_params::{ControlSourceKind, MFX_TYPE_NAMES};
 use crate::param_registry::{FieldCatalog, NOTE_FROM, ParamFormat};
-use crate::pcm_drum::{self, PcmdCommonField, PcmdPartialField, PcmdWmtField};
+use crate::pcm_drum::{self, PcmdCommon2Field, PcmdCommonField, PcmdPartialField, PcmdWmtField};
 use crate::pcm_synth::{self, PcmsCommon2Field, PcmsCommonField, PcmsPartialField, PcmsPmtField};
 use crate::sn_acoustic::{self, SnaCommonField};
 use crate::sn_drum::{self, SND_INST_NUMBER_MAX, SndCommonField, SndNoteField};
@@ -34,6 +59,48 @@ pub struct FieldSpec {
     /// The sound dimension the field changes. A field's family starts from
     /// its section in the editors; the exceptions are noted beside them.
     pub family: ParameterFamily,
+    /// The field's name in a host's parameter list, within its block (see
+    /// the module docs). A field holding several values has a template:
+    /// see [`FieldSpec::element_name`].
+    pub host_name: &'static str,
+}
+
+impl FieldSpec {
+    /// The host name of value `index` (0-based) of the field: the name
+    /// itself, or its template with `{}` filled by `index + 1` and `{n0}`
+    /// by `index`.
+    pub fn element_name(&self, index: usize) -> String {
+        fill_name_template(self.host_name, index)
+    }
+}
+
+/// A name template with `{}` filled by `index + 1` and `{n0}` by `index`.
+pub(crate) fn fill_name_template(template: &str, index: usize) -> String {
+    template
+        .replace("{n0}", &index.to_string())
+        .replace("{}", &(index + 1).to_string())
+}
+
+/// Label of a repeated Partial block, which [`partial_prefix`] numbers.
+const PARTIAL_LABEL: &str = "Partial";
+
+/// Prefix of a drum key's own fields: the key a Kit plugin binds to.
+pub const KEY_PREFIX: &str = "Key";
+
+/// The prefix of Partial `index` (0-based) of a tone: `Partial 2` for the
+/// second. The caller takes the Partial count from the device spec.
+pub fn partial_prefix(index: usize) -> String {
+    format!("{PARTIAL_LABEL} {}", index + 1)
+}
+
+/// A host parameter name in full: `prefix` and `name` (a `host_name`)
+/// joined by a space, or `name` alone for a block with no prefix.
+pub fn qualified_name(prefix: &str, name: &str) -> String {
+    if prefix.is_empty() {
+        name.to_string()
+    } else {
+        format!("{prefix} {name}")
+    }
 }
 
 /// Range and format of a field; [`FieldSpec`] adds its default.
@@ -140,6 +207,7 @@ fn spec<F: BlockField>(
     block: &[u8],
     Shape { min, max, format }: Shape,
     family: ParameterFamily,
+    host_name: &'static str,
 ) -> FieldSpec {
     FieldSpec {
         min,
@@ -147,6 +215,7 @@ fn spec<F: BlockField>(
         default: value_in(field, block),
         format,
         family,
+        host_name,
     }
 }
 
@@ -185,7 +254,13 @@ pub fn pcms_common_spec(field: PcmsCommonField) -> FieldSpec {
         | F::MatrixControlSens3
         | F::MatrixControlSens4 => SIGNED_63,
     };
-    spec(field, init, shape, pcms_common_family(field))
+    spec(
+        field,
+        init,
+        shape,
+        pcms_common_family(field),
+        pcms_common_host_name(field),
+    )
 }
 
 /// The spec of a PCM Synth Tone PMT field.
@@ -206,7 +281,13 @@ pub fn pcms_pmt_spec(field: PcmsPmtField) -> FieldSpec {
         F::KeyFadeLower | F::KeyFadeUpper | F::VelocityFadeLower | F::VelocityFadeUpper => RAW_127,
         F::VelocityRangeLower | F::VelocityRangeUpper => VELOCITY_RANGE,
     };
-    spec(field, init, shape, pcms_pmt_family(field))
+    spec(
+        field,
+        init,
+        shape,
+        pcms_pmt_family(field),
+        pcms_pmt_host_name(field),
+    )
 }
 
 /// The spec of a PCM Synth Tone Partial field.
@@ -308,7 +389,13 @@ pub fn pcms_partial_spec(field: PcmsPartialField) -> FieldSpec {
         F::LfoStepType => shape(0, 1, Named(&["STEP", "SMOOTH"])),
         F::LfoStep => shape(28, 100, SignedCenter(64)),
     };
-    spec(field, init, shape, pcms_partial_family(field))
+    spec(
+        field,
+        init,
+        shape,
+        pcms_partial_family(field),
+        pcms_partial_host_name(field),
+    )
 }
 
 /// The spec of a PCM Synth Tone Common 2 field.
@@ -330,6 +417,7 @@ pub fn pcms_common2_spec(field: PcmsCommon2Field) -> FieldSpec {
         default,
         format,
         family: pcms_common2_family(field),
+        host_name: pcms_common2_host_name(field),
     }
 }
 
@@ -340,7 +428,63 @@ pub fn pcmd_common_spec(field: PcmdCommonField) -> FieldSpec {
     let shape = match field {
         PcmdCommonField::KitLevel => RAW_127,
     };
-    spec(field, init, shape, pcmd_common_family(field))
+    spec(
+        field,
+        init,
+        shape,
+        pcmd_common_family(field),
+        pcmd_common_host_name(field),
+    )
+}
+
+/// The spec of a PCM Drum Kit Common 2 field.
+pub fn pcmd_common2_spec(field: PcmdCommon2Field) -> FieldSpec {
+    // Common 2 has no block encoder: read the default off the struct.
+    let init = pcm_drum::PcmDrumCommon2::default();
+    let (Shape { min, max, format }, default) = match field {
+        PcmdCommon2Field::PhraseNumber => (shape(0, 255, Raw), init.phrase_number.into()),
+        PcmdCommon2Field::TfxSwitch => (ON_OFF, init.tfx_switch.into()),
+    };
+    FieldSpec {
+        min,
+        max,
+        default,
+        format,
+        family: ParameterFamily::Common,
+        host_name: pcmd_common2_host_name(field),
+    }
+}
+
+/// The spec of an MFX header field, which every Tone plugin and every
+/// kit-bound Kit plugin lists ahead of the MFX types' parameters.
+pub fn mfx_header_spec(field: MfxHeaderField) -> FieldSpec {
+    let init = MfxState::default();
+    let control = MfxCtrlSlot::default();
+    use MfxHeaderField as F;
+    let (Shape { min, max, format }, default) = match field {
+        F::Type => (
+            shape(0, MFX_TYPE_NAMES.len() as i32 - 1, Named(MFX_TYPE_NAMES)),
+            init.mfx_type,
+        ),
+        F::ChorusSend => (RAW_127, init.chorus_send),
+        F::ReverbSend => (RAW_127, init.reverb_send),
+        // shortcut: Source and Assign show raw indices; name them when an editor shows them (`control_source_name`, `control_targets`).
+        F::ControlSource => (
+            shape(0, ControlSourceKind::Mfx.max().into(), Raw),
+            control.source,
+        ),
+        F::ControlSens => (SIGNED_63, control.sens),
+        // The doc's 0-16 (OFF, 1-16), though no type lists more than eight destinations.
+        F::ControlAssign => (shape(0, 16, Raw), control.assign),
+    };
+    FieldSpec {
+        min,
+        max,
+        default: default.into(),
+        format,
+        family: field.family(),
+        host_name: field.host_name(),
+    }
 }
 
 /// The INIT PCM Drum Kit Partial block, which holds both the WMT and the
@@ -367,7 +511,13 @@ pub fn pcmd_wmt_spec(field: PcmdWmtField) -> FieldSpec {
         F::Level | F::VelocityFadeLower | F::VelocityFadeUpper => RAW_127,
         F::VelocityRangeLower | F::VelocityRangeUpper => VELOCITY_RANGE,
     };
-    spec(field, pcmd_partial_init(), shape, pcmd_wmt_family(field))
+    spec(
+        field,
+        pcmd_partial_init(),
+        shape,
+        pcmd_wmt_family(field),
+        pcmd_wmt_host_name(field),
+    )
 }
 
 /// The spec of a PCM Drum Kit Partial field outside the WMT layers.
@@ -430,6 +580,7 @@ pub fn pcmd_partial_spec(field: PcmdPartialField) -> FieldSpec {
         pcmd_partial_init(),
         shape,
         pcmd_partial_family(field),
+        pcmd_partial_host_name(field),
     )
 }
 
@@ -460,7 +611,13 @@ pub fn sns_common_spec(field: SnsCommonField) -> FieldSpec {
         F::PhraseNumber => PHRASE_NUMBER,
         F::UnisonSize => shape(0, 3, Named(&["2", "4", "6", "8"])),
     };
-    spec(field, init, shape, sns_common_family(field))
+    spec(
+        field,
+        init,
+        shape,
+        sns_common_family(field),
+        sns_common_host_name(field),
+    )
 }
 
 /// SN Synth Tone LFO shapes.
@@ -548,7 +705,13 @@ pub fn sns_partial_spec(field: SnsPartialField) -> FieldSpec {
             ParamFormat::Catalog(FieldCatalog::SnSynthWave),
         ),
     };
-    spec(field, init, shape, sns_partial_family(field))
+    spec(
+        field,
+        init,
+        shape,
+        sns_partial_family(field),
+        sns_partial_host_name(field),
+    )
 }
 
 /// The spec of an SN Acoustic Tone Common field.
@@ -577,7 +740,13 @@ pub fn sna_common_spec(field: SnaCommonField) -> FieldSpec {
         // Each instrument gives its Modify Parameters their own ranges (`sna_inst_params`).
         F::ModifyParameter => RAW_127,
     };
-    spec(field, init, shape, sna_common_family(field))
+    spec(
+        field,
+        init,
+        shape,
+        sna_common_family(field),
+        sna_common_host_name(field),
+    )
 }
 
 /// The spec of an SN Drum Kit Common field.
@@ -589,7 +758,13 @@ pub fn snd_common_spec(field: SndCommonField) -> FieldSpec {
         F::KitLevel | F::AmbienceLevel | F::PhraseNumber => RAW_127,
         F::TfxSwitch => ON_OFF,
     };
-    spec(field, init, shape, snd_common_family(field))
+    spec(
+        field,
+        init,
+        shape,
+        snd_common_family(field),
+        snd_common_host_name(field),
+    )
 }
 
 /// The spec of an SN Drum Kit Note field.
@@ -628,7 +803,435 @@ pub fn snd_note_spec(field: SndNoteField) -> FieldSpec {
         F::DynamicRange => shape(0, 63, Raw),
         F::OutputAssign => DRUM_OUTPUT_ASSIGN,
     };
-    spec(field, init, shape, snd_note_family(field))
+    spec(
+        field,
+        init,
+        shape,
+        snd_note_family(field),
+        snd_note_host_name(field),
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Host-facing names
+// ---------------------------------------------------------------------------
+//
+// Each `*_host_name` function below gives a field's name as the MIDI
+// Implementation spells it (`docs/midi/`), within its block: see the
+// module docs for what a caller adds.
+
+/// The host name of a PCM Synth Tone Common field.
+fn pcms_common_host_name(field: PcmsCommonField) -> &'static str {
+    use PcmsCommonField as F;
+    match field {
+        F::ToneLevel => "Tone Level",
+        F::TonePan => "Tone Pan",
+        F::TonePriority => "Tone Priority",
+        F::CoarseTune => "Tone Coarse Tune",
+        F::FineTune => "Tone Fine Tune",
+        F::OctaveShift => "Octave Shift",
+        F::StretchTuneDepth => "Stretch Tune Depth",
+        F::AnalogFeel => "Analog Feel",
+        F::MonoPoly => "Mono/Poly",
+        F::LegatoSwitch => "Legato Switch",
+        F::LegatoRetrigger => "Legato Retrigger",
+        F::PortamentoSwitch => "Portamento Switch",
+        F::PortamentoMode => "Portamento Mode",
+        F::PortamentoType => "Portamento Type",
+        F::PortamentoStart => "Portamento Start",
+        F::PortamentoTime => "Portamento Time",
+        F::CutoffOffset => "Cutoff Offset",
+        F::ResonanceOffset => "Resonance Offset",
+        F::AttackTimeOffset => "Attack Time Offset",
+        F::ReleaseTimeOffset => "Release Time Offset",
+        F::VelocitySensOffset => "Velocity Sens Offset",
+        F::PmtControlSwitch => "PMT Control Switch",
+        F::PitchBendRangeUp => "Pitch Bend Range Up",
+        F::PitchBendRangeDown => "Pitch Bend Range Down",
+        F::MatrixControlSource => "Matrix Control {} Source",
+        F::MatrixControlDestination1 => "Matrix Control {} Destination 1",
+        F::MatrixControlSens1 => "Matrix Control {} Sens 1",
+        F::MatrixControlDestination2 => "Matrix Control {} Destination 2",
+        F::MatrixControlSens2 => "Matrix Control {} Sens 2",
+        F::MatrixControlDestination3 => "Matrix Control {} Destination 3",
+        F::MatrixControlSens3 => "Matrix Control {} Sens 3",
+        F::MatrixControlDestination4 => "Matrix Control {} Destination 4",
+        F::MatrixControlSens4 => "Matrix Control {} Sens 4",
+    }
+}
+
+/// The host name of a PCM Synth Tone PMT field.
+fn pcms_pmt_host_name(field: PcmsPmtField) -> &'static str {
+    use PcmsPmtField as F;
+    match field {
+        F::StructureType12 => "PMT Structure Type 1 & 2",
+        F::Booster12 => "PMT Booster 1 & 2",
+        F::StructureType34 => "PMT Structure Type 3 & 4",
+        F::Booster34 => "PMT Booster 3 & 4",
+        F::PmtVelocityControl => "PMT Velocity Control",
+        F::PartialSwitch => "PMT{} Partial Switch",
+        F::KeyRangeLower => "PMT{} Keyboard Range Lower",
+        F::KeyRangeUpper => "PMT{} Keyboard Range Upper",
+        F::KeyFadeLower => "PMT{} Keyboard Fade Width Lower",
+        F::KeyFadeUpper => "PMT{} Keyboard Fade Width Upper",
+        F::VelocityRangeLower => "PMT{} Velocity Range Lower",
+        F::VelocityRangeUpper => "PMT{} Velocity Range Upper",
+        F::VelocityFadeLower => "PMT{} Velocity Fade Width Lower",
+        F::VelocityFadeUpper => "PMT{} Velocity Fade Width Upper",
+    }
+}
+
+/// The host name of a PCM Synth Tone Partial field.
+fn pcms_partial_host_name(field: PcmsPartialField) -> &'static str {
+    use PcmsPartialField as F;
+    match field {
+        F::Level => "Level",
+        F::CoarseTune => "Coarse Tune",
+        F::FineTune => "Fine Tune",
+        F::RandomPitchDepth => "Random Pitch Depth",
+        F::Pan => "Pan",
+        F::PanKeyfollow => "Pan Keyfollow",
+        F::RandomPanDepth => "Random Pan Depth",
+        F::AlternatePanDepth => "Alternate Pan Depth",
+        F::EnvMode => "Env Mode",
+        F::DelayMode => "Delay Mode",
+        F::DelayTime => "Delay Time",
+        F::OutputLevel => "Output Level",
+        F::ChorusSend => "Chorus Send Level",
+        F::ReverbSend => "Reverb Send Level",
+        F::ReceiveBender => "Receive Bender",
+        F::ReceiveExpression => "Receive Expression",
+        F::ReceiveHold1 => "Receive Hold-1",
+        F::RedamperSwitch => "Redamper Switch",
+        F::Control1Switch => "Control 1 Switch {}",
+        F::Control2Switch => "Control 2 Switch {}",
+        F::Control3Switch => "Control 3 Switch {}",
+        F::Control4Switch => "Control 4 Switch {}",
+        F::WaveGroupType => "Wave Group Type",
+        F::WaveGroupId => "Wave Group ID",
+        F::WaveNumberL => "Wave Number L (Mono)",
+        F::WaveNumberR => "Wave Number R",
+        F::WaveGain => "Wave Gain",
+        F::WaveFxmSwitch => "Wave FXM Switch",
+        F::WaveFxmColor => "Wave FXM Color",
+        F::WaveFxmDepth => "Wave FXM Depth",
+        F::WaveTempoSync => "Wave Tempo Sync",
+        F::WavePitchKeyfollow => "Wave Pitch Keyfollow",
+        F::PitchEnvDepth => "Pitch Env Depth",
+        F::PitchEnvVelocitySens => "Pitch Env Velocity Sens",
+        F::PitchEnvT1VelocitySens => "Pitch Env Time 1 Velocity Sens",
+        F::PitchEnvT4VelocitySens => "Pitch Env Time 4 Velocity Sens",
+        F::PitchEnvTimeKeyfollow => "Pitch Env Time Keyfollow",
+        F::PitchEnvTime => "Pitch Env Time {}",
+        F::PitchEnvLevel => "Pitch Env Level {n0}",
+        F::TvfFilterType => "TVF Filter Type",
+        F::TvfCutoffFrequency => "TVF Cutoff Frequency",
+        F::TvfCutoffKeyfollow => "TVF Cutoff Keyfollow",
+        F::TvfCutoffVelocityCurve => "TVF Cutoff Velocity Curve",
+        F::TvfCutoffVelocitySens => "TVF Cutoff Velocity Sens",
+        F::TvfResonance => "TVF Resonance",
+        F::TvfResonanceVelocitySens => "TVF Resonance Velocity Sens",
+        F::TvfEnvDepth => "TVF Env Depth",
+        F::TvfEnvVelocityCurve => "TVF Env Velocity Curve",
+        F::TvfEnvVelocitySens => "TVF Env Velocity Sens",
+        F::TvfEnvT1VelocitySens => "TVF Env Time 1 Velocity Sens",
+        F::TvfEnvT4VelocitySens => "TVF Env Time 4 Velocity Sens",
+        F::TvfEnvTimeKeyfollow => "TVF Env Time Keyfollow",
+        F::TvfEnvTime => "TVF Env Time {}",
+        F::TvfEnvLevel => "TVF Env Level {n0}",
+        F::TvaBiasLevel => "Bias Level",
+        F::TvaBiasPosition => "Bias Position",
+        F::TvaBiasDirection => "Bias Direction",
+        F::TvaLevelVelocityCurve => "TVA Level Velocity Curve",
+        F::TvaLevelVelocitySens => "TVA Level Velocity Sens",
+        F::TvaEnvT1VelocitySens => "TVA Env Time 1 Velocity Sens",
+        F::TvaEnvT4VelocitySens => "TVA Env Time 4 Velocity Sens",
+        F::TvaEnvTimeKeyfollow => "TVA Env Time Keyfollow",
+        F::TvaEnvTime => "TVA Env Time {}",
+        F::TvaEnvLevel => "TVA Env Level {}",
+        F::Lfo1Waveform => "LFO1 Waveform",
+        F::Lfo1Rate => "LFO1 Rate",
+        F::Lfo1Offset => "LFO1 Offset",
+        F::Lfo1RateDetune => "LFO1 Rate Detune",
+        F::Lfo1DelayTime => "LFO1 Delay Time",
+        F::Lfo1DelayTimeKeyfollow => "LFO1 Delay Time Keyfollow",
+        F::Lfo1FadeMode => "LFO1 Fade Mode",
+        F::Lfo1FadeTime => "LFO1 Fade Time",
+        F::Lfo1KeyTrigger => "LFO1 Key Trigger",
+        F::Lfo1PitchDepth => "LFO1 Pitch Depth",
+        F::Lfo1TvfDepth => "LFO1 TVF Depth",
+        F::Lfo1TvaDepth => "LFO1 TVA Depth",
+        F::Lfo1PanDepth => "LFO1 Pan Depth",
+        F::Lfo2Waveform => "LFO2 Waveform",
+        F::Lfo2Rate => "LFO2 Rate",
+        F::Lfo2Offset => "LFO2 Offset",
+        F::Lfo2RateDetune => "LFO2 Rate Detune",
+        F::Lfo2DelayTime => "LFO2 Delay Time",
+        F::Lfo2DelayTimeKeyfollow => "LFO2 Delay Time Keyfollow",
+        F::Lfo2FadeMode => "LFO2 Fade Mode",
+        F::Lfo2FadeTime => "LFO2 Fade Time",
+        F::Lfo2KeyTrigger => "LFO2 Key Trigger",
+        F::Lfo2PitchDepth => "LFO2 Pitch Depth",
+        F::Lfo2TvfDepth => "LFO2 TVF Depth",
+        F::Lfo2TvaDepth => "LFO2 TVA Depth",
+        F::Lfo2PanDepth => "LFO2 Pan Depth",
+        F::LfoStepType => "LFO Step Type",
+        F::LfoStep => "LFO Step {}",
+    }
+}
+
+/// The host name of a PCM Synth Tone Common 2 field.
+fn pcms_common2_host_name(field: PcmsCommon2Field) -> &'static str {
+    use PcmsCommon2Field as F;
+    match field {
+        F::ToneCategory => "Tone Category",
+        F::ToneNumber => "Tone Number",
+        F::PhraseOctaveShift => "Phrase Octave Shift",
+        F::TfxSwitch => "TFX Switch",
+        F::PhraseNumber => "Phrase Number",
+    }
+}
+
+/// The host name of a PCM Drum Kit Common 2 field.
+fn pcmd_common2_host_name(field: PcmdCommon2Field) -> &'static str {
+    match field {
+        PcmdCommon2Field::PhraseNumber => "Phrase Number",
+        PcmdCommon2Field::TfxSwitch => "TFX Switch",
+    }
+}
+
+/// The host name of a PCM Drum Kit Common field.
+fn pcmd_common_host_name(field: PcmdCommonField) -> &'static str {
+    match field {
+        PcmdCommonField::KitLevel => "Kit Level",
+    }
+}
+
+/// The host name of a PCM Drum Kit WMT field. Each holds one value per WMT
+/// layer, so the doc's `WMT1`..`WMT4` is the template's number.
+fn pcmd_wmt_host_name(field: PcmdWmtField) -> &'static str {
+    use PcmdWmtField as F;
+    match field {
+        F::Switch => "WMT{} Wave Switch",
+        F::WaveGroupType => "WMT{} Wave Group Type",
+        F::WaveGroupId => "WMT{} Wave Group ID",
+        F::WaveNumberL => "WMT{} Wave Number L (Mono)",
+        F::WaveNumberR => "WMT{} Wave Number R",
+        F::WaveGain => "WMT{} Wave Gain",
+        F::WaveFxmSwitch => "WMT{} Wave FXM Switch",
+        F::WaveFxmColor => "WMT{} Wave FXM Color",
+        F::WaveFxmDepth => "WMT{} Wave FXM Depth",
+        F::WaveTempoSync => "WMT{} Wave Tempo Sync",
+        F::CoarseTune => "WMT{} Wave Coarse Tune",
+        F::FineTune => "WMT{} Wave Fine Tune",
+        F::Pan => "WMT{} Wave Pan",
+        F::RandomPanSwitch => "WMT{} Wave Random Pan Switch",
+        F::AlternatePanSwitch => "WMT{} Wave Alternate Pan Switch",
+        F::Level => "WMT{} Wave Level",
+        F::VelocityRangeLower => "WMT{} Velocity Range Lower",
+        F::VelocityRangeUpper => "WMT{} Velocity Range Upper",
+        F::VelocityFadeLower => "WMT{} Velocity Fade Width Lower",
+        F::VelocityFadeUpper => "WMT{} Velocity Fade Width Upper",
+    }
+}
+
+/// The host name of a PCM Drum Kit Partial field outside the WMT layers.
+fn pcmd_partial_host_name(field: PcmdPartialField) -> &'static str {
+    use PcmdPartialField as F;
+    match field {
+        F::AssignType => "Assign Type",
+        F::MuteGroup => "Mute Group",
+        F::Level => "Level",
+        F::CoarseTune => "Coarse Tune",
+        F::FineTune => "Fine Tune",
+        F::RandomPitchDepth => "Random Pitch Depth",
+        F::Pan => "Pan",
+        F::RandomPanDepth => "Random Pan Depth",
+        F::AlternatePanDepth => "Alternate Pan Depth",
+        F::EnvMode => "Env Mode",
+        F::OutputLevel => "Output Level",
+        F::ChorusSend => "Chorus Send Level",
+        F::ReverbSend => "Reverb Send Level",
+        F::OutputAssign => "Output Assign",
+        F::PitchBendRange => "Pitch Bend Range",
+        F::ReceiveExpression => "Receive Expression",
+        F::ReceiveHold1 => "Receive Hold-1",
+        F::WmtVelocityControl => "WMT Velocity Control",
+        F::PitchEnvDepth => "Pitch Env Depth",
+        F::PitchEnvVelocitySens => "Pitch Env Velocity Sens",
+        F::PitchEnvT1VelocitySens => "Pitch Env Time 1 Velocity Sens",
+        F::PitchEnvT4VelocitySens => "Pitch Env Time 4 Velocity Sens",
+        F::PitchEnvTime => "Pitch Env Time {}",
+        F::PitchEnvLevel => "Pitch Env Level {n0}",
+        F::TvfFilterType => "TVF Filter Type",
+        F::TvfCutoffFrequency => "TVF Cutoff Frequency",
+        F::TvfCutoffVelocityCurve => "TVF Cutoff Velocity Curve",
+        F::TvfCutoffVelocitySens => "TVF Cutoff Velocity Sens",
+        F::TvfResonance => "TVF Resonance",
+        F::TvfResonanceVelocitySens => "TVF Resonance Velocity Sens",
+        F::TvfEnvDepth => "TVF Env Depth",
+        F::TvfEnvVelocityCurve => "TVF Env Velocity Curve Type",
+        F::TvfEnvVelocitySens => "TVF Env Velocity Sens",
+        F::TvfEnvT1VelocitySens => "TVF Env Time 1 Velocity Sens",
+        F::TvfEnvT4VelocitySens => "TVF Env Time 4 Velocity Sens",
+        F::TvfEnvTime => "TVF Env Time {}",
+        F::TvfEnvLevel => "TVF Env Level {n0}",
+        F::TvaLevelVelocityCurve => "TVA Level Velocity Curve",
+        F::TvaLevelVelocitySens => "TVA Level Velocity Sens",
+        F::TvaEnvT1VelocitySens => "TVA Env Time 1 Velocity Sens",
+        F::TvaEnvT4VelocitySens => "TVA Env Time 4 Velocity Sens",
+        F::TvaEnvTime => "TVA Env Time {}",
+        F::TvaEnvLevel => "TVA Env Level {}",
+        F::OneShotMode => "One Shot Mode",
+    }
+}
+
+/// The host name of an SN Synth Tone Common field.
+fn sns_common_host_name(field: SnsCommonField) -> &'static str {
+    use SnsCommonField as F;
+    match field {
+        F::ToneLevel => "Tone Level",
+        F::PortamentoSwitch => "Portamento Switch",
+        F::PortamentoTime => "Portamento Time",
+        F::MonoSwitch => "Mono Switch",
+        F::OctaveShift => "Octave Shift",
+        F::PitchBendRangeUp => "Pitch Bend Range Up",
+        F::PitchBendRangeDown => "Pitch Bend Range Down",
+        F::Partial1Switch => "Partial 1 Switch",
+        F::Partial1Select => "Partial 1 Select",
+        F::Partial2Switch => "Partial 2 Switch",
+        F::Partial2Select => "Partial 2 Select",
+        F::Partial3Switch => "Partial 3 Switch",
+        F::Partial3Select => "Partial 3 Select",
+        F::RingSwitch => "Ring Switch",
+        F::TfxSwitch => "TFX Switch",
+        F::UnisonSwitch => "Unison Switch",
+        F::PortamentoMode => "Portamento Mode",
+        F::LegatoSwitch => "Legato Switch",
+        F::AnalogFeel => "Analog Feel",
+        F::WaveShape => "Wave Shape",
+        F::ToneCategory => "Tone Category",
+        F::PhraseNumber => "Phrase Number",
+        F::PhraseOctaveShift => "Phrase Octave Shift",
+        F::UnisonSize => "Unison Size",
+    }
+}
+
+/// The host name of an SN Synth Tone Partial field.
+fn sns_partial_host_name(field: SnsPartialField) -> &'static str {
+    use SnsPartialField as F;
+    match field {
+        F::OscWave => "OSC Wave",
+        F::OscWaveVariation => "OSC Wave Variation",
+        F::OscPitch => "OSC Pitch",
+        F::OscDetune => "OSC Detune",
+        F::OscPwModDepth => "OSC Pulse Width Mod Depth",
+        F::OscPulseWidth => "OSC Pulse Width",
+        F::OscPitchEnvAttack => "OSC Pitch Env Attack Time",
+        F::OscPitchEnvDecay => "OSC Pitch Env Decay",
+        F::OscPitchEnvDepth => "OSC Pitch Env Depth",
+        F::FilterMode => "Filter Mode",
+        F::FilterSlope => "Filter Slope",
+        F::FilterCutoff => "Filter Cutoff",
+        F::FilterKeyfollow => "Filter Cutoff Keyfollow",
+        F::FilterEnvVelSens => "Filter Env Velocity Sens",
+        F::FilterResonance => "Filter Resonance",
+        F::FilterEnvAttack => "Filter Env Attack Time",
+        F::FilterEnvDecay => "Filter Env Decay Time",
+        F::FilterEnvSustain => "Filter Env Sustain Level",
+        F::FilterEnvRelease => "Filter Env Release Time",
+        F::FilterEnvDepth => "Filter Env Depth",
+        F::AmpLevel => "Amp Level",
+        F::AmpVelSens => "Amp Level Velocity Sens",
+        F::AmpEnvAttack => "Amp Env Attack Time",
+        F::AmpEnvDecay => "Amp Env Decay Time",
+        F::AmpEnvSustain => "Amp Env Sustain Level",
+        F::AmpEnvRelease => "Amp Env Release Time",
+        F::AmpPan => "Amp Pan",
+        F::LfoShape => "LFO Shape",
+        F::LfoRate => "LFO Rate",
+        F::LfoTempoSync => "LFO Tempo Sync Switch",
+        F::LfoTempoSyncNote => "LFO Tempo Sync Note",
+        F::LfoFadeTime => "LFO Fade Time",
+        F::LfoKeyTrigger => "LFO Key Trigger",
+        F::LfoPitchDepth => "LFO Pitch Depth",
+        F::LfoFilterDepth => "LFO Filter Depth",
+        F::LfoAmpDepth => "LFO Amp Depth",
+        F::LfoPanDepth => "LFO Pan Depth",
+        F::ModLfoShape => "Modulation LFO Shape",
+        F::ModLfoRate => "Modulation LFO Rate",
+        F::ModLfoTempoSync => "Modulation LFO Tempo Sync Switch",
+        F::ModLfoTempoSyncNote => "Modulation LFO Tempo Sync Note",
+        F::PwShift => "OSC Pulse Width Shift",
+        F::ModLfoPitchDepth => "Modulation LFO Pitch Depth",
+        F::ModLfoFilterDepth => "Modulation LFO Filter Depth",
+        F::ModLfoAmpDepth => "Modulation LFO Amp Depth",
+        F::ModLfoPanDepth => "Modulation LFO Pan Depth",
+        F::AftertouchCutoff => "Cutoff Aftertouch Sens",
+        F::AftertouchLevel => "Level Aftertouch Sens",
+        F::WaveGain => "Wave Gain",
+        F::WaveNumber => "Wave Number",
+        F::HpfCutoff => "HPF Cutoff",
+        F::SuperSawDetune => "Super Saw Detune",
+        F::ModLfoRateControl => "Modulation LFO Rate Control",
+        F::AmpLevelKeyfollow => "Amp Level Keyfollow",
+    }
+}
+
+/// The host name of an SN Acoustic Tone Common field.
+fn sna_common_host_name(field: SnaCommonField) -> &'static str {
+    use SnaCommonField as F;
+    match field {
+        F::ToneLevel => "Tone Level",
+        F::MonoPoly => "Mono/Poly",
+        F::PortamentoTimeOffset => "Portamento Time Offset",
+        F::CutoffOffset => "Cutoff Offset",
+        F::ResonanceOffset => "Resonance Offset",
+        F::AttackTimeOffset => "Attack Time Offset",
+        F::ReleaseTimeOffset => "Release Time Offset",
+        F::VibratoRate => "Vibrato Rate",
+        F::VibratoDepth => "Vibrato Depth",
+        F::VibratoDelay => "Vibrato Delay",
+        F::OctaveShift => "Octave Shift",
+        F::Category => "Category",
+        F::PhraseNumber => "Phrase Number",
+        F::PhraseOctaveShift => "Phrase Octave Shift",
+        F::TfxSwitch => "TFX Switch",
+        F::InstVariation => "Inst Variation",
+        F::InstNumber => "Inst Number",
+        F::ModifyParameter => "Modify Parameter {}",
+    }
+}
+
+/// The host name of an SN Drum Kit Common field.
+fn snd_common_host_name(field: SndCommonField) -> &'static str {
+    use SndCommonField as F;
+    match field {
+        F::KitLevel => "Kit Level",
+        F::AmbienceLevel => "Ambience Level",
+        F::PhraseNumber => "Phrase Number",
+        F::TfxSwitch => "TFX Switch",
+    }
+}
+
+/// The host name of an SN Drum Kit Note field.
+fn snd_note_host_name(field: SndNoteField) -> &'static str {
+    use SndNoteField as F;
+    match field {
+        F::InstNumber => "Inst Number",
+        F::Level => "Level",
+        F::Pan => "Pan",
+        F::ChorusSend => "Chorus Send Level",
+        F::ReverbSend => "Reverb Send Level",
+        F::Tune => "Tune",
+        F::Attack => "Attack",
+        F::Decay => "Decay",
+        F::Brilliance => "Brilliance",
+        F::Variation => "Variation",
+        F::DynamicRange => "Dynamic Range",
+        F::StereoWidth => "Stereo Width",
+        F::OutputAssign => "Output Assign",
+    }
 }
 
 // Each `*_family` function below starts every field from its section in the
@@ -1119,6 +1722,8 @@ pub fn sns_partial_sync(field: SnsPartialField) -> Option<FieldSync<SnsPartialFi
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::block_field::test_support::doc_rows;
+    use crate::mfx::{MfxHeaderField, mfx_header_offset};
 
     const PCMS_DOC: &str = include_str!("../../../docs/midi/06-pcm-synth-tone.md");
     const PCMD_DOC: &str = include_str!("../../../docs/midi/07-pcm-drum-kit.md");
@@ -1126,53 +1731,30 @@ mod tests {
     const SNA_DOC: &str = include_str!("../../../docs/midi/09-supernatural-acoustic-tone.md");
     const SND_DOC: &str = include_str!("../../../docs/midi/10-supernatural-drum-kit.md");
 
-    /// A documented parameter: its byte position in the block and its range.
-    struct DocRow {
-        name: String,
-        position: usize,
-        min: i32,
-        max: i32,
-    }
-
-    /// The parameter rows of the `## <heading>` section of `doc`, whose
-    /// heading may go on with an `(offset ...)`. Cells are split on `|`;
-    /// reserves, unnamed rows, `...` rows and rows `keep` rejects are left
-    /// out.
-    fn doc_rows(doc: &str, heading: &str, keep: impl Fn(&str) -> bool) -> Vec<DocRow> {
-        let section = doc
-            .split("\n## ")
-            .find(|s| {
-                s.lines().next().is_some_and(|l| {
-                    l.strip_prefix(heading)
-                        .is_some_and(|rest| rest.is_empty() || rest.starts_with(" ("))
-                })
-            })
-            .unwrap_or_else(|| panic!("no section {heading}"));
-        section
-            .lines()
-            .filter(|l| l.starts_with("| `"))
-            .filter_map(|line| {
-                let cells: Vec<&str> = line.trim_matches('|').split('|').map(str::trim).collect();
-                let name = cells[2];
-                if name.starts_with('(') || !keep(name) {
-                    return None;
-                }
-                let offset = cells[0].split('`').nth(1).unwrap();
-                let [hi, lo] = [0, 1]
-                    .map(|i| usize::from_str_radix(offset.split(' ').nth(i).unwrap(), 16).unwrap());
-                // The PCM Synth doc separates the range with " - ", the PCM Drum doc with " -- ".
-                let (min, max) = (cells[3].split_once(" -- "))
-                    .or_else(|| cells[3].split_once(" - "))
-                    .unwrap();
-                Some(DocRow {
-                    name: name.to_string(),
-                    position: hi * 128 + lo,
-                    min: min.parse().unwrap(),
-                    max: max.parse().unwrap(),
-                })
-            })
+    /// A name compared without case or spaces: the doc writes `Partial1
+    /// Switch` and `FILTER Mode`, and marks a nibblized row with a `#`.
+    fn squash(name: &str) -> String {
+        name.chars()
+            .filter(|c| !c.is_whitespace() && *c != '#')
+            .flat_map(char::to_lowercase)
             .collect()
     }
+
+    /// How a section's host names differ from its doc names, besides case
+    /// and spacing: the doc may begin every name with a word the prefix
+    /// stands for (`Partial Level` is the host's `Level`), and a host name
+    /// may begin with a block word the doc leaves out (`PMT Booster 1 & 2`
+    /// is the doc's `Booster 1 & 2`).
+    #[derive(Clone, Copy)]
+    struct Affixes {
+        doc_prefix: &'static str,
+        host_word: &'static str,
+    }
+
+    const PLAIN: Affixes = Affixes {
+        doc_prefix: "",
+        host_word: "",
+    };
 
     /// Check every documented row against the field covering its position.
     fn assert_matches_doc<F: BlockField>(
@@ -1180,24 +1762,38 @@ mod tests {
         heading: &str,
         keep: impl Fn(&str) -> bool,
         fields: &[F],
+        affixes: Affixes,
         spec_of: impl Fn(F) -> FieldSpec,
     ) {
         let rows = doc_rows(doc, heading, keep);
         assert!(!rows.is_empty(), "{heading}: no rows");
         for row in rows {
-            let field = fields
+            let (field, index) = fields
                 .iter()
                 .copied()
-                .find(|f| (0..f.count()).any(|i| f.position() + i * f.stride() == row.position))
+                .find_map(|f| {
+                    (0..f.count())
+                        .find(|i| f.position() + i * f.stride() == row.position)
+                        .map(|i| (f, i))
+                })
                 .unwrap_or_else(|| {
                     panic!("{heading}: no field at {} ({})", row.position, row.name)
                 });
             let spec = spec_of(field);
             assert_eq!(
                 (spec.min, spec.max),
-                (row.min, row.max),
+                row.range.unwrap(),
                 "{} ({field:?})",
                 row.name
+            );
+            let (doc_name, host) = (squash(&row.name), squash(&spec.element_name(index)));
+            assert!(
+                doc_name == host
+                    || doc_name == format!("{}{host}", squash(affixes.doc_prefix))
+                    || host == format!("{}{doc_name}", squash(affixes.host_word)),
+                "{field:?}[{index}]: doc says {:?}, host name is {:?}",
+                row.name,
+                spec.element_name(index)
             );
         }
         for &field in fields {
@@ -1221,200 +1817,57 @@ mod tests {
 
     #[test]
     fn common_specs_match_the_doc() {
-        use PcmsCommonField as F;
-        let fields = [
-            F::ToneLevel,
-            F::TonePan,
-            F::TonePriority,
-            F::CoarseTune,
-            F::FineTune,
-            F::OctaveShift,
-            F::StretchTuneDepth,
-            F::AnalogFeel,
-            F::MonoPoly,
-            F::LegatoSwitch,
-            F::LegatoRetrigger,
-            F::PortamentoSwitch,
-            F::PortamentoMode,
-            F::PortamentoType,
-            F::PortamentoStart,
-            F::PortamentoTime,
-            F::CutoffOffset,
-            F::ResonanceOffset,
-            F::AttackTimeOffset,
-            F::ReleaseTimeOffset,
-            F::VelocitySensOffset,
-            F::PmtControlSwitch,
-            F::PitchBendRangeUp,
-            F::PitchBendRangeDown,
-            F::MatrixControlSource,
-            F::MatrixControlDestination1,
-            F::MatrixControlSens1,
-            F::MatrixControlDestination2,
-            F::MatrixControlSens2,
-            F::MatrixControlDestination3,
-            F::MatrixControlSens3,
-            F::MatrixControlDestination4,
-            F::MatrixControlSens4,
-        ];
         assert_matches_doc(
             PCMS_DOC,
             "PCM Synth Tone Common",
             |name| !name.starts_with("PCM Synth Tone Name"),
-            &fields,
+            PcmsCommonField::ALL,
+            Affixes {
+                doc_prefix: "PCM Synth",
+                host_word: "",
+            },
             pcms_common_spec,
         );
     }
 
     #[test]
     fn pmt_specs_match_the_doc() {
-        use PcmsPmtField as F;
-        let fields = [
-            F::StructureType12,
-            F::Booster12,
-            F::StructureType34,
-            F::Booster34,
-            F::PmtVelocityControl,
-            F::PartialSwitch,
-            F::KeyRangeLower,
-            F::KeyRangeUpper,
-            F::KeyFadeLower,
-            F::KeyFadeUpper,
-            F::VelocityRangeLower,
-            F::VelocityRangeUpper,
-            F::VelocityFadeLower,
-            F::VelocityFadeUpper,
-        ];
         assert_matches_doc(
             PCMS_DOC,
             "PCM Synth Tone PMT (Partial Mix Table)",
             |_| true,
-            &fields,
+            PcmsPmtField::ALL,
+            Affixes {
+                doc_prefix: "",
+                host_word: "PMT",
+            },
             pcms_pmt_spec,
         );
     }
 
     #[test]
     fn partial_specs_match_the_doc() {
-        use PcmsPartialField as F;
-        let fields = [
-            F::Level,
-            F::CoarseTune,
-            F::FineTune,
-            F::RandomPitchDepth,
-            F::Pan,
-            F::PanKeyfollow,
-            F::RandomPanDepth,
-            F::AlternatePanDepth,
-            F::EnvMode,
-            F::DelayMode,
-            F::DelayTime,
-            F::OutputLevel,
-            F::ChorusSend,
-            F::ReverbSend,
-            F::ReceiveBender,
-            F::ReceiveExpression,
-            F::ReceiveHold1,
-            F::RedamperSwitch,
-            F::Control1Switch,
-            F::Control2Switch,
-            F::Control3Switch,
-            F::Control4Switch,
-            F::WaveGroupType,
-            F::WaveGroupId,
-            F::WaveNumberL,
-            F::WaveNumberR,
-            F::WaveGain,
-            F::WaveFxmSwitch,
-            F::WaveFxmColor,
-            F::WaveFxmDepth,
-            F::WaveTempoSync,
-            F::WavePitchKeyfollow,
-            F::PitchEnvDepth,
-            F::PitchEnvVelocitySens,
-            F::PitchEnvT1VelocitySens,
-            F::PitchEnvT4VelocitySens,
-            F::PitchEnvTimeKeyfollow,
-            F::PitchEnvTime,
-            F::PitchEnvLevel,
-            F::TvfFilterType,
-            F::TvfCutoffFrequency,
-            F::TvfCutoffKeyfollow,
-            F::TvfCutoffVelocityCurve,
-            F::TvfCutoffVelocitySens,
-            F::TvfResonance,
-            F::TvfResonanceVelocitySens,
-            F::TvfEnvDepth,
-            F::TvfEnvVelocityCurve,
-            F::TvfEnvVelocitySens,
-            F::TvfEnvT1VelocitySens,
-            F::TvfEnvT4VelocitySens,
-            F::TvfEnvTimeKeyfollow,
-            F::TvfEnvTime,
-            F::TvfEnvLevel,
-            F::TvaBiasLevel,
-            F::TvaBiasPosition,
-            F::TvaBiasDirection,
-            F::TvaLevelVelocityCurve,
-            F::TvaLevelVelocitySens,
-            F::TvaEnvT1VelocitySens,
-            F::TvaEnvT4VelocitySens,
-            F::TvaEnvTimeKeyfollow,
-            F::TvaEnvTime,
-            F::TvaEnvLevel,
-            F::Lfo1Waveform,
-            F::Lfo1Rate,
-            F::Lfo1Offset,
-            F::Lfo1RateDetune,
-            F::Lfo1DelayTime,
-            F::Lfo1DelayTimeKeyfollow,
-            F::Lfo1FadeMode,
-            F::Lfo1FadeTime,
-            F::Lfo1KeyTrigger,
-            F::Lfo1PitchDepth,
-            F::Lfo1TvfDepth,
-            F::Lfo1TvaDepth,
-            F::Lfo1PanDepth,
-            F::Lfo2Waveform,
-            F::Lfo2Rate,
-            F::Lfo2Offset,
-            F::Lfo2RateDetune,
-            F::Lfo2DelayTime,
-            F::Lfo2DelayTimeKeyfollow,
-            F::Lfo2FadeMode,
-            F::Lfo2FadeTime,
-            F::Lfo2KeyTrigger,
-            F::Lfo2PitchDepth,
-            F::Lfo2TvfDepth,
-            F::Lfo2TvaDepth,
-            F::Lfo2PanDepth,
-            F::LfoStepType,
-            F::LfoStep,
-        ];
         assert_matches_doc(
             PCMS_DOC,
             "PCM Synth Tone Partial",
             |_| true,
-            &fields,
+            PcmsPartialField::ALL,
+            Affixes {
+                doc_prefix: "Partial",
+                host_word: "",
+            },
             pcms_partial_spec,
         );
     }
 
     #[test]
     fn common2_specs_match_the_doc() {
-        use PcmsCommon2Field as F;
-        let fields = [
-            F::ToneCategory,
-            F::ToneNumber,
-            F::PhraseOctaveShift,
-            F::TfxSwitch,
-            F::PhraseNumber,
-        ];
         assert_matches_doc(
             PCMS_DOC,
             "PCM Synth Tone Common 2",
             |_| true,
-            &fields,
+            PcmsCommon2Field::ALL,
+            PLAIN,
             pcms_common2_spec,
         );
     }
@@ -1628,99 +2081,59 @@ mod tests {
             PCMD_DOC,
             "PCM Drum Kit Common",
             |name| !name.starts_with("Kit Name"),
-            &[PcmdCommonField::KitLevel],
+            PcmdCommonField::ALL,
+            PLAIN,
             pcmd_common_spec,
         );
     }
 
     #[test]
+    fn pcmd_common2_specs_match_the_doc() {
+        assert_matches_doc(
+            PCMD_DOC,
+            "PCM Drum Kit Common 2",
+            |_| true,
+            PcmdCommon2Field::ALL,
+            PLAIN,
+            pcmd_common2_spec,
+        );
+    }
+
+    #[test]
+    fn mfx_header_specs_match_the_doc() {
+        assert_matches_doc(
+            PCMS_DOC,
+            "PCM Synth Tone Common MFX",
+            |name| name.starts_with("MFX"),
+            MfxHeaderField::ALL,
+            PLAIN,
+            mfx_header_spec,
+        );
+    }
+
+    #[test]
     fn pcmd_wmt_specs_match_the_doc() {
-        use PcmdWmtField as F;
-        let fields = [
-            F::Switch,
-            F::WaveGroupType,
-            F::WaveGroupId,
-            F::WaveNumberL,
-            F::WaveNumberR,
-            F::WaveGain,
-            F::WaveFxmSwitch,
-            F::WaveFxmColor,
-            F::WaveFxmDepth,
-            F::WaveTempoSync,
-            F::CoarseTune,
-            F::FineTune,
-            F::Pan,
-            F::RandomPanSwitch,
-            F::AlternatePanSwitch,
-            F::Level,
-            F::VelocityRangeLower,
-            F::VelocityRangeUpper,
-            F::VelocityFadeLower,
-            F::VelocityFadeUpper,
-        ];
         assert_matches_doc(
             PCMD_DOC,
             "PCM Drum Kit Partial",
             is_wmt_layer_row,
-            &fields,
+            PcmdWmtField::ALL,
+            PLAIN,
             pcmd_wmt_spec,
         );
     }
 
     #[test]
     fn pcmd_partial_specs_match_the_doc() {
-        use PcmdPartialField as F;
-        let fields = [
-            F::AssignType,
-            F::MuteGroup,
-            F::Level,
-            F::CoarseTune,
-            F::FineTune,
-            F::RandomPitchDepth,
-            F::Pan,
-            F::RandomPanDepth,
-            F::AlternatePanDepth,
-            F::EnvMode,
-            F::OutputLevel,
-            F::ChorusSend,
-            F::ReverbSend,
-            F::OutputAssign,
-            F::PitchBendRange,
-            F::ReceiveExpression,
-            F::ReceiveHold1,
-            F::WmtVelocityControl,
-            F::PitchEnvDepth,
-            F::PitchEnvVelocitySens,
-            F::PitchEnvT1VelocitySens,
-            F::PitchEnvT4VelocitySens,
-            F::PitchEnvTime,
-            F::PitchEnvLevel,
-            F::TvfFilterType,
-            F::TvfCutoffFrequency,
-            F::TvfCutoffVelocityCurve,
-            F::TvfCutoffVelocitySens,
-            F::TvfResonance,
-            F::TvfResonanceVelocitySens,
-            F::TvfEnvDepth,
-            F::TvfEnvVelocityCurve,
-            F::TvfEnvVelocitySens,
-            F::TvfEnvT1VelocitySens,
-            F::TvfEnvT4VelocitySens,
-            F::TvfEnvTime,
-            F::TvfEnvLevel,
-            F::TvaLevelVelocityCurve,
-            F::TvaLevelVelocitySens,
-            F::TvaEnvT1VelocitySens,
-            F::TvaEnvT4VelocitySens,
-            F::TvaEnvTime,
-            F::TvaEnvLevel,
-            F::OneShotMode,
-        ];
         assert_matches_doc(
             PCMD_DOC,
             "PCM Drum Kit Partial",
             |name| !name.starts_with("Partial Name") && !is_wmt_layer_row(name),
-            &fields,
+            PcmdPartialField::ALL,
+            Affixes {
+                doc_prefix: "Partial",
+                host_word: "",
+            },
             pcmd_partial_spec,
         );
     }
@@ -1743,150 +2156,48 @@ mod tests {
 
     #[test]
     fn sns_common_specs_match_the_doc() {
-        use SnsCommonField as F;
-        let fields = [
-            F::ToneLevel,
-            F::PortamentoSwitch,
-            F::PortamentoTime,
-            F::MonoSwitch,
-            F::OctaveShift,
-            F::PitchBendRangeUp,
-            F::PitchBendRangeDown,
-            F::Partial1Switch,
-            F::Partial1Select,
-            F::Partial2Switch,
-            F::Partial2Select,
-            F::Partial3Switch,
-            F::Partial3Select,
-            F::RingSwitch,
-            F::TfxSwitch,
-            F::UnisonSwitch,
-            F::PortamentoMode,
-            F::LegatoSwitch,
-            F::AnalogFeel,
-            F::WaveShape,
-            F::ToneCategory,
-            F::PhraseNumber,
-            F::PhraseOctaveShift,
-            F::UnisonSize,
-        ];
         assert_matches_doc(
             SNS_DOC,
             "SN Synth Tone Common",
             |name| !name.starts_with("Tone Name"),
-            &fields,
+            SnsCommonField::ALL,
+            PLAIN,
             sns_common_spec,
         );
     }
 
     #[test]
     fn sns_partial_specs_match_the_doc() {
-        use SnsPartialField as F;
-        let fields = [
-            F::OscWave,
-            F::OscWaveVariation,
-            F::OscPitch,
-            F::OscDetune,
-            F::OscPwModDepth,
-            F::OscPulseWidth,
-            F::OscPitchEnvAttack,
-            F::OscPitchEnvDecay,
-            F::OscPitchEnvDepth,
-            F::FilterMode,
-            F::FilterSlope,
-            F::FilterCutoff,
-            F::FilterKeyfollow,
-            F::FilterEnvVelSens,
-            F::FilterResonance,
-            F::FilterEnvAttack,
-            F::FilterEnvDecay,
-            F::FilterEnvSustain,
-            F::FilterEnvRelease,
-            F::FilterEnvDepth,
-            F::AmpLevel,
-            F::AmpVelSens,
-            F::AmpEnvAttack,
-            F::AmpEnvDecay,
-            F::AmpEnvSustain,
-            F::AmpEnvRelease,
-            F::AmpPan,
-            F::LfoShape,
-            F::LfoRate,
-            F::LfoTempoSync,
-            F::LfoTempoSyncNote,
-            F::LfoFadeTime,
-            F::LfoKeyTrigger,
-            F::LfoPitchDepth,
-            F::LfoFilterDepth,
-            F::LfoAmpDepth,
-            F::LfoPanDepth,
-            F::ModLfoShape,
-            F::ModLfoRate,
-            F::ModLfoTempoSync,
-            F::ModLfoTempoSyncNote,
-            F::PwShift,
-            F::ModLfoPitchDepth,
-            F::ModLfoFilterDepth,
-            F::ModLfoAmpDepth,
-            F::ModLfoPanDepth,
-            F::AftertouchCutoff,
-            F::AftertouchLevel,
-            F::WaveGain,
-            F::WaveNumber,
-            F::HpfCutoff,
-            F::SuperSawDetune,
-            F::ModLfoRateControl,
-            F::AmpLevelKeyfollow,
-        ];
         assert_matches_doc(
             SNS_DOC,
             "SN Synth Tone Partial",
             |_| true,
-            &fields,
+            SnsPartialField::ALL,
+            PLAIN,
             sns_partial_spec,
         );
     }
 
     #[test]
     fn sna_common_specs_match_the_doc() {
-        use SnaCommonField as F;
-        let fields = [
-            F::ToneLevel,
-            F::MonoPoly,
-            F::PortamentoTimeOffset,
-            F::CutoffOffset,
-            F::ResonanceOffset,
-            F::AttackTimeOffset,
-            F::ReleaseTimeOffset,
-            F::VibratoRate,
-            F::VibratoDepth,
-            F::VibratoDelay,
-            F::OctaveShift,
-            F::Category,
-            F::PhraseNumber,
-            F::PhraseOctaveShift,
-            F::TfxSwitch,
-            F::InstVariation,
-            F::InstNumber,
-            F::ModifyParameter,
-        ];
         assert_matches_doc(
             SNA_DOC,
             "SN Acoustic Tone Common",
             |name| !name.starts_with("Tone Name"),
-            &fields,
+            SnaCommonField::ALL,
+            PLAIN,
             sna_common_spec,
         );
     }
 
     #[test]
     fn snd_common_specs_match_the_doc() {
-        use SndCommonField as F;
         assert_matches_doc(
             SND_DOC,
             "SN Drum Kit Common",
             |name| !name.starts_with("Kit Name"),
-            &[F::KitLevel, F::AmbienceLevel, F::PhraseNumber, F::TfxSwitch],
+            SndCommonField::ALL,
+            PLAIN,
             snd_common_spec,
         );
     }
@@ -1894,26 +2205,12 @@ mod tests {
     #[test]
     fn snd_note_specs_match_the_doc() {
         use SndNoteField as F;
-        let fields = [
-            F::InstNumber,
-            F::Level,
-            F::Pan,
-            F::ChorusSend,
-            F::ReverbSend,
-            F::Tune,
-            F::Attack,
-            F::Decay,
-            F::Brilliance,
-            F::Variation,
-            F::DynamicRange,
-            F::StereoWidth,
-            F::OutputAssign,
-        ];
         assert_matches_doc(
             SND_DOC,
             "SN Drum Kit Note",
             |_| true,
-            &fields,
+            SndNoteField::ALL,
+            PLAIN,
             snd_note_spec,
         );
         let fmt = |f: SndNoteField, v| snd_note_spec(f).format.format(v);
@@ -1922,5 +2219,237 @@ mod tests {
         assert_eq!(fmt(F::Attack, 100), "100%");
         assert_eq!(fmt(F::Decay, 1), "-63");
         assert_eq!(fmt(F::Brilliance, 49), "-15");
+    }
+
+    /// Every host name of a block: one per value of every field.
+    fn host_names<F: BlockField>(
+        fields: &[F],
+        prefix: &str,
+        spec_of: impl Fn(F) -> FieldSpec,
+    ) -> Vec<String> {
+        fields
+            .iter()
+            .flat_map(|&field| {
+                let spec = spec_of(field);
+                (0..field.count())
+                    .map(|i| qualified_name(prefix, &spec.element_name(i)))
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    }
+
+    /// Fail on an empty name or a name two values of `names` share.
+    fn assert_distinct(block: &str, names: &[String]) {
+        let mut seen = std::collections::HashSet::new();
+        for name in names {
+            assert!(!name.trim().is_empty(), "{block}: empty name");
+            assert!(seen.insert(name), "{block}: {name:?} named twice");
+        }
+    }
+
+    /// A field's name is a template exactly when it holds several values.
+    fn assert_templates<F: BlockField>(fields: &[F], spec_of: impl Fn(F) -> FieldSpec) {
+        for &field in fields {
+            let name = spec_of(field).host_name;
+            assert!(!name.is_empty(), "{field:?} has no name");
+            let placeholders = name.matches("{}").count() + name.matches("{n0}").count();
+            assert_eq!(
+                placeholders,
+                usize::from(field.count() > 1),
+                "{field:?}: {name:?} vs {} values",
+                field.count()
+            );
+            let filled = fill_name_template(name, field.count() - 1);
+            assert!(!filled.contains('{'), "{field:?}: {filled:?}");
+        }
+    }
+
+    /// Each `ALL` lists its fields in address order.
+    fn assert_ascending<F: BlockField>(block: &str, fields: &[F]) {
+        for pair in fields.windows(2) {
+            assert!(
+                pair[0].position() < pair[1].position(),
+                "{block}: {:?} is not before {:?}",
+                pair[0],
+                pair[1]
+            );
+        }
+    }
+
+    #[test]
+    fn all_lists_are_in_address_order() {
+        assert_ascending("PCM Synth Common", PcmsCommonField::ALL);
+        assert_ascending("PCM Synth PMT", PcmsPmtField::ALL);
+        assert_ascending("PCM Synth Partial", PcmsPartialField::ALL);
+        assert_ascending("PCM Synth Common 2", PcmsCommon2Field::ALL);
+        assert_ascending("PCM Drum Common", PcmdCommonField::ALL);
+        assert_ascending("PCM Drum Common 2", PcmdCommon2Field::ALL);
+        assert_ascending("PCM Drum WMT", PcmdWmtField::ALL);
+        assert_ascending("PCM Drum Partial", PcmdPartialField::ALL);
+        assert_ascending("SN Synth Common", SnsCommonField::ALL);
+        assert_ascending("SN Synth Partial", SnsPartialField::ALL);
+        assert_ascending("SN Acoustic Common", SnaCommonField::ALL);
+        assert_ascending("SN Drum Common", SndCommonField::ALL);
+        assert_ascending("SN Drum Note", SndNoteField::ALL);
+        let header: Vec<usize> = MfxHeaderField::ALL
+            .iter()
+            .map(|f| usize::from(mfx_header_offset(*f, 0).unwrap()))
+            .collect();
+        assert!(header.windows(2).all(|w| w[0] < w[1]), "{header:?}");
+    }
+
+    #[test]
+    fn every_field_has_a_host_name_unique_in_its_block() {
+        fn check<F: BlockField>(
+            block: &str,
+            fields: &[F],
+            spec_of: impl Fn(F) -> FieldSpec + Copy,
+        ) {
+            assert_templates(fields, spec_of);
+            assert_distinct(block, &host_names(fields, "", spec_of));
+        }
+        check("PCM Synth Common", PcmsCommonField::ALL, pcms_common_spec);
+        check("PCM Synth PMT", PcmsPmtField::ALL, pcms_pmt_spec);
+        check(
+            "PCM Synth Partial",
+            PcmsPartialField::ALL,
+            pcms_partial_spec,
+        );
+        check(
+            "PCM Synth Common 2",
+            PcmsCommon2Field::ALL,
+            pcms_common2_spec,
+        );
+        check("PCM Drum Common", PcmdCommonField::ALL, pcmd_common_spec);
+        check(
+            "PCM Drum Common 2",
+            PcmdCommon2Field::ALL,
+            pcmd_common2_spec,
+        );
+        check("PCM Drum WMT", PcmdWmtField::ALL, pcmd_wmt_spec);
+        check("PCM Drum Partial", PcmdPartialField::ALL, pcmd_partial_spec);
+        check("SN Synth Common", SnsCommonField::ALL, sns_common_spec);
+        check("SN Synth Partial", SnsPartialField::ALL, sns_partial_spec);
+        check("SN Acoustic Common", SnaCommonField::ALL, sna_common_spec);
+        check("SN Drum Common", SndCommonField::ALL, snd_common_spec);
+        check("SN Drum Note", SndNoteField::ALL, snd_note_spec);
+    }
+
+    /// The MFX names of a Tone plugin or a kit-bound Kit plugin: the header
+    /// fields, and every type's parameters (all types are listed, only the
+    /// active one does anything).
+    fn mfx_names() -> Vec<String> {
+        MfxHeaderField::ALL
+            .iter()
+            .flat_map(|f| (0..f.count()).map(|i| fill_name_template(f.host_name(), i)))
+            .chain(
+                crate::mfx_params::effect_types()
+                    .into_iter()
+                    .filter(|(block, ..)| *block == crate::fx_params::MFX_LABEL)
+                    .flat_map(|(block, type_name, params)| {
+                        params
+                            .iter()
+                            .map(move |p| p.qualified_name(block, type_name))
+                    }),
+            )
+            .collect()
+    }
+
+    /// The Drum Comp/EQ units' own settings, which a Kit plugin bound to
+    /// the whole kit lists (a unit's Output Assign is the Studio Set's).
+    fn comp_eq_unit_names() -> Vec<String> {
+        use crate::param_registry::{
+            CompEqKit, MixerField, MixerScope, MixerScopeKind, mixer_param,
+        };
+        let kit = CompEqKit {
+            part: 0,
+            tone_type: crate::params::ToneType::PcmDrum,
+        };
+        (0..crate::device_spec::INTEGRA7.comp_eq_unit_count)
+            .flat_map(|unit| {
+                let scope = MixerScope::CompEqUnit { kit, unit };
+                MixerField::ALL
+                    .into_iter()
+                    .filter(|f| f.in_scope(MixerScopeKind::CompEqUnit))
+                    .filter(|f| *f != MixerField::CompOutputAssign)
+                    .map(move |f| qualified_name(&scope.host_prefix(), mixer_param(f).host_name))
+            })
+            .collect()
+    }
+
+    /// The names a Tone or Kit plugin lists side by side share none: its
+    /// blocks each with their prefix, its MFX, and for a Kit plugin the
+    /// kit-wide parameters together with one key's (the Binding makes one
+    /// half inert, but both are listed).
+    #[test]
+    fn host_names_are_distinct_across_the_blocks_of_a_plugin() {
+        let spec = &crate::device_spec::INTEGRA7;
+        let partials = |count: u8, partial: &dyn Fn(&str) -> Vec<String>| -> Vec<String> {
+            (0..usize::from(count))
+                .flat_map(|i| partial(&partial_prefix(i)))
+                .collect()
+        };
+        let sns: Vec<String> = [
+            host_names(SnsCommonField::ALL, "", sns_common_spec),
+            partials(spec.sn_synth_partial_count, &|p| {
+                host_names(SnsPartialField::ALL, p, sns_partial_spec)
+            }),
+            mfx_names(),
+        ]
+        .concat();
+        assert_distinct("SN Synth", &sns);
+        let sna: Vec<String> = [
+            host_names(SnaCommonField::ALL, "", sna_common_spec),
+            mfx_names(),
+        ]
+        .concat();
+        assert_distinct("SN Acoustic", &sna);
+        let pcms: Vec<String> = [
+            host_names(PcmsCommonField::ALL, "", pcms_common_spec),
+            host_names(PcmsPmtField::ALL, "", pcms_pmt_spec),
+            partials(spec.pcm_synth_partial_count, &|p| {
+                host_names(PcmsPartialField::ALL, p, pcms_partial_spec)
+            }),
+            host_names(PcmsCommon2Field::ALL, "", pcms_common2_spec),
+            mfx_names(),
+        ]
+        .concat();
+        assert_distinct("PCM Synth", &pcms);
+        let pcmd: Vec<String> = [
+            host_names(PcmdCommonField::ALL, "", pcmd_common_spec),
+            host_names(PcmdCommon2Field::ALL, "", pcmd_common2_spec),
+            host_names(PcmdPartialField::ALL, KEY_PREFIX, pcmd_partial_spec),
+            host_names(PcmdWmtField::ALL, KEY_PREFIX, pcmd_wmt_spec),
+            mfx_names(),
+            comp_eq_unit_names(),
+        ]
+        .concat();
+        assert_distinct("PCM Drum", &pcmd);
+        let snd: Vec<String> = [
+            host_names(SndCommonField::ALL, "", snd_common_spec),
+            host_names(SndNoteField::ALL, KEY_PREFIX, snd_note_spec),
+            mfx_names(),
+            comp_eq_unit_names(),
+        ]
+        .concat();
+        assert_distinct("SN Drum", &snd);
+    }
+
+    #[test]
+    fn element_names_fill_the_template() {
+        let spec = pcms_partial_spec(PcmsPartialField::PitchEnvLevel);
+        assert_eq!(spec.element_name(0), "Pitch Env Level 0");
+        assert_eq!(spec.element_name(4), "Pitch Env Level 4");
+        let spec = pcms_partial_spec(PcmsPartialField::TvaEnvLevel);
+        assert_eq!(spec.element_name(0), "TVA Env Level 1");
+        let spec = pcms_partial_spec(PcmsPartialField::Level);
+        assert_eq!(spec.element_name(0), "Level");
+        assert_eq!(
+            qualified_name(
+                &partial_prefix(1),
+                pcms_partial_spec(PcmsPartialField::TvfCutoffFrequency).host_name
+            ),
+            "Partial 2 TVF Cutoff Frequency"
+        );
     }
 }

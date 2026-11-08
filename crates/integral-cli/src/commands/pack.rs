@@ -23,6 +23,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::device::IntegraDevice;
+use crate::midi::Endpoint;
 
 /// Output format of `pack list`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -419,7 +420,7 @@ pub(crate) fn run_export(
 /// a Pack and write it to `out`. Only reads from the device.
 #[allow(clippy::too_many_arguments)]
 pub fn export(
-    port_pattern: &str,
+    endpoint: Endpoint<'_>,
     device_id: Option<u8>,
     timeout: Duration,
     out: &Path,
@@ -438,7 +439,7 @@ pub fn export(
     if sources.is_empty() && current_part.is_none() {
         bail!("nothing to export: pick User slots, --current-part or --current-set");
     }
-    let mut dev = IntegraDevice::connect_detecting(port_pattern, device_id, timeout)?.quiet();
+    let mut dev = IntegraDevice::connect_detecting(endpoint, device_id, timeout)?.quiet();
     if let Some(n) = current_part {
         let part = n - 1;
         let kind = part_tone_kind(&mut dev, part)?;
