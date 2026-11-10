@@ -612,8 +612,11 @@ Sources: [PR #477] (the restore command), [justfile](../../justfile) (`plugin-te
 
 **On main (no restore), untested.** `just plugin-test drag --class "Integral Studio
 Set" --param "Part 1 Level"`. No class on main has a parameter named exactly
-`Level`, so the default fails there. The exact host name of Part 1's level is not
-confirmed in code: read it from the `just plugin-test load` output first.
+`Level`, so the default fails there. `Part 1 Level` is the Studio Set's host name
+for Part 1's level (`PluginKind::StudioSet.host_params()` in
+[host_params.rs](../../crates/integral-core/src/host_params.rs)). `--control`
+defaults to that name; if no control carries it as its accessibility label, pass
+the label the editor shows.
 
 **Expected.** The gesture log shows begin, one or more values, and end, all for
 the dragged parameter, and the gestures balance.
