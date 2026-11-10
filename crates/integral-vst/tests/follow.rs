@@ -187,6 +187,7 @@ impl Rig {
             let posted = Arc::clone(&queue);
             instance.set_poster(integral_vst::family::instance::Poster::new(move |task| {
                 posted.lock().unwrap().push_back(task);
+                true
             }));
             queue
         });

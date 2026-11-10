@@ -277,6 +277,7 @@ impl<P: Plugin, B: Backend<P>> Wrapper<P, B> {
                     move |task| {
                         let task_posted = wrapper.schedule_gui(Task::PluginTask(task));
                         nih_debug_assert!(task_posted, "The task queue is full, dropping task...");
+                        task_posted
                     }
                 }),
             })

@@ -93,7 +93,7 @@ pub trait GuiContext: Send + Sync + 'static {
 //       lot of structs, and may even be incompatible with the way certain GUI libraries work.
 pub struct AsyncExecutor<P: Plugin> {
     pub(crate) execute_background: Arc<dyn Fn(P::BackgroundTask) + Send + Sync>,
-    pub(crate) execute_gui: Arc<dyn Fn(P::BackgroundTask) + Send + Sync>,
+    pub(crate) execute_gui: Arc<dyn Fn(P::BackgroundTask) -> bool + Send + Sync>,
 }
 
 // Can't derive this since Rust then requires `P` to also be `Clone`able
@@ -134,8 +134,12 @@ impl<P: Plugin> AsyncExecutor<P> {
     /// Scheduling the same task multiple times will cause those duplicate tasks to pile up. Try to
     /// either prevent this from happening, or check whether the task still needs to be completed in
     /// your task executor.
-    pub fn execute_gui(&self, task: P::BackgroundTask) {
-        (self.execute_gui)(task);
+    ///
+    /// Returns whether the task was queued: `false` if the task queue is full (or, for the
+    /// executor from `InitContext::async_executor()`, the wrapper is gone), and the task was
+    /// dropped. *Patch (see `crates/patches/PATCHES.md` in Integral): upstream returns nothing.*
+    pub fn execute_gui(&self, task: P::BackgroundTask) -> bool {
+        (self.execute_gui)(task)
     }
 }
 

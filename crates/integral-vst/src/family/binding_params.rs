@@ -19,17 +19,11 @@
 //!   host passes them back) is no host edit and does not rebind. That is how
 //!   the two do not loop.
 
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicI64, Ordering};
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 
 use integral_core::host_params::{Binding, BindingField, BindingParam, PluginKind, binding_of};
 use nih_plug::prelude::*;
-
-/// How long a queued sync is waited for before it is queued again: the host
-/// may have dropped it, and a duplicate is harmless (it re-checks what
-/// differs).
-pub const SYNC_RETRY: Duration = Duration::from_secs(1);
 
 /// `pending` when the instance has set nothing the host has yet to pass back.
 const NOT_PENDING: i64 = i64::MIN;
@@ -48,10 +42,10 @@ struct Shared {
     /// Binding must not take the host's edits meanwhile
     /// ([`Instance::is_armed`](super::instance::Instance::is_armed)).
     rebinding: AtomicBool,
-    /// When a [`HostTask::SyncBinding`](super::host::HostTask) was queued, until
-    /// it runs. The host's queue drops tasks silently when full, so this
-    /// expires ([`SYNC_RETRY`]).
-    sync_queued: Mutex<Option<Instant>>,
+    /// A [`HostTask::SyncBinding`](super::host::HostTask) is queued and has
+    /// not run. A task the host's queue refused was never queued
+    /// ([`Instance::post`](super::instance::Instance::post) says so).
+    sync_queued: AtomicBool,
 }
 
 impl Shared {
@@ -100,7 +94,7 @@ impl BindingParams {
             before: specs.iter().map(|_| AtomicI64::new(NOT_PENDING)).collect(),
             edited: specs.iter().map(|_| AtomicBool::new(false)).collect(),
             rebinding: AtomicBool::new(false),
-            sync_queued: Mutex::new(None),
+            sync_queued: AtomicBool::new(false),
         });
         let list = specs
             .into_iter()
@@ -210,20 +204,18 @@ impl BindingParams {
         self.shared.rebinding.store(false, Ordering::Release);
     }
 
-    /// Claim the right to queue a sync at `now`: false if one was queued
-    /// less than [`SYNC_RETRY`] ago and has not run.
-    pub fn try_queue_sync(&self, now: Instant) -> bool {
-        let mut queued = self.shared.sync_queued.lock().expect("sync lock");
-        if queued.is_some_and(|at| now.saturating_duration_since(at) < SYNC_RETRY) {
-            return false;
-        }
-        *queued = Some(now);
-        true
+    /// Claim the right to queue a sync: false if one is queued and has not
+    /// run.
+    pub fn try_queue_sync(&self) -> bool {
+        self.shared
+            .sync_queued
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
     }
 
     /// The queued sync ran, or could not be queued.
     pub fn sync_done(&self) {
-        *self.shared.sync_queued.lock().expect("sync lock") = None;
+        self.shared.sync_queued.store(false, Ordering::Release);
     }
 
     /// The parameters that do not hold `binding` yet, with the value each
@@ -564,6 +556,7 @@ mod tests {
         let count = Arc::clone(&posted);
         instance.set_poster(super::super::instance::Poster::new(move |_| {
             count.fetch_add(1, Ordering::SeqCst);
+            true
         }));
         instance.bind(Binding::of_part(1)).unwrap();
         for _ in 0..5 {
@@ -579,21 +572,25 @@ mod tests {
     }
 
     #[test]
-    fn a_sync_the_host_dropped_is_queued_again_after_a_second() {
-        let (instance, _host) = settled(PluginKind::SnSynth, true);
-        let posted = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        let count = Arc::clone(&posted);
-        // A poster whose tasks never run: the host's queue was full.
-        instance.set_poster(super::super::instance::Poster::new(move |_| {
-            count.fetch_add(1, Ordering::SeqCst);
-        }));
+    fn a_sync_a_full_queue_refused_is_queued_again_and_the_parameters_catch_up() {
+        use super::super::host::HostTask;
+        let (instance, host) = settled(PluginKind::SnSynth, true);
+        // The host's queue, full until the test makes room.
+        let queue = super::super::instance::test_queue::Queue::for_instance(&instance, 0);
         instance.bind(Binding::of_part(1)).unwrap();
-        let t0 = Instant::now();
-        instance.follow_binding_params_at(t0);
-        instance.follow_binding_params_at(t0 + SYNC_RETRY / 2);
-        assert_eq!(posted.load(Ordering::SeqCst), 1);
-        instance.follow_binding_params_at(t0 + SYNC_RETRY);
-        assert_eq!(posted.load(Ordering::SeqCst), 2);
+        for _ in 0..3 {
+            instance.follow_binding_params();
+        }
+        assert_eq!(queue.drain(&instance), []);
+        assert_eq!(instance.binding_params.value(0), 1, "not synced yet");
+
+        // The queue drains: the next tick queues the sync, once.
+        queue.make_room(usize::MAX);
+        instance.follow_binding_params();
+        instance.follow_binding_params();
+        assert_eq!(queue.drain(&instance), [HostTask::SyncBinding]);
+        assert_eq!(host.edits(), gesture(PART, 2));
+        assert_eq!(instance.binding_params.value(0), 2);
     }
 
     #[test]

@@ -196,7 +196,7 @@ impl<K: Kind> Plugin for Family<K> {
             && let Some(executor) = context.async_executor()
         {
             instance.set_poster(instance::Poster::new(move |task| {
-                executor.execute_gui(task);
+                executor.execute_gui(task)
             }));
         }
         // A host may initialize more than once; keep the one connection. A

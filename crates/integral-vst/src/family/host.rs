@@ -38,8 +38,10 @@
 //! the audio thread, and must not run on a thread that is the audio thread.
 //! A bulk replace waits at most [`REPLACE_WITHIN`] for it (the patched
 //! `try_set_state`), and is retried by the worker if the audio thread did not
-//! take it. The event loop's queue holds 4096 tasks and drops the rest
-//! silently.
+//! take it. The event loop's queue holds 4096 tasks and refuses the rest;
+//! the patched executor says so, and [`Instance::post`] returns `false`. The
+//! follower posts a refused gesture's tasks and replaces again, and the
+//! Binding's sync is queued again at the next tick.
 //!
 //! [`HostEdits`] is the seam: tests put a recorder in its place and observe
 //! the gestures and bulk updates a host would see.
