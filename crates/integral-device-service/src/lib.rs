@@ -62,6 +62,7 @@ mod runtime;
 mod rx;
 mod service;
 mod session;
+mod tcp;
 mod websocket;
 mod wireless_link;
 

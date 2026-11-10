@@ -18,6 +18,7 @@ use std::time::{Duration, Instant};
 use integral_core::wireless::{self, DeviceInfo, Event, Reconnect, Session};
 
 use crate::link::{DeviceLink, LinkError, LinkSink, Log};
+use crate::tcp;
 
 const PROBE_INTERVAL: Duration = Duration::from_millis(wireless::PROBE_INTERVAL_MS);
 const DISCOVERY_WINDOW: Duration = Duration::from_millis(wireless::DISCOVERY_WINDOW_MS);
@@ -266,9 +267,7 @@ impl Worker {
             .map_err(|e| format!("connect to {target}: {e}"))?;
         reader.set_nodelay(true).map_err(|e| e.to_string())?;
         let write_half = reader.try_clone().map_err(|e| e.to_string())?;
-        write_half
-            .set_write_timeout(Some(WRITE_TIMEOUT))
-            .map_err(|e| e.to_string())?;
+        tcp::set_write_timeout(&write_half, Some(WRITE_TIMEOUT)).map_err(|e| e.to_string())?;
         // The greeting handshake writes before the session is up.
         *self.writer.lock().expect("writer lock") = Some(write_half);
         (self.log)(&format!("Connected to {target}, waiting for greeting..."));
@@ -280,8 +279,7 @@ impl Worker {
             let mut events = session.tick(now());
             if !events.contains(&Event::Dead) {
                 let wait = session.next_deadline().saturating_sub(now()).max(1);
-                reader
-                    .set_read_timeout(Some(Duration::from_millis(wait)))
+                tcp::set_read_timeout(&reader, Some(Duration::from_millis(wait)))
                     .map_err(|e| e.to_string())?;
                 match reader.read(&mut buf) {
                     Ok(0) => return Err("closed by the device".into()),
@@ -335,14 +333,16 @@ impl Worker {
 fn read_rddp_reply(stream: TcpStream) -> Result<DeviceInfo, String> {
     // Accepted sockets inherit the listener's non-blocking mode on BSDs.
     stream.set_nonblocking(false).map_err(|e| e.to_string())?;
-    stream
-        .set_read_timeout(Some(PROBE_INTERVAL))
-        .map_err(|e| e.to_string())?;
+    tcp::set_read_timeout(&stream, Some(PROBE_INTERVAL)).map_err(|e| e.to_string())?;
     let mut reply = Vec::new();
-    stream
-        .take(256)
-        .read_to_end(&mut reply)
-        .map_err(|e| e.to_string())?;
+    if let Err(e) = stream.take(256).read_to_end(&mut reply) {
+        // A reset right behind the reply is the device hanging up: the bytes
+        // already read are the answer, so they stand. A reset with nothing
+        // read is the connection's own failure, and is reported as that.
+        if e.kind() != ErrorKind::ConnectionReset || reply.is_empty() {
+            return Err(e.to_string());
+        }
+    }
     wireless::parse_rddp_reply(&reply).map_err(|e| e.to_string())
 }
 
@@ -409,5 +409,67 @@ mod shared {
 
     pub fn forward(_port: &mut Option<Port>, _msg: &[u8]) -> Result<(), String> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The 84-byte RDDP reply of an INTEGRA-7, as
+    /// [`wireless::parse_rddp_reply`] reads it.
+    fn rddp_reply() -> Vec<u8> {
+        let mut reply = vec![0; 84];
+        reply[..6].copy_from_slice(b"RDDPv1");
+        reply[20..27].copy_from_slice(b"Roland\0");
+        reply[36..42].copy_from_slice(b"41288\0");
+        reply[44..49].copy_from_slice(b"1.21\0");
+        reply[52..62].copy_from_slice(b"INTEGRA-7\0");
+        reply
+    }
+
+    /// A device that answers discovery and then resets its callback
+    /// connection is still read: the reply is the answer, whether the reset
+    /// arrives before the timeout is set (macOS answers `EINVAL`) or behind
+    /// the buffered reply.
+    #[cfg(unix)]
+    #[test]
+    fn a_reply_the_device_follows_with_a_reset_is_still_read() {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let device = thread::spawn(move || {
+            let mut stream = TcpStream::connect(addr).expect("connect");
+            stream.write_all(&rddp_reply()).expect("reply");
+            reset(&stream);
+            drop(stream);
+        });
+        let (stream, _) = listener.accept().expect("accept");
+        let info = read_rddp_reply(stream).expect("the reply stands");
+        assert_eq!(info.wireless_id, "41288");
+        device.join().expect("device");
+    }
+
+    /// Close `stream` with a reset rather than a FIN, as a device dropping
+    /// its side abruptly does.
+    #[cfg(unix)]
+    fn reset(stream: &TcpStream) {
+        use std::os::fd::AsRawFd;
+        let linger = libc::linger {
+            l_onoff: 1,
+            l_linger: 0,
+        };
+        // Safety: a plain setsockopt with a valid option and buffer.
+        unsafe {
+            assert_eq!(
+                libc::setsockopt(
+                    stream.as_raw_fd(),
+                    libc::SOL_SOCKET,
+                    libc::SO_LINGER,
+                    &linger as *const _ as *const libc::c_void,
+                    std::mem::size_of::<libc::linger>() as libc::socklen_t,
+                ),
+                0
+            );
+        }
     }
 }
