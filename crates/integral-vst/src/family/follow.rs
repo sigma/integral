@@ -692,7 +692,9 @@ impl Follower {
 
     /// The device says which tone the Part holds: the instance saves it as its
     /// own unless a push of the project's is owed or under way, which the
-    /// device's tone must not replace.
+    /// device's tone must not replace. The editor offers no tone pick in that
+    /// window ([`Instance::recall_owed`]), since the push would select the
+    /// saved tone over it.
     fn learn_tone(&mut self, tone: (u8, u8, u8)) {
         if !self.recall.active() && !self.recall.owes(&self.instance, self.session) {
             recall::save_tone(&self.instance, tone, None);
@@ -1988,6 +1990,28 @@ mod tests {
         assert_eq!(saved(&instance), (87, 64, 9), "tone B");
     }
 
+    #[test]
+    fn the_editor_cannot_pick_a_tone_while_the_recall_is_owed_or_under_way() {
+        // A pick then would not be saved, and the push would write the saved
+        // tone over it: the instance says so, and the editor's tone button is
+        // off until the push is out. (`recalling` checks it is owed before
+        // the push begins.)
+        let (instance, mut follower, wire, now) = recalling();
+        assert!(instance.recall_owed(), "under way");
+        let baseline = ClientEvent::Message(Message::Baseline {
+            binding: Binding::of_part(0),
+            tone: None,
+            runs: Vec::new(),
+        });
+        follower.step(Some(&baseline), now, &wire);
+        for _ in 0..3 {
+            follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        }
+        assert!(instance.notices.get().is_empty(), "the recall is out");
+        follower.step(None, now, &wire);
+        assert!(!instance.recall_owed(), "a pick can be made again");
+    }
+
     /// A restored PCM Synth instance on Part 0 with a Preset tone, whose
     /// recall has begun: the selection is pushed and the baseline asked for.
     fn recalling() -> (Arc<Instance>, Follower, FakeWire, Instant) {
@@ -2001,6 +2025,7 @@ mod tests {
         let mut follower = Follower::new(Arc::clone(&instance), sysex::DEFAULT_DEVICE_ID);
         let now = Instant::now();
         follower.step(Some(&connected()), now, &wire);
+        assert!(instance.recall_owed(), "owed, before the push begins");
         // The device says the Part holds a tone of the plugin's type.
         follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
         let now = now + Duration::from_secs(2);

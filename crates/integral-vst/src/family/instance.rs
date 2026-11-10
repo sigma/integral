@@ -401,7 +401,7 @@ impl Instance {
     /// under way ([`set_recall_owed`](Self::set_recall_owed)): that selection
     /// is what puts the Part right.
     pub fn default_tone(&self) -> Option<&'static FactoryTone> {
-        if self.recall_owed.load(Ordering::Acquire) {
+        if self.recall_owed() {
             return None;
         }
         default_tone(self.kind.tone_type()?)
@@ -411,6 +411,13 @@ impl Instance {
     /// worker sets it.
     pub fn set_recall_owed(&self, owed: bool) {
         self.recall_owed.store(owed, Ordering::Release);
+    }
+
+    /// Whether a recall of the saved tone is owed or under way. The editor
+    /// offers no tone pick meanwhile: the instance would not save it, and the
+    /// push would select the saved tone over it.
+    pub fn recall_owed(&self) -> bool {
+        self.recall_owed.load(Ordering::Acquire)
     }
 
     /// Ask for the plugin's default tone to be loaded onto the bound Part,

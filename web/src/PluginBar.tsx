@@ -63,7 +63,8 @@ export function PluginBar({
   // The plugin owns its Part's tone, but only while the Part holds its type:
   // unbound, unread or on another type, it is inert and picks nothing. A
   // Kit plugin bound to a key never selects: the kit is the whole-kit
-  // plugin's (ADR 0009).
+  // plugin's (ADR 0009). Nor while the project's saved tone is owed a push:
+  // the push would select it over the pick.
   const inert = info.notices.some((notice) => notice.notice === TYPE_MISMATCH_NOTICE);
   const keyBound = binding.key !== undefined;
   const picking =
@@ -72,7 +73,8 @@ export function PluginBar({
     !keyBound &&
     part !== undefined &&
     catalog !== null &&
-    !inert
+    !inert &&
+    !info.recallOwed
       ? { toneType, index: binding.part, part, catalog }
       : null;
   const whyNot = picking
@@ -83,7 +85,9 @@ export function PluginBar({
         ? "The Part holds another tone type"
         : keyBound
           ? "Bound to a key: the kit belongs to the plugin bound to the whole kit"
-          : "Waiting for the device";
+          : info.recallOwed
+            ? "Waiting to recall the project's tone"
+            : "Waiting for the device";
   // The Part the picker was opened for. It shows only while that Part is the
   // bound one and the plugin can still pick; any change of either closes it.
   const [openFor, setOpenFor] = useState<number | null>(null);

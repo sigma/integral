@@ -52,6 +52,7 @@ const CONNECTED: Omit<InstanceInfo, "plugin" | "binding"> = {
   notices: [],
   defaultTone: null,
   defaultTonePending: false,
+  recallOwed: false,
 };
 
 const MISMATCH = { notice: "typeMismatch", text: "The bound Part holds another tone type" };
@@ -202,6 +203,20 @@ describe("the tone button of a Tone or Kit plugin", () => {
     rerender(view(PluginKind.PcmDrum, { binding: { part: 0, key: 38 } }));
     expect(toneButton(container)?.disabled).toBe(true);
     expect(toneButton(container)?.title).toContain("whole kit");
+  });
+
+  it("is disabled while the project's tone is being recalled, says why, and closes the picker", () => {
+    // A pick then would be lost: the push selects the saved tone over it.
+    const { view } = bar();
+    const { container, rerender } = render(view(PluginKind.SnSynth, {}));
+    click(toneButton(container) as HTMLButtonElement);
+    expect(container.querySelector('[class*="overlay"]')).not.toBeNull();
+    rerender(view(PluginKind.SnSynth, { recallOwed: true }));
+    expect(toneButton(container)?.disabled).toBe(true);
+    expect(toneButton(container)?.title).toBe("Waiting to recall the project's tone");
+    expect(container.querySelector('[class*="overlay"]')).toBeNull();
+    rerender(view(PluginKind.SnSynth, {}));
+    expect(toneButton(container)?.disabled).toBe(false);
   });
 });
 
