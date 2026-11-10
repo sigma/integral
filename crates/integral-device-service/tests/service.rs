@@ -12,7 +12,8 @@ use integral_core::mixer_load::MixerBlock;
 use integral_core::params::{self, part};
 use integral_core::sysex;
 use integral_device_service::protocol::{
-    BulkKind, ClientId, Message, PROTOCOL_VERSION, ParamId, Reject, Request, ToneSelect,
+    BulkKind, ClientId, ExpansionLoadResult, Message, PROTOCOL_VERSION, ParamId, Reject, Request,
+    ToneSelect,
 };
 use integral_device_service::{
     Config, FakeLink, Input, LinkEvent, Outbox, SequentialSessionIds, Service, SessionId, spawn,
@@ -2542,4 +2543,238 @@ fn a_partial_select_write_after_a_studio_set_switch_goes_out_blind() {
     let told = tone_selections(inbox.take());
     assert_eq!(told.first(), Some(&(3, None)), "{told:?}");
     assert!(told.iter().all(|(_, tone)| tone.is_none()), "{told:?}");
+}
+
+mod expansion_load {
+    use integral_core::expansion_load::{self, LOAD_DONE_ADDR, LOAD_STARTED_ADDR};
+    use integral_core::expansion_slots::{self, ExpansionSlots, SLOT_READ_ADDR};
+
+    use super::*;
+
+    fn current() -> ExpansionSlots {
+        ExpansionSlots::from_values(&[0x03, 0x05, 0x07, 0x08]).unwrap()
+    }
+
+    fn target() -> ExpansionSlots {
+        current().with(0, None)
+    }
+
+    fn load(slots: ExpansionSlots) -> Request {
+        Request::LoadExpansion {
+            slots: slots.values(),
+        }
+    }
+
+    fn device_says(service: &mut Service, address: &Address, data: &[u8], now: f64) {
+        let dt1 = sysex::build_dt1(DEVICE_ID, address, data);
+        service.handle(Input::Link(LinkEvent::Midi(dt1)), now);
+    }
+
+    fn bulks(messages: &[Message]) -> Vec<(ClientId, BulkKind)> {
+        messages
+            .iter()
+            .filter_map(|m| match m {
+                Message::Bulk { writer, kind, .. } => Some((*writer, *kind)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn loaded(messages: &[Message]) -> bool {
+        messages
+            .iter()
+            .any(|m| matches!(m, Message::ExpansionLoadDone { .. }))
+    }
+
+    /// A service up, whose slots are known, and two clients subscribed to
+    /// everything.
+    fn up() -> (Service, FakeLink, (ClientId, Inbox), (ClientId, Inbox)) {
+        let (mut service, link) = service();
+        service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+        service.device_mut().set_expansion_slots(current());
+        let a = client(&mut service, 1);
+        let b = client(&mut service, 2);
+        (service, link, a, b)
+    }
+
+    #[test]
+    fn the_queue_is_held_until_the_load_is_done_and_the_requester_is_told() {
+        let (mut service, link, (a, a_inbox), (b, b_inbox)) = up();
+        ask(&mut service, a, load(target()));
+        ask(&mut service, b, write_level(0, 10));
+
+        service.pump(0.0);
+        let request = expansion_load::build_load_request(DEVICE_ID, &target());
+        assert_eq!(link.sent(), [request], "the load request first");
+        device_says(&mut service, &LOAD_STARTED_ADDR, &[0], 70.0);
+        run_until(&mut service, 70.0, 3_000.0);
+        let level = level_dt1(0, 10);
+        let poll = expansion_slots::build_read_request(DEVICE_ID);
+        assert!(
+            link.sent()[1..].iter().all(|m| *m == poll),
+            "only the load's polls during the load: {:02X?}",
+            link.sent()
+        );
+        assert!(!loaded(&a_inbox.take()));
+
+        device_says(&mut service, &LOAD_DONE_ADDR, &[0], 3_000.0);
+        run_until(&mut service, 3_000.0, 3_100.0);
+        assert!(link.sent().contains(&level), "the queue runs again");
+        assert_eq!(service.device().expansion_slots(), Some(&target()));
+
+        let told = a_inbox.take();
+        assert!(
+            told.contains(&Message::ExpansionLoadDone {
+                result: ExpansionLoadResult::Loaded,
+                slots: Some(target().values())
+            }),
+            "{told:?}"
+        );
+        assert_eq!(bulks(&told), [(a, BulkKind::StudioSet)]);
+        assert_eq!(bulks(&b_inbox.take()), [(a, BulkKind::StudioSet)]);
+    }
+
+    #[test]
+    fn a_load_the_device_stops_answering_ends_timed_out() {
+        let (mut service, _link, (a, a_inbox), (_, b_inbox)) = up();
+        ask(&mut service, a, load(target()));
+        run_until(&mut service, 0.0, 120_000.0);
+
+        let told = a_inbox.take();
+        assert!(
+            told.contains(&Message::ExpansionLoadDone {
+                result: ExpansionLoadResult::TimedOut,
+                slots: None
+            }),
+            "{told:?}"
+        );
+        assert_eq!(service.device().expansion_slots(), None);
+        assert_eq!(bulks(&b_inbox.take()), [(a, BulkKind::StudioSet)]);
+    }
+
+    #[test]
+    fn a_load_of_what_the_slots_hold_answers_at_once_and_announces_nothing() {
+        let (mut service, link, (a, a_inbox), (_, b_inbox)) = up();
+        ask(&mut service, a, load(current()));
+        service.pump(0.0);
+        assert!(link.sent().is_empty());
+        assert_eq!(
+            a_inbox.take(),
+            [Message::ExpansionLoadDone {
+                result: ExpansionLoadResult::Unchanged,
+                slots: Some(current().values())
+            }]
+        );
+        assert!(bulks(&b_inbox.take()).is_empty());
+    }
+
+    #[test]
+    fn unknown_slots_are_read_before_the_load() {
+        let (mut service, link) = service();
+        service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+        let (a, a_inbox) = client(&mut service, 1);
+        ask(&mut service, a, load(target()));
+
+        service.pump(0.0);
+        let read = expansion_slots::build_read_request(DEVICE_ID);
+        assert_eq!(link.sent(), [read]);
+        device_says(&mut service, &SLOT_READ_ADDR, &current().values(), 50.0);
+        service.pump(50.0);
+        let request = expansion_load::build_load_request(DEVICE_ID, &target());
+        assert_eq!(link.sent()[1..], [request]);
+        assert_eq!(service.device().expansion_load_target(), Some(&target()));
+        assert!(a_inbox.take().is_empty());
+    }
+
+    #[test]
+    fn a_slot_read_the_device_never_answers_is_refused_with_a_timeout() {
+        let (mut service, link) = service();
+        service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+        let (a, a_inbox) = client(&mut service, 1);
+        ask(&mut service, a, load(target()));
+        run_until(&mut service, 0.0, 10_000.0);
+
+        assert_eq!(link.sent().len(), 1, "the slot read only");
+        assert_eq!(
+            a_inbox.take(),
+            [Message::Rejected {
+                reason: Reject::Timeout,
+                param: None
+            }]
+        );
+        assert_eq!(service.device().expansion_load_target(), None);
+    }
+
+    #[test]
+    fn a_second_load_while_one_runs_is_refused() {
+        let (mut service, _link, (a, a_inbox), (b, b_inbox)) = up();
+        ask(&mut service, a, load(target()));
+        service.pump(0.0);
+        ask(&mut service, b, load(current()));
+        service.pump(100.0);
+        assert!(
+            matches!(
+                b_inbox.take()[..],
+                [Message::Rejected {
+                    reason: Reject::Invalid { .. },
+                    ..
+                }]
+            ),
+            "refused"
+        );
+        assert!(a_inbox.take().is_empty());
+        assert_eq!(service.device().expansion_load_target(), Some(&target()));
+    }
+
+    #[test]
+    fn slots_that_name_no_expansion_are_refused_on_arrival() {
+        let (mut service, link, (a, a_inbox), _) = up();
+        let bad = Request::LoadExpansion {
+            slots: [0x7F, 0, 0, 0],
+        };
+        ask(&mut service, a, bad);
+        service.pump(0.0);
+        assert!(link.sent().is_empty());
+        assert!(
+            matches!(
+                a_inbox.take()[..],
+                [Message::Rejected {
+                    reason: Reject::Invalid { .. },
+                    ..
+                }]
+            ),
+            "refused"
+        );
+    }
+
+    #[test]
+    fn a_load_whose_client_left_ends_as_the_devices() {
+        let (mut service, _link, (a, _), (_, b_inbox)) = up();
+        ask(&mut service, a, load(target()));
+        service.pump(0.0);
+        service.handle(Input::Disconnect { client: a }, 10.0);
+        device_says(&mut service, &LOAD_STARTED_ADDR, &[0], 70.0);
+        device_says(&mut service, &LOAD_DONE_ADDR, &[0], 100.0);
+        run_until(&mut service, 100.0, 200.0);
+        assert_eq!(service.device().expansion_slots(), Some(&target()));
+        assert_eq!(
+            bulks(&b_inbox.take()),
+            [(ClientId::DEVICE, BulkKind::StudioSet)]
+        );
+    }
+
+    #[test]
+    fn a_load_waiting_on_the_slots_is_refused_when_the_link_goes_down() {
+        let (mut service, _link) = service();
+        service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+        let (a, a_inbox) = client(&mut service, 1);
+        ask(&mut service, a, load(target()));
+        service.pump(0.0);
+        service.handle(Input::Link(LinkEvent::Down), 10.0);
+        let refused = Message::Rejected {
+            reason: Reject::LinkDown,
+            param: None,
+        };
+        assert!(a_inbox.take().contains(&refused));
+    }
 }

@@ -35,6 +35,17 @@
 //! [`BulkKind::Tone`] or [`BulkKind::StudioSet`] and reads the Part's tone
 //! again, which then gets its baseline too. Which Parts it reaches depends on
 //! settings the service reads from the device the first time it needs them.
+//!
+//! # Expansion loads
+//!
+//! A client's [`Request::LoadExpansion`] runs in its turn like any other
+//! item. If the session does not know the slots it reads them first; then the
+//! [`DeviceState`]'s load machine runs and holds the device's queue, so no
+//! client's SysEx reaches a device that ignores it, until the load is over.
+//! Then the requester hears the outcome, and every subscriber a
+//! [`BulkKind::StudioSet`] event (unless nothing changed): a Part on an
+//! Expansion's tone may hold another tone now, so the session forgets what it
+//! saw of those Parts' tones.
 
 use std::collections::VecDeque;
 use std::time::Duration;
@@ -44,9 +55,10 @@ use std::ops::Range;
 use std::sync::OnceLock;
 
 use integral_core::address::{Address, DataSize};
-use integral_core::device::{DeviceState, dt1_span, selects};
+use integral_core::device::{DeviceState, LoadError, dt1_span, selects};
 use integral_core::device_spec::tone_read_blocks;
-use integral_core::expansion_load::LoadAction;
+use integral_core::expansion_load::{LoadAction, LoadOutcome};
+use integral_core::expansion_slots::ExpansionSlots;
 use integral_core::host_params::{
     Anchor, Binding, EffectKind, Located, ParamHandle, ParamIndex, PluginKind, temporary_tone_part,
 };
@@ -60,8 +72,8 @@ use crate::clients::{Clients, Outbox};
 use crate::link::{DeviceLink, LinkError, LinkEvent};
 use crate::note::{is_note_traffic, program_change_channel};
 use crate::protocol::{
-    BaselineRun, Bound, BulkKind, ClientId, Message, PROTOCOL_VERSION, ParamId, Reject, Request,
-    ToneSelect,
+    BaselineRun, Bound, BulkKind, ClientId, ExpansionLoadResult, Message, PROTOCOL_VERSION,
+    ParamId, Reject, Request, ToneSelect,
 };
 use crate::queues::{Pending, Queues, Work};
 use crate::rx::RxMap;
@@ -73,6 +85,9 @@ const ID_WAIT_MS: f64 = 1000.0;
 
 /// Key of the queued Identity Request.
 const IDENTITY_KEY: &str = "identity";
+
+/// Key of the Expansion slot read a client's load waits for.
+const SLOTS_KEY: &str = "expansion-slots";
 
 /// Most typed reads awaiting the device's reply. A reply that never comes
 /// (the device ignored the request) is forgotten, oldest first.
@@ -111,6 +126,17 @@ struct PendingRead {
     /// When to give up: [`f64::INFINITY`] until the request has left, then
     /// [`READ_TIMEOUT_MS`] later.
     deadline: f64,
+}
+
+/// A client's [`Request::LoadExpansion`], from the moment it is applied to
+/// the moment its client is answered.
+struct ClientLoad {
+    client: ClientId,
+    target: ExpansionSlots,
+    /// While the slots are unknown: the slot read sent first and when to give
+    /// up on it ([`f64::INFINITY`] until it has left). `None` once the load
+    /// runs.
+    slot_read: Option<(Vec<u8>, f64)>,
 }
 
 /// Whether a message is a Roland DT1 (valid or not).
@@ -292,6 +318,8 @@ pub struct Service {
     reads: Vec<PendingRead>,
     /// The client whose `LoadMixer` is still being read.
     mixer_load: Option<ClientId>,
+    /// The client whose `LoadExpansion` is waiting for the slots or running.
+    client_load: Option<ClientLoad>,
     /// Every parameter of every plugin, by ID and by address.
     params: &'static ParamIndex,
     /// What this session knows of the device: the last bytes written or
@@ -341,6 +369,7 @@ impl Service {
             rereads: HashSet::new(),
             reads: Vec::new(),
             mixer_load: None,
+            client_load: None,
         }
     }
 
@@ -426,6 +455,16 @@ impl Service {
                 self.held_claims.retain(|(held, _)| *held != client);
                 self.clients.disconnect(client);
                 self.queues.forget(client);
+                // A load that has not started yet is dropped; one that runs
+                // goes on, for the device is already loading, but is no
+                // one's: its end is announced as the device's.
+                if self
+                    .client_load
+                    .as_ref()
+                    .is_some_and(|load| load.client == client)
+                {
+                    self.client_load = None;
+                }
             }
             Input::Run(work) => work(self),
             Input::Stop => return false,
@@ -498,6 +537,9 @@ impl Service {
         }
         if let Some(client) = self.mixer_load.take() {
             self.reject(client, Reject::LinkDown);
+        }
+        if let Some(load) = self.client_load.take() {
+            self.reject(load.client, Reject::LinkDown);
         }
         self.known.clear();
         self.selects_known.clear();
@@ -765,6 +807,9 @@ impl Service {
                 Some(part) if part < DeviceState::NUM_PARTS => Ok(None),
                 _ => Err("a baseline is of a Part, which the binding must name".to_string()),
             },
+            Request::LoadExpansion { slots } => ExpansionSlots::from_values(slots)
+                .map(|_| None)
+                .map_err(|e| e.to_string()),
             _ => Ok(None),
         }
     }
@@ -887,6 +932,10 @@ impl Service {
                     self.answer_baselines(vec![settled]);
                 }
             }
+            Request::LoadExpansion { slots } => {
+                let target = ExpansionSlots::from_values(&slots).expect("checked on arrival");
+                self.load_expansion(client, target);
+            }
             // Handled on arrival.
             Request::Hello { .. }
             | Request::Subscribe { .. }
@@ -895,6 +944,122 @@ impl Service {
             | Request::Bind { .. }
             | Request::Claim { .. }
             | Request::Push { .. } => {}
+        }
+    }
+
+    /// Start `client`'s load of `target`, once the slots are known: if they
+    /// are not, read them first, and start when the answer is in
+    /// ([`start_client_load`](Self::start_client_load)).
+    fn load_expansion(&mut self, client: ClientId, target: ExpansionSlots) {
+        if self.client_load.is_some() || self.device.expansion_load_target().is_some() {
+            let message = LoadError::Busy.to_string();
+            self.reject(client, Reject::Invalid { message });
+            return;
+        }
+        if self.device.expansion_slots().is_some() {
+            self.start_load(client, target);
+            return;
+        }
+        let rq1 = self.device.build_expansion_slots_request();
+        self.device.send_raw(SLOTS_KEY, rq1.clone());
+        self.client_load = Some(ClientLoad {
+            client,
+            target,
+            slot_read: Some((rq1, f64::INFINITY)),
+        });
+    }
+
+    /// Start the client's load that waits for the slots, if they are known
+    /// now.
+    fn start_client_load(&mut self) {
+        if self.device.expansion_slots().is_some()
+            && let Some(ClientLoad {
+                client,
+                target,
+                slot_read: Some(_),
+            }) = self.client_load
+        {
+            self.start_load(client, target);
+        }
+    }
+
+    /// Start `client`'s load of `target` over the known slots. The device's
+    /// state holds the queue from here until the load is over
+    /// ([`load_done`](Self::load_done)).
+    fn start_load(&mut self, client: ClientId, target: ExpansionSlots) {
+        match self.device.start_expansion_load(target) {
+            Ok(()) => {
+                self.client_load = Some(ClientLoad {
+                    client,
+                    target,
+                    slot_read: None,
+                });
+            }
+            Err(e) => {
+                self.client_load = None;
+                let message = e.to_string();
+                self.reject(client, Reject::Invalid { message });
+            }
+        }
+    }
+
+    /// An Expansion load is over: tell its client how it ended and, if it
+    /// may have changed anything, every subscriber.
+    fn load_done(&mut self, outcome: LoadOutcome) {
+        let client = self
+            .client_load
+            .take_if(|load| load.slot_read.is_none())
+            .map(|load| load.client);
+        if let Some(client) = client {
+            let (result, slots) = match outcome {
+                LoadOutcome::Loaded(slots) => (ExpansionLoadResult::Loaded, Some(slots)),
+                LoadOutcome::Failed(slots) => (ExpansionLoadResult::Failed, Some(slots)),
+                LoadOutcome::NoOp => (
+                    ExpansionLoadResult::Unchanged,
+                    self.device.expansion_slots().copied(),
+                ),
+                LoadOutcome::TimedOut => (ExpansionLoadResult::TimedOut, None),
+            };
+            let message = Message::ExpansionLoadDone {
+                result,
+                slots: slots.map(|slots| slots.values()),
+            };
+            self.clients.send(client, &message);
+        }
+        if outcome == LoadOutcome::NoOp {
+            return;
+        }
+        // A Part on an Expansion's tone has another tone, or none, if the
+        // Expansion moved or was unloaded: what the session saw of it is
+        // stale.
+        let parts = &self.device.state().parts;
+        let on_expansion: Vec<u8> = (0..DeviceState::NUM_PARTS)
+            .filter(|&part| {
+                let p = &parts[usize::from(part)];
+                find_bank(p.tone_bank_msb, p.tone_bank_lsb).is_some_and(|b| b.expansion.is_some())
+            })
+            .collect();
+        self.known.retain(|address, _| {
+            temporary_tone_part(address).is_none_or(|part| !on_expansion.contains(&part))
+        });
+        let writer = client.unwrap_or(ClientId::DEVICE);
+        self.clients
+            .bulk(writer, BulkKind::StudioSet, Binding::ANY, None);
+    }
+
+    /// Refuse the client's load whose slot read the device has not answered
+    /// by `now_ms`.
+    fn expire_slot_read(&mut self, now_ms: f64) {
+        if let Some(ClientLoad {
+            client,
+            slot_read: Some((_, deadline)),
+            ..
+        }) = &self.client_load
+            && *deadline <= now_ms
+        {
+            let client = *client;
+            self.client_load = None;
+            self.reject(client, Reject::Timeout);
         }
     }
 
@@ -1435,6 +1600,7 @@ impl Service {
         }
         self.program_changes_ready();
         self.announce_selects_read();
+        self.start_client_load();
         changed
     }
 
@@ -1512,6 +1678,7 @@ impl Service {
     fn pump_device(&mut self, now_ms: f64) -> Option<Duration> {
         self.session?;
         self.expire_reads(now_ms);
+        self.expire_slot_read(now_ms);
         self.expire_baselines(now_ms);
         self.expire_rx(now_ms);
         let loading = self.device.expansion_load_target().is_some();
@@ -1527,11 +1694,14 @@ impl Service {
         }
         let gap = self.link.sysex_gap();
         let held = !gap.is_zero();
-        if !held
-            && let Some(LoadAction::Send(bytes) | LoadAction::Poll(bytes)) =
-                self.device.next_load_action(now_ms)
-        {
-            self.send(&bytes, false);
+        if !held {
+            match self.device.next_load_action(now_ms) {
+                Some(LoadAction::Send(bytes) | LoadAction::Poll(bytes)) => {
+                    self.send(&bytes, false);
+                }
+                Some(LoadAction::Done(outcome)) => self.load_done(outcome),
+                Some(LoadAction::Wait(_)) | None => {}
+            }
         }
         if self.down_deferred && self.device.expansion_load_target().is_none() {
             self.end_session();
@@ -1574,11 +1744,18 @@ impl Service {
             .iter()
             .map(|r| r.deadline)
             .filter(|d| d.is_finite());
+        let slot_read = self
+            .client_load
+            .as_ref()
+            .and_then(|load| load.slot_read.as_ref())
+            .map(|(_, deadline)| *deadline)
+            .filter(|d| d.is_finite());
         let others = self
             .baselines
             .next_deadline()
             .into_iter()
-            .chain(self.rx_deadline);
+            .chain(self.rx_deadline)
+            .chain(slot_read);
         if let Some(read) = reads.chain(others).min_by(f64::total_cmp) {
             due = Some(due.map_or(read, |d| d.min(read)));
         }
@@ -1600,6 +1777,15 @@ impl Service {
                     read.deadline = now_ms + READ_TIMEOUT_MS;
                     break;
                 }
+            }
+            if let Some(ClientLoad {
+                slot_read: Some((rq1, deadline)),
+                ..
+            }) = &mut self.client_load
+                && deadline.is_infinite()
+                && *rq1 == message
+            {
+                *deadline = now_ms + READ_TIMEOUT_MS;
             }
             self.send(&message, false);
         }

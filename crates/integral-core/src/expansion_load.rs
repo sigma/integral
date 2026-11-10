@@ -19,9 +19,9 @@ use crate::sysex;
 /// Address of the load request.
 const LOAD_REQUEST_ADDR: Address = Address::new(0x0F, 0x00, 0x30, 0x00);
 /// Address of the "load started" reply.
-const LOAD_STARTED_ADDR: Address = Address::new(0x0F, 0x00, 0x30, 0x01);
+pub const LOAD_STARTED_ADDR: Address = Address::new(0x0F, 0x00, 0x30, 0x01);
 /// Address of the "load done" reply.
-const LOAD_DONE_ADDR: Address = Address::new(0x0F, 0x00, 0x30, 0x02);
+pub const LOAD_DONE_ADDR: Address = Address::new(0x0F, 0x00, 0x30, 0x02);
 
 /// Interval between slot reads once the load has started (ms).
 pub const POLL_INTERVAL_MS: f64 = 500.0;
