@@ -366,6 +366,10 @@ pub enum MixerField {
     MasterLevel,
     /// External input level (0–127).
     ExtLevel,
+    /// External input chorus (FX1) send level (0–127).
+    ExtChorusSend,
+    /// External input reverb (FX2) send level (0–127).
+    ExtReverbSend,
     /// External input mute (0 = OFF, 1 = ON).
     ExtMute,
     /// Chorus switch (0 = OFF, 1 = ON).
@@ -455,7 +459,7 @@ pub enum MixerField {
 
 impl MixerField {
     /// Every mixer field, in registry order.
-    pub const ALL: [MixerField; 49] = [
+    pub const ALL: [MixerField; 51] = [
         Self::PartLevel,
         Self::PartPan,
         Self::PartMute,
@@ -465,6 +469,8 @@ impl MixerField {
         Self::PartReceiveChannel,
         Self::MasterLevel,
         Self::ExtLevel,
+        Self::ExtChorusSend,
+        Self::ExtReverbSend,
         Self::ExtMute,
         Self::ChorusSwitch,
         Self::ChorusType,
@@ -780,6 +786,8 @@ fn comp_eq_offset(field: MixerField) -> Option<u8> {
 fn ext_address(field: MixerField) -> Option<Address> {
     match field {
         MixerField::ExtLevel => Some(params::EXT_PART_LEVEL),
+        MixerField::ExtChorusSend => Some(params::EXT_PART_CHORUS_SEND),
+        MixerField::ExtReverbSend => Some(params::EXT_PART_REVERB_SEND),
         MixerField::ExtMute => Some(params::EXT_PART_MUTE),
         _ => surround_address(field, MixerScopeKind::Ext),
     }
@@ -967,6 +975,8 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
         ),
         F::MasterLevel => level("Master Level", ParamGroup::Master, 100),
         F::ExtLevel => level("Ext Level", ParamGroup::Ext, 100),
+        F::ExtChorusSend => def("Ext FX1", ParamGroup::Ext, 127, 0, Raw, Amp),
+        F::ExtReverbSend => def("Ext FX2", ParamGroup::Ext, 127, 0, Raw, Amp),
         F::ExtMute => def("Ext Mute", ParamGroup::Ext, 1, 0, OnOff, Common),
         F::ChorusSwitch => fx(
             FxRole::Switch,
@@ -1291,8 +1301,8 @@ fn mixer_host_name(field: MixerField) -> &'static str {
         F::PartLevel | F::MasterLevel | F::ExtLevel => "Level",
         F::PartPan => "Pan",
         F::PartMute | F::ExtMute => "Mute Switch",
-        F::PartChorusSend => "Chorus Send Level",
-        F::PartReverbSend => "Reverb Send Level",
+        F::PartChorusSend | F::ExtChorusSend => "Chorus Send Level",
+        F::PartReverbSend | F::ExtReverbSend => "Reverb Send Level",
         F::PartOutputAssign | F::CompOutputAssign => "Output Assign",
         F::PartReceiveChannel => "Receive Channel",
         F::ChorusSwitch => "Chorus Switch",
@@ -1514,6 +1524,39 @@ mod tests {
         assert_eq!(
             mixer_field_address(MixerField::ReverbOutputAssign, MixerScope::Common),
             Ok(params::reverb_address(params::reverb::OUTPUT_ASSIGN))
+        );
+    }
+
+    #[test]
+    fn ext_sends_are_the_studio_set_common_ext_part_sends() {
+        // Studio Set Common 00 4D / 00 4E, 0-127 (docs/midi/05-studio-set.md).
+        let sends = [
+            (MixerField::ExtChorusSend, params::EXT_PART_CHORUS_SEND),
+            (MixerField::ExtReverbSend, params::EXT_PART_REVERB_SEND),
+        ];
+        for (field, address) in sends {
+            assert_eq!(mixer_field_address(field, MixerScope::Ext), Ok(address));
+            assert!(!field.in_scope(MixerScopeKind::Part), "{field:?}");
+            assert!(
+                MixerScopeKind::Ext.studio_set_fields().contains(&field),
+                "{field:?}"
+            );
+            let def = mixer_param(field);
+            assert_eq!((def.min, def.max, def.default), (0, 127, 0), "{field:?}");
+        }
+        let name = |field| {
+            crate::field_spec::qualified_name(
+                &MixerScope::Ext.host_prefix(),
+                mixer_param(field).host_name,
+            )
+        };
+        assert_eq!(
+            name(MixerField::ExtChorusSend),
+            "Ext Part Chorus Send Level"
+        );
+        assert_eq!(
+            name(MixerField::ExtReverbSend),
+            "Ext Part Reverb Send Level"
         );
     }
 
@@ -1934,7 +1977,7 @@ mod tests {
         // The set is chosen here from ADR 0007's ownership list, not from
         // its "about 1,300" estimate. It leaves out the Chorus and Reverb
         // type parameters, which `fx_params` names.
-        assert_eq!(seen.len(), 344, "the Studio Set plugin's mixer parameters");
+        assert_eq!(seen.len(), 346, "the Studio Set plugin's mixer parameters");
     }
 
     /// The doc rows of the Studio Set tables (and the System Common one),

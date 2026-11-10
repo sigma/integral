@@ -37,6 +37,8 @@ interface RustMixerState {
   chorus: FxState;
   reverb: FxState;
   extLevel: number;
+  extChorusSend: number;
+  extReverbSend: number;
   extMuted: boolean;
   masterEq: EqState;
   surround: SurroundState;
@@ -104,6 +106,8 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
         chorus: rs.chorus ?? prev.chorus,
         reverb: rs.reverb ?? prev.reverb,
         extLevel: rs.extLevel ?? 100,
+        extChorusSend: rs.extChorusSend ?? 0,
+        extReverbSend: rs.extReverbSend ?? 0,
         extMuted: rs.extMuted ?? false,
         masterEq: rs.masterEq ?? prev.masterEq,
         surround: rs.surround ?? prev.surround,

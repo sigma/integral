@@ -1231,6 +1231,10 @@ pub enum MixerField {
     MasterLevel,
     /// See [`param_registry::MixerField::ExtLevel`].
     ExtLevel,
+    /// See [`param_registry::MixerField::ExtChorusSend`].
+    ExtChorusSend,
+    /// See [`param_registry::MixerField::ExtReverbSend`].
+    ExtReverbSend,
     /// See [`param_registry::MixerField::ExtMute`].
     ExtMute,
     /// See [`param_registry::MixerField::ChorusSwitch`].
@@ -1323,6 +1327,8 @@ mirror_core_enum!(MixerField <=> param_registry::MixerField {
     PartReceiveChannel,
     MasterLevel,
     ExtLevel,
+    ExtChorusSend,
+    ExtReverbSend,
     ExtMute,
     ChorusSwitch,
     ChorusType,

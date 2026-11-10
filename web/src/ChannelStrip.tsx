@@ -66,6 +66,14 @@ const COMP_STATE_KEY: Partial<Record<MixerField, Exclude<keyof CompEqUnit, "comp
   [MixerField.CompOutputGain]: "compOutputGain",
 };
 
+/** The `MixerState` member holding each Ext Part field's value. */
+const EXT_STATE_KEY: Partial<Record<MixerField, Extract<keyof MixerState, `ext${string}`>>> = {
+  [MixerField.ExtLevel]: "extLevel",
+  [MixerField.ExtChorusSend]: "extChorusSend",
+  [MixerField.ExtReverbSend]: "extReverbSend",
+  [MixerField.ExtMute]: "extMuted",
+};
+
 /** The `PartState` member holding each part field's value. */
 const PART_STATE_KEY: Partial<Record<MixerField, keyof PartState>> = {
   [MixerField.PartLevel]: "level",
@@ -129,9 +137,10 @@ export function stripValue(state: MixerState, scope: StripScope, field: MixerFie
         const value = key === undefined ? undefined : state.parts[index]![key];
         return typeof value === "number" || typeof value === "boolean" ? value : undefined;
       }
-      case MixerScopeKind.Ext:
-        if (field === MixerField.ExtLevel) return state.extLevel;
-        return field === MixerField.ExtMute ? state.extMuted : undefined;
+      case MixerScopeKind.Ext: {
+        const key = EXT_STATE_KEY[field];
+        return key === undefined ? undefined : state[key];
+      }
       case MixerScopeKind.Master:
         return field === MixerField.MasterLevel ? state.masterLevel : undefined;
       case MixerScopeKind.CompEqUnit: {

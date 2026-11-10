@@ -280,6 +280,11 @@ describe("MixerPage", () => {
     const { el, base, setMixerField } = loaded();
     press(el, "strip.ext", MixerField.ExtMute);
     expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Ext, 0, MixerField.ExtMute, 1);
+    const ext = placed(el, "strip.ext");
+    stepUp(control(ext, MixerField.ExtChorusSend));
+    expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Ext, 0, MixerField.ExtChorusSend, base.extChorusSend + 1);
+    stepUp(control(ext, MixerField.ExtReverbSend));
+    expect(setMixerField).toHaveBeenLastCalledWith(MixerScopeKind.Ext, 0, MixerField.ExtReverbSend, base.extReverbSend + 1);
     expect(value(control(placed(el, "strip.master"), MixerField.MasterLevel))).toBe(String(base.masterLevel));
     const unit = placed(el, "strip.comp.5");
     stepUp(control(unit, MixerField.CompAttack));

@@ -209,6 +209,10 @@ export interface MixerState {
   reverb: FxState;
   /** External input level (0–127). */
   extLevel: number;
+  /** External input chorus (FX1) send level (0–127). */
+  extChorusSend: number;
+  /** External input reverb (FX2) send level (0–127). */
+  extReverbSend: number;
   /** External input mute. */
   extMuted: boolean;
   /** Master EQ settings. */
@@ -261,6 +265,8 @@ export function defaultMixerState(): MixerState {
     chorus: defaultFxState(),
     reverb: defaultFxState(),
     extLevel: 100,
+    extChorusSend: 0,
+    extReverbSend: 0,
     extMuted: false,
     masterEq: defaultEqState(),
     surround: defaultSurroundState(),

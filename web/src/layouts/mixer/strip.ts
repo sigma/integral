@@ -147,9 +147,11 @@ const PART: SectionBody<MixerField> = {
   ],
 };
 
-/** The external input: mute, centred over its level. */
+/** The external input: its sends where a part strip has them, then mute, centred over its level. */
 const EXT: SectionBody<MixerField> = {
   items: [
+    { kind: "knob", field: MixerField.ExtChorusSend, x: 0, y: TOP + 3, label: "FX1" },
+    { kind: "knob", field: MixerField.ExtReverbSend, x: 2, y: TOP + 3, label: "FX2" },
     { kind: "switch", field: MixerField.ExtMute, x: 1, y: FADER.y - 1, label: false },
     { kind: "fader", field: MixerField.ExtLevel, x: 1, ...FADER, label: false, scale: true },
     NAME,
