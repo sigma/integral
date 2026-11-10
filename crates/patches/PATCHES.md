@@ -64,3 +64,23 @@ and a crate-level
   state back if it was not taken in time. The default calls `set_state`.
 - *Upstream.* Not yet proposed. A candidate for an upstream PR, which would
   also need the CLAP and standalone wrappers (they return `None` here).
+
+**Patch: `Plugin::KEEP_ALIVE`** (`src/plugin.rs`, `src/wrapper/vst3/{inner,wrapper}.rs`)
+
+- *Why.* The VST3 wrapper tells the host a plugin keeps itself alive only
+  through `getTailSamples()`, which reads the status the last `process()`
+  call returned. That status starts as `Normal`, and `setProcessing()` resets
+  it to `Normal`. So a host that asks for the tail after activation, before
+  the first `process()` call, gets "no tail" and may suspend a plugin whose
+  input is silent. Integral's plugins reach the device from `process()`, so a
+  suspended plugin stops sending the host's changes
+  ([#502](https://github.com/sigma/integral/issues/502)).
+- *What.* A plugin sets `const KEEP_ALIVE: bool = true` (default `false`).
+  The VST3 wrapper then starts and resets the status to `KeepAlive` instead of
+  `Normal` (`WrapperInner::initial_process_status()`), so `getTailSamples()`
+  answers `kInfiniteTail` from activation on. A `process()` result still
+  replaces it, as upstream.
+- *CLAP.* The CLAP wrapper has the same gap (`start_processing()` resets
+  to `Normal`, `ext_tail_get()` reads it) and ignores `KEEP_ALIVE`. Integral
+  ships no CLAP build (no `nih_export_clap!`), so it is left as upstream.
+- *Upstream.* Not yet proposed; an upstream PR would cover CLAP too.
