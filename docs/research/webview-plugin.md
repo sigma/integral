@@ -47,8 +47,8 @@ asset protocol, an IPC channel and zoom. The caveats:
     `MIDIOutput.send`.
   - Replies arrive through the `midimessage` listener.
   - Pacing lives in the core: `THROTTLE_MS = 40.0` in
-    `crates/integral-core/src/device.rs`. That is 40 ms, not the 20 ms
-    minimum in `CLAUDE.md`.
+    `crates/integral-core/src/device.rs`. That is 40 ms, not Roland's 20 ms
+    ([#446](https://github.com/sigma/integral/issues/446#issuecomment-6706325991) showed reads need it).
 - Web bundle size (`web/dist/assets`): about 1.5 MB in total. The JS is
   492 KB, the CSS 53 KB and the WASM 1.0 MB.
 
@@ -268,6 +268,6 @@ The page:
     Windows single-client caveat.
   - This applies whichever renderer wins.
 - Logic is unreachable without an AU wrapper, whichever renderer is chosen.
-- Throttle mismatch: the core uses 40 ms but `CLAUDE.md` states a 20 ms
-  minimum. They don't conflict (40 ≥ 20), but the ticket's "20 ms" should
-  be read as the core's 40 ms.
+- Throttle mismatch: the core used 40 ms while `CLAUDE.md` stated a 20 ms
+  minimum. [Reconcile the 20 ms and 40 ms SysEx throttle](https://github.com/sigma/integral/issues/471)
+  settled it on 40 ms; read the ticket's "20 ms" as that.

@@ -150,8 +150,9 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
 - Device ID is a parameter everywhere. Identity Request uses broadcast
   `0x7F`. Neither `parse_dt1` nor `DeviceState` filters by device ID.
 - `DeviceState` send queue:
-  - Throttle: `THROTTLE_MS = 40.0` (stricter than the documented 20 ms
-    minimum), and the first send goes out at once.
+  - Throttle: `THROTTLE_MS = 40.0`, and the first send goes out at once.
+    Roland documents about 20 ms, but at 20 ms the device drops RQ1s
+    ([#446](https://github.com/sigma/integral/issues/446#issuecomment-6706325991)).
   - DT1s merge on key `dt1:{address}`. Raw sends never merge.
   - The queue is held while an Expansion load runs.
 - `DeviceState` incoming DT1s:

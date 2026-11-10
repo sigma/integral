@@ -8,8 +8,8 @@ map [#276](https://github.com/sigma/integral/issues/276).
 - **User memory** (every User Studio Set and every User tone and kit) can be
   read in full with RQ1. It can be written back through the same path the
   Librarian's import already uses: load the data into Temporary, then send the
-  write request. A read takes about **5–8 min**. A write of every slot takes
-  about **50–65 min**, almost all of it the device's own ~3 s commit per slot.
+  write request. A read takes about **10.4 min**. A write of every slot takes
+  about **55–70 min**, almost all of it the device's own ~3 s commit per slot.
 - **System memory** can't be restored from a SysEx backup. Only System Common
   (47 bytes) has an address, and writing it by DT1 is not known to persist.
   There is no known SysEx "System Write". The rest of the BACKUP's System entry
@@ -102,20 +102,21 @@ counts address space, not parameter bytes. `USER_MEMORY` gives 392 bytes over
 
 ## Transfer Time
 
-The device sends replies over about 256 bytes as packets ~20 ms apart, and we
-send at most one SysEx every 20 ms [PROT; CLAUDE.md]. Two bounds apply:
+The device sends replies over about 256 bytes as packets ~20 ms apart [PROT].
+We send at most one SysEx every 40 ms (`THROTTLE_MS`), because at 20 ms the
+device drops RQ1s ([#446](https://github.com/sigma/integral/issues/446#issuecomment-6706325991)). Two bounds apply:
 
-- **Message pacing:** 15,617 messages × 20 ms ≈ **5.2 min**. This holds over
+- **Message pacing:** 15,617 messages × 40 ms ≈ **10.4 min**. This holds over
   USB, where the wire time is negligible.
 - **DIN wire time:** 1,456,540 bytes ÷ 3,125 B/s (31.25 kbaud) ≈ **7.8 min**.
   This applies if any hop is 5-pin DIN. The RTP-MIDI path through the mioXL may
-  be one.
+  be one. At 40 ms pacing this bound no longer binds: pacing is longer.
 
 | Operation | Estimate | What dominates |
 |---|---|---|
-| **Read** all user memory + System Common | **5–8 min** | 15,617 RQ1/DT1 round trips |
-| **Write** all 1,184 slots | DT1s 5–8 min, plus 1,184 × 2.3–3.0 s = 45–59 min, so **≈ 50–65 min** | The device's commit time per slot [UND §4] |
-| **Incremental write** (only slots that differ from a fresh read) | 5–8 min read, plus about 3 s × changed slots | Changed slots |
+| **Read** all user memory + System Common | **≈ 10.4 min** | 15,617 RQ1/DT1 round trips |
+| **Write** all 1,184 slots | DT1s ≈ 10.4 min, plus 1,184 × 2.3–3.0 s = 45–59 min, so **≈ 55–70 min** | The device's commit time per slot [UND §4] |
+| **Incremental write** (only slots that differ from a fresh read) | ≈ 10.4 min read, plus about 3 s × changed slots | Changed slots |
 
 The write can't be parallelised. Each request must wait for its
 `0F 00 10 02` before the next one is sent [UND §4].
@@ -128,7 +129,7 @@ is untested at slot scale.
 
 ```mermaid
 flowchart LR
-    R["RQ1 per block<br/>15,617 × 20 ms"] --> F[Backup file]
+    R["RQ1 per block<br/>15,617 × 40 ms"] --> F[Backup file]
     F --> D{"Diff vs device?"}
     D -->|"changed slots only"| W
     D -->|"all 1,184"| W["Per slot:<br/>DT1 blocks into Temporary<br/>+ write request ~3 s"]

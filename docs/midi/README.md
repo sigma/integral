@@ -42,5 +42,5 @@ Extracted from the official Roland INTEGRA-7 MIDI Implementation document
 - **RQ1 Command:** `11H` — Data Request 1
 - **Checksum:** `(128 - (sum_of_address_and_data % 128)) % 128`
 - **Max packet:** 256 bytes
-- **Min interval:** 20 ms between packets
+- **Min interval:** about 20 ms between packets per Roland; reads need 40 ms, which `DeviceState` uses (see [01-protocol.md](01-protocol.md#20-ms-inter-packet-interval))
 - **Nibblized data:** Values > 7 bits are split into multiple 7-bit bytes (high nibble first)

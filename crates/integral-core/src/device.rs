@@ -47,6 +47,14 @@ use crate::state::{EqState, FxState, MixerState, SurroundPartState};
 use crate::sysex;
 
 /// Minimum interval between SysEx sends (ms).
+///
+/// Twice the "approximately 20 ms" of the MIDI Implementation, on measurement:
+/// over an RTP-MIDI link the device answered 147 of 200 back-to-back
+/// Part-block RQ1s at a 20 ms gap and all 200 at 40 ms, dropping the rest
+/// without an error ([#446]). The queue carries RQ1s as well as DT1s, so it
+/// paces for the reads. Whether every DT1 lands below 40 ms is untested.
+///
+/// [#446]: https://github.com/sigma/integral/issues/446#issuecomment-6706325991
 pub const THROTTLE_MS: f64 = 40.0;
 
 /// Duration to suppress incoming DT1 echoes after a local send (ms).

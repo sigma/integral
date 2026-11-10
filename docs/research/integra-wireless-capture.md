@@ -168,8 +168,10 @@ stands.
   | 10, 20, 30, 50 ms | 16/16 |
   | wait for each reply (editor style) | 16/16, 68 ms each |
 
-  Excess requests are dropped silently: no error, no late reply. The 20 ms
-  rule from the MIDI Implementation applies over Wi-Fi unchanged. Packing many
+  Excess requests are dropped silently: no error, no late reply. Over Wi-Fi
+  the device paces like it does over MIDI. This 16-request run passed at
+  20 ms, but a longer one, 200 RQ1s, lost a quarter of them at 20 ms and
+  none at 40 ms ([#446](https://github.com/sigma/integral/issues/446#issuecomment-6706325991)), so reads need 40 ms. Packing many
   SysEx messages into one `02` frame is legal, but it does not bypass the limit.
 - **Large replies:** an RQ1 for 77 bytes (the whole Part 1 block) came back as
   one 90-byte DT1. An RQ1 spanning `18 00 00 00` + `00 00 10 00` came back as 5

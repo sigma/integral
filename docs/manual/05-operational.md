@@ -150,7 +150,7 @@ and tone settings) as SysEx data to an external MIDI device. Use cases:
 > **Protocol:** Bulk dump uses standard DT1 messages with the Temporary
 > Area addresses (`18 00 00 00` for Studio Set, `19 00 00 00`+ for tones).
 > See [SysEx protocol](../midi/01-protocol.md) for packet limits (256 bytes)
-> and inter-packet interval (20 ms).
+> and inter-packet interval (Roland's ~20 ms; the core paces at 40 ms).
 
 ## Synchronization
 
