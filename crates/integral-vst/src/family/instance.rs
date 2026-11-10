@@ -414,8 +414,10 @@ impl Instance {
     }
 
     /// Whether a recall of the saved tone is owed or under way. The editor
-    /// offers no tone pick meanwhile: the instance would not save it, and the
-    /// push would select the saved tone over it.
+    /// offers no tone pick meanwhile: the push would select the saved tone
+    /// over it. (A pick that reaches the device before the page hears of the
+    /// flag stands only if the push is owed for a new device session alone,
+    /// not for a restore: see the follower's `learn_tone`.)
     pub fn recall_owed(&self) -> bool {
         self.recall_owed.load(Ordering::Acquire)
     }

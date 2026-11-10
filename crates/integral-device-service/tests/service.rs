@@ -509,6 +509,114 @@ fn level_changes(messages: Vec<Message>) -> Vec<(ClientId, ParamId, i32)> {
 }
 
 #[test]
+fn a_clients_note_goes_out_ahead_of_its_queued_sysex() {
+    let (mut service, link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (a, inbox) = client(&mut service, 1);
+
+    for part in 0..3 {
+        ask(
+            &mut service,
+            a,
+            Request::Raw {
+                bytes: level_dt1(part, 50 + part),
+            },
+        );
+    }
+    service.pump(0.0); // the first DT1 leaves
+    // Two messages in one request, as a page may send a chord.
+    let chord = [NOTE_ON.as_slice(), &[0x91, 64, 90]].concat();
+    service.handle(
+        Input::Client {
+            client: a,
+            request: Request::Note { bytes: chord },
+        },
+        1.0,
+    );
+    service.pump(1.0); // inside the throttle window: only the notes
+    let mut now = 1.0;
+    while service.device().has_pending() {
+        now += 1.0;
+        service.pump(now);
+    }
+
+    assert_eq!(
+        link.sent(),
+        [
+            level_dt1(0, 50),
+            NOTE_ON.to_vec(),
+            vec![0x91, 64, 90],
+            level_dt1(1, 51),
+            level_dt1(2, 52),
+        ]
+    );
+    assert!(
+        inbox
+            .take()
+            .iter()
+            .all(|m| !matches!(m, Message::Rejected { .. }))
+    );
+}
+
+#[test]
+fn a_note_request_that_is_not_whole_channel_voice_messages_is_refused() {
+    let (mut service, link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (a, inbox) = client(&mut service, 1);
+    for bad in [
+        vec![0x90, 60],
+        vec![0xF0, 0x41, 0xF7],
+        vec![0xF8],
+        vec![0x90, 60, 100, 61],
+    ] {
+        ask(&mut service, a, Request::Note { bytes: bad.clone() });
+        assert!(
+            matches!(
+                inbox.take()[..],
+                [Message::Rejected {
+                    reason: Reject::Invalid { .. },
+                    param: None
+                }]
+            ),
+            "{bad:02X?}"
+        );
+    }
+    service.pump(10.0);
+    assert!(link.sent().is_empty());
+}
+
+#[test]
+fn a_note_request_before_hello_is_refused() {
+    let (mut service, link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let inbox = Inbox::default();
+    let a = ClientId(1);
+    service.handle(
+        Input::Connect {
+            client: a,
+            outbox: Box::new(inbox.clone()),
+        },
+        0.0,
+    );
+    ask(
+        &mut service,
+        a,
+        Request::Note {
+            bytes: NOTE_ON.to_vec(),
+        },
+    );
+    service.pump(1.0);
+    assert!(link.sent().is_empty());
+    assert!(matches!(
+        inbox.take()[..],
+        [Message::Rejected {
+            reason: Reject::NotGreeted,
+            ..
+        }]
+    ));
+}
+
+#[test]
 fn each_clients_writes_keep_their_writer_to_the_moment_they_are_queued() {
     let (mut service, link) = service();
     service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);

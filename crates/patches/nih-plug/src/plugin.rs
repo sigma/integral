@@ -117,6 +117,13 @@ pub trait Plugin: Default + Send + 'static {
     /// to do offline processing.
     const HARD_REALTIME_ONLY: bool = false;
 
+    /// If this is set to true, the plugin keeps itself alive (its `process()` returns
+    /// [`ProcessStatus::KeepAlive`]), and the wrapper assumes `KeepAlive` until the first
+    /// `process()` call after processing starts or stops: the host sees an infinite tail from
+    /// activation on, so it does not suspend the plugin while its input is silent. A `process()`
+    /// result still replaces it. Only the VST3 wrapper honours this; CLAP and standalone ignore it.
+    const KEEP_ALIVE: bool = false;
+
     /// The plugin's SysEx message type if it supports sending or receiving MIDI SysEx messages, or
     /// `()` if it does not. This type can be a struct or enum wrapping around one or more message
     /// types, and the [`SysExMessage`] trait is then used to convert between this type and basic

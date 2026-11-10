@@ -125,6 +125,17 @@ describe("MixerPage", () => {
     const gain = control(placed(el, "strip.comp.0"), MixerField.CompOutputGain);
     expect(gain.textContent).toContain(label(MixerField.CompOutputGain, base.drumCompEq.units[0]!.compOutputGain));
     expect(gain.textContent).not.toContain("dBdB");
+    const unit = base.drumCompEq.units[0]!;
+    for (const [field, v] of [
+      [MixerField.CompAttack, unit.compAttack],
+      [MixerField.CompRelease, unit.compRelease],
+    ] as const) {
+      const time = control(placed(el, "strip.comp.0"), field);
+      expect(label(field, v)).toMatch(/ ms$/);
+      expect(time.textContent).toContain(label(field, v));
+      expect(time.textContent).not.toContain("msms");
+      expect(time.textContent).not.toContain("ms ms");
+    }
   });
 
   it("writes a turned EQ knob in its strip's Scope", () => {

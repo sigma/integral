@@ -3,8 +3,8 @@
  * when it runs in the plugin's webview.
  *
  * WKWebView has no Web MIDI, and the host does not pass plugin SysEx
- * through, so the plugin relays bytes over the webview's IPC to the Device
- * service (ADR 0006), the one process that holds the device port. The only
+ * through, so the plugin relays bytes (SysEx and notes) over the webview's
+ * IPC to the Device service (ADR 0006), the one process that holds the device port. The only
  * port it offers is the service, and none while the service or the device
  * is unavailable. This module is the page's half: a {@link MidiPorts}
  * over a {@link PluginBridge}. It does not pretend to be Web MIDI.
@@ -21,6 +21,7 @@ import { DEVICE_SERVICE_ID, DEVICE_SERVICE_NAME } from "./deviceService";
 import { mixerScreen } from "./layouts/mixer/screen";
 import { naturalSize, type NaturalSize } from "./layouts/zoom";
 import type { MidiListener, MidiPortPair, MidiPorts } from "./midi";
+import { holdUntil, mainThreadTimers, type Timers } from "./timedSend";
 import type { Cells } from "./synth-ui/grid";
 
 /** A message from the page to the plugin. */
@@ -253,13 +254,23 @@ export const SERVICE_UNAVAILABLE_HINT = "The Device service is unavailable.";
  * only while the service and the device are up, and says why otherwise.
  * The pair's `watch` tells the page when the plugin starts or stops
  * offering the port (the service or the device going away or coming back).
- * One pair is open at a time. The plugin carries SysEx only
- * (`carriesNotes` is `false`).
+ * One pair is open at a time. It carries notes too (`carriesNotes`): the
+ * plugin hands a channel voice message to the service, which plays it ahead
+ * of its SysEx queue.
  *
- * A send with a future `timestamp` (the Sequencer's) is held in the page
- * until then, as Web MIDI would hold it in the browser.
+ * A send with a future `timestamp` is held in the page until then, as Web
+ * MIDI would hold it in the browser, on `timers` (`now` is the clock it is
+ * on). The page's own timers by default. WebKit may throttle them while the
+ * view is hidden, as a browser does a background tab, but the editor sends
+ * nothing timed (the Sequencer is not one of its pages) and lives only while
+ * its window is open; and the webview's Content Security Policy refuses the
+ * `blob:` worker the browser holds them in.
  */
-export function pluginPorts(bridge: PluginBridge): Promise<MidiPorts> {
+export function pluginPorts(
+  bridge: PluginBridge,
+  timers: Timers = mainThreadTimers,
+  now: () => number = () => performance.now(),
+): Promise<MidiPorts> {
   const post = (message: PageMessage) => bridge.post(encodePageMessage(message));
   const listeners = new Set<MidiListener>();
   const watchers = new Set<(up: boolean) => void>();
@@ -281,8 +292,7 @@ export function pluginPorts(bridge: PluginBridge): Promise<MidiPorts> {
   const pair: MidiPortPair = {
     id: DEVICE_SERVICE_ID,
     name: DEVICE_SERVICE_NAME,
-    // The plugin's link carries SysEx only ([#505](https://github.com/sigma/integral/issues/505) brings notes).
-    carriesNotes: false,
+    carriesNotes: true,
     open: () =>
       new Promise<void>((resolve, reject) => {
         const timer = setTimeout(() => {
@@ -308,9 +318,7 @@ export function pluginPorts(bridge: PluginBridge): Promise<MidiPorts> {
         port: DEVICE_SERVICE_NAME,
         data: Array.from(data),
       };
-      const delay = timestamp === undefined ? 0 : timestamp - performance.now();
-      if (delay > 0) setTimeout(() => post(message), delay);
-      else post(message);
+      holdUntil(timestamp, () => post(message), timers, now);
     },
     listen(listener) {
       listeners.add(listener);

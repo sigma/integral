@@ -19,6 +19,12 @@
 //!   does. Every restore the host makes counts as a new state
 //!   ([`Instance::restores`]): a preset load or a revert in the middle of a
 //!   session is pushed too.
+//! - A tone the editor picked that reaches the device once a push is owed
+//!   ([`Recall::owes_only_the_session`]) stands if the push is owed only for
+//!   a new session: it is the user's latest word, so it is adopted and the
+//!   session gets no push. If a restore made the push owed, the restore wins.
+//!   One that reaches the Part during the push makes it start over, its
+//!   selection first, so that its values do not land on the pick's tone.
 //!
 //! The follower starts the push after the instance's first read of the
 //! session has settled it, and reads in the meantime keep the project's
@@ -506,6 +512,16 @@ impl Recall {
     pub fn owes(&self, instance: &Instance, session: Option<SessionId>) -> bool {
         Stamp::of(instance, session)
             .is_some_and(|stamp| self.holds_state(instance) && self.pushed != Some(stamp))
+    }
+
+    /// Whether the push owed in `session` is owed only because the session is
+    /// new: no state the host restored is still to be pushed (the last
+    /// restore's state has had a push in an earlier session, or the instance
+    /// holds a state it adopted and was never restored).
+    pub fn owes_only_the_session(&self, instance: &Instance, session: Option<SessionId>) -> bool {
+        let restore_owed = instance.was_restored()
+            && self.pushed.map(|pushed| pushed.restores) != Some(instance.restores());
+        self.owes(instance, session) && !restore_owed
     }
 
     /// Whether the instance holds a state it trusts and can push.

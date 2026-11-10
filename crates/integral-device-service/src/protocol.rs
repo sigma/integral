@@ -57,6 +57,11 @@
 //! reaches every subscriber as a [`BulkKind::StudioSet`] event, which every
 //! client knows.
 //!
+//! [`Request::Note`] is of this kind as well, and has no answer. A service
+//! that predates it answers [`Reject::Malformed`] to each and plays nothing;
+//! the plugin editor passes that on to its page as an error, as it does any
+//! refusal.
+//!
 //! # Pacing and cache
 //!
 //! Requests of one client run in the order it sent them. The service takes
@@ -121,6 +126,7 @@ use crate::session::SessionId;
 use integral_core::expansion_slots::ExpansionSlots;
 use integral_core::expansion_slots::SLOT_COUNT;
 use integral_core::host_params::{Binding, ParamHandle, ParamIndex, PluginKind};
+use integral_core::sysex;
 
 /// The protocol version this crate speaks.
 pub const PROTOCOL_VERSION: u32 = 1;
@@ -333,6 +339,33 @@ pub enum Request {
         /// ([`ExpansionSlots::from_values`]) with [`Reject::Invalid`].
         slots: [u8; SLOT_COUNT],
     },
+    /// Play notes: one or more whole channel voice messages (`8n` to `En`,
+    /// each with its own status byte), sent to the device as note-port
+    /// traffic is, at once and in order, between SysEx messages and ahead of
+    /// the paced queue. A Program Change makes the service re-read the tone
+    /// of the Parts on its channel. Not answered; anything else (running
+    /// status, SysEx, a system or real-time message, a message cut short) is
+    /// refused with [`Reject::Invalid`] and nothing is played. Dropped while
+    /// the link is down, as a note port's traffic is. For a client with no
+    /// MIDI port of its own, such as the plugin editor's page.
+    Note {
+        /// The messages, back to back.
+        bytes: Vec<u8>,
+    },
+}
+
+impl Request {
+    /// The request that sends one MIDI message as a shared MIDI port would:
+    /// a SysEx message (starting `F0`) as [`Request::Raw`], through the paced
+    /// queue, and anything else as [`Request::Note`], played ahead of it. The
+    /// service checks either and refuses what it cannot send.
+    pub fn midi(bytes: Vec<u8>) -> Self {
+        if bytes.first() == Some(&sysex::SYSEX_START) {
+            Self::Raw { bytes }
+        } else {
+            Self::Note { bytes }
+        }
+    }
 }
 
 /// What a bulk event stands for.
@@ -839,6 +872,29 @@ mod tests {
         // Four slots, no more.
         let five = r#"{"type":"load_expansion","slots":[3,0,7,8,9]}"#;
         assert!(serde_json::from_str::<Request>(five).is_err());
+    }
+
+    #[test]
+    fn a_midi_message_is_raw_if_sysex_else_a_note() {
+        assert_eq!(
+            Request::midi(vec![0xF0, 0x7E, 0xF7]),
+            Request::Raw {
+                bytes: vec![0xF0, 0x7E, 0xF7]
+            }
+        );
+        for other in [vec![0x90, 60, 100], vec![0xF8], vec![]] {
+            assert_eq!(Request::midi(other.clone()), Request::Note { bytes: other });
+        }
+    }
+
+    #[test]
+    fn a_note_is_plain_json() {
+        let note = Request::Note {
+            bytes: vec![0x90, 60, 100],
+        };
+        let json = serde_json::to_string(&note).unwrap();
+        assert_eq!(json, r#"{"type":"note","bytes":[144,60,100]}"#);
+        assert_eq!(serde_json::from_str::<Request>(&json).unwrap(), note);
     }
 
     #[test]

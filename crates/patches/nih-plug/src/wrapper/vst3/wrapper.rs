@@ -899,7 +899,9 @@ impl<P: Vst3Plugin> IAudioProcessor for Wrapper<P> {
         let state = state != 0;
 
         // Always reset the processing status when the plugin gets activated or deactivated
-        self.inner.last_process_status.store(ProcessStatus::Normal);
+        self.inner
+            .last_process_status
+            .store(WrapperInner::<P>::initial_process_status());
         self.inner.is_processing.store(state, Ordering::SeqCst);
 
         // This function is also used to reset buffers on the plugin, so we should do the same

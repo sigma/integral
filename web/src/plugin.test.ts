@@ -187,7 +187,7 @@ describe("pluginPorts", () => {
     const { fake, ports } = await listed([S]);
     expect(fake.posted[0]).toEqual({ type: "ready" });
     expect(ports.pairs().map((p) => [p.id, p.name, p.carriesNotes])).toEqual([
-      [DEVICE_SERVICE_ID, DEVICE_SERVICE_NAME, false],
+      [DEVICE_SERVICE_ID, DEVICE_SERVICE_NAME, true],
     ]);
     expect(ports.pairs()[0]!.failure?.()).toBeNull();
   });
@@ -289,6 +289,41 @@ describe("pluginPorts", () => {
       type: "send",
       port: S,
       data: [0xf0, 0x7e, 0xf7],
+    });
+  });
+
+  it("forwards notes to its pair as they come, like SysEx", async () => {
+    const { fake, ports } = await listed([S]);
+    const pair = ports.pairs()[0]!;
+    pair.send(new Uint8Array([0x99, 0x24, 0x64]));
+    pair.send([0x89, 0x24, 0x00]);
+    expect(fake.posted.filter((m) => m.type === "send")).toEqual([
+      { type: "send", port: S, data: [0x99, 0x24, 0x64] },
+      { type: "send", port: S, data: [0x89, 0x24, 0x00] },
+    ]);
+  });
+
+  it("holds a timed note on the timers and clock it is given", async () => {
+    const fake = fakeBridge();
+    fake.answerWith((m) => (m.type === "ready" ? [{ type: "ports", ports: [S] }] : []));
+    const held: { callback: () => void; ms: number }[] = [];
+    const timers = {
+      set: (callback: () => void, ms: number) => held.push({ callback, ms }),
+      clear: () => {},
+    };
+    const ports = await pluginPorts(fake.bridge, timers, () => 1000);
+    ports.pairs()[0]!.send([0x90, 0x3c, 0x7f], 1040);
+    ports.pairs()[0]!.send([0x80, 0x3c, 0x00], 990);
+
+    expect(fake.posted.filter((m) => m.type === "send")).toEqual([
+      { type: "send", port: S, data: [0x80, 0x3c, 0x00] },
+    ]);
+    expect(held.map((h) => h.ms)).toEqual([40]);
+    held[0]!.callback();
+    expect(fake.posted[fake.posted.length - 1]).toEqual({
+      type: "send",
+      port: S,
+      data: [0x90, 0x3c, 0x7f],
     });
   });
 

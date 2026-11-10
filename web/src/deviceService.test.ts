@@ -11,8 +11,8 @@ import {
   deviceServicePair,
   withDeviceService,
   type SocketLike,
-  type Timers,
 } from "./deviceService";
+import type { Timers } from "./timedSend";
 import { findIntegraPort, type MidiPortPair, type MidiPorts } from "./midi";
 import {
   devServerPort,

@@ -1,5 +1,8 @@
-//! The editor's [`DeviceLink`]: a raw SysEx client of the Device service
-//! (ADR 0006), so the plugin opens no MIDI port.
+//! The editor's [`DeviceLink`]: a raw SysEx and note client of the Device
+//! service (ADR 0006), so the plugin opens no MIDI port. A SysEx message goes
+//! through the service's paced queue; anything else is asked to be played,
+//! which the service does ahead of that queue if it is whole channel voice
+//! messages, and refuses otherwise ([`Request::midi`]).
 //!
 //! The page sees one port, [`PORT`], while the instance's own connection
 //! ([`Connection`](crate::family::link::Connection)) says the service and the
@@ -38,7 +41,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use integral_device_service::protocol::Message;
+use integral_device_service::protocol::{Message, Request};
 use integral_device_service::{Client, ClientEvent, Events};
 
 use super::link::{DeviceLink, Inbound, Incoming, LinkError};
@@ -244,7 +247,13 @@ impl DeviceLink for ServiceLink {
         }
         self.require_connected()
             .map_err(|why| LinkError::Send(why.into()))?;
-        let queued = open.client.as_ref().is_some_and(|c| c.raw(data.to_vec()));
+        // SysEx goes through the paced queue; anything else is asked to be
+        // played, ahead of it. The service checks either and says what it
+        // refuses.
+        let queued = open
+            .client
+            .as_ref()
+            .is_some_and(|c| c.send(Request::midi(data.to_vec())));
         if queued {
             Ok(())
         } else {
@@ -433,6 +442,49 @@ mod tests {
     }
 
     #[test]
+    fn a_note_from_the_page_reaches_the_fake_link_before_queued_sysex() {
+        const NOTE_ON: [u8; 3] = [0x99, 0x24, 0x64];
+        const NOTE_OFF: [u8; 3] = [0x89, 0x24, 0x00];
+        let mut editor = Editor::new();
+        editor.page_posts(r#"{"type":"ready"}"#);
+        editor.page_posts(&open_message());
+        editor.page_hears("the port to open", |m| {
+            matches!(m, PluginMessage::Opened { .. }).then_some(())
+        });
+        // SysEx waits as it would behind the throttle; notes do not.
+        editor.service().link.hold_sysex(Duration::from_secs(60));
+
+        let request = rq1(0);
+        editor.page_posts(&send_message(&request));
+        editor.page_posts(&send_message(&NOTE_ON));
+        wait_for("the note at the link", || {
+            editor.service().link.sent().contains(&NOTE_ON.to_vec())
+        });
+        assert!(
+            !editor.service().link.sent().contains(&request),
+            "the RQ1 was held"
+        );
+
+        editor.service().link.hold_sysex(Duration::ZERO);
+        // Another note wakes the service if it sleeps, and it sends what it held.
+        editor.page_posts(&send_message(&NOTE_OFF));
+        wait_for("the RQ1 at the link", || {
+            editor.service().link.sent().contains(&request)
+        });
+        let sent = editor.service().link.sent();
+        let at = |m: &[u8]| sent.iter().position(|s| s == m).expect("sent");
+        assert!(at(&NOTE_ON) < at(&request));
+        assert!(
+            !editor
+                .bridge
+                .take_outgoing()
+                .iter()
+                .any(|m| matches!(m, PluginMessage::Error { .. })),
+            "nothing refused"
+        );
+    }
+
+    #[test]
     fn without_the_service_the_page_is_told_the_status_and_offered_nothing() {
         let instance = Arc::new(Instance::new(PluginKind::StudioSet));
         let mut link = ServiceLink::new(instance);
@@ -521,8 +573,8 @@ mod tests {
         editor.page_hears("the port to open", |m| {
             matches!(m, PluginMessage::Opened { .. }).then_some(())
         });
-        // A note is not SysEx: the raw channel refuses it.
-        editor.page_posts(&send_message(&[0x90, 0x3C, 0x64]));
+        // A note cut short: the service plays nothing and says why.
+        editor.page_posts(&send_message(&[0x90, 0x3C]));
         let port = editor.page_hears("the refusal", |m| match m {
             PluginMessage::Error { port, .. } => Some(port.clone()),
             _ => None,

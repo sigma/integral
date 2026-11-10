@@ -2,8 +2,9 @@
 //!
 //! The page's port interface reaches the device through a [`DeviceLink`].
 //! The plugin opens no MIDI port (Live drops plugin SysEx, #328, and one
-//! process must own the device's port): the link is a raw SysEx client of the
-//! Device service ([`service_link`](super::service_link), ADR 0006).
+//! process must own the device's port): the link is a raw SysEx and note
+//! client of the Device service ([`service_link`](super::service_link), ADR
+//! 0006).
 
 use thiserror::Error;
 

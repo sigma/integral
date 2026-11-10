@@ -153,6 +153,9 @@ impl<K: Kind> Plugin for Family<K> {
     }];
     // No host MIDI (the defaults): notes go to the service's note port.
     const SAMPLE_ACCURATE_AUTOMATION: bool = false;
+    // `process()` always keeps the plugin alive (see there); this tells the
+    // host so from activation, before the first `process()` call.
+    const KEEP_ALIVE: bool = true;
     // No host SysEx: the device is reached through the service.
     type SysExMessage = ();
     // What the instance's worker asks of the host's main thread.
@@ -239,7 +242,7 @@ impl<K: Kind> Plugin for Family<K> {
         }
         // The poll above is the only path for the host's changes to reach the
         // device, and the input is usually silent: a host that suspends a
-        // silent plugin would stall them.
+        // silent plugin would stall them. Keep in step with `KEEP_ALIVE`.
         ProcessStatus::KeepAlive
     }
 }
@@ -272,6 +275,24 @@ mod tests {
         // so before any state is restored.
         let wrapper = Wrapper::<PcmSynthPlugin>::new();
         drop(wrapper);
+    }
+
+    #[test]
+    fn the_wrapper_reports_an_infinite_tail_before_the_first_process_call() {
+        use nih_plug::wrapper::vst3::vst3_sys::vst::IAudioProcessor;
+        // VST3's `kInfiniteTail`: the host must not suspend the plugin.
+        // vst3-sys defines no constant for it (nih-plug uses the literal).
+        const INFINITE_TAIL: u32 = u32::MAX;
+        let wrapper = Wrapper::<PcmSynthPlugin>::new();
+        // SAFETY: the calls take no pointers; `set_processing` locks the
+        // plugin to reset it, which nothing else holds here.
+        unsafe {
+            assert_eq!(wrapper.get_tail_samples(), INFINITE_TAIL);
+            wrapper.set_processing(1);
+            assert_eq!(wrapper.get_tail_samples(), INFINITE_TAIL);
+            wrapper.set_processing(0);
+            assert_eq!(wrapper.get_tail_samples(), INFINITE_TAIL);
+        }
     }
 
     #[test]

@@ -92,7 +92,9 @@ independent of it.
   `Subscribe`/`Unsubscribe`, `ReceiveRaw`, `Write`/`Read`, `Raw` (one SysEx
   message), `ChangeTone`, `SwitchStudioSet`, `LoadMixer`, `Push`, `Baseline`,
   `LoadExpansion` (the four slot values; a service that predates it answers
-  `Malformed`). `Message`: `Welcome`,
+  `Malformed`), `Note` (one or more whole channel voice messages, played as
+  the note port's are, unanswered unless refused; a service that predates it
+  answers `Malformed`). `Message`: `Welcome`,
   `LinkUp`, `LinkDown`, `Changed` (with the writer's `ClientId`;
   `ClientId::DEVICE` for the device, only when the value differs from the last
   known and never as a read's answer), `Bulk` (a tone or Studio Set replaced,
@@ -178,7 +180,10 @@ events and the device's messages.
 
 - Notes go to the link at once, between SysEx messages and never inside one;
   SysEx keeps core's spacing. From the note port everything passes except
-  SysEx, which is dropped, never echoed. Notes are dropped while the link is
+  SysEx, which is dropped, never echoed. A page's binary frame is
+  `Request::midi`, as the plugin editor's sends are: a note frame is a `Note`,
+  played as the note port's traffic once checked as whole channel voice
+  messages. Notes are dropped while the link is
   down; SysEx queued before the first Up stays queued for it, and what is
   queued when a session ends is dropped with it.
 - Each `link.send` is one whole MIDI message. The service thread never sleeps: a link that just probed reports `sysex_gap`, and the service sends notes and wakes when it ends. Links serialise their own

@@ -588,6 +588,18 @@ impl Follower {
                     self.recall
                         .kit_reloaded(&self.instance, &mine, self.session);
                 }
+                // The editor's pick reached the Part during the push: the
+                // push's values may now land on the pick's tone. The push
+                // starts over, its selection first, after the read it waits
+                // for. Its answers still to come are not the new push's.
+                if *kind == BulkKind::Tone
+                    && *selected
+                    && self.recall.active()
+                    && Some(*writer) == self.instance.editor_client()
+                    && self.bound.is_some_and(|b| b.key.is_none())
+                {
+                    self.recall.abort_lost(&self.instance);
+                }
                 self.on_bulk(*writer, *kind, *selected, tone.as_ref(), now, wire);
             }
             ClientEvent::Message(Message::Baseline {
@@ -635,7 +647,7 @@ impl Follower {
                         && let Some(&msb) = dt1.data.first()
                     {
                         if let [msb, lsb, pc, ..] = dt1.data[..] {
-                            self.learn_tone((msb, lsb, pc));
+                            self.learn_tone((msb, lsb, pc), false);
                         }
                         self.resolve_fit(ToneFit::of(self.instance.kind(), msb));
                     }
@@ -667,7 +679,8 @@ impl Follower {
             && selected
             && kind == BulkKind::Tone
         {
-            self.learn_tone((tone.msb, tone.lsb, tone.pc));
+            let by_editor = Some(writer) == self.instance.editor_client();
+            self.learn_tone((tone.msb, tone.lsb, tone.pc), by_editor);
         }
         if let Some(msb) = announced {
             self.resolve_fit(ToneFit::of(self.instance.kind(), msb));
@@ -695,8 +708,25 @@ impl Follower {
     /// device's tone must not replace. The editor offers no tone pick in that
     /// window ([`Instance::recall_owed`]), since the push would select the
     /// saved tone over it.
-    fn learn_tone(&mut self, tone: (u8, u8, u8)) {
-        if !self.recall.active() && !self.recall.owes(&self.instance, self.session) {
+    ///
+    /// The page learns of the window late, so a pick can still reach the
+    /// device in it (`by_editor`,
+    /// [#504](https://github.com/sigma/integral/issues/504)). If the push is
+    /// owed only because the device session is new, the pick is the user's
+    /// latest word and stands:
+    /// it is saved and adopted, so nothing is pushed over it in the session,
+    /// and the read that follows takes its values. If a restore made the push
+    /// owed, the restore is the later act and the project's: it wins, and the
+    /// push selects its tone over the pick before writing that tone's values.
+    fn learn_tone(&mut self, tone: (u8, u8, u8), by_editor: bool) {
+        let owed = self.recall.owes(&self.instance, self.session);
+        // A key's plugin selects nothing and its editor is not held back.
+        let pick_stands = by_editor
+            && self.bound.is_some_and(|b| b.key.is_none())
+            && self
+                .recall
+                .owes_only_the_session(&self.instance, self.session);
+        if !self.recall.active() && (!owed || pick_stands) {
             recall::save_tone(&self.instance, tone, None);
             // A tone the instance takes from the device is not one to push
             // back in the session it came from.
@@ -1320,6 +1350,8 @@ mod tests {
         raws: RefCell<Vec<Vec<u8>>>,
         tones: RefCell<Vec<(u8, u8, u8, u8)>>,
         baselines: RefCell<Vec<u8>>,
+        /// The tones the pushes selected, as (MSB, LSB, PC).
+        pushed_tones: RefCell<Vec<(u8, u8, u8)>>,
     }
 
     impl Wire for FakeWire {
@@ -1339,6 +1371,11 @@ mod tests {
             self.calls
                 .borrow_mut()
                 .push(format!("push {}", requests.len()));
+            for request in &requests {
+                if let Request::ChangeTone { msb, lsb, pc, .. } = request {
+                    self.pushed_tones.borrow_mut().push((*msb, *lsb, *pc));
+                }
+            }
         }
         fn change_tone(&self, part: u8, msb: u8, lsb: u8, pc: u8) {
             self.tones.borrow_mut().push((part, msb, lsb, pc));
@@ -2010,6 +2047,135 @@ mod tests {
         assert!(instance.notices.get().is_empty(), "the recall is out");
         follower.step(None, now, &wire);
         assert!(!instance.recall_owed(), "a pick can be made again");
+    }
+
+    /// The editor's client, as the service names it in a bulk event.
+    const EDITOR: ClientId = ClientId(8);
+
+    /// A restored PCM Synth instance on Part 0 whose recall of tone A
+    /// (87, 64, 3) is out in session 1, with an editor open.
+    fn recalled() -> (Arc<Instance>, Follower, FakeWire, Instant) {
+        let (instance, mut follower, wire, now) = recalling();
+        let baseline = ClientEvent::Message(Message::Baseline {
+            binding: Binding::of_part(0),
+            tone: None,
+            runs: Vec::new(),
+        });
+        follower.step(Some(&baseline), now, &wire);
+        for _ in 0..3 {
+            follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        }
+        follower.step(None, now, &wire);
+        assert!(!instance.recall_owed(), "the recall is out");
+        instance.set_editor_client(Some(EDITOR));
+        (instance, follower, wire, now)
+    }
+
+    /// The service's word that the editor selected `(msb, lsb, pc)` on Part 0.
+    fn editor_pick(tone: (u8, u8, u8)) -> ClientEvent {
+        ClientEvent::Message(Message::Bulk {
+            writer: EDITOR,
+            kind: BulkKind::Tone,
+            binding: Binding::of_part(0),
+            selected: true,
+            tone: Some(ToneSelect {
+                msb: tone.0,
+                lsb: tone.1,
+                pc: tone.2,
+            }),
+        })
+    }
+
+    /// The saved tone's (MSB, LSB, PC).
+    fn saved(instance: &Instance) -> (u8, u8, u8) {
+        let t = instance.tone.get().expect("a saved tone");
+        (t.msb, t.lsb, t.pc)
+    }
+
+    #[test]
+    fn an_editor_pick_that_reaches_the_device_in_a_new_session_is_saved_and_not_pushed_over() {
+        let (instance, mut follower, wire, now) = recalled();
+        let pushes = calls(&wire, "push");
+        // The editor picks tone B; the link drops and comes back (a new
+        // session, a push owed) before the service announces the pick.
+        follower.step(Some(&ClientEvent::Message(Message::LinkDown)), now, &wire);
+        let up = ClientEvent::Message(Message::LinkUp {
+            session: SessionId(2),
+        });
+        follower.step(Some(&up), now, &wire);
+        assert!(instance.recall_owed(), "owed in the new session");
+        let reads = block_reads(&wire, 0);
+        follower.step(Some(&editor_pick((87, 64, 9))), now, &wire);
+        assert_eq!(saved(&instance), (87, 64, 9), "the pick is the state");
+        assert!(!instance.recall_owed(), "nothing is owed in this session");
+        assert!(block_reads(&wire, 0) > reads, "the pick's values are read");
+        // The read ends; no push of tone A follows.
+        follower.step(None, now + Duration::from_secs(2), &wire);
+        follower.step(None, now + Duration::from_secs(4), &wire);
+        assert_eq!(calls(&wire, "push"), pushes, "{:?}", wire.calls.borrow());
+        assert_eq!(saved(&instance), (87, 64, 9));
+        assert!(instance.is_armed());
+    }
+
+    #[test]
+    fn an_editor_pick_that_reaches_the_part_during_the_push_makes_it_start_over_with_its_selection()
+    {
+        // The pick would take the push's values onto its tone: the push
+        // selects the saved tone again before any of them, so nothing ends
+        // up half one tone and half the other.
+        let (instance, mut follower, wire, now) = recalling();
+        instance.set_editor_client(Some(EDITOR));
+        assert_eq!(wire.pushed_tones.borrow().as_slice(), [(87, 64, 3)]);
+        follower.step(Some(&editor_pick((87, 64, 9))), now, &wire);
+        assert!(!instance.notices.get().contains(&Notice::Recalling));
+        assert!(instance.recall_owed(), "still owed");
+        assert_eq!(saved(&instance), (87, 64, 3), "the pick is not saved");
+        // The select push's answer is the old push's, not the new one's.
+        follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        follower.step(None, now + Duration::from_secs(2), &wire);
+        assert_eq!(
+            wire.pushed_tones.borrow().as_slice(),
+            [(87, 64, 3), (87, 64, 3)],
+            "selected again"
+        );
+        assert!(instance.notices.get().contains(&Notice::Recalling));
+    }
+
+    #[test]
+    fn a_restore_just_after_an_editor_pick_wins_and_its_push_selects_the_restored_tone() {
+        // The restore is the later act, and the project's (ADR 0009): the
+        // pick is not saved, and the push selects the restored tone over it
+        // before it writes that tone's values, so what the editor shows (the
+        // device's tone) and the instance hold the restored tone, whole.
+        let (instance, mut follower, wire, now) = recalled();
+        // The editor picks tone B; the host restores tone C before the
+        // service announces the pick.
+        instance
+            .tone
+            .set(Some(super::super::tone::SavedTone::new(87, 0, 1, "")));
+        instance.mark_restored();
+        follower.step(Some(&editor_pick((87, 64, 9))), now, &wire);
+        assert_eq!(saved(&instance), (87, 0, 1), "the restored tone stands");
+        assert!(instance.recall_owed());
+        // The read keeps the project's values and the push goes.
+        follower.step(None, now + Duration::from_secs(2), &wire);
+        assert_eq!(wire.pushed_tones.borrow().last(), Some(&(87, 0, 1)));
+        let baseline = ClientEvent::Message(Message::Baseline {
+            binding: Binding::of_part(0),
+            tone: Some(ToneSelect {
+                msb: 87,
+                lsb: 0,
+                pc: 1,
+            }),
+            runs: Vec::new(),
+        });
+        follower.step(Some(&baseline), now, &wire);
+        for _ in 0..2 {
+            follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        }
+        follower.step(None, now + Duration::from_secs(4), &wire);
+        assert!(!instance.recall_owed(), "the push is out");
+        assert_eq!(saved(&instance), (87, 0, 1));
     }
 
     /// A restored PCM Synth instance on Part 0 with a Preset tone, whose

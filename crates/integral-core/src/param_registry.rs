@@ -34,6 +34,15 @@ pub enum ParamFormat {
     Decibels(i32),
     /// Index into a static name array.
     Named(&'static [&'static str]),
+    /// Index into a table of numbers that share one unit (Comp Attack 0
+    /// -> "0.05 ms"). Out-of-range indices read as the raw number, in the
+    /// unit, as [`FxUnit::Table`](crate::fx_params::FxUnit::Table) does.
+    Table {
+        /// The numbers, index = stored value.
+        values: &'static [&'static str],
+        /// Their unit.
+        unit: &'static str,
+    },
     /// Boolean: 0=OFF, 1=ON.
     OnOff,
     /// Pan position: `L64`..`C`..`63R`, centered on 64.
@@ -258,7 +267,7 @@ impl ParamFormat {
     /// a value without one, such as a note or a name). A tempo-syncable
     /// Control draws the unit itself, as its free/note toggle.
     pub fn parts(&self, value: i32) -> (String, &'static str) {
-        use crate::fx_params::{DB, HZ, PERCENT};
+        use crate::fx_params::{DB, HZ, PERCENT, label};
         use crate::lfo_rates::{format_hz, pcm_lfo_hz, sn_lfo_hz};
         match self {
             ParamFormat::PcmLfoRate => match note_name(value) {
@@ -268,6 +277,7 @@ impl ParamFormat {
             ParamFormat::SnLfoRate => (format_hz(sn_lfo_hz(value)), HZ),
             ParamFormat::Percent => (value.to_string(), PERCENT),
             ParamFormat::Decibels(center) => (ParamFormat::SignedCenter(*center).number(value), DB),
+            ParamFormat::Table { values, unit } => (label(values, value), unit),
             _ => (self.number(value), ""),
         }
     }
@@ -328,7 +338,8 @@ impl ParamFormat {
             ParamFormat::PcmLfoRate
             | ParamFormat::SnLfoRate
             | ParamFormat::Percent
-            | ParamFormat::Decibels(_) => value.to_string(),
+            | ParamFormat::Decibels(_)
+            | ParamFormat::Table { .. } => value.to_string(),
             ParamFormat::Catalog(catalog) => catalog
                 .name(value)
                 .map_or_else(|| value.to_string(), str::to_string),
@@ -916,6 +927,7 @@ pub fn mixer_param(field: MixerField) -> ParamDef {
 
 /// [`mixer_param`] for a device with `part_count` parts.
 fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
+    use crate::fx_params::MS;
     use MixerField as F;
     use ParamFormat::{Decibels, Named, OnOff, Raw, SignedCenter};
     use ParameterFamily::{Amp, Common, Filter, Time};
@@ -950,6 +962,8 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
         ..def
     };
     let eq_gain = Decibels(15);
+    // A compressor time: the spec's table, in ms.
+    let comp_time = |values| ParamFormat::Table { values, unit: MS };
 
     let param = match field {
         F::PartLevel => level("Level", ParamGroup::Part, 100),
@@ -1146,7 +1160,7 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
             ParamGroup::Comp,
             last(spec.comp_attack_times),
             i32::from(unit.comp_attack),
-            Named(spec.comp_attack_times),
+            comp_time(spec.comp_attack_times),
             Amp,
         ),
         F::CompRelease => def(
@@ -1154,7 +1168,7 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
             ParamGroup::Comp,
             last(spec.comp_release_times),
             i32::from(unit.comp_release),
-            Named(spec.comp_release_times),
+            comp_time(spec.comp_release_times),
             Amp,
         ),
         F::CompThreshold => def(
@@ -1847,20 +1861,34 @@ mod tests {
     }
 
     #[test]
-    fn comp_named_tables_cover_their_range() {
-        for field in [
-            MixerField::CompAttack,
-            MixerField::CompRelease,
-            MixerField::CompRatio,
-        ] {
+    fn comp_tables_cover_their_range() {
+        for field in [MixerField::CompAttack, MixerField::CompRelease] {
             let def = mixer_param(field);
-            let ParamFormat::Named(names) = def.format else {
-                panic!("{field:?} should be named");
+            let ParamFormat::Table { values, .. } = def.format else {
+                panic!("{field:?} should be a table");
             };
-            assert_eq!(names.len() as i32, def.max - def.min + 1, "{field:?}");
+            assert_eq!(values.len() as i32, def.max - def.min + 1, "{field:?}");
         }
         let ratio = mixer_param(MixerField::CompRatio);
+        let ParamFormat::Named(names) = ratio.format else {
+            panic!("Comp Ratio should be named");
+        };
+        assert_eq!(names.len() as i32, ratio.max - ratio.min + 1);
         assert_eq!(format_value(&ratio, ratio.max), "inf:1");
+    }
+
+    #[test]
+    fn comp_times_read_in_ms() {
+        let attack = mixer_param(MixerField::CompAttack);
+        assert_eq!(format_value(&attack, 0), "0.05 ms");
+        assert_eq!(format_value(&attack, 20), "1.0 ms");
+        assert_eq!(format_value(&attack, attack.max), "50 ms");
+        assert_eq!(attack.format.parts(0), ("0.05".to_string(), "ms"));
+        let release = mixer_param(MixerField::CompRelease);
+        assert_eq!(format_value(&release, 0), "0.05 ms");
+        assert_eq!(format_value(&release, release.max), "2000 ms");
+        // Past the table: the raw number, in the unit, as an FX table reads.
+        assert_eq!(format_value(&release, release.max + 1), "24 ms");
     }
 
     /// The per-part surround fields, with their Part block offset and the

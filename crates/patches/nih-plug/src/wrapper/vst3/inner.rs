@@ -302,7 +302,7 @@ impl<P: Vst3Plugin> WrapperInner<P> {
             ),
             current_buffer_config: AtomicCell::new(None),
             current_process_mode: AtomicCell::new(ProcessMode::Realtime),
-            last_process_status: AtomicCell::new(ProcessStatus::Normal),
+            last_process_status: AtomicCell::new(Self::initial_process_status()),
             current_latency: AtomicU32::new(0),
             // This is initialized just before calling `Plugin::initialize()` so that during the
             // process call buffers can be initialized without any allocations
@@ -357,6 +357,18 @@ impl<P: Vst3Plugin> WrapperInner<P> {
             .map(|editor| Arc::new(Mutex::new(editor)));
 
         wrapper
+    }
+
+    /// The process status reported before the first `process()` call, and after
+    /// `setProcessing()`:
+    /// [`ProcessStatus::KeepAlive`] for a plugin that sets [`Plugin::KEEP_ALIVE`], so the host
+    /// sees an infinite tail from activation on.
+    pub fn initial_process_status() -> ProcessStatus {
+        if P::KEEP_ALIVE {
+            ProcessStatus::KeepAlive
+        } else {
+            ProcessStatus::Normal
+        }
     }
 
     pub fn make_gui_context(self: Arc<Self>) -> Arc<WrapperGuiContext<P>> {

@@ -109,6 +109,8 @@ describe("the plugin editor's pages", () => {
     click(button(container, "Surround"));
     expect(container.textContent).not.toContain("Loading mixer state");
     expect(status(container)).toBe("Connected");
+    // The plugin's pair carries notes: no warning that they are lost.
+    expect(container.textContent).not.toContain("Notes do not reach the device");
   });
 
   it.each(["sn_synth", "sn_acoustic", "pcm_synth", "sn_drum", "pcm_drum"])(
