@@ -529,6 +529,30 @@ fn mixer_eq_text_carries_its_unit_and_reads_back() {
 }
 
 #[test]
+fn mixer_comp_times_carry_ms_and_read_back() {
+    use integral_core::host_params::HostFormat;
+    use integral_core::param_registry::{MixerField, mixer_param};
+
+    let host = |field| {
+        let def = mixer_param(field);
+        (HostFormat::Field(def.format), def.min, def.max)
+    };
+    let (attack, min, max) = host(MixerField::CompAttack);
+    assert_eq!(attack.format(15), "0.50 ms");
+    for text in ["0.50 ms", "0.5ms", "0.5", ".5 MS"] {
+        assert_eq!(attack.parse(text, min, max), Some(15), "{text}");
+    }
+    assert_eq!(attack.parse("50 ms", min, max), Some(max));
+    assert_eq!(attack.parse("0.5 s", min, max), None);
+    let (release, min, max) = host(MixerField::CompRelease);
+    assert_eq!(release.format(4), "1 ms");
+    for text in ["1 ms", "1ms", "1", "1.0"] {
+        assert_eq!(release.parse(text, min, max), Some(4), "{text}");
+    }
+    assert_eq!(release.parse("2000 ms", min, max), Some(max));
+}
+
+#[test]
 fn text_no_value_has_does_not_parse() {
     use integral_core::host_params::HostFormat;
     use integral_core::param_registry::ParamFormat;

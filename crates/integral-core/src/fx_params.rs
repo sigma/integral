@@ -125,7 +125,7 @@ pub static EQ_HIGH_FREQ: &[&str] = &["2", "4", "8"];
 pub static EQ_Q: &[&str] = &["0.5", "1.0", "2.0", "4.0", "8.0"];
 
 /// `table[v]`, or `v` itself when out of range.
-fn label(table: &[&str], v: i32) -> String {
+pub(crate) fn label(table: &[&str], v: i32) -> String {
     usize::try_from(v)
         .ok()
         .and_then(|i| table.get(i))
