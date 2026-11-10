@@ -45,7 +45,8 @@ live in sibling modules, and the command bodies live in
 - `service.rs`: `connect(path)` is the `--service` transport and
   `socket_path` the socket choice shared with `bridge`. It joins the Device
   service as a raw SysEx client and forwards the SysEx it relays into the
-  receiver. `ServiceOutput` flushes its queue when dropped.
+  receiver. `ServiceOutput` flushes its queue when dropped, and
+  `ServiceOutput::load_expansion` runs a typed Expansion load.
 - `hex.rs`: `parse_hex_addr`, `parse_hex_size`, `parse_read_size`,
   `parse_hex_bytes` and `format_hex`.
 - [`./commands/README.md`](./commands/README.md): the subcommand modules.
@@ -60,9 +61,10 @@ live in sibling modules, and the command bodies live in
   which paces its queue and speaks to the device with its own device ID:
   `--device-id` and `--port` are ignored for Roland messages. The device ID is
   still detected from the Identity Reply. A `--timeout` runs from the CLI's
-  send, so its default is 3 s longer. `monitor` (all MIDI, not only SysEx),
-  `bridge` and `expansion load` (the service holds its queue only for loads
-  it starts itself) refuse `--service`. The option takes its path as
+  send, so its default is 3 s longer. `expansion load` asks the service for
+  the load (`Request::LoadExpansion`), which holds its queue until it is
+  over. `monitor` (all MIDI, not only SysEx) and `bridge` refuse
+  `--service`. The option takes its path as
   `--service=PATH`, as a bare `--service ping` would read `ping` as the path.
 - A lost service connection, a refused protocol version or a down device link
   disconnects the receiver and fails later sends, as a vanished port would.

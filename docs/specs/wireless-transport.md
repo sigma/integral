@@ -120,8 +120,9 @@ stateDiagram-v2
 ### Throttle
 
 The Bridge does not throttle. Like a MIDI interface, it is a transparent
-port. The 20 ms rule still holds over Wi-Fi (the device silently drops RQ1s
-sent under 10 ms apart), and web, core and CLI already enforce it.
+port. Pacing still matters over Wi-Fi (in a 16-request run the device silently
+dropped RQ1s sent under 10 ms apart), and web, core and CLI already pace at core's 40 ms
+`THROTTLE_MS`, which [#446](https://github.com/sigma/integral/issues/446#issuecomment-6706325991) showed reads need.
 
 ## Testing
 

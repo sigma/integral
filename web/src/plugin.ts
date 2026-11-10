@@ -87,6 +87,11 @@ export interface InstanceInfo {
   defaultTone: string | null;
   /** A request to load it is pending; the page waits for the Part to hold the tone or for a refusal. */
   defaultTonePending: boolean;
+  /**
+   * A push of the project's saved tone is owed or under way (ADR 0009): the
+   * page offers no tone pick, which the push would select the saved tone over.
+   */
+  recallOwed: boolean;
 }
 
 /** The notice an instance on a Part of another tone type reports (`Notice::TypeMismatch`). */
@@ -168,7 +173,8 @@ export function decodePluginMessage(text: string): PluginMessage | null {
         Array.isArray(m.notices) &&
         m.notices.every(isNotice) &&
         (m.defaultTone === null || typeof m.defaultTone === "string") &&
-        typeof m.defaultTonePending === "boolean"
+        typeof m.defaultTonePending === "boolean" &&
+        typeof m.recallOwed === "boolean"
         ? {
             type: "instance",
             plugin: m.plugin,
@@ -179,6 +185,7 @@ export function decodePluginMessage(text: string): PluginMessage | null {
             notices: m.notices,
             defaultTone: m.defaultTone,
             defaultTonePending: m.defaultTonePending,
+            recallOwed: m.recallOwed,
           }
         : null;
     case "refused":
@@ -274,7 +281,7 @@ export function pluginPorts(bridge: PluginBridge): Promise<MidiPorts> {
   const pair: MidiPortPair = {
     id: DEVICE_SERVICE_ID,
     name: DEVICE_SERVICE_NAME,
-    // The plugin's link carries SysEx only (#480 brings notes).
+    // The plugin's link carries SysEx only ([#505](https://github.com/sigma/integral/issues/505) brings notes).
     carriesNotes: false,
     open: () =>
       new Promise<void>((resolve, reject) => {
@@ -439,8 +446,9 @@ export function subscribeInstance(
   return bridge.subscribe((text) => {
     const message = decodePluginMessage(text);
     if (message?.type === "instance") {
-      const { plugin, binding, status, statusText, hostEdits, notices, defaultTone, defaultTonePending } = message;
-      listener({ plugin, binding, status, statusText, hostEdits, notices, defaultTone, defaultTonePending });
+      const { plugin, binding, status, statusText, hostEdits, notices, defaultTone, defaultTonePending, recallOwed } =
+        message;
+      listener({ plugin, binding, status, statusText, hostEdits, notices, defaultTone, defaultTonePending, recallOwed });
     }
   });
 }

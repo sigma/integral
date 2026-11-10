@@ -27,6 +27,13 @@ pub const EXIT_LOAD_FAILED: u8 = 2;
 /// Name of an empty Expansion slot, as typed and printed.
 pub const OFF_NAME: &str = "OFF";
 
+/// How long past `--timeout` an Expansion load through the Device service may
+/// take to be answered. The service answers when the load is over, which is
+/// [`expansion_load::TIMEOUT_MS`] after the device last answered at most; a
+/// device that keeps answering ends it sooner (about 5 s per Expansion).
+#[cfg(unix)]
+const SERVICE_LOAD_WAIT: Duration = Duration::from_millis(2 * expansion_load::TIMEOUT_MS as u64);
+
 /// Size of a Part's Tone Bank Select MSB + LSB.
 const BANK_SELECT_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x02);
 
@@ -412,6 +419,24 @@ fn run_load(
     }
 }
 
+/// Run the load: the Device service runs it if that is the transport, so it
+/// can hold every client's SysEx meanwhile; else drive the machine here.
+fn load_slots(
+    dev: &mut IntegraDevice,
+    current: ExpansionSlots,
+    target: ExpansionSlots,
+) -> Result<LoadOutcome> {
+    #[cfg(unix)]
+    {
+        let wait = SERVICE_LOAD_WAIT + dev.timeout();
+        if let Some(service) = dev.conn_out_mut().service() {
+            eprintln!("Asking the Device service to load; all sound stops until done...");
+            return service.load_expansion(&target, wait);
+        }
+    }
+    run_load(dev, current, target)
+}
+
 /// `expansion load`: plan, confirm, load, and report.
 ///
 /// Returns the process exit code: 0 on success or no-op, or
@@ -460,7 +485,7 @@ pub fn load(
     }
 
     let started = Instant::now();
-    match run_load(&mut dev, current, target)? {
+    match load_slots(&mut dev, current, target)? {
         LoadOutcome::NoOp => {
             finish("no-op", Some(&current));
             Ok(0)

@@ -66,6 +66,14 @@ const COMP_STATE_KEY: Partial<Record<MixerField, Exclude<keyof CompEqUnit, "comp
   [MixerField.CompOutputGain]: "compOutputGain",
 };
 
+/** The `MixerState` member holding each Ext Part field's value. */
+const EXT_STATE_KEY: Partial<Record<MixerField, Extract<keyof MixerState, `ext${string}`>>> = {
+  [MixerField.ExtLevel]: "extLevel",
+  [MixerField.ExtChorusSend]: "extChorusSend",
+  [MixerField.ExtReverbSend]: "extReverbSend",
+  [MixerField.ExtMute]: "extMuted",
+};
+
 /** The `PartState` member holding each part field's value. */
 const PART_STATE_KEY: Partial<Record<MixerField, keyof PartState>> = {
   [MixerField.PartLevel]: "level",
@@ -76,14 +84,6 @@ const PART_STATE_KEY: Partial<Record<MixerField, keyof PartState>> = {
   [MixerField.PartOutputAssign]: "outputAssign",
   [MixerField.PartReceiveChannel]: "receiveChannel",
 };
-
-/** Fields read in dB; core's labels carry the sign only. */
-const DB_FIELDS: ReadonlySet<MixerField> = new Set([
-  MixerField.EqLowGain,
-  MixerField.EqMidGain,
-  MixerField.EqHighGain,
-  MixerField.CompOutputGain,
-]);
 
 /** What a strip's toggle buttons read, on and off alike: their LED shows the state. */
 const SWITCH_TEXT: Partial<Record<MixerField, string>> = {
@@ -137,9 +137,10 @@ export function stripValue(state: MixerState, scope: StripScope, field: MixerFie
         const value = key === undefined ? undefined : state.parts[index]![key];
         return typeof value === "number" || typeof value === "boolean" ? value : undefined;
       }
-      case MixerScopeKind.Ext:
-        if (field === MixerField.ExtLevel) return state.extLevel;
-        return field === MixerField.ExtMute ? state.extMuted : undefined;
+      case MixerScopeKind.Ext: {
+        const key = EXT_STATE_KEY[field];
+        return key === undefined ? undefined : state[key];
+      }
       case MixerScopeKind.Master:
         return field === MixerField.MasterLevel ? state.masterLevel : undefined;
       case MixerScopeKind.CompEqUnit: {
@@ -182,8 +183,6 @@ function stripWrite(setField: SetMixerField, { kind, index }: StripScope, field:
 function stripBinding({ state, setField, ...scope }: StripProps): (field: MixerField) => Binding {
   return (field) => {
     const meta = paramMeta(field);
-    const fmt = paramFormatter(field);
-    const unit = DB_FIELDS.has(field) ? "dB" : "";
     const text = SWITCH_TEXT[field];
     const toggle = scope.kind === MixerScopeKind.Part && PART_TOGGLES.has(field);
     return {
@@ -193,7 +192,7 @@ function stripBinding({ state, setField, ...scope }: StripProps): (field: MixerF
       // Pan's arc grows from the centre, its default.
       center: field === MixerField.PartPan ? meta.defaultValue : undefined,
       value: stripValue(state, scope, field),
-      format: (v) => `${fmt(v)}${unit}`,
+      format: paramFormatter(field),
       options: text === undefined ? undefined : [{ value: 0, label: text }, { value: 1, label: text }],
       onChange: (v) => stripWrite(setField, scope, field, v),
     };

@@ -229,11 +229,7 @@ fn no_service_at_the_socket_is_reported() {
 #[test]
 fn commands_that_need_ports_refuse_the_service() {
     let dir = TempDir::new("refuse");
-    for args in [
-        &["monitor"][..],
-        &["bridge"][..],
-        &["expansion", "load", "ExPCM"][..],
-    ] {
+    for args in [&["monitor"][..], &["bridge"][..]] {
         let (ok, _, stderr) = finish(integral(&dir.socket(), args).spawn().expect("run integral"));
         assert!(!ok, "{args:?} ran");
         assert!(
@@ -241,6 +237,57 @@ fn commands_that_need_ports_refuse_the_service() {
             "{args:?}: {stderr}"
         );
     }
+}
+
+/// `expansion load` asks the service for the load, which sends it and
+/// answers when the device is done.
+#[test]
+fn an_expansion_load_is_run_by_the_service() {
+    use integral_core::address::{Address, DataSize};
+    use integral_core::device_spec::INTEGRA7;
+    use integral_core::expansion_load::{self, LOAD_DONE_ADDR, LOAD_STARTED_ADDR};
+    use integral_core::expansion_slots::{self, ExpansionSlots, SLOT_READ_ADDR};
+
+    let fixture = Fixture::start("expansion");
+    let child = fixture
+        .integral(&["expansion", "load", "--device-id", "17", "--yes", "A=OFF"])
+        .spawn()
+        .expect("run integral");
+
+    let current = ExpansionSlots::from_values(&[0x03, 0x05, 0x07, 0x08]).expect("slots");
+    fixture.wait_sent(&expansion_slots::build_read_request(DEVICE_ID));
+    let says = |address: &Address, data: &[u8]| {
+        fixture
+            .link
+            .device_says(&sysex::build_dt1(DEVICE_ID, address, data));
+    };
+    says(&SLOT_READ_ADDR, &current.values());
+    let bank_size = DataSize::from_value(2).expect("size");
+    for part_index in 0..INTEGRA7.part_count {
+        let at = params::part_address(part_index, part::TONE_BANK_MSB);
+        fixture.wait_sent(&sysex::build_rq1(DEVICE_ID, &at, &bank_size));
+        says(&at, &[87, 64]);
+    }
+
+    let target = current.with(0, None);
+    fixture.wait_sent(&expansion_load::build_load_request(DEVICE_ID, &target));
+    // The service's own load, not a raw message passed through: it holds
+    // every client's SysEx until the device is done.
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = fixture.running.as_ref().expect("running").handle();
+    handle.run(move |service| {
+        let _ = tx.send(service.device().expansion_load_target().copied());
+    });
+    assert_eq!(rx.recv_timeout(WAIT).expect("ran"), Some(target));
+    says(&LOAD_STARTED_ADDR, &[0]);
+    says(&LOAD_DONE_ADDR, &[0]);
+
+    let (ok, stdout, stderr) = finish(child);
+    assert!(ok, "{stderr}");
+    assert!(
+        stdout.contains("A OFF  B SRX-05  C SRX-07  D SRX-08"),
+        "{stdout}"
+    );
 }
 
 /// A bare `--service` takes no value: the subcommand after it is the

@@ -10,10 +10,11 @@ because nih-plug brings a workspace of its own.
 
 Vendored: the `nih_plug` crate and its `nih_plug_derive`, with the license.
 
-**Patch: `InitContext::gui_context()`, `InitContext::async_executor()` and
-`GuiContext::try_set_state()`**
+**Patch: `InitContext::gui_context()`, `InitContext::async_executor()`,
+`GuiContext::try_set_state()` and `AsyncExecutor::execute_gui() -> bool`**
 (`src/context/{init,gui}.rs`, `src/wrapper/vst3/{context,inner}.rs`,
-`src/event_loop{,/macos}.rs`), and a crate-level
+`src/wrapper/{clap,standalone}/wrapper.rs`, `src/event_loop{,/macos}.rs`),
+and a crate-level
 `allow(unexpected_cfgs, unused_imports)` in `src/lib.rs` for three upstream lint warnings.
 
 - *Why.* A plugin can tell the host about a value it changed itself (a
@@ -44,10 +45,18 @@ Vendored: the `nih_plug` crate and its `nih_plug_derive`, with the license.
   which joins the worker). So `async_executor()`'s closure never upgrades the
   wrapper: it holds only the event loop's channel sender and a retained
   run-loop source (`EventLoop::off_thread_gui_poster()`), queues the task and
-  wakes the main thread. After the wrapper is gone posting fails quietly.
+  wakes the main thread. After the wrapper is gone posting fails (and says so,
+  below).
   macOS only; other backends return `None`, so `async_executor()` is `None`
-  there. It has no background route (`execute_background` drops its tasks), and
-  a full queue (4096 tasks) drops tasks silently, as for every poster.
+  there. It has no background route (`execute_background` drops its tasks).
+- *A full queue says so.* The event loop's queue holds 4096 tasks and drops
+  the rest. Upstream's `AsyncExecutor::execute_gui` returns nothing, so its
+  caller cannot tell; the long-lived executor threw away the poster's
+  result. `execute_gui` now returns whether the task was queued (`false`: the
+  queue is full, or the wrapper is gone), and every executor that builds one
+  (VST3, CLAP, standalone) passes its wrapper's result on. Integral's worker
+  posts a refused task again. Callers that ignore the result build as
+  before.
 - *Bounded state restore.* `GuiContext::set_state` while the plugin is
   processing retries every second until the audio thread takes the state, for
   ever if the host stopped calling `process()` without clearing the flag, or if

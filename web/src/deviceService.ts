@@ -3,12 +3,14 @@
  * through the service's localhost WebSocket instead of Web MIDI.
  *
  * The page is a raw SysEx client of the service, so the pair behaves as a
- * shared MIDI port: what it sends goes through the service's paced queue, and
- * every SysEx the device sends comes back. One binary frame is one whole SysEx
- * message each way (documented beside the server, in
- * `crates/integral-device-service/src/websocket.rs`). Non-SysEx messages have
- * no path through the service from here, and `timestamp` is ignored: the
- * service paces its own sends.
+ * shared MIDI port: the SysEx it sends goes through the service's paced queue,
+ * and every SysEx the device sends comes back. Its notes (channel voice
+ * messages) go to the device at once, ahead of that queue, as a DAW track's
+ * do. Each send is one binary frame, one whole message each way (documented
+ * beside the server, in `crates/integral-device-service/src/websocket.rs`);
+ * the service refuses a frame that is neither. A send with a future
+ * `timestamp` (the Sequencer's) is held in the page until then, as Web MIDI
+ * would hold it in the browser.
  *
  * The service may not be running, and may be restarted. The pair stays in the
  * port list either way, says so when a connect fails, and keeps retrying once
@@ -81,12 +83,13 @@ export interface DeviceServicePair extends MidiPortPair {
  *
  * Nothing connects until `open()`. From then on the pair holds a connection
  * and, whenever it is lost or cannot be made, retries with a growing wait
- * until `release()`.
+ * until `release()`. `now` is the clock a send's `timestamp` is on.
  */
 export function deviceServicePair(
   url: string,
   makeSocket: SocketFactory = (u) => new WebSocket(u),
   timers: Timers = browserTimers,
+  now: () => number = () => performance.now(),
 ): DeviceServicePair {
   const listeners = new Set<MidiListener>();
   const watchers = new Set<(up: boolean) => void>();
@@ -146,8 +149,7 @@ export function deviceServicePair(
   return {
     id: DEVICE_SERVICE_ID,
     name: DEVICE_SERVICE_NAME,
-    // The endpoint carries SysEx only (#480 brings notes).
-    carriesNotes: false,
+    carriesNotes: true,
     open() {
       wanted = true;
       if (up) return Promise.resolve();
@@ -157,11 +159,21 @@ export function deviceServicePair(
         // A retry already scheduled has its turn; this call waits for it.
       });
     },
-    send(data) {
+    send(data, timestamp) {
       // Like a MIDI output that has lost its device, a closed link drops
-      // the message; `watch` tells the page the link is down.
-      if (socket?.readyState === SOCKET_OPEN)
-        socket.send(Uint8Array.from(data));
+      // the message; `watch` tells the page the link is down. A held message
+      // goes only on the connection it was sent to: after a release or a
+      // reconnect, a note-on could otherwise land with no note-off.
+      const target = socket;
+      if (target?.readyState !== SOCKET_OPEN) return;
+      const frame = Uint8Array.from(data);
+      const deliver = () => {
+        if (socket === target && target.readyState === SOCKET_OPEN)
+          target.send(frame);
+      };
+      const delay = timestamp === undefined ? 0 : timestamp - now();
+      if (delay > 0) timers.set(deliver, delay);
+      else deliver();
     },
     listen(listener) {
       listeners.add(listener);

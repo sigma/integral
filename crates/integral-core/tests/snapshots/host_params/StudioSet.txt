@@ -11,6 +11,8 @@ common/0x48	0	12
 common/0x49	0	12
 common/0x4A	0	12
 common/0x4C	0	127
+common/0x4D	0	127
+common/0x4E	0	127
 common/0x4F	0	1
 chorus/head/0x00	0	3
 chorus/head/0x01	0	127

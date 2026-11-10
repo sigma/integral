@@ -88,6 +88,15 @@ impl Output {
             Self::Service(service) => service.send(message),
         }
     }
+
+    /// The Device service connection, if that is the transport.
+    #[cfg(unix)]
+    pub fn service(&mut self) -> Option<&mut crate::service::ServiceOutput> {
+        match self {
+            Self::Service(service) => Some(service),
+            Self::Midi { .. } => None,
+        }
+    }
 }
 
 /// An open connection to the device.

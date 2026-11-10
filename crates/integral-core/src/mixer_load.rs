@@ -32,10 +32,8 @@ pub enum MixerBlock {
     MasterEq,
     /// Master EQ switch.
     MasterEqSwitch,
-    /// Ext part level.
-    ExtLevel,
-    /// Ext part mute.
-    ExtMute,
+    /// Ext part level, chorus and reverb sends, and mute.
+    ExtPart,
     /// Chorus type, level and output.
     ChorusCore,
     /// Chorus switch.
@@ -90,8 +88,7 @@ impl MixerBlock {
             .chain([
                 MasterEq,
                 MasterEqSwitch,
-                ExtLevel,
-                ExtMute,
+                ExtPart,
                 ChorusCore,
                 ChorusSwitch,
                 ChorusParams,
@@ -126,8 +123,7 @@ impl MixerBlock {
             PartEq(p) => format!("Part {} EQ", u32::from(p) + 1),
             MasterEq => "Master EQ".into(),
             MasterEqSwitch => "Master EQ switch".into(),
-            ExtLevel => "Ext part level".into(),
-            ExtMute => "Ext part mute".into(),
+            ExtPart => "Ext part".into(),
             ChorusCore => "Chorus".into(),
             ChorusSwitch => "Chorus switch".into(),
             ChorusParams => "Chorus parameters".into(),
@@ -186,8 +182,7 @@ impl MixerBlock {
                 params::MASTER_EQ_SIZE,
             ),
             MasterEqSwitch => (params::MASTER_EQ_SWITCH, DataSize::ONE),
-            ExtLevel => (params::EXT_PART_LEVEL, DataSize::ONE),
-            ExtMute => (params::EXT_PART_MUTE, DataSize::ONE),
+            ExtPart => (params::EXT_PART_LEVEL, params::EXT_PART_SIZE),
             ChorusCore => (
                 params::chorus_address(params::chorus::TYPE),
                 params::CHORUS_CORE_SIZE,
@@ -264,8 +259,16 @@ impl MixerBlock {
                 state.master_eq.enabled = enabled;
             }
             MasterEqSwitch => state.master_eq.enabled = byte == 1,
-            ExtLevel => state.ext_level = byte,
-            ExtMute => state.ext_muted = byte == 1,
+            ExtPart => {
+                // The byte at `address` in the block read from the level.
+                let at = |address: Address| {
+                    data[(address.value() - params::EXT_PART_LEVEL.value()) as usize]
+                };
+                state.ext_level = at(params::EXT_PART_LEVEL);
+                state.ext_chorus_send = at(params::EXT_PART_CHORUS_SEND);
+                state.ext_reverb_send = at(params::EXT_PART_REVERB_SEND);
+                state.ext_muted = at(params::EXT_PART_MUTE) == 1;
+            }
             ChorusCore => {
                 state.chorus.fx_type = data[usize::from(params::chorus::TYPE)];
                 state.chorus.level = data[usize::from(params::chorus::LEVEL)];

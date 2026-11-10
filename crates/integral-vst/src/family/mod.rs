@@ -196,7 +196,7 @@ impl<K: Kind> Plugin for Family<K> {
             && let Some(executor) = context.async_executor()
         {
             instance.set_poster(instance::Poster::new(move |task| {
-                executor.execute_gui(task);
+                executor.execute_gui(task)
             }));
         }
         // A host may initialize more than once; keep the one connection. A
@@ -237,7 +237,10 @@ impl<K: Kind> Plugin for Family<K> {
         if let Some(outbound) = &mut self.outbound {
             outbound.poll(&self.params.instance);
         }
-        ProcessStatus::Normal
+        // The poll above is the only path for the host's changes to reach the
+        // device, and the input is usually silent: a host that suspends a
+        // silent plugin would stall them.
+        ProcessStatus::KeepAlive
     }
 }
 

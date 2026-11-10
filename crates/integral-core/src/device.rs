@@ -47,6 +47,14 @@ use crate::state::{EqState, FxState, MixerState, SurroundPartState};
 use crate::sysex;
 
 /// Minimum interval between SysEx sends (ms).
+///
+/// Twice the "approximately 20 ms" of the MIDI Implementation, on measurement:
+/// over an RTP-MIDI link the device answered 147 of 200 back-to-back
+/// Part-block RQ1s at a 20 ms gap and all 200 at 40 ms, dropping the rest
+/// without an error ([#446]). The queue carries RQ1s as well as DT1s, so it
+/// paces for the reads. Whether every DT1 lands below 40 ms is untested.
+///
+/// [#446]: https://github.com/sigma/integral/issues/446#issuecomment-6706325991
 pub const THROTTLE_MS: f64 = 40.0;
 
 /// Duration to suppress incoming DT1 echoes after a local send (ms).
@@ -249,6 +257,8 @@ fn mixer_slot(state: &mut MixerState, scope: MixerScope, field: MixerField) -> O
         }
         MixerScope::Ext => match field {
             F::ExtLevel => Byte(&mut state.ext_level),
+            F::ExtChorusSend => Byte(&mut state.ext_chorus_send),
+            F::ExtReverbSend => Byte(&mut state.ext_reverb_send),
             F::ExtMute => Flag(&mut state.ext_muted),
             _ => surround_slot(&mut state.surround.ext, field)?,
         },
@@ -2008,6 +2018,22 @@ mod tests {
     }
 
     #[test]
+    fn set_mixer_field_writes_the_ext_sends() {
+        let mut dev = DeviceState::new(0x10);
+        let ext = dev.mixer_scope(MixerScopeKind::Ext, 0);
+        dev.set_mixer_field(ext, MixerField::ExtChorusSend, 40)
+            .unwrap();
+        dev.set_mixer_field(ext, MixerField::ExtReverbSend, 50)
+            .unwrap();
+        let s = dev.state();
+        assert_eq!((s.ext_chorus_send, s.ext_reverb_send), (40, 50));
+        let chorus = sysex::build_dt1(0x10, &params::EXT_PART_CHORUS_SEND, &[40]);
+        let reverb = sysex::build_dt1(0x10, &params::EXT_PART_REVERB_SEND, &[50]);
+        assert_eq!(dev.drain(0.0), Some(chorus));
+        assert_eq!(dev.drain(1000.0), Some(reverb));
+    }
+
+    #[test]
     fn set_mixer_field_writes_part_eq() {
         let mut dev = DeviceState::new(0x10);
         let scope = dev.mixer_scope(MixerScopeKind::Part, 4);
@@ -3470,7 +3496,7 @@ mod tests {
             ),
             (params::REVERB_SWITCH, vec![1]),
             (params::reverb_address(params::reverb::TYPE), vec![3, 80, 2]),
-            (params::EXT_PART_LEVEL, vec![55]),
+            (params::EXT_PART_LEVEL, vec![55, 12, 34, 1]),
             (params::DRUM_COMP_EQ_SWITCH, vec![1, 9, 1, 2, 3, 4, 5, 6]),
         ]);
         let mut dev = DeviceState::new(0x10);
@@ -3501,7 +3527,15 @@ mod tests {
             (s.reverb.fx_type, s.reverb.level, s.reverb.output),
             (3, 80, 2)
         );
-        assert_eq!(s.ext_level, 55);
+        assert_eq!(
+            (
+                s.ext_level,
+                s.ext_chorus_send,
+                s.ext_reverb_send,
+                s.ext_muted
+            ),
+            (55, 12, 34, true)
+        );
         assert_eq!(s.drum_comp_eq.output_assigns, [1, 2, 3, 4, 5, 6]);
         let kit = params::comp_eq_block_address_for_bank(9, 88).unwrap();
         assert!(read.contains(&kit), "reads the Comp+EQ part's kit block");

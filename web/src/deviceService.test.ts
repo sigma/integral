@@ -25,6 +25,9 @@ import { DEV_SERVER_PORT, PREVIEW_PORT } from "./devPorts";
 
 const URL = "ws://127.0.0.1:1";
 
+/** The pair's clock, which stands still in these tests. */
+const NOW = 1000;
+
 /** A WebSocket the test drives by hand. */
 class FakeSocket implements SocketLike {
   binaryType = "blob";
@@ -97,6 +100,7 @@ function setup() {
       return socket;
     },
     clock.timers,
+    () => NOW,
   );
   const last = () => {
     const socket = sockets[sockets.length - 1];
@@ -135,12 +139,73 @@ describe("deviceServicePair", () => {
     await opening;
 
     pair.send([0xf0, 0x7e, 0xf7]);
-    pair.send(bytes(0xf0, 0x41, 0xf7), performance.now() + 50);
+    pair.send(bytes(0xf0, 0x41, 0xf7), NOW);
 
     expect(last().sent).toEqual([
       bytes(0xf0, 0x7e, 0xf7),
       bytes(0xf0, 0x41, 0xf7),
     ]);
+  });
+
+  it("forwards notes as frames of their own, as the service plays them", async () => {
+    const { pair, last } = setup();
+    const opening = pair.open();
+    last().accept();
+    await opening;
+
+    pair.send([0x90, 0x3c, 0x7f]);
+    pair.send(bytes(0x80, 0x3c, 0x00));
+    pair.send([0xb0, 0x7b, 0x00]);
+
+    expect(last().sent).toEqual([
+      bytes(0x90, 0x3c, 0x7f),
+      bytes(0x80, 0x3c, 0x00),
+      bytes(0xb0, 0x7b, 0x00),
+    ]);
+  });
+
+  it("holds a send with a future timestamp until then, as Web MIDI does", async () => {
+    const { pair, last, clock } = setup();
+    const opening = pair.open();
+    last().accept();
+    await opening;
+
+    pair.send([0x90, 0x3c, 0x7f], NOW + 50);
+    expect(last().sent).toEqual([]);
+    expect(clock.fire()).toBe(50);
+
+    expect(last().sent).toEqual([bytes(0x90, 0x3c, 0x7f)]);
+  });
+
+  it("drops a held send whose time comes while the link is down", async () => {
+    const { pair, last, clock } = setup();
+    const opening = pair.open();
+    last().accept();
+    await opening;
+
+    pair.send([0x90, 0x3c, 0x7f], NOW + 50);
+    const socket = last();
+    pair.release();
+    clock.fire();
+
+    expect(socket.sent).toEqual([]);
+  });
+
+  it("never sends a held message on a later connection", async () => {
+    const { pair, last, clock } = setup();
+    const opening = pair.open();
+    last().accept();
+    await opening;
+
+    pair.send([0x90, 0x3c, 0x7f], NOW + 50);
+    pair.release();
+    const reopening = pair.open();
+    last().accept();
+    await reopening;
+    clock.fire();
+
+    // A note-on whose note-off was lost with the first connection.
+    expect(last().sent).toEqual([]);
   });
 
   it("drops a message sent while the link is down", () => {
@@ -182,8 +247,8 @@ describe("deviceServicePair", () => {
     expect(pair.failure?.()).toBe(NOT_RUNNING_HINT);
   });
 
-  it("declares that it carries no notes", () => {
-    expect(setup().pair.carriesNotes).toBe(false);
+  it("declares that it carries notes", () => {
+    expect(setup().pair.carriesNotes).toBe(true);
   });
 
   it("says the device link is down when the service closes with try-again-later", async () => {

@@ -802,6 +802,39 @@ Tempo = 120.
 
 ---
 
+## 9. Request Pacing
+
+### Purpose
+
+The MIDI Implementation asks for an interval of "approximately 20 ms" between
+packets ([01-protocol.md](01-protocol.md#20-ms-inter-packet-interval)). For
+reads, that is too short.
+
+### Behavior
+
+Over "Network Integra", 200 back-to-back RQ1s for the Part 1 block (77 bytes):
+
+| Gap between RQ1s | Replies |
+|------------------|---------|
+| 40 ms            | 200/200 |
+| 20 ms            | 147/200 |
+| 10 ms            | 77/200  |
+| 5 ms             | 43/200  |
+| 0 ms             | 15/200  |
+
+- The device **drops** requests it can't keep up with. There is no error and
+  no late reply, and the device never hung.
+- DT1s at 0–20 ms were never refused. Every one rewrote the same value, so
+  whether they are all *applied* below 40 ms is untested.
+- `DeviceState` paces every SysEx, reads and writes alike, at
+  `THROTTLE_MS` = 40 ms.
+
+### Discovery
+
+Measured on 2026-11-07 ([#446](https://github.com/sigma/integral/issues/446#issuecomment-6706325991)).
+
+---
+
 ## Future Investigation
 
 - **Expansion board tone catalogs**: SRX, ExSN, ExPCM tones at `0F 00 04 02`

@@ -350,6 +350,7 @@ impl<P: Vst3Plugin> WrapperInner<P> {
                     move |task| {
                         let task_posted = wrapper.schedule_gui(Task::PluginTask(task));
                         nih_debug_assert!(task_posted, "The task queue is full, dropping task...");
+                        task_posted
                     }
                 }),
             })
@@ -379,16 +380,15 @@ impl<P: Vst3Plugin> WrapperInner<P> {
     /// does nothing. `None` if the event loop cannot offer that
     /// ([`EventLoop::off_thread_gui_poster()`]).
     ///
-    /// There is no background route: `execute_background` drops its tasks. A full queue
-    /// ([`TASK_QUEUE_CAPACITY`][crate::event_loop::TASK_QUEUE_CAPACITY] tasks) drops tasks
-    /// silently, as it does for every other poster.
+    /// There is no background route: `execute_background` drops its tasks. `execute_gui`
+    /// returns whether the task was queued: a full queue
+    /// ([`TASK_QUEUE_CAPACITY`][crate::event_loop::TASK_QUEUE_CAPACITY] tasks) or a wrapper that
+    /// is gone drops it, and the caller hears so.
     pub fn make_long_lived_async_executor(&self) -> Option<AsyncExecutor<P>> {
         let post = self.event_loop.borrow().as_ref()?.off_thread_gui_poster()?;
         Some(AsyncExecutor {
             execute_background: Arc::new(|_| ()),
-            execute_gui: Arc::new(move |task| {
-                let _ = post(Task::PluginTask(task));
-            }),
+            execute_gui: Arc::new(move |task| post(Task::PluginTask(task))),
         })
     }
 

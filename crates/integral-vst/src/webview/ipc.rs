@@ -138,6 +138,10 @@ pub(crate) enum PluginMessage {
         /// button until the Part holds the tone or the request is dropped.
         #[serde(rename = "defaultTonePending")]
         default_tone_pending: bool,
+        /// A push of the project's saved tone is owed or under way (ADR
+        /// 0009): the page offers no tone pick, which the push would undo.
+        #[serde(rename = "recallOwed")]
+        recall_owed: bool,
     },
     /// The plugin refused a request about the instance: a `bind` its kind
     /// cannot have, or a host gesture out of order or on a parameter it
@@ -352,6 +356,7 @@ mod tests {
                 }],
                 default_tone: Some("Studio Kit"),
                 default_tone_pending: true,
+                recall_owed: true,
             }),
             serde_json::json!({
                 "type": "instance",
@@ -363,6 +368,7 @@ mod tests {
                 "notices": [{ "notice": "recalling", "text": Notice::Recalling.text() }],
                 "defaultTone": "Studio Kit",
                 "defaultTonePending": true,
+                "recallOwed": true,
             })
         );
         assert_eq!(
@@ -375,8 +381,9 @@ mod tests {
                 notices: vec![],
                 default_tone: None,
                 default_tone_pending: false,
+                recall_owed: false,
             }),
-            r#"{"type":"instance","plugin":"studio_set","binding":null,"status":"serviceNotRunning","statusText":"Device service not running","hostEdits":false,"notices":[],"defaultTone":null,"defaultTonePending":false}"#
+            r#"{"type":"instance","plugin":"studio_set","binding":null,"status":"serviceNotRunning","statusText":"Device service not running","hostEdits":false,"notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false}"#
         );
     }
 

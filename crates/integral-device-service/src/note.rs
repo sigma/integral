@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use integral_core::wireless::message_len;
 use thiserror::Error;
 
 /// Name of the virtual MIDI destination the service exposes.
@@ -56,6 +57,32 @@ pub(crate) fn is_note_traffic(message: &[u8]) -> bool {
         .is_some_and(|status| *status >= 0x80 && !matches!(status, 0xF0 | 0xF7))
 }
 
+/// The status bytes of channel voice messages: Note Off (`8n`) to Pitch Bend
+/// (`En`).
+const CHANNEL_VOICE: std::ops::RangeInclusive<u8> = 0x80..=0xEF;
+
+/// The channel voice messages `frame` is made of, in order, or `None` unless
+/// it is one or more of them, each whole and with its own status byte.
+///
+/// This is what a WebSocket client may play: no running status, no SysEx, no
+/// system or real-time message, nothing cut short.
+pub(crate) fn channel_voice_messages(frame: &[u8]) -> Option<Vec<&[u8]>> {
+    let mut messages = Vec::new();
+    let mut rest = frame;
+    while let Some(&status) = rest.first() {
+        if !CHANNEL_VOICE.contains(&status) {
+            return None;
+        }
+        let (message, tail) = rest.split_at_checked(message_len(status)?)?;
+        if message[1..].iter().any(|b| *b >= 0x80) {
+            return None;
+        }
+        messages.push(message);
+        rest = tail;
+    }
+    (!messages.is_empty()).then_some(messages)
+}
+
 /// Status nibble of a Program Change.
 const PROGRAM_CHANGE: u8 = 0xC0;
 
@@ -79,6 +106,32 @@ mod tests {
         assert_eq!(program_change_channel(&[0x92, 60, 100]), None, "note");
         assert_eq!(program_change_channel(&[0xF8]), None);
         assert_eq!(program_change_channel(&[]), None);
+    }
+
+    #[test]
+    fn a_note_frame_is_whole_channel_voice_messages() {
+        assert_eq!(
+            channel_voice_messages(&[0x90, 60, 100]),
+            Some(vec![&[0x90, 60, 100][..]])
+        );
+        assert_eq!(
+            channel_voice_messages(&[0xC3, 5, 0xD0, 0x10, 0xE1, 0, 64]),
+            Some(vec![&[0xC3, 5][..], &[0xD0, 0x10], &[0xE1, 0, 64]])
+        );
+        for bad in [
+            &[][..],
+            &[0x90, 60],
+            &[0x90, 60, 100, 61],
+            &[0x90, 60, 0x80],
+            &[0x90, 60, 100, 0xF8],
+            &[0xF0, 0x41, 0xF7],
+            &[0x90, 60, 100, 0xF0, 0xF7],
+            &[0xF2, 0, 0],
+            &[0xFE],
+            &[0x40, 0x20],
+        ] {
+            assert_eq!(channel_voice_messages(bad), None, "{bad:02X?}");
+        }
     }
 
     #[test]

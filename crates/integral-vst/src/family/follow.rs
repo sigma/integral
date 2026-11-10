@@ -142,6 +142,10 @@ pub const GESTURE_END: Duration = Duration::from_millis(300);
 /// How long after the host refused a bulk replace the follower tries again.
 const REPLACE_RETRY: Duration = Duration::from_millis(250);
 
+/// How long after the host's queue refused a gesture's task (it was full, or
+/// posting was off) the follower wakes to post it again.
+const POST_RETRY: Duration = Duration::from_millis(50);
+
 /// How long a read waits for the device to say something, from the request
 /// and again from each reply. The service sends at most one message per 40 ms
 /// and the device answers each in turn.
@@ -227,9 +231,67 @@ fn subscription(binding: Binding) -> Binding {
 
 /// A gesture on parameter `index` that ends at `deadline` unless there is
 /// another change.
+///
+/// What the host's queue refuses (it is full) is owed, and posted again at
+/// the next step: the `Begin`, then only the latest value (an older one is
+/// overtaken, not queued), then the `End`. So the host ends up with the
+/// device's value once the queue drains.
 struct Gesture {
     index: usize,
     deadline: Instant,
+    /// The host's queue took the `Begin`.
+    begun: bool,
+    /// The latest value whose `Perform` the queue has not taken. It is
+    /// expected ([`ParamBank::expect`]) once, when it comes in, not at each
+    /// retry: a retry would push out the value queued before it.
+    owed: Option<i32>,
+    /// When to post again what the queue refused.
+    retry_at: Option<Instant>,
+}
+
+impl Gesture {
+    /// A gesture on parameter `index`, with nothing posted yet.
+    fn new(index: usize, now: Instant) -> Self {
+        Self {
+            index,
+            deadline: now + GESTURE_END,
+            begun: false,
+            owed: None,
+            retry_at: None,
+        }
+    }
+
+    /// When the follower should next look at the gesture.
+    fn wake(&self) -> Instant {
+        self.retry_at.unwrap_or(self.deadline)
+    }
+
+    /// Post what the host's queue has not taken yet, in order, and the `End`
+    /// once the deadline has passed. Returns whether the gesture is over.
+    fn advance(&mut self, instance: &Instance, now: Instant) -> bool {
+        self.retry_at = None;
+        let param = self.index as u32;
+        if !self.begun && !instance.post(HostTask::Begin(param)) {
+            self.retry_at = Some(now + POST_RETRY);
+            return false;
+        }
+        self.begun = true;
+        if let Some(value) = self.owed {
+            if !instance.post(HostTask::Perform(param, value)) {
+                self.retry_at = Some(now + POST_RETRY);
+                return false;
+            }
+            self.owed = None;
+        }
+        if self.deadline > now {
+            return false;
+        }
+        if !instance.post(HostTask::End(param)) {
+            self.retry_at = Some(now + POST_RETRY);
+            return false;
+        }
+        true
+    }
 }
 
 /// A read of the Part's tone select (see the module docs).
@@ -387,7 +449,7 @@ impl Follower {
     pub fn next_wake(&self, now: Instant) -> Option<Duration> {
         self.gestures
             .iter()
-            .map(|g| g.deadline)
+            .map(Gesture::wake)
             .chain(self.reading.as_ref().map(|r| r.deadline.min(r.last_chance)))
             .chain(self.probe.as_ref().and_then(|p| p.deadline))
             .chain(self.probe_retry)
@@ -445,7 +507,7 @@ impl Follower {
 
     /// End every gesture still open: the instance is going away.
     pub fn end_all(&mut self) {
-        for gesture in self.gestures.drain(..) {
+        for gesture in self.gestures.drain(..).filter(|g| g.begun) {
             self.instance.post(HostTask::End(gesture.index as u32));
         }
     }
@@ -630,7 +692,9 @@ impl Follower {
 
     /// The device says which tone the Part holds: the instance saves it as its
     /// own unless a push of the project's is owed or under way, which the
-    /// device's tone must not replace.
+    /// device's tone must not replace. The editor offers no tone pick in that
+    /// window ([`Instance::recall_owed`]), since the push would select the
+    /// saved tone over it.
     fn learn_tone(&mut self, tone: (u8, u8, u8)) {
         if !self.recall.active() && !self.recall.owes(&self.instance, self.session) {
             recall::save_tone(&self.instance, tone, None);
@@ -683,7 +747,7 @@ impl Follower {
             deadline: now,
             last_chance: now,
         };
-        self.conclude(reading);
+        self.conclude(reading, now);
     }
 
     /// Whether the project's values stand: a push of them is owed (a restored
@@ -901,35 +965,45 @@ impl Follower {
         if !bank.is_active(i) || bank.edits().is_none() || bank.value(i) == value {
             return;
         }
-        let deadline = now + GESTURE_END;
-        if let Some(gesture) = self.gestures.iter_mut().find(|g| g.index == i) {
-            gesture.deadline = deadline;
-        } else if self.instance.post(HostTask::Begin(i as u32)) {
-            self.gestures.push(Gesture { index: i, deadline });
-        } else {
-            return;
-        }
+        let slot = match self.gestures.iter().position(|g| g.index == i) {
+            Some(slot) => slot,
+            None => {
+                self.gestures.push(Gesture::new(i, now));
+                self.gestures.len() - 1
+            }
+        };
+        let gesture = &mut self.gestures[slot];
+        gesture.deadline = now + GESTURE_END;
+        gesture.owed = Some(value);
         bank.expect(i, value);
-        self.instance.post(HostTask::Perform(i as u32, value));
+        gesture.advance(&self.instance, now);
     }
 
-    /// End the gestures that have been quiet long enough. An `End` the ring
-    /// refused is tried again at the next step.
+    /// Post what the host's queue refused before, and end the gestures that
+    /// have been quiet long enough.
     fn end_gestures(&mut self, now: Instant) {
         let instance = &self.instance;
-        self.gestures.retain(|gesture| {
-            gesture.deadline > now || !instance.post(HostTask::End(gesture.index as u32))
-        });
+        self.gestures
+            .retain_mut(|gesture| !gesture.advance(instance, now));
     }
 
-    /// Post again a replace the host handed back, once its time has come.
+    /// Post again a replace the host handed back or its queue refused, once
+    /// its time has come.
     fn retry_replace(&mut self, now: Instant) {
         if self.instance.bank.take_retry() {
             self.retry_at = Some(now + REPLACE_RETRY);
         }
         if self.retry_at.is_some_and(|at| at <= now) {
             self.retry_at = None;
-            self.instance.post(HostTask::Replace);
+            self.post_replace(now);
+        }
+    }
+
+    /// Post a replace of the values the bank has queued. One the host's queue
+    /// refuses keeps them queued and is posted again after [`REPLACE_RETRY`].
+    fn post_replace(&mut self, now: Instant) {
+        if !self.instance.post(HostTask::Replace) {
+            self.retry_at = Some(now + REPLACE_RETRY);
         }
     }
 
@@ -1046,11 +1120,11 @@ impl Follower {
             return;
         }
         let reading = self.reading.take().expect("checked");
-        self.conclude(reading);
+        self.conclude(reading, now);
     }
 
     /// Give the host what a finished read found, and arm the instance.
-    fn conclude(&mut self, reading: Reading) {
+    fn conclude(&mut self, reading: Reading, now: Instant) {
         let byte = |at: u32| reading.bytes.get(&at).copied();
         if reading.adopt {
             recall::capture(&self.instance, &reading.binding, &byte);
@@ -1078,12 +1152,7 @@ impl Follower {
                 bank.expect(*i, *value);
             }
             bank.queue_replace(changes);
-            if !self.instance.post(HostTask::Replace) {
-                // Not taken: nothing will come of the queued values.
-                for (i, _) in bank.take_replace() {
-                    bank.settle(i);
-                }
-            }
+            self.post_replace(now);
         }
         self.instance.arm();
     }
@@ -1921,6 +1990,28 @@ mod tests {
         assert_eq!(saved(&instance), (87, 64, 9), "tone B");
     }
 
+    #[test]
+    fn the_editor_cannot_pick_a_tone_while_the_recall_is_owed_or_under_way() {
+        // A pick then would not be saved, and the push would write the saved
+        // tone over it: the instance says so, and the editor's tone button is
+        // off until the push is out. (`recalling` checks it is owed before
+        // the push begins.)
+        let (instance, mut follower, wire, now) = recalling();
+        assert!(instance.recall_owed(), "under way");
+        let baseline = ClientEvent::Message(Message::Baseline {
+            binding: Binding::of_part(0),
+            tone: None,
+            runs: Vec::new(),
+        });
+        follower.step(Some(&baseline), now, &wire);
+        for _ in 0..3 {
+            follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        }
+        assert!(instance.notices.get().is_empty(), "the recall is out");
+        follower.step(None, now, &wire);
+        assert!(!instance.recall_owed(), "a pick can be made again");
+    }
+
     /// A restored PCM Synth instance on Part 0 with a Preset tone, whose
     /// recall has begun: the selection is pushed and the baseline asked for.
     fn recalling() -> (Arc<Instance>, Follower, FakeWire, Instant) {
@@ -1934,6 +2025,7 @@ mod tests {
         let mut follower = Follower::new(Arc::clone(&instance), sysex::DEFAULT_DEVICE_ID);
         let now = Instant::now();
         follower.step(Some(&connected()), now, &wire);
+        assert!(instance.recall_owed(), "owed, before the push begins");
         // The device says the Part holds a tone of the plugin's type.
         follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
         let now = now + Duration::from_secs(2);
@@ -2181,5 +2273,124 @@ mod tests {
             "the old bytes were not applied: {:?}",
             log.replaced.lock().unwrap()
         );
+    }
+
+    #[test]
+    fn a_gesture_a_full_queue_refused_catches_up_with_the_latest_value_once_it_drains() {
+        let instance = instance(PluginKind::PcmSynth, Binding::of_part(0));
+        let log = Arc::new(Log {
+            instance: Arc::downgrade(&instance),
+            replaced: Default::default(),
+        });
+        instance.bank.set_edits(Some(log.clone()));
+        let queue = super::super::instance::test_queue::Queue::for_instance(&instance, usize::MAX);
+        let wire = FakeWire::default();
+        let mut follower = Follower::new(Arc::clone(&instance), sysex::DEFAULT_DEVICE_ID);
+        let now = Instant::now();
+        follower.step(Some(&connected()), now, &wire);
+        follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
+        follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
+        queue.drain(&instance);
+
+        let bank = &instance.bank;
+        let i = bank.position("pcms/partial1/0x0F").expect("a parameter");
+        let host = bank.list()[i].0.clone();
+        let old = bank.value(i);
+        // Two values, neither the one the host holds.
+        let (first, last) = (host.min + 1, host.min + 2);
+        assert!(old != first && old != last && last <= host.max);
+        let changed = |value: i32| {
+            ClientEvent::Message(Message::Changed {
+                writer: ClientId(9),
+                param: ParamId {
+                    plugin: PluginKind::PcmSynth,
+                    id: host.id.clone(),
+                },
+                binding: Binding::of_part(0),
+                value,
+            })
+        };
+
+        // The queue is full: the executor reports the drop.
+        queue.make_room(0);
+        assert!(
+            !instance.post(HostTask::End(i as u32)),
+            "the drop is reported"
+        );
+        follower.step(Some(&changed(first)), now, &wire);
+        assert!(
+            follower.next_wake(now) <= Some(POST_RETRY),
+            "a refused Begin is retried soon, not at the gesture's end"
+        );
+        follower.step(Some(&changed(last)), now, &wire);
+        follower.step(None, now + GESTURE_END * 2, &wire);
+        assert_eq!(bank.value(i), old, "nothing reached the host");
+
+        // Room for the Begin only: the value is still owed.
+        queue.make_room(1);
+        let later = now + GESTURE_END * 3;
+        follower.step(None, later, &wire);
+        assert_eq!(queue.drain(&instance), [HostTask::Begin(i as u32)]);
+
+        // The queue drains: the latest value goes, then the gesture ends.
+        queue.make_room(usize::MAX);
+        follower.step(None, later, &wire);
+        assert_eq!(
+            queue.drain(&instance),
+            [HostTask::Perform(i as u32, last), HostTask::End(i as u32)]
+        );
+        assert_eq!(bank.value(i), last, "the mirror caught up");
+        assert!(follower.gestures.is_empty());
+    }
+
+    #[test]
+    fn a_gesture_waits_after_a_refusal_instead_of_spinning() {
+        let instance = instance(PluginKind::PcmSynth, Binding::of_part(0));
+        instance.bank.set_edits(Some(Arc::new(Log {
+            instance: Arc::downgrade(&instance),
+            replaced: Default::default(),
+        })));
+        let _queue = super::super::instance::test_queue::Queue::for_instance(&instance, 0);
+        let mut follower = Follower::new(Arc::clone(&instance), sysex::DEFAULT_DEVICE_ID);
+        let now = Instant::now();
+        let mut gesture = Gesture::new(0, now);
+        gesture.deadline = now;
+        gesture.begun = true;
+        follower.gestures.push(gesture);
+        follower.end_gestures(now);
+        assert_eq!(follower.gestures.len(), 1, "the refused End is owed");
+        assert_eq!(follower.next_wake(now), Some(POST_RETRY));
+    }
+
+    #[test]
+    fn a_replace_a_full_queue_refused_is_posted_again_and_the_mirror_catches_up() {
+        let instance = instance(PluginKind::PcmSynth, Binding::of_part(0));
+        let log = Arc::new(Log {
+            instance: Arc::downgrade(&instance),
+            replaced: Default::default(),
+        });
+        instance.bank.set_edits(Some(log.clone()));
+        let queue = super::super::instance::test_queue::Queue::for_instance(&instance, 0);
+        let mut follower = Follower::new(Arc::clone(&instance), sysex::DEFAULT_DEVICE_ID);
+        let bank = &instance.bank;
+        let i = bank.position("pcms/partial1/0x0F").expect("a parameter");
+        let host = bank.list()[i].0.clone();
+        let value = if bank.value(i) == host.max {
+            host.min
+        } else {
+            host.max
+        };
+        let now = Instant::now();
+        bank.expect(i, value);
+        bank.queue_replace([(i, value)]);
+        follower.post_replace(now);
+        assert_eq!(queue.drain(&instance), []);
+
+        queue.make_room(usize::MAX);
+        follower.retry_replace(now + REPLACE_RETRY / 2);
+        assert_eq!(queue.drain(&instance), [], "not before its time");
+        follower.retry_replace(now + REPLACE_RETRY);
+        assert_eq!(queue.drain(&instance), [HostTask::Replace]);
+        assert_eq!(bank.value(i), value, "the mirror caught up");
     }
 }

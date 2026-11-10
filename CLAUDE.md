@@ -130,7 +130,10 @@ Implementation document:
 
 1. **Checksum:** `sum = address_bytes + data_bytes; checksum = (128 - (sum % 128)) % 128`.
 2. **Packet limit:** Never exceed 256 bytes per SysEx message.
-3. **Throttle:** Minimum 20 ms between consecutive SysEx transmissions.
+3. **Throttle:** Minimum 40 ms between consecutive SysEx transmissions
+   (`THROTTLE_MS`). Roland says about 20 ms, but at 20 ms the device drops
+   about a quarter of back-to-back RQ1s; at 40 ms it answers all of them
+   ([#446](https://github.com/sigma/integral/issues/446#issuecomment-6706325991)).
 4. **Nibblized data:** Multi-byte parameters use 7-bit encoding (one value
    per byte, high bit always 0).
 5. **Model ID:** Always `00 00 64` for the Integra-7.

@@ -280,6 +280,15 @@ Consecutive packets must be separated by an interval of approximately **20
 ms**. This gives the receiving device time to process each packet before the
 next one arrives.
 
+> **Measured (not in Roland's document):** 20 ms is not enough for reads.
+> Over an RTP-MIDI link, the device answered 147 of 200 back-to-back
+> Part-block RQ1s (77 bytes each) at a 20 ms gap, and all 200 at 40 ms. It
+> dropped the rest silently instead of queueing them
+> ([#446](https://github.com/sigma/integral/issues/446#issuecomment-6706325991)).
+> `DeviceState` therefore paces every SysEx at `THROTTLE_MS` = 40 ms. Whether
+> every DT1 is applied below 40 ms is untested. See also
+> [Request Pacing](99-undocumented.md#9-request-pacing).
+
 ### Nibblized Data
 
 Parameters marked with `#` in the Parameter Address Map use nibblized

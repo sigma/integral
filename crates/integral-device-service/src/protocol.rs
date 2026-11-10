@@ -49,6 +49,14 @@
 //! incompatible. [`Message::Shared`] is of this kind: a client that predates
 //! it skips it and never warns of a duplicate.
 //!
+//! [`Request::LoadExpansion`] and its answer [`Message::ExpansionLoadDone`] are
+//! of this kind too. A service that predates them answers the request
+//! [`Reject::Malformed`], and nothing is loaded: a client takes that to mean
+//! this service cannot load Expansions. Only the requester is sent the
+//! answer, so a client that predates it never sees one; the load's end
+//! reaches every subscriber as a [`BulkKind::StudioSet`] event, which every
+//! client knows.
+//!
 //! # Pacing and cache
 //!
 //! Requests of one client run in the order it sent them. The service takes
@@ -109,6 +117,9 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::session::SessionId;
+#[cfg(doc)]
+use integral_core::expansion_slots::ExpansionSlots;
+use integral_core::expansion_slots::SLOT_COUNT;
 use integral_core::host_params::{Binding, ParamHandle, ParamIndex, PluginKind};
 
 /// The protocol version this crate speaks.
@@ -305,6 +316,23 @@ pub enum Request {
         /// The Part ([`Binding::part`]).
         binding: Binding,
     },
+    /// Load Expansions into the Expansion slots. In the client's turn, the
+    /// service reads the slots first if it does not know them, then sends
+    /// the load and holds every client's SysEx until the load is over: the
+    /// device cuts all sound and ignores requests for seconds per slot. The
+    /// answer is [`Message::ExpansionLoadDone`], to this client only, once
+    /// the load is over, however it ended. Before anything is sent the
+    /// request is refused with [`Reject::Timeout`] if the device does not
+    /// answer the slot read, or [`Reject::Invalid`] if another load is
+    /// running. When a load that changed anything ends, every subscriber is
+    /// sent a [`BulkKind::StudioSet`] event with this client as the writer.
+    LoadExpansion {
+        /// The slot values to load, slot A first, as the device's load
+        /// request carries them ([`ExpansionSlots::values`]): `0` for OFF.
+        /// The service refuses values that name no Expansion
+        /// ([`ExpansionSlots::from_values`]) with [`Reject::Invalid`].
+        slots: [u8; SLOT_COUNT],
+    },
 }
 
 /// What a bulk event stands for.
@@ -329,6 +357,20 @@ pub enum BulkKind {
     /// The Reverb changed in a slot that no one parameter is named by. Sent
     /// as [`BulkKind::StudioSet`] is.
     Reverb,
+}
+
+/// How an Expansion load ended ([`Message::ExpansionLoadDone`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExpansionLoadResult {
+    /// The slots already held the target: nothing was sent.
+    Unchanged,
+    /// The slots now hold the target.
+    Loaded,
+    /// The device read back other slots than the target.
+    Failed,
+    /// The device stopped answering; the slots are unknown.
+    TimedOut,
 }
 
 /// A tone as the device selects it: Bank Select and Program Change.
@@ -375,7 +417,8 @@ pub enum Reject {
         /// What the decoder said.
         message: String,
     },
-    /// The device did not answer a [`Request::Read`].
+    /// The device did not answer a [`Request::Read`], or the slot read a
+    /// [`Request::LoadExpansion`] begins with (nothing was loaded).
     Timeout,
     /// A refusal this peer does not know; skip it.
     #[serde(other)]
@@ -498,6 +541,17 @@ pub enum Message {
         /// consecutive runs in address order. Empty if `tone` is `None`. A
         /// field no run covers has no baseline and is pushed in full.
         runs: Vec<BaselineRun>,
+    },
+    /// The answer to [`Request::LoadExpansion`]: the load is over and the
+    /// queue runs again.
+    ExpansionLoadDone {
+        /// How it ended.
+        result: ExpansionLoadResult,
+        /// The slot values the device holds now, slot A first
+        /// ([`ExpansionSlots::values`]), or absent if they are unknown
+        /// ([`ExpansionLoadResult::TimedOut`]).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        slots: Option<[u8; SLOT_COUNT]>,
     },
     /// A request was refused.
     Rejected {
@@ -751,6 +805,40 @@ mod tests {
             serde_json::to_string(&Message::Pushed).unwrap(),
             r#"{"type":"pushed"}"#
         );
+    }
+
+    #[test]
+    fn an_expansion_load_and_its_answer_are_plain_json() {
+        let load = Request::LoadExpansion {
+            slots: [0x03, 0x00, 0x07, 0x08],
+        };
+        let json = serde_json::to_string(&load).unwrap();
+        assert_eq!(json, r#"{"type":"load_expansion","slots":[3,0,7,8]}"#);
+        assert_eq!(serde_json::from_str::<Request>(&json).unwrap(), load);
+
+        let answer = Message::ExpansionLoadDone {
+            result: ExpansionLoadResult::Loaded,
+            slots: Some([0x03, 0x00, 0x07, 0x08]),
+        };
+        let json = serde_json::to_string(&answer).unwrap();
+        assert_eq!(
+            json,
+            r#"{"type":"expansion_load_done","result":"loaded","slots":[3,0,7,8]}"#
+        );
+        assert_eq!(serde_json::from_str::<Message>(&json).unwrap(), answer);
+        let timed_out = Message::ExpansionLoadDone {
+            result: ExpansionLoadResult::TimedOut,
+            slots: None,
+        };
+        let json = serde_json::to_string(&timed_out).unwrap();
+        assert_eq!(
+            json,
+            r#"{"type":"expansion_load_done","result":"timed_out"}"#
+        );
+
+        // Four slots, no more.
+        let five = r#"{"type":"load_expansion","slots":[3,0,7,8,9]}"#;
+        assert!(serde_json::from_str::<Request>(five).is_err());
     }
 
     #[test]

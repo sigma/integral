@@ -249,12 +249,10 @@ impl Instance {
     /// A host change before the host has had its say ([`settle`](Self::settle))
     /// is the project being restored or initialised, not an edit: the Binding
     /// stands.
+    ///
+    /// One sync is queued at a time. One the host's queue refused is queued
+    /// again at the next tick.
     pub fn follow_binding_params(&self) {
-        self.follow_binding_params_at(std::time::Instant::now());
-    }
-
-    /// [`follow_binding_params`](Self::follow_binding_params) at the time `now`.
-    pub fn follow_binding_params_at(&self, now: std::time::Instant) {
         let params = &self.binding_params;
         if !self.is_settled() {
             params.discard_host_edit();
@@ -283,7 +281,7 @@ impl Instance {
         }
         if let Some(binding) = self.binding.get()
             && !params.differing(&binding).is_empty()
-            && params.try_queue_sync(now)
+            && params.try_queue_sync()
             && !self.post(HostTask::SyncBinding)
         {
             params.sync_done();
@@ -403,7 +401,7 @@ impl Instance {
     /// under way ([`set_recall_owed`](Self::set_recall_owed)): that selection
     /// is what puts the Part right.
     pub fn default_tone(&self) -> Option<&'static FactoryTone> {
-        if self.recall_owed.load(Ordering::Acquire) {
+        if self.recall_owed() {
             return None;
         }
         default_tone(self.kind.tone_type()?)
@@ -413,6 +411,13 @@ impl Instance {
     /// worker sets it.
     pub fn set_recall_owed(&self, owed: bool) {
         self.recall_owed.store(owed, Ordering::Release);
+    }
+
+    /// Whether a recall of the saved tone is owed or under way. The editor
+    /// offers no tone pick meanwhile: the instance would not save it, and the
+    /// push would select the saved tone over it.
+    pub fn recall_owed(&self) -> bool {
+        self.recall_owed.load(Ordering::Acquire)
     }
 
     /// Ask for the plugin's default tone to be loaded onto the bound Part,
@@ -528,7 +533,7 @@ impl Instance {
     /// Stop (or start again) posting: the host deactivated the plugin, which
     /// it may be about to destroy, and the worker must not post to a main thread
     /// that is tearing it down. Refused tasks are retried by the follower
-    /// (gestures end, replaces repeat) once posting is back.
+    /// (gestures carry on, replaces repeat) once posting is back.
     pub fn set_posting(&self, on: bool) {
         self.posting.store(on, Ordering::Release);
     }
@@ -537,17 +542,19 @@ impl Instance {
     /// With no poster (a test, or a plugin outside a host) it is carried out
     /// here; with one it never is, because the poster only queues, so a task
     /// cannot run inline on a thread that is waiting for the one that posts it
-    /// (a bulk update waits for the audio thread). Returns whether it was
-    /// taken.
+    /// (a bulk update waits for the audio thread).
+    ///
+    /// Returns whether it was taken: `false` while posting is off and when
+    /// the poster refuses it (the host's queue is full). A refused task is
+    /// gone, so a caller that cannot lose it tries again (the follower's
+    /// gestures and replaces, the Binding's sync). A taken task runs, unless
+    /// the wrapper goes away first.
     pub fn post(&self, task: HostTask) -> bool {
         if !self.posting.load(Ordering::Acquire) {
             return false;
         }
         match self.poster.get() {
-            Some(poster) => {
-                (poster.0)(task);
-                true
-            }
+            Some(poster) => (poster.0)(task),
             None => {
                 host::run(self, task);
                 true
@@ -557,11 +564,12 @@ impl Instance {
 }
 
 /// Queues a [`HostTask`] for the host's main thread.
-pub struct Poster(Arc<dyn Fn(HostTask) + Send + Sync>);
+pub struct Poster(Arc<dyn Fn(HostTask) -> bool + Send + Sync>);
 
 impl Poster {
-    /// A poster that calls `queue` for each task.
-    pub fn new(queue: impl Fn(HostTask) + Send + Sync + 'static) -> Self {
+    /// A poster that calls `queue` for each task; `queue` returns whether it
+    /// queued the task (`false`: its queue is full and the task is dropped).
+    pub fn new(queue: impl Fn(HostTask) -> bool + Send + Sync + 'static) -> Self {
         Self(Arc::new(queue))
     }
 }
@@ -569,6 +577,54 @@ impl Poster {
 impl std::fmt::Debug for Poster {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Poster")
+    }
+}
+
+/// A fake of the host's task queue, for tests at the [`Poster`] seam.
+#[cfg(test)]
+pub(crate) mod test_queue {
+    use super::{HostTask, Instance};
+    use std::sync::Arc;
+
+    /// The host's task queue, holding at most `room` tasks until the test
+    /// drains it as the main thread does: a full one refuses tasks.
+    pub struct Queue {
+        tasks: std::sync::Mutex<std::collections::VecDeque<HostTask>>,
+        room: std::sync::atomic::AtomicUsize,
+    }
+
+    impl Queue {
+        /// A queue with `room` for tasks, posted to by `instance`.
+        pub fn for_instance(instance: &Instance, room: usize) -> Arc<Self> {
+            let queue = Arc::new(Self {
+                tasks: Default::default(),
+                room: room.into(),
+            });
+            let posted = Arc::clone(&queue);
+            instance.set_poster(super::Poster::new(move |task| {
+                let mut tasks = posted.tasks.lock().unwrap();
+                if tasks.len() >= posted.room.load(std::sync::atomic::Ordering::SeqCst) {
+                    return false;
+                }
+                tasks.push_back(task);
+                true
+            }));
+            queue
+        }
+
+        /// Let the queue hold `room` tasks from now on.
+        pub fn make_room(&self, room: usize) {
+            self.room.store(room, std::sync::atomic::Ordering::SeqCst);
+        }
+
+        /// Run the queued tasks on `instance`, as the main thread does.
+        pub fn drain(&self, instance: &Instance) -> Vec<HostTask> {
+            let tasks: Vec<HostTask> = self.tasks.lock().unwrap().drain(..).collect();
+            for task in &tasks {
+                super::host::run(instance, *task);
+            }
+            tasks
+        }
     }
 }
 

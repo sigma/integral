@@ -49,6 +49,7 @@ const CONNECTED: Omit<InstanceInfo, "plugin" | "binding"> = {
   notices: [],
   defaultTone: null,
   defaultTonePending: false,
+  recallOwed: false,
 };
 
 /**
@@ -208,7 +209,7 @@ describe("the status line", () => {
   ] as const)("says %s even when there is no device to show", async (code, text) => {
     // No device: the editor has only the plugin's word.
     const { container } = await openPlugin(
-      { plugin: "pcm_synth", binding: { part: 0 }, status: code, statusText: text, hostEdits: false, notices: [], defaultTone: null, defaultTonePending: false },
+      { plugin: "pcm_synth", binding: { part: 0 }, status: code, statusText: text, hostEdits: false, notices: [], defaultTone: null, defaultTonePending: false, recallOwed: false },
       [],
     );
     expect(status(container)).toBe(text);
@@ -216,7 +217,7 @@ describe("the status line", () => {
 
   it("follows the instance as the plugin reports it", async () => {
     const { container, fake } = await openPlugin(
-      { plugin: "pcm_synth", binding: { part: 0 }, status: "serviceNotRunning", statusText: "Device service not running", hostEdits: false, notices: [], defaultTone: null, defaultTonePending: false },
+      { plugin: "pcm_synth", binding: { part: 0 }, status: "serviceNotRunning", statusText: "Device service not running", hostEdits: false, notices: [], defaultTone: null, defaultTonePending: false, recallOwed: false },
       [],
     );
     await tell(fake, { plugin: "pcm_synth", binding: { part: 0 }, ...CONNECTED });

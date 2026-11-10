@@ -316,6 +316,7 @@ impl Bridge {
                 .collect(),
             default_tone: self.instance.default_tone().map(|tone| tone.name),
             default_tone_pending: self.instance.default_tone_pending(),
+            recall_owed: self.instance.recall_owed(),
         };
         if self.instance.take_default_tone_dropped() {
             self.fail(
@@ -926,6 +927,7 @@ mod tests {
                 .collect(),
             default_tone: instance.default_tone().map(|tone| tone.name),
             default_tone_pending: false,
+            recall_owed: false,
         };
         b.refresh_instance();
         assert_eq!(b.take_outgoing(), [], "nothing before ready");
@@ -1046,6 +1048,27 @@ mod tests {
             "{out:?}"
         );
         assert!(!pending(&out));
+    }
+
+    #[test]
+    fn the_page_is_told_while_a_recall_is_owed_so_it_offers_no_tone_pick() {
+        let Editor {
+            bridge: mut b,
+            instance,
+            ..
+        } = editor(PluginKind::SnSynth, &[]);
+        let owed = |out: &[PluginMessage]| match out {
+            [PluginMessage::Instance { recall_owed, .. }] => *recall_owed,
+            other => panic!("{other:?}"),
+        };
+        b.handle(r#"{"type":"ready"}"#);
+        assert!(!owed(&heard(&b)));
+        instance.set_recall_owed(true);
+        b.refresh_instance();
+        assert!(owed(&heard(&b)));
+        instance.set_recall_owed(false);
+        b.refresh_instance();
+        assert!(!owed(&heard(&b)));
     }
 
     #[test]

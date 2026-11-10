@@ -401,11 +401,6 @@ impl Command {
                 Some("monitor dumps all MIDI, but the service shares only SysEx")
             }
             Self::Bridge(_) => Some("bridge runs the Device service itself"),
-            Self::Expansion {
-                command: ExpansionCommand::Load { .. },
-            } => Some(
-                "expansion load needs the service to hold its queue for a load it starts itself",
-            ),
             _ => None,
         }
     }

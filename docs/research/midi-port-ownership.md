@@ -184,7 +184,7 @@ WinMM has no virtual ports at all.
   own DIN timing. Even if the USB path is faster, a sub-0.1 ms hop is small
   beside it. The hop's cost is more likely to show up in **ordering** against
   bulk SysEx than in raw latency. A note can queue behind a 256-byte DT1 under
-  the 20 ms throttle. That is the service's merge policy, which
+  the 40 ms throttle. That is the service's merge policy, which
   [Who owns the device link?](https://github.com/sigma/integral/issues/341) has to decide.
 
 ## The existing Bridge
@@ -231,7 +231,7 @@ WinMM has no virtual ports at all.
 3. **Ordering point.** The virtual-input callback writes directly to the device.
    For the service to be "the throttle and ordering point", the callback must
    enqueue into the same scheduler as plugin SysEx, with a merge policy (notes
-   must not wait 20 ms behind a DT1 burst). Today that scheduler lives in
+   must not wait 40 ms behind a DT1 burst). Today that scheduler lives in
    `DeviceState` queued sends.
 4. **Control channel.** Plugins need a second, non-MIDI channel (requests,
    subscriptions). A MIDI port alone cannot carry it. That is

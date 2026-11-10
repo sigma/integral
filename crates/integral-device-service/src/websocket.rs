@@ -1,15 +1,24 @@
 //! The service's WebSocket endpoint: how a browser, which cannot open a Unix
-//! socket, is a raw SysEx client of the service (ADR 0006).
+//! socket, is a raw SysEx client of the service and plays notes through it
+//! (ADR 0006).
 //!
 //! # Framing
 //!
 //! One binary WebSocket frame is one whole SysEx message, `F0` to `F7`, in
-//! both directions, and nothing else is carried:
+//! both directions; from the browser, a frame may instead hold notes. Nothing
+//! else is carried:
 //!
-//! - Browser to service: a frame goes through the service's paced queue like
-//!   a [`Request::Raw`] on the socket. A frame that is not one SysEx message
-//!   is refused by the service and not answered; there is no reply channel
-//!   for it, because a shared MIDI port has none either.
+//! - Browser to service, SysEx: a frame goes through the service's paced
+//!   queue like a [`Request::Raw`] on the socket.
+//! - Browser to service, notes: a frame of one or more whole channel voice
+//!   messages (`8n` to `En`, each with its status byte) goes to the link as
+//!   note-port traffic does: at once, between SysEx messages and never inside
+//!   one, ahead of the SysEx queue. Only allowed origins connect, so only
+//!   they play. System and real-time messages have no path: a page has no
+//!   clock to send.
+//! - A frame that is neither is refused by the service and not answered;
+//!   there is no reply channel for it, because a shared MIDI port has none
+//!   either.
 //! - Service to browser: every SysEx message the device sends, as on a shared
 //!   MIDI port. The endpoint says [`Request::Hello`] with raw on for the
 //!   client when it connects, so there is nothing to negotiate. Link state
@@ -72,6 +81,7 @@ use tungstenite::{Message as Frame, WebSocket};
 
 use crate::clients::Outbox;
 use crate::link::Log;
+use crate::note::channel_voice_messages;
 use crate::protocol::{ClientId, Message, PROTOCOL_VERSION, Request};
 use crate::runtime::Handle;
 use crate::service::Input;
@@ -418,12 +428,19 @@ fn serve(stream: TcpStream, gate: &Gate, client: ClientId, handle: &Handle) -> i
         });
         while open {
             open = match reader.read() {
-                Ok(Frame::Binary(bytes)) => handle.client_input(Input::Client {
-                    client,
-                    request: Request::Raw {
-                        bytes: bytes.to_vec(),
-                    },
-                }),
+                Ok(Frame::Binary(bytes)) => match channel_voice_messages(&bytes) {
+                    Some(notes) => notes
+                        .into_iter()
+                        .all(|note| handle.client_note(note.to_vec())),
+                    // Not a note frame: the service takes it as SysEx, or
+                    // refuses it.
+                    None => handle.client_input(Input::Client {
+                        client,
+                        request: Request::Raw {
+                            bytes: bytes.to_vec(),
+                        },
+                    }),
+                },
                 Ok(Frame::Ping(payload)) => {
                     // A full queue means the writer is behind; the pong is
                     // not worth a wait.

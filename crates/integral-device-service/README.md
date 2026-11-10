@@ -60,8 +60,13 @@ independent of it.
   frames are ignored, pings answered, and a frame the service refuses is not
   answered. Listens on 127.0.0.1 only, default port
   `integral_core::device_service::WEBSOCKET_PORT` (4707); the web app always
-  uses the default, so `--ws-port` is for tests and port clashes. Browsers
-  carry no notes through it (those go to the note port: #480).
+  uses the default, so `--ws-port` is for tests and port clashes.
+  - Notes: a page's frame of one or more whole channel voice messages (`8n`
+    to `En`, each with its status byte) goes to the link as the note port's
+    traffic does, at once and ahead of the SysEx queue. Anything else that
+    is not one SysEx message (running status, system or real-time messages,
+    SysEx mixed in) is refused. Only an allowed origin connects, so only it
+    plays.
   - Link: when the service's link goes down every page is closed with code
     1013 and reason "INTEGRA-7 link down", and a page that connects while it
     is down is accepted and closed the same way at once (a browser sees a
@@ -85,14 +90,17 @@ independent of it.
   host-parameter ID of core's `ParamIndex` (ADR 0008), with a `Binding` (Part,
   key) for IDs that are Binding-relative; values are the raw `i32`. `Request`:
   `Subscribe`/`Unsubscribe`, `ReceiveRaw`, `Write`/`Read`, `Raw` (one SysEx
-  message), `ChangeTone`, `SwitchStudioSet`, `LoadMixer`, `Push`, `Baseline`. `Message`: `Welcome`,
+  message), `ChangeTone`, `SwitchStudioSet`, `LoadMixer`, `Push`, `Baseline`,
+  `LoadExpansion` (the four slot values; a service that predates it answers
+  `Malformed`). `Message`: `Welcome`,
   `LinkUp`, `LinkDown`, `Changed` (with the writer's `ClientId`;
   `ClientId::DEVICE` for the device, only when the value differs from the last
   known and never as a read's answer), `Bulk` (a tone or Studio Set replaced,
   or more than 16 parameters changed, or an effect slot whose type the session
   does not know, scoped to that effect: one event, not N),
   `Value` (a read's answer, to the reader only), `Pushed`, `Baseline` (the
-  tone and its bytes as address runs, or no tone), `Shared` (how many other
+  tone and its bytes as address runs, or no tone), `ExpansionLoadDone` (how
+  a load ended and the slots after it, to the requester only), `Shared` (how many other
   clients are bound to the same target; only to clients that said what they
   are bound to, when the number changes), `Sysex` and `Rejected`.
   Unknown messages decode as `Unknown` and are skipped; a frame that does not
@@ -180,6 +188,15 @@ events and the device's messages.
   queue an Identity Request first (paced) and hold other SysEx for up to a
   second; a different ID replaces the state and starts a new session.
 - A link Down during an Expansion load is deferred until the load ends.
+- A client's `LoadExpansion` runs in its turn: the slots are read first if the
+  session does not know them (refused `Timeout` if unanswered 2 s after the
+  read left), then `DeviceState::start_expansion_load` holds the device's
+  queue for every client until the load ends. The requester gets
+  `ExpansionLoadDone` (`unchanged`, `loaded`, `failed` or `timed_out`, after
+  which the slots are unknown), or `Invalid` while another load runs. A load
+  that changed anything ends in `Bulk` `StudioSet` to every subscriber, its
+  client as the writer (the device if the client left), and the session
+  forgets the tones of Parts on an Expansion's bank.
 - No environment or working-directory reads: everything is a parameter.
 - Device constants come from `integral-core` (`INTEGRA7`, `wireless`,
   `sysex`).

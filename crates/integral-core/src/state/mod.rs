@@ -341,6 +341,10 @@ pub struct MixerState {
     pub reverb: FxState,
     /// External input level (0–127).
     pub ext_level: u8,
+    /// External input chorus (FX1) send level (0–127).
+    pub ext_chorus_send: u8,
+    /// External input reverb (FX2) send level (0–127).
+    pub ext_reverb_send: u8,
     /// External input mute.
     pub ext_muted: bool,
     /// Master EQ settings.
@@ -369,6 +373,8 @@ impl Default for MixerState {
             chorus: FxState::default(),
             reverb: FxState::default(),
             ext_level: 100,
+            ext_chorus_send: 0,
+            ext_reverb_send: 0,
             ext_muted: false,
             master_eq: EqState::default(),
             surround: SurroundState::default(),

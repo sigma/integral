@@ -240,9 +240,10 @@ impl FrameDecoder {
 // USB-MIDI packets
 // ---------------------------------------------------------------------------
 
-/// Expected length of a non-SysEx message from its status byte, or `None`
-/// if the byte cannot start one.
-fn message_len(status: u8) -> Option<usize> {
+/// Expected length of a non-SysEx MIDI message, status byte included, from
+/// its status byte, or `None` if the byte cannot start one (a data byte,
+/// SysEx's `F0`/`F7`, or an undefined status).
+pub fn message_len(status: u8) -> Option<usize> {
     match status {
         0x80..=0xBF | 0xE0..=0xEF | 0xF2 => Some(3),
         0xC0..=0xDF | 0xF1 | 0xF3 => Some(2),

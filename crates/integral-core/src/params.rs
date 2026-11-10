@@ -54,6 +54,10 @@ pub const EXT_PART_REVERB_SEND: Address = Address::new(0x18, 0x00, 0x00, 0x4E);
 /// Ext Part Mute Switch (0=OFF, 1=ON). Studio Set Common offset `00 4F`.
 pub const EXT_PART_MUTE: Address = Address::new(0x18, 0x00, 0x00, 0x4F);
 
+/// Size of the Ext Part block from [`EXT_PART_LEVEL`]: level, chorus send,
+/// reverb send and mute switch.
+pub const EXT_PART_SIZE: DataSize = DataSize::new(0x00, 0x00, 0x00, 0x04);
+
 // ---------------------------------------------------------------------------
 // Studio Set Common: Chorus (offset 00 04 00)
 // ---------------------------------------------------------------------------
@@ -780,7 +784,13 @@ mod tests {
     #[test]
     fn ext_part_addresses() {
         assert_eq!(EXT_PART_LEVEL, Address::new(0x18, 0x00, 0x00, 0x4C));
+        assert_eq!(EXT_PART_CHORUS_SEND, Address::new(0x18, 0x00, 0x00, 0x4D));
+        assert_eq!(EXT_PART_REVERB_SEND, Address::new(0x18, 0x00, 0x00, 0x4E));
         assert_eq!(EXT_PART_MUTE, Address::new(0x18, 0x00, 0x00, 0x4F));
+        assert_eq!(
+            EXT_PART_LEVEL.offset([0, 0, 0, u8::try_from(EXT_PART_SIZE.value() - 1).unwrap()]),
+            EXT_PART_MUTE
+        );
     }
 
     #[test]

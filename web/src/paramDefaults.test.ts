@@ -16,7 +16,8 @@ describe("paramMeta", () => {
   });
 
   it("formats values with core's labels", () => {
-    expect(paramFormatter(MixerField.EqMidFreq)(7)).toBe("1.0k");
+    expect(paramFormatter(MixerField.EqMidFreq)(7)).toBe("1.0 kHz");
+    expect(paramFormatter(MixerField.EqMidGain)(18)).toBe("+3 dB");
     expect(paramFormatter(MixerField.CompRatio)(paramMeta(MixerField.CompRatio).max)).toBe("inf:1");
   });
 
