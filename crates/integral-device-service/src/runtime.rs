@@ -52,6 +52,16 @@ impl Handle {
         self.tx.send(input).is_ok()
     }
 
+    /// Feed one channel voice message from a WebSocket client to the
+    /// service, as if it arrived on the note port: it goes out between SysEx
+    /// messages, ahead of the SysEx queue. Crate-private, like
+    /// [`client_input`](Self::client_input): only the WebSocket endpoint,
+    /// which admits allowed origins alone and checks each frame, may play
+    /// notes, so a handle still cannot forge them.
+    pub(crate) fn client_note(&self, message: Vec<u8>) -> bool {
+        self.tx.send(Input::Note(message)).is_ok()
+    }
+
     /// A client ID no other connection has had. `ClientId::DEVICE` (0) is
     /// never given out.
     pub(crate) fn new_client_id(&self) -> ClientId {

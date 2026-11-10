@@ -236,7 +236,7 @@ describe("the Device service port", () => {
     await settle();
     expect(second.sent.length).toBeGreaterThan(0);
 
-    // The device answers: the page is connected, and says notes are not carried.
+    // The device answers: the page is connected, and notes are carried.
     const reply = Uint8Array.from([
       0xf0, 0x7e, 0x10, 0x06, 0x02, 0x41, 0x64, 0x02, 0x00, 0x00, 0x00, 0x00,
       0x00, 0x00, 0xf7,
@@ -245,7 +245,8 @@ describe("the Device service port", () => {
       second.onmessage?.(new MessageEvent("message", { data: reply.buffer })),
     );
     await settle();
-    expect(container.textContent).toContain("Notes do not reach the device");
+    expect(onMixer(container)).toBe(true);
+    expect(container.textContent).not.toContain("Notes do not reach the device");
   });
 
   it("lets go of the service quietly when another port is chosen", async () => {

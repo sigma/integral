@@ -83,9 +83,10 @@ Device link and transports (`.ts`):
     reports the link going down and up, `failure` gives `NOT_RUNNING_HINT`
     (not running, or this page's origin is not allowed) or `LINK_DOWN_HINT`
     (the service closed the page with 1013: it lost the device), and
-    `release` stops reconnecting when another pair is chosen. SysEx only:
-    `carriesNotes` is `false` (App says so, notes are #480) and `timestamp`
-    is ignored, the service pacing SysEx itself.
+    `release` stops reconnecting when another pair is chosen. It carries
+    notes too (`carriesNotes`): a channel voice message is its own frame,
+    which the service plays ahead of its SysEx queue, and a send with a
+    future `timestamp` is held in the page until then.
   - `withDeviceService`, `browserPorts`: the service listed beside Web MIDI's
     pairs (alone where the browser has no Web MIDI), `DEVICE_SERVICE_NAME`.
 - `devPorts.ts`: `DEV_SERVER_PORT` (5181) and `PREVIEW_PORT` (4181), pinned in

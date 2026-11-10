@@ -281,7 +281,7 @@ export function pluginPorts(bridge: PluginBridge): Promise<MidiPorts> {
   const pair: MidiPortPair = {
     id: DEVICE_SERVICE_ID,
     name: DEVICE_SERVICE_NAME,
-    // The plugin's link carries SysEx only (#480 brings notes).
+    // The plugin's link carries SysEx only ([#505](https://github.com/sigma/integral/issues/505) brings notes).
     carriesNotes: false,
     open: () =>
       new Promise<void>((resolve, reject) => {

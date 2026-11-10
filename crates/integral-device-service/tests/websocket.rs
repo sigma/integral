@@ -1,6 +1,7 @@
 //! The WebSocket endpoint against a fake link: who may connect, how it
 //! follows the device link, and that a page behaves as a shared MIDI port.
 
+use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -270,7 +271,8 @@ fn what_is_not_one_sysex_message_does_not_reach_the_device() {
     let service = Fixture::start();
     let mut page = service.connect_soon(ALLOWED);
 
-    page.send(Message::binary(vec![0x90, 0x3C, 0x7F]))
+    // A system message is neither SysEx nor a note.
+    page.send(Message::binary(vec![0xF2, 0x00, 0x00]))
         .expect("send");
     page.send(Message::text("hello")).expect("send");
     // Malformed SysEx: a status byte inside, and no checksum.
@@ -291,6 +293,115 @@ fn what_is_not_one_sysex_message_does_not_reach_the_device() {
     assert!(!sent.contains(&two));
     assert!(!sent.contains(&vec![0xF0, 0x90, 0xF7]));
     assert!(sent.iter().all(|m| m.first() == Some(&sysex::SYSEX_START)));
+}
+
+const NOTE_ON: [u8; 3] = [0x90, 0x3C, 0x7F];
+const NOTE_OFF: [u8; 3] = [0x80, 0x3C, 0x00];
+
+#[test]
+fn a_note_frame_reaches_the_link_ahead_of_queued_sysex() {
+    let service = Fixture::start();
+    let mut page = service.connect_soon(ALLOWED);
+    // SysEx waits as it would behind the throttle; notes do not.
+    service.link.hold_sysex(Duration::from_secs(60));
+
+    let write = dt1(21);
+    page.send(Message::binary(write.clone())).expect("send");
+    page.send(Message::binary(NOTE_ON.to_vec())).expect("send");
+
+    wait_for("the note on the link", || {
+        service.link.sent().contains(&NOTE_ON.to_vec())
+    });
+    assert!(!service.link.sent().contains(&write), "the DT1 was held");
+
+    service.link.hold_sysex(Duration::ZERO);
+    // Another note wakes the service if it sleeps, and it sends what it held.
+    page.send(Message::binary(NOTE_OFF.to_vec())).expect("send");
+    wait_for("the DT1 on the link", || {
+        service.link.sent().contains(&write)
+    });
+    let sent = service.link.sent();
+    let at = |m: &[u8]| sent.iter().position(|s| s == m).expect("sent");
+    assert!(at(&NOTE_ON) < at(&write));
+}
+
+#[test]
+fn a_frame_of_several_channel_voice_messages_reaches_the_link_as_each() {
+    let service = Fixture::start();
+    let mut page = service.connect_soon(ALLOWED);
+    let program = [0xC1, 0x05];
+    let bend = [0xE2, 0x00, 0x40];
+
+    page.send(Message::binary(
+        [NOTE_ON.as_slice(), &program, &bend].concat(),
+    ))
+    .expect("send");
+
+    wait_for("the bend on the link", || {
+        service.link.sent().contains(&bend.to_vec())
+    });
+    let sent = service.link.sent();
+    let at = |m: &[u8]| sent.iter().position(|s| s == m).expect("sent");
+    assert!(at(&NOTE_ON) < at(&program) && at(&program) < at(&bend));
+}
+
+#[test]
+fn a_note_frame_that_is_not_whole_channel_voice_messages_is_refused() {
+    let service = Fixture::start();
+    let mut page = service.connect_soon(ALLOWED);
+    let bad: [&[u8]; 6] = [
+        &[0x90, 0x3C],                   // cut short
+        &[0x90, 0x3C, 0x7F, 0x40],       // a stray data byte (running status)
+        &[0x90, 0x3C, 0x90],             // a status byte where data goes
+        &[0x90, 0x3C, 0x7F, 0xF8],       // a real-time message after it
+        &[0x90, 0x3C, 0x7F, 0xF0, 0xF7], // SysEx after it
+        &[0xF8],                         // a system message alone
+    ];
+    for frame in bad {
+        page.send(Message::binary(frame.to_vec())).expect("send");
+    }
+    // Frames are handled in order, so this one on the link means the others
+    // were seen.
+    page.send(Message::binary(NOTE_OFF.to_vec())).expect("send");
+
+    wait_for("the good note on the link", || {
+        service.link.sent().contains(&NOTE_OFF.to_vec())
+    });
+    assert_eq!(service.link.sent(), vec![NOTE_OFF.to_vec()]);
+}
+
+#[test]
+fn a_page_from_an_origin_off_the_list_cannot_play_notes() {
+    let service = Fixture::start();
+    let addr = service.url.trim_start_matches("ws://");
+    let mut stranger = TcpStream::connect(addr).expect("connect");
+    stranger.set_read_timeout(Some(WAIT)).expect("timeout");
+    // The handshake and a note frame (masked with a zero key, so the payload
+    // reads as is) in one write, as a client that does not wait would send.
+    let handshake = "GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nUpgrade: websocket\r\n\
+        Connection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
+        Sec-WebSocket-Version: 13\r\nOrigin: https://evil.example\r\n\r\n";
+    let frame = [&[0x82, 0x83, 0, 0, 0, 0][..], &NOTE_ON].concat();
+    stranger
+        .write_all(&[handshake.as_bytes(), &frame].concat())
+        .expect("write");
+    // Refused (403), or dropped unanswered for bytes after its request: not
+    // upgraded either way.
+    let mut response = Vec::new();
+    let _ = stranger.read_to_end(&mut response);
+    let response = String::from_utf8_lossy(&response);
+    assert!(!response.starts_with("HTTP/1.1 101"), "{response}");
+    // A browser waits for the upgrade, and is refused before it can send.
+    assert_eq!(service.refused_with(Some("https://evil.example")), 403);
+
+    // The service has had time to act on the stranger's frame, had it
+    // taken it: an allowed page's note gets there.
+    let mut page = service.connect_soon(ALLOWED);
+    page.send(Message::binary(NOTE_OFF.to_vec())).expect("send");
+    wait_for("the allowed note on the link", || {
+        service.link.sent().contains(&NOTE_OFF.to_vec())
+    });
+    assert!(!service.link.sent().contains(&NOTE_ON.to_vec()));
 }
 
 #[test]

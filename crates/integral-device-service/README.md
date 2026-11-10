@@ -60,8 +60,13 @@ independent of it.
   frames are ignored, pings answered, and a frame the service refuses is not
   answered. Listens on 127.0.0.1 only, default port
   `integral_core::device_service::WEBSOCKET_PORT` (4707); the web app always
-  uses the default, so `--ws-port` is for tests and port clashes. Browsers
-  carry no notes through it (those go to the note port: #480).
+  uses the default, so `--ws-port` is for tests and port clashes.
+  - Notes: a page's frame of one or more whole channel voice messages (`8n`
+    to `En`, each with its status byte) goes to the link as the note port's
+    traffic does, at once and ahead of the SysEx queue. Anything else that
+    is not one SysEx message (running status, system or real-time messages,
+    SysEx mixed in) is refused. Only an allowed origin connects, so only it
+    plays.
   - Link: when the service's link goes down every page is closed with code
     1013 and reason "INTEGRA-7 link down", and a page that connects while it
     is down is accepted and closed the same way at once (a browser sees a
