@@ -118,6 +118,20 @@ fn wait_for(what: &str, condition: impl Fn() -> bool) {
     }
 }
 
+/// Bound reads on `stream` by [`WAIT`], so a test waiting for a close
+/// fails instead of hanging.
+///
+/// Call it on a stream the peer may already have closed: macOS refuses
+/// `SO_RCVTIMEO` with `EINVAL` on a socket shut both ways, which a closed
+/// peer leaves it. Such a stream cannot block (its reads drain what is
+/// buffered, then return 0), so there is nothing to bound.
+fn bound_reads(stream: &UnixStream) {
+    match stream.set_read_timeout(Some(WAIT)) {
+        Err(error) if error.raw_os_error() == Some(libc::EINVAL) => {}
+        result => result.expect("a read timeout"),
+    }
+}
+
 /// The next event satisfying `pick`, skipping the others.
 fn next<T>(events: &Events, what: &str, mut pick: impl FnMut(ClientEvent) -> Option<T>) -> T {
     let deadline = Instant::now() + WAIT;
@@ -689,12 +703,11 @@ fn a_service_that_is_killed_leaves_its_socket_and_the_client_reconnects() {
         .stdout(Stdio::piped())
         .spawn()
         .expect("start the service process");
-    writeln!(
-        child.stdin.as_mut().expect("stdin"),
-        "{}",
-        dir.socket().display()
-    )
-    .expect("send the path");
+    // Held open until the child is reaped: `Child::wait` would close it
+    // first, and a child the SIGKILL has not yet stopped would read the EOF
+    // and shut down cleanly, removing its socket.
+    let mut stdin = child.stdin.take().expect("stdin");
+    writeln!(stdin, "{}", dir.socket().display()).expect("send the path");
     let mut out = BufReader::new(child.stdout.take().expect("stdout"));
     let mut line = String::new();
     while line.trim() != "ready" {
@@ -709,6 +722,7 @@ fn a_service_that_is_killed_leaves_its_socket_and_the_client_reconnects() {
 
     child.kill().expect("SIGKILL"); // no cleanup runs
     child.wait().expect("reaped");
+    drop(stdin);
     assert!(dir.socket().exists(), "the dead service left its socket");
     next(&events, "the disconnect", |event| {
         matches!(event, ClientEvent::Disconnected).then_some(())
@@ -766,7 +780,7 @@ fn a_client_that_never_reads_is_dropped_and_the_others_carry_on() {
     other.write(level(3), Binding::ANY, 9);
     wait_for("the DT1", || service.link.sent().contains(&dt1(3, 9)));
     // And the stuck client was cut off, which it finds when it finally reads.
-    stuck.set_read_timeout(Some(WAIT)).expect("timeout");
+    bound_reads(&stuck);
     let mut reader = BufReader::new(&stuck);
     let mut frames = 0;
     while read_frame::<Message>(&mut reader).is_ok() {
@@ -1107,7 +1121,7 @@ fn a_server_for_one_process_refuses_every_other() {
     let other = dir.0.join("o.sock");
     let server = SocketServer::bind_only(&other, running.handle(), Some(ours + 1)).expect("bind");
     let mut stream = UnixStream::connect(&other).expect("connect");
-    stream.set_read_timeout(Some(WAIT)).expect("a read timeout");
+    bound_reads(&stream);
     let mut byte = [0u8; 1];
     assert_eq!(stream.read(&mut byte).expect("closed, not timed out"), 0);
     drop(server);
@@ -1117,4 +1131,13 @@ fn a_server_for_one_process_refuses_every_other() {
     let _server = SocketServer::bind_only(&own, running.handle(), Some(ours)).expect("bind");
     let _joined = join(&own);
     running.stop();
+}
+
+#[test]
+fn bound_reads_accepts_a_stream_its_peer_has_closed() {
+    let (stream, peer) = UnixStream::pair().expect("a pair");
+    drop(peer);
+    bound_reads(&stream);
+    let mut byte = [0u8; 1];
+    assert_eq!((&stream).read(&mut byte).expect("closed"), 0);
 }
