@@ -77,14 +77,6 @@ const PART_STATE_KEY: Partial<Record<MixerField, keyof PartState>> = {
   [MixerField.PartReceiveChannel]: "receiveChannel",
 };
 
-/** Fields read in dB; core's labels carry the sign only. */
-const DB_FIELDS: ReadonlySet<MixerField> = new Set([
-  MixerField.EqLowGain,
-  MixerField.EqMidGain,
-  MixerField.EqHighGain,
-  MixerField.CompOutputGain,
-]);
-
 /** What a strip's toggle buttons read, on and off alike: their LED shows the state. */
 const SWITCH_TEXT: Partial<Record<MixerField, string>> = {
   [MixerField.PartMute]: "M",
@@ -182,8 +174,6 @@ function stripWrite(setField: SetMixerField, { kind, index }: StripScope, field:
 function stripBinding({ state, setField, ...scope }: StripProps): (field: MixerField) => Binding {
   return (field) => {
     const meta = paramMeta(field);
-    const fmt = paramFormatter(field);
-    const unit = DB_FIELDS.has(field) ? "dB" : "";
     const text = SWITCH_TEXT[field];
     const toggle = scope.kind === MixerScopeKind.Part && PART_TOGGLES.has(field);
     return {
@@ -193,7 +183,7 @@ function stripBinding({ state, setField, ...scope }: StripProps): (field: MixerF
       // Pan's arc grows from the centre, its default.
       center: field === MixerField.PartPan ? meta.defaultValue : undefined,
       value: stripValue(state, scope, field),
-      format: (v) => `${fmt(v)}${unit}`,
+      format: paramFormatter(field),
       options: text === undefined ? undefined : [{ value: 0, label: text }, { value: 1, label: text }],
       onChange: (v) => stripWrite(setField, scope, field, v),
     };

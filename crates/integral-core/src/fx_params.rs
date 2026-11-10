@@ -156,6 +156,9 @@ pub(crate) const CLOCK: &str = "⏱";
 /// Kilohertz' unit.
 pub(crate) const KHZ: &str = "kHz";
 
+/// Decibels' unit.
+pub(crate) const DB: &str = "dB";
+
 /// Percent's unit, written against its number (`20%`).
 pub(crate) const PERCENT: &str = "%";
 
@@ -246,7 +249,7 @@ impl FxUnit {
             FxUnit::DegreesX2 => ((v * 2).to_string(), DEGREES),
             FxUnit::FeedbackPercent => ((v * 2 - 98).to_string(), PERCENT),
             FxUnit::Note => (label(NOTE_NAMES, v), ""),
-            FxUnit::Decibels => (format!("{v:+}"), "dB"),
+            FxUnit::Decibels => (format!("{v:+}"), DB),
             FxUnit::Table { values, unit } => (label(values, v), unit),
             FxUnit::EqQ => (label(EQ_Q, v), ""),
             FxUnit::StepRateHz => (format!("{:.2}", (v + 9) as f64 * 0.01), HZ),

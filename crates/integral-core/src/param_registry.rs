@@ -29,6 +29,9 @@ pub enum ParamFormat {
     Raw,
     /// Display as value minus center (e.g. pan 64 -> "0", 0 -> "-64", 127 -> "+63").
     SignedCenter(i32),
+    /// [`SignedCenter`](Self::SignedCenter) in dB (EQ gain 18 -> "+3 dB"
+    /// with center 15).
+    Decibels(i32),
     /// Index into a static name array.
     Named(&'static [&'static str]),
     /// Boolean: 0=OFF, 1=ON.
@@ -236,9 +239,9 @@ impl ParamFormat {
     /// The raw value a control centres on, for formats signed around one.
     pub fn center(&self) -> Option<i32> {
         match self {
-            ParamFormat::SignedCenter(center) | ParamFormat::SignedStep { center, .. } => {
-                Some(*center)
-            }
+            ParamFormat::SignedCenter(center)
+            | ParamFormat::Decibels(center)
+            | ParamFormat::SignedStep { center, .. } => Some(*center),
             ParamFormat::Pan => Some(64),
             _ => None,
         }
@@ -255,7 +258,7 @@ impl ParamFormat {
     /// a value without one, such as a note or a name). A tempo-syncable
     /// Control draws the unit itself, as its free/note toggle.
     pub fn parts(&self, value: i32) -> (String, &'static str) {
-        use crate::fx_params::{HZ, PERCENT};
+        use crate::fx_params::{DB, HZ, PERCENT};
         use crate::lfo_rates::{format_hz, pcm_lfo_hz, sn_lfo_hz};
         match self {
             ParamFormat::PcmLfoRate => match note_name(value) {
@@ -264,6 +267,7 @@ impl ParamFormat {
             },
             ParamFormat::SnLfoRate => (format_hz(sn_lfo_hz(value)), HZ),
             ParamFormat::Percent => (value.to_string(), PERCENT),
+            ParamFormat::Decibels(center) => (ParamFormat::SignedCenter(*center).number(value), DB),
             _ => (self.number(value), ""),
         }
     }
@@ -321,9 +325,10 @@ impl ParamFormat {
                 None => value.to_string(),
             },
             // `parts` gives these their unit.
-            ParamFormat::PcmLfoRate | ParamFormat::SnLfoRate | ParamFormat::Percent => {
-                value.to_string()
-            }
+            ParamFormat::PcmLfoRate
+            | ParamFormat::SnLfoRate
+            | ParamFormat::Percent
+            | ParamFormat::Decibels(_) => value.to_string(),
             ParamFormat::Catalog(catalog) => catalog
                 .name(value)
                 .map_or_else(|| value.to_string(), str::to_string),
@@ -883,13 +888,13 @@ fn part_names() -> &'static [&'static str] {
 }
 
 /// Mixer EQ frequency and Q labels, shared by parts, master and Drum
-/// Comp+EQ units.
-static EQ_LOW_FREQ_NAMES: &[&str] = &["200", "400"];
+/// Comp+EQ units. A frequency carries its unit.
+static EQ_LOW_FREQ_NAMES: &[&str] = &["200 Hz", "400 Hz"];
 static EQ_MID_FREQ_NAMES: &[&str] = &[
-    "200", "250", "315", "400", "500", "630", "800", "1.0k", "1.2k", "1.6k", "2.0k", "2.5k",
-    "3.1k", "4.0k", "5.0k", "6.3k", "8.0k",
+    "200 Hz", "250 Hz", "315 Hz", "400 Hz", "500 Hz", "630 Hz", "800 Hz", "1.0 kHz", "1.2 kHz",
+    "1.6 kHz", "2.0 kHz", "2.5 kHz", "3.1 kHz", "4.0 kHz", "5.0 kHz", "6.3 kHz", "8.0 kHz",
 ];
-static EQ_HIGH_FREQ_NAMES: &[&str] = &["2.0k", "4.0k", "8.0k"];
+static EQ_HIGH_FREQ_NAMES: &[&str] = &["2.0 kHz", "4.0 kHz", "8.0 kHz"];
 static EQ_Q_NAMES: &[&str] = &["0.5", "1.0", "2.0", "4.0", "8.0"];
 
 /// The definition of a mixer field: its name, range, default, format and
@@ -904,7 +909,7 @@ pub fn mixer_param(field: MixerField) -> ParamDef {
 /// [`mixer_param`] for a device with `part_count` parts.
 fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
     use MixerField as F;
-    use ParamFormat::{Named, OnOff, Raw, SignedCenter};
+    use ParamFormat::{Decibels, Named, OnOff, Raw, SignedCenter};
     use ParameterFamily::{Amp, Common, Filter, Time};
 
     let spec = &INTEGRA7;
@@ -936,7 +941,7 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
         fx_role: Some(role),
         ..def
     };
-    let eq_gain = SignedCenter(15);
+    let eq_gain = Decibels(15);
 
     let param = match field {
         F::PartLevel => level("Level", ParamGroup::Part, 100),
@@ -1163,7 +1168,7 @@ fn mixer_param_for(field: MixerField, part_count: u8) -> ParamDef {
             ParamGroup::Comp,
             24,
             i32::from(unit.comp_output_gain),
-            SignedCenter(0),
+            Decibels(0),
             Amp,
         ),
         F::CompOutputAssign => def(
@@ -1725,9 +1730,39 @@ mod tests {
             };
             assert_eq!(names.len() as i32, def.max - def.min + 1, "{field:?}");
         }
-        let gain = mixer_param(MixerField::EqMidGain);
-        assert_eq!(format_value(&gain, 0), "-15");
-        assert_eq!(format_value(&gain, 30), "+15");
+    }
+
+    #[test]
+    fn eq_and_comp_gains_read_in_db() {
+        for field in [
+            MixerField::EqLowGain,
+            MixerField::EqMidGain,
+            MixerField::EqHighGain,
+        ] {
+            let gain = mixer_param(field);
+            assert_eq!(format_value(&gain, 0), "-15 dB", "{field:?}");
+            assert_eq!(format_value(&gain, 15), "0 dB", "{field:?}");
+            assert_eq!(format_value(&gain, 30), "+15 dB", "{field:?}");
+            assert_eq!(gain.format.center(), Some(15), "{field:?}");
+        }
+        let output = mixer_param(MixerField::CompOutputGain);
+        assert_eq!(format_value(&output, 0), "0 dB");
+        assert_eq!(format_value(&output, 24), "+24 dB");
+    }
+
+    #[test]
+    fn eq_freqs_read_in_hz_or_khz() {
+        let f = |field, v| format_value(&mixer_param(field), v);
+        assert_eq!(f(MixerField::EqLowFreq, 0), "200 Hz");
+        assert_eq!(f(MixerField::EqLowFreq, 1), "400 Hz");
+        assert_eq!(f(MixerField::EqMidFreq, 0), "200 Hz");
+        assert_eq!(f(MixerField::EqMidFreq, 6), "800 Hz");
+        assert_eq!(f(MixerField::EqMidFreq, 7), "1.0 kHz");
+        assert_eq!(f(MixerField::EqMidFreq, 16), "8.0 kHz");
+        assert_eq!(f(MixerField::EqHighFreq, 0), "2.0 kHz");
+        assert_eq!(f(MixerField::EqHighFreq, 2), "8.0 kHz");
+        // Q has no unit.
+        assert_eq!(f(MixerField::EqMidQ, 0), "0.5");
     }
 
     #[test]

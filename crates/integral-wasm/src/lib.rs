@@ -3447,7 +3447,7 @@ mod tests {
         let spec = mixer_field_spec(MixerField::EqLowGain);
         assert_eq!((spec.min, spec.max, spec.default_value), (0, 30, 15));
         assert_eq!(spec.family(), ParameterFamily::Filter);
-        assert_eq!(spec.format_value(0), "-15");
+        assert_eq!(spec.format_value(0), "-15 dB");
         assert_eq!(mixer_field_name(MixerField::PartChorusSend), "FX1");
         assert!(mixer_field_in_scope(
             MixerField::EqSwitch,

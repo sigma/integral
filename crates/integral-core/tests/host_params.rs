@@ -505,6 +505,30 @@ fn typed_text_may_drop_case_spaces_and_the_unit() {
 }
 
 #[test]
+fn mixer_eq_text_carries_its_unit_and_reads_back() {
+    use integral_core::host_params::HostFormat;
+    use integral_core::param_registry::{MixerField, mixer_param};
+
+    let host = |field| {
+        let def = mixer_param(field);
+        (HostFormat::Field(def.format), def.min, def.max)
+    };
+    let (gain, min, max) = host(MixerField::EqMidGain);
+    assert_eq!(gain.format(18), "+3 dB");
+    for text in ["+3 dB", "+3dB", "+3", "3 db"] {
+        assert_eq!(gain.parse(text, min, max), Some(18), "{text}");
+    }
+    let (out, min, max) = host(MixerField::CompOutputGain);
+    assert_eq!(out.parse("+6 dB", min, max), Some(6));
+    let (freq, min, max) = host(MixerField::EqMidFreq);
+    assert_eq!(freq.format(7), "1.0 kHz");
+    for text in ["1.0 kHz", "1khz", "1"] {
+        assert_eq!(freq.parse(text, min, max), Some(7), "{text}");
+    }
+    assert_eq!(freq.parse("400 Hz", min, max), Some(3));
+}
+
+#[test]
 fn text_no_value_has_does_not_parse() {
     use integral_core::host_params::HostFormat;
     use integral_core::param_registry::ParamFormat;

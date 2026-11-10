@@ -115,6 +115,18 @@ describe("MixerPage", () => {
     expect(value(control(master, MixerField.EqLowGain))).toBe(String(base.masterEq.lowGain));
   });
 
+  it("reads EQ and compressor values in core's labels, units and all, once", () => {
+    const { base, eqs, el } = loaded();
+    const label = (field: MixerField, v: number) => paramFormatter(field)(v);
+    const part = base.parts[0]!.eq;
+    expect(control(eqs[0]!, MixerField.EqMidGain).textContent).toContain(label(MixerField.EqMidGain, part.midGain));
+    expect(control(eqs[0]!, MixerField.EqMidGain).textContent).not.toContain("dBdB");
+    expect(control(eqs[0]!, MixerField.EqMidFreq).textContent).toContain(label(MixerField.EqMidFreq, part.midFreq));
+    const gain = control(placed(el, "strip.comp.0"), MixerField.CompOutputGain);
+    expect(gain.textContent).toContain(label(MixerField.CompOutputGain, base.drumCompEq.units[0]!.compOutputGain));
+    expect(gain.textContent).not.toContain("dBdB");
+  });
+
   it("writes a turned EQ knob in its strip's Scope", () => {
     const { base, eqs, setMixerField } = loaded();
     const parts = base.parts.length;
