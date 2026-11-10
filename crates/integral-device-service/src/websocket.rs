@@ -84,6 +84,7 @@ use crate::link::Log;
 use crate::protocol::{ClientId, Message, PROTOCOL_VERSION, Request};
 use crate::runtime::Handle;
 use crate::service::Input;
+use crate::tcp;
 use integral_core::device_service::WEBSOCKET_HOST;
 use integral_core::sysex::MAX_MESSAGE_LEN;
 
@@ -370,7 +371,7 @@ impl Read for Deadline {
             .checked_duration_since(Instant::now())
             .filter(|left| !left.is_zero())
             .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "handshake too slow"))?;
-        self.stream.set_read_timeout(Some(left))?;
+        tcp::set_read_timeout(&self.stream, Some(left))?;
         self.stream.read(buf)
     }
 }
@@ -388,7 +389,7 @@ impl Write for Deadline {
 /// Serve one client until it or the service goes away.
 fn serve(stream: TcpStream, gate: &Gate, client: ClientId, handle: &Handle) -> io::Result<()> {
     stream.set_nodelay(true)?;
-    stream.set_write_timeout(Some(WRITE_TIMEOUT))?;
+    tcp::set_write_timeout(&stream, Some(WRITE_TIMEOUT))?;
     let config = WebSocketConfig::default()
         .max_message_size(Some(MAX_MESSAGE_LEN))
         .max_frame_size(Some(MAX_MESSAGE_LEN));
@@ -401,7 +402,7 @@ fn serve(stream: TcpStream, gate: &Gate, client: ClientId, handle: &Handle) -> i
     let socket = tungstenite::accept_hdr_with_config(timed, Admit(gate), Some(config))
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
     let stream = socket.into_inner().stream;
-    stream.set_read_timeout(None)?;
+    tcp::set_read_timeout(&stream, None)?;
 
     let mut reader =
         WebSocket::from_raw_socket(ReadHalf(stream.try_clone()?), Role::Server, Some(config));
