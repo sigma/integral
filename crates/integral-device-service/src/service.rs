@@ -70,7 +70,7 @@ use integral_core::tone_banks::{find_bank, is_fixed_tone};
 use crate::baseline::{Baselines, Begin, Outcome, Reply, Selected, Settled, Step, ToneBaseline};
 use crate::clients::{Clients, Outbox};
 use crate::link::{DeviceLink, LinkError, LinkEvent};
-use crate::note::{is_note_traffic, program_change_channel};
+use crate::note::{channel_voice_messages, is_note_traffic, program_change_channel};
 use crate::protocol::{
     BaselineRun, Bound, BulkKind, ClientId, ExpansionLoadResult, Message, PROTOCOL_VERSION,
     ParamId, Reject, Request, ToneSelect,
@@ -439,11 +439,8 @@ impl Service {
                 self.receive_from_device(&message, now_ms);
             }
             Input::Note(message) => {
-                if self.session.is_some() && is_note_traffic(&message) {
-                    if let Some(channel) = program_change_channel(&message) {
-                        self.program_change_on(channel, now_ms);
-                    }
-                    self.notes.push_back(message);
+                if is_note_traffic(&message) {
+                    self.play(message);
                 }
             }
             Input::Connect { client, outbox } => self.clients.connect(client, outbox),
@@ -608,6 +605,19 @@ impl Service {
         self.clients.disconnect(client);
     }
 
+    /// Send one note-port message to the device ahead of the SysEx queue,
+    /// between SysEx messages, unless the link is down. A Program Change
+    /// makes the service re-read the tone of the Parts on its channel.
+    fn play(&mut self, message: Vec<u8>) {
+        if self.session.is_none() {
+            return;
+        }
+        if let Some(channel) = program_change_channel(&message) {
+            self.program_change_on(channel, self.now_ms);
+        }
+        self.notes.push_back(message);
+    }
+
     /// Take a request from a client: answer or apply the ones that are about
     /// the client itself, check the others and queue them for `pump`.
     fn client_request(&mut self, client: ClientId, request: Request) {
@@ -644,6 +654,17 @@ impl Service {
             Request::Unsubscribe { binding } => self.clients.unsubscribe(client, &binding),
             Request::ReceiveRaw { on } => self.clients.set_raw(client, on),
             Request::Bind { bound } => self.bind_client(client, bound),
+            Request::Note { bytes } => match channel_voice_messages(&bytes) {
+                Some(notes) => {
+                    for note in notes {
+                        self.play(note.to_vec());
+                    }
+                }
+                None => {
+                    let message = "not whole channel voice messages".to_string();
+                    self.reject(client, Reject::Invalid { message });
+                }
+            },
             Request::Claim { plugin } => {
                 if self.now_ms < CLAIM_HOLD_MS {
                     self.held_claims.push((client, plugin));
@@ -943,6 +964,7 @@ impl Service {
             | Request::ReceiveRaw { .. }
             | Request::Bind { .. }
             | Request::Claim { .. }
+            | Request::Note { .. }
             | Request::Push { .. } => {}
         }
     }

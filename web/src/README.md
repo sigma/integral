@@ -86,16 +86,25 @@ Device link and transports (`.ts`):
     `release` stops reconnecting when another pair is chosen. It carries
     notes too (`carriesNotes`): a channel voice message is its own frame,
     which the service plays ahead of its SysEx queue, and a send with a
-    future `timestamp` is held in the page until then.
+    future `timestamp` is held in the page until then (`holdUntil`, on
+    `workerTimers`, which a background tab does not throttle).
   - `withDeviceService`, `browserPorts`: the service listed beside Web MIDI's
     pairs (alone where the browser has no Web MIDI), `DEVICE_SERVICE_NAME`.
+- `timedSend.ts`: `holdUntil` holds a send with a future `timestamp` until
+  then, for the pairs with no scheduler underneath (the Device service's, in
+  the browser and the plugin), on `Timers`: `mainThreadTimers`, or
+  `workerTimers` (a dedicated Worker's, which a background tab does not
+  throttle; the page's own where there is no Worker).
 - `devPorts.ts`: `DEV_SERVER_PORT` (5181) and `PREVIEW_PORT` (4181), pinned in
   `vite.config.ts` and equal to core's, which the service admits as origins.
 - `plugin.ts`:
   - The plugin transport: `windowBridge`, `PluginBridge`, `pluginPorts`. It
     offers the Device service as the one pair (`DEVICE_SERVICE_ID` and
-    `DEVICE_SERVICE_NAME`, as in the browser), SysEx only (`carriesNotes` is
-    `false`). While the plugin has no port to offer, `failure` gives the
+    `DEVICE_SERVICE_NAME`, as in the browser). It carries notes too
+    (`carriesNotes`): the plugin sends a channel voice message to the
+    service as a `Note` request, played ahead of its SysEx queue. A timed
+    send is held on the page's own timers (the webview's CSP refuses a
+    `blob:` worker, and the editor sends nothing timed). While the plugin has no port to offer, `failure` gives the
     reason it sent, else `SERVICE_UNAVAILABLE_HINT`.
   - The IPC wire format: `encodePageMessage`, `decodePluginMessage`,
     `PLUGIN_EVENT`, and the wire types `PageMessage` and `PluginMessage`.

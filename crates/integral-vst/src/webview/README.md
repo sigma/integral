@@ -10,7 +10,7 @@ served from the embedded web build over `integral://localhost/`.
 The page and the plugin exchange JSON messages tagged by `type`. The page
 posts them with `window.ipc.postMessage`. The plugin replies by running a
 script that dispatches `CustomEvent("integral-plugin")`. `Bridge` turns page
-messages into calls on a `DeviceLink`, which is `ServiceLink`: a raw SysEx client of the Device service
+messages into calls on a `DeviceLink`, which is `ServiceLink`: a raw SysEx and note client of the Device service
 ([ADR 0006](../../../../docs/adr/0006-device-service-owns-the-link.md)). The
 plugin opens no MIDI port.
 
@@ -65,8 +65,10 @@ plugin opens no MIDI port.
     setting is per client) and asks for raw SysEx. It says `Opened` at the
     client's first greeting, or `OpenFailed` after 1.5 s. It publishes the
     client's ID as `Instance::editor_client`.
-  - `send` queues the bytes with `Client::raw`, into the service's paced
-    queue, and fails while the client is disconnected. What the service
+  - `send` sends `Request::midi`: a SysEx message as `Raw`, into the
+    service's paced queue, and anything else as `Note`, which the service
+    plays ahead of that queue (whole channel voice messages only). It fails
+    while the client is disconnected. What the service
     refuses reaches the page as an `error`.
 - `editor.rs`: `WebviewEditor::new(size, LinkFactory, Arc<FamilyParams>)` is
   the nih-plug `Editor`.

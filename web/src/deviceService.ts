@@ -2,15 +2,16 @@
  * The Device service as a port (ADR 0006): the browser reaches the INTEGRA-7
  * through the service's localhost WebSocket instead of Web MIDI.
  *
- * The page is a raw SysEx client of the service, so the pair behaves as a
- * shared MIDI port: the SysEx it sends goes through the service's paced queue,
+ * The page is a raw SysEx and note client of the service, so the pair behaves
+ * as a shared MIDI port: the SysEx it sends goes through the service's paced queue,
  * and every SysEx the device sends comes back. Its notes (channel voice
  * messages) go to the device at once, ahead of that queue, as a DAW track's
  * do. Each send is one binary frame, one whole message each way (documented
  * beside the server, in `crates/integral-device-service/src/websocket.rs`);
  * the service refuses a frame that is neither. A send with a future
  * `timestamp` (the Sequencer's) is held in the page until then, as Web MIDI
- * would hold it in the browser.
+ * would hold it in the browser, on timers a background tab does not throttle
+ * (`timedSend.ts`).
  *
  * The service may not be running, and may be restarted. The pair stays in the
  * port list either way, says so when a connect fails, and keeps retrying once
@@ -19,6 +20,7 @@
 
 import { deviceServiceUrl } from "../pkg/integral_wasm.js";
 import type { MidiListener, MidiPortPair, MidiPorts } from "./midi";
+import { holdUntil, workerTimers, type Timers } from "./timedSend";
 
 /** What the port picker shows and the last-port memory keeps (the core's `PAIR_NAME`, checked by the tests). */
 export const DEVICE_SERVICE_NAME = "Integral Device Service";
@@ -61,17 +63,6 @@ export type SocketFactory = (url: string) => SocketLike;
 /** `WebSocket.OPEN`, without needing the global in tests. */
 const SOCKET_OPEN = 1;
 
-/** Timers the pair reconnects with. */
-export interface Timers {
-  set(callback: () => void, ms: number): unknown;
-  clear(handle: unknown): void;
-}
-
-const browserTimers: Timers = {
-  set: (callback, ms) => setTimeout(callback, ms),
-  clear: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
-};
-
 /** A {@link MidiPortPair} over the service, with word of its link. */
 export interface DeviceServicePair extends MidiPortPair {
   /** Stop reconnecting and close the socket. A later `open()` starts over. */
@@ -83,12 +74,13 @@ export interface DeviceServicePair extends MidiPortPair {
  *
  * Nothing connects until `open()`. From then on the pair holds a connection
  * and, whenever it is lost or cannot be made, retries with a growing wait
- * until `release()`. `now` is the clock a send's `timestamp` is on.
+ * until `release()`. `timers` hold timed sends and reconnects; `now` is the
+ * clock a send's `timestamp` is on.
  */
 export function deviceServicePair(
   url: string,
   makeSocket: SocketFactory = (u) => new WebSocket(u),
-  timers: Timers = browserTimers,
+  timers: Timers = workerTimers(),
   now: () => number = () => performance.now(),
 ): DeviceServicePair {
   const listeners = new Set<MidiListener>();
@@ -171,9 +163,7 @@ export function deviceServicePair(
         if (socket === target && target.readyState === SOCKET_OPEN)
           target.send(frame);
       };
-      const delay = timestamp === undefined ? 0 : timestamp - now();
-      if (delay > 0) timers.set(deliver, delay);
-      else deliver();
+      holdUntil(timestamp, deliver, timers, now);
     },
     listen(listener) {
       listeners.add(listener);

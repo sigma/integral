@@ -81,7 +81,6 @@ use tungstenite::{Message as Frame, WebSocket};
 
 use crate::clients::Outbox;
 use crate::link::Log;
-use crate::note::channel_voice_messages;
 use crate::protocol::{ClientId, Message, PROTOCOL_VERSION, Request};
 use crate::runtime::Handle;
 use crate::service::Input;
@@ -143,7 +142,8 @@ fn normalize_origin(origin: &str) -> Option<String> {
     (scheme_ok && host_ok && port_ok).then(|| origin.to_ascii_lowercase())
 }
 
-/// A server accepting browsers as raw SysEx clients of a running service.
+/// A server accepting browsers as raw SysEx and note clients of a running
+/// service.
 ///
 /// Dropping it stops accepting. Clients already connected stay until the
 /// service stops or the link goes down.
@@ -428,19 +428,12 @@ fn serve(stream: TcpStream, gate: &Gate, client: ClientId, handle: &Handle) -> i
         });
         while open {
             open = match reader.read() {
-                Ok(Frame::Binary(bytes)) => match channel_voice_messages(&bytes) {
-                    Some(notes) => notes
-                        .into_iter()
-                        .all(|note| handle.client_note(note.to_vec())),
-                    // Not a note frame: the service takes it as SysEx, or
-                    // refuses it.
-                    None => handle.client_input(Input::Client {
-                        client,
-                        request: Request::Raw {
-                            bytes: bytes.to_vec(),
-                        },
-                    }),
-                },
+                // The service plays a note frame or queues SysEx, as for a
+                // socket client, and refuses anything else.
+                Ok(Frame::Binary(bytes)) => handle.client_input(Input::Client {
+                    client,
+                    request: Request::midi(bytes.to_vec()),
+                }),
                 Ok(Frame::Ping(payload)) => {
                     // A full queue means the writer is behind; the pong is
                     // not worth a wait.
