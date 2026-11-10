@@ -41,7 +41,7 @@ Result values: **Pass**, **Fail**, or **Blocked** (say why in the notes).
 | --- | -------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------- |
 | 1   | Only the service holds the device port                   | [integral-vst README](../../crates/integral-vst/README.md), [PR #476], [PR #485] | none            |
 | 2   | Live lists all six plugins, each loads                   | [PR #482]                                                                        | none            |
-| 3   | Configure mode and Push                                  | [#463], [#345]                                                                   | none            |
+| 3   | Configure mode                                           | [#463], [#345]                                                                   | none            |
 | 4   | Placement                                                | [#463], [ADR 0007](../adr/0007-plugins-per-tone-type.md)                         | none            |
 | 5   | Track input                                              | [#463], [#345]                                                                   | none            |
 | 6   | SysEx echo into the note port (reproduction)             | [#443]                                                                           | none            |
@@ -84,9 +84,9 @@ pattern too. If `pgrep` prints more than one line, stop the service, run
 binary is named `integral`, per [integral-cli Cargo.toml](../../crates/integral-cli/Cargo.toml)),
 and check again. The README expects one line; this workaround is not yet tested.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------- | -------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Pass   | Service started as `target/debug/integral bridge --link rtp --port Integra`. Step 1: `pgrep -lx integral` prints one line. `pgrep -fl 'integral.* bridge'` printed two even with the binary run directly: the shell that launched it matches too, so match the process name with `-x`. Step 2: Live had `Network (Integra)` on for input Track and output Track, Sync and Remote; with all four off, notes through the Tone plugin track still sound Part 6. |
 
 ## 2. Live lists all six plugins, each loads
 
@@ -107,25 +107,24 @@ Live files all six as audio effects: each class declares the `Fx` and `Tools`
 categories ([family/mod.rs](../../crates/integral-vst/src/family/mod.rs), lines
 235-236). Record the category Live shows.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result | Notes                                                                                                                                                             |
+| ---------- | -------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Pass   | All six listed under Plug-Ins > `sigma`; each loads on an audio track and its editor opens, connected. Each Tone or Kit plugin binds the next free Part (1 to 6). |
 
-## 3. Configure mode and Push
+## 3. Configure mode
 
 **Purpose.** Live shows only a bounded set of parameters until you pick them in
-Configure mode. The panel and Push need the same step.
+Configure mode.
 Sources: [#463], [#345], and the
 [Live parameter notes](../research/host-parameter-limits.md#many-parameters).
 
 **Setup.** A Tone plugin (PCM Synth) on a track, bound to a Part that holds a PCM
-Synth tone. Device service running. Push connected. If Push is not available,
-mark its steps Blocked and run the panel steps.
+Synth tone. Device service running.
 
 1. Select the track and open the plugin's device view in Live.
-2. Look at the device view and at Push. Count the parameters each shows.
+2. Look at the device view. Count the parameters it shows.
 3. Turn on Configure. Choose three or four parameters.
-4. Look at the device view and Push again.
+4. Look at the device view again.
 5. Read the plugin's editor. Look for how to add parameters.
 
 **Expected.**
@@ -133,8 +132,7 @@ mark its steps Blocked and run the panel steps.
 - Step 2: an empty device panel, because every class has more than 64 parameters
   and a larger list opens empty until Configure
   ([Live parameter notes](../research/host-parameter-limits.md#many-parameters)).
-  Push shows none.
-- Step 4: the chosen parameters appear in the device view and on Push.
+- Step 4: the chosen parameters appear in the device view.
 - Step 5: the page explains how to add them.
 
 **Open.** Step 5: no "Configure" text exists in `web/` or `crates/` yet. Record
@@ -143,9 +141,9 @@ panel, so record the count you see. Also record whether Live's `Options.txt`
 sets `-_PluginAutoPopulateThreshold`: the research note reports, from users, that
 it fills Configure up to 128.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result        | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------- | -------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Fail (step 5) | Run with SN Synth on Part 6 (no Part held a PCM Synth tone). Step 2: the panel is empty, 0 parameters; Live's panel reads "To add plug-in parameters to this panel, click the Configure button". No `Options.txt` exists, so no threshold override. Steps 3-4: in Configure, touching Common Level, Partial 1 Cutoff and Partial 1 Resonance in the editor adds `Tone Level`, `Partial … Cutoff` and `Partial …onance`; they stay after Configure is turned off. Step 5: the editor says nothing about Configure; only Live's panel does ([#526](https://github.com/sigma/integral/issues/526)). |
 
 ## 4. Placement
 
@@ -198,9 +196,9 @@ the mapping you used. Step 8: [CONTEXT.md](../../CONTEXT.md) says the port is
 "present only while the link is up", but the code ties the note port to the
 process. Record what Live shows, and whether a rescan changes it.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------- | -------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Pass   | Run with SN Synth on Part 6 (no Part held a PCM Synth tone) and SN Drum on Part 10 (no Part held a PCM Drum kit). Step 6: notes sound Part 6. Step 4: Part 6 Level read back through the service went 100 to 64, then back to 100. Step 5: mapping used: the pad's chain Play note must equal the bound key. Live's default Play is C3 (60) whatever the pad, so pad C1 first played another drum; with Receive C1 and Play C1 (36), bound to Key C2 (36), only Studio Kick sounds. The plugin names note 36 C2, Live names it C1. Step 7: the service logs `The device stopped answering`; the port stays listed. Step 8: the port leaves the list; Live keeps the track's choice greyed and reselects the port when the service restarts. No rescan needed. |
 
 ## 5. Track input
 
@@ -221,9 +219,9 @@ Sources: [#463], [#345] (2026-11-07: drags record only when the input is not All
 **Expected.** Notes from the computer keyboard reach Part N. The track's In is the
 computer keyboard or a controller, never All Ins or the device's own port.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result | Notes                                                                                                                     |
+| ---------- | -------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Pass   | Live labels it `Computer Keyboard`. With the device port off in Live, the In menu no longer lists it. Notes reach Part 6. |
 
 ## 6. SysEx echo into the note port (reproduction)
 
@@ -255,9 +253,9 @@ rule), [ADR 0006] (notes never go inside SysEx).
 check is a reproduction, so a result that shows the echo is a finding to file,
 not a blocked check. Record the meter and the device's behaviour.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---------- | -------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Pass   | RTP link. Live's input Track on `Network (Integra)` turned on for this check only, track 1 on All Ins, armed, Monitor In. Restarting the service (`Device 10 answered`) and then 15 `integral --service ping` runs, each answered by the device on that port: no activity seen on track 1's meter or Live's MIDI indicator in the screenshots taken. The device kept answering (Part 6 read back) and the service stayed up. Step 4: input back to Computer Keyboard, device port input off again. Screenshots sample the meter, so a short flash could be missed. |
 
 ## 7. Save and reopen keeps the Binding
 
@@ -276,9 +274,9 @@ bound to key K (for the key variant).
 **Expected.** After reopening, each plugin shows the same Part, and the same key
 where one was bound. Recall of device state is check 14, not this one.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result | Notes                                                                                                                                                                                                                                                                     |
+| ---------- | -------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Pass   | Saved as a scratch set, quit Live, reopened by opening the `.als`. Track 1's SN Synth: Part 6 before and after. Pad C1's SN Drum: Part 10, Key C2 (36) before and after; the pad chain kept Receive C1, Play C1. The three Configure parameters on track 1 were kept too. |
 
 ## 8. Tone-type mismatch
 
@@ -305,9 +303,9 @@ An automation lane on a Tone parameter, as in check 11. Playback running.
 - Step 4: the lane writes nothing. Part N's SN Synth tone is unchanged.
 - Step 6: the plugin resumes, and the lane moves Part N again.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result              | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------- | -------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Pass, with a caveat | Inverse direction: SN Synth plugin (track 12, lane on `Partial 1 Filter Cutoff`) bound to Part 7, switched on the device to a PCM Synth tone (bank 87/64/0, written through the service). Step 3: the editor shows "The bound Part holds another tone type, so this plugin does nothing until it holds one of its own" with a Load JP8 Strings1 button; the header's tone label still read `SN Synth : 36 : FX 12`. Step 4: Part 7's PCM tone common and partial 1 bytes were identical before and after playing the lane. Steps 5-6: back on its SN Synth tone, the lane did not move Part 7 at first: the tone load made the plugin report the new cutoff (80), and Live overrode the lane. After Re-Enable Automation, playback moved Part 7 from 25 to 99. |
 
 ## 9. Kit-bound and key-bound Kit plugins
 
@@ -329,9 +327,9 @@ PCM Drum in a pad chain, bound to key K. Configure both so the parameters show.
 - Steps 1 and 4: the device changes.
 - Steps 2 and 3: the device does not change (inert).
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result                                             | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ---------- | -------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Partial: steps 1 and 4 Pass, steps 2 and 3 Blocked | SN Drum kit on Part 10 (no Part held a PCM Drum kit). Track A: audio-track SN Drum rebound to Part 10, Whole kit; track B: the Drum Rack pad's SN Drum, key 36. Step 1: track A's Kit Level moved the device 110 to 78 (`1B 23 00 10`), key 36 Level untouched; restored. Step 4: track B's key Level moved key 36 (`1B 23 19 04`) 100 to 43, Kit Level untouched; restored. Steps 2-3: Blocked. Live lists only parameters picked in Configure, and Configure picks them by touching them in the editor. Track A's editor shows no key controls and track B's no kit controls, so the inert side cannot be reached from Live (the X-Y pad and lane choosers offer only `Kit Level` / `Key Level`). |
 
 ## 10. Duplicate Bindings
 
@@ -354,9 +352,9 @@ Part N.
 **Open.** Which write wins when both change: [ADR 0006] says writes are
 last-writer-wins. Record which one you saw last.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------- | -------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Pass   | Two SN Synth instances on Part 6 (track 1 behind External Instrument; track 12 rebound from Part 7). Both editors show "Another instance of this plugin is bound to this target: both work, and the last to write wins"; so does a second Studio Set instance. Tone Level read at `1A 21 00 0C` through the service: track 12 set it 100 to 51, and track 1's Live panel then showed 51; track 1 set it to 95, the device read 95. Last writer wins. Restored to 100. |
 
 ## 11. Automation of a Tone parameter moves the bound Part
 
@@ -383,9 +381,9 @@ TVF Cutoff Frequency` (check 3). Part B exists on the device.
 - Step 2: Part A's Partial 1 cutoff follows the lane. No other Part changes.
 - Step 4: Part B follows the lane. Part A stays where it was left.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---------- | -------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Pass   | SN Synth (track 12) with the Arrangement lane from check 12 on `Partial 1 Filter Cutoff` (SN Synth's name; no Part held a PCM Synth tone). The other instance moved to Part 8 first. Bound to Part 6: with Part 6 set to 40 and Part 7 at 80, playback took Part 6 to the lane's 99 and left Part 7 at 80. Rebound to Part 7: with Part 6 at 40, playback took Part 7 from 25 to 99 and left Part 6 at 40. A write from the service overrides the lane; re-enable per parameter from its context menu when the control-bar button is out of reach. |
 
 ## 12. UI drag recorded as automation, Session and Arrangement
 
@@ -416,9 +414,9 @@ _Arrangement view_
 dragged. No other parameter gets an envelope. Playback moves the slider and the
 device's value.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------- | -------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Pass   | SN Synth on Part 6 (`Partial 1 Filter Cutoff`; no Part held a PCM Synth tone). Session (track 1, MIDI, Computer Keyboard): the looping clip got an envelope for that parameter only; playback moved the device 25 to 99 each loop (read at `1A 21 20 0C`). Arrangement (track 12): the drag recorded a lane; playback moved the device to the lane's value. Each manual drag outside recording, or a write from the service, overrides the lane until Re-Enable Automation is clicked, as Live does for any parameter. The other Part 6 instance (check 10) recorded the same lane too, because it follows the device. |
 
 ## 13. Web-app edit with the editor closed recorded as a lane
 
@@ -449,9 +447,9 @@ closed. The web app open and connected to the device through the service.
 **Open.** The PR text does not spell out the exact form of the lane (its points,
 or whether it joins an existing lane). Record what you see.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------- | -------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Pass   | Another client stood in for the web app: `integral --service raw-send` wrote Part 7's SN Synth Tone Level (`1A 41 00 0C`) as 0x50, 0x40, 0x30, 0x46, 0x64 through the Device service, the same path the web app uses. Track 12's SN Synth (Part 7) had its editor closed; Arrangement Record (F9) was running, no arm needed. Step 3: track 12 got a `Tone Level` lane with steps at each write, and Live added `Tone Level` to the device panel. Step 4: with Part 7 reset to 106 and the lane re-enabled, playback set Part 7 to 80, 64, 48 in turn. |
 
 ## 14. Recall smoke test
 
@@ -497,9 +495,9 @@ Studio Set plugin on the master track with Part N's level moved.
 **Known failure.** In the 2026-11-07 run, Pan did not come back. The fix must
 make both `Tone Level` and `Tone Pan` pass.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result                            | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------- | -------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Pass (steps 4 and 6 not observed) | SN Synth on Part 8 (track 1); SN Synth has no Tone Pan, so Part 8's Studio Set Pan stood in for it. Saved with Part 8 on Alpha Bs 3 (95/68/114), Tone Level 90, Part Level 80, Pan 40. Outside Live, through the service: tone 95/64/0, Tone Level 30, Level 120, Pan 90. Quit without saving, reopened. Step 5: Part 8 back on Alpha Bs 3, Tone Level 90, Level 80, Pan 40; the outside edit is gone, Pan included. Steps 4 and 6: the push finished before the first screenshot, so "Recalling…" was not seen and no note was played during it. Step 7: a fresh PCM Synth on an empty track claimed Part 4 (free; no Part held a PCM Synth tone, so it shows the mismatch); all 16 Parts' tone, level and pan were identical before and after. |
 
 ## 15. PCM Synth performance
 
@@ -527,9 +525,9 @@ finish, and the lanes play without the UI freezing.
 **Open.** The spec gives no time limit for a stall. Record the timings; set the
 threshold separately.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------- | -------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Fail   | Step 1: `just plugin-test load` exits 1. PCM Synth declares 1,525 parameters (core's list is 1,524, plus `Part`); load 4.1 ms, save 0.7 ms, reopen 6.1 ms, state 40,424 bytes. Every Tone and Kit class fails "the plugin declares its list" by one (`Part`) or two (`Part`, `Key`): the scenario still compares against `host_params()` alone, from before #495's Binding parameters. Step 2: Part 4 set to 128voicePno (PCM, 87/64/0); the editor window opened within 1 s, showed "Bank MSB 0 isn't a tone bank", then "Loading PCM Synth tone data…", then empty Partial 1-3 frames with no controls, still empty after 40 s and after closing and reopening the window. The header (`PCM Synth : 1 : 128voicePno`, Connected) was fine and Live stayed responsive, at about 50% CPU with the window open or closed. Steps 3-5 not run: the editor offers no control to touch ([#529](https://github.com/sigma/integral/issues/529)). `load`'s count check: [#527](https://github.com/sigma/integral/issues/527). |
 
 ## 16. Active Sensing during an Expansion load (hardware)
 
@@ -579,9 +577,9 @@ _Expected._ Nothing is reported Down during the load.
 _Open._ This is the case the code may not cover (see above). Record whether
 "Device offline" appears, and when.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result                                     | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------- | -------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Part B: Fail (brief Down); Part A: Blocked | RTP link (mioXL), no USB connection. Part B: SRX01 loaded into slot A from the front panel, SN Synth editor open on Part 7, service polled once a second. The service logged `The device stopped answering` at 20:14:45.095 and `Device 10 answered` at 20:14:46.098; one read failed (20:14:44). The plugin stayed Connected in the screenshots taken, then showed "Loading SN-S tone data…" and recovered its values. So a front-panel load is not deferred: the link goes Down for about a second. Part A: `integral monitor --port Integra` saw no Active Sensing (FE) in 20 s idle; midir passes FE by default on CoreMIDI, so the RTP hop does not carry it. Needs a USB connection to measure. Filed as [#531](https://github.com/sigma/integral/issues/531). |
 
 ## 17. Plug-in test host drag against the #444 spike (not Live)
 
@@ -625,9 +623,9 @@ the dragged parameter, and the gestures balance.
 above is the example from the justfile. Confirm the spike's class name from the
 `load` output.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version     | Result  | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---------- | ---------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-11-10 | none (test host) | Blocked | Main: `just plugin-test drag --class "Integral Studio Set" --param "Part 1 Level"` finds the host parameter (id 232411724) and the window, then aborts: "timed out waiting for a stable slider labelled \"Part 1 Level\"". The mixer's faders carry their field name (`Level`) as the accessibility label, the same on every strip, so no `--control` picks Part 1's alone. Spike: `jj restore --from 803883fdeb7f` of `lib.rs` and `editor.rs` no longer compiles on main (`unresolved import crate::family`, 8 errors); scratch change abandoned. Filed as [#528](https://github.com/sigma/integral/issues/528). |
 
 ## 18. The Binding as automatable Part and Key parameters
 
@@ -668,9 +666,9 @@ Parts N and M hold tones of the plugin's type.
   editor's Binding follows the lane.
 - Step 9: `Part` shows the Part the new instance claimed, not 1.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result                                                                       | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------- | -------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Partial: steps 1, 2, 4, 5, 7 Pass; 3 by code; 6 via check 7; 8 and 9 not run | SN Synth (track 1) and SN Drum (track 6) stood in for PCM. Live's panel and X-Y pad list only Configured parameters, so `Part` and `Key` were read by assigning them to the X-Y pad. Steps 1-2: `Part` listed on the SN Synth; `Key` on the SN Drum, its range starting at D#1 (27). Step 3: `binding_params` is empty for the Studio Set (`host_params.rs`), and its editor shows no Part or Target. Step 5: choosing Part 9 in the editor set `Part` to 9 in Live's panel. Step 4: dragging the X-Y pad set `Part` to 6; the editor followed (`SN Synth : 51 : SEQ 17`) and the panel's other values switched to Part 6's. Step 7: `Key` from the host to 33 showed Key A1 (33) in the editor; back to Whole kit followed too; the editor's own Target menu works both ways. Step 6: the Binding survived save and reopen in check 7. Step 8 not run: External Instrument sends on a fixed channel, so a `Part` lane cannot change which Part a note sounds on unless the channel follows; record what the spec intends. Step 9 not run. Step 8's question: [#530](https://github.com/sigma/integral/issues/530). After the reopen, the whole-kit SN Drum view showed placeholders and no MFX: [#524](https://github.com/sigma/integral/issues/524). |
 
 [#345]: https://github.com/sigma/integral/issues/345
 [#443]: https://github.com/sigma/integral/issues/443
@@ -725,6 +723,6 @@ Part N, which holds an SN Synth tone. A Studio Set plugin on the master track.
 - Step 6: the button is disabled while the plugin shows the type-mismatch notice.
 - Step 7: none. The Studio Set plugin shows no tone button and changes no tone.
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
-|      |              |        |       |
+| Date       | Live version         | Result               | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ---------- | -------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | 12.4.16 (2026-10-30) | Pass, with a finding | SN Synth on Part 7 (track 12). Step 1: button `SN Synth : 36 : FX 12`. Step 2: banks Preset and User only (no Expansion loaded); By Category > Synth Lead lists SN-S tones only. Step 3: chose Saw Lead 3; button `SN Synth : 46 : Saw Lead 3`, device Part 7 = 95/70/45 Saw Lead 3. Step 4: saved, quit, set Part 7 back to FX 12 outside Live, reopened: Part 7 = Saw Lead 3. Step 5: button shows Saw Lead 3. Step 6: Part 7 set to a PCM Synth tone (JP8 Strings1); the mismatch notice shows and clicking the button opens nothing. Finding: the button is not greyed and still reads `SN Synth : 46 : Saw Lead 3`, the last tone of its type, not the Part's tone ([#525](https://github.com/sigma/integral/issues/525)). Step 7: the Studio Set editor (Mixer, Surround) has no tone button. |
