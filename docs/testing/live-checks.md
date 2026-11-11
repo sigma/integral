@@ -578,20 +578,10 @@ Sources: [PR #476] (merge danger; a link Down during a service-started
 Expansion load is deferred), [#531] (front-panel loads report Down briefly,
 by decision).
 
-**Part A: no service, so no probes.**
-
-_Setup._ Live closed. Device service stopped. Wireless has no device port while
-the service is stopped, since the service creates the `INTEGRA-7 (Wireless)`
-port, so use USB (port `INTEGRA-7`) or an RTP-MIDI session.
-
-1. Run `just monitor --port INTEGRA-7` (USB) or `just monitor --port "<RTP session name>"`.
-2. Watch the Active Sensing messages (status byte FE). Note the interval.
-3. Start an Expansion load on the device from its own controls.
-4. Watch through the load and after it ends. Note the longest gap.
-
-_Expected._ Before the load, Active Sensing about every 250 ms.
-
-_Open._ During the load: record whether FE continues, and the longest gap.
+**Part A: dropped (2026-11-11).** It measured whether Active Sensing continues
+during a load, with no service running. [#531] settled that a front-panel load
+is not deferred, and Part B shows the service recovers, so the gap no longer
+changes any behaviour. It also needed USB, since the RTP hop carries no FE.
 
 **Part B: service running, so probes run (RTP or USB only).**
 
