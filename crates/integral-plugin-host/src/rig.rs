@@ -121,6 +121,87 @@ pub struct Write {
 
 type Log = Arc<Mutex<Vec<Sent>>>;
 
+/// The service's traffic on the link, as the tap recorded it: a shareable
+/// view a scenario's driver thread can wait on while the main thread pumps
+/// the host ([`Rig::traffic`]).
+#[derive(Clone)]
+pub struct Traffic {
+    log: Log,
+    started: Instant,
+}
+
+impl Traffic {
+    /// Everything the service sent so far.
+    pub fn sent(&self) -> Vec<Sent> {
+        self.log.lock().expect("tap lock").clone()
+    }
+
+    /// The DT1s the service sent, in order.
+    pub fn writes(&self) -> Vec<Write> {
+        self.sent()
+            .iter()
+            .filter_map(|s| {
+                let dt1 = sysex::parse_dt1(&s.message).ok()?;
+                Some(Write {
+                    at_ms: (s.at * 1000.0) as u64,
+                    address: dt1.address,
+                    data: dt1.data,
+                })
+            })
+            .collect()
+    }
+
+    /// Forgets what was sent.
+    pub fn clear(&self) {
+        self.log.lock().expect("tap lock").clear();
+    }
+
+    /// How many RQ1s have gone out so far.
+    pub fn reads(&self) -> usize {
+        self.sent()
+            .iter()
+            .filter(|s| integral_device_service::is_rq1(&s.message))
+            .count()
+    }
+
+    /// Seconds since the service last sent anything on the link.
+    pub fn idle_secs(&self) -> f64 {
+        let sent = self.sent();
+        self.started.elapsed().as_secs_f64() - sent.last().map_or(0.0, |s| s.at)
+    }
+
+    /// Waits until at least `min_reads` RQ1s and `min_writes` DT1s have gone
+    /// out and then nothing at all has for `quiet`, for at most `limit`;
+    /// returns the DT1s.
+    ///
+    /// # Errors
+    ///
+    /// Too little was sent within `limit`.
+    pub fn wait_quiet(
+        &self,
+        (min_reads, min_writes): (usize, usize),
+        quiet: Duration,
+        limit: Duration,
+    ) -> Result<Vec<Write>> {
+        let deadline = Instant::now() + limit;
+        loop {
+            let idle = self.idle_secs();
+            let reads = self.reads();
+            let writes = self.writes();
+            if reads >= min_reads && writes.len() >= min_writes && idle >= quiet.as_secs_f64() {
+                return Ok(writes);
+            }
+            if Instant::now() >= deadline {
+                bail!(
+                    "{reads} of {min_reads} reads and {} of {min_writes} DT1s after {limit:?}",
+                    writes.len(),
+                );
+            }
+            sleep(POLL);
+        }
+    }
+}
+
 /// A link that records what the service sends through the link it wraps.
 struct Tap {
     inner: Box<dyn DeviceLink>,
@@ -195,7 +276,7 @@ fn runs_within(saved: &[(Address, Vec<u8>)], only: &[(u32, u32)]) -> Vec<(Addres
 /// The Device service running on the chosen link, listening where the
 /// plugins look.
 pub struct Rig {
-    log: Log,
+    traffic: Traffic,
     fake: Option<Fake>,
     /// This process's own client of the service, for reading and writing
     /// the device as another writer would.
@@ -204,7 +285,6 @@ pub struct Rig {
     // Dropped in this order: the socket first, then the service.
     server: Option<SocketServer>,
     running: Option<Running>,
-    started: Instant,
     device_id: u8,
     /// The blocks the scenario touches, and what the device held in them
     /// when the link came up.
@@ -215,6 +295,12 @@ pub struct Rig {
 }
 
 impl Rig {
+    /// The service's traffic on the link, as a handle a scenario's driver
+    /// thread can wait on while the main thread pumps the host.
+    pub fn traffic(&self) -> Traffic {
+        self.traffic.clone()
+    }
+
     /// Starts the service on `device` and listens at the default socket,
     /// where the plugins look for it, for this process alone; reports where
     /// as a `service` line. `touched` are the blocks of the device the
@@ -238,6 +324,10 @@ impl Rig {
             )
         })?;
         let log = Log::default();
+        let traffic = Traffic {
+            log: Arc::clone(&log),
+            started,
+        };
         let (inner, fake): (Box<dyn DeviceLink>, Option<Fake>) = match device {
             Device::Fake => {
                 let link = FakeLink::new();
@@ -287,13 +377,12 @@ impl Rig {
         );
         let (client, events) = Client::connect(&socket);
         Ok(Self {
-            log,
+            traffic,
             fake,
             client: Some(client),
             events,
             server: Some(server),
             running: Some(running),
-            started,
             device_id: DEFAULT_DEVICE_ID,
             touched,
             saved: Vec::new(),
@@ -477,8 +566,7 @@ impl Rig {
         let flushed = Instant::now();
         let deadline = flushed + WRITES_LIMIT;
         loop {
-            let sent = self.sent();
-            let idle = self.started.elapsed().as_secs_f64() - sent.last().map_or(0.0, |s| s.at);
+            let idle = self.traffic.idle_secs();
             let done = self.writes().len() >= before + chunks;
             let settled = flushed.elapsed() >= WRITES_START && idle >= WRITES_QUIET.as_secs_f64();
             if done || settled {
@@ -493,28 +581,18 @@ impl Rig {
 
     /// Everything the service sent so far.
     pub fn sent(&self) -> Vec<Sent> {
-        self.log.lock().expect("tap lock").clone()
+        self.traffic.sent()
     }
 
     /// The DT1s the service sent, in order.
     pub fn writes(&self) -> Vec<Write> {
-        self.sent()
-            .iter()
-            .filter_map(|s| {
-                let dt1 = sysex::parse_dt1(&s.message).ok()?;
-                Some(Write {
-                    at_ms: (s.at * 1000.0) as u64,
-                    address: dt1.address,
-                    data: dt1.data,
-                })
-            })
-            .collect()
+        self.traffic.writes()
     }
 
     /// Forgets what was sent, and (on a fake device) what the fake link
     /// recorded.
     pub fn clear(&self) {
-        self.log.lock().expect("tap lock").clear();
+        self.traffic.clear();
         if let Some(fake) = &self.fake {
             fake.link.clear();
         }
@@ -533,26 +611,8 @@ impl Rig {
         quiet: Duration,
         limit: Duration,
     ) -> Result<Vec<Write>> {
-        let deadline = Instant::now() + limit;
-        loop {
-            let sent = self.sent();
-            let idle = self.started.elapsed().as_secs_f64() - sent.last().map_or(0.0, |s| s.at);
-            let reads = sent
-                .iter()
-                .filter(|s| integral_device_service::is_rq1(&s.message))
-                .count();
-            let writes = self.writes();
-            if reads >= min_reads && writes.len() >= min_writes && idle >= quiet.as_secs_f64() {
-                return Ok(writes);
-            }
-            if Instant::now() >= deadline {
-                bail!(
-                    "{reads} of {min_reads} reads and {} of {min_writes} DT1s after {limit:?}",
-                    writes.len(),
-                );
-            }
-            sleep(POLL);
-        }
+        self.traffic
+            .wait_quiet((min_reads, min_writes), quiet, limit)
     }
 
     /// Reports each DT1 as a `dt1` line, under `phase`.
@@ -614,6 +674,36 @@ mod tests {
             runs_within(&saved, &only),
             [(at(100), vec![0, 1]), (at(106), vec![6, 7])]
         );
+    }
+
+    #[test]
+    fn traffic_waits_for_its_reads_then_goes_quiet() {
+        let traffic = Traffic {
+            log: Log::default(),
+            started: Instant::now(),
+        };
+        // Nothing has been sent: the least reads never arrive.
+        assert!(
+            traffic
+                .wait_quiet((1, 0), Duration::ZERO, Duration::from_millis(50))
+                .is_err()
+        );
+        // One RQ1 out: the wait ends, and no DT1 is reported.
+        traffic.log.lock().unwrap().push(Sent {
+            at: 0.0,
+            message: sysex::build_rq1(
+                DEFAULT_DEVICE_ID,
+                &Address::new(0x18, 0, 0, 0),
+                &DataSize::ONE,
+            ),
+        });
+        assert_eq!(traffic.reads(), 1);
+        assert!(
+            traffic
+                .wait_quiet((1, 0), Duration::ZERO, Duration::from_secs(1))
+                .is_ok()
+        );
+        assert!(traffic.writes().is_empty());
     }
 
     #[test]

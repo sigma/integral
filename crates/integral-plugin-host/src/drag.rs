@@ -9,8 +9,9 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use integral_core::host_params::PluginKind;
 use serde_json::json;
 use vst3_host::ParameterEdit;
@@ -22,6 +23,13 @@ use crate::{driver, family, gesture, host};
 /// How many parameters to list: enough to see the plugin's shape without a
 /// line per parameter when a plugin declares thousands.
 const LISTED_PARAMETERS: usize = 16;
+
+/// How long the editor's first read of the device state may take: about
+/// ninety blocks at the service's SysEx pace on the fake link, slower on a
+/// loaded machine or the real device behind RTP-MIDI.
+const LOAD_WAIT: Duration = Duration::from_secs(45);
+/// Link silence that says the reads are over, not just paced apart.
+const LOAD_QUIET: Duration = Duration::from_secs(1);
 
 /// Scenario inputs.
 pub struct Options {
@@ -60,6 +68,9 @@ pub fn run(
     // Held until the editor is closed: the plugin talks to it throughout.
     let mut rig = Rig::start(device, family::studio_set_touched(), report)?;
     rig.bring_up()?;
+    // What the editor reads once its window opens is its own burst: forget
+    // the rig's setup reads, so the counts below are the editor's.
+    rig.clear();
     let plugin = host::load(bundle, Some(kind.name()))?;
     let params = plugin
         .get_parameters()
@@ -102,11 +113,42 @@ pub fn run(
         .clone()
         .unwrap_or_else(|| options.param.clone());
     let to = options.to.unwrap_or_else(|| far_side(before));
+    let traffic = rig.traffic();
+    let load_report = Arc::clone(report);
     let (result, driven) = driver::drive(&host, report, &mut edits, move || {
+        // The page keeps reading the Studio Set and laying itself out again
+        // while it does; a slider found early sits in a frame that still
+        // moves, and the load can outlast the driver's stable-frame wait
+        // (#543). Wait for the burst to end — the service's link quiet —
+        // before the driver looks for the slider.
+        let waited = Instant::now();
+        traffic
+            .wait_quiet((1, 0), LOAD_QUIET, LOAD_WAIT)
+            .context("the editor's first read of the device state")?;
+        load_report.emit(
+            "load",
+            json!({
+                "reads": traffic.reads(),
+                "waited_ms": waited.elapsed().as_millis(),
+            }),
+        );
         session.drag_slider(&control, to)
     });
     let after = host.plugin().get_parameter(target_id);
     host.close();
+    // The service side of the same run: when the clients' RQ1s went out to
+    // the device (seconds since the `service` line), to read against the
+    // frame events while diagnosing a slow settle (#543).
+    let reads: Vec<f64> = rig
+        .sent()
+        .iter()
+        .filter(|s| integral_device_service::is_rq1(&s.message))
+        .map(|s| s.at)
+        .collect();
+    report.emit(
+        "reads",
+        json!({ "count": reads.len(), "first_at_s": reads.first(), "last_at_s": reads.last() }),
+    );
     result?;
     let driven = driven?;
 
