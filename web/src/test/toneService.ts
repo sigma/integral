@@ -30,6 +30,47 @@ export function fakeToneService(device: WasmDeviceState) {
   return { service, sentDt1s };
 }
 
+/** Which reads fail how often: the address of an RQ1, and how many of its
+ * first reads reject instead of answering. */
+export interface FlakyRead {
+  address: number[];
+  times: number;
+}
+
+/**
+ * A fake service like {@link fakeToneService}'s, but whose answer to a data
+ * request is withheld, rejecting like an RQ1 timeout until it clears: with a
+ * count, the first `rejections` reads of every address reject (`Infinity`:
+ * every read); with a list, the first `times` reads of each listed address
+ * reject and unlisted addresses always answer. A test can exercise a read
+ * that fails and then clears, or one failing block among loading ones.
+ */
+export function flakyToneService(
+  device: WasmDeviceState,
+  rejections: number | readonly FlakyRead[],
+) {
+  const { service, sentDt1s } = fakeToneService(device);
+  const every = typeof rejections === "number" ? rejections : null;
+  const left = new Map<string, number>(
+    (typeof rejections === "number" ? [] : rejections).map((r) => [
+      r.address.join(","),
+      r.times,
+    ]),
+  );
+  const answered = service.requestData.bind(service);
+  service.requestData = async (address: number[], size: number[]) => {
+    const key = address.join(",");
+    if (every !== null && !left.has(key)) left.set(key, every);
+    const remaining = left.get(key) ?? 0;
+    if (remaining > 0) {
+      left.set(key, remaining === Infinity ? Infinity : remaining - 1);
+      throw new Error(`RQ1 timeout for ${address.join(" ")}`);
+    }
+    return answered(address, size);
+  };
+  return { service, sentDt1s };
+}
+
 /** A function that drains `device`'s queue, from time `start` (ms) on, and
  *  returns every DT1 sent since its last call. */
 export function dt1Drainer(device: WasmDeviceState, start = 0): () => SentDt1[] {

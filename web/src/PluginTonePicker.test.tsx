@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
@@ -75,6 +77,10 @@ async function openPlugin(info: InstanceInfo) {
 
 const toneButton = (scope: ParentNode) =>
   scope.querySelector<HTMLButtonElement>("button[data-tone-button]");
+
+// The bar's stylesheet, read as text: jsdom applies no CSS-module rules, so
+// what the disabled style targets is asserted on the source.
+const pluginBarCss = readFileSync(join(import.meta.dirname, "PluginBar.module.css"), "utf8");
 
 /** The labels of the groups the open picker lists. */
 const groups = (scope: ParentNode) =>
@@ -162,6 +168,9 @@ const expansions = {
   unloadedExpansionOf: () => null,
 } as unknown as UseExpansionsResult;
 
+/** A Part in the mixer, with the fields a test sets. */
+const part = (over: Partial<PartState>): PartState => ({ ...defaultPartState(), ...over });
+
 /** A PluginBar over a real tone catalog, with the props a test changes. */
 function bar() {
   const { service } = fakeToneService(new WasmDeviceState(0x10));
@@ -217,6 +226,50 @@ describe("the tone button of a Tone or Kit plugin", () => {
     expect(container.querySelector('[class*="overlay"]')).toBeNull();
     rerender(view(PluginKind.SnSynth, {}));
     expect(toneButton(container)?.disabled).toBe(false);
+  });
+
+  it("is disabled and reads as disabled while the Part holds another tone type", () => {
+    const { view } = bar();
+    const props = {
+      part: part({ toneBankMsb: SN_SYNTH_MSB, toneBankLsb: 70, tonePC: 45, toneName: "Saw Lead 3" }),
+    };
+    const { container, rerender } = render(view(PluginKind.SnSynth, {}, props));
+    expect(toneButton(container)?.disabled).toBe(false);
+    rerender(view(PluginKind.SnSynth, { notices: [MISMATCH] }, props));
+    const button = toneButton(container) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.title).toBe("The Part holds another tone type");
+    // The stylesheet dims that attribute and drops the hover highlight.
+    expect(pluginBarCss).toMatch(/\.toneButton:disabled\W[^}]*opacity/s);
+    expect(pluginBarCss).toMatch(/\.toneButton:disabled\W[^}]*cursor: default/s);
+    expect(pluginBarCss).toMatch(/\.toneButton:disabled:hover\W[^}]*border-color/s);
+  });
+
+  it("shows the Part's current tone once the device changed its type", () => {
+    const { view } = bar();
+    const sawLead = part({
+      toneBankMsb: SN_SYNTH_MSB,
+      toneBankLsb: 70,
+      tonePC: 45,
+      toneName: "Saw Lead 3",
+    });
+    const { container, rerender } = render(view(PluginKind.SnSynth, {}, { part: sawLead }));
+    expect(toneButton(container)?.textContent).toContain("Saw Lead 3");
+
+    // The device switched the Part to a PCM Synth tone; the mixer follows.
+    const jp8 = part({ toneBankMsb: 87, toneBankLsb: 0, tonePC: 8, toneName: "JP8 Strings1" });
+    rerender(view(PluginKind.SnSynth, { notices: [MISMATCH] }, { part: jp8 }));
+    const label = toneButton(container)?.textContent ?? "";
+    expect(label).toContain("JP8 Strings1");
+    expect(label).not.toContain("Saw Lead 3");
+
+    // A tone not yet named falls back to its bank and program, never the
+    // stale name of the plugin's own type.
+    rerender(view(PluginKind.SnSynth, { notices: [MISMATCH] }, { part: { ...jp8, toneName: "" } }));
+    const unnamed = toneButton(container)?.textContent ?? "";
+    expect(unnamed).toContain("Bank 87-0 : PC 9");
+    expect(unnamed).not.toContain("Saw Lead 3");
+    expect(unnamed).not.toContain("JP8 Strings1");
   });
 });
 

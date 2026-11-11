@@ -53,6 +53,14 @@ export interface SyncBinding {
 export interface Binding {
   /** Core's name for the field; shown unless the layout overrides or hides it. */
   name: string;
+  /**
+   * The name the accessibility tree addresses the Control by, when the page
+   * draws more than one with the same `name`: the mixer gives every strip's
+   * fields their host parameter names ("Part 1 Level"), so a client that
+   * picks a control by label finds the one that moves the parameter it
+   * names. Default: `name`.
+   */
+  accessibleName?: string;
   /** Current raw value. */
   value: number;
   /** Minimum raw value. */
@@ -154,6 +162,7 @@ function Control<F extends FieldKey>({
           dialSide={dialSide[c.size ?? "sm"]}
           size={c.size ?? "sm"}
           label={label ?? ""}
+          accessibleName={b.accessibleName}
           title={b.name}
           value={b.value}
           min={b.min}
@@ -174,6 +183,7 @@ function Control<F extends FieldKey>({
           scale={c.scale}
           zeroDb={b.zeroDb}
           label={label ?? b.name}
+          accessibleName={b.accessibleName}
           hideLabel={label === undefined}
           title={b.name}
           value={b.value}

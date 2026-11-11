@@ -14,6 +14,7 @@ import {
   Relevance,
   comp_eq_unit_relevance,
   mixer_eq_relevance,
+  mixer_host_param_name,
   mixer_output_relevance,
   mixer_relevance,
 } from "../pkg/integral_wasm.js";
@@ -187,6 +188,9 @@ function stripBinding({ state, setField, ...scope }: StripProps): (field: MixerF
     const toggle = scope.kind === MixerScopeKind.Part && PART_TOGGLES.has(field);
     return {
       ...meta,
+      // The accessibility tree addresses the Control by its host parameter
+      // name: unique across the mixer however many strips share a label.
+      accessibleName: mixer_host_param_name(field, scope.kind, scope.index),
       // A part's toggle is two-state, whatever its Common field's range.
       ...(toggle ? { min: 0, max: 1, defaultValue: 0 } : {}),
       // Pan's arc grows from the centre, its default.

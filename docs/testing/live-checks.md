@@ -55,7 +55,7 @@ Result values: **Pass**, **Fail**, or **Blocked** (say why in the notes).
 | 14  | Recall smoke test                                        | [#463], [ADR 0009](../adr/0009-recall-pushes-the-project-state.md), [#458]       | [#458]          |
 | 15  | PCM Synth performance                                    | [#463], [load.rs](../../crates/integral-plugin-host/src/load.rs)                 | none            |
 | 16  | Active Sensing during an Expansion load                  | [PR #476], [MIDI 01-protocol](../midi/01-protocol.md)                            | none (hardware) |
-| 17  | Plug-in test host drag against the #444 spike (not Live) | [PR #477], [#444]                                                                | none            |
+| 17  | Plug-in test host drag (not Live)                         | [PR #477], [#528]                                                                | none            |
 | 18  | The Binding as automatable Part and Key parameters       | [#495], [ADR 0007]                                                               | [#495]          |
 | 19  | A Tone plugin picks its Part's tone                      | [#496], [ADR 0007], [ADR 0009]                                                   | [#496]          |
 
@@ -133,13 +133,17 @@ Synth tone. Device service running.
   and a larger list opens empty until Configure
   ([Live parameter notes](../research/host-parameter-limits.md#many-parameters)).
 - Step 4: the chosen parameters appear in the device view.
-- Step 5: the page explains how to add them.
+- Step 5: the editor itself says nothing about Configure; Live's own panel text
+  ("To add plug-in parameters to this panel, click the Configure button") is
+  the explanation, by decision
+  ([#526](https://github.com/sigma/integral/issues/526)).
 
-**Open.** Step 5: no "Configure" text exists in `web/` or `crates/` yet. Record
-what the page shows. [#345] recorded 64 sliders before Configure, not an empty
-panel, so record the count you see. Also record whether Live's `Options.txt`
-sets `-_PluginAutoPopulateThreshold`: the research note reports, from users, that
-it fills Configure up to 128.
+**Open.** Step 5: resolved by decision
+([#526](https://github.com/sigma/integral/issues/526)): the editor will not
+explain Configure; Live's panel text is enough. The 2026-11-10 row below
+records what the page showed before that decision. Whether Live's `Options.txt`
+sets `-_PluginAutoPopulateThreshold` (the research note reports, from users,
+that it fills Configure up to 128) is still worth recording.
 
 | Date       | Live version         | Result        | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ---------- | -------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -525,6 +529,16 @@ finish, and the lanes play without the UI freezing.
 **Open.** The spec gives no time limit for a stall. Record the timings; set the
 threshold separately.
 
+**After [#529].** A block whose read fails no longer blanks the editor: the
+blocks that loaded render, the failed one shows its error with a Retry in
+place of its Sections (a Partial's error sits in its lane's WAVE box), and
+the webview console names the block and its error
+(`[tone blocks] Partial 2 failed: RQ1 timeout for …`). Re-run step 2 with
+the webview console open: the error names the read that fails, which the
+offline checks could not reproduce — the relay (test
+`a_full_size_partial_block_reply_reaches_the_page_intact` in
+[service_link.rs]) and the wasm `applyPcms*` decoders were ruled out.
+
 | Date       | Live version         | Result | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ---------- | -------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-11-10 | 12.4.16 (2026-10-30) | Fail   | Step 1: `just plugin-test load` exits 1. PCM Synth declares 1,525 parameters (core's list is 1,524, plus `Part`); load 4.1 ms, save 0.7 ms, reopen 6.1 ms, state 40,424 bytes. Every Tone and Kit class fails "the plugin declares its list" by one (`Part`) or two (`Part`, `Key`): the scenario still compares against `host_params()` alone, from before #495's Binding parameters. Step 2: Part 4 set to 128voicePno (PCM, 87/64/0); the editor window opened within 1 s, showed "Bank MSB 0 isn't a tone bank", then "Loading PCM Synth tone data…", then empty Partial 1-3 frames with no controls, still empty after 40 s and after closing and reopening the window. The header (`PCM Synth : 1 : 128voicePno`, Connected) was fine and Live stayed responsive, at about 50% CPU with the window open or closed. Steps 3-5 not run: the editor offers no control to touch ([#529](https://github.com/sigma/integral/issues/529)). `load`'s count check: [#527](https://github.com/sigma/integral/issues/527). |
@@ -535,19 +549,28 @@ threshold separately.
 ([01-protocol](../midi/01-protocol.md)). Does it keep sending during an Expansion
 load, and what does the service do when the link goes quiet?
 
-The service defers Down only for loads it started itself
-([service.rs](../../crates/integral-device-service/src/service.rs), line 390). A
-load started from the front panel is not covered. [PR #476] says "Down is
-deferred during loads either way", which the code does not show. That gap is the
-open hardware question.
+The service defers Down only for Expansion loads it started itself
+([service.rs](../../crates/integral-device-service/src/service.rs), the
+`LinkEvent::Down` handler). A load started from the front panel is not
+deferred: the probe reports Down, then the link comes back Up and clients
+recover ([#531]). [PR #476]'s description said "Down is deferred during loads
+either way"; that was wrong, and the code never did it. Recorded 2026-11-10:
+for a front-panel load the link is Down for about a second and the plugin
+recovers its tone (result row below).
 
 The probe logic counts any device message, Active Sensing included, as life. It
 probes after one second of silence and marks the link Down after three
 unanswered probes ([probe.rs](../../crates/integral-device-service/src/probe.rs),
 lines 24-30). Only RTP and USB links probe; the Wireless link does not.
 
-Sources: [PR #476] (merge danger; a link Down during an Expansion load is
-deferred).
+Recorded 2026-11-10 (RTP): no Active Sensing (FE) reaches the Mac over the
+mioXL RTP hop — `integral monitor` on the RTP session sees none in 20 s of
+idle, while midir passes FE by default on CoreMIDI — so on RTP only the probes
+keep the link alive.
+
+Sources: [PR #476] (merge danger; a link Down during a service-started
+Expansion load is deferred), [#531] (front-panel loads report Down briefly,
+by decision).
 
 **Part A: no service, so no probes.**
 
@@ -572,23 +595,22 @@ Live, so the status shows.
 1. Start a front-panel Expansion load.
 2. Watch the plugin status and the service output for a link Down.
 
-_Expected._ Nothing is reported Down during the load.
-
-_Open._ This is the case the code may not cover (see above). Record whether
-"Device offline" appears, and when.
+_Expected._ A front-panel load is not deferred (see above): the service
+briefly reports the link Down (about a second), then Up again, and the client
+recovers — the plugin re-reads its tone. Confirmed 2026-11-10 (row below).
 
 | Date       | Live version         | Result                                     | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ---------- | -------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-11-10 | 12.4.16 (2026-10-30) | Part B: Fail (brief Down); Part A: Blocked | RTP link (mioXL), no USB connection. Part B: SRX01 loaded into slot A from the front panel, SN Synth editor open on Part 7, service polled once a second. The service logged `The device stopped answering` at 20:14:45.095 and `Device 10 answered` at 20:14:46.098; one read failed (20:14:44). The plugin stayed Connected in the screenshots taken, then showed "Loading SN-S tone data…" and recovered its values. So a front-panel load is not deferred: the link goes Down for about a second. Part A: `integral monitor --port Integra` saw no Active Sensing (FE) in 20 s idle; midir passes FE by default on CoreMIDI, so the RTP hop does not carry it. Needs a USB connection to measure. Filed as [#531](https://github.com/sigma/integral/issues/531). |
 
-## 17. Plug-in test host drag against the #444 spike (not Live)
+## 17. Plug-in test host drag (not Live)
 
 **Purpose.** The `drag` scenario sends real mouse events to the plugin window. The
 gesture log should show begin, values and end for the parameter it drags. It needs
 no Live, but [PR #477] deferred it to this runbook.
-Sources: [PR #477] (the restore command), [justfile](../../justfile) (`plugin-test`,
+Sources: [PR #477] (the check), [justfile](../../justfile) (`plugin-test`,
 `drag` needs `--class`), [plugin-test-host research](../research/plugin-test-host.md)
-(TCC grants), [#444] (the spike).
+(TCC grants), [#528] (the mixer's unique accessible names).
 
 **Setup.**
 
@@ -598,30 +620,19 @@ Sources: [PR #477] (the restore command), [justfile](../../justfile) (`plugin-te
 - Run at the desk, with the display unlocked. [PR #477] advises against screen
   sharing.
 
-**Scratch change.** Run the spike restore in a change you will abandon.
-
-1. `jj new`
-2. `jj restore --from 803883fdeb7f crates/integral-vst/src/lib.rs crates/integral-vst/src/webview/editor.rs`
-3. `just plugin-test drag --class "Integral Studio Set"`. The default `--param` is
-   `Level`, and `--control` defaults to the parameter name, so neither flag is
-   needed.
-4. Read the JSON lines on stdout: the gesture log.
-5. `jj abandon`. Then `jj st` must be clean.
-
-**On main (no restore), untested.** `just plugin-test drag --class "Integral Studio
-Set" --param "Part 1 Level"`. No class on main has a parameter named exactly
-`Level`, so the default fails there. `Part 1 Level` is the Studio Set's host name
-for Part 1's level (`PluginKind::StudioSet.host_params()` in
-[host_params.rs](../../crates/integral-core/src/host_params.rs)). `--control`
-defaults to that name; if no control carries it as its accessibility label, pass
-the label the editor shows.
+**Run.** `just plugin-test drag --class "Integral Studio Set" --param "Part 1 Level"`.
+`Part 1 Level` is the Studio Set's host name for Part 1's level
+(`PluginKind::StudioSet.host_params()` in
+[host_params.rs](../../crates/integral-core/src/host_params.rs)), and since [#528]
+the mixer names every slider by that scheme, so `--control`, which defaults to the
+parameter name, finds exactly one slider. Read the JSON lines on stdout: the
+gesture log.
 
 **Expected.** The gesture log shows begin, one or more values, and end, all for
 the dragged parameter, and the gestures balance.
 
 **Open.** [PR #477] shows no `--class`; the justfile says `drag` needs one. The class
-above is the example from the justfile. Confirm the spike's class name from the
-`load` output.
+above is the example from the justfile; confirm it from the `load` output.
 
 | Date       | Live version     | Result  | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | ---------- | ---------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -662,14 +673,17 @@ Parts N and M hold tones of the plugin's type.
   this feature is marked modified on open: the plugin sets `Part` (and `Key`) once
   to its saved Binding, as one gesture.
 - Step 7: the editor shows the key, then the whole kit.
-- Step 8: the note sounds on the Part the lane selects at that moment, and the
-  editor's Binding follows the lane.
+- Step 8: the editor's Binding and its parameters follow the lane, rebinding
+  to N then M, while the note keeps sounding on the External Instrument
+  track's channel's Part: the Binding edits a Part, it does not route notes
+  ([#530]).
 - Step 9: `Part` shows the Part the new instance claimed, not 1.
 
 | Date       | Live version         | Result                                                                       | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | ---------- | -------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 2026-11-10 | 12.4.16 (2026-10-30) | Partial: steps 1, 2, 4, 5, 7 Pass; 3 by code; 6 via check 7; 8 and 9 not run | SN Synth (track 1) and SN Drum (track 6) stood in for PCM. Live's panel and X-Y pad list only Configured parameters, so `Part` and `Key` were read by assigning them to the X-Y pad. Steps 1-2: `Part` listed on the SN Synth; `Key` on the SN Drum, its range starting at D#1 (27). Step 3: `binding_params` is empty for the Studio Set (`host_params.rs`), and its editor shows no Part or Target. Step 5: choosing Part 9 in the editor set `Part` to 9 in Live's panel. Step 4: dragging the X-Y pad set `Part` to 6; the editor followed (`SN Synth : 51 : SEQ 17`) and the panel's other values switched to Part 6's. Step 7: `Key` from the host to 33 showed Key A1 (33) in the editor; back to Whole kit followed too; the editor's own Target menu works both ways. Step 6: the Binding survived save and reopen in check 7. Step 8 not run: External Instrument sends on a fixed channel, so a `Part` lane cannot change which Part a note sounds on unless the channel follows; record what the spec intends. Step 9 not run. Step 8's question: [#530](https://github.com/sigma/integral/issues/530). After the reopen, the whole-kit SN Drum view showed placeholders and no MFX: [#524](https://github.com/sigma/integral/issues/524). |
 
+[#530]: https://github.com/sigma/integral/issues/530
 [#345]: https://github.com/sigma/integral/issues/345
 [#443]: https://github.com/sigma/integral/issues/443
 [#444]: https://github.com/sigma/integral/issues/444
@@ -678,9 +692,11 @@ Parts N and M hold tones of the plugin's type.
 [#454]: https://github.com/sigma/integral/issues/454
 [#495]: https://github.com/sigma/integral/issues/495
 [#496]: https://github.com/sigma/integral/issues/496
+[#528]: https://github.com/sigma/integral/issues/528
 [#455]: https://github.com/sigma/integral/issues/455
 [#458]: https://github.com/sigma/integral/issues/458
 [#463]: https://github.com/sigma/integral/issues/463
+[#531]: https://github.com/sigma/integral/issues/531
 [PR #476]: https://github.com/sigma/integral/pull/476
 [PR #477]: https://github.com/sigma/integral/pull/477
 [PR #482]: https://github.com/sigma/integral/pull/482

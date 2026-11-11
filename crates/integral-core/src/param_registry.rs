@@ -598,6 +598,22 @@ impl MixerScopeKind {
             .filter(|field| field.in_scope(self) && self.is_kit_field(*field))
             .collect()
     }
+
+    /// The prefix a host parameter name takes in a scope of this kind at
+    /// `index`: `Part 1`, `Ext Part`, `Master`, `Drum Comp/EQ 3`, or none for
+    /// the Studio Set common block. The index is the 0-based part or Comp+EQ
+    /// unit; the kinds with one scope ignore it. This is
+    /// [`MixerScope::host_prefix`] without the kit a Comp+EQ unit's full scope
+    /// carries, which only its addresses need.
+    pub fn host_prefix(self, index: u8) -> String {
+        match self {
+            Self::Part => format!("Part {}", index + 1),
+            Self::Ext => "Ext Part".to_string(),
+            Self::Master => "Master".to_string(),
+            Self::CompEqUnit => format!("{DRUM_COMP_EQ} {}", index + 1),
+            Self::Common => String::new(),
+        }
+    }
 }
 
 /// The drum kit whose tone holds the Drum Comp+EQ units: the assigned
@@ -637,13 +653,14 @@ impl MixerScope {
     /// common block. Join it to a [`ParamDef::host_name`] with
     /// [`qualified_name`](crate::field_spec::qualified_name).
     pub fn host_prefix(&self) -> String {
-        match self {
-            Self::Part(part) => format!("Part {}", part + 1),
-            Self::Ext => "Ext Part".to_string(),
-            Self::Master => "Master".to_string(),
-            Self::CompEqUnit { unit, .. } => format!("{DRUM_COMP_EQ} {}", unit + 1),
-            Self::Common => String::new(),
-        }
+        let (kind, index) = match self {
+            Self::Part(part) => (MixerScopeKind::Part, *part),
+            Self::Ext => (MixerScopeKind::Ext, 0),
+            Self::Master => (MixerScopeKind::Master, 0),
+            Self::CompEqUnit { unit, .. } => (MixerScopeKind::CompEqUnit, *unit),
+            Self::Common => (MixerScopeKind::Common, 0),
+        };
+        kind.host_prefix(index)
     }
 
     /// The scope's kind.
@@ -923,6 +940,16 @@ static EQ_Q_NAMES: &[&str] = &["0.5", "1.0", "2.0", "4.0", "8.0"];
 /// channel 1, Part 1's; Part *n* starts on channel *n*.
 pub fn mixer_param(field: MixerField) -> ParamDef {
     mixer_param_for(field, INTEGRA7.part_count)
+}
+
+/// The name a host's parameter list gives `field` in a scope of `kind` at
+/// `index` (the 0-based part or Comp+EQ unit; the kinds with one scope ignore
+/// it): the scope's [`prefix`](MixerScopeKind::host_prefix) joined to the
+/// field's [`host_name`](ParamDef::host_name), "Part 1 Level". The mixer's
+/// Controls carry it as their accessible name, so a client that picks a
+/// control by label addresses the one that moves the parameter it names.
+pub fn mixer_host_param_name(field: MixerField, kind: MixerScopeKind, index: u8) -> String {
+    crate::field_spec::qualified_name(&kind.host_prefix(index), mixer_param(field).host_name)
 }
 
 /// [`mixer_param`] for a device with `part_count` parts.
@@ -2006,6 +2033,37 @@ mod tests {
         // its "about 1,300" estimate. It leaves out the Chorus and Reverb
         // type parameters, which `fx_params` names.
         assert_eq!(seen.len(), 346, "the Studio Set plugin's mixer parameters");
+    }
+
+    /// A field's host name is qualified by the scope it is drawn in, so the
+    /// mixer can name every Control uniquely ([`mixer_host_param_name`]).
+    #[test]
+    fn mixer_host_names_qualify_with_the_scope() {
+        use super::{MixerScopeKind as K, mixer_host_param_name as mixer_host_name};
+        assert_eq!(
+            mixer_host_name(MixerField::PartLevel, K::Part, 0),
+            "Part 1 Level"
+        );
+        assert_eq!(
+            mixer_host_name(MixerField::EqLowGain, K::Part, 15),
+            "Part 16 EQ Low Gain"
+        );
+        assert_eq!(
+            mixer_host_name(MixerField::ExtLevel, K::Ext, 0),
+            "Ext Part Level"
+        );
+        assert_eq!(
+            mixer_host_name(MixerField::MasterLevel, K::Master, 0),
+            "Master Level"
+        );
+        assert_eq!(
+            mixer_host_name(MixerField::ChorusLevel, K::Common, 0),
+            "Chorus Level"
+        );
+        assert_eq!(
+            mixer_host_name(MixerField::CompRatio, K::CompEqUnit, 1),
+            "Drum Comp/EQ 2 Comp Ratio"
+        );
     }
 
     /// The doc rows of the Studio Set tables (and the System Common one),

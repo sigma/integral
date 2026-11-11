@@ -192,7 +192,9 @@ Subdirectories:
   once the bytes leave the queue.
 - **Incoming DT1** goes to core first (`handleExpansionDt1`, then
   `handleDt1`). TypeScript listeners are notified after that. Pending RQ1
-  promises are resolved by address.
+  promises are resolved by address. `handleDt1` also takes the Part tone
+  selects of dumps the Device service relayed — a tone changed on the
+  device reaches the mixer without a reload, in the browser and the plugin.
 - **Transports.** Device I/O goes through `MidiPorts`. In a browser that is
   Web MIDI: ports paired by identical name, inputs opened explicitly. In the
   plugin, bytes are relayed as JSON over the wry IPC, and the page still

@@ -42,3 +42,47 @@
   width: 100%;
   height: 100%;
 }
+
+/* A block whose read failed, in place of its Sections: the same warning
+   palette as the mixer's load warning, scaled to a Section box. */
+.error {
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px;
+  color: #fa4;
+  background: #3a2a14;
+  border: 1px solid #6a4a1a;
+  border-radius: 6px;
+  text-align: center;
+  overflow: hidden;
+}
+
+.errorTitle {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.errorText {
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.retry {
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fa4;
+  background: none;
+  border: 1px solid #6a4a1a;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.retry:hover {
+  background: #4a3618;
+}

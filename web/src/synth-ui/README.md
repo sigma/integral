@@ -87,6 +87,9 @@ Imported from the module file directly:
 - Scopes and envelopes draw in a unit box with `y = 0` at the top.
   `LfoScope` and `FilterScope` render `null` for an unknown label. LFO random
   shapes are deterministic, so they don't flicker.
+- `SynthFader` and `SynthKnob` draw `role="slider"` named by their `label`;
+  an `accessibleName` renames the slider for the accessibility tree alone (a
+  mixer strip's host parameter name, "Part 1 Level"), leaving the drawn label.
 
 ## Side Effects
 

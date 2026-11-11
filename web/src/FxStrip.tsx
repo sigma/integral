@@ -18,13 +18,22 @@ import {
 import { CategoryPlate, VerticalName, type SetMixerField } from "./ChannelStrip";
 import { stripIcon } from "./categoryIcons";
 import { useFxBind } from "./fxBinding";
-import { CHORUS_SET, GridSection, REVERB_SET, variantLayout, type Binding } from "./layouts";
+import { CHORUS_SET, GridSection, REVERB_SET, fxParamDefs, variantLayout, type Binding } from "./layouts";
 import { FX_STRIP_SET, fxStripFields, type FxStripKind } from "./layouts/mixer/strip";
 import { mixerBinding, paramFormatter, paramMeta } from "./paramDefaults";
 import type { FxState } from "./types";
 
 /** Each FX column's parameter Section, by block. */
 const SETS = { chorus: CHORUS_SET, reverb: REVERB_SET } as const;
+
+/** Each block's word in its parameters' host names. */
+const FX_WORD: Readonly<Record<FxStripKind, string>> = { chorus: "Chorus", reverb: "Reverb" };
+
+/** Each block's type field, whose formatter names the drawn type. */
+const TYPE_FIELD: Readonly<Record<FxStripKind, MixerField>> = {
+  chorus: MixerField.ChorusType,
+  reverb: MixerField.ReverbType,
+};
 
 /** Props of {@link FxParams}. */
 interface FxParamsProps {
@@ -41,8 +50,18 @@ export function FxParams({ block, fx, onNibParam }: FxParamsProps) {
   // One footprint for every type, so nothing moves when the type changes.
   const layout = useMemo(() => variantLayout(SETS[block], fx.type), [block, fx.type]);
   const bind = useFxBind(block, fx.type, fx.params, onNibParam);
+  // Each Control names itself by its host parameter ("Chorus: Rate"), so no
+  // two sliders on the mixer share an accessible name.
+  const defs = useMemo(
+    () => new Map(fxParamDefs(block, fx.type).map((def) => [def.name, def])),
+    [block, fx.type],
+  );
+  const named = (field: string): Binding => ({
+    ...bind(field),
+    accessibleName: defs.get(field)!.hostName(FX_WORD[block], paramFormatter(TYPE_FIELD[block])(fx.type)),
+  });
   const relevance = fx_block_relevance(fx);
-  return <GridSection layout={layout} bind={bind} relevance={() => relevance} />;
+  return <GridSection layout={layout} bind={named} relevance={() => relevance} />;
 }
 
 /** The value of FX strip field `field` in `fx`, read by core. */

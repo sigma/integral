@@ -17,7 +17,7 @@ import { CELL } from "./synth-ui/grid";
 import { familyVar } from "./synth-ui";
 import { cleanup, click, render } from "./test/dom";
 import { controlsOffGrid, drumKey, kitPlacement } from "./test/drum";
-import { arrowUp, dt1Drainer, fakeToneService, slider } from "./test/toneService";
+import { arrowUp, dt1Drainer, fakeToneService, flakyToneService, slider } from "./test/toneService";
 
 afterEach(cleanup);
 
@@ -272,6 +272,49 @@ describe("PcmDrumEditor", () => {
       expect(sentDt1s()).toEqual(
         expected((d) => d.setPcmdPartialField(PART, 40, PcmdPartialField.PitchEnvTime, 1, 1)),
       );
+    });
+  });
+
+  describe("when the kit reads fail", () => {
+    /** The editor's read error, if any. */
+    const readError = (container: HTMLElement) => container.querySelector('[role="alert"]');
+
+    /** The error banner's Retry button. */
+    const retryButton = (container: HTMLElement) => {
+      const button = [...container.querySelectorAll("button")].find((b) => b.textContent === "Retry");
+      if (!button) throw new Error("no Retry button");
+      return button;
+    };
+
+    it("keeps failing: shows the error and inert placeholders, not values", async () => {
+      const { service } = flakyToneService(new WasmDeviceState(0x10), Infinity);
+      const { container } = render(<PcmDrumEditor partIndex={PART} service={service} />);
+      await act(async () => {});
+
+      expect(readError(container)?.textContent).toContain("Couldn't read");
+      expect(retryButton(container)).toBeTruthy();
+      // The kit's Control stays an inert placeholder at its spec default...
+      const kitLv = slider(container, "Kit Lv");
+      expect(kitLv.getAttribute("aria-valuenow")).toBe("127");
+      expect(kitLv.closest("[data-field]")!.hasAttribute("inert")).toBe(true);
+      // ...and the MFX panel, gated on its block, is absent.
+      expect(container.textContent).not.toContain("MACROS");
+    });
+
+    it("recovers through Retry once the reads answer again", async () => {
+      const { service } = flakyToneService(new WasmDeviceState(0x10), 1);
+      const { container } = render(<PcmDrumEditor partIndex={PART} service={service} />);
+      await act(async () => {});
+      expect(readError(container)).not.toBeNull();
+
+      click(retryButton(container));
+      await act(async () => {});
+
+      expect(readError(container)).toBeNull();
+      // The answered (zeroed) kit, not the spec default.
+      expect(slider(container, "Kit Lv").getAttribute("aria-valuenow")).toBe("0");
+      // The MFX panel is back with its block.
+      expect(container.textContent).toContain("MACROS");
     });
   });
 });

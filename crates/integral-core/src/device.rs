@@ -828,6 +828,30 @@ impl DeviceState {
         if self.handle_sns_block(address, data) || self.handle_mixer_reply(address, data) {
             return true;
         }
+        self.finish_dt1(address, data, now_ms)
+    }
+
+    /// Like [`handle_dt1`], but a DT1 that no read of this state matches
+    /// still has its Part tone selects taken: the Device service relays what
+    /// the device tells it to its raw clients (a browser over its WebSocket,
+    /// a plugin editor over its bridge), so a Part's dump arrives here after
+    /// a Program Change changed its tone on the device, matching no read
+    /// this state made. See [`take_reported_select`].
+    pub fn handle_relayed_dt1(&mut self, address: &Address, data: &[u8], now_ms: f64) -> bool {
+        // A block reply is never an echo of a single-parameter edit.
+        if self.handle_sns_block(address, data)
+            || self.handle_mixer_reply(address, data)
+            || self.take_reported_select(address, data)
+        {
+            return true;
+        }
+        self.finish_dt1(address, data, now_ms)
+    }
+
+    /// The rest of an incoming DT1 after no block read claimed it: a value
+    /// the device echoes of a parameter this state wrote is dropped, and a
+    /// single Part parameter is cached.
+    fn finish_dt1(&mut self, address: &Address, data: &[u8], now_ms: f64) -> bool {
         if self.is_suppressed(address, now_ms) {
             return false;
         }
@@ -1038,18 +1062,87 @@ impl DeviceState {
 
         // Reads of the old tone would undo the change: read the new one,
         // after the change is sent.
-        let stale: Vec<_> = (self.mixer_reads.iter())
-            .filter(|r| r.block.reads_tone_of(part))
-            .map(|r| (r.block, r.address))
-            .collect();
-        for (_, address) in &stale {
-            self.drop_mixer_read(address);
-        }
+        let stale = self.stale_tone_reads(part);
+        self.drop_tone_reads(&stale);
         // Sent after the stale reads left the queue, so that a select
         // queued before them can coalesce. One DT1: the three fields are
         // contiguous (see `tone_select_fields_are_contiguous`).
         let msb_addr = params::part_address(part, part::TONE_BANK_MSB);
         self.send_dt1(&msb_addr, &[msb, lsb, pc]);
+        self.queue_new_tone_reads(part, msb, &stale);
+    }
+
+    /// Take the Part tone selects a DT1 reports without this state asking
+    /// for them. After a Program Change changed a Part's tone on the device,
+    /// the Device service reads the Part's dump and relays the reply to its
+    /// raw clients (a browser over the service's WebSocket, a plugin editor
+    /// over its bridge), so the new select arrives in a dump no read of this
+    /// state matches. Only the select is taken — the rest of the dump is
+    /// this state's own to read — and the reads of the old tone are dropped
+    /// and the new tone's queued, as in [`change_part_tone`]. The Studio Set
+    /// select is not taken: a Studio Set switch is followed by the service's
+    /// own mixer load, whose Part dumps arrive here the same way. Returns
+    /// whether a select changed the state.
+    fn take_reported_select(&mut self, address: &Address, data: &[u8]) -> bool {
+        if self.take_stale_reply(address, data.len()) {
+            // The late answer to a read a tone change dropped: it is of the
+            // tone before, so no select is taken from it either.
+            return false;
+        }
+        let span = dt1_span(address, data.len());
+        if !touches_select(&span) {
+            return false;
+        }
+        let mut taken = false;
+        for hit in selects(address, data.len()) {
+            let Some(part) = hit.part else { continue };
+            // A select written in part says nothing of the tone as a whole.
+            if !hit.whole {
+                continue;
+            }
+            let at =
+                (params::part_address(part, part::TONE_BANK_MSB).value() - span.start) as usize;
+            let [msb, lsb, pc] = [data[at], data[at + 1], data[at + 2]];
+            let p = &self.state.parts[usize::from(part)];
+            if (p.tone_bank_msb, p.tone_bank_lsb, p.tone_pc) == (msb, lsb, pc) {
+                continue;
+            }
+            mixer_load::set_tone(&mut self.state.parts[usize::from(part)], msb, lsb, pc);
+            self.invalidate_sns_tone(part);
+            // The new tone has its own MFX, which nothing has read yet.
+            self.mfx_types.remove(&part);
+            let stale = self.stale_tone_reads(part);
+            self.drop_tone_reads(&stale);
+            self.queue_new_tone_reads(part, msb, &stale);
+            taken = true;
+        }
+        taken
+    }
+
+    /// The mixer reads in flight that read `part`'s tone: its dump, name,
+    /// category or Comp+EQ block.
+    fn stale_tone_reads(&self, part: u8) -> Vec<(MixerBlock, Address)> {
+        self.mixer_reads
+            .iter()
+            .filter(|r| r.block.reads_tone_of(part))
+            .map(|r| (r.block, r.address))
+            .collect()
+    }
+
+    /// Drop `stale`, the reads of a tone the Part no longer holds, and their
+    /// outstanding requests.
+    fn drop_tone_reads(&mut self, stale: &[(MixerBlock, Address)]) {
+        for (_, address) in stale {
+            self.drop_mixer_read(address);
+        }
+    }
+
+    /// Queue the reads that follow a Part's tone change to bank `msb`, in
+    /// place of the dropped reads of the old one (`stale`, from
+    /// [`Self::stale_tone_reads`]): the Part's dump again if its read is
+    /// among them, else the new tone's name and category, and the drum
+    /// kit's Comp+EQ block if that read is.
+    fn queue_new_tone_reads(&mut self, part: u8, msb: u8, stale: &[(MixerBlock, Address)]) {
         let mut reads = if stale.iter().any(|(b, _)| *b == MixerBlock::Part(part)) {
             vec![MixerBlock::Part(part)]
         } else {
@@ -2878,6 +2971,78 @@ mod tests {
         dev.reread_part(2);
         dev.reread_part(2);
         assert_eq!(drain_until(&mut dev, 0.0, 100.0).len(), 1);
+    }
+
+    #[test]
+    fn a_reported_part_select_changes_the_tone_and_reads_its_name() {
+        // The Device service reads a Part's dump after its tone changed on
+        // the device, and relays the reply to its raw clients; no read of
+        // this state matches it.
+        let mut dev = DeviceState::new(0x10);
+        dev.change_part_tone(0, 95, 70, 45);
+        drain_until(&mut dev, 0.0, 1_000.0);
+        let dump_at = params::part_address(0, part::RECEIVE_CHANNEL);
+        assert!(dev.handle_relayed_dt1(&dump_at, &part_dump(87, 0, 8, 100), 1_000.0));
+        let p = &dev.state().parts[0];
+        assert_eq!((p.tone_bank_msb, p.tone_bank_lsb, p.tone_pc), (87, 0, 8));
+        assert_eq!(p.tone_name, "", "the old tone's name is dropped");
+
+        let name = params::tone_name_address(0, ToneType::PcmSynth);
+        let category = params::tone_category_address(0, 87).unwrap();
+        assert_eq!(
+            drain_until(&mut dev, 1_000.0, 2_000.0),
+            [
+                sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE),
+                sysex::build_rq1(0x10, &category, &DataSize::ONE),
+            ]
+        );
+        assert!(dev.handle_dt1(&name, b"JP8 String  ", 2_000.0));
+        assert_eq!(dev.state().parts[0].tone_name, "JP8 String");
+    }
+
+    #[test]
+    fn a_reported_select_the_state_holds_changes_nothing() {
+        let mut dev = DeviceState::new(0x10);
+        dev.change_part_tone(1, 95, 70, 45);
+        drain_until(&mut dev, 0.0, 1_000.0);
+        let dump_at = params::part_address(1, part::RECEIVE_CHANNEL);
+        let before = dev.state().parts[1].clone();
+        assert!(!dev.handle_relayed_dt1(&dump_at, &part_dump(95, 70, 45, 100), 1_000.0));
+        assert_eq!(
+            dev.state().parts[1],
+            before,
+            "only the select is taken, and it is what the state holds"
+        );
+        assert!(
+            drain_until(&mut dev, 1_000.0, 2_000.0).is_empty(),
+            "no reads are queued"
+        );
+    }
+
+    #[test]
+    fn a_reported_select_drops_the_pending_reads_of_the_old_tone() {
+        let mut dev = DeviceState::new(0x10);
+        dev.change_part_tone(0, 89, 64, 12); // sends the select, then reads
+        drain_until(&mut dev, 0.0, 200.0);
+        // Before the reads' answers come back, the device holds another tone.
+        let dump_at = params::part_address(0, part::RECEIVE_CHANNEL);
+        assert!(dev.handle_relayed_dt1(&dump_at, &part_dump(95, 70, 45, 100), 300.0));
+
+        // The late answers are of the tone before: neither is taken.
+        let old_name = params::tone_name_address(0, ToneType::SnAcoustic);
+        assert!(!dev.handle_relayed_dt1(&old_name, b"Old Name    ", 350.0));
+        assert_ne!(dev.state().parts[0].tone_name, "Old Name");
+
+        // What leaves is the new tone's reads.
+        let name = params::tone_name_address(0, ToneType::SnSynth);
+        let category = params::tone_category_address(0, 95).unwrap();
+        assert_eq!(
+            drain_until(&mut dev, 300.0, 1_000.0),
+            [
+                sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE),
+                sysex::build_rq1(0x10, &category, &DataSize::ONE),
+            ]
+        );
     }
 
     #[test]

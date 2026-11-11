@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import { useCallback, useMemo } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import {
   SndCommonField,
   SndNoteField,
@@ -25,6 +25,7 @@ import { useMfxHandlers } from "./useMfxHandlers";
 import { DrumKeyGrid } from "./DrumKeyGrid";
 import { useDrumKey } from "./useDrumKey";
 import { lockedKey, type DrumScope } from "./pluginPages";
+import { useKitBlocks, type KitBlockRead } from "./useKitBlocks";
 import { SND_COMMON_ENTRIES, SND_NOTE_ENTRIES, type SnDrumCommon, type SnDrumNote } from "./sn-drum/types";
 import css from "./SnDrumEditor.module.css";
 
@@ -48,43 +49,26 @@ interface Props {
 
 export function SnDrumEditor({ partIndex, service, scope }: Props) {
   const keys = deviceSpec().sn_drum_keys;
-  const [common, setCommon] = useState<SnDrumCommon | null>(null);
-  const [mfx, setMfx] = useState<MfxState | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Load common + MFX on mount / part change
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-
-    async function load() {
-      try {
-        const commonData = await service.requestData(
-          Array.from(snd_common_address(partIndex)),
-          Array.from(snd_common_size()),
-        );
-        if (cancelled) return;
-        const c = service.device.applySndCommon(commonData) as SnDrumCommon | null;
-        if (c) setCommon(c);
-
-        const mfxData = await service.requestData(
-          Array.from(snd_mfx_address(partIndex)),
-          Array.from(mfx_block_size()),
-        );
-        if (cancelled) return;
-        const m = service.device.applyMfxBlock(partIndex, mfxData) as MfxState | null;
-        if (m) setMfx(m);
-      } catch {
-        // Timeout -- partial data is OK
-      }
-      if (!cancelled) setLoading(false);
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [partIndex, service]);
+  const reads = useMemo<KitBlockRead[]>(
+    () => [
+      {
+        address: () => Array.from(snd_common_address(partIndex)),
+        size: () => Array.from(snd_common_size()),
+        apply: (data) => service.device.applySndCommon(data),
+      },
+      {
+        address: () => Array.from(snd_mfx_address(partIndex)),
+        size: () => Array.from(mfx_block_size()),
+        apply: (data) => service.device.applyMfxBlock(partIndex, data),
+      },
+    ],
+    [partIndex, service],
+  );
+  // A block the kit read missed (a set reopening races the recall push) is
+  // an error to retry, not a silent placeholder.
+  const { blocks, loading, failed, retry, setValue } = useKitBlocks(service, reads, [partIndex, scope]);
+  const common = (blocks[0]?.value ?? null) as SnDrumCommon | null;
+  const mfx = (blocks[1]?.value ?? null) as MfxState | null;
 
   const fetchNote = useCallback(
     async (k: number) =>
@@ -100,9 +84,12 @@ export function SnDrumEditor({ partIndex, service, scope }: Props) {
   const setCommonParam = useCallback(
     (field: SndCommonField, value: number) => {
       service.device.setSndCommonParam(partIndex, field, value);
-      setCommon((prev) => (prev ? { ...prev, [SND_COMMON_ENTRIES[field].key]: value } : prev));
+      setValue(0, (prev) => {
+        const c = prev as SnDrumCommon | null;
+        return c ? { ...c, [SND_COMMON_ENTRIES[field].key]: value } : c;
+      });
     },
-    [partIndex, service],
+    [partIndex, service, setValue],
   );
 
   const setNoteParam = useCallback(
@@ -114,6 +101,14 @@ export function SnDrumEditor({ partIndex, service, scope }: Props) {
     [current, partIndex, selectedKey, service, update],
   );
 
+  const setMfx = useCallback<Dispatch<SetStateAction<MfxState | null>>>(
+    (action) =>
+      setValue(1, (prev) => {
+        const m = prev as MfxState | null;
+        return typeof action === "function" ? action(m) : action;
+      }),
+    [setValue],
+  );
   const mfxHandlers = useMfxHandlers(service, partIndex, ToneType.SnDrum, setMfx);
 
   const bindCommon = (field: SndCommonField): Binding => {
@@ -180,6 +175,17 @@ export function SnDrumEditor({ partIndex, service, scope }: Props) {
   return (
     <div className={css.editor}>
       {common && <div className={css.kitName}>{common.kitName || "(unnamed kit)"}</div>}
+
+      {/* A block the kit read missed: say so, and offer to read it again,
+          rather than sitting on placeholders that look like device values. */}
+      {failed && (
+        <div className={css.readError} role="alert">
+          Couldn't read the SN-D drum kit from the device.
+          <button type="button" onClick={retry}>
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* The key grid picks the Scope of the key Sections below it; the kit's levels sit beside it. */}
       {scope === undefined ? (

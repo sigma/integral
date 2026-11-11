@@ -70,6 +70,16 @@
   max-width: 320px;
 }
 
+.toneButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* The composed .button:hover still highlights a disabled button. */
+.toneButton:disabled:hover {
+  border-color: #2a4a5a;
+}
+
 .toneName {
   overflow: hidden;
   text-overflow: ellipsis;

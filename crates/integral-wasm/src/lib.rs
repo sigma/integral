@@ -2199,6 +2199,15 @@ impl WasmFxParamDef {
     pub fn note_param(&self) -> Option<WasmFxParamDef> {
         self.inner.note_param().map(wrap_fx_param)
     }
+
+    /// The name a host's parameter list gives this parameter under block word
+    /// `block` ("Chorus") of type `type_name` ("Room 2"):
+    /// [`FxParamDef::qualified_name`]. The mixer's Controls name themselves
+    /// by it, so no two sliders on the page share a name.
+    #[wasm_bindgen(js_name = hostName)]
+    pub fn host_name(&self, block: &str, type_name: &str) -> String {
+        self.inner.qualified_name(block, type_name)
+    }
 }
 
 fn wrap_fx_param(p: fx_params::FxParamDef) -> WasmFxParamDef {
@@ -2645,13 +2654,19 @@ impl WasmDeviceState {
     // -- Incoming DT1 ------------------------------------------------------
 
     /// Process an incoming DT1.  Returns true if state changed.
+    ///
+    /// The page is a raw client of the Device service, so a DT1 no read of
+    /// the state asked for can still carry a Part's new tone select: the
+    /// service reads the Part's dump after its tone changed on the device
+    /// and relays the reply. [`DeviceState::handle_relayed_dt1`] takes such
+    /// a select.
     #[wasm_bindgen(js_name = handleDt1)]
     pub fn handle_dt1(&mut self, addr: &[u8], data: &[u8], now_ms: f64) -> bool {
         if addr.len() < 4 {
             return false;
         }
         let address = Address::new(addr[0], addr[1], addr[2], addr[3]);
-        self.inner.handle_dt1(&address, data, now_ms)
+        self.inner.handle_relayed_dt1(&address, data, now_ms)
     }
 
     // -- State read --------------------------------------------------------
@@ -3421,6 +3436,16 @@ pub fn mixer_field_name(field: MixerField) -> String {
     param_registry::mixer_param(field.into()).name.to_string()
 }
 
+/// The name a host's parameter list gives `field` in a scope of `kind` at
+/// `index` (the 0-based part or Comp+EQ unit; ignored by the kinds with one
+/// scope): the scope's prefix joined to the field's host name, "Part 1
+/// Level". The mixer's Controls name themselves by it, so a client picking a
+/// control by label finds the one that moves the parameter it names.
+#[wasm_bindgen]
+pub fn mixer_host_param_name(field: MixerField, kind: MixerScopeKind, index: u8) -> String {
+    param_registry::mixer_host_param_name(field.into(), kind.into(), index)
+}
+
 /// Whether a mixer field exists in a scope of this kind.
 #[wasm_bindgen]
 pub fn mixer_field_in_scope(field: MixerField, kind: MixerScopeKind) -> bool {
@@ -3470,6 +3495,39 @@ mod tests {
         let level = mixer_field_spec(MixerField::PartLevel);
         assert_eq!(level.zero_db(), Some(param_registry::LEVEL_0DB));
         assert_eq!(mixer_field_spec(MixerField::PartChorusSend).zero_db(), None);
+    }
+
+    #[test]
+    fn mixer_host_param_name_qualifies_the_scope() {
+        assert_eq!(
+            mixer_host_param_name(MixerField::PartLevel, MixerScopeKind::Part, 0),
+            "Part 1 Level"
+        );
+        assert_eq!(
+            mixer_host_param_name(MixerField::EqLowGain, MixerScopeKind::Part, 15),
+            "Part 16 EQ Low Gain"
+        );
+        assert_eq!(
+            mixer_host_param_name(MixerField::MasterLevel, MixerScopeKind::Master, 0),
+            "Master Level"
+        );
+    }
+
+    #[test]
+    fn fx_param_defs_name_their_effect() {
+        let rate = chorus_params(1)
+            .into_iter()
+            .find(|p| p.name() == "Rate")
+            .unwrap();
+        assert_eq!(rate.host_name("Chorus", "Chorus"), "Chorus: Rate");
+        let pre = reverb_params(1)
+            .into_iter()
+            .find(|p| p.name() == "PreDly")
+            .unwrap();
+        assert_eq!(
+            pre.host_name("Reverb", "Room 1"),
+            "Reverb Room 1: Pre Delay"
+        );
     }
 
     #[test]

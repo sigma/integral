@@ -9,6 +9,9 @@ interface Props {
   max: number;
   defaultValue: number;
   label: string;
+  /** Name for the accessibility tree when the label is not unique on the
+   *  page (a mixer strip's "Part 1 Level"). Default: `label`. */
+  accessibleName?: string;
   onChange: (value: number) => void;
   formatValue?: (v: number) => string;
   /** Compact fader track height (~70px) vs standard (~100px). */
@@ -73,6 +76,7 @@ export function SynthFader({
   max,
   defaultValue,
   label,
+  accessibleName,
   onChange,
   formatValue,
   compact,
@@ -164,7 +168,7 @@ export function SynthFader({
     "aria-valuenow": value,
     "aria-valuemin": min,
     "aria-valuemax": max,
-    "aria-label": label,
+    "aria-label": accessibleName ?? label,
     "aria-orientation": "vertical",
     "aria-readonly": readOnly,
     ...(readOnly

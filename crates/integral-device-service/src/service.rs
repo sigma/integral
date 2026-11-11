@@ -427,9 +427,13 @@ impl Service {
                 }
             }
             Input::Link(LinkEvent::Down) => {
+                // Deferred only for Expansion loads this service started
+                // itself: the device goes quiet for seconds per slot during
+                // such a load, which is not a lost link. A load started on
+                // the front panel is NOT deferred; the device goes silent
+                // for about a second, the probe reports Down, and the link
+                // comes back Up while clients recover (see #531).
                 if self.device.expansion_load_target().is_some() {
-                    // The device goes quiet for seconds per slot during a
-                    // load; that is not a lost link.
                     self.down_deferred = true;
                 } else {
                     self.end_session();
