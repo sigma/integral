@@ -331,6 +331,11 @@ PCM Drum in a pad chain, bound to key K. Configure both so the parameters show.
 - Steps 1 and 4: the device changes.
 - Steps 2 and 3: the device does not change (inert).
 
+**Not reachable from Live.** Steps 2 and 3 cannot be run here: Live lists only
+the parameters touched in Configure, and each editor hides the other side's
+controls, so neither inert side can be moved. A host can still automate them,
+so the test host covers them instead ([#545]). Run steps 1 and 4 only.
+
 | Date       | Live version         | Result                                             | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | ---------- | -------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-11-10 | 12.4.16 (2026-10-30) | Partial: steps 1 and 4 Pass, steps 2 and 3 Blocked | SN Drum kit on Part 10 (no Part held a PCM Drum kit). Track A: audio-track SN Drum rebound to Part 10, Whole kit; track B: the Drum Rack pad's SN Drum, key 36. Step 1: track A's Kit Level moved the device 110 to 78 (`1B 23 00 10`), key 36 Level untouched; restored. Step 4: track B's key Level moved key 36 (`1B 23 19 04`) 100 to 43, Kit Level untouched; restored. Steps 2-3: Blocked. Live lists only parameters picked in Configure, and Configure picks them by touching them in the editor. Track A's editor shows no key controls and track B's no kit controls, so the inert side cannot be reached from Live (the X-Y pad and lane choosers offer only `Kit Level` / `Key Level`). |
@@ -702,6 +707,7 @@ Parts N and M hold tones of the plugin's type.
 [#463]: https://github.com/sigma/integral/issues/463
 [#531]: https://github.com/sigma/integral/issues/531
 [#544]: https://github.com/sigma/integral/issues/544
+[#545]: https://github.com/sigma/integral/issues/545
 [PR #476]: https://github.com/sigma/integral/pull/476
 [PR #477]: https://github.com/sigma/integral/pull/477
 [PR #482]: https://github.com/sigma/integral/pull/482
