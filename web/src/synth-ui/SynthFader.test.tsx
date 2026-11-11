@@ -109,4 +109,17 @@ describe("SynthFader", () => {
       `${FADER_LABEL_HEIGHT}px`,
     );
   });
+
+  it("carries an accessible name of its own, its label unchanged", () => {
+    const { container } = render(<SynthFader {...fader} accessibleName="Part 1 Level" />);
+    expect(container.querySelector('[role="slider"]')!.getAttribute("aria-label")).toBe(
+      "Part 1 Level",
+    );
+    expect(container.querySelector(`.${css.label}`)!.textContent).toBe("Level");
+  });
+
+  it("names itself by its label without an accessible name", () => {
+    const { container } = render(<SynthFader {...fader} />);
+    expect(container.querySelector('[role="slider"]')!.getAttribute("aria-label")).toBe("Level");
+  });
 });

@@ -55,7 +55,7 @@ Result values: **Pass**, **Fail**, or **Blocked** (say why in the notes).
 | 14  | Recall smoke test                                        | [#463], [ADR 0009](../adr/0009-recall-pushes-the-project-state.md), [#458]       | [#458]          |
 | 15  | PCM Synth performance                                    | [#463], [load.rs](../../crates/integral-plugin-host/src/load.rs)                 | none            |
 | 16  | Active Sensing during an Expansion load                  | [PR #476], [MIDI 01-protocol](../midi/01-protocol.md)                            | none (hardware) |
-| 17  | Plug-in test host drag against the #444 spike (not Live) | [PR #477], [#444]                                                                | none            |
+| 17  | Plug-in test host drag (not Live)                         | [PR #477], [#528]                                                                | none            |
 | 18  | The Binding as automatable Part and Key parameters       | [#495], [ADR 0007]                                                               | [#495]          |
 | 19  | A Tone plugin picks its Part's tone                      | [#496], [ADR 0007], [ADR 0009]                                                   | [#496]          |
 
@@ -581,14 +581,14 @@ _Open._ This is the case the code may not cover (see above). Record whether
 | ---------- | -------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-11-10 | 12.4.16 (2026-10-30) | Part B: Fail (brief Down); Part A: Blocked | RTP link (mioXL), no USB connection. Part B: SRX01 loaded into slot A from the front panel, SN Synth editor open on Part 7, service polled once a second. The service logged `The device stopped answering` at 20:14:45.095 and `Device 10 answered` at 20:14:46.098; one read failed (20:14:44). The plugin stayed Connected in the screenshots taken, then showed "Loading SN-S tone data…" and recovered its values. So a front-panel load is not deferred: the link goes Down for about a second. Part A: `integral monitor --port Integra` saw no Active Sensing (FE) in 20 s idle; midir passes FE by default on CoreMIDI, so the RTP hop does not carry it. Needs a USB connection to measure. Filed as [#531](https://github.com/sigma/integral/issues/531). |
 
-## 17. Plug-in test host drag against the #444 spike (not Live)
+## 17. Plug-in test host drag (not Live)
 
 **Purpose.** The `drag` scenario sends real mouse events to the plugin window. The
 gesture log should show begin, values and end for the parameter it drags. It needs
 no Live, but [PR #477] deferred it to this runbook.
-Sources: [PR #477] (the restore command), [justfile](../../justfile) (`plugin-test`,
+Sources: [PR #477] (the check), [justfile](../../justfile) (`plugin-test`,
 `drag` needs `--class`), [plugin-test-host research](../research/plugin-test-host.md)
-(TCC grants), [#444] (the spike).
+(TCC grants), [#528] (the mixer's unique accessible names).
 
 **Setup.**
 
@@ -598,30 +598,19 @@ Sources: [PR #477] (the restore command), [justfile](../../justfile) (`plugin-te
 - Run at the desk, with the display unlocked. [PR #477] advises against screen
   sharing.
 
-**Scratch change.** Run the spike restore in a change you will abandon.
-
-1. `jj new`
-2. `jj restore --from 803883fdeb7f crates/integral-vst/src/lib.rs crates/integral-vst/src/webview/editor.rs`
-3. `just plugin-test drag --class "Integral Studio Set"`. The default `--param` is
-   `Level`, and `--control` defaults to the parameter name, so neither flag is
-   needed.
-4. Read the JSON lines on stdout: the gesture log.
-5. `jj abandon`. Then `jj st` must be clean.
-
-**On main (no restore), untested.** `just plugin-test drag --class "Integral Studio
-Set" --param "Part 1 Level"`. No class on main has a parameter named exactly
-`Level`, so the default fails there. `Part 1 Level` is the Studio Set's host name
-for Part 1's level (`PluginKind::StudioSet.host_params()` in
-[host_params.rs](../../crates/integral-core/src/host_params.rs)). `--control`
-defaults to that name; if no control carries it as its accessibility label, pass
-the label the editor shows.
+**Run.** `just plugin-test drag --class "Integral Studio Set" --param "Part 1 Level"`.
+`Part 1 Level` is the Studio Set's host name for Part 1's level
+(`PluginKind::StudioSet.host_params()` in
+[host_params.rs](../../crates/integral-core/src/host_params.rs)), and since [#528]
+the mixer names every slider by that scheme, so `--control`, which defaults to the
+parameter name, finds exactly one slider. Read the JSON lines on stdout: the
+gesture log.
 
 **Expected.** The gesture log shows begin, one or more values, and end, all for
 the dragged parameter, and the gestures balance.
 
 **Open.** [PR #477] shows no `--class`; the justfile says `drag` needs one. The class
-above is the example from the justfile. Confirm the spike's class name from the
-`load` output.
+above is the example from the justfile; confirm it from the `load` output.
 
 | Date       | Live version     | Result  | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | ---------- | ---------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -678,6 +667,7 @@ Parts N and M hold tones of the plugin's type.
 [#454]: https://github.com/sigma/integral/issues/454
 [#495]: https://github.com/sigma/integral/issues/495
 [#496]: https://github.com/sigma/integral/issues/496
+[#528]: https://github.com/sigma/integral/issues/528
 [#455]: https://github.com/sigma/integral/issues/455
 [#458]: https://github.com/sigma/integral/issues/458
 [#463]: https://github.com/sigma/integral/issues/463

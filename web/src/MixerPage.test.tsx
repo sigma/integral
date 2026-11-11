@@ -480,4 +480,23 @@ describe("MixerPage", () => {
       }
     }
   });
+
+  it("names every slider by its host parameter, so no two share a name", () => {
+    const { el } = loaded((state) => ({
+      ...state,
+      chorus: { ...state.chorus, type: 1 },
+      reverb: { ...state.reverb, type: 2 },
+    }));
+    // The plugin-test host's `drag` scenario picks a slider by accessible
+    // name (#528): the Part 1 level fader is the one slider "Part 1 Level"
+    // names, and an FX type's parameters carry their effect's name.
+    const names = [...el.querySelectorAll<HTMLElement>('[role="slider"]')].map((s) =>
+      s.getAttribute("aria-label"),
+    );
+    expect(names).toContain("Part 1 Level");
+    expect(names).toContain("Chorus: Rate");
+    expect(names).toContain("Reverb Room 2: Pre Delay");
+    const shared = names.filter((n, i) => names.indexOf(n) !== i);
+    expect(shared, `${shared.join(", ")} named twice`).toEqual([]);
+  });
 });

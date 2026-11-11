@@ -11,6 +11,9 @@ interface Props {
   max: number;
   defaultValue: number;
   label: string;
+  /** Name for the accessibility tree when the label is not unique on the
+   *  page (a mixer strip's "Part 1 Pan"). Default: `label`. */
+  accessibleName?: string;
   onChange: (value: number) => void;
   formatValue?: (v: number) => string;
   /** Parameter family, from core: colours the lit LEDs only; pointer, label and value stay neutral. */
@@ -94,6 +97,7 @@ export function SynthKnob({
   max,
   defaultValue,
   label,
+  accessibleName,
   onChange,
   formatValue,
   size = "sm",
@@ -168,7 +172,7 @@ export function SynthKnob({
         aria-valuenow={value}
         aria-valuemin={min}
         aria-valuemax={max}
-        aria-label={label}
+        aria-label={accessibleName ?? label}
         onPointerDown={drag.onPointerDown}
         onPointerMove={drag.onPointerMove}
         onPointerUp={drag.onPointerUp}
