@@ -121,7 +121,8 @@ const REPLY_CHUNK: usize = 64;
 
 /// A device that answers reads: its memory by address, and a thread that
 /// replies to every RQ1 the service sends on a [`FakeLink`] with the bytes it
-/// holds (0 where nothing was put), and keeps what every DT1 writes.
+/// holds (0 where nothing was put), keeps what every DT1 writes, and answers
+/// an Identity Request as an INTEGRA-7 at the default device ID.
 pub struct FakeMemory {
     bytes: Arc<Mutex<BTreeMap<u32, u8>>>,
     tones: Arc<Mutex<Tones>>,
@@ -169,7 +170,8 @@ impl FakeMemory {
         }
     }
 
-    /// What the device does with one message: keep a write, answer a read.
+    /// What the device does with one message: keep a write, answer a read
+    /// or an Identity Request.
     fn hear(
         link: &FakeLink,
         bytes: &Mutex<BTreeMap<u32, u8>>,
@@ -185,6 +187,16 @@ impl FakeMemory {
                 memory.insert(dt1.address.value() + k as u32, *byte);
             }
             Self::reload(&mut memory, &tones.lock().expect("tones"), &dt1);
+        }
+        if message == sysex::identity_request() {
+            let identity = sysex::DeviceIdentity {
+                device_id: sysex::DEFAULT_DEVICE_ID,
+                manufacturer_id: sysex::ROLAND_ID,
+                family_code: sysex::INTEGRA7_FAMILY,
+                family_number: [0, 0],
+                revision: [0; 4],
+            };
+            link.device_says(&identity.reply());
         }
         // F0 41 id 00 00 64 11 a0..a3 s0..s3 cs F7
         if is_rq1(message) && message.len() > 14 {
@@ -259,5 +271,34 @@ impl Drop for FakeMemory {
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::mpsc;
+
+    use super::*;
+    use crate::link::LinkEvent;
+
+    /// A client identifies the device before it trusts the link, so the fake
+    /// device answers as an INTEGRA-7 does.
+    #[test]
+    fn answers_an_identity_request_as_an_integra7() {
+        let mut link = FakeLink::new();
+        let (tx, rx) = mpsc::channel();
+        let tx = Mutex::new(tx);
+        link.start(LinkSink::new(move |event| {
+            if let LinkEvent::Midi(message) = event {
+                let _ = tx.lock().expect("sender").send(message);
+            }
+        }))
+        .expect("start");
+        let _memory = FakeMemory::answer(&link);
+        link.send(&sysex::identity_request()).expect("send");
+        let reply = rx.recv_timeout(Duration::from_secs(2)).expect("a reply");
+        let identity = sysex::parse_identity_reply(&reply).expect("an Identity Reply");
+        assert!(identity.is_integra7());
+        assert_eq!(identity.device_id, sysex::DEFAULT_DEVICE_ID);
     }
 }

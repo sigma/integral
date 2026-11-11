@@ -91,6 +91,35 @@ impl DeviceIdentity {
     pub fn is_integra7(&self) -> bool {
         self.manufacturer_id == ROLAND_ID && self.family_code == INTEGRA7_FAMILY
     }
+
+    /// The Identity Reply carrying this identity, the message
+    /// [`parse_identity_reply`] reads:
+    ///
+    /// ```text
+    /// F0 7E dev 06 02 mfr fam0 fam1 num0 num1 rev0 rev1 rev2 rev3 F7
+    /// ```
+    pub fn reply(&self) -> [u8; 15] {
+        let [f0, f1] = self.family_code;
+        let [n0, n1] = self.family_number;
+        let [r0, r1, r2, r3] = self.revision;
+        [
+            SYSEX_START,
+            UNIVERSAL_NON_REALTIME,
+            self.device_id,
+            SUB_ID_GENERAL_INFO,
+            SUB_ID_IDENTITY_REPLY,
+            self.manufacturer_id,
+            f0,
+            f1,
+            n0,
+            n1,
+            r0,
+            r1,
+            r2,
+            r3,
+            SYSEX_END,
+        ]
+    }
 }
 
 /// Errors that can occur when parsing a SysEx Identity Reply.
@@ -350,6 +379,18 @@ mod tests {
         assert_eq!(id.manufacturer_id, ROLAND_ID);
         assert_eq!(id.family_code, INTEGRA7_FAMILY);
         assert!(id.is_integra7());
+    }
+
+    #[test]
+    fn identity_reply_round_trips() {
+        let id = DeviceIdentity {
+            device_id: 0x11,
+            manufacturer_id: ROLAND_ID,
+            family_code: INTEGRA7_FAMILY,
+            family_number: [0x00, 0x00],
+            revision: [0x00, 0x01, 0x00, 0x00],
+        };
+        assert_eq!(parse_identity_reply(&id.reply()), Ok(id));
     }
 
     #[test]
