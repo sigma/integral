@@ -29,6 +29,12 @@ Instrument plays the notes and returns the INTEGRA-7's audio.
       pick the Part in its editor.
 4. Insert Integral Studio Set on the master track for the mixer and effects.
 
+Live opens a plugin's device panel empty: each plugin declares more than 64
+host parameters, and Live leaves such a list for you to fill
+([#526](https://github.com/sigma/integral/issues/526)). To add parameters,
+click Live's Configure button and touch a control in the plugin's editor; the
+parameter stays on the panel after Configure is turned off.
+
 ## Interface
 
 - [`./src/README.md`](./src/README.md): the plugin family, the standalone

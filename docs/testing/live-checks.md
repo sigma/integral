@@ -133,13 +133,17 @@ Synth tone. Device service running.
   and a larger list opens empty until Configure
   ([Live parameter notes](../research/host-parameter-limits.md#many-parameters)).
 - Step 4: the chosen parameters appear in the device view.
-- Step 5: the page explains how to add them.
+- Step 5: the editor itself says nothing about Configure; Live's own panel text
+  ("To add plug-in parameters to this panel, click the Configure button") is
+  the explanation, by decision
+  ([#526](https://github.com/sigma/integral/issues/526)).
 
-**Open.** Step 5: no "Configure" text exists in `web/` or `crates/` yet. Record
-what the page shows. [#345] recorded 64 sliders before Configure, not an empty
-panel, so record the count you see. Also record whether Live's `Options.txt`
-sets `-_PluginAutoPopulateThreshold`: the research note reports, from users, that
-it fills Configure up to 128.
+**Open.** Step 5: resolved by decision
+([#526](https://github.com/sigma/integral/issues/526)): the editor will not
+explain Configure; Live's panel text is enough. The 2026-11-10 row below
+records what the page showed before that decision. Whether Live's `Options.txt`
+sets `-_PluginAutoPopulateThreshold` (the research note reports, from users,
+that it fills Configure up to 128) is still worth recording.
 
 | Date       | Live version         | Result        | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ---------- | -------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
