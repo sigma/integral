@@ -608,19 +608,20 @@ recovers — the plugin re-reads its tone. Confirmed 2026-11-10 (row below).
 **Purpose.** The `drag` scenario sends real mouse events to the plugin window. The
 gesture log should show begin, values and end for the parameter it drags. It needs
 no Live, but [PR #477] deferred it to this runbook.
-Sources: [PR #477] (the check), [justfile](../../justfile) (`plugin-test`,
-`drag` needs `--class`), [plugin-test-host research](../research/plugin-test-host.md)
+Sources: [PR #477] (the check), [justfile](../../justfile) (`plugin-test`), [plugin-test-host research](../research/plugin-test-host.md)
 (TCC grants), [#528] (the mixer's unique accessible names).
 
 **Setup.**
 
-- Stop the Device service.
+- Stop the Device service. The test host runs its own, on a fake INTEGRA-7, at
+  the socket the plugin looks for: without a service the editor shows only its
+  connection panel, and there is no slider to drag.
 - Grant Accessibility and Screen Recording to the terminal that runs the command.
   The grant goes to the process that posts events, not to the host.
 - Run at the desk, with the display unlocked. [PR #477] advises against screen
   sharing.
 
-**Run.** `just plugin-test drag --class "Integral Studio Set" --param "Part 1 Level"`.
+**Run.** `just plugin-test drag` (the Studio Set, `--param` default `Part 1 Level`).
 `Part 1 Level` is the Studio Set's host name for Part 1's level
 (`PluginKind::StudioSet.host_params()` in
 [host_params.rs](../../crates/integral-core/src/host_params.rs)), and since [#528]
@@ -631,12 +632,12 @@ gesture log.
 **Expected.** The gesture log shows begin, one or more values, and end, all for
 the dragged parameter, and the gestures balance.
 
-**Open.** [PR #477] shows no `--class`; the justfile says `drag` needs one. The class
-above is the example from the justfile; confirm it from the `load` output.
+**Open.** None: `drag` drives the Studio Set alone.
 
 | Date       | Live version     | Result  | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | ---------- | ---------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 2026-11-10 | none (test host) | Blocked | Main: `just plugin-test drag --class "Integral Studio Set" --param "Part 1 Level"` finds the host parameter (id 232411724) and the window, then aborts: "timed out waiting for a stable slider labelled \"Part 1 Level\"". The mixer's faders carry their field name (`Level`) as the accessibility label, the same on every strip, so no `--control` picks Part 1's alone. Spike: `jj restore --from 803883fdeb7f` of `lib.rs` and `editor.rs` no longer compiles on main (`unresolved import crate::family`, 8 errors); scratch change abandoned. Filed as [#528](https://github.com/sigma/integral/issues/528). |
+| 2026-11-11 | none (test host) | Pass | `just plugin-test drag` on main plus [#461]'s fixes: the host runs the service on the fake link, which now answers the editor's Identity Request. The slider labelled `Part 1 Level` (id 232411724) was found at 5 s and its frame was stable at 23 s. The drag gave 1 `beginEdit`, 20 `performEdit`, 1 `endEdit`; the value went from 0.787 to 0.0. |
 
 ## 18. The Binding as automatable Part and Key parameters
 
@@ -692,6 +693,7 @@ Parts N and M hold tones of the plugin's type.
 [#454]: https://github.com/sigma/integral/issues/454
 [#495]: https://github.com/sigma/integral/issues/495
 [#496]: https://github.com/sigma/integral/issues/496
+[#461]: https://github.com/sigma/integral/issues/461
 [#528]: https://github.com/sigma/integral/issues/528
 [#455]: https://github.com/sigma/integral/issues/455
 [#458]: https://github.com/sigma/integral/issues/458
