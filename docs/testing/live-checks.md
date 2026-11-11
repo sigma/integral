@@ -545,19 +545,28 @@ offline checks could not reproduce — the relay (test
 ([01-protocol](../midi/01-protocol.md)). Does it keep sending during an Expansion
 load, and what does the service do when the link goes quiet?
 
-The service defers Down only for loads it started itself
-([service.rs](../../crates/integral-device-service/src/service.rs), line 390). A
-load started from the front panel is not covered. [PR #476] says "Down is
-deferred during loads either way", which the code does not show. That gap is the
-open hardware question.
+The service defers Down only for Expansion loads it started itself
+([service.rs](../../crates/integral-device-service/src/service.rs), the
+`LinkEvent::Down` handler). A load started from the front panel is not
+deferred: the probe reports Down, then the link comes back Up and clients
+recover ([#531]). [PR #476]'s description said "Down is deferred during loads
+either way"; that was wrong, and the code never did it. Recorded 2026-11-10:
+for a front-panel load the link is Down for about a second and the plugin
+recovers its tone (result row below).
 
 The probe logic counts any device message, Active Sensing included, as life. It
 probes after one second of silence and marks the link Down after three
 unanswered probes ([probe.rs](../../crates/integral-device-service/src/probe.rs),
 lines 24-30). Only RTP and USB links probe; the Wireless link does not.
 
-Sources: [PR #476] (merge danger; a link Down during an Expansion load is
-deferred).
+Recorded 2026-11-10 (RTP): no Active Sensing (FE) reaches the Mac over the
+mioXL RTP hop — `integral monitor` on the RTP session sees none in 20 s of
+idle, while midir passes FE by default on CoreMIDI — so on RTP only the probes
+keep the link alive.
+
+Sources: [PR #476] (merge danger; a link Down during a service-started
+Expansion load is deferred), [#531] (front-panel loads report Down briefly,
+by decision).
 
 **Part A: no service, so no probes.**
 
@@ -582,10 +591,9 @@ Live, so the status shows.
 1. Start a front-panel Expansion load.
 2. Watch the plugin status and the service output for a link Down.
 
-_Expected._ Nothing is reported Down during the load.
-
-_Open._ This is the case the code may not cover (see above). Record whether
-"Device offline" appears, and when.
+_Expected._ A front-panel load is not deferred (see above): the service
+briefly reports the link Down (about a second), then Up again, and the client
+recovers — the plugin re-reads its tone. Confirmed 2026-11-10 (row below).
 
 | Date       | Live version         | Result                                     | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ---------- | -------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -681,6 +689,7 @@ Parts N and M hold tones of the plugin's type.
 [#455]: https://github.com/sigma/integral/issues/455
 [#458]: https://github.com/sigma/integral/issues/458
 [#463]: https://github.com/sigma/integral/issues/463
+[#531]: https://github.com/sigma/integral/issues/531
 [PR #476]: https://github.com/sigma/integral/pull/476
 [PR #477]: https://github.com/sigma/integral/pull/477
 [PR #482]: https://github.com/sigma/integral/pull/482
