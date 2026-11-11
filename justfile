@@ -139,20 +139,24 @@ clean:
     rm -rf web/dist web/dist-plugin web/pkg
 
 # ping the INTEGRA-7 device
+[positional-arguments]
 ping *ARGS:
-    cargo run -p integral-cli -- ping {{ARGS}}
+    cargo run -p integral-cli -- ping "$@"
 
 # run the Device service on a link: --link wireless (default), rtp --port <name>, or usb
+[positional-arguments]
 bridge *ARGS:
-    cargo run -p integral-cli -- bridge {{ARGS}}
+    cargo run -p integral-cli -- bridge "$@"
 
 # monitor the MIDI traffic
+[positional-arguments]
 monitor *ARGS:
-    cargo run -p integral-cli -- monitor {{ARGS}}
+    cargo run -p integral-cli -- monitor "$@"
 
 # run the standalone VST binary (native app with MIDI), web UI embedded
+[positional-arguments]
 run *ARGS: build-web-plugin
-    cargo run -p integral-vst --bin integral-app --release -- {{ARGS}}
+    cargo run -p integral-vst --bin integral-app --release -- "$@"
 
 # start the web dev server
 dev-web: pack-wasm
