@@ -420,6 +420,33 @@ mod tests {
     }
 
     #[test]
+    fn a_full_size_partial_block_reply_reaches_the_page_intact() {
+        let mut editor = Editor::new();
+        editor.page_posts(r#"{"type":"ready"}"#);
+        editor.page_posts(&open_message());
+        editor.page_hears("the port to open", |m| {
+            matches!(m, PluginMessage::Opened { .. }).then_some(())
+        });
+
+        // A PCM Synth editor's largest read: a Partial, 154 bytes of data in
+        // one DT1 (#529). The page's request goes through the service's
+        // queue to the device, and the reply must come back whole.
+        let address = integral_core::pcm_synth::pcms_partial_address(0, 0);
+        let size = integral_core::pcm_synth::PCMS_PARTIAL_BLOCK_SIZE;
+        editor.page_posts(&send_message(&sysex::build_rq1(DEVICE_ID, &address, &size)));
+        wait_for("the request at the link", || {
+            editor.service().link.sent().len() == 1
+        });
+        let reply = sysex::build_dt1(DEVICE_ID, &address, &[0x5Au8; 154]);
+        editor.service().link.device_says(&reply);
+        let heard = editor.page_hears("the reply", |m| match m {
+            PluginMessage::Receive { port, data } if port == PORT => Some(data.clone()),
+            _ => None,
+        });
+        assert_eq!(heard, reply);
+    }
+
+    #[test]
     fn the_last_message_reaches_the_link_after_the_editor_closes() {
         let mut editor = Editor::new();
         editor.page_posts(r#"{"type":"ready"}"#);

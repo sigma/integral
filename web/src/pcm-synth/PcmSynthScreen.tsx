@@ -56,6 +56,23 @@ import {
   type PmtParamHandler,
 } from "./types";
 
+/** What a block whose read failed shows in place of its Sections. */
+export interface ScreenFailure {
+  /** Why the read failed (an RQ1 timeout, a parse error). */
+  message: string;
+  /** Ask for the block again. */
+  retry: () => void;
+}
+
+/** The blocks whose Sections show a failure instead of nothing. */
+export interface ScreenFailures {
+  common?: ScreenFailure;
+  pmt?: ScreenFailure;
+  mfx?: ScreenFailure;
+  /** Each Partial's failure, by its 0-based index. */
+  partials?: (ScreenFailure | undefined)[];
+}
+
 /** Props of {@link PcmSynthScreen}. */
 export interface PcmSynthScreenProps {
   common: PcmSynthCommon | null;
@@ -72,6 +89,9 @@ export interface PcmSynthScreenProps {
   onPartial: (partial: number, ...args: Parameters<PartialParamHandler>) => void;
   /** Loaded state of the Expansions behind SRX Wave Groups. */
   marking?: ExpansionMarking;
+  /** What a failed block shows instead of nothing, so a screen never looks
+   * loaded with Sections missing and no way to ask again (#529). */
+  failures?: ScreenFailures;
 }
 
 /** Each pair's BOOST and RING layouts, by pair (0: partials 1 & 2). */
@@ -158,6 +178,25 @@ function PartialBox({ idx, box, merged, partial, pmt, onPartial, marking }: Part
   );
 }
 
+/** Props of {@link BlockError}. */
+interface BlockErrorProps extends ScreenFailure {
+  /** The failed block's name. */
+  title: string;
+}
+
+/** A failed block's stand-in: what went wrong, and how to ask again. */
+function BlockError({ title, message, retry }: BlockErrorProps) {
+  return (
+    <div className={css.error} role="alert">
+      <span className={css.errorTitle}>{title}</span>
+      <span className={css.errorText}>{message}</span>
+      <button className={css.retry} type="button" onClick={retry}>
+        Retry
+      </button>
+    </div>
+  );
+}
+
 /** The PCM Synth tone's Sections, on its screen layout. */
 export function PcmSynthScreen({
   common,
@@ -170,6 +209,7 @@ export function PcmSynthScreen({
   onPmtEntry,
   onPartial,
   marking,
+  failures,
 }: PcmSynthScreenProps) {
   const structures = [pmt?.structureType12 ?? 0, pmt?.structureType34 ?? 0] as const;
   const [s12, s34] = structures;
@@ -215,7 +255,12 @@ export function PcmSynthScreen({
       return <GridSection layout={PARTIAL_LAYOUT} scope={{ partial: idx }} bind={() => binding} />;
     }
     const p = partials[idx];
-    if (!p) return null;
+    // The lane's WAVE box carries a failed partial's error; its other boxes
+    // stay empty until the read succeeds.
+    if (!p) {
+      const failure = failures?.partials?.[idx];
+      return at.block === "wave" && failure ? <BlockError title={`Partial ${idx + 1}`} {...failure} /> : null;
+    }
     return (
       <PartialBox
         idx={idx}
@@ -231,7 +276,7 @@ export function PcmSynthScreen({
 
   const placed = (placement: SectionPlacement): ReactNode => {
     if (placement.id === PCMS_IDS.common) {
-      if (!common) return null;
+      if (!common) return failures?.common ? <BlockError title="Tone Common" {...failures.common} /> : null;
       return (
         <GridSection
           layout={PCMS_COMMON_LAYOUT}
@@ -244,7 +289,7 @@ export function PcmSynthScreen({
       );
     }
     if (placement.id === PCMS_IDS.pmt) {
-      if (!pmt) return null;
+      if (!pmt) return failures?.pmt ? <BlockError title="PMT" {...failures.pmt} /> : null;
       return (
         <GridSection
           layout={PCMS_PMT_LAYOUT}
@@ -255,7 +300,11 @@ export function PcmSynthScreen({
       );
     }
     if (placement.id === PCMS_IDS.mfx) {
-      return <div className={css.mfx}>{mfx && <MfxPanel mfx={mfx} {...mfxHandlers} />}</div>;
+      return (
+        <div className={css.mfx}>
+          {mfx ? <MfxPanel mfx={mfx} {...mfxHandlers} /> : failures?.mfx ? <BlockError title="MFX" {...failures.mfx} /> : null}
+        </div>
+      );
     }
     const at = parsePairSectionId(placement.id);
     return at ? pairSection(at.pair, at.section) : null;

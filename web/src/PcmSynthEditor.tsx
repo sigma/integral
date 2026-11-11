@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import type { SetStateAction } from "react";
 import {
   pcms_common_address,
   pcms_common_size,
@@ -19,6 +20,7 @@ import { GridZoom } from "./layouts";
 import { PCMS_SCREEN_CELLS } from "./layouts/pcm-synth/screen";
 import { useMfxHandlers } from "./useMfxHandlers";
 import type { MfxState } from "./MfxPanel";
+import { useToneBlocks, type ToneBlockRead } from "./useToneBlocks";
 import css from "./PcmSynthEditor.module.css";
 
 import {
@@ -34,7 +36,7 @@ import {
   type PmtEntryParamHandler,
   type PmtParamHandler,
 } from "./pcm-synth/types";
-import { PcmSynthScreen } from "./pcm-synth/PcmSynthScreen";
+import { PcmSynthScreen, type ScreenFailure } from "./pcm-synth/PcmSynthScreen";
 
 // ---------------------------------------------------------------------------
 // Component
@@ -47,85 +49,71 @@ interface Props {
   marking?: ExpansionMarking;
 }
 
+/** Where each block sits in the read chain: Common, PMT, Common 2 (read for
+ * core's copy only), MFX, then each Partial. */
+const COMMON_I = 0;
+const PMT_I = 1;
+const MFX_I = 3;
+const partialI = (i: number) => MFX_I + 1 + i;
+
 export function PcmSynthEditor({ partIndex, service, marking }: Props) {
-  const [common, setCommon] = useState<PcmSynthCommon | null>(null);
-  const [pmt, setPmt] = useState<PcmSynthPmt | null>(null);
-  const [_common2, setCommon2] = useState<PcmSynthCommon2 | null>(null);
-  const [partials, setPartials] = useState<(PcmSynthPartial | null)[]>(() =>
-    Array.from({ length: deviceSpec().pcm_synth_partial_count }, () => null),
-  );
-  const [mfx, setMfx] = useState<MfxState | null>(null);
-  const [loading, setLoading] = useState(true);
+  const partialCount = deviceSpec().pcm_synth_partial_count;
 
-  // Load common data on mount / part change
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
+  // The editor's blocks, in the order they are read. One block's failure
+  // fails that block only; the rest of the chain still loads (#529).
+  const reads = useMemo<readonly ToneBlockRead[]>(() => {
+    /** What `apply` must answer with: the wasm decoders throw on a short or
+     * malformed reply, and an empty answer fails the block visibly. */
+    const answer = (value: unknown, name: string) => {
+      if (!value) throw new Error(`${name} came back empty`);
+      return value;
+    };
+    return [
+      {
+        name: "Tone Common",
+        address: () => Array.from(pcms_common_address(partIndex)),
+        size: () => Array.from(pcms_common_size()),
+        apply: (d: Uint8Array) => answer(service.device.applyPcmsCommon(d), "Tone Common"),
+      },
+      {
+        name: "PMT",
+        address: () => Array.from(pcms_pmt_address(partIndex)),
+        size: () => Array.from(pcms_pmt_size()),
+        apply: (d: Uint8Array) => answer(service.device.applyPcmsPmt(d), "PMT"),
+      },
+      {
+        // Read into core's copy of the tone; the editor shows none of it.
+        name: "Common 2",
+        address: () => Array.from(pcms_common2_address(partIndex)),
+        size: () => Array.from(pcms_common2_size()),
+        apply: (d: Uint8Array) => answer(service.device.applyPcmsCommon2(d) as PcmSynthCommon2 | null, "Common 2"),
+      },
+      {
+        name: "MFX",
+        address: () => Array.from(pcms_mfx_address(partIndex)),
+        size: () => Array.from(mfx_block_size()),
+        apply: (d: Uint8Array) => answer(service.device.applyMfxBlock(partIndex, d), "MFX"),
+      },
+      ...Array.from({ length: partialCount }, (_, i): ToneBlockRead => ({
+        name: `Partial ${i + 1}`,
+        address: () => Array.from(pcms_partial_address(partIndex, i)),
+        size: () => Array.from(pcms_partial_size()),
+        apply: (d: Uint8Array) => answer(service.device.applyPcmsPartial(d), `Partial ${i + 1}`),
+      })),
+    ];
+  }, [partIndex, partialCount, service]);
 
-    async function load() {
-      try {
-        // Common
-        const commonData = await service.requestData(
-          Array.from(pcms_common_address(partIndex)),
-          Array.from(pcms_common_size()),
-        );
-        if (cancelled) return;
-        const c = service.device.applyPcmsCommon(commonData) as PcmSynthCommon | null;
-        if (c) setCommon(c);
+  const { blocks, loading, failed, retry, setValue } = useToneBlocks(service, reads, [partIndex, service]);
 
-        // PMT
-        const pmtData = await service.requestData(
-          Array.from(pcms_pmt_address(partIndex)),
-          Array.from(pcms_pmt_size()),
-        );
-        if (cancelled) return;
-        const p = service.device.applyPcmsPmt(pmtData) as PcmSynthPmt | null;
-        if (p) setPmt(p);
-
-        // Common2
-        const c2Data = await service.requestData(
-          Array.from(pcms_common2_address(partIndex)),
-          Array.from(pcms_common2_size()),
-        );
-        if (cancelled) return;
-        const c2 = service.device.applyPcmsCommon2(c2Data) as PcmSynthCommon2 | null;
-        if (c2) setCommon2(c2);
-
-        // MFX
-        const mfxData = await service.requestData(
-          Array.from(pcms_mfx_address(partIndex)),
-          Array.from(mfx_block_size()),
-        );
-        if (cancelled) return;
-        const m = service.device.applyMfxBlock(partIndex, mfxData) as MfxState | null;
-        if (m) setMfx(m);
-
-        // Load all partials
-        for (let idx = 0; idx < deviceSpec().pcm_synth_partial_count; idx++) {
-          if (cancelled) return;
-          const pData = await service.requestData(
-            Array.from(pcms_partial_address(partIndex, idx)),
-            Array.from(pcms_partial_size()),
-          );
-          if (cancelled) return;
-          const parsed = service.device.applyPcmsPartial(pData) as PcmSynthPartial | null;
-          if (parsed) {
-            setPartials((prev) => {
-              const next = [...prev];
-              next[idx] = parsed;
-              return next;
-            });
-          }
-        }
-      } catch (err) {
-        console.error("[PcmSynthEditor] load error:", err);
-      }
-      if (!cancelled) setLoading(false);
-    }
-
-    load();
-    return () => { cancelled = true; };
-  }, [partIndex, service]);
+  /** A block's data, or `null` until it has loaded. */
+  const loaded = <T,>(i: number): T | null => {
+    const b = blocks[i];
+    return b?.status === "loaded" ? (b.value as T) : null;
+  };
+  const common = loaded<PcmSynthCommon>(COMMON_I);
+  const pmt = loaded<PcmSynthPmt>(PMT_I);
+  const mfx = loaded<MfxState>(MFX_I);
+  const partials = Array.from({ length: partialCount }, (_, i) => loaded<PcmSynthPartial>(partialI(i)));
 
   // ---------------------------------------------------------------------------
   // Param setters: send to the device, then patch the local copy
@@ -134,53 +122,58 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
     (field, value) => {
       service.device.setPcmsCommonParam(partIndex, field, 0, value);
       const key = PCMS_COMMON_ENTRIES[field]?.key;
-      if (key) setCommon((prev) => (prev ? { ...prev, [key]: value } : prev));
+      if (key) setValue(COMMON_I, (prev) => ({ ...(prev as PcmSynthCommon), [key]: value }));
     },
-    [partIndex, service],
+    [partIndex, service, setValue],
   );
 
   const setPmtParam = useCallback<PmtParamHandler>(
     (field, value) => {
       service.device.setPcmsPmtParam(partIndex, field, 0, value);
       const key = PCMS_PMT_ENTRIES[field]?.key;
-      if (key) setPmt((prev) => (prev ? { ...prev, [key]: value } : prev));
+      if (key) setValue(PMT_I, (prev) => ({ ...(prev as PcmSynthPmt), [key]: value }));
     },
-    [partIndex, service],
+    [partIndex, service, setValue],
   );
 
   const setPmtEntryParam = useCallback<PmtEntryParamHandler>(
     (partial, field, key, value) => {
       service.device.setPcmsPmtParam(partIndex, field, partial, value);
-      setPmt((prev) => {
-        if (!prev) return prev;
-        const partialEntries = prev.partialEntries.map((e, i) =>
+      setValue(PMT_I, (prev) => {
+        const p = prev as PcmSynthPmt;
+        const partialEntries = p.partialEntries.map((e, i) =>
           i === partial ? { ...e, [key]: value } : e,
         );
-        return { ...prev, partialEntries };
+        return { ...p, partialEntries };
       });
     },
-    [partIndex, service],
+    [partIndex, service, setValue],
   );
 
   const setPartialParam = useCallback(
     (partial: number, ...[field, index, value]: Parameters<PartialParamHandler>) => {
       service.device.setPcmsPartialParam(partIndex, partial, field, index, value);
       const { key } = PCMS_PARTIAL_ENTRIES[field];
-      setPartials((prev) => {
-        const p = prev[partial];
-        if (!p) return prev;
+      setValue(partialI(partial), (prev) => {
+        const p = prev as PcmSynthPartial;
         const cur = p[key];
         const updated = Array.isArray(cur)
           ? cur.map((c, i) => (i === index ? value : c))
           : value;
-        const next = [...prev];
-        next[partial] = { ...p, [key]: updated };
-        return next;
+        return { ...p, [key]: updated };
       });
     },
-    [partIndex, service],
+    [partIndex, service, setValue],
   );
 
+  const setMfx = useCallback(
+    (action: SetStateAction<MfxState | null>) =>
+      setValue(MFX_I, (prev) => {
+        const next = typeof action === "function" ? action(prev as MfxState) : action;
+        return next ?? prev;
+      }),
+    [setValue],
+  );
   const mfxHandlers = useMfxHandlers(service, partIndex, ToneType.PcmSynth, setMfx);
 
   // ---------------------------------------------------------------------------
@@ -190,6 +183,20 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
   if (loading) {
     return <div className={css.loading}>Loading PCM Synth tone data...</div>;
   }
+
+  /** What a failed block shows, in place of its Sections. */
+  const failure = (i: number): ScreenFailure | undefined => {
+    const b = blocks[i];
+    return b?.status === "error" ? { message: b.message ?? "its read failed", retry } : undefined;
+  };
+  const failures = failed
+    ? {
+        common: failure(COMMON_I),
+        pmt: failure(PMT_I),
+        mfx: failure(MFX_I),
+        partials: Array.from({ length: partialCount }, (_, i) => failure(partialI(i))),
+      }
+    : undefined;
 
   return (
     <div className={css.editor}>
@@ -206,6 +213,7 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
           onPmtEntry={setPmtEntryParam}
           onPartial={setPartialParam}
           marking={marking}
+          failures={failures}
         />
       </GridZoom>
     </div>

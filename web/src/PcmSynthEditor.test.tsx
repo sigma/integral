@@ -3,11 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   WasmDeviceState,
   pcms_common_address,
+  pcms_common_size,
   pcms_partial_address,
 } from "../pkg/integral_wasm.js";
 import { PcmSynthEditor } from "./PcmSynthEditor";
-import { cleanup, click, render } from "./test/dom";
-import { arrowUp, fakeToneService, slider } from "./test/toneService";
+import { button, cleanup, click, render } from "./test/dom";
+import { arrowUp, fakeToneService, flakyToneService, slider } from "./test/toneService";
 
 // jsdom lacks the ResizeObserver the page's zoom measures with.
 beforeEach(() => {
@@ -95,5 +96,67 @@ describe("PcmSynthEditor", () => {
     const loose = controls.filter((el) => el.closest("[data-field], [data-display]") === null);
     expect(loose).toEqual([]);
     expect(container.querySelector("[data-grid-screen]")).not.toBeNull();
+  });
+
+  describe("a failed block read", () => {
+    it("renders the blocks that loaded and names the failed one with a Retry", async () => {
+      // Partial 1's read times out every time; the chain still reads the rest.
+      const { service } = flakyToneService(new WasmDeviceState(0x10), [
+        { address: [...pcms_partial_address(PART, 0)], times: Number.POSITIVE_INFINITY },
+      ]);
+      const { container } = render(<PcmSynthEditor partIndex={PART} service={service} />);
+      await act(async () => {});
+
+      // The blocks that loaded still render their Controls.
+      expect(slider(container, "Up")).toBeTruthy(); // Common
+      expect(slider(container, "FX1")).toBeTruthy(); // a loaded Partial
+
+      // Partial 1's lane shows its error with a Retry, not silent emptiness.
+      const alerts = [...container.querySelectorAll("[role='alert']")];
+      expect(alerts).toHaveLength(1);
+      const alert = alerts[0]!;
+      expect(alert.closest("[data-section]")!.getAttribute("data-section")).toBe("p12.upper.wave");
+      expect(alert.textContent).toContain("Partial 1");
+      expect(alert.textContent).toContain("RQ1 timeout");
+      expect(button(alert, "Retry")).toBeTruthy();
+      expect(alert.closest("[data-section]")!.querySelector("[role='slider']")).toBeNull();
+    });
+
+    it("renders a block's controls once its retry succeeds", async () => {
+      // Partial 3's first read fails; the Retry reads it again, and answers.
+      const { service } = flakyToneService(new WasmDeviceState(0x10), [
+        { address: [...pcms_partial_address(PART, 2)], times: 1 },
+      ]);
+      const { container } = render(<PcmSynthEditor partIndex={PART} service={service} />);
+      await act(async () => {});
+      const alert = container.querySelector("[role='alert']")!;
+      expect(alert.textContent).toContain("Partial 3");
+      expect(container.querySelector('[data-section^="p34.upper"] [role="slider"]')).toBeNull();
+
+      click(button(container, "Retry"));
+      await act(async () => {});
+
+      expect(container.querySelector("[role='alert']")).toBeNull();
+      expect(container.querySelector('[data-section^="p34.upper"] [role="slider"]')).toBeTruthy();
+    });
+
+    it("shows the parse error a short reply makes, keeping it to its block", async () => {
+      // The Common reply comes back one byte short: the wasm parse throws,
+      // which must fail Common alone, visibly.
+      const { service } = fakeToneService(new WasmDeviceState(0x10));
+      const base = service.requestData.bind(service);
+      const common = [...pcms_common_address(PART)];
+      service.requestData = async (address: number[], size: number[]) => {
+        const data = await base(address, size);
+        return address.every((b, i) => b === common[i]) ? data.slice(0, pcms_common_size()[3]! - 1) : data;
+      };
+      const { container } = render(<PcmSynthEditor partIndex={PART} service={service} />);
+      await act(async () => {});
+
+      const alert = container.querySelector("[role='alert']")!;
+      expect(alert.textContent).toContain("Tone Common");
+      // The Partials still render: the parse failure aborted nothing else.
+      expect(slider(container, "FX1")).toBeTruthy();
+    });
   });
 });
