@@ -214,33 +214,53 @@ impl Session {
     ///
     /// WebKit reports stale frames until it has laid the page out. An early
     /// click once landed in another application's window (#444), so this
-    /// guard is not optional.
+    /// guard is not optional. Each read that differs from the one before is
+    /// reported as it happens, and the closing `frame` event lists the
+    /// distinct frames it saw, so a slow or failed run shows how the frame
+    /// moved, not only where it ended (#543).
     fn stable_frame(&self, element: &Element) -> Result<(WindowInfo, CGRect)> {
-        let deadline = Instant::now() + WAIT;
+        let started = Instant::now();
+        let deadline = started + WAIT;
         let mut last: Option<CGRect> = None;
         let mut agreeing = 0;
+        let mut reads: Vec<Value> = Vec::new();
         while Instant::now() < deadline {
             sleep(STABLE_INTERVAL);
             let (Some(frame), Some(window)) = (element.frame(), self.window()) else {
                 agreeing = 0;
                 continue;
             };
-            if last == Some(frame) {
-                agreeing += 1;
-            } else {
+            if last != Some(frame) {
+                if last.is_some() {
+                    self.report.emit(
+                        "frame",
+                        json!({ "moved": true, "after_ms": started.elapsed().as_millis(), "element": rect(frame) }),
+                    );
+                }
+                reads.push(json!({
+                    "after_ms": started.elapsed().as_millis(), "element": rect(frame),
+                }));
                 agreeing = 1;
                 last = Some(frame);
+            } else {
+                agreeing += 1;
             }
             if agreeing >= STABLE_READS && cgwindow::contains(window.bounds, frame) {
                 self.report.emit(
                     "frame",
-                    json!({ "stable": true, "element": rect(frame), "window": rect(window.bounds) }),
+                    json!({ "stable": true, "element": rect(frame), "window": rect(window.bounds), "reads": reads }),
                 );
                 return Ok((window, frame));
             }
         }
-        self.report
-            .emit("frame", json!({ "stable": false, "last": last.map(rect) }));
+        let inside = match (last, self.window()) {
+            (Some(frame), Some(window)) => cgwindow::contains(window.bounds, frame),
+            _ => false,
+        };
+        self.report.emit(
+            "frame",
+            json!({ "stable": false, "last": last.map(rect), "inside": inside, "reads": reads }),
+        );
         bail!("the control's frame never became stable inside the plugin's own window")
     }
 

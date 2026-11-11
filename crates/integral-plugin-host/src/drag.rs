@@ -107,6 +107,19 @@ pub fn run(
     });
     let after = host.plugin().get_parameter(target_id);
     host.close();
+    // The service side of the same run: when the clients' RQ1s went out to
+    // the device (seconds since the `service` line), to read against the
+    // frame events while diagnosing a slow settle (#543).
+    let reads: Vec<f64> = rig
+        .sent()
+        .iter()
+        .filter(|s| integral_device_service::is_rq1(&s.message))
+        .map(|s| s.at)
+        .collect();
+    report.emit(
+        "reads",
+        json!({ "count": reads.len(), "first_at_s": reads.first(), "last_at_s": reads.last() }),
+    );
     result?;
     let driven = driven?;
 
