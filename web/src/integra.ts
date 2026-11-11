@@ -133,6 +133,9 @@ interface LibrarianMachine {
 
 interface PendingRequest {
   addressKey: string;
+  /** Data bytes the read asked for: a reply of another length at the same
+   * address answers another read (a tone's name sits where its Common starts). */
+  size: number;
   resolve: (data: Uint8Array) => void;
   reject: (err: Error) => void;
   timer?: ReturnType<typeof setTimeout>;
@@ -274,6 +277,7 @@ export class IntegraService {
       const key = addressKey(address);
       const pending: PendingRequest = {
         addressKey: key,
+        size: size.reduce((value, byte) => value * 128 + byte, 0),
         resolve: (data) => {
           pending.cancelSent?.();
           resolve(data);
@@ -319,7 +323,9 @@ export class IntegraService {
     const key = addressKey(Array.from(addr));
 
     // Resolve pending RQ1 requests.
-    const reqIdx = this.pendingRequests.findIndex((r) => r.addressKey === key);
+    const reqIdx = this.pendingRequests.findIndex(
+      (r) => r.addressKey === key && r.size === data.length,
+    );
     if (reqIdx >= 0) {
       const req = this.pendingRequests[reqIdx]!;
       if (req.timer) clearTimeout(req.timer);

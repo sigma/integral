@@ -16,15 +16,19 @@ function catalogEntry(
   pc: number,
   name: string,
 ): Uint8Array {
-  const body = [
-    ...CATALOG_REPLY,
+  return dt1(CATALOG_REPLY, [
     msb,
     lsb,
     pc,
     0,
     0,
     ...Array.from(name.padEnd(16).slice(0, 16), (c) => c.charCodeAt(0)),
-  ];
+  ]);
+}
+
+/** A DT1 from device 10H carrying `data` at `address`. */
+function dt1(address: number[], data: number[]): Uint8Array {
+  const body = [...address, ...data];
   const sum = body.reduce((s, b) => s + b, 0);
   return new Uint8Array([
     0xf0,
@@ -92,5 +96,22 @@ describe("catalog reads", () => {
     receive(port, catalogEntry(SNA_MSB, SNA_LSB, 0, "Tone 0"));
     receive(port, catalogEntry(SNA_MSB, SNA_LSB, 1, "Tone 1"));
     expect((await page).map((e) => e.name)).toEqual(["Tone 0", "Tone 1"]);
+  });
+});
+
+describe("RQ1 replies", () => {
+  let service: IntegraService | undefined;
+  afterEach(() => service?.destroy());
+
+  // A PCM Synth tone's name and its Common block start at the same address;
+  // the plugin reads the name while its editor reads the block (#544).
+  it("a shorter reply at the same address does not answer a read", async () => {
+    const port = fakePort();
+    service = new IntegraService(port, 0x10);
+    const common = [0x19, 0x60, 0x00, 0x00];
+    const read = service.requestData(common, [0x00, 0x00, 0x00, 0x50]);
+    receive(port, dt1(common, Array<number>(12).fill(0x41)));
+    receive(port, dt1(common, Array<number>(0x50).fill(0x20)));
+    expect((await read).length).toBe(0x50);
   });
 });
