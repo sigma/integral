@@ -2,16 +2,22 @@
 //! events, and check the plugin reported balanced `beginEdit` /
 //! `performEdit` / `endEdit` on the matching host parameter, and nothing
 //! else.
+//!
+//! The host runs the Device service itself, as the other scenarios do: with
+//! no service to connect to, the editor shows only its connection panel and
+//! there is no slider to drag.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
+use integral_core::host_params::PluginKind;
 use serde_json::json;
 use vst3_host::ParameterEdit;
 
 use crate::report::Report;
-use crate::{driver, gesture, host};
+use crate::rig::{Device, Rig};
+use crate::{driver, family, gesture, host};
 
 /// How many parameters to list: enough to see the plugin's shape without a
 /// line per parameter when a plugin declares thousands.
@@ -27,7 +33,7 @@ pub struct Options {
     /// Where on the slider to release, as a fraction of its width. Default:
     /// the far side of the parameter's current value, so it always moves.
     pub to: Option<f64>,
-    /// The plugin class to load (by name); the bundle's first if none.
+    /// The plugin class to load (by name); the Studio Set if none.
     pub class: Option<String>,
     /// Where screenshots go.
     pub out_dir: PathBuf,
@@ -39,8 +45,22 @@ fn far_side(value: f64) -> f64 {
 }
 
 /// Runs the scenario; `Ok(true)` when every assertion held.
-pub fn run(bundle: &Path, options: &Options, report: &Arc<Report>) -> Result<bool> {
-    let plugin = host::load(bundle, options.class.as_deref())?;
+pub fn run(
+    bundle: &Path,
+    device: &Device,
+    options: &Options,
+    report: &Arc<Report>,
+) -> Result<bool> {
+    let kind = PluginKind::StudioSet;
+    // shortcut: Studio Set only; a Tone or Kit class needs its Part to hold a
+    // tone of its type first (see `recall`), add that when a drag needs one.
+    if options.class.as_deref().is_some_and(|c| c != kind.name()) {
+        bail!("drag drives the {} only", kind.name());
+    }
+    // Held until the editor is closed: the plugin talks to it throughout.
+    let mut rig = Rig::start(device, family::studio_set_touched(), report)?;
+    rig.bring_up()?;
+    let plugin = host::load(bundle, Some(kind.name()))?;
     let params = plugin
         .get_parameters()
         .map_err(|e| anyhow!("listing parameters: {e}"))?;

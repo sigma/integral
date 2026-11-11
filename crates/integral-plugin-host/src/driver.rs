@@ -32,6 +32,8 @@ const ACTIVATION_WAIT: Duration = Duration::from_secs(3);
 const STABLE_READS: usize = 3;
 const STABLE_INTERVAL: Duration = Duration::from_millis(250);
 const DRAG_STEPS: u32 = 20;
+/// How many slider labels a failed lookup lists.
+const LISTED_SLIDERS: usize = 24;
 
 /// Exit status of a run whose assertions failed.
 pub const EXIT_ASSERTION: u8 = 1;
@@ -171,6 +173,11 @@ impl Session {
                 })
                 .collect();
             let count = candidates.len();
+            let labels: Vec<Vec<String>> = if Instant::now() >= deadline {
+                candidates.iter().map(|(_, l)| l.clone()).collect()
+            } else {
+                Vec::new()
+            };
             match ax::pick(candidates, control) {
                 Pick::Ambiguous(n) => bail!("{n} sliders match {control:?}; give an exact label"),
                 Pick::One(element) => {
@@ -191,6 +198,11 @@ impl Session {
                 }
             }
             if Instant::now() >= deadline {
+                // What the page offered instead, so a mislabelled control shows up.
+                self.report.emit(
+                    "sliders",
+                    json!({ "count": count, "labels": labels.iter().take(LISTED_SLIDERS).collect::<Vec<_>>() }),
+                );
                 bail!("timed out waiting for a stable slider labelled {control:?}");
             }
             sleep(STABLE_INTERVAL);

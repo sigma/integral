@@ -60,9 +60,9 @@ mod cli {
         /// several (the family's does). Default: the first.
         #[arg(long, global = true)]
         class: Option<String>,
-        /// Run `load` or `drag` even if a Device service is listening at the
-        /// default socket, to which the plugins would connect. The scenarios
-        /// that run a service of their own (`recall`, `automate`,
+        /// Run `load` even if a Device service is listening at the default
+        /// socket, to which the plugins would connect. The scenarios that run
+        /// a service of their own (`drag`, `recall`, `automate`,
         /// `binding-mismatch`) listen there themselves and refuse always.
         #[arg(long, global = true)]
         allow_service: bool,
@@ -93,7 +93,7 @@ mod cli {
         /// Drag a slider and check the gestures on the matching host parameter.
         Drag {
             /// Name of the host parameter the drag must move.
-            #[arg(long, default_value = "Level")]
+            #[arg(long, default_value = "Part 1 Level")]
             param: String,
             /// Accessibility label of the control: an exact match is preferred, else a
             /// substring; more than one match aborts. Defaults to the parameter name.
@@ -133,7 +133,10 @@ mod cli {
         fn owns_service(&self) -> bool {
             matches!(
                 self,
-                Self::Recall | Self::Automate { .. } | Self::BindingMismatch { .. }
+                Self::Drag { .. }
+                    | Self::Recall
+                    | Self::Automate { .. }
+                    | Self::BindingMismatch { .. }
             )
         }
     }
@@ -163,7 +166,7 @@ mod cli {
         let report = Arc::new(Report::new());
         let owns_service = cli.scenario.owns_service();
         if !owns_service && !cli.device.is_fake() {
-            eprintln!("--device applies to recall, automate and binding-mismatch");
+            eprintln!("--device applies to drag, recall, automate and binding-mismatch");
             return ExitCode::from(2);
         }
         if !cli.device.is_fake() && !cli.write_device {
@@ -196,6 +199,7 @@ mod cli {
                 "drag",
                 drag::run(
                     &cli.bundle,
+                    &cli.device,
                     &drag::Options {
                         param,
                         control,
