@@ -22,6 +22,19 @@ use crate::rig::Touched;
 
 use crate::host::{BLOCK_SIZE, SAMPLE_RATE};
 
+/// The names of every parameter the plugin of `kind` declares, in the order
+/// its `param_map` registers them: the device-address parameters
+/// ([`PluginKind::host_params`]), then the Binding parameters
+/// ([`PluginKind::binding_params`]), which `FamilyParams::param_map` chains
+/// after the device's.
+pub fn declared_names(kind: PluginKind) -> Vec<String> {
+    kind.host_params()
+        .iter()
+        .map(|h| h.name.clone())
+        .chain(kind.binding_params().iter().map(|b| b.name.to_string()))
+        .collect()
+}
+
 /// A plugin's parameters: core's list, and the IDs the host knows them by.
 pub struct Params {
     list: Vec<HostParam>,
@@ -35,18 +48,17 @@ impl Params {
     ///
     /// The plugin does not declare core's list for `kind`, name for name.
     pub fn of(kind: PluginKind, plugin: &Plugin) -> Result<Self> {
-        let list = kind.host_params();
+        let names = declared_names(kind);
         let declared = plugin
             .get_parameters()
             .map_err(|e| anyhow!("listing parameters: {e}"))?;
-        if declared.len() != list.len() || declared.iter().zip(&list).any(|(d, h)| d.name != h.name)
-        {
+        if declared.len() != names.len() || declared.iter().zip(&names).any(|(d, n)| d.name != *n) {
             bail!("the plugin does not declare {}'s parameters", kind.name());
         }
-        Ok(Self {
-            list,
-            ids: declared.iter().map(|p| p.id).collect(),
-        })
+        let list = kind.host_params();
+        // The Binding parameters come last, so the device's keep their indices.
+        let ids = declared.iter().take(list.len()).map(|p| p.id).collect();
+        Ok(Self { list, ids })
     }
 
     /// The core parameter at `index`.
@@ -71,7 +83,8 @@ impl Params {
         f64::from(value - h.min) / f64::from(h.max - h.min)
     }
 
-    /// Every parameter's raw value now.
+    /// Every device parameter's raw value now (the Binding's are not in core's
+    /// list).
     ///
     /// # Errors
     ///
@@ -82,6 +95,7 @@ impl Params {
             .map_err(|e| anyhow!("listing parameters: {e}"))?;
         Ok(declared
             .iter()
+            .take(self.list.len())
             .enumerate()
             .map(|(i, p)| self.raw(i, p.value))
             .collect())
@@ -414,5 +428,27 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn a_kits_list_ends_with_its_binding_parameters() {
+        let names = declared_names(PluginKind::PcmDrum);
+        let hosts = PluginKind::PcmDrum.host_params().len();
+        assert_eq!(&names[hosts..], &["Part", "Key"]);
+        assert_eq!(names.len(), hosts + 2);
+    }
+
+    #[test]
+    fn the_studio_sets_list_is_only_its_own() {
+        let names = declared_names(PluginKind::StudioSet);
+        assert_eq!(
+            names,
+            PluginKind::StudioSet
+                .host_params()
+                .iter()
+                .map(|h| h.name.clone())
+                .collect::<Vec<_>>()
+        );
+        assert!(PluginKind::StudioSet.binding_params().is_empty());
     }
 }

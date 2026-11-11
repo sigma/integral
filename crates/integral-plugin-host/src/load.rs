@@ -17,6 +17,7 @@ use anyhow::{Result, anyhow};
 use integral_core::host_params::PluginKind;
 use serde_json::json;
 
+use crate::family::declared_names;
 use crate::host;
 use crate::report::Report;
 
@@ -109,44 +110,4 @@ fn check_class(
 
 fn millis(since: Instant) -> f64 {
     (since.elapsed().as_secs_f64() * 1e4).round() / 10.0
-}
-
-/// The names of every parameter the plugin of `kind` declares, in the order
-/// its `param_map` registers them: the device-address parameters
-/// ([`PluginKind::host_params`]), then the Binding parameters
-/// ([`PluginKind::binding_params`]), which `FamilyParams::param_map` chains
-/// after the device's.
-fn declared_names(kind: PluginKind) -> Vec<String> {
-    kind.host_params()
-        .iter()
-        .map(|h| h.name.clone())
-        .chain(kind.binding_params().iter().map(|b| b.name.to_string()))
-        .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_kits_list_ends_with_its_binding_parameters() {
-        let names = declared_names(PluginKind::PcmDrum);
-        let hosts = PluginKind::PcmDrum.host_params().len();
-        assert_eq!(&names[hosts..], &["Part", "Key"]);
-        assert_eq!(names.len(), hosts + 2);
-    }
-
-    #[test]
-    fn the_studio_sets_list_is_only_its_own() {
-        let names = declared_names(PluginKind::StudioSet);
-        assert_eq!(
-            names,
-            PluginKind::StudioSet
-                .host_params()
-                .iter()
-                .map(|h| h.name.clone())
-                .collect::<Vec<_>>()
-        );
-        assert!(PluginKind::StudioSet.binding_params().is_empty());
-    }
 }
