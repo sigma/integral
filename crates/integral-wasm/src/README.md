@@ -22,7 +22,9 @@ Names below are the JS names that `wasm-bindgen` exports.
     - `new(device_id)` creates it.
     - `drain(now_ms)` returns the next message to send.
     - `sendRaw(key, bytes)` queues raw SysEx.
-    - `handleDt1(addr, data, now_ms)` feeds in a received DT1.
+    - `handleDt1(addr, data, now_ms)` feeds in a received DT1, taking the
+      Part tone selects of dumps the Device service relayed (a tone changed
+      on the device), which no read of the state asked for.
     - `readState()` returns the state as a `MixerState`-shaped object.
     - Setters: `setPart*`, `setMixerField`, `setChorusParam`,
       `setReverbParam` and the per-engine `set*Param`.

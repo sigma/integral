@@ -2645,13 +2645,19 @@ impl WasmDeviceState {
     // -- Incoming DT1 ------------------------------------------------------
 
     /// Process an incoming DT1.  Returns true if state changed.
+    ///
+    /// The page is a raw client of the Device service, so a DT1 no read of
+    /// the state asked for can still carry a Part's new tone select: the
+    /// service reads the Part's dump after its tone changed on the device
+    /// and relays the reply. [`DeviceState::handle_relayed_dt1`] takes such
+    /// a select.
     #[wasm_bindgen(js_name = handleDt1)]
     pub fn handle_dt1(&mut self, addr: &[u8], data: &[u8], now_ms: f64) -> bool {
         if addr.len() < 4 {
             return false;
         }
         let address = Address::new(addr[0], addr[1], addr[2], addr[3]);
-        self.inner.handle_dt1(&address, data, now_ms)
+        self.inner.handle_relayed_dt1(&address, data, now_ms)
     }
 
     // -- State read --------------------------------------------------------

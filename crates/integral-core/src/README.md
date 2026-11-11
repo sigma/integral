@@ -37,7 +37,10 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
     Studio Set, or is not a DT1; otherwise it appends.
     `send_raw` only appends to the queue.
   - `drain(now_ms)` returns the next message once the throttle allows it.
-  - `handle_dt1` applies an incoming DT1 to the state.
+  - `handle_dt1` applies an incoming DT1 to the state;
+    `handle_relayed_dt1` also takes the Part tone selects of DT1s no read of
+    the state asked for, as the Device service relays them to its raw
+    clients after a tone changed on the device.
   - `load_mixer` and `load_sns_tone` start tracked reads that are retried.
   - `start_expansion_load` and `next_load_action` run an Expansion load.
   - `set_mixer_field` and the typed `set_*` setters edit parameters.
