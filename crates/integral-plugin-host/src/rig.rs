@@ -417,11 +417,20 @@ impl Rig {
     ///
     /// The scenario did not name that block.
     pub fn held(&self, address: Address, len: usize) -> Result<Vec<u8>> {
+        self.held_at(address, len)
+            .ok_or_else(|| anyhow!("{} is not a block the rig read", bytes_of_address(&address)))
+    }
+
+    /// The `len` bytes the device held at `address` when the link came up,
+    /// from any block the scenario named that covers them.
+    pub fn held_at(&self, address: Address, len: usize) -> Option<Vec<u8>> {
+        let at = address.value();
         self.saved
             .iter()
-            .find(|(at, data)| *at == address && data.len() >= len)
-            .map(|(_, data)| data[..len].to_vec())
-            .ok_or_else(|| anyhow!("{} is not a block the rig read", bytes_of_address(&address)))
+            .find(|(start, data)| {
+                start.value() <= at && at + len as u32 <= start.value() + data.len() as u32
+            })
+            .map(|(start, data)| data[(at - start.value()) as usize..][..len].to_vec())
     }
 
     /// Writes `data` at `address` as another writer would (a raw client of

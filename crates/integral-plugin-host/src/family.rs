@@ -9,7 +9,7 @@ use std::time::Duration;
 use anyhow::{Context, Result, anyhow, bail};
 use integral_core::address::{Address, DataSize};
 use integral_core::device_spec::{INTEGRA7, tone_read_blocks};
-use integral_core::host_params::{Binding, HostParam, PluginKind};
+use integral_core::host_params::{Anchor, Binding, HostParam, PluginKind};
 use integral_core::params::{
     self, TONE_NAME_SIZE, TONE_SELECTION_SIZE, ToneType, part, tone_name_address,
     tone_type_from_bank_msb,
@@ -112,25 +112,32 @@ impl Params {
             .map_err(|e| anyhow!("setting {}: {e}", self.list[index].name))
     }
 
-    /// Parameters of `binding` that a scenario can change and find again on
-    /// the wire: ones with an address of their own (no other parameter shares
-    /// it) that do not depend on an effect's type, `count` of them spread
-    /// over the list.
-    pub fn editable(&self, binding: &Binding, count: usize) -> Vec<usize> {
-        let mut seen: HashMap<u32, usize> = HashMap::new();
+    /// Each parameter's address under `binding`, with how many parameters
+    /// of the list lie at each address.
+    fn addressed(&self, binding: &Binding) -> (Vec<Option<u32>>, HashMap<u32, usize>) {
         let addresses: Vec<Option<u32>> = self
             .list
             .iter()
             .map(|h| h.device_address(binding).ok().map(|a| a.value()))
             .collect();
+        let mut counts: HashMap<u32, usize> = HashMap::new();
         for at in addresses.iter().flatten() {
-            *seen.entry(*at).or_default() += 1;
+            *counts.entry(*at).or_default() += 1;
         }
+        (addresses, counts)
+    }
+
+    /// Parameters of `binding` that a scenario can change and find again on
+    /// the wire: ones with an address of their own (no other parameter shares
+    /// it) that do not depend on an effect's type, `count` of them spread
+    /// over the list.
+    pub fn editable(&self, binding: &Binding, count: usize) -> Vec<usize> {
+        let (addresses, counts) = self.addressed(binding);
         let candidates: Vec<usize> = (0..self.list.len())
             .filter(|&i| {
                 self.list[i].effect.is_none()
                     && self.list[i].max > self.list[i].min
-                    && addresses[i].is_some_and(|at| seen[&at] == 1)
+                    && addresses[i].is_some_and(|at| counts[&at] == 1)
             })
             .collect();
         if candidates.is_empty() || count == 0 {
@@ -138,6 +145,26 @@ impl Params {
         }
         let step = (candidates.len() / count).max(1);
         candidates.into_iter().step_by(step).take(count).collect()
+    }
+
+    /// A Kit plugin's two sides, as positions a scenario can change and find
+    /// again on the wire: the first kit-wide parameter and the first of one
+    /// key's, each not an effect's slot, with an address of its own under
+    /// `binding` — which needs a key, or only the kit-wide side has an
+    /// address — and at least three values, so an edit can differ from both
+    /// the host's value and the device's. `None` for a list without a key
+    /// side (any but a Kit plugin's), or when a side has no such parameter.
+    pub fn kit_sides(&self, binding: &Binding) -> Option<(usize, usize)> {
+        let (addresses, counts) = self.addressed(binding);
+        let side = |key: bool| {
+            (0..self.list.len()).find(|&i| {
+                matches!(self.list[i].anchor, Anchor::Key(_)) == key
+                    && self.list[i].effect.is_none()
+                    && self.list[i].max - self.list[i].min >= 2
+                    && addresses[i].is_some_and(|at| counts[&at] == 1)
+            })
+        };
+        Some((side(false)?, side(true)?))
     }
 
     /// The end of the range of parameter `index` that is farthest from
@@ -352,6 +379,30 @@ pub fn process_blocks(plugin: &mut Plugin, count: usize) -> Result<()> {
     Ok(())
 }
 
+/// Binds the plugin of `kind` to `binding` as a host does: by setting the
+/// Binding parameters, a change of which rebinds the instance within a
+/// worker tick ([`PluginKind::binding_params`]).
+///
+/// # Errors
+///
+/// The plugin declares no Binding parameter, or refused the value.
+pub fn bind_as_host(plugin: &mut Plugin, kind: PluginKind, binding: &Binding) -> Result<()> {
+    let declared = plugin
+        .get_parameters()
+        .map_err(|e| anyhow!("listing parameters: {e}"))?;
+    for param in kind.binding_params() {
+        let raw = param.raw_of(binding);
+        let Some(found) = declared.iter().find(|d| d.name == param.name) else {
+            bail!("the plugin declares no {} parameter", param.name);
+        };
+        let value = f64::from(raw - param.min) / f64::from(param.max - param.min);
+        plugin
+            .set_parameter(found.id, value)
+            .map_err(|e| anyhow!("setting {}: {e}", param.name))?;
+    }
+    Ok(())
+}
+
 /// Makes the fake device hold every parameter of `kind` at its default for
 /// `binding`, as a device that has just been initialized does, so that what a
 /// new instance adopts is what the device holds, bit for bit.
@@ -436,6 +487,60 @@ mod tests {
         let hosts = PluginKind::PcmDrum.host_params().len();
         assert_eq!(&names[hosts..], &["Part", "Key"]);
         assert_eq!(names.len(), hosts + 2);
+    }
+    #[test]
+    fn a_kits_sides_are_one_kit_wide_parameter_and_one_of_a_keys() {
+        for kind in [PluginKind::PcmDrum, PluginKind::SnDrum] {
+            // `ids` is unused: the test reads the list, it sets nothing.
+            let params = Params {
+                list: kind.host_params(),
+                ids: Vec::new(),
+            };
+            let first = match kind {
+                PluginKind::SnDrum => INTEGRA7.sn_drum_keys.first,
+                _ => INTEGRA7.pcm_drum_keys.first,
+            };
+            let binding = Binding::of_part(0).with_key(first);
+            let Some((kit_wide, key)) = params.kit_sides(&binding) else {
+                panic!("{} has a kit-wide and a key side", kind.name());
+            };
+            assert!(
+                matches!(params.host(kit_wide).anchor, Anchor::Part),
+                "{}: {} is not kit-wide",
+                kind.name(),
+                params.host(kit_wide).name
+            );
+            assert!(
+                matches!(params.host(key).anchor, Anchor::Key(_)),
+                "{}: {} is not a key's",
+                kind.name(),
+                params.host(key).name
+            );
+            // Both findable again on the wire: an address of their own, and
+            // each with at least three values, as the picking promises.
+            let wide = params.host(kit_wide).device_address(&binding).unwrap();
+            let one = params.host(key).device_address(&binding).unwrap();
+            assert_ne!(wide.value(), one.value(), "{}", kind.name());
+            for i in [kit_wide, key] {
+                assert!(
+                    params.host(i).max - params.host(i).min >= 2,
+                    "{}: {} has not three values",
+                    kind.name(),
+                    params.host(i).name
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_tone_or_studio_set_list_has_no_sides() {
+        for kind in [PluginKind::StudioSet, PluginKind::PcmSynth] {
+            let params = Params {
+                list: kind.host_params(),
+                ids: Vec::new(),
+            };
+            assert_eq!(params.kit_sides(&Binding::of_part(0)), None);
+        }
     }
 
     #[test]
