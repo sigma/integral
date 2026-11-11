@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import { useCallback, useMemo } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import {
   DisplayKind,
   DisplayProp,
@@ -61,6 +61,7 @@ import { FilterScope } from "./synth-ui/FilterScope";
 import { useMfxHandlers } from "./useMfxHandlers";
 import { DrumKeyGrid } from "./DrumKeyGrid";
 import { useDrumKey } from "./useDrumKey";
+import { useKitBlocks, type KitBlockRead } from "./useKitBlocks";
 import { lockedKey, type DrumScope } from "./pluginPages";
 import { WaveDisplay } from "./WaveDisplay";
 import {
@@ -97,51 +98,32 @@ interface Props {
 
 export function PcmDrumEditor({ partIndex, service, marking, scope }: Props) {
   const keys = deviceSpec().pcm_drum_keys;
-  const [common, setCommon] = useState<PcmDrumCommon | null>(null);
-  const [mfx, setMfx] = useState<MfxState | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Load common + common2 + MFX on mount / part change
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-
-    async function load() {
-      try {
-        const commonData = await service.requestData(
-          Array.from(pcmd_common_address(partIndex)),
-          Array.from(pcmd_common_size()),
-        );
-        if (cancelled) return;
-        const c = service.device.applyPcmdCommon(commonData) as PcmDrumCommon | null;
-        if (c) setCommon(c);
-
-        // Common2: read into core's copy of the kit (the editor shows none of it)
-        const c2Data = await service.requestData(
-          Array.from(pcmd_common2_address(partIndex)),
-          Array.from(pcmd_common2_size()),
-        );
-        if (cancelled) return;
-        service.device.applyPcmdCommon2(c2Data);
-
-        const mfxData = await service.requestData(
-          Array.from(pcmd_mfx_address(partIndex)),
-          Array.from(mfx_block_size()),
-        );
-        if (cancelled) return;
-        const m = service.device.applyMfxBlock(partIndex, mfxData) as MfxState | null;
-        if (m) setMfx(m);
-      } catch {
-        // Timeout -- partial data is OK
-      }
-      if (!cancelled) setLoading(false);
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [partIndex, service]);
+  const reads = useMemo<KitBlockRead[]>(
+    () => [
+      {
+        address: () => Array.from(pcmd_common_address(partIndex)),
+        size: () => Array.from(pcmd_common_size()),
+        apply: (data) => service.device.applyPcmdCommon(data),
+      },
+      // Common2: read into core's copy of the kit (the editor shows none of it)
+      {
+        address: () => Array.from(pcmd_common2_address(partIndex)),
+        size: () => Array.from(pcmd_common2_size()),
+        apply: (data) => service.device.applyPcmdCommon2(data),
+      },
+      {
+        address: () => Array.from(pcmd_mfx_address(partIndex)),
+        size: () => Array.from(mfx_block_size()),
+        apply: (data) => service.device.applyMfxBlock(partIndex, data),
+      },
+    ],
+    [partIndex, service],
+  );
+  // A block the kit read missed (a set reopening races the recall push) is
+  // an error to retry, not a silent placeholder.
+  const { blocks, loading, failed, retry, setValue } = useKitBlocks(service, reads, [partIndex, scope]);
+  const common = (blocks[0]?.value ?? null) as PcmDrumCommon | null;
+  const mfx = (blocks[2]?.value ?? null) as MfxState | null;
 
   const fetchPartial = useCallback(
     async (k: number) =>
@@ -157,9 +139,12 @@ export function PcmDrumEditor({ partIndex, service, marking, scope }: Props) {
   const setKitLevel = useCallback(
     (value: number) => {
       service.device.setPcmdKitLevel(partIndex, value);
-      setCommon((prev) => (prev ? { ...prev, kitLevel: value } : prev));
+      setValue(0, (prev) => {
+        const c = prev as PcmDrumCommon | null;
+        return c ? { ...c, kitLevel: value } : c;
+      });
     },
-    [partIndex, service],
+    [partIndex, service, setValue],
   );
 
   const setPartialParam = useCallback(
@@ -185,6 +170,14 @@ export function PcmDrumEditor({ partIndex, service, marking, scope }: Props) {
     [current, partIndex, selectedKey, service, update],
   );
 
+  const setMfx = useCallback<Dispatch<SetStateAction<MfxState | null>>>(
+    (action) =>
+      setValue(2, (prev) => {
+        const m = prev as MfxState | null;
+        return typeof action === "function" ? action(m) : action;
+      }),
+    [setValue],
+  );
   const mfxHandlers = useMfxHandlers(service, partIndex, ToneType.PcmDrum, setMfx);
 
   // ---------------------------------------------------------------------------
@@ -317,6 +310,17 @@ export function PcmDrumEditor({ partIndex, service, marking, scope }: Props) {
   return (
     <div className={css.editor}>
       {common && <div className={css.kitName}>{common.kitName || "(unnamed kit)"}</div>}
+
+      {/* A block the kit read missed: say so, and offer to read it again,
+          rather than sitting on placeholders that look like device values. */}
+      {failed && (
+        <div className={css.readError} role="alert">
+          Couldn't read the PCM drum kit from the device.
+          <button type="button" onClick={retry}>
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* The key grid picks the Scope of the key Sections below it; the kit's level sits beside the grid. */}
       {scope === undefined ? (

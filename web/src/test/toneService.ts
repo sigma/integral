@@ -51,6 +51,25 @@ export function dt1Drainer(device: WasmDeviceState, start = 0): () => SentDt1[] 
   };
 }
 
+/** A fake service like `fakeToneService`'s, but whose `requestData` rejects
+ *  the first `rejections` reads of each address (`Infinity`: every read)
+ *  before answering, so a test can exercise a read that fails and then clears. */
+export function flakyToneService(device: WasmDeviceState, rejections: number) {
+  const { service, sentDt1s } = fakeToneService(device);
+  const answered = service.requestData.bind(service);
+  const failed = new Map<string, number>();
+  service.requestData = async (address: number[], size: number[]) => {
+    const key = address.join(",");
+    const seen = failed.get(key) ?? 0;
+    if (seen < rejections) {
+      failed.set(key, seen + 1);
+      throw new Error("RQ1 timeout");
+    }
+    return answered(address, size);
+  };
+  return { service, sentDt1s };
+}
+
 /** The slider control labelled `label` (the first, if several). */
 export function slider(scope: ParentNode, label: string): Element {
   const found = scope.querySelector(`[role="slider"][aria-label="${label}"]`);

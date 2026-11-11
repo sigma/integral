@@ -13,7 +13,7 @@ import { SnDrumEditor } from "./SnDrumEditor";
 import { familyVar } from "./synth-ui";
 import { cleanup, click, render, typeInto } from "./test/dom";
 import { controlsOffGrid, drumKey, kitPlacement } from "./test/drum";
-import { arrowUp, fakeToneService, slider } from "./test/toneService";
+import { arrowUp, fakeToneService, flakyToneService, slider } from "./test/toneService";
 
 afterEach(cleanup);
 
@@ -136,6 +136,50 @@ describe("SnDrumEditor", () => {
       expect(container.querySelector('[role="slider"][aria-label="Amb Lv"]')).toBeNull();
       arrowUp(slider(container, "Attack"));
       expect(sentDt1s()).toEqual([{ address: [...snd_note_address(PART, 40).slice(0, 3), 12], data: [1] }]);
+    });
+  });
+
+  describe("when the kit reads fail", () => {
+    /** The editor's read error, if any. */
+    const readError = (container: HTMLElement) => container.querySelector('[role="alert"]');
+
+    /** The error banner's Retry button. */
+    const retryButton = (container: HTMLElement) => {
+      const button = [...container.querySelectorAll("button")].find((b) => b.textContent === "Retry");
+      if (!button) throw new Error("no Retry button");
+      return button;
+    };
+
+    it("keeps failing: shows the error and inert placeholders, not values", async () => {
+      const { service } = flakyToneService(new WasmDeviceState(0x10), Infinity);
+      const { container } = render(<SnDrumEditor partIndex={PART} service={service} />);
+      await act(async () => {});
+
+      expect(readError(container)?.textContent).toContain("Couldn't read");
+      expect(retryButton(container)).toBeTruthy();
+      // The kit's Controls stay inert placeholders at their spec defaults...
+      const kitLv = slider(container, "Kit Lv");
+      expect(kitLv.getAttribute("aria-valuenow")).toBe("127");
+      expect(kitLv.closest("[data-field]")!.hasAttribute("inert")).toBe(true);
+      // ...and the MFX panel, gated on its block, is absent.
+      expect(container.textContent).not.toContain("MACROS");
+    });
+
+    it("recovers through Retry once the reads answer again", async () => {
+      const { service } = flakyToneService(new WasmDeviceState(0x10), 1);
+      const { container } = render(<SnDrumEditor partIndex={PART} service={service} />);
+      await act(async () => {});
+      expect(readError(container)).not.toBeNull();
+
+      click(retryButton(container));
+      await act(async () => {});
+
+      expect(readError(container)).toBeNull();
+      // The answered (zeroed) kit, not the spec defaults.
+      expect(slider(container, "Kit Lv").getAttribute("aria-valuenow")).toBe("0");
+      expect(slider(container, "Amb Lv").getAttribute("aria-valuenow")).toBe("0");
+      // The MFX panel is back with its block.
+      expect(container.textContent).toContain("MACROS");
     });
   });
 });
