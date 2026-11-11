@@ -25,6 +25,8 @@ mod gesture;
 #[cfg(target_os = "macos")]
 mod host;
 #[cfg(target_os = "macos")]
+mod kit_binding;
+#[cfg(target_os = "macos")]
 mod load;
 #[cfg(target_os = "macos")]
 mod mismatch;
@@ -48,7 +50,7 @@ mod cli {
     use clap::{Parser, Subcommand};
 
     use crate::rig::Device;
-    use crate::{automate, drag, driver, load, mismatch, recall, report::Report};
+    use crate::{automate, drag, driver, kit_binding, load, mismatch, recall, report::Report};
 
     #[derive(Parser)]
     #[command(about = "Dev-only VST3 test host for the Integral plugin")]
@@ -125,6 +127,10 @@ mod cli {
             #[arg(long)]
             no_editor: bool,
         },
+        /// A Kit plugin's inert side writes nothing: bound to the whole
+        /// kit, its key parameters; bound to a key, its kit-wide ones
+        /// (check 9, steps 2 and 3 of the live runbook).
+        KitBinding,
     }
 
     impl Scenario {
@@ -137,6 +143,7 @@ mod cli {
                     | Self::Recall
                     | Self::Automate { .. }
                     | Self::BindingMismatch { .. }
+                    | Self::KitBinding
             )
         }
     }
@@ -166,7 +173,9 @@ mod cli {
         let report = Arc::new(Report::new());
         let owns_service = cli.scenario.owns_service();
         if !owns_service && !cli.device.is_fake() {
-            eprintln!("--device applies to drag, recall, automate and binding-mismatch");
+            eprintln!(
+                "--device applies to drag, recall, automate, binding-mismatch and kit-binding"
+            );
             return ExitCode::from(2);
         }
         if !cli.device.is_fake() && !cli.write_device {
@@ -179,11 +188,11 @@ mod cli {
         if cli.class.is_some()
             && matches!(
                 cli.scenario,
-                Scenario::Automate { .. } | Scenario::BindingMismatch { .. }
+                Scenario::Automate { .. } | Scenario::BindingMismatch { .. } | Scenario::KitBinding
             )
         {
             eprintln!(
-                "--class applies to load, drag and recall: automate and binding-mismatch use the plugin they are about"
+                "--class applies to load, drag and recall: automate, binding-mismatch and kit-binding use the plugins they are about"
             );
             return ExitCode::from(2);
         }
@@ -234,6 +243,10 @@ mod cli {
                     },
                     &report,
                 ),
+            ),
+            Scenario::KitBinding => (
+                "kit-binding",
+                kit_binding::run(&cli.bundle, &cli.device, &report),
             ),
         };
         driver::conclude(&report, name, &outcome)
