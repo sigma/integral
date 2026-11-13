@@ -698,6 +698,63 @@ fn a_raw_dt1_to_a_tone_select_is_a_tone_change() {
     assert!(!link.sent().is_empty());
 }
 
+/// The select of Part `part_index` as the device would report it in a DT1.
+fn select_dt1(part_index: u8, tone: [u8; 3]) -> Vec<u8> {
+    sysex::build_dt1(
+        DEVICE_ID,
+        &params::part_address(part_index, part::TONE_BANK_MSB),
+        &tone,
+    )
+}
+
+#[test]
+fn a_tone_one_raw_client_selects_reaches_the_other_raw_clients() {
+    let (mut service, _link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (writer, writer_inbox) = client(&mut service, 1);
+    let (watcher, watcher_inbox) = client(&mut service, 2);
+    let (_quiet, quiet_inbox) = client(&mut service, 3);
+    ask(&mut service, writer, Request::ReceiveRaw { on: true });
+    ask(&mut service, watcher, Request::ReceiveRaw { on: true });
+    watcher_inbox.take();
+
+    // Written raw, then through the typed request.
+    ask(&mut service, writer, raw(select_dt1(3, [95, 0, 7])));
+    ask(
+        &mut service,
+        writer,
+        Request::ChangeTone {
+            part: 4,
+            msb: 89,
+            lsb: 64,
+            pc: 2,
+        },
+    );
+    run_until(&mut service, 0.0, 200.0);
+
+    let relayed = |inbox: &Inbox| -> Vec<Message> {
+        inbox
+            .take()
+            .into_iter()
+            .filter(|m| matches!(m, Message::Sysex { .. }))
+            .collect()
+    };
+    assert_eq!(
+        relayed(&watcher_inbox),
+        [
+            Message::Sysex {
+                bytes: select_dt1(3, [95, 0, 7])
+            },
+            Message::Sysex {
+                bytes: select_dt1(4, [89, 64, 2])
+            },
+        ]
+    );
+    // It knows its own write, and a client that takes no raw SysEx takes none.
+    assert!(relayed(&writer_inbox).is_empty());
+    assert!(relayed(&quiet_inbox).is_empty());
+}
+
 #[test]
 fn a_raw_dt1_to_the_studio_set_select_is_a_studio_set_change() {
     let (mut service, _link) = service();

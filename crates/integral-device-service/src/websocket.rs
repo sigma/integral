@@ -20,7 +20,9 @@
 //!   there is no reply channel for it, because a shared MIDI port has none
 //!   either.
 //! - Service to browser: every SysEx message the device sends, as on a shared
-//!   MIDI port. The endpoint says [`Request::Hello`] with raw on for the
+//!   MIDI port, and the select of a Part's tone, as a DT1 the device would
+//!   send, when another client changed it (the page cannot take a
+//!   [`Message::Bulk`]; the service tells it as it would a Program Change). The endpoint says [`Request::Hello`] with raw on for the
 //!   client when it connects, so there is nothing to negotiate. Link state
 //!   is told by the socket itself (see below); whether a device answers is
 //!   asked with an Identity Request, as on any MIDI port.

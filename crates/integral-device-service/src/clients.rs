@@ -223,10 +223,10 @@ impl Clients {
 
     /// Send `message` to every greeted client `wants`, dropping any that
     /// cannot take it.
-    fn broadcast(&mut self, message: &Message, wants: impl Fn(&Client) -> bool) {
+    fn broadcast(&mut self, message: &Message, wants: impl Fn(ClientId, &Client) -> bool) {
         let before = self.clients.values().filter(|c| c.bound.is_some()).count();
-        self.clients.retain(|_, client| {
-            !(client.greeted && wants(client)) || client.outbox.deliver(message)
+        self.clients.retain(|id, client| {
+            !(client.greeted && wants(*id, client)) || client.outbox.deliver(message)
         });
         if self.clients.values().filter(|c| c.bound.is_some()).count() != before {
             self.sharing_changed = true;
@@ -235,12 +235,12 @@ impl Clients {
 
     /// Tell every client the link came up.
     pub(crate) fn link_up(&mut self, session: SessionId) {
-        self.broadcast(&Message::LinkUp { session }, |_| true);
+        self.broadcast(&Message::LinkUp { session }, |_, _| true);
     }
 
     /// Tell every client the link went down.
     pub(crate) fn link_down(&mut self) {
-        self.broadcast(&Message::LinkDown, |_| true);
+        self.broadcast(&Message::LinkDown, |_, _| true);
     }
 
     /// Tell the clients subscribed to `binding` that `param` changed.
@@ -257,7 +257,7 @@ impl Clients {
             binding,
             value,
         };
-        self.broadcast(&message, |c| {
+        self.broadcast(&message, |_, c| {
             c.subscriptions.iter().any(|s| s.matches(&binding))
         });
     }
@@ -279,12 +279,22 @@ impl Clients {
             selected: selection.is_some(),
             tone: selection.flatten(),
         };
-        self.broadcast(&message, |c| match kind {
+        self.broadcast(&message, |_, c| match kind {
             BulkKind::StudioSet | BulkKind::Chorus | BulkKind::Reverb => {
                 !c.subscriptions.is_empty()
             }
             BulkKind::Tone | BulkKind::Mfx => c.subscriptions.iter().any(|s| s.matches(&binding)),
         });
+    }
+
+    /// Pass a SysEx message to the raw clients but `writer`, which knows what
+    /// it wrote: the report of a change another client made, as the device
+    /// would have reported it.
+    pub(crate) fn sysex_but(&mut self, writer: ClientId, bytes: &[u8]) {
+        let message = Message::Sysex {
+            bytes: bytes.to_vec(),
+        };
+        self.broadcast(&message, |id, c| c.raw && id != writer);
     }
 
     /// Pass a SysEx message from the device to the raw clients.
@@ -295,6 +305,6 @@ impl Clients {
         let message = Message::Sysex {
             bytes: bytes.to_vec(),
         };
-        self.broadcast(&message, |c| c.raw);
+        self.broadcast(&message, |_, c| c.raw);
     }
 }

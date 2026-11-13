@@ -194,7 +194,8 @@ Subdirectories:
   `handleDt1`). TypeScript listeners are notified after that. Pending RQ1
   promises are resolved by address. `handleDt1` also takes the Part tone
   selects of dumps the Device service relayed — a tone changed on the
-  device reaches the mixer without a reload, in the browser and the plugin.
+  device, or selected by another client of the service, reaches the mixer
+  without a reload, in the browser and the plugin.
 - **Transports.** Device I/O goes through `MidiPorts`. In a browser that is
   Web MIDI: ports paired by identical name, inputs opened explicitly. In the
   plugin, bytes are relayed as JSON over the wry IPC, and the page still
