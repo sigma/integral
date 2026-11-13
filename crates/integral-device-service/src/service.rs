@@ -1570,6 +1570,37 @@ impl Service {
         true
     }
 
+    /// Answer the typed reads whose reply a write overtook: the bytes of
+    /// `reply` outside `fresh` are older than the write, so the reader gets
+    /// what the write set (the cache's value) instead of timing out. Nothing
+    /// is announced: the write already was.
+    fn answer_overtaken_reads(&mut self, reply: Range<u32>, fresh: &[Range<u32>]) {
+        let mut stale = vec![reply];
+        for taken in fresh {
+            stale = stale
+                .into_iter()
+                .flat_map(|r| {
+                    [
+                        r.start..r.end.min(taken.start),
+                        r.start.max(taken.end)..r.end,
+                    ]
+                    .into_iter()
+                    .filter(|p| p.start < p.end)
+                })
+                .collect();
+        }
+        for range in stale {
+            let Some(address) = Address::from_value(range.start) else {
+                continue;
+            };
+            if let Some(known) = self.known.get(&address).cloned()
+                && known.len() == range.len()
+            {
+                self.answer_read(&address, &known);
+            }
+        }
+    }
+
     /// Refuse the reads the device has not answered by `now_ms`.
     fn expire_reads(&mut self, now_ms: f64) {
         let (late, waiting): (Vec<_>, Vec<_>) = std::mem::take(&mut self.reads)
@@ -1654,7 +1685,20 @@ impl Service {
                 // the tone before, so neither the state, the cache nor the
                 // subscribers take it.
             } else {
-                changed = self.take_dt1(&dt1.address, &dt1.data, now_ms);
+                // Only what no write has overtaken: the device answers in
+                // order, so a read sent before a write comes back with the
+                // value from before it. The raw copy below goes out whole.
+                let start = dt1.address.value();
+                let fresh = self
+                    .device
+                    .fresh_reply(&dt1.address, dt1.data.len(), now_ms);
+                self.answer_overtaken_reads(start..start + dt1.data.len() as u32, &fresh);
+                for part in fresh {
+                    let address = Address::from_value(part.start).expect("inside the reply");
+                    let data =
+                        &dt1.data[(part.start - start) as usize..(part.end - start) as usize];
+                    changed |= self.take_dt1(&address, data, now_ms);
+                }
             }
         } else if let Ok(identity) = sysex::parse_identity_reply(message)
             && identity.is_integra7()

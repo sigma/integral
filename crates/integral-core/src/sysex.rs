@@ -272,6 +272,42 @@ pub fn parse_dt1(raw: &[u8]) -> Result<Dt1Message, Dt1ParseError> {
     })
 }
 
+/// A parsed RQ1 (Data Request 1) message: what a client asks of the device.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rq1Message {
+    /// Device ID the request is for.
+    pub device_id: u8,
+    /// First address asked for.
+    pub address: Address,
+    /// How many bytes are asked for.
+    pub size: DataSize,
+}
+
+/// Parse a raw SysEx message as an RQ1, or `None` if it is not a well-formed
+/// one (other message, wrong model, bad checksum).
+///
+/// ```text
+/// F0 41 dev 00 00 64 11 aa bb cc dd ss ss ss ss sum F7
+/// ```
+pub fn parse_rq1(raw: &[u8]) -> Option<Rq1Message> {
+    // Header (7), address (4), size (4), checksum, F7.
+    if raw.len() != 7 + 4 + 4 + 2
+        || raw[0] != SYSEX_START
+        || raw[raw.len() - 1] != SYSEX_END
+        || raw[1] != ROLAND_ID
+        || raw[3..6] != MODEL_ID
+        || raw[6] != CMD_RQ1
+        || checksum(&raw[7..15]) != raw[15]
+    {
+        return None;
+    }
+    Some(Rq1Message {
+        device_id: raw[2],
+        address: Address::new(raw[7], raw[8], raw[9], raw[10]),
+        size: DataSize::new(raw[11], raw[12], raw[13], raw[14]),
+    })
+}
+
 // ---------------------------------------------------------------------------
 // DT1 / RQ1 builders
 // ---------------------------------------------------------------------------
@@ -445,6 +481,27 @@ mod tests {
         assert_eq!(msg[12], 0x5B);
         // Verify EOX
         assert_eq!(msg[13], 0xF7);
+    }
+
+    #[test]
+    fn parse_rq1_reads_what_build_rq1_wrote_and_refuses_the_rest() {
+        let (address, size) = (
+            Address::new(0x1A, 0x41, 0x20, 0x0C),
+            DataSize::from_value(3),
+        );
+        let size = size.unwrap();
+        let rq1 = build_rq1(0x10, &address, &size);
+        let parsed = parse_rq1(&rq1).expect("well formed");
+        assert_eq!(
+            (parsed.device_id, parsed.address, parsed.size),
+            (0x10, address, size)
+        );
+
+        let mut bad_sum = rq1.clone();
+        bad_sum[15] ^= 1;
+        assert_eq!(parse_rq1(&bad_sum), None);
+        assert_eq!(parse_rq1(&build_dt1(0x10, &address, &[1])), None);
+        assert_eq!(parse_rq1(&rq1[..rq1.len() - 1]), None);
     }
 
     #[test]

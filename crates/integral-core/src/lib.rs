@@ -46,6 +46,7 @@ pub mod parse_helpers;
 pub mod pcm_drum;
 pub mod pcm_structure;
 pub mod pcm_synth;
+pub mod read_tracker;
 pub mod relevance;
 #[cfg(feature = "sequencer")]
 pub mod sequencer;
