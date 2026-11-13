@@ -8,10 +8,11 @@ via SysEx Data Set 1 (DT1) and Data Request 1 (RQ1) messages.
 
 - **"#" marked addresses** use nibblized data encoding. Each byte of the
   original value is split into two nibbles sent as separate bytes. For example,
-  ABH becomes 0AH 0BH, transmitted in that order.
+  ABH becomes 0AH 0BH, transmitted in that order. On hardware a DT1 that covers
+  only part of the `<*>` groups of SN Synth and PCM Synth Common is ignored.
 - **"\<\*>" marked parameters** are documented as ignored on receive. On
-  hardware most Studio Set and tone ones store an in-range write and only a few
-  discard it
+  hardware each Studio Set and tone one stores an in-range write, except that a
+  `#` group of them takes only a whole write
   ([99-undocumented.md](99-undocumented.md#10-reserved-bytes-on-receive)).
 - **Bit patterns** such as `0000 aaaa` indicate which bits carry data within the
   transmitted byte. Unused bits must be zero.

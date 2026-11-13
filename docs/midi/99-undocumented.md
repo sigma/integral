@@ -843,42 +843,74 @@ Measured on 2026-11-07 ([#446](https://github.com/sigma/integral/issues/446#issu
 
 The MIDI Implementation says the INTEGRA-7 "ignores" bytes marked `<*>` on
 receive. This section records which of them do, on the Temporary Studio Set
-and the Temporary Tones.
+and the Temporary Tones of every type.
 
 ### Method
 
-For each byte: read it, DT1 the value with its low bit flipped (always inside
-the byte's bit pattern), read it back, DT1 the original back, read it again.
-Nothing was saved, no Studio Set or tone was switched, and no User memory was
-written. Over "Network Integra" with `raw-read` and `raw-send`, 2026-11-13,
-on the Studio Set and tones named under "Coverage". Afterwards every byte
-read its original value and the Part and Common blocks were identical to
-their first reads.
+For each byte: read the block it lies in (from the block's start), DT1 an
+in-range value that differs from the original, read the block again, DT1 the
+original back, read it once more. A value outside the byte's bit pattern is
+refused, which proves nothing, so each byte got up to eight values
+(the original with its low bit flipped, `0`, the pattern's maximum, `1`,
+the maximum less one, `2A`, `55` and half the maximum, each masked to the
+pattern) and stopped at the first the read-back showed. A byte counts as
+ignored only if none of them did. Nothing was saved, no Studio Set was
+switched, and no User memory was written. Over "Network Integra" with
+`raw-read` and `raw-send`, 2026-11-13.
 
-A single-byte RQ1 at a byte the device ignores (SN Synth Common `00 0D`)
-gets no reply. Read such a byte as part of a block that starts earlier.
+The Studio Set and the SN Synth and SN Drum tones were tried first, on the
+Parts that held them, with the low bit flipped (and more values for a byte
+that kept its own). The PCM Synth, SN Acoustic and PCM Drum tones were
+tried on Part 16: its Bank Select and PC (Studio Set Part `00 06`-`00 08`)
+were set by DT1 to the first preset of each type (MSB/LSB/PC `57 40 00`,
+`59 40 00`, `56 40 00`) and, after the last test, back to its own
+(`5F 43 78`, an SN Synth preset). The Part block and the SN Synth Temporary
+Tone blocks read byte for byte as before. The other types' Temporary Tone
+blocks cannot be read back while the Part holds another type (no reply).
+
+A single-byte RQ1 at a byte the device ignores gets no reply. Read such a
+byte as part of a block that starts earlier.
 
 ### Behavior
 
-- **Stored** (the read-back showed the new value, 97 byte tests): every `<*>`
-  byte tested except the three below. Studio Set Common `00 10`–`00 17`,
-  `00 28`–`00 38`, `00 50`–`00 53`; Chorus `00 02`; Motional Surround
-  `00 0D`–`00 0F`; Part `00 02`–`00 05`, `00 26`, `00 2A`, `00 45`, `00 47`,
-  `00 4A`–`00 4C` (Parts 1 and 10); SN Synth Common `00 10`, `00 11`,
-  `00 18`, `00 21`–`00 2D`, `00 2F`, `00 30`, `00 33`, `00 3D`–`00 3F`; SN
-  Synth MFX `00 01`, `00 04`; SN Synth Partial `00 02`, `00 2B`, `00 32`,
-  `00 33` (Partials 1–3); SN Drum Common `00 0C`–`00 0F` (the tone name's
-  unmarked reserves) and MFX `00 01`, `00 04`.
-- **Ignored**: SN Synth Common `00 0D`, `00 0E`, `00 0F`, the 3-byte `#`
-  group. `01`, `02`, `0F`, `10` and `7F` (`00 0D`) and `01`, `0F`, `10`
-  (`00 0E`, `00 0F`) all read back as `00`.
+- **Stored** (the read-back showed the new value, 496 byte tests): every
+  `<*>` byte tested that is not in a `#` group. Studio Set Common
+  `00 10`-`00 17`, `00 28`-`00 38`, `00 50`-`00 53`; Chorus `00 02`;
+  Motional Surround `00 0D`-`00 0F`; Part `00 02`-`00 05`, `00 26`, `00 2A`,
+  `00 45`, `00 47`, `00 4A`-`00 4C` (Parts 1 and 10); SN Synth Common
+  `00 10`, `00 11`, `00 18`, `00 21`-`00 2D`, `00 2F`, `00 30`, `00 33`,
+  `00 3D`-`00 3F`; SN Synth MFX `00 01`, `00 04`; SN Synth Partial `00 02`,
+  `00 2B`, `00 32`, `00 33` (Partials 1-3); SN Drum Common `00 0C`-`00 0F`
+  (the tone name's unmarked reserves) and MFX `00 01`, `00 04`; PCM Synth
+  Common `00 0C`, `00 0D`, `00 1E`, `00 21`, `00 27`, `00 4F`, MFX `00 01`,
+  `00 04`, Partial `00 0D`, `00 0E`, `00 11`, `00 15` (Partials 1-4) and
+  Common 2 `00 00`-`00 0F`, `00 14`-`00 32`, `00 34`-`00 37`; SN Acoustic
+  Common `00 0C`-`00 0F` (unmarked name reserves) and `00 42`-`00 45`, MFX
+  `00 01`, `00 04`; PCM Drum Common `00 11`, MFX `00 01`, `00 04`, Partial
+  `00 17`, `00 18`, `00 1F` (all 88 keys) and Common 2 `00 00`-`00 0F`,
+  `00 12`-`00 30`.
+- **A `#` group takes a whole write and ignores a part of one.** The
+  groups tried: SN Synth Common `00 0D`-`00 0F` (3 bytes, `0000 aaaa` each)
+  and PCM Synth Common `00 1F`-`00 20` (2 bytes). A DT1 of one byte (or of
+  two bytes of the three) read back unchanged for every value, which this
+  section first took for an ignored byte. A DT1 that covers the whole
+  group stores it: `[1 2 3]`, `[0 0 0]`, `[F F F]` and `[4 5 6]` at
+  `00 0D` all read back as written, as do `[1 2]`, `[0 0]`, `[F F]` and
+  `[9 3]` at `00 1F`, whether the DT1 starts at the group or earlier
+  (`00 0C`-`00 10` in one DT1 stored `00 0C` and the group). A nibble
+  above `F` is not stored whole: `[0 10 0]` and `[7F 7F 7F]` at SN Synth
+  `00 0D` read back `[0 7 8]`.
+- **No byte ignores a write of every value.** The three SN Synth bytes this
+  section listed as ignored are the group above.
 - **A value outside the bit pattern is refused, even by a byte that stores.**
   Common `00 17` (`0000 000a`) took `00` and `01` and kept the old value
   for `02` and `05`. Common `00 38` (`0000 aaaa`) took `01` and `0F` and
   kept `00` for `10` and `30`. Part `00 02` kept its value for `05`. These
   were read as "ignored" before ([section 7](#7-initialize-studio-set-sound-ctrl-part-tone-partial)).
 - Writing `0` to a stored reserve changes it when its value is not `0`
-  (Common `00 17` is `01` in an INIT set).
+  (Common `00 17` is `01` in an INIT set; PCM Synth Common `00 27` is `0D`
+  in preset 1, SN Acoustic and PCM Drum Partial `00 18` also hold non-zero
+  values).
 - The panel-backed `18 00 00 4B` was not written
   ([section 8](#8-system-common-reserves-and-persistence)): its state can't
   be read back.
@@ -888,37 +920,66 @@ gets no reply. Read such a byte as part of a block that starts earlier.
 | Block | Bytes | Value seen |
 |-------|-------|------------|
 | Studio Set Common | `00 10` | `7F` |
-| | `00 11`–`00 13` | `10` |
-| | `00 14`–`00 17` | `01` |
-| | `00 28`–`00 38`, `00 50`–`00 53` | `00` |
-| Chorus `00 02`, Motional `00 0D`–`00 0F` | | `00` |
-| Part | `00 02`–`00 05` | `01` |
+| | `00 11`-`00 13` | `10` |
+| | `00 14`-`00 17` | `01` |
+| | `00 28`-`00 38`, `00 50`-`00 53` | `00` |
+| Chorus `00 02`, Motional `00 0D`-`00 0F` | | `00` |
+| Part | `00 02`-`00 05` | `01` |
 | | `00 26` | `7F` |
-| | `00 2A`, `00 4A`–`00 4C` | `00` |
+| | `00 2A`, `00 4A`-`00 4C` | `00` |
 | | `00 45`, `00 47` | `40` |
-| SN Synth Common | `00 0D`–`00 0F`, `00 10`, `00 11`, `00 18`, `00 21`–`00 2D`, `00 2F`, `00 30`, `00 3D`–`00 3F` | `00` |
+| SN Synth Common | `00 0D`-`00 0F`, `00 10`, `00 11`, `00 18`, `00 21`-`00 2D`, `00 2F`, `00 30`, `00 3D`-`00 3F` | `00` |
 | | `00 33` | `01` |
 | SN Synth MFX | `00 01` | `7F` |
 | | `00 04` | `00` |
 | SN Synth Partial | `00 02`, `00 2B` | `00` |
 | | `00 32`, `00 33` | `40` |
-| SN Drum Common | `00 0C`–`00 0F` | `20` |
+| SN Drum Common | `00 0C`-`00 0F` | `20` |
 | SN Drum MFX | `00 01` / `00 04` | `7F` / `00` |
+| PCM Synth Common (preset 1) | `00 0C` | `01` |
+| | `00 0D`, `00 1E`, `00 21`, `00 4F` | `00` |
+| | `00 1F` / `00 20` | `06` / `04` |
+| | `00 27` | `0D` |
+| PCM Synth MFX / Partial | MFX `00 01` / `00 04` | `7F` / `00` |
+| | Partial `00 0D`, `00 0E` | `7F` |
+| | Partial `00 11` | `00`, `01` |
+| | Partial `00 15` | `00` |
+| PCM Synth Common 2 | `00 00`-`00 0F` | the long name, ASCII |
+| | `00 14`-`00 32`, `00 34`-`00 37` | `00` |
+| SN Acoustic Common | `00 0C`-`00 0F` | `20` |
+| | `00 42`-`00 45` | `00` |
+| SN Acoustic MFX | `00 01` / `00 04` | `7F` / `00` |
+| PCM Drum Common | `00 11` | `0D` |
+| PCM Drum MFX | `00 01` / `00 04` | `7F` / `00` |
+| PCM Drum Partial | `00 17` | `00`, `1E`, `4B`, `50`, `52`, `7F` |
+| | `00 18` | varies by key (`00`-`7F`) |
+| | `00 1F` | `00` |
+| PCM Drum Common 2 | `00 00`-`00 0F` | the long name, ASCII |
+| | `00 12`-`00 30` | `00` |
 
 ### Coverage
 
 - Studio Set: Common, Chorus, Motional Surround, Parts 1 and 10. The other
   Parts share the layout.
-- SN Synth: Part 1's Temporary Tone. SN Drum: Part 10's.
-- **Untested**: PCM Synth, SN Acoustic and PCM Drum. No Part held a tone of
-  those types, and the test did not change tones. Their `<*>` bytes stay
-  unlisted in `device_spec.rs`.
+- SN Synth: Part 1's Temporary Tone (the `#` group again on Part 16's).
+  SN Drum: Part 10's. PCM Synth (preset 1, "128voicePno"), SN Acoustic
+  ("Full Grand 1") and PCM Drum ("PopDrumSet 1"): Part 16's. The PCM Synth
+  PMT block has no `<*>` row. SN Acoustic has no Partials.
+- Each PCM Synth Partial (1-4) and each of the PCM Drum Partials (all 88
+  keys) was tried.
+- Not tried: the GM2 and ExPCM banks (their Temporary Tone can't be read),
+  User tones, and values of a byte other than the ones above (a byte's
+  behaviour may depend on another parameter).
 - Not Studio Set or tone: Setup and System Common reserves.
 
 ### Discovery
 
 Run on 2026-11-13 on a Temporary Studio Set with nothing saved
-([#490](https://github.com/sigma/integral/issues/490)).
+([#490](https://github.com/sigma/integral/issues/490)). The group
+behavior showed when a PCM Synth Common `00 1F`-`00 20` single-byte write was
+ignored but a write of the pair was stored; the SN Synth Common
+`00 0D`-`00 0F` result of the first run was then redone with whole-group
+writes.
 
 ---
 

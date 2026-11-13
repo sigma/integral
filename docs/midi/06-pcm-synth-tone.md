@@ -14,8 +14,8 @@ The PCM Synth Tone starts at offset `00 00 00` within the Temporary Tone block. 
 | [PCM Synth Tone Common 2](#pcm-synth-tone-common-2) | `00 30 00` | `00 00 00 3C` |
 
 The tables list every `(reserve)` row of the MIDI Implementation v1.00. The
-INTEGRA-7 documents rows marked \<\*> as ignored on receive; on hardware most
-store an in-range write
+INTEGRA-7 documents rows marked \<\*> as ignored on receive; on hardware they
+store an in-range write (`00 1F` # takes only a whole write)
 ([99-undocumented.md](99-undocumented.md#10-reserved-bytes-on-receive)). A `...` row stands for every
 address between its neighbours, each with the same bit pattern.
 
