@@ -122,21 +122,6 @@ pub struct BlockRun {
     pub count: u8,
     /// Distance between consecutive blocks, in `00 xx 00` units.
     pub stride: u8,
-    /// Offsets within each block of bytes proven on hardware to ignore a
-    /// write of any value (`docs/midi/99-undocumented.md`, "Reserved bytes on
-    /// receive"), so a write may span them with any value. Not every byte the
-    /// MIDI Implementation marks `<*>`: nearly all of those store an in-range
-    /// write, and the PCM Synth, SN Acoustic and PCM Drum tones were not
-    /// tried, so they are not listed.
-    pub reserved: &'static [u8],
-}
-
-impl BlockRun {
-    /// The run with `reserved` as its ignored-on-receive offsets.
-    const fn reserving(mut self, reserved: &'static [u8]) -> Self {
-        self.reserved = reserved;
-        self
-    }
 }
 
 const fn run(offset: [u8; 3], size: DataSize, count: u8, stride: u8) -> BlockRun {
@@ -145,7 +130,6 @@ const fn run(offset: [u8; 3], size: DataSize, count: u8, stride: u8) -> BlockRun
         size,
         count,
         stride,
-        reserved: &[],
     }
 }
 
@@ -251,19 +235,6 @@ impl UserMemorySpec {
                 .offset([0, (step / 128) as u8, (step % 128) as u8, 0])
         })
     }
-
-    /// Whether the byte at linear address `at` (an [`Address::value`]) is one
-    /// the device ignores on receive (`<*>`) in the layout for `part`'s
-    /// Temporary Tone, or in the Temporary Studio Set.
-    pub fn is_reserved(&self, part: u8, at: u32) -> bool {
-        let base = self.temporary_base(part);
-        self.blocks.iter().any(|run| {
-            Self::starts(run, base).any(|start| {
-                at.checked_sub(start.value())
-                    .is_some_and(|offset| run.reserved.iter().any(|r| u32::from(*r) == offset))
-            })
-        })
-    }
 }
 
 const fn size(n: u8) -> DataSize {
@@ -290,7 +261,6 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         slot_stride: 1,
         tone_type: None,
         blocks: &[
-            // Every Studio Set `<*>` byte stored an in-range write on hardware.
             one([0x00, 0x00, 0x00], size(0x54)),
             one([0x00, 0x04, 0x00], size(0x54)),
             one([0x00, 0x06, 0x00], size(0x63)),
@@ -310,8 +280,7 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         slot_stride: 1,
         tone_type: Some(ToneType::SnSynth),
         blocks: &[
-            // Common `00 0D`-`00 0F` ignored every value written on hardware.
-            one([0x00, 0x00, 0x00], sn_synth::SNS_COMMON_BLOCK_SIZE).reserving(&[0x0D, 0x0E, 0x0F]),
+            one([0x00, 0x00, 0x00], sn_synth::SNS_COMMON_BLOCK_SIZE),
             one(mfx::MFX_BLOCK_OFFSET, mfx::MFX_BLOCK_SIZE),
             run(
                 [0x00, 0x20, 0x00],
@@ -717,62 +686,5 @@ mod tests {
             last,
             (Address::new(0x18, 0x00, 0x5F, 0x00), params::PART_EQ_SIZE)
         );
-    }
-}
-
-#[cfg(test)]
-mod reserved_tests {
-    use super::*;
-
-    fn spec(tone_type: Option<ToneType>) -> &'static UserMemorySpec {
-        USER_MEMORY
-            .iter()
-            .find(|s| s.tone_type == tone_type)
-            .expect("a spec")
-    }
-
-    #[test]
-    fn only_the_bytes_proven_ignored_on_hardware_are_reserved() {
-        let studio = spec(None);
-        let at = |a, b, c, d| {
-            address::STUDIO_SET
-                .offset([0, a, b, c])
-                .offset([0, 0, 0, d])
-                .value()
-        };
-        // Marked `<*>`, but they stored an in-range write (a value outside
-        // the bit pattern was refused, which is not an ignored byte).
-        for untrusted in [0x10, 0x14, 0x17, 0x38, 0x4B] {
-            assert!(
-                !studio.is_reserved(0, at(0, 0, 0, untrusted)),
-                "{untrusted:#x}"
-            );
-        }
-        for part in 0..INTEGRA7.part_count {
-            for data in [0x02, 0x26, 0x45, 0x47] {
-                assert!(!studio.is_reserved(0, at(0, 0x20 + part, 0, data)));
-            }
-        }
-        // Of the tones, only the SN Synth Common lists any: `00 0D`-`00 0F`.
-        let sn_synth = spec(Some(ToneType::SnSynth));
-        let sns = |offset: u8| {
-            ToneType::SnSynth
-                .base_address(3)
-                .offset([0, 0, 0, offset])
-                .value()
-        };
-        for offset in 0..sn_synth::SNS_COMMON_BLOCK_SIZE.value() as u8 {
-            assert_eq!(
-                sn_synth.is_reserved(3, sns(offset)),
-                (0x0D..=0x0F).contains(&offset),
-                "{offset:#x}"
-            );
-        }
-        for spec in USER_MEMORY
-            .iter()
-            .filter(|s| s.tone_type.is_some() && s.tone_type != Some(ToneType::SnSynth))
-        {
-            assert!(spec.blocks.iter().all(|r| r.reserved.is_empty()));
-        }
     }
 }
