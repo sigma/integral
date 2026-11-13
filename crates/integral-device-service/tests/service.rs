@@ -850,6 +850,30 @@ fn a_read_reply_older_than_a_write_is_not_a_device_change() {
 }
 
 #[test]
+fn a_reply_older_than_a_write_still_queued_is_not_a_device_change() {
+    let (mut service, link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (reader, reader_inbox) = client(&mut service, 1);
+    let (writer, inbox) = client(&mut service, 2);
+    service.handle(Input::Link(LinkEvent::Midi(level_dt1(1, 50))), 0.0);
+
+    // The write B leaves, then the read: the device answers B.
+    ask(&mut service, writer, write_level(1, 60));
+    service.pump(100.0);
+    ask(&mut service, reader, level_rq1(1, 1));
+    service.pump(140.0);
+    // The write C is queued, held back by the throttle, when B comes.
+    ask(&mut service, writer, write_level(1, 70));
+    service.pump(150.0);
+    assert_eq!(sysex_sent(&link).len(), 2, "C has not left");
+    inbox.take();
+    reader_inbox.take();
+    service.handle(Input::Link(LinkEvent::Midi(level_dt1(1, 60))), 155.0);
+    assert!(level_changes(inbox.take()).is_empty(), "B is not news");
+    assert!(level_changes(reader_inbox.take()).is_empty());
+}
+
+#[test]
 fn a_typed_read_overtaken_by_a_write_is_answered_with_the_written_value() {
     let (mut service, _link) = service();
     service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
