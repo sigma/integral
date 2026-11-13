@@ -97,7 +97,7 @@ fn overlap(a: &Range<u32>, b: &Range<u32>) -> Option<Range<u32>> {
 }
 
 /// What is left of `range` once `cut` is taken out: up to two ranges.
-fn minus(range: Range<u32>, cut: &Range<u32>) -> Vec<Range<u32>> {
+pub(crate) fn minus(range: Range<u32>, cut: &Range<u32>) -> Vec<Range<u32>> {
     let Some(hit) = overlap(&range, cut) else {
         return vec![range];
     };

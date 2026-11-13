@@ -1682,9 +1682,19 @@ impl DeviceState {
     /// incoming DT1, before [`handle_dt1`](Self::handle_dt1); `now_ms` is
     /// the clock of [`drain`](Self::drain). A read not answered within the
     /// reply timeout is forgotten.
+    ///
+    /// A write still queued is as much later than the reply as one sent
+    /// after the read: the cache already holds it, so the bytes it covers
+    /// are left out too.
     pub fn fresh_reply(&mut self, address: &Address, len: usize, now_ms: f64) -> Vec<Range<u32>> {
         let span = dt1_span(address, len);
-        self.sent_reads.reply(&span, now_ms, REPLY_TIMEOUT_MS)
+        let mut fresh = self.sent_reads.reply(&span, now_ms, REPLY_TIMEOUT_MS);
+        for queued in self.queue.iter().filter_map(|m| m.span.as_ref()) {
+            fresh = (fresh.into_iter())
+                .flat_map(|r| crate::read_tracker::minus(r, queued))
+                .collect();
+        }
+        fresh
     }
 
     /// Queue again the mixer read of tracker key `key`, if it is one, while
