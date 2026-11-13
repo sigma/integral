@@ -222,9 +222,9 @@ function Control<F extends FieldKey>({
   }
 }
 
-/** A two-state field as a power toggle: on at its maximum, and a toggle writes the other state. */
+/** A two-state field as a power toggle: on at anything but its minimum (as the device reads it), and a toggle writes the other state. */
 function twoState(b: Binding): { isOn: boolean; toggle: () => void } {
-  const isOn = b.value === b.max;
+  const isOn = b.value !== b.min;
   return { isOn, toggle: () => b.onChange(isOn ? b.min : b.max) };
 }
 

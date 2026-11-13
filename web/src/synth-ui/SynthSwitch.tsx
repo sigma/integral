@@ -71,7 +71,8 @@ export function SynthSwitch({
   const gridClass = grid ? css.grid : "";
   if (options.length === 2 && !vertical) {
     // Two-state toggle button
-    const isOn = value === options[1]!.value;
+    // Anything but the OFF value reads as ON, as the device does (a stored 600 is ON).
+    const isOn = value !== options[0]!.value;
     const toggleBox = box ?? cellsPx(FOOTPRINT.switch);
     return (
       <div

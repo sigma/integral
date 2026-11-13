@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { SynthSwitch } from "./SynthSwitch";
 import { CELL, FOOTPRINT, NAME, OPTION_TEXT } from "./grid";
 import { expectFillsFootprint, rootOf, stackedHeight } from "../test/grid";
-import { cleanup, render } from "../test/dom";
+import { cleanup, click, render } from "../test/dom";
 
 afterEach(cleanup);
 
@@ -113,5 +113,16 @@ describe("SynthSwitch off the Grid", () => {
     const root = rootOf(container);
     expect(root.style.width).toBe("");
     expect(root.querySelector<HTMLElement>('[role="radio"]')!.style.height).toBe("");
+  });
+});
+
+describe("SynthSwitch value", () => {
+  it("shows a nonzero value above ON as ON, and toggling writes OFF", () => {
+    const writes: number[] = [];
+    const { container } = render(<SynthSwitch value={600} options={onOff} onChange={(v) => writes.push(v)} />);
+    const button = container.querySelector("button")!;
+    expect(button.textContent).toBe("ON");
+    click(button);
+    expect(writes).toEqual([0]);
   });
 });
