@@ -1173,6 +1173,11 @@ impl Service {
                 }
                 self.clients
                     .bulk(writer, BulkKind::Tone, Binding::of_part(part), Some(tone));
+                if let Some(tone) = tone
+                    && writer != ClientId::DEVICE
+                {
+                    self.relay_select(writer, part, tone);
+                }
             }
             None => {
                 self.known.clear();
@@ -1192,6 +1197,21 @@ impl Service {
             }
         }
         self.apply_outcome(out);
+    }
+
+    /// Tell the raw clients but `writer` that Part `part_index` holds `tone` now, as a
+    /// DT1 of its select, the way the device reports it in a dump of the
+    /// Part. A raw client takes no [`Message::Bulk`], so a tone another client
+    /// selected would otherwise never reach it; what the device reports itself
+    /// is relayed as it arrives ([`Clients::sysex`]), so a select the device
+    /// made is not told twice.
+    fn relay_select(&mut self, writer: ClientId, part_index: u8, tone: ToneSelect) {
+        let dt1 = sysex::build_dt1(
+            self.device.device_id(),
+            &params::part_address(part_index, params::part::TONE_BANK_MSB),
+            &[tone.msb, tone.lsb, tone.pc],
+        );
+        self.clients.sysex_but(writer, &dt1);
     }
 
     /// The tone `part` holds, if the session has seen its select whole
