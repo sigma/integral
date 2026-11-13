@@ -119,6 +119,13 @@ describe("GridSection draws the pilot mixer EQ", () => {
     expect(off.writes).toEqual([1]);
   });
 
+  it("lights the title toggle for a nonzero value above ON, and a click writes off", () => {
+    const { button, writes } = drawSwitch(600);
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    act(() => button.click());
+    expect(writes).toEqual([0]);
+  });
+
   it("never dims the title toggle", () => {
     const { button } = drawSwitch(0, () => Relevance.Irrelevant);
     const host = button.closest<HTMLElement>("[data-field]")!;
