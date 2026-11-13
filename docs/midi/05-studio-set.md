@@ -7,7 +7,9 @@ global mix settings, effects routing, per-channel MIDI configuration, 16 parts
 with full tone/mix/controller setup, and per-part EQ.
 
 The tables list every `(reserve)` row of the MIDI Implementation v1.00. The
-INTEGRA-7 ignores rows marked \<\*> on receive. A `...` row stands for every
+INTEGRA-7 documents rows marked \<\*> as ignored on receive; on hardware they
+store an in-range write
+([99-undocumented.md](99-undocumented.md#10-reserved-bytes-on-receive)). A `...` row stands for every
 address between its neighbours, each with the same bit pattern.
 
 ---
