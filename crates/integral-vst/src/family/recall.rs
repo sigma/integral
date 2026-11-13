@@ -68,10 +68,10 @@
 //!
 //! A DT1 can span bytes that no host parameter owns, if the plugin knows what
 //! to write there: for a Preset or Expansion tone the bytes of the baseline
-//! (the device already holds them), and for any push a byte proven on hardware
-//! to ignore a write ([`UserMemorySpec::is_reserved`]: none so far, as every
-//! `<*>` byte of the MIDI Implementation stores an in-range write). Anything
-//! else ends a run, and the plugin writes nothing it does not own. Always the Part
+//! (the device already holds them). Anything else ends a run, and the plugin
+//! writes nothing it does not own: not even a `<*>` byte of the MIDI
+//! Implementation, since each stores an in-range write
+//! (`docs/midi/99-undocumented.md`, "Reserved bytes on receive"). Always the Part
 //! tone-select bytes end a run. After an effect type changes, the bytes of
 //! effect slots are not bridged either, because the slots then mean
 //! something else.
@@ -102,7 +102,7 @@ use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 use integral_core::address::Address;
-use integral_core::device_spec::{INTEGRA7, USER_MEMORY, UserMemorySpec};
+use integral_core::device_spec::INTEGRA7;
 use integral_core::host_params::{Binding, PluginKind};
 use integral_core::params::{
     self, TONE_NAME_SIZE, TONE_SELECTION_SIZE, is_editable_bank, part, tone_type_from_bank_msb,
@@ -213,16 +213,14 @@ fn baseline_bytes(baseline: &[BaselineRun]) -> HashMap<u32, u8> {
 }
 
 /// What a DT1 may carry at an address no field of the push owns: the byte the
-/// device already holds (the baseline's) or one it ignores (reserved, 0).
-struct Filler<'a> {
+/// device already holds (the baseline's).
+struct Filler {
     known: Option<HashMap<u32, u8>>,
-    spec: Option<&'a UserMemorySpec>,
-    part: u8,
     /// Addresses not to bridge.
     forbidden: HashSet<u32>,
 }
 
-impl<'a> Filler<'a> {
+impl Filler {
     /// The filler for the bank's plugin bound to `binding`, over `baseline`
     /// if the device has been read.
     fn new(bank: &ParamBank, binding: &Binding, baseline: Option<&[BaselineRun]>) -> Self {
@@ -240,14 +238,7 @@ impl<'a> Filler<'a> {
                 }
             }
         }
-        Self {
-            known,
-            spec: USER_MEMORY
-                .iter()
-                .find(|s| s.tone_type == bank.kind().tone_type()),
-            part: binding.part.unwrap_or(0),
-            forbidden,
-        }
+        Self { known, forbidden }
     }
 
     fn byte(&self, at: u32) -> Option<u8> {
@@ -257,11 +248,6 @@ impl<'a> Filler<'a> {
         self.known
             .as_ref()
             .and_then(|known| known.get(&at).copied())
-            .or_else(|| {
-                self.spec
-                    .is_some_and(|s| s.is_reserved(self.part, at))
-                    .then_some(0)
-            })
     }
 }
 
@@ -283,7 +269,7 @@ fn differs(field: &Field, known: &HashMap<u32, u8>) -> bool {
 
 /// DT1s over the `fields` (sorted), joining two when the bytes between them
 /// can be filled, and never splitting a field.
-fn runs_of(fields: impl IntoIterator<Item = Field>, filler: &Filler<'_>) -> Vec<Run> {
+fn runs_of(fields: impl IntoIterator<Item = Field>, filler: &Filler) -> Vec<Run> {
     let mut runs: Vec<(u32, Vec<u8>)> = Vec::new();
     for field in fields {
         if let Some((start, data)) = runs.last_mut() {
@@ -929,12 +915,11 @@ mod tests {
     }
 
     #[test]
-    fn the_studio_set_fills_only_proven_bytes_and_never_a_parts_tone_select() {
+    fn the_studio_set_without_a_baseline_sends_only_owned_bytes_and_never_a_parts_tone_select() {
         let bank = instance(PluginKind::StudioSet, Binding::ANY).bank;
         let runs = full_runs(&bank, &Binding::ANY, None);
         assert!(!runs.is_empty());
         let fields = fields(&bank, &Binding::ANY);
-        let studio = USER_MEMORY.iter().find(|s| s.tone_type.is_none()).unwrap();
         for run in &runs {
             let (start, end) = (
                 run.address.value(),
@@ -944,10 +929,7 @@ mod tests {
                 let owned = fields
                     .iter()
                     .any(|f| f.start <= at && at < f.start + f.bytes.len() as u32);
-                assert!(owned || studio.is_reserved(0, at), "{at:#x} is nobody's");
-                if !owned {
-                    assert_eq!(run.data[(at - start) as usize], 0, "reserved goes as 0");
-                }
+                assert!(owned, "{at:#x} is nobody's");
             }
         }
         for p in 0..INTEGRA7.part_count {
@@ -963,32 +945,6 @@ mod tests {
                 );
             }
         }
-        // Filling never makes more runs than the fields' own.
-        let unfilled = runs_of(
-            fields_again(&bank),
-            &Filler {
-                known: None,
-                spec: None,
-                part: 0,
-                forbidden: HashSet::new(),
-            },
-        );
-        assert!(runs.len() <= unfilled.len());
-
-        // Of the Common's `<*>` bytes only the proven ones are filled.
-        let filler = Filler::new(&bank, &Binding::ANY, None);
-        let common = |offset: u8| {
-            integral_core::address::STUDIO_SET
-                .offset([0, 0, 0, offset])
-                .value()
-        };
-        for untrusted in [0x10, 0x14, 0x17, 0x38, 0x4B] {
-            assert_eq!(filler.byte(common(untrusted)), None, "{untrusted:#x}");
-        }
-    }
-
-    fn fields_again(bank: &ParamBank) -> Vec<Field> {
-        fields(bank, &Binding::ANY)
     }
 
     #[test]
