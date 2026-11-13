@@ -73,11 +73,12 @@ mod tests {
     #[test]
     fn a_timeout_on_a_socket_that_cannot_block_is_tolerated() {
         let (mut stream, peer) = pair();
-        drop(peer);
         // A both-ways shutdown is the same state a peer's reset leaves the
         // socket in, and needs no race to produce: macOS refuses the timeout
-        // from there.
+        // from there. Shut down before the peer closes: once its close lands,
+        // macOS refuses the shutdown itself (`ENOTCONN`).
         stream.shutdown(Shutdown::Both).expect("shutdown");
+        drop(peer);
         #[cfg(target_os = "macos")]
         {
             let raw = stream.set_read_timeout(Some(WAIT)).expect_err("EINVAL");
