@@ -742,6 +742,157 @@ fn a_device_change_is_announced_only_when_the_value_differs() {
     assert!(level_changes(inbox.take()).is_empty());
 }
 
+/// A raw RQ1 of `len` bytes at the Level of Part `part_index`.
+fn level_rq1(part_index: u8, len: u32) -> Request {
+    let size = DataSize::from_value(len).unwrap();
+    raw(sysex::build_rq1(
+        DEVICE_ID,
+        &params::part_address(part_index, part::LEVEL),
+        &size,
+    ))
+}
+
+#[test]
+fn a_read_reply_older_than_a_write_is_not_a_device_change() {
+    let (mut service, link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (reader, reader_inbox) = client(&mut service, 1);
+    let (writer, inbox) = client(&mut service, 2);
+    // The session knows the value A.
+    service.handle(Input::Link(LinkEvent::Midi(level_dt1(1, 50))), 0.0);
+    inbox.take();
+
+    // The read leaves, then the write B; the device answers in order.
+    ask(&mut service, reader, level_rq1(1, 1));
+    service.pump(10.0);
+    ask(&mut service, writer, write_level(1, 70));
+    service.pump(60.0);
+    assert_eq!(sysex_sent(&link).len(), 2);
+    inbox.take();
+    reader_inbox.take();
+    service.handle(Input::Link(LinkEvent::Midi(level_dt1(1, 50))), 70.0);
+    assert!(level_changes(inbox.take()).is_empty(), "A is not news");
+    assert!(level_changes(reader_inbox.take()).is_empty());
+
+    // A typed read afterwards finds B.
+    ask(
+        &mut service,
+        writer,
+        Request::Read {
+            param: level(1),
+            binding: Binding::ANY,
+        },
+    );
+    service.pump(110.0);
+    service.handle(Input::Link(LinkEvent::Midi(level_dt1(1, 70))), 120.0);
+    assert!(matches!(
+        inbox.take()[..],
+        [Message::Value { value: 70, .. }]
+    ));
+    assert!(level_changes(reader_inbox.take()).is_empty());
+}
+
+#[test]
+fn a_typed_read_overtaken_by_a_write_is_answered_with_the_written_value() {
+    let (mut service, _link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (reader, reader_inbox) = client(&mut service, 1);
+    let (writer, _inbox) = client(&mut service, 2);
+    service.handle(Input::Link(LinkEvent::Midi(level_dt1(1, 50))), 0.0);
+    let read = Request::Read {
+        param: level(1),
+        binding: Binding::ANY,
+    };
+    ask(&mut service, reader, read);
+    service.pump(10.0);
+    ask(&mut service, writer, write_level(1, 70));
+    service.pump(60.0);
+    reader_inbox.take();
+    service.handle(Input::Link(LinkEvent::Midi(level_dt1(1, 50))), 70.0);
+    let heard = reader_inbox.take();
+    assert!(matches!(heard[..], [Message::Value { value: 70, .. }]));
+    service.pump(5000.0);
+    assert!(reader_inbox.take().is_empty(), "no timeout either");
+}
+
+#[test]
+fn a_raw_client_still_gets_the_reply_older_than_a_write() {
+    let (mut service, _link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (reader, reader_inbox) = client(&mut service, 1);
+    ask(&mut service, reader, Request::ReceiveRaw { on: true });
+    let (writer, _inbox) = client(&mut service, 2);
+    ask(&mut service, reader, level_rq1(1, 1));
+    service.pump(10.0);
+    ask(&mut service, writer, write_level(1, 70));
+    service.pump(60.0);
+    reader_inbox.take();
+    let reply = level_dt1(1, 50);
+    service.handle(Input::Link(LinkEvent::Midi(reply.clone())), 70.0);
+    assert!(
+        reader_inbox
+            .take()
+            .contains(&Message::Sysex { bytes: reply })
+    );
+}
+
+#[test]
+fn a_reply_with_no_write_in_between_is_still_a_device_change() {
+    let (mut service, _link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (reader, inbox) = client(&mut service, 1);
+    service.handle(Input::Link(LinkEvent::Midi(level_dt1(1, 50))), 0.0);
+    ask(&mut service, reader, level_rq1(1, 1));
+    service.pump(10.0);
+    // Someone turned the knob on the front panel.
+    service.handle(Input::Link(LinkEvent::Midi(level_dt1(1, 51))), 20.0);
+    assert_eq!(
+        level_changes(inbox.take()),
+        [(ClientId::DEVICE, level(1), 51)]
+    );
+}
+
+#[test]
+fn a_reply_covering_a_written_byte_and_others_is_taken_for_the_others() {
+    let (mut service, _link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (reader, inbox) = client(&mut service, 1);
+    let pan = param_at(&params::part_address(1, part::PAN));
+    // The session knows the Level and the Pan.
+    service.handle(Input::Link(LinkEvent::Midi(level_dt1(1, 50))), 0.0);
+    let pan_dt1 = part_dt1(1, part::PAN, 64);
+    service.handle(Input::Link(LinkEvent::Midi(pan_dt1)), 0.0);
+
+    // One read of both, then a write of the Level.
+    ask(&mut service, reader, level_rq1(1, 2));
+    service.pump(10.0);
+    ask(&mut service, reader, write_level(1, 70));
+    service.pump(60.0);
+    inbox.take();
+    let both = sysex::build_dt1(DEVICE_ID, &params::part_address(1, part::LEVEL), &[50, 65]);
+    service.handle(Input::Link(LinkEvent::Midi(both)), 70.0);
+    assert_eq!(level_changes(inbox.take()), [(ClientId::DEVICE, pan, 65)]);
+}
+
+#[test]
+fn a_read_that_is_never_answered_hides_no_later_change() {
+    let (mut service, _link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (a, inbox) = client(&mut service, 1);
+    service.handle(Input::Link(LinkEvent::Midi(level_dt1(1, 50))), 0.0);
+    ask(&mut service, a, level_rq1(1, 1));
+    service.pump(10.0);
+    ask(&mut service, a, write_level(1, 70));
+    service.pump(60.0);
+    inbox.take();
+    // The reply is lost; much later the front panel moves the knob.
+    service.handle(Input::Link(LinkEvent::Midi(level_dt1(1, 50))), 10_000.0);
+    assert_eq!(
+        level_changes(inbox.take()),
+        [(ClientId::DEVICE, level(1), 50)]
+    );
+}
+
 #[test]
 fn a_read_is_answered_to_the_reader_and_never_announced() {
     let (mut service, link) = service();

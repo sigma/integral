@@ -40,6 +40,7 @@ use crate::param_registry::{
 use crate::params::{self, ToneType, part};
 use crate::parse_helpers::encode_ascii_name;
 use crate::pcm_synth::{PcmsCommonField, PcmsPartialField, PcmsPmtField};
+use crate::read_tracker::SentReads;
 use crate::sn_acoustic::SnaCommonField;
 use crate::sn_drum::{SndCommonField, SndNoteField};
 use crate::sn_synth::{SnSynthTone, SnSynthToneBlocks, SnsBlock, SnsCommonField, SnsPartialField};
@@ -403,6 +404,9 @@ pub struct DeviceState {
     /// Mixer reads that were dropped after their request left: the address,
     /// the size and when it was sent. The reply is still on its way.
     stale_replies: Vec<(Address, usize, f64)>,
+    /// The reads sent and not yet answered, and what a write since made stale
+    /// in each (see [`fresh_reply`](Self::fresh_reply)).
+    sent_reads: SentReads,
     /// Sent SN Synth block and mixer requests awaiting their reply.
     requests: RequestTracker,
     /// The DT1s queued since [`take_writes`](Self::take_writes), while
@@ -452,6 +456,7 @@ impl DeviceState {
             mixer_reads: Vec::new(),
             mixer_failed: Vec::new(),
             stale_replies: Vec::new(),
+            sent_reads: SentReads::default(),
             requests: RequestTracker::new(),
             writes: None,
             mfx_types: HashMap::new(),
@@ -760,6 +765,7 @@ impl DeviceState {
         if let Some(addr) = msg.key.strip_prefix("dt1:") {
             self.echo_tracker.insert(addr.to_string(), now_ms);
         }
+        self.sent_reads.sent(&msg.bytes, now_ms, REPLY_TIMEOUT_MS);
         if msg.tracked {
             self.requests.register_request(msg.key, now_ms);
         }
@@ -1665,6 +1671,20 @@ impl DeviceState {
         };
         self.stale_replies.remove(i);
         true
+    }
+
+    /// The addresses of the DT1 reply of `len` bytes at `address` to take
+    /// as the device's value now, in ascending order. The device answers in
+    /// order, so a read sent before a write that overlaps it comes back with
+    /// the value from before the write: those bytes are left out, and the
+    /// caller should neither apply nor cache them. A reply that no read sent
+    /// accounts for (a front-panel edit) is taken whole. Call once per
+    /// incoming DT1, before [`handle_dt1`](Self::handle_dt1); `now_ms` is
+    /// the clock of [`drain`](Self::drain). A read not answered within the
+    /// reply timeout is forgotten.
+    pub fn fresh_reply(&mut self, address: &Address, len: usize, now_ms: f64) -> Vec<Range<u32>> {
+        let span = dt1_span(address, len);
+        self.sent_reads.reply(&span, now_ms, REPLY_TIMEOUT_MS)
     }
 
     /// Queue again the mixer read of tracker key `key`, if it is one, while
