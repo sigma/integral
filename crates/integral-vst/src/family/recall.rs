@@ -69,10 +69,10 @@
 //! A DT1 can span bytes that no host parameter owns, if the plugin knows what
 //! to write there: for a Preset or Expansion tone the bytes of the baseline
 //! (the device already holds them), and for any push a byte proven on hardware
-//! to ignore a write ([`UserMemorySpec::is_reserved`]: two bytes of the Studio
-//! Set Common), written as 0. Anything else ends a run: the other `<*>` bytes
-//! of the MIDI Implementation are not known to ignore writes (some take
-//! them), and the plugin writes nothing it does not own. Always the Part
+//! to ignore a write ([`UserMemorySpec::is_reserved`]: three bytes of the SN
+//! Synth Common), written as 0. Anything else ends a run: the other `<*>` bytes
+//! of the MIDI Implementation are not known to ignore writes (most store
+//! an in-range one), and the plugin writes nothing it does not own. Always the Part
 //! tone-select bytes end a run. After an effect type changes, the bytes of
 //! effect slots are not bridged either, because the slots then mean
 //! something else.
@@ -983,9 +983,7 @@ mod tests {
                 .offset([0, 0, 0, offset])
                 .value()
         };
-        assert_eq!(filler.byte(common(0x17)), Some(0));
-        assert_eq!(filler.byte(common(0x38)), Some(0));
-        for untrusted in [0x10, 0x14, 0x4B] {
+        for untrusted in [0x10, 0x14, 0x17, 0x38, 0x4B] {
             assert_eq!(filler.byte(common(untrusted)), None, "{untrusted:#x}");
         }
     }

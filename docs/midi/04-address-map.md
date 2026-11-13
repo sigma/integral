@@ -9,8 +9,10 @@ via SysEx Data Set 1 (DT1) and Data Request 1 (RQ1) messages.
 - **"#" marked addresses** use nibblized data encoding. Each byte of the
   original value is split into two nibbles sent as separate bytes. For example,
   ABH becomes 0AH 0BH, transmitted in that order.
-- **"\<\*>" marked parameters** are ignored on receive; the INTEGRA-7 discards
-  these values in incoming DT1 messages.
+- **"\<\*>" marked parameters** are documented as ignored on receive. On
+  hardware most Studio Set and tone ones store an in-range write and only a few
+  discard it
+  ([99-undocumented.md](99-undocumented.md#10-reserved-bytes-on-receive)).
 - **Bit patterns** such as `0000 aaaa` indicate which bits carry data within the
   transmitted byte. Unused bits must be zero.
 

@@ -714,9 +714,11 @@ affected blocks back after `0F 00 18 02`.
   the writable reserves back to their INIT values: Part `00 26` = `7F`,
   `00 45` and `00 47` = `40`, Common `00 10` = `7F`, `00 14` = `01`. A
   client that wrote defaults itself would have to match these.
-- **Some reserves ignore writes.** A DT1 of `05` to Part `00 02`, of `05` to
-  Common `00 17`, or of `30` to Common `00 38` left the old value. Part
-  `00 26`, `00 45`, `00 47` and Common `00 10`, `00 14` accepted the write.
+- **Reserves mostly store writes.** A DT1 of `05` to Part `00 02` or Common
+  `00 17`, or of `30` to Common `00 38`, left the old value, but those values
+  lie outside the byte's bit pattern: the device refuses an out-of-range
+  value. An in-range value is stored. See
+  [section 10](#10-reserved-bytes-on-receive).
 
 ### Open
 
@@ -832,6 +834,91 @@ Over "Network Integra", 200 back-to-back RQ1s for the Part 1 block (77 bytes):
 ### Discovery
 
 Measured on 2026-11-07 ([#446](https://github.com/sigma/integral/issues/446#issuecomment-6706325991)).
+
+---
+
+## 10. Reserved Bytes on Receive
+
+### Purpose
+
+The MIDI Implementation says the INTEGRA-7 "ignores" bytes marked `<*>` on
+receive. This section records which of them do, on the Temporary Studio Set
+and the Temporary Tones.
+
+### Method
+
+For each byte: read it, DT1 the value with its low bit flipped (always inside
+the byte's bit pattern), read it back, DT1 the original back, read it again.
+Nothing was saved, no Studio Set or tone was switched, and no User memory was
+written. Over "Network Integra" with `raw-read` and `raw-send`, 2026-11-13,
+on the Studio Set and tones named under "Coverage". Afterwards every byte
+read its original value and the Part and Common blocks were identical to
+their first reads.
+
+A single-byte RQ1 at a byte the device ignores (SN Synth Common `00 0D`)
+gets no reply. Read such a byte as part of a block that starts earlier.
+
+### Behavior
+
+- **Stored** (the read-back showed the new value, 97 byte tests): every `<*>`
+  byte tested except the three below. Studio Set Common `00 10`–`00 17`,
+  `00 28`–`00 38`, `00 50`–`00 53`; Chorus `00 02`; Motional Surround
+  `00 0D`–`00 0F`; Part `00 02`–`00 05`, `00 26`, `00 2A`, `00 45`, `00 47`,
+  `00 4A`–`00 4C` (Parts 1 and 10); SN Synth Common `00 10`, `00 11`,
+  `00 18`, `00 21`–`00 2D`, `00 2F`, `00 30`, `00 33`, `00 3D`–`00 3F`; SN
+  Synth MFX `00 01`, `00 04`; SN Synth Partial `00 02`, `00 2B`, `00 32`,
+  `00 33` (Partials 1–3); SN Drum Common `00 0C`–`00 0F` (the tone name's
+  unmarked reserves) and MFX `00 01`, `00 04`.
+- **Ignored**: SN Synth Common `00 0D`, `00 0E`, `00 0F`, the 3-byte `#`
+  group. `01`, `02`, `0F`, `10` and `7F` (`00 0D`) and `01`, `0F`, `10`
+  (`00 0E`, `00 0F`) all read back as `00`.
+- **A value outside the bit pattern is refused, even by a byte that stores.**
+  Common `00 17` (`0000 000a`) took `00` and `01` and kept the old value
+  for `02` and `05`. Common `00 38` (`0000 aaaa`) took `01` and `0F` and
+  kept `00` for `10` and `30`. Part `00 02` kept its value for `05`. These
+  were read as "ignored" before ([section 7](#7-initialize-studio-set-sound-ctrl-part-tone-partial)).
+- Writing `0` to a stored reserve changes it when its value is not `0`
+  (Common `00 17` is `01` in an INIT set).
+- The panel-backed `18 00 00 4B` was not written
+  ([section 8](#8-system-common-reserves-and-persistence)): its state can't
+  be read back.
+
+### Values seen
+
+| Block | Bytes | Value seen |
+|-------|-------|------------|
+| Studio Set Common | `00 10` | `7F` |
+| | `00 11`–`00 13` | `10` |
+| | `00 14`–`00 17` | `01` |
+| | `00 28`–`00 38`, `00 50`–`00 53` | `00` |
+| Chorus `00 02`, Motional `00 0D`–`00 0F` | | `00` |
+| Part | `00 02`–`00 05` | `01` |
+| | `00 26` | `7F` |
+| | `00 2A`, `00 4A`–`00 4C` | `00` |
+| | `00 45`, `00 47` | `40` |
+| SN Synth Common | `00 0D`–`00 0F`, `00 10`, `00 11`, `00 18`, `00 21`–`00 2D`, `00 2F`, `00 30`, `00 3D`–`00 3F` | `00` |
+| | `00 33` | `01` |
+| SN Synth MFX | `00 01` | `7F` |
+| | `00 04` | `00` |
+| SN Synth Partial | `00 02`, `00 2B` | `00` |
+| | `00 32`, `00 33` | `40` |
+| SN Drum Common | `00 0C`–`00 0F` | `20` |
+| SN Drum MFX | `00 01` / `00 04` | `7F` / `00` |
+
+### Coverage
+
+- Studio Set: Common, Chorus, Motional Surround, Parts 1 and 10. The other
+  Parts share the layout.
+- SN Synth: Part 1's Temporary Tone. SN Drum: Part 10's.
+- **Untested**: PCM Synth, SN Acoustic and PCM Drum. No Part held a tone of
+  those types, and the test did not change tones. Their `<*>` bytes stay
+  unlisted in `device_spec.rs`.
+- Not Studio Set or tone: Setup and System Common reserves.
+
+### Discovery
+
+Run on 2026-11-13 on a Temporary Studio Set with nothing saved
+([#490](https://github.com/sigma/integral/issues/490)).
 
 ---
 
