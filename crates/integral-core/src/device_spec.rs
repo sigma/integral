@@ -124,19 +124,11 @@ pub struct BlockRun {
     pub stride: u8,
     /// Offsets within each block of bytes proven on hardware to ignore a
     /// write of any value (`docs/midi/99-undocumented.md`, "Reserved bytes on
-    /// receive"), so a write may span them with any value. Not every byte the
-    /// MIDI Implementation marks `<*>`: nearly all of those store an in-range
-    /// write, and the PCM Synth, SN Acoustic and PCM Drum tones were not
-    /// tried, so they are not listed.
+    /// receive"), so a write may span them with any value. Empty in every
+    /// run: each byte the MIDI Implementation marks `<*>` stores an in-range
+    /// write, and the `#` groups among them ignore a write of part of the
+    /// group but store a whole one, so spanning them would overwrite them.
     pub reserved: &'static [u8],
-}
-
-impl BlockRun {
-    /// The run with `reserved` as its ignored-on-receive offsets.
-    const fn reserving(mut self, reserved: &'static [u8]) -> Self {
-        self.reserved = reserved;
-        self
-    }
 }
 
 const fn run(offset: [u8; 3], size: DataSize, count: u8, stride: u8) -> BlockRun {
@@ -310,8 +302,8 @@ pub const USER_MEMORY: &[UserMemorySpec] = &[
         slot_stride: 1,
         tone_type: Some(ToneType::SnSynth),
         blocks: &[
-            // Common `00 0D`-`00 0F` ignored every value written on hardware.
-            one([0x00, 0x00, 0x00], sn_synth::SNS_COMMON_BLOCK_SIZE).reserving(&[0x0D, 0x0E, 0x0F]),
+            // Common `00 0D`-`00 0F` is a `#` group that stores a whole write.
+            one([0x00, 0x00, 0x00], sn_synth::SNS_COMMON_BLOCK_SIZE),
             one(mfx::MFX_BLOCK_OFFSET, mfx::MFX_BLOCK_SIZE),
             run(
                 [0x00, 0x20, 0x00],
@@ -753,25 +745,19 @@ mod reserved_tests {
                 assert!(!studio.is_reserved(0, at(0, 0x20 + part, 0, data)));
             }
         }
-        // Of the tones, only the SN Synth Common lists any: `00 0D`-`00 0F`.
+        // Nor in the tones: the SN Synth Common `00 0D`-`00 0F` and the PCM
+        // Synth Common `00 1F`-`00 20` ignore a write of part of their `#`
+        // group but store a whole one, and the rest of the `<*>` bytes store
+        // an in-range write.
         let sn_synth = spec(Some(ToneType::SnSynth));
-        let sns = |offset: u8| {
-            ToneType::SnSynth
+        for offset in 0..sn_synth::SNS_COMMON_BLOCK_SIZE.value() as u8 {
+            let at = ToneType::SnSynth
                 .base_address(3)
                 .offset([0, 0, 0, offset])
-                .value()
-        };
-        for offset in 0..sn_synth::SNS_COMMON_BLOCK_SIZE.value() as u8 {
-            assert_eq!(
-                sn_synth.is_reserved(3, sns(offset)),
-                (0x0D..=0x0F).contains(&offset),
-                "{offset:#x}"
-            );
+                .value();
+            assert!(!sn_synth.is_reserved(3, at), "{offset:#x}");
         }
-        for spec in USER_MEMORY
-            .iter()
-            .filter(|s| s.tone_type.is_some() && s.tone_type != Some(ToneType::SnSynth))
-        {
+        for spec in USER_MEMORY {
             assert!(spec.blocks.iter().all(|r| r.reserved.is_empty()));
         }
     }
