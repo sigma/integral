@@ -10,10 +10,11 @@ use std::ptr::NonNull;
 
 use accessibility_sys::{
     AXIsProcessTrusted, AXUIElementCopyAttributeValue, AXUIElementCreateApplication,
-    AXUIElementRef, AXUIElementSetAttributeValue, AXUIElementSetMessagingTimeout, AXValueGetType,
-    AXValueGetTypeID, AXValueGetValue, AXValueRef, kAXChildrenAttribute, kAXDescriptionAttribute,
-    kAXErrorSuccess, kAXHelpAttribute, kAXPositionAttribute, kAXRoleAttribute, kAXSizeAttribute,
-    kAXTitleAttribute, kAXValueAttribute, kAXValueTypeCGPoint, kAXValueTypeCGSize,
+    AXUIElementPerformAction, AXUIElementRef, AXUIElementSetAttributeValue,
+    AXUIElementSetMessagingTimeout, AXValueGetType, AXValueGetTypeID, AXValueGetValue, AXValueRef,
+    kAXChildrenAttribute, kAXDescriptionAttribute, kAXErrorSuccess, kAXHelpAttribute,
+    kAXPositionAttribute, kAXRoleAttribute, kAXSizeAttribute, kAXTitleAttribute, kAXValueAttribute,
+    kAXValueTypeCGPoint, kAXValueTypeCGSize,
 };
 use core_foundation_sys::base::CFGetTypeID;
 use objc2_core_foundation::{
@@ -148,6 +149,16 @@ impl Element {
             ) && self.ax_value(kAXSizeAttribute, kAXValueTypeCGSize, (&raw mut size).cast())
         };
         ok.then(|| CGRect::new(origin, size))
+    }
+
+    /// Asks the element's scroll view to bring it into view
+    /// (`AXScrollToVisible`). Returns whether the action was accepted.
+    pub fn scroll_to_visible(&self) -> bool {
+        let action = CFString::from_str("AXScrollToVisible");
+        // SAFETY: valid element and CFString action name.
+        unsafe {
+            AXUIElementPerformAction(self.raw(), (&raw const *action).cast()) == kAXErrorSuccess
+        }
     }
 
     /// The numeric value (a slider's position), if it has one.

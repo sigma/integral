@@ -322,9 +322,12 @@ impl Session {
     pub fn drag_slider(&self, control: &str, to: f64) -> Result<Driven> {
         self.editor_window()?;
         let slider = self.locate(control)?;
+        // The editor scrolls what its window cannot show (ADR 0004), and the
+        // Part 1 fader sits near the mixer's bottom.
+        let scrolled = slider.scroll_to_visible();
         self.report.emit(
             "control",
-            json!({ "labels": slider.labels(), "value": slider.number() }),
+            json!({ "labels": slider.labels(), "value": slider.number(), "scrolled": scrolled }),
         );
         let (window, frame) = self.stable_frame(&slider)?;
         self.shot("drag-before.png");
