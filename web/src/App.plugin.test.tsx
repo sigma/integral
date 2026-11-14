@@ -78,7 +78,7 @@ async function tell(fake: ReturnType<typeof fakeBridge>, info: InstanceInfo): Pr
 }
 
 const tabs = (scope: ParentNode) =>
-  [...scope.querySelectorAll("nav button:not([data-tone-button])")].map((b) => b.textContent);
+  [...scope.querySelectorAll("nav button:not([data-tone-button]):not([data-refresh-button])")].map((b) => b.textContent);
 
 const select = (scope: ParentNode, label: string): HTMLSelectElement => {
   const found = [...scope.querySelectorAll("label")].find((l) => l.textContent?.startsWith(label));
@@ -207,7 +207,7 @@ describe("the status line", () => {
   it.each([
     ["serviceNotRunning", "Device service not running"],
     ["deviceOffline", "Device offline"],
-    ["serviceIncompatible", "Device service version mismatch"],
+    ["serviceIncompatible", "Device service version mismatch: restart your DAW after updating Integral"],
   ] as const)("says %s even when there is no device to show", async (code, text) => {
     // No device: the editor has only the plugin's word.
     const { container } = await openPlugin(
@@ -246,6 +246,37 @@ describe("the status line", () => {
     expect(container.querySelectorAll("[data-notice]")).toHaveLength(1);
     await tell(fake, { plugin: "pcm_synth", binding: { part: 0 }, ...CONNECTED });
     expect(container.querySelector("[data-notice]")).toBeNull();
+  });
+});
+
+describe("Refresh from device", () => {
+  const refresh = (container: ParentNode) => button(container, "Refresh from device");
+
+  it.each(["studio_set", "pcm_synth", "pcm_drum"])("asks the %s plugin to refresh the instance", async (plugin) => {
+    const binding = plugin === "studio_set" ? {} : { part: 0 };
+    const { container, fake } = await openPlugin({ plugin, binding, ...CONNECTED });
+    expect(refresh(container).disabled).toBe(false);
+    click(refresh(container));
+    expect(fake.posted).toContainEqual({ type: "refresh" });
+  });
+
+  it("is off while the device is offline, while recalling, while a push is owed, without the host, and while unbound", async () => {
+    const info = { plugin: "pcm_synth", binding: { part: 0 }, ...CONNECTED };
+    const { container, fake } = await openPlugin(info);
+    const cases: InstanceInfo[] = [
+      { ...info, status: "deviceOffline", statusText: "Device offline" },
+      { ...info, status: "serviceNotRunning", statusText: "Device service not running" },
+      { ...info, notices: [{ notice: "recalling", text: "Recalling…" }] },
+      { ...info, recallOwed: true },
+      { ...info, hostEdits: false },
+      { ...info, binding: null },
+    ];
+    for (const off of cases) {
+      await tell(fake, off);
+      expect(refresh(container).disabled, JSON.stringify(off)).toBe(true);
+    }
+    await tell(fake, info);
+    expect(refresh(container).disabled).toBe(false);
   });
 });
 

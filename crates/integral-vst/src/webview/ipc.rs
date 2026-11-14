@@ -73,6 +73,11 @@ pub(crate) enum PageMessage {
     /// another tone type (the mismatch notice's button). Refused, as
     /// `refused`, if the instance is not on another type.
     LoadDefaultTone,
+    /// Read the instance's Binding again from the device and take what it
+    /// holds as the instance's state (ADR 0009: "Refresh from device").
+    /// Refused, as `refused`, while the instance is unbound, not connected, or
+    /// recalling.
+    Refresh,
 }
 
 /// A [`Notice`] with its text, as the page shows it.
@@ -267,6 +272,10 @@ mod tests {
         assert_eq!(
             decode(r#"{"type":"loadDefaultTone"}"#).unwrap(),
             PageMessage::LoadDefaultTone
+        );
+        assert_eq!(
+            decode(r#"{"type":"refresh"}"#).unwrap(),
+            PageMessage::Refresh
         );
     }
 

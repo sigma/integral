@@ -1,7 +1,7 @@
 import type { PluginKind } from "../pkg/integral_wasm.js";
 import { deviceSpec } from "./deviceSpec";
 import { noteName } from "./pcm-drum/types";
-import { TYPE_MISMATCH_NOTICE, type InstanceInfo, type PluginBinding } from "./plugin";
+import { CONNECTED_STATUS, TYPE_MISMATCH_NOTICE, canRefresh, type InstanceInfo, type PluginBinding } from "./plugin";
 import { acceptsBinding, kitKeys, pluginToneType } from "./pluginPages";
 import { useEffect, useState } from "react";
 import { ToneSelector } from "./ToneSelector";
@@ -30,6 +30,8 @@ interface Props {
   onChangeTone: (part: number, msb: number, lsb: number, pc: number) => void;
   /** Open the Expansions page with `expansion` staged. */
   onLoadExpansion: (expansion: Expansion) => void;
+  /** Refresh the instance from the device (ADR 0009): the plugin re-reads its Binding and adopts it. */
+  onRefresh: () => void;
 }
 
 /** The value of a select whose option means "no key": the whole kit. */
@@ -56,6 +58,7 @@ export function PluginBar({
   expansions,
   onChangeTone,
   onLoadExpansion,
+  onRefresh,
 }: Props) {
   const binding = info.binding ?? {};
   const keys = kitKeys(kind);
@@ -94,6 +97,8 @@ export function PluginBar({
   const canPick = picking !== null;
   useEffect(() => setOpenFor(null), [canPick, binding.part]);
   const pickerOpen = picking !== null && openFor === picking.index;
+  // The plugin refuses a refresh offline or while recalling, so the button is off then.
+  const refreshable = canRefresh(info);
   const unloaded = part ? expansions.unloadedExpansionOf(part.toneBankMsb, part.toneBankLsb) : null;
   return (
     <div className={css.bar}>
@@ -173,8 +178,22 @@ export function PluginBar({
           onClose={() => setOpenFor(null)}
         />
       )}
+      <button
+        type="button"
+        className={css.refresh}
+        data-refresh-button
+        disabled={!refreshable}
+        onClick={onRefresh}
+        title={
+          refreshable
+            ? "Read this plugin's target from the device and take its values"
+            : "Only while connected and not recalling the project"
+        }
+      >
+        Refresh from device
+      </button>
       <div className={css.status} role="status">
-        <span className={`${css.statusText} ${info.status === "connected" ? css.ok : css.warn}`}>
+        <span className={`${css.statusText} ${info.status === CONNECTED_STATUS ? css.ok : css.warn}`}>
           {info.statusText}
         </span>
         {info.notices.map((notice) => (

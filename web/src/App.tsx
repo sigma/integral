@@ -389,6 +389,7 @@ export function App({
         expansions={expansions}
         onChangeTone={mixer.changePartTone}
         onLoadExpansion={loadExpansion}
+        onRefresh={instance.refresh}
       />
     ) : plugin && wasmReady && instance.info ? (
       // The plugin is newer than this page, which cannot show it.

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   bindInstance,
   loadDefaultTone,
+  refreshFromDevice,
   subscribeInstance,
   subscribeRefusals,
   type InstanceInfo,
@@ -19,6 +20,8 @@ export interface PluginInstance {
   bind: (binding: PluginBinding) => void;
   /** Load the plugin's default tone onto the bound Part, which holds another tone type. */
   loadDefaultTone: () => void;
+  /** Refresh the instance from the device: the plugin re-reads its Binding and adopts what it holds. */
+  refresh: () => void;
 }
 
 /**
@@ -50,5 +53,8 @@ export function usePluginInstance(bridge: PluginBridge | null): PluginInstance {
   const loadDefault = useCallback(() => {
     if (bridge) loadDefaultTone(bridge);
   }, [bridge]);
-  return { info, refusal, bind, loadDefaultTone: loadDefault };
+  const refresh = useCallback(() => {
+    if (bridge) refreshFromDevice(bridge);
+  }, [bridge]);
+  return { info, refusal, bind, loadDefaultTone: loadDefault, refresh };
 }
