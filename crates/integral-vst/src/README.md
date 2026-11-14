@@ -36,7 +36,9 @@ the webview UI, available only on macOS.
     holds the plugin's tone type: `Unknown` until the follower has read the
     Part's tone select, `Fits`, or `Mismatch`, which makes the instance inert
     and reports the mismatch notice). The editor's request for the default
-    tone is a flag the follower takes.
+    tone, and its request to refresh from the device
+    (`request_refresh`, refused with `RefreshRefused`), are flags the
+    follower takes.
   - `status.rs`: `Status`: "Device service not running", "Device offline",
     "Connected", and "Device service version mismatch: restart your DAW after
     updating Integral" (the service speaks another protocol version or lacks

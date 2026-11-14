@@ -80,10 +80,11 @@
 //!   (`Request::Baseline`) as the result of the read.
 //!
 //! A tone changed on the device's front panel is not announced to the
-//! service (#464): the instance keeps the type it had until the next event
-//! that asks. A Program Change on the note port is announced only once the
-//! service has the receive settings that say which Parts it reaches, up to
-//! `RX_WAIT_MS` after it, and does not name the tone, so the instance asks.
+//! service: the instance keeps the type it had until the next event that
+//! asks, or until the editor's "Refresh from device" (below). A Program
+//! Change on the note port is announced only once the service has the
+//! receive settings that say which Parts it reaches, up to `RX_WAIT_MS`
+//! after it, and does not name the tone, so the instance asks.
 //!
 //! The recall (#458) selects tones as part of its push: when the tone it
 //! selects is of the instance's own type, [`Instance::selected`] sets the fit
@@ -114,6 +115,17 @@
 //!
 //! A change another writer makes while the read is under way is patched into
 //! the bytes read, so the older bytes of the reply do not undo it.
+//!
+//! # Refresh from device
+//!
+//! Front-panel edits reach no one, and nothing polls for them
+//! ([#464](https://github.com/sigma/integral/issues/464)). The editor's
+//! button ([`Instance::request_refresh`]) makes the values out of date as a
+//! new connection does: the Part's tone is asked and the Binding's blocks are
+//! read again. It is taken only while no push is owed or under way, so the
+//! read applies and adopts (ADR 0009): the device's values reach the host as
+//! a silent replace, the tone is saved, and the result is the state the
+//! instance trusts and pushes in later sessions.
 //!
 //! No part of this runs on the audio thread.
 
@@ -488,6 +500,7 @@ impl Follower {
         self.end_gestures(now);
         self.retry_replace(now);
         self.load_default_tone(wire);
+        self.refresh_if_asked();
         self.finish_probe(now);
         self.probe_if_due(now, wire);
         self.read_if_due(now, wire);
@@ -901,6 +914,41 @@ impl Follower {
         } else {
             self.instance.drop_default_tone();
         }
+    }
+
+    /// Refresh from the device, if the editor asked (ADR 0009, "An explicit
+    /// Refresh adopts the device"): ask the Part's tone again and read the
+    /// Binding's blocks, as on a new connection. No push is owed (that is the
+    /// condition), so the read takes the device's values silently and the
+    /// instance adopts them, the tone with them, as the state it trusts and
+    /// pushes in later sessions. Writing stops until the read is done, as on
+    /// a new connection, so a host edit made meanwhile is kept and wins.
+    ///
+    /// A request that comes while a push is owed or under way, with no link,
+    /// or with no host to tell is dropped, and the editor told: the values
+    /// could not reach the host, and adopting the device's tone without them
+    /// would push the old values onto it in the next session.
+    ///
+    /// While the Part's tone is already unsure (a probe, or the service's word
+    /// on a selection it could not name, is pending) it is not asked again at
+    /// once: an answer now could be of the selection before.
+    fn refresh_if_asked(&mut self) {
+        if !self.instance.take_refresh_request() {
+            return;
+        }
+        if self.bound.is_none()
+            || !self.connected
+            || !self.link_up
+            || self.instance.bank.edits().is_none()
+            || self.recall.active()
+            || self.recall.owes(&self.instance, self.session)
+        {
+            self.instance.drop_refresh();
+            return;
+        }
+        self.instance.disarm();
+        let unsure = self.checks_tone() && self.instance.fit() == ToneFit::Unknown;
+        self.out_of_date(!unsure);
     }
 
     /// Whether a bulk event of `kind` in `binding` changed what this
@@ -1352,6 +1400,8 @@ mod tests {
         baselines: RefCell<Vec<u8>>,
         /// The tones the pushes selected, as (MSB, LSB, PC).
         pushed_tones: RefCell<Vec<(u8, u8, u8)>>,
+        /// The raw messages the pushes carried.
+        pushed_raws: RefCell<Vec<Vec<u8>>>,
     }
 
     impl Wire for FakeWire {
@@ -1372,8 +1422,12 @@ mod tests {
                 .borrow_mut()
                 .push(format!("push {}", requests.len()));
             for request in &requests {
-                if let Request::ChangeTone { msb, lsb, pc, .. } = request {
-                    self.pushed_tones.borrow_mut().push((*msb, *lsb, *pc));
+                match request {
+                    Request::ChangeTone { msb, lsb, pc, .. } => {
+                        self.pushed_tones.borrow_mut().push((*msb, *lsb, *pc));
+                    }
+                    Request::Raw { bytes } => self.pushed_raws.borrow_mut().push(bytes.clone()),
+                    _ => {}
                 }
             }
         }
@@ -2558,5 +2612,218 @@ mod tests {
         follower.retry_replace(now + REPLACE_RETRY);
         assert_eq!(queue.drain(&instance), [HostTask::Replace]);
         assert_eq!(bank.value(i), value, "the mirror caught up");
+    }
+
+    /// The bytes the pushes wrote at `at`, `len` long, if one DT1 covered them.
+    fn pushed_at(wire: &FakeWire, at: u32, len: usize) -> Option<Vec<u8>> {
+        wire.pushed_raws.borrow().iter().rev().find_map(|bytes| {
+            let dt1 = sysex::parse_dt1(bytes).ok()?;
+            let start = dt1.address.value();
+            let offset = at.checked_sub(start)? as usize;
+            dt1.data.get(offset..offset + len).map(<[u8]>::to_vec)
+        })
+    }
+
+    #[test]
+    fn a_refresh_reads_only_a_key_plugins_key_and_its_tone_is_asked_first() {
+        let key = Binding::of_part(0).with_key(40);
+        let instance = instance(PluginKind::PcmDrum, key);
+        instance.bank.set_edits(Some(Arc::new(Log {
+            instance: Arc::downgrade(&instance),
+            replaced: Default::default(),
+        })));
+        instance.status.set(super::super::Status::Connected);
+        let wire = FakeWire::default();
+        let mut follower = Follower::new(Arc::clone(&instance), sysex::DEFAULT_DEVICE_ID);
+        let now = Instant::now();
+        follower.step(Some(&connected()), now, &wire);
+        follower.step(Some(&holds(0, ToneType::PcmDrum)), now, &wire);
+        follower.step(None, now + Duration::from_secs(2), &wire);
+        assert!(instance.is_armed());
+        let (selects, reads) = (selects_asked(&wire, 0), block_reads(&wire, 0));
+        assert_eq!(reads, 1, "the key's one block");
+
+        instance.request_refresh().expect("a refresh is taken");
+        follower.step(None, now + Duration::from_secs(2), &wire);
+        assert!(!instance.is_armed(), "no writes while it reads");
+        assert_eq!(selects_asked(&wire, 0), selects + 1);
+        assert_eq!(block_reads(&wire, 0), reads, "the tone first");
+        follower.step(Some(&holds(0, ToneType::PcmDrum)), now, &wire);
+        assert_eq!(block_reads(&wire, 0), reads + 1, "then the key alone");
+        follower.step(None, now + Duration::from_secs(4), &wire);
+        assert!(instance.is_armed());
+    }
+
+    #[test]
+    fn a_refresh_does_not_ask_the_tone_over_a_selection_the_service_has_yet_to_name() {
+        // The answer could be of the tone before.
+        let instance = instance(PluginKind::PcmSynth, Binding::of_part(0));
+        instance.bank.set_edits(Some(Arc::new(Log {
+            instance: Arc::downgrade(&instance),
+            replaced: Default::default(),
+        })));
+        instance.status.set(super::super::Status::Connected);
+        let wire = FakeWire::default();
+        let mut follower = Follower::new(Arc::clone(&instance), sysex::DEFAULT_DEVICE_ID);
+        let now = Instant::now();
+        follower.step(Some(&connected()), now, &wire);
+        follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
+        follower.step(None, now + Duration::from_secs(2), &wire);
+        assert!(instance.is_armed());
+        let selects = selects_asked(&wire, 0);
+        follower.step(Some(&selected(0, None)), now, &wire);
+        instance.request_refresh().expect("a refresh is taken");
+        follower.step(None, now + Duration::from_secs(2), &wire);
+        assert!(!instance.take_refresh_dropped(), "taken");
+        assert_eq!(selects_asked(&wire, 0), selects, "the service's word first");
+        // The service names it: the refresh's read follows.
+        let reads = block_reads(&wire, 0);
+        follower.step(Some(&selected(0, Some(ToneType::PcmSynth))), now, &wire);
+        follower.step(None, now + Duration::from_secs(2), &wire);
+        assert!(block_reads(&wire, 0) > reads);
+    }
+
+    #[test]
+    fn a_refresh_reads_the_studio_sets_blocks_again_and_pushes_nothing() {
+        let instance = instance(PluginKind::StudioSet, Binding::ANY);
+        instance.bank.set_edits(Some(Arc::new(Log {
+            instance: Arc::downgrade(&instance),
+            replaced: Default::default(),
+        })));
+        instance.status.set(super::super::Status::Connected);
+        let wire = FakeWire::default();
+        let mut follower = Follower::new(Arc::clone(&instance), sysex::DEFAULT_DEVICE_ID);
+        let now = Instant::now();
+        follower.step(Some(&connected()), now, &wire);
+        let first = wire.raws.borrow().len();
+        assert!(first > 0, "the first read");
+        follower.step(None, now + Duration::from_secs(2), &wire);
+        assert!(instance.is_armed());
+        assert_eq!(wire.raws.borrow().len(), first, "nothing polls");
+
+        instance.request_refresh().expect("a refresh is taken");
+        follower.step(None, now + Duration::from_secs(2), &wire);
+        assert_eq!(wire.raws.borrow().len(), first * 2, "the same blocks");
+        follower.step(None, now + Duration::from_secs(4), &wire);
+        assert_eq!(calls(&wire, "push"), 0, "a refresh pushes nothing");
+
+        // A refresh asked as the link drops is dropped, not kept for the new
+        // session, which owes the adopted state its push: the push goes.
+        instance.request_refresh().expect("a refresh is taken");
+        let up = ClientEvent::Message(Message::LinkUp {
+            session: SessionId(2),
+        });
+        follower.step(Some(&ClientEvent::Message(Message::LinkDown)), now, &wire);
+        follower.step(Some(&up), now, &wire);
+        assert!(!instance.take_refresh_request(), "dropped");
+        follower.step(None, now + Duration::from_secs(6), &wire);
+        assert_eq!(calls(&wire, "push"), 1, "the session's push");
+    }
+
+    #[test]
+    fn a_refresh_adopts_a_device_side_change_and_the_next_session_pushes_it() {
+        // A restored PCM Synth instance on Part 0, with the host reachable,
+        // whose recall of tone A (87, 64, 3) is out in session 1.
+        let instance = Arc::new(Instance::new(PluginKind::PcmSynth));
+        instance.binding.set(Some(Binding::of_part(0)));
+        instance
+            .tone
+            .set(Some(super::super::tone::SavedTone::new(87, 64, 3, "")));
+        instance.mark_restored();
+        let log = Arc::new(Log {
+            instance: Arc::downgrade(&instance),
+            replaced: Default::default(),
+        });
+        instance.bank.set_edits(Some(log.clone()));
+        instance.status.set(super::super::Status::Connected);
+        let wire = FakeWire::default();
+        let mut follower = Follower::new(Arc::clone(&instance), sysex::DEFAULT_DEVICE_ID);
+        let now = Instant::now();
+        follower.step(Some(&connected()), now, &wire);
+        follower.step(Some(&holds(0, ToneType::PcmSynth)), now, &wire);
+        let now = now + Duration::from_secs(2);
+        follower.step(None, now, &wire);
+        let baseline = |tone: (u8, u8, u8)| {
+            ClientEvent::Message(Message::Baseline {
+                binding: Binding::of_part(0),
+                tone: Some(ToneSelect {
+                    msb: tone.0,
+                    lsb: tone.1,
+                    pc: tone.2,
+                }),
+                runs: Vec::new(),
+            })
+        };
+        follower.step(Some(&baseline((87, 64, 3))), now, &wire);
+        for _ in 0..2 {
+            follower.step(Some(&ClientEvent::Message(Message::Pushed)), now, &wire);
+        }
+        follower.step(None, now, &wire);
+        assert!(instance.notices.get().is_empty(), "the recall is out");
+        let pushes = calls(&wire, "push");
+
+        // On the front panel: tone B (87, 64, 9), and a field of it changed.
+        // Nothing tells the plugin.
+        let bank = &instance.bank;
+        let i = bank.position("pcms/partial1/0x0F").expect("a parameter");
+        let host = bank.list()[i].0.clone();
+        let new = if bank.value(i) == host.max {
+            host.min
+        } else {
+            host.max
+        };
+        let at = host.device_address(&Binding::of_part(0)).unwrap();
+
+        // Refresh: the Part's tone is asked, then its blocks are read.
+        let selects = selects_asked(&wire, 0);
+        instance.request_refresh().expect("a refresh is taken");
+        follower.step(None, now, &wire);
+        assert_eq!(selects_asked(&wire, 0), selects + 1, "the tone is asked");
+        let select = ClientEvent::Message(Message::Sysex {
+            bytes: sysex::build_dt1(
+                sysex::DEFAULT_DEVICE_ID,
+                &params::tone_select_block(0).0,
+                &[87, 64, 9],
+            ),
+        });
+        let reads = block_reads(&wire, 0);
+        follower.step(Some(&select), now, &wire);
+        assert!(block_reads(&wire, 0) > reads, "the blocks are read");
+        let reply = ClientEvent::Message(Message::Sysex {
+            bytes: sysex::build_dt1(sysex::DEFAULT_DEVICE_ID, &at, &host.encode(new)),
+        });
+        follower.step(Some(&reply), now, &wire);
+        follower.step(None, now + Duration::from_secs(2), &wire);
+
+        // The device wins, without a gesture, and nothing is pushed.
+        assert!(
+            log.replaced
+                .lock()
+                .unwrap()
+                .contains(&(host.id.clone(), new)),
+            "{:?}",
+            log.replaced.lock().unwrap()
+        );
+        assert_eq!(bank.value(i), new);
+        assert_eq!(saved(&instance), (87, 64, 9), "the device's tone is saved");
+        assert_eq!(calls(&wire, "push"), pushes, "a refresh pushes nothing");
+        assert!(instance.is_armed());
+
+        // The next session pushes the refreshed state, not the restored one.
+        let up = ClientEvent::Message(Message::LinkUp {
+            session: SessionId(2),
+        });
+        let later = now + Duration::from_secs(10);
+        follower.step(Some(&ClientEvent::Message(Message::LinkDown)), later, &wire);
+        follower.step(Some(&up), later, &wire);
+        follower.step(Some(&holds(0, ToneType::PcmSynth)), later, &wire);
+        follower.step(None, later + Duration::from_secs(2), &wire);
+        assert_eq!(wire.pushed_tones.borrow().last(), Some(&(87, 64, 9)));
+        follower.step(Some(&baseline((87, 64, 9))), later, &wire);
+        assert_eq!(
+            pushed_at(&wire, at.value(), host.width),
+            Some(host.encode(new)),
+            "the refreshed value is pushed"
+        );
     }
 }

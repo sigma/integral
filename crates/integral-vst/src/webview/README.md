@@ -28,8 +28,9 @@ plugin opens no MIDI port.
     `send { port, data }`, `resize { width, height }`,
     `bind { part?, key? }` and the host gestures `beginEdit { id }`,
     `performEdit { id, value }` and `endEdit { id }` (`id` is the host
-    parameter ID of ADR 0008, `value` the raw value), and `loadDefaultTone`
-    (the mismatch notice's button).
+    parameter ID of ADR 0008, `value` the raw value), `loadDefaultTone`
+    (the mismatch notice's button) and `refresh` ("Refresh from device",
+    ADR 0009).
   - `PluginMessage` is sent by the plugin: `ports`, `opened`, `openFailed`,
     `receive`, `instance { plugin, binding, status, statusText, hostEdits, notices,
     defaultTone, defaultTonePending }` (`defaultTone`: the name of the tone the
@@ -91,6 +92,11 @@ plugin opens no MIDI port.
 - `bind` goes through `Instance::bind`, so only a Binding the kind accepts
   (`PluginKind::accepts`) is taken; anything else is a `refused` and the old
   Binding stays.
+- `refresh` goes through `Instance::request_refresh`: refused, as a
+  `refused`, while the instance is unbound, its status is not `Connected`,
+  it cannot tell the host, or it is recalling or owes a push. Otherwise the
+  worker re-reads the Binding and adopts what the device holds
+  (`family/follow.rs`); a request it then cannot serve is a `refused` too.
 - A host gesture is `beginEdit`, any number of `performEdit`, then `endEdit`,
   per ID. An out-of-order message or an ID the plugin lacks is a `refused` and
   reaches nothing. (`error` is the device link's.) A gesture still begun when the page reloads (`ready`) or

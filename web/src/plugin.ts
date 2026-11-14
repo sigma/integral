@@ -51,7 +51,13 @@ export type PageMessage =
    * tone type (the mismatch notice's button). Refused (`refused`) if the
    * instance is not on another type.
    */
-  | { type: "loadDefaultTone" };
+  | { type: "loadDefaultTone" }
+  /**
+   * Read the instance's Binding again from the device and take what it holds
+   * as the instance's state (ADR 0009, "Refresh from device"). Refused
+   * (`refused`) while the instance is unbound, not connected, or recalling.
+   */
+  | { type: "refresh" };
 
 /** What an instance is bound to: a Part (0-based) and, for a key, the key. */
 export interface PluginBinding {
@@ -97,6 +103,12 @@ export interface InstanceInfo {
 
 /** The notice an instance on a Part of another tone type reports (`Notice::TypeMismatch`). */
 export const TYPE_MISMATCH_NOTICE = "typeMismatch";
+
+/** The notice an instance reports while it pushes the project's state (`Notice::Recalling`). */
+export const RECALLING_NOTICE = "recalling";
+
+/** The status code of an instance whose device answers (`Status::Connected`). */
+export const CONNECTED_STATUS = "connected";
 
 /** A message from the plugin to the page. */
 export type PluginMessage =
@@ -480,4 +492,24 @@ export function bindInstance(bridge: PluginBridge, binding: PluginBinding): void
 /** Ask the plugin to load its default tone onto the bound Part, which holds another tone type. */
 export function loadDefaultTone(bridge: PluginBridge): void {
   bridge.post(encodePageMessage({ type: "loadDefaultTone" }));
+}
+
+/** Ask the plugin to refresh the instance from the device ({@link canRefresh} says whether it would). */
+export function refreshFromDevice(bridge: PluginBridge): void {
+  bridge.post(encodePageMessage({ type: "refresh" }));
+}
+
+/**
+ * Whether the plugin takes a refresh of the instance now: bound, connected,
+ * able to tell the host, and neither recalling nor owing a push (ADR 0009), which a refresh would
+ * race. The plugin refuses one otherwise.
+ */
+export function canRefresh(info: InstanceInfo): boolean {
+  return (
+    info.binding !== null &&
+    info.status === CONNECTED_STATUS &&
+    info.hostEdits &&
+    !info.recallOwed &&
+    !info.notices.some((notice) => notice.notice === RECALLING_NOTICE)
+  );
 }

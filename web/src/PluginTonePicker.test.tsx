@@ -193,6 +193,7 @@ function bar() {
       expansions={expansions}
       onChangeTone={(...args) => changed.push(args)}
       onLoadExpansion={() => {}}
+      onRefresh={() => {}}
     />
   );
   return { view, changed, part };

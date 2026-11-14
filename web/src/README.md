@@ -110,10 +110,13 @@ Device link and transports (`.ts`):
     `PLUGIN_EVENT`, and the wire types `PageMessage` and `PluginMessage`.
   - The instance: `InstanceInfo` (the plugin kind, Binding, status, notices
     and default tone the plugin reports, and whether a recall is owed),
-    `subscribeInstance`, `bindInstance` and `loadDefaultTone`. `ToneMismatch`
+    `subscribeInstance`, `bindInstance`, `loadDefaultTone` and
+    `refreshFromDevice`. `ToneMismatch`
     replaces the tone editor, with the button, while the plugin reports the
     `TYPE_MISMATCH_NOTICE`. `PluginBar` disables its tone button while
-    `recallOwed` is set.
+    `recallOwed` is set, and its "Refresh from device" button unless
+    `canRefresh` (bound, `CONNECTED_STATUS`, `hostEdits`, no `RECALLING_NOTICE`, no
+    `recallOwed`).
     `usePluginInstance` is the hook.
   - `OPEN_TIMEOUT_MS` (2000) and `ScreenArea`.
   - Window sizing: `pluginGrid`, `pluginWindowSize`, `resizePluginWindow`.

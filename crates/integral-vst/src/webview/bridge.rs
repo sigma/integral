@@ -153,6 +153,11 @@ impl Bridge {
                     self.fail(e.to_string());
                 }
             }
+            PageMessage::Refresh => {
+                if let Err(e) = self.instance.request_refresh() {
+                    self.fail(format!("Cannot refresh from the device: {e}"));
+                }
+            }
             PageMessage::BeginEdit { id } => self.begin_edit(id),
             PageMessage::PerformEdit { id, value } => {
                 match self.editing.iter_mut().find(|g| g.id == id) {
@@ -321,6 +326,12 @@ impl Bridge {
         if self.instance.take_default_tone_dropped() {
             self.fail(
                 "The default tone could not be loaded: the plugin has no connection to the device"
+                    .into(),
+            );
+        }
+        if self.instance.take_refresh_dropped() {
+            self.fail(
+                "The refresh from the device was dropped: the link went down or the project's state is owed a push"
                     .into(),
             );
         }
@@ -1048,6 +1059,52 @@ mod tests {
             "{out:?}"
         );
         assert!(!pending(&out));
+    }
+
+    #[test]
+    fn a_refresh_is_requested_only_while_connected_and_not_recalling() {
+        let Editor {
+            bridge: mut b,
+            instance,
+            ..
+        } = editor(PluginKind::SnSynth, &[]);
+        b.handle(r#"{"type":"ready"}"#);
+        heard(&b);
+        let refresh = r#"{"type":"refresh"}"#;
+        instance.bind(Binding::of_part(1)).unwrap();
+        instance.status.set(Status::DeviceOffline);
+        b.handle(refresh);
+        instance.status.set(Status::Connected);
+        instance.notices.set(Notice::Recalling, true);
+        b.handle(refresh);
+        let refusals = heard(&b);
+        assert_eq!(refusals.len(), 2, "{refusals:?}");
+        assert!(
+            refusals
+                .iter()
+                .all(|m| matches!(m, PluginMessage::Refused { .. })),
+            "{refusals:?}"
+        );
+        assert!(!instance.take_refresh_request());
+
+        instance.notices.set(Notice::Recalling, false);
+        b.handle(refresh);
+        assert!(
+            !heard(&b)
+                .iter()
+                .any(|m| matches!(m, PluginMessage::Refused { .. })),
+            "taken"
+        );
+        assert!(instance.take_refresh_request(), "the worker takes it");
+
+        // One the worker could not serve is said to the page.
+        instance.drop_refresh();
+        b.refresh_instance();
+        assert!(
+            heard(&b)
+                .iter()
+                .any(|m| matches!(m, PluginMessage::Refused { .. }))
+        );
     }
 
     #[test]

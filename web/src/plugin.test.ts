@@ -84,6 +84,7 @@ describe("plugin message codec", () => {
       '{"type":"endEdit","id":"part07/0x09"}',
     );
     expect(encodePageMessage({ type: "loadDefaultTone" })).toBe('{"type":"loadDefaultTone"}');
+    expect(encodePageMessage({ type: "refresh" })).toBe('{"type":"refresh"}');
   });
 
   it("decodes the instance message the plugin encodes", () => {

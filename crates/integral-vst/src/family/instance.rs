@@ -51,6 +51,25 @@ pub enum DefaultToneRefused {
     Pending,
 }
 
+/// Why a request to refresh the instance from the device was refused
+/// (ADR 0009: the button is off meanwhile).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum RefreshRefused {
+    /// The instance is not bound to a target.
+    #[error("the instance is not bound to a target")]
+    Unbound,
+    /// The service or the device is not there to read from.
+    #[error("the device is not connected")]
+    Offline,
+    /// The instance cannot tell the host of the values it would read.
+    #[error("the plugin cannot reach the host's parameters")]
+    NoHost,
+    /// A push of the project's state is owed or under way, which a refresh
+    /// would race.
+    #[error("the project's state is being recalled")]
+    Recalling,
+}
+
 /// Whether the Part an instance is bound to holds a tone of the plugin's
 /// type (ADR 0007). Anything but [`Fits`](Self::Fits) leaves the instance
 /// inert: it writes nothing and takes no change from the device.
@@ -124,6 +143,11 @@ pub struct Instance {
     /// A request for the default tone was dropped unserved since the editor
     /// last heard.
     default_tone_dropped: AtomicBool,
+    /// The editor asked to refresh from the device; the worker has not taken
+    /// the request.
+    refresh: AtomicBool,
+    /// A refresh request was dropped unserved since the editor last heard.
+    refresh_dropped: AtomicBool,
     /// The tone selection saved with the project: what the instance last
     /// learned the device holds, and what the recall selects (ADR 0009). A
     /// Studio Set instance has none.
@@ -170,6 +194,8 @@ impl Instance {
             recall_owed: AtomicBool::new(false),
             default_tone: AtomicU8::new(DEFAULT_TONE_IDLE),
             default_tone_dropped: AtomicBool::new(false),
+            refresh: AtomicBool::new(false),
+            refresh_dropped: AtomicBool::new(false),
             tone: ToneCell::default(),
             settled: AtomicBool::new(false),
             restores: AtomicU64::new(0),
@@ -490,6 +516,51 @@ impl Instance {
         self.default_tone_dropped.swap(false, Ordering::AcqRel)
     }
 
+    /// Ask for the instance to be refreshed from the device (ADR 0009, "An
+    /// explicit Refresh adopts the device"): the worker reads its Binding's
+    /// blocks again and takes them as a fresh instance does, as the state it
+    /// trusts. Requests the worker has not taken yet are one.
+    ///
+    /// # Errors
+    ///
+    /// [`RefreshRefused`] if the instance is not bound, is not connected to
+    /// the device, cannot tell the host, or reports [`Notice::Recalling`] or
+    /// an owed push.
+    pub fn request_refresh(&self) -> Result<(), RefreshRefused> {
+        if self.binding.get().is_none() {
+            return Err(RefreshRefused::Unbound);
+        }
+        if self.status.get() != super::Status::Connected {
+            return Err(RefreshRefused::Offline);
+        }
+        if self.bank.edits().is_none() {
+            return Err(RefreshRefused::NoHost);
+        }
+        if self.recall_owed() || self.notices.get().contains(&Notice::Recalling) {
+            return Err(RefreshRefused::Recalling);
+        }
+        self.refresh.store(true, Ordering::Release);
+        Ok(())
+    }
+
+    /// Whether a refresh was requested since the last call; taking it is the
+    /// worker's.
+    pub fn take_refresh_request(&self) -> bool {
+        self.refresh.swap(false, Ordering::AcqRel)
+    }
+
+    /// The worker could not serve a refresh (no link, no host, a push owed):
+    /// the editor is told
+    /// ([`take_refresh_dropped`](Self::take_refresh_dropped)).
+    pub fn drop_refresh(&self) {
+        self.refresh_dropped.store(true, Ordering::Release);
+    }
+
+    /// Whether a refresh was dropped since the last call.
+    pub fn take_refresh_dropped(&self) -> bool {
+        self.refresh_dropped.swap(false, Ordering::AcqRel)
+    }
+
     /// Stop host changes going to the device, until the next
     /// [`arm`](Self::arm): its values are out of date (a reconnect, a bulk
     /// change) and the instance is reading them again. Wait-free.
@@ -738,6 +809,45 @@ mod tests {
         instance.arm();
         poll(&instance);
         assert_eq!(*writes.borrow(), [], "nothing stale is written");
+    }
+
+    #[test]
+    fn a_refresh_is_taken_only_while_bound_connected_and_not_recalling_and_taken_once() {
+        use super::super::Status;
+        let instance = Instance::new(PluginKind::PcmSynth);
+        assert_eq!(instance.request_refresh(), Err(RefreshRefused::Unbound));
+        instance.bind(Binding::of_part(2)).unwrap();
+        for offline in [
+            Status::ServiceNotRunning,
+            Status::DeviceOffline,
+            Status::ServiceIncompatible,
+        ] {
+            instance.status.set(offline);
+            assert_eq!(instance.request_refresh(), Err(RefreshRefused::Offline));
+        }
+        instance.status.set(Status::Connected);
+        assert_eq!(instance.request_refresh(), Err(RefreshRefused::NoHost));
+        struct Nothing;
+        impl host::HostEdits for Nothing {
+            fn begin(&self, _: &nih_plug::prelude::IntParam) {}
+            fn perform(&self, _: &nih_plug::prelude::IntParam, _: i32) {}
+            fn end(&self, _: &nih_plug::prelude::IntParam) {}
+            fn replace(&self, _: &[host::Replace<'_>]) -> bool {
+                true
+            }
+        }
+        instance.bank.set_edits(Some(Arc::new(Nothing)));
+        instance.notices.set(Notice::Recalling, true);
+        assert_eq!(instance.request_refresh(), Err(RefreshRefused::Recalling));
+        instance.notices.set(Notice::Recalling, false);
+        instance.set_recall_owed(true);
+        assert_eq!(instance.request_refresh(), Err(RefreshRefused::Recalling));
+        instance.set_recall_owed(false);
+        assert!(!instance.take_refresh_request(), "none refused was kept");
+        assert_eq!(instance.request_refresh(), Ok(()));
+        assert_eq!(instance.request_refresh(), Ok(()));
+        assert!(instance.take_refresh_request());
+        assert!(!instance.take_refresh_request(), "two requests are one");
     }
 
     #[test]

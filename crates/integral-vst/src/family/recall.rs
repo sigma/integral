@@ -11,7 +11,9 @@
 //!   never [`Instance::is_settled`], which a fresh instance is too), or the
 //!   one the instance adopted from the device and has held since: the
 //!   project, the host's state, always wins, so a device that comes back in a
-//!   new session gets it. Only a brand-new instance's first session adopts.
+//!   new session gets it. Only a brand-new instance's first session adopts,
+//!   and an explicit "Refresh from device" (the follower's
+//!   `refresh_if_asked`), which is taken only while no push is owed.
 //! - **Pushable** is a Studio Set plugin, or a Tone or Kit plugin that saved a
 //!   tone. A restored Tone or Kit instance without one adopts from the start.
 //! - A socket drop within a session does not change its ID, so it pushes
