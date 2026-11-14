@@ -8,6 +8,7 @@ bundle_name := "Integral"
 # the Device service binary `install` puts under ~/Library/Application Support/Integral, and its LaunchAgent label
 service_bin := "integral-device-service"
 service_label := "com.sigma.integral.device-service"
+service_plist := home_directory() / "Library/LaunchAgents" / service_label + ".plist"
 
 # default: list available targets
 default:
@@ -106,7 +107,7 @@ install: bundle-plugin
     # crates/integral-device-service/src/link_config.rs).
     support_dir="$HOME/Library/Application Support/Integral"
     log_dir="$HOME/Library/Logs/Integral"
-    plist="$HOME/Library/LaunchAgents/$label.plist"
+    plist="{{service_plist}}"
     domain="gui/$UID"
     # The cargo target dir may be shared between workspaces, so copy the
     # binary straight after the build, before another build replaces it.
@@ -161,10 +162,36 @@ install: bundle-plugin
     echo "Logs: $log_dir"
     echo "On the first run, macOS asks whether $service may find devices on your local network."
     echo "Allow it: until then the link stays down and the log repeats 'No route to host (os error 65)'."
-    echo "Stop it before \`just bridge\` (both claim the service socket):"
-    echo "  launchctl bootout $domain/$label"
-    echo "It starts again at the next login, or now with:"
-    echo "  launchctl bootstrap $domain \"$plist\""
+    echo "Stop it before \`just bridge\` (both claim the service socket) with \`just service-stop\`."
+    echo "It starts again at the next login, or now with \`just service-start\`."
+
+# stop the Device service `just install` runs, until the next login or `just service-start` (macOS)
+service-stop:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    target="gui/$(id -u)/{{service_label}}"
+    if ! launchctl print "$target" >/dev/null 2>&1; then
+        echo "The Device service is not running"
+        exit 0
+    fi
+    launchctl bootout "$target"
+    echo "Stopped the Device service; \`just service-start\` starts it again"
+
+# start the Device service `just install` installed, if it is not running (macOS)
+service-start:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    domain="gui/$(id -u)"
+    if launchctl print "$domain/{{service_label}}" >/dev/null 2>&1; then
+        echo "The Device service is already running"
+        exit 0
+    fi
+    if [ ! -f "{{service_plist}}" ]; then
+        echo "error: {{service_plist}} is missing; run \`just install\` first" >&2
+        exit 1
+    fi
+    launchctl bootstrap "$domain" "{{service_plist}}"
+    echo "Started the Device service"
 
 # run a test-host scenario (load, drag, recall, automate, binding-mismatch, kit-binding) against the bundled plugins; JSON lines on stdout (macOS).
 # `load` checks every plugin class; `drag` drags a Studio Set slider (`--param`, default "Part 1 Level").
