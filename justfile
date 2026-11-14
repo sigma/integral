@@ -159,6 +159,8 @@ install: bundle-plugin
     echo "Installed $vst3_dir/{{bundle_name}}.vst3"
     echo "Installed $support_dir/$service, running as the LaunchAgent $label"
     echo "Logs: $log_dir"
+    echo "On the first run, macOS asks whether $service may find devices on your local network."
+    echo "Allow it: until then the link stays down and the log repeats 'No route to host (os error 65)'."
     echo "Stop it before \`just bridge\` (both claim the service socket):"
     echo "  launchctl bootout $domain/$label"
     echo "It starts again at the next login, or now with:"

@@ -162,7 +162,7 @@ The `justfile` provides standard targets. Run `just` to list them.
 | `just lint-css` | Stylelint for CSS modules |
 | `just build-web-plugin` | Build `web/dist-plugin`, the web UI the plugin embeds (no service worker) |
 | `just build-plugin` | Build the plugin (release) with its web UI embedded |
-| `just install` | Install the plugin bundle under `~/Library/Audio/Plug-Ins/VST3/` and the Device service under `~/Library/Application Support/Integral/`, run as the LaunchAgent `com.sigma.integral.device-service` (macOS; replaces an older install). Logs in `~/Library/Logs/Integral/`. Stop it before `just bridge` (until the next login): `launchctl bootout gui/$(id -u)/com.sigma.integral.device-service` |
+| `just install` | Install the plugin bundle under `~/Library/Audio/Plug-Ins/VST3/` and the Device service under `~/Library/Application Support/Integral/`, run as the LaunchAgent `com.sigma.integral.device-service` (macOS; replaces an older install). Logs in `~/Library/Logs/Integral/`. On the first run, allow the macOS Local Network prompt: until then the link stays down (`No route to host (os error 65)` in the log). Stop it before `just bridge` (until the next login): `launchctl bootout gui/$(id -u)/com.sigma.integral.device-service` |
 | `just check` | Full pre-commit: fmt-check + lint + lint-web + lint-css + build-web-plugin + build + build-wasm + test + test-web + check-pwa |
 | `just clean` | Remove build artifacts |
 | `just ping` | Ping the INTEGRA-7 device |
