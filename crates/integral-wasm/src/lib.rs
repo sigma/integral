@@ -2882,6 +2882,17 @@ impl WasmDeviceState {
         self.inner.load_mixer();
     }
 
+    /// Read `part`'s dump from the device again — its tone select with it —
+    /// and its tone's name and category once the dump is in: the page's copy
+    /// of a Part a "Refresh from device" adopted (#562). The reads' replies
+    /// update the state as the mixer load's do.
+    #[wasm_bindgen(js_name = reReadPart)]
+    pub fn re_read_part(&mut self, part: u8) -> Result<(), JsError> {
+        check_part(part)?;
+        self.inner.reread_part(part);
+        Ok(())
+    }
+
     /// Whether a mixer load still waits for a block the mixer can't be
     /// shown without.
     #[wasm_bindgen(js_name = mixerLoading)]

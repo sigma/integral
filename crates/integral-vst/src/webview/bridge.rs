@@ -322,6 +322,7 @@ impl Bridge {
             default_tone: self.instance.default_tone().map(|tone| tone.name),
             default_tone_pending: self.instance.default_tone_pending(),
             recall_owed: self.instance.recall_owed(),
+            refreshed: self.instance.refreshed(),
         };
         if self.instance.take_default_tone_dropped() {
             self.fail(
@@ -939,6 +940,7 @@ mod tests {
             default_tone: instance.default_tone().map(|tone| tone.name),
             default_tone_pending: false,
             recall_owed: false,
+            refreshed: instance.refreshed(),
         };
         b.refresh_instance();
         assert_eq!(b.take_outgoing(), [], "nothing before ready");
@@ -953,6 +955,20 @@ mod tests {
 
         instance.status.set(Status::Connected);
         instance.notices.set(Notice::Recalling, true);
+        b.refresh_instance();
+        b.refresh_instance();
+        assert_eq!(
+            heard(&b),
+            [instance_message(
+                Status::Connected,
+                None,
+                &[Notice::Recalling]
+            )]
+        );
+
+        // A finished refresh is part of what the page hears (#562): the
+        // count is what its editor re-reads its views on.
+        instance.note_refresh_done();
         b.refresh_instance();
         b.refresh_instance();
         assert_eq!(

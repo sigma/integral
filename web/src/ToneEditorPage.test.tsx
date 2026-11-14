@@ -6,6 +6,13 @@ import type { UseMixerResult } from "./useMixer";
 import { cleanup, render } from "./test/dom";
 import { fakeToneService } from "./test/toneService";
 
+// jsdom lacks the ResizeObserver the editors' Grid zoom measures with.
+globalThis.ResizeObserver ??= class {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+};
+
 afterEach(cleanup);
 
 /** The bank MSB of the other part's tone: an SRX bank, which holds PCM Synth tones. */
@@ -74,6 +81,22 @@ describe("ToneEditorPage", () => {
       const text = page(OTHER_MSB, { part: 0, only: ToneType.SnSynth }).textContent;
       expect(text).toContain("another type of tone");
       expect(text).not.toContain("Loading");
+    });
+
+    it("re-reads the editor when a finished refresh says so (#562)", async () => {
+      // The editor has read its blocks; a risen `reread` (the plugin's count
+      // of finished refreshes) remounts it, as a tone change does.
+      const mixer = {
+        state: { selectedPart: 0, parts: [{ toneBankMsb: OTHER_MSB, toneBankLsb: 0, tonePC: 0 }] },
+      } as unknown as UseMixerResult;
+      const { service } = fakeToneService(new WasmDeviceState(0x10));
+      const marking = { isUnloaded: () => false, onLoad: () => {} };
+      const props = { mixer, service, marking, part: 0, only: ToneType.PcmSynth } as const;
+      const view = render(<ToneEditorPage {...props} reread={0} />);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      expect(view.container.textContent).not.toContain("Loading PCM Synth tone data");
+      view.rerender(<ToneEditorPage {...props} reread={1} />);
+      expect(view.container.textContent).toContain("Loading PCM Synth tone data");
     });
   });
 });

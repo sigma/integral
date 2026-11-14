@@ -14,7 +14,7 @@ import {
 import { browserPorts } from "./deviceService";
 import { IntegraService } from "./integra";
 import { installFamilyPalette } from "./synth-ui/family";
-import { plugin_kind_from_wire } from "../pkg/integral_wasm.js";
+import { PluginKind, plugin_kind_from_wire } from "../pkg/integral_wasm.js";
 import { useMixer } from "./useMixer";
 import { useExpansions } from "./useExpansions";
 import { useExpansionStaging } from "./useExpansionStaging";
@@ -370,7 +370,27 @@ export function App({
 
   // The plugin's Binding, and what its editor edits within it.
   const pluginBinding = instance.info?.binding ?? null;
-  // The Part holds another tone type, as the plugin reports it.
+  // A refresh the plugin finished (ADR 0009: it adopted the device's values)
+  // re-reads what this page shows, which its own reads left at the old ones
+  // (#562). A refresh the plugin refused or dropped never raises the count,
+  // so the views are left alone.
+  const refreshed = instance.info?.refreshed ?? 0;
+  const seenRefresh = useRef<number | null>(null);
+  const reloadMixer = mixer.reload;
+  useEffect(() => {
+    const first = seenRefresh.current === null;
+    const risen = (seenRefresh.current ?? 0) < refreshed;
+    seenRefresh.current = refreshed;
+    if (first || !risen) return;
+    if (pluginKind === PluginKind.StudioSet) {
+      // The mixer is its view, and its Binding: read whole, once.
+      reloadMixer();
+    } else if (pluginKind !== undefined && pluginBinding?.part !== undefined && service) {
+      // One Part's tone is its view: read the Part's dump (the tone select
+      // with it); the editor below re-reads its blocks on the same count.
+      service.device.reReadPart(pluginBinding.part);
+    }
+  }, [refreshed, pluginKind, pluginBinding, reloadMixer, service]);
   const mismatch = instance.info?.notices.find((notice) => notice.notice === TYPE_MISMATCH_NOTICE);
   const pluginBar =
     plugin && instance.info && pluginKind !== undefined ? (
@@ -473,6 +493,7 @@ export function App({
                       part={pluginBinding.part}
                       only={pluginToneType(pluginKind)}
                       drum={pluginDrumScope(pluginKind, pluginBinding)}
+                      reread={refreshed}
                     />
                   )
                 ) : (

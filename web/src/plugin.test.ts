@@ -91,7 +91,7 @@ describe("plugin message codec", () => {
     // As `ipc.rs` encodes it.
     expect(
       decodePluginMessage(
-        '{"type":"instance","plugin":"pcm_drum","binding":{"part":2,"key":36},"status":"deviceOffline","statusText":"Device offline","hostEdits":true,"notices":[{"notice":"recalling","text":"Recalling\\u2026"}],"defaultTone":"Studio Kit","defaultTonePending":true,"recallOwed":true}',
+        '{"type":"instance","plugin":"pcm_drum","binding":{"part":2,"key":36},"status":"deviceOffline","statusText":"Device offline","hostEdits":true,"notices":[{"notice":"recalling","text":"Recalling\\u2026"}],"defaultTone":"Studio Kit","defaultTonePending":true,"recallOwed":true,"refreshed":2}',
       ),
     ).toEqual({
       type: "instance",
@@ -104,15 +104,16 @@ describe("plugin message codec", () => {
       defaultTone: "Studio Kit",
       defaultTonePending: true,
       recallOwed: true,
+      refreshed: 2,
     });
     expect(
       decodePluginMessage(
-        '{"type":"instance","plugin":"studio_set","binding":{},"status":"connected","statusText":"Connected","hostEdits":false,"notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false}',
+        '{"type":"instance","plugin":"studio_set","binding":{},"status":"connected","statusText":"Connected","hostEdits":false,"notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false,"refreshed":0}',
       ),
     ).toMatchObject({ plugin: "studio_set", binding: {}, status: "connected", hostEdits: false });
     expect(
       decodePluginMessage(
-        '{"type":"instance","plugin":"sn_synth","binding":null,"status":"serviceNotRunning","statusText":"x","hostEdits":true,"notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false}',
+        '{"type":"instance","plugin":"sn_synth","binding":null,"status":"serviceNotRunning","statusText":"x","hostEdits":true,"notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false,"refreshed":0}',
       ),
     ).toMatchObject({ binding: null });
   });
@@ -125,7 +126,7 @@ describe("plugin message codec", () => {
     });
     expect(
       decodePluginMessage(
-        '{"type":"instance","plugin":"sn_synth","binding":null,"status":"aNewStatus","statusText":"New","hostEdits":true,"notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false}',
+        '{"type":"instance","plugin":"sn_synth","binding":null,"status":"aNewStatus","statusText":"New","hostEdits":true,"notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false,"refreshed":0}',
       ),
     ).toMatchObject({ status: "aNewStatus", statusText: "New" });
   });
@@ -146,13 +147,17 @@ describe("plugin message codec", () => {
       '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","notices":[1]}',
       '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x"}',
       '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false}',
-      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":"yes","notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false,"hostEdits":true,"refreshed":1.5}',
       // The default tone is a name or null, and always said.
       '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":true,"notices":[],"defaultTonePending":false,"recallOwed":false}',
       '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":true,"notices":[],"defaultTone":7,"defaultTonePending":false,"recallOwed":false}',
       '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":true,"notices":[],"defaultTone":null}',
       // Whether a recall is owed is always said.
-      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":true,"notices":[],"defaultTone":null,"defaultTonePending":false}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":true,"notices":[],"defaultTone":null,"defaultTonePending":false,"refreshed":0}',
+      // How many refreshes finished is always said, as a count.
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":true,"notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":true,"notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false,"refreshed":-1}',
+      '{"type":"instance","plugin":"sn_synth","binding":null,"status":"connected","statusText":"x","hostEdits":true,"notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false,"refreshed":1.5}',
     ]) {
       expect(decodePluginMessage(text), text).toBeNull();
     }

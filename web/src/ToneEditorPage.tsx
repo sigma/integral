@@ -24,13 +24,25 @@ interface Props {
   only?: ToneType;
   /** What of a drum kit to edit (a Kit plugin's Binding); all of it by default. */
   drum?: DrumScope;
+  /** Re-read the editor when this changes (a plugin refresh that adopted the
+   * device's values, #562); the editor remounts as a tone change remounts it. */
+  reread?: number;
 }
 
-export function ToneEditorPage({ mixer, service, marking, onBack, part: bound, only, drum }: Props) {
-  const partIndex = bound ?? mixer.state.selectedPart;
-  const part = mixer.state.parts[partIndex]!;
+export function ToneEditorPage({
+  mixer,
+  service,
+  marking,
+  onBack,
+  part: bound,
+  only,
+  drum,
+  reread,
+}: Props) {
   // Preset, User and SRX tones load into one of the five Temporary Tone
   // types; core knows which from the bank, and which banks can't be edited.
+  const partIndex = bound ?? mixer.state.selectedPart;
+  const part = mixer.state.parts[partIndex]!;
   const msb = part.toneBankMsb;
   const holds = is_editable_bank(msb) ? tone_type_from_bank_msb(msb) : undefined;
   // A plugin edits its own type only: another type is inert (ADR 0007).
@@ -47,7 +59,7 @@ export function ToneEditorPage({ mixer, service, marking, onBack, part: bound, o
         </div>
       )}
       {/* Keyed on tone identity so a new tone pick remounts and re-reads the editor. */}
-      <Fragment key={`${part.toneBankMsb}-${part.toneBankLsb}-${part.tonePC}`}>
+      <Fragment key={`${part.toneBankMsb}-${part.toneBankLsb}-${part.tonePC}-${reread ?? 0}`}>
         {toneType === ToneType.PcmDrum ? (
           <PcmDrumEditor partIndex={partIndex} service={service} marking={marking} scope={drum} />
         ) : toneType === ToneType.PcmSynth ? (
