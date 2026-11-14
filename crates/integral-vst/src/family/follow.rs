@@ -125,7 +125,9 @@
 //! read again. It is taken only while no push is owed or under way, so the
 //! read applies and adopts (ADR 0009): the device's values reach the host as
 //! a silent replace, the tone is saved, and the result is the state the
-//! instance trusts and pushes in later sessions.
+//! instance trusts and pushes in later sessions. The read's conclusion is
+//! counted on the instance ([`Instance::note_refresh_done`]): the editor
+//! hears the count and re-reads the views it shows (#562).
 //!
 //! No part of this runs on the audio thread.
 
@@ -416,6 +418,12 @@ pub struct Follower {
     /// The editor's default tone was selected by this follower, and the
     /// Part's baseline is asked for when the service announces it.
     own_default_tone: bool,
+    /// A refresh was taken and its read has not concluded: the conclusion
+    /// tells the editor ([`Instance::note_refresh_done`]), which re-reads
+    /// what it shows. A refresh that never reads (the link drops, the Part
+    /// turns out to hold another type) clears it only by the next read's
+    /// conclusion, a spurious telling at worst.
+    refreshing: bool,
     /// The Part whose baseline was asked for in place of a read.
     baseline_part: Option<u8>,
     gestures: Vec<Gesture>,
@@ -450,6 +458,7 @@ impl Follower {
             probe_backoff: PROBE_BACKOFF_MIN,
             raw_on: false,
             own_default_tone: false,
+            refreshing: false,
             baseline_part: None,
             gestures: Vec::new(),
             retry_at: None,
@@ -947,6 +956,7 @@ impl Follower {
             return;
         }
         self.instance.disarm();
+        self.refreshing = true;
         let unsure = self.checks_tone() && self.instance.fit() == ToneFit::Unknown;
         self.out_of_date(!unsure);
     }
@@ -1203,6 +1213,10 @@ impl Follower {
 
     /// Give the host what a finished read found, and arm the instance.
     fn conclude(&mut self, reading: Reading, now: Instant) {
+        if self.refreshing {
+            self.refreshing = false;
+            self.instance.note_refresh_done();
+        }
         let byte = |at: u32| reading.bytes.get(&at).copied();
         if reading.adopt {
             recall::capture(&self.instance, &reading.binding, &byte);
@@ -2700,12 +2714,22 @@ mod tests {
         follower.step(None, now + Duration::from_secs(2), &wire);
         assert!(instance.is_armed());
         assert_eq!(wire.raws.borrow().len(), first, "nothing polls");
+        assert_eq!(
+            instance.refreshed(),
+            0,
+            "a plain read tells the editor nothing"
+        );
 
         instance.request_refresh().expect("a refresh is taken");
         follower.step(None, now + Duration::from_secs(2), &wire);
         assert_eq!(wire.raws.borrow().len(), first * 2, "the same blocks");
         follower.step(None, now + Duration::from_secs(4), &wire);
         assert_eq!(calls(&wire, "push"), 0, "a refresh pushes nothing");
+        assert_eq!(
+            instance.refreshed(),
+            1,
+            "the refresh's read, once concluded, is what the editor re-reads its views for"
+        );
 
         // A refresh asked as the link drops is dropped, not kept for the new
         // session, which owes the adopted state its push: the push goes.
@@ -2718,6 +2742,11 @@ mod tests {
         assert!(!instance.take_refresh_request(), "dropped");
         follower.step(None, now + Duration::from_secs(6), &wire);
         assert_eq!(calls(&wire, "push"), 1, "the session's push");
+        assert_eq!(
+            instance.refreshed(),
+            1,
+            "a refresh that never read tells the editor nothing"
+        );
     }
 
     #[test]

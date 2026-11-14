@@ -1,8 +1,9 @@
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MixerField } from "../pkg/integral_wasm.js";
 import { App } from "./App";
-import { LAST_PORT_KEY, webMidiPorts } from "./midi";
 import type { InstanceInfo } from "./plugin";
+import { LAST_PORT_KEY, webMidiPorts } from "./midi";
 import { button, cleanup, click, render } from "./test/dom";
 import { fakeMidiAccess, type FakePortSpec } from "./test/midiAccess";
 import { fakeBridge } from "./test/pluginBridge";
@@ -50,6 +51,7 @@ const CONNECTED: Omit<InstanceInfo, "plugin" | "binding"> = {
   defaultTone: null,
   defaultTonePending: false,
   recallOwed: false,
+  refreshed: 0,
 };
 
 /**
@@ -93,6 +95,20 @@ function choose(element: HTMLSelectElement, value: string): void {
     element.value = value;
     element.dispatchEvent(new Event("change", { bubbles: true }));
   });
+}
+
+/** Poll `claim` every 20 ms until it holds, re-rendering as `settle` does. */
+async function eventually(claim: () => void, ms = 2000): Promise<void> {
+  const deadline = Date.now() + ms;
+  for (;;) {
+    try {
+      claim();
+      return;
+    } catch (e) {
+      if (Date.now() > deadline) throw e;
+    }
+    await act(() => new Promise<void>((resolve) => setTimeout(resolve, 20)));
+  }
 }
 
 const status = (scope: ParentNode) => scope.querySelector('[role="status"]')?.textContent;
@@ -211,7 +227,7 @@ describe("the status line", () => {
   ] as const)("says %s even when there is no device to show", async (code, text) => {
     // No device: the editor has only the plugin's word.
     const { container } = await openPlugin(
-      { plugin: "pcm_synth", binding: { part: 0 }, status: code, statusText: text, hostEdits: false, notices: [], defaultTone: null, defaultTonePending: false, recallOwed: false },
+      { plugin: "pcm_synth", binding: { part: 0 }, status: code, statusText: text, hostEdits: false, notices: [], defaultTone: null, defaultTonePending: false, recallOwed: false, refreshed: 0 },
       [],
     );
     expect(status(container)).toBe(text);
@@ -219,7 +235,7 @@ describe("the status line", () => {
 
   it("follows the instance as the plugin reports it", async () => {
     const { container, fake } = await openPlugin(
-      { plugin: "pcm_synth", binding: { part: 0 }, status: "serviceNotRunning", statusText: "Device service not running", hostEdits: false, notices: [], defaultTone: null, defaultTonePending: false, recallOwed: false },
+      { plugin: "pcm_synth", binding: { part: 0 }, status: "serviceNotRunning", statusText: "Device service not running", hostEdits: false, notices: [], defaultTone: null, defaultTonePending: false, recallOwed: false, refreshed: 0 },
       [],
     );
     await tell(fake, { plugin: "pcm_synth", binding: { part: 0 }, ...CONNECTED });
@@ -277,6 +293,47 @@ describe("Refresh from device", () => {
     }
     await tell(fake, info);
     expect(refresh(container).disabled).toBe(false);
+  });
+
+  /** The Part 1 fader's value, once the mixer has read the Part. */
+  const partLevel = (scope: ParentNode) =>
+    scope
+      .querySelector('[data-section="strip.part.0"]')
+      ?.querySelector(`[data-field="${MixerField.PartLevel}"] [role="slider"]`)
+      ?.getAttribute("aria-valuenow");
+  /** The absolute address Roland 7-bit address `bytes` name, plus `offset`. */
+  const at = (bytes: [number, number, number, number], offset = 0) =>
+    ((bytes[0]! << 21) | (bytes[1]! << 14) | (bytes[2]! << 7) | bytes[3]!) + offset;
+  // Part 1's Level, within its Part block (18 00 20 00).
+  const PART_LEVEL = at([0x18, 0x00, 0x20, 0x09]);
+
+  it("shows the device's value in the mixer after a refresh it finished", async () => {
+    const memory = new Map([[PART_LEVEL, 50]]);
+    const info: InstanceInfo = { plugin: "studio_set", binding: {}, ...CONNECTED };
+    const { container, fake } = await openPlugin(info, [{ name: "INTEGRA-7", answers: true, memory }]);
+    await eventually(() => expect(partLevel(container)).toBe("50"));
+
+    // A front-panel edit the page has not read.
+    memory.set(PART_LEVEL, 90);
+    click(refresh(container));
+    expect(fake.posted).toContainEqual({ type: "refresh" });
+    // The plugin reports the finished refresh: the count the page re-reads on.
+    await tell(fake, { ...info, refreshed: 1 });
+    await eventually(() => expect(partLevel(container)).toBe("90"));
+  });
+
+  it("leaves the views alone when the plugin refuses the refresh", async () => {
+    const memory = new Map([[PART_LEVEL, 50]]);
+    const info: InstanceInfo = { plugin: "studio_set", binding: {}, ...CONNECTED };
+    const { container, fake } = await openPlugin(info, [{ name: "INTEGRA-7", answers: true, memory }]);
+    await eventually(() => expect(partLevel(container)).toBe("50"));
+
+    // The device moved on, but the plugin says no: no count rises, no view re-reads.
+    memory.set(PART_LEVEL, 90);
+    click(refresh(container));
+    act(() => fake.deliver({ type: "refused", message: "Cannot refresh from the device: the project's state is being recalled" }));
+    await eventually(() => expect(partLevel(container)).toBe("50"), 150);
+    expect(fake.posted).toContainEqual({ type: "refresh" });
   });
 });
 

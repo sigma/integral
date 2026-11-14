@@ -99,6 +99,12 @@ export interface InstanceInfo {
    * page offers no tone pick, which the push would select the saved tone over.
    */
   recallOwed: boolean;
+  /**
+   * How many refreshes the plugin has finished (#562): the page re-reads the
+   * views it shows whenever this rises. A refresh that was refused or dropped
+   * never raises it.
+   */
+  refreshed: number;
 }
 
 /** The notice an instance on a Part of another tone type reports (`Notice::TypeMismatch`). */
@@ -187,7 +193,10 @@ export function decodePluginMessage(text: string): PluginMessage | null {
         m.notices.every(isNotice) &&
         (m.defaultTone === null || typeof m.defaultTone === "string") &&
         typeof m.defaultTonePending === "boolean" &&
-        typeof m.recallOwed === "boolean"
+        typeof m.recallOwed === "boolean" &&
+        typeof m.refreshed === "number" &&
+        Number.isInteger(m.refreshed) &&
+        m.refreshed >= 0
         ? {
             type: "instance",
             plugin: m.plugin,
@@ -199,6 +208,7 @@ export function decodePluginMessage(text: string): PluginMessage | null {
             defaultTone: m.defaultTone,
             defaultTonePending: m.defaultTonePending,
             recallOwed: m.recallOwed,
+            refreshed: m.refreshed,
           }
         : null;
     case "refused":
@@ -466,9 +476,30 @@ export function subscribeInstance(
   return bridge.subscribe((text) => {
     const message = decodePluginMessage(text);
     if (message?.type === "instance") {
-      const { plugin, binding, status, statusText, hostEdits, notices, defaultTone, defaultTonePending, recallOwed } =
-        message;
-      listener({ plugin, binding, status, statusText, hostEdits, notices, defaultTone, defaultTonePending, recallOwed });
+      const {
+        plugin,
+        binding,
+        status,
+        statusText,
+        hostEdits,
+        notices,
+        defaultTone,
+        defaultTonePending,
+        recallOwed,
+        refreshed,
+      } = message;
+      listener({
+        plugin,
+        binding,
+        status,
+        statusText,
+        hostEdits,
+        notices,
+        defaultTone,
+        defaultTonePending,
+        recallOwed,
+        refreshed,
+      });
     }
   });
 }

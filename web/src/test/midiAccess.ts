@@ -15,6 +15,12 @@ export interface FakePortSpec {
   name: string;
   /** Answers an Identity Request as an INTEGRA-7 would. */
   answers?: boolean;
+  /**
+   * The device's bytes, by absolute address (each address byte 7 bits): a
+   * data request into it is answered with a DT1 of the bytes it holds, 0
+   * where none — the memory a front-panel edit changes between reads.
+   */
+  memory?: Map<number, number>;
 }
 
 /** A fake `MIDIAccess`, and what the app sent through it. */
@@ -56,6 +62,14 @@ export function fakeMidiAccess(specs: FakePortSpec[]): FakeMidiAccess {
           request.every((b, j) => bytes[j] === b);
         if (!isIdentityRequest) {
           sent.push({ port: spec.name, bytes: [...bytes] });
+          const dt1 = spec.memory && rq1Reply(bytes, spec.memory);
+          if (dt1) {
+            queueMicrotask(() =>
+              input.dispatchEvent(
+                Object.assign(new Event("midimessage"), { data: new Uint8Array(dt1) }),
+              ),
+            );
+          }
           return;
         }
         identified.push(spec.name);
@@ -83,4 +97,19 @@ export function fakeMidiAccess(specs: FakePortSpec[]): FakeMidiAccess {
       access.onstatechange?.(new Event("statechange") as MIDIConnectionEvent);
     },
   };
+}
+
+/** The DT1 an INTEGRA-7 would send for the RQ1 `bytes`, holding what
+ * `memory` has in the span asked for; `null` for anything but an RQ1. */
+function rq1Reply(bytes: number[] | Uint8Array, memory: Map<number, number>): number[] | null {
+  const b = [...bytes];
+  // RQ1: F0 41 <dev> 00 00 64 11 <address: 4> <size: 4> <sum> F7.
+  if (b.length !== 17 || b[0] !== 0xf0 || b[6] !== 0x11 || b[16] !== 0xf7) return null;
+  const at = (((b[7]! << 21) | (b[8]! << 14) | (b[9]! << 7) | b[10]!) >>> 0);
+  const size = (b[11]! << 21) | (b[12]! << 14) | (b[13]! << 7) | b[14]!;
+  const address = b.slice(7, 11);
+  const data = Array.from({ length: size }, (_, i) => memory.get(at + i) ?? 0);
+  const sum = [...address, ...data].reduce((s, v) => s + v, 0);
+  const checksum = (128 - (sum % 128)) % 128;
+  return [0xf0, 0x41, 0x10, 0x00, 0x00, 0x64, 0x12, ...address, ...data, checksum, 0xf7];
 }

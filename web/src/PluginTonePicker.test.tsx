@@ -55,6 +55,7 @@ const CONNECTED: Omit<InstanceInfo, "plugin" | "binding"> = {
   defaultTone: null,
   defaultTonePending: false,
   recallOwed: false,
+  refreshed: 0,
 };
 
 const MISMATCH = { notice: "typeMismatch", text: "The bound Part holds another tone type" };

@@ -147,6 +147,10 @@ pub(crate) enum PluginMessage {
         /// 0009): the page offers no tone pick, which the push would undo.
         #[serde(rename = "recallOwed")]
         recall_owed: bool,
+        /// How many refreshes the worker has finished (#562): the page
+        /// re-reads the views it shows whenever this rises. A refresh that
+        /// was refused or dropped never raises it.
+        refreshed: u64,
     },
     /// The plugin refused a request about the instance: a `bind` its kind
     /// cannot have, or a host gesture out of order or on a parameter it
@@ -366,18 +370,20 @@ mod tests {
                 default_tone: Some("Studio Kit"),
                 default_tone_pending: true,
                 recall_owed: true,
+                refreshed: 2,
             }),
             serde_json::json!({
-                "type": "instance",
-                "plugin": "pcm_drum",
-                "binding": { "part": 2, "key": 36 },
-                "status": "deviceOffline",
-                "statusText": "Device offline",
-                "hostEdits": true,
-                "notices": [{ "notice": "recalling", "text": Notice::Recalling.text() }],
-                "defaultTone": "Studio Kit",
-                "defaultTonePending": true,
-                "recallOwed": true,
+               "type": "instance",
+               "plugin": "pcm_drum",
+               "binding": { "part": 2, "key": 36 },
+               "status": "deviceOffline",
+               "statusText": "Device offline",
+               "hostEdits": true,
+               "notices": [{ "notice": "recalling", "text": Notice::Recalling.text() }],
+               "defaultTone": "Studio Kit",
+               "defaultTonePending": true,
+               "recallOwed": true,
+               "refreshed": 2,
             })
         );
         assert_eq!(
@@ -391,8 +397,9 @@ mod tests {
                 default_tone: None,
                 default_tone_pending: false,
                 recall_owed: false,
+                refreshed: 0,
             }),
-            r#"{"type":"instance","plugin":"studio_set","binding":null,"status":"serviceNotRunning","statusText":"Device service not running","hostEdits":false,"notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false}"#
+            r#"{"type":"instance","plugin":"studio_set","binding":null,"status":"serviceNotRunning","statusText":"Device service not running","hostEdits":false,"notices":[],"defaultTone":null,"defaultTonePending":false,"recallOwed":false,"refreshed":0}"#
         );
     }
 

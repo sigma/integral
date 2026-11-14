@@ -148,6 +148,9 @@ pub struct Instance {
     refresh: AtomicBool,
     /// A refresh request was dropped unserved since the editor last heard.
     refresh_dropped: AtomicBool,
+    /// How many refreshes the worker has finished (ADR 0009): the editor
+    /// re-reads the views it shows whenever this rises (#562).
+    refreshed: AtomicU64,
     /// The tone selection saved with the project: what the instance last
     /// learned the device holds, and what the recall selects (ADR 0009). A
     /// Studio Set instance has none.
@@ -196,6 +199,7 @@ impl Instance {
             default_tone_dropped: AtomicBool::new(false),
             refresh: AtomicBool::new(false),
             refresh_dropped: AtomicBool::new(false),
+            refreshed: AtomicU64::new(0),
             tone: ToneCell::default(),
             settled: AtomicBool::new(false),
             restores: AtomicU64::new(0),
@@ -559,6 +563,19 @@ impl Instance {
     /// Whether a refresh was dropped since the last call.
     pub fn take_refresh_dropped(&self) -> bool {
         self.refresh_dropped.swap(false, Ordering::AcqRel)
+    }
+
+    /// Note that the refresh the worker took is over: its read concluded, so
+    /// the device's values are the instance's. The editor hears the count
+    /// ([`refreshed`](Self::refreshed)) and re-reads what it shows. Wait-free.
+    pub fn note_refresh_done(&self) {
+        self.refreshed.fetch_add(1, Ordering::AcqRel);
+    }
+
+    /// How many refreshes the worker has finished; see
+    /// [`note_refresh_done`](Self::note_refresh_done). Wait-free.
+    pub fn refreshed(&self) -> u64 {
+        self.refreshed.load(Ordering::Acquire)
     }
 
     /// Stop host changes going to the device, until the next
