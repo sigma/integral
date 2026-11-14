@@ -58,6 +58,7 @@ Result values: **Pass**, **Fail**, or **Blocked** (say why in the notes).
 | 17  | Plug-in test host drag (not Live)                       | [PR #477], [#528]                                                                | none            |
 | 18  | The Binding as automatable Part and Key parameters      | [#495], [ADR 0007]                                                               | [#495]          |
 | 19  | A Tone plugin picks its Part's tone                     | [#496], [ADR 0007], [ADR 0009]                                                   | [#496]          |
+| 20  | MIDI clock drives tempo-synced effects                  | [#465], [#446]                                                                   | none            |
 
 [ADR 0007]: ../adr/0007-plugins-per-tone-type.md
 
@@ -769,13 +770,20 @@ writes no tempo SysEx and leaves System Clock Source and Tempo Assign Source as
 the device holds them.
 Sources: [#465], [#446] (clock on top of two clients does not hang the device).
 
-**Setup.** Device service running. In Live's MIDI preferences, turn Sync on for
-the output that reaches the INTEGRA-7. A test Part whose MFX is 34 Delay, with
-Delay Left and Right set to a note value (e.g. a quarter note), not ms. No other
-host sends clock to the port: the service merges every sender's clock.
+**Setup.** Device service running. On the INTEGRA-7's panel, set SYSTEM >
+SYNC/TEMPO > Sync Mode to SLAVE: the device receives Timing Clock only then
+([02-channel-messages](../midi/02-channel-messages.md#timing-clock)), and Sync
+Mode has no SysEx address. In Live's MIDI preferences, turn Sync on for an
+output that reaches a wired INTEGRA-7 port: 5-pin MIDI IN with Clock Source
+MIDI, or USB COMPUTER with Clock Source USB. The device ignores clock on the
+Wireless link under either Clock Source, so with the service on `--link
+wireless`, clock through `Integral Device Service` never locks. A test Part
+whose MFX is 34 Delay, with Delay Left and Right set to a note value (e.g. a
+quarter note), not ms. No other host sends clock to the port: the service
+merges every sender's clock.
 
 1. Read System Clock Source and Tempo Assign Source on the device
-   (`integral raw-read 02000025 4`).
+   (`integral raw-read 02000025 4`), and Sync Mode on the panel.
 2. Play Live at 90 BPM and hit a short note. Listen to the delay repeats.
 3. Switch Live to 140 BPM and do the same.
 4. Automate a tempo ramp from 90 to 140 over 8 bars and hold a short pattern
@@ -784,11 +792,15 @@ host sends clock to the port: the service merges every sender's clock.
 
 **Expected.**
 
-- Step 1: record both values. They are the ones this rig needs.
-- Steps 2–3: repeats fall on quarter notes at each tempo.
+- Step 1: record the three values. They are the ones this rig needs.
+- Steps 2–3: repeats fall on quarter notes at each tempo. The device slews
+  to a new clock tempo over a few seconds: let Live play about 8 s before
+  the note.
 - Step 4: repeats follow the ramp without dropouts or stuck notes.
 - Step 5: **Open.** Repeats fall back to the device's own tempo (System Tempo,
   or the Studio Set Tempo if Tempo Assign Source is STUDIO SET).
 
-| Date | Live version | Result | Notes |
-| ---- | ------------ | ------ | ----- |
+| Date       | Live version | Result | Notes |
+| ---------- | ------------ | ------ | ----- |
+| 2026-11-14 | 12.4.16      | Fail   | Clock through `Integral Device Service`, service on `--link wireless`. Step 1 read Clock Source MIDI, Tempo Assign Source SYSTEM, Sync Mode MASTER. With Sync Mode SLAVE and either Clock Source, the delay held its last tempo from 60 to 180 BPM, although the service sent about 48 frames/s at 120 BPM. The Wireless link carries no clock the device uses. |
+| 2026-11-14 | 12.4.16      | Pass   | Clock through `Network (Integra)` (mioXL to USB COMPUTER), Clock Source USB, Sync Mode SLAVE, notes through the service. Measured from audio on the RØDECaster, 1/4 delay: 90 BPM 673 ms, 140 BPM 424 ms (after calibrating against fixed 400 and 650 ms delays). A stepped 90 to 140 ramp (10 BPM per 4 s) tightened at every step, about one step behind Live, with no dropouts or stuck notes. Step 5: with no clock the device holds the last clocked tempo (140); it does not fall back to System Tempo 120. |
