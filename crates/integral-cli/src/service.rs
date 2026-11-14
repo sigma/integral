@@ -14,7 +14,7 @@
 //! device is down, the receiver disconnects and every later send fails.
 
 use std::os::unix::net::UnixStream;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread::{self, JoinHandle};
@@ -24,7 +24,7 @@ use anyhow::{Context, Result, bail};
 use integral_core::expansion_load::LoadOutcome;
 use integral_core::expansion_slots::ExpansionSlots;
 use integral_device_service::protocol::{ExpansionLoadResult, Message, Reject, Request};
-use integral_device_service::{Client, ClientEvent, Events, default_socket_path};
+use integral_device_service::{Client, ClientEvent, Events, socket_path_or_default};
 
 use crate::midi::{Connection, Output};
 
@@ -37,14 +37,6 @@ const FLUSH_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// How often the forwarding thread looks at its stop flag.
 const STOP_POLL: Duration = Duration::from_millis(50);
-
-/// The socket `explicit` names, or the default one the plugins look for.
-pub fn socket_path(explicit: Option<&Path>) -> Result<PathBuf> {
-    match explicit {
-        Some(path) => Ok(path.to_path_buf()),
-        None => default_socket_path().context("find the default socket path"),
-    }
-}
 
 /// What the sending side and the forwarding thread share.
 struct State {
@@ -189,7 +181,7 @@ impl Drop for ServiceOutput {
 /// service speaks another protocol version or its link to the INTEGRA-7 is
 /// down.
 pub fn connect(path: Option<&Path>) -> Result<Connection> {
-    let path = socket_path(path)?;
+    let path = socket_path_or_default(path).context("find the default socket path")?;
     // The client retries in the background; look once to fail fast.
     UnixStream::connect(&path).with_context(|| {
         format!(

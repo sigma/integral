@@ -207,7 +207,7 @@ describe("the status line", () => {
   it.each([
     ["serviceNotRunning", "Device service not running"],
     ["deviceOffline", "Device offline"],
-    ["serviceIncompatible", "Device service version mismatch"],
+    ["serviceIncompatible", "Device service version mismatch: restart your DAW after updating Integral"],
   ] as const)("says %s even when there is no device to show", async (code, text) => {
     // No device: the editor has only the plugin's word.
     const { container } = await openPlugin(

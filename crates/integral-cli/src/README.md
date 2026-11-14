@@ -23,7 +23,8 @@ live in sibling modules, and the command bodies live in
   - The shared option groups are `PortTimeoutArgs`, `ConnectionArgs` and
     `RawConnectionArgs` (`--port`, `--timeout`, `--device-id`).
   - `resolve_device_id` returns the explicit device ID, or detects it.
-  - Helpers: `parse_device_id` and `exit_nonzero`.
+  - Helper: `exit_nonzero`. `--device-id` takes `parse_device_id` from
+    `integral-device-service`.
 - `device.rs`: `IntegraDevice` is the device handle.
   - `connect` and `connect_detecting` open it.
   - `request_data` (RQ1) and `send_data` (DT1) read and write.
@@ -42,8 +43,8 @@ live in sibling modules, and the command bodies live in
     through the service.
   - `read_block` and `request_data` read a block, `detect_device_id` finds
     the device ID, and `format_ranges` prints byte ranges.
-- `service.rs`: `connect(path)` is the `--service` transport and
-  `socket_path` the socket choice shared with `bridge`. It joins the Device
+- `service.rs`: `connect(path)` is the `--service` transport, on the socket
+  `socket_path_or_default` of the service crate picks (as `bridge` does). It joins the Device
   service as a raw SysEx client and forwards the SysEx it relays into the
   receiver. `ServiceOutput` flushes its queue when dropped, and
   `ServiceOutput::load_expansion` runs a typed Expansion load.

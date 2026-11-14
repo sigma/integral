@@ -53,6 +53,7 @@
 mod baseline;
 mod clients;
 mod link;
+mod link_config;
 mod midir_link;
 mod note;
 mod probe;
@@ -68,6 +69,8 @@ mod wireless_link;
 
 #[cfg(unix)]
 mod client;
+#[cfg(unix)]
+mod launch;
 #[cfg(unix)]
 mod sock;
 #[cfg(unix)]
@@ -85,7 +88,13 @@ pub use client::{Client, ClientEvent, Events, Sender};
 pub use clients::Outbox;
 #[cfg(feature = "test-util")]
 pub use fake::{FakeLink, FakeMemory, is_rq1};
+#[cfg(unix)]
+pub use launch::{LaunchError, ServiceArgs};
 pub use link::{DeviceLink, LinkError, LinkEvent, LinkSink, Log, stderr_log};
+pub use link_config::{
+    CONFIG_FILE_NAME, ConfigError, LinkConfig, LinkConfigError, LinkKind, LinkOverrides,
+    config_path_in, parse_device_id,
+};
 pub use midir_link::{MidirLink, PortMatch, matching_pairs, port_named};
 pub use note::{NOTE_PORT_NAME, NotePort, NoteSink, PortError};
 pub use probe::Timing as ProbeTiming;
@@ -97,7 +106,8 @@ pub use session::{RandomSessionIds, SessionId, SessionIdSource};
 #[cfg(unix)]
 pub use socket::{
     SOCKET_FILE_NAME, SocketClaim, SocketServer, check_default_path_length, default_socket_dir,
-    default_socket_path, ensure_private_dir, socket_dir_in, socket_path_in, user_temp_dir,
+    default_socket_path, ensure_private_dir, socket_dir_in, socket_path_in, socket_path_or_default,
+    user_temp_dir,
 };
 #[cfg(unix)]
 pub use virtual_port::VirtualNotePort;

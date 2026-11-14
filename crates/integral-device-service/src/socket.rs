@@ -145,6 +145,18 @@ pub fn default_socket_path() -> io::Result<PathBuf> {
     Ok(path)
 }
 
+/// The socket `explicit` names, else [`default_socket_path`].
+///
+/// # Errors
+///
+/// As [`default_socket_path`], when `explicit` is `None`.
+pub fn socket_path_or_default(explicit: Option<&Path>) -> io::Result<PathBuf> {
+    match explicit {
+        Some(path) => Ok(path.to_path_buf()),
+        None => default_socket_path(),
+    }
+}
+
 fn check_length(path: &Path) -> io::Result<()> {
     if path.as_os_str().len() > PATH_LIMIT {
         return Err(io::Error::new(

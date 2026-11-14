@@ -7,7 +7,8 @@ The Device service
 process owns the link to the INTEGRA-7 and the one core `DeviceState`, with
 its 40 ms throttle, queue and cache. It generalises the Bridge of
 [ADR 0003](../../docs/adr/0003-wireless-via-virtual-midi-port.md) from the
-Wireless link to every link. `integral-cli bridge` launches it. Native only;
+Wireless link to every link. Its own binary, `integral-device-service`,
+runs it, and so does `integral-cli bridge`. Native only;
 the link and the note port are traits, so a Windows port adds
 implementations; the socket layer is Unix-only, with the protocol itself
 independent of it.
@@ -32,6 +33,18 @@ independent of it.
   unanswered probes, which wait out the SysEx spacing),
   and, behind the `test-util` feature, `FakeLink`. `matching_pairs` and `port_named` find
   ports by name.
+- Launch (Unix only): `ServiceArgs` (clap) is the service's flags, and
+  `ServiceArgs::run(LinkConfig)` runs it until killed: the entry point the
+  `integral-device-service` binary and `integral-cli bridge` share. The binary
+  reads a `LinkConfig` from `service.toml` (`LinkConfig::load`; `--config`
+  names another file), at `config_path_in(home)` =
+  `~/Library/Application Support/Integral/service.toml`; with no file the link
+  is `wireless`. Keys: `link` (`wireless`, `rtp` or `usb`), `host` (wireless),
+  `port` (rtp, usb) and `device_id` (hex in a string, as `--device-id`
+  takes it: `"10"`); an unknown key
+  is an error. A flag (`LinkOverrides`: `--link`, `--host`, `--port`,
+  `--device-id`) replaces its key; a `--link` other than the file's drops the
+  file's `host` and `port`. `integral-cli bridge` reads no file.
 - `NotePort`: `VirtualNotePort` (midir virtual destination
   `NOTE_PORT_NAME` = "Integral Device Service", Unix only).
 - `SessionId`, `SessionIdSource`: a new ID each time the link comes up. A
@@ -211,3 +224,5 @@ events and the device's messages.
 - Run: `cargo test -p integral-device-service` (fake link and the sans-IO
   probe, no hardware).
 - Run: `just bridge --link rtp --port "Network Integra"` (needs the device).
+- Run: `cargo run -p integral-device-service -- --config <file>` (needs the
+  device).

@@ -31,7 +31,9 @@ impl Status {
             Self::ServiceNotRunning => "Device service not running",
             Self::DeviceOffline => "Device offline",
             Self::Connected => "Connected",
-            Self::ServiceIncompatible => "Device service version mismatch",
+            Self::ServiceIncompatible => {
+                "Device service version mismatch: restart your DAW after updating Integral"
+            }
         }
     }
 

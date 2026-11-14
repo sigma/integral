@@ -15,6 +15,7 @@ use commands::expansion::OutputFormat;
 use commands::pack::{ListFormat, UserSlots};
 use commands::pack_import::{ImportOptions, ReinitOptions};
 use integral_core::device_spec::INTEGRA7;
+use integral_device_service::parse_device_id;
 use midi::{Connection, DEFAULT_PORT_PATTERN, Endpoint};
 
 /// Integral -- CLI tools for the Roland INTEGRA-7.
@@ -134,7 +135,7 @@ enum Command {
     /// RTP-MIDI or USB) and exposes the MIDI port "Integral Device Service"
     /// for notes (runs until Ctrl+C).
     #[cfg(unix)]
-    Bridge(commands::bridge::BridgeArgs),
+    Bridge(integral_device_service::ServiceArgs),
     /// Validate SVD decode against the device by comparing SysEx reads.
     SvdValidate {
         #[command(flatten)]
@@ -361,11 +362,6 @@ enum PackCommand {
         #[command(flatten)]
         options: ReinitOptions,
     },
-}
-
-/// Parse a hex device ID string (e.g. "10" -> 0x10).
-fn parse_device_id(s: &str) -> Result<u8, String> {
-    u8::from_str_radix(s, 16).map_err(|e| format!("invalid hex device ID: {e}"))
 }
 
 /// Resolve the device ID: use the explicit value if provided, otherwise

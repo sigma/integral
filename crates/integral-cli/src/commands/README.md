@@ -22,13 +22,15 @@ offline.
 - `raw.rs`: `raw_read`, `raw_rq1_multi`, `raw_send` (DT1) and `send_raw_hex`.
 - `monitor.rs`: `monitor(endpoint, bridge)` prints incoming MIDI as hex
   and decodes DT1s. With a bridge port it also forwards traffic both ways.
-- `bridge.rs`: `bridge(&BridgeArgs)` launches the Device service
-  (`integral-device-service`) on the link `--link` names: `wireless` (RDDP
-  discovery or `--host`; also shares the port `INTEGRA-7 (Wireless)`), `rtp`
-  (`--port` names the session) or `usb`. It opens the note port
-  `Integral Device Service`, listens for clients on the Unix socket
-  `--socket` names (default: `default_socket_path()` of the service crate,
-  in a private per-user directory) and runs until killed.
+- `bridge.rs`: `bridge(&ServiceArgs)` launches the Device service through
+  `ServiceArgs::run` of `integral-device-service`, the entry point the
+  `integral-device-service` binary shares, on the link `--link` names:
+  `wireless` (the default; RDDP discovery or `--host`; also shares the port
+  `INTEGRA-7 (Wireless)`), `rtp` (`--port` names the session) or `usb`. It
+  reads no `service.toml`. It opens the note port `Integral Device Service`,
+  listens for clients on the Unix socket `--socket` names (default:
+  `default_socket_path()` of the service crate, in a private per-user
+  directory) and runs until killed.
 - `pack.rs`:
   - `list` reads a Pack file.
   - `export` reads User slots, and with `--current-part` / `--current-set`
