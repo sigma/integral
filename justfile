@@ -5,6 +5,9 @@ set dotenv-load := false
 
 # the plugin bundle `bundle-plugin` assembles under target/bundle (and its executable)
 bundle_name := "Integral"
+# the Device service binary `install` puts under ~/Library/Application Support/Integral, and its LaunchAgent label
+service_bin := "integral-device-service"
+service_label := "com.sigma.integral.device-service"
 
 # default: list available targets
 default:
@@ -88,6 +91,78 @@ bundle-plugin: build-plugin
     PLIST
     codesign --force -s - "$bundle"
     echo "$bundle"
+
+# Replaces an installed copy and restarts the agent. Stop the agent before `just bridge`
+# (both claim the service socket) with the command it prints.
+# install the plugins and the Device service for this user, the service as a LaunchAgent up at login (macOS)
+[macos]
+install: bundle-plugin
+    #!/usr/bin/env bash
+    set -euo pipefail
+    label="{{service_label}}"
+    service="{{service_bin}}"
+    vst3_dir="$HOME/Library/Audio/Plug-Ins/VST3"
+    # Where the service reads service.toml (config_path_in in
+    # crates/integral-device-service/src/link_config.rs).
+    support_dir="$HOME/Library/Application Support/Integral"
+    log_dir="$HOME/Library/Logs/Integral"
+    plist="$HOME/Library/LaunchAgents/$label.plist"
+    domain="gui/$UID"
+    # The cargo target dir may be shared between workspaces, so copy the
+    # binary straight after the build, before another build replaces it.
+    cargo build -p "$service" --release
+    target=$(cargo metadata --format-version 1 --no-deps | jq -r .target_directory)
+    mkdir -p "$support_dir" "$log_dir" "$vst3_dir" "$(dirname "$plist")"
+    # A new file renamed over the old one: overwriting the binary a running
+    # agent maps would invalidate its code signature and get it killed.
+    cp "$target/release/$service" "$support_dir/$service.new"
+    mv -f "$support_dir/$service.new" "$support_dir/$service"
+    # Copied beside the old bundle first, so a failed copy leaves it installed.
+    vst3="$vst3_dir/{{bundle_name}}.vst3"
+    rm -rf "$vst3.new"
+    cp -R "{{justfile_directory()}}/target/bundle/{{bundle_name}}.vst3" "$vst3.new"
+    rm -rf "$vst3"
+    mv "$vst3.new" "$vst3"
+    cat > "$plist" <<PLIST
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>Label</key><string>$label</string>
+      <key>ProgramArguments</key>
+      <array>
+        <string>$support_dir/$service</string>
+      </array>
+      <key>RunAtLoad</key><true/>
+      <key>KeepAlive</key><true/>
+      <key>StandardOutPath</key><string>$log_dir/device-service.log</string>
+      <key>StandardErrorPath</key><string>$log_dir/device-service.err.log</string>
+    </dict>
+    </plist>
+    PLIST
+    plutil -lint -s "$plist"
+    # Not loaded is fine (a first install, or it went away meanwhile); still
+    # loaded afterwards is not. Bootstrapping a label launchd is still
+    # tearing down fails.
+    if launchctl print "$domain/$label" >/dev/null 2>&1; then
+        launchctl bootout "$domain/$label" || true
+        for _ in $(seq 50); do
+            launchctl print "$domain/$label" >/dev/null 2>&1 || break
+            sleep 0.1
+        done
+        if launchctl print "$domain/$label" >/dev/null 2>&1; then
+            echo "error: $label is still loaded 5 s after launchctl bootout" >&2
+            exit 1
+        fi
+    fi
+    launchctl bootstrap "$domain" "$plist"
+    echo "Installed $vst3_dir/{{bundle_name}}.vst3"
+    echo "Installed $support_dir/$service, running as the LaunchAgent $label"
+    echo "Logs: $log_dir"
+    echo "Stop it before \`just bridge\` (both claim the service socket):"
+    echo "  launchctl bootout $domain/$label"
+    echo "It starts again at the next login, or now with:"
+    echo "  launchctl bootstrap $domain \"$plist\""
 
 # run a test-host scenario (load, drag, recall, automate, binding-mismatch, kit-binding) against the bundled plugins; JSON lines on stdout (macOS).
 # `load` checks every plugin class; `drag` drags a Studio Set slider (`--param`, default "Part 1 Level").
