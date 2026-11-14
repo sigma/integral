@@ -711,6 +711,7 @@ Parts N and M hold tones of the plugin's type.
 [#455]: https://github.com/sigma/integral/issues/455
 [#458]: https://github.com/sigma/integral/issues/458
 [#463]: https://github.com/sigma/integral/issues/463
+[#465]: https://github.com/sigma/integral/issues/465
 [#531]: https://github.com/sigma/integral/issues/531
 [#544]: https://github.com/sigma/integral/issues/544
 [#545]: https://github.com/sigma/integral/issues/545
@@ -760,3 +761,33 @@ Part N, which holds an SN Synth tone. A Studio Set plugin on the master track.
 | ---------- | -------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-11-10 | 12.4.16 (2026-10-30) | Pass, with a finding | SN Synth on Part 7 (track 12). Step 1: button `SN Synth : 36 : FX 12`. Step 2: banks Preset and User only (no Expansion loaded); By Category > Synth Lead lists SN-S tones only. Step 3: chose Saw Lead 3; button `SN Synth : 46 : Saw Lead 3`, device Part 7 = 95/70/45 Saw Lead 3. Step 4: saved, quit, set Part 7 back to FX 12 outside Live, reopened: Part 7 = Saw Lead 3. Step 5: button shows Saw Lead 3. Step 6: Part 7 set to a PCM Synth tone (JP8 Strings1); the mismatch notice shows and clicking the button opens nothing. Finding: the button is not greyed and still reads `SN Synth : 46 : Saw Lead 3`, the last tone of its type, not the Part's tone ([#525](https://github.com/sigma/integral/issues/525)). Step 7: the Studio Set editor (Mixer, Surround) has no tone button. |
 | 2026-11-13 | 12.4.16 (2026-10-30) | Pass (step 6)        | Re-run of step 6 with [#525](https://github.com/sigma/integral/issues/525)'s fix. SN Synth bound to Part 7 (`SN Synth : 36 : FX 12`). Part 7 set to PCM Synth 87/64/0 through the Device service: the mismatch notice shows, the button reads `PCM Synth : 1 : 128voicePno` (the Part's current tone), dimmed, and clicking it opens nothing. Part 7 restored to 95/72/35 afterwards.                                                                                                                                                                                                                                                                                                                                                                                                               |
+
+## 20. MIDI clock drives tempo-synced effects
+
+**Purpose.** The INTEGRA-7 follows Live's tempo through MIDI clock. Integral
+writes no tempo SysEx and leaves System Clock Source and Tempo Assign Source as
+the device holds them.
+Sources: [#465], [#446] (clock on top of two clients does not hang the device).
+
+**Setup.** Device service running. In Live's MIDI preferences, turn Sync on for
+the output that reaches the INTEGRA-7. A test Part whose MFX is 34 Delay, with
+Delay Left and Right set to a note value (e.g. a quarter note), not ms.
+
+1. Read System Clock Source and Tempo Assign Source on the device
+   (`integral raw-read 02000025 4`).
+2. Play Live at 90 BPM and hit a short note. Listen to the delay repeats.
+3. Switch Live to 140 BPM and do the same.
+4. Automate a tempo ramp from 90 to 140 over 8 bars and hold a short pattern
+   through it.
+5. Turn Live's clock Sync off and repeat step 3.
+
+**Expected.**
+
+- Step 1: record both values. They are the ones this rig needs.
+- Steps 2–3: repeats fall on quarter notes at each tempo.
+- Step 4: repeats follow the ramp without dropouts or stuck notes.
+- Step 5: **Open.** Repeats fall back to the device's own tempo (System Tempo,
+  or the Studio Set Tempo if Tempo Assign Source is STUDIO SET).
+
+| Date | Live version | Result | Notes |
+| ---- | ------------ | ------ | ----- |
