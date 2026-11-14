@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  CONNECT_TIMEOUT_MS,
   DEVICE_SERVICE_ID,
   DEVICE_SERVICE_NAME,
   LINK_DOWN_CLOSE_CODE,
@@ -245,6 +246,55 @@ describe("deviceServicePair", () => {
 
     await expect(opening).rejects.toThrow(NOT_RUNNING_HINT);
     expect(pair.failure?.()).toBe(NOT_RUNNING_HINT);
+  });
+
+  it("gives up on a socket that never opens or closes, and retries", async () => {
+    // Safari blocks a ws:// socket from an https page and fires nothing.
+    const { pair, sockets, clock, last } = setup();
+    const opening = pair.open();
+    const stuck = last();
+
+    expect(clock.fire()).toBe(CONNECT_TIMEOUT_MS);
+
+    await expect(opening).rejects.toThrow(NOT_RUNNING_HINT);
+    expect(stuck.closed).toBe(true);
+    expect(clock.fire()).toBe(RECONNECT_MIN_MS);
+    expect(sockets).toHaveLength(2);
+  });
+
+  it("ignores a late close from a socket it gave up on", async () => {
+    const { pair, clock, last } = setup();
+    pair.open().catch(() => {});
+    const stuck = last();
+    clock.fire();
+    clock.fire();
+    last().accept();
+
+    stuck.end();
+
+    expect(pair.failure?.()).toBeNull();
+  });
+
+  it("fails and retries when the socket cannot even be made", async () => {
+    const clock = manualTimers();
+    let calls = 0;
+    const pair = deviceServicePair(
+      URL,
+      () => {
+        calls++;
+        throw new DOMException("blocked", "SecurityError");
+      },
+      clock.timers,
+      () => NOW,
+    );
+
+    await expect(pair.open()).rejects.toThrow(NOT_RUNNING_HINT);
+    expect(clock.fire()).toBe(RECONNECT_MIN_MS);
+    expect(calls).toBe(2);
+  });
+
+  it("names a blocked connection among the reasons", () => {
+    expect(NOT_RUNNING_HINT).toContain("blocked");
   });
 
   it("declares that it carries notes", () => {

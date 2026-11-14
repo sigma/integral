@@ -34,9 +34,15 @@ export const RECONNECT_MIN_MS = 500;
 /** Longest wait between reconnects. */
 export const RECONNECT_MAX_MS = 5000;
 
+/**
+ * How long a connection may stay unopened before the pair gives up on it.
+ * Safari blocks a `ws://` socket from an `https` page and fires no event.
+ */
+export const CONNECT_TIMEOUT_MS = 3000;
+
 /** What the user is told when the service does not answer. */
 export const NOT_RUNNING_HINT =
-  "Device service not running, or this page's origin isn't allowed (--ws-origin). Start it with `integral-cli bridge` (or `just bridge`); this page connects as soon as it can.";
+  "Device service not running, this page's origin isn't allowed (--ws-origin), or the browser blocked the connection (Safari does from an https page). Start it with `integral-cli bridge` (or `just bridge`); this page connects as soon as it can.";
 
 /** What the user is told when the service closes the page: no device link. */
 export const LINK_DOWN_HINT =
@@ -106,13 +112,37 @@ export function deviceServicePair(
     for (const w of settled) error ? w.reject(error) : w.resolve();
   };
 
+  // The connection is lost or never came: say why, and retry if wanted.
+  const fail = (code?: number) => {
+    socket = null;
+    failure = code === LINK_DOWN_CLOSE_CODE ? LINK_DOWN_HINT : NOT_RUNNING_HINT;
+    setUp(false);
+    settle(new Error(failure));
+    if (wanted) {
+      retry = timers.set(connect, wait);
+      wait = Math.min(wait * 2, RECONNECT_MAX_MS);
+    }
+  };
+
   const connect = () => {
     retry = null;
-    const s = makeSocket(url);
+    let s: SocketLike;
+    try {
+      s = makeSocket(url);
+    } catch {
+      fail();
+      return;
+    }
     s.binaryType = "arraybuffer";
     socket = s;
+    const deadline = timers.set(() => {
+      if (socket !== s) return;
+      s.close();
+      fail();
+    }, CONNECT_TIMEOUT_MS);
     s.onopen = () => {
       if (socket !== s) return;
+      timers.clear(deadline);
       failure = null;
       wait = RECONNECT_MIN_MS;
       setUp(true);
@@ -126,15 +156,8 @@ export function deviceServicePair(
     // `onerror` is always followed by `onclose`, which does the work.
     s.onclose = (event) => {
       if (socket !== s) return;
-      socket = null;
-      failure =
-        event.code === LINK_DOWN_CLOSE_CODE ? LINK_DOWN_HINT : NOT_RUNNING_HINT;
-      setUp(false);
-      settle(new Error(failure));
-      if (wanted) {
-        retry = timers.set(connect, wait);
-        wait = Math.min(wait * 2, RECONNECT_MAX_MS);
-      }
+      timers.clear(deadline);
+      fail(event.code);
     };
   };
 
