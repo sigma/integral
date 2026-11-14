@@ -771,7 +771,8 @@ Sources: [#465], [#446] (clock on top of two clients does not hang the device).
 
 **Setup.** Device service running. In Live's MIDI preferences, turn Sync on for
 the output that reaches the INTEGRA-7. A test Part whose MFX is 34 Delay, with
-Delay Left and Right set to a note value (e.g. a quarter note), not ms.
+Delay Left and Right set to a note value (e.g. a quarter note), not ms. No other
+host sends clock to the port: the service merges every sender's clock.
 
 1. Read System Clock Source and Tempo Assign Source on the device
    (`integral raw-read 02000025 4`).
