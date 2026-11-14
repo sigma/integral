@@ -55,6 +55,17 @@ pub enum LaunchError {
     /// The service did not start.
     #[error("start the Device service: {0}")]
     Start(StartError),
+    /// Another Device service already serves the socket. Checked before the
+    /// link is opened, so a second launch never touches the device.
+    #[error(
+        "a Device service is already running on {}: stop it first \
+         (`just service-stop` if `just install` runs it)",
+        path.display()
+    )]
+    AlreadyRunning {
+        /// The socket.
+        path: PathBuf,
+    },
     /// The Unix socket could not be served.
     #[error("listen on {}: {error}", path.display())]
     Listen {
@@ -88,12 +99,21 @@ impl ServiceArgs {
     pub fn run(&self, file: LinkConfig) -> Result<(), LaunchError> {
         let path =
             socket_path_or_default(self.socket.as_deref()).map_err(LaunchError::SocketPath)?;
+        // Claim the socket first: a second launch then stops here, before it
+        // opens a link that would compete with the running service's.
+        let claim = SocketServer::claim(&path).map_err(|error| match error.kind() {
+            io::ErrorKind::AddrInUse => LaunchError::AlreadyRunning { path: path.clone() },
+            _ => LaunchError::Listen {
+                path: path.clone(),
+                error,
+            },
+        })?;
         let link_config = self.link_config(file);
         let link = link_config.open(stderr_log())?;
         let service = Service::new(link, Config::new(link_config.device_id));
         let running =
             spawn(service, Some(Box::new(VirtualNotePort::new()))).map_err(LaunchError::Start)?;
-        let server = match SocketServer::bind(&path, running.handle()) {
+        let server = match claim.serve(running.handle(), None) {
             Ok(server) => server,
             Err(error) => {
                 running.stop();
