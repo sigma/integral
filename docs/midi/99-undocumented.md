@@ -802,6 +802,12 @@ survives a power cycle.
   client can set this switch but can't read it reliably.
 - Whether the panel switch and the byte track each other again after a Studio
   Set change wasn't checked.
+- On 2026-11-15, with the panel on INPUT and a source playing into the INPUT
+  jack, a DT1 of `00` and then `01` read back as written, but the input kept
+  playing at the same level
+  ([#467](https://github.com/sigma/integral/issues/467#issuecomment-6885678429)).
+  The audio didn't follow the byte; whether the panel display did wasn't
+  checked.
 
 ### Nothing past `02 00 00 2E`
 
@@ -818,6 +824,12 @@ A DT1 of System Tempo `00 26` = `07 09` (121) read back, and the panel showed
 SysEx System Write is known, so System edits made over SysEx last only until
 power-off. To keep them, the user has to save on the panel ([SHIFT] + [EDIT] in
 the SYSTEM screen).
+
+The User-memory write request (Section 4) doesn't commit them either, though
+it commits every pending direct change in User memory (Section 2). Checked
+2026-11-15 ([#284](https://github.com/sigma/integral/issues/284)): System Tempo
+DT1 to 121, then a confirmed write request storing User PCM Synth 254. After a
+power cycle, System Tempo read 120 again.
 
 ### Discovery
 
