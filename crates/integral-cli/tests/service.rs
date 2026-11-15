@@ -534,3 +534,96 @@ fn system_set_refuses_an_unknown_field_before_any_send() {
         fixture.link.sent()
     );
 }
+
+/// `studio-set show` reads the Tone Control sources with the tempo, then
+/// each MIDI channel's Phase Lock, and prints them by field name.
+#[test]
+fn studio_set_show_reads_through_the_service() {
+    use integral_core::device_spec::MIDI_CHANNELS;
+    use integral_core::params::{STUDIO_SET_CONTROL_SIZE, TONE_CONTROL_1_SOURCE, studio_set_midi};
+
+    let fixture = Fixture::start("ssshow");
+    let child = fixture
+        .integral(&["studio-set", "show", "--device-id", "17"])
+        .spawn()
+        .expect("run integral");
+
+    let says = |address: &integral_core::address::Address, data: &[u8]| {
+        fixture
+            .link
+            .device_says(&sysex::build_dt1(DEVICE_ID, address, data));
+    };
+    fixture.wait_sent(&sysex::build_rq1(
+        DEVICE_ID,
+        &TONE_CONTROL_1_SOURCE,
+        &STUDIO_SET_CONTROL_SIZE,
+    ));
+    says(&TONE_CONTROL_1_SOURCE, &[16, 0, 96, 97, 0x06, 0x00]);
+    let one = integral_core::address::DataSize::ONE;
+    for channel in 0..MIDI_CHANNELS {
+        let at = params::studio_set_midi_address(channel, studio_set_midi::PHASE_LOCK);
+        fixture.wait_sent(&sysex::build_rq1(DEVICE_ID, &at, &one));
+        says(&at, &[u8::from(channel == 2)]);
+    }
+
+    let (ok, stdout, stderr) = finish(child);
+    assert!(ok, "{stderr}");
+    for line in [
+        "tone-control-1-source  CC16",
+        "tone-control-2-source  OFF",
+        "tone-control-3-source  BEND",
+        "tempo                  96",
+        "phase-lock-1           OFF",
+        "phase-lock-3           ON",
+    ] {
+        assert!(stdout.lines().any(|l| l == line), "{line}: {stdout}");
+    }
+}
+
+/// `studio-set set` sends the field's DT1, in its display form's raw value.
+#[test]
+fn studio_set_set_writes_through_the_service() {
+    let fixture = Fixture::start("ssset");
+    for (args, address, data) in [
+        (["tempo", "96"], params::STUDIO_SET_TEMPO, &[0x06, 0x00][..]),
+        (
+            ["tone-control-2-source", "CC16"],
+            params::TONE_CONTROL_1_SOURCE.offset([0, 0, 0, 1]),
+            &[16][..],
+        ),
+        (
+            ["phase-lock-3", "ON"],
+            params::studio_set_midi_address(2, params::studio_set_midi::PHASE_LOCK),
+            &[1][..],
+        ),
+    ] {
+        let child = fixture
+            .integral(&["studio-set", "set", "--device-id", "17", args[0], args[1]])
+            .spawn()
+            .expect("run integral");
+        let (ok, _, stderr) = finish(child);
+        assert!(ok, "{stderr}");
+        fixture.wait_sent(&sysex::build_dt1(DEVICE_ID, &address, data));
+    }
+}
+
+/// An unknown field fails before anything is sent.
+#[test]
+fn studio_set_set_refuses_an_unknown_field() {
+    let fixture = Fixture::start("ssbad");
+    let child = fixture
+        .integral(&["studio-set", "set", "--device-id", "17", "tempi", "96"])
+        .spawn()
+        .expect("run integral");
+    let (ok, _, stderr) = finish(child);
+    assert!(!ok);
+    assert!(
+        stderr.contains("unknown Studio Set field `tempi`"),
+        "{stderr}"
+    );
+    assert!(
+        fixture.link.sent().is_empty(),
+        "{:02X?}",
+        fixture.link.sent()
+    );
+}

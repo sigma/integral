@@ -65,6 +65,12 @@ offline.
     `HostFormat::parse`) and `display` map names and values.
   - `set_in` sets a field in a `DeviceState` through `set_part_setting`
     and returns a `SetOutcome`; `render_show` and `render_set` print.
+- `studio_set.rs`: `show` and `set` are the `studio-set` subcommands, on
+  the current Studio Set's Tone Control 1–4 Source, tempo and Phase Lock
+  (`integral_core::studio_set_settings`). `render_show` prints one
+  `<name>  <value>` line per field; `parse_assignment(name, value)` turns a
+  field name and a display value (`96`, `CC16`, `ON`) into the field and its
+  raw value, through `HostFormat::parse`.
 - `svd.rs`: `svd_validate` decodes one SN-S entry from an SVD file and
   compares it, byte by byte, with the Part tone read from the device.
 - `tone_waves.rs`: `read(dev, part)` names the Waves used by a Part's
@@ -120,6 +126,10 @@ offline.
 - `system set` checks the field and value before opening a port, sends one
   DT1 through `DeviceState::set_system_field`, and prints core's
   `VOLATILE_NOTICE`: no SysEx saves System edits.
+- `studio-set`: field names, ranges and value parsing come from the core
+  registry. `show` reads with the mixer load's `MixerBlock`s;
+  `set` sends through `DeviceState::set_studio_set_field`, and only after
+  the field and value parse. It doesn't save the Studio Set.
 - DT1 bursts go through `Throttle`, which uses `DeviceState`'s raw queue so
   that writes are not merged.
 
@@ -128,9 +138,10 @@ offline.
 - MIDI out:
   - Identity Request.
   - RQ1 reads: `dump`, `raw`, `svd`, `tone_waves`, `expansion`, `part`,
-    `pack export`, `system show`, and the `pack import` slot-name reads.
+    `studio-set show`, `pack export`, `system show`, and the `pack import`
+    slot-name reads.
   - DT1 writes: `write`, `raw-send`, `part set`, `expansion load`,
-    `pack import`, `pack reinit` and `system set`.
+    `studio-set set`, `pack import`, `pack reinit` and `system set`.
   - The Init request (an RQ1 at `0F 00 18 TT`): `init`. It changes only
     Temporary memory.
   - Raw hex SysEx.

@@ -185,6 +185,12 @@ enum Command {
         #[command(subcommand)]
         command: PartCommand,
     },
+    /// Show and set the current Studio Set's Tone Control sources, tempo
+    /// and Phase Lock.
+    StudioSet {
+        #[command(subcommand)]
+        command: StudioSetCommand,
+    },
     /// Browse the Wave catalog (offline).
     Wave {
         #[command(subcommand)]
@@ -311,6 +317,26 @@ enum SystemCommand {
         field: String,
         /// The value, as `system show` displays it (Master Tune in Hz).
         #[arg(allow_hyphen_values = true)]
+        value: String,
+    },
+}
+
+/// `studio-set` subcommands.
+#[derive(Subcommand)]
+enum StudioSetCommand {
+    /// Print every setting of the current Studio Set by field name and value.
+    Show {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+    },
+    /// Set one setting of the current Studio Set (not saved), e.g.
+    /// `tempo 96`, `tone-control-1-source CC16`, `phase-lock-3 ON`.
+    Set {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+        /// Field name, as `studio-set show` prints it.
+        field: String,
+        /// Value, as `studio-set show` prints it.
         value: String,
     },
 }
@@ -698,6 +724,22 @@ fn main() -> Result<()> {
             conn.device_id,
             conn.timeout(slow),
             part,
+            &field,
+            &value,
+        ),
+        Command::StudioSet {
+            command: StudioSetCommand::Show { conn },
+        } => commands::studio_set::show(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
+        ),
+        Command::StudioSet {
+            command: StudioSetCommand::Set { conn, field, value },
+        } => commands::studio_set::set(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
             &field,
             &value,
         ),

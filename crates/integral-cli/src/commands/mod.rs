@@ -12,6 +12,7 @@ pub mod pack_import;
 pub mod part;
 pub mod ping;
 pub mod raw;
+pub mod studio_set;
 pub mod svd;
 pub mod system;
 pub mod tone_waves;

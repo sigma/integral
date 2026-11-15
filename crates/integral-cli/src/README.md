@@ -21,6 +21,7 @@ live in sibling modules, and the command bodies live in
     - `expansion {list, load}`
     - `init <studio-set|sound-ctrl|part|tone|partial>`
     - `part {show, set}`
+    - `studio-set {show, set}`
     - `wave {list}`
     - `system {show, set}`
   - The shared option groups are `PortTimeoutArgs`, `ConnectionArgs` and
