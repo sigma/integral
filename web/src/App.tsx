@@ -37,6 +37,7 @@ import { useHostGestures } from "./hostGestures";
 import { TYPE_MISMATCH_NOTICE, type PluginBridge } from "./plugin";
 import { pluginDrumScope, pluginPages, pluginToneType, type PageTab } from "./pluginPages";
 import { MixerPage } from "./MixerPage";
+import { PartSettingsPrototype } from "./prototype/PartSettingsPrototype";
 import { SurroundPage } from "./SurroundPage";
 import { ToneEditorPage } from "./ToneEditorPage";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -461,6 +462,16 @@ export function App({
               </Lockable>
             )}
           </nav>
+          {!plugin && !mixer.state.loading && (
+            <PartSettingsPrototype
+              state={mixer.state}
+              selectPart={mixer.selectPart}
+              tab={tab ?? "mixer"}
+              pages={pages}
+              setTab={setActiveTab}
+              transport={sequencer && <Transport engine={sequencer} />}
+            />
+          )}
           <Lockable locked={importing}>
             {tab === "mixer" && (
               <ErrorBoundary section="Mixer">
