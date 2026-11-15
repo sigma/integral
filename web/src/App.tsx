@@ -14,7 +14,7 @@ import {
 import { browserPorts } from "./deviceService";
 import { IntegraService } from "./integra";
 import { installFamilyPalette } from "./synth-ui/family";
-import { PluginKind, plugin_kind_from_wire } from "../pkg/integral_wasm.js";
+import { PartSettingGroup, PluginKind, plugin_kind_from_wire } from "../pkg/integral_wasm.js";
 import { useMixer } from "./useMixer";
 import { useExpansions } from "./useExpansions";
 import { useExpansionStaging } from "./useExpansionStaging";
@@ -46,6 +46,7 @@ import { InitGuard, InitProvider } from "./InitFlow";
 import { Transport } from "./Transport";
 import { KeyboardDrawer } from "./KeyboardDrawer";
 import { PartSettingsDrawer } from "./PartSettingsDrawer";
+import { InitPartItem, SoundCtrlInitItem } from "./PartInitItems";
 import { SequencerPage } from "./SequencerPage";
 import { ExpansionsPage } from "./ExpansionsPage";
 import { SystemPage } from "./SystemPage";
@@ -535,7 +536,12 @@ export function App({
             {!plugin && partSettingsOpen && (
               <Lockable locked={importing}>
                 <ErrorBoundary section="Part settings">
-                  <PartSettingsDrawer mixer={mixer} onClose={() => setPartSettingsOpen(false)} />
+                  <PartSettingsDrawer
+                    mixer={mixer}
+                    onClose={() => setPartSettingsOpen(false)}
+                    headerActions={<InitPartItem part={mixer.state.selectedPart} />}
+                    groupActions={{ [PartSettingGroup.Offset]: <SoundCtrlInitItem /> }}
+                  />
                 </ErrorBoundary>
               </Lockable>
             )}

@@ -231,6 +231,14 @@ pub fn part_setting_group(field: PartSetting) -> PartSettingGroup {
     part_settings::PartSetting::from(field).def().group.into()
 }
 
+/// Whether a Part setting sits in its Part's own Studio Set Part block,
+/// which a Part Init resets, rather than in Studio Set Common (the Voice
+/// Reserve).
+#[wasm_bindgen]
+pub fn part_setting_in_part_block(field: PartSetting) -> bool {
+    part_settings::PartSetting::from(field).block() == part_settings::PartSettingBlock::Part
+}
+
 /// A group's name, as the manual's tab spells it (`KBD`).
 #[wasm_bindgen]
 pub fn part_setting_group_label(group: PartSettingGroup) -> String {

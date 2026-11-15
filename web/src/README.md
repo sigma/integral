@@ -39,7 +39,13 @@ plus the I/O the browser has to do.
   ⚙ opens the Part settings drawer (`PartSettingsDrawer`,
   [PRD #588](https://github.com/sigma/integral/issues/588)) at the right of
   the pages. It stacks the groups of core's Part settings registry for the
-  selected Part, follows the selection and stays open across pages.
+  selected Part, follows the selection and stays open across pages. Its
+  header holds Init Part…, and its OFFSET group Sound Ctrl Init…, which
+  resets the offsets of every Part (`PartInitItems.tsx`,
+  [#591](https://github.com/sigma/integral/issues/591)). The groups a Part
+  Init resets are guarded by it (VOICE is Studio Set Common: it isn't), and
+  OFFSET by Sound Ctrl Init too. The Mixer guards each Part's strip by its
+  Part Init, but not its EQ.
 - **Device service.** `integra.ts` (`IntegraService`) is the TypeScript
   side of the link to the device. It pairs MIDI I/O with the core's
   `WasmDeviceState`.
@@ -87,13 +93,14 @@ Pages and editors (`.tsx`):
     the shell and the connection card alike, so it outlives a lost link)
     runs one Init at a time. An area's "Init…" item calls
     `useInit().request(scope)`, which confirms first, naming what resets;
-    `InitItem` (`scope`, optional `className`) is that item, "Init…",
+    `InitItem` (`scope`, optional `className` and label) is that item, "Init…",
     disabled while an Init runs.
     `InitGuard` (`area`) keeps the area's controls dimmed and inert while an
     Init that resets all of it runs. After "finished", or a timeout, the
     provider reads back
     through the existing paths: `mixer.reload` for a Studio Set,
-    `reReadPart` for a Part, Tone or Sound Ctrl, and `useInit().rereads(part)`,
+    `reReadPartBlock` for a Part (its settings past the dump too),
+    `reReadPart` for a Tone or Sound Ctrl, and `useInit().rereads(part)`,
     which `ToneEditorPage` keys its editor on. A timeout, a refusal or a
     lost link ends the busy state and says so.
   - Connection: `DeviceSelector`, and the `DeviceStatus` views.

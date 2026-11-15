@@ -1208,6 +1208,21 @@ impl DeviceState {
         self.queue_mixer_reads(reads);
     }
 
+    /// Read all of `part`'s Studio Set Part block again, which a Part Init
+    /// resets (`docs/midi/99-undocumented.md` §7): what
+    /// [`reread_part`](Self::reread_part) reads, then the Part settings past
+    /// the dump and the Part's Motional Surround position.
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
+    pub fn reread_part_block(&mut self, part: u8) {
+        self.reread_part(part);
+        self.queue_mixer_reads([
+            MixerBlock::PartSettings(part),
+            MixerBlock::PartSurround(part),
+        ]);
+    }
+
     /// Set a part's Temporary tone name (ASCII, truncated or space-padded
     /// to the device's 12 characters), e.g. before saving it to a user slot.
     ///
@@ -3119,6 +3134,38 @@ mod tests {
         dev.reread_part(2);
         dev.reread_part(2);
         assert_eq!(drain_until(&mut dev, 0.0, 100.0).len(), 1);
+    }
+
+    #[test]
+    fn reread_part_block_reads_all_a_part_init_resets() {
+        let mut dev = DeviceState::new(0x10);
+        dev.reread_part_block(4);
+        let rq1 = |block: MixerBlock| {
+            let (at, size) = block.request().unwrap();
+            sysex::build_rq1(0x10, &at, &size)
+        };
+        assert_eq!(
+            drain_until(&mut dev, 0.0, 1_000.0),
+            [
+                rq1(MixerBlock::Part(4)),
+                rq1(MixerBlock::PartSettings(4)),
+                rq1(MixerBlock::PartSurround(4)),
+            ]
+        );
+
+        // The settings' reply reaches the state the Part settings drawer shows.
+        let (at, size) = MixerBlock::PartSettings(4).request().unwrap();
+        let mut data = vec![0u8; size.value() as usize];
+        let rx_pc = PartSetting::RxProgramChange.address(4).unwrap();
+        data[(rx_pc.value() - at.value()) as usize] = 0;
+        let settings = |dev: &DeviceState| {
+            dev.state().parts[4]
+                .settings
+                .get(PartSetting::RxProgramChange)
+        };
+        assert_eq!(settings(&dev), 1, "Rx PC is ON before the read");
+        assert!(dev.handle_dt1(&at, &data, 1_000.0));
+        assert_eq!(settings(&dev), 0);
     }
 
     #[test]

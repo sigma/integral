@@ -12,12 +12,14 @@ import {
   PartSettingGroup,
   part_setting_fields,
   part_setting_group,
+  part_setting_in_part_block,
   part_setting_label,
   part_setting_name,
   part_setting_spec,
 } from "../pkg/integral_wasm.js";
 import { cached } from "./cached";
 import { Drawer } from "./Drawer";
+import { InitGuard } from "./InitFlow";
 import { GridSection, loadedRelevance, specBinding, type Binding } from "./layouts";
 import { memo } from "./layouts/fields";
 import { partSettingsLayout } from "./layouts/part-settings/sections";
@@ -34,6 +36,13 @@ const labelOf = cached(part_setting_label);
 
 /** The registry's groups, in its order: the order the drawer stacks them. */
 const registryGroups = memo((): PartSettingGroup[] => [...new Set(part_setting_fields().map(part_setting_group))]);
+
+/** Whether every field of `group` sits in the Part's own block, which a Part Init resets (not VOICE's Common). */
+const inPartBlock = cached((group: PartSettingGroup): boolean =>
+  part_setting_fields()
+    .filter((field) => part_setting_group(field) === group)
+    .every(part_setting_in_part_block),
+);
 
 interface Props {
   mixer: UseMixerResult;
@@ -72,9 +81,13 @@ export function PartSettingsDrawer({ mixer, onClose, headerActions, groupActions
       {registryGroups().map((group) => {
         const layout = partSettingsLayout(group);
         if (!layout) return null;
+        let section = <GridSection layout={layout} bind={bind} relevance={relevance} />;
+        // A Sound Ctrl Init resets the offsets alone; a Part Init, its Part's block.
+        if (group === PartSettingGroup.Offset) section = <InitGuard area={{ kind: "sound-ctrl" }}>{section}</InitGuard>;
+        if (inPartBlock(group)) section = <InitGuard area={{ kind: "part", part: index }}>{section}</InitGuard>;
         return (
           <div key={group} data-part-settings-group={PartSettingGroup[group]}>
-            <GridSection layout={layout} bind={bind} relevance={relevance} />
+            {section}
             {groupActions?.[group]}
           </div>
         );

@@ -1,0 +1,15 @@
+/* A drawer header's button, like its close button. */
+.item {
+  composes: close from "./Drawer.module.css";
+}
+
+.item:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* Under its group, at the group's right. */
+.group {
+  display: block;
+  margin: 4px 0 0 auto;
+}

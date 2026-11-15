@@ -2912,6 +2912,16 @@ impl WasmDeviceState {
         Ok(())
     }
 
+    /// Read all of `part`'s Studio Set Part block again, which a Part Init
+    /// resets: what `reReadPart` reads, then the Part settings past the
+    /// dump and the Part's Motional Surround position.
+    #[wasm_bindgen(js_name = reReadPartBlock)]
+    pub fn re_read_part_block(&mut self, part: u8) -> Result<(), JsError> {
+        check_part(part)?;
+        self.inner.reread_part_block(part);
+        Ok(())
+    }
+
     /// Whether a mixer load still waits for a block the mixer can't be
     /// shown without.
     #[wasm_bindgen(js_name = mixerLoading)]

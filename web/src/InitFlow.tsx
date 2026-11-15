@@ -79,6 +79,10 @@ export function InitProvider({ service, mixer, children }: ProviderProps) {
           for (const part of allParts) service.device.reReadPart(part);
           break;
         case "part":
+          // The whole Part block: the dump, its tone's name with it, and the settings past it.
+          service.device.reReadPartBlock(scope.part);
+          tones = [scope.part];
+          break;
         case "tone":
           // The Part's dump, and its tone's name with it.
           service.device.reReadPart(scope.part);
@@ -239,8 +243,17 @@ export function InitGuard({ area, children }: { area: InitScope; children: React
  * An area's "Init…" item: asks for `scope`'s Init, which confirms first.
  * Named by what it resets; disabled while an Init runs. `className` styles it
  * as its place's buttons (a page header's); a small item by default.
+ * `children` is its visible label, "Init…" by default.
  */
-export function InitItem({ scope, className = css.item }: { scope: InitScope; className?: string }) {
+export function InitItem({
+  scope,
+  className = css.item,
+  children = "Init…",
+}: {
+  scope: InitScope;
+  className?: string;
+  children?: ReactNode;
+}) {
   const { request, running } = useInit();
   const name = `${describeInit(scope).title}…`;
   return (
@@ -252,7 +265,7 @@ export function InitItem({ scope, className = css.item }: { scope: InitScope; cl
       disabled={running !== null}
       onClick={() => request(scope)}
     >
-      Init…
+      {children}
     </button>
   );
 }

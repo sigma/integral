@@ -6,6 +6,7 @@ import { InitGuard, InitProvider, useInit } from "./InitFlow";
 import type { InitScope } from "./init";
 import { LINK_LOST_ERROR, type IntegraService } from "./integra";
 import { button, cleanup, click, render } from "./test/dom";
+import { fakeInitService } from "./test/initService";
 
 afterEach(cleanup);
 
@@ -20,29 +21,8 @@ function Item({ scope }: { scope: InitScope }) {
   );
 }
 
-/** A service whose Init answers when the test calls `finish`. */
-function fakeService() {
-  let finish: (error?: string) => void = () => {};
-  const initialize = vi.fn(
-    () =>
-      new Promise<string | undefined>((resolve) => {
-        finish = resolve;
-      }),
-  );
-  const reReadPart = vi.fn();
-  const service = { initialize, device: { reReadPart } } as unknown as IntegraService;
-  return {
-    service,
-    initialize,
-    reReadPart,
-    finish: async (error?: string) => {
-      await act(async () => finish(error));
-    },
-  };
-}
-
 function setup(scope: InitScope) {
-  const fake = fakeService();
+  const fake = fakeInitService();
   const reload = vi.fn();
   const tree = (service: IntegraService | null) => (
     <InitProvider service={service} mixer={{ reload }}>
@@ -112,14 +92,16 @@ describe("InitFlow", () => {
     expect(guard("part3").getAttribute("aria-busy")).toBe("false");
   });
 
-  it("re-reads a Part's dump and remounts its tone editor after a Part Init", async () => {
-    const { container, reReadPart, reload, rereads, finish } = setup({ kind: "part", part: 2 });
+  it("re-reads a Part's whole block and remounts its tone editor after a Part Init", async () => {
+    const { container, reReadPart, reReadPartBlock, reload, rereads, finish } = setup({ kind: "part", part: 2 });
     click(button(container, "Init…"));
     click(button(container, "Init"));
-    expect(reReadPart).not.toHaveBeenCalled();
+    expect(reReadPartBlock).not.toHaveBeenCalled();
     expect(rereads()).toBe("0");
     await finish();
-    expect(reReadPart).toHaveBeenCalledWith(2);
+    // The dump and the settings past it: the Part settings drawer shows them.
+    expect(reReadPartBlock).toHaveBeenCalledWith(2);
+    expect(reReadPart).not.toHaveBeenCalled();
     expect(reload).not.toHaveBeenCalled();
     expect(rereads()).toBe("1");
   });
@@ -168,7 +150,7 @@ describe("InitFlow", () => {
   });
 
   it("a timeout ends the busy state, says so, and reads the area back", async () => {
-    const { container, reReadPart, guard, rereads, finish } = setup({ kind: "part", part: 2 });
+    const { container, reReadPartBlock, guard, rereads, finish } = setup({ kind: "part", part: 2 });
     click(button(container, "Init…"));
     click(button(container, "Init"));
     await finish("the device didn't confirm the Init");
@@ -178,7 +160,7 @@ describe("InitFlow", () => {
       "Init Part 3 failed: the device didn't confirm the Init. It is read again from the device.",
     );
     // The device may have reset it all the same.
-    expect(reReadPart).toHaveBeenCalledWith(2);
+    expect(reReadPartBlock).toHaveBeenCalledWith(2);
     expect(rereads()).toBe("1");
     click(button(container, "Close"));
     expect(container.querySelector('[role="alertdialog"]')).toBeNull();
@@ -201,7 +183,7 @@ describe("InitFlow", () => {
   });
 
   it("a service that refuses to start says why", async () => {
-    const fake = fakeService();
+    const fake = fakeInitService();
     fake.initialize.mockRejectedValueOnce(new Error("A save is still in progress"));
     const { container } = render(
       <InitProvider service={fake.service} mixer={{ reload: () => {} }}>

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ChannelStrip, StripCategory, StripEq } from "./ChannelStrip";
 import { FxCategory, FxParams, FxStrip } from "./FxStrip";
+import { InitGuard } from "./InitFlow";
 import { MixerLoadWarning } from "./MixerLoadWarning";
 import { MixerScopeKind } from "../pkg/integral_wasm.js";
 import { GridScreen, GridZoom } from "./layouts";
@@ -55,7 +56,12 @@ export function MixerPage({ mixer, expansions }: Props) {
         className={`${css.column} ${state.selectedPart === index ? css.selected : ""}`}
         onPointerDown={() => mixer.selectPart(index)}
       >
-        {body}
+        {slot.role === "eq" ? (
+          body
+        ) : (
+          // A Part Init resets the strip and reloads its tone; the Part EQ is its own block.
+          <InitGuard area={{ kind: "part", part: index }}>{body}</InitGuard>
+        )}
       </div>
     );
   };
