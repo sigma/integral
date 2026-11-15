@@ -338,11 +338,35 @@ So:
 - Until the next power cycle, a direct read (and the catalog) can return data
   that was never stored.
 
+### One Write Request Commits Every Direct Change
+
+Checked 2026-11-15 over two power cycles
+([#286](https://github.com/sigma/integral/issues/286)):
+
+1. Renamed by DT1: PCM Synth 255 and 256, SN Synth 512 and Studio Set 63.
+   Then PCM Synth 254 was stored the normal way (Temporary + write request).
+   After a power cycle, **all four renames were still there**, in three types.
+2. Control: PCM Synth 252 and SN Synth 511 were renamed by DT1, with no write
+   request afterwards. After a power cycle both read their old names again.
+
+So a direct DT1 stays in RAM until a write request, and one write request
+commits every pending direct change in User memory, not only its own slot or
+type. A batch store could DT1 every slot directly and send one write request.
+
+**Caveat:** after direct DT1s to User memory, write requests can go
+unanswered: no "write started", no "write finished", and nothing stored. In
+two rounds, the importer's first store after the DT1s got no reply, and its
+next store was confirmed as usual. In a third, three write requests sent by
+hand (`raw-hex`, one of them heard for 120 s) and then one importer store all
+got no reply before the next importer store was confirmed. It's not known
+what makes the device answer again, or whether an unanswered request commits
+anything; the first confirmed write did commit the direct changes.
+
 ### Open
 
 - What the `10`, `11` and `20`–`27` areas are.
-- Whether anything other than the write request (Section 4) commits a direct
-  RAM change to storage.
+- Why the first write request after direct DT1s gets no reply, and whether
+  that dropped request commits anything.
 
 ---
 
