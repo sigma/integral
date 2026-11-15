@@ -1379,7 +1379,8 @@ impl Default for PcmSynthCommon2 {
             tone_category: 0,
             tone_number: 0,
             phrase_octave_shift: 64, // 0
-            tfx_switch: 0,
+            // ON, as the device's INIT TONE (`tests/fixtures/init/pcm-synth-common2.bin`, #300).
+            tfx_switch: 1,
             phrase_number: 0,
         }
     }
@@ -1876,6 +1877,10 @@ mod tests {
         assert_eq!(common.unwrap(), init);
         assert_eq!(pmt.unwrap(), PcmSynthPmt::default());
         assert_eq!(partial.unwrap(), PcmSynthPartial::default());
+        let common2 = parse_pcms_common2(include_bytes!(
+            "../tests/fixtures/init/pcm-synth-common2.bin"
+        ));
+        assert_eq!(common2.unwrap(), PcmSynthCommon2::default());
     }
 
     #[test]
