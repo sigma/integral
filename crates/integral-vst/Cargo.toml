@@ -15,6 +15,7 @@ path = "src/standalone.rs"
 [dependencies]
 integral-core = { path = "../integral-core", features = ["serde"] }
 integral-device-service = { path = "../integral-device-service" }
+integral-web-assets = { path = "../integral-web-assets" }
 nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["standalone"] }
 cpal = "0.15"
 serde = { version = "1", features = ["derive"] }

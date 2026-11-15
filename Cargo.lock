@@ -1588,6 +1588,7 @@ dependencies = [
  "cpal",
  "integral-core",
  "integral-device-service",
+ "integral-web-assets",
  "nih_plug",
  "raw-window-handle 0.5.2",
  "serde",
@@ -1606,6 +1607,10 @@ dependencies = [
  "serde_json",
  "wasm-bindgen",
 ]
+
+[[package]]
+name = "integral-web-assets"
+version = "0.1.0"
 
 [[package]]
 name = "is_terminal_polyfill"

@@ -1,0 +1,6 @@
+[package]
+name = "integral-web-assets"
+description = "The web build (web/dist-plugin) embedded for the plugin editor and the Device service to serve"
+version.workspace = true
+edition.workspace = true
+license.workspace = true

@@ -17,7 +17,8 @@ graph TD
   cli[integral-cli] --> core
   wasm[integral-wasm] --> core
   web[web/ React UI] --> wasm
-  vst[integral-vst] -. embeds web/dist-plugin .-> web
+  assets[integral-web-assets] -. embeds web/dist-plugin .-> web
+  vst[integral-vst] --> assets
 ```
 
 ## Subdirectories & Boundaries
@@ -38,6 +39,9 @@ graph TD
   `nih-plug` VST3/CLAP plugin and the `integral-app` standalone. It runs a
   macOS webview editor that serves the embedded web UI and links it to MIDI
   ports directly.
+- integral-web-assets: [`./integral-web-assets/README.md`](./integral-web-assets/README.md) -
+  the web build `web/dist-plugin`, embedded at build time, with `serve(path)`
+  for the plugin editor.
 - integral-wasm: [`./integral-wasm/README.md`](./integral-wasm/README.md) -
   `wasm-bindgen` wrappers for the web frontend. JS pulls outbound SysEx and
   owns the clock.

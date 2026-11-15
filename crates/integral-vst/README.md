@@ -59,9 +59,8 @@ parameter stays on the panel after Configure is turned off.
 
 - [`./src/README.md`](./src/README.md): the plugin family, the standalone
   entry point and the webview editor.
-- `build.rs` embeds `web/dist-plugin` (built by `just build-web-plugin`). It
-  writes a sorted `(path, bytes)` table to `$OUT_DIR/web_assets.rs`, which
-  `src/webview/assets.rs` serves.
+- `integral-web-assets` embeds `web/dist-plugin` (built by
+  `just build-web-plugin`), and `src/webview/assets.rs` serves it.
 - Build outputs:
   - a `cdylib` and `lib` library (the six plugins; `just bundle-plugin` makes
     `target/bundle/Integral.vst3` from it)
@@ -69,9 +68,8 @@ parameter stays on the panel after Configure is turned off.
 
 ## Invariants
 
-- If `web/dist-plugin` is missing, the asset table is empty. The build still
-  succeeds with a warning, so `cargo build` and clippy need no Node, and the
-  editor shows a page explaining how to build the UI.
+- If `web/dist-plugin` is missing, the editor shows a page explaining how to
+  build the UI (see `integral-web-assets`).
 - `wry` is pinned to an exact version (`=0.57.0`), because the editor relies
   on its platform behaviour. Bump it on purpose and re-check in a host.
 - `baseview` uses nih-plug's source and revision, so the workspace `[patch]`
@@ -80,8 +78,6 @@ parameter stays on the panel after Configure is turned off.
 
 ## Side Effects
 
-- Build time: reads `web/dist-plugin`, writes `$OUT_DIR/web_assets.rs`, and
-  emits `rerun-if-changed`.
 - Runtime: see [`./src/README.md`](./src/README.md) (the service socket,
   audio backend, window).
 
