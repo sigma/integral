@@ -44,7 +44,7 @@ export const SCOPE_NAMES: Record<Scope, string> = {
 
 /** The pages of each scope, in the row's order: a page sits in the scope that decides what it shows. */
 export const SCOPE_PAGES: Record<Scope, readonly PageTab[]> = {
-  device: ["expansions", "library"],
+  device: ["system", "expansions", "library"],
   studioSet: ["mixer", "surround", "routing", "sequencer"],
   part: [],
   tone: ["toneEdit"],

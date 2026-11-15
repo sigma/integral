@@ -115,6 +115,27 @@ pub fn system_group_label(group: SystemGroup) -> String {
     system::SystemGroup::from(group).label().to_string()
 }
 
+/// What `group` says of a System setting it leaves to the panel, or
+/// `undefined` (see [`system::SystemGroup::panel_note`]).
+#[wasm_bindgen]
+pub fn system_group_note(group: SystemGroup) -> Option<String> {
+    system::SystemGroup::from(group)
+        .panel_note()
+        .map(str::to_string)
+}
+
+/// The address of the System Common block: what `requestData` reads.
+#[wasm_bindgen]
+pub fn system_common_address() -> Vec<u8> {
+    integral_core::address::SYSTEM_COMMON.as_bytes().to_vec()
+}
+
+/// The size of the System Common read: the whole block.
+#[wasm_bindgen]
+pub fn system_common_size() -> Vec<u8> {
+    system::SYSTEM_COMMON_SIZE.as_bytes().to_vec()
+}
+
 /// The line the System page shows: System edits last until power-off.
 #[wasm_bindgen]
 pub fn system_volatile_notice() -> String {
@@ -172,6 +193,14 @@ impl WasmSystemFieldSpec {
             ParamFormat::ControlSource(kind) => Some(kind.into()),
             _ => None,
         }
+    }
+
+    /// Whether the field names its values from a list (`SYSTEM`,
+    /// `STUDIO SET`): a picker lists them by
+    /// [`format_value`](Self::format_value).
+    #[wasm_bindgen(getter, js_name = namedList)]
+    pub fn named_list(&self) -> bool {
+        matches!(self.0.format, ParamFormat::Named(_))
     }
 
     /// Format a raw value for display.
@@ -267,6 +296,29 @@ mod tests {
             system_field_spec(SystemField::SystemTempo).control_source(),
             None
         );
+    }
+
+    #[test]
+    fn read_covers_the_block_the_core_requests() {
+        let rq1 = system::build_read_request(0x10);
+        assert_eq!(rq1[7..11], system_common_address()[..]);
+        assert_eq!(rq1[11..15], system_common_size()[..]);
+    }
+
+    #[test]
+    fn named_lists_are_flagged() {
+        assert!(system_field_spec(SystemField::StudioSetControlChannel).named_list());
+        assert!(!system_field_spec(SystemField::SystemTempo).named_list());
+        assert!(!system_field_spec(SystemField::SystemControl1Source).named_list());
+    }
+
+    #[test]
+    fn output_carries_the_ext_part_source_note() {
+        assert_eq!(
+            system_group_note(SystemGroup::Output).as_deref(),
+            Some(system::EXT_PART_SOURCE_NOTE)
+        );
+        assert_eq!(system_group_note(SystemGroup::Tuning), None);
     }
 
     #[test]

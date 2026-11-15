@@ -24,7 +24,7 @@ plus the I/O the browser has to do.
   [#584](https://github.com/sigma/integral/issues/584)) and the page held in
   local state, with no router. The row nests the scopes left to right, each
   group its selector and controls, then its pages:
-  - **Device:** Expansions, Library.
+  - **Device:** System, Expansions, Library.
   - **Studio Set:** selector, SAVE; Mixer, Surround, Routing, Sequencer and
     the Transport.
   - **Part:** selector, receive channel, ⚙ (the Part settings drawer),
@@ -58,6 +58,8 @@ Pages and editors (`.tsx`):
   - `ToneEditorPage` — picks the editor from the part's bank. The web page's
     header has Tone Init… for an editable tone; a plugin's editor has none.
   - `SequencerPage`, with `Transport` and `Piano`.
+  - `SystemPage` — System Common in its core groups, read on open and on
+    Refresh (`useSystemCommon`).
   - `ExpansionsPage`.
   - `LibraryPage`, with `PackPane`, `PackExportPane`, `PackImportPane` and
     `ReinitDialog`.
@@ -207,6 +209,7 @@ State and hooks:
 - Mixer and editing: `useMixer`, `useMfxHandlers`, `useDrumKey`,
   `useKeyPrefetch`.
 - Expansions: `useExpansions`, `useExpansionStaging`.
+- System: `useSystemCommon`.
 - Librarian: `useLibraryExport`, `useLibraryImport`, `useUserSlots`,
   `useBankEntries`.
 - Notes: `useKeyboard`.

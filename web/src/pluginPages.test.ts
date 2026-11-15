@@ -38,7 +38,7 @@ describe("the pages of a plugin", () => {
 
   it("never include the pages of another instance or of the browser alone", () => {
     for (const kind of [PluginKind.StudioSet, ...TONE_PLUGINS.map(([k]) => k), ...KIT_PLUGINS.map(([k]) => k)]) {
-      for (const page of ["sequencer", "expansions", "library"] as const) {
+      for (const page of ["sequencer", "system", "expansions", "library"] as const) {
         expect(pluginPages(kind)).not.toContain(page);
       }
     }

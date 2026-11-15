@@ -200,7 +200,21 @@ impl SystemGroup {
             Self::Usb => "USB",
         }
     }
+
+    /// What the group says of a System setting it leaves to the panel, if
+    /// any: Output points to Ext Part Source Select (#284), whose byte a
+    /// panel edit doesn't reach (#283).
+    pub fn panel_note(self) -> Option<&'static str> {
+        match self {
+            Self::Output => Some(EXT_PART_SOURCE_NOTE),
+            _ => None,
+        }
+    }
 }
+
+/// Where Ext Part Source Select is set: on the panel, not from here (#284).
+pub const EXT_PART_SOURCE_NOTE: &str =
+    "Ext Part Source Select is set on the panel, in SYSTEM > SOUND.";
 
 /// Name, group, range and display of a [`SystemField`]; its address is
 /// [`SystemField::address`].
@@ -648,6 +662,15 @@ mod tests {
         let mut deduped = groups.clone();
         deduped.dedup();
         assert_eq!(deduped, SystemGroup::ALL);
+    }
+
+    #[test]
+    fn only_output_points_to_the_panel() {
+        let noted: Vec<_> = SystemGroup::ALL
+            .iter()
+            .filter(|g| g.panel_note().is_some())
+            .collect();
+        assert_eq!(noted, [&SystemGroup::Output]);
     }
 
     #[test]

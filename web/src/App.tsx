@@ -48,6 +48,7 @@ import { KeyboardDrawer } from "./KeyboardDrawer";
 import { PartSettingsDrawer } from "./PartSettingsDrawer";
 import { SequencerPage } from "./SequencerPage";
 import { ExpansionsPage } from "./ExpansionsPage";
+import { SystemPage } from "./SystemPage";
 import { LibraryPage } from "./LibraryPage";
 import { ToneCatalog } from "./toneCatalog";
 import { useLibraryExport } from "./useLibraryExport";
@@ -498,6 +499,11 @@ export function App({
                         initItems
                       />
                     )}
+                  </ErrorBoundary>
+                )}
+                {tab === "system" && (
+                  <ErrorBoundary section="System">
+                    <SystemPage service={service} />
                   </ErrorBoundary>
                 )}
                 {tab === "expansions" && (

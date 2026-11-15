@@ -80,7 +80,7 @@ describe("the navigation row", () => {
 
   it("puts each page in the scope that decides what it shows", () => {
     const { container } = row();
-    expect(pages(group(container, "Device"))).toEqual(["expansions", "library"]);
+    expect(pages(group(container, "Device"))).toEqual(["system", "expansions", "library"]);
     expect(pages(group(container, "Studio Set"))).toEqual(["mixer", "surround", "routing", "sequencer"]);
     expect(pages(group(container, "Part"))).toEqual([]);
     expect(pages(group(container, "Tone"))).toEqual(["toneEdit"]);
