@@ -1027,6 +1027,38 @@ writes.
 
 ---
 
+## 11. Part Scale Tune Behavior
+
+### Purpose
+
+The Parameter Guide says a Part's Scale Tune Type "sets all Scale Tune C–B
+settings". What the device does with the 14 bytes (`2B` Type, `2C` Key,
+`2D`–`38` C … B) when one of them is written, and what it tells the client, is
+not documented.
+
+### Behavior
+
+Checked on the INTEGRA-7 on 2026-11-15, on Part 16 (`18 00 2F 2B`, 14 bytes),
+one DT1 at a time, reading the 14 bytes back after each:
+
+| Write | Result |
+|---|---|
+| Type = JUST-MAJ (`02`), Key C | the device fills C … B with the preset: `50 32 54 5F 42 4E 30 52 34 40 61 44` |
+| any one of C … B, even its current value | Type becomes CUSTOM (`00`); the other offsets stay |
+| Key = G (`07`), Type CUSTOM | nothing else changes |
+| Key = G, Type JUST-MAJ | the device recomputes C … B for G (`3A 1C 3E 20 2C 4D 30 3C 1E 40 4B 2E`), not a rotation of the C values |
+| Type = EQUAL (`01`) | C … B all return to `40` (0 cents) |
+
+The device sends **nothing** back for any of these writes: neither the new
+offsets nor the new Type.
+
+### Implications
+
+- A client never computes preset tables: it writes Type or Key, then re-reads
+  `2B`–`38`.
+- After writing an offset, the client shows Type as CUSTOM, as the device has
+  set it.
+
 ## Future Investigation
 
 - **Expansion board tone catalogs**: SRX, ExSN, ExPCM tones at `0F 00 04 02`

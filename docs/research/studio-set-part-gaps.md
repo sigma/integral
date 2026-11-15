@@ -64,9 +64,11 @@ SVD INIT entries confirm it.
 
 Notes:
 
-- The Type is a template that "sets all Scale Tune C–B settings" [PG]. Whether
-  the device rewrites `2D`–`38` when Type changes, and announces it, is
-  untested. A UI should re-read `2B`–`38` after writing Type.
+- The Type is a template that "sets all Scale Tune C–B settings" [PG]. Checked
+  on the device (2026-11-15): writing Type or Key rewrites `2D`–`38` (Key
+  recomputes a preset rather than rotating it), writing any offset turns Type to
+  CUSTOM, and the device announces none of it. A UI re-reads `2B`–`38` after
+  writing Type or Key. See `docs/midi/99-undocumented.md` §11.
 - Availability by tone type [PG]: not on SN-A Organ or SN-D.
 - System `12`–`1F` are "Live Set Scale Tune Type/Key/C…B" in [RJS] (init 1,
   0, 64 × 12). [SVD] shows exactly those values (`00 12` = 1, `00 14`–`00 1F`
