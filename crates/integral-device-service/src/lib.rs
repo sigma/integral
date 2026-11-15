@@ -52,6 +52,7 @@
 
 mod baseline;
 mod clients;
+mod http;
 mod link;
 mod link_config;
 mod midir_link;

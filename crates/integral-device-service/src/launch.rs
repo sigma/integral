@@ -37,7 +37,9 @@ pub struct ServiceArgs {
     /// it (`scheme://host[:port]`, no path). Repeat for several; given at
     /// all, these replace the defaults (the `just dev-web` and `vite preview`
     /// servers, and the app on GitHub Pages: `https://sigma.github.io` admits
-    /// every Pages site of that user). A refused origin is logged here.
+    /// every Pages site of that user). The service's own origin,
+    /// `http://127.0.0.1:<port>`, where it serves the web app, is always
+    /// admitted. A refused origin is logged here.
     #[arg(long = "ws-origin", value_name = "ORIGIN", default_values_t = default_origins())]
     pub ws_origins: Vec<String>,
 }
@@ -137,8 +139,9 @@ impl ServiceArgs {
             }
         };
         eprintln!(
-            "Device service running; notes go to the MIDI port '{NOTE_PORT_NAME}', clients to {}, \
-             the web app to ws://{} (origins: {})",
+            "Device service running; open the web app at {} (Safari too); notes go to the MIDI \
+             port '{NOTE_PORT_NAME}', clients to {}, pages to ws://{} (origins: its own, {})",
+            web.page_url(),
             server.path().display(),
             web.local_addr(),
             self.ws_origins.join(", ")

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The web build the plugin editor serves: `web/dist-plugin` (`vite build
+The web build the plugin editor and the Device service serve: `web/dist-plugin` (`vite build
 --mode plugin`: no service worker, base `/`), embedded at build time.
 
 ## Interface

@@ -58,7 +58,7 @@ jobs:
       - name: Format check (Rust + Nix)
         run: nix develop -c just fmt-check
 
-      # Before every step that compiles integral-vst, so it embeds the UI. Also
+      # Before every step that compiles integral-web-assets, so it embeds the UI. Also
       # packs the WASM and installs the web dependencies it needs.
       - name: Build the plugin's web UI and check it
         run: nix develop -c just build-web-plugin

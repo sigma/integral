@@ -19,6 +19,7 @@ graph TD
   web[web/ React UI] --> wasm
   assets[integral-web-assets] -. embeds web/dist-plugin .-> web
   vst[integral-vst] --> assets
+  service[integral-device-service] --> assets
 ```
 
 ## Subdirectories & Boundaries
@@ -34,14 +35,15 @@ graph TD
   It does MIDI I/O through `midir`.
 - integral-device-service: [`./integral-device-service/README.md`](./integral-device-service/README.md) -
   the Device service: owns the device link and the one `DeviceState`, and
-  exposes a virtual note port. Native only; `integral-cli bridge` launches it.
+  exposes a virtual note port, and serves the web app beside its WebSocket.
+  Native only; `integral-cli bridge` launches it.
 - integral-vst: [`./integral-vst/README.md`](./integral-vst/README.md) - the
   `nih-plug` VST3/CLAP plugin and the `integral-app` standalone. It runs a
   macOS webview editor that serves the embedded web UI and links it to MIDI
   ports directly.
 - integral-web-assets: [`./integral-web-assets/README.md`](./integral-web-assets/README.md) -
   the web build `web/dist-plugin`, embedded at build time, with `serve(path)`
-  for the plugin editor.
+  for the plugin editor and the Device service.
 - integral-wasm: [`./integral-wasm/README.md`](./integral-wasm/README.md) -
   `wasm-bindgen` wrappers for the web frontend. JS pulls outbound SysEx and
   owns the clock.

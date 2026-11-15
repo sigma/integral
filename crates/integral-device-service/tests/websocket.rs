@@ -182,6 +182,113 @@ fn a_handshake_from_an_origin_on_the_list_is_accepted_whatever_its_case() {
     assert!(service.connect(Some("HTTPS://App.Example")).is_ok());
 }
 
+/// A response to a plain HTTP request.
+struct Response {
+    status: u16,
+    headers: Vec<(String, String)>,
+    body: Vec<u8>,
+}
+
+impl Response {
+    /// The value of the header `name` (in any case), if there is one.
+    fn header(&self, name: &str) -> Option<&str> {
+        self.headers
+            .iter()
+            .find(|(n, _)| n.eq_ignore_ascii_case(name))
+            .map(|(_, v)| v.as_str())
+    }
+}
+
+/// Send `request` (a whole HTTP/1.1 request) as a plain HTTP client and read
+/// the response until the server closes the connection.
+fn http(service: &Fixture, request: &str) -> Response {
+    let addr = service.server.as_ref().expect("server").local_addr();
+    let mut stream = TcpStream::connect(addr).expect("connect");
+    stream.set_read_timeout(Some(WAIT)).expect("timeout");
+    stream.write_all(request.as_bytes()).expect("send");
+    let mut bytes = Vec::new();
+    stream.read_to_end(&mut bytes).expect("read");
+    let mut headers = [httparse::EMPTY_HEADER; 32];
+    let mut response = httparse::Response::new(&mut headers);
+    let httparse::Status::Complete(end) = response.parse(&bytes).expect("HTTP") else {
+        panic!("an incomplete response head");
+    };
+    Response {
+        status: response.code.expect("a status"),
+        headers: response
+            .headers
+            .iter()
+            .map(|h| {
+                let value = String::from_utf8(h.value.to_vec()).expect("an ASCII value");
+                (h.name.to_string(), value)
+            })
+            .collect(),
+        body: bytes[end..].to_vec(),
+    }
+}
+
+#[test]
+fn a_get_for_the_root_returns_the_page() {
+    let service = Fixture::start();
+
+    let response = http(&service, "GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+
+    let page = integral_web_assets::serve("/");
+    assert_eq!(response.status, 200);
+    assert_eq!(
+        response.header("Content-Type"),
+        Some("text/html; charset=utf-8")
+    );
+    let length = page.body.len().to_string();
+    assert_eq!(response.header("Content-Length"), Some(length.as_str()));
+    assert_eq!(response.body, page.body);
+}
+
+#[test]
+fn a_get_ignores_the_query_and_a_missing_file_is_not_found() {
+    let service = Fixture::start();
+
+    let response = http(&service, "GET /?from=log HTTP/1.1\r\n\r\n");
+    assert_eq!(response.status, 200);
+    assert_eq!(response.body, integral_web_assets::serve("/").body);
+
+    let response = http(&service, "GET /no-such-file.js HTTP/1.1\r\n\r\n");
+    assert_eq!(response.status, 404);
+    assert!(response.body.is_empty());
+}
+
+#[test]
+fn a_head_request_has_no_body_and_other_methods_are_not_allowed() {
+    let service = Fixture::start();
+
+    let response = http(&service, "HEAD / HTTP/1.1\r\n\r\n");
+    assert_eq!(response.status, 200);
+    assert!(response.body.is_empty());
+
+    // A body the server never reads must not cost the client its answer.
+    let response = http(
+        &service,
+        "POST / HTTP/1.1\r\nContent-Length: 5\r\n\r\nhello",
+    );
+    assert_eq!(response.status, 405);
+    assert_eq!(response.header("Allow"), Some("GET, HEAD"));
+}
+
+#[test]
+fn the_servers_own_origin_is_admitted() {
+    let service = Fixture::start();
+    let server = service.server.as_ref().expect("server");
+    let own = format!("http://{}", server.local_addr());
+
+    assert_eq!(server.page_url(), format!("{own}/"));
+    assert!(service.connect(Some(&own)).is_ok());
+    // Not another port, nor `localhost`, which may be another listener's.
+    let other_port = format!("http://127.0.0.1:{}", server.local_addr().port() ^ 1);
+    assert_eq!(service.refused_with(Some(&other_port)), 403);
+    let localhost = format!("http://localhost:{}", server.local_addr().port());
+    assert_eq!(service.refused_with(Some(&localhost)), 403);
+}
+
 #[test]
 fn a_refused_origin_is_logged() {
     let service = Fixture::start();
