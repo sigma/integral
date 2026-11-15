@@ -39,6 +39,7 @@ import { TYPE_MISMATCH_NOTICE, type PluginBridge } from "./plugin";
 import { PAGE_NAMES, pluginDrumScope, pluginPages, pluginToneType, type PageTab } from "./pluginPages";
 import { MixerPage } from "./MixerPage";
 import { SurroundPage } from "./SurroundPage";
+import { RoutingPage } from "./RoutingPage";
 import { ToneEditorPage } from "./ToneEditorPage";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { InitGuard, InitProvider } from "./InitFlow";
@@ -446,6 +447,11 @@ export function App({
             {tab === "surround" && (
               <ErrorBoundary section="Surround">
                 <SurroundPage mixer={mixer} />
+              </ErrorBoundary>
+            )}
+            {tab === "routing" && (
+              <ErrorBoundary section="Routing">
+                <RoutingPage mixer={mixer} onOpen={setActiveTab} />
               </ErrorBoundary>
             )}
             {tab === "toneEdit" && (

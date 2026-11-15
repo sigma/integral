@@ -71,6 +71,8 @@ export interface UseMixerResult {
   loadStudioSetNames: (force?: boolean) => Promise<Map<number, string>>;
   /** Read the whole mixer state again, e.g. after a Pack import. */
   reload: () => void;
+  /** Copy core's state again, without a device read: after a write that bypassed these setters (a tone editor's). */
+  sync: () => void;
   preview: () => void;
 }
 
@@ -97,6 +99,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
       const rs = service.device.readState() as RustMixerState;
       const loading = service.device.mixerLoading();
       const failedBlocks = service.device.mixerFailedBlocks();
+      const routing = service.device.effectiveRouting();
       setState((prev) => ({
         studioSetName: rs.studioSetName ?? "",
         studioSetPC: rs.studioSetPC ?? 0,
@@ -117,6 +120,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
         selectedPart: prev.selectedPart,
         loading,
         failedBlocks,
+        routing,
         // The current Studio Set's name is known once the load is done.
         studioSetNames:
           prev.loading && !loading && rs.studioSetName
@@ -332,6 +336,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     renameStudioSet,
     loadStudioSetNames,
     reload,
+    sync: syncFromRust,
     preview,
   };
 }

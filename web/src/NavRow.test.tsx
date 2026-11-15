@@ -77,7 +77,7 @@ describe("the navigation row", () => {
   it("puts each page in the scope that decides what it shows", () => {
     const { container } = row();
     expect(pages(group(container, "Device"))).toEqual(["expansions", "library"]);
-    expect(pages(group(container, "Studio Set"))).toEqual(["mixer", "surround", "sequencer"]);
+    expect(pages(group(container, "Studio Set"))).toEqual(["mixer", "surround", "routing", "sequencer"]);
     expect(pages(group(container, "Part"))).toEqual([]);
     expect(pages(group(container, "Tone"))).toEqual(["toneEdit"]);
   });
@@ -94,7 +94,7 @@ describe("the navigation row", () => {
 
   it("leaves out the Sequencer until there is one", () => {
     const { container } = row({ sequencer: false });
-    expect(pages(group(container, "Studio Set"))).toEqual(["mixer", "surround"]);
+    expect(pages(group(container, "Studio Set"))).toEqual(["mixer", "surround", "routing"]);
     expect(container.textContent).not.toContain("Panic");
   });
 

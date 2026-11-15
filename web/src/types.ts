@@ -1,3 +1,5 @@
+import type { EffectiveRouting } from "../pkg/integral_wasm.js";
+
 /** 3-band parametric EQ state. */
 export interface EqState {
   /** EQ on/off. */
@@ -88,6 +90,8 @@ export interface PartState {
   toneCategory: number;
   /** Per-part EQ settings. */
   eq: EqState;
+  /** The MFX Type (0 = THRU) of the Part's Temporary tone; absent while unread (or a GM2 tone). */
+  mfxType?: number;
 }
 
 /** State of a single Comp+EQ unit. */
@@ -230,6 +234,11 @@ export interface MixerState {
    * (from `WasmDeviceState.mixerFailedBlocks()`).
    */
   failedBlocks: string[];
+  /**
+   * Where each source's sound goes, computed by core from the state above
+   * (`WasmDeviceState.effectiveRouting()`); `null` until the first read.
+   */
+  routing: EffectiveRouting | null;
   /** All 64 Studio Set names (indexed 0–63). Populated via catalog query. */
   studioSetNames: Map<number, string>;
 }
@@ -274,6 +283,7 @@ export function defaultMixerState(): MixerState {
     previewPart: 0,
     loading: true,
     failedBlocks: [],
+    routing: null,
     studioSetNames: new Map(),
   };
 }

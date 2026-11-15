@@ -388,3 +388,16 @@ describe("Studio Set Init", () => {
     await vi.waitFor(() => expect(midi.sent.slice(before).some(({ bytes }) => bytes[6] === 0x11)).toBe(true));
   });
 });
+
+describe("the Routing page", () => {
+  it("opens from the Studio Set group", async () => {
+    const { container } = await open([{ name: "INTEGRA-7", answers: true }], remembering("INTEGRA-7"));
+    const routing = container.querySelector('nav [aria-label="Studio Set"] button[data-page="routing"]');
+    if (!routing) throw new Error("no Routing in the Studio Set group");
+    click(routing);
+    expect(routing.getAttribute("aria-current")).toBe("page");
+    // The fake device answers only the identity request: the mixer is still loading.
+    const page = container.querySelector('[role="region"][aria-label="Routing"]');
+    expect(page?.textContent).toBe("Loading mixer state from device...");
+  });
+});

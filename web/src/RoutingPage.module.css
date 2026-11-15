@@ -1,0 +1,177 @@
+/* The page scrolls the map when it is taller or wider than the window. */
+.page {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 16px;
+  background: linear-gradient(to bottom, #1e1e35, #161628);
+  color: #e0e0e0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+}
+
+.loading {
+  padding: 48px 0;
+  text-align: center;
+  color: #888;
+  font-size: 14px;
+}
+
+/* The stage switches, one row above the map. */
+.stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.stage {
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Motional Surround ON overrides every Output Assign. */
+.banner {
+  margin-bottom: 12px;
+  padding: 6px 12px;
+  font-weight: 600;
+  color: #fa4;
+  background: #3a2a14;
+  border: 1px solid #6a4a1a;
+  border-radius: 8px;
+}
+
+.bannerLink {
+  margin-left: 8px;
+  padding: 2px 10px;
+  font: inherit;
+  color: #fa4;
+  background: none;
+  border: 1px solid #6a4a1a;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.bannerLink:hover {
+  background: #4a3618;
+}
+
+.map {
+  border-collapse: collapse;
+}
+
+.map th,
+.map td {
+  padding: 4px 6px;
+  border-bottom: 1px solid #2a2a48;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.map thead th {
+  color: #8888b0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.columnHead {
+  min-width: 36px;
+  text-align: center;
+}
+
+.source {
+  font-weight: 600;
+}
+
+.detail {
+  margin-left: 8px;
+  color: #8888b0;
+  font-weight: 400;
+}
+
+/* A row that comes out nowhere. */
+.silent {
+  opacity: 0.5;
+}
+
+.chips {
+  display: flex;
+  gap: 4px;
+}
+
+.chip {
+  padding: 1px 8px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: #cfd3ff;
+  background: #2d356a;
+  border: 1px solid #5566c8;
+  border-radius: 10px;
+}
+
+button.chip {
+  cursor: pointer;
+}
+
+button.chip:hover {
+  border-color: #89f;
+}
+
+/* A switch chip that is off. */
+.off {
+  color: #888;
+  background: #222240;
+  border-color: #3a3a5a;
+}
+
+/* A stage the path skips. */
+.skipped {
+  color: #777;
+  background: none;
+  border-style: dashed;
+  border-color: #446;
+  text-decoration: line-through;
+}
+
+/* A send into an effect that doesn't play. */
+.dim {
+  opacity: 0.5;
+}
+
+.assign {
+  padding: 1px 6px;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 1px solid #3a3a5a;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* An Output Assign that Motional Surround overrides. */
+.overridden {
+  color: #777;
+  text-decoration: line-through;
+}
+
+.cell {
+  text-align: center;
+}
+
+.mark {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #6fe87a;
+}
+
+/* A mark on a jack another source sums on. */
+.sums {
+  background: #fa4;
+  box-shadow: 0 0 0 3px rgb(255 170 68 / 25%);
+}

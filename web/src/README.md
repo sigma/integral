@@ -25,8 +25,8 @@ plus the I/O the browser has to do.
   local state, with no router. The row nests the scopes left to right, each
   group its selector and controls, then its pages:
   - **Device:** Expansions, Library.
-  - **Studio Set:** selector, SAVE; Mixer, Surround, Sequencer and the
-    Transport.
+  - **Studio Set:** selector, SAVE; Mixer, Surround, Routing, Sequencer and
+    the Transport.
   - **Part:** selector, receive channel, PREVIEW.
   - **Tone:** selector, SAVE; Edit (the tone editor).
 
@@ -46,6 +46,9 @@ Pages and editors (`.tsx`):
   - `App` (props: `openPorts`, `storage`) — the shell.
   - `MixerPage`, with `ChannelStrip`, `FxStrip` and `mixerDisplays.tsx`.
   - `SurroundPage`, with `SurroundXYPad`.
+  - `RoutingPage` — the effective routing (`MixerState.routing`, from core's
+    `effectiveRouting()`): a row per source, a column per output, the stage
+    switches, and chips linking to each stage's editor.
   - `ToneEditorPage` — picks the editor from the part's bank. The web page's
     header has Tone Init… for an editable tone; a plugin's editor has none.
   - `SequencerPage`, with `Transport` and `Piano`.

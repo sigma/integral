@@ -43,7 +43,8 @@ interface Props extends MfxHandlers {
 // ---------------------------------------------------------------------------
 
 let _typeNamesCache: string[] | null = null;
-function getMfxTypeNames(): string[] {
+/** The MFX Type names, by type (read from core once). */
+export function getMfxTypeNames(): string[] {
   if (!_typeNamesCache) _typeNamesCache = mfx_type_names();
   return _typeNamesCache;
 }
