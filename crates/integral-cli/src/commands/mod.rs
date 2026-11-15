@@ -4,6 +4,7 @@
 pub mod bridge;
 pub mod dump;
 pub mod expansion;
+pub mod init;
 pub mod monitor;
 pub mod pack;
 pub mod pack_check;

@@ -12,6 +12,7 @@ mod midi;
 mod service;
 
 use commands::expansion::OutputFormat;
+use commands::init::InitArgs;
 use commands::pack::{ListFormat, UserSlots};
 use commands::pack_import::{ImportOptions, ReinitOptions};
 use integral_core::device_spec::INTEGRA7;
@@ -162,6 +163,21 @@ enum Command {
     Expansion {
         #[command(subcommand)]
         command: ExpansionCommand,
+    },
+    /// Reset an area of the Temporary memory to INIT and wait for the device
+    /// to finish: `studio-set`, `sound-ctrl` (every Part's offsets), or
+    /// `part`, `tone` or `partial` of `--part N`. A partial is `--partial N`
+    /// on a tone, `--key N` on a drum kit. Stored User slots are untouched.
+    /// `--timeout` covers the reads; the wait for "finished" is the core's
+    /// Init timeout, longer through `--service`.
+    ///
+    /// Exit status: 0 reset; 1 nothing sent (bad argument, no device); 2
+    /// sent but not confirmed.
+    Init {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+        #[command(flatten)]
+        args: InitArgs,
     },
     /// Browse the Wave catalog (offline).
     Wave {
@@ -588,6 +604,12 @@ fn main() -> Result<()> {
             dry_run,
             yes,
             format,
+        )?),
+        Command::Init { conn, args } => exit_nonzero(commands::init::run(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
+            &args,
         )?),
         Command::Wave {
             command: WaveCommand::List { group, all, format },

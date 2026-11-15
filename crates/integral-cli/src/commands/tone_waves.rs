@@ -111,14 +111,18 @@ pub fn sn_synth_lines(partials: &[SnSynthPartial]) -> Vec<String> {
     }
 }
 
-/// The line printed for a tone type without Waves.
-pub fn no_waves_line(tone: ToneType) -> String {
-    let name = INTEGRA7
+/// The CLI name of a tone type (e.g. `pcm-synth`), as `pack` takes it.
+pub fn tone_type_name(tone: ToneType) -> &'static str {
+    INTEGRA7
         .user_memory
         .iter()
         .find(|m| m.tone_type == Some(tone))
-        .map_or("this", |m| m.cli_name);
-    format!("{name} tone has no Waves")
+        .map_or("this", |m| m.cli_name)
+}
+
+/// The line printed for a tone type without Waves.
+pub fn no_waves_line(tone: ToneType) -> String {
+    format!("{} tone has no Waves", tone_type_name(tone))
 }
 
 /// Read Part `part` (0-based)'s temporary tone and return its Wave lines.

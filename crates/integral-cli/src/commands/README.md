@@ -49,10 +49,17 @@ offline.
   - `EXIT_LOAD_FAILED = 2`, `OFF_NAME = "OFF"`.
   - `OutputFormat`, the `--format` type shared with `wave list`,
     `pack check` and `pack import`.
+- `init.rs`: `run(endpoint, device_id, timeout, &InitArgs) -> Result<u8>`
+  resets one area to INIT through `integral-core`'s `Initialization` and
+  waits for "finished". `InitArgs` (`<TARGET> --part --partial --key`) and
+  `InitKind` are its arguments. A Partial Init reads the Part's Bank Select
+  MSB first: `--partial` (from 1) is for SN Synth and PCM Synth tones,
+  `--key` (a MIDI key number) for drum kits. `EXIT_INIT_UNCONFIRMED = 2`.
 - `svd.rs`: `svd_validate` decodes one SN-S entry from an SVD file and
   compares it, byte by byte, with the Part tone read from the device.
 - `tone_waves.rs`: `read(dev, part)` names the Waves used by a Part's
-  Temporary tone (PCM Synth, PCM Drum, SN Synth). The line builders
+  Temporary tone (PCM Synth, PCM Drum, SN Synth). `tone_type_name` gives a
+  tone type's CLI name (`pcm-synth`). The line builders
   `pcm_synth_lines`, `pcm_drum_lines`, `sn_synth_lines` and `no_waves_line`
   are public.
 - `wave.rs`: `list`, `parse_group`, `format_number`, `render_list` and
@@ -77,6 +84,9 @@ offline.
 - Exit codes:
   - `import` and `reinit`: 0 means everything was stored, 1 means the device
     was untouched, and 2 means a partial store.
+  - `init`: 1 means nothing was sent (every argument is checked first, and
+    a Partial Init's partial or key against the Part's tone type), and 2
+    means the Init was sent but "finished" never came.
   - `expansion load`: 2 means the load was sent but failed. An error (1)
     means nothing was sent.
   - `pack check`: 1 means a path could not be read. Files that `Pack::read`
@@ -98,6 +108,8 @@ offline.
     `pack export`, and the `pack import` slot-name reads.
   - DT1 writes: `write`, `raw-send`, `expansion load`, `pack import` and
     `pack reinit`.
+  - The Init request (an RQ1 at `0F 00 18 TT`): `init`. It changes only
+    Temporary memory.
   - Raw hex SysEx.
 - MIDI in: replies are read with a deadline. If the input disconnects the
   command fails.

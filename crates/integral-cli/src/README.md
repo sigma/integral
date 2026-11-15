@@ -19,6 +19,7 @@ live in sibling modules, and the command bodies live in
     - `bridge` (Unix only)
     - `pack {list, export, check, import, reinit}`
     - `expansion {list, load}`
+    - `init <studio-set|sound-ctrl|part|tone|partial>`
     - `wave {list}`
   - The shared option groups are `PortTimeoutArgs`, `ConnectionArgs` and
     `RawConnectionArgs` (`--port`, `--timeout`, `--device-id`).
@@ -30,8 +31,8 @@ live in sibling modules, and the command bodies live in
   - `request_data` (RQ1) and `send_data` (DT1) read and write.
   - Typed reads: `read_studio_set_name`, `read_master_level`,
     `read_surround_enabled` and `read_part_mixer`.
-  - `quiet` turns off per-request RQ1/DT1 logging. `conn_out_mut`, `rx`, `device_id` and
-    `timeout` give low-level access.
+  - `quiet` turns off per-request RQ1/DT1 logging. `conn_out_mut`, `rx`,
+    `split` (both at once), `device_id` and `timeout` give low-level access.
 - `midi.rs`
   - `DEFAULT_PORT_PATTERN` is `Integra`, and `DEFAULT_DEVICE_ID` is core's
     `sysex::DEFAULT_DEVICE_ID`, the fallback when detection fails.

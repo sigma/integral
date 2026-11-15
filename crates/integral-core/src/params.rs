@@ -617,6 +617,11 @@ impl ToneType {
         }
     }
 
+    /// Whether this is a drum kit (SN-D or PCM-D), whose partials are keys.
+    pub const fn is_kit(self) -> bool {
+        matches!(self, Self::SnDrum | Self::PcmDrum)
+    }
+
     /// Absolute address of this type's block in a part's Temporary Tone.
     pub const fn base_address(self, part_index: u8) -> Address {
         let [a, b, c] = self.offset();
@@ -650,10 +655,7 @@ pub fn is_editable_bank(msb: u8) -> bool {
 /// Only drum kits can route keys to the Drum Comp+EQ units, so the Comp+EQ
 /// part should be one of these.
 pub fn is_drum_kit_bank(msb: u8) -> bool {
-    matches!(
-        tone_type_from_bank_msb(msb),
-        Some(ToneType::SnDrum | ToneType::PcmDrum)
-    )
+    tone_type_from_bank_msb(msb).is_some_and(ToneType::is_kit)
 }
 
 /// Address of the Tone Category byte for a part's current tone.
