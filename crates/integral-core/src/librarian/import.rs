@@ -8,33 +8,39 @@
 //! when a wait runs out. When the import is done, the host refreshes mixer
 //! state: the Temporary areas changed.
 //!
-//! Storing goes through a Temporary area plus the write request, because a
-//! direct DT1 to a User slot is RAM-only (`docs/midi/99-undocumented.md`
-//! §2 and §4). The import:
+//! A direct DT1 to a User slot is RAM-only until a write request, and one
+//! write request commits every pending direct change in User memory
+//! (`docs/midi/99-undocumented.md` §2, "One Write Request Commits Every
+//! Direct Change"). So the import stores a batch with one write request:
 //!
-//! 1. **Snapshots** the Temporary areas it borrows: the borrowed Part's
-//!    Studio Set Part block and Temporary tone for tones; the whole
-//!    Temporary Studio Set and all 16 Temporary tones for Studio Sets,
-//!    because loading a set replaces them. Each Part's tone may be of any
-//!    type, so the Part blocks are read first and each Part's tone is read
-//!    in the layout of the type its Bank Select MSB names. A Part whose MSB
-//!    names no type has no tone snapshot: restoring its Part block reloads
-//!    its tone, without unsaved edits.
-//! 2. **Stores tones**: selects the destination slot on the borrowed Part,
-//!    so the Part plays a tone of the right type, DT1s the tone over it and
-//!    sends the write request.
-//! 3. **Stores Studio Sets**, each Part that selects a tone of the Pack
-//!    relinked to the slot that tone was stored in: DT1 into the Temporary
-//!    Studio Set, then the write request.
+//! 1. **Snapshots** the Temporary areas the commit borrows: the borrowed
+//!    Part's Studio Set Part block and Temporary tone when the batch has a
+//!    tone; the whole Temporary Studio Set and all 16 Temporary tones when
+//!    it has only Studio Sets, because loading a set replaces them. Each
+//!    Part's tone may be of any type, so the Part blocks are read first and
+//!    each Part's tone is read in the layout of the type its Bank Select
+//!    MSB names. A Part whose MSB names no type has no tone snapshot:
+//!    restoring its Part block reloads its tone, without unsaved edits.
+//! 2. **DT1s each entry straight to its User slot**: tones first, then
+//!    Studio Sets, each Part that selects a tone of the Pack relinked to the
+//!    slot that tone goes to.
+//! 3. **Commits** with one write request, storing one of the batch's own
+//!    entries the normal way, so its slot is right whatever the request
+//!    commits: the last tone written (selected on the borrowed Part and
+//!    DT1'd over it), or with no tone the last Studio Set (DT1'd into the
+//!    Temporary Studio Set). After direct DT1s a write request can go
+//!    unanswered, so an unconfirmed one is sent again after
+//!    [`WRITE_TIMEOUT_MS`], up to [`COMMIT_TRIES`] times. No entry is
+//!    stored before "write finished".
 //! 4. **Restores** the snapshot by DT1: Studio Set blocks first (their
 //!    Bank Selects reload the Parts' tones), then the tones over them.
 //!
-//! [`PackImport::reinit`] stores INIT into User slots the same way, but
-//! sends the device's Init instead of DT1ing data
-//! (`docs/midi/99-undocumented.md` §7): for a tone it selects the slot on
-//! the borrowed Part and sends Tone Init, for a Studio Set it sends Studio
-//! Set Init. It runs the Init through [`Initialization`], which awaits
-//! "Init finished", before the write request.
+//! [`PackImport::reinit`] stores INIT slot by slot instead, because the
+//! device's Init (`docs/midi/99-undocumented.md` §7) works on Temporary: for
+//! a tone it selects the slot on the borrowed Part and sends Tone Init, for a
+//! Studio Set it sends Studio Set Init. It runs the Init through
+//! [`Initialization`], which awaits "Init finished", before each slot's write
+//! request.
 //!
 //! A plan whose only entry goes to Temporary ([`plan_import`] sends
 //! nothing else there) loads it there (a tone into
@@ -42,8 +48,10 @@
 //! no snapshot, no write, no restore.
 //!
 //! Cancel and failure stop between slots: a write already requested is
-//! awaited, the rest is left unstored, and the snapshot is restored. A
-//! snapshot read failure aborts before anything is sent.
+//! awaited, the rest is left unstored, and the snapshot is restored. In a
+//! batch, cancel finishes the entry being DT1'd and commits the entries
+//! written so far, so no slot is left half-written in RAM. A snapshot read
+//! failure aborts before anything is sent.
 //!
 //! Reference: decisions #65 and #66.
 //!
@@ -70,6 +78,12 @@ use crate::user_write::{
 /// How long to wait for "write finished" (the device takes 2.3–3.0 s).
 pub const WRITE_TIMEOUT_MS: f64 = 5_000.0;
 
+/// How many write requests a batch sends before giving up on its commit.
+/// After direct DT1s,
+/// [#286](https://github.com/sigma/integral/issues/286) saw up to four requests in a row go unanswered
+/// before one was confirmed.
+pub const COMMIT_TRIES: u32 = 6;
+
 /// Why an import can't start, or stopped early.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ImportError {
@@ -91,6 +105,14 @@ pub enum ImportError {
     /// [`INIT_TIMEOUT_MS`]: crate::initialize::INIT_TIMEOUT_MS
     #[error("entry {0}: the device didn't confirm the write")]
     WriteTimeout(usize),
+    /// None of the batch's write requests (this many) was confirmed: its
+    /// slots are written in RAM but not committed. A power cycle drops
+    /// them; the next confirmed write request commits them.
+    #[error(
+        "the device confirmed none of {0} write requests: the slots are written in RAM but not \
+         committed (a power cycle drops them, the next store commits them)"
+    )]
+    NotCommitted(u32),
     /// There is no User slot of this number.
     #[error("no User slot {}", .0 + 1)]
     InvalidSlot(u16),
@@ -115,7 +137,8 @@ pub enum EntryStatus {
     Stored,
     /// Loaded into Temporary, not stored.
     Loaded,
-    /// Its write was not confirmed: the slot's content is unknown.
+    /// Its write was not confirmed: the slot's content is unknown, or (in
+    /// a batch) written in RAM but not committed.
     Failed,
     /// Left out by the plan.
     Excluded,
@@ -163,6 +186,24 @@ struct Job {
 /// A write request: the slot and what to store in it.
 type Write = (BankSelect, WriteSource);
 
+/// A batch store: entries DT1'd straight to their User slots, then one
+/// write request that commits them all.
+struct Batch {
+    /// Entries still to DT1, with their messages, in store order.
+    direct: VecDeque<(usize, Vec<Vec<u8>>)>,
+    /// The entry whose DT1s are in the outbox.
+    sending: Option<usize>,
+    /// Entries whose DT1s are all sent, awaiting the commit.
+    written: Vec<usize>,
+    /// For each entry that can carry the commit, the job that stores it
+    /// through Temporary.
+    commits: Vec<Job>,
+    /// Whether the commit is the current job.
+    committing: bool,
+    /// Write requests sent for the commit.
+    tries: u32,
+}
+
 /// Stores a [`Pack`] into User memory. Pure: the host does the I/O.
 pub struct PackImport {
     device_id: u8,
@@ -171,6 +212,8 @@ pub struct PackImport {
     parts: Vec<u8>,
     /// In store order: tones, then Studio Sets.
     jobs: VecDeque<Job>,
+    /// The User-slot store, if the plan has one.
+    batch: Option<Batch>,
     /// Messages to send before anything else.
     outbox: VecDeque<Vec<u8>>,
     /// The job being sent, its Init still to run, and its write.
@@ -218,22 +261,14 @@ impl PackImport {
                 .map(|((addr, _), data)| sysex::build_dt1(device_id, &addr, data))
                 .collect::<Vec<_>>()
         };
-        let mut jobs = Vec::new();
-        for (i, (entry, &placement)) in pack.entries.iter().zip(placements).enumerate() {
+        // The job storing (or, without a write, loading) `entry` through
+        // Temporary.
+        let temporary = |i: usize, entry: &PackEntry, target: BankSelect, write: bool| {
             let memory = user_memory(entry.kind()).ok_or(ImportError::PlanMismatch)?;
-            let (slot, write) = match placement {
-                Placement::User(slot) => (slot, true),
-                Placement::Temporary => (0, false),
-                Placement::Unplaced | Placement::Excluded => continue,
-            };
-            let target = memory.bank_select(slot).ok_or(ImportError::PlanMismatch)?;
-            let job = if entry.kind() == ChunkType::StudioSet {
-                // Parts whose tone the Pack stores are relinked to its slot;
-                // a dump's other Parts keep the device's User slots.
-                let set = relink(pack, plan, entry);
+            Ok(if entry.kind() == ChunkType::StudioSet {
                 Job {
                     entry: i,
-                    sends: dt1s(memory, address::STUDIO_SET, &set),
+                    sends: dt1s(memory, address::STUDIO_SET, entry),
                     init: None,
                     write: write.then_some((target, WriteSource::StudioSet)),
                 }
@@ -246,10 +281,56 @@ impl PackImport {
                     init: None,
                     write: write.then_some((target, WriteSource::Part(part))),
                 }
+            })
+        };
+        let mut jobs = Vec::new();
+        let mut to_store = Vec::new();
+        for (i, (entry, &placement)) in pack.entries.iter().zip(placements).enumerate() {
+            let memory = user_memory(entry.kind()).ok_or(ImportError::PlanMismatch)?;
+            let slot = match placement {
+                Placement::User(slot) => slot,
+                Placement::Temporary => {
+                    let target = memory.bank_select(0).ok_or(ImportError::PlanMismatch)?;
+                    jobs.push(temporary(i, entry, target, false)?);
+                    continue;
+                }
+                Placement::Unplaced | Placement::Excluded => continue,
             };
-            jobs.push(job);
+            // Parts whose tone the Pack stores are relinked to its slot; a
+            // dump's other Parts keep the device's User slots.
+            let entry = match entry.kind() {
+                ChunkType::StudioSet => relink(pack, plan, entry),
+                _ => entry.clone(),
+            };
+            to_store.push((i, memory, slot, entry));
         }
-        jobs.sort_by_key(|j| pack.entries[j.entry].kind() == ChunkType::StudioSet);
+        to_store.sort_by_key(|(.., e)| e.kind() == ChunkType::StudioSet);
+        let has_tones = to_store
+            .iter()
+            .any(|(.., e)| e.kind() != ChunkType::StudioSet);
+        let mut batch = (!to_store.is_empty()).then(|| Batch {
+            direct: VecDeque::new(),
+            sending: None,
+            written: Vec::new(),
+            commits: Vec::new(),
+            committing: false,
+            tries: 0,
+        });
+        for &(i, memory, slot, ref entry) in &to_store {
+            let batch = batch.as_mut().expect("a batch for entries to store");
+            let user = memory
+                .user_address(slot)
+                .ok_or(ImportError::InvalidSlot(slot))?;
+            let target = memory
+                .bank_select(slot)
+                .ok_or(ImportError::InvalidSlot(slot))?;
+            batch.direct.push_back((i, dt1s(memory, user, entry)));
+            // A tone commits through the borrowed Part alone; only a batch
+            // of Studio Sets borrows the whole Temporary Studio Set.
+            if has_tones == (entry.kind() != ChunkType::StudioSet) {
+                batch.commits.push(temporary(i, entry, target, true)?);
+            }
+        }
         if apply_effects {
             match jobs.as_mut_slice() {
                 [job] if job.write.is_none() => job.sends.extend(studio_set_fx::effects_dt1s(
@@ -260,9 +341,7 @@ impl PackImport {
             }
         }
 
-        let stores_sets = jobs
-            .iter()
-            .any(|j| j.write.is_some() && pack.entries[j.entry].kind() == ChunkType::StudioSet);
+        let stores_sets = batch.is_some() && !has_tones;
         let statuses = placements
             .iter()
             .map(|&p| match p {
@@ -270,7 +349,14 @@ impl PackImport {
                 _ => EntryStatus::Pending,
             })
             .collect();
-        Ok(Self::start(device_id, statuses, jobs, stores_sets, part))
+        Ok(Self::start(
+            device_id,
+            statuses,
+            jobs,
+            batch,
+            stores_sets,
+            part,
+        ))
     }
 
     /// Prepare storing INIT into the User `slots` (0-indexed) of type
@@ -313,16 +399,24 @@ impl PackImport {
             })
             .collect::<Result<_, _>>()?;
         let statuses = vec![EntryStatus::Pending; slots.len()];
-        Ok(Self::start(device_id, statuses, jobs, stores_sets, part))
+        Ok(Self::start(
+            device_id,
+            statuses,
+            jobs,
+            None,
+            stores_sets,
+            part,
+        ))
     }
 
-    /// An import of `jobs`, snapshotting what they borrow: the whole
-    /// Temporary Studio Set and every Part's tone if they store Studio
-    /// Sets, else Part `part`'s block and tone.
+    /// An import of `jobs` and `batch`, snapshotting what they borrow: the
+    /// whole Temporary Studio Set and every Part's tone if they store Studio
+    /// Sets through Temporary, else Part `part`'s block and tone.
     fn start(
         device_id: u8,
         statuses: Vec<EntryStatus>,
         jobs: Vec<Job>,
+        batch: Option<Batch>,
         stores_sets: bool,
         part: u8,
     ) -> Self {
@@ -335,13 +429,14 @@ impl PackImport {
             let block = set_blocks.into_iter().filter(|&(a, _)| a == at).collect();
             (vec![part], block)
         };
-        let borrows = jobs.iter().any(|j| j.write.is_some());
+        let borrows = batch.is_some() || jobs.iter().any(|j| j.write.is_some());
 
         Self {
             device_id,
             statuses,
             parts,
             jobs: jobs.into(),
+            batch,
             outbox: VecDeque::new(),
             current: None,
             init: None,
@@ -359,19 +454,29 @@ impl PackImport {
     }
 
     /// Stop between slots: a write already requested is still awaited,
-    /// then the snapshot is restored. Before anything was sent, the import
-    /// ends at once; once restoring, it has nothing left to cancel.
+    /// then the snapshot is restored. In a batch, the entry being DT1'd is
+    /// finished and the entries written so far are committed. Before
+    /// anything was sent, the import ends at once; once committing or
+    /// restoring, it has nothing left to cancel.
     pub fn cancel(&mut self) {
-        let idle = self.reader.is_none() && self.current.is_none() && self.jobs.is_empty();
+        let idle = self.reader.is_none()
+            && self.jobs.is_empty()
+            && match &self.batch {
+                Some(b) => b.committing || b.direct.is_empty(),
+                None => self.current.is_none(),
+            };
         if self.done || self.error.is_some() || idle {
             return;
         }
         self.error = Some(ImportError::Cancelled);
         if self.reader.take().is_some() {
             self.snapshot = None;
+            self.batch = None;
         }
-        // An awaited Init is dropped: its slot is left unstored.
-        if !self.awaiting_write
+        if let Some(batch) = &mut self.batch {
+            batch.direct.clear();
+        } else if !self.awaiting_write
+            // An awaited Init is dropped: its slot is left unstored.
             && let Some((entry, ..)) = self.current.take()
         {
             self.init = None;
@@ -422,6 +527,13 @@ impl PackImport {
             if let Some(msg) = self.outbox.pop_front() {
                 return ImportAction::Send(msg);
             }
+            if self.current.is_none()
+                && let Some(batch) = &mut self.batch
+                && !batch.committing
+            {
+                self.next_batch_step();
+                continue;
+            }
             if let Some((entry, init, write)) = self.current {
                 if let Some(target) = init {
                     self.current = Some((entry, None, write));
@@ -433,6 +545,9 @@ impl PackImport {
                 }
                 match write {
                     Some((target, source)) => {
+                        if let Some(batch) = &mut self.batch {
+                            batch.tries += 1;
+                        }
                         self.awaiting_write = true;
                         return ImportAction::Send(build_write_request(
                             self.device_id,
@@ -487,6 +602,11 @@ impl PackImport {
             });
         if finished {
             self.statuses[entry] = EntryStatus::Stored;
+            if let Some(batch) = self.batch.take() {
+                for e in batch.written {
+                    self.statuses[e] = EntryStatus::Stored;
+                }
+            }
             self.current = None;
             self.awaiting_write = false;
         }
@@ -494,7 +614,8 @@ impl PackImport {
     }
 
     /// The host's timeout elapsed: stop waiting for the current snapshot
-    /// block, or give up on the awaited Init or write and stop.
+    /// block, send a batch's unconfirmed write request again, or give up on
+    /// the awaited Init or write and stop.
     pub fn on_timeout(&mut self) {
         if let Some((reader, _)) = &mut self.reader {
             reader.on_timeout();
@@ -505,6 +626,14 @@ impl PackImport {
                 self.init = None;
                 self.fail_current();
             }
+        } else if self.awaiting_write
+            && self
+                .batch
+                .as_ref()
+                .is_some_and(|b| b.committing && b.tries < COMMIT_TRIES)
+        {
+            // `current` keeps its write: `next_action` sends it again.
+            self.awaiting_write = false;
         } else if self.awaiting_write {
             self.awaiting_write = false;
             self.fail_current();
@@ -516,8 +645,57 @@ impl PackImport {
     fn fail_current(&mut self) {
         if let Some((entry, ..)) = self.current.take() {
             self.statuses[entry] = EntryStatus::Failed;
-            self.error.get_or_insert(ImportError::WriteTimeout(entry));
+            match self.batch.take() {
+                // Says what a cancelled batch left in RAM, too.
+                Some(batch) => {
+                    for e in batch.written {
+                        self.statuses[e] = EntryStatus::Failed;
+                    }
+                    self.error = Some(ImportError::NotCommitted(batch.tries));
+                }
+                None => {
+                    self.error.get_or_insert(ImportError::WriteTimeout(entry));
+                }
+            }
             self.jobs.clear();
+        }
+    }
+
+    /// A batch with no current job: DT1 its next entry to its User slot, or
+    /// commit the entries written through the last one that can carry the
+    /// commit.
+    fn next_batch_step(&mut self) {
+        let Some(batch) = &mut self.batch else {
+            return;
+        };
+        if let Some(entry) = batch.sending.take() {
+            batch.written.push(entry);
+        }
+        if let Some((entry, sends)) = batch.direct.pop_front() {
+            self.statuses[entry] = EntryStatus::Storing;
+            self.outbox = sends.into();
+            batch.sending = Some(entry);
+            return;
+        }
+        let commit = batch
+            .written
+            .iter()
+            .rev()
+            .find_map(|&e| batch.commits.iter().position(|j| j.entry == e));
+        match commit {
+            Some(at) => {
+                let job = batch.commits.swap_remove(at);
+                batch.committing = true;
+                self.outbox = job.sends.into();
+                self.current = Some((job.entry, None, job.write));
+            }
+            // Nothing written: cancelled before the first entry. Tones are
+            // written first and any of them commits, so once one entry is
+            // written, one can carry the commit.
+            None => {
+                debug_assert!(batch.written.is_empty(), "no entry carries the commit");
+                self.batch = None;
+            }
         }
     }
 
@@ -534,6 +712,7 @@ impl PackImport {
                 BlockData::Gap { .. } | BlockData::Timeout => {
                     self.snapshot = None;
                     self.jobs.clear();
+                    self.batch = None;
                     self.error = Some(ImportError::Snapshot(read.address));
                     self.done = true;
                     return;
@@ -624,6 +803,12 @@ mod tests {
         PackEntry::new(kind, None, blocks).unwrap()
     }
 
+    /// Whether `addr` is in User memory: at or past the lowest User base.
+    fn is_user(addr: Address) -> bool {
+        let base = USER_MEMORY.iter().map(|m| m.user_base).min().unwrap();
+        addr.0[0] >= base
+    }
+
     fn bank(msb: u8, lsb: u8, pc: u8) -> BankSelect {
         BankSelect { msb, lsb, pc }
     }
@@ -637,11 +822,16 @@ mod tests {
         Init(InitTarget),
     }
 
-    /// Byte-addressed Temporary memory; `writes` says whether the device
-    /// confirms writes.
+    /// Byte-addressed Temporary memory, and User memory: `user` is RAM,
+    /// `committed` what a confirmed write request committed. `writes` says
+    /// whether the device confirms Inits and writes; the first `unanswered`
+    /// write requests get no reply.
     struct Device {
         mem: BTreeMap<u32, u8>,
+        user: BTreeMap<u32, u8>,
+        committed: BTreeMap<u32, u8>,
         writes: bool,
+        unanswered: usize,
         events: Vec<Event>,
     }
 
@@ -652,7 +842,10 @@ mod tests {
         fn new() -> Self {
             let mut device = Self {
                 mem: BTreeMap::new(),
+                user: BTreeMap::new(),
+                committed: BTreeMap::new(),
                 writes: true,
+                unanswered: 0,
                 events: Vec::new(),
             };
             let set = user_memory(SET).unwrap();
@@ -679,10 +872,28 @@ mod tests {
             }
         }
 
+        /// Write Temporary memory, or User RAM.
         fn put(&mut self, addr: Address, data: &[u8]) {
+            let mem = if is_user(addr) {
+                &mut self.user
+            } else {
+                &mut self.mem
+            };
             for (v, &b) in (addr.value()..).zip(data) {
-                self.mem.insert(v, b);
+                mem.insert(v, b);
             }
+        }
+
+        /// The committed blocks of User slot `slot` of `kind`.
+        fn committed_blocks(&self, kind: ChunkType, slot: u16) -> Option<Vec<Vec<u8>>> {
+            let m = user_memory(kind).unwrap();
+            m.blocks(m.user_address(slot).unwrap())
+                .map(|(a, size)| {
+                    (a.value()..a.value() + size.value())
+                        .map(|v| self.committed.get(&v).copied())
+                        .collect()
+                })
+                .collect()
         }
 
         fn get(&self, addr: Address, len: u32) -> Option<Vec<u8>> {
@@ -752,13 +963,15 @@ mod tests {
                         WriteSource::StudioSet => 0x7F,
                         WriteSource::Part(p) => p,
                     };
+                    if self.unanswered > 0 || !self.writes {
+                        self.unanswered = self.unanswered.saturating_sub(1);
+                        import.on_timeout();
+                        return None;
+                    }
                     let reply = [0, 0, 0, t.msb, t.lsb, t.pc, src];
                     assert!(!import.on_write_reply(&STARTED, &reply));
-                    if self.writes {
-                        assert!(import.on_write_reply(&FINISHED, &reply));
-                    } else {
-                        import.on_timeout();
-                    }
+                    self.committed.extend(&self.user);
+                    assert!(import.on_write_reply(&FINISHED, &reply));
                 }
                 ImportAction::Wait => import.on_timeout(),
                 ImportAction::Done(report) => return Some(report),
@@ -783,22 +996,16 @@ mod tests {
                     .all(|(v, b)| before.get(v) == Some(b))
         }
 
-        /// The Bank Select Part `p` had when the Studio Set was written.
-        fn stored_bank(&self, p: u8) -> [u8; 3] {
-            let write_set = self
-                .events
-                .iter()
-                .position(|e| matches!(e, Event::Write(_, WriteSource::StudioSet)))
+        /// The Bank Select of Part `p` in the committed User Studio Set
+        /// `slot`.
+        fn stored_bank(&self, slot: u16, p: u8) -> [u8; 3] {
+            let m = user_memory(SET).unwrap();
+            let at = m
+                .blocks(address::STUDIO_SET)
+                .position(|(a, _)| a == params::part_address(p, [0; 3]))
                 .unwrap();
-            self.events[..write_set]
-                .iter()
-                .rev()
-                .find_map(|e| match e {
-                    Event::Dt1(a, d) if *a == params::part_address(p, [0; 3]) => {
-                        d[6..9].try_into().ok()
-                    }
-                    _ => None,
-                })
+            self.committed_blocks(SET, slot).unwrap()[at][6..9]
+                .try_into()
                 .unwrap()
         }
 
@@ -855,8 +1062,13 @@ mod tests {
         plan
     }
 
+    fn count(kind: ChunkType) -> usize {
+        let m = user_memory(kind).unwrap();
+        m.blocks(m.temporary_base(0)).count()
+    }
+
     #[test]
-    fn snapshots_stores_tones_then_relinked_sets_and_restores() {
+    fn writes_every_slot_directly_then_commits_with_one_write_request() {
         let pack = pack();
         let mut device = Device::new();
         let before = device.mem.clone();
@@ -866,48 +1078,120 @@ mod tests {
         use EntryStatus::*;
         assert_eq!(report.statuses, [Stored, Stored, Stored, Stored, Excluded]);
         assert_eq!(report.error, None);
+        // One write request, storing the last tone through the borrowed Part.
+        assert_eq!(device.writes(), [(bank(87, 0, 0), WriteSource::Part(PART))]);
+
+        // The commit borrows only the Part: its block, then its SN-S tone.
+        let reads = device.events.len() - after_snapshot(&device).len();
+        assert_eq!(reads, 1 + count(SNS));
         assert_eq!(
-            device.writes(),
-            [
-                (bank(95, 0, 9), WriteSource::Part(PART)),
-                (bank(95, 1, 1), WriteSource::Part(PART)),
-                (bank(87, 0, 0), WriteSource::Part(PART)),
-                (bank(85, 0, 4), WriteSource::StudioSet),
-            ]
+            device.events[0],
+            Event::Read(params::part_address(PART, [0; 3]))
         );
 
-        // Snapshot first: the set, then the tones of Parts 1–3 by type.
-        let reads = device
-            .events
-            .iter()
-            .take_while(|e| matches!(e, Event::Read(_)))
-            .count();
-        let count = |kind: ChunkType| {
-            let m = user_memory(kind).unwrap();
-            m.blocks(m.temporary_base(0)).count()
-        };
-        // Parts 1 and 3 play SN-S, Part 2 PCM-S.
-        assert_eq!(reads, count(SET) + 2 * count(SNS) + count(PCMS));
+        // Tones first, each DT1'd straight to its User slot.
+        let sns = user_memory(SNS).unwrap();
         assert_eq!(
-            device.events[count(SET)],
-            Event::Read(user_memory(SNS).unwrap().temporary_base(0))
+            after_snapshot(&device)[0],
+            Event::Dt1(
+                sns.user_address(9).unwrap(),
+                pack.entries[1].blocks()[0].clone()
+            )
         );
-
-        // Each tone selects its slot on the borrowed Part, then loads.
+        // The commit selects its slot on the borrowed Part and loads the tone.
         let select = params::part_address(PART, part::TONE_BANK_MSB);
-        assert_eq!(device.events[reads], Event::Dt1(select, vec![95, 0, 9]));
-        let sns_base = user_memory(SNS).unwrap().temporary_base(PART);
+        let commit = after_snapshot(&device)
+            .iter()
+            .position(|e| *e == Event::Dt1(select, vec![87, 0, 0]))
+            .unwrap();
+        let direct = &after_snapshot(&device)[..commit];
         assert_eq!(
-            device.events[reads + 1],
-            Event::Dt1(sns_base, pack.entries[1].blocks()[0].clone())
+            direct.len(),
+            2 * count(SNS) + count(PCMS) + count(SET),
+            "every entry once"
+        );
+        assert!(
+            direct
+                .iter()
+                .all(|e| matches!(e, Event::Dt1(a, _) if is_user(*a)))
         );
 
+        // Every entry is committed in its slot.
+        for (entry, kind, slot) in [(1, SNS, 9), (2, SNS, 129), (3, PCMS, 0)] {
+            assert_eq!(
+                device.committed_blocks(kind, slot).as_deref(),
+                Some(pack.entries[entry].blocks()),
+                "entry {entry}"
+            );
+        }
         // The set's Parts point at the slots their tones were stored in.
-        assert_eq!(device.stored_bank(0), [95, 1, 1]);
-        assert_eq!(device.stored_bank(1), [95, 0, 9]);
+        assert_eq!(device.stored_bank(4, 0), [95, 1, 1]);
+        assert_eq!(device.stored_bank(4, 1), [95, 0, 9]);
 
         // Restored: every Temporary byte is back.
         assert!(matches!(device.events.last(), Some(Event::Dt1(..))));
+        assert!(device.restored(&before));
+    }
+
+    #[test]
+    fn an_unanswered_write_request_is_sent_again() {
+        let pack = pack();
+        let mut device = Device::new();
+        device.unanswered = 1;
+        let before = device.mem.clone();
+        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART, false).unwrap();
+        let report = device.run(&mut import);
+
+        use EntryStatus::*;
+        assert_eq!(report.statuses, [Stored, Stored, Stored, Stored, Excluded]);
+        assert_eq!(report.error, None);
+        let write = (bank(87, 0, 0), WriteSource::Part(PART));
+        assert_eq!(device.writes(), [write, write]);
+        assert_eq!(
+            device.committed_blocks(SNS, 9).as_deref(),
+            Some(pack.entries[1].blocks())
+        );
+        assert!(device.restored(&before));
+    }
+
+    #[test]
+    fn nothing_is_stored_before_write_finished() {
+        let pack = pack();
+        let mut device = Device::new();
+        device.unanswered = 1;
+        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART, false).unwrap();
+        while device.unanswered > 0 {
+            device.step(&mut import);
+            assert!(!import.progress().contains(&EntryStatus::Stored));
+        }
+        assert_eq!(
+            import.progress()[..4],
+            [EntryStatus::Storing; 4],
+            "written, awaiting the commit"
+        );
+    }
+
+    #[test]
+    fn sets_only_commit_through_the_temporary_studio_set() {
+        let pack = Pack {
+            entries: vec![entry(SET, "One", 0), entry(SET, "Two", 0)],
+        };
+        let mut plan = plan_import(&pack, Origin::Sound, &[], None);
+        plan.assign(0, 10).unwrap();
+        plan.assign(1, 11).unwrap();
+        let mut device = Device::new();
+        let before = device.mem.clone();
+        let mut import = PackImport::new(0x10, &pack, &plan, PART, false).unwrap();
+        let report = device.run(&mut import);
+
+        assert_eq!(report.statuses, [EntryStatus::Stored; 2]);
+        assert_eq!(device.writes(), [(bank(85, 0, 11), WriteSource::StudioSet)]);
+        // Loading a set replaces every Part's tone: all are snapshotted.
+        let reads = device.events.len() - after_snapshot(&device).len();
+        assert_eq!(reads, count(SET) + 2 * count(SNS) + count(PCMS));
+        for slot in [10, 11] {
+            assert!(device.committed_blocks(SET, slot).is_some());
+        }
         assert!(device.restored(&before));
     }
 
@@ -921,8 +1205,8 @@ mod tests {
         device.run(&mut import);
 
         // Part 1 played Tone B (Pack position 2): it stays on User slot 2.
-        assert_eq!(device.stored_bank(0), [95, 0, 1]);
-        assert_eq!(device.stored_bank(1), [95, 0, 9]);
+        assert_eq!(device.stored_bank(4, 0), [95, 0, 1]);
+        assert_eq!(device.stored_bank(4, 1), [95, 0, 9]);
     }
 
     #[test]
@@ -938,8 +1222,8 @@ mod tests {
         device.run(&mut import);
 
         // The Parts still play User slots 2 and 1, as on the dumping device.
-        assert_eq!(device.stored_bank(0), [95, 0, 1]);
-        assert_eq!(device.stored_bank(1), [95, 0, 0]);
+        assert_eq!(device.stored_bank(4, 0), [95, 0, 1]);
+        assert_eq!(device.stored_bank(4, 1), [95, 0, 0]);
     }
 
     /// The `.syx` bytes dumping `entry` at User slot `slot` of its type.
@@ -995,8 +1279,8 @@ mod tests {
 
         // Part 1 now plays the slot the tone was stored in; Part 2 keeps
         // the User slot 0 it played on the dumping device.
-        assert_eq!(device.stored_bank(0), [95, 0, 9]);
-        assert_eq!(device.stored_bank(1), [95, 0, 0]);
+        assert_eq!(device.stored_bank(5, 0), [95, 0, 9]);
+        assert_eq!(device.stored_bank(5, 1), [95, 0, 0]);
     }
 
     #[test]
@@ -1011,7 +1295,7 @@ mod tests {
 
         // Part 1 still plays User slot 2, as on the dumping device — not
         // the slot 7 the unrelated tone was stored in.
-        assert_eq!(device.stored_bank(0), [95, 0, 2]);
+        assert_eq!(device.stored_bank(5, 0), [95, 0, 2]);
     }
 
     #[test]
@@ -1037,18 +1321,18 @@ mod tests {
             .collect();
         assert_eq!(reads.len(), 1 + 5);
         assert_eq!(reads[0], params::part_address(PART, [0; 3]));
-        assert_eq!(device.writes().len(), 2);
+        assert_eq!(device.writes().len(), 1);
         assert!(device.restored(&before));
     }
 
     #[test]
-    fn cancel_awaits_the_write_then_restores() {
+    fn cancel_mid_entry_finishes_it_and_commits_it() {
         let pack = pack();
         let mut device = Device::new();
         let before = device.mem.clone();
         let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART, false).unwrap();
-        while device.writes().is_empty() {
-            assert!(device.step(&mut import).is_none());
+        while !matches!(device.events.last(), Some(Event::Dt1(..))) {
+            device.step(&mut import);
         }
         import.cancel();
         let report = device.run(&mut import);
@@ -1059,7 +1343,12 @@ mod tests {
             [Pending, Stored, Pending, Pending, Excluded]
         );
         assert_eq!(report.error, Some(ImportError::Cancelled));
-        assert_eq!(device.writes().len(), 1);
+        assert_eq!(device.writes(), [(bank(95, 0, 9), WriteSource::Part(PART))]);
+        assert_eq!(
+            device.committed_blocks(SNS, 9).as_deref(),
+            Some(pack.entries[1].blocks())
+        );
+        assert!(device.committed_blocks(SNS, 129).is_none());
         assert!(device.restored(&before));
         // Cancelling again, or after the end, changes nothing.
         import.cancel();
@@ -1067,19 +1356,33 @@ mod tests {
     }
 
     #[test]
-    fn cancel_mid_entry_drops_it() {
+    fn a_cancelled_batch_left_uncommitted_says_so() {
         let pack = pack();
         let mut device = Device::new();
-        let before = device.mem.clone();
+        device.writes = false;
         let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART, false).unwrap();
         while !matches!(device.events.last(), Some(Event::Dt1(..))) {
             device.step(&mut import);
         }
         import.cancel();
         let report = device.run(&mut import);
-        assert_eq!(report.statuses[1], EntryStatus::Pending);
-        assert!(device.writes().is_empty());
-        assert!(device.restored(&before));
+        assert_eq!(report.statuses[1], EntryStatus::Failed);
+        assert_eq!(report.error, Some(ImportError::NotCommitted(COMMIT_TRIES)));
+    }
+
+    #[test]
+    fn cancel_while_committing_changes_nothing() {
+        let pack = pack();
+        let mut device = Device::new();
+        let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART, false).unwrap();
+        while device.writes().is_empty() {
+            assert!(device.step(&mut import).is_none());
+        }
+        import.cancel();
+        let report = device.run(&mut import);
+        use EntryStatus::*;
+        assert_eq!(report.statuses, [Stored, Stored, Stored, Stored, Excluded]);
+        assert_eq!(report.error, None);
     }
 
     #[test]
@@ -1095,7 +1398,7 @@ mod tests {
     }
 
     #[test]
-    fn write_timeout_fails_the_entry_and_restores() {
+    fn unconfirmed_commit_fails_the_batch_after_bounded_tries_and_restores() {
         let pack = pack();
         let mut device = Device::new();
         device.writes = false;
@@ -1104,12 +1407,17 @@ mod tests {
         let report = device.run(&mut import);
 
         use EntryStatus::*;
-        assert_eq!(
-            report.statuses,
-            [Pending, Failed, Pending, Pending, Excluded]
+        assert_eq!(report.statuses, [Failed, Failed, Failed, Failed, Excluded]);
+        assert_eq!(report.error, Some(ImportError::NotCommitted(COMMIT_TRIES)));
+        assert!(
+            report
+                .error
+                .unwrap()
+                .to_string()
+                .contains("written in RAM but not committed")
         );
-        assert_eq!(report.error, Some(ImportError::WriteTimeout(1)));
-        assert_eq!(device.writes().len(), 1);
+        assert_eq!(device.writes().len(), COMMIT_TRIES as usize);
+        assert!(device.committed.is_empty());
         assert!(device.restored(&before));
     }
 
@@ -1234,14 +1542,14 @@ mod tests {
     fn snapshot_failure_aborts_before_sending() {
         let pack = pack();
         let mut device = Device::new();
-        // Part 2's PCM-S Common 2 doesn't answer.
-        let pcms = user_memory(PCMS).unwrap();
-        let (common2, _) = pcms.blocks(pcms.temporary_base(1)).last().unwrap();
-        device.mem.remove(&common2.value());
+        // The borrowed Part's last SN-S block doesn't answer.
+        let sns = user_memory(SNS).unwrap();
+        let (last, _) = sns.blocks(sns.temporary_base(PART)).last().unwrap();
+        device.mem.remove(&last.value());
         let mut import = PackImport::new(0x10, &pack, &plan(&pack), PART, false).unwrap();
         let report = device.run(&mut import);
 
-        assert_eq!(report.error, Some(ImportError::Snapshot(common2)));
+        assert_eq!(report.error, Some(ImportError::Snapshot(last)));
         assert!(device.events.iter().all(|e| matches!(e, Event::Read(_))));
         assert!(
             report

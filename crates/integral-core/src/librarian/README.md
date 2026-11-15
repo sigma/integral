@@ -36,7 +36,8 @@ state machine. The host sends its RQ1, DT1, Init and write requests through
     `progress` and `cancel`.
   - `ImportReport` holds the statuses (import's own `EntryStatus`) and an
     optional `ImportError`.
-  - `WRITE_TIMEOUT_MS` is 5000.
+  - `WRITE_TIMEOUT_MS` is 5000, the wait for each write request.
+    `COMMIT_TRIES` (6) bounds how many write requests a batch sends.
 - `plan.rs`
   - `plan_import` and `plan_read` propose a `Placement` for each entry:
     `User(u16) | Temporary | Unplaced | Excluded`.
@@ -56,17 +57,28 @@ state machine. The host sends its RQ1, DT1, Init and write requests through
 - No I/O in this module: the host performs all I/O.
 - Import messages go through the queue raw, so DT1s to the same address are
   not merged.
-- A direct DT1 to a User slot only changes RAM. Import therefore loads a
-  Temporary area and then sends a write request.
+- A direct DT1 to a User slot only changes RAM, and one write request
+  commits every pending direct change in User memory. Import therefore
+  DT1s each entry straight to its User slot and sends one write request.
 - Import order:
-  1. Take a snapshot of the Temporary areas.
-  2. Store the tones.
-  3. Store the Studio Sets, relinked to the stored tone slots.
+  1. Take a snapshot of the Temporary areas the commit borrows: the
+     borrowed Part if the batch has a tone, else every Part and the
+     Temporary Studio Set.
+  2. DT1 the tones, then the Studio Sets (relinked to the tone slots), to
+     their User slots.
+  3. Commit: store the last tone (else the last Studio Set) through
+     Temporary with a write request. An unanswered request is sent again
+     after `WRITE_TIMEOUT_MS`, up to `COMMIT_TRIES` times; then every entry
+     fails with `NotCommitted` (written in RAM, not committed). No entry is
+     `Stored` before "write finished".
   4. Restore the snapshot.
 
   If the snapshot read fails, import aborts before sending anything.
+- `reinit` stores slot by slot through Temporary, because the device's
+  Init works on Temporary.
 - Cancel or failure stops between slots, and the snapshot is still restored.
-  A write that was already requested is still awaited.
+  A write that was already requested is still awaited. Cancelling a batch
+  finishes the entry being DT1'd and commits the entries written so far.
 - A plan whose only entry goes to Temporary loads that entry and stops: it
   takes no snapshot, sends no write, and restores nothing.
 - Slot placement:
