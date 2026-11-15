@@ -131,8 +131,10 @@ fn pair_is_merged(pmt: &PcmSynthPmt, partial: usize) -> bool {
 /// `partial_state`) under `pmt`, [`Irrelevant`](Relevance::Irrelevant) for a
 /// partial the tone doesn't have and for:
 /// - the pan settings of a pair's upper partial (1 or 3) follow the lower
-///   one's once the Structure merges the pair (Types 2-10): Pan Keyfollow,
-///   Random and Alternate Pan Depth, and LFO1/LFO2 Pan Depth;
+///   one's once the Structure merges the pair (Types 2-10): Partial Pan, Pan
+///   Keyfollow, Random and Alternate Pan Depth, and LFO1/LFO2 Pan Depth. The
+///   Parameter Guide omits Partial Pan; the device shows it follows too
+///   (#251);
 /// - the Step LFO plays only while LFO1 or LFO2 has the STEP waveform.
 pub fn pcms_partial_relevance(
     field: PcmsPartialField,
@@ -145,7 +147,8 @@ pub fn pcms_partial_relevance(
     }
     use PcmsPartialField as F;
     Relevance::applies(match field {
-        F::PanKeyfollow
+        F::Pan
+        | F::PanKeyfollow
         | F::RandomPanDepth
         | F::AlternatePanDepth
         | F::Lfo1PanDepth
@@ -395,7 +398,8 @@ mod tests {
         pmt
     }
 
-    const PAN_FOLLOWERS: [PcmsPartialField; 5] = [
+    const PAN_FOLLOWERS: [PcmsPartialField; 6] = [
+        PcmsPartialField::Pan,
         PcmsPartialField::PanKeyfollow,
         PcmsPartialField::RandomPanDepth,
         PcmsPartialField::AlternatePanDepth,
@@ -430,11 +434,6 @@ mod tests {
                     "{f:?} type {structure}"
                 );
             }
-            // The partial's own Pan stays its own.
-            assert_eq!(
-                pcms_partial_relevance(PcmsPartialField::Pan, 0, &pmt, &p),
-                Relevance::Active
-            );
         }
     }
 
