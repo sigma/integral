@@ -341,3 +341,18 @@ describe("the plugin transport", () => {
     expect(onMixer(container)).toBe(false);
   });
 });
+
+describe("the browser's navigation", () => {
+  it("is one row by scope, whose Edit opens the tone editor", async () => {
+    const { container } = await open([{ name: "INTEGRA-7", answers: true }], remembering("INTEGRA-7"));
+    const navs = container.querySelectorAll("nav");
+    expect(navs).toHaveLength(1);
+    const groups = [...navs[0]!.querySelectorAll('[role="group"]')].map((g) => g.getAttribute("aria-label"));
+    expect(groups).toEqual(["Device", "Studio Set", "Part", "Tone"]);
+    const edit = navs[0]!.querySelector('[aria-label="Tone"] button[data-page="toneEdit"]');
+    if (!edit) throw new Error("no Edit in the Tone group");
+    click(edit);
+    expect(edit.getAttribute("aria-current")).toBe("page");
+    expect(navs[0]!.querySelector('[data-page="mixer"]')?.getAttribute("aria-current")).toBeNull();
+  });
+});

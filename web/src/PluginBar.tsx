@@ -26,7 +26,7 @@ interface Props {
   /** The tone catalog the picker lists from. */
   catalog: ToneCatalog | null;
   expansions: UseExpansionsResult;
-  /** Change a Part's tone, as the browser's top bar does. */
+  /** Change a Part's tone, as the browser's navigation row does. */
   onChangeTone: (part: number, msb: number, lsb: number, pc: number) => void;
   /** Open the Expansions page with `expansion` staged. */
   onLoadExpansion: (expansion: Expansion) => void;

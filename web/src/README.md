@@ -16,13 +16,24 @@ plus the I/O the browser has to do.
 - **Plugin editor.** Given a bridge, `App` shows only what the plugin's
   instance owns (ADR 0007, `pluginPages.ts`): the Mixer and Surround pages
   for the Studio Set plugin, the tone editor of the plugin's type, scoped to
-  the bound Part (and key), for a Tone or Kit plugin. `PluginBar` replaces the
-  top bar with the Binding picker and the status line.
+  the bound Part (and key), for a Tone or Kit plugin, as tabs ("Tone Edit"
+  for the tone editor). `PluginBar` replaces the navigation row with the
+  Binding picker and the status line.
 - **App.** `App.tsx` shows a connection card until an INTEGRA-7 is
-  identified. Then it shows tabs held in local state, with no router: Mixer,
-  Surround, Tone Edit, Sequencer, Expansions and Library. The Sequencer tab
-  and the Transport render only when a sequencer engine exists. Each page sits in
-  its own `ErrorBoundary`.
+  identified. Then it shows the navigation row (`NavRow`,
+  [#584](https://github.com/sigma/integral/issues/584)) and the page held in
+  local state, with no router. The row nests the scopes left to right, each
+  group its selector and controls, then its pages:
+  - **Device:** Expansions, Library.
+  - **Studio Set:** selector, SAVE; Mixer, Surround, Sequencer and the
+    Transport.
+  - **Part:** selector, receive channel, PREVIEW.
+  - **Tone:** selector, SAVE; Edit (the tone editor).
+
+  A narrow screen wraps the row between groups. The Sequencer page and the
+  Transport render only when a sequencer engine exists. Each page sits in its
+  own `ErrorBoundary`. A new page goes in its scope's list in `SCOPE_PAGES`, a
+  new control in its scope's `controls` in `NavRow`.
 - **Device service.** `integra.ts` (`IntegraService`) is the TypeScript
   side of the link to the device. It pairs MIDI I/O with the core's
   `WasmDeviceState`.
@@ -45,8 +56,10 @@ Pages and editors (`.tsx`):
   - `PcmSynthEditor` and `PcmDrumEditor`, with `DrumKeyGrid`.
   - Shared by the editors: `MfxPanel`, `WaveDisplay` and `WavePicker`.
 - Shell pieces:
-  - Tab bar and selection: `TopBar`, `PartSelector`, `StudioSetSelector`,
+  - Navigation and selection: `NavRow` (with `NavScope`), the scopes'
+    controls in `ScopeControls`, `PartSelector`, `StudioSetSelector`,
     `ToneSelector`.
+  - Locking: `Lockable`.
   - Saving: `SaveDialog`, `SlotRow`.
   - Connection: `DeviceSelector`, and the `DeviceStatus` views.
   - Notes: `KeyboardDrawer`.
@@ -211,8 +224,9 @@ Subdirectories:
   - A generation counter drops stale identify results.
   - `IntegraService` is created only for an identified INTEGRA-7.
 - **Locking.** While an Expansion load runs, the whole body is inert. While
-  a Pack import runs, the editing pages and `TopBar` are locked, but notes,
-  tabs, the Sequencer and the Library stay live.
+  a Pack import runs, the editing pages and the row's Studio Set, Part and
+  Tone controls are locked, but notes, the row's page buttons, the Transport,
+  the Sequencer and the Library stay live.
 - **PWA updates.** The service worker is registered only outside the plugin,
   in prompt mode. A new deploy takes over only on the reload the banner
   offers, so a running page never mixes JS and wasm from two builds.

@@ -6,18 +6,20 @@ interface Props {
   onSelect: (part: number) => void;
 }
 
+/** The selected Part, picked from the device's Parts. */
 export function PartSelector({ selectedPart, onSelect }: Props) {
   return (
-    <div className={css.container}>
+    <select
+      className={css.select}
+      aria-label="Part"
+      value={selectedPart}
+      onChange={(e) => onSelect(Number(e.target.value))}
+    >
       {Array.from({ length: deviceSpec().part_count }, (_, i) => (
-        <button
-          key={i}
-          className={`${css.tab} ${i === selectedPart ? css.active : ""}`}
-          onClick={() => onSelect(i)}
-        >
+        <option key={i} value={i}>
           {i + 1}
-        </button>
+        </option>
       ))}
-    </div>
+    </select>
   );
 }

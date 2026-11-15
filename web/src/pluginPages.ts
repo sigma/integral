@@ -19,6 +19,16 @@ import type { PluginBinding } from "./plugin";
 /** The pages of the app. */
 export type PageTab = "mixer" | "surround" | "toneEdit" | "sequencer" | "expansions" | "library";
 
+/** Each page's full name: the plugin's tab, and the browser's navigation row (`NavRow`). */
+export const PAGE_NAMES: Record<PageTab, string> = {
+  mixer: "Mixer",
+  surround: "Surround",
+  toneEdit: "Tone Edit",
+  sequencer: "Sequencer",
+  expansions: "Expansions",
+  library: "Library",
+};
+
 /** The pages a plugin of `kind` shows, the first being where it opens. */
 export function pluginPages(kind: PluginKind): readonly PageTab[] {
   return kind === PluginKind.StudioSet ? ["mixer", "surround"] : ["toneEdit"];

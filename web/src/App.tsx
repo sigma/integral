@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, useMemo, type ReactNode } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   initWasm,
   webMidi,
@@ -29,13 +29,14 @@ import {
   NoDevices,
   MidiError,
 } from "./DeviceStatus";
-import { TopBar } from "./TopBar";
+import { NavRow, browserPages } from "./NavRow";
+import { Lockable } from "./Lockable";
 import { PluginBar } from "./PluginBar";
 import { ToneMismatch } from "./ToneMismatch";
 import { usePluginInstance } from "./usePluginInstance";
 import { useHostGestures } from "./hostGestures";
 import { TYPE_MISMATCH_NOTICE, type PluginBridge } from "./plugin";
-import { pluginDrumScope, pluginPages, pluginToneType, type PageTab } from "./pluginPages";
+import { PAGE_NAMES, pluginDrumScope, pluginPages, pluginToneType, type PageTab } from "./pluginPages";
 import { MixerPage } from "./MixerPage";
 import { SurroundPage } from "./SurroundPage";
 import { ToneEditorPage } from "./ToneEditorPage";
@@ -54,43 +55,12 @@ import type { ExpansionMarking } from "./WavePicker";
 import { sequencerEngine, type SequencerEngine } from "./sequencer";
 import css from "./App.module.css";
 
-/** The pages' tab labels. */
-const TAB_LABELS: Record<PageTab, string> = {
-  mixer: "Mixer",
-  surround: "Surround",
-  toneEdit: "Tone Edit",
-  sequencer: "Sequencer",
-  expansions: "Expansions",
-  library: "Library",
-};
-
-/** The pages of the app in a browser, the Sequencer once it is up. */
-function browserPages(sequencer: boolean): readonly PageTab[] {
-  return [
-    "mixer",
-    "surround",
-    "toneEdit",
-    ...(sequencer ? (["sequencer"] as const) : []),
-    "expansions",
-    "library",
-  ];
-}
-
 type DeviceStatus =
   | { step: "idle" }
   | { step: "identifying" }
   | { step: "connected"; identity: DeviceIdentity }
   | { step: "failed"; reason: string }
   | { step: "disconnected" };
-
-/** Controls that turn dimmed and inert while `locked`, laid out as if unwrapped. */
-function Lockable({ locked, children }: { locked: boolean; children: ReactNode }) {
-  return (
-    <div className={`${css.lockable} ${locked ? css.locked : ""}`} inert={locked}>
-      {children}
-    </div>
-  );
-}
 
 /** The browser's ports: Web MIDI's, and the Device service beside them. */
 const openBrowserPorts = () => browserPorts(webMidi);
@@ -111,7 +81,7 @@ interface AppProps {
   /**
    * The plugin hosting the page (`main.tsx`), none in a browser. A plugin's
    * editor shows only what its instance owns ({@link pluginPages}), with the
-   * instance's Binding and status in place of the top bar, and relays the
+   * instance's Binding and status in place of the navigation row, and relays the
    * page's Control drags to the host as gestures.
    */
   plugin?: PluginBridge;
@@ -346,7 +316,7 @@ export function App({
     [plugin, pluginKind, sequencer],
   );
   const tab = pages.includes(activeTab) ? activeTab : pages[0];
-  // One tone catalog for the top bar and the Library.
+  // One tone catalog for the navigation row and the Library.
   const catalog = useMemo(
     () => (service ? new ToneCatalog(service) : null),
     [service],
@@ -422,7 +392,8 @@ export function App({
   if (service && catalog && (!plugin || pluginKind !== undefined)) {
     const loading = expansions.running;
     // A running Pack import borrows a Part and the Temporary Studio Set:
-    // what edits them is inert until it ends. Notes and the tabs stay live.
+    // what edits them is inert until it ends. Notes, the pages' buttons and
+    // the transport stay live.
     const importing = libraryImport.busy;
     return (
       <div className={css.shell}>
@@ -433,34 +404,37 @@ export function App({
           className={`${css.body} ${loading ? css.bodyBusy : ""}`}
           inert={loading !== null}
         >
-          <nav className={css.tabBar}>
-            <div className={css.tabs}>
-              {pages.length > 1 &&
-                pages.map((page) => (
-                  <button
-                    key={page}
-                    className={`${css.tab} ${tab === page ? css.tabActive : ""}`}
-                    onClick={() => setActiveTab(page)}
-                  >
-                    {TAB_LABELS[page]}
-                  </button>
-                ))}
-              {!plugin && sequencer && <Transport engine={sequencer} />}
-            </div>
-            {plugin ? (
-              pluginBar
-            ) : (
-              <Lockable locked={importing}>
-                <TopBar
-                  mixer={mixer}
-                  service={service}
-                  catalog={catalog}
-                  expansions={expansions}
-                  onLoadExpansion={loadExpansion}
-                />
-              </Lockable>
-            )}
-          </nav>
+          {plugin ? (
+            // The plugin keeps its tab row and bar (web first).
+            <nav className={css.tabBar}>
+              <div className={css.tabs}>
+                {pages.length > 1 &&
+                  pages.map((page) => (
+                    <button
+                      key={page}
+                      className={`${css.tab} ${tab === page ? css.tabActive : ""}`}
+                      onClick={() => setActiveTab(page)}
+                    >
+                      {PAGE_NAMES[page]}
+                    </button>
+                  ))}
+              </div>
+              {pluginBar}
+            </nav>
+          ) : (
+            <NavRow
+              mixer={mixer}
+              service={service}
+              catalog={catalog}
+              expansions={expansions}
+              onLoadExpansion={loadExpansion}
+              pages={pages}
+              tab={tab}
+              onTab={setActiveTab}
+              transport={sequencer && <Transport engine={sequencer} />}
+              locked={importing}
+            />
+          )}
           <Lockable locked={importing}>
             {tab === "mixer" && (
               <ErrorBoundary section="Mixer">

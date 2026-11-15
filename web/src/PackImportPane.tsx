@@ -1,4 +1,5 @@
 import { Fragment, useState } from "react";
+import { SCOPE_NAMES } from "./NavRow";
 import { isFree, libraryTypes, slotLabel, type LibraryType } from "./librarian";
 import { PackRow, ProgressBar } from "./PackPane";
 import {
@@ -411,8 +412,8 @@ function ImportProgress({
         {run.temporary ? (
           loaded ? (
             <span>
-              Loaded “{loaded.info.name}” into {temporaryLabel(loaded.type, run.part)}. Use SAVE in
-              the top bar to keep it.
+              Loaded “{loaded.info.name}” into {temporaryLabel(loaded.type, run.part)}. Use the{" "}
+              {SCOPE_NAMES[loaded.type.studioSet ? "studioSet" : "tone"]} SAVE in the navigation row to keep it.
             </span>
           ) : (
             <span className={css.error}>Not loaded: {run.error}</span>

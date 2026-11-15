@@ -60,7 +60,6 @@ export function StudioSetSelector({
 
   return (
     <div className={css.container} ref={containerRef}>
-      <span className={css.label}>STUDIO SET</span>
       <button className={css.button} onClick={handleOpen}>
         {currentName
           ? `${currentPC + 1}: ${currentName}`
