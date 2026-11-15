@@ -11,10 +11,12 @@ use integral_core::{
 use wasm_bindgen::prelude::*;
 
 mod expansion;
+mod initialize;
 mod librarian;
 mod sequencer;
 mod waves;
 pub use expansion::WasmExpansion;
+pub use initialize::WasmInitialization;
 pub use sequencer::WasmSequencer;
 pub use waves::WasmWaveGroup;
 

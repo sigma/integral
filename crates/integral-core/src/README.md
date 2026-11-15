@@ -58,7 +58,9 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
   the undocumented commands:
   - catalog name queries at `0F 00 03 02` and `0F 00 04 02`, with
     `ToneCatalog` paging through the results
-  - Init of a Temporary area at `0F 00 18 TT`
+  - Init of a Temporary area at `0F 00 18 TT` (Studio Set, Sound Ctrl,
+    Part, Tone, Partial), with `Initialization` sending one Init and
+    awaiting "Init finished"
   - User write at `0F 00 10 00`
 - `tone_banks.rs` holds `TONE_BANK_GROUPS`, `find_bank` and `user_bank_for`.
   `factory_catalog.rs` provides `factory_tone`, generated at build time.

@@ -70,6 +70,11 @@ Names below are the JS names that `wasm-bindgen` exports.
     `onRead`, `onWriteReply`, `onTimeout`, `progress` and `cancel`.
     `nextAction` returns a `LibrarianAction`.
   - The file also carries a TypeScript custom section.
+- `initialize.rs`: `Initialization` (Rust `WasmInitialization`) sends one
+  Init, built with `studioSet`, `soundCtrl`, `part`, `tone` or `partial`
+  (a partial index for a tone, the key number for a kit). It is driven like
+  the Librarian machines, by `nextAction`, `onRead`, `onWriteReply`,
+  `onTimeout` and `cancel`.
 - `sequencer.rs`: `WasmSequencer` with `play`, `due(device, now_ms,
   horizon_ms)` (returns `{tMs, bytes}[]`), `stop`, `panic`, `toSmf`,
   `toSmfOffline` and `loadSmf`.
@@ -99,6 +104,8 @@ Names below are the JS names that `wasm-bindgen` exports.
 - Setters change the mixer state held in Rust and queue merged, throttled
   SysEx.
 - An Expansion load holds the send queue until it finishes.
+- `WasmInitialization` resets a Temporary area and announces none of its
+  values: JS reads the area back after `Done`.
 - `WasmPackImport` writes User memory and the Temporary areas through the
   device, so JS must refresh the mixer state after `Done`.
 - `WasmSequencer` keeps the play state and returns each due event only once.

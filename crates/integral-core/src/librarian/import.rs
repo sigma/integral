@@ -33,7 +33,8 @@
 //! sends the device's Init instead of DT1ing data
 //! (`docs/midi/99-undocumented.md` §7): for a tone it selects the slot on
 //! the borrowed Part and sends Tone Init, for a Studio Set it sends Studio
-//! Set Init. It awaits "Init finished" before the write request.
+//! Set Init. It runs the Init through [`Initialization`], which awaits
+//! "Init finished", before the write request.
 //!
 //! A plan whose only entry goes to Temporary ([`plan_import`] sends
 //! nothing else there) loads it there (a tone into
@@ -58,7 +59,7 @@ use super::plan::{ImportPlan, Placement, pointed_entry};
 use super::reader::{BlockData, BlockReader};
 use crate::address::{self, Address, DataSize};
 use crate::device_spec::{INTEGRA7, USER_MEMORY, UserMemorySpec};
-use crate::initialize::{InitTarget, build_init_request, is_init_finished};
+use crate::initialize::{InitAction, InitTarget, Initialization};
 use crate::params::{self, part};
 use crate::svd::ChunkType;
 use crate::sysex;
@@ -85,7 +86,9 @@ pub enum ImportError {
     #[error("snapshot: no complete reply for the block at {0}")]
     Snapshot(Address),
     /// No "Init finished" or "write finished" for this entry within
-    /// [`WRITE_TIMEOUT_MS`].
+    /// [`INIT_TIMEOUT_MS`] or [`WRITE_TIMEOUT_MS`].
+    ///
+    /// [`INIT_TIMEOUT_MS`]: crate::initialize::INIT_TIMEOUT_MS
     #[error("entry {0}: the device didn't confirm the write")]
     WriteTimeout(usize),
     /// There is no User slot of this number.
@@ -141,7 +144,7 @@ pub enum ImportAction {
     /// or call [`PackImport::on_timeout`] after `timeout_ms`. Awaits an Init
     /// as well as a write.
     AwaitWrite {
-        /// How long to wait for "write finished", in ms.
+        /// How long to wait for "Init finished" or "write finished", in ms.
         timeout_ms: f64,
     },
     /// The import is over; refresh mixer state.
@@ -152,20 +155,13 @@ pub enum ImportAction {
 struct Job {
     entry: usize,
     sends: Vec<Vec<u8>>,
-    /// Whether `sends` ends with an Init to await.
-    init: bool,
+    /// The Init to run once `sends` are sent.
+    init: Option<InitTarget>,
     write: Option<(BankSelect, WriteSource)>,
 }
 
 /// A write request: the slot and what to store in it.
 type Write = (BankSelect, WriteSource);
-
-/// The device reply the import waits for.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Awaiting {
-    Init,
-    Write,
-}
 
 /// Stores a [`Pack`] into User memory. Pure: the host does the I/O.
 pub struct PackImport {
@@ -177,10 +173,12 @@ pub struct PackImport {
     jobs: VecDeque<Job>,
     /// Messages to send before anything else.
     outbox: VecDeque<Vec<u8>>,
-    /// The job being sent, whether its Init is still to await, and its
-    /// write.
-    current: Option<(usize, bool, Option<Write>)>,
-    awaiting: Option<Awaiting>,
+    /// The job being sent, its Init still to run, and its write.
+    current: Option<(usize, Option<InitTarget>, Option<Write>)>,
+    /// The current job's Init, while it runs.
+    init: Option<Initialization>,
+    /// Whether the current job's write request awaits "write finished".
+    awaiting_write: bool,
     /// The snapshot read in flight; `tones` once Part tones are read.
     reader: Option<(BlockReader, bool)>,
     /// Blocks read, in restore order; `None` when nothing is borrowed.
@@ -236,7 +234,7 @@ impl PackImport {
                 Job {
                     entry: i,
                     sends: dt1s(memory, address::STUDIO_SET, &set),
-                    init: false,
+                    init: None,
                     write: write.then_some((target, WriteSource::StudioSet)),
                 }
             } else {
@@ -245,7 +243,7 @@ impl PackImport {
                 Job {
                     entry: i,
                     sends,
-                    init: false,
+                    init: None,
                     write: write.then_some((target, WriteSource::Part(part))),
                 }
             };
@@ -296,21 +294,20 @@ impl PackImport {
                 let target = memory
                     .bank_select(slot)
                     .ok_or(ImportError::InvalidSlot(slot))?;
-                let (sends, source) = if stores_sets {
-                    let init = build_init_request(device_id, InitTarget::StudioSet);
-                    (vec![init], WriteSource::StudioSet)
+                let (sends, init, source) = if stores_sets {
+                    (vec![], InitTarget::StudioSet, WriteSource::StudioSet)
                 } else {
                     // Tone Init keeps the tone's type: select one of the right type first.
-                    let init = build_init_request(device_id, InitTarget::Tone(part));
                     (
-                        vec![select(device_id, part, target), init],
+                        vec![select(device_id, part, target)],
+                        InitTarget::Tone(part),
                         WriteSource::Part(part),
                     )
                 };
                 Ok(Job {
                     entry: i,
                     sends,
-                    init: true,
+                    init: Some(init),
                     write: Some((target, source)),
                 })
             })
@@ -347,7 +344,8 @@ impl PackImport {
             jobs: jobs.into(),
             outbox: VecDeque::new(),
             current: None,
-            awaiting: None,
+            init: None,
+            awaiting_write: false,
             reader: borrows.then(|| (BlockReader::new(device_id, blocks), false)),
             snapshot: borrows.then(Vec::new),
             error: None,
@@ -373,10 +371,10 @@ impl PackImport {
             self.snapshot = None;
         }
         // An awaited Init is dropped: its slot is left unstored.
-        if self.awaiting != Some(Awaiting::Write)
+        if !self.awaiting_write
             && let Some((entry, ..)) = self.current.take()
         {
-            self.awaiting = None;
+            self.init = None;
             self.outbox.clear();
             self.statuses[entry] = EntryStatus::Pending;
         }
@@ -401,7 +399,22 @@ impl PackImport {
                 self.finish_read();
                 continue;
             }
-            if self.awaiting.is_some() {
+            if let Some(init) = &mut self.init {
+                match init.next_action() {
+                    InitAction::Send(msg) => return ImportAction::Send(msg),
+                    InitAction::Await { timeout_ms } => {
+                        return ImportAction::AwaitWrite { timeout_ms };
+                    }
+                    InitAction::Done(result) => {
+                        self.init = None;
+                        if result.is_err() {
+                            self.fail_current();
+                        }
+                        continue;
+                    }
+                }
+            }
+            if self.awaiting_write {
                 return ImportAction::AwaitWrite {
                     timeout_ms: WRITE_TIMEOUT_MS,
                 };
@@ -410,14 +423,17 @@ impl PackImport {
                 return ImportAction::Send(msg);
             }
             if let Some((entry, init, write)) = self.current {
-                if init {
-                    self.current = Some((entry, false, write));
-                    self.awaiting = Some(Awaiting::Init);
+                if let Some(target) = init {
+                    self.current = Some((entry, None, write));
+                    self.init = Some(
+                        Initialization::new(self.device_id, target)
+                            .expect("the import checked the Part"),
+                    );
                     continue;
                 }
                 match write {
                     Some((target, source)) => {
-                        self.awaiting = Some(Awaiting::Write);
+                        self.awaiting_write = true;
                         return ImportAction::Send(build_write_request(
                             self.device_id,
                             target,
@@ -459,24 +475,20 @@ impl PackImport {
     /// Feed an incoming DT1 while awaiting an Init or a write. Returns
     /// `true` if it was the awaited "Init finished" or "write finished".
     pub fn on_write_reply(&mut self, address: &Address, data: &[u8]) -> bool {
-        if self.awaiting == Some(Awaiting::Init) {
-            let finished = is_init_finished(address, data);
-            if finished {
-                self.awaiting = None;
-            }
-            return finished;
+        if let Some(init) = &mut self.init {
+            return init.on_reply(address, data);
         }
         let Some((entry, _, Some((target, source)))) = self.current else {
             return false;
         };
-        let finished = self.awaiting == Some(Awaiting::Write)
+        let finished = self.awaiting_write
             && parse_write_reply(address, data).is_some_and(|r| {
                 r.phase == WritePhase::Finished && r.target == target && r.source == source
             });
         if finished {
             self.statuses[entry] = EntryStatus::Stored;
             self.current = None;
-            self.awaiting = None;
+            self.awaiting_write = false;
         }
         finished
     }
@@ -486,10 +498,23 @@ impl PackImport {
     pub fn on_timeout(&mut self) {
         if let Some((reader, _)) = &mut self.reader {
             reader.on_timeout();
-        } else if self.awaiting.is_some()
-            && let Some((entry, ..)) = self.current.take()
-        {
-            self.awaiting = None;
+        } else if let Some(init) = &mut self.init {
+            init.on_timeout();
+            // Fail now, so a cancel before the next step can't drop it.
+            if matches!(init.next_action(), InitAction::Done(Err(_))) {
+                self.init = None;
+                self.fail_current();
+            }
+        } else if self.awaiting_write {
+            self.awaiting_write = false;
+            self.fail_current();
+        }
+    }
+
+    /// The current entry's Init or write wasn't confirmed: fail it and
+    /// store nothing more.
+    fn fail_current(&mut self) {
+        if let Some((entry, ..)) = self.current.take() {
             self.statuses[entry] = EntryStatus::Failed;
             self.error.get_or_insert(ImportError::WriteTimeout(entry));
             self.jobs.clear();
@@ -576,6 +601,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
+    use crate::initialize::{INIT_FINISHED_ADDR, INIT_STARTED_ADDR, INIT_TIMEOUT_MS};
     use crate::librarian::plan::{Origin, plan_import, plan_read};
     use crate::parse_helpers::encode_ascii_name;
 
@@ -708,13 +734,11 @@ mod tests {
                     self.events.push(Event::Dt1(addr, data));
                 }
                 ImportAction::AwaitWrite { timeout_ms } => {
-                    assert_eq!(timeout_ms, WRITE_TIMEOUT_MS);
                     if let Some(Event::Init(_)) = self.events.last() {
-                        let started = Address::new(0x0F, 0x00, 0x18, 0x01);
-                        let finished = Address::new(0x0F, 0x00, 0x18, 0x02);
-                        assert!(!import.on_write_reply(&started, &[0; 4]));
+                        assert_eq!(timeout_ms, INIT_TIMEOUT_MS);
+                        assert!(!import.on_write_reply(&INIT_STARTED_ADDR, &[0; 4]));
                         if self.writes {
-                            assert!(import.on_write_reply(&finished, &[0; 4]));
+                            assert!(import.on_write_reply(&INIT_FINISHED_ADDR, &[0; 4]));
                         } else {
                             import.on_timeout();
                         }
@@ -723,6 +747,7 @@ mod tests {
                     let Some(&Event::Write(t, s)) = self.events.last() else {
                         panic!("awaiting a write that wasn't requested");
                     };
+                    assert_eq!(timeout_ms, WRITE_TIMEOUT_MS);
                     let src = match s {
                         WriteSource::StudioSet => 0x7F,
                         WriteSource::Part(p) => p,
@@ -1172,6 +1197,24 @@ mod tests {
         assert_eq!(report.statuses, [Failed, Pending]);
         assert_eq!(report.error, Some(ImportError::WriteTimeout(0)));
         assert!(device.writes().is_empty());
+    }
+
+    #[test]
+    fn reinit_timeout_then_cancel_still_fails_the_slot() {
+        let mut device = Device::new();
+        let mut import = PackImport::reinit(0x10, SNS, &[9, 10], PART).unwrap();
+        while !matches!(device.events.last(), Some(Event::Init(_))) {
+            device.step(&mut import);
+        }
+        assert!(matches!(
+            import.next_action(),
+            ImportAction::AwaitWrite { .. }
+        ));
+        import.on_timeout();
+        import.cancel();
+        let report = device.run(&mut import);
+        assert_eq!(report.statuses, [EntryStatus::Failed, EntryStatus::Pending]);
+        assert_eq!(report.error, Some(ImportError::WriteTimeout(0)));
     }
 
     #[test]
