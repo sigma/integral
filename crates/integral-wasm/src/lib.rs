@@ -361,7 +361,9 @@ pub use part_settings::{PartSetting, PartSettingGroup};
 pub use plugin::PluginKind;
 pub use relevance::Relevance;
 pub use studio_set_settings::StudioSetSetting;
-pub use system::{SystemField, SystemGroup, WasmSystemCommon, WasmSystemFieldSpec};
+pub use system::{
+    SystemField, SystemGroup, SystemOrStudioSet, WasmSystemCommon, WasmSystemFieldSpec,
+};
 
 /// Tone type of a Part's Temporary Tone, selecting which tone type block
 /// (and so which MFX block) an edit addresses (mirrors [`params::ToneType`]).

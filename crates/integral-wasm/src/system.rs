@@ -124,6 +124,39 @@ pub fn system_group_note(group: SystemGroup) -> Option<String> {
         .map(str::to_string)
 }
 
+/// A SYSTEM-or-STUDIO SET pair (mirrors [`system::SystemOrStudioSet`]).
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SystemOrStudioSet {
+    /// See [`system::SystemOrStudioSet::Control`].
+    Control,
+    /// See [`system::SystemOrStudioSet::Tempo`].
+    Tempo,
+}
+
+mirror_core_enum!(SystemOrStudioSet <=> system::SystemOrStudioSet { Control, Tempo });
+
+/// The System field that picks the side of `pair` in force.
+#[wasm_bindgen]
+pub fn system_pair_selector(pair: SystemOrStudioSet) -> SystemField {
+    system::SystemOrStudioSet::from(pair).selector().into()
+}
+
+/// System Control `index + 1` Source (`index` 0-based), the System side of
+/// the Studio Set's Tone Control of the same number; `undefined` past the
+/// last.
+#[wasm_bindgen]
+pub fn system_control_source_field(index: u8) -> Option<SystemField> {
+    system::SystemField::system_control_source(index).map(Into::into)
+}
+
+/// Whether `selector_value`, the raw value of `pair`'s
+/// [`system_pair_selector`], puts the Studio Set's side in force.
+#[wasm_bindgen]
+pub fn system_pair_studio_set_in_force(pair: SystemOrStudioSet, selector_value: u16) -> bool {
+    system::SystemOrStudioSet::from(pair).studio_set_in_force(selector_value)
+}
+
 /// The address of the System Common block: what `requestData` reads.
 #[wasm_bindgen]
 pub fn system_common_address() -> Vec<u8> {
@@ -244,6 +277,12 @@ impl WasmSystemCommon {
     pub fn display(&self, field: SystemField) -> String {
         self.0.display(field.into())
     }
+
+    /// Whether the Studio Set's side of `pair` is in force.
+    #[wasm_bindgen(js_name = studioSetInForce)]
+    pub fn studio_set_in_force(&self, pair: SystemOrStudioSet) -> bool {
+        self.0.studio_set_in_force(pair.into())
+    }
 }
 
 /// Parse a System Common dump: the data of the reply to
@@ -319,6 +358,27 @@ mod tests {
             Some(system::EXT_PART_SOURCE_NOTE)
         );
         assert_eq!(system_group_note(SystemGroup::Tuning), None);
+    }
+
+    #[test]
+    fn the_pairs_reach_js() {
+        assert_eq!(
+            system_pair_selector(SystemOrStudioSet::Tempo),
+            SystemField::TempoAssignSource
+        );
+        assert_eq!(
+            system_control_source_field(0),
+            Some(SystemField::SystemControl1Source)
+        );
+        assert_eq!(system_control_source_field(4), None);
+        assert!(!system_pair_studio_set_in_force(
+            SystemOrStudioSet::Control,
+            0
+        ));
+        assert!(system_pair_studio_set_in_force(
+            SystemOrStudioSet::Control,
+            1
+        ));
     }
 
     #[test]

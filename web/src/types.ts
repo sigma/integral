@@ -200,6 +200,20 @@ export function defaultSurroundState(): SurroundState {
   };
 }
 
+/**
+ * The Studio Set settings the Mixer doesn't edit (mirrors core
+ * `state::StudioSetSettings`): Tone Control 1–4 Source, the Studio Set Tempo
+ * and each MIDI channel's Phase Lock.
+ */
+export interface StudioSetSettings {
+  /** Tone Control 1–4 Source, as a Control Source value. */
+  toneControlSources: number[];
+  /** Studio Set Tempo (BPM). */
+  tempo: number;
+  /** Phase Lock of each MIDI channel (index 0 = channel 1). */
+  phaseLock: boolean[];
+}
+
 /** Full mixer state. */
 export interface MixerState {
   /** Studio Set name (up to 16 ASCII chars). */
@@ -232,6 +246,11 @@ export interface MixerState {
   surround: SurroundState;
   /** Drum Comp+EQ (6 units, assigned to one part). */
   drumCompEq: DrumCompEqState;
+  /**
+   * Tone Control sources, tempo and Phase Lock; none until the core's state
+   * is first read (the defaults are the core registry's, which needs wasm).
+   */
+  studioSetSettings: StudioSetSettings | null;
   /** Preview part (0 = off, 1–16 = part being previewed). */
   previewPart: number;
   /** Whether initial state is still loading from the device. */
@@ -288,6 +307,7 @@ export function defaultMixerState(): MixerState {
     masterEq: defaultEqState(),
     surround: defaultSurroundState(),
     drumCompEq: defaultDrumCompEqState(),
+    studioSetSettings: null,
     previewPart: 0,
     loading: true,
     failedBlocks: [],

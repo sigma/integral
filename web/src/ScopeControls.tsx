@@ -25,13 +25,16 @@ import { NotLoadedMarker } from "./NotLoadedMarker";
 import { InitItem } from "./InitFlow";
 import css from "./ScopeControls.module.css";
 
-/** The Studio Set group's controls: the selector, SAVE and Init…. */
+/** The Studio Set group's controls: the selector, SAVE, Init… and ⚙ (its settings drawer). */
 export function StudioSetControls({
   mixer,
   service,
+  onSettings,
 }: {
   mixer: UseMixerResult;
   service: IntegraService;
+  /** Open the Studio Set settings drawer. */
+  onSettings: () => void;
 }) {
   const { state, loadStudioSetNames, renameStudioSet } = mixer;
   // The save's name is snapshotted on open, so a Studio Set change arriving
@@ -73,6 +76,14 @@ export function StudioSetControls({
         SAVE
       </button>
       <InitItem scope={{ kind: "studio-set" }} className={css.initButton} />
+      <button
+        className={css.studioSetSettingsButton}
+        onClick={onSettings}
+        title="Studio Set settings"
+        aria-label="Studio Set settings"
+      >
+        ⚙
+      </button>
       {save && (
         <SaveDialog
           title="Save Studio Set"

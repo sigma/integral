@@ -150,6 +150,8 @@ interface NavRowProps {
   locked: boolean;
   /** The Part group's ⚙: the Part settings drawer's toggle; none, no ⚙. */
   partSettings?: PartSettingsToggle;
+  /** Open the Studio Set settings drawer (⚙ in the Studio Set group). */
+  onStudioSetSettings: () => void;
 }
 
 /** The browser's navigation row, by scope. */
@@ -165,6 +167,7 @@ export function NavRow({
   transport,
   locked,
   partSettings,
+  onStudioSetSettings,
 }: NavRowProps) {
   const nav = { pages, tab, onTab, locked };
   return (
@@ -174,7 +177,9 @@ export function NavRow({
         scope="studioSet"
         {...nav}
         initArea={STUDIO_SET}
-        controls={<StudioSetControls mixer={mixer} service={service} />}
+        controls={
+          <StudioSetControls mixer={mixer} service={service} onSettings={onStudioSetSettings} />
+        }
         after={transport}
       />
       <NavScope

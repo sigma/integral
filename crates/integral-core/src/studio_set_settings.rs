@@ -28,6 +28,10 @@ use crate::params;
 use crate::parse_helpers::{encode_nibble2, nibble2};
 use crate::state::StudioSetSettings;
 
+/// The manual's caveat on Phase Lock (`docs/manual/README.md`, item 4).
+pub const PHASE_LOCK_NOTICE: &str = "Phase Lock adds audible latency, and it doesn't work for \
+     SN-A organ instruments.";
+
 /// A Studio Set setting, named without its index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StudioSetSetting {

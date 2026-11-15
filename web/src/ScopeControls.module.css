@@ -79,3 +79,10 @@
   opacity: 0.4;
   cursor: default;
 }
+
+/* The Studio Set group's ⚙, styled as its SAVE. */
+.studioSetSettingsButton {
+  composes: button from "./StudioSetSelector.module.css";
+  min-width: 0;
+  padding: 4px 8px;
+}

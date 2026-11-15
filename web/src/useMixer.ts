@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { IntegraService } from "./integra";
-import type { MixerField, MixerScopeKind, PartSetting } from "../pkg/integral_wasm.js";
+import type { MixerField, MixerScopeKind, PartSetting, StudioSetSetting } from "../pkg/integral_wasm.js";
 import {
   defaultMixerState,
   type MixerState,
@@ -19,6 +19,7 @@ import {
   type FxState,
   type SurroundState,
   type DrumCompEqState,
+  type StudioSetSettings,
 } from "./types";
 
 /**
@@ -43,6 +44,7 @@ interface RustMixerState {
   masterEq: EqState;
   surround: SurroundState;
   drumCompEq: DrumCompEqState;
+  studioSetSettings: StudioSetSettings;
   previewPart: number;
 }
 
@@ -53,6 +55,8 @@ export interface UseMixerResult {
   setMixerField: (kind: MixerScopeKind, index: number, field: MixerField, value: number) => void;
   /** Set `part`'s (0-based) Part setting; core keeps a key or velocity range from crossing. */
   setPartSetting: (part: number, field: PartSetting, value: number) => void;
+  /** Set instance `index` (0-based) of a Studio Set setting; a Phase Lock is 0 or 1. */
+  setStudioSetField: (setting: StudioSetSetting, index: number, value: number) => void;
   setChorusParam: (offset: number, value: number) => void;
   setChorusNibParam: (paramIndex: number, value: number) => void;
   toggleChorusSwitch: () => void;
@@ -117,6 +121,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
         masterEq: rs.masterEq ?? prev.masterEq,
         surround: rs.surround ?? prev.surround,
         drumCompEq: rs.drumCompEq ?? prev.drumCompEq,
+        studioSetSettings: rs.studioSetSettings ?? prev.studioSetSettings,
         previewPart: rs.previewPart ?? 0,
         // UI-only fields preserved from React state.
         selectedPart: prev.selectedPart,
@@ -276,6 +281,14 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     [service, syncFromRust],
   );
 
+  const setStudioSetField = useCallback(
+    (setting: StudioSetSetting, index: number, value: number) => {
+      service?.device.setStudioSetField(setting, index, value);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
   // --- FX ---
 
   const setChorusParam = useCallback(
@@ -335,6 +348,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     changePartTone,
     setMixerField,
     setPartSetting,
+    setStudioSetField,
     setChorusParam,
     setChorusNibParam,
     toggleChorusSwitch,

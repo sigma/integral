@@ -145,6 +145,48 @@ impl SystemField {
     pub const fn address(self) -> Address {
         SYSTEM_COMMON.offset([0, 0, 0, self as u8])
     }
+
+    /// System Control `index + 1` Source (`index` 0-based), the System side
+    /// of the Studio Set's Tone Control of the same number; `None` past
+    /// [`TONE_CONTROLS`](crate::device_spec::TONE_CONTROLS).
+    pub const fn system_control_source(index: u8) -> Option<Self> {
+        match index {
+            0 => Some(Self::SystemControl1Source),
+            1 => Some(Self::SystemControl2Source),
+            2 => Some(Self::SystemControl3Source),
+            3 => Some(Self::SystemControl4Source),
+            _ => None,
+        }
+    }
+}
+
+/// A SYSTEM-or-STUDIO SET pair: a System Common selector decides whether
+/// System's setting or the current Studio Set's is in force.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SystemOrStudioSet {
+    /// System Control 1–4 Source or the Studio Set's Tone Control 1–4
+    /// Source, by [`SystemField::ControlSource`].
+    Control,
+    /// System Tempo or the Studio Set Tempo, by
+    /// [`SystemField::TempoAssignSource`].
+    Tempo,
+}
+
+impl SystemOrStudioSet {
+    /// The System field that picks the side in force.
+    pub const fn selector(self) -> SystemField {
+        match self {
+            Self::Control => SystemField::ControlSource,
+            Self::Tempo => SystemField::TempoAssignSource,
+        }
+    }
+
+    /// Whether `selector_value`, the raw value of
+    /// [`selector`](Self::selector), puts the Studio Set's side in force
+    /// (System's is otherwise).
+    pub const fn studio_set_in_force(self, selector_value: u16) -> bool {
+        selector_value == STUDIO_SET_SIDE
+    }
 }
 
 impl BlockField for SystemField {
@@ -275,6 +317,9 @@ const CONTROL_CHANNELS: &[&str] = &[
 ];
 /// Control Source and Tempo Assign Source.
 const SYSTEM_OR_STUDIO_SET: &[&str] = &["SYSTEM", "STUDIO SET"];
+/// The raw value of a [`SystemOrStudioSet`] selector that puts the Studio
+/// Set's side in force: its place in [`SYSTEM_OR_STUDIO_SET`].
+const STUDIO_SET_SIDE: u16 = 1;
 /// System Clock Source.
 const CLOCK_SOURCES: &[&str] = &["MIDI", "USB"];
 /// 2CH Output Mode.
@@ -465,6 +510,12 @@ impl SystemCommon {
     /// The block's bytes, as read.
     pub fn bytes(&self) -> &[u8; SYSTEM_COMMON_LEN] {
         &self.data
+    }
+
+    /// Whether the Studio Set's side of `pair` is in force (System's is
+    /// otherwise).
+    pub fn studio_set_in_force(&self, pair: SystemOrStudioSet) -> bool {
+        pair.studio_set_in_force(self.get(pair.selector()))
     }
 }
 
@@ -732,6 +783,35 @@ mod tests {
         assert_eq!(system.get(SystemField::MasterTune), 1024);
         assert_eq!(system.get(SystemField::SystemTempo), 120);
         assert_eq!(system.bytes(), &DUMP);
+    }
+
+    #[test]
+    fn each_pair_follows_its_selector() {
+        // The dump's Control Source is STUDIO SET, its Tempo Assign SYSTEM.
+        let system = parse_system_common(&DUMP).unwrap();
+        assert!(system.studio_set_in_force(SystemOrStudioSet::Control));
+        assert!(!system.studio_set_in_force(SystemOrStudioSet::Tempo));
+        for pair in [SystemOrStudioSet::Control, SystemOrStudioSet::Tempo] {
+            let format = system_spec(pair.selector()).format;
+            assert_eq!(format.format(STUDIO_SET_SIDE.into()), "STUDIO SET");
+        }
+    }
+
+    #[test]
+    fn system_control_sources_pair_with_tone_controls_by_number() {
+        let paired: Vec<_> = (0..=crate::device_spec::TONE_CONTROLS)
+            .map(SystemField::system_control_source)
+            .collect();
+        assert_eq!(
+            paired,
+            [
+                Some(SystemField::SystemControl1Source),
+                Some(SystemField::SystemControl2Source),
+                Some(SystemField::SystemControl3Source),
+                Some(SystemField::SystemControl4Source),
+                None,
+            ]
+        );
     }
 
     #[test]

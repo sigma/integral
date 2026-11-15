@@ -99,7 +99,7 @@ describe("the Part settings drawer", () => {
   it("is headed by the selected Part, its channel and its tone, and closes", async () => {
     const { container, onClose } = await draw(mixerState(2));
     expect(container.querySelector("header")?.textContent).toContain("Part 3 · ch 1 · Grand Piano");
-    click(button(container, "Close"));
+    click(button(container, "Close Part settings"));
     expect(onClose).toHaveBeenCalled();
   });
 

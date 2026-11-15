@@ -4,6 +4,8 @@
   flex-direction: column;
   flex: none;
   min-height: 0;
+  max-width: 100vw;
+  box-sizing: border-box;
   background: #1b1d33;
   border-left: 1px solid #5566c8;
   box-shadow: -6px 0 18px #0008;
@@ -22,6 +24,7 @@
 .title {
   flex: 1;
   min-width: 0;
+  margin: 0;
   overflow: hidden;
   font-size: 13px;
   font-weight: 600;
@@ -49,4 +52,26 @@
   gap: 6px;
   padding: 8px 12px;
   overflow: auto;
+}
+
+.hint {
+  margin: 0;
+  font-size: 11px;
+  color: #888;
+}
+
+.group {
+  padding-top: 6px;
+  border-top: 1px solid #2d3160;
+}
+
+.groupTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9aa6ff;
+  letter-spacing: 1px;
 }

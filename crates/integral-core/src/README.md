@@ -50,7 +50,10 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
   format; `parse` reads a display string back) are its registry;
   `build_read_request` and `parse_system_common` (`SystemCommon`) read it, and `DeviceState::set_system_field` writes a
   field. Master Level stays a mixer field. `VOLATILE_NOTICE` says System
-  edits last until power-off.
+  edits last until power-off. `SystemOrStudioSet` names a SYSTEM-or-STUDIO
+  SET pair (its `selector`, and `SystemCommon::studio_set_in_force`);
+  `SystemField::system_control_source` pairs System Control N with Tone
+  Control N.
 - `device_spec.rs`: the device specification layer. It holds
   `INTEGRA7: DeviceSpec` (part count and other device constants), the
   `USER_MEMORY` layouts (`UserMemorySpec`, `BlockRun`) and `KeyRange`.
@@ -99,6 +102,7 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
   `StudioSetSetting` names a setting, `StudioSetField` one instance of it
   with its CLI `name` (`from_name`), `label`, `address`, `spec` and
   `encode`. `DeviceState::set_studio_set_field` writes one.
+  `PHASE_LOCK_NOTICE` is the manual's caveat on Phase Lock.
 - `field_spec.rs`: `FieldSpec` holds the min, max, default, format and family
   of a field. Per-block lookups are named `pcms_*_spec`, `pcmd_*_spec`,
   `sns_*_spec`, `sna_common_spec` and `snd_*_spec`. `pcms_partial_sync` and

@@ -25,8 +25,8 @@ plus the I/O the browser has to do.
   local state, with no router. The row nests the scopes left to right, each
   group its selector and controls, then its pages:
   - **Device:** System, Expansions, Library.
-  - **Studio Set:** selector, SAVE; Mixer, Surround, Routing, Sequencer and
-    the Transport.
+  - **Studio Set:** selector, SAVE, ⚙ (the Studio Set settings drawer);
+    Mixer, Surround, Routing, Sequencer and the Transport.
   - **Part:** selector, receive channel, ⚙ (the Part settings drawer),
     PREVIEW.
   - **Tone:** selector, SAVE; Edit (the tone editor).
@@ -106,8 +106,13 @@ Pages and editors (`.tsx`):
     lost link ends the busy state and says so.
   - Connection: `DeviceSelector`, and the `DeviceStatus` views.
   - Notes: `KeyboardDrawer`.
-  - Drawers: `Drawer`, the shell (title, header actions, close, stacked
-    groups); `PartSettingsDrawer` in it.
+  - Drawers: `Drawer` (with `DrawerGroup`), the shell of a settings drawer
+    (title, optional hint, header actions, close, Escape, stacked groups);
+    `PartSettingsDrawer` and `StudioSetDrawer` in it. `StudioSetDrawer` is
+    the Studio Set settings (Tone Control 1–4 Source, Studio Set Tempo,
+    Phase Lock), each SYSTEM-or-STUDIO SET pair beside System's read-only
+    side, the side out of force dimmed. `App` holds which drawer is open
+    (`openStudioSetSettings`, `partSettings`): one at a time.
   - Banners and markers: `ExpansionLoadBanner`, `MixerLoadWarning`,
     `NotLoadedMarker`, `PwaUpdateBanner`.
   - Error handling: `ErrorBoundary`.
@@ -216,9 +221,10 @@ State and hooks:
 - `types.ts` — the `MixerState` mirror and its defaults.
 - Mixer and editing: `useMixer`, `useMfxHandlers`, `useDrumKey`,
   `useKeyPrefetch`.
+- System: `useSystemCommon` (reads System Common on mount and on
+  `refresh`; every reader of one service shares its reads and edits),
+  `systemDisplay` and `studioSetInForce`.
 - Expansions: `useExpansions`, `useExpansionStaging`.
-- System: `useSystemCommon`; every reader of one service shares its reads
-  and edits.
 - Librarian: `useLibraryExport`, `useLibraryImport`, `useUserSlots`,
   `useBankEntries`.
 - Notes: `useKeyboard`.

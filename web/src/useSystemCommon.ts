@@ -1,11 +1,14 @@
 /**
- * System Common as the System page shows it
- * ([#284](https://github.com/sigma/integral/issues/284)): read once when the
- * page opens and again on Refresh, never polled
+ * System Common as the System page and the Studio Set settings drawer show it
+ * ([#284](https://github.com/sigma/integral/issues/284)): read once when
+ * either opens and again on Refresh, never polled
  * ([#464](https://github.com/sigma/integral/issues/464)). An edit goes
  * through the core's setter and shows at once, in every reader of the same
  * service (the Part settings drawer's SCALE shows the Scale Tune Switch the
  * System page edits beside it), as does a read.
+ *
+ * The parsed wasm dump is freed as soon as its values are copied out, so the
+ * hook holds no wasm memory.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -13,13 +16,46 @@ import {
   parseSystemCommon,
   system_common_address,
   system_common_size,
+  system_field_spec,
   system_fields,
+  system_pair_selector,
+  system_pair_studio_set_in_force,
   type SystemField,
+  type SystemOrStudioSet,
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 
 /** Each System field's raw value, as read or since edited. */
 export type SystemValues = ReadonlyMap<SystemField, number>;
+
+/** `field`'s value as the core displays it, or `—` before a read answers. */
+export function systemDisplay(
+  values: SystemValues | null,
+  field: SystemField,
+): string {
+  const value = values?.get(field);
+  if (value === undefined) return "—";
+  const spec = system_field_spec(field);
+  try {
+    return spec.formatValue(value);
+  } finally {
+    spec.free();
+  }
+}
+
+/**
+ * Whether the Studio Set's side of `pair` is in force, by its System
+ * selector; `null` before a read answers.
+ */
+export function studioSetInForce(
+  values: SystemValues | null,
+  pair: SystemOrStudioSet,
+): boolean | null {
+  const selector = values?.get(system_pair_selector(pair));
+  return selector === undefined
+    ? null
+    : system_pair_studio_set_in_force(pair, selector);
+}
 
 /** Where the read stands. A re-read keeps the values shown until it answers. */
 export interface SystemRead {

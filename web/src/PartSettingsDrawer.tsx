@@ -149,8 +149,13 @@ export function PartSettingsDrawer({ mixer, service, onClose, onOpenSystem, head
     .join(" · ");
 
   return (
-    <Drawer label="Part settings" title={title} actions={headerActions} onClose={onClose}>
-      <p className={css.hint}>Follows the Part selected in the Mixer: press a strip to switch.</p>
+    <Drawer
+      label="Part settings"
+      title={title}
+      actions={headerActions}
+      hint="Follows the Part selected in the Mixer: press a strip to switch."
+      onClose={onClose}
+    >
       {registryGroups().map((group) => {
         const layout = partSettingsLayout(group);
         if (!layout) return null;

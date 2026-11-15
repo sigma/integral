@@ -64,8 +64,11 @@ Names below are the JS names that `wasm-bindgen` exports.
 - `system.rs`: System Common. `system_fields`, `system_groups`,
   `system_group_label`, `system_field_spec` (`WasmSystemFieldSpec`, with
   `formatValue`, `formatNumber` and `parseValue`), `system_volatile_notice`
-  and `parseSystemCommon` (`WasmSystemCommon`); `buildSystemCommonRequest`
-  and `setSystemField` on `WasmDeviceState`.
+  and `parseSystemCommon` (`WasmSystemCommon`, with `studioSetInForce`);
+  `system_common_address` and `system_common_size` for `requestData`; the
+  SYSTEM-or-STUDIO SET pairs, `SystemOrStudioSet`, `system_pair_selector`
+  and `system_control_source_field`; `buildSystemCommonRequest` and
+  `setSystemField` on `WasmDeviceState`.
 - `expansion.rs`:
   - The catalog and slot helpers: `expansionCatalog`, `stageExpansionSlot`
     and `expansionSlotsAddress`.
@@ -93,8 +96,8 @@ Names below are the JS names that `wasm-bindgen` exports.
   `toSmfOffline` and `loadSmf`.
 - `studio_set_settings.rs`: the Studio Set settings registry:
   `StudioSetSetting`, `studio_set_setting_spec`, `studio_set_setting_count`,
-  `studio_set_field_name` and `studio_set_field_label`, and
-  `WasmDeviceState.setStudioSetField`.
+  `studio_set_field_name`, `studio_set_field_label` and
+  `phase_lock_notice`, and `WasmDeviceState.setStudioSetField`.
 - `waves.rs`: `waveGroups`, `WaveGroup` (Rust `WasmWaveGroup`),
   `waveGroupWavesJson`, `waveName` and `waveStereoPartner`.
 

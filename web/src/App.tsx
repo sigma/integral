@@ -47,6 +47,7 @@ import { Transport } from "./Transport";
 import { KeyboardDrawer } from "./KeyboardDrawer";
 import { PartSettingsDrawer } from "./PartSettingsDrawer";
 import { InitPartItem, SoundCtrlInitItem } from "./PartInitItems";
+import { StudioSetDrawer } from "./StudioSetDrawer";
 import { SequencerPage } from "./SequencerPage";
 import { ExpansionsPage } from "./ExpansionsPage";
 import { SystemPage } from "./SystemPage";
@@ -315,12 +316,31 @@ export function App({
     instance.info?.hostEdits ?? false,
   );
   const [activeTab, setActiveTab] = useState<PageTab>("mixer");
+  // The Studio Set settings drawer: ⚙ in the Studio Set group opens it. It and
+  // the Part settings drawer take the same place: opening one closes the other.
+  const [studioSetSettingsOpen, setStudioSetSettingsOpen] = useState(false);
   // The Part settings drawer stays open across pages, following the selected Part.
   const [partSettingsOpen, setPartSettingsOpen] = useState(false);
   const partSettings = useMemo(
-    () => ({ open: partSettingsOpen, onToggle: () => setPartSettingsOpen((open) => !open) }),
+    () => ({
+      open: partSettingsOpen,
+      onToggle: () => {
+        setPartSettingsOpen((open) => !open);
+        setStudioSetSettingsOpen(false);
+      },
+    }),
     [partSettingsOpen],
   );
+  const openStudioSetSettings = useCallback(() => {
+    setStudioSetSettingsOpen(true);
+    setPartSettingsOpen(false);
+  }, []);
+  const closeStudioSetSettings = useCallback(() => setStudioSetSettingsOpen(false), []);
+  // The drawer's link to the System page, where System's side of each pair is edited.
+  const openSystemFromDrawer = useCallback(() => {
+    setStudioSetSettingsOpen(false);
+    setActiveTab("system");
+  }, []);
   // A plugin shows the pages its kind owns; a browser, all of them.
   const pages = useMemo(
     () => (plugin ? (pluginKind === undefined ? [] : pluginPages(pluginKind)) : browserPages(sequencer !== null)),
@@ -445,6 +465,7 @@ export function App({
               transport={sequencer && <Transport engine={sequencer} />}
               locked={importing}
               partSettings={partSettings}
+              onStudioSetSettings={openStudioSetSettings}
             />
           )}
           {/* The pages, and beside them the Part settings drawer while it is open. */}
@@ -543,6 +564,18 @@ export function App({
                     onOpenSystem={() => setActiveTab("system")}
                     headerActions={<InitPartItem part={mixer.state.selectedPart} />}
                     groupActions={{ [PartSettingGroup.Offset]: <SoundCtrlInitItem /> }}
+                  />
+                </ErrorBoundary>
+              </Lockable>
+            )}
+            {!plugin && studioSetSettingsOpen && (
+              <Lockable locked={importing}>
+                <ErrorBoundary section="Studio Set settings">
+                  <StudioSetDrawer
+                    mixer={mixer}
+                    service={service}
+                    onClose={closeStudioSetSettings}
+                    onOpenSystem={openSystemFromDrawer}
                   />
                 </ErrorBoundary>
               </Lockable>

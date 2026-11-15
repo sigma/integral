@@ -37,6 +37,7 @@ function row({
   const onTab = vi.fn();
   const reload = vi.fn();
   const onToggleSettings = vi.fn();
+  const onStudioSetSettings = vi.fn();
   const mixer = { state, selectPart, reload } as unknown as UseMixerResult;
   const { container } = render(
     <InitProvider service={service} mixer={mixer}>
@@ -52,10 +53,11 @@ function row({
         transport={sequencer ? <button>Panic</button> : null}
         locked={locked}
         partSettings={{ open: settingsOpen, onToggle: onToggleSettings }}
+        onStudioSetSettings={onStudioSetSettings}
       />
     </InitProvider>,
   );
-  return { container, selectPart, onTab, reload, onToggleSettings };
+  return { container, selectPart, onTab, reload, onToggleSettings, onStudioSetSettings };
 }
 
 /** The row's scope groups, by name. */
@@ -118,6 +120,12 @@ describe("the navigation row", () => {
     expect(group(container, "Studio Set").textContent).toContain("Panic");
   });
 
+  it("opens the Studio Set settings drawer from ⚙ in the Studio Set group", () => {
+    const { container, onStudioSetSettings } = row();
+    click(button(group(container, "Studio Set"), "Studio Set settings"));
+    expect(onStudioSetSettings).toHaveBeenCalledTimes(1);
+  });
+
   it("shows the selected Part's receive channel", () => {
     const base = defaultMixerState();
     const parts = base.parts.map((p, i) => (i === 2 ? { ...p, receiveChannel: 9 } : p));
@@ -147,6 +155,7 @@ describe("the navigation row", () => {
     for (const name of ["Studio Set", "Tone"]) {
       expect(inert(button(group(container, name), "SAVE"))).toBe(true);
     }
+    expect(inert(button(group(container, "Studio Set"), "Studio Set settings"))).toBe(true);
     expect(inert(button(group(container, "Part"), "PREVIEW"))).toBe(true);
     expect(inert(group(container, "Part").querySelector("select")!)).toBe(true);
     for (const page of container.querySelectorAll("button[data-page]")) {

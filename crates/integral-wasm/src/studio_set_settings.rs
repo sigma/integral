@@ -61,6 +61,12 @@ pub fn studio_set_field_label(setting: StudioSetSetting, index: u8) -> Result<St
     Ok(field(setting, index)?.label())
 }
 
+/// The manual's caveat the Phase Lock switches show.
+#[wasm_bindgen]
+pub fn phase_lock_notice() -> String {
+    settings::PHASE_LOCK_NOTICE.to_string()
+}
+
 #[wasm_bindgen]
 impl WasmDeviceState {
     /// Set instance `index` (0-based) of a Studio Set setting to `value`:
