@@ -10,7 +10,7 @@ import {
 import { identity_request, initFinishedAddress } from "../pkg/integral_wasm.js";
 import { pluginPorts, type PageMessage, type PluginBridge } from "./plugin";
 import { IDENTIFY_TIMEOUT_MS, LAST_PORT_KEY, webMidiPorts } from "./midi";
-import { button, cleanup, click, render } from "./test/dom";
+import { button, cleanup, click, pointer, render } from "./test/dom";
 import { dt1, fakeMidiAccess, type FakePortSpec } from "./test/midiAccess";
 import { memoryStorage } from "./test/storage";
 
@@ -400,4 +400,85 @@ describe("the Routing page", () => {
     const page = container.querySelector('[role="region"][aria-label="Routing"]');
     expect(page?.textContent).toBe("Loading mixer state from device...");
   });
+});
+
+describe("the Part settings drawer", () => {
+  /** The absolute address Roland 7-bit address `bytes` name. */
+  const at = ([a, b, c, d]: [number, number, number, number]) => (a << 21) | (b << 14) | (c << 7) | d;
+  /** Retry `claim` until it holds, letting the fake device answer. */
+  async function eventually(claim: () => void, ms = 3000): Promise<void> {
+    const deadline = Date.now() + ms;
+    for (;;) {
+      try {
+        claim();
+        return;
+      } catch (e) {
+        if (Date.now() > deadline) throw e;
+      }
+      await act(() => new Promise<void>((resolve) => setTimeout(resolve, 20)));
+    }
+  }
+  const drawer = (scope: ParentNode) => scope.querySelector<HTMLElement>('aside[aria-label="Part settings"]');
+  const knob = (scope: ParentNode, name: string) =>
+    drawer(scope)?.querySelector(`[role="slider"][aria-label="${name}"]`)?.getAttribute("aria-valuenow");
+
+  it("opens from ⚙ on the value read, follows the selected Part across pages, and edits the device", async () => {
+    // Part 1's Key Range Lower (18 00 20 1D), Part 2's Upper (18 00 21 1E) and Cutoff Offset (18 00 21 13).
+    const memory = new Map([
+      [at([0x18, 0x00, 0x20, 0x1d]), 36],
+      [at([0x18, 0x00, 0x21, 0x1e]), 100],
+      [at([0x18, 0x00, 0x21, 0x13]), 80],
+    ]);
+    const { container, midi } = await open(
+      [{ name: "INTEGRA-7", answers: true, memory }],
+      remembering("INTEGRA-7"),
+    );
+    const part = container.querySelector<HTMLElement>('nav [aria-label="Part"]')!;
+    expect(drawer(container)).toBeNull();
+    click(button(part, "Part settings"));
+    // Read with the mixer, editable once the read is done.
+    await eventually(() => {
+      expect(knob(container, "Key Lower")).toBe("36");
+      expect(drawer(container)!.querySelector("[inert]")).toBeNull();
+    }, 10_000);
+
+    // It stays open on another page.
+    click(container.querySelector('button[data-page="surround"]')!);
+    expect(drawer(container)).not.toBeNull();
+
+    // It follows the Part selector.
+    const select = part.querySelector("select")!;
+    act(() => {
+      select.value = "1";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(drawer(container)!.querySelector("header")?.textContent).toContain("Part 2");
+    await eventually(() => expect(knob(container, "Key Upper")).toBe("100"), 10_000);
+
+    // And a Mixer strip: pressing Part 1's selects it, back on the Mixer.
+    click(container.querySelector('button[data-page="mixer"]')!);
+    pointer(container.querySelector('[data-section="strip.part.0"] [data-grid-section]')!, "pointerdown", 0, 0);
+    expect(drawer(container)!.querySelector("header")?.textContent).toContain("Part 1");
+    expect(knob(container, "Key Lower")).toBe("36");
+    act(() => {
+      select.value = "1";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    // An edit goes to Part 2's Cutoff Offset (18 00 21 13), one up from the value read.
+    expect(knob(container, "Cutoff")).toBe("80");
+    const cutoff = drawer(container)!.querySelector('[role="slider"][aria-label="Cutoff"]')!;
+    act(() => {
+      cutoff.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+    });
+    // The edit's DT1 queues behind the mixer read's remaining RQ1s, paced by THROTTLE_MS: about 80
+    // of them, 4-5 s here and over 10 s on a CI runner. Wait for the whole read.
+    await eventually(() =>
+      expect(midi.sent.map((m) => m.bytes.slice(7, 12))).toContainEqual([0x18, 0x00, 0x21, 0x13, 81]),
+      40_000,
+    );
+
+    click(button(part, "Part settings"));
+    expect(drawer(container)).toBeNull();
+  }, 60_000);
 });

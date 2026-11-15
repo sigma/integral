@@ -24,16 +24,19 @@ function row({
   sequencer = true,
   locked = false,
   service = {} as IntegraService,
+  settingsOpen = false,
 }: {
   state?: MixerState;
   tab?: PageTab;
   sequencer?: boolean;
   locked?: boolean;
   service?: IntegraService;
+  settingsOpen?: boolean;
 } = {}) {
   const selectPart = vi.fn();
   const onTab = vi.fn();
   const reload = vi.fn();
+  const onToggleSettings = vi.fn();
   const mixer = { state, selectPart, reload } as unknown as UseMixerResult;
   const { container } = render(
     <InitProvider service={service} mixer={mixer}>
@@ -48,10 +51,11 @@ function row({
         onTab={onTab}
         transport={sequencer ? <button>Panic</button> : null}
         locked={locked}
+        partSettings={{ open: settingsOpen, onToggle: onToggleSettings }}
       />
     </InitProvider>,
   );
-  return { container, selectPart, onTab, reload };
+  return { container, selectPart, onTab, reload, onToggleSettings };
 }
 
 /** The row's scope groups, by name. */
@@ -149,6 +153,19 @@ describe("the navigation row", () => {
       expect(inert(page)).toBe(false);
     }
     expect(inert(button(container, "Panic"))).toBe(false);
+    expect(inert(button(group(container, "Part"), "Part settings"))).toBe(true);
+  });
+
+  it("toggles the Part settings drawer from ⚙ in the Part group, pressed while it is open", () => {
+    const { container, onToggleSettings } = row();
+    const gear = button(group(container, "Part"), "Part settings");
+    expect(gear.textContent).toBe("⚙");
+    expect(gear.getAttribute("aria-pressed")).toBe("false");
+    click(gear);
+    expect(onToggleSettings).toHaveBeenCalledTimes(1);
+    cleanup();
+    const open = row({ settingsOpen: true });
+    expect(button(group(open.container, "Part"), "Part settings").getAttribute("aria-pressed")).toBe("true");
   });
 
   it("puts the Studio Set's Init… right after its SAVE", () => {

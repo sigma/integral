@@ -92,6 +92,13 @@ export interface PartState {
   eq: EqState;
   /** The MFX Type (0 = THRU) of the Part's Temporary tone; absent while unread (or a GM2 tone). */
   mfxType?: number;
+  /**
+   * The Part settings read with the mixer (`PartSetting`), raw values by
+   * core's CLI name (`part_setting_name`: "key-lower"), as `readState`
+   * hands over a map. A field it doesn't hold (the defaults before the
+   * first read) is at its spec's default.
+   */
+  settings: ReadonlyMap<string, number>;
 }
 
 /** State of a single Comp+EQ unit. */
@@ -259,6 +266,7 @@ export function defaultPartState(): PartState {
     toneName: "",
     toneCategory: 0,
     eq: defaultEqState(),
+    settings: new Map(),
   };
 }
 

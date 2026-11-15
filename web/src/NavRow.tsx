@@ -16,7 +16,7 @@ import type { ReactNode } from "react";
 import { Lockable } from "./Lockable";
 import { InitGuard } from "./InitFlow";
 import type { InitScope } from "./init";
-import { PartControls, StudioSetControls, ToneControls } from "./ScopeControls";
+import { PartControls, StudioSetControls, ToneControls, type PartSettingsToggle } from "./ScopeControls";
 import { PAGE_NAMES, type PageTab } from "./pluginPages";
 import type { IntegraService } from "./integra";
 import type { ToneCatalog } from "./toneCatalog";
@@ -148,6 +148,8 @@ interface NavRowProps {
   transport?: ReactNode;
   /** A Pack import runs: the Studio Set, Part and Tone controls are inert. */
   locked: boolean;
+  /** The Part group's ⚙: the Part settings drawer's toggle; none, no ⚙. */
+  partSettings?: PartSettingsToggle;
 }
 
 /** The browser's navigation row, by scope. */
@@ -162,6 +164,7 @@ export function NavRow({
   onTab,
   transport,
   locked,
+  partSettings,
 }: NavRowProps) {
   const nav = { pages, tab, onTab, locked };
   return (
@@ -178,7 +181,7 @@ export function NavRow({
         scope="part"
         {...nav}
         initArea={STUDIO_SET}
-        controls={<PartControls mixer={mixer} />}
+        controls={<PartControls mixer={mixer} settings={partSettings} />}
       />
       <NavScope
         scope="tone"

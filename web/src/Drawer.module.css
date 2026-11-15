@@ -1,0 +1,52 @@
+/* Beside the pages, as tall as they are; its groups scroll inside it. */
+.drawer {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  min-height: 0;
+  background: #1b1d33;
+  border-left: 1px solid #5566c8;
+  box-shadow: -6px 0 18px #0008;
+  color: #e0e0e0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #2d3160;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.close {
+  padding: 3px 8px;
+  font-size: 11px;
+  color: #ddd;
+  background: #262a4d;
+  border: 1px solid #3a3f70;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.close:hover {
+  background: #343a68;
+}
+
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  overflow: auto;
+}

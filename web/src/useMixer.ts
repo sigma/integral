@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { IntegraService } from "./integra";
-import type { MixerField, MixerScopeKind } from "../pkg/integral_wasm.js";
+import type { MixerField, MixerScopeKind, PartSetting } from "../pkg/integral_wasm.js";
 import {
   defaultMixerState,
   type MixerState,
@@ -51,6 +51,8 @@ export interface UseMixerResult {
   changePartTone: (part: number, msb: number, lsb: number, pc: number) => void;
   /** Set a mixer field in a scope; `index` is the part or Comp+EQ unit, ignored for other kinds. */
   setMixerField: (kind: MixerScopeKind, index: number, field: MixerField, value: number) => void;
+  /** Set `part`'s (0-based) Part setting; core keeps a key or velocity range from crossing. */
+  setPartSetting: (part: number, field: PartSetting, value: number) => void;
   setChorusParam: (offset: number, value: number) => void;
   setChorusNibParam: (paramIndex: number, value: number) => void;
   toggleChorusSwitch: () => void;
@@ -266,6 +268,14 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     [service, syncFromRust],
   );
 
+  const setPartSetting = useCallback(
+    (part: number, field: PartSetting, value: number) => {
+      service?.device.setPartSetting(part, field, value);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
   // --- FX ---
 
   const setChorusParam = useCallback(
@@ -324,6 +334,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     state,
     changePartTone,
     setMixerField,
+    setPartSetting,
     setChorusParam,
     setChorusNibParam,
     toggleChorusSwitch,

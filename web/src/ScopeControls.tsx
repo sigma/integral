@@ -4,7 +4,9 @@
  */
 
 import { useState, useCallback, useMemo } from "react";
-import { MixerField, mixer_field_spec } from "../pkg/integral_wasm.js";
+import { MixerField } from "../pkg/integral_wasm.js";
+import { paramFormatter } from "./paramDefaults";
+import type { MixerState } from "./types";
 import { StudioSetSelector } from "./StudioSetSelector";
 import { PartSelector } from "./PartSelector";
 import { ToneSelector } from "./ToneSelector";
@@ -86,19 +88,47 @@ export function StudioSetControls({
   );
 }
 
-/** The Part group's controls: the selector, the Part's receive channel and PREVIEW. */
-export function PartControls({ mixer }: { mixer: UseMixerResult }) {
+/** A receive channel as core shows it ("1" for channel 0). */
+const channelText = paramFormatter(MixerField.PartReceiveChannel);
+
+/**
+ * The selected Part's receive channel as core shows it; none before the
+ * mixer is read, while the Parts hold defaults.
+ */
+export function selectedPartChannel(state: MixerState): string | undefined {
+  const channel = state.loading ? undefined : state.parts[state.selectedPart]?.receiveChannel;
+  return channel === undefined ? undefined : channelText(channel);
+}
+
+/** The Part settings drawer's toggle in the Part group: whether it is open, and what opens or closes it. */
+export interface PartSettingsToggle {
+  open: boolean;
+  onToggle: () => void;
+}
+
+/** The Part group's controls: the selector, the Part's receive channel, ⚙ (the Part settings drawer) and PREVIEW. */
+export function PartControls({ mixer, settings }: { mixer: UseMixerResult; settings?: PartSettingsToggle }) {
   const { state } = mixer;
   const part = state.selectedPart;
-  // Before the mixer is read, the Parts hold defaults: no channel to show.
-  const channel = state.loading ? undefined : state.parts[part]?.receiveChannel;
+  const channel = selectedPartChannel(state);
   return (
     <>
       <PartSelector selectedPart={part} onSelect={mixer.selectPart} />
       {channel !== undefined && (
         <span className={css.channel} title="The Part's receive channel">
-          ch {mixer_field_spec(MixerField.PartReceiveChannel).formatValue(channel)}
+          ch {channel}
         </span>
+      )}
+      {settings && (
+        <button
+          className={`${css.settingsButton} ${settings.open ? css.settingsOpen : ""}`}
+          onClick={settings.onToggle}
+          aria-pressed={settings.open}
+          aria-label="Part settings"
+          title={`${settings.open ? "Close" : "Open"} Part ${part + 1}'s settings`}
+        >
+          ⚙
+        </button>
       )}
       <button
         className={`${css.previewButton} ${state.previewPart > 0 ? css.previewActive : ""}`}

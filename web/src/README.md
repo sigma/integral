@@ -27,13 +27,19 @@ plus the I/O the browser has to do.
   - **Device:** Expansions, Library.
   - **Studio Set:** selector, SAVE; Mixer, Surround, Routing, Sequencer and
     the Transport.
-  - **Part:** selector, receive channel, PREVIEW.
+  - **Part:** selector, receive channel, ⚙ (the Part settings drawer),
+    PREVIEW.
   - **Tone:** selector, SAVE; Edit (the tone editor).
 
   A narrow screen wraps the row between groups. The Sequencer page and the
   Transport render only when a sequencer engine exists. Each page sits in its
   own `ErrorBoundary`. A new page goes in its scope's list in `SCOPE_PAGES`, a
   new control in its scope's `controls` in `NavRow`.
+
+  ⚙ opens the Part settings drawer (`PartSettingsDrawer`,
+  [PRD #588](https://github.com/sigma/integral/issues/588)) at the right of
+  the pages. It stacks the groups of core's Part settings registry for the
+  selected Part, follows the selection and stays open across pages.
 - **Device service.** `integra.ts` (`IntegraService`) is the TypeScript
   side of the link to the device. It pairs MIDI I/O with the core's
   `WasmDeviceState`.
@@ -90,6 +96,8 @@ Pages and editors (`.tsx`):
     lost link ends the busy state and says so.
   - Connection: `DeviceSelector`, and the `DeviceStatus` views.
   - Notes: `KeyboardDrawer`.
+  - Drawers: `Drawer`, the shell (title, header actions, close, stacked
+    groups); `PartSettingsDrawer` in it.
   - Banners and markers: `ExpansionLoadBanner`, `MixerLoadWarning`,
     `NotLoadedMarker`, `PwaUpdateBanner`.
   - Error handling: `ErrorBoundary`.

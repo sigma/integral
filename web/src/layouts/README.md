@@ -83,6 +83,8 @@ Subdirectories (per-screen declarations, all collected by `registry.ts`):
   FX type, and the MFX panel frame.
 - [`mixer`](./mixer/README.md) — the mixer screen: EQ, strip variant sets,
   name plates.
+- [`part-settings`](./part-settings/README.md) — the Part settings
+  drawer's groups.
 - [`pcm-synth`](./pcm-synth/README.md) — PCM Synth COMMON, PMT, the
   partial boxes, and the pair region set keyed by Structure Type.
 - [`sn-acoustic`](./sn-acoustic/README.md) — SN Acoustic Sections and the

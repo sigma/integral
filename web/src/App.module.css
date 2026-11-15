@@ -51,6 +51,22 @@
   min-height: 0;
 }
 
+/* The pages, and the Part settings drawer at their right. */
+.workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Laid out as the body's column was before the drawer sat beside it. */
+.pages {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
 /* Dimmed (and inert) while an Expansion load runs. */
 .bodyBusy {
   composes: dimmed from "./Lockable.module.css";

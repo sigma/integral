@@ -20,6 +20,26 @@
   white-space: nowrap;
 }
 
+.settingsButton {
+  padding: 3px 8px;
+  font-size: 13px;
+  color: #c0c0e0;
+  background: #262a4d;
+  border: 1px solid #3a3f70;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.settingsButton:hover {
+  background: #343a68;
+}
+
+.settingsOpen {
+  color: #fff;
+  background: #5566c8;
+  border-color: #5566c8;
+}
+
 .previewButton {
   padding: 4px 14px;
   font-size: 12px;
