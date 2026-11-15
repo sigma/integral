@@ -3,7 +3,9 @@
  * ([#284](https://github.com/sigma/integral/issues/284)): read once when the
  * page opens and again on Refresh, never polled
  * ([#464](https://github.com/sigma/integral/issues/464)). An edit goes
- * through the core's setter and shows at once.
+ * through the core's setter and shows at once, in every reader of the same
+ * service (the Part settings drawer's SCALE shows the Scale Tune Switch the
+ * System page edits beside it), as does a read.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -37,6 +39,17 @@ export interface UseSystemCommonResult {
   set: (field: SystemField, value: number) => void;
 }
 
+/** What one reader tells the others: a read's values, or one field's edit. */
+type Change = { values: SystemValues } | { field: SystemField; value: number };
+
+/** Every reader of System Common, by service: each takes the others' changes. */
+const readers = new WeakMap<IntegraService, Set<(change: Change) => void>>();
+
+/** Tell every reader of `service` but `from` about `change`. */
+function broadcast(service: IntegraService, from: (change: Change) => void, change: Change) {
+  for (const reader of readers.get(service) ?? []) if (reader !== from) reader(change);
+}
+
 /** Read System Common through `service`: every field's raw value. */
 async function readSystemCommon(
   service: IntegraService,
@@ -65,14 +78,38 @@ export function useSystemCommon(
   // Bumped by every read, so a read overtaken by a later one cannot write.
   const pass = useRef(0);
 
+  // Another reader's read or edit, taken as this one's own.
+  const take = useCallback((change: Change) => {
+    if ("values" in change) {
+      pass.current += 1;
+      setRead({ values: change.values, loading: false, error: null });
+    } else {
+      setRead((prev) =>
+        prev.values
+          ? { ...prev, values: new Map(prev.values).set(change.field, change.value) }
+          : prev,
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    const set = readers.get(service) ?? new Set();
+    readers.set(service, set);
+    set.add(take);
+    return () => {
+      set.delete(take);
+    };
+  }, [service, take]);
+
   const refresh = useCallback(() => {
     pass.current += 1;
     const mine = pass.current;
     setRead((prev) => ({ ...prev, loading: true, error: null }));
     readSystemCommon(service).then(
       (values) => {
-        if (pass.current === mine)
-          setRead({ values, loading: false, error: null });
+        if (pass.current !== mine) return;
+        setRead({ values, loading: false, error: null });
+        broadcast(service, take, { values });
       },
       (err: unknown) => {
         if (pass.current !== mine) return;
@@ -83,7 +120,7 @@ export function useSystemCommon(
         }));
       },
     );
-  }, [service]);
+  }, [service, take]);
 
   useEffect(() => {
     refresh();
@@ -97,13 +134,10 @@ export function useSystemCommon(
     (field: SystemField, value: number) => {
       // The core refuses a value out of range and sends nothing.
       service.device.setSystemField(field, value);
-      setRead((prev) =>
-        prev.values
-          ? { ...prev, values: new Map(prev.values).set(field, value) }
-          : prev,
-      );
+      take({ field, value });
+      broadcast(service, take, { field, value });
     },
-    [service],
+    [service, take],
   );
 
   return { read, refresh, set };

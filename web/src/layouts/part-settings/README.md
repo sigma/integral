@@ -17,9 +17,9 @@ registry (`integral_core::part_settings`), stacked in one column.
 
 ## Invariants
 
-- KBD, PITCH, OFFSET, MIDI and VOICE have layouts. SCALE has none until
-  [#600](https://github.com/sigma/integral/issues/600): the drawer skips a
-  group without one.
+- Every group has a layout; the drawer would skip one without. SCALE
+  ([#600](https://github.com/sigma/integral/issues/600)) lays its 12
+  offsets out as one octave, the black keys' knobs on the upper row.
 - A Control's label may shorten the registry's; its accessible name is the
   registry's label, so two "Fade Lo" knobs stay apart.
 - The layouts read core for their titles and fields, so they are built on

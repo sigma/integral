@@ -3,3 +3,40 @@
   font-size: 11px;
   color: #888;
 }
+
+/* SCALE's notes: the System Scale Tune Switch, and what keeps the scale from acting */
+
+.notes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 11px;
+  color: #aaa;
+}
+
+.link {
+  padding: 0;
+  font: inherit;
+  color: #6af;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.note {
+  margin: 0;
+  font-size: 11px;
+  color: #fa4;
+}

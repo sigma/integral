@@ -247,6 +247,18 @@ pub fn part_setting_group_label(group: PartSettingGroup) -> String {
         .to_string()
 }
 
+/// What the SCALE group says while System Scale Tune Switch is OFF.
+#[wasm_bindgen]
+pub fn part_scale_switched_off_note() -> String {
+    part_settings::SCALE_SWITCHED_OFF_NOTE.to_string()
+}
+
+/// What the SCALE group says when the Part's tone ignores the scale.
+#[wasm_bindgen]
+pub fn part_scale_ignored_note() -> String {
+    part_settings::SCALE_IGNORED_NOTE.to_string()
+}
+
 #[wasm_bindgen]
 impl WasmDeviceState {
     /// The raw value of `part`'s (0-based) `field`.

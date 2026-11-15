@@ -21,7 +21,7 @@ export function fakeToneService(device: WasmDeviceState) {
     sendNoteOff: () => {},
     requestData: async (_address: number[], size: number[]) => {
       // RQ1 size: 4 bytes of 7 bits each.
-      const bytes = size.reduce((n, b) => (n << 7) | b, 0);
+      const bytes = sevenBit(size);
       return new Uint8Array(bytes);
     },
   } as unknown as IntegraService;
@@ -90,6 +90,24 @@ export function dt1Drainer(device: WasmDeviceState, start = 0): () => SentDt1[] 
     }
     return sent;
   };
+}
+
+/** Drain `device`'s queue and return each RQ1 it sends (its address and size), its DT1s skipped. */
+export function sentRequests(device: WasmDeviceState): { address: Uint8Array; size: number }[] {
+  const sent = [];
+  for (let now = 1000; ; now += 1000) {
+    const msg = device.drain(now);
+    if (!msg) break;
+    // RQ1: F0 41 dev 00 00 64 11 <address: 4> <size: 4> sum F7
+    if (msg[6] !== 0x11) continue;
+    sent.push({ address: msg.slice(7, 11), size: sevenBit(msg.slice(11, 15)) });
+  }
+  return sent;
+}
+
+/** A 7-bit big-endian number (an RQ1 size). */
+export function sevenBit(bytes: ArrayLike<number>): number {
+  return Array.from(bytes).reduce((n, b) => (n << 7) | b, 0);
 }
 
 /** The slider control labelled `label` (the first, if several). */

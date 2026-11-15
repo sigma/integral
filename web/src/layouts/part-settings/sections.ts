@@ -1,8 +1,8 @@
 /**
  * The Part settings drawer's Sections, one per group of core's Part
- * settings registry (KBD, PITCH, OFFSET, MIDI, VOICE), stacked in one
- * column of {@link PART_SETTINGS_W} Cells. A group without a layout here
- * (SCALE, until #600) is not drawn.
+ * settings registry (KBD, PITCH, OFFSET, MIDI, VOICE, SCALE), stacked in
+ * one column of {@link PART_SETTINGS_W} Cells. A group without a layout
+ * here is not drawn.
  */
 
 import {
@@ -117,12 +117,52 @@ const VOICE: GroupBody = {
   items: [knob(F.VoiceReserve, 0, 0, "Reserve")],
 };
 
+/** The white keys' offsets, C to B, along the lower row. */
+const WHITE_KEYS: readonly F[] = [
+  F.ScaleTuneC,
+  F.ScaleTuneD,
+  F.ScaleTuneE,
+  F.ScaleTuneF,
+  F.ScaleTuneG,
+  F.ScaleTuneA,
+  F.ScaleTuneB,
+];
+/** The black keys' offsets on the upper row, each over the gap after white key `after`. */
+const BLACK_KEYS: readonly [F, number][] = [
+  [F.ScaleTuneCSharp, 0],
+  [F.ScaleTuneDSharp, 1],
+  [F.ScaleTuneFSharp, 3],
+  [F.ScaleTuneGSharp, 4],
+  [F.ScaleTuneASharp, 5],
+];
+/** The black keys' row top: under the Type and Key pickers. */
+const BLACK_ROW = FOOTPRINT.picker.h + 1;
+/** The white keys' row top. */
+const WHITE_ROW = BLACK_ROW + FOOTPRINT.knobSm.h;
+
+/** Scale Tune Type and Key, then the 12 offsets laid out as one octave, the black keys' knobs above the white keys'. */
+const SCALE: GroupBody = {
+  h: WHITE_ROW + FOOTPRINT.knobSm.h,
+  items: [
+    { kind: "picker", field: F.ScaleTuneType, x: 0, y: 0, w: FOOTPRINT.picker.w, label: "Type" },
+    { kind: "picker", field: F.ScaleTuneKey, x: FOOTPRINT.picker.w + 2, y: 0, w: FOOTPRINT.dropdownW, label: "Key" },
+    ...BLACK_KEYS.map(([field, after]) => ({
+      kind: "knob" as const,
+      field,
+      x: after * FOOTPRINT.knobSm.w + FOOTPRINT.knobSm.w / 2,
+      y: BLACK_ROW,
+    })),
+    ...WHITE_KEYS.map((field, i) => knob(field, i, WHITE_ROW)),
+  ],
+};
+
 const BODIES: ReadonlyMap<PartSettingGroup, GroupBody> = new Map([
   [PartSettingGroup.Kbd, KBD],
   [PartSettingGroup.Pitch, PITCH],
   [PartSettingGroup.Offset, OFFSET],
   [PartSettingGroup.Midi, MIDI],
   [PartSettingGroup.Voice, VOICE],
+  [PartSettingGroup.Scale, SCALE],
 ]);
 
 /**

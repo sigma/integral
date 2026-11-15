@@ -30,6 +30,7 @@ function draw(state: MixerState) {
     <InitProvider service={fake.service} mixer={{ reload: vi.fn() }}>
       <PartSettingsDrawer
         mixer={{ state: s, setPartSetting: vi.fn() } as unknown as UseMixerResult}
+        service={fake.service}
         onClose={() => {}}
         headerActions={<InitPartItem part={s.selectedPart} />}
         groupActions={{ [PartSettingGroup.Offset]: <SoundCtrlInitItem /> }}

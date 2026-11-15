@@ -4,7 +4,6 @@ import {
   SystemField,
   WasmDeviceState,
   system_common_address,
-  system_common_size,
   system_field_spec,
   system_group_label,
   system_group_note,
@@ -13,6 +12,7 @@ import {
 } from "../pkg/integral_wasm.js";
 import { SystemPage } from "./SystemPage";
 import { button, cleanup, click, option, render } from "./test/dom";
+import { systemCommonDump } from "./test/system";
 import {
   arrowUp,
   dt1Drainer,
@@ -22,19 +22,6 @@ import {
 } from "./test/toneService";
 
 afterEach(cleanup);
-
-const BLOCK_LEN = system_common_size().reduce((n, b) => (n << 7) | b, 0);
-
-/** A System Common dump holding `values`, encoded by the core's own setter. */
-function dump(values: ReadonlyArray<[SystemField, number]>): Uint8Array {
-  const block = new Uint8Array(BLOCK_LEN);
-  const device = new WasmDeviceState(0x10);
-  for (const [field, value] of values) device.setSystemField(field, value);
-  for (const { address, data } of dt1Drainer(device)())
-    block.set(data, address[3]!);
-  device.free();
-  return block;
-}
 
 /** The DT1s the core sends for `edits`, in order. */
 function expectedDt1s(edits: ReadonlyArray<[SystemField, number]>): SentDt1[] {
@@ -70,7 +57,7 @@ const valueOf = (scope: ParentNode, field: SystemField) =>
 describe("SystemPage", () => {
   it("reads System Common when it opens and shows each group with what it read", async () => {
     const { container, reads } = await page(
-      dump([
+      systemCommonDump([
         [SystemField.SystemTempo, 121],
         [SystemField.MasterKeyShift, 66],
       ]),
@@ -85,7 +72,7 @@ describe("SystemPage", () => {
   });
 
   it("always says the settings last until power-off, and where Ext Part Source Select is set", async () => {
-    const { container } = await page(dump([]));
+    const { container } = await page(systemCommonDump([]));
     expect(container.querySelector('[role="note"]')?.textContent).toBe(
       system_volatile_notice(),
     );
@@ -96,8 +83,8 @@ describe("SystemPage", () => {
 
   it("re-reads on Refresh", async () => {
     const { container, reads } = await page(
-      dump([[SystemField.SystemTempo, 121]]),
-      dump([[SystemField.SystemTempo, 90]]),
+      systemCommonDump([[SystemField.SystemTempo, 121]]),
+      systemCommonDump([[SystemField.SystemTempo, 90]]),
     );
     await act(async () => click(button(container, "Refresh")));
 
@@ -112,7 +99,7 @@ describe("SystemPage", () => {
     service.requestData = () => {
       if (first) {
         first = false;
-        return Promise.resolve(dump([[SystemField.SystemTempo, 121]]));
+        return Promise.resolve(systemCommonDump([[SystemField.SystemTempo, 121]]));
       }
       return new Promise((resolve) => (answer = resolve));
     };
@@ -122,13 +109,13 @@ describe("SystemPage", () => {
 
     expect(button(container, "Refresh").disabled).toBe(true);
     expect(valueOf(container, SystemField.SystemTempo)).toBe(121);
-    await act(async () => answer(dump([[SystemField.SystemTempo, 90]])));
+    await act(async () => answer(systemCommonDump([[SystemField.SystemTempo, 90]])));
     expect(valueOf(container, SystemField.SystemTempo)).toBe(90);
   });
 
   it("sends one edit per group and shows it", async () => {
     const { container, sentDt1s } = await page(
-      dump([
+      systemCommonDump([
         [SystemField.MasterKeyShift, 64],
         [SystemField.SystemTempo, 120],
       ]),
@@ -176,7 +163,7 @@ describe("SystemPage", () => {
 
   it("names a System Control Source from the Control Source list", async () => {
     const { container } = await page(
-      dump([[SystemField.SystemControl1Source, 1]]),
+      systemCommonDump([[SystemField.SystemControl1Source, 1]]),
     );
     expect(
       control(container, SystemField.SystemControl1Source).textContent,
@@ -185,7 +172,7 @@ describe("SystemPage", () => {
 
   it("shows a value it doesn't write as read", async () => {
     // The USB rate's byte, as a panel edit leaves it: 96 kHz, which no edit here sends.
-    const block = dump([]);
+    const block = systemCommonDump([]);
     const [usb] = expectedDt1s([[SystemField.UsbAudioSamplingRate, 0]]);
     block[usb!.address[3]!] = 2;
     const { container } = await page(block);
@@ -202,7 +189,7 @@ describe("SystemPage", () => {
     let fail = true;
     service.requestData = async () => {
       if (fail) throw new Error("RQ1 timeout for 02 00 00 00");
-      return dump([[SystemField.SystemTempo, 121]]);
+      return systemCommonDump([[SystemField.SystemTempo, 121]]);
     };
     const { container } = render(<SystemPage service={service} />);
     await act(async () => {});

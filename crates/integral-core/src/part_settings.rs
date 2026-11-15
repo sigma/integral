@@ -218,6 +218,13 @@ pub enum PartSettingError {
     },
 }
 
+/// What the SCALE group says while System Scale Tune Switch is OFF.
+pub const SCALE_SWITCHED_OFF_NOTE: &str = "System Scale Tune is OFF: Part scales have no effect";
+
+/// What the SCALE group says when the Part's tone ignores the scale (see
+/// [`crate::relevance::tone_ignores_scale`]).
+pub const SCALE_IGNORED_NOTE: &str = "This Part's tone ignores the scale";
+
 /// Scale Tune Type CUSTOM: what the device sets the Type to once an offset
 /// is written (`docs/midi/99-undocumented.md` §11).
 pub const SCALE_TUNE_CUSTOM: u8 = 0;

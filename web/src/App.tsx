@@ -538,7 +538,9 @@ export function App({
                 <ErrorBoundary section="Part settings">
                   <PartSettingsDrawer
                     mixer={mixer}
+                    service={service}
                     onClose={() => setPartSettingsOpen(false)}
+                    onOpenSystem={() => setActiveTab("system")}
                     headerActions={<InitPartItem part={mixer.state.selectedPart} />}
                     groupActions={{ [PartSettingGroup.Offset]: <SoundCtrlInitItem /> }}
                   />

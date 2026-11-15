@@ -45,7 +45,8 @@ plus the I/O the browser has to do.
   [#591](https://github.com/sigma/integral/issues/591)). The groups a Part
   Init resets are guarded by it (VOICE is Studio Set Common: it isn't), and
   OFFSET by Sound Ctrl Init too. The Mixer guards each Part's strip by its
-  Part Init, but not its EQ.
+  Part Init, but not its EQ. Its SCALE group reads the System Scale Tune
+  Switch (`useSystemCommon`) and links to the System page.
 - **Device service.** `integra.ts` (`IntegraService`) is the TypeScript
   side of the link to the device. It pairs MIDI I/O with the core's
   `WasmDeviceState`.
@@ -216,7 +217,8 @@ State and hooks:
 - Mixer and editing: `useMixer`, `useMfxHandlers`, `useDrumKey`,
   `useKeyPrefetch`.
 - Expansions: `useExpansions`, `useExpansionStaging`.
-- System: `useSystemCommon`.
+- System: `useSystemCommon`; every reader of one service shares its reads
+  and edits.
 - Librarian: `useLibraryExport`, `useLibraryImport`, `useUserSlots`,
   `useBankEntries`.
 - Notes: `useKeyboard`.
