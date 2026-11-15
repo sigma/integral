@@ -15,6 +15,7 @@ use thiserror::Error;
 use crate::address::Address;
 use crate::device_spec::{INTEGRA7, MIDI_CHANNELS};
 use crate::family::ParameterFamily;
+use crate::mfx_params::ControlSourceKind;
 use crate::params::{self, ToneType};
 use crate::state::{CompEqUnit, DrumCompEqState, EqState, SurroundPartState, SurroundState};
 
@@ -87,6 +88,15 @@ pub enum ParamFormat {
         /// What it and the values above show.
         name: &'static str,
     },
+    /// A Control Source of `kind`, by name
+    /// ([`control_source_name`](crate::mfx_params::control_source_name)):
+    /// `CC01`, `BEND`. An unused number shows as itself. A picker lists
+    /// [`control_source_choices`](crate::mfx_params::control_source_choices).
+    ControlSource(ControlSourceKind),
+    /// The System Master Tune as the frequency of A4 in Hz, two decimals,
+    /// so that each 0.1-cent step reads apart: 24 -> "415.30 Hz", 1024 ->
+    /// "440.00 Hz" ([`master_tune_hz`](crate::system::master_tune_hz)).
+    MasterTune,
 }
 
 /// A device catalog a field picks one entry of by name: its numbers name
@@ -261,6 +271,7 @@ impl ParamFormat {
             | ParamFormat::Decibels(center)
             | ParamFormat::SignedStep { center, .. } => Some(*center),
             ParamFormat::Pan => Some(64),
+            ParamFormat::MasterTune => Some(crate::system::MASTER_TUNE_CENTER),
             _ => None,
         }
     }
@@ -287,6 +298,7 @@ impl ParamFormat {
             ParamFormat::Percent => (value.to_string(), PERCENT),
             ParamFormat::Decibels(center) => (ParamFormat::SignedCenter(*center).number(value), DB),
             ParamFormat::Table { values, unit } => (label(values, value), unit),
+            ParamFormat::MasterTune => (format!("{:.2}", crate::system::master_tune_hz(value)), HZ),
             _ => (self.number(value), ""),
         }
     }
@@ -355,9 +367,14 @@ impl ParamFormat {
             | ParamFormat::SnLfoRate
             | ParamFormat::Percent
             | ParamFormat::Decibels(_)
-            | ParamFormat::Table { .. } => value.to_string(),
+            | ParamFormat::Table { .. }
+            | ParamFormat::MasterTune => value.to_string(),
             ParamFormat::Catalog(catalog) => catalog
                 .name(value)
+                .map_or_else(|| value.to_string(), str::to_string),
+            ParamFormat::ControlSource(kind) => u8::try_from(value)
+                .ok()
+                .and_then(|v| crate::mfx_params::control_source_name(*kind, v))
                 .map_or_else(|| value.to_string(), str::to_string),
         }
     }

@@ -353,10 +353,12 @@ mod display;
 mod part_settings;
 mod plugin;
 mod relevance;
+mod system;
 pub use display::{DisplayKind, DisplayProp, WasmDisplaySlot, display_binding};
 pub use part_settings::{PartSetting, PartSettingGroup};
 pub use plugin::PluginKind;
 pub use relevance::Relevance;
+pub use system::{SystemField, SystemGroup, WasmSystemCommon, WasmSystemFieldSpec};
 
 /// Tone type of a Part's Temporary Tone, selecting which tone type block
 /// (and so which MFX block) an edit addresses (mirrors [`params::ToneType`]).

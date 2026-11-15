@@ -47,6 +47,7 @@ use crate::sn_drum::{SndCommonField, SndNoteField};
 use crate::sn_synth::{SnSynthTone, SnSynthToneBlocks, SnsBlock, SnsCommonField, SnsPartialField};
 use crate::state::{EqState, FxState, MixerState, SurroundPartState};
 use crate::sysex;
+use crate::system::{self, SystemField, SystemValueOutOfRange};
 
 /// Minimum interval between SysEx sends (ms).
 ///
@@ -1242,6 +1243,27 @@ impl DeviceState {
     pub fn set_master_level(&mut self, value: u8) {
         self.state.master_level = value;
         self.send_dt1(&params::SYSTEM_MASTER_LEVEL, &[value]);
+    }
+
+    /// Build the RQ1 that reads all of System Common
+    /// ([`system::parse_system_common`] parses its reply).
+    pub fn build_system_common_request(&self) -> Vec<u8> {
+        system::build_read_request(self.device_id)
+    }
+
+    /// Set a System Common field, sent nibblized when the field is. The
+    /// edit lasts until power-off ([`system::VOLATILE_NOTICE`]).
+    ///
+    /// # Errors
+    /// `value` is outside the field's range; nothing is sent.
+    pub fn set_system_field(
+        &mut self,
+        field: SystemField,
+        value: i32,
+    ) -> Result<(), SystemValueOutOfRange> {
+        let data = system::encode_value(field, value)?;
+        self.send_dt1(&field.address(), &data);
+        Ok(())
     }
 
     /// Set a chorus core parameter (type, level, output assign or output
@@ -3346,6 +3368,48 @@ mod tests {
                 .is_ok()
         );
         assert!(dev.has_pending());
+    }
+
+    #[test]
+    fn system_setters_send_each_field_as_a_dt1_at_its_address() {
+        use crate::system::SystemField;
+        let mut dev = DeviceState::new(0x10);
+        dev.set_system_field(SystemField::MasterTune, 1103).unwrap();
+        dev.set_system_field(SystemField::SystemTempo, 121).unwrap();
+        dev.set_system_field(SystemField::UsbAudioSamplingRate, 1)
+            .unwrap();
+        for (now, offset, data) in [
+            (0.0, 0x00, vec![0x00, 0x04, 0x04, 0x0F]),
+            (100.0, 0x26, vec![0x07, 0x09]),
+            (200.0, 0x2E, vec![0x01]),
+        ] {
+            assert_eq!(
+                dev.drain(now),
+                Some(sysex::build_dt1(
+                    0x10,
+                    &Address::new(0x02, 0x00, 0x00, offset),
+                    &data
+                ))
+            );
+        }
+    }
+
+    #[test]
+    fn a_system_value_out_of_range_sends_nothing() {
+        use crate::system::SystemField;
+        let mut dev = DeviceState::new(0x10);
+        assert!(dev.set_system_field(SystemField::SystemTempo, 19).is_err());
+        assert!(!dev.has_pending());
+    }
+
+    #[test]
+    fn system_common_reads_with_the_discovered_device_id() {
+        let dev = DeviceState::new(0x11);
+        assert_eq!(
+            dev.build_system_common_request(),
+            crate::system::build_read_request(0x11)
+        );
+        assert_eq!(dev.build_system_common_request()[2], 0x11);
     }
 
     #[test]

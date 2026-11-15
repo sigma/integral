@@ -60,6 +60,7 @@ pub mod svd;
 pub mod svd_convert;
 pub mod svd_specs;
 pub mod sysex;
+pub mod system;
 pub mod tone_banks;
 pub mod tone_catalog;
 pub mod user_write;

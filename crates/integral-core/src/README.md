@@ -44,6 +44,12 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
   - `load_mixer` and `load_sns_tone` start tracked reads that are retried.
   - `start_expansion_load` and `next_load_action` run an Expansion load.
   - `set_mixer_field` and the typed `set_*` setters edit parameters.
+- `system.rs`: System Common (`02 00 00 00`, 47 bytes). `SystemField` and
+  `system_spec` (`SystemFieldSpec`: CLI name, label, `SystemGroup`, range,
+  format; `parse` reads a display string back) are its registry;
+  `build_read_request` and `parse_system_common` (`SystemCommon`) read it, and `DeviceState::set_system_field` writes a
+  field. Master Level stays a mixer field. `VOLATILE_NOTICE` says System
+  edits last until power-off.
 - `device_spec.rs`: the device specification layer. It holds
   `INTEGRA7: DeviceSpec` (part count and other device constants), the
   `USER_MEMORY` layouts (`UserMemorySpec`, `BlockRun`) and `KeyRange`.
@@ -76,7 +82,9 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
 
 - `param_registry.rs`:
   - `ParamDef` and `ParamFormat` describe a parameter and its display
-    format, and `format_value` formats a value.
+    format, and `format_value` formats a value. `ParamFormat::MasterTune`
+    shows the System Master Tune in Hz (`system::master_tune_hz`), and
+    `ParamFormat::ControlSource` names a Control Source.
   - `FieldCatalog` and `CatalogOption` are the named value lists.
   - `MixerField` and `MixerScope` describe a mixer parameter, and
     `mixer_field_address` and `mixer_param` resolve it.

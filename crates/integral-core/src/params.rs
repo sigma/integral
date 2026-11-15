@@ -26,7 +26,7 @@ pub const SETUP_STUDIO_SET_PC: Address = Address::new(0x01, 0x00, 0x00, 0x06);
 // ---------------------------------------------------------------------------
 
 /// System Common: Master Level (0–127).
-pub const SYSTEM_MASTER_LEVEL: Address = Address::new(0x02, 0x00, 0x00, 0x05);
+pub const SYSTEM_MASTER_LEVEL: Address = crate::address::SYSTEM_COMMON.offset([0, 0, 0, 0x05]);
 
 // ---------------------------------------------------------------------------
 // Studio Set Common (base: 18 00 00 00)
@@ -261,7 +261,8 @@ pub mod part {
 
 /// System Studio Set Control Channel (0–15 → ch 1–16, 16=OFF): a Program
 /// Change on it selects a Studio Set.
-pub const SYSTEM_STUDIO_SET_CONTROL_CHANNEL: Address = Address::new(0x02, 0x00, 0x00, 0x11);
+pub const SYSTEM_STUDIO_SET_CONTROL_CHANNEL: Address =
+    crate::system::SystemField::StudioSetControlChannel.address();
 
 /// Compute the absolute address for a Studio Set Part parameter.
 ///
