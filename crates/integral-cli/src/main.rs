@@ -190,6 +190,12 @@ enum Command {
         #[command(subcommand)]
         command: WaveCommand,
     },
+    /// Show and set the System settings (System Common). They last until
+    /// power-off.
+    System {
+        #[command(subcommand)]
+        command: SystemCommand,
+    },
 }
 
 /// The `--port` and `--timeout` options shared by the subcommands that
@@ -283,6 +289,27 @@ enum PartCommand {
         /// Field name, as `part show` lists them (`key-lower`, `bend-range`).
         field: String,
         /// Value in its display form (`C4`, `+12`, `ON`, `TONE`).
+        #[arg(allow_hyphen_values = true)]
+        value: String,
+    },
+}
+
+/// `system` subcommands.
+#[derive(Subcommand)]
+enum SystemCommand {
+    /// Print every System field by name, with its value.
+    Show {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+    },
+    /// Set one System field, e.g. `master-tune 442.0` or
+    /// `scale-tune-switch ON`. It lasts until power-off.
+    Set {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+        /// The field, as `system show` names it.
+        field: String,
+        /// The value, as `system show` displays it (Master Tune in Hz).
         #[arg(allow_hyphen_values = true)]
         value: String,
     },
@@ -677,5 +704,21 @@ fn main() -> Result<()> {
         Command::Wave {
             command: WaveCommand::List { group, all, format },
         } => commands::wave::list(group.as_deref(), all, format),
+        Command::System {
+            command: SystemCommand::Show { conn },
+        } => commands::system::show(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
+        ),
+        Command::System {
+            command: SystemCommand::Set { conn, field, value },
+        } => commands::system::set(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
+            &field,
+            &value,
+        ),
     }
 }

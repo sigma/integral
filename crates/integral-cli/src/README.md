@@ -22,6 +22,7 @@ live in sibling modules, and the command bodies live in
     - `init <studio-set|sound-ctrl|part|tone|partial>`
     - `part {show, set}`
     - `wave {list}`
+    - `system {show, set}`
   - The shared option groups are `PortTimeoutArgs`, `ConnectionArgs` and
     `RawConnectionArgs` (`--port`, `--timeout`, `--device-id`).
   - `resolve_device_id` returns the explicit device ID, or detects it.

@@ -456,3 +456,81 @@ fn part_takes_only_the_devices_parts() {
         "{output:?}"
     );
 }
+
+#[test]
+fn system_show_reads_system_common_through_the_service() {
+    use integral_core::address::SYSTEM_COMMON;
+    use integral_core::system::{SYSTEM_COMMON_LEN, SYSTEM_COMMON_SIZE};
+
+    let fixture = Fixture::start("sysshow");
+    let child = fixture
+        .integral(&["system", "show", "--device-id", CLI_DEVICE_ID])
+        .spawn()
+        .expect("run integral");
+
+    fixture.wait_sent(&sysex::build_rq1(
+        DEVICE_ID,
+        &SYSTEM_COMMON,
+        &SYSTEM_COMMON_SIZE,
+    ));
+    let mut data = [0u8; SYSTEM_COMMON_LEN];
+    data[0x00..0x04].copy_from_slice(&[0, 4, 0, 0]); // 440.00 Hz
+    data[0x04] = 61; // Key Shift -3
+    data[0x26..0x28].copy_from_slice(&[7, 8]); // 120
+    fixture
+        .link
+        .device_says(&sysex::build_dt1(DEVICE_ID, &SYSTEM_COMMON, &data));
+
+    let (ok, stdout, stderr) = finish(child);
+    assert!(ok, "{stderr}");
+    assert!(stdout.contains("master-tune "), "{stdout}");
+    assert!(stdout.contains("440.00 Hz"), "{stdout}");
+    assert!(stdout.contains("-3"), "{stdout}");
+    assert!(stdout.contains("usb-audio-sampling-rate"), "{stdout}");
+}
+
+#[test]
+fn system_set_writes_the_field_and_says_it_lasts_until_power_off() {
+    use integral_core::system::{SystemField, VOLATILE_NOTICE};
+
+    let fixture = Fixture::start("sysset");
+    let child = fixture
+        .integral(&[
+            "system",
+            "set",
+            "--device-id",
+            CLI_DEVICE_ID,
+            "master-key-shift",
+            "-3",
+        ])
+        .spawn()
+        .expect("run integral");
+    let (ok, stdout, stderr) = finish(child);
+    assert!(ok, "{stderr}");
+    assert!(stdout.contains("master-key-shift = -3"), "{stdout}");
+    assert!(stdout.contains(VOLATILE_NOTICE), "{stdout}");
+
+    let dt1 = sysex::build_dt1(DEVICE_ID, &SystemField::MasterKeyShift.address(), &[61]);
+    fixture.wait_sent(&dt1);
+}
+
+#[test]
+fn system_set_refuses_an_unknown_field_before_any_send() {
+    let fixture = Fixture::start("sysbad");
+    let child = fixture
+        // No --device-id: had a port opened, its Identity Request would show.
+        .integral(&["system", "set", "master-volume", "1"])
+        .spawn()
+        .expect("run integral");
+    let (ok, _, stderr) = finish(child);
+    assert!(!ok);
+    assert!(
+        stderr.contains("unknown System field: master-volume"),
+        "{stderr}"
+    );
+    assert!(
+        fixture.link.sent().is_empty(),
+        "{:02X?}",
+        fixture.link.sent()
+    );
+}

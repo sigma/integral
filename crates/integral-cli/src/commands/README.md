@@ -72,6 +72,10 @@ offline.
   tone type's CLI name (`pcm-synth`). The line builders
   `pcm_synth_lines`, `pcm_drum_lines`, `sn_synth_lines` and `no_waves_line`
   are public.
+- `system.rs`: `show` and `set` read and write System Common by the
+  field names of core's `system` registry. `parse_set` turns a field name
+  and a display value into a `SystemField` and its raw value, and
+  `render_show` renders one `name  value` line per field, the values aligned.
 - `wave.rs`: `list`, `parse_group`, `format_number`, `render_list` and
   `Listing` browse the Wave catalog offline.
 
@@ -113,6 +117,9 @@ offline.
   Lower), as `DeviceState::set_part_setting` does; it says so on `stderr`.
   A Scale Tune Type or Key write also sends that call's re-read of the
   Part's settings, whose reply the CLI doesn't wait for.
+- `system set` checks the field and value before opening a port, sends one
+  DT1 through `DeviceState::set_system_field`, and prints core's
+  `VOLATILE_NOTICE`: no SysEx saves System edits.
 - DT1 bursts go through `Throttle`, which uses `DeviceState`'s raw queue so
   that writes are not merged.
 
@@ -121,9 +128,9 @@ offline.
 - MIDI out:
   - Identity Request.
   - RQ1 reads: `dump`, `raw`, `svd`, `tone_waves`, `expansion`, `part`,
-    `pack export`, and the `pack import` slot-name reads.
+    `pack export`, `system show`, and the `pack import` slot-name reads.
   - DT1 writes: `write`, `raw-send`, `part set`, `expansion load`,
-    `pack import` and `pack reinit`.
+    `pack import`, `pack reinit` and `system set`.
   - The Init request (an RQ1 at `0F 00 18 TT`): `init`. It changes only
     Temporary memory.
   - Raw hex SysEx.
