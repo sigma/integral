@@ -46,7 +46,8 @@ Pages and editors (`.tsx`):
   - `App` (props: `openPorts`, `storage`) — the shell.
   - `MixerPage`, with `ChannelStrip`, `FxStrip` and `mixerDisplays.tsx`.
   - `SurroundPage`, with `SurroundXYPad`.
-  - `ToneEditorPage` — picks the editor from the part's bank.
+  - `ToneEditorPage` — picks the editor from the part's bank. The web page's
+    header has Tone Init… for an editable tone; a plugin's editor has none.
   - `SequencerPage`, with `Transport` and `Piano`.
   - `ExpansionsPage`.
   - `LibraryPage`, with `PackPane`, `PackExportPane`, `PackImportPane` and

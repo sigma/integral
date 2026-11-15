@@ -5,7 +5,8 @@ import { SnAcousticEditor } from "./SnAcousticEditor";
 import { SnDrumEditor } from "./SnDrumEditor";
 import { PcmSynthEditor } from "./PcmSynthEditor";
 import { PcmDrumEditor } from "./PcmDrumEditor";
-import { useInit } from "./InitFlow";
+import { InitGuard, useInit } from "./InitFlow";
+import type { InitScope } from "./init";
 import type { IntegraService } from "./integra";
 import type { UseMixerResult } from "./useMixer";
 import type { ExpansionMarking } from "./WavePicker";
@@ -44,8 +45,10 @@ export function ToneEditorPage({
   // types; core knows which from the bank, and which banks can't be edited.
   const partIndex = bound ?? mixer.state.selectedPart;
   const part = mixer.state.parts[partIndex]!;
+  const init = useInit();
+  const toneArea: InitScope = { kind: "tone", part: partIndex };
   // A Tone, Partial, Part or Studio Set Init re-reads the editor the same way.
-  const inits = useInit().rereads(partIndex);
+  const initRereads = init.rereads(partIndex);
   const msb = part.toneBankMsb;
   const holds = is_editable_bank(msb) ? tone_type_from_bank_msb(msb) : undefined;
   // A plugin edits its own type only: another type is inert (ADR 0007).
@@ -59,30 +62,42 @@ export function ToneEditorPage({
           <button className={css.backButton} onClick={onBack}>
             Back to Mixer
           </button>
+          {/* Only the web page has this header: a plugin's editor has no Init (web first). */}
+          {toneType !== undefined && (
+            <button
+              className={css.initButton}
+              disabled={init.running !== null}
+              onClick={() => init.request(toneArea)}
+            >
+              Init…
+            </button>
+          )}
         </div>
       )}
-      {/* Keyed on tone identity so a new tone pick remounts and re-reads the editor. */}
-      <Fragment key={`${part.toneBankMsb}-${part.toneBankLsb}-${part.tonePC}-${reread ?? 0}-${inits}`}>
-        {toneType === ToneType.PcmDrum ? (
-          <PcmDrumEditor partIndex={partIndex} service={service} marking={marking} scope={drum} />
-        ) : toneType === ToneType.PcmSynth ? (
-          <PcmSynthEditor partIndex={partIndex} service={service} marking={marking} />
-        ) : toneType === ToneType.SnSynth ? (
-          <SnSynthEditor partIndex={partIndex} service={service} />
-        ) : toneType === ToneType.SnAcoustic ? (
-          <SnAcousticEditor partIndex={partIndex} service={service} />
-        ) : toneType === ToneType.SnDrum ? (
-          <SnDrumEditor partIndex={partIndex} service={service} scope={drum} />
-        ) : (
-          <div className={css.placeholder}>
-            {mismatch
-              ? "This Part holds another type of tone than this plugin edits, so the plugin stays inert."
-              : tone_type_from_bank_msb(msb) === undefined
-              ? `Bank MSB ${msb} isn't a tone bank, so there's no tone to edit.`
-              : "The INTEGRA-7 can't edit GM2 or ExPCM tones. Pick a Preset, User or SRX tone to edit it."}
-          </div>
-        )}
-      </Fragment>
+      <InitGuard area={toneArea}>
+        {/* Keyed on tone identity so a new tone pick remounts and re-reads the editor. */}
+        <Fragment key={`${part.toneBankMsb}-${part.toneBankLsb}-${part.tonePC}-${reread ?? 0}-${initRereads}`}>
+          {toneType === ToneType.PcmDrum ? (
+            <PcmDrumEditor partIndex={partIndex} service={service} marking={marking} scope={drum} />
+          ) : toneType === ToneType.PcmSynth ? (
+            <PcmSynthEditor partIndex={partIndex} service={service} marking={marking} />
+          ) : toneType === ToneType.SnSynth ? (
+            <SnSynthEditor partIndex={partIndex} service={service} />
+          ) : toneType === ToneType.SnAcoustic ? (
+            <SnAcousticEditor partIndex={partIndex} service={service} />
+          ) : toneType === ToneType.SnDrum ? (
+            <SnDrumEditor partIndex={partIndex} service={service} scope={drum} />
+          ) : (
+            <div className={css.placeholder}>
+              {mismatch
+                ? "This Part holds another type of tone than this plugin edits, so the plugin stays inert."
+                : tone_type_from_bank_msb(msb) === undefined
+                ? `Bank MSB ${msb} isn't a tone bank, so there's no tone to edit.`
+                : "The INTEGRA-7 can't edit GM2 or ExPCM tones. Pick a Preset, User or SRX tone to edit it."}
+            </div>
+          )}
+        </Fragment>
+      </InitGuard>
     </div>
   );
 }

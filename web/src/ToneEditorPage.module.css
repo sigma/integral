@@ -30,6 +30,16 @@
   background: #3a3a5a;
 }
 
+/* Beside the way back, before the tone name the editor heads with. */
+.initButton {
+  composes: backButton;
+}
+
+.initButton:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
 .placeholder {
   display: flex;
   align-items: center;

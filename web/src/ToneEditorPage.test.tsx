@@ -1,7 +1,8 @@
 import { act, type ComponentProps } from "react";
-import { afterEach, describe, expect, it } from "vitest";
-import { ToneType, WasmDeviceState } from "../pkg/integral_wasm.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ToneType, WasmDeviceState, is_editable_bank, tone_type_from_bank_msb } from "../pkg/integral_wasm.js";
 import { InitProvider, useInit } from "./InitFlow";
+import type { IntegraService } from "./integra";
 import { ToneEditorPage } from "./ToneEditorPage";
 import type { UseMixerResult } from "./useMixer";
 import { button, cleanup, click, render } from "./test/dom";
@@ -18,6 +19,20 @@ afterEach(cleanup);
 
 /** The bank MSB of the other part's tone: an SRX bank, which holds PCM Synth tones. */
 const OTHER_MSB = 87;
+
+/** Count `service`'s data requests: the reads the editor makes. */
+function countReads(service: IntegraService): () => number {
+  const answer = service.requestData.bind(service);
+  let reads = 0;
+  service.requestData = (address, size) => {
+    reads++;
+    return answer(address, size);
+  };
+  return () => reads;
+}
+
+/** Every Bank Select MSB. */
+const MSBS = [...Array(128).keys()];
 
 /** The page for part 1 holding a tone from bank `msb`. */
 function page(msb: number, extra: Partial<ComponentProps<typeof ToneEditorPage>> = {}): HTMLElement {
@@ -107,12 +122,7 @@ describe("ToneEditorPage", () => {
       } as unknown as UseMixerResult;
       const { service } = fakeToneService(new WasmDeviceState(0x10));
       service.initialize = async () => undefined;
-      const answer = service.requestData.bind(service);
-      let reads = 0;
-      service.requestData = (address, size) => {
-        reads++;
-        return answer(address, size);
-      };
+      const reads = countReads(service);
       const marking = { isUnloaded: () => false, onLoad: () => {} };
       function Item() {
         const init = useInit();
@@ -126,12 +136,117 @@ describe("ToneEditorPage", () => {
       );
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       expect(container.textContent).not.toContain("Loading PCM Synth tone data");
-      const before = reads;
+      const before = reads();
       expect(before).toBeGreaterThan(0);
       click(button(container, "Init…"));
       await act(async () => click(button(container, "Init")));
       // The remounted editor read its blocks again.
-      expect(reads).toBe(2 * before);
+      expect(reads()).toBe(2 * before);
+    });
+  });
+
+  describe("Tone Init", () => {
+    /** An editable bank MSB of each tone type, as core maps them. */
+    const editable = new Map<ToneType, number>();
+    for (const msb of MSBS) {
+      const type = tone_type_from_bank_msb(msb);
+      if (type !== undefined && is_editable_bank(msb) && !editable.has(type)) editable.set(type, msb);
+    }
+
+    /** The web page for Part 1, holding a tone from bank `msb`, in the Init flow. */
+    function initPage(msb: number) {
+      const mixer = {
+        state: { selectedPart: 0, parts: [{ toneBankMsb: msb, toneBankLsb: 0, tonePC: 0 }] },
+        reload: () => {},
+      } as unknown as UseMixerResult;
+      const { service } = fakeToneService(new WasmDeviceState(0x10));
+      // The Init answers "finished" when the test says so.
+      let finish: () => void = () => {};
+      const initialize = vi.fn(
+        () =>
+          new Promise<string | undefined>((resolve) => {
+            finish = () => resolve(undefined);
+          }),
+      );
+      service.initialize = initialize;
+      const reReadPart = vi.fn();
+      service.device.reReadPart = reReadPart;
+      const reads = countReads(service);
+      const marking = { isUnloaded: () => false, onLoad: () => {} };
+      const { container } = render(
+        <InitProvider service={service} mixer={mixer}>
+          <ToneEditorPage mixer={mixer} service={service} marking={marking} onBack={() => {}} />
+        </InitProvider>,
+      );
+      return {
+        container,
+        initialize,
+        reReadPart,
+        reads,
+        finish: () => act(async () => finish()),
+      };
+    }
+
+    /** Let the editor's reads answer. */
+    const settle = () => act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
+
+    it("knows an editable bank of every tone type", () => {
+      const types = Object.values(ToneType).filter((t) => typeof t === "number");
+      expect([...editable.keys()].sort()).toEqual(types.sort());
+    });
+
+    for (const [type, msb] of editable) {
+      it(`resets the ${ToneType[type]} tone from the header, then re-reads the editor`, async () => {
+        const page = initPage(msb);
+        await settle();
+        const before = page.reads();
+        expect(before).toBeGreaterThan(0);
+
+        click(button(page.container, "Init…"));
+        const dialog = page.container.querySelector('[role="dialog"]')!;
+        expect(dialog.getAttribute("aria-label")).toBe("Init Part 1's tone");
+        expect(dialog.textContent).toContain("keeps its type");
+        expect(page.initialize).not.toHaveBeenCalled();
+
+        click(button(dialog, "Init"));
+        expect(page.initialize).toHaveBeenCalledWith({ kind: "tone", part: 0 });
+        // Until "finished", the editor is inert and the item can't ask again.
+        const guard = page.container.querySelector('[aria-busy="true"]');
+        expect(guard?.hasAttribute("inert")).toBe(true);
+        expect(button(page.container, "Init…").disabled).toBe(true);
+        expect(page.reads()).toBe(before);
+
+        await page.finish();
+        await settle();
+        expect(page.container.querySelector('[aria-busy="true"]')).toBeNull();
+        expect(button(page.container, "Init…").disabled).toBe(false);
+        // The Part's dump, with the tone's name, and the remounted editor's blocks.
+        expect(page.reReadPart).toHaveBeenCalledWith(0);
+        expect(page.reads()).toBeGreaterThan(before);
+      });
+    }
+
+    it("resets nothing when cancelled", () => {
+      const page = initPage(editable.get(ToneType.SnSynth)!);
+      click(button(page.container, "Init…"));
+      click(button(page.container, "Cancel"));
+      expect(page.container.querySelector('[role="dialog"]')).toBeNull();
+      expect(page.initialize).not.toHaveBeenCalled();
+    });
+
+    it("has no item without a tone to edit", () => {
+      // No tone bank, and a GM2 or ExPCM tone, which can't be edited.
+      expect(page(0).textContent).not.toContain("Init…");
+      cleanup();
+      const locked = MSBS.find(
+        (msb) => tone_type_from_bank_msb(msb) !== undefined && !is_editable_bank(msb),
+      )!;
+      expect(page(locked).textContent).not.toContain("Init…");
+    });
+
+    it("isn't in a plugin's editor, which has no header (web first)", () => {
+      const text = page(OTHER_MSB, { onBack: undefined, part: 0, only: ToneType.PcmSynth }).textContent;
+      expect(text).not.toContain("Init…");
     });
   });
 });
