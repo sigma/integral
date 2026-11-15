@@ -525,7 +525,11 @@ export function App({
                 )}
                 {tab === "system" && (
                   <ErrorBoundary section="System">
-                    <SystemPage service={service} />
+                    <SystemPage
+                      service={service}
+                      studioSetSettings={mixer.state.studioSetSettings}
+                      onOpenStudioSetSettings={openStudioSetSettings}
+                    />
                   </ErrorBoundary>
                 )}
                 {tab === "expansions" && (

@@ -66,7 +66,9 @@ Pages and editors (`.tsx`):
     header has Tone Init… for an editable tone; a plugin's editor has none.
   - `SequencerPage`, with `Transport` and `Piano`.
   - `SystemPage` — System Common in its core groups, read on open and on
-    Refresh (`useSystemCommon`).
+    Refresh (`useSystemCommon`); each SYSTEM-or-STUDIO SET pair's Studio
+    Set side read-only in its selector's group, with a link to the Studio
+    Set settings drawer.
   - `ExpansionsPage`.
   - `LibraryPage`, with `PackPane`, `PackExportPane`, `PackImportPane` and
     `ReinitDialog`.
@@ -113,6 +115,9 @@ Pages and editors (`.tsx`):
     Phase Lock), each SYSTEM-or-STUDIO SET pair beside System's read-only
     side, the side out of force dimmed. `App` holds which drawer is open
     (`openStudioSetSettings`, `partSettings`): one at a time.
+  - SYSTEM-or-STUDIO SET pairs: `systemPairs.tsx` (`PairSide`, `Readout`,
+    `StudioSetReadout`, `pairDimming`), shared by `SystemPage` and
+    `StudioSetDrawer`.
   - Banners and markers: `ExpansionLoadBanner`, `MixerLoadWarning`,
     `NotLoadedMarker`, `PwaUpdateBanner`.
   - Error handling: `ErrorBoundary`.

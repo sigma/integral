@@ -1,6 +1,7 @@
 import { act } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  StudioSetSetting,
   SystemField,
   WasmDeviceState,
   system_common_address,
@@ -9,8 +10,14 @@ import {
   system_group_note,
   system_groups,
   system_volatile_notice,
+  SystemOrStudioSet,
+  studio_set_field_label,
+  studio_set_setting_count,
+  studio_set_setting_spec,
+  system_pair_system_side,
 } from "../pkg/integral_wasm.js";
 import { SystemPage } from "./SystemPage";
+import type { StudioSetSettings } from "./types";
 import { button, cleanup, click, option, render } from "./test/dom";
 import { systemCommonDump } from "./test/system";
 import {
@@ -40,7 +47,9 @@ async function page(...dumps: Uint8Array[]) {
     reads.push(address);
     return dumps[Math.min(reads.length, dumps.length) - 1]!;
   };
-  const { container } = render(<SystemPage service={service} />);
+  const { container } = render(
+    <SystemPage service={service} studioSetSettings={null} />,
+  );
   await act(async () => {});
   return { container, reads, sentDt1s };
 }
@@ -103,7 +112,9 @@ describe("SystemPage", () => {
       }
       return new Promise((resolve) => (answer = resolve));
     };
-    const { container } = render(<SystemPage service={service} />);
+    const { container } = render(
+      <SystemPage service={service} studioSetSettings={null} />,
+    );
     await act(async () => {});
     await act(async () => click(button(container, "Refresh")));
 
@@ -191,7 +202,9 @@ describe("SystemPage", () => {
       if (fail) throw new Error("RQ1 timeout for 02 00 00 00");
       return systemCommonDump([[SystemField.SystemTempo, 121]]);
     };
-    const { container } = render(<SystemPage service={service} />);
+    const { container } = render(
+      <SystemPage service={service} studioSetSettings={null} />,
+    );
     await act(async () => {});
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       "RQ1 timeout",
@@ -201,5 +214,108 @@ describe("SystemPage", () => {
     await act(async () => click(button(container, "Refresh")));
     expect(container.querySelector('[role="alert"]')).toBeNull();
     expect(valueOf(container, SystemField.SystemTempo)).toBe(121);
+  });
+});
+
+describe("SystemPage's SYSTEM-or-STUDIO SET pairs", () => {
+  /** What the mixer read: Tone Control 1 on CC74, 4 on BEND, tempo 96. */
+  const READ: StudioSetSettings = {
+    toneControlSources: [74, 0, 0, 96],
+    tempo: 96,
+    phaseLock: Array.from(
+      { length: studio_set_setting_count(StudioSetSetting.PhaseLock) },
+      () => false,
+    ),
+  };
+
+  /** A page reading Control Source SYSTEM and Tempo Assign STUDIO SET. */
+  async function pairPage(settings: StudioSetSettings | null = READ) {
+    const { service } = fakeToneService(new WasmDeviceState(0x10));
+    const block = systemCommonDump([
+      [SystemField.ControlSource, 0],
+      [SystemField.TempoAssignSource, 1],
+    ]);
+    service.requestData = async () => block;
+    const onOpen = vi.fn();
+    const { container } = render(
+      <SystemPage
+        service={service}
+        studioSetSettings={settings}
+        onOpenStudioSetSettings={onOpen}
+      />,
+    );
+    await act(async () => {});
+    return { container, onOpen };
+  }
+
+  const readout = (scope: ParentNode, setting: StudioSetSetting, i: number) =>
+    scope.querySelector(`[aria-label="${studio_set_field_label(setting, i)}"]`)
+      ?.textContent;
+
+  /** Each pair side in page order (System Control 1–4, Tone Controls, System Tempo, Studio Set Tempo). */
+  const dimming = (scope: ParentNode) =>
+    [...scope.querySelectorAll<HTMLElement>("[data-side]")].map(
+      (s) => `${s.dataset.side}:${s.dataset.dimmed ? "dim" : "lit"}`,
+    );
+
+  it("shows the Studio Set side read-only, with a link to the drawer that edits it", async () => {
+    const { container, onOpen } = await pairPage();
+    const source = studio_set_setting_spec(StudioSetSetting.ToneControlSource);
+    expect(readout(container, StudioSetSetting.ToneControlSource, 0)).toBe(
+      source.formatValue(74),
+    );
+    expect(readout(container, StudioSetSetting.ToneControlSource, 3)).toBe(
+      source.formatValue(96),
+    );
+    expect(readout(container, StudioSetSetting.Tempo, 0)).toBe("96");
+
+    const studioSet = [
+      ...container.querySelectorAll<HTMLElement>('[data-side="studioSet"]'),
+    ];
+    expect(studioSet).toHaveLength(2);
+    for (const side of studioSet) {
+      // Nothing to edit here.
+      expect(side.querySelector('[role="slider"], button')).toBeNull();
+    }
+    const links = [...container.querySelectorAll("button")].filter(
+      (b) => b.textContent === "Edit in Studio Set settings",
+    );
+    expect(links).toHaveLength(2);
+    click(links[1]!);
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("dims the side each selector puts out of force, and follows a switch", async () => {
+    const controls = system_pair_system_side(SystemOrStudioSet.Control);
+    const { container } = await pairPage();
+    // Control Source SYSTEM: the Tone Controls are out; Tempo Assign
+    // STUDIO SET: the System Tempo is.
+    expect(dimming(container)).toEqual([
+      ...controls.map(() => "system:lit"),
+      "studioSet:dim",
+      "system:dim",
+      "studioSet:lit",
+    ]);
+
+    click(
+      control(container, SystemField.ControlSource).querySelector("button")!,
+    );
+    click(
+      control(container, SystemField.TempoAssignSource).querySelector(
+        "button",
+      )!,
+    );
+    expect(dimming(container)).toEqual([
+      ...controls.map(() => "system:dim"),
+      "studioSet:lit",
+      "system:lit",
+      "studioSet:dim",
+    ]);
+  });
+
+  it("shows — on the Studio Set side until the mixer reads it", async () => {
+    const { container } = await pairPage(null);
+    expect(readout(container, StudioSetSetting.ToneControlSource, 0)).toBe("—");
+    expect(readout(container, StudioSetSetting.Tempo, 0)).toBe("—");
   });
 });

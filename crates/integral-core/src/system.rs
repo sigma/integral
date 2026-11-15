@@ -23,6 +23,7 @@ use crate::block_field::BlockField;
 use crate::fx_params::KHZ;
 use crate::mfx_params::ControlSourceKind;
 use crate::param_registry::ParamFormat;
+use crate::studio_set_settings::StudioSetSetting;
 use crate::sysex;
 
 /// Bytes in the System Common block: what one RQ1 of it returns.
@@ -149,14 +150,11 @@ impl SystemField {
     /// System Control `index + 1` Source (`index` 0-based), the System side
     /// of the Studio Set's Tone Control of the same number; `None` past
     /// [`TONE_CONTROLS`](crate::device_spec::TONE_CONTROLS).
-    pub const fn system_control_source(index: u8) -> Option<Self> {
-        match index {
-            0 => Some(Self::SystemControl1Source),
-            1 => Some(Self::SystemControl2Source),
-            2 => Some(Self::SystemControl3Source),
-            3 => Some(Self::SystemControl4Source),
-            _ => None,
-        }
+    pub fn system_control_source(index: u8) -> Option<Self> {
+        SystemOrStudioSet::Control
+            .system_side()
+            .get(usize::from(index))
+            .copied()
     }
 }
 
@@ -173,6 +171,34 @@ pub enum SystemOrStudioSet {
 }
 
 impl SystemOrStudioSet {
+    /// Every pair, in System page order.
+    pub const ALL: [Self; 2] = [Self::Control, Self::Tempo];
+
+    /// System's side: the fields the Studio Set's
+    /// [`studio_set_side`](Self::studio_set_side) stands in for, instance
+    /// `i` of one against field `i` of the other (System Control 1 against
+    /// Tone Control 1).
+    pub const fn system_side(self) -> &'static [SystemField] {
+        match self {
+            Self::Control => &[
+                SystemField::SystemControl1Source,
+                SystemField::SystemControl2Source,
+                SystemField::SystemControl3Source,
+                SystemField::SystemControl4Source,
+            ],
+            Self::Tempo => &[SystemField::SystemTempo],
+        }
+    }
+
+    /// The Studio Set's side: the setting whose instances stand in for
+    /// [`system_side`](Self::system_side).
+    pub const fn studio_set_side(self) -> StudioSetSetting {
+        match self {
+            Self::Control => StudioSetSetting::ToneControlSource,
+            Self::Tempo => StudioSetSetting::Tempo,
+        }
+    }
+
     /// The System field that picks the side in force.
     pub const fn selector(self) -> SystemField {
         match self {
@@ -794,6 +820,18 @@ mod tests {
         for pair in [SystemOrStudioSet::Control, SystemOrStudioSet::Tempo] {
             let format = system_spec(pair.selector()).format;
             assert_eq!(format.format(STUDIO_SET_SIDE.into()), "STUDIO SET");
+        }
+    }
+
+    #[test]
+    fn each_pair_sets_its_sides_one_for_one_in_the_selector_group() {
+        for pair in SystemOrStudioSet::ALL {
+            let system = pair.system_side();
+            assert_eq!(system.len(), usize::from(pair.studio_set_side().count()));
+            let group = system_spec(pair.selector()).group;
+            for &field in system {
+                assert_eq!(system_spec(field).group, group, "{pair:?}: {field:?}");
+            }
         }
     }
 

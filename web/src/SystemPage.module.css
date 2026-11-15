@@ -83,3 +83,24 @@
   font-size: 11px;
   color: #a0a0c0;
 }
+
+/* A SYSTEM-or-STUDIO SET pair's Studio Set side, read-only */
+
+.studioSet {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #333;
+}
+
+.studioSetHead {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: #a0a0c0;
+}
+
+.link {
+  composes: link from "./systemPairs.module.css";
+}

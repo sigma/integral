@@ -300,7 +300,7 @@ describe("the Part settings drawer", () => {
     it("follows the switch the System page edits beside it", async () => {
       const service = systemService(1);
       const { container } = await draw(mixerState(0), service);
-      const page = render(<SystemPage service={service} />).container;
+      const page = render(<SystemPage service={service} studioSetSettings={null} />).container;
       await settle();
       const scale = container.querySelector('[data-part-settings-group="Scale"]')!;
       expect(scale.textContent).not.toContain(part_scale_switched_off_note());

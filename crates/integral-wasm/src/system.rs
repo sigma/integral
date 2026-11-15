@@ -5,7 +5,7 @@ use integral_core::param_registry::ParamFormat;
 use integral_core::system;
 use wasm_bindgen::prelude::*;
 
-use crate::{ControlSourceKind, WasmDeviceState};
+use crate::{ControlSourceKind, StudioSetSetting, WasmDeviceState};
 
 /// A System Common field (mirrors [`system::SystemField`]).
 #[wasm_bindgen]
@@ -148,6 +148,35 @@ pub fn system_pair_selector(pair: SystemOrStudioSet) -> SystemField {
 #[wasm_bindgen]
 pub fn system_control_source_field(index: u8) -> Option<SystemField> {
     system::SystemField::system_control_source(index).map(Into::into)
+}
+
+/// Every SYSTEM-or-STUDIO SET pair, in System page order.
+#[wasm_bindgen]
+pub fn system_pairs() -> Vec<SystemOrStudioSet> {
+    system::SystemOrStudioSet::ALL
+        .iter()
+        .map(|&p| p.into())
+        .collect()
+}
+
+/// System's side of `pair`: field `i` stands against instance `i` of
+/// [`system_pair_studio_set_side`].
+#[wasm_bindgen]
+pub fn system_pair_system_side(pair: SystemOrStudioSet) -> Vec<SystemField> {
+    system::SystemOrStudioSet::from(pair)
+        .system_side()
+        .iter()
+        .map(|&f| f.into())
+        .collect()
+}
+
+/// The Studio Set's side of `pair`: the setting edited in the Studio Set
+/// settings drawer.
+#[wasm_bindgen]
+pub fn system_pair_studio_set_side(pair: SystemOrStudioSet) -> StudioSetSetting {
+    system::SystemOrStudioSet::from(pair)
+        .studio_set_side()
+        .into()
 }
 
 /// Whether `selector_value`, the raw value of `pair`'s
@@ -379,6 +408,18 @@ mod tests {
             SystemOrStudioSet::Control,
             1
         ));
+        assert_eq!(
+            system_pairs(),
+            [SystemOrStudioSet::Control, SystemOrStudioSet::Tempo]
+        );
+        assert_eq!(
+            system_pair_system_side(SystemOrStudioSet::Tempo),
+            [SystemField::SystemTempo]
+        );
+        assert_eq!(
+            system_pair_studio_set_side(SystemOrStudioSet::Control),
+            StudioSetSetting::ToneControlSource
+        );
     }
 
     #[test]

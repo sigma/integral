@@ -16,7 +16,7 @@
  * in force is dimmed.
  */
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo } from "react";
 import {
   StudioSetSetting,
   SystemField,
@@ -26,19 +26,15 @@ import {
   studio_set_field_label,
   studio_set_setting_count,
   studio_set_setting_spec,
-  system_control_source_field,
   system_field_spec,
   system_pair_selector,
+  system_pair_system_side,
 } from "../pkg/integral_wasm.js";
 import { Drawer, DrawerGroup } from "./Drawer";
 import { SynthKnob, SynthPicker, SynthSwitch } from "./synth-ui";
 import { switchOptions } from "./fieldSpec";
-import {
-  studioSetInForce,
-  systemDisplay,
-  useSystemCommon,
-  type SystemValues,
-} from "./useSystemCommon";
+import { systemDisplay, useSystemCommon, type SystemValues } from "./useSystemCommon";
+import { PairSide, Readout, pairDimming } from "./systemPairs";
 import type { IntegraService } from "./integra";
 import type { UseMixerResult } from "./useMixer";
 import css from "./StudioSetDrawer.module.css";
@@ -115,32 +111,11 @@ export function StudioSetDrawer({ mixer, service, onClose, onOpenSystem }: Studi
   );
 }
 
-/** Which side of `pair` is dimmed: none before System Common is read. */
-function dimmed(values: SystemValues | null, pair: SystemOrStudioSet) {
-  const studioSet = studioSetInForce(values, pair);
-  if (studioSet === null) return { studioSet: false, system: false };
-  return { studioSet: !studioSet, system: studioSet };
-}
-
-/** One side of a pair, dimmed while not in force. */
-function Side({ dim, side, children }: { dim: boolean; side: "studioSet" | "system"; children: ReactNode }) {
-  return (
-    <div className={`${css.side} ${dim ? css.dimmed : ""}`} data-side={side} data-dimmed={dim || undefined}>
-      {children}
-    </div>
-  );
-}
-
 /** A System field's value, read-only: `—` until System Common is read. */
 function SystemReadout({ field, values }: { field: SystemField; values: SystemValues | null }) {
   const label = system_field_spec(field).label;
   return (
-    <div className={css.readout} title={`${label} (System; edited on the System page)`}>
-      <span className={css.readoutLabel}>{label}</span>
-      <span className={css.readoutValue} aria-label={label}>
-        {systemDisplay(values, field)}
-      </span>
-    </div>
+    <Readout label={label} title={`${label} (System; edited on the System page)`} value={systemDisplay(values, field)} />
   );
 }
 
@@ -161,15 +136,15 @@ function ControlGroup({
       kind === undefined ? [] : control_source_choices(kind).map(({ value, name }) => ({ value, label: name }));
     return { spec, options };
   }, []);
-  const dim = dimmed(values, SystemOrStudioSet.Control);
+  const dim = pairDimming(values, SystemOrStudioSet.Control);
   return (
     <>
       <SystemReadout field={system_pair_selector(SystemOrStudioSet.Control)} values={values} />
       {instances(StudioSetSetting.ToneControlSource).map((i) => {
-        const systemSide = system_control_source_field(i);
+        const systemSide = system_pair_system_side(SystemOrStudioSet.Control)[i];
         return (
           <div key={i} className={css.pair}>
-            <Side dim={dim.studioSet} side="studioSet">
+            <PairSide dim={dim.studioSet} side="studioSet">
               <SynthPicker
                 label={`TC${i + 1}`}
                 title={studio_set_field_label(StudioSetSetting.ToneControlSource, i)}
@@ -177,11 +152,11 @@ function ControlGroup({
                 options={options}
                 onChange={(v) => onChange(i, v)}
               />
-            </Side>
+            </PairSide>
             {systemSide !== undefined && (
-              <Side dim={dim.system} side="system">
+              <PairSide dim={dim.system} side="system">
                 <SystemReadout field={systemSide} values={values} />
-              </Side>
+              </PairSide>
             )}
           </div>
         );
@@ -201,12 +176,12 @@ function TempoGroup({
 }) {
   const spec = studio_set_setting_spec(StudioSetSetting.Tempo);
   const label = studio_set_field_label(StudioSetSetting.Tempo, 0);
-  const dim = dimmed(values, SystemOrStudioSet.Tempo);
+  const dim = pairDimming(values, SystemOrStudioSet.Tempo);
   return (
     <>
       <SystemReadout field={system_pair_selector(SystemOrStudioSet.Tempo)} values={values} />
       <div className={css.pair}>
-        <Side dim={dim.studioSet} side="studioSet">
+        <PairSide dim={dim.studioSet} side="studioSet">
           <SynthKnob
             label="Tempo"
             title={label}
@@ -219,10 +194,12 @@ function TempoGroup({
             family={spec.family}
             onChange={onChange}
           />
-        </Side>
-        <Side dim={dim.system} side="system">
-          <SystemReadout field={SystemField.SystemTempo} values={values} />
-        </Side>
+        </PairSide>
+        <PairSide dim={dim.system} side="system">
+          {system_pair_system_side(SystemOrStudioSet.Tempo).map((field) => (
+            <SystemReadout key={field} field={field} values={values} />
+          ))}
+        </PairSide>
       </div>
     </>
   );
