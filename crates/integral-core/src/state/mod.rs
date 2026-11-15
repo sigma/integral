@@ -9,6 +9,7 @@ pub mod parse;
 use std::collections::HashMap;
 
 use crate::device_spec::INTEGRA7;
+use crate::part_settings::PartSettings;
 
 /// Number of parts in the INTEGRA-7 mixer.
 pub const NUM_PARTS: usize = INTEGRA7.part_count as usize;
@@ -130,6 +131,12 @@ pub struct PartState {
     pub tone_category: u8,
     /// Per-part EQ settings.
     pub eq: EqState,
+    /// The Part settings past the mixer's: KBD, PITCH, OFFSET, MIDI, VOICE
+    /// and SCALE (see [`crate::part_settings`]). Serialized as a map from
+    /// each field's CLI name to its raw value; a part without it (the web's
+    /// own `PartState` type) reads back with the defaults.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub settings: PartSettings,
 }
 
 impl Default for PartState {
@@ -148,6 +155,7 @@ impl Default for PartState {
             tone_name: String::new(),
             tone_category: 0,
             eq: EqState::default(),
+            settings: PartSettings::default(),
         }
     }
 }

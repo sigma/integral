@@ -39,6 +39,7 @@ use crate::param_registry::{
 };
 use crate::params::{self, ToneType, part};
 use crate::parse_helpers::encode_ascii_name;
+use crate::part_settings::{self, PartSetting, PartSettingError};
 use crate::pcm_synth::{PcmsCommonField, PcmsPartialField, PcmsPmtField};
 use crate::read_tracker::SentReads;
 use crate::sn_acoustic::SnaCommonField;
@@ -864,12 +865,29 @@ impl DeviceState {
         if data.is_empty() {
             return false;
         }
+        // One parameter: its first byte, or both nibbles of Portamento Time.
+        if let Some((part, field, 0)) = part_settings::locate(address)
+            && data.len() == field.width()
+        {
+            let settings = &mut self.state.parts[usize::from(part)].settings;
+            for (i, byte) in data.iter().enumerate() {
+                settings.set_byte(field, i, *byte);
+            }
+            return true;
+        }
         self.cache_part_param(address, data[0])
     }
 
-    /// Update the cached Part parameter (level, pan, mute, output assign)
-    /// at `address` to `value`. Returns whether `address` is one.
+    /// Update the cached Part parameter (level, pan, mute, output assign,
+    /// or a byte of a [`PartSetting`]) at `address` to `value`. Returns
+    /// whether `address` is one.
     fn cache_part_param(&mut self, address: &Address, value: u8) -> bool {
+        if let Some((part, field, byte)) = part_settings::locate(address) {
+            self.state.parts[usize::from(part)]
+                .settings
+                .set_byte(field, byte, value);
+            return true;
+        }
         for part_idx in 0..Self::NUM_PARTS {
             let part = &mut self.state.parts[part_idx as usize];
             if *address == params::part_address(part_idx, part::LEVEL) {
@@ -1951,6 +1969,65 @@ impl DeviceState {
         }
         self.send_dt1(&address, &[value]);
         Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Part settings
+    // -----------------------------------------------------------------------
+
+    /// The raw value of `part`'s (0-based) `field`.
+    ///
+    /// # Panics
+    /// If `part` is not below [`Self::NUM_PARTS`].
+    pub fn part_setting(&self, part: u8, field: PartSetting) -> u8 {
+        self.state.parts[usize::from(part)].settings.get(field)
+    }
+
+    /// Set `part`'s (0-based) `field` to `value`: update the state and send
+    /// it. Returns the value stored, which a range's other end may hold
+    /// back: a key or velocity Lower never goes above its Upper, nor an
+    /// Upper below its Lower.
+    ///
+    /// The device answers neither of the Scale Tune writes that change
+    /// other fields (`docs/midi/99-undocumented.md` §11): an offset makes
+    /// the Type CUSTOM, which the state takes at once, and a Type or Key
+    /// fills the offsets, which the Part's settings are read again for.
+    ///
+    /// # Errors
+    ///
+    /// [`PartSettingError::PartOutOfRange`] for a part past the device's,
+    /// and [`PartSettingError::ValueOutOfRange`] for a value outside the
+    /// field's range; nothing is changed or sent.
+    pub fn set_part_setting(
+        &mut self,
+        part: u8,
+        field: PartSetting,
+        value: u8,
+    ) -> Result<u8, PartSettingError> {
+        let address = field.address(part)?;
+        let spec = field.def().spec;
+        if !(spec.min..=spec.max).contains(&i32::from(value)) {
+            return Err(PartSettingError::ValueOutOfRange {
+                field,
+                value,
+                min: spec.min,
+                max: spec.max,
+            });
+        }
+        let settings = &mut self.state.parts[usize::from(part)].settings;
+        let value = settings.constrain(field, value);
+        settings.set(field, value);
+        if field.is_scale_tune_offset() {
+            settings.set(PartSetting::ScaleTuneType, part_settings::SCALE_TUNE_CUSTOM);
+        }
+        self.send_dt1(&address, &field.encode(value));
+        if matches!(
+            field,
+            PartSetting::ScaleTuneType | PartSetting::ScaleTuneKey
+        ) {
+            self.queue_mixer_reads([MixerBlock::PartSettings(part)]);
+        }
+        Ok(value)
     }
 
     // -----------------------------------------------------------------------
@@ -3735,6 +3812,145 @@ mod tests {
         let kit = params::comp_eq_block_address_for_bank(9, 88).unwrap();
         assert!(read.contains(&kit), "reads the Comp+EQ part's kit block");
         assert_eq!(read.last(), Some(&kit), "the kit block is read last");
+    }
+
+    #[test]
+    fn load_mixer_reads_the_part_settings() {
+        use crate::part_settings::{self, PartSetting as F};
+        let mut dump = part_dump(87, 0, 5, 77);
+        dump[0x0B] = 70; // Coarse Tune
+        dump[0x11..0x13].copy_from_slice(&[0x07, 0x0F]); // Portamento Time
+        dump[0x13] = 90; // Cutoff Offset
+        dump[0x1D] = 36; // Key Range Lower
+        let mut settings = vec![64; part_settings::SETTINGS_READ_SIZE.value() as usize];
+        settings[0] = 2; // Scale Tune Type JUST-MAJ (00 2B)
+        settings[0x39 - 0x2B] = 0; // Rx Program Change OFF
+        settings[0x43 - 0x2B] = 3; // Velocity Curve Type 3
+        let mut reserve = vec![0; 16];
+        reserve[2] = 64;
+        let memory = HashMap::from([
+            (params::part_address(2, part::RECEIVE_CHANNEL), dump),
+            (
+                params::part_address(2, part_settings::SETTINGS_READ_FROM),
+                settings,
+            ),
+            (part_settings::voice_reserve_read().0, reserve),
+        ]);
+        let mut dev = DeviceState::new(0x10);
+        dev.load_mixer();
+        serve(&mut dev, &memory, 10_000.0);
+
+        assert!(dev.mixer_failed_blocks().is_empty());
+        let got = |field| dev.part_setting(2, field);
+        assert_eq!(got(F::CoarseTune), 70);
+        assert_eq!(got(F::PortamentoTime), 0x7F);
+        assert_eq!(got(F::CutoffOffset), 90);
+        assert_eq!(got(F::KeyRangeLower), 36);
+        assert_eq!(got(F::ScaleTuneType), 2);
+        assert_eq!(got(F::ScaleTuneC), 64);
+        assert_eq!(got(F::RxProgramChange), 0);
+        assert_eq!(got(F::VelocityCurve), 3);
+        assert_eq!(got(F::VoiceReserve), 64);
+        assert_eq!(dev.part_setting(3, F::VoiceReserve), 0);
+    }
+
+    #[test]
+    fn set_part_setting_sends_each_field_to_its_address() {
+        use crate::part_settings::PartSetting as F;
+        let mut dev = DeviceState::new(0x10);
+        assert_eq!(dev.set_part_setting(4, F::CutoffOffset, 80), Ok(80));
+        assert_eq!(dev.part_setting(4, F::CutoffOffset), 80);
+        let cutoff = sysex::build_dt1(0x10, &Address::new(0x18, 0x00, 0x24, 0x13), &[80]);
+        assert_eq!(dev.drain(0.0), Some(cutoff));
+
+        dev.set_part_setting(4, F::PortamentoTime, 128).unwrap();
+        let time = sysex::build_dt1(0x10, &Address::new(0x18, 0x00, 0x24, 0x11), &[8, 0]);
+        assert_eq!(dev.drain(1_000.0), Some(time));
+
+        dev.set_part_setting(4, F::VoiceReserve, 10).unwrap();
+        let reserve = sysex::build_dt1(0x10, &Address::new(0x18, 0x00, 0x00, 0x1C), &[10]);
+        assert_eq!(dev.drain(2_000.0), Some(reserve));
+    }
+
+    #[test]
+    fn set_part_setting_refuses_a_bad_part_or_value() {
+        use crate::part_settings::{PartSetting as F, PartSettingError as E};
+        let mut dev = DeviceState::new(0x10);
+        assert_eq!(
+            dev.set_part_setting(16, F::CutoffOffset, 64),
+            Err(E::PartOutOfRange(16))
+        );
+        assert!(matches!(
+            dev.set_part_setting(0, F::OctaveShift, 70),
+            Err(E::ValueOutOfRange {
+                min: 61,
+                max: 67,
+                ..
+            })
+        ));
+        assert_eq!(dev.part_setting(0, F::OctaveShift), 64);
+        assert!(!dev.has_pending());
+    }
+
+    #[test]
+    fn a_range_lower_never_goes_above_its_upper() {
+        use crate::part_settings::PartSetting as F;
+        let mut dev = DeviceState::new(0x10);
+        dev.set_part_setting(0, F::KeyRangeUpper, 60).unwrap();
+        assert_eq!(dev.set_part_setting(0, F::KeyRangeLower, 72), Ok(60));
+        assert_eq!(dev.set_part_setting(0, F::KeyRangeUpper, 40), Ok(60));
+        dev.set_part_setting(0, F::VelocityRangeLower, 50).unwrap();
+        assert_eq!(dev.set_part_setting(0, F::VelocityRangeUpper, 20), Ok(50));
+        let sent = drain_until(&mut dev, 0.0, 10_000.0);
+        let lower = sysex::build_dt1(0x10, &F::KeyRangeLower.address(0).unwrap(), &[60]);
+        assert!(sent.contains(&lower), "the held-back value is sent");
+    }
+
+    #[test]
+    fn a_scale_tune_write_follows_what_the_device_does() {
+        use crate::part_settings::{self, PartSetting as F};
+        let mut dev = DeviceState::new(0x10);
+        // An offset makes the Type CUSTOM, unannounced.
+        dev.set_part_setting(15, F::ScaleTuneE, 70).unwrap();
+        assert_eq!(
+            dev.part_setting(15, F::ScaleTuneType),
+            part_settings::SCALE_TUNE_CUSTOM
+        );
+        drain_until(&mut dev, 0.0, 1_000.0);
+
+        // A Type fills the offsets, unannounced: they are read again, after
+        // the write.
+        dev.set_part_setting(15, F::ScaleTuneType, 2).unwrap();
+        let sent = drain_until(&mut dev, 1_000.0, 2_000.0);
+        let at = params::part_address(15, part_settings::SETTINGS_READ_FROM);
+        let read = sysex::build_rq1(0x10, &at, &part_settings::SETTINGS_READ_SIZE);
+        let write = sysex::build_dt1(0x10, &F::ScaleTuneType.address(15).unwrap(), &[2]);
+        assert_eq!(sent, vec![write, read]);
+        let mut filled = vec![0; part_settings::SETTINGS_READ_SIZE.value() as usize];
+        filled[0] = 2;
+        filled[2] = 0x50; // C
+        assert!(dev.handle_dt1(&at, &filled, 2_000.0));
+        assert_eq!(dev.part_setting(15, F::ScaleTuneC), 0x50);
+    }
+
+    #[test]
+    fn a_part_setting_the_device_sends_is_cached() {
+        use crate::part_settings::PartSetting as F;
+        let mut dev = DeviceState::new(0x10);
+        let at = F::VibratoDepth.address(6).unwrap();
+        assert!(dev.handle_dt1(&at, &[20], 0.0));
+        assert_eq!(dev.part_setting(6, F::VibratoDepth), 20);
+        let reserve = F::VoiceReserve.address(6).unwrap();
+        assert!(dev.handle_dt1(&reserve, &[12], 0.0));
+        assert_eq!(dev.part_setting(6, F::VoiceReserve), 12);
+        // A two-byte DT1 from the device is cached whole.
+        let time = F::PortamentoTime.address(6).unwrap();
+        assert!(dev.handle_dt1(&time, &[0x05, 0x01], 0.0));
+        assert_eq!(dev.part_setting(6, F::PortamentoTime), 0x51);
+        // A client's block write is cached byte by byte, nibbles included.
+        let time = F::PortamentoTime.address(6).unwrap();
+        dev.write_data(&time, &[0x06, 0x04]);
+        assert_eq!(dev.part_setting(6, F::PortamentoTime), 0x64);
     }
 
     #[test]

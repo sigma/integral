@@ -78,6 +78,15 @@ pub enum ParamFormat {
     /// Inst): 0 is `OFF`, and a number the catalog doesn't name shows as
     /// itself. A picker lists the catalog's [`FieldCatalog::options`].
     Catalog(FieldCatalog),
+    /// The value as a number below `top`, and `name` from `top` up: a range
+    /// whose last value is a setting of its own (Part Pitch Bend Range 25 ->
+    /// "TONE", Voice Reserve 64 -> "FULL").
+    NumberOr {
+        /// The first raw value shown as `name`.
+        top: i32,
+        /// What it and the values above show.
+        name: &'static str,
+    },
 }
 
 /// A device catalog a field picks one entry of by name: its numbers name
@@ -334,6 +343,13 @@ impl ParamFormat {
                 Some(note) => note.to_string(),
                 None => value.to_string(),
             },
+            ParamFormat::NumberOr { top, name } => {
+                if value >= *top {
+                    (*name).to_string()
+                } else {
+                    value.to_string()
+                }
+            }
             // `parts` gives these their unit.
             ParamFormat::PcmLfoRate
             | ParamFormat::SnLfoRate

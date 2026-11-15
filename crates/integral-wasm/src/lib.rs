@@ -350,9 +350,11 @@ macro_rules! mirror_core_enum {
 
 // Declared after `mirror_core_enum!`, which they use.
 mod display;
+mod part_settings;
 mod plugin;
 mod relevance;
 pub use display::{DisplayKind, DisplayProp, WasmDisplaySlot, display_binding};
+pub use part_settings::{PartSetting, PartSettingGroup};
 pub use plugin::PluginKind;
 pub use relevance::Relevance;
 

@@ -9,6 +9,7 @@ use crate::device_spec::INTEGRA7;
 use crate::factory_catalog;
 use crate::params::{self, part};
 use crate::parse_helpers::parse_ascii_name_len;
+use crate::part_settings::{self, PartSetting};
 use crate::state::parse as state_parse;
 use crate::state::{MixerState, PartState};
 use crate::svd::DRUMS_CATEGORY;
@@ -24,8 +25,14 @@ pub enum MixerBlock {
     MasterLevel,
     /// Solo part.
     SoloPart,
-    /// A part's mixer settings, receive channel through output assign.
+    /// A part's mixer settings, receive channel through output assign. It
+    /// holds the Part's KBD, PITCH and OFFSET settings too.
     Part(u8),
+    /// A part's settings past the mixer dump: Scale Tune, the receive
+    /// filters and the Velocity Curve Type (`00 2B`-`00 43`).
+    PartSettings(u8),
+    /// Every part's Voice Reserve (Studio Set Common `00 18`-`00 27`).
+    VoiceReserve,
     /// A part's EQ.
     PartEq(u8),
     /// Master EQ bands.
@@ -99,6 +106,8 @@ impl MixerBlock {
             ])
             .chain(parts(PartSurround))
             .chain([DrumCompEqCommon])
+            .chain(parts(PartSettings))
+            .chain([VoiceReserve])
             .collect()
     }
 
@@ -120,6 +129,8 @@ impl MixerBlock {
             MasterLevel => "Master level".into(),
             SoloPart => "Solo part".into(),
             Part(p) => format!("Part {}", u32::from(p) + 1),
+            PartSettings(p) => format!("Part {} settings", u32::from(p) + 1),
+            VoiceReserve => "Voice Reserve".into(),
             PartEq(p) => format!("Part {} EQ", u32::from(p) + 1),
             MasterEq => "Master EQ".into(),
             MasterEqSwitch => "Master EQ switch".into(),
@@ -173,6 +184,11 @@ impl MixerBlock {
                 params::part_address(p, part::RECEIVE_CHANNEL),
                 params::PART_MIXER_SIZE,
             ),
+            PartSettings(p) => (
+                params::part_address(p, part_settings::SETTINGS_READ_FROM),
+                part_settings::SETTINGS_READ_SIZE,
+            ),
+            VoiceReserve => part_settings::voice_reserve_read(),
             PartEq(p) => (
                 params::part_eq_address(p, params::part_eq::SWITCH),
                 params::PART_EQ_SIZE,
@@ -250,7 +266,16 @@ impl MixerBlock {
                 s.chorus_send = parsed.chorus_send;
                 s.reverb_send = parsed.reverb_send;
                 s.output_assign = parsed.output_assign;
+                s.settings.apply_dump(0, data);
                 return Self::tone_reads(p, parsed.tone_bank_msb).to_vec();
+            }
+            PartSettings(p) => state.parts[usize::from(p)]
+                .settings
+                .apply_dump(part_settings::SETTINGS_READ_FROM[2], data),
+            VoiceReserve => {
+                for (part, reserve) in state.parts.iter_mut().zip(data) {
+                    part.settings.set(PartSetting::VoiceReserve, *reserve);
+                }
             }
             PartEq(p) => state.parts[usize::from(p)].eq = state_parse::parse_part_eq_dump(data),
             MasterEq => {

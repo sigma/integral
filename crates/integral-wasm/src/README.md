@@ -54,6 +54,10 @@ Names below are the JS names that `wasm-bindgen` exports.
 - `display.rs`: `display_binding`, `WasmDisplaySlot`, `DisplayKind` and
   `DisplayProp`.
 - `relevance.rs`: the `*_relevance` functions and `Relevance`.
+- `part_settings.rs`: the Part settings registry (`PartSetting`,
+  `PartSettingGroup`, `part_setting_fields`, `part_setting_spec`, `_name`,
+  `_label`, `_group`, `part_setting_group_label`) and the
+  `WasmDeviceState` methods `partSetting` and `setPartSetting`.
 - `expansion.rs`:
   - The catalog and slot helpers: `expansionCatalog`, `stageExpansionSlot`
     and `expansionSlotsAddress`.

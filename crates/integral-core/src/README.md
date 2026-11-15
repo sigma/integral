@@ -80,6 +80,11 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
   - `FieldCatalog` and `CatalogOption` are the named value lists.
   - `MixerField` and `MixerScope` describe a mixer parameter, and
     `mixer_field_address` and `mixer_param` resolve it.
+- `part_settings.rs`: `PartSetting` names a Part setting past the mixer's
+  (KBD, PITCH, OFFSET, MIDI, VOICE and SCALE, `PartSettingGroup`);
+  `PartSetting::def` gives its `PartSettingDef` (CLI name, label, group,
+  `FieldSpec`) and `address` where it is written. `PartSettings` holds a
+  Part's values, `locate` maps a written byte back to its field.
 - `field_spec.rs`: `FieldSpec` holds the min, max, default, format and family
   of a field. Per-block lookups are named `pcms_*_spec`, `pcmd_*_spec`,
   `sns_*_spec`, `sna_common_spec` and `snd_*_spec`. `pcms_partial_sync` and
@@ -129,7 +134,7 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
 - `expansion_load.rs`: `plan` and `LoadPlan`, plus the `LoadMachine` with its
   `LoadAction` and `LoadOutcome`.
 - `mixer_load.rs`: `MixerBlock` lists the mixer reads (`initial`, `request`,
-  `apply`).
+  `apply`), the Part settings (`PartSettings`, `VoiceReserve`) included.
 - `waves.rs`: `Wave`, `WaveGroup`, `waves`, `name`, `families` and
   `stereo_partner`.
 

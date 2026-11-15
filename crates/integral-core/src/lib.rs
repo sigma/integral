@@ -43,6 +43,7 @@ pub mod notice;
 pub mod param_registry;
 pub mod params;
 pub mod parse_helpers;
+pub mod part_settings;
 pub mod pcm_drum;
 pub mod pcm_structure;
 pub mod pcm_synth;
