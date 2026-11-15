@@ -697,7 +697,7 @@ F0 41 <dev> 00 00 64 11 0F 00 18 <TT> 7F 7F <PP> <NN> <checksum> F7
 | Sound Ctrl      | `08` | `00`           | `00`                 | Part `00 13`–`00 1A` (offsets) on **all 16 Parts**            |
 | Part            | `10` | Part, 0-based  | `00`                 | That Part's Studio Set Part block; its tone reloads           |
 | Tone            | `20` | Part, 0-based  | `00`                 | That Part's Temporary tone                                    |
-| Partial         | `30` | Part, 0-based  | Partial, 0-based     | One partial of that Part's Temporary tone                     |
+| Partial         | `30` | Part, 0-based  | Partial, 0-based; for a kit, the key number | One partial (or kit key) of that Part's Temporary tone |
 
 ### Response
 
@@ -746,7 +746,15 @@ affected blocks back after `0F 00 18 02`.
 
 ### Open
 
-- Partial Init on an SN Drum or PCM Drum kit (`NN` = key index) wasn't tried.
+- **Partial Init on a drum kit takes the MIDI key number as `NN`**, not a
+  0-based index. Checked 2026-11-15
+  ([#288](https://github.com/sigma/integral/issues/288)) on PCM Drum Kit
+  PopDrumSet 1 and SN Drum Kit preset 1, with keys 36 and 38 edited first:
+  - `NN` = `24` (key 36) reset key 36 alone. The PCM kit's key took the INIT
+    partial ("INIT PARTIAL"); the SN kit's key took Level 100, Reverb Send 64,
+    Output Assign PART. Key 38 kept its edit.
+  - `NN` = `0F` (key 36 as an index from key 21) and `09` (from key 27)
+    answered "finished" but changed nothing.
 - Out-of-range `PP` or `NN`, and the delay between `01` and `02`, weren't
   checked.
 - Whether Part Init and Studio Set Init keep a changed Receive Channel.
