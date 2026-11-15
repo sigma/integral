@@ -56,8 +56,11 @@ been checked on the device.
 - Master EQ applies to A (MIX) and PHONES only (OM p. 36; PG).
 - DIGITAL AUDIO OUT (coaxial S/PDIF) carries "the same signal as is output
   from the OUTPUT A (MIX) jacks", stereo, 24-bit, 44.1/48/96 kHz (OM p. 22).
-- **Unconfirmed:** assigning one Part to `A` and another to `1` probably
-  sums both on jack A-L. The jack sharing implies it; no source says so.
+- **Checked on the device** ([#467](https://github.com/sigma/integral/issues/467#issuecomment-6885152990)):
+  a Part on `A` and another on `1` sum on jack A-L (measured -23.70 dB
+  against a predicted power sum of -23.74 dB); A-R carries only the Part on
+  `A`. A Part on `1` or `2` comes out about 4.7 dB louder on its jack than
+  the same Part on `A`.
 - So at most **8 discrete channels** leave the unit at once. Mixed layouts
   are allowed, e.g. 2 stereo pairs plus 4 mono. With 16 Parts, Parts beyond
   that share outputs.
@@ -107,13 +110,18 @@ Notes:
 - **Drum keys:** only the six COMP+EQ units of the Drum COMP+EQ Assign Part
   can leave the Part's path. Drum kits on other Parts send every key
   through the Part's MFX and Part Output Assign (OM p. 26).
-  - **Unconfirmed:** a unit routed to A-D or 1-8 seems to skip that Part's
-    MFX, Part EQ and Chorus/Reverb sends. The PG says only PART means
-    "input to MFX of the part".
-  - **Unconfirmed:** with the Comp/EQ Switch OFF, it is not known whether
-    keys routed to COMP+EQ*n* fall back to PART.
-- **Ext Part** routing: it has no Output Assign. **Unconfirmed:** it most
-  likely sums into A (MIX).
+  - **Checked on the device** ([#467](https://github.com/sigma/integral/issues/467#issuecomment-6885152990)):
+    a unit routed to A-D or 1-8 leaves the Part's path whole. It skips the
+    Part's MFX and Part EQ, and ignores the Part's Output Assign. It still
+    feeds the Chorus and Reverb through the Part's send levels (times the
+    key's own sends).
+  - **Checked on the device:** with the Comp/EQ Switch OFF, keys routed to
+    COMP+EQ*n* fall back to PART.
+- **Ext Part** routing: it has no Output Assign. **Checked on the device**
+  ([#467](https://github.com/sigma/integral/issues/467#issuecomment-6885678429)):
+  with Motional Surround OFF, the INPUT jack plays on A (MIX). Ext Part
+  Level 0 or Mute ON silences it, so it is the Ext Part's path, not a direct
+  monitor. Whether it also reaches B-D was not captured.
 
 ## Motional Surround
 

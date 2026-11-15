@@ -12,7 +12,9 @@ Startup Studio Set and Startup Exp Slot A–D. Roland's editor knows their names
 but has no address for them. **Ext Part Source Select is a split case.** The
 Owner's Manual puts it in SYSTEM > SOUND. Roland's editor maps an "Audio Input
 Source Select" to Studio Set Common `00 4B`, which the MIDI Implementation
-documents as a reserve. Nothing here was checked on the device.
+documents as a reserve. The device ignores that byte (see
+[below](#ext-part-source-select-studio-set-byte-or-system-setting)); the
+other rows were not checked on the device.
 
 All front-panel-only items except the Exp Slots are probably stored in the
 undocumented tail of the `SYSa` backup chunk (bits 221–863). Only the Preview
@@ -52,7 +54,7 @@ notes and velocities have been located there, and only by inference.
 | Preview 1–4 Note Number | front-panel only | C-1–G9 | yes (inferred), bits 225–280: 7-bit note + 7-bit velocity per pair = 48, 60, 72, 84 / 127 | [OM] p. 49; [RJS] `NESC_PVW1..4_NOTE` string only; [SVD] |
 | Preview 1–4 Velocity | front-panel only | OFF, 1–127 | yes (inferred), same pairs | as above |
 | Preview **trigger** (not a setting) | `0F 00 20 00` DT1, 1 B: `00` off, `01`–`10` part | fire-and-forget | n/a | [UND] §3, [RJS] `PREVIEW_ADDR` |
-| Ext Part Source Select | **Studio Set Common `18 00 00 4B`** per [RJS] *(reserve in [MI])*. No System address. | 1 bit, 0–1 = USB-AUDIO, EXT-AUDIO (OM: USB AUDIO, INPUT) | Studio Set entries carry the bit (`00 4B`, always 0); `SYSa` location unknown | [OM] p. 48 lists it under SYSTEM > SOUND; [RJS] `NEFC_IN_SRC_SELECT` at `0x004B` in the Studio Set Common table; a `NESC_IN_SRC_SELECT` string also exists, with no address |
+| Ext Part Source Select | **Panel only** (checked on the device). [RJS] maps it to Studio Set Common `18 00 00 4B` *(reserve in [MI])*, which the device ignores. No System address. | 1 bit, 0–1 = USB-AUDIO, EXT-AUDIO (OM: USB AUDIO, INPUT) | Studio Set entries carry the bit (`00 4B`, always 0); `SYSa` location unknown | [OM] p. 48 lists it under SYSTEM > SOUND; [RJS] `NEFC_IN_SRC_SELECT` at `0x004B` in the Studio Set Common table; a `NESC_IN_SRC_SELECT` string also exists, with no address |
 | USB Driver (VENDER / GENERIC) | front-panel only | 2 values; takes effect after save + power cycle | probably, tail | [OM] p. 48; [RJS] `NESC_USB_MIDI_DRV` string only |
 | USB-MIDI Thru | front-panel only | OFF/ON | probably, tail | [OM] pp. 45, 49; [RJS] `NESC_USB_MIDI_THRU` string only |
 | USB audio routing | no parameter | fixed: USB out = A (MIX) signal, USB in → Ext Part | n/a | [manual/05-operational.md](../manual/05-operational.md#usb-audio-routing). Only the Sampling Rate and Ext Part Source Select rows above configure it |
@@ -112,8 +114,13 @@ Set entries ([docs/svd/05-studio-set.md](../svd/05-studio-set.md)).
 
 The same pattern holds at `00 50`–`00 53` ("Expansion Slot RomID"), which the
 device turned out to ignore ([UND] §5). So the editor table is not proof that
-`00 4B` works. **Open:** whether a DT1 to `18 00 00 4B` switches the Ext Part
-source, and whether it reads back the SYSTEM setting.
+`00 4B` works. **Checked on the device** (2026-11-15,
+[#467](https://github.com/sigma/integral/issues/467#issuecomment-6885678429)):
+with the panel on INPUT and the input playing, a DT1 of 0 (USB-AUDIO in
+[RJS]) or 1 to `18 00 00 4B` reads back as written, and the input keeps
+playing at the same level. The byte does not mirror the SYSTEM setting
+either: it reads 0 with the panel on INPUT. The source is a panel-only
+setting.
 
 ### GM System On reception
 
