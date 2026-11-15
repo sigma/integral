@@ -49,3 +49,27 @@
   filter: grayscale(0.6);
   cursor: progress;
 }
+
+/* An area's "Init…" item, small enough for a Section's title or a key's header. */
+.item {
+  padding: 0 4px;
+  border: 1px solid #3a3a5a;
+  border-radius: 3px;
+  background: transparent;
+  color: #aaa;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+
+.item:hover:not(:disabled) {
+  color: #e0e0e0;
+  border-color: #5a5a8a;
+}
+
+.item:disabled {
+  opacity: 0.4;
+  cursor: progress;
+}

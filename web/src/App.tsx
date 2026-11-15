@@ -477,6 +477,7 @@ export function App({
                     service={service}
                     marking={waveMarking}
                     onBack={() => setActiveTab("mixer")}
+                    initItems
                   />
                 )}
               </ErrorBoundary>

@@ -44,6 +44,7 @@ const noop = () => {};
 function layout(s12: number, s34 = 0) {
   const { container } = render(
     <PcmSynthScreen
+      part={0}
       common={null}
       pmt={pmt(s12, s34)}
       partials={[0, 1, 2, 3].map(partial)}
@@ -109,6 +110,7 @@ describe("PcmSynthScreen", () => {
     off.partialEntries[1] = { ...off.partialEntries[1]!, partialSwitch: 0 };
     const { container } = render(
       <PcmSynthScreen
+        part={0}
         common={null}
         pmt={off}
         partials={[0, 1, 2, 3].map(partial)}

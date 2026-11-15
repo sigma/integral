@@ -15,6 +15,7 @@ import {
   PcmsPartialField,
   PcmsPmtField,
   Relevance,
+  ToneType,
   pcms_common_spec,
   pcms_pair_scope_relevance,
   pcms_partial_relevance,
@@ -37,6 +38,8 @@ import {
   RING_34_LAYOUT,
   type PcmsBox,
 } from "../layouts/pcm-synth/sections";
+import { partialInit } from "../init";
+import { InitGuard, InitItem } from "../InitFlow";
 import { MfxPanel, type MfxState } from "../MfxPanel";
 import type { MfxHandlers } from "../useMfxHandlers";
 import type { ExpansionMarking } from "../WavePicker";
@@ -75,6 +78,10 @@ export interface ScreenFailures {
 
 /** Props of {@link PcmSynthScreen}. */
 export interface PcmSynthScreenProps {
+  /** The Part whose tone this is, 0-based: its partials' Init scope. */
+  part: number;
+  /** Whether each partial's header offers its Init… item (a browser's editor, not a plugin's). */
+  initItems?: boolean;
   common: PcmSynthCommon | null;
   /** The tone's PMT: the Structures, and what core reads to say which fields are active. */
   pmt: PcmSynthPmt | null;
@@ -199,6 +206,8 @@ function BlockError({ title, message, retry }: BlockErrorProps) {
 
 /** The PCM Synth tone's Sections, on its screen layout. */
 export function PcmSynthScreen({
+  part,
+  initItems,
   common,
   pmt,
   partials,
@@ -214,6 +223,8 @@ export function PcmSynthScreen({
   const structures = [pmt?.structureType12 ?? 0, pmt?.structureType34 ?? 0] as const;
   const [s12, s34] = structures;
   const layout = useMemo(() => pcmsScreen([s12, s34]), [s12, s34]);
+  /** What a Partial Init of partial `idx` (0-based) resets. */
+  const partialScope = (idx: number) => partialInit(part, ToneType.PcmSynth, idx);
 
   /** A Section of pair `pair` (0 or 1). */
   const pairSection = (pair: number, section: PairSection): ReactNode => {
@@ -252,7 +263,18 @@ export function PcmSynthScreen({
       const binding = specBinding(`Partial ${idx + 1}`, pcms_pmt_spec(PcmsPmtField.PartialSwitch), isOn, (v) =>
         onPmtEntry(idx, PcmsPmtField.PartialSwitch, "partialSwitch", v),
       );
-      return <GridSection layout={PARTIAL_LAYOUT} scope={{ partial: idx }} bind={() => binding} />;
+      // Its switch is the partial's PMT entry, which the Init may reset too
+      // (`99-undocumented.md` §7 doesn't say): it waits with the boxes.
+      return (
+        <InitGuard area={partialScope(idx)}>
+          <GridSection
+            layout={PARTIAL_LAYOUT}
+            scope={{ partial: idx }}
+            bind={() => binding}
+            titleAction={initItems && <InitItem scope={partialScope(idx)} />}
+          />
+        </InitGuard>
+      );
     }
     const p = partials[idx];
     // The lane's WAVE box carries a failed partial's error; its other boxes
@@ -262,15 +284,17 @@ export function PcmSynthScreen({
       return at.block === "wave" && failure ? <BlockError title={`Partial ${idx + 1}`} {...failure} /> : null;
     }
     return (
-      <PartialBox
-        idx={idx}
-        box={at.block}
-        merged={!!routingOf(structures[pair]!).join}
-        partial={p}
-        pmt={pmt}
-        onPartial={onPartial}
-        marking={marking}
-      />
+      <InitGuard area={partialScope(idx)}>
+        <PartialBox
+          idx={idx}
+          box={at.block}
+          merged={!!routingOf(structures[pair]!).join}
+          partial={p}
+          pmt={pmt}
+          onPartial={onPartial}
+          marking={marking}
+        />
+      </InitGuard>
     );
   };
 

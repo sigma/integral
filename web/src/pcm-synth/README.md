@@ -63,7 +63,9 @@ bindings and routing all come from the wasm core. The page wrapper is
   Display bindings. `partialSpec` and the sync lookup are memoized through
   `cached`.
 - No device I/O. Edits leave through the caller's callbacks (`onCommon`,
-  `onPmt`, `onPmtEntry`, `onPartial`, `mfxHandlers`).
+  `onPmt`, `onPmtEntry`, `onPartial`, `mfxHandlers`). A partial's Init…
+  (with `initItems`) goes through the shared Init flow (`useInit`), for
+  Part `part`.
 
 ## Verification
 

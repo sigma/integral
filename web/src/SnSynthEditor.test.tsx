@@ -5,6 +5,8 @@ import {
   ParameterFamily,
   SnsCommonField,
   SnsPartialField,
+  ToneType,
+  sns_partial_count,
   WasmDeviceState,
   sns_common_spec,
   sns_partial_spec,
@@ -14,8 +16,9 @@ import { SnSynthEditor } from "./SnSynthEditor";
 import type { IntegraService } from "./integra";
 import { familyVar } from "./synth-ui";
 import { SNS_BOXES } from "./layouts/sn-synth/partial";
-import { SNS_ROW, SNS_SECTION, type SnsRowSection } from "./layouts/sn-synth/screen";
-import { cleanup, click, dragUp, option, render } from "./test/dom";
+import { SNS_ROW, SNS_SECTION, rowSectionOf, type SnsRowSection } from "./layouts/sn-synth/screen";
+import { button, cleanup, click, dragUp, option, render } from "./test/dom";
+import { confirmInit, fakeInit } from "./test/init";
 import { dt1Drainer } from "./test/toneService";
 
 // jsdom has no ResizeObserver, which the page's GridZoom watches its width with.
@@ -73,10 +76,16 @@ function fakeService() {
   return { device, service, sentRequests, reply };
 }
 
-/** Render the editor and answer its reads; Common is named "Lead" with Tone Level 100. */
-function loadedEditor() {
+/**
+ * Render the editor and answer its reads; Common is named "Lead" with Tone
+ * Level 100. With `initItems`, it is under an Init flow (`init`), offering
+ * its Init… items.
+ */
+function loadedEditor({ initItems = false } = {}) {
   const { device, service, sentRequests, reply } = fakeService();
-  const { container } = render(<SnSynthEditor partIndex={PART} service={service} />);
+  const init = fakeInit(service);
+  const editor = <SnSynthEditor partIndex={PART} service={service} initItems={initItems} />;
+  const { container } = render(initItems ? init.wrap(editor) : editor);
   expect(container.textContent).toContain("Loading SN-S tone data");
 
   // Common and 3 Partials, each read once.
@@ -92,7 +101,7 @@ function loadedEditor() {
     reply(address, data);
   }
   expect(container.textContent).toContain("Lead");
-  return { device, container, requests };
+  return { device, container, requests, init };
 }
 
 describe("SnSynthEditor", () => {
@@ -341,5 +350,40 @@ describe("SnSynthEditor on the Grid", () => {
     const common = container.querySelector<HTMLElement>(`[data-section="${SNS_SECTION.common}"]`)!;
     const level = control(common, SnsCommonField.ToneLevel).querySelector('[role="slider"]')!;
     expect(level.getAttribute("aria-valuemax")).toBe(String(sns_common_spec(SnsCommonField.ToneLevel).max));
+  });
+});
+
+describe("SnSynthEditor's Partial Init", () => {
+  /** The 0-based partial of each row Section the Init flow holds busy. */
+  const busyPartials = (scope: ParentNode) =>
+    [...scope.querySelectorAll('[aria-busy="true"]')].map(
+      (guard) => rowSectionOf(guard.closest<HTMLElement>("[data-section]")!.dataset.section!)!.partial,
+    );
+
+  it("offers Init… in each partial's header, and inits that partial after its confirmation", async () => {
+    const { container, init } = loadedEditor({ initItems: true });
+    for (let p = 1; p <= sns_partial_count(); p++) {
+      const strip = container.querySelector(`[data-grid-section="Partial ${p}"]`)!;
+      expect(button(strip, `Init Partial ${p}…`).textContent).toBe("Init…");
+    }
+    click(button(container, "Init Partial 3…"));
+    expect(document.body.textContent).toContain(`This resets Partial 3 of Part ${PART + 1}'s tone.`);
+    await act(async () => click(button(document.body, "Init")));
+    expect(init.asked).toEqual([{ kind: "partial", part: PART, toneType: ToneType.SnSynth, partial: 2 }]);
+  });
+
+  it("holds that partial's boxes alone busy, its header's switch left live, until the device has finished", async () => {
+    const { container, init } = loadedEditor({ initItems: true });
+    await confirmInit(container, "Init Partial 2…");
+    const busy = busyPartials(container);
+    expect(busy).toHaveLength(SNS_ROW.length - 1);
+    expect(new Set(busy)).toEqual(new Set([1]));
+    await init.finish();
+    expect(busyPartials(container)).toEqual([]);
+  });
+
+  it("offers none without its Init items (a plugin's editor)", () => {
+    const { container } = loadedEditor();
+    expect(container.textContent).not.toContain("Init…");
   });
 });

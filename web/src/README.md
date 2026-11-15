@@ -54,7 +54,17 @@ Pages and editors (`.tsx`):
     `ReinitDialog`.
 - Tone editors:
   - `SnSynthEditor`, `SnAcousticEditor` and `SnDrumEditor`.
-  - `PcmSynthEditor` and `PcmDrumEditor`, with `DrumKeyGrid`.
+  - `PcmSynthEditor` and `PcmDrumEditor`, with `DrumKeyGrid` and
+    `DrumKeyHeader` (the selected key's header, shared with `SnDrumEditor`).
+  - Partial Init (#598): with `initItems` (the browser's `ToneEditorPage`
+    passes it; a plugin's doesn't, web first), each SN Synth and PCM Synth
+    partial's switch strip shows an `InitItem` in its title (`GridSection`'s
+    `titleAction`), and each kit's `DrumKeyHeader` one for the selected key,
+    by its MIDI key number. An `InitGuard` holds that partial's boxes (and a
+    PCM Synth partial's strip, whose PMT switch the Init may reset), or that
+    key's Sections, busy. `ToneEditorPage` keeps a kit's selected key
+    in a ref (`lastKey`, down to `useDrumKey`) while the Part holds the same
+    tone, so the editor the Init remounts opens on the same key.
   - Shared by the editors: `MfxPanel`, `WaveDisplay` and `WavePicker`.
 - Shell pieces:
   - Navigation and selection: `NavRow` (with `NavScope`), the scopes'
@@ -65,7 +75,9 @@ Pages and editors (`.tsx`):
   - Initialization (`InitFlow.tsx`, #288): `InitProvider` (in `App`, around
     the shell and the connection card alike, so it outlives a lost link)
     runs one Init at a time. An area's "Init…" item calls
-    `useInit().request(scope)`, which confirms first, naming what resets.
+    `useInit().request(scope)`, which confirms first, naming what resets;
+    `InitItem` (`scope`, optional `className`) is that item, "Init…",
+    disabled while an Init runs.
     `InitGuard` (`area`) keeps the area's controls dimmed and inert while an
     Init that resets all of it runs. After "finished", or a timeout, the
     provider reads back

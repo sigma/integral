@@ -67,7 +67,8 @@ Scope, Variant set) are defined under "Layout" in
   - `GridSection` (`GridSectionProps`) — one Section from its layout plus
     a caller `bind(field, index)` returning a `Binding` (with
     `BindingOption` and `SyncBinding`). `loadedRelevance` is its relevance
-    helper.
+    helper. A caller's `titleAction` (a partial's "Init…") sits in the
+    title, after its text: an action, not a field, so no layout names it.
   - `GridScreen` — places a screen's Sections and arrows.
   - `SilkArrows`, `ScopeGate` (dims a group by Scope relevance).
   - `GridZoom` (`GridZoomProps`), with `useFitZoom`, `fitZoom`,

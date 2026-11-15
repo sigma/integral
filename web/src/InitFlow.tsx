@@ -234,3 +234,25 @@ export function InitGuard({ area, children }: { area: InitScope; children: React
     </div>
   );
 }
+
+/**
+ * An area's "Init…" item: asks for `scope`'s Init, which confirms first.
+ * Named by what it resets; disabled while an Init runs. `className` styles it
+ * as its place's buttons (a page header's); a small item by default.
+ */
+export function InitItem({ scope, className = css.item }: { scope: InitScope; className?: string }) {
+  const { request, running } = useInit();
+  const name = `${describeInit(scope).title}…`;
+  return (
+    <button
+      type="button"
+      className={className}
+      aria-label={name}
+      title={name}
+      disabled={running !== null}
+      onClick={() => request(scope)}
+    >
+      Init…
+    </button>
+  );
+}

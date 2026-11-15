@@ -4,7 +4,7 @@
  * Switches are Common fields.
  */
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import {
   ParameterFamily,
   sns_common_spec,
@@ -48,12 +48,21 @@ export function CommonSection({ common, onChange }: CommonSectionProps) {
 export interface PartialSwitchProps extends CommonSectionProps {
   /** Which partial, 0-based: the strip's Scope. */
   idx: number;
+  /** An item drawn in the strip's title, after its name (the partial's "Init…"). */
+  titleAction?: ReactNode;
 }
 
 /** The strip heading a partial's row: its on/off switch, live whether the partial is on or off. */
-export function PartialSwitch({ idx, common, onChange }: PartialSwitchProps) {
+export function PartialSwitch({ idx, common, onChange, titleAction }: PartialSwitchProps) {
   // The layout names Partial 1's switch; this Scope binds its own.
   const field = sns_partial_switch_field(idx);
   const binding = commonBinding(field, sns_common_value(field, common), onChange);
-  return <GridSection layout={SNS_PARTIAL_SWITCH_LAYOUT} scope={{ partial: idx }} bind={() => binding} />;
+  return (
+    <GridSection
+      layout={SNS_PARTIAL_SWITCH_LAYOUT}
+      scope={{ partial: idx }}
+      bind={() => binding}
+      titleAction={titleAction}
+    />
+  );
 }

@@ -112,6 +112,11 @@ export interface GridSectionProps<F extends FieldKey> {
   family?: ParameterFamily;
   /** Extra style for the Section's root (e.g. hiding it). */
   style?: CSSProperties;
+  /**
+   * An item the caller draws after the title, in the title (a partial's
+   * "Init…"): an action on the Section's Scope, which binds no field.
+   */
+  titleAction?: ReactNode;
 }
 
 /** The border's widths as CSS: the accent on top, the line elsewhere. */
@@ -275,6 +280,7 @@ export function GridSection<F extends FieldKey>({
   renderDisplay,
   family,
   style,
+  titleAction,
 }: GridSectionProps<F>) {
   const { top, side } = titleCells(layout);
   const { width: W, height: H } = cellsPx(sectionCells(layout));
@@ -346,6 +352,7 @@ export function GridSection<F extends FieldKey>({
           {layout.titleSwitch !== undefined && (
             <TitleSwitch field={layout.titleSwitch} binding={bind(layout.titleSwitch)} title={title} />
           )}
+          {titleAction}
         </span>
       </div>
       {/* Silkscreen stops at the drawn border, which sits INSET inside the Section's Cells. */}

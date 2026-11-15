@@ -92,4 +92,16 @@ describe.each(STRIPS)("the %s partial strip", (_, layout, field, family) => {
     expect(title.style.writingMode).toBe("vertical-rl");
     expect(title.style.transform).toBe("rotate(180deg)");
   });
+
+  it("draws the caller's title action after the label, in the title, reading with it", () => {
+    const bind = (): Binding => ({ name: "Partial 2 Switch", value: 1, min: 0, max: 1, defaultValue: 0, family, onChange: () => {} });
+    const root = render(
+      <GridSection layout={layout} scope={{ partial: 1 }} bind={bind} titleAction={<button>Init…</button>} />,
+    ).container.firstElementChild as HTMLElement;
+    const title = root.children[1] as HTMLElement;
+    expect(title.textContent).toBe("Partial 2Init…");
+    expect(title.querySelector("button")!.textContent).toBe("Init…");
+    // The body still holds the one toggle.
+    expect(root.querySelectorAll("[data-field] button")).toHaveLength(1);
+  });
 });

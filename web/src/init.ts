@@ -17,6 +17,11 @@ export type InitScope =
   /** `partial` is the 0-based partial index for a tone, the MIDI key number for a drum kit. */
   | { kind: "partial"; part: number; toneType: ToneType; partial: number };
 
+/** The Partial Init of `toneType` partial `partial` (an index, or a kit's key number) of Part `part`'s tone. */
+export function partialInit(part: number, toneType: ToneType, partial: number): InitScope {
+  return { kind: "partial", part, toneType, partial };
+}
+
 /** The core machine that sends `scope`'s Init and waits for "finished". */
 export function initMachine(deviceId: number, scope: InitScope): Initialization {
   switch (scope.kind) {
