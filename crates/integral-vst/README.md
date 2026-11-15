@@ -29,6 +29,26 @@ Instrument plays the notes and returns the INTEGRA-7's audio.
       pick the Part in its editor.
 4. Insert Integral Studio Set on the master track for the mixer and effects.
 
+### Following Live's tempo
+
+The INTEGRA-7 follows Live through MIDI clock; no plugin sends a tempo
+([#465](https://github.com/sigma/integral/issues/465)). Its tempo-synced
+effects then follow Live, settling on a new tempo over a few seconds.
+
+1. On the INTEGRA-7, set SYSTEM > SYNC/TEMPO > Sync Mode to SLAVE. It has no
+   SysEx address, so only the panel can set it, and it returns to MASTER at
+   power-off unless you save the System settings.
+2. Send Live's clock to a wired port: 5-pin MIDI IN with SYSTEM Clock Source
+   MIDI, or USB COMPUTER with Clock Source USB. In Live's MIDI preferences,
+   turn Sync on for that output only. Only one host should send clock
+   ([ADR 0006](../../docs/adr/0006-device-service-owns-the-link.md)).
+
+The device ignores clock on the Wireless link, so clock sent to
+`Integral Device Service` with `--link wireless` never locks. A Wireless-only
+rig keeps the device's own tempo
+([#571](https://github.com/sigma/integral/issues/571)). Once clock stops, the
+device holds the last tempo it received.
+
 Live opens a plugin's device panel empty: each plugin declares more than 64
 host parameters, and Live leaves such a list for you to fill
 ([#526](https://github.com/sigma/integral/issues/526)). To add parameters,
