@@ -126,6 +126,10 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
     to the `DisplaySlot`s a Display reads.
   - `relevance.rs`: `Relevance` (`Active`, `SwitchedOff`, `Irrelevant`),
     computed by the `*_relevance` predicates.
+  - `routing.rs`: `effective_routing` turns a `MixerState` into an
+    `EffectiveRouting`: a `Route` per source (stages, sends, Output Assign,
+    `Landing`s) and what each `Jack` pair carries, under the device's
+    override rules (Motional Surround, Comp+EQ, summing on a jack).
   - `lfo_rates.rs` (`pcm_lfo_hz`, `sn_lfo_hz`) and `velocity_curve.rs`
     (`velocity_curve`).
 
@@ -148,7 +152,8 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
 - `expansion_load.rs`: `plan` and `LoadPlan`, plus the `LoadMachine` with its
   `LoadAction` and `LoadOutcome`.
 - `mixer_load.rs`: `MixerBlock` lists the mixer reads (`initial`, `request`,
-  `apply`), the Part settings (`PartSettings`, `VoiceReserve`) included.
+  `apply`), among them each Part tone's name, category and MFX Type, the
+  Part settings (`PartSettings`, `VoiceReserve`) included.
 - `waves.rs`: `Wave`, `WaveGroup`, `waves`, `name`, `families` and
   `stereo_partner`.
 

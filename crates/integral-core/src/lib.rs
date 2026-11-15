@@ -49,6 +49,7 @@ pub mod pcm_structure;
 pub mod pcm_synth;
 pub mod read_tracker;
 pub mod relevance;
+pub mod routing;
 #[cfg(feature = "sequencer")]
 pub mod sequencer;
 pub mod sn_acoustic;

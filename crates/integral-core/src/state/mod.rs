@@ -143,6 +143,9 @@ pub struct PartState {
     /// own `PartState` type) reads back with the defaults.
     #[cfg_attr(feature = "serde", serde(default))]
     pub settings: PartSettings,
+    /// The MFX Type (0 = THRU) of the Part's Temporary tone, or `None`
+    /// while it is unread (or the tone's bank has none to read, as GM2).
+    pub mfx_type: Option<u8>,
 }
 
 impl Default for PartState {
@@ -162,6 +165,7 @@ impl Default for PartState {
             tone_category: 0,
             eq: EqState::default(),
             settings: PartSettings::default(),
+            mfx_type: None,
         }
     }
 }

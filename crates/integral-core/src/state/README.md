@@ -16,8 +16,9 @@ types derive `Serialize`/`Deserialize` in camelCase for the WASM bridge.
   - `FxState`: Chorus or Reverb block (enabled, type, level, output, output
     assign, `params: Vec<i32>`).
   - `PartState`: level, pan, mute, tone bank/PC, receive channel, sends,
-    output assign, tone name and category, `eq`, and `settings`
-    (`part_settings::PartSettings`, serialized by CLI field name).
+    output assign, tone name and category, `eq`, the tone's MFX Type
+    (`None` until read), and `settings` (`part_settings::PartSettings`,
+    serialized by CLI field name).
   - `SurroundPartState`, `SurroundState`: Motional Surround (16 Parts + Ext).
   - `CompEqUnit`, `DrumCompEqState`: six Comp+EQ units, global enable,
     assigned Part, output assigns.

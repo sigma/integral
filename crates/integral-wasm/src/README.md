@@ -59,6 +59,8 @@ Names below are the JS names that `wasm-bindgen` exports.
   `PartSettingGroup`, `part_setting_fields`, `part_setting_spec`, `_name`,
   `_label`, `_group`, `part_setting_group_label`) and the
   `WasmDeviceState` methods `partSetting` and `setPartSetting`.
+- `routing.rs`: `WasmDeviceState.effectiveRouting()` returns the state's
+  `EffectiveRouting` (TypeScript custom section).
 - `system.rs`: System Common. `system_fields`, `system_groups`,
   `system_group_label`, `system_field_spec` (`WasmSystemFieldSpec`, with
   `formatValue`, `formatNumber` and `parseValue`), `system_volatile_notice`

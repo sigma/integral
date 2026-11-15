@@ -7,6 +7,7 @@
 use crate::address::{Address, DataSize};
 use crate::device_spec::{INTEGRA7, MIDI_CHANNELS};
 use crate::factory_catalog;
+use crate::mfx;
 use crate::params::{self, part};
 use crate::parse_helpers::parse_ascii_name_len;
 use crate::part_settings::{self, PartSetting};
@@ -85,6 +86,13 @@ pub enum MixerBlock {
         /// The tone's bank MSB.
         msb: u8,
     },
+    /// The MFX Type of a part's tone, of bank MSB `msb`.
+    MfxType {
+        /// Part index (0-15).
+        part: u8,
+        /// The tone's bank MSB.
+        msb: u8,
+    },
 }
 
 impl MixerBlock {
@@ -118,11 +126,13 @@ impl MixerBlock {
             .collect()
     }
 
-    /// The tone name and category reads of `part`'s tone of bank MSB `msb`.
-    pub fn tone_reads(part: u8, msb: u8) -> [Self; 2] {
+    /// The tone name, category and MFX Type reads of `part`'s tone of bank
+    /// MSB `msb`.
+    pub fn tone_reads(part: u8, msb: u8) -> [Self; 3] {
         [
             Self::ToneName { part, msb },
             Self::ToneCategory { part, msb },
+            Self::MfxType { part, msb },
         ]
     }
 
@@ -156,6 +166,7 @@ impl MixerBlock {
             CompEq { part, .. } => format!("Part {} Comp+EQ", u32::from(part) + 1),
             ToneName { part, .. } => format!("Part {} tone name", u32::from(part) + 1),
             ToneCategory { part, .. } => format!("Part {} tone category", u32::from(part) + 1),
+            MfxType { part, .. } => format!("Part {} MFX type", u32::from(part) + 1),
         }
     }
 
@@ -169,13 +180,14 @@ impl MixerBlock {
     }
 
     /// Whether this block reads `part`'s tone: its dump (bank and PC), its
-    /// name, category or Comp+EQ block.
+    /// name, category, MFX Type or Comp+EQ block.
     pub fn reads_tone_of(self, part: u8) -> bool {
         match self {
             Self::Part(p) => p == part,
             Self::CompEq { part: p, .. }
             | Self::ToneName { part: p, .. }
-            | Self::ToneCategory { part: p, .. } => p == part,
+            | Self::ToneCategory { part: p, .. }
+            | Self::MfxType { part: p, .. } => p == part,
             _ => false,
         }
     }
@@ -254,6 +266,17 @@ impl MixerBlock {
             ToneCategory { part, msb } => {
                 (params::tone_category_address(part, msb)?, DataSize::ONE)
             }
+            // The device doesn't answer reads of a GM2 or ExPCM tone.
+            MfxType { part, msb } => (
+                mfx::mfx_address(
+                    part,
+                    params::is_editable_bank(msb)
+                        .then(|| params::tone_type_from_bank_msb(msb))
+                        .flatten()?,
+                    mfx::mfx_header_offset(mfx::MfxHeaderField::Type, 0).ok()?,
+                ),
+                DataSize::ONE,
+            ),
         })
     }
 
@@ -367,14 +390,17 @@ impl MixerBlock {
                 }
             }
             ToneCategory { part, .. } => state.parts[usize::from(part)].tone_category = byte,
+            MfxType { part, .. } => state.parts[usize::from(part)].mfx_type = Some(byte),
         }
         Vec::new()
     }
 }
 
 /// Set `part`'s tone, with the factory name and the drum kit category until
-/// the device's own are read (see [`MixerBlock::tone_reads`]).
+/// the device's own are read (see [`MixerBlock::tone_reads`]). The new tone
+/// has its own MFX, unread.
 pub(crate) fn set_tone(part: &mut PartState, msb: u8, lsb: u8, pc: u8) {
+    part.mfx_type = None;
     part.tone_bank_msb = msb;
     part.tone_bank_lsb = lsb;
     part.tone_pc = pc;

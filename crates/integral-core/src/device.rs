@@ -415,9 +415,6 @@ pub struct DeviceState {
     /// The DT1s queued since [`take_writes`](Self::take_writes), while
     /// [`record_writes`](Self::record_writes) is on.
     writes: Option<VecDeque<QueuedWrite>>,
-    /// The type of each Part's MFX, as far as this state has written or
-    /// read it (see [`mfx_type`](Self::mfx_type)).
-    mfx_types: HashMap<u8, u8>,
 }
 
 /// The most [`QueuedWrite`]s kept for a caller that does not take them: the
@@ -462,7 +459,6 @@ impl DeviceState {
             sent_reads: SentReads::default(),
             requests: RequestTracker::new(),
             writes: None,
-            mfx_types: HashMap::new(),
         }
     }
 
@@ -491,15 +487,19 @@ impl DeviceState {
     }
 
     /// The type of `part`'s MFX, if this state wrote it (a type change, the
-    /// header's Type field) or was told it ([`note_mfx_type`](Self::note_mfx_type))
-    /// since the Part's tone last changed.
+    /// header's Type field), read it (a mixer load) or was told it
+    /// ([`note_mfx_type`](Self::note_mfx_type)) since the Part's tone last
+    /// changed: the Part's [`PartState::mfx_type`](crate::state::PartState::mfx_type).
     pub fn mfx_type(&self, part: u8) -> Option<u8> {
-        self.mfx_types.get(&part).copied()
+        self.state.parts.get(usize::from(part))?.mfx_type
     }
 
     /// Record the type of `part`'s MFX, as a caller read it from the device.
+    /// A `part` out of range is ignored.
     pub fn note_mfx_type(&mut self, part: u8, mfx_type: u8) {
-        self.mfx_types.insert(part, mfx_type);
+        if let Some(p) = self.state.parts.get_mut(usize::from(part)) {
+            p.mfx_type = Some(mfx_type);
+        }
     }
 
     /// The SysEx device ID this state addresses.
@@ -1083,8 +1083,6 @@ impl DeviceState {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         mixer_load::set_tone(&mut self.state.parts[part as usize], msb, lsb, pc);
         self.invalidate_sns_tone(part);
-        // The new tone has its own MFX, which nothing has read yet.
-        self.mfx_types.remove(&part);
 
         // Reads of the old tone would undo the change: read the new one,
         // after the change is sent.
@@ -1135,8 +1133,6 @@ impl DeviceState {
             }
             mixer_load::set_tone(&mut self.state.parts[usize::from(part)], msb, lsb, pc);
             self.invalidate_sns_tone(part);
-            // The new tone has its own MFX, which nothing has read yet.
-            self.mfx_types.remove(&part);
             let stale = self.stale_tone_reads(part);
             self.drop_tone_reads(&stale);
             self.queue_new_tone_reads(part, msb, &stale);
@@ -3037,13 +3033,14 @@ mod tests {
     }
 
     #[test]
-    fn change_part_tone_sends_the_tone_then_reads_its_name_and_category() {
+    fn change_part_tone_sends_the_tone_then_reads_its_name_category_and_mfx_type() {
         let mut dev = DeviceState::new(0x10);
         dev.change_part_tone(0, 89, 64, 12);
         let name = params::tone_name_address(0, ToneType::SnAcoustic);
         let category = params::tone_category_address(0, 89).unwrap();
+        let mfx = crate::mfx::mfx_address(0, ToneType::SnAcoustic, 0);
         let sent = drain_until(&mut dev, 0.0, 1_000.0);
-        assert_eq!(sent.len(), 3);
+        assert_eq!(sent.len(), 4);
         assert_eq!(
             sent[0],
             sysex::build_dt1(
@@ -3057,13 +3054,14 @@ mod tests {
             sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE)
         );
         assert_eq!(sent[2], sysex::build_rq1(0x10, &category, &DataSize::ONE));
+        assert_eq!(sent[3], sysex::build_rq1(0x10, &mfx, &DataSize::ONE));
         assert_eq!(dev.state().parts[0].tone_bank_msb, 89);
         assert_eq!(dev.state().parts[0].tone_bank_lsb, 64);
         assert_eq!(dev.state().parts[0].tone_pc, 12);
     }
 
     #[test]
-    fn reread_part_reads_the_part_dump_then_its_name_and_category() {
+    fn reread_part_reads_the_part_dump_then_its_tone() {
         let mut dev = DeviceState::new(0x10);
         dev.change_part_tone(0, 87, 64, 3);
         drain_until(&mut dev, 0.0, 1_000.0);
@@ -3072,19 +3070,21 @@ mod tests {
         let sent = drain_until(&mut dev, 2_000.0, 3_000.0);
         assert_eq!(sent, [sysex::build_rq1(0x10, &dump_at, &dump_size)]);
 
-        // The reply names a new tone; its name and category follow.
+        // The reply names a new tone; its name, category and MFX Type follow.
         let mut dump = vec![0u8; 0x2A];
         dump[0x06..0x09].copy_from_slice(&[89, 64, 12]);
         assert!(dev.handle_dt1(&dump_at, &dump, 3_000.0));
         assert_eq!(dev.state().parts[0].tone_bank_msb, 89);
         let name = params::tone_name_address(0, ToneType::SnAcoustic);
         let category = params::tone_category_address(0, 89).unwrap();
+        let mfx = crate::mfx::mfx_address(0, ToneType::SnAcoustic, 0);
         let sent = drain_until(&mut dev, 3_100.0, 4_000.0);
         assert_eq!(
             sent,
             [
                 sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE),
                 sysex::build_rq1(0x10, &category, &DataSize::ONE),
+                sysex::build_rq1(0x10, &mfx, &DataSize::ONE),
             ]
         );
     }
@@ -3122,7 +3122,7 @@ mod tests {
     }
 
     #[test]
-    fn a_reported_part_select_changes_the_tone_and_reads_its_name() {
+    fn a_reported_part_select_changes_the_tone_and_reads_it() {
         // The Device service reads a Part's dump after its tone changed on
         // the device, and relays the reply to its raw clients; no read of
         // this state matches it.
@@ -3137,11 +3137,13 @@ mod tests {
 
         let name = params::tone_name_address(0, ToneType::PcmSynth);
         let category = params::tone_category_address(0, 87).unwrap();
+        let mfx = crate::mfx::mfx_address(0, ToneType::PcmSynth, 0);
         assert_eq!(
             drain_until(&mut dev, 1_000.0, 2_000.0),
             [
                 sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE),
                 sysex::build_rq1(0x10, &category, &DataSize::ONE),
+                sysex::build_rq1(0x10, &mfx, &DataSize::ONE),
             ]
         );
         assert!(dev.handle_dt1(&name, b"JP8 String  ", 2_000.0));
@@ -3184,11 +3186,13 @@ mod tests {
         // What leaves is the new tone's reads.
         let name = params::tone_name_address(0, ToneType::SnSynth);
         let category = params::tone_category_address(0, 95).unwrap();
+        let mfx = crate::mfx::mfx_address(0, ToneType::SnSynth, 0);
         assert_eq!(
             drain_until(&mut dev, 300.0, 1_000.0),
             [
                 sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE),
                 sysex::build_rq1(0x10, &category, &DataSize::ONE),
+                sysex::build_rq1(0x10, &mfx, &DataSize::ONE),
             ]
         );
     }
@@ -3845,6 +3849,8 @@ mod tests {
                 b"User Lead   ".to_vec(),
             ),
             (params::tone_category_address(2, 87).unwrap(), vec![7]),
+            (crate::mfx::mfx_address(2, ToneType::PcmSynth, 0), vec![34]),
+            (crate::mfx::mfx_address(9, ToneType::SnDrum, 0), vec![0]),
             (
                 params::chorus_address(params::chorus::TYPE),
                 vec![2, 100, 3, 1],
@@ -3884,6 +3890,11 @@ mod tests {
         assert_eq!((p.chorus_send, p.output_assign), (33, 4));
         assert_eq!((p.tone_name.as_str(), p.tone_category), ("User Lead", 7));
         assert_eq!(s.parts[9].tone_category, crate::svd::DRUMS_CATEGORY);
+        assert_eq!(s.parts[2].mfx_type, Some(34), "the Part's MFX Type");
+        assert_eq!(s.parts[9].mfx_type, Some(0), "THRU");
+        assert_eq!(dev.mfx_type(2), Some(34));
+        // Every Part's tone gets its MFX Type read, here a Part on bank 0.
+        assert_eq!(s.parts[5].mfx_type, None, "no tone type, nothing to read");
         assert_eq!(
             (
                 s.chorus.fx_type,
@@ -4243,6 +4254,33 @@ mod tests {
         assert!(serve(&mut dev, &memory, 1_000.0).contains(&name));
         assert_eq!(dev.state().parts[0].tone_name, "User Bass");
         assert!(!dev.mixer_loading(), "a tone read alone isn't a mixer load");
+    }
+
+    #[test]
+    fn change_part_tone_reads_the_new_tones_mfx_type() {
+        let mfx = crate::mfx::mfx_address(0, ToneType::SnAcoustic, 0);
+        let memory = HashMap::from([(mfx, vec![12])]);
+        let mut dev = DeviceState::new(0x10);
+        dev.note_mfx_type(0, 5);
+        dev.change_part_tone(0, 89, 0, 3);
+        assert_eq!(
+            dev.state().parts[0].mfx_type,
+            None,
+            "the old tone's is gone"
+        );
+        assert!(serve(&mut dev, &memory, 1_000.0).contains(&mfx));
+        assert_eq!(dev.state().parts[0].mfx_type, Some(12));
+    }
+
+    #[test]
+    fn a_gm2_tone_has_no_mfx_type_read() {
+        // The device doesn't answer reads of a GM2 or ExPCM Temporary Tone.
+        let mut dev = DeviceState::new(0x10);
+        dev.change_part_tone(0, 121, 0, 3);
+        let read = serve(&mut dev, &HashMap::new(), 1_000.0);
+        let mfx = crate::mfx::mfx_address(0, ToneType::PcmSynth, 0);
+        assert!(!read.contains(&mfx));
+        assert!(dev.mixer_failed_blocks().is_empty());
     }
 
     #[test]

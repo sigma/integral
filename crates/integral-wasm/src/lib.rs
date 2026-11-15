@@ -13,6 +13,7 @@ use wasm_bindgen::prelude::*;
 mod expansion;
 mod initialize;
 mod librarian;
+mod routing;
 mod sequencer;
 mod waves;
 pub use expansion::WasmExpansion;
