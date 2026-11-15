@@ -329,3 +329,130 @@ fn a_link_that_goes_down_mid_read_fails_the_read() {
     assert!(!ok, "the read succeeded with the link down");
     assert!(started.elapsed() < Duration::from_secs(20), "{stderr}");
 }
+
+/// Answer the reads of Part `part`'s (0-based) settings, as `part show` and
+/// `part set` make them: the Part dump with its Key Range Upper at `upper`
+/// and Coarse Tune at +12, the rest of the Part block, and every Voice
+/// Reserve.
+fn answer_part_settings_reads(fixture: &Fixture, part: u8, upper: u8) {
+    use integral_core::mixer_load::MixerBlock;
+    use integral_core::part_settings::PartSetting;
+
+    for block in [
+        MixerBlock::Part(part),
+        MixerBlock::PartSettings(part),
+        MixerBlock::VoiceReserve,
+    ] {
+        let (at, size) = block.request().expect("a request");
+        fixture.wait_sent(&sysex::build_rq1(DEVICE_ID, &at, &size));
+        let mut data = vec![0; size.value() as usize];
+        if block == MixerBlock::Part(part) {
+            data[usize::from(PartSetting::KeyRangeUpper.offset())] = upper;
+            data[usize::from(PartSetting::CoarseTune.offset())] = 76;
+        }
+        fixture
+            .link
+            .device_says(&sysex::build_dt1(DEVICE_ID, &at, &data));
+    }
+}
+
+#[test]
+fn part_show_reads_the_part_through_the_service() {
+    let fixture = Fixture::start("partshow");
+    let child = fixture
+        .integral(&["part", "show", "16", "--device-id", "17"])
+        .spawn()
+        .expect("run integral");
+    answer_part_settings_reads(&fixture, 15, 100);
+
+    let (ok, stdout, stderr) = finish(child);
+    assert!(ok, "{stderr}");
+    assert!(stdout.starts_with("Part 16\n"), "{stdout}");
+    let row = |name: &str| {
+        stdout
+            .lines()
+            .find(|l| l.split_whitespace().next() == Some(name))
+            .and_then(|l| l.split_whitespace().nth(1))
+            .map(str::to_string)
+    };
+    assert_eq!(row("key-upper").as_deref(), Some("E7"));
+    assert_eq!(row("coarse-tune").as_deref(), Some("+12"));
+}
+
+/// `part set` reads the Part first, so a Lower is held at its Upper.
+#[test]
+fn part_set_writes_the_field_through_the_service() {
+    use integral_core::part_settings::PartSetting;
+
+    let fixture = Fixture::start("partset");
+    let child = fixture
+        .integral(&["part", "set", "16", "key-lower", "C4", "--device-id", "17"])
+        .spawn()
+        .expect("run integral");
+    answer_part_settings_reads(&fixture, 15, 48);
+
+    let (ok, stdout, stderr) = finish(child);
+    assert!(ok, "{stderr}");
+    assert_eq!(stdout, "Part 16 key-lower: C3\n");
+    assert!(stderr.contains("key-lower held at C3"), "{stderr}");
+    let at = PartSetting::KeyRangeLower.address(15).expect("Part 16");
+    fixture.wait_sent(&sysex::build_dt1(DEVICE_ID, &at, &[48]));
+}
+
+/// A negative value is the value, not an option.
+#[test]
+fn part_set_takes_a_negative_value() {
+    use integral_core::part_settings::PartSetting;
+
+    let fixture = Fixture::start("partneg");
+    let child = fixture
+        .integral(&[
+            "part",
+            "set",
+            "16",
+            "coarse-tune",
+            "-48",
+            "--device-id",
+            "17",
+        ])
+        .spawn()
+        .expect("run integral");
+    answer_part_settings_reads(&fixture, 15, 127);
+
+    let (ok, stdout, stderr) = finish(child);
+    assert!(ok, "{stderr}");
+    assert_eq!(stdout, "Part 16 coarse-tune: -48\n");
+    let at = PartSetting::CoarseTune.address(15).expect("Part 16");
+    fixture.wait_sent(&sysex::build_dt1(DEVICE_ID, &at, &[16]));
+}
+
+#[test]
+fn part_set_refuses_an_unknown_field_before_connecting() {
+    let output = Command::new(env!("CARGO_BIN_EXE_integral"))
+        .args([
+            "--service=/nonexistent/socket",
+            "part",
+            "set",
+            "1",
+            "level",
+            "100",
+        ])
+        .output()
+        .expect("run integral");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("unknown Part setting `level`"), "{stderr}");
+}
+
+#[test]
+fn part_takes_only_the_devices_parts() {
+    let output = Command::new(env!("CARGO_BIN_EXE_integral"))
+        .args(["part", "show", "17"])
+        .output()
+        .expect("run integral");
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("1..=16"),
+        "{output:?}"
+    );
+}

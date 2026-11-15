@@ -179,6 +179,12 @@ enum Command {
         #[command(flatten)]
         args: InitArgs,
     },
+    /// Show and set a Part's settings: keyboard zone, pitch, Sound Ctrl
+    /// offsets, MIDI receive filters, Voice Reserve and Scale Tune.
+    Part {
+        #[command(subcommand)]
+        command: PartCommand,
+    },
     /// Browse the Wave catalog (offline).
     Wave {
         #[command(subcommand)]
@@ -246,6 +252,40 @@ impl RawConnectionArgs {
     fn timeout(&self, service: bool) -> Duration {
         midi::timeout(self.timeout, 5.0, service)
     }
+}
+
+/// A Part number on the command line (`part`, `pack export
+/// --current-part`), 1 to the device's Part count.
+fn part_number() -> clap::builder::RangedI64ValueParser<u8> {
+    clap::value_parser!(u8).range(1..=i64::from(INTEGRA7.part_count))
+}
+
+/// `part` subcommands.
+#[derive(Subcommand)]
+enum PartCommand {
+    /// Print every setting of Part N by its field name and display value.
+    Show {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+        /// Part number.
+        #[arg(value_parser = part_number())]
+        part: u8,
+    },
+    /// Set one setting of Part N, e.g. `part set 2 key-lower C4`. A key or
+    /// velocity Lower is held at or under its Upper, and an Upper at or
+    /// over its Lower.
+    Set {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+        /// Part number.
+        #[arg(value_parser = part_number())]
+        part: u8,
+        /// Field name, as `part show` lists them (`key-lower`, `bend-range`).
+        field: String,
+        /// Value in its display form (`C4`, `+12`, `ON`, `TONE`).
+        #[arg(allow_hyphen_values = true)]
+        value: String,
+    },
 }
 
 /// `wave` subcommands.
@@ -326,8 +366,7 @@ enum PackCommand {
         #[command(flatten)]
         slots: UserSlots,
         /// Also export the tone on Part N, unsaved edits included.
-        #[arg(long, value_name = "N",
-              value_parser = clap::value_parser!(u8).range(1..=i64::from(INTEGRA7.part_count)))]
+        #[arg(long, value_name = "N", value_parser = part_number())]
         current_part: Option<u8>,
         /// Also export the current Studio Set, unsaved edits included.
         #[arg(long)]
@@ -611,6 +650,30 @@ fn main() -> Result<()> {
             conn.timeout(slow),
             &args,
         )?),
+        Command::Part {
+            command: PartCommand::Show { conn, part },
+        } => commands::part::show(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
+            part,
+        ),
+        Command::Part {
+            command:
+                PartCommand::Set {
+                    conn,
+                    part,
+                    field,
+                    value,
+                },
+        } => commands::part::set(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
+            part,
+            &field,
+            &value,
+        ),
         Command::Wave {
             command: WaveCommand::List { group, all, format },
         } => commands::wave::list(group.as_deref(), all, format),

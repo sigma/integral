@@ -9,6 +9,7 @@ pub mod monitor;
 pub mod pack;
 pub mod pack_check;
 pub mod pack_import;
+pub mod part;
 pub mod ping;
 pub mod raw;
 pub mod svd;

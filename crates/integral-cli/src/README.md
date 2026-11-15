@@ -20,11 +20,13 @@ live in sibling modules, and the command bodies live in
     - `pack {list, export, check, import, reinit}`
     - `expansion {list, load}`
     - `init <studio-set|sound-ctrl|part|tone|partial>`
+    - `part {show, set}`
     - `wave {list}`
   - The shared option groups are `PortTimeoutArgs`, `ConnectionArgs` and
     `RawConnectionArgs` (`--port`, `--timeout`, `--device-id`).
   - `resolve_device_id` returns the explicit device ID, or detects it.
-  - Helper: `exit_nonzero`. `--device-id` takes `parse_device_id` from
+  - Helpers: `exit_nonzero`, and `part_number`, the 1 to `part_count`
+    value parser of `part`'s Part argument. `--device-id` takes `parse_device_id` from
     `integral-device-service`.
 - `device.rs`: `IntegraDevice` is the device handle.
   - `connect` and `connect_detecting` open it.
