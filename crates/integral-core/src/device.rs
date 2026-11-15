@@ -46,6 +46,7 @@ use crate::sn_acoustic::SnaCommonField;
 use crate::sn_drum::{SndCommonField, SndNoteField};
 use crate::sn_synth::{SnSynthTone, SnSynthToneBlocks, SnsBlock, SnsCommonField, SnsPartialField};
 use crate::state::{EqState, FxState, MixerState, SurroundPartState};
+use crate::studio_set_settings::{StudioSetField, StudioSetFieldError};
 use crate::sysex;
 use crate::system::{self, SystemField, SystemValueOutOfRange};
 
@@ -1993,6 +1994,24 @@ impl DeviceState {
         Ok(())
     }
 
+    /// Set a Studio Set setting (a Tone Control source, the tempo, a MIDI
+    /// channel's Phase Lock): update the state and send the field's DT1.
+    ///
+    /// # Errors
+    ///
+    /// [`StudioSetFieldError::ValueOutOfRange`] outside the field's range;
+    /// nothing is changed or sent.
+    pub fn set_studio_set_field(
+        &mut self,
+        field: StudioSetField,
+        value: i32,
+    ) -> Result<(), StudioSetFieldError> {
+        let data = field.encode(value)?;
+        field.store(&mut self.state.studio_set_settings, value);
+        self.send_dt1(&field.address(), &data);
+        Ok(())
+    }
+
     // -----------------------------------------------------------------------
     // Part settings
     // -----------------------------------------------------------------------
@@ -3834,6 +3853,22 @@ mod tests {
             (params::reverb_address(params::reverb::TYPE), vec![3, 80, 2]),
             (params::EXT_PART_LEVEL, vec![55, 12, 34, 1]),
             (params::DRUM_COMP_EQ_SWITCH, vec![1, 9, 1, 2, 3, 4, 5, 6]),
+            (
+                params::TONE_CONTROL_1_SOURCE,
+                vec![1, 74, 96, 97, 0x06, 0x00],
+            ),
+            (
+                params::studio_set_midi_address(0, params::studio_set_midi::PHASE_LOCK),
+                vec![1],
+            ),
+            (
+                params::studio_set_midi_address(9, params::studio_set_midi::PHASE_LOCK),
+                vec![1],
+            ),
+            (
+                params::studio_set_midi_address(15, params::studio_set_midi::PHASE_LOCK),
+                vec![1],
+            ),
         ]);
         let mut dev = DeviceState::new(0x10);
         dev.load_mixer();
@@ -3873,6 +3908,11 @@ mod tests {
             (55, 12, 34, true)
         );
         assert_eq!(s.drum_comp_eq.output_assigns, [1, 2, 3, 4, 5, 6]);
+        let settings = &s.studio_set_settings;
+        assert_eq!(settings.tone_control_sources, [1, 74, 96, 97]);
+        assert_eq!(settings.tempo, 96);
+        let locked: Vec<usize> = (0..16).filter(|&c| settings.phase_lock[c]).collect();
+        assert_eq!(locked, [0, 9, 15], "channels 1, 10 and 16 are phase locked");
         let kit = params::comp_eq_block_address_for_bank(9, 88).unwrap();
         assert!(read.contains(&kit), "reads the Comp+EQ part's kit block");
         assert_eq!(read.last(), Some(&kit), "the kit block is read last");
@@ -4015,6 +4055,45 @@ mod tests {
         let time = F::PortamentoTime.address(6).unwrap();
         dev.write_data(&time, &[0x06, 0x04]);
         assert_eq!(dev.part_setting(6, F::PortamentoTime), 0x64);
+    }
+
+    #[test]
+    fn set_studio_set_field_sends_the_fields_dt1() {
+        use crate::studio_set_settings::StudioSetSetting::*;
+        let field = |setting, index| StudioSetField::new(setting, index).unwrap();
+        let mut dev = DeviceState::new(0x10);
+
+        dev.set_studio_set_field(field(Tempo, 0), 96).unwrap();
+        dev.set_studio_set_field(field(ToneControlSource, 1), 74)
+            .unwrap();
+        dev.set_studio_set_field(field(PhaseLock, 15), 1).unwrap();
+
+        let sent = drain_until(&mut dev, 0.0, 1_000.0);
+        let dt1 = |addr: [u8; 4], data: &[u8]| {
+            let address = Address::new(addr[0], addr[1], addr[2], addr[3]);
+            sysex::build_dt1(0x10, &address, data)
+        };
+        assert_eq!(
+            sent,
+            [
+                dt1([0x18, 0x00, 0x00, 0x3D], &[0x06, 0x00]),
+                dt1([0x18, 0x00, 0x00, 0x3A], &[74]),
+                dt1([0x18, 0x00, 0x1F, 0x00], &[1]),
+            ]
+        );
+        let s = &dev.state().studio_set_settings;
+        assert_eq!((s.tempo, s.tone_control_sources[1]), (96, 74));
+        assert!(s.phase_lock[15]);
+    }
+
+    #[test]
+    fn set_studio_set_field_refuses_a_value_out_of_range() {
+        use crate::studio_set_settings::StudioSetSetting::Tempo;
+        let mut dev = DeviceState::new(0x10);
+        let tempo = StudioSetField::new(Tempo, 0).unwrap();
+        assert!(dev.set_studio_set_field(tempo, 251).is_err());
+        assert_eq!(dev.state().studio_set_settings.tempo, 120);
+        assert!(!dev.has_pending());
     }
 
     #[test]

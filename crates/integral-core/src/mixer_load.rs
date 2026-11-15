@@ -5,13 +5,14 @@
 //! queues the requests and applies the replies.
 
 use crate::address::{Address, DataSize};
-use crate::device_spec::INTEGRA7;
+use crate::device_spec::{INTEGRA7, MIDI_CHANNELS};
 use crate::factory_catalog;
 use crate::params::{self, part};
 use crate::parse_helpers::parse_ascii_name_len;
 use crate::part_settings::{self, PartSetting};
 use crate::state::parse as state_parse;
 use crate::state::{MixerState, PartState};
+use crate::studio_set_settings;
 use crate::svd::DRUMS_CATEGORY;
 
 /// A piece of mixer state read with one RQ1.
@@ -57,6 +58,10 @@ pub enum MixerBlock {
     SurroundCommon,
     /// A part's Motional Surround position.
     PartSurround(u8),
+    /// Tone Control 1–4 Source and the Studio Set Tempo.
+    StudioSetControl,
+    /// A MIDI channel's Phase Lock (0-15 = channel 1-16).
+    PhaseLock(u8),
     /// Drum Comp+EQ switch, part and output assigns.
     DrumCompEqCommon,
     /// The Comp+EQ block of a part's drum kit, of bank MSB `msb`.
@@ -105,6 +110,8 @@ impl MixerBlock {
                 SurroundCommon,
             ])
             .chain(parts(PartSurround))
+            .chain([StudioSetControl])
+            .chain((0..MIDI_CHANNELS).map(PhaseLock))
             .chain([DrumCompEqCommon])
             .chain(parts(PartSettings))
             .chain([VoiceReserve])
@@ -143,6 +150,8 @@ impl MixerBlock {
             ReverbParams => "Reverb parameters".into(),
             SurroundCommon => "Motional Surround".into(),
             PartSurround(p) => format!("Part {} surround", u32::from(p) + 1),
+            StudioSetControl => "Tone Control sources and tempo".into(),
+            PhaseLock(c) => format!("Channel {} Phase Lock", u32::from(c) + 1),
             DrumCompEqCommon => "Drum Comp+EQ".into(),
             CompEq { part, .. } => format!("Part {} Comp+EQ", u32::from(part) + 1),
             ToneName { part, .. } => format!("Part {} tone name", u32::from(part) + 1),
@@ -221,6 +230,14 @@ impl MixerBlock {
             PartSurround(p) => (
                 params::part_address(p, params::part_surround::LR),
                 params::PART_SURROUND_SIZE,
+            ),
+            StudioSetControl => (
+                params::TONE_CONTROL_1_SOURCE,
+                params::STUDIO_SET_CONTROL_SIZE,
+            ),
+            PhaseLock(c) => (
+                params::studio_set_midi_address(c, params::studio_set_midi::PHASE_LOCK),
+                DataSize::ONE,
             ),
             DrumCompEqCommon => (
                 params::DRUM_COMP_EQ_SWITCH,
@@ -325,6 +342,10 @@ impl MixerBlock {
                 state.surround.parts[usize::from(p)] =
                     state_parse::parse_surround_part(data[0], data[2], data[4], data[5]);
             }
+            StudioSetControl => {
+                studio_set_settings::apply_control_block(&mut state.studio_set_settings, data);
+            }
+            PhaseLock(c) => state.studio_set_settings.phase_lock[usize::from(c)] = byte == 1,
             DrumCompEqCommon => {
                 let dce = &mut state.drum_comp_eq;
                 dce.enabled = byte == 1;

@@ -43,7 +43,8 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
     clients after a tone changed on the device.
   - `load_mixer` and `load_sns_tone` start tracked reads that are retried.
   - `start_expansion_load` and `next_load_action` run an Expansion load.
-  - `set_mixer_field` and the typed `set_*` setters edit parameters.
+  - `set_mixer_field`, `set_studio_set_field` and the typed `set_*`
+    setters edit parameters.
 - `system.rs`: System Common (`02 00 00 00`, 47 bytes). `SystemField` and
   `system_spec` (`SystemFieldSpec`: CLI name, label, `SystemGroup`, range,
   format; `parse` reads a display string back) are its registry;
@@ -93,6 +94,11 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
   `PartSetting::def` gives its `PartSettingDef` (CLI name, label, group,
   `FieldSpec`) and `address` where it is written. `PartSettings` holds a
   Part's values, `locate` maps a written byte back to its field.
+- `studio_set_settings.rs`: the Studio Set settings the Mixer doesn't edit
+  (Tone Control 1–4 Source, Studio Set Tempo, per-channel Phase Lock).
+  `StudioSetSetting` names a setting, `StudioSetField` one instance of it
+  with its CLI `name` (`from_name`), `label`, `address`, `spec` and
+  `encode`. `DeviceState::set_studio_set_field` writes one.
 - `field_spec.rs`: `FieldSpec` holds the min, max, default, format and family
   of a field. Per-block lookups are named `pcms_*_spec`, `pcmd_*_spec`,
   `sns_*_spec`, `sna_common_spec` and `snd_*_spec`. `pcms_partial_sync` and

@@ -26,8 +26,8 @@ Names below are the JS names that `wasm-bindgen` exports.
       Part tone selects of dumps the Device service relayed (a tone changed
       on the device), which no read of the state asked for.
     - `readState()` returns the state as a `MixerState`-shaped object.
-    - Setters: `setPart*`, `setMixerField`, `setChorusParam`,
-      `setReverbParam` and the per-engine `set*Param`.
+    - Setters: `setPart*`, `setMixerField`, `setStudioSetField`,
+      `setChorusParam`, `setReverbParam` and the per-engine `set*Param`.
     - Block parsers: `applySnaCommon`, `applySndCommon`, `applySndNote`
       and `snsTone`. `reloadSnsTone` and `loadMixer` queue tracked RQ1
       reads.
@@ -47,7 +47,8 @@ Names below are the JS names that `wasm-bindgen` exports.
       `pcmd_partial_size`), `sns_partial_count`, `mfx_block_size`,
       `is_drum_kit_bank`
     - Family colours: `familyColour`, `mfxHeaderFamily`
-    - `*_spec`, `WasmFieldSpec`, `catalog_options` and `mixer_field_spec`
+    - `*_spec`, `WasmFieldSpec` (its `catalog` and `controlSource` name a
+      picker's list), `catalog_options` and `mixer_field_spec`
     - `tone_bank_groups`, `WasmToneBank` and `user_tone_bank`
     - `mfx_params`, `mfx_type_names`, `chorus_params`, `reverb_params` and
       `WasmFxParamDef`
@@ -87,6 +88,10 @@ Names below are the JS names that `wasm-bindgen` exports.
 - `sequencer.rs`: `WasmSequencer` with `play`, `due(device, now_ms,
   horizon_ms)` (returns `{tMs, bytes}[]`), `stop`, `panic`, `toSmf`,
   `toSmfOffline` and `loadSmf`.
+- `studio_set_settings.rs`: the Studio Set settings registry:
+  `StudioSetSetting`, `studio_set_setting_spec`, `studio_set_setting_count`,
+  `studio_set_field_name` and `studio_set_field_label`, and
+  `WasmDeviceState.setStudioSetField`.
 - `waves.rs`: `waveGroups`, `WaveGroup` (Rust `WasmWaveGroup`),
   `waveGroupWavesJson`, `waveName` and `waveStereoPartner`.
 

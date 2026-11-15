@@ -22,8 +22,10 @@ types derive `Serialize`/`Deserialize` in camelCase for the WASM bridge.
   - `CompEqUnit`, `DrumCompEqState`: six Comp+EQ units, global enable,
     assigned Part, output assigns.
   - `MixerState`: Studio Set name/PC, master level, solo, `parts[16]`, chorus,
-    reverb, ext, master EQ, surround, drum Comp+EQ, Studio Set name cache,
-    preview Part.
+    reverb, ext, master EQ, surround, drum Comp+EQ, Studio Set settings,
+    Studio Set name cache, preview Part.
+  - `StudioSetSettings`: Tone Control 1–4 Source, Studio Set Tempo and the
+    16 MIDI channels' Phase Lock.
 - `parse.rs`
   - Sizes: `PART_DUMP_SIZE` (0x2A), `PART_EQ_DUMP_SIZE` (8),
     `MASTER_EQ_DUMP_SIZE` (7).

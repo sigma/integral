@@ -353,11 +353,13 @@ mod display;
 mod part_settings;
 mod plugin;
 mod relevance;
+mod studio_set_settings;
 mod system;
 pub use display::{DisplayKind, DisplayProp, WasmDisplaySlot, display_binding};
 pub use part_settings::{PartSetting, PartSettingGroup};
 pub use plugin::PluginKind;
 pub use relevance::Relevance;
+pub use studio_set_settings::StudioSetSetting;
 pub use system::{SystemField, SystemGroup, WasmSystemCommon, WasmSystemFieldSpec};
 
 /// Tone type of a Part's Temporary Tone, selecting which tone type block
@@ -2287,6 +2289,16 @@ impl WasmFieldSpec {
     pub fn catalog(&self) -> Option<FieldCatalog> {
         match self.format {
             param_registry::ParamFormat::Catalog(c) => Some(c.into()),
+            _ => None,
+        }
+    }
+
+    /// The Control Source list the field names its values from, or
+    /// `undefined`: a picker lists its [`control_source_choices`].
+    #[wasm_bindgen(getter, js_name = controlSource)]
+    pub fn control_source(&self) -> Option<ControlSourceKind> {
+        match self.format {
+            param_registry::ParamFormat::ControlSource(kind) => Some(kind.into()),
             _ => None,
         }
     }

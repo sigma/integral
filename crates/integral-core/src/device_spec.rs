@@ -13,6 +13,10 @@ use thiserror::Error;
 /// Number of MIDI channels, fixed by the MIDI protocol.
 pub const MIDI_CHANNELS: u8 = 16;
 
+/// Number of Tone Controls a Studio Set assigns a source to (Studio Set
+/// Common Tone Control 1–4 Source).
+pub const TONE_CONTROLS: u8 = 4;
+
 /// Static specification of the INTEGRA-7's capabilities.
 ///
 /// Views and commands consume this spec rather than hardcoding device constants.
