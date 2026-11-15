@@ -20,9 +20,10 @@ import type { UseMixerResult } from "./useMixer";
 import type { UseExpansionsResult } from "./useExpansions";
 import type { Expansion } from "./expansionCatalog";
 import { NotLoadedMarker } from "./NotLoadedMarker";
+import { InitItem } from "./InitFlow";
 import css from "./ScopeControls.module.css";
 
-/** The Studio Set group's controls: the selector and SAVE. */
+/** The Studio Set group's controls: the selector, SAVE and Init…. */
 export function StudioSetControls({
   mixer,
   service,
@@ -69,6 +70,7 @@ export function StudioSetControls({
       >
         SAVE
       </button>
+      <InitItem scope={{ kind: "studio-set" }} className={css.initButton} />
       {save && (
         <SaveDialog
           title="Save Studio Set"

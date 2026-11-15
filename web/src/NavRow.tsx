@@ -14,6 +14,8 @@
 
 import type { ReactNode } from "react";
 import { Lockable } from "./Lockable";
+import { InitGuard } from "./InitFlow";
+import type { InitScope } from "./init";
 import { PartControls, StudioSetControls, ToneControls } from "./ScopeControls";
 import { PAGE_NAMES, type PageTab } from "./pluginPages";
 import type { IntegraService } from "./integra";
@@ -22,6 +24,12 @@ import type { UseMixerResult } from "./useMixer";
 import type { UseExpansionsResult } from "./useExpansions";
 import type { Expansion } from "./expansionCatalog";
 import css from "./NavRow.module.css";
+
+/**
+ * The Temporary Studio Set, as an Init's area. Its Init resets every Part and
+ * its tone, so the Studio Set, Part and Tone controls all edit it.
+ */
+const STUDIO_SET: InitScope = { kind: "studio-set" };
 
 /** The scopes of the row, left to right. */
 export type Scope = "device" | "studioSet" | "part" | "tone";
@@ -53,6 +61,8 @@ interface NavScopeProps {
   scope: Scope;
   /** The scope's selector and the controls acting on it; inert while `locked`. */
   controls?: ReactNode;
+  /** The area `controls` edit: they are busy and inert while an Init that resets it runs. */
+  initArea?: InitScope;
   /** Whether `controls` are locked (a Pack import); the pages and `after` stay live. */
   locked?: boolean;
   /** The pages the app shows, of which the scope's are its group's. */
@@ -65,7 +75,16 @@ interface NavScopeProps {
 }
 
 /** One scope's group of the row: its name, its controls, then its pages. */
-export function NavScope({ scope, controls, locked = false, pages, tab, onTab, after }: NavScopeProps) {
+export function NavScope({
+  scope,
+  controls,
+  initArea,
+  locked = false,
+  pages,
+  tab,
+  onTab,
+  after,
+}: NavScopeProps) {
   const name = SCOPE_NAMES[scope];
   const own = SCOPE_PAGES[scope].filter((page) => pages.includes(page));
   return (
@@ -73,7 +92,11 @@ export function NavScope({ scope, controls, locked = false, pages, tab, onTab, a
       <span className={css.name} aria-hidden>
         {name.toUpperCase()}
       </span>
-      {controls && <Lockable locked={locked}>{controls}</Lockable>}
+      {controls && (
+        <Lockable locked={locked}>
+          {initArea ? <InitGuard area={initArea}>{controls}</InitGuard> : controls}
+        </Lockable>
+      )}
       {controls && own.length > 0 && <span className={css.divider} aria-hidden />}
       {own.map((page) => (
         <button
@@ -147,13 +170,20 @@ export function NavRow({
       <NavScope
         scope="studioSet"
         {...nav}
+        initArea={STUDIO_SET}
         controls={<StudioSetControls mixer={mixer} service={service} />}
         after={transport}
       />
-      <NavScope scope="part" {...nav} controls={<PartControls mixer={mixer} />} />
+      <NavScope
+        scope="part"
+        {...nav}
+        initArea={STUDIO_SET}
+        controls={<PartControls mixer={mixer} />}
+      />
       <NavScope
         scope="tone"
         {...nav}
+        initArea={STUDIO_SET}
         controls={
           <ToneControls
             mixer={mixer}

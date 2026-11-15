@@ -41,7 +41,7 @@ import { MixerPage } from "./MixerPage";
 import { SurroundPage } from "./SurroundPage";
 import { ToneEditorPage } from "./ToneEditorPage";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { InitProvider } from "./InitFlow";
+import { InitGuard, InitProvider } from "./InitFlow";
 import { Transport } from "./Transport";
 import { KeyboardDrawer } from "./KeyboardDrawer";
 import { SequencerPage } from "./SequencerPage";
@@ -436,7 +436,8 @@ export function App({
               locked={importing}
             />
           )}
-          <Lockable locked={importing}>
+          {/* What a Studio Set Init resets waits for its "finished" too. */}
+          <Lockable locked={importing}><InitGuard area={{ kind: "studio-set" }}>
             {tab === "mixer" && (
               <ErrorBoundary section="Mixer">
                 <MixerPage mixer={mixer} expansions={expansions} />
@@ -487,7 +488,7 @@ export function App({
                 <ExpansionsPage expansions={expansions} staging={expansionStaging} />
               </ErrorBoundary>
             )}
-          </Lockable>
+          </InitGuard></Lockable>
           {tab === "library" && (
             <ErrorBoundary section="Library">
               <LibraryPage

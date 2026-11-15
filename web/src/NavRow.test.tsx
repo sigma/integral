@@ -9,6 +9,7 @@ import type { UseMixerResult } from "./useMixer";
 import { defaultMixerState, type MixerState } from "./types";
 import { button, cleanup, click, render } from "./test/dom";
 import { deviceSpec } from "./deviceSpec";
+import { InitProvider } from "./InitFlow";
 
 afterEach(cleanup);
 
@@ -22,25 +23,35 @@ function row({
   tab = "mixer",
   sequencer = true,
   locked = false,
-}: { state?: MixerState; tab?: PageTab; sequencer?: boolean; locked?: boolean } = {}) {
+  service = {} as IntegraService,
+}: {
+  state?: MixerState;
+  tab?: PageTab;
+  sequencer?: boolean;
+  locked?: boolean;
+  service?: IntegraService;
+} = {}) {
   const selectPart = vi.fn();
   const onTab = vi.fn();
-  const mixer = { state, selectPart } as unknown as UseMixerResult;
+  const reload = vi.fn();
+  const mixer = { state, selectPart, reload } as unknown as UseMixerResult;
   const { container } = render(
-    <NavRow
-      mixer={mixer}
-      service={{} as IntegraService}
-      catalog={{} as ToneCatalog}
-      expansions={expansions}
-      onLoadExpansion={() => {}}
-      pages={browserPages(sequencer)}
-      tab={tab}
-      onTab={onTab}
-      transport={sequencer ? <button>Panic</button> : null}
-      locked={locked}
-    />,
+    <InitProvider service={service} mixer={mixer}>
+      <NavRow
+        mixer={mixer}
+        service={service}
+        catalog={{} as ToneCatalog}
+        expansions={expansions}
+        onLoadExpansion={() => {}}
+        pages={browserPages(sequencer)}
+        tab={tab}
+        onTab={onTab}
+        transport={sequencer ? <button>Panic</button> : null}
+        locked={locked}
+      />
+    </InitProvider>,
   );
-  return { container, selectPart, onTab };
+  return { container, selectPart, onTab, reload };
 }
 
 /** The row's scope groups, by name. */
@@ -138,5 +149,50 @@ describe("the navigation row", () => {
       expect(inert(page)).toBe(false);
     }
     expect(inert(button(container, "Panic"))).toBe(false);
+  });
+
+  it("puts the Studio Set's Init… right after its SAVE", () => {
+    const { container } = row();
+    const controls = group(container, "Studio Set").querySelectorAll("button:not([data-page])");
+    const labels = [...controls].map((b) => b.textContent);
+    expect(labels.indexOf("Init…")).toBe(labels.indexOf("SAVE") + 1);
+  });
+
+  it("runs a Studio Set Init once confirmed, holds the scopes' controls until \"finished\", then re-reads the mixer", async () => {
+    let finish: (error?: string) => void = () => {};
+    const initialize = vi.fn(
+      () =>
+        new Promise<string | undefined>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { container, reload } = row({ service: { initialize } as unknown as IntegraService });
+    click(button(group(container, "Studio Set"), "Init…"));
+    const dialog = document.querySelector('[role="dialog"]')!;
+    expect(dialog.textContent).toContain("the Temporary Studio Set");
+    expect(initialize).not.toHaveBeenCalled();
+    click(button(dialog, "Init"));
+    expect(initialize).toHaveBeenCalledWith({ kind: "studio-set" });
+
+    const busy = (el: Element) => el.closest('[inert][aria-busy="true"]') !== null;
+    expect(busy(button(group(container, "Studio Set"), "Init…"))).toBe(true);
+    expect(busy(button(group(container, "Studio Set"), "SAVE"))).toBe(true);
+    expect(busy(group(container, "Part").querySelector("select")!)).toBe(true);
+    expect(busy(button(group(container, "Tone"), "SAVE"))).toBe(true);
+    // The pages and the transport stay live.
+    for (const page of container.querySelectorAll("button[data-page]")) {
+      expect(page.closest("[inert]")).toBeNull();
+    }
+    expect(button(container, "Panic").closest("[inert]")).toBeNull();
+    expect(reload).not.toHaveBeenCalled();
+
+    await act(async () => finish());
+    expect(reload).toHaveBeenCalledOnce();
+    expect(container.querySelector("[inert]")).toBeNull();
+  });
+
+  it("locks the Studio Set's Init… during a Pack import", () => {
+    const { container } = row({ locked: true });
+    expect(button(group(container, "Studio Set"), "Init…").closest("[inert]")).not.toBeNull();
   });
 });

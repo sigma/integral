@@ -51,6 +51,10 @@
   composes: previewButton;
 }
 
+.initButton {
+  composes: previewButton;
+}
+
 .saveButton:disabled {
   opacity: 0.4;
   cursor: default;

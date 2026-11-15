@@ -7,11 +7,11 @@ import {
   deviceServicePair,
   withDeviceService,
 } from "./deviceService";
-import { identity_request } from "../pkg/integral_wasm.js";
+import { identity_request, initFinishedAddress } from "../pkg/integral_wasm.js";
 import { pluginPorts, type PageMessage, type PluginBridge } from "./plugin";
 import { IDENTIFY_TIMEOUT_MS, LAST_PORT_KEY, webMidiPorts } from "./midi";
 import { button, cleanup, click, render } from "./test/dom";
-import { fakeMidiAccess, type FakePortSpec } from "./test/midiAccess";
+import { dt1, fakeMidiAccess, type FakePortSpec } from "./test/midiAccess";
 import { memoryStorage } from "./test/storage";
 
 // jsdom has no Worker or blob URLs (the Sequencer only needs them to exist),
@@ -354,5 +354,37 @@ describe("the browser's navigation", () => {
     click(edit);
     expect(edit.getAttribute("aria-current")).toBe("page");
     expect(navs[0]!.querySelector('[data-page="mixer"]')?.getAttribute("aria-current")).toBeNull();
+  });
+});
+
+describe("Studio Set Init", () => {
+  it("runs from the navigation row, holds the Mixer until \"finished\", then reads it again", async () => {
+    const { container, midi } = await open([{ name: "INTEGRA-7", answers: true }], remembering("INTEGRA-7"));
+    // The Mixer page's notice that it is still reading the silent device:
+    // the innermost div holding only that text.
+    const mixer = () =>
+      [...container.querySelectorAll("div")]
+        .reverse()
+        .find((d) => d.textContent === "Loading mixer state from device...")!;
+    const studioSet = container.querySelector<HTMLElement>('nav [aria-label="Studio Set"]')!;
+    click(button(studioSet, "Init…"));
+    click(button(document.querySelector('[role="dialog"]')!, "Init"));
+    await settle();
+    expect(mixer().closest('[inert][aria-busy="true"]')).not.toBeNull();
+
+    // The Init leaves after what the first mixer read queued, then the device
+    // answers it. The Init's address shares its first three bytes with "finished".
+    const initArea = [...initFinishedAddress()].slice(0, 3);
+    const isInit = (bytes: number[]) => initArea.every((b, i) => bytes[7 + i] === b);
+    await vi.waitFor(() => expect(midi.sent.some(({ bytes }) => isInit(bytes))).toBe(true), { timeout: 10_000 });
+    const before = midi.sent.length;
+    const input = [...midi.access.inputs.values()][0]!;
+    act(() => {
+      input.dispatchEvent(Object.assign(new Event("midimessage"), { data: new Uint8Array(dt1([...initFinishedAddress()], [0, 0, 0, 0])) }));
+    });
+    await settle();
+    expect(mixer().closest("[inert]")).toBeNull();
+    // The mixer is read again: data requests follow the Init.
+    await vi.waitFor(() => expect(midi.sent.slice(before).some(({ bytes }) => bytes[6] === 0x11)).toBe(true));
   });
 });
