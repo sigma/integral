@@ -7,11 +7,17 @@
 //! out to `onTimeout`. On `Done` with no error, read the reset area back:
 //! the device announces none of its values.
 
-use integral_core::initialize::{InitAction, InitTarget, Initialization};
+use integral_core::initialize::{INIT_FINISHED_ADDR, InitAction, InitTarget, Initialization};
 use wasm_bindgen::prelude::*;
 
 use crate::ToneType;
 use crate::librarian::{LibrarianAction, LibrarianActionKind, address, js_err};
+
+/// Address of the device's "Init finished" DT1.
+#[wasm_bindgen(js_name = initFinishedAddress)]
+pub fn init_finished_address() -> Vec<u8> {
+    INIT_FINISHED_ADDR.as_bytes().to_vec()
+}
 
 /// Sends one Init and waits for "Init finished". Parts are 0-indexed.
 #[wasm_bindgen(js_name = Initialization)]
@@ -107,7 +113,7 @@ impl WasmInitialization {
 
 #[cfg(test)]
 mod tests {
-    use integral_core::initialize::{INIT_FINISHED_ADDR, INIT_TIMEOUT_MS};
+    use integral_core::initialize::INIT_TIMEOUT_MS;
 
     use super::*;
 

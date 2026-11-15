@@ -41,6 +41,7 @@ import { MixerPage } from "./MixerPage";
 import { SurroundPage } from "./SurroundPage";
 import { ToneEditorPage } from "./ToneEditorPage";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { InitProvider } from "./InitFlow";
 import { Transport } from "./Transport";
 import { KeyboardDrawer } from "./KeyboardDrawer";
 import { SequencerPage } from "./SequencerPage";
@@ -395,7 +396,7 @@ export function App({
     // what edits them is inert until it ends. Notes, the pages' buttons and
     // the transport stay live.
     const importing = libraryImport.busy;
-    return (
+    const shell = (
       <div className={css.shell}>
         {loading && <ExpansionLoadBanner load={loading} />}
         {selectedPort?.carriesNotes === false && <NotesUnavailable />}
@@ -508,9 +509,15 @@ export function App({
         </div>
       </div>
     );
+    // Init items anywhere in the shell share one flow (#288).
+    return (
+      <InitProvider service={service} mixer={mixer}>
+        {shell}
+      </InitProvider>
+    );
   }
 
-  return (
+  const card = (
     <main className={css.main}>
       <h1 className={css.title}>Integral</h1>
       <p className={css.subtitle}>Integra-7 Control Surface</p>
@@ -559,5 +566,11 @@ export function App({
         )}
       </div>
     </main>
+  );
+  // The shell's InitProvider, kept mounted: an Init that lost the link says so here.
+  return (
+    <InitProvider service={service} mixer={mixer}>
+      {card}
+    </InitProvider>
   );
 }

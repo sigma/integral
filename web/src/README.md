@@ -61,6 +61,17 @@ Pages and editors (`.tsx`):
     `ToneSelector`.
   - Locking: `Lockable`.
   - Saving: `SaveDialog`, `SlotRow`.
+  - Initialization (`InitFlow.tsx`, #288): `InitProvider` (in `App`, around
+    the shell and the connection card alike, so it outlives a lost link)
+    runs one Init at a time. An area's "Init…" item calls
+    `useInit().request(scope)`, which confirms first, naming what resets.
+    `InitGuard` (`area`) keeps the area's controls dimmed and inert while an
+    Init that resets all of it runs. After "finished", or a timeout, the
+    provider reads back
+    through the existing paths: `mixer.reload` for a Studio Set,
+    `reReadPart` for a Part, Tone or Sound Ctrl, and `useInit().rereads(part)`,
+    which `ToneEditorPage` keys its editor on. A timeout, a refusal or a
+    lost link ends the busy state and says so.
   - Connection: `DeviceSelector`, and the `DeviceStatus` views.
   - Notes: `KeyboardDrawer`.
   - Banners and markers: `ExpansionLoadBanner`, `MixerLoadWarning`,
@@ -74,9 +85,13 @@ Device link and transports (`.ts`):
 - `integra.ts`:
   - `IntegraService` — RQ1 requests with retries, `onDt1` listeners, mixer
     and FX setters that delegate to core, Studio Set switching and saves,
-    catalog reads, Expansion loads, Pack export and import, notes.
+    catalog reads, Expansion loads, Pack export and import, Inits
+    (`initialize`), notes. `destroy` ends a Librarian run or an Init still
+    going with `LINK_LOST_ERROR`.
   - Result types: `ExpansionLoadResult`, `PackImportResult`,
     `PackExportProgress`.
+- `init.ts`: `InitScope` (the area an Init resets), `initMachine` (its core
+  `Initialization`), `covers` and `describeInit`.
 - `midi.ts`:
   - `initWasm` — memoized wasm init.
   - Port interfaces: `MidiPortPair`, `MidiPorts`, `MidiListener`.

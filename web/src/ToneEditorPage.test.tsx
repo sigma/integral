@@ -1,9 +1,10 @@
-import type { ComponentProps } from "react";
+import { act, type ComponentProps } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { ToneType, WasmDeviceState } from "../pkg/integral_wasm.js";
+import { InitProvider, useInit } from "./InitFlow";
 import { ToneEditorPage } from "./ToneEditorPage";
 import type { UseMixerResult } from "./useMixer";
-import { cleanup, render } from "./test/dom";
+import { button, cleanup, click, render } from "./test/dom";
 import { fakeToneService } from "./test/toneService";
 
 // jsdom lacks the ResizeObserver the editors' Grid zoom measures with.
@@ -97,6 +98,40 @@ describe("ToneEditorPage", () => {
       expect(view.container.textContent).not.toContain("Loading PCM Synth tone data");
       view.rerender(<ToneEditorPage {...props} reread={1} />);
       expect(view.container.textContent).toContain("Loading PCM Synth tone data");
+    });
+
+    it("re-reads the editor once a Tone Init of its Part finishes", async () => {
+      const mixer = {
+        state: { selectedPart: 0, parts: [{ toneBankMsb: OTHER_MSB, toneBankLsb: 0, tonePC: 0 }] },
+        reload: () => {},
+      } as unknown as UseMixerResult;
+      const { service } = fakeToneService(new WasmDeviceState(0x10));
+      service.initialize = async () => undefined;
+      const answer = service.requestData.bind(service);
+      let reads = 0;
+      service.requestData = (address, size) => {
+        reads++;
+        return answer(address, size);
+      };
+      const marking = { isUnloaded: () => false, onLoad: () => {} };
+      function Item() {
+        const init = useInit();
+        return <button onClick={() => init.request({ kind: "tone", part: 0 })}>Init…</button>;
+      }
+      const { container } = render(
+        <InitProvider service={service} mixer={mixer}>
+          <Item />
+          <ToneEditorPage mixer={mixer} service={service} marking={marking} part={0} />
+        </InitProvider>,
+      );
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      expect(container.textContent).not.toContain("Loading PCM Synth tone data");
+      const before = reads;
+      expect(before).toBeGreaterThan(0);
+      click(button(container, "Init…"));
+      await act(async () => click(button(container, "Init")));
+      // The remounted editor read its blocks again.
+      expect(reads).toBe(2 * before);
     });
   });
 });

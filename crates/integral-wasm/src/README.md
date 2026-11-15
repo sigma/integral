@@ -86,7 +86,8 @@ Names below are the JS names that `wasm-bindgen` exports.
   Init, built with `studioSet`, `soundCtrl`, `part`, `tone` or `partial`
   (a partial index for a tone, the key number for a kit). It is driven like
   the Librarian machines, by `nextAction`, `onRead`, `onWriteReply`,
-  `onTimeout` and `cancel`.
+  `onTimeout` and `cancel`. `initFinishedAddress` is the address of the
+  "Init finished" DT1.
 - `sequencer.rs`: `WasmSequencer` with `play`, `due(device, now_ms,
   horizon_ms)` (returns `{tMs, bytes}[]`), `stop`, `panic`, `toSmf`,
   `toSmfOffline` and `loadSmf`.

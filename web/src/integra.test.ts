@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { IntegraService } from "./integra";
+import { initFinishedAddress } from "../pkg/integral_wasm.js";
+import { IntegraService, LINK_LOST_ERROR } from "./integra";
 import { studioSetType } from "./librarian";
 import type { MidiPortPair } from "./midi";
 
@@ -113,5 +114,46 @@ describe("RQ1 replies", () => {
     receive(port, dt1(common, Array<number>(12).fill(0x41)));
     receive(port, dt1(common, Array<number>(0x50).fill(0x20)));
     expect((await read).length).toBe(0x50);
+  });
+});
+
+/** "Init finished" (docs/midi/99-undocumented.md §7). */
+const INIT_FINISHED = Array.from(initFinishedAddress());
+
+describe("Init", () => {
+  let service: IntegraService | undefined;
+  afterEach(() => service?.destroy());
+
+  /** Resolves once `port` has sent something. */
+  function sent(port: FakePort): Promise<void> {
+    return vi.waitFor(() => expect(port.send).toHaveBeenCalled());
+  }
+
+  it("sends the Init and resolves on \"finished\"", async () => {
+    const port = fakePort();
+    service = new IntegraService(port, 0x10);
+    const init = service.initialize({ kind: "part", part: 2 });
+    await sent(port);
+    const bytes = vi.mocked(port.send).mock.calls[0]![0];
+    // The Init's address sits beside "finished": 0F 00 18 TT.
+    expect(Array.from(bytes.slice(7, 10))).toEqual(INIT_FINISHED.slice(0, 3));
+    receive(port, dt1(INIT_FINISHED, [0, 0, 0, 0]));
+    expect(await init).toBeUndefined();
+  });
+
+  it("resolves with the link lost once the service is torn down", async () => {
+    const port = fakePort();
+    service = new IntegraService(port, 0x10);
+    const init = service.initialize({ kind: "studio-set" });
+    await sent(port);
+    service.destroy();
+    expect(await init).toBe(LINK_LOST_ERROR);
+  });
+
+  it("refuses to start while another runs", async () => {
+    const port = fakePort();
+    service = new IntegraService(port, 0x10);
+    void service.initialize({ kind: "tone", part: 0 });
+    await expect(service.initialize({ kind: "tone", part: 1 })).rejects.toThrow();
   });
 });

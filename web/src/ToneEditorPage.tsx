@@ -5,6 +5,7 @@ import { SnAcousticEditor } from "./SnAcousticEditor";
 import { SnDrumEditor } from "./SnDrumEditor";
 import { PcmSynthEditor } from "./PcmSynthEditor";
 import { PcmDrumEditor } from "./PcmDrumEditor";
+import { useInit } from "./InitFlow";
 import type { IntegraService } from "./integra";
 import type { UseMixerResult } from "./useMixer";
 import type { ExpansionMarking } from "./WavePicker";
@@ -43,6 +44,8 @@ export function ToneEditorPage({
   // types; core knows which from the bank, and which banks can't be edited.
   const partIndex = bound ?? mixer.state.selectedPart;
   const part = mixer.state.parts[partIndex]!;
+  // A Tone, Partial, Part or Studio Set Init re-reads the editor the same way.
+  const inits = useInit().rereads(partIndex);
   const msb = part.toneBankMsb;
   const holds = is_editable_bank(msb) ? tone_type_from_bank_msb(msb) : undefined;
   // A plugin edits its own type only: another type is inert (ADR 0007).
@@ -59,7 +62,7 @@ export function ToneEditorPage({
         </div>
       )}
       {/* Keyed on tone identity so a new tone pick remounts and re-reads the editor. */}
-      <Fragment key={`${part.toneBankMsb}-${part.toneBankLsb}-${part.tonePC}-${reread ?? 0}`}>
+      <Fragment key={`${part.toneBankMsb}-${part.toneBankLsb}-${part.tonePC}-${reread ?? 0}-${inits}`}>
         {toneType === ToneType.PcmDrum ? (
           <PcmDrumEditor partIndex={partIndex} service={service} marking={marking} scope={drum} />
         ) : toneType === ToneType.PcmSynth ? (
