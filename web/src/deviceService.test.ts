@@ -5,12 +5,15 @@ import {
   DEVICE_SERVICE_NAME,
   LINK_DOWN_CLOSE_CODE,
   LINK_DOWN_HINT,
-  NOT_RUNNING_HINT,
+  notRunningHint,
   RECONNECT_MAX_MS,
   RECONNECT_MIN_MS,
   browserPorts,
   deviceServicePair,
+  deviceServiceUrlFor,
+  servedByService,
   withDeviceService,
+  type PageLocation,
   type SocketLike,
 } from "./deviceService";
 import type { Timers } from "./timedSend";
@@ -244,8 +247,8 @@ describe("deviceServicePair", () => {
     const opening = pair.open();
     last().end();
 
-    await expect(opening).rejects.toThrow(NOT_RUNNING_HINT);
-    expect(pair.failure?.()).toBe(NOT_RUNNING_HINT);
+    await expect(opening).rejects.toThrow(notRunningHint());
+    expect(pair.failure?.()).toBe(notRunningHint());
   });
 
   it("gives up on a socket that never opens or closes, and retries", async () => {
@@ -256,7 +259,7 @@ describe("deviceServicePair", () => {
 
     expect(clock.fire()).toBe(CONNECT_TIMEOUT_MS);
 
-    await expect(opening).rejects.toThrow(NOT_RUNNING_HINT);
+    await expect(opening).rejects.toThrow(notRunningHint());
     expect(stuck.closed).toBe(true);
     expect(clock.fire()).toBe(RECONNECT_MIN_MS);
     expect(sockets).toHaveLength(2);
@@ -288,13 +291,13 @@ describe("deviceServicePair", () => {
       () => NOW,
     );
 
-    await expect(pair.open()).rejects.toThrow(NOT_RUNNING_HINT);
+    await expect(pair.open()).rejects.toThrow(notRunningHint());
     expect(clock.fire()).toBe(RECONNECT_MIN_MS);
     expect(calls).toBe(2);
   });
 
   it("names a blocked connection among the reasons", () => {
-    expect(NOT_RUNNING_HINT).toContain("blocked");
+    expect(notRunningHint()).toContain("blocked");
   });
 
   it("declares that it carries notes", () => {
@@ -313,8 +316,8 @@ describe("deviceServicePair", () => {
   });
 
   it("names the origin among the reasons it may be refused", () => {
-    expect(NOT_RUNNING_HINT).toContain("not running");
-    expect(NOT_RUNNING_HINT).toContain("origin isn't allowed (--ws-origin)");
+    expect(notRunningHint()).toContain("not running");
+    expect(notRunningHint()).toContain("origin isn't allowed (--ws-origin)");
   });
 
   it("retries with a growing wait, connects when the service appears, and tells the watcher", async () => {
@@ -454,9 +457,60 @@ describe("the ports of a browser", () => {
     expect(deviceServiceUrl()).toBe("ws://127.0.0.1:4707");
   });
 
+  it("tells Safari users to open the page the service serves", () => {
+    expect(notRunningHint()).toContain("open http://127.0.0.1:4707/ instead");
+  });
+
   it("is never the default port, though its name says Integral", () => {
     const service = setup().pair;
     expect(findIntegraPort([service])).toBeUndefined();
     expect(findIntegraPort([service, midiPair])).toBe(midiPair);
+  });
+});
+
+describe("the page the service serves", () => {
+  const page = (protocol: string, hostname: string, port: string): PageLocation => ({
+    protocol,
+    hostname,
+    port,
+  });
+
+  it("is a page over http from the service's host, on its own port", () => {
+    const served = page("http:", "127.0.0.1", "4800");
+    expect(servedByService(served)).toBe(true);
+    expect(deviceServiceUrlFor(served)).toBe("ws://127.0.0.1:4800");
+    // A port the protocol implies is the page's port too.
+    expect(deviceServiceUrlFor(page("http:", "127.0.0.1", ""))).toBe(
+      "ws://127.0.0.1:80",
+    );
+  });
+
+  it.each([
+    ["the dev server", () => page("http:", "127.0.0.1", String(devServerPort()))],
+    ["the preview server", () => page("http:", "127.0.0.1", String(previewPort()))],
+    ["an https page", () => page("https:", "127.0.0.1", "4800")],
+    ["another host", () => page("http:", "localhost", "4800")],
+  ])("is not %s, which keeps the default port", (_, other) => {
+    expect(servedByService(other())).toBe(false);
+    expect(deviceServiceUrlFor(other())).toBe(deviceServiceUrl());
+  });
+
+  it("keeps the default port with no page", () => {
+    expect(deviceServiceUrlFor()).toBe(deviceServiceUrl());
+  });
+
+  it("is where the browser's service port connects", async () => {
+    const urls: string[] = [];
+    const ports = await browserPorts(
+      () => Promise.reject(new Error("no Web MIDI")),
+      page("http:", "127.0.0.1", "4800"),
+      (url) => {
+        urls.push(url);
+        return new FakeSocket(url);
+      },
+    );
+    ports.pairs()[0]?.open().catch(() => {});
+    expect(urls).toEqual(["ws://127.0.0.1:4800"]);
+    ports.close?.();
   });
 });

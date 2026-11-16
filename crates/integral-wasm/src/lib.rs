@@ -60,10 +60,25 @@ pub fn device_spec_json() -> Result<String, JsError> {
         .map_err(|e| JsError::new(&e.to_string()))
 }
 
-/// The URL of the Device service's WebSocket endpoint at its default port.
+/// The URL of the Device service's WebSocket endpoint on `port`, its default
+/// port when none is given.
 #[wasm_bindgen(js_name = "deviceServiceUrl")]
-pub fn device_service_url() -> String {
-    integral_core::device_service::websocket_url(integral_core::device_service::WEBSOCKET_PORT)
+pub fn device_service_url(port: Option<u16>) -> String {
+    integral_core::device_service::websocket_url(
+        port.unwrap_or(integral_core::device_service::WEBSOCKET_PORT),
+    )
+}
+
+/// The host the Device service listens on, and serves the web app from.
+#[wasm_bindgen(js_name = "deviceServiceHost")]
+pub fn device_service_host() -> String {
+    integral_core::device_service::WEBSOCKET_HOST.to_string()
+}
+
+/// The URL of the web app the Device service serves at its default port.
+#[wasm_bindgen(js_name = "deviceServicePageUrl")]
+pub fn device_service_page_url() -> String {
+    integral_core::device_service::page_url(integral_core::device_service::WEBSOCKET_PORT)
 }
 
 /// The name of the page's Device service port pair.

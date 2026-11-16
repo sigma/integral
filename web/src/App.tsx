@@ -11,7 +11,12 @@ import {
   type MidiPorts,
   type DeviceIdentity,
 } from "./midi";
-import { browserPorts } from "./deviceService";
+import {
+  DEVICE_SERVICE_ID,
+  browserPorts,
+  servedByService,
+  type PageLocation,
+} from "./deviceService";
 import { IntegraService } from "./integra";
 import { installFamilyPalette } from "./synth-ui/family";
 import { PartSettingGroup, PluginKind, plugin_kind_from_wire } from "../pkg/integral_wasm.js";
@@ -68,19 +73,22 @@ type DeviceStatus =
   | { step: "failed"; reason: string }
   | { step: "disconnected" };
 
-/** The browser's ports: Web MIDI's, and the Device service beside them. */
-const openBrowserPorts = () => browserPorts(webMidi);
-
-/** Where the app reaches MIDI and keeps state across page loads. Both are
+/** Where the app reaches MIDI and keeps state across page loads. These are
  *  read once, on mount. */
 interface AppProps {
-  /** Opens the transport's port list: the browser's Web MIDI and the Device
-   *  service by default, the plugin transport inside the plugin
-   *  (`main.tsx`). */
+  /** Where the browser loaded the page from (`main.tsx`), none in the plugin
+   *  or a test. A page the Device service served ({@link servedByService})
+   *  reaches it on the page's own port, and connects to it without a click,
+   *  whatever other ports are listed. */
+  page?: PageLocation;
+  /** Opens the transport's port list: by default the browser's Web MIDI and
+   *  the Device service as {@link page} reaches it, the plugin transport
+   *  inside the plugin (`main.tsx`). */
   openPorts?: () => Promise<MidiPorts>;
   /** Connect to the only port without a click, which is the choice there is
    *  (the plugin, whose one port is the Device service). Off in the browser,
-   *  where the service is never a default. */
+   *  where the service is never a default (unless it served the page:
+   *  {@link page}). */
   connectOnlyPort?: boolean;
   /** Keeps the last port across page loads; `localStorage` by default. */
   storage?: Storage | null;
@@ -95,14 +103,16 @@ interface AppProps {
 
 /** The control surface: connects to a device, then shows its pages. */
 export function App({
-  openPorts = openBrowserPorts,
+  page,
+  openPorts = () => browserPorts(webMidi, page),
   connectOnlyPort = false,
   storage = browserStorage(),
   plugin,
 }: AppProps = {}) {
-  const [{ memory, connectPorts }] = useState(() => ({
+  const [{ memory, connectPorts, loadedFrom }] = useState(() => ({
     memory: portMemory(storage),
     connectPorts: openPorts,
+    loadedFrom: page,
   }));
   // The remembered port, while it has yet to appear and no port was chosen.
   const awaitedPortRef = useRef<string | null>(null);
@@ -187,9 +197,16 @@ export function App({
         identify(last);
       } else {
         awaitedPortRef.current = remembered;
+        // A page the Device service served connects to it, whatever else
+        // is listed; the picker still switches ports.
+        const service =
+          loadedFrom !== undefined && servedByService(loadedFrom)
+            ? pairs.find((p) => p.id === DEVICE_SERVICE_ID)
+            : undefined;
         const integra = findIntegraPort(pairs);
-        setSelectedId(integra?.id ?? pairs[0]?.id ?? null);
-        if (connectOnlyPort && pairs.length === 1) identify(pairs[0]!);
+        setSelectedId(service?.id ?? integra?.id ?? pairs[0]?.id ?? null);
+        if (service) identify(service);
+        else if (connectOnlyPort && pairs.length === 1) identify(pairs[0]!);
       }
 
       // Monitor port connect/disconnect events.
@@ -214,7 +231,7 @@ export function App({
       stopWatching?.();
       opened?.close?.();
     };
-  }, [connectPorts, connectOnlyPort, memory, identify]);
+  }, [connectPorts, connectOnlyPort, loadedFrom, memory, identify]);
 
   const handleSelect = useCallback(
     (portId: string) => {

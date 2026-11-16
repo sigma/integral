@@ -3,11 +3,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import {
   DEVICE_SERVICE_NAME,
-  NOT_RUNNING_HINT,
+  browserPorts,
+  notRunningHint,
   deviceServicePair,
   withDeviceService,
+  type PageLocation,
+  type SocketLike,
 } from "./deviceService";
-import { identity_request, initFinishedAddress } from "../pkg/integral_wasm.js";
+import {
+  devServerPort,
+  identity_request,
+  initFinishedAddress,
+  previewPort,
+} from "../pkg/integral_wasm.js";
 import { pluginPorts, type PageMessage, type PluginBridge } from "./plugin";
 import { IDENTIFY_TIMEOUT_MS, LAST_PORT_KEY, webMidiPorts } from "./midi";
 import { button, cleanup, click, pointer, render } from "./test/dom";
@@ -224,7 +232,7 @@ describe("the Device service port", () => {
     await settle();
     act(() => socket(sockets, 0).onclose?.(new CloseEvent("close")));
     await settle();
-    expect(container.textContent).toContain(NOT_RUNNING_HINT);
+    expect(container.textContent).toContain(notRunningHint());
     expect(onMixer(container)).toBe(false);
 
     // The next try finds the service: the page asks the device again.
@@ -272,6 +280,81 @@ describe("the Device service port", () => {
     expect(midi.identified).toEqual(["INTEGRA-7"]);
     expect(container.textContent).not.toContain("Waiting for reconnection");
     expect(onMixer(container)).toBe(true);
+  });
+});
+
+describe("the page the Device service serves", () => {
+  /** The app loaded from `page`, on the browser's ports: `midi`'s Web MIDI,
+   *  or none (Safari); returns the URLs its sockets were opened at. */
+  async function loadedFrom(
+    page: PageLocation,
+    midi?: ReturnType<typeof fakeMidiAccess>,
+  ) {
+    const urls: string[] = [];
+    const makeSocket = (url: string): SocketLike => {
+      urls.push(url);
+      return {
+        binaryType: "",
+        readyState: 0,
+        send() {},
+        close() {},
+        onopen: null,
+        onclose: null,
+        onerror: null,
+        onmessage: null,
+      };
+    };
+    const { container } = render(
+      <App
+        page={page}
+        openPorts={() =>
+          browserPorts(
+            midi
+              ? async () => webMidiPorts(midi.access)
+              : () => Promise.reject(new Error("no Web MIDI")),
+            page,
+            makeSocket,
+          )
+        }
+        storage={memoryStorage()}
+      />,
+    );
+    await settle();
+    return { container, urls };
+  }
+
+  const http = (port: string): PageLocation => ({
+    protocol: "http:",
+    hostname: "127.0.0.1",
+    port,
+  });
+
+  it("connects to the service on its own port without a pick", async () => {
+    const { urls } = await loadedFrom(http("4800"));
+    expect(urls).toEqual(["ws://127.0.0.1:4800"]);
+  });
+
+  it("connects to the service without a pick beside Web MIDI's ports", async () => {
+    const midi = fakeMidiAccess([{ name: "INTEGRA-7", answers: true }]);
+    const { urls } = await loadedFrom(http("4800"), midi);
+    expect(urls).toEqual(["ws://127.0.0.1:4800"]);
+    expect(midi.identified).toEqual([]);
+  });
+
+  it.each([
+    ["the dev server", () => http(String(devServerPort()))],
+    ["the preview server", () => http(String(previewPort()))],
+    [
+      "an https page",
+      (): PageLocation => ({ protocol: "https:", hostname: "127.0.0.1", port: "4800" }),
+    ],
+  ])("waits for a pick on %s, then connects to the default port", async (_, page) => {
+    const { container, urls } = await loadedFrom(page());
+    expect(urls).toEqual([]);
+
+    click(button(container, "Identify Device"));
+    await settle();
+    expect(urls).toEqual(["ws://127.0.0.1:4707"]);
   });
 });
 
