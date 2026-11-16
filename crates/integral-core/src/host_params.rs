@@ -71,7 +71,7 @@ use crate::fx_params::{
     REVERB_TYPE_HOST_NAMES, chorus_params, reverb_params,
 };
 use crate::mfx::{self, MFX_PARAMS_START, MfxHeaderField, mfx_header_offset};
-use crate::mfx_params::{MFX_TYPE_NAMES, mfx_type_def};
+use crate::mfx_params::{MFX_TYPE_NAMES, control_source_name, mfx_type_def};
 use crate::param_registry::{
     CompEqKit, MixerField, MixerScope, ParamFormat, ParamGroup, mixer_field_address, mixer_param,
     studio_set_scopes,
@@ -263,6 +263,9 @@ impl HostFormat {
     ///    its unit, if it gives one, is that value's (`+3` reads as
     ///    `+3 dB`, `50` as `50%`, `3dB` as `+3 dB` too).
     ///
+    /// Only a value the format offers matches: a Control Source list
+    /// skips one (the unused 32), which it shows as the bare number.
+    ///
     /// Returns `None` if nothing matches.
     pub fn parse(&self, text: &str, min: i32, max: i32) -> Option<i32> {
         if matches!(
@@ -279,15 +282,27 @@ impl HostFormat {
         if wanted.is_empty() {
             return None;
         }
-        if let Some(raw) = (min..=max).find(|&v| squash(&self.format(v)) == wanted) {
+        let offered = || (min..=max).filter(|&v| self.offers(v));
+        if let Some(raw) = offered().find(|&v| squash(&self.format(v)) == wanted) {
             return Some(raw);
         }
         let (number, unit) = split_number(&wanted)?;
-        (min..=max).find(|&v| {
+        offered().find(|&v| {
             let formatted = squash(&self.format(v));
             split_number(&formatted)
                 .is_some_and(|(n, u)| n == number && (unit.is_empty() || u == unit))
         })
+    }
+
+    /// Whether `raw` is a value this format offers: every value is, except
+    /// one a Control Source list doesn't name.
+    fn offers(&self, raw: i32) -> bool {
+        match self {
+            Self::Field(ParamFormat::ControlSource(kind)) => {
+                u8::try_from(raw).is_ok_and(|v| control_source_name(*kind, v).is_some())
+            }
+            _ => true,
+        }
     }
 }
 
