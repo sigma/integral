@@ -137,6 +137,8 @@ mod tests {
             .to_string();
         assert_eq!(err, "master-key-shift takes -24 to +24, not \"+25\"");
         assert!(parse_set("scale-tune-switch", "maybe").is_err());
+        // The unused Control Source 32 names no source, though it is in range.
+        assert!(parse_set("system-control-1-source", "32").is_err());
         assert!(parse_set("master-tune", "500").is_err());
     }
 
