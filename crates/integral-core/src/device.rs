@@ -88,6 +88,16 @@ struct QueuedMessage {
     span: Option<Range<u32>>,
 }
 
+impl QueuedMessage {
+    /// Whether it is a read (an RQ1, this state's own or a caller's), which
+    /// a new write may overtake.
+    fn is_read(&self) -> bool {
+        self.bytes.get(1) == Some(&sysex::ROLAND_ID)
+            && self.bytes.get(3..6) == Some(&sysex::MODEL_ID[..])
+            && self.bytes.get(6) == Some(&sysex::CMD_RQ1)
+    }
+}
+
 /// The device addresses a DT1 of `len` data bytes at `address` writes.
 pub fn dt1_span(address: &Address, len: usize) -> Range<u32> {
     let start = address.value();
@@ -647,8 +657,16 @@ impl DeviceState {
     /// Queue a DT1 message. It replaces (coalesces) a queued DT1 in place
     /// only if it covers that DT1's whole range, and no message queued
     /// after that one overlaps the new range or selects a Part tone or a
-    /// Studio Set. Otherwise it is appended, so the device ends up in the
-    /// state the writes describe, in queue order.
+    /// Studio Set. Otherwise it goes after every other queued message, so
+    /// the device ends up in the state the writes describe, in queue order.
+    ///
+    /// Either way it goes ahead of the reads (RQ1s: the mixer load's, the SN
+    /// Synth Tone's, a caller's) queued after the last other message: an
+    /// edit made during a load does not wait for the load, and a read it
+    /// overtakes reads the edited value. It never moves past another DT1, a
+    /// select or a raw message that is not a read. The reply to a mixer or
+    /// SN Synth read sent before the edit keeps the edited bytes (see
+    /// [`handle_dt1`](Self::handle_dt1)).
     ///
     /// Data longer than one message is split into DT1s at consecutive
     /// addresses. Cuts fall on multiples of 4 bytes from `address`, so a
@@ -677,11 +695,15 @@ impl DeviceState {
         let span = dt1_span(address, data.len());
 
         // Queued DT1s the new one may replace: it covers them and nothing
-        // after them (but other replaced DT1s) overlaps it, selects, or is
-        // not a DT1. A new write touching a select replaces only what
-        // nothing else follows.
+        // after them (but other replaced DT1s and reads, which it overtakes)
+        // overlaps it, selects, or is not a DT1. A new write touching a
+        // select replaces only what nothing else follows.
         let mut replaced = Vec::new();
         for (i, m) in self.queue.iter().enumerate().rev() {
+            if m.is_read() {
+                // A read the write overtakes: it reads the written value.
+                continue;
+            }
             match coalesce(&span, m.span.as_ref()) {
                 Coalesce::Replace => replaced.push(i),
                 Coalesce::PassOver => {}
@@ -697,7 +719,12 @@ impl DeviceState {
             span: Some(span),
         };
         let Some((&first, rest)) = replaced.split_first() else {
-            self.queue.push(message);
+            // Ahead of the reads queued after the last other message, so an
+            // edit made during a load does not wait for its reads.
+            let at = (self.queue.iter())
+                .rposition(|m| !m.is_read())
+                .map_or(0, |i| i + 1);
+            self.queue.insert(at, message);
             return;
         };
         for &i in rest.iter().rev() {
@@ -830,6 +857,10 @@ impl DeviceState {
     // -----------------------------------------------------------------------
 
     /// Process an incoming DT1 message and update state.
+    ///
+    /// The reply to a mixer or SN Synth block read keeps the bytes written
+    /// since that read was sent (or still queued): the device answered with
+    /// the value from before the write.
     ///
     /// Returns `true` if the state was changed.
     pub fn handle_dt1(&mut self, address: &Address, data: &[u8], now_ms: f64) -> bool {
@@ -1611,15 +1642,49 @@ impl DeviceState {
     /// Store an SN Synth block reply in the cache of a part being read.
     /// Returns whether `address` and `data` were such a reply.
     fn handle_sns_block(&mut self, address: &Address, data: &[u8]) -> bool {
-        for (&part, load) in &mut self.sns_tones {
-            for block in SnsBlock::ALL {
-                if *address == block.address(part) && load.blocks.store(block, data) {
-                    self.requests.cancel(&sns_request_key(part, block));
-                    return true;
+        let Some((part, block)) = self.sns_tones.keys().find_map(|&part| {
+            (SnsBlock::ALL.into_iter())
+                .find(|block| *address == block.address(part))
+                .map(|block| (part, block))
+        }) else {
+            return false;
+        };
+        let key = sns_request_key(part, block);
+        let data = self.keep_edits(&key, address, data);
+        let load = self.sns_tones.get_mut(&part).expect("found above");
+        if !load.blocks.store(block, &data) {
+            return false;
+        }
+        self.requests.cancel(&key);
+        true
+    }
+
+    /// `data`, the reply at `address` to the tracked read `key`, with the
+    /// bytes written since that read left (sent or still queued) in place
+    /// of the device's: the device answers in order, so those bytes hold
+    /// the value from before the write, which the state already replaced.
+    fn keep_edits(&self, key: &str, address: &Address, data: &[u8]) -> Vec<u8> {
+        let span = dt1_span(address, data.len());
+        let mut kept = data.to_vec();
+        let mut put = |start: u32, bytes: &[u8]| {
+            for (at, byte) in (start..).zip(bytes) {
+                if span.contains(&at) {
+                    kept[(at - span.start) as usize] = *byte;
                 }
             }
+        };
+        // `drain` notes a sent read in both trackers at one `now_ms`.
+        if let Some(sent_at) = self.requests.sent_at(key) {
+            for (start, bytes) in self.sent_reads.written_since(&span, sent_at) {
+                put(start, bytes);
+            }
         }
-        false
+        for m in self.queue.iter().filter(|m| m.span.is_some()) {
+            if let Ok(dt1) = sysex::parse_dt1(&m.bytes) {
+                put(dt1.address.value(), &dt1.data);
+            }
+        }
+        kept
     }
 
     // -----------------------------------------------------------------------
@@ -1779,9 +1844,11 @@ impl DeviceState {
         }) else {
             return false;
         };
+        let key = mixer_request_key(address);
+        let data = self.keep_edits(&key, address, data);
         let read = self.mixer_reads.remove(i);
-        self.requests.cancel(&mixer_request_key(address));
-        let next = read.block.apply(&mut self.state, data);
+        self.requests.cancel(&key);
+        let next = read.block.apply(&mut self.state, &data);
         self.queue_mixer_reads(next);
         true
     }
@@ -4396,5 +4463,103 @@ mod tests {
         assert_eq!(dev.drain(0.0), Some(vec![0xF0, 0x7E, 0xF7]));
         assert_eq!(dev.drain(THROTTLE_MS - 1.0), None, "its send time counts");
         assert!(dev.drain(THROTTLE_MS).is_some());
+    }
+
+    /// A mixer load whose first `sent` messages have left, at 0, 100, …
+    /// ms; returns the time the next message may leave.
+    fn mid_load(dev: &mut DeviceState, sent: usize) -> f64 {
+        dev.load_mixer();
+        for i in 0..sent {
+            assert!(dev.drain(i as f64 * 100.0).is_some());
+        }
+        sent as f64 * 100.0
+    }
+
+    /// The addresses `dev` sends from `now` on, as ("rq1" | "dt1",
+    /// address), answering no read.
+    fn sent_from(dev: &mut DeviceState, mut now: f64) -> Vec<(&'static str, Address)> {
+        let mut sent = Vec::new();
+        while let Some(msg) = dev.drain(now) {
+            if let Some(rq1) = sysex::parse_rq1(&msg) {
+                sent.push(("rq1", rq1.address));
+            } else if let Ok(dt1) = sysex::parse_dt1(&msg) {
+                sent.push(("dt1", dt1.address));
+            }
+            now += 100.0;
+        }
+        sent
+    }
+
+    #[test]
+    fn an_edit_made_during_the_mixer_load_is_sent_next() {
+        let mut dev = DeviceState::new(0x10);
+        let mut now = mid_load(&mut dev, 5);
+        let reads: Vec<_> = dev.queue.iter().map(|m| m.bytes.clone()).collect();
+        dev.set_part_level(12, 99);
+        let mut sent = Vec::new();
+        for _ in 0..=reads.len() {
+            sent.extend(dev.drain(now));
+            now += 100.0;
+        }
+        let edit = sysex::parse_dt1(&sent[0]).expect("the edit is sent next");
+        assert_eq!(edit.address, params::part_address(12, part::LEVEL));
+        assert_eq!(sent[1..], reads, "then every read, in order");
+    }
+
+    #[test]
+    fn a_queued_read_of_the_edited_block_is_sent_after_the_edit() {
+        let dump = params::part_address(3, part::RECEIVE_CHANNEL);
+        let mut dev = DeviceState::new(0x10);
+        // The Studio Set reads and Parts 1 to 3's dumps have left.
+        let now = mid_load(&mut dev, 7);
+        dev.set_part_level(3, 99);
+        let sent = sent_from(&mut dev, now);
+        let edit = (sent.iter()).position(|m| *m == ("dt1", params::part_address(3, part::LEVEL)));
+        let read = sent.iter().position(|m| *m == ("rq1", dump));
+        let (edit, read) = (
+            edit.expect("the edit is sent"),
+            read.expect("the read is sent"),
+        );
+        assert!(edit < read, "the edit is sent before the read: {sent:?}");
+    }
+
+    #[test]
+    fn a_reply_to_a_read_sent_before_an_edit_keeps_the_edit() {
+        let dump = params::part_address(3, part::RECEIVE_CHANNEL);
+        for edit_sent in [true, false] {
+            let mut dev = DeviceState::new(0x10);
+            // Part 4's dump is the 8th read.
+            let mut now = mid_load(&mut dev, 8);
+            dev.set_part_level(3, 99);
+            if edit_sent {
+                assert!(sysex::parse_dt1(&dev.drain(now).unwrap()).is_ok());
+                now += 100.0;
+            }
+            // The device answers in order: the read left before the edit.
+            assert!(dev.handle_dt1(&dump, &part_dump(87, 0, 5, 77), now));
+            let p = &dev.state().parts[3];
+            assert_eq!(p.level, 99, "the edit stays (edit sent: {edit_sent})");
+            assert_eq!((p.tone_bank_msb, p.tone_pc), (87, 5), "the rest is taken");
+            assert!(
+                !(dev.mixer_reads.iter()).any(|r| r.block == MixerBlock::Part(3)),
+                "the read is done"
+            );
+        }
+    }
+
+    #[test]
+    fn an_edit_made_while_a_select_is_queued_stays_after_it() {
+        let mut dev = DeviceState::new(0x10);
+        let now = mid_load(&mut dev, 5);
+        dev.change_part_tone(1, 87, 0, 5);
+        dev.set_part_level(1, 99);
+        let sent = sent_from(&mut dev, now);
+        let select = ("dt1", params::part_address(1, part::TONE_BANK_MSB));
+        let edit = ("dt1", params::part_address(1, part::LEVEL));
+        assert_eq!(
+            sent[..2],
+            [select, edit],
+            "both ahead of the reads, in order"
+        );
     }
 }

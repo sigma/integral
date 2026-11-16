@@ -471,12 +471,11 @@ describe("the Part settings drawer", () => {
     act(() => {
       cutoff.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
     });
-    // The edit's DT1 queues behind the mixer read's remaining RQ1s, paced by THROTTLE_MS: about 80
-    // of them, 4-5 s here and over 10 s on a CI runner. Wait for the whole read.
-    await eventually(() =>
-      expect(midi.sent.map((m) => m.bytes.slice(7, 12))).toContainEqual([0x18, 0x00, 0x21, 0x13, 81]),
-      40_000,
-    );
+    // The edit's DT1 goes ahead of the mixer read's remaining RQ1s: it is sent before the read ends.
+    const edit = () =>
+      midi.sent.findIndex((m) => [0x18, 0x00, 0x21, 0x13, 81].every((b, i) => m.bytes[7 + i] === b));
+    await eventually(() => expect(edit()).toBeGreaterThanOrEqual(0));
+    await eventually(() => expect(midi.sent.slice(edit() + 1).some((m) => m.bytes[6] === 0x11)).toBe(true));
 
     click(button(part, "Part settings"));
     expect(drawer(container)).toBeNull();
