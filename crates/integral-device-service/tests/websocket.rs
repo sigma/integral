@@ -96,6 +96,21 @@ impl Fixture {
         }
     }
 
+    /// A page whose receive buffer is small, so it stalls the service's sends
+    /// as soon as it stops reading.
+    fn connect_soon_small_window(&self, origin: &str) -> Page {
+        let addr = self.url.trim_start_matches("ws://");
+        let stream = TcpStream::connect(addr).expect("connect");
+        shrink_receive_buffer(&stream);
+        let mut request = self.url.as_str().into_client_request().expect("request");
+        request
+            .headers_mut()
+            .append(ORIGIN, origin.parse().expect("header value"));
+        let (page, _) =
+            tungstenite::client(request, MaybeTlsStream::Plain(stream)).expect("handshake");
+        page
+    }
+
     /// The status a handshake from `origin` is refused with, once it is.
     fn refused_with(&self, origin: Option<&str>) -> u16 {
         refused_with(self.connect(origin))
@@ -109,6 +124,23 @@ impl Drop for Fixture {
             running.stop();
         }
     }
+}
+
+/// Cap the receive buffer of `stream` at about 64 KiB.
+fn shrink_receive_buffer(stream: &TcpStream) {
+    use std::os::fd::AsRawFd;
+    let size: libc::c_int = 64 * 1024;
+    // SAFETY: the descriptor is open while `stream` is; the value is a `c_int`.
+    let rc = unsafe {
+        libc::setsockopt(
+            stream.as_raw_fd(),
+            libc::SOL_SOCKET,
+            libc::SO_RCVBUF,
+            (&raw const size).cast(),
+            size_of::<libc::c_int>() as libc::socklen_t,
+        )
+    };
+    assert_eq!(rc, 0, "SO_RCVBUF");
 }
 
 fn wait_for(what: &str, condition: impl Fn() -> bool) {
@@ -135,12 +167,30 @@ fn refused_with(result: Result<Page, Error>) -> u16 {
     }
 }
 
+/// Bound each read of `page`, so a page nobody closes fails a test rather
+/// than blocking it (and the CI job) for good.
+fn read_timeout(page: &Page, timeout: Duration) {
+    match page.get_ref() {
+        MaybeTlsStream::Plain(stream) => stream.set_read_timeout(Some(timeout)).expect("timeout"),
+        _ => unreachable!("tests connect over plain TCP"),
+    }
+}
+
 /// Read until the page is closed; returns the close frame, if it had one.
 fn read_until_closed(page: &mut Page) -> Option<(CloseCode, String)> {
     let deadline = Instant::now() + WAIT;
+    read_timeout(page, WAIT);
     loop {
         assert!(Instant::now() < deadline, "the page was not closed");
         match page.read() {
+            Err(Error::Io(e))
+                if matches!(
+                    e.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                ) =>
+            {
+                panic!("the page was not closed: no data or close within {WAIT:?}")
+            }
             Ok(Message::Close(frame)) => {
                 return frame.map(|f| (f.code, f.reason.to_string()));
             }
@@ -559,9 +609,12 @@ fn link_down() -> (CloseCode, String) {
 #[test]
 fn a_page_the_service_drops_without_a_close_frame_is_closed() {
     let service = Fixture::start();
-    let mut page = service.connect_soon(ALLOWED);
+    let mut page = service.connect_soon_small_window(ALLOWED);
     // The page never reads, so its queue and the socket's buffers fill, and
     // the service drops it as too far behind to serve: no close frame says so.
+    // The page's receive buffer is capped: Linux autotunes it up to about
+    // 6 MiB, which with the service's send buffer could absorb the whole
+    // flood, and the page would never be dropped.
     let big = [vec![0xF0, 0x7E], vec![0x01; 250], vec![0xF7]].concat();
     for _ in 0..30_000 {
         service.link.device_says(&big);
