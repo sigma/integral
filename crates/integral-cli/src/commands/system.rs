@@ -114,7 +114,7 @@ mod tests {
     fn master_tune_takes_hz() {
         let (field, raw) = parse_set("master-tune", "442.0").unwrap();
         assert_eq!(field, SystemField::MasterTune);
-        assert_eq!(raw, system::master_tune_from_hz(442.0));
+        assert_eq!(raw, system::master_tune_from_hz(442.0).unwrap());
         assert_eq!(
             parse_set("master-tune", "440").unwrap().1,
             system::MASTER_TUNE_CENTER
