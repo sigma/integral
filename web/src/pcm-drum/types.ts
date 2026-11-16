@@ -218,16 +218,8 @@ export interface PcmDrumCommon2 {
 }
 
 // ---------------------------------------------------------------------------
-// Note name helpers
+// Key helpers
 // ---------------------------------------------------------------------------
-
-const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-
-export function noteName(key: number): string {
-  const name = NOTE_NAMES[key % 12]!;
-  const octave = Math.floor(key / 12) - 1;
-  return `${name}${octave}`;
-}
 
 export function isBlackKey(key: number): boolean {
   const n = key % 12;

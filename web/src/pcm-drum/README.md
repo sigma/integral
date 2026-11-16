@@ -25,8 +25,8 @@ All exports are in `types.ts`:
 - Field tables (`FieldEntry` from [`../fieldSpec.ts`](../fieldSpec.ts)):
   `PCMD_COMMON_ENTRIES`, `PCMD_WMT_ENTRIES` and `PCMD_PARTIAL_ENTRIES`, keyed
   by the wasm enums `PcmdCommonField`, `PcmdWmtField` and `PcmdPartialField`.
-- `noteName(key)` (MIDI note with octave, 60 gives `C4`) and
-  `isBlackKey(key)`.
+- `isBlackKey(key)`. Note names (`noteName`) live in
+  [`../useKeyboard.ts`](../useKeyboard.ts).
 
 ## Invariants
 
