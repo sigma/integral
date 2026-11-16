@@ -17,7 +17,19 @@ import { deviceSpec } from "./deviceSpec";
 import type { PluginBinding } from "./plugin";
 
 /** The pages of the app. */
-export type PageTab = "mixer" | "surround" | "toneEdit" | "sequencer" | "expansions" | "library";
+export type PageTab = "mixer" | "surround" | "routing" | "toneEdit" | "sequencer" | "system" | "expansions" | "library";
+
+/** Each page's full name: the plugin's tab, and the browser's navigation row (`NavRow`). */
+export const PAGE_NAMES: Record<PageTab, string> = {
+  mixer: "Mixer",
+  surround: "Surround",
+  routing: "Routing",
+  toneEdit: "Tone Edit",
+  sequencer: "Sequencer",
+  system: "System",
+  expansions: "Expansions",
+  library: "Library",
+};
 
 /** The pages a plugin of `kind` shows, the first being where it opens. */
 export function pluginPages(kind: PluginKind): readonly PageTab[] {

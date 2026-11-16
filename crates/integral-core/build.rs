@@ -786,4 +786,12 @@ fn main() {
     )
     .unwrap();
     writeln!(cat_out, "pub const DRUMS_CATEGORY: u8 = {drums};").unwrap();
+
+    let organ = cat_entries
+        .iter()
+        .find_map(|(val, name)| (name == "Organ").then_some(*val))
+        .expect("categories.json: no Organ entry");
+    writeln!(cat_out).unwrap();
+    writeln!(cat_out, "/// The Organ Tone Category.").unwrap();
+    writeln!(cat_out, "pub const ORGAN_CATEGORY: u8 = {organ};").unwrap();
 }

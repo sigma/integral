@@ -1,7 +1,7 @@
 import type { WasmFieldSpec } from "../pkg/integral_wasm.js";
 
 /** A field's values as switch or select options, labelled by its core format. */
-export function switchOptions(spec: WasmFieldSpec) {
+export function switchOptions(spec: Pick<WasmFieldSpec, "min" | "max" | "formatValue">) {
   return Array.from({ length: spec.max - spec.min + 1 }, (_, i) => {
     const value = spec.min + i;
     return { value, label: spec.formatValue(value) };

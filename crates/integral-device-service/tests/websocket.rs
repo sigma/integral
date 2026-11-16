@@ -96,6 +96,21 @@ impl Fixture {
         }
     }
 
+    /// A page whose receive buffer is small, so it stalls the service's sends
+    /// as soon as it stops reading.
+    fn connect_soon_small_window(&self, origin: &str) -> Page {
+        let addr = self.url.trim_start_matches("ws://");
+        let stream = TcpStream::connect(addr).expect("connect");
+        shrink_receive_buffer(&stream);
+        let mut request = self.url.as_str().into_client_request().expect("request");
+        request
+            .headers_mut()
+            .append(ORIGIN, origin.parse().expect("header value"));
+        let (page, _) =
+            tungstenite::client(request, MaybeTlsStream::Plain(stream)).expect("handshake");
+        page
+    }
+
     /// The status a handshake from `origin` is refused with, once it is.
     fn refused_with(&self, origin: Option<&str>) -> u16 {
         refused_with(self.connect(origin))
@@ -109,6 +124,23 @@ impl Drop for Fixture {
             running.stop();
         }
     }
+}
+
+/// Cap the receive buffer of `stream` at about 64 KiB.
+fn shrink_receive_buffer(stream: &TcpStream) {
+    use std::os::fd::AsRawFd;
+    let size: libc::c_int = 64 * 1024;
+    // SAFETY: the descriptor is open while `stream` is; the value is a `c_int`.
+    let rc = unsafe {
+        libc::setsockopt(
+            stream.as_raw_fd(),
+            libc::SOL_SOCKET,
+            libc::SO_RCVBUF,
+            (&raw const size).cast(),
+            size_of::<libc::c_int>() as libc::socklen_t,
+        )
+    };
+    assert_eq!(rc, 0, "SO_RCVBUF");
 }
 
 fn wait_for(what: &str, condition: impl Fn() -> bool) {
@@ -135,12 +167,30 @@ fn refused_with(result: Result<Page, Error>) -> u16 {
     }
 }
 
+/// Bound each read of `page`, so a page nobody closes fails a test rather
+/// than blocking it (and the CI job) for good.
+fn read_timeout(page: &Page, timeout: Duration) {
+    match page.get_ref() {
+        MaybeTlsStream::Plain(stream) => stream.set_read_timeout(Some(timeout)).expect("timeout"),
+        _ => unreachable!("tests connect over plain TCP"),
+    }
+}
+
 /// Read until the page is closed; returns the close frame, if it had one.
 fn read_until_closed(page: &mut Page) -> Option<(CloseCode, String)> {
     let deadline = Instant::now() + WAIT;
+    read_timeout(page, WAIT);
     loop {
         assert!(Instant::now() < deadline, "the page was not closed");
         match page.read() {
+            Err(Error::Io(e))
+                if matches!(
+                    e.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                ) =>
+            {
+                panic!("the page was not closed: no data or close within {WAIT:?}")
+            }
             Ok(Message::Close(frame)) => {
                 return frame.map(|f| (f.code, f.reason.to_string()));
             }
@@ -180,6 +230,113 @@ fn a_handshake_from_an_origin_on_the_list_is_accepted_whatever_its_case() {
 
     assert!(service.connect(Some(ALLOWED)).is_ok());
     assert!(service.connect(Some("HTTPS://App.Example")).is_ok());
+}
+
+/// A response to a plain HTTP request.
+struct Response {
+    status: u16,
+    headers: Vec<(String, String)>,
+    body: Vec<u8>,
+}
+
+impl Response {
+    /// The value of the header `name` (in any case), if there is one.
+    fn header(&self, name: &str) -> Option<&str> {
+        self.headers
+            .iter()
+            .find(|(n, _)| n.eq_ignore_ascii_case(name))
+            .map(|(_, v)| v.as_str())
+    }
+}
+
+/// Send `request` (a whole HTTP/1.1 request) as a plain HTTP client and read
+/// the response until the server closes the connection.
+fn http(service: &Fixture, request: &str) -> Response {
+    let addr = service.server.as_ref().expect("server").local_addr();
+    let mut stream = TcpStream::connect(addr).expect("connect");
+    stream.set_read_timeout(Some(WAIT)).expect("timeout");
+    stream.write_all(request.as_bytes()).expect("send");
+    let mut bytes = Vec::new();
+    stream.read_to_end(&mut bytes).expect("read");
+    let mut headers = [httparse::EMPTY_HEADER; 32];
+    let mut response = httparse::Response::new(&mut headers);
+    let httparse::Status::Complete(end) = response.parse(&bytes).expect("HTTP") else {
+        panic!("an incomplete response head");
+    };
+    Response {
+        status: response.code.expect("a status"),
+        headers: response
+            .headers
+            .iter()
+            .map(|h| {
+                let value = String::from_utf8(h.value.to_vec()).expect("an ASCII value");
+                (h.name.to_string(), value)
+            })
+            .collect(),
+        body: bytes[end..].to_vec(),
+    }
+}
+
+#[test]
+fn a_get_for_the_root_returns_the_page() {
+    let service = Fixture::start();
+
+    let response = http(&service, "GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+
+    let page = integral_web_assets::serve("/");
+    assert_eq!(response.status, 200);
+    assert_eq!(
+        response.header("Content-Type"),
+        Some("text/html; charset=utf-8")
+    );
+    let length = page.body.len().to_string();
+    assert_eq!(response.header("Content-Length"), Some(length.as_str()));
+    assert_eq!(response.body, page.body);
+}
+
+#[test]
+fn a_get_ignores_the_query_and_a_missing_file_is_not_found() {
+    let service = Fixture::start();
+
+    let response = http(&service, "GET /?from=log HTTP/1.1\r\n\r\n");
+    assert_eq!(response.status, 200);
+    assert_eq!(response.body, integral_web_assets::serve("/").body);
+
+    let response = http(&service, "GET /no-such-file.js HTTP/1.1\r\n\r\n");
+    assert_eq!(response.status, 404);
+    assert!(response.body.is_empty());
+}
+
+#[test]
+fn a_head_request_has_no_body_and_other_methods_are_not_allowed() {
+    let service = Fixture::start();
+
+    let response = http(&service, "HEAD / HTTP/1.1\r\n\r\n");
+    assert_eq!(response.status, 200);
+    assert!(response.body.is_empty());
+
+    // A body the server never reads must not cost the client its answer.
+    let response = http(
+        &service,
+        "POST / HTTP/1.1\r\nContent-Length: 5\r\n\r\nhello",
+    );
+    assert_eq!(response.status, 405);
+    assert_eq!(response.header("Allow"), Some("GET, HEAD"));
+}
+
+#[test]
+fn the_servers_own_origin_is_admitted() {
+    let service = Fixture::start();
+    let server = service.server.as_ref().expect("server");
+    let own = format!("http://{}", server.local_addr());
+
+    assert_eq!(server.page_url(), format!("{own}/"));
+    assert!(service.connect(Some(&own)).is_ok());
+    // Not another port, nor `localhost`, which may be another listener's.
+    let other_port = format!("http://127.0.0.1:{}", server.local_addr().port() ^ 1);
+    assert_eq!(service.refused_with(Some(&other_port)), 403);
+    let localhost = format!("http://localhost:{}", server.local_addr().port());
+    assert_eq!(service.refused_with(Some(&localhost)), 403);
 }
 
 #[test]
@@ -452,9 +609,12 @@ fn link_down() -> (CloseCode, String) {
 #[test]
 fn a_page_the_service_drops_without_a_close_frame_is_closed() {
     let service = Fixture::start();
-    let mut page = service.connect_soon(ALLOWED);
+    let mut page = service.connect_soon_small_window(ALLOWED);
     // The page never reads, so its queue and the socket's buffers fill, and
     // the service drops it as too far behind to serve: no close frame says so.
+    // The page's receive buffer is capped: Linux autotunes it up to about
+    // 6 MiB, which with the service's send buffer could absorb the whole
+    // flood, and the page would never be dropped.
     let big = [vec![0xF0, 0x7E], vec![0x01; 250], vec![0xF7]].concat();
     for _ in 0..30_000 {
         service.link.device_says(&big);

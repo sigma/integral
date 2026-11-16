@@ -107,8 +107,12 @@ function rq1Reply(bytes: number[] | Uint8Array, memory: Map<number, number>): nu
   if (b.length !== 17 || b[0] !== 0xf0 || b[6] !== 0x11 || b[16] !== 0xf7) return null;
   const at = (((b[7]! << 21) | (b[8]! << 14) | (b[9]! << 7) | b[10]!) >>> 0);
   const size = (b[11]! << 21) | (b[12]! << 14) | (b[13]! << 7) | b[14]!;
-  const address = b.slice(7, 11);
   const data = Array.from({ length: size }, (_, i) => memory.get(at + i) ?? 0);
+  return dt1(b.slice(7, 11), data);
+}
+
+/** The DT1 an INTEGRA-7 at device ID 0x10 sends of `data` at `address`: test data, as the device sends it. */
+export function dt1(address: readonly number[], data: readonly number[]): number[] {
   const sum = [...address, ...data].reduce((s, v) => s + v, 0);
   const checksum = (128 - (sum % 128)) % 128;
   return [0xf0, 0x41, 0x10, 0x00, 0x00, 0x64, 0x12, ...address, ...data, checksum, 0xf7];

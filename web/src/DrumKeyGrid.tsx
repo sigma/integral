@@ -79,3 +79,16 @@ export function DrumKeyGrid({
     </div>
   );
 }
+
+/** The header of the selected key's Sections: its note and name, then the caller's `action` (its "Init…"). */
+export function DrumKeyHeader({ keyNumber, name, action }: { keyNumber: number; name?: string; action?: ReactNode }) {
+  return (
+    <div className={css.keyHeader} data-key-header="">
+      <span>
+        {noteName(keyNumber)}
+        {name ? `: ${name}` : ""}
+      </span>
+      {action}
+    </div>
+  );
+}

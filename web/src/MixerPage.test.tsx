@@ -7,7 +7,9 @@ import { CELL } from "./synth-ui/grid";
 import type { UseMixerResult } from "./useMixer";
 import type { UseExpansionsResult } from "./useExpansions";
 import { defaultMixerState, type MixerState } from "./types";
-import { cleanup, click, dragUp, render } from "./test/dom";
+import { button, cleanup, click, dragUp, render } from "./test/dom";
+import { fakeInitService } from "./test/initService";
+import { InitProvider, useInit } from "./InitFlow";
 import { paramFormatter, paramMeta } from "./paramDefaults";
 
 // jsdom lacks the ResizeObserver the FX strips' EQ plot measures with.
@@ -498,5 +500,29 @@ describe("MixerPage", () => {
     expect(names).toContain("Reverb Room 2: Pre Delay");
     const shared = names.filter((n, i) => names.indexOf(n) !== i);
     expect(shared, `${shared.join(", ")} named twice`).toEqual([]);
+  });
+
+  it("blocks a Part's strip, but not its EQ, while that Part's Init runs", async () => {
+    const fake = fakeInitService();
+    const mixer = { state: { ...defaultMixerState(), loading: false } } as unknown as UseMixerResult;
+    function Ask() {
+      const init = useInit();
+      return <button onClick={() => init.request({ kind: "part", part: 2 })}>Ask</button>;
+    }
+    const el = render(
+      <InitProvider service={fake.service} mixer={{ reload: vi.fn() }}>
+        <Ask />
+        <MixerPage mixer={mixer} expansions={expansions} />
+      </InitProvider>,
+    ).container;
+    // The guard sits inside the placement, around its controls.
+    const inert = (id: string) => placed(el, id).querySelector("[aria-busy=true][inert]") !== null;
+    click(button(el, "Ask"));
+    click(button(el, "Init"));
+    expect(inert("strip.part.2")).toBe(true);
+    expect(inert("eq.part.2")).toBe(false);
+    expect(inert("strip.part.3")).toBe(false);
+    await fake.finish();
+    expect(inert("strip.part.2")).toBe(false);
   });
 });

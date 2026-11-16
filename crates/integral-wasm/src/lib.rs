@@ -11,10 +11,13 @@ use integral_core::{
 use wasm_bindgen::prelude::*;
 
 mod expansion;
+mod initialize;
 mod librarian;
+mod routing;
 mod sequencer;
 mod waves;
 pub use expansion::WasmExpansion;
+pub use initialize::WasmInitialization;
 pub use sequencer::WasmSequencer;
 pub use waves::WasmWaveGroup;
 
@@ -348,11 +351,19 @@ macro_rules! mirror_core_enum {
 
 // Declared after `mirror_core_enum!`, which they use.
 mod display;
+mod part_settings;
 mod plugin;
 mod relevance;
+mod studio_set_settings;
+mod system;
 pub use display::{DisplayKind, DisplayProp, WasmDisplaySlot, display_binding};
+pub use part_settings::{PartSetting, PartSettingGroup};
 pub use plugin::PluginKind;
 pub use relevance::Relevance;
+pub use studio_set_settings::StudioSetSetting;
+pub use system::{
+    SystemField, SystemGroup, SystemOrStudioSet, WasmSystemCommon, WasmSystemFieldSpec,
+};
 
 /// Tone type of a Part's Temporary Tone, selecting which tone type block
 /// (and so which MFX block) an edit addresses (mirrors [`params::ToneType`]).
@@ -2284,6 +2295,16 @@ impl WasmFieldSpec {
             _ => None,
         }
     }
+
+    /// The Control Source list the field names its values from, or
+    /// `undefined`: a picker lists its [`control_source_choices`].
+    #[wasm_bindgen(getter, js_name = controlSource)]
+    pub fn control_source(&self) -> Option<ControlSourceKind> {
+        match self.format {
+            param_registry::ParamFormat::ControlSource(kind) => Some(kind.into()),
+            _ => None,
+        }
+    }
 }
 
 /// A device catalog a field picks by name (mirrors
@@ -2890,6 +2911,16 @@ impl WasmDeviceState {
     pub fn re_read_part(&mut self, part: u8) -> Result<(), JsError> {
         check_part(part)?;
         self.inner.reread_part(part);
+        Ok(())
+    }
+
+    /// Read all of `part`'s Studio Set Part block again, which a Part Init
+    /// resets: what `reReadPart` reads, then the Part settings past the
+    /// dump and the Part's Motional Surround position.
+    #[wasm_bindgen(js_name = reReadPartBlock)]
+    pub fn re_read_part_block(&mut self, part: u8) -> Result<(), JsError> {
+        check_part(part)?;
+        self.inner.reread_part_block(part);
         Ok(())
     }
 

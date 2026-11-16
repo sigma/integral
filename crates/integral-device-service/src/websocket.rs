@@ -2,6 +2,18 @@
 //! socket, is a raw SysEx client of the service and plays notes through it
 //! (ADR 0006).
 //!
+//! # The page
+//!
+//! The same port serves the web app itself: a plain HTTP `GET` (or `HEAD`)
+//! is answered with the embedded web build (`integral-web-assets`, the
+//! plugin's `web/dist-plugin`), and a request that asks to upgrade to a
+//! WebSocket is handed to the endpoint. A page loaded from
+//! `http://127.0.0.1:<port>/` then talks to `ws://127.0.0.1:<port>` from its
+//! own origin, so a browser that blocks `ws://` from an `https` page as mixed
+//! content (Safari) reaches the device too, with no certificate
+//! ([#481](https://github.com/sigma/integral/issues/481)). [`crate::http`]
+//! tells the two requests apart and answers the plain ones.
+//!
 //! # Framing
 //!
 //! One binary WebSocket frame is one whole SysEx message, `F0` to `F7`, in
@@ -46,7 +58,9 @@
 //! entry of the allow-list. Both are parsed as `scheme://host[:port]` and
 //! compared in lowercase; `null`, a path and a repeated `Origin` header are
 //! refused, and so is a request with no `Origin`. Each refused origin is
-//! reported through the [`Log`] given to [`WebSocketServer::bind`].
+//! reported through the [`Log`] given to [`WebSocketServer::bind`]. The
+//! server's own origin, `http://127.0.0.1:<port>`, is always on the list:
+//! only the page this server serves has it.
 //!
 //! This stops another page in the user's browser driving the device. It does
 //! not stop a local program, which can write any header, and which can
@@ -82,6 +96,7 @@ use tungstenite::protocol::{CloseFrame, Role, WebSocketConfig};
 use tungstenite::{Message as Frame, WebSocket};
 
 use crate::clients::Outbox;
+use crate::http::{self, Asked, Replay};
 use crate::link::Log;
 use crate::protocol::{ClientId, Message, PROTOCOL_VERSION, Request};
 use crate::runtime::Handle;
@@ -180,6 +195,11 @@ impl WebSocketServer {
             .collect::<io::Result<Vec<_>>>()?;
         let listener = TcpListener::bind((WEBSOCKET_HOST, port))?;
         let addr = listener.local_addr()?;
+        let mut allowed = allowed;
+        let own = own_origin(addr);
+        if !allowed.contains(&own) {
+            allowed.push(own);
+        }
         let stop = Arc::new(AtomicBool::new(false));
         let thread = {
             let stop = Arc::clone(&stop);
@@ -199,6 +219,16 @@ impl WebSocketServer {
     pub fn local_addr(&self) -> SocketAddr {
         self.addr
     }
+
+    /// The URL of the web app this server serves, `http://127.0.0.1:<port>/`.
+    pub fn page_url(&self) -> String {
+        format!("{}/", own_origin(self.addr))
+    }
+}
+
+/// The origin of the page served on `addr`, normalized as the allow-list is.
+fn own_origin(addr: SocketAddr) -> String {
+    format!("http://{addr}")
 }
 
 impl Drop for WebSocketServer {
@@ -395,15 +425,20 @@ fn serve(stream: TcpStream, gate: &Gate, client: ClientId, handle: &Handle) -> i
     let config = WebSocketConfig::default()
         .max_message_size(Some(MAX_MESSAGE_LEN))
         .max_frame_size(Some(MAX_MESSAGE_LEN));
-    let timed = Deadline {
+    let mut timed = Deadline {
         stream,
         end: Instant::now() + HANDSHAKE_TIMEOUT,
     };
+    let (asked, head) = http::read_request(&mut timed)?;
+    if asked != Asked::Upgrade {
+        return http::answer(timed.stream, &asked);
+    }
+    let replay = Replay::new(head, timed);
     // Nothing a browser sends precedes the answer to its handshake, so the
     // stream holds no frame the handshake read ahead.
-    let socket = tungstenite::accept_hdr_with_config(timed, Admit(gate), Some(config))
+    let socket = tungstenite::accept_hdr_with_config(replay, Admit(gate), Some(config))
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
-    let stream = socket.into_inner().stream;
+    let stream = socket.into_inner().into_inner().stream;
     tcp::set_read_timeout(&stream, None)?;
 
     let mut reader =

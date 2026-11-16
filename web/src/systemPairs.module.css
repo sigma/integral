@@ -1,0 +1,41 @@
+.side {
+  transition: opacity 0.15s;
+}
+
+/* The side of a SYSTEM-or-STUDIO SET pair that isn't in force. */
+.dimmed {
+  opacity: 0.35;
+}
+
+.readout {
+  display: flex;
+  margin-bottom: 4px;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.readoutLabel {
+  color: #888;
+}
+
+.readoutValue {
+  font-family: monospace;
+  color: #c0c0e0;
+}
+
+/* A link to where a pair's other side is edited. */
+
+.link {
+  padding: 0;
+  font-size: 11px;
+  color: #9aa6ff;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.link:hover {
+  color: #c0c8ff;
+}

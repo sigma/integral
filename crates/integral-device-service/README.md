@@ -74,6 +74,15 @@ independent of it.
   answered. Listens on 127.0.0.1 only, default port
   `integral_core::device_service::WEBSOCKET_PORT` (4707); the web app always
   uses the default, so `--ws-port` is for tests and port clashes.
+  - The page: a plain HTTP `GET` or `HEAD` on that port is answered from the
+    embedded web build (`integral-web-assets`, `web/dist-plugin`; `just
+    install` builds it first), one response per connection, and other
+    methods get `405`; a request with `Upgrade: websocket` goes to the
+    endpoint. `WebSocketServer::page_url()` is `http://127.0.0.1:<port>/`,
+    which the start log line names. The page there connects from the
+    server's own origin, which is always admitted, so Safari, which blocks
+    `ws://` from the `https` deployed app as mixed content, reaches the
+    device ([#572](https://github.com/sigma/integral/issues/572)).
   - Notes: a page's frame of one or more whole channel voice messages (`8n`
     to `En`, each with its status byte) goes to the link as the note port's
     traffic does, at once and ahead of the SysEx queue. Anything else that
@@ -95,7 +104,8 @@ independent of it.
     the two agree), `vite preview` (4181), each as `localhost` and `127.0.0.1`,
     and the GitHub Pages app, `https://sigma.github.io`, which as an origin
     has no path and so admits every Pages site of that user. `--ws-origin`
-    given replaces them. This keeps another page in the user's browser from
+    given replaces them; the server's own origin is admitted whatever the
+    list. This keeps another page in the user's browser from
     driving the device; a local program can send any header, and another
     user of the machine can connect to the loopback port (accepted).
 - The protocol (`protocol.rs` has the full description): length-prefixed JSON

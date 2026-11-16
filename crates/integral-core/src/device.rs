@@ -39,13 +39,16 @@ use crate::param_registry::{
 };
 use crate::params::{self, ToneType, part};
 use crate::parse_helpers::encode_ascii_name;
+use crate::part_settings::{self, PartSetting, PartSettingError};
 use crate::pcm_synth::{PcmsCommonField, PcmsPartialField, PcmsPmtField};
 use crate::read_tracker::SentReads;
 use crate::sn_acoustic::SnaCommonField;
 use crate::sn_drum::{SndCommonField, SndNoteField};
 use crate::sn_synth::{SnSynthTone, SnSynthToneBlocks, SnsBlock, SnsCommonField, SnsPartialField};
 use crate::state::{EqState, FxState, MixerState, SurroundPartState};
+use crate::studio_set_settings::{StudioSetField, StudioSetFieldError};
 use crate::sysex;
+use crate::system::{self, SystemField, SystemValueOutOfRange};
 
 /// Minimum interval between SysEx sends (ms).
 ///
@@ -412,9 +415,6 @@ pub struct DeviceState {
     /// The DT1s queued since [`take_writes`](Self::take_writes), while
     /// [`record_writes`](Self::record_writes) is on.
     writes: Option<VecDeque<QueuedWrite>>,
-    /// The type of each Part's MFX, as far as this state has written or
-    /// read it (see [`mfx_type`](Self::mfx_type)).
-    mfx_types: HashMap<u8, u8>,
 }
 
 /// The most [`QueuedWrite`]s kept for a caller that does not take them: the
@@ -459,7 +459,6 @@ impl DeviceState {
             sent_reads: SentReads::default(),
             requests: RequestTracker::new(),
             writes: None,
-            mfx_types: HashMap::new(),
         }
     }
 
@@ -488,15 +487,19 @@ impl DeviceState {
     }
 
     /// The type of `part`'s MFX, if this state wrote it (a type change, the
-    /// header's Type field) or was told it ([`note_mfx_type`](Self::note_mfx_type))
-    /// since the Part's tone last changed.
+    /// header's Type field), read it (a mixer load) or was told it
+    /// ([`note_mfx_type`](Self::note_mfx_type)) since the Part's tone last
+    /// changed: the Part's [`PartState::mfx_type`](crate::state::PartState::mfx_type).
     pub fn mfx_type(&self, part: u8) -> Option<u8> {
-        self.mfx_types.get(&part).copied()
+        self.state.parts.get(usize::from(part))?.mfx_type
     }
 
     /// Record the type of `part`'s MFX, as a caller read it from the device.
+    /// A `part` out of range is ignored.
     pub fn note_mfx_type(&mut self, part: u8, mfx_type: u8) {
-        self.mfx_types.insert(part, mfx_type);
+        if let Some(p) = self.state.parts.get_mut(usize::from(part)) {
+            p.mfx_type = Some(mfx_type);
+        }
     }
 
     /// The SysEx device ID this state addresses.
@@ -864,12 +867,29 @@ impl DeviceState {
         if data.is_empty() {
             return false;
         }
+        // One parameter: its first byte, or both nibbles of Portamento Time.
+        if let Some((part, field, 0)) = part_settings::locate(address)
+            && data.len() == field.width()
+        {
+            let settings = &mut self.state.parts[usize::from(part)].settings;
+            for (i, byte) in data.iter().enumerate() {
+                settings.set_byte(field, i, *byte);
+            }
+            return true;
+        }
         self.cache_part_param(address, data[0])
     }
 
-    /// Update the cached Part parameter (level, pan, mute, output assign)
-    /// at `address` to `value`. Returns whether `address` is one.
+    /// Update the cached Part parameter (level, pan, mute, output assign,
+    /// or a byte of a [`PartSetting`]) at `address` to `value`. Returns
+    /// whether `address` is one.
     fn cache_part_param(&mut self, address: &Address, value: u8) -> bool {
+        if let Some((part, field, byte)) = part_settings::locate(address) {
+            self.state.parts[usize::from(part)]
+                .settings
+                .set_byte(field, byte, value);
+            return true;
+        }
         for part_idx in 0..Self::NUM_PARTS {
             let part = &mut self.state.parts[part_idx as usize];
             if *address == params::part_address(part_idx, part::LEVEL) {
@@ -1063,8 +1083,6 @@ impl DeviceState {
         debug_assert!(part < Self::NUM_PARTS, "part index {part} out of range");
         mixer_load::set_tone(&mut self.state.parts[part as usize], msb, lsb, pc);
         self.invalidate_sns_tone(part);
-        // The new tone has its own MFX, which nothing has read yet.
-        self.mfx_types.remove(&part);
 
         // Reads of the old tone would undo the change: read the new one,
         // after the change is sent.
@@ -1115,8 +1133,6 @@ impl DeviceState {
             }
             mixer_load::set_tone(&mut self.state.parts[usize::from(part)], msb, lsb, pc);
             self.invalidate_sns_tone(part);
-            // The new tone has its own MFX, which nothing has read yet.
-            self.mfx_types.remove(&part);
             let stale = self.stale_tone_reads(part);
             self.drop_tone_reads(&stale);
             self.queue_new_tone_reads(part, msb, &stale);
@@ -1192,6 +1208,21 @@ impl DeviceState {
         self.queue_mixer_reads(reads);
     }
 
+    /// Read all of `part`'s Studio Set Part block again, which a Part Init
+    /// resets (`docs/midi/99-undocumented.md` §7): what
+    /// [`reread_part`](Self::reread_part) reads, then the Part settings past
+    /// the dump and the Part's Motional Surround position.
+    ///
+    /// # Panics
+    /// Debug-asserts that `part` < [`Self::NUM_PARTS`].
+    pub fn reread_part_block(&mut self, part: u8) {
+        self.reread_part(part);
+        self.queue_mixer_reads([
+            MixerBlock::PartSettings(part),
+            MixerBlock::PartSurround(part),
+        ]);
+    }
+
     /// Set a part's Temporary tone name (ASCII, truncated or space-padded
     /// to the device's 12 characters), e.g. before saving it to a user slot.
     ///
@@ -1224,6 +1255,27 @@ impl DeviceState {
     pub fn set_master_level(&mut self, value: u8) {
         self.state.master_level = value;
         self.send_dt1(&params::SYSTEM_MASTER_LEVEL, &[value]);
+    }
+
+    /// Build the RQ1 that reads all of System Common
+    /// ([`system::parse_system_common`] parses its reply).
+    pub fn build_system_common_request(&self) -> Vec<u8> {
+        system::build_read_request(self.device_id)
+    }
+
+    /// Set a System Common field, sent nibblized when the field is. The
+    /// edit lasts until power-off ([`system::VOLATILE_NOTICE`]).
+    ///
+    /// # Errors
+    /// `value` is outside the field's range; nothing is sent.
+    pub fn set_system_field(
+        &mut self,
+        field: SystemField,
+        value: i32,
+    ) -> Result<(), SystemValueOutOfRange> {
+        let data = system::encode_value(field, value)?;
+        self.send_dt1(&field.address(), &data);
+        Ok(())
     }
 
     /// Set a chorus core parameter (type, level, output assign or output
@@ -1951,6 +2003,83 @@ impl DeviceState {
         }
         self.send_dt1(&address, &[value]);
         Ok(())
+    }
+
+    /// Set a Studio Set setting (a Tone Control source, the tempo, a MIDI
+    /// channel's Phase Lock): update the state and send the field's DT1.
+    ///
+    /// # Errors
+    ///
+    /// [`StudioSetFieldError::ValueOutOfRange`] outside the field's range;
+    /// nothing is changed or sent.
+    pub fn set_studio_set_field(
+        &mut self,
+        field: StudioSetField,
+        value: i32,
+    ) -> Result<(), StudioSetFieldError> {
+        let data = field.encode(value)?;
+        field.store(&mut self.state.studio_set_settings, value);
+        self.send_dt1(&field.address(), &data);
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Part settings
+    // -----------------------------------------------------------------------
+
+    /// The raw value of `part`'s (0-based) `field`.
+    ///
+    /// # Panics
+    /// If `part` is not below [`Self::NUM_PARTS`].
+    pub fn part_setting(&self, part: u8, field: PartSetting) -> u8 {
+        self.state.parts[usize::from(part)].settings.get(field)
+    }
+
+    /// Set `part`'s (0-based) `field` to `value`: update the state and send
+    /// it. Returns the value stored, which a range's other end may hold
+    /// back: a key or velocity Lower never goes above its Upper, nor an
+    /// Upper below its Lower.
+    ///
+    /// The device answers neither of the Scale Tune writes that change
+    /// other fields (`docs/midi/99-undocumented.md` §11): an offset makes
+    /// the Type CUSTOM, which the state takes at once, and a Type or Key
+    /// fills the offsets, which the Part's settings are read again for.
+    ///
+    /// # Errors
+    ///
+    /// [`PartSettingError::PartOutOfRange`] for a part past the device's,
+    /// and [`PartSettingError::ValueOutOfRange`] for a value outside the
+    /// field's range; nothing is changed or sent.
+    pub fn set_part_setting(
+        &mut self,
+        part: u8,
+        field: PartSetting,
+        value: u8,
+    ) -> Result<u8, PartSettingError> {
+        let address = field.address(part)?;
+        let spec = field.def().spec;
+        if !(spec.min..=spec.max).contains(&i32::from(value)) {
+            return Err(PartSettingError::ValueOutOfRange {
+                field,
+                value,
+                min: spec.min,
+                max: spec.max,
+            });
+        }
+        let settings = &mut self.state.parts[usize::from(part)].settings;
+        let value = settings.constrain(field, value);
+        settings.set(field, value);
+        if field.is_scale_tune_offset() {
+            settings.set(PartSetting::ScaleTuneType, part_settings::SCALE_TUNE_CUSTOM);
+        }
+        self.send_dt1(&address, &field.encode(value));
+        if matches!(
+            field,
+            PartSetting::ScaleTuneType | PartSetting::ScaleTuneKey
+        ) {
+            self.queue_mixer_reads([MixerBlock::PartSettings(part)]);
+        }
+        Ok(value)
     }
 
     // -----------------------------------------------------------------------
@@ -2919,13 +3048,14 @@ mod tests {
     }
 
     #[test]
-    fn change_part_tone_sends_the_tone_then_reads_its_name_and_category() {
+    fn change_part_tone_sends_the_tone_then_reads_its_name_category_and_mfx_type() {
         let mut dev = DeviceState::new(0x10);
         dev.change_part_tone(0, 89, 64, 12);
         let name = params::tone_name_address(0, ToneType::SnAcoustic);
         let category = params::tone_category_address(0, 89).unwrap();
+        let mfx = crate::mfx::mfx_address(0, ToneType::SnAcoustic, 0);
         let sent = drain_until(&mut dev, 0.0, 1_000.0);
-        assert_eq!(sent.len(), 3);
+        assert_eq!(sent.len(), 4);
         assert_eq!(
             sent[0],
             sysex::build_dt1(
@@ -2939,13 +3069,14 @@ mod tests {
             sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE)
         );
         assert_eq!(sent[2], sysex::build_rq1(0x10, &category, &DataSize::ONE));
+        assert_eq!(sent[3], sysex::build_rq1(0x10, &mfx, &DataSize::ONE));
         assert_eq!(dev.state().parts[0].tone_bank_msb, 89);
         assert_eq!(dev.state().parts[0].tone_bank_lsb, 64);
         assert_eq!(dev.state().parts[0].tone_pc, 12);
     }
 
     #[test]
-    fn reread_part_reads_the_part_dump_then_its_name_and_category() {
+    fn reread_part_reads_the_part_dump_then_its_tone() {
         let mut dev = DeviceState::new(0x10);
         dev.change_part_tone(0, 87, 64, 3);
         drain_until(&mut dev, 0.0, 1_000.0);
@@ -2954,19 +3085,21 @@ mod tests {
         let sent = drain_until(&mut dev, 2_000.0, 3_000.0);
         assert_eq!(sent, [sysex::build_rq1(0x10, &dump_at, &dump_size)]);
 
-        // The reply names a new tone; its name and category follow.
+        // The reply names a new tone; its name, category and MFX Type follow.
         let mut dump = vec![0u8; 0x2A];
         dump[0x06..0x09].copy_from_slice(&[89, 64, 12]);
         assert!(dev.handle_dt1(&dump_at, &dump, 3_000.0));
         assert_eq!(dev.state().parts[0].tone_bank_msb, 89);
         let name = params::tone_name_address(0, ToneType::SnAcoustic);
         let category = params::tone_category_address(0, 89).unwrap();
+        let mfx = crate::mfx::mfx_address(0, ToneType::SnAcoustic, 0);
         let sent = drain_until(&mut dev, 3_100.0, 4_000.0);
         assert_eq!(
             sent,
             [
                 sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE),
                 sysex::build_rq1(0x10, &category, &DataSize::ONE),
+                sysex::build_rq1(0x10, &mfx, &DataSize::ONE),
             ]
         );
     }
@@ -3004,7 +3137,39 @@ mod tests {
     }
 
     #[test]
-    fn a_reported_part_select_changes_the_tone_and_reads_its_name() {
+    fn reread_part_block_reads_all_a_part_init_resets() {
+        let mut dev = DeviceState::new(0x10);
+        dev.reread_part_block(4);
+        let rq1 = |block: MixerBlock| {
+            let (at, size) = block.request().unwrap();
+            sysex::build_rq1(0x10, &at, &size)
+        };
+        assert_eq!(
+            drain_until(&mut dev, 0.0, 1_000.0),
+            [
+                rq1(MixerBlock::Part(4)),
+                rq1(MixerBlock::PartSettings(4)),
+                rq1(MixerBlock::PartSurround(4)),
+            ]
+        );
+
+        // The settings' reply reaches the state the Part settings drawer shows.
+        let (at, size) = MixerBlock::PartSettings(4).request().unwrap();
+        let mut data = vec![0u8; size.value() as usize];
+        let rx_pc = PartSetting::RxProgramChange.address(4).unwrap();
+        data[(rx_pc.value() - at.value()) as usize] = 0;
+        let settings = |dev: &DeviceState| {
+            dev.state().parts[4]
+                .settings
+                .get(PartSetting::RxProgramChange)
+        };
+        assert_eq!(settings(&dev), 1, "Rx PC is ON before the read");
+        assert!(dev.handle_dt1(&at, &data, 1_000.0));
+        assert_eq!(settings(&dev), 0);
+    }
+
+    #[test]
+    fn a_reported_part_select_changes_the_tone_and_reads_it() {
         // The Device service reads a Part's dump after its tone changed on
         // the device, and relays the reply to its raw clients; no read of
         // this state matches it.
@@ -3019,11 +3184,13 @@ mod tests {
 
         let name = params::tone_name_address(0, ToneType::PcmSynth);
         let category = params::tone_category_address(0, 87).unwrap();
+        let mfx = crate::mfx::mfx_address(0, ToneType::PcmSynth, 0);
         assert_eq!(
             drain_until(&mut dev, 1_000.0, 2_000.0),
             [
                 sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE),
                 sysex::build_rq1(0x10, &category, &DataSize::ONE),
+                sysex::build_rq1(0x10, &mfx, &DataSize::ONE),
             ]
         );
         assert!(dev.handle_dt1(&name, b"JP8 String  ", 2_000.0));
@@ -3066,11 +3233,13 @@ mod tests {
         // What leaves is the new tone's reads.
         let name = params::tone_name_address(0, ToneType::SnSynth);
         let category = params::tone_category_address(0, 95).unwrap();
+        let mfx = crate::mfx::mfx_address(0, ToneType::SnSynth, 0);
         assert_eq!(
             drain_until(&mut dev, 300.0, 1_000.0),
             [
                 sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE),
                 sysex::build_rq1(0x10, &category, &DataSize::ONE),
+                sysex::build_rq1(0x10, &mfx, &DataSize::ONE),
             ]
         );
     }
@@ -3269,6 +3438,48 @@ mod tests {
                 .is_ok()
         );
         assert!(dev.has_pending());
+    }
+
+    #[test]
+    fn system_setters_send_each_field_as_a_dt1_at_its_address() {
+        use crate::system::SystemField;
+        let mut dev = DeviceState::new(0x10);
+        dev.set_system_field(SystemField::MasterTune, 1103).unwrap();
+        dev.set_system_field(SystemField::SystemTempo, 121).unwrap();
+        dev.set_system_field(SystemField::UsbAudioSamplingRate, 1)
+            .unwrap();
+        for (now, offset, data) in [
+            (0.0, 0x00, vec![0x00, 0x04, 0x04, 0x0F]),
+            (100.0, 0x26, vec![0x07, 0x09]),
+            (200.0, 0x2E, vec![0x01]),
+        ] {
+            assert_eq!(
+                dev.drain(now),
+                Some(sysex::build_dt1(
+                    0x10,
+                    &Address::new(0x02, 0x00, 0x00, offset),
+                    &data
+                ))
+            );
+        }
+    }
+
+    #[test]
+    fn a_system_value_out_of_range_sends_nothing() {
+        use crate::system::SystemField;
+        let mut dev = DeviceState::new(0x10);
+        assert!(dev.set_system_field(SystemField::SystemTempo, 19).is_err());
+        assert!(!dev.has_pending());
+    }
+
+    #[test]
+    fn system_common_reads_with_the_discovered_device_id() {
+        let dev = DeviceState::new(0x11);
+        assert_eq!(
+            dev.build_system_common_request(),
+            crate::system::build_read_request(0x11)
+        );
+        assert_eq!(dev.build_system_common_request()[2], 0x11);
     }
 
     #[test]
@@ -3685,6 +3896,8 @@ mod tests {
                 b"User Lead   ".to_vec(),
             ),
             (params::tone_category_address(2, 87).unwrap(), vec![7]),
+            (crate::mfx::mfx_address(2, ToneType::PcmSynth, 0), vec![34]),
+            (crate::mfx::mfx_address(9, ToneType::SnDrum, 0), vec![0]),
             (
                 params::chorus_address(params::chorus::TYPE),
                 vec![2, 100, 3, 1],
@@ -3693,6 +3906,22 @@ mod tests {
             (params::reverb_address(params::reverb::TYPE), vec![3, 80, 2]),
             (params::EXT_PART_LEVEL, vec![55, 12, 34, 1]),
             (params::DRUM_COMP_EQ_SWITCH, vec![1, 9, 1, 2, 3, 4, 5, 6]),
+            (
+                params::TONE_CONTROL_1_SOURCE,
+                vec![1, 74, 96, 97, 0x06, 0x00],
+            ),
+            (
+                params::studio_set_midi_address(0, params::studio_set_midi::PHASE_LOCK),
+                vec![1],
+            ),
+            (
+                params::studio_set_midi_address(9, params::studio_set_midi::PHASE_LOCK),
+                vec![1],
+            ),
+            (
+                params::studio_set_midi_address(15, params::studio_set_midi::PHASE_LOCK),
+                vec![1],
+            ),
         ]);
         let mut dev = DeviceState::new(0x10);
         dev.load_mixer();
@@ -3708,6 +3937,11 @@ mod tests {
         assert_eq!((p.chorus_send, p.output_assign), (33, 4));
         assert_eq!((p.tone_name.as_str(), p.tone_category), ("User Lead", 7));
         assert_eq!(s.parts[9].tone_category, crate::svd::DRUMS_CATEGORY);
+        assert_eq!(s.parts[2].mfx_type, Some(34), "the Part's MFX Type");
+        assert_eq!(s.parts[9].mfx_type, Some(0), "THRU");
+        assert_eq!(dev.mfx_type(2), Some(34));
+        // Every Part's tone gets its MFX Type read, here a Part on bank 0.
+        assert_eq!(s.parts[5].mfx_type, None, "no tone type, nothing to read");
         assert_eq!(
             (
                 s.chorus.fx_type,
@@ -3732,9 +3966,192 @@ mod tests {
             (55, 12, 34, true)
         );
         assert_eq!(s.drum_comp_eq.output_assigns, [1, 2, 3, 4, 5, 6]);
+        let settings = &s.studio_set_settings;
+        assert_eq!(settings.tone_control_sources, [1, 74, 96, 97]);
+        assert_eq!(settings.tempo, 96);
+        let locked: Vec<usize> = (0..16).filter(|&c| settings.phase_lock[c]).collect();
+        assert_eq!(locked, [0, 9, 15], "channels 1, 10 and 16 are phase locked");
         let kit = params::comp_eq_block_address_for_bank(9, 88).unwrap();
         assert!(read.contains(&kit), "reads the Comp+EQ part's kit block");
         assert_eq!(read.last(), Some(&kit), "the kit block is read last");
+    }
+
+    #[test]
+    fn load_mixer_reads_the_part_settings() {
+        use crate::part_settings::{self, PartSetting as F};
+        let mut dump = part_dump(87, 0, 5, 77);
+        dump[0x0B] = 70; // Coarse Tune
+        dump[0x11..0x13].copy_from_slice(&[0x07, 0x0F]); // Portamento Time
+        dump[0x13] = 90; // Cutoff Offset
+        dump[0x1D] = 36; // Key Range Lower
+        let mut settings = vec![64; part_settings::SETTINGS_READ_SIZE.value() as usize];
+        settings[0] = 2; // Scale Tune Type JUST-MAJ (00 2B)
+        settings[0x39 - 0x2B] = 0; // Rx Program Change OFF
+        settings[0x43 - 0x2B] = 3; // Velocity Curve Type 3
+        let mut reserve = vec![0; 16];
+        reserve[2] = 64;
+        let memory = HashMap::from([
+            (params::part_address(2, part::RECEIVE_CHANNEL), dump),
+            (
+                params::part_address(2, part_settings::SETTINGS_READ_FROM),
+                settings,
+            ),
+            (part_settings::voice_reserve_read().0, reserve),
+        ]);
+        let mut dev = DeviceState::new(0x10);
+        dev.load_mixer();
+        serve(&mut dev, &memory, 10_000.0);
+
+        assert!(dev.mixer_failed_blocks().is_empty());
+        let got = |field| dev.part_setting(2, field);
+        assert_eq!(got(F::CoarseTune), 70);
+        assert_eq!(got(F::PortamentoTime), 0x7F);
+        assert_eq!(got(F::CutoffOffset), 90);
+        assert_eq!(got(F::KeyRangeLower), 36);
+        assert_eq!(got(F::ScaleTuneType), 2);
+        assert_eq!(got(F::ScaleTuneC), 64);
+        assert_eq!(got(F::RxProgramChange), 0);
+        assert_eq!(got(F::VelocityCurve), 3);
+        assert_eq!(got(F::VoiceReserve), 64);
+        assert_eq!(dev.part_setting(3, F::VoiceReserve), 0);
+    }
+
+    #[test]
+    fn set_part_setting_sends_each_field_to_its_address() {
+        use crate::part_settings::PartSetting as F;
+        let mut dev = DeviceState::new(0x10);
+        assert_eq!(dev.set_part_setting(4, F::CutoffOffset, 80), Ok(80));
+        assert_eq!(dev.part_setting(4, F::CutoffOffset), 80);
+        let cutoff = sysex::build_dt1(0x10, &Address::new(0x18, 0x00, 0x24, 0x13), &[80]);
+        assert_eq!(dev.drain(0.0), Some(cutoff));
+
+        dev.set_part_setting(4, F::PortamentoTime, 128).unwrap();
+        let time = sysex::build_dt1(0x10, &Address::new(0x18, 0x00, 0x24, 0x11), &[8, 0]);
+        assert_eq!(dev.drain(1_000.0), Some(time));
+
+        dev.set_part_setting(4, F::VoiceReserve, 10).unwrap();
+        let reserve = sysex::build_dt1(0x10, &Address::new(0x18, 0x00, 0x00, 0x1C), &[10]);
+        assert_eq!(dev.drain(2_000.0), Some(reserve));
+    }
+
+    #[test]
+    fn set_part_setting_refuses_a_bad_part_or_value() {
+        use crate::part_settings::{PartSetting as F, PartSettingError as E};
+        let mut dev = DeviceState::new(0x10);
+        assert_eq!(
+            dev.set_part_setting(16, F::CutoffOffset, 64),
+            Err(E::PartOutOfRange(16))
+        );
+        assert!(matches!(
+            dev.set_part_setting(0, F::OctaveShift, 70),
+            Err(E::ValueOutOfRange {
+                min: 61,
+                max: 67,
+                ..
+            })
+        ));
+        assert_eq!(dev.part_setting(0, F::OctaveShift), 64);
+        assert!(!dev.has_pending());
+    }
+
+    #[test]
+    fn a_range_lower_never_goes_above_its_upper() {
+        use crate::part_settings::PartSetting as F;
+        let mut dev = DeviceState::new(0x10);
+        dev.set_part_setting(0, F::KeyRangeUpper, 60).unwrap();
+        assert_eq!(dev.set_part_setting(0, F::KeyRangeLower, 72), Ok(60));
+        assert_eq!(dev.set_part_setting(0, F::KeyRangeUpper, 40), Ok(60));
+        dev.set_part_setting(0, F::VelocityRangeLower, 50).unwrap();
+        assert_eq!(dev.set_part_setting(0, F::VelocityRangeUpper, 20), Ok(50));
+        let sent = drain_until(&mut dev, 0.0, 10_000.0);
+        let lower = sysex::build_dt1(0x10, &F::KeyRangeLower.address(0).unwrap(), &[60]);
+        assert!(sent.contains(&lower), "the held-back value is sent");
+    }
+
+    #[test]
+    fn a_scale_tune_write_follows_what_the_device_does() {
+        use crate::part_settings::{self, PartSetting as F};
+        let mut dev = DeviceState::new(0x10);
+        // An offset makes the Type CUSTOM, unannounced.
+        dev.set_part_setting(15, F::ScaleTuneE, 70).unwrap();
+        assert_eq!(
+            dev.part_setting(15, F::ScaleTuneType),
+            part_settings::SCALE_TUNE_CUSTOM
+        );
+        drain_until(&mut dev, 0.0, 1_000.0);
+
+        // A Type fills the offsets, unannounced: they are read again, after
+        // the write.
+        dev.set_part_setting(15, F::ScaleTuneType, 2).unwrap();
+        let sent = drain_until(&mut dev, 1_000.0, 2_000.0);
+        let at = params::part_address(15, part_settings::SETTINGS_READ_FROM);
+        let read = sysex::build_rq1(0x10, &at, &part_settings::SETTINGS_READ_SIZE);
+        let write = sysex::build_dt1(0x10, &F::ScaleTuneType.address(15).unwrap(), &[2]);
+        assert_eq!(sent, vec![write, read]);
+        let mut filled = vec![0; part_settings::SETTINGS_READ_SIZE.value() as usize];
+        filled[0] = 2;
+        filled[2] = 0x50; // C
+        assert!(dev.handle_dt1(&at, &filled, 2_000.0));
+        assert_eq!(dev.part_setting(15, F::ScaleTuneC), 0x50);
+    }
+
+    #[test]
+    fn a_part_setting_the_device_sends_is_cached() {
+        use crate::part_settings::PartSetting as F;
+        let mut dev = DeviceState::new(0x10);
+        let at = F::VibratoDepth.address(6).unwrap();
+        assert!(dev.handle_dt1(&at, &[20], 0.0));
+        assert_eq!(dev.part_setting(6, F::VibratoDepth), 20);
+        let reserve = F::VoiceReserve.address(6).unwrap();
+        assert!(dev.handle_dt1(&reserve, &[12], 0.0));
+        assert_eq!(dev.part_setting(6, F::VoiceReserve), 12);
+        // A two-byte DT1 from the device is cached whole.
+        let time = F::PortamentoTime.address(6).unwrap();
+        assert!(dev.handle_dt1(&time, &[0x05, 0x01], 0.0));
+        assert_eq!(dev.part_setting(6, F::PortamentoTime), 0x51);
+        // A client's block write is cached byte by byte, nibbles included.
+        let time = F::PortamentoTime.address(6).unwrap();
+        dev.write_data(&time, &[0x06, 0x04]);
+        assert_eq!(dev.part_setting(6, F::PortamentoTime), 0x64);
+    }
+
+    #[test]
+    fn set_studio_set_field_sends_the_fields_dt1() {
+        use crate::studio_set_settings::StudioSetSetting::*;
+        let field = |setting, index| StudioSetField::new(setting, index).unwrap();
+        let mut dev = DeviceState::new(0x10);
+
+        dev.set_studio_set_field(field(Tempo, 0), 96).unwrap();
+        dev.set_studio_set_field(field(ToneControlSource, 1), 74)
+            .unwrap();
+        dev.set_studio_set_field(field(PhaseLock, 15), 1).unwrap();
+
+        let sent = drain_until(&mut dev, 0.0, 1_000.0);
+        let dt1 = |addr: [u8; 4], data: &[u8]| {
+            let address = Address::new(addr[0], addr[1], addr[2], addr[3]);
+            sysex::build_dt1(0x10, &address, data)
+        };
+        assert_eq!(
+            sent,
+            [
+                dt1([0x18, 0x00, 0x00, 0x3D], &[0x06, 0x00]),
+                dt1([0x18, 0x00, 0x00, 0x3A], &[74]),
+                dt1([0x18, 0x00, 0x1F, 0x00], &[1]),
+            ]
+        );
+        let s = &dev.state().studio_set_settings;
+        assert_eq!((s.tempo, s.tone_control_sources[1]), (96, 74));
+        assert!(s.phase_lock[15]);
+    }
+
+    #[test]
+    fn set_studio_set_field_refuses_a_value_out_of_range() {
+        use crate::studio_set_settings::StudioSetSetting::Tempo;
+        let mut dev = DeviceState::new(0x10);
+        let tempo = StudioSetField::new(Tempo, 0).unwrap();
+        assert!(dev.set_studio_set_field(tempo, 251).is_err());
+        assert_eq!(dev.state().studio_set_settings.tempo, 120);
+        assert!(!dev.has_pending());
     }
 
     #[test]
@@ -3884,6 +4301,33 @@ mod tests {
         assert!(serve(&mut dev, &memory, 1_000.0).contains(&name));
         assert_eq!(dev.state().parts[0].tone_name, "User Bass");
         assert!(!dev.mixer_loading(), "a tone read alone isn't a mixer load");
+    }
+
+    #[test]
+    fn change_part_tone_reads_the_new_tones_mfx_type() {
+        let mfx = crate::mfx::mfx_address(0, ToneType::SnAcoustic, 0);
+        let memory = HashMap::from([(mfx, vec![12])]);
+        let mut dev = DeviceState::new(0x10);
+        dev.note_mfx_type(0, 5);
+        dev.change_part_tone(0, 89, 0, 3);
+        assert_eq!(
+            dev.state().parts[0].mfx_type,
+            None,
+            "the old tone's is gone"
+        );
+        assert!(serve(&mut dev, &memory, 1_000.0).contains(&mfx));
+        assert_eq!(dev.state().parts[0].mfx_type, Some(12));
+    }
+
+    #[test]
+    fn a_gm2_tone_has_no_mfx_type_read() {
+        // The device doesn't answer reads of a GM2 or ExPCM Temporary Tone.
+        let mut dev = DeviceState::new(0x10);
+        dev.change_part_tone(0, 121, 0, 3);
+        let read = serve(&mut dev, &HashMap::new(), 1_000.0);
+        let mfx = crate::mfx::mfx_address(0, ToneType::PcmSynth, 0);
+        assert!(!read.contains(&mfx));
+        assert!(dev.mixer_failed_blocks().is_empty());
     }
 
     #[test]

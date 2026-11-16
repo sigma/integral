@@ -65,6 +65,10 @@ been checked on the device.
   are allowed, e.g. 2 stereo pairs plus 4 mono. With 16 Parts, Parts beyond
   that share outputs.
 
+The rules checked on the device are computed by
+[`integral_core::routing::effective_routing`](../../crates/integral-core/src/routing.rs),
+with a test per rule.
+
 ## Routing per element
 
 The OM effect diagrams (p. 25, p. 26) gives the chain:

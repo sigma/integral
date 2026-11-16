@@ -36,6 +36,7 @@ import {
   type ImportStatus,
   type LibrarianAction,
 } from "../pkg/integral_wasm.js";
+import { initMachine, type InitScope } from "./init";
 import { studioSetType } from "./librarian";
 import type { MidiPortPair } from "./midi";
 
@@ -75,6 +76,9 @@ const SLOT_READ_TIMEOUT_MS = 2000;
 const DRAIN_INTERVAL_MS = 5;
 
 type Dt1Callback = (address: Uint8Array, data: Uint8Array) => void;
+
+/** What a Librarian run or an Init still running resolves with once the service is torn down. */
+export const LINK_LOST_ERROR = "The link to the INTEGRA-7 was lost";
 
 /** How an Expansion load ended. */
 export interface ExpansionLoadResult {
@@ -167,6 +171,8 @@ export class IntegraService {
    */
   private sentHooks: SentHook[] = [];
   private pendingRequests: PendingRequest[] = [];
+  /** Ends each Librarian run still going, with `LINK_LOST_ERROR`. */
+  private runEnders: Set<() => void> = new Set();
   private unlisten: () => void;
   private drainTimer: ReturnType<typeof setInterval>;
 
@@ -192,6 +198,7 @@ export class IntegraService {
       if (req.timer) clearTimeout(req.timer);
     }
     this.pendingRequests = [];
+    for (const end of [...this.runEnders]) end();
   }
 
   // -----------------------------------------------------------------------
@@ -852,32 +859,62 @@ export class IntegraService {
     );
   }
 
+  /**
+   * Reset `scope` of the Temporary memory to INIT through the device's Init
+   * and resolve once the device answers "finished", with the error if it
+   * didn't (no answer in time, or the link was lost). The device announces
+   * none of the new values: read the area back after a success.
+   */
+  initialize(scope: InitScope): Promise<string | undefined> {
+    return this.exclusive(
+      () => initMachine(this.deviceId, scope),
+      (machine) => this.runLibrarian(machine, "init"),
+    );
+  }
+
+  /**
+   * Make a machine with `create` and `run` it, one at a time with saves and
+   * Expansion loads (the device handles one at a time), then free it.
+   * Throws at once while another runs.
+   */
+  private async exclusive<M extends { free(): void }, T>(
+    create: () => M,
+    run: (machine: M) => Promise<T>,
+  ): Promise<T> {
+    if (this.writing) throw new Error("A save, an import or an Init is still in progress");
+    if (this.device.expansionLoadTarget()) {
+      throw new Error("An Expansion load is in progress");
+    }
+    const machine = create();
+    this.writing = true;
+    try {
+      return await run(machine);
+    } finally {
+      this.writing = false;
+      machine.free();
+    }
+  }
+
   /** Drive the import `create` makes to its end, then free it. */
   private async runImport(
     create: () => PackImport,
     signal?: AbortSignal,
     onProgress?: (statuses: ImportStatus[]) => void,
   ): Promise<PackImportResult> {
-    if (this.writing) throw new Error("A save is still in progress");
-    if (this.device.expansionLoadTarget()) {
-      throw new Error("An Expansion load is in progress");
-    }
-    const machine = create();
-    const throttle = frameThrottle(() => onProgress?.(machine.progress()));
-    this.writing = true;
-    try {
-      const error = await this.runLibrarian(
-        machine,
-        "pack-import",
-        signal,
-        onProgress && throttle.schedule,
-      );
-      return { statuses: machine.progress(), error };
-    } finally {
-      throttle.cancel();
-      this.writing = false;
-      machine.free();
-    }
+    return this.exclusive(create, async (machine) => {
+      const throttle = frameThrottle(() => onProgress?.(machine.progress()));
+      try {
+        const error = await this.runLibrarian(
+          machine,
+          "pack-import",
+          signal,
+          onProgress && throttle.schedule,
+        );
+        return { statuses: machine.progress(), error };
+      } finally {
+        throttle.cancel();
+      }
+    });
   }
 
   /**
@@ -918,6 +955,14 @@ export class IntegraService {
           }, ms);
         });
       };
+      const end = (error: string | undefined): void => {
+        disarm();
+        unsubscribe();
+        this.runEnders.delete(lost);
+        signal?.removeEventListener("abort", abort);
+        resolve(error);
+      };
+      const lost = (): void => end(LINK_LOST_ERROR);
       const step = (): void => {
         for (;;) {
           const action = machine.nextAction();
@@ -947,7 +992,7 @@ export class IntegraService {
               unsubscribe();
               signal?.removeEventListener("abort", abort);
               // Done once the last sends (e.g. the restore) have left.
-              void flushed.then(() => resolve(error));
+              void flushed.then(() => end(error));
               return;
           }
         }
@@ -966,6 +1011,7 @@ export class IntegraService {
           step();
         }
       });
+      this.runEnders.add(lost);
       signal?.addEventListener("abort", abort);
       if (signal?.aborted) machine.cancel();
       step();

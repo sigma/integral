@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, useMemo, type ReactNode } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   initWasm,
   webMidi,
@@ -14,7 +14,7 @@ import {
 import { browserPorts } from "./deviceService";
 import { IntegraService } from "./integra";
 import { installFamilyPalette } from "./synth-ui/family";
-import { PluginKind, plugin_kind_from_wire } from "../pkg/integral_wasm.js";
+import { PartSettingGroup, PluginKind, plugin_kind_from_wire } from "../pkg/integral_wasm.js";
 import { useMixer } from "./useMixer";
 import { useExpansions } from "./useExpansions";
 import { useExpansionStaging } from "./useExpansionStaging";
@@ -29,21 +29,28 @@ import {
   NoDevices,
   MidiError,
 } from "./DeviceStatus";
-import { TopBar } from "./TopBar";
+import { NavRow, browserPages } from "./NavRow";
+import { Lockable } from "./Lockable";
 import { PluginBar } from "./PluginBar";
 import { ToneMismatch } from "./ToneMismatch";
 import { usePluginInstance } from "./usePluginInstance";
 import { useHostGestures } from "./hostGestures";
 import { TYPE_MISMATCH_NOTICE, type PluginBridge } from "./plugin";
-import { pluginDrumScope, pluginPages, pluginToneType, type PageTab } from "./pluginPages";
+import { PAGE_NAMES, pluginDrumScope, pluginPages, pluginToneType, type PageTab } from "./pluginPages";
 import { MixerPage } from "./MixerPage";
 import { SurroundPage } from "./SurroundPage";
+import { RoutingPage } from "./RoutingPage";
 import { ToneEditorPage } from "./ToneEditorPage";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { InitGuard, InitProvider } from "./InitFlow";
 import { Transport } from "./Transport";
 import { KeyboardDrawer } from "./KeyboardDrawer";
+import { PartSettingsDrawer } from "./PartSettingsDrawer";
+import { InitPartItem, SoundCtrlInitItem } from "./PartInitItems";
+import { StudioSetDrawer } from "./StudioSetDrawer";
 import { SequencerPage } from "./SequencerPage";
 import { ExpansionsPage } from "./ExpansionsPage";
+import { SystemPage } from "./SystemPage";
 import { LibraryPage } from "./LibraryPage";
 import { ToneCatalog } from "./toneCatalog";
 import { useLibraryExport } from "./useLibraryExport";
@@ -54,43 +61,12 @@ import type { ExpansionMarking } from "./WavePicker";
 import { sequencerEngine, type SequencerEngine } from "./sequencer";
 import css from "./App.module.css";
 
-/** The pages' tab labels. */
-const TAB_LABELS: Record<PageTab, string> = {
-  mixer: "Mixer",
-  surround: "Surround",
-  toneEdit: "Tone Edit",
-  sequencer: "Sequencer",
-  expansions: "Expansions",
-  library: "Library",
-};
-
-/** The pages of the app in a browser, the Sequencer once it is up. */
-function browserPages(sequencer: boolean): readonly PageTab[] {
-  return [
-    "mixer",
-    "surround",
-    "toneEdit",
-    ...(sequencer ? (["sequencer"] as const) : []),
-    "expansions",
-    "library",
-  ];
-}
-
 type DeviceStatus =
   | { step: "idle" }
   | { step: "identifying" }
   | { step: "connected"; identity: DeviceIdentity }
   | { step: "failed"; reason: string }
   | { step: "disconnected" };
-
-/** Controls that turn dimmed and inert while `locked`, laid out as if unwrapped. */
-function Lockable({ locked, children }: { locked: boolean; children: ReactNode }) {
-  return (
-    <div className={`${css.lockable} ${locked ? css.locked : ""}`} inert={locked}>
-      {children}
-    </div>
-  );
-}
 
 /** The browser's ports: Web MIDI's, and the Device service beside them. */
 const openBrowserPorts = () => browserPorts(webMidi);
@@ -111,7 +87,7 @@ interface AppProps {
   /**
    * The plugin hosting the page (`main.tsx`), none in a browser. A plugin's
    * editor shows only what its instance owns ({@link pluginPages}), with the
-   * instance's Binding and status in place of the top bar, and relays the
+   * instance's Binding and status in place of the navigation row, and relays the
    * page's Control drags to the host as gestures.
    */
   plugin?: PluginBridge;
@@ -340,13 +316,38 @@ export function App({
     instance.info?.hostEdits ?? false,
   );
   const [activeTab, setActiveTab] = useState<PageTab>("mixer");
+  // The Studio Set settings drawer: ⚙ in the Studio Set group opens it. It and
+  // the Part settings drawer take the same place: opening one closes the other.
+  const [studioSetSettingsOpen, setStudioSetSettingsOpen] = useState(false);
+  // The Part settings drawer stays open across pages, following the selected Part.
+  const [partSettingsOpen, setPartSettingsOpen] = useState(false);
+  const partSettings = useMemo(
+    () => ({
+      open: partSettingsOpen,
+      onToggle: () => {
+        setPartSettingsOpen((open) => !open);
+        setStudioSetSettingsOpen(false);
+      },
+    }),
+    [partSettingsOpen],
+  );
+  const openStudioSetSettings = useCallback(() => {
+    setStudioSetSettingsOpen(true);
+    setPartSettingsOpen(false);
+  }, []);
+  const closeStudioSetSettings = useCallback(() => setStudioSetSettingsOpen(false), []);
+  // The drawer's link to the System page, where System's side of each pair is edited.
+  const openSystemFromDrawer = useCallback(() => {
+    setStudioSetSettingsOpen(false);
+    setActiveTab("system");
+  }, []);
   // A plugin shows the pages its kind owns; a browser, all of them.
   const pages = useMemo(
     () => (plugin ? (pluginKind === undefined ? [] : pluginPages(pluginKind)) : browserPages(sequencer !== null)),
     [plugin, pluginKind, sequencer],
   );
   const tab = pages.includes(activeTab) ? activeTab : pages[0];
-  // One tone catalog for the top bar and the Library.
+  // One tone catalog for the navigation row and the Library.
   const catalog = useMemo(
     () => (service ? new ToneCatalog(service) : null),
     [service],
@@ -422,9 +423,10 @@ export function App({
   if (service && catalog && (!plugin || pluginKind !== undefined)) {
     const loading = expansions.running;
     // A running Pack import borrows a Part and the Temporary Studio Set:
-    // what edits them is inert until it ends. Notes and the tabs stay live.
+    // what edits them is inert until it ends. Notes, the pages' buttons and
+    // the transport stay live.
     const importing = libraryImport.busy;
-    return (
+    const shell = (
       <div className={css.shell}>
         {loading && <ExpansionLoadBanner load={loading} />}
         {selectedPort?.carriesNotes === false && <NotesUnavailable />}
@@ -433,110 +435,168 @@ export function App({
           className={`${css.body} ${loading ? css.bodyBusy : ""}`}
           inert={loading !== null}
         >
-          <nav className={css.tabBar}>
-            <div className={css.tabs}>
-              {pages.length > 1 &&
-                pages.map((page) => (
-                  <button
-                    key={page}
-                    className={`${css.tab} ${tab === page ? css.tabActive : ""}`}
-                    onClick={() => setActiveTab(page)}
-                  >
-                    {TAB_LABELS[page]}
-                  </button>
-                ))}
-              {!plugin && sequencer && <Transport engine={sequencer} />}
-            </div>
-            {plugin ? (
-              pluginBar
-            ) : (
-              <Lockable locked={importing}>
-                <TopBar
-                  mixer={mixer}
-                  service={service}
-                  catalog={catalog}
-                  expansions={expansions}
-                  onLoadExpansion={loadExpansion}
-                />
-              </Lockable>
-            )}
-          </nav>
-          <Lockable locked={importing}>
-            {tab === "mixer" && (
-              <ErrorBoundary section="Mixer">
-                <MixerPage mixer={mixer} expansions={expansions} />
-              </ErrorBoundary>
-            )}
-            {tab === "surround" && (
-              <ErrorBoundary section="Surround">
-                <SurroundPage mixer={mixer} />
-              </ErrorBoundary>
-            )}
-            {tab === "toneEdit" && (
-              <ErrorBoundary section="Tone Editor">
-                {plugin && pluginKind !== undefined ? (
-                  pluginBinding?.part === undefined ? (
-                    <div className={css.unbound}>Choose a Part above to edit its tone.</div>
-                  ) : mismatch ? (
-                    // The plugin is inert: its own report is the one source.
-                    <ToneMismatch
-                      text={mismatch.text}
-                      defaultTone={instance.info?.defaultTone ?? null}
-                      pending={instance.info?.defaultTonePending ?? false}
-                      onLoad={instance.loadDefaultTone}
-                    />
-                  ) : (
-                    <ToneEditorPage
-                      mixer={mixer}
+          {plugin ? (
+            // The plugin keeps its tab row and bar (web first).
+            <nav className={css.tabBar}>
+              <div className={css.tabs}>
+                {pages.length > 1 &&
+                  pages.map((page) => (
+                    <button
+                      key={page}
+                      className={`${css.tab} ${tab === page ? css.tabActive : ""}`}
+                      onClick={() => setActiveTab(page)}
+                    >
+                      {PAGE_NAMES[page]}
+                    </button>
+                  ))}
+              </div>
+              {pluginBar}
+            </nav>
+          ) : (
+            <NavRow
+              mixer={mixer}
+              service={service}
+              catalog={catalog}
+              expansions={expansions}
+              onLoadExpansion={loadExpansion}
+              pages={pages}
+              tab={tab}
+              onTab={setActiveTab}
+              transport={sequencer && <Transport engine={sequencer} />}
+              locked={importing}
+              partSettings={partSettings}
+              onStudioSetSettings={openStudioSetSettings}
+            />
+          )}
+          {/* The pages, and beside them the Part settings drawer while it is open. */}
+          <div className={css.workspace}>
+            <div className={css.pages}>
+              {/* What a Studio Set Init resets waits for its "finished" too. */}
+              <Lockable locked={importing}><InitGuard area={{ kind: "studio-set" }}>
+                {tab === "mixer" && (
+                  <ErrorBoundary section="Mixer">
+                    <MixerPage mixer={mixer} expansions={expansions} />
+                  </ErrorBoundary>
+                )}
+                {tab === "surround" && (
+                  <ErrorBoundary section="Surround">
+                    <SurroundPage mixer={mixer} />
+                  </ErrorBoundary>
+                )}
+                {tab === "routing" && (
+                  <ErrorBoundary section="Routing">
+                    <RoutingPage mixer={mixer} onOpen={setActiveTab} />
+                  </ErrorBoundary>
+                )}
+                {tab === "toneEdit" && (
+                  <ErrorBoundary section="Tone Editor">
+                    {plugin && pluginKind !== undefined ? (
+                      pluginBinding?.part === undefined ? (
+                        <div className={css.unbound}>Choose a Part above to edit its tone.</div>
+                      ) : mismatch ? (
+                        // The plugin is inert: its own report is the one source.
+                        <ToneMismatch
+                          text={mismatch.text}
+                          defaultTone={instance.info?.defaultTone ?? null}
+                          pending={instance.info?.defaultTonePending ?? false}
+                          onLoad={instance.loadDefaultTone}
+                        />
+                      ) : (
+                        <ToneEditorPage
+                          mixer={mixer}
+                          service={service}
+                          marking={waveMarking}
+                          part={pluginBinding.part}
+                          only={pluginToneType(pluginKind)}
+                          drum={pluginDrumScope(pluginKind, pluginBinding)}
+                          reread={refreshed}
+                        />
+                      )
+                    ) : (
+                      <ToneEditorPage
+                        mixer={mixer}
+                        service={service}
+                        marking={waveMarking}
+                        onBack={() => setActiveTab("mixer")}
+                        initItems
+                      />
+                    )}
+                  </ErrorBoundary>
+                )}
+                {tab === "system" && (
+                  <ErrorBoundary section="System">
+                    <SystemPage
                       service={service}
-                      marking={waveMarking}
-                      part={pluginBinding.part}
-                      only={pluginToneType(pluginKind)}
-                      drum={pluginDrumScope(pluginKind, pluginBinding)}
-                      reread={refreshed}
+                      studioSetSettings={mixer.state.studioSetSettings}
+                      onOpenStudioSetSettings={openStudioSetSettings}
                     />
-                  )
-                ) : (
-                  <ToneEditorPage
+                  </ErrorBoundary>
+                )}
+                {tab === "expansions" && (
+                  <ErrorBoundary section="Expansions">
+                    <ExpansionsPage expansions={expansions} staging={expansionStaging} />
+                  </ErrorBoundary>
+                )}
+              </InitGuard></Lockable>
+              {tab === "library" && (
+                <ErrorBoundary section="Library">
+                  <LibraryPage
+                    service={service}
+                    mixer={mixer}
+                    catalog={catalog}
+                    libraryExport={libraryExport}
+                    libraryImport={libraryImport}
+                  />
+                </ErrorBoundary>
+              )}
+              {/* The plugin's notes go to the Device service's note port, not through its editor. */}
+              {plugin ? null : tab === "sequencer" && sequencer ? (
+                <ErrorBoundary section="Sequencer">
+                  <SequencerPage engine={sequencer} mixer={mixer} keyboard={keyboard} />
+                </ErrorBoundary>
+              ) : (
+                <KeyboardDrawer keyboard={keyboard} />
+              )}
+            </div>
+            {!plugin && partSettingsOpen && (
+              <Lockable locked={importing}>
+                <ErrorBoundary section="Part settings">
+                  <PartSettingsDrawer
                     mixer={mixer}
                     service={service}
-                    marking={waveMarking}
-                    onBack={() => setActiveTab("mixer")}
+                    onClose={() => setPartSettingsOpen(false)}
+                    onOpenSystem={() => setActiveTab("system")}
+                    headerActions={<InitPartItem part={mixer.state.selectedPart} />}
+                    groupActions={{ [PartSettingGroup.Offset]: <SoundCtrlInitItem /> }}
                   />
-                )}
-              </ErrorBoundary>
+                </ErrorBoundary>
+              </Lockable>
             )}
-            {tab === "expansions" && (
-              <ErrorBoundary section="Expansions">
-                <ExpansionsPage expansions={expansions} staging={expansionStaging} />
-              </ErrorBoundary>
+            {!plugin && studioSetSettingsOpen && (
+              <Lockable locked={importing}>
+                <ErrorBoundary section="Studio Set settings">
+                  <StudioSetDrawer
+                    mixer={mixer}
+                    service={service}
+                    onClose={closeStudioSetSettings}
+                    onOpenSystem={openSystemFromDrawer}
+                  />
+                </ErrorBoundary>
+              </Lockable>
             )}
-          </Lockable>
-          {tab === "library" && (
-            <ErrorBoundary section="Library">
-              <LibraryPage
-                service={service}
-                mixer={mixer}
-                catalog={catalog}
-                libraryExport={libraryExport}
-                libraryImport={libraryImport}
-              />
-            </ErrorBoundary>
-          )}
-          {/* The plugin's notes go to the Device service's note port, not through its editor. */}
-          {plugin ? null : tab === "sequencer" && sequencer ? (
-            <ErrorBoundary section="Sequencer">
-              <SequencerPage engine={sequencer} mixer={mixer} keyboard={keyboard} />
-            </ErrorBoundary>
-          ) : (
-            <KeyboardDrawer keyboard={keyboard} />
-          )}
+          </div>
         </div>
       </div>
     );
+    // Init items anywhere in the shell share one flow (#288).
+    return (
+      <InitProvider service={service} mixer={mixer}>
+        {shell}
+      </InitProvider>
+    );
   }
 
-  return (
+  const card = (
     <main className={css.main}>
       <h1 className={css.title}>Integral</h1>
       <p className={css.subtitle}>Integra-7 Control Surface</p>
@@ -585,5 +645,11 @@ export function App({
         )}
       </div>
     </main>
+  );
+  // The shell's InitProvider, kept mounted: an Init that lost the link says so here.
+  return (
+    <InitProvider service={service} mixer={mixer}>
+      {card}
+    </InitProvider>
   );
 }

@@ -1,0 +1,12 @@
+/* Wraps the controls a Pack import locks, without a box of its own. */
+.lockable {
+  display: contents;
+}
+
+/* How an inert part of the app looks: locked controls, or the whole app
+   while an Expansion load runs (App.module.css composes it). */
+.dimmed,
+.locked > * {
+  opacity: 0.4;
+  filter: grayscale(0.6);
+}

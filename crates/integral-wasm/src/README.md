@@ -26,8 +26,8 @@ Names below are the JS names that `wasm-bindgen` exports.
       Part tone selects of dumps the Device service relayed (a tone changed
       on the device), which no read of the state asked for.
     - `readState()` returns the state as a `MixerState`-shaped object.
-    - Setters: `setPart*`, `setMixerField`, `setChorusParam`,
-      `setReverbParam` and the per-engine `set*Param`.
+    - Setters: `setPart*`, `setMixerField`, `setStudioSetField`,
+      `setChorusParam`, `setReverbParam` and the per-engine `set*Param`.
     - Block parsers: `applySnaCommon`, `applySndCommon`, `applySndNote`
       and `snsTone`. `reloadSnsTone` and `loadMixer` queue tracked RQ1
       reads.
@@ -47,13 +47,28 @@ Names below are the JS names that `wasm-bindgen` exports.
       `pcmd_partial_size`), `sns_partial_count`, `mfx_block_size`,
       `is_drum_kit_bank`
     - Family colours: `familyColour`, `mfxHeaderFamily`
-    - `*_spec`, `WasmFieldSpec`, `catalog_options` and `mixer_field_spec`
+    - `*_spec`, `WasmFieldSpec` (its `catalog` and `controlSource` name a
+      picker's list), `catalog_options` and `mixer_field_spec`
     - `tone_bank_groups`, `WasmToneBank` and `user_tone_bank`
     - `mfx_params`, `mfx_type_names`, `chorus_params`, `reverb_params` and
       `WasmFxParamDef`
 - `display.rs`: `display_binding`, `WasmDisplaySlot`, `DisplayKind` and
   `DisplayProp`.
 - `relevance.rs`: the `*_relevance` functions and `Relevance`.
+- `part_settings.rs`: the Part settings registry (`PartSetting`,
+  `PartSettingGroup`, `part_setting_fields`, `part_setting_spec`, `_name`,
+  `_label`, `_group`, `part_setting_group_label`) and the
+  `WasmDeviceState` methods `partSetting` and `setPartSetting`.
+- `routing.rs`: `WasmDeviceState.effectiveRouting()` returns the state's
+  `EffectiveRouting` (TypeScript custom section).
+- `system.rs`: System Common. `system_fields`, `system_groups`,
+  `system_group_label`, `system_field_spec` (`WasmSystemFieldSpec`, with
+  `formatValue`, `formatNumber` and `parseValue`), `system_volatile_notice`
+  and `parseSystemCommon` (`WasmSystemCommon`, with `studioSetInForce`);
+  `system_common_address` and `system_common_size` for `requestData`; the
+  SYSTEM-or-STUDIO SET pairs, `SystemOrStudioSet`, `system_pair_selector`
+  and `system_control_source_field`; `buildSystemCommonRequest` and
+  `setSystemField` on `WasmDeviceState`.
 - `expansion.rs`:
   - The catalog and slot helpers: `expansionCatalog`, `stageExpansionSlot`
     and `expansionSlotsAddress`.
@@ -70,9 +85,19 @@ Names below are the JS names that `wasm-bindgen` exports.
     `onRead`, `onWriteReply`, `onTimeout`, `progress` and `cancel`.
     `nextAction` returns a `LibrarianAction`.
   - The file also carries a TypeScript custom section.
+- `initialize.rs`: `Initialization` (Rust `WasmInitialization`) sends one
+  Init, built with `studioSet`, `soundCtrl`, `part`, `tone` or `partial`
+  (a partial index for a tone, the key number for a kit). It is driven like
+  the Librarian machines, by `nextAction`, `onRead`, `onWriteReply`,
+  `onTimeout` and `cancel`. `initFinishedAddress` is the address of the
+  "Init finished" DT1.
 - `sequencer.rs`: `WasmSequencer` with `play`, `due(device, now_ms,
   horizon_ms)` (returns `{tMs, bytes}[]`), `stop`, `panic`, `toSmf`,
   `toSmfOffline` and `loadSmf`.
+- `studio_set_settings.rs`: the Studio Set settings registry:
+  `StudioSetSetting`, `studio_set_setting_spec`, `studio_set_setting_count`,
+  `studio_set_field_name`, `studio_set_field_label` and
+  `phase_lock_notice`, and `WasmDeviceState.setStudioSetField`.
 - `waves.rs`: `waveGroups`, `WaveGroup` (Rust `WasmWaveGroup`),
   `waveGroupWavesJson`, `waveName` and `waveStereoPartner`.
 
@@ -99,6 +124,8 @@ Names below are the JS names that `wasm-bindgen` exports.
 - Setters change the mixer state held in Rust and queue merged, throttled
   SysEx.
 - An Expansion load holds the send queue until it finishes.
+- `WasmInitialization` resets a Temporary area and announces none of its
+  values: JS reads the area back after `Done`.
 - `WasmPackImport` writes User memory and the Temporary areas through the
   device, so JS must refresh the mixer state after `Done`.
 - `WasmSequencer` keeps the play state and returns each due event only once.

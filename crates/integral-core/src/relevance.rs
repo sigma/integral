@@ -20,6 +20,7 @@
 
 use crate::param_registry::MixerField;
 use crate::params;
+use crate::part_settings::{PartSetting, PartSettingGroup};
 use crate::pcm_drum::PcmDrumPartial;
 use crate::pcm_structure;
 use crate::pcm_synth::{
@@ -298,6 +299,33 @@ pub fn mixer_fx_relevance(field: MixerField, fx: &FxState) -> Relevance {
     match field {
         F::ChorusType | F::ChorusLevel | F::ReverbType | F::ReverbLevel => fx_block_relevance(fx),
         _ => Relevance::Active,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Part settings
+// ---------------------------------------------------------------------------
+
+/// Relevance of Part setting `field` while System Scale Tune Switch
+/// (System `00 06`) is `scale_tune_switch`: the SCALE group is switched off
+/// with it, as no Part's scale acts while it is OFF. Every other group is
+/// always active.
+pub fn part_setting_relevance(field: PartSetting, scale_tune_switch: bool) -> Relevance {
+    match field.def().group {
+        PartSettingGroup::Scale => Relevance::switched(scale_tune_switch),
+        _ => Relevance::Active,
+    }
+}
+
+/// Whether the tone of bank MSB `tone_bank_msb` and Tone Category
+/// `tone_category` ignores its Part's scale. The Parameter Guide's SCALE tab
+/// lists the scale as unavailable on SN-A Organ and SN Drum Kit tones.
+pub fn tone_ignores_scale(tone_bank_msb: u8, tone_category: u8) -> bool {
+    match params::tone_type_from_bank_msb(tone_bank_msb) {
+        Some(params::ToneType::SnDrum) => true,
+        // shortcut: the Guide's "SN-A (Organ)" is TW Organ, an instrument (Inst Variation 65, Number 0, see `sna_offsets`); the mixer reads a tone's Category, not its instrument, so an SN-A tone categorised Organ stands in for it. Read SN-A Common `00 20`-`00 21` with the category if a re-categorised tone shows the wrong note.
+        Some(params::ToneType::SnAcoustic) => tone_category == crate::svd::ORGAN_CATEGORY,
+        _ => false,
     }
 }
 
@@ -866,5 +894,41 @@ mod tests {
                 "{field:?}"
             );
         }
+    }
+
+    // -- Part settings ------------------------------------------------------
+
+    #[test]
+    fn the_scale_is_switched_off_with_the_system_scale_tune_switch() {
+        for field in PartSetting::ALL {
+            let scale = field.def().group == PartSettingGroup::Scale;
+            assert_eq!(
+                part_setting_relevance(field, true),
+                Relevance::Active,
+                "{field:?}"
+            );
+            assert_eq!(
+                part_setting_relevance(field, false),
+                if scale {
+                    Relevance::SwitchedOff
+                } else {
+                    Relevance::Active
+                },
+                "{field:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn sn_drum_kits_and_sn_a_organs_ignore_the_scale() {
+        use crate::svd::ORGAN_CATEGORY as ORGAN;
+        const AC_PIANO: u8 = 1;
+        assert!(tone_ignores_scale(88, crate::svd::DRUMS_CATEGORY)); // SN-D
+        assert!(tone_ignores_scale(89, ORGAN)); // SN-A TW Organ
+        assert!(!tone_ignores_scale(89, AC_PIANO));
+        assert!(!tone_ignores_scale(87, ORGAN)); // a PCM organ plays the scale
+        assert!(!tone_ignores_scale(86, crate::svd::DRUMS_CATEGORY)); // PCM-D
+        assert!(!tone_ignores_scale(95, ORGAN)); // SN-S
+        assert!(!tone_ignores_scale(0, 0)); // not read yet
     }
 }

@@ -1902,8 +1902,8 @@ fn a_user_tone_keeps_no_baseline() {
     ask(&mut service, a, change_tone(2, 87, 0, 5));
     ask(&mut service, a, baseline_asked(2));
     run_until(&mut service, 0.0, 500.0);
-    // The select and the name and category reads; no tone read-back.
-    assert_eq!(sysex_sent(&link).len(), 3);
+    // The select and the name, category and MFX Type reads; no tone read-back.
+    assert_eq!(sysex_sent(&link).len(), 4);
     assert!(service.baseline(2).is_none());
     assert_eq!(baselines_heard(inbox.take()), [(Some(2), false, 0)]);
 }
@@ -2545,8 +2545,8 @@ fn an_expansion_tone_gets_no_baseline_unless_its_board_is_known_to_be_loaded() {
     let (a, _inbox) = client(&mut service, 1);
     ask(&mut service, a, change_tone(0, 93, 0, 1)); // SRX-01
     run_until(&mut service, 0.0, 500.0);
-    // The select and the name and category reads; nothing is read back.
-    assert_eq!(sysex_sent(&link).len(), 3);
+    // The select and the name, category and MFX Type reads; nothing is read back.
+    assert_eq!(sysex_sent(&link).len(), 4);
     assert!(service.baseline(0).is_none());
 }
 

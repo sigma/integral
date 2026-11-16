@@ -1549,8 +1549,10 @@ name = "integral-device-service"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "httparse",
  "integral-core",
  "integral-device-service",
+ "integral-web-assets",
  "libc",
  "midir 0.10.3",
  "rtrb 0.3.6",
@@ -1588,6 +1590,7 @@ dependencies = [
  "cpal",
  "integral-core",
  "integral-device-service",
+ "integral-web-assets",
  "nih_plug",
  "raw-window-handle 0.5.2",
  "serde",
@@ -1606,6 +1609,10 @@ dependencies = [
  "serde_json",
  "wasm-bindgen",
 ]
+
+[[package]]
+name = "integral-web-assets"
+version = "0.1.0"
 
 [[package]]
 name = "is_terminal_polyfill"

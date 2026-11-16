@@ -5,6 +5,8 @@ import {
   sns_partial_scope_relevance,
   ToneType,
 } from "../pkg/integral_wasm.js";
+import { partialInit } from "./init";
+import { InitGuard, InitItem } from "./InitFlow";
 import type { IntegraService } from "./integra";
 import { GridScreen, GridZoom } from "./layouts";
 import { SNS_SECTION, rowSectionOf, snsScreen } from "./layouts/sn-synth/screen";
@@ -28,9 +30,11 @@ import { PartialBox } from "./sn-synth/PartialBox";
 interface Props {
   partIndex: number;
   service: IntegraService;
+  /** Whether each partial's header offers its Init… item (a browser's editor; a plugin's has none). */
+  initItems?: boolean;
 }
 
-export function SnSynthEditor({ partIndex, service }: Props) {
+export function SnSynthEditor({ partIndex, service, initItems }: Props) {
   const [tone, setTone] = useState<SnSynthTone | null>(null);
   const [mfx, setMfx] = useState<MfxState | null>(null);
 
@@ -112,20 +116,31 @@ export function SnSynthEditor({ partIndex, service }: Props) {
             const partial = at && tone.partials[at.partial];
             if (!at || !partial) return null;
             const idx = at.partial;
+            const scope = partialInit(partIndex, ToneType.SnSynth, idx);
             if (at.section === "switch") {
-              return <PartialSwitch idx={idx} common={tone.common} onChange={setCommonParam} />;
+              // The header's switch is a Common field, which a Partial Init leaves alone.
+              return (
+                <PartialSwitch
+                  idx={idx}
+                  common={tone.common}
+                  onChange={setCommonParam}
+                  titleAction={initItems && <InitItem scope={scope} />}
+                />
+              );
             }
             const box = boxOf(at.section);
             const setP: PartialParamHandler = (field, value) => setPartialParam(idx, field, value);
             return (
-              <PartialBox
-                idx={idx}
-                layout={box.layout}
-                family={box.family}
-                partial={partial}
-                scopeRelevance={sns_partial_scope_relevance(idx, tone.common)}
-                setP={setP}
-              />
+              <InitGuard area={scope}>
+                <PartialBox
+                  idx={idx}
+                  layout={box.layout}
+                  family={box.family}
+                  partial={partial}
+                  scopeRelevance={sns_partial_scope_relevance(idx, tone.common)}
+                  setP={setP}
+                />
+              </InitGuard>
             );
           }}
         </GridScreen>

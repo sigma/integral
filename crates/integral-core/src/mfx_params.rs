@@ -3044,6 +3044,7 @@ pub fn default_slots(mfx_type: u8) -> Option<[i32; MFX_PARAM_COUNT]> {
 /// which is why the documented ranges are one longer than their name lists.
 /// See `docs/research/jv-xv-roland-pairs.md`, "(b) Controller routing".
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum ControlSourceKind {
     /// MFX Control Source (0–101), with SYS1–SYS4 at 98–101.
     Mfx,

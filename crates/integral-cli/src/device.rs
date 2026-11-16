@@ -147,6 +147,12 @@ impl IntegraDevice {
         &mut self.conn_out
     }
 
+    /// Borrow the output and the inbound receiver together, to send and
+    /// await replies in one loop.
+    pub fn split(&mut self) -> (&mut Output, &Receiver<Vec<u8>>) {
+        (&mut self.conn_out, &self.rx)
+    }
+
     /// Return a reference to the inbound message receiver.
     pub fn rx(&self) -> &Receiver<Vec<u8>> {
         &self.rx

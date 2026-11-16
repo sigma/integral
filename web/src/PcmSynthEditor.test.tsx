@@ -1,13 +1,18 @@
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  ToneType,
   WasmDeviceState,
   pcms_common_address,
   pcms_common_size,
   pcms_partial_address,
 } from "../pkg/integral_wasm.js";
 import { PcmSynthEditor } from "./PcmSynthEditor";
+import { deviceSpec } from "./deviceSpec";
+import { partialBoxOf } from "./layouts/pcm-synth/pair";
+import { parsePairSectionId } from "./layouts/pcm-synth/screen";
 import { button, cleanup, click, render } from "./test/dom";
+import { confirmInit, fakeInit } from "./test/init";
 import { arrowUp, fakeToneService, flakyToneService, slider } from "./test/toneService";
 
 // jsdom lacks the ResizeObserver the page's zoom measures with.
@@ -157,6 +162,56 @@ describe("PcmSynthEditor", () => {
       expect(alert.textContent).toContain("Tone Common");
       // The Partials still render: the parse failure aborted nothing else.
       expect(slider(container, "FX1")).toBeTruthy();
+    });
+  });
+
+  describe("Partial Init", () => {
+    /** The 0-based partial of each partial box the Init flow holds busy. */
+    const busyPartials = (scope: ParentNode) =>
+      [...scope.querySelectorAll('[aria-busy="true"]')].map((guard) => {
+        const id = guard.closest<HTMLElement>("[data-section]")!.dataset.section!;
+        const { pair, section } = parsePairSectionId(id)!;
+        return 2 * pair + (partialBoxOf(section)!.side === "lower" ? 1 : 0);
+      });
+
+    it("offers Init… in each partial's header, and inits that partial after its confirmation", async () => {
+      const { service } = fakeToneService(new WasmDeviceState(0x10));
+      const init = fakeInit(service);
+      const { container } = render(init.wrap(<PcmSynthEditor partIndex={PART} service={service} initItems />));
+      await act(async () => {});
+
+      for (let p = 1; p <= deviceSpec().pcm_synth_partial_count; p++) {
+        const strip = container.querySelector(`[data-grid-section="Partial ${p}"]`)!;
+        expect(button(strip, `Init Partial ${p}…`).textContent).toBe("Init…");
+      }
+      click(button(container, "Init Partial 2…"));
+      expect(document.body.textContent).toContain(`This resets Partial 2 of Part ${PART + 1}'s tone.`);
+      expect(init.asked).toEqual([]);
+      await act(async () => click(button(document.body, "Init")));
+      expect(init.asked).toEqual([{ kind: "partial", part: PART, toneType: ToneType.PcmSynth, partial: 1 }]);
+    });
+
+    it("holds that partial's boxes alone busy until the device has finished", async () => {
+      const { service } = fakeToneService(new WasmDeviceState(0x10));
+      const init = fakeInit(service);
+      const { container } = render(init.wrap(<PcmSynthEditor partIndex={PART} service={service} initItems />));
+      await act(async () => {});
+
+      await confirmInit(container, "Init Partial 3…");
+      const busy = busyPartials(container);
+      expect(busy.length).toBeGreaterThan(0);
+      expect(new Set(busy)).toEqual(new Set([2]));
+      // Another Init waits: every item is disabled while one runs.
+      expect(button(container, "Init Partial 1…").disabled).toBe(true);
+      await init.finish();
+      expect(busyPartials(container)).toEqual([]);
+    });
+
+    it("offers none without its Init items (a plugin's editor)", async () => {
+      const { service } = fakeToneService(new WasmDeviceState(0x10));
+      const { container } = render(<PcmSynthEditor partIndex={PART} service={service} />);
+      await act(async () => {});
+      expect(container.textContent).not.toContain("Init…");
     });
   });
 });

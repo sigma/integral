@@ -26,7 +26,7 @@ pub const SETUP_STUDIO_SET_PC: Address = Address::new(0x01, 0x00, 0x00, 0x06);
 // ---------------------------------------------------------------------------
 
 /// System Common: Master Level (0–127).
-pub const SYSTEM_MASTER_LEVEL: Address = Address::new(0x02, 0x00, 0x00, 0x05);
+pub const SYSTEM_MASTER_LEVEL: Address = crate::address::SYSTEM_COMMON.offset([0, 0, 0, 0x05]);
 
 // ---------------------------------------------------------------------------
 // Studio Set Common (base: 18 00 00 00)
@@ -261,7 +261,8 @@ pub mod part {
 
 /// System Studio Set Control Channel (0–15 → ch 1–16, 16=OFF): a Program
 /// Change on it selects a Studio Set.
-pub const SYSTEM_STUDIO_SET_CONTROL_CHANNEL: Address = Address::new(0x02, 0x00, 0x00, 0x11);
+pub const SYSTEM_STUDIO_SET_CONTROL_CHANNEL: Address =
+    crate::system::SystemField::StudioSetControlChannel.address();
 
 /// Compute the absolute address for a Studio Set Part parameter.
 ///
@@ -358,6 +359,47 @@ pub const MASTER_EQ_SWITCH: Address = Address::new(0x18, 0x00, 0x00, 0x42);
 
 /// Solo Part — Studio Set Common offset `00 3F`. Value 0=OFF, 1–16=Part 1–16.
 pub const SOLO_PART: Address = Address::new(0x18, 0x00, 0x00, 0x3F);
+
+// ---------------------------------------------------------------------------
+// Studio Set Common: Tone Control sources and tempo (00 39 to 00 3E)
+// ---------------------------------------------------------------------------
+
+/// Tone Control 1 Source — Studio Set Common offset `00 39`; Tone Control
+/// 2–4 Source follow it, one byte each.
+pub const TONE_CONTROL_1_SOURCE: Address = Address::new(0x18, 0x00, 0x00, 0x39);
+
+/// Studio Set Tempo — Studio Set Common offset `00 3D`, two nibblized bytes
+/// (20–250).
+pub const STUDIO_SET_TEMPO: Address = Address::new(0x18, 0x00, 0x00, 0x3D);
+
+/// Size of the Studio Set Tempo: two nibblized bytes.
+pub const STUDIO_SET_TEMPO_SIZE: u8 = 2;
+
+/// Size of the Tone Control 1–4 Sources and the Studio Set Tempo, read as
+/// one block from [`TONE_CONTROL_1_SOURCE`].
+pub const STUDIO_SET_CONTROL_SIZE: DataSize = DataSize::new(
+    0x00,
+    0x00,
+    0x00,
+    crate::device_spec::TONE_CONTROLS + STUDIO_SET_TEMPO_SIZE,
+);
+
+// ---------------------------------------------------------------------------
+// Studio Set MIDI (offset 00 10 00 to 00 1F 00, one per MIDI channel)
+// ---------------------------------------------------------------------------
+
+/// Studio Set MIDI parameter offsets (within a channel's block).
+pub mod studio_set_midi {
+    /// Phase Lock (0 = OFF, 1 = ON).
+    pub const PHASE_LOCK: u8 = 0x00;
+}
+
+/// Compute the absolute address of a Studio Set MIDI parameter.
+///
+/// `channel` is 0-indexed (0 = MIDI channel 1, at `18 00 10 00`).
+pub const fn studio_set_midi_address(channel: u8, param_offset: u8) -> Address {
+    crate::address::STUDIO_SET.offset([0x00, 0x00, 0x10 + channel, param_offset])
+}
 
 // ---------------------------------------------------------------------------
 // Drum Comp/EQ (Studio Set Common + Temporary Tone)
@@ -575,6 +617,11 @@ impl ToneType {
         }
     }
 
+    /// Whether this is a drum kit (SN-D or PCM-D), whose partials are keys.
+    pub const fn is_kit(self) -> bool {
+        matches!(self, Self::SnDrum | Self::PcmDrum)
+    }
+
     /// Absolute address of this type's block in a part's Temporary Tone.
     pub const fn base_address(self, part_index: u8) -> Address {
         let [a, b, c] = self.offset();
@@ -608,10 +655,7 @@ pub fn is_editable_bank(msb: u8) -> bool {
 /// Only drum kits can route keys to the Drum Comp+EQ units, so the Comp+EQ
 /// part should be one of these.
 pub fn is_drum_kit_bank(msb: u8) -> bool {
-    matches!(
-        tone_type_from_bank_msb(msb),
-        Some(ToneType::SnDrum | ToneType::PcmDrum)
-    )
+    tone_type_from_bank_msb(msb).is_some_and(ToneType::is_kit)
 }
 
 /// Address of the Tone Category byte for a part's current tone.
@@ -790,6 +834,25 @@ mod tests {
         assert_eq!(
             EXT_PART_LEVEL.offset([0, 0, 0, u8::try_from(EXT_PART_SIZE.value() - 1).unwrap()]),
             EXT_PART_MUTE
+        );
+    }
+
+    #[test]
+    fn studio_set_control_and_midi_addresses() {
+        assert_eq!(TONE_CONTROL_1_SOURCE, Address::new(0x18, 0x00, 0x00, 0x39));
+        assert_eq!(STUDIO_SET_TEMPO, Address::new(0x18, 0x00, 0x00, 0x3D));
+        assert_eq!(
+            TONE_CONTROL_1_SOURCE.offset([0, 0, 0, STUDIO_SET_CONTROL_SIZE.value() as u8 - 1]),
+            Address::new(0x18, 0x00, 0x00, 0x3E),
+            "the block ends with the tempo's second nibble"
+        );
+        assert_eq!(
+            studio_set_midi_address(0, studio_set_midi::PHASE_LOCK),
+            Address::new(0x18, 0x00, 0x10, 0x00)
+        );
+        assert_eq!(
+            studio_set_midi_address(15, studio_set_midi::PHASE_LOCK),
+            Address::new(0x18, 0x00, 0x1F, 0x00)
         );
     }
 

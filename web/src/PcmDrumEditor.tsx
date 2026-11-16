@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import type { Dispatch, ReactNode, SetStateAction } from "react";
+import type { Dispatch, MutableRefObject, ReactNode, SetStateAction } from "react";
 import {
   DisplayKind,
   DisplayProp,
@@ -23,6 +23,8 @@ import {
   pcmd_wmt_spec,
   type WasmDisplaySlot,
 } from "../pkg/integral_wasm.js";
+import { partialInit } from "./init";
+import { InitGuard, InitItem } from "./InitFlow";
 import type { IntegraService } from "./integra";
 import type { ExpansionMarking } from "./WavePicker";
 import { deviceSpec } from "./deviceSpec";
@@ -59,7 +61,7 @@ import { MfxPanel } from "./MfxPanel";
 import type { MfxState } from "./MfxPanel";
 import { FilterScope } from "./synth-ui/FilterScope";
 import { useMfxHandlers } from "./useMfxHandlers";
-import { DrumKeyGrid } from "./DrumKeyGrid";
+import { DrumKeyGrid, DrumKeyHeader } from "./DrumKeyGrid";
 import { useDrumKey } from "./useDrumKey";
 import { useKitBlocks, type KitBlockRead } from "./useKitBlocks";
 import { lockedKey, type DrumScope } from "./pluginPages";
@@ -68,7 +70,6 @@ import {
   PCMD_COMMON_ENTRIES,
   PCMD_PARTIAL_ENTRIES,
   PCMD_WMT_ENTRIES,
-  noteName,
   type PcmDrumCommon,
   type PcmDrumPartial,
 } from "./pcm-drum/types";
@@ -94,9 +95,13 @@ interface Props {
   marking?: ExpansionMarking;
   /** What of the kit to edit: all of it by default; a Kit plugin's Binding narrows it. */
   scope?: DrumScope;
+  /** Whether the key's header offers its Init… item (a browser's editor; a plugin's has none). */
+  initItems?: boolean;
+  /** Keeps the selected key across a remount (an Init re-reads the editor). */
+  lastKey?: MutableRefObject<number | undefined>;
 }
 
-export function PcmDrumEditor({ partIndex, service, marking, scope }: Props) {
+export function PcmDrumEditor({ partIndex, service, marking, scope, initItems, lastKey }: Props) {
   const keys = deviceSpec().pcm_drum_keys;
   const reads = useMemo<KitBlockRead[]>(
     () => [
@@ -133,8 +138,18 @@ export function PcmDrumEditor({ partIndex, service, marking, scope }: Props) {
     [partIndex, service],
   );
   // A Kit plugin edits the kit or one key, and prefetches none.
-  const drumKey = useDrumKey(service, partIndex, keys, !loading && scope === undefined, fetchPartial, lockedKey(scope));
+  const drumKey = useDrumKey(
+    service,
+    partIndex,
+    keys,
+    !loading && scope === undefined,
+    fetchPartial,
+    lockedKey(scope),
+    lastKey,
+  );
   const { key: selectedKey, note, current, update } = drumKey;
+  /** What a Partial Init of the selected key resets: a kit's partial is its key number. */
+  const keyInit = partialInit(partIndex, ToneType.PcmDrum, selectedKey);
 
   const setKitLevel = useCallback(
     (value: number) => {
@@ -337,17 +352,23 @@ export function PcmDrumEditor({ partIndex, service, marking, scope }: Props) {
         scope === "kit" && kitSection
       )}
       {scope !== "kit" && (
-        <div className={css.partialName}>
-          {noteName(selectedKey)}
-          {note?.partialName ? `: ${note.partialName}` : ""}
-        </div>
+        <DrumKeyHeader
+          keyNumber={selectedKey}
+          name={note?.partialName}
+          action={initItems && <InitItem scope={keyInit} />}
+        />
       )}
 
       {/* The key's WMT rows, summed into one line of the Sections they share, then the MFX; a kit's own are just the MFX */}
       {scope === "kit" ? (
         mfx && <MfxPanel mfx={mfx} {...mfxHandlers} />
       ) : (
-        <GridScreen layout={pcmdScreen()}>{section}</GridScreen>
+        <GridScreen layout={pcmdScreen()}>
+          {(p) =>
+            // The kit's MFX stays live; the key's Sections wait for its Init.
+            p.id === PCMD_SECTION.mfx ? section(p) : <InitGuard area={keyInit}>{section(p)}</InitGuard>
+          }
+        </GridScreen>
       )}
     </div>
   );

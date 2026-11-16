@@ -67,7 +67,8 @@ Scope, Variant set) are defined under "Layout" in
   - `GridSection` (`GridSectionProps`) — one Section from its layout plus
     a caller `bind(field, index)` returning a `Binding` (with
     `BindingOption` and `SyncBinding`). `loadedRelevance` is its relevance
-    helper.
+    helper. A caller's `titleAction` (a partial's "Init…") sits in the
+    title, after its text: an action, not a field, so no layout names it.
   - `GridScreen` — places a screen's Sections and arrows.
   - `SilkArrows`, `ScopeGate` (dims a group by Scope relevance).
   - `GridZoom` (`GridZoomProps`), with `useFitZoom`, `fitZoom`,
@@ -82,6 +83,8 @@ Subdirectories (per-screen declarations, all collected by `registry.ts`):
   FX type, and the MFX panel frame.
 - [`mixer`](./mixer/README.md) — the mixer screen: EQ, strip variant sets,
   name plates.
+- [`part-settings`](./part-settings/README.md) — the Part settings
+  drawer's groups.
 - [`pcm-synth`](./pcm-synth/README.md) — PCM Synth COMMON, PMT, the
   partial boxes, and the pair region set keyed by Structure Type.
 - [`sn-acoustic`](./sn-acoustic/README.md) — SN Acoustic Sections and the

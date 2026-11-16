@@ -51,19 +51,28 @@
   min-height: 0;
 }
 
-/* Wraps the controls a Pack import locks, without a box of its own. */
-.lockable {
-  display: contents;
+/* The pages, and the Part settings drawer at their right. */
+.workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
 }
 
-/* Dimmed (and inert) while an Expansion load runs, or locked by a Pack import. */
-.bodyBusy,
-.locked > * {
-  opacity: 0.4;
-  filter: grayscale(0.6);
+/* Laid out as the body's column was before the drawer sat beside it. */
+.pages {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
-/* tabs and transport | selected tone, in the remaining space | selectors */
+/* Dimmed (and inert) while an Expansion load runs. */
+.bodyBusy {
+  composes: dimmed from "./Lockable.module.css";
+}
+
+/* The plugin's tab row: tabs | its bar, in the remaining space. */
 .tabBar {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -78,8 +87,7 @@
   align-self: stretch;
 }
 
-/* Too narrow for one row: tabs and transport on top, tone and selectors
-   below. Keep the breakpoint in step with PartSelector.module.css. */
+/* Too narrow for one row: tabs on top, the plugin's bar below. */
 @media (width <= 1900px) {
   .tabBar {
     grid-template-columns: minmax(0, 1fr) auto;

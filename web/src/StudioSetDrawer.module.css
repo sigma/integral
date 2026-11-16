@@ -1,0 +1,29 @@
+.notice {
+  margin: 4px 0;
+  font-size: 11px;
+  color: #b0b0d0;
+}
+
+.link {
+  composes: link from "./systemPairs.module.css";
+}
+
+/* A Studio Set field beside its System counterpart. */
+.pair {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 4px 0;
+}
+
+.channels {
+  display: grid;
+  grid-template-columns: repeat(8, auto);
+  gap: 6px;
+  justify-content: start;
+}
+
+/* Wide enough for a pair's two sides side by side. */
+.drawer {
+  width: 440px;
+}

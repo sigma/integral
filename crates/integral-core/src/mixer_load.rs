@@ -5,12 +5,15 @@
 //! queues the requests and applies the replies.
 
 use crate::address::{Address, DataSize};
-use crate::device_spec::INTEGRA7;
+use crate::device_spec::{INTEGRA7, MIDI_CHANNELS};
 use crate::factory_catalog;
+use crate::mfx;
 use crate::params::{self, part};
 use crate::parse_helpers::parse_ascii_name_len;
+use crate::part_settings::{self, PartSetting};
 use crate::state::parse as state_parse;
 use crate::state::{MixerState, PartState};
+use crate::studio_set_settings;
 use crate::svd::DRUMS_CATEGORY;
 
 /// A piece of mixer state read with one RQ1.
@@ -24,8 +27,14 @@ pub enum MixerBlock {
     MasterLevel,
     /// Solo part.
     SoloPart,
-    /// A part's mixer settings, receive channel through output assign.
+    /// A part's mixer settings, receive channel through output assign. It
+    /// holds the Part's KBD, PITCH and OFFSET settings too.
     Part(u8),
+    /// A part's settings past the mixer dump: Scale Tune, the receive
+    /// filters and the Velocity Curve Type (`00 2B`-`00 43`).
+    PartSettings(u8),
+    /// Every part's Voice Reserve (Studio Set Common `00 18`-`00 27`).
+    VoiceReserve,
     /// A part's EQ.
     PartEq(u8),
     /// Master EQ bands.
@@ -50,6 +59,10 @@ pub enum MixerBlock {
     SurroundCommon,
     /// A part's Motional Surround position.
     PartSurround(u8),
+    /// Tone Control 1–4 Source and the Studio Set Tempo.
+    StudioSetControl,
+    /// A MIDI channel's Phase Lock (0-15 = channel 1-16).
+    PhaseLock(u8),
     /// Drum Comp+EQ switch, part and output assigns.
     DrumCompEqCommon,
     /// The Comp+EQ block of a part's drum kit, of bank MSB `msb`.
@@ -68,6 +81,13 @@ pub enum MixerBlock {
     },
     /// The category of a part's tone, of bank MSB `msb`.
     ToneCategory {
+        /// Part index (0-15).
+        part: u8,
+        /// The tone's bank MSB.
+        msb: u8,
+    },
+    /// The MFX Type of a part's tone, of bank MSB `msb`.
+    MfxType {
         /// Part index (0-15).
         part: u8,
         /// The tone's bank MSB.
@@ -98,15 +118,21 @@ impl MixerBlock {
                 SurroundCommon,
             ])
             .chain(parts(PartSurround))
+            .chain([StudioSetControl])
+            .chain((0..MIDI_CHANNELS).map(PhaseLock))
             .chain([DrumCompEqCommon])
+            .chain(parts(PartSettings))
+            .chain([VoiceReserve])
             .collect()
     }
 
-    /// The tone name and category reads of `part`'s tone of bank MSB `msb`.
-    pub fn tone_reads(part: u8, msb: u8) -> [Self; 2] {
+    /// The tone name, category and MFX Type reads of `part`'s tone of bank
+    /// MSB `msb`.
+    pub fn tone_reads(part: u8, msb: u8) -> [Self; 3] {
         [
             Self::ToneName { part, msb },
             Self::ToneCategory { part, msb },
+            Self::MfxType { part, msb },
         ]
     }
 
@@ -120,6 +146,8 @@ impl MixerBlock {
             MasterLevel => "Master level".into(),
             SoloPart => "Solo part".into(),
             Part(p) => format!("Part {}", u32::from(p) + 1),
+            PartSettings(p) => format!("Part {} settings", u32::from(p) + 1),
+            VoiceReserve => "Voice Reserve".into(),
             PartEq(p) => format!("Part {} EQ", u32::from(p) + 1),
             MasterEq => "Master EQ".into(),
             MasterEqSwitch => "Master EQ switch".into(),
@@ -132,10 +160,13 @@ impl MixerBlock {
             ReverbParams => "Reverb parameters".into(),
             SurroundCommon => "Motional Surround".into(),
             PartSurround(p) => format!("Part {} surround", u32::from(p) + 1),
+            StudioSetControl => "Tone Control sources and tempo".into(),
+            PhaseLock(c) => format!("Channel {} Phase Lock", u32::from(c) + 1),
             DrumCompEqCommon => "Drum Comp+EQ".into(),
             CompEq { part, .. } => format!("Part {} Comp+EQ", u32::from(part) + 1),
             ToneName { part, .. } => format!("Part {} tone name", u32::from(part) + 1),
             ToneCategory { part, .. } => format!("Part {} tone category", u32::from(part) + 1),
+            MfxType { part, .. } => format!("Part {} MFX type", u32::from(part) + 1),
         }
     }
 
@@ -149,13 +180,14 @@ impl MixerBlock {
     }
 
     /// Whether this block reads `part`'s tone: its dump (bank and PC), its
-    /// name, category or Comp+EQ block.
+    /// name, category, MFX Type or Comp+EQ block.
     pub fn reads_tone_of(self, part: u8) -> bool {
         match self {
             Self::Part(p) => p == part,
             Self::CompEq { part: p, .. }
             | Self::ToneName { part: p, .. }
-            | Self::ToneCategory { part: p, .. } => p == part,
+            | Self::ToneCategory { part: p, .. }
+            | Self::MfxType { part: p, .. } => p == part,
             _ => false,
         }
     }
@@ -173,6 +205,11 @@ impl MixerBlock {
                 params::part_address(p, part::RECEIVE_CHANNEL),
                 params::PART_MIXER_SIZE,
             ),
+            PartSettings(p) => (
+                params::part_address(p, part_settings::SETTINGS_READ_FROM),
+                part_settings::SETTINGS_READ_SIZE,
+            ),
+            VoiceReserve => part_settings::voice_reserve_read(),
             PartEq(p) => (
                 params::part_eq_address(p, params::part_eq::SWITCH),
                 params::PART_EQ_SIZE,
@@ -206,6 +243,14 @@ impl MixerBlock {
                 params::part_address(p, params::part_surround::LR),
                 params::PART_SURROUND_SIZE,
             ),
+            StudioSetControl => (
+                params::TONE_CONTROL_1_SOURCE,
+                params::STUDIO_SET_CONTROL_SIZE,
+            ),
+            PhaseLock(c) => (
+                params::studio_set_midi_address(c, params::studio_set_midi::PHASE_LOCK),
+                DataSize::ONE,
+            ),
             DrumCompEqCommon => (
                 params::DRUM_COMP_EQ_SWITCH,
                 params::DRUM_COMP_EQ_COMMON_SIZE,
@@ -221,6 +266,17 @@ impl MixerBlock {
             ToneCategory { part, msb } => {
                 (params::tone_category_address(part, msb)?, DataSize::ONE)
             }
+            // The device doesn't answer reads of a GM2 or ExPCM tone.
+            MfxType { part, msb } => (
+                mfx::mfx_address(
+                    part,
+                    params::is_editable_bank(msb)
+                        .then(|| params::tone_type_from_bank_msb(msb))
+                        .flatten()?,
+                    mfx::mfx_header_offset(mfx::MfxHeaderField::Type, 0).ok()?,
+                ),
+                DataSize::ONE,
+            ),
         })
     }
 
@@ -250,7 +306,16 @@ impl MixerBlock {
                 s.chorus_send = parsed.chorus_send;
                 s.reverb_send = parsed.reverb_send;
                 s.output_assign = parsed.output_assign;
+                s.settings.apply_dump(0, data);
                 return Self::tone_reads(p, parsed.tone_bank_msb).to_vec();
+            }
+            PartSettings(p) => state.parts[usize::from(p)]
+                .settings
+                .apply_dump(part_settings::SETTINGS_READ_FROM[2], data),
+            VoiceReserve => {
+                for (part, reserve) in state.parts.iter_mut().zip(data) {
+                    part.settings.set(PartSetting::VoiceReserve, *reserve);
+                }
             }
             PartEq(p) => state.parts[usize::from(p)].eq = state_parse::parse_part_eq_dump(data),
             MasterEq => {
@@ -300,6 +365,10 @@ impl MixerBlock {
                 state.surround.parts[usize::from(p)] =
                     state_parse::parse_surround_part(data[0], data[2], data[4], data[5]);
             }
+            StudioSetControl => {
+                studio_set_settings::apply_control_block(&mut state.studio_set_settings, data);
+            }
+            PhaseLock(c) => state.studio_set_settings.phase_lock[usize::from(c)] = byte == 1,
             DrumCompEqCommon => {
                 let dce = &mut state.drum_comp_eq;
                 dce.enabled = byte == 1;
@@ -321,14 +390,17 @@ impl MixerBlock {
                 }
             }
             ToneCategory { part, .. } => state.parts[usize::from(part)].tone_category = byte,
+            MfxType { part, .. } => state.parts[usize::from(part)].mfx_type = Some(byte),
         }
         Vec::new()
     }
 }
 
 /// Set `part`'s tone, with the factory name and the drum kit category until
-/// the device's own are read (see [`MixerBlock::tone_reads`]).
+/// the device's own are read (see [`MixerBlock::tone_reads`]). The new tone
+/// has its own MFX, unread.
 pub(crate) fn set_tone(part: &mut PartState, msb: u8, lsb: u8, pc: u8) {
+    part.mfx_type = None;
     part.tone_bank_msb = msb;
     part.tone_bank_lsb = lsb;
     part.tone_pc = pc;

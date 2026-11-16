@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { IntegraService } from "./integra";
-import type { MixerField, MixerScopeKind } from "../pkg/integral_wasm.js";
+import type { MixerField, MixerScopeKind, PartSetting, StudioSetSetting } from "../pkg/integral_wasm.js";
 import {
   defaultMixerState,
   type MixerState,
@@ -19,6 +19,7 @@ import {
   type FxState,
   type SurroundState,
   type DrumCompEqState,
+  type StudioSetSettings,
 } from "./types";
 
 /**
@@ -43,6 +44,7 @@ interface RustMixerState {
   masterEq: EqState;
   surround: SurroundState;
   drumCompEq: DrumCompEqState;
+  studioSetSettings: StudioSetSettings;
   previewPart: number;
 }
 
@@ -51,6 +53,10 @@ export interface UseMixerResult {
   changePartTone: (part: number, msb: number, lsb: number, pc: number) => void;
   /** Set a mixer field in a scope; `index` is the part or Comp+EQ unit, ignored for other kinds. */
   setMixerField: (kind: MixerScopeKind, index: number, field: MixerField, value: number) => void;
+  /** Set `part`'s (0-based) Part setting; core keeps a key or velocity range from crossing. */
+  setPartSetting: (part: number, field: PartSetting, value: number) => void;
+  /** Set instance `index` (0-based) of a Studio Set setting; a Phase Lock is 0 or 1. */
+  setStudioSetField: (setting: StudioSetSetting, index: number, value: number) => void;
   setChorusParam: (offset: number, value: number) => void;
   setChorusNibParam: (paramIndex: number, value: number) => void;
   toggleChorusSwitch: () => void;
@@ -71,6 +77,8 @@ export interface UseMixerResult {
   loadStudioSetNames: (force?: boolean) => Promise<Map<number, string>>;
   /** Read the whole mixer state again, e.g. after a Pack import. */
   reload: () => void;
+  /** Copy core's state again, without a device read: after a write that bypassed these setters (a tone editor's). */
+  sync: () => void;
   preview: () => void;
 }
 
@@ -97,6 +105,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
       const rs = service.device.readState() as RustMixerState;
       const loading = service.device.mixerLoading();
       const failedBlocks = service.device.mixerFailedBlocks();
+      const routing = service.device.effectiveRouting();
       setState((prev) => ({
         studioSetName: rs.studioSetName ?? "",
         studioSetPC: rs.studioSetPC ?? 0,
@@ -112,11 +121,13 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
         masterEq: rs.masterEq ?? prev.masterEq,
         surround: rs.surround ?? prev.surround,
         drumCompEq: rs.drumCompEq ?? prev.drumCompEq,
+        studioSetSettings: rs.studioSetSettings ?? prev.studioSetSettings,
         previewPart: rs.previewPart ?? 0,
         // UI-only fields preserved from React state.
         selectedPart: prev.selectedPart,
         loading,
         failedBlocks,
+        routing,
         // The current Studio Set's name is known once the load is done.
         studioSetNames:
           prev.loading && !loading && rs.studioSetName
@@ -262,6 +273,22 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     [service, syncFromRust],
   );
 
+  const setPartSetting = useCallback(
+    (part: number, field: PartSetting, value: number) => {
+      service?.device.setPartSetting(part, field, value);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
+  const setStudioSetField = useCallback(
+    (setting: StudioSetSetting, index: number, value: number) => {
+      service?.device.setStudioSetField(setting, index, value);
+      syncFromRust();
+    },
+    [service, syncFromRust],
+  );
+
   // --- FX ---
 
   const setChorusParam = useCallback(
@@ -320,6 +347,8 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     state,
     changePartTone,
     setMixerField,
+    setPartSetting,
+    setStudioSetField,
     setChorusParam,
     setChorusNibParam,
     toggleChorusSwitch,
@@ -332,6 +361,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     renameStudioSet,
     loadStudioSetNames,
     reload,
+    sync: syncFromRust,
     preview,
   };
 }

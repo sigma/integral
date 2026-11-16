@@ -47,6 +47,8 @@ interface Props {
   service: IntegraService;
   /** Loaded state of the Expansions behind SRX Wave Groups. */
   marking?: ExpansionMarking;
+  /** Whether each partial's header offers its Init… item (a browser's editor; a plugin's has none). */
+  initItems?: boolean;
 }
 
 /** Where each block sits in the read chain: Common, PMT, Common 2 (read for
@@ -56,7 +58,7 @@ const PMT_I = 1;
 const MFX_I = 3;
 const partialI = (i: number) => MFX_I + 1 + i;
 
-export function PcmSynthEditor({ partIndex, service, marking }: Props) {
+export function PcmSynthEditor({ partIndex, service, marking, initItems }: Props) {
   const partialCount = deviceSpec().pcm_synth_partial_count;
 
   // The editor's blocks, in the order they are read. One block's failure
@@ -203,6 +205,8 @@ export function PcmSynthEditor({ partIndex, service, marking }: Props) {
       <GridZoom cells={PCMS_SCREEN_CELLS}>
         {common && <div className={css.toneName}>{common.toneName || "(unnamed)"}</div>}
         <PcmSynthScreen
+          part={partIndex}
+          initItems={initItems}
           common={common}
           pmt={pmt}
           partials={partials}

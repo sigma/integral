@@ -1,3 +1,5 @@
+import type { EffectiveRouting } from "../pkg/integral_wasm.js";
+
 /** 3-band parametric EQ state. */
 export interface EqState {
   /** EQ on/off. */
@@ -88,6 +90,15 @@ export interface PartState {
   toneCategory: number;
   /** Per-part EQ settings. */
   eq: EqState;
+  /** The MFX Type (0 = THRU) of the Part's Temporary tone; absent while unread (or a GM2 tone). */
+  mfxType?: number;
+  /**
+   * The Part settings read with the mixer (`PartSetting`), raw values by
+   * core's CLI name (`part_setting_name`: "key-lower"), as `readState`
+   * hands over a map. A field it doesn't hold (the defaults before the
+   * first read) is at its spec's default.
+   */
+  settings: ReadonlyMap<string, number>;
 }
 
 /** State of a single Comp+EQ unit. */
@@ -189,6 +200,20 @@ export function defaultSurroundState(): SurroundState {
   };
 }
 
+/**
+ * The Studio Set settings the Mixer doesn't edit (mirrors core
+ * `state::StudioSetSettings`): Tone Control 1–4 Source, the Studio Set Tempo
+ * and each MIDI channel's Phase Lock.
+ */
+export interface StudioSetSettings {
+  /** Tone Control 1–4 Source, as a Control Source value. */
+  toneControlSources: number[];
+  /** Studio Set Tempo (BPM). */
+  tempo: number;
+  /** Phase Lock of each MIDI channel (index 0 = channel 1). */
+  phaseLock: boolean[];
+}
+
 /** Full mixer state. */
 export interface MixerState {
   /** Studio Set name (up to 16 ASCII chars). */
@@ -221,6 +246,11 @@ export interface MixerState {
   surround: SurroundState;
   /** Drum Comp+EQ (6 units, assigned to one part). */
   drumCompEq: DrumCompEqState;
+  /**
+   * Tone Control sources, tempo and Phase Lock; none until the core's state
+   * is first read (the defaults are the core registry's, which needs wasm).
+   */
+  studioSetSettings: StudioSetSettings | null;
   /** Preview part (0 = off, 1–16 = part being previewed). */
   previewPart: number;
   /** Whether initial state is still loading from the device. */
@@ -230,6 +260,11 @@ export interface MixerState {
    * (from `WasmDeviceState.mixerFailedBlocks()`).
    */
   failedBlocks: string[];
+  /**
+   * Where each source's sound goes, computed by core from the state above
+   * (`WasmDeviceState.effectiveRouting()`); `null` until the first read.
+   */
+  routing: EffectiveRouting | null;
   /** All 64 Studio Set names (indexed 0–63). Populated via catalog query. */
   studioSetNames: Map<number, string>;
 }
@@ -250,6 +285,7 @@ export function defaultPartState(): PartState {
     toneName: "",
     toneCategory: 0,
     eq: defaultEqState(),
+    settings: new Map(),
   };
 }
 
@@ -271,9 +307,11 @@ export function defaultMixerState(): MixerState {
     masterEq: defaultEqState(),
     surround: defaultSurroundState(),
     drumCompEq: defaultDrumCompEqState(),
+    studioSetSettings: null,
     previewPart: 0,
     loading: true,
     failedBlocks: [],
+    routing: null,
     studioSetNames: new Map(),
   };
 }

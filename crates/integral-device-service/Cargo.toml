@@ -11,7 +11,11 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
+# Request heads, to tell a page's GET from a WebSocket upgrade: the parser
+# tungstenite itself uses.
+httparse = "1"
 integral-core = { path = "../integral-core", features = ["serde"] }
+integral-web-assets = { path = "../integral-web-assets" }
 midir = "0.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -361,14 +361,22 @@ impl Throttle {
     /// Send `bytes` once the throttle allows.
     pub(crate) fn send(&mut self, dev: &mut IntegraDevice, bytes: Vec<u8>) -> Result<()> {
         self.queue.send_raw("pack", bytes);
-        loop {
-            match self
-                .queue
-                .drain(self.start.elapsed().as_secs_f64() * 1000.0)
-            {
-                Some(bytes) => return dev.conn_out_mut().send(&bytes).context("failed to send"),
-                None => std::thread::sleep(Duration::from_millis(2)),
-            }
+        send_next(dev, &mut self.queue, self.start)
+    }
+}
+
+/// Send the next message `queue` holds once its throttle allows, on the
+/// clock started at `start`. Waits forever on an empty queue: check
+/// [`DeviceState::has_pending`] first.
+pub(crate) fn send_next(
+    dev: &mut IntegraDevice,
+    queue: &mut DeviceState,
+    start: Instant,
+) -> Result<()> {
+    loop {
+        match queue.drain(start.elapsed().as_secs_f64() * 1000.0) {
+            Some(bytes) => return dev.conn_out_mut().send(&bytes).context("failed to send"),
+            None => std::thread::sleep(Duration::from_millis(2)),
         }
     }
 }

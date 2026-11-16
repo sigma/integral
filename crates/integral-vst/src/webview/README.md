@@ -21,8 +21,8 @@ plugin opens no MIDI port.
 - `assets.rs`
   - `SCHEME` is `integral`, and `START_URL` is `integral://localhost/`.
   - `CSP` is the page's Content Security Policy.
-  - `serve(path)` returns `Served { status, mime, body }`. `serve_from` and
-    `mime` are its helpers.
+  - `serve(path)` is `integral_web_assets::serve`: `Served { status, mime,
+    body }` from the embedded build.
 - `ipc.rs`
   - `PageMessage` is sent by the page: `ready`, `open { port }`,
     `send { port, data }`, `resize { width, height }`,

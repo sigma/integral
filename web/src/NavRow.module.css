@@ -1,0 +1,75 @@
+/* One row of scope groups; a narrow screen wraps it between groups, never
+   inside one. (No overflow scroll: it would clip the selectors' dropdowns.) */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 4px;
+  padding: 4px 0;
+  background: #0a0a18;
+  border-bottom: 1px solid #2a2a4a;
+  flex-shrink: 0;
+}
+
+.scope {
+  display: flex;
+  flex: none;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 14px;
+  white-space: nowrap;
+}
+
+/* The breadcrumb's step from one scope into the next. */
+.scope + .scope {
+  border-left: 1px solid #3a3a6a;
+}
+
+.name {
+  font-size: 9px;
+  font-weight: 600;
+  color: #888;
+  letter-spacing: 1px;
+}
+
+/* Between a scope's controls and its pages. */
+.divider {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #555;
+}
+
+.page {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  background: transparent;
+  color: #888;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.page:hover {
+  color: #c0c0e0;
+}
+
+.pageActive {
+  color: #e0e0e0;
+  border-bottom-color: #4a6cf7;
+}
+
+/* Read by a screen reader, not shown. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

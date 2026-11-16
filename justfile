@@ -95,9 +95,10 @@ bundle-plugin: build-plugin
 
 # Replaces an installed copy and restarts the agent. Stop the agent before `just bridge`
 # (both claim the service socket) with the command it prints.
-# install the plugins and the Device service for this user, the service as a LaunchAgent up at login (macOS)
+# install the plugins and the Device service for this user, the service as a LaunchAgent up at login (macOS).
+# The web plugin bundle is built first: the service serves it as the web app on its WebSocket port.
 [macos]
-install: bundle-plugin
+install: build-web-plugin bundle-plugin
     #!/usr/bin/env bash
     set -euo pipefail
     label="{{service_label}}"

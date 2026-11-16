@@ -19,19 +19,24 @@ live in sibling modules, and the command bodies live in
     - `bridge` (Unix only)
     - `pack {list, export, check, import, reinit}`
     - `expansion {list, load}`
+    - `init <studio-set|sound-ctrl|part|tone|partial>`
+    - `part {show, set}`
+    - `studio-set {show, set}`
     - `wave {list}`
+    - `system {show, set}`
   - The shared option groups are `PortTimeoutArgs`, `ConnectionArgs` and
     `RawConnectionArgs` (`--port`, `--timeout`, `--device-id`).
   - `resolve_device_id` returns the explicit device ID, or detects it.
-  - Helper: `exit_nonzero`. `--device-id` takes `parse_device_id` from
+  - Helpers: `exit_nonzero`, and `part_number`, the 1 to `part_count`
+    value parser of `part`'s Part argument. `--device-id` takes `parse_device_id` from
     `integral-device-service`.
 - `device.rs`: `IntegraDevice` is the device handle.
   - `connect` and `connect_detecting` open it.
   - `request_data` (RQ1) and `send_data` (DT1) read and write.
   - Typed reads: `read_studio_set_name`, `read_master_level`,
     `read_surround_enabled` and `read_part_mixer`.
-  - `quiet` turns off per-request RQ1/DT1 logging. `conn_out_mut`, `rx`, `device_id` and
-    `timeout` give low-level access.
+  - `quiet` turns off per-request RQ1/DT1 logging. `conn_out_mut`, `rx`,
+    `split` (both at once), `device_id` and `timeout` give low-level access.
 - `midi.rs`
   - `DEFAULT_PORT_PATTERN` is `Integra`, and `DEFAULT_DEVICE_ID` is core's
     `sysex::DEFAULT_DEVICE_ID`, the fallback when detection fails.

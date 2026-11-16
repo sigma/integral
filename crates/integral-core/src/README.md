@@ -43,7 +43,17 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
     clients after a tone changed on the device.
   - `load_mixer` and `load_sns_tone` start tracked reads that are retried.
   - `start_expansion_load` and `next_load_action` run an Expansion load.
-  - `set_mixer_field` and the typed `set_*` setters edit parameters.
+  - `set_mixer_field`, `set_studio_set_field` and the typed `set_*`
+    setters edit parameters.
+- `system.rs`: System Common (`02 00 00 00`, 47 bytes). `SystemField` and
+  `system_spec` (`SystemFieldSpec`: CLI name, label, `SystemGroup`, range,
+  format; `parse` reads a display string back) are its registry;
+  `build_read_request` and `parse_system_common` (`SystemCommon`) read it, and `DeviceState::set_system_field` writes a
+  field. Master Level stays a mixer field. `VOLATILE_NOTICE` says System
+  edits last until power-off. `SystemOrStudioSet` names a SYSTEM-or-STUDIO
+  SET pair (its `selector`, and `SystemCommon::studio_set_in_force`);
+  `SystemField::system_control_source` pairs System Control N with Tone
+  Control N.
 - `device_spec.rs`: the device specification layer. It holds
   `INTEGRA7: DeviceSpec` (part count and other device constants), the
   `USER_MEMORY` layouts (`UserMemorySpec`, `BlockRun`) and `KeyRange`.
@@ -58,7 +68,9 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
   the undocumented commands:
   - catalog name queries at `0F 00 03 02` and `0F 00 04 02`, with
     `ToneCatalog` paging through the results
-  - Init of a Temporary area at `0F 00 18 TT`
+  - Init of a Temporary area at `0F 00 18 TT` (Studio Set, Sound Ctrl,
+    Part, Tone, Partial), with `Initialization` sending one Init and
+    awaiting "Init finished"
   - User write at `0F 00 10 00`
 - `tone_banks.rs` holds `TONE_BANK_GROUPS`, `find_bank` and `user_bank_for`.
   `factory_catalog.rs` provides `factory_tone`, generated at build time.
@@ -74,10 +86,23 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
 
 - `param_registry.rs`:
   - `ParamDef` and `ParamFormat` describe a parameter and its display
-    format, and `format_value` formats a value.
+    format, and `format_value` formats a value. `ParamFormat::MasterTune`
+    shows the System Master Tune in Hz (`system::master_tune_hz`), and
+    `ParamFormat::ControlSource` names a Control Source.
   - `FieldCatalog` and `CatalogOption` are the named value lists.
   - `MixerField` and `MixerScope` describe a mixer parameter, and
     `mixer_field_address` and `mixer_param` resolve it.
+- `part_settings.rs`: `PartSetting` names a Part setting past the mixer's
+  (KBD, PITCH, OFFSET, MIDI, VOICE and SCALE, `PartSettingGroup`);
+  `PartSetting::def` gives its `PartSettingDef` (CLI name, label, group,
+  `FieldSpec`) and `address` where it is written. `PartSettings` holds a
+  Part's values, `locate` maps a written byte back to its field.
+- `studio_set_settings.rs`: the Studio Set settings the Mixer doesn't edit
+  (Tone Control 1–4 Source, Studio Set Tempo, per-channel Phase Lock).
+  `StudioSetSetting` names a setting, `StudioSetField` one instance of it
+  with its CLI `name` (`from_name`), `label`, `address`, `spec` and
+  `encode`. `DeviceState::set_studio_set_field` writes one.
+  `PHASE_LOCK_NOTICE` is the manual's caveat on Phase Lock.
 - `field_spec.rs`: `FieldSpec` holds the min, max, default, format and family
   of a field. Per-block lookups are named `pcms_*_spec`, `pcmd_*_spec`,
   `sns_*_spec`, `sna_common_spec` and `snd_*_spec`. `pcms_partial_sync` and
@@ -105,6 +130,10 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
     to the `DisplaySlot`s a Display reads.
   - `relevance.rs`: `Relevance` (`Active`, `SwitchedOff`, `Irrelevant`),
     computed by the `*_relevance` predicates.
+  - `routing.rs`: `effective_routing` turns a `MixerState` into an
+    `EffectiveRouting`: a `Route` per source (stages, sends, Output Assign,
+    `Landing`s) and what each `Jack` pair carries, under the device's
+    override rules (Motional Surround, Comp+EQ, summing on a jack).
   - `lfo_rates.rs` (`pcm_lfo_hz`, `sn_lfo_hz`) and `velocity_curve.rs`
     (`velocity_curve`).
 
@@ -127,7 +156,8 @@ actions back. The crate must build for `wasm32-unknown-unknown`.
 - `expansion_load.rs`: `plan` and `LoadPlan`, plus the `LoadMachine` with its
   `LoadAction` and `LoadOutcome`.
 - `mixer_load.rs`: `MixerBlock` lists the mixer reads (`initial`, `request`,
-  `apply`).
+  `apply`), among them each Part tone's name, category and MFX Type, the
+  Part settings (`PartSettings`, `VoiceReserve`) included.
 - `waves.rs`: `Wave`, `WaveGroup`, `waves`, `name`, `families` and
   `stereo_partner`.
 

@@ -20,7 +20,7 @@ puts the parts together is [`../SnSynthEditor.tsx`](../SnSynthEditor.tsx).
   - `CommonSection` (with `CommonSectionProps`) — renders
     `SNS_COMMON_LAYOUT`.
   - `PartialSwitch` (with `PartialSwitchProps`) — a partial's on/off switch
-    strip.
+    strip, with the caller's `titleAction` (its "Init…") in its title.
 - `PartialBox.tsx`: `PartialBox` (with `PartialBoxProps`) renders one box of
   a partial's row through `GridSection` inside `ScopeGate`.
 - `displays.tsx`:

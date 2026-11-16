@@ -12,6 +12,7 @@ import { CHORUS_SET, REVERB_SET } from "./fx/strip";
 import { EQ_LAYOUT } from "./mixer/eq";
 import { mixerScreen } from "./mixer/screen";
 import { FX_STRIP_SET, STRIP_SET } from "./mixer/strip";
+import { partSettingsLayouts } from "./part-settings/sections";
 import { PCMS_PAIR } from "./pcm-synth/pair";
 import { pcmsScreens } from "./pcm-synth/screen";
 import {
@@ -70,9 +71,9 @@ export const SECTION_LAYOUTS: readonly SectionLayout<FieldKey>[] = [
   RING_34_LAYOUT,
 ];
 
-/** Section layouts sized from the device spec; a function, as they read core. */
+/** Section layouts built from core (the device spec, a registry's group names); a function, as they read it. */
 export function specSectionLayouts(): readonly SectionLayout<FieldKey>[] {
-  return [surroundPartLayout(), surroundExtLayout()];
+  return [surroundPartLayout(), surroundExtLayout(), ...partSettingsLayouts()];
 }
 
 /** Variant sets; the validator walks every key core enumerates. */

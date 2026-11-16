@@ -14,7 +14,9 @@ pub const MASTER_EQ_DUMP_SIZE: usize = 7;
 /// Parse a [`PART_DUMP_SIZE`]-byte (0x2A) part mixer dump into a [`PartState`].
 ///
 /// The dump layout matches the Studio Set Part block starting at offset
-/// 0x00 (receive channel) through 0x28 (reverb send).
+/// 0x00 (receive channel) through 0x29 (output assign). The Part settings
+/// it holds (KBD, PITCH and OFFSET) go to [`PartState::settings`]; the
+/// others keep their defaults.
 pub fn parse_part_dump(data: &[u8]) -> PartState {
     let mut part = PartState::default();
     if data.len() < PART_DUMP_SIZE {
@@ -30,6 +32,7 @@ pub fn parse_part_dump(data: &[u8]) -> PartState {
     part.chorus_send = data[0x27];
     part.reverb_send = data[0x28];
     part.output_assign = data[0x29];
+    part.settings.apply_dump(0, data);
     part
 }
 
@@ -292,6 +295,21 @@ mod tests {
         assert_eq!(part.chorus_send, 42);
         assert_eq!(part.reverb_send, 55);
         assert_eq!(part.output_assign, 3);
+    }
+
+    #[test]
+    fn parse_part_dump_keeps_the_part_settings() {
+        use crate::part_settings::PartSetting as F;
+        let mut data = [0u8; PART_DUMP_SIZE];
+        data[0x0B] = 70; // coarse tune
+        data[0x1D] = 36; // key range lower
+        data[0x13] = 80; // cutoff offset
+        let part = parse_part_dump(&data);
+        assert_eq!(part.settings.get(F::CoarseTune), 70);
+        assert_eq!(part.settings.get(F::KeyRangeLower), 36);
+        assert_eq!(part.settings.get(F::CutoffOffset), 80);
+        // Past the dump: the default.
+        assert_eq!(part.settings.get(F::ScaleTuneType), 1);
     }
 
     #[test]

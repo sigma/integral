@@ -7,7 +7,9 @@ use integral_core::{pcm_drum, pcm_synth, relevance, sn_acoustic, sn_synth, state
 use serde::Deserialize;
 use wasm_bindgen::prelude::*;
 
-use crate::{MixerField, PcmsPartialField, PcmsPmtField, SnaCommonField, SnsPartialField};
+use crate::{
+    MixerField, PartSetting, PcmsPartialField, PcmsPmtField, SnaCommonField, SnsPartialField,
+};
 
 /// Whether a field (or a Scope) acts, and if not, why (mirrors
 /// [`relevance::Relevance`]). Ordered from most to least live, so the most
@@ -163,4 +165,18 @@ pub fn mixer_fx_value(field: MixerField, fx: JsValue) -> Result<Option<u8>, JsEr
 pub fn mixer_fx_relevance(field: MixerField, fx: JsValue) -> Result<Relevance, JsError> {
     let fx: state::FxState = from_js(fx)?;
     Ok(relevance::mixer_fx_relevance(field.into(), &fx).into())
+}
+
+/// Relevance of Part setting `field` while System Scale Tune Switch is
+/// `scale_tune_switch`: the SCALE group is switched off with it.
+#[wasm_bindgen]
+pub fn part_setting_relevance(field: PartSetting, scale_tune_switch: bool) -> Relevance {
+    relevance::part_setting_relevance(field.into(), scale_tune_switch).into()
+}
+
+/// Whether a Part's tone, of bank MSB `tone_bank_msb` and Tone Category
+/// `tone_category`, ignores the Part's scale (SN-A Organ, SN Drum Kit).
+#[wasm_bindgen]
+pub fn tone_ignores_scale(tone_bank_msb: u8, tone_category: u8) -> bool {
+    relevance::tone_ignores_scale(tone_bank_msb, tone_category)
 }

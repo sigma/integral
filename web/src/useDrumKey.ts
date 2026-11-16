@@ -32,7 +32,9 @@ export interface DrumKey<N> {
  * `fetchKey` (stable, from `useCallback`) and cached, and every key in
  * `first..=last` prefetched once `enabled`. Changing the key only changes
  * the Scope: the editor's Sections stay mounted. A `locked` key (a Kit
- * plugin bound to one key) is the selected key, whatever is selected.
+ * plugin bound to one key) is the selected key, whatever is selected. A
+ * `lastKey` ref outliving the editor keeps the selected key across a remount
+ * (an Init re-reads the editor): the editor opens on it.
  */
 export function useDrumKey<N>(
   service: IntegraService,
@@ -41,8 +43,9 @@ export function useDrumKey<N>(
   enabled: boolean,
   fetchKey: (key: number) => Promise<N | null>,
   locked?: number,
+  lastKey?: MutableRefObject<number | undefined>,
 ): DrumKey<N> {
-  const [picked, setKey] = useState(FIRST_SELECTED);
+  const [picked, setKey] = useState(() => lastKey?.current ?? FIRST_SELECTED);
   const key = locked ?? picked;
   const [note, setNote] = useState<{ key: number; data: N } | null>(null);
   const cache = useRef<Map<number, N>>(new Map());
@@ -80,12 +83,13 @@ export function useDrumKey<N>(
   const select = useCallback(
     (k: number) => {
       setKey(k);
+      if (lastKey) lastKey.current = k;
       const rs = service.device.readState() as { parts?: { receiveChannel?: number }[] };
       const ch = rs?.parts?.[partIndex]?.receiveChannel ?? partIndex;
       service.sendNoteOn(ch, k, 100);
       setTimeout(() => service.sendNoteOff(ch, k), PREVIEW_MS);
     },
-    [partIndex, service],
+    [partIndex, service, lastKey],
   );
 
   const update = useCallback(

@@ -1,0 +1,75 @@
+.overlay {
+  composes: overlay from "./SaveDialog.module.css";
+}
+
+.modal {
+  composes: modal from "./SaveDialog.module.css";
+}
+
+.header {
+  composes: header from "./SaveDialog.module.css";
+}
+
+.title {
+  composes: title from "./SaveDialog.module.css";
+}
+
+.closeButton {
+  composes: closeButton from "./SaveDialog.module.css";
+}
+
+.body {
+  composes: body from "./ReinitDialog.module.css";
+}
+
+.footer {
+  composes: footer from "./SaveDialog.module.css";
+}
+
+.status {
+  composes: status from "./SaveDialog.module.css";
+}
+
+.error {
+  composes: error from "./SaveDialog.module.css";
+}
+
+.footerButton {
+  composes: footerButton from "./SaveDialog.module.css";
+}
+
+/* Wraps the controls of an area an Init resets, without a box of its own. */
+.guard {
+  display: contents;
+}
+
+/* Dimmed (and inert) while an Init of the area runs. */
+.busy > * {
+  opacity: 0.4;
+  filter: grayscale(0.6);
+  cursor: progress;
+}
+
+/* An area's "Init…" item, small enough for a Section's title or a key's header. */
+.item {
+  padding: 0 4px;
+  border: 1px solid #3a3a5a;
+  border-radius: 3px;
+  background: transparent;
+  color: #aaa;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+
+.item:hover:not(:disabled) {
+  color: #e0e0e0;
+  border-color: #5a5a8a;
+}
+
+.item:disabled {
+  opacity: 0.4;
+  cursor: progress;
+}

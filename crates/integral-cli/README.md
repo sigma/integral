@@ -9,6 +9,8 @@ The `integral` command-line tool for the INTEGRA-7. It covers several jobs:
 - The Device service launcher, `bridge` (Unix only).
 - The Librarian: list, check, export, import and reinit Packs.
 - Expansion slot management and Wave catalog browsing.
+- Init: reset a Temporary area (Studio Set, Sound Ctrl, Part, tone or
+  partial) to INIT.
 
 It depends on `integral-core` with the `serde` and `smf` features and on `integral-device-service`, and uses
 `midir` for MIDI, `clap` for arguments and `anyhow` for errors.
@@ -20,8 +22,9 @@ It depends on `integral-core` with the `serde` and `smf` features and on `integr
 - src/commands: [`./src/commands/README.md`](./src/commands/README.md) - one
   module per subcommand, covering its device, file and network I/O.
 - `tests/` holds integration tests that run the binary offline
-  (`pack_check.rs`, which uses the `integral-core` fixtures, and
-  `wave_list.rs`).
+  (`pack_check.rs`, which uses the `integral-core` fixtures,
+  `wave_list.rs`, and `init_args.rs`, which checks `init`'s arguments without
+  a device).
   These tests are not documented as a package.
 
 ## Verification

@@ -1,12 +1,12 @@
-//! Embeds the plugin's web build (`web/dist-plugin`) in the plugin binary.
+//! Embeds the plugin's web build (`web/dist-plugin`) in this crate, for the
+//! plugin and the Device service to serve.
 //!
 //! `just build-web-plugin` produces that directory (`vite build --mode
 //! plugin`: no service worker, base `/`). This script writes a sorted table
 //! of `(path, bytes)` pairs to `$OUT_DIR/web_assets.rs`, one `include_bytes!`
-//! per file, which `src/webview/assets.rs` serves over the `integral://`
-//! protocol.
+//! per file, which `src/lib.rs` serves.
 //!
-//! Without the directory the table is empty and the editor shows a page
+//! Without the directory the table is empty and `index.html` is a page
 //! saying how to build it, so `cargo build` and clippy need no Node.
 
 use std::fmt::Write as _;
@@ -27,14 +27,14 @@ fn main() {
         collect(&dist, &dist, &mut files);
     } else {
         println!(
-            "cargo:warning=web/dist-plugin is missing: the plugin editor will only say how to \
-             build it. Run `just build-web-plugin` first."
+            "cargo:warning=web/dist-plugin is missing: the plugin editor and the Device service \
+             will only say how to build it. Run `just build-web-plugin` first."
         );
     }
     files.sort();
 
     let mut table = String::from("/// The plugin web build, sorted by path.\n");
-    table.push_str("pub(crate) static ASSETS: &[(&str, &[u8])] = &[\n");
+    table.push_str("pub static ASSETS: &[(&str, &[u8])] = &[\n");
     for (rel, abs) in &files {
         writeln!(table, "    ({rel:?}, include_bytes!({abs:?})),").expect("write to String");
     }

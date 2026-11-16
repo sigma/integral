@@ -12,6 +12,7 @@ mod midi;
 mod service;
 
 use commands::expansion::OutputFormat;
+use commands::init::InitArgs;
 use commands::pack::{ListFormat, UserSlots};
 use commands::pack_import::{ImportOptions, ReinitOptions};
 use integral_core::device_spec::INTEGRA7;
@@ -163,10 +164,43 @@ enum Command {
         #[command(subcommand)]
         command: ExpansionCommand,
     },
+    /// Reset an area of the Temporary memory to INIT and wait for the device
+    /// to finish: `studio-set`, `sound-ctrl` (every Part's offsets), or
+    /// `part`, `tone` or `partial` of `--part N`. A partial is `--partial N`
+    /// on a tone, `--key N` on a drum kit. Stored User slots are untouched.
+    /// `--timeout` covers the reads; the wait for "finished" is the core's
+    /// Init timeout, longer through `--service`.
+    ///
+    /// Exit status: 0 reset; 1 nothing sent (bad argument, no device); 2
+    /// sent but not confirmed.
+    Init {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+        #[command(flatten)]
+        args: InitArgs,
+    },
+    /// Show and set a Part's settings: keyboard zone, pitch, Sound Ctrl
+    /// offsets, MIDI receive filters, Voice Reserve and Scale Tune.
+    Part {
+        #[command(subcommand)]
+        command: PartCommand,
+    },
+    /// Show and set the current Studio Set's Tone Control sources, tempo
+    /// and Phase Lock.
+    StudioSet {
+        #[command(subcommand)]
+        command: StudioSetCommand,
+    },
     /// Browse the Wave catalog (offline).
     Wave {
         #[command(subcommand)]
         command: WaveCommand,
+    },
+    /// Show and set the System settings (System Common). They last until
+    /// power-off.
+    System {
+        #[command(subcommand)]
+        command: SystemCommand,
     },
 }
 
@@ -230,6 +264,81 @@ impl RawConnectionArgs {
     fn timeout(&self, service: bool) -> Duration {
         midi::timeout(self.timeout, 5.0, service)
     }
+}
+
+/// A Part number on the command line (`part`, `pack export
+/// --current-part`), 1 to the device's Part count.
+fn part_number() -> clap::builder::RangedI64ValueParser<u8> {
+    clap::value_parser!(u8).range(1..=i64::from(INTEGRA7.part_count))
+}
+
+/// `part` subcommands.
+#[derive(Subcommand)]
+enum PartCommand {
+    /// Print every setting of Part N by its field name and display value.
+    Show {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+        /// Part number.
+        #[arg(value_parser = part_number())]
+        part: u8,
+    },
+    /// Set one setting of Part N, e.g. `part set 2 key-lower C4`. A key or
+    /// velocity Lower is held at or under its Upper, and an Upper at or
+    /// over its Lower.
+    Set {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+        /// Part number.
+        #[arg(value_parser = part_number())]
+        part: u8,
+        /// Field name, as `part show` lists them (`key-lower`, `bend-range`).
+        field: String,
+        /// Value in its display form (`C4`, `+12`, `ON`, `TONE`).
+        #[arg(allow_hyphen_values = true)]
+        value: String,
+    },
+}
+
+/// `system` subcommands.
+#[derive(Subcommand)]
+enum SystemCommand {
+    /// Print every System field by name, with its value.
+    Show {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+    },
+    /// Set one System field, e.g. `master-tune 442.0` or
+    /// `scale-tune-switch ON`. It lasts until power-off.
+    Set {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+        /// The field, as `system show` names it.
+        field: String,
+        /// The value, as `system show` displays it (Master Tune in Hz).
+        #[arg(allow_hyphen_values = true)]
+        value: String,
+    },
+}
+
+/// `studio-set` subcommands.
+#[derive(Subcommand)]
+enum StudioSetCommand {
+    /// Print every setting of the current Studio Set by field name and value.
+    Show {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+    },
+    /// Set one setting of the current Studio Set (not saved), e.g.
+    /// `tempo 96`, `tone-control-1-source CC16`, `phase-lock-3 ON`.
+    Set {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+        /// Field name, as `studio-set show` prints it.
+        field: String,
+        /// Value, as `studio-set show` prints it.
+        value: String,
+    },
 }
 
 /// `wave` subcommands.
@@ -310,8 +419,7 @@ enum PackCommand {
         #[command(flatten)]
         slots: UserSlots,
         /// Also export the tone on Part N, unsaved edits included.
-        #[arg(long, value_name = "N",
-              value_parser = clap::value_parser!(u8).range(1..=i64::from(INTEGRA7.part_count)))]
+        #[arg(long, value_name = "N", value_parser = part_number())]
         current_part: Option<u8>,
         /// Also export the current Studio Set, unsaved edits included.
         #[arg(long)]
@@ -589,8 +697,70 @@ fn main() -> Result<()> {
             yes,
             format,
         )?),
+        Command::Init { conn, args } => exit_nonzero(commands::init::run(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
+            &args,
+        )?),
+        Command::Part {
+            command: PartCommand::Show { conn, part },
+        } => commands::part::show(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
+            part,
+        ),
+        Command::Part {
+            command:
+                PartCommand::Set {
+                    conn,
+                    part,
+                    field,
+                    value,
+                },
+        } => commands::part::set(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
+            part,
+            &field,
+            &value,
+        ),
+        Command::StudioSet {
+            command: StudioSetCommand::Show { conn },
+        } => commands::studio_set::show(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
+        ),
+        Command::StudioSet {
+            command: StudioSetCommand::Set { conn, field, value },
+        } => commands::studio_set::set(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
+            &field,
+            &value,
+        ),
         Command::Wave {
             command: WaveCommand::List { group, all, format },
         } => commands::wave::list(group.as_deref(), all, format),
+        Command::System {
+            command: SystemCommand::Show { conn },
+        } => commands::system::show(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
+        ),
+        Command::System {
+            command: SystemCommand::Set { conn, field, value },
+        } => commands::system::set(
+            Endpoint::select(service, conn.port()),
+            conn.device_id,
+            conn.timeout(slow),
+            &field,
+            &value,
+        ),
     }
 }

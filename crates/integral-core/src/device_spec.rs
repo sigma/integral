@@ -13,6 +13,10 @@ use thiserror::Error;
 /// Number of MIDI channels, fixed by the MIDI protocol.
 pub const MIDI_CHANNELS: u8 = 16;
 
+/// Number of Tone Controls a Studio Set assigns a source to (Studio Set
+/// Common Tone Control 1–4 Source).
+pub const TONE_CONTROLS: u8 = 4;
+
 /// Static specification of the INTEGRA-7's capabilities.
 ///
 /// Views and commands consume this spec rather than hardcoding device constants.
@@ -36,6 +40,10 @@ pub struct DeviceSpec {
     pub reverb_type_names: &'static [&'static str],
     /// Output assign labels (A–D), shared by Reverb and Chorus Output Assign.
     pub output_assign_names: &'static [&'static str],
+    /// What each jack pair (in [`Self::output_assign_names`] order) carries,
+    /// left and right, while Motional Surround is on: the 2-channel mix on
+    /// A (MIX) and a fixed 5.1 layout on the others (Owner's Manual p. 46).
+    pub surround_jack_layout: &'static [[&'static str; 2]],
     /// Motional Surround room type names.
     pub surround_room_types: &'static [&'static str],
     /// Motional Surround room size names.
@@ -383,6 +391,7 @@ pub const INTEGRA7: DeviceSpec = DeviceSpec {
         "OFF", "Room 1", "Room 2", "Hall 1", "Hall 2", "Plate", "GM2 Rev",
     ],
     output_assign_names: &["A", "B", "C", "D"],
+    surround_jack_layout: &[["2CH L", "2CH R"], ["L", "R"], ["C", "Ls"], ["Rs", "LFE"]],
     surround_room_types: &["Room 1", "Room 2", "Hall 1", "Hall 2"],
     surround_room_sizes: &["Small", "Medium", "Large"],
     comp_attack_times: &[

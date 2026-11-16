@@ -351,7 +351,9 @@ Checked 2026-11-15 over two power cycles
 
 So a direct DT1 stays in RAM until a write request, and one write request
 commits every pending direct change in User memory, not only its own slot or
-type. A batch store could DT1 every slot directly and send one write request.
+type. `PackImport` stores a batch this way: it DT1s every slot directly and
+sends one write request
+([#583](https://github.com/sigma/integral/issues/583)).
 
 **Caveat:** after direct DT1s to User memory, write requests can go
 unanswered: no "write started", no "write finished", and nothing stored. In

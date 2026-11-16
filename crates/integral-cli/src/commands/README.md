@@ -35,7 +35,9 @@ offline.
   - `list` reads a Pack file.
   - `export` reads User slots, and with `--current-part` / `--current-set`
     the Temporary Part tone and Studio Set, with RQ1, and writes an SVD.
-  - Shared helpers: `read_pack`, `Throttle` and `run_export`.
+  - Shared helpers: `read_pack`, `Throttle`, `send_next` (sends a
+    `DeviceState`'s next queued message once its throttle allows; `Throttle`
+    and `part set` use it) and `run_export`.
   - Argument types: `UserSlots`, `type_parser` and `ListFormat`.
 - `pack_import.rs`: `import` and `reinit`, configured by `ImportOptions` and
   `ReinitOptions`. `EXIT_PARTIAL = 2`.
@@ -49,12 +51,37 @@ offline.
   - `EXIT_LOAD_FAILED = 2`, `OFF_NAME = "OFF"`.
   - `OutputFormat`, the `--format` type shared with `wave list`,
     `pack check` and `pack import`.
+- `init.rs`: `run(endpoint, device_id, timeout, &InitArgs) -> Result<u8>`
+  resets one area to INIT through `integral-core`'s `Initialization` and
+  waits for "finished". `InitArgs` (`<TARGET> --part --partial --key`) and
+  `InitKind` are its arguments. A Partial Init reads the Part's Bank Select
+  MSB first: `--partial` (from 1) is for SN Synth and PCM Synth tones,
+  `--key` (a MIDI key number) for drum kits. `EXIT_INIT_UNCONFIRMED = 2`.
+- `part.rs`: `show` and `set` are the `part` subcommands, by the field
+  names, ranges and displays of core's `part_settings` registry.
+  - `settings_blocks` names the mixer-load blocks that hold a Part's
+    settings, which both read first.
+  - `parse_field`, `parse_value` (the display form, through core's
+    `HostFormat::parse`) and `display` map names and values.
+  - `set_in` sets a field in a `DeviceState` through `set_part_setting`
+    and returns a `SetOutcome`; `render_show` and `render_set` print.
+- `studio_set.rs`: `show` and `set` are the `studio-set` subcommands, on
+  the current Studio Set's Tone Control 1–4 Source, tempo and Phase Lock
+  (`integral_core::studio_set_settings`). `render_show` prints one
+  `<name>  <value>` line per field; `parse_assignment(name, value)` turns a
+  field name and a display value (`96`, `CC16`, `ON`) into the field and its
+  raw value, through `HostFormat::parse`.
 - `svd.rs`: `svd_validate` decodes one SN-S entry from an SVD file and
   compares it, byte by byte, with the Part tone read from the device.
 - `tone_waves.rs`: `read(dev, part)` names the Waves used by a Part's
-  Temporary tone (PCM Synth, PCM Drum, SN Synth). The line builders
+  Temporary tone (PCM Synth, PCM Drum, SN Synth). `tone_type_name` gives a
+  tone type's CLI name (`pcm-synth`). The line builders
   `pcm_synth_lines`, `pcm_drum_lines`, `sn_synth_lines` and `no_waves_line`
   are public.
+- `system.rs`: `show` and `set` read and write System Common by the
+  field names of core's `system` registry. `parse_set` turns a field name
+  and a display value into a `SystemField` and its raw value, and
+  `render_show` renders one `name  value` line per field, the values aligned.
 - `wave.rs`: `list`, `parse_group`, `format_number`, `render_list` and
   `Listing` browse the Wave catalog offline.
 
@@ -77,6 +104,9 @@ offline.
 - Exit codes:
   - `import` and `reinit`: 0 means everything was stored, 1 means the device
     was untouched, and 2 means a partial store.
+  - `init`: 1 means nothing was sent (every argument is checked first, and
+    a Partial Init's partial or key against the Part's tone type), and 2
+    means the Init was sent but "finished" never came.
   - `expansion load`: 2 means the load was sent but failed. An error (1)
     means nothing was sent.
   - `pack check`: 1 means a path could not be read. Files that `Pack::read`
@@ -87,6 +117,19 @@ offline.
 - `raw-send` and `raw-hex` refuse input over one message (`MAX_DT1_DATA`
   data bytes, `MAX_MESSAGE_LEN` bytes) before opening a port.
 - `wave` and `pack check` never open a MIDI port.
+- `part set` refuses an unknown field or a value outside the field's range
+  before it connects. It reads the Part before writing, so a key or
+  velocity Lower is held at or under its Upper (and an Upper at or over its
+  Lower), as `DeviceState::set_part_setting` does; it says so on `stderr`.
+  A Scale Tune Type or Key write also sends that call's re-read of the
+  Part's settings, whose reply the CLI doesn't wait for.
+- `system set` checks the field and value before opening a port, sends one
+  DT1 through `DeviceState::set_system_field`, and prints core's
+  `VOLATILE_NOTICE`: no SysEx saves System edits.
+- `studio-set`: field names, ranges and value parsing come from the core
+  registry. `show` reads with the mixer load's `MixerBlock`s;
+  `set` sends through `DeviceState::set_studio_set_field`, and only after
+  the field and value parse. It doesn't save the Studio Set.
 - DT1 bursts go through `Throttle`, which uses `DeviceState`'s raw queue so
   that writes are not merged.
 
@@ -94,10 +137,13 @@ offline.
 
 - MIDI out:
   - Identity Request.
-  - RQ1 reads: `dump`, `raw`, `svd`, `tone_waves`, `expansion`,
-    `pack export`, and the `pack import` slot-name reads.
-  - DT1 writes: `write`, `raw-send`, `expansion load`, `pack import` and
-    `pack reinit`.
+  - RQ1 reads: `dump`, `raw`, `svd`, `tone_waves`, `expansion`, `part`,
+    `studio-set show`, `pack export`, `system show`, and the `pack import`
+    slot-name reads.
+  - DT1 writes: `write`, `raw-send`, `part set`, `expansion load`,
+    `studio-set set`, `pack import`, `pack reinit` and `system set`.
+  - The Init request (an RQ1 at `0F 00 18 TT`): `init`. It changes only
+    Temporary memory.
   - Raw hex SysEx.
 - MIDI in: replies are read with a deadline. If the input disconnects the
   command fails.

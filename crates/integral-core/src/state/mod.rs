@@ -8,10 +8,17 @@ pub mod parse;
 
 use std::collections::HashMap;
 
-use crate::device_spec::INTEGRA7;
+use crate::device_spec::{INTEGRA7, MIDI_CHANNELS, TONE_CONTROLS};
+use crate::part_settings::PartSettings;
 
 /// Number of parts in the INTEGRA-7 mixer.
 pub const NUM_PARTS: usize = INTEGRA7.part_count as usize;
+
+/// Number of Studio Set Tone Controls.
+const TONE_CONTROL_COUNT: usize = TONE_CONTROLS as usize;
+
+/// Number of MIDI channels, each with its Studio Set MIDI block.
+const MIDI_CHANNEL_COUNT: usize = MIDI_CHANNELS as usize;
 
 // ---------------------------------------------------------------------------
 // EQ
@@ -130,6 +137,15 @@ pub struct PartState {
     pub tone_category: u8,
     /// Per-part EQ settings.
     pub eq: EqState,
+    /// The Part settings past the mixer's: KBD, PITCH, OFFSET, MIDI, VOICE
+    /// and SCALE (see [`crate::part_settings`]). Serialized as a map from
+    /// each field's CLI name to its raw value; a part without it (the web's
+    /// own `PartState` type) reads back with the defaults.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub settings: PartSettings,
+    /// The MFX Type (0 = THRU) of the Part's Temporary tone, or `None`
+    /// while it is unread (or the tone's bank has none to read, as GM2).
+    pub mfx_type: Option<u8>,
 }
 
 impl Default for PartState {
@@ -148,6 +164,8 @@ impl Default for PartState {
             tone_name: String::new(),
             tone_category: 0,
             eq: EqState::default(),
+            settings: PartSettings::default(),
+            mfx_type: None,
         }
     }
 }
@@ -316,6 +334,37 @@ impl Default for DrumCompEqState {
 }
 
 // ---------------------------------------------------------------------------
+// Studio Set settings
+// ---------------------------------------------------------------------------
+
+/// The Studio Set settings the Mixer doesn't edit: Tone Control 1–4
+/// Source, the Studio Set Tempo and each MIDI channel's Phase Lock. Their
+/// fields, ranges and addresses are in
+/// [`studio_set_settings`](crate::studio_set_settings).
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct StudioSetSettings {
+    /// Tone Control 1–4 Source (0–97: OFF, CC01–CC31, CC33–CC95, BEND, AFT).
+    pub tone_control_sources: [u8; TONE_CONTROL_COUNT],
+    /// Studio Set Tempo (20–250 BPM).
+    pub tempo: u16,
+    /// Phase Lock of each MIDI channel (index 0 = channel 1).
+    pub phase_lock: [bool; MIDI_CHANNEL_COUNT],
+}
+
+impl Default for StudioSetSettings {
+    fn default() -> Self {
+        use crate::studio_set_settings::StudioSetSetting as S;
+        Self {
+            tone_control_sources: [S::ToneControlSource.spec().default as u8; TONE_CONTROL_COUNT],
+            tempo: S::Tempo.spec().default as u16,
+            phase_lock: [S::PhaseLock.spec().default != 0; MIDI_CHANNEL_COUNT],
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Full mixer state
 // ---------------------------------------------------------------------------
 
@@ -353,6 +402,8 @@ pub struct MixerState {
     pub surround: SurroundState,
     /// Drum Comp+EQ (6 units, assigned to one part).
     pub drum_comp_eq: DrumCompEqState,
+    /// Tone Control sources, tempo and Phase Lock.
+    pub studio_set_settings: StudioSetSettings,
     /// All 64 Studio Set names (indexed 0–63).  Populated via catalog query.
     pub studio_set_names: HashMap<u8, String>,
     /// Preview part (0 = off, 1–16 = part being previewed).
@@ -379,6 +430,7 @@ impl Default for MixerState {
             master_eq: EqState::default(),
             surround: SurroundState::default(),
             drum_comp_eq: DrumCompEqState::default(),
+            studio_set_settings: StudioSetSettings::default(),
             studio_set_names: HashMap::new(),
             preview_part: 0,
         }

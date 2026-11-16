@@ -329,3 +329,301 @@ fn a_link_that_goes_down_mid_read_fails_the_read() {
     assert!(!ok, "the read succeeded with the link down");
     assert!(started.elapsed() < Duration::from_secs(20), "{stderr}");
 }
+
+/// Answer the reads of Part `part`'s (0-based) settings, as `part show` and
+/// `part set` make them: the Part dump with its Key Range Upper at `upper`
+/// and Coarse Tune at +12, the rest of the Part block, and every Voice
+/// Reserve.
+fn answer_part_settings_reads(fixture: &Fixture, part: u8, upper: u8) {
+    use integral_core::mixer_load::MixerBlock;
+    use integral_core::part_settings::PartSetting;
+
+    for block in [
+        MixerBlock::Part(part),
+        MixerBlock::PartSettings(part),
+        MixerBlock::VoiceReserve,
+    ] {
+        let (at, size) = block.request().expect("a request");
+        fixture.wait_sent(&sysex::build_rq1(DEVICE_ID, &at, &size));
+        let mut data = vec![0; size.value() as usize];
+        if block == MixerBlock::Part(part) {
+            data[usize::from(PartSetting::KeyRangeUpper.offset())] = upper;
+            data[usize::from(PartSetting::CoarseTune.offset())] = 76;
+        }
+        fixture
+            .link
+            .device_says(&sysex::build_dt1(DEVICE_ID, &at, &data));
+    }
+}
+
+#[test]
+fn part_show_reads_the_part_through_the_service() {
+    let fixture = Fixture::start("partshow");
+    let child = fixture
+        .integral(&["part", "show", "16", "--device-id", "17"])
+        .spawn()
+        .expect("run integral");
+    answer_part_settings_reads(&fixture, 15, 100);
+
+    let (ok, stdout, stderr) = finish(child);
+    assert!(ok, "{stderr}");
+    assert!(stdout.starts_with("Part 16\n"), "{stdout}");
+    let row = |name: &str| {
+        stdout
+            .lines()
+            .find(|l| l.split_whitespace().next() == Some(name))
+            .and_then(|l| l.split_whitespace().nth(1))
+            .map(str::to_string)
+    };
+    assert_eq!(row("key-upper").as_deref(), Some("E7"));
+    assert_eq!(row("coarse-tune").as_deref(), Some("+12"));
+}
+
+/// `part set` reads the Part first, so a Lower is held at its Upper.
+#[test]
+fn part_set_writes_the_field_through_the_service() {
+    use integral_core::part_settings::PartSetting;
+
+    let fixture = Fixture::start("partset");
+    let child = fixture
+        .integral(&["part", "set", "16", "key-lower", "C4", "--device-id", "17"])
+        .spawn()
+        .expect("run integral");
+    answer_part_settings_reads(&fixture, 15, 48);
+
+    let (ok, stdout, stderr) = finish(child);
+    assert!(ok, "{stderr}");
+    assert_eq!(stdout, "Part 16 key-lower: C3\n");
+    assert!(stderr.contains("key-lower held at C3"), "{stderr}");
+    let at = PartSetting::KeyRangeLower.address(15).expect("Part 16");
+    fixture.wait_sent(&sysex::build_dt1(DEVICE_ID, &at, &[48]));
+}
+
+/// A negative value is the value, not an option.
+#[test]
+fn part_set_takes_a_negative_value() {
+    use integral_core::part_settings::PartSetting;
+
+    let fixture = Fixture::start("partneg");
+    let child = fixture
+        .integral(&[
+            "part",
+            "set",
+            "16",
+            "coarse-tune",
+            "-48",
+            "--device-id",
+            "17",
+        ])
+        .spawn()
+        .expect("run integral");
+    answer_part_settings_reads(&fixture, 15, 127);
+
+    let (ok, stdout, stderr) = finish(child);
+    assert!(ok, "{stderr}");
+    assert_eq!(stdout, "Part 16 coarse-tune: -48\n");
+    let at = PartSetting::CoarseTune.address(15).expect("Part 16");
+    fixture.wait_sent(&sysex::build_dt1(DEVICE_ID, &at, &[16]));
+}
+
+#[test]
+fn part_set_refuses_an_unknown_field_before_connecting() {
+    let output = Command::new(env!("CARGO_BIN_EXE_integral"))
+        .args([
+            "--service=/nonexistent/socket",
+            "part",
+            "set",
+            "1",
+            "level",
+            "100",
+        ])
+        .output()
+        .expect("run integral");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("unknown Part setting `level`"), "{stderr}");
+}
+
+#[test]
+fn part_takes_only_the_devices_parts() {
+    let output = Command::new(env!("CARGO_BIN_EXE_integral"))
+        .args(["part", "show", "17"])
+        .output()
+        .expect("run integral");
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("1..=16"),
+        "{output:?}"
+    );
+}
+
+#[test]
+fn system_show_reads_system_common_through_the_service() {
+    use integral_core::address::SYSTEM_COMMON;
+    use integral_core::system::{SYSTEM_COMMON_LEN, SYSTEM_COMMON_SIZE};
+
+    let fixture = Fixture::start("sysshow");
+    let child = fixture
+        .integral(&["system", "show", "--device-id", CLI_DEVICE_ID])
+        .spawn()
+        .expect("run integral");
+
+    fixture.wait_sent(&sysex::build_rq1(
+        DEVICE_ID,
+        &SYSTEM_COMMON,
+        &SYSTEM_COMMON_SIZE,
+    ));
+    let mut data = [0u8; SYSTEM_COMMON_LEN];
+    data[0x00..0x04].copy_from_slice(&[0, 4, 0, 0]); // 440.00 Hz
+    data[0x04] = 61; // Key Shift -3
+    data[0x26..0x28].copy_from_slice(&[7, 8]); // 120
+    fixture
+        .link
+        .device_says(&sysex::build_dt1(DEVICE_ID, &SYSTEM_COMMON, &data));
+
+    let (ok, stdout, stderr) = finish(child);
+    assert!(ok, "{stderr}");
+    assert!(stdout.contains("master-tune "), "{stdout}");
+    assert!(stdout.contains("440.00 Hz"), "{stdout}");
+    assert!(stdout.contains("-3"), "{stdout}");
+    assert!(stdout.contains("usb-audio-sampling-rate"), "{stdout}");
+}
+
+#[test]
+fn system_set_writes_the_field_and_says_it_lasts_until_power_off() {
+    use integral_core::system::{SystemField, VOLATILE_NOTICE};
+
+    let fixture = Fixture::start("sysset");
+    let child = fixture
+        .integral(&[
+            "system",
+            "set",
+            "--device-id",
+            CLI_DEVICE_ID,
+            "master-key-shift",
+            "-3",
+        ])
+        .spawn()
+        .expect("run integral");
+    let (ok, stdout, stderr) = finish(child);
+    assert!(ok, "{stderr}");
+    assert!(stdout.contains("master-key-shift = -3"), "{stdout}");
+    assert!(stdout.contains(VOLATILE_NOTICE), "{stdout}");
+
+    let dt1 = sysex::build_dt1(DEVICE_ID, &SystemField::MasterKeyShift.address(), &[61]);
+    fixture.wait_sent(&dt1);
+}
+
+#[test]
+fn system_set_refuses_an_unknown_field_before_any_send() {
+    let fixture = Fixture::start("sysbad");
+    let child = fixture
+        // No --device-id: had a port opened, its Identity Request would show.
+        .integral(&["system", "set", "master-volume", "1"])
+        .spawn()
+        .expect("run integral");
+    let (ok, _, stderr) = finish(child);
+    assert!(!ok);
+    assert!(
+        stderr.contains("unknown System field: master-volume"),
+        "{stderr}"
+    );
+    assert!(
+        fixture.link.sent().is_empty(),
+        "{:02X?}",
+        fixture.link.sent()
+    );
+}
+
+/// `studio-set show` reads the Tone Control sources with the tempo, then
+/// each MIDI channel's Phase Lock, and prints them by field name.
+#[test]
+fn studio_set_show_reads_through_the_service() {
+    use integral_core::device_spec::MIDI_CHANNELS;
+    use integral_core::params::{STUDIO_SET_CONTROL_SIZE, TONE_CONTROL_1_SOURCE, studio_set_midi};
+
+    let fixture = Fixture::start("ssshow");
+    let child = fixture
+        .integral(&["studio-set", "show", "--device-id", "17"])
+        .spawn()
+        .expect("run integral");
+
+    let says = |address: &integral_core::address::Address, data: &[u8]| {
+        fixture
+            .link
+            .device_says(&sysex::build_dt1(DEVICE_ID, address, data));
+    };
+    fixture.wait_sent(&sysex::build_rq1(
+        DEVICE_ID,
+        &TONE_CONTROL_1_SOURCE,
+        &STUDIO_SET_CONTROL_SIZE,
+    ));
+    says(&TONE_CONTROL_1_SOURCE, &[16, 0, 96, 97, 0x06, 0x00]);
+    let one = integral_core::address::DataSize::ONE;
+    for channel in 0..MIDI_CHANNELS {
+        let at = params::studio_set_midi_address(channel, studio_set_midi::PHASE_LOCK);
+        fixture.wait_sent(&sysex::build_rq1(DEVICE_ID, &at, &one));
+        says(&at, &[u8::from(channel == 2)]);
+    }
+
+    let (ok, stdout, stderr) = finish(child);
+    assert!(ok, "{stderr}");
+    for line in [
+        "tone-control-1-source  CC16",
+        "tone-control-2-source  OFF",
+        "tone-control-3-source  BEND",
+        "tempo                  96",
+        "phase-lock-1           OFF",
+        "phase-lock-3           ON",
+    ] {
+        assert!(stdout.lines().any(|l| l == line), "{line}: {stdout}");
+    }
+}
+
+/// `studio-set set` sends the field's DT1, in its display form's raw value.
+#[test]
+fn studio_set_set_writes_through_the_service() {
+    let fixture = Fixture::start("ssset");
+    for (args, address, data) in [
+        (["tempo", "96"], params::STUDIO_SET_TEMPO, &[0x06, 0x00][..]),
+        (
+            ["tone-control-2-source", "CC16"],
+            params::TONE_CONTROL_1_SOURCE.offset([0, 0, 0, 1]),
+            &[16][..],
+        ),
+        (
+            ["phase-lock-3", "ON"],
+            params::studio_set_midi_address(2, params::studio_set_midi::PHASE_LOCK),
+            &[1][..],
+        ),
+    ] {
+        let child = fixture
+            .integral(&["studio-set", "set", "--device-id", "17", args[0], args[1]])
+            .spawn()
+            .expect("run integral");
+        let (ok, _, stderr) = finish(child);
+        assert!(ok, "{stderr}");
+        fixture.wait_sent(&sysex::build_dt1(DEVICE_ID, &address, data));
+    }
+}
+
+/// An unknown field fails before anything is sent.
+#[test]
+fn studio_set_set_refuses_an_unknown_field() {
+    let fixture = Fixture::start("ssbad");
+    let child = fixture
+        .integral(&["studio-set", "set", "--device-id", "17", "tempi", "96"])
+        .spawn()
+        .expect("run integral");
+    let (ok, _, stderr) = finish(child);
+    assert!(!ok);
+    assert!(
+        stderr.contains("unknown Studio Set field `tempi`"),
+        "{stderr}"
+    );
+    assert!(
+        fixture.link.sent().is_empty(),
+        "{:02X?}",
+        fixture.link.sent()
+    );
+}

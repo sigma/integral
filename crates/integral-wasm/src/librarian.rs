@@ -115,11 +115,11 @@ fn from_js<T: for<'de> Deserialize<'de>>(value: JsValue) -> Result<T, JsError> {
     serde_wasm_bindgen::from_value(value).map_err(|e| JsError::new(&e.to_string()))
 }
 
-fn js_err(e: impl ToString) -> JsError {
+pub(crate) fn js_err(e: impl ToString) -> JsError {
     JsError::new(&e.to_string())
 }
 
-fn address(addr: &[u8]) -> Option<Address> {
+pub(crate) fn address(addr: &[u8]) -> Option<Address> {
     let [a, b, c, d] = *addr else { return None };
     Some(Address::new(a, b, c, d))
 }
@@ -388,7 +388,8 @@ impl WasmImportPlan {
 // Machines
 // ---------------------------------------------------------------------------
 
-/// What the host should do next for a running export or import.
+/// What the host should do next for a running export, import or
+/// `Initialization`.
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LibrarianActionKind {
@@ -412,7 +413,8 @@ pub struct LibrarianAction {
     /// What to do.
     #[wasm_bindgen(readonly)]
     pub kind: LibrarianActionKind,
-    /// For `AwaitWrite`: how long to wait for "write finished" (ms).
+    /// For `AwaitWrite`: how long to wait for "write finished" or "Init
+    /// finished" (ms).
     #[wasm_bindgen(readonly, js_name = timeoutMs)]
     pub timeout_ms: f64,
     bytes: Vec<u8>,
@@ -420,7 +422,7 @@ pub struct LibrarianAction {
 }
 
 impl LibrarianAction {
-    fn new(kind: LibrarianActionKind) -> Self {
+    pub(crate) fn new(kind: LibrarianActionKind) -> Self {
         Self {
             kind,
             timeout_ms: 0.0,
@@ -429,14 +431,21 @@ impl LibrarianAction {
         }
     }
 
-    fn with_bytes(kind: LibrarianActionKind, bytes: Vec<u8>) -> Self {
+    pub(crate) fn with_bytes(kind: LibrarianActionKind, bytes: Vec<u8>) -> Self {
         Self {
             bytes,
             ..Self::new(kind)
         }
     }
 
-    fn done(error: Option<String>) -> Self {
+    pub(crate) fn await_write(timeout_ms: f64) -> Self {
+        Self {
+            timeout_ms,
+            ..Self::new(LibrarianActionKind::AwaitWrite)
+        }
+    }
+
+    pub(crate) fn done(error: Option<String>) -> Self {
         Self {
             error,
             ..Self::new(LibrarianActionKind::Done)
@@ -604,10 +613,7 @@ impl WasmPackImport {
                 LibrarianAction::with_bytes(LibrarianActionKind::Read, bytes)
             }
             ImportAction::Wait => LibrarianAction::new(LibrarianActionKind::Wait),
-            ImportAction::AwaitWrite { timeout_ms } => LibrarianAction {
-                timeout_ms,
-                ..LibrarianAction::new(LibrarianActionKind::AwaitWrite)
-            },
+            ImportAction::AwaitWrite { timeout_ms } => LibrarianAction::await_write(timeout_ms),
             ImportAction::Done(report) => {
                 LibrarianAction::done(report.error.map(|e| e.to_string()))
             }
