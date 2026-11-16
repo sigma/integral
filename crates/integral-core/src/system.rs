@@ -56,9 +56,14 @@ pub fn master_tune_hz(value: i32) -> f64 {
 }
 
 /// The raw Master Tune nearest to A4 at `hz`; it may be out of range.
-pub fn master_tune_from_hz(hz: f64) -> i32 {
+/// `None` when `hz` is not finite and above 0: its log would be NaN or
+/// infinite, which `as i32` saturates to the center or to overflow.
+pub fn master_tune_from_hz(hz: f64) -> Option<i32> {
+    if !(hz.is_finite() && hz > 0.0) {
+        return None;
+    }
     let cents = CENTS_PER_OCTAVE * (hz / MASTER_TUNE_A4_HZ).log2();
-    MASTER_TUNE_CENTER + (cents * MASTER_TUNE_STEPS_PER_CENT).round() as i32
+    Some(MASTER_TUNE_CENTER + (cents * MASTER_TUNE_STEPS_PER_CENT).round() as i32)
 }
 
 /// What the panel and the System page say of System edits, which no SysEx
@@ -316,7 +321,8 @@ impl SystemFieldSpec {
     /// `studio set`, `-3`, `CC01`), with its unit and a `+` optional (`3`,
     /// `44.1`), by [`HostFormat::parse`]: a value a Control Source list
     /// doesn't name (the unused 32) doesn't parse. Master Tune takes Hz
-    /// (`442`, `442.0 Hz`) and gives the nearest step. `None` when nothing
+    /// (`442`, `442.0 Hz`) and gives the nearest step; a Hz that is not
+    /// finite and above 0 (`-440`, `nan`) doesn't parse. `None` when nothing
     /// in range shows as `text`.
     pub fn parse(&self, text: &str) -> Option<i32> {
         if self.format == ParamFormat::MasterTune {
@@ -327,7 +333,7 @@ impl SystemFieldSpec {
                 _ => text,
             }
             .trim();
-            let value = master_tune_from_hz(hz.parse().ok()?);
+            let value = master_tune_from_hz(hz.parse().ok()?)?;
             return self.accepts(value).then_some(value);
         }
         HostFormat::Field(self.format.clone()).parse(text, self.min, self.max)
@@ -657,6 +663,7 @@ mod tests {
         // Master Tune takes Hz and gives the nearest 0.1 cent (+7.9).
         assert_eq!(parse(SystemField::MasterTune, "442.0"), Some(1103));
         assert_eq!(parse(SystemField::MasterTune, "440 Hz"), Some(1024));
+        assert_eq!(parse(SystemField::MasterTune, "442.0 Hz"), Some(1103));
         assert_eq!(parse(SystemField::MasterTune, "400"), None);
         assert_eq!(parse(SystemField::MasterKeyShift, "-3"), Some(61));
         assert_eq!(parse(SystemField::MasterKeyShift, "+3"), Some(67));
@@ -680,6 +687,16 @@ mod tests {
         assert_eq!(parse("442 HZ"), Some(1103));
         assert_eq!(parse("442hZ"), Some(1103));
         assert_eq!(parse("hz"), None);
+    }
+
+    #[test]
+    fn master_tune_refuses_a_hz_that_is_not_finite_and_positive() {
+        let parse = |text| system_spec(SystemField::MasterTune).parse(text);
+        // A negative Hz or NaN would cast to 0 steps (the center), and
+        // infinity overflow; 0 and -inf were already out of range.
+        for text in ["-440", "nan", "NaN Hz", "0", "inf", "-inf"] {
+            assert_eq!(parse(text), None, "{text}");
+        }
     }
 
     #[test]
