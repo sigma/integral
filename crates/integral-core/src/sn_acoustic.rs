@@ -338,6 +338,25 @@ pub fn sna_inst(variation: u8, number: u8) -> Option<&'static SnaInst> {
         .find(|i| i.variation == variation && i.inst_number == number)
 }
 
+/// The instrument an SN-A tone plays: its Inst Variation and Inst Number
+/// (Common `00 20`-`00 21`). [`sna_inst`] names it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SnaInstrument {
+    /// Inst Variation (Common `00 20`).
+    pub variation: u8,
+    /// Inst Number (Common `00 21`).
+    pub number: u8,
+}
+
+impl SnaInstrument {
+    /// TW Organ, the drawbar organ (Roland's Editor list: `lsb` 65, `pc` 0).
+    pub const TW_ORGAN: Self = Self {
+        variation: 65,
+        number: 0,
+    };
+}
+
 /// Which tone-wide offsets an SN-A instrument responds to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SnaOffsets {
@@ -358,7 +377,7 @@ pub fn sna_offsets(variation: u8, number: u8) -> SnaOffsets {
             tone: false,
             portamento: true,
         },
-        (65, 0) => SnaOffsets {
+        _ if (SnaInstrument { variation, number }) == SnaInstrument::TW_ORGAN => SnaOffsets {
             tone: false,
             portamento: false,
         },
@@ -378,6 +397,11 @@ mod tests {
         assert_eq!(sna_insts().len(), 127);
         assert_eq!(sna_inst(64, 0).map(|i| i.name), Some("Concert Grand"));
         assert_eq!(sna_inst(65, 0).map(|i| i.name), Some("TW Organ"));
+        let tw = SnaInstrument::TW_ORGAN;
+        assert_eq!(
+            sna_inst(tw.variation, tw.number).map(|i| i.name),
+            Some("TW Organ")
+        );
         assert_eq!(
             sna_inst(0, 15).map(|i| (i.name, i.bank)),
             Some(("Santoor", "ExSN1"))

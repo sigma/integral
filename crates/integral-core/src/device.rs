@@ -1870,6 +1870,19 @@ impl DeviceState {
         let position = field.element_position(index)?;
         let addr = crate::sn_acoustic::sna_common_param_address(part, position);
         self.send_dt1(&addr, &field.encode(value));
+        // The Part's instrument, as the mixer load read it, follows the edit.
+        let instrument = self
+            .state
+            .parts
+            .get_mut(usize::from(part))
+            .and_then(|p| p.sna_instrument.as_mut());
+        if let Some(i) = instrument {
+            match field {
+                SnaCommonField::InstVariation => i.variation = value as u8,
+                SnaCommonField::InstNumber => i.number = value as u8,
+                _ => {}
+            }
+        }
         Ok(())
     }
 
@@ -3135,11 +3148,44 @@ mod tests {
             sent[1],
             sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE)
         );
-        assert_eq!(sent[2], sysex::build_rq1(0x10, &category, &DataSize::ONE));
+        assert_eq!(
+            sent[2],
+            sysex::build_rq1(0x10, &category, &mixer_load::SNA_CATEGORY_READ_SIZE)
+        );
         assert_eq!(sent[3], sysex::build_rq1(0x10, &mfx, &DataSize::ONE));
         assert_eq!(dev.state().parts[0].tone_bank_msb, 89);
         assert_eq!(dev.state().parts[0].tone_bank_lsb, 64);
         assert_eq!(dev.state().parts[0].tone_pc, 12);
+    }
+
+    #[test]
+    fn an_sn_a_tones_instrument_follows_its_edits_and_clears_on_a_tone_change() {
+        use crate::sn_acoustic::SnaInstrument;
+        let mut dev = DeviceState::new(0x10);
+        dev.change_part_tone(0, 89, 64, 12);
+        drain_until(&mut dev, 0.0, 1_000.0);
+        let category = params::tone_category_address(0, 89).unwrap();
+        let mut reply = vec![0u8; mixer_load::SNA_CATEGORY_READ_SIZE.value() as usize];
+        reply[mixer_load::category_read_offset(SnaCommonField::InstVariation)] = 0;
+        reply[mixer_load::category_read_offset(SnaCommonField::InstNumber)] = 21;
+        assert!(dev.handle_dt1(&category, &reply, 1_000.0));
+        assert_eq!(
+            dev.state().parts[0].sna_instrument,
+            Some(SnaInstrument {
+                variation: 0,
+                number: 21
+            })
+        );
+
+        let tw = SnaInstrument::TW_ORGAN;
+        dev.set_sna_common_param(0, SnaCommonField::InstVariation, 0, tw.variation.into())
+            .unwrap();
+        dev.set_sna_common_param(0, SnaCommonField::InstNumber, 0, tw.number.into())
+            .unwrap();
+        assert_eq!(dev.state().parts[0].sna_instrument, Some(tw));
+
+        dev.change_part_tone(0, 89, 64, 13);
+        assert_eq!(dev.state().parts[0].sna_instrument, None);
     }
 
     #[test]
@@ -3165,7 +3211,7 @@ mod tests {
             sent,
             [
                 sysex::build_rq1(0x10, &name, &params::TONE_NAME_SIZE),
-                sysex::build_rq1(0x10, &category, &DataSize::ONE),
+                sysex::build_rq1(0x10, &category, &mixer_load::SNA_CATEGORY_READ_SIZE),
                 sysex::build_rq1(0x10, &mfx, &DataSize::ONE),
             ]
         );

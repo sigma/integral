@@ -174,9 +174,18 @@ pub fn part_setting_relevance(field: PartSetting, scale_tune_switch: bool) -> Re
     relevance::part_setting_relevance(field.into(), scale_tune_switch).into()
 }
 
-/// Whether a Part's tone, of bank MSB `tone_bank_msb` and Tone Category
-/// `tone_category`, ignores the Part's scale (SN-A Organ, SN Drum Kit).
+/// Whether a Part's tone, of bank MSB `tone_bank_msb`, ignores the Part's
+/// scale (SN-A TW Organ, SN Drum Kit). `inst_variation` and `inst_number`
+/// are an SN-A tone's instrument (the Part's `snaInstrument`), absent while
+/// unread.
 #[wasm_bindgen]
-pub fn tone_ignores_scale(tone_bank_msb: u8, tone_category: u8) -> bool {
-    relevance::tone_ignores_scale(tone_bank_msb, tone_category)
+pub fn tone_ignores_scale(
+    tone_bank_msb: u8,
+    inst_variation: Option<u8>,
+    inst_number: Option<u8>,
+) -> bool {
+    let instrument = inst_variation
+        .zip(inst_number)
+        .map(|(variation, number)| sn_acoustic::SnaInstrument { variation, number });
+    relevance::tone_ignores_scale(tone_bank_msb, instrument)
 }

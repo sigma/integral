@@ -130,7 +130,7 @@ export function PartSettingsDrawer({ mixer, service, onClose, onOpenSystem, head
     <ScaleNotes
       switchValue={switchValue}
       switchedOff={scaleRelevance(PartSetting.ScaleTuneType) === Relevance.SwitchedOff}
-      ignored={loaded && tone_ignores_scale(part.toneBankMsb, part.toneCategory)}
+      ignored={loaded && tone_ignores_scale(part.toneBankMsb, part.snaInstrument?.variation, part.snaInstrument?.number)}
       onOpenSystem={onOpenSystem}
     />
   );

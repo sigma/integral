@@ -10,6 +10,7 @@ use std::collections::HashMap;
 
 use crate::device_spec::{INTEGRA7, MIDI_CHANNELS, TONE_CONTROLS};
 use crate::part_settings::PartSettings;
+use crate::sn_acoustic::SnaInstrument;
 
 /// Number of parts in the INTEGRA-7 mixer.
 pub const NUM_PARTS: usize = INTEGRA7.part_count as usize;
@@ -135,6 +136,10 @@ pub struct PartState {
     pub tone_name: String,
     /// Tone category read from the tone itself (0 = unknown or not read yet).
     pub tone_category: u8,
+    /// The instrument of an SN-A tone, read with its category; `None` for
+    /// another tone type or while unread.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub sna_instrument: Option<SnaInstrument>,
     /// Per-part EQ settings.
     pub eq: EqState,
     /// The Part settings past the mixer's: KBD, PITCH, OFFSET, MIDI, VOICE
@@ -163,6 +168,7 @@ impl Default for PartState {
             output_assign: 0,
             tone_name: String::new(),
             tone_category: 0,
+            sna_instrument: None,
             eq: EqState::default(),
             settings: PartSettings::default(),
             mfx_type: None,

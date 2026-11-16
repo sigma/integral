@@ -88,6 +88,11 @@ export interface PartState {
   toneName: string;
   /** Tone category read from the tone itself (0 = unknown or not read yet). */
   toneCategory: number;
+  /**
+   * The instrument of an SN-A tone (SN-A Common `00 20`-`00 21`), read with
+   * its category; absent for another tone type or while unread.
+   */
+  snaInstrument?: { variation: number; number: number };
   /** Per-part EQ settings. */
   eq: EqState;
   /** The MFX Type (0 = THRU) of the Part's Temporary tone; absent while unread (or a GM2 tone). */

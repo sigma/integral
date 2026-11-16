@@ -11,10 +11,32 @@ use crate::mfx;
 use crate::params::{self, part};
 use crate::parse_helpers::parse_ascii_name_len;
 use crate::part_settings::{self, PartSetting};
+use crate::sn_acoustic::{SnaCommonField, SnaInstrument};
 use crate::state::parse as state_parse;
 use crate::state::{MixerState, PartState};
 use crate::studio_set_settings;
 use crate::svd::DRUMS_CATEGORY;
+
+/// Size of an SN-A tone's category read: Category (Common `00 1B`) through
+/// Inst Number (`00 21`), so the one RQ1 brings the tone's instrument too.
+pub const SNA_CATEGORY_READ_SIZE: DataSize = DataSize::new(
+    0x00,
+    0x00,
+    0x00,
+    category_read_offset(SnaCommonField::InstNumber) as u8 + 1,
+);
+
+/// Where SN-A Common `field` sits in the reply to an SN-A tone's category
+/// read, which starts at the Category.
+pub const fn category_read_offset(field: SnaCommonField) -> usize {
+    field as usize - SnaCommonField::Category as usize
+}
+
+/// Whether bank MSB `msb` holds SN-A tones, whose category read brings
+/// the instrument too.
+fn is_sna_bank(msb: u8) -> bool {
+    params::tone_type_from_bank_msb(msb) == Some(params::ToneType::SnAcoustic)
+}
 
 /// A piece of mixer state read with one RQ1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,7 +101,9 @@ pub enum MixerBlock {
         /// The tone's bank MSB.
         msb: u8,
     },
-    /// The category of a part's tone, of bank MSB `msb`.
+    /// The category of a part's tone, of bank MSB `msb`. An SN-A tone's
+    /// read runs on to its instrument (Common `00 1B`-`00 21`, see
+    /// [`SNA_CATEGORY_READ_SIZE`]).
     ToneCategory {
         /// Part index (0-15).
         part: u8,
@@ -263,9 +287,14 @@ impl MixerBlock {
                 params::tone_name_address(part, params::tone_type_from_bank_msb(msb)?),
                 params::TONE_NAME_SIZE,
             ),
-            ToneCategory { part, msb } => {
-                (params::tone_category_address(part, msb)?, DataSize::ONE)
-            }
+            ToneCategory { part, msb } => (
+                params::tone_category_address(part, msb)?,
+                if is_sna_bank(msb) {
+                    SNA_CATEGORY_READ_SIZE
+                } else {
+                    DataSize::ONE
+                },
+            ),
             // The device doesn't answer reads of a GM2 or ExPCM tone.
             MfxType { part, msb } => (
                 mfx::mfx_address(
@@ -389,7 +418,17 @@ impl MixerBlock {
                     state.parts[usize::from(part)].tone_name = name;
                 }
             }
-            ToneCategory { part, .. } => state.parts[usize::from(part)].tone_category = byte,
+            ToneCategory { part, msb } => {
+                let s = &mut state.parts[usize::from(part)];
+                s.tone_category = byte;
+                if is_sna_bank(msb) {
+                    let at = |field| data[category_read_offset(field)];
+                    s.sna_instrument = Some(SnaInstrument {
+                        variation: at(SnaCommonField::InstVariation),
+                        number: at(SnaCommonField::InstNumber),
+                    });
+                }
+            }
             MfxType { part, .. } => state.parts[usize::from(part)].mfx_type = Some(byte),
         }
         Vec::new()
@@ -401,6 +440,7 @@ impl MixerBlock {
 /// has its own MFX, unread.
 pub(crate) fn set_tone(part: &mut PartState, msb: u8, lsb: u8, pc: u8) {
     part.mfx_type = None;
+    part.sna_instrument = None;
     part.tone_bank_msb = msb;
     part.tone_bank_lsb = lsb;
     part.tone_pc = pc;
