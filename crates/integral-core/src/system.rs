@@ -21,6 +21,7 @@ use thiserror::Error;
 use crate::address::{Address, DataSize, SYSTEM_COMMON};
 use crate::block_field::BlockField;
 use crate::fx_params::KHZ;
+use crate::host_params::HostFormat;
 use crate::mfx_params::ControlSourceKind;
 use crate::param_registry::ParamFormat;
 use crate::studio_set_settings::StudioSetSetting;
@@ -313,12 +314,13 @@ impl SystemFieldSpec {
     /// The raw value a display string stands for: a value in range whose
     /// [`format`](ParamFormat::format) is `text`, ignoring case (`ON`,
     /// `studio set`, `-3`, `CC01`), with its unit and a `+` optional (`3`,
-    /// `44.1`). Master Tune takes Hz (`442`, `442.0 Hz`) and gives the
-    /// nearest step. `None` when nothing in range shows as `text`.
+    /// `44.1`), by [`HostFormat::parse`]: a value a Control Source list
+    /// doesn't name (the unused 32) doesn't parse. Master Tune takes Hz
+    /// (`442`, `442.0 Hz`) and gives the nearest step. `None` when nothing
+    /// in range shows as `text`.
     pub fn parse(&self, text: &str) -> Option<i32> {
-        let text = text.trim();
-        let text = text.strip_prefix('+').unwrap_or(text);
         if self.format == ParamFormat::MasterTune {
+            let text = text.trim().strip_prefix('+').unwrap_or(text.trim());
             let cut = text.len().saturating_sub(2);
             let hz = match text.get(cut..) {
                 Some(unit) if unit.eq_ignore_ascii_case("hz") => &text[..cut],
@@ -328,12 +330,7 @@ impl SystemFieldSpec {
             let value = master_tune_from_hz(hz.parse().ok()?);
             return self.accepts(value).then_some(value);
         }
-        let unsigned = |s: &str| s.strip_prefix('+').unwrap_or(s).to_string();
-        (self.min..=self.max).find(|&value| {
-            let shown = unsigned(&self.format.format(value));
-            let number = unsigned(&self.format.parts(value).0);
-            shown.eq_ignore_ascii_case(text) || number.eq_ignore_ascii_case(text)
-        })
+        HostFormat::Field(self.format.clone()).parse(text, self.min, self.max)
     }
 }
 
@@ -597,6 +594,7 @@ pub fn encode_value(field: SystemField, value: i32) -> Result<Vec<u8>, SystemVal
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mfx_params::control_source_choices;
 
     /// Each field's offset, range and the display of its ends, from the
     /// MIDI Implementation (`04-address-map.md`, `99-undocumented.md` §8
@@ -688,9 +686,21 @@ mod tests {
     fn every_display_parses_back() {
         for &field in SystemField::ALL {
             let spec = system_spec(field);
+            // A Control Source list skips a value (the unused 32), which
+            // shows as its bare number: only the values it names parse.
+            let named: std::collections::HashSet<i32> = match spec.format {
+                ParamFormat::ControlSource(kind) => control_source_choices(kind)
+                    .map(|(value, _)| i32::from(value))
+                    .collect(),
+                _ => (spec.min..=spec.max).collect(),
+            };
             for value in spec.min..=spec.max {
                 let shown = spec.format.format(value);
-                assert_eq!(spec.parse(&shown), Some(value), "{field:?} {shown}");
+                assert_eq!(
+                    spec.parse(&shown),
+                    named.contains(&value).then_some(value),
+                    "{field:?} {shown}"
+                );
             }
         }
     }
@@ -709,6 +719,24 @@ mod tests {
         assert_eq!(source.format(32), "32");
         assert_eq!(source.format(33), "CC33");
         assert_eq!(source.format(96), "BEND");
+    }
+
+    #[test]
+    fn system_control_sources_parse_only_as_a_source_the_list_names() {
+        for field in [
+            SystemField::SystemControl1Source,
+            SystemField::SystemControl2Source,
+            SystemField::SystemControl3Source,
+            SystemField::SystemControl4Source,
+        ] {
+            let spec = system_spec(field);
+            // The unused 32 shows as the bare number, which names no source.
+            assert_eq!(spec.parse("32"), None, "{field:?}");
+            assert_eq!(spec.parse("CC01"), Some(1), "{field:?}");
+            for (value, name) in control_source_choices(ControlSourceKind::SystemControl) {
+                assert_eq!(spec.parse(name), Some(i32::from(value)), "{field:?} {name}");
+            }
+        }
     }
 
     #[test]
