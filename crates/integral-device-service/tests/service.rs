@@ -896,6 +896,116 @@ fn a_typed_read_overtaken_by_a_write_is_answered_with_the_written_value() {
     assert!(reader_inbox.take().is_empty(), "no timeout either");
 }
 
+/// The device answering the service's reads: every RQ1 that leaves is
+/// answered on the spot, with every byte `fill`, but the one at `hold`,
+/// whose sends are only counted.
+struct Answerer {
+    seen: usize,
+    fill: u8,
+    hold: Option<Address>,
+    held: usize,
+}
+
+impl Answerer {
+    fn new(fill: u8) -> Self {
+        Self {
+            seen: 0,
+            fill,
+            hold: None,
+            held: 0,
+        }
+    }
+
+    /// Pump at `now` and answer what left. Returns the wait the service
+    /// asked for, or `None` once it went idle.
+    fn step(&mut self, service: &mut Service, link: &FakeLink, now: f64) -> Option<Duration> {
+        let mut wait = service.pump(now);
+        let sent = link.sent();
+        let mut answered = false;
+        for message in &sent[self.seen..] {
+            let Some(rq1) = sysex::parse_rq1(message) else {
+                continue;
+            };
+            if self.hold == Some(rq1.address) {
+                self.held += 1;
+                continue;
+            }
+            let data = vec![self.fill; rq1.size.value() as usize];
+            let reply = sysex::build_dt1(DEVICE_ID, &rq1.address, &data);
+            service.handle(Input::Link(LinkEvent::Midi(reply)), now);
+            answered = true;
+        }
+        self.seen = sent.len();
+        if answered {
+            // As the runtime does after an input.
+            wait = service.pump(now);
+        }
+        wait
+    }
+}
+
+#[test]
+fn an_edit_that_overtakes_a_loads_read_does_not_make_it_retry() {
+    let (mut service, link) = service();
+    service.handle(Input::Link(LinkEvent::Up { device_id: None }), 0.0);
+    let (a, a_inbox) = client(&mut service, 1);
+    ask(&mut service, a, Request::LoadMixer);
+
+    // Every read is answered as it leaves, but Part 5's dump: the answer to
+    // that one is held back until an edit has overtaken the read.
+    let dump = MixerBlock::Part(4).request().expect("a block").0;
+    let mut device = Answerer::new(87);
+    device.hold = Some(dump);
+    let mut now = 0.0;
+    while device.held == 0 {
+        let wait = device
+            .step(&mut service, &link, now)
+            .expect("the load is running");
+        now += wait.as_secs_f64() * 1000.0;
+        assert!(now < 10_000.0, "the dump's read never left");
+    }
+
+    // An edit goes ahead of the reads still queued (#643), so out behind
+    // the dump's RQ1: the device answers that with the value from before
+    // it. Made straight into the device, as a queued client write reaches
+    // it only once the load's queue has drained.
+    service.device_mut().set_part_level(4, 99);
+    while sysex_sent(&link).last() != Some(&level_dt1(4, 99)) {
+        let wait = device
+            .step(&mut service, &link, now)
+            .expect("the load is running");
+        now += wait.as_secs_f64() * 1000.0;
+        assert!(now < 20_000.0, "the edit never left");
+    }
+    let mut stale = vec![87; params::PART_MIXER_SIZE.value() as usize];
+    stale[0x09] = 50; // the Level, as it was before the edit
+    let reply = sysex::build_dt1(DEVICE_ID, &dump, &stale);
+    service.handle(Input::Link(LinkEvent::Midi(reply)), now);
+
+    // The load settles on that reply, without the read being sent again:
+    // a retry would also come back unanswered, and the load would end only
+    // when the read gave up.
+    let settled = |inbox: &Inbox| {
+        inbox.0.lock().unwrap().iter().any(|m| {
+            matches!(m, Message::Bulk { writer, kind: BulkKind::StudioSet, .. } if *writer == a)
+        })
+    };
+    while !settled(&a_inbox)
+        && let Some(wait) = device.step(&mut service, &link, now)
+    {
+        now += wait.as_secs_f64() * 1000.0;
+        assert!(now < 10_000.0, "the load never settled");
+    }
+    assert!(settled(&a_inbox), "the load settled");
+    assert_eq!(device.held, 1, "the dump's read was not sent again");
+    assert!(service.device().mixer_failed_blocks().is_empty());
+    assert_eq!(
+        service.device().state().parts[4].level,
+        99,
+        "the edit stays over the older reply"
+    );
+}
+
 #[test]
 fn a_raw_client_still_gets_the_reply_older_than_a_write() {
     let (mut service, _link) = service();

@@ -1814,6 +1814,46 @@ impl DeviceState {
         fresh
     }
 
+    /// `data`, the reply at `address` to a tracked block read — one of a
+    /// mixer load's [`MixerBlock`](crate::mixer_load::MixerBlock)s or an
+    /// SN Synth tone's [`SnsBlock`](crate::sn_synth::SnsBlock)s — with the
+    /// bytes written since that read left (sent or still queued) in place
+    /// of the device's, or `None` if it answers no such read exactly (not
+    /// at the block's address, or not its whole size).
+    ///
+    /// The device answers in order, so those bytes hold the value from
+    /// before the write; [`handle_dt1`](Self::handle_dt1) keeps them over
+    /// what the device said (see [`keep_edits`](Self::keep_edits)). A
+    /// caller that once had to cut them out of the reply can take the
+    /// block whole instead: cut to fit around them, the pieces match no
+    /// block's address and size, and the read they answer would stay open
+    /// until its retry.
+    ///
+    /// Call before [`fresh_reply`](Self::fresh_reply) takes the reply: the
+    /// writes sent since the read left are only known while it is still
+    /// tracked.
+    pub fn tracked_block_reply(&self, address: &Address, data: &[u8]) -> Option<Vec<u8>> {
+        let key = if (self.mixer_reads.iter()).any(|r| {
+            r.address == *address
+                && r.block
+                    .request()
+                    .is_some_and(|(_, size)| size.value() as usize == data.len())
+        }) {
+            mixer_request_key(address)
+        } else {
+            let (part, block) = (self.sns_tones.keys()).find_map(|&part| {
+                (SnsBlock::ALL.into_iter())
+                    .find(|block| {
+                        *address == block.address(part)
+                            && block.size().value() as usize == data.len()
+                    })
+                    .map(|block| (part, block))
+            })?;
+            sns_request_key(part, block)
+        };
+        Some(self.keep_edits(&key, address, data))
+    }
+
     /// Queue again the mixer read of tracker key `key`, if it is one, while
     /// retries remain; else give it up.
     fn retry_mixer_read(&mut self, key: &str) {
@@ -4591,6 +4631,43 @@ mod tests {
                 "the read is done"
             );
         }
+    }
+
+    #[test]
+    fn a_tracked_block_reply_is_the_block_with_the_edit_kept() {
+        // A mixer load's block.
+        let dump = params::part_address(3, part::RECEIVE_CHANNEL);
+        let mut dev = DeviceState::new(0x10);
+        // Part 4's dump is the 8th read.
+        let now = mid_load(&mut dev, 8);
+        dev.set_part_level(3, 99);
+        // The edit leaves; the device answers the read with the value from
+        // before it.
+        assert!(sysex::parse_dt1(&dev.drain(now).unwrap()).is_ok());
+        let kept = dev
+            .tracked_block_reply(&dump, &part_dump(87, 0, 5, 77))
+            .expect("the dump's reply");
+        assert_eq!(kept[0x09], 99, "the edit over the device's older byte");
+        assert_eq!(kept[0x06], 87, "the rest is the device's");
+        // Short of the block the read asked for: no tracked reply.
+        assert_eq!(
+            dev.tracked_block_reply(&dump, &part_dump(87, 0, 5, 77)[..9]),
+            None
+        );
+
+        // An SN Synth tone's block.
+        let mut dev = loading_sns(3);
+        let common = SnsBlock::Common.address(3);
+        assert!(sysex::parse_rq1(&dev.drain(0.0).unwrap()).is_some());
+        dev.set_sns_common_param(3, SnsCommonField::ToneLevel, 88);
+        assert!(sysex::parse_dt1(&dev.drain(100.0).unwrap()).is_ok());
+        let at = usize::from(SnsCommonField::ToneLevel as u8);
+        let mut data = vec![0u8; SnsBlock::Common.size().value() as usize];
+        data[at] = 70;
+        let kept = dev
+            .tracked_block_reply(&common, &data)
+            .expect("the Common block's reply");
+        assert_eq!(kept[at], 88, "the edit over the device's older byte");
     }
 
     #[test]

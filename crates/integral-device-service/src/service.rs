@@ -1708,16 +1708,29 @@ impl Service {
                 // Only what no write has overtaken: the device answers in
                 // order, so a read sent before a write comes back with the
                 // value from before it. The raw copy below goes out whole.
+                //
+                // A tracked block read (a mixer load's, an SN Synth tone's)
+                // takes its reply whole instead, the bytes written since it
+                // left kept over the device's older ones: cut to fit around
+                // them, the pieces would match no block's address and size,
+                // and the read would stay open until its retry. Asked
+                // before the reply is taken as fresh: what was written
+                // since the read left is only known while it is tracked.
+                let kept_reply = self.device.tracked_block_reply(&dt1.address, &dt1.data);
                 let start = dt1.address.value();
                 let fresh = self
                     .device
                     .fresh_reply(&dt1.address, dt1.data.len(), now_ms);
                 self.answer_overtaken_reads(start..start + dt1.data.len() as u32, &fresh);
-                for part in fresh {
-                    let address = Address::from_value(part.start).expect("inside the reply");
-                    let data =
-                        &dt1.data[(part.start - start) as usize..(part.end - start) as usize];
-                    changed |= self.take_dt1(&address, data, now_ms);
+                if let Some(kept) = kept_reply {
+                    changed |= self.take_dt1(&dt1.address, &kept, now_ms);
+                } else {
+                    for part in fresh {
+                        let address = Address::from_value(part.start).expect("inside the reply");
+                        let data =
+                            &dt1.data[(part.start - start) as usize..(part.end - start) as usize];
+                        changed |= self.take_dt1(&address, data, now_ms);
+                    }
                 }
             }
         } else if let Ok(identity) = sysex::parse_identity_reply(message)
