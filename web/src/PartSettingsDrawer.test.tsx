@@ -11,6 +11,7 @@ import {
 } from "../pkg/integral_wasm.js";
 import type { IntegraService } from "./integra";
 import { PartSettingsDrawer } from "./PartSettingsDrawer";
+import { snaInsts } from "./snaInstCatalog";
 import { SystemPage } from "./SystemPage";
 import { defaultMixerState, type MixerState, type PartState } from "./types";
 import type { UseMixerResult } from "./useMixer";
@@ -315,20 +316,27 @@ describe("the Part settings drawer", () => {
           container,
           setPartSetting,
         }));
-      const tone = (toneBankMsb: number, toneCategory: number): MixerState => {
+      const instrument = (name: string) => {
+        const i = snaInsts().find((i) => i.name === name)!;
+        return { variation: i.variation, number: i.instNumber };
+      };
+      const tone = (toneBankMsb: number, snaInstrument?: PartState["snaInstrument"]): MixerState => {
         const state = mixerState(1);
-        const parts = state.parts.map((p, i) => (i === 1 ? { ...p, toneBankMsb, toneCategory } : p));
+        const parts = state.parts.map((p, i) => (i === 1 ? { ...p, toneBankMsb, snaInstrument } : p));
         return { ...state, parts };
       };
       const IGNORED = part_scale_ignored_note();
-      const kit = await notes(tone(88, 46)); // an SN Drum Kit
+      const kit = await notes(tone(88)); // an SN Drum Kit
       expect(kit.text).toContain(IGNORED);
       arrowUp(slider(group(kit.container, "SCALE"), "C"));
       expect(kit.setPartSetting).toHaveBeenCalledWith(1, PartSetting.ScaleTuneC, 65);
       cleanup();
-      expect((await notes(tone(89, 6))).text).toContain(IGNORED); // an SN-A Organ
+      expect((await notes(tone(89, instrument("TW Organ")))).text).toContain(IGNORED); // an SN-A TW Organ
       cleanup();
-      expect((await notes(tone(87, 6))).text).not.toContain(IGNORED); // a PCM organ
+      // An SN-A tone categorised Organ that plays another instrument
+      expect((await notes(tone(89, instrument("French Accordion")))).text).not.toContain(IGNORED);
+      cleanup();
+      expect((await notes(tone(87))).text).not.toContain(IGNORED); // a PCM organ
     });
   });
 });

@@ -1,11 +1,11 @@
 import type { PluginKind } from "../pkg/integral_wasm.js";
 import { deviceSpec } from "./deviceSpec";
-import { noteName } from "./pcm-drum/types";
 import { CONNECTED_STATUS, TYPE_MISMATCH_NOTICE, canRefresh, type InstanceInfo, type PluginBinding } from "./plugin";
 import { acceptsBinding, kitKeys, pluginToneType } from "./pluginPages";
 import { useEffect, useState } from "react";
 import { ToneSelector } from "./ToneSelector";
 import { toneDisplay } from "./toneBanks";
+import { noteName } from "./useKeyboard";
 import type { ToneCatalog } from "./toneCatalog";
 import type { UseExpansionsResult } from "./useExpansions";
 import type { Expansion } from "./expansionCatalog";

@@ -72,8 +72,9 @@ independent of it.
   SysEx the device sends comes back as a frame, as on a shared MIDI port. Text
   frames are ignored, pings answered, and a frame the service refuses is not
   answered. Listens on 127.0.0.1 only, default port
-  `integral_core::device_service::WEBSOCKET_PORT` (4707); the web app always
-  uses the default, so `--ws-port` is for tests and port clashes.
+  `integral_core::device_service::WEBSOCKET_PORT` (4707). The web app uses
+  the default, except the page served here, which connects to its own port,
+  so `--ws-port` (for tests and port clashes) serves a working page.
   - The page: a plain HTTP `GET` or `HEAD` on that port is answered from the
     embedded web build (`integral-web-assets`, `web/dist-plugin`; `just
     install` builds it first), one response per connection, and other

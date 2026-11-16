@@ -12,7 +12,8 @@ plus the I/O the browser has to do.
   ([ADR 0004](../../docs/adr/0004-plugin-ui-in-a-webview.md)) it sizes the
   window after wasm loads and hands `App` the plugin transport and the
   bridge (`plugin`). In a browser it mounts `PwaUpdateBanner`, and `App`
-  uses Web MIDI.
+  uses Web MIDI and the Device service, reached as the page's location says
+  (`page`).
 - **Plugin editor.** Given a bridge, `App` shows only what the plugin's
   instance owns (ADR 0007, `pluginPages.ts`): the Mixer and Surround pages
   for the Studio Set plugin, the tone editor of the plugin's type, scoped to
@@ -56,7 +57,8 @@ plus the I/O the browser has to do.
 Pages and editors (`.tsx`):
 
 - Pages:
-  - `App` (props: `openPorts`, `storage`) — the shell.
+  - `App` (props: `page`, `openPorts`, `connectOnlyPort`, `storage`,
+    `plugin`) — the shell.
   - `MixerPage`, with `ChannelStrip`, `FxStrip` and `mixerDisplays.tsx`.
   - `SurroundPage`, with `SurroundXYPad`.
   - `RoutingPage` — the effective routing (`MixerState.routing`, from core's
@@ -152,8 +154,9 @@ Device link and transports (`.ts`):
     per SysEx message each way; the URL comes from core through
     `deviceServiceUrl`). Lazy: it connects on `open()`, then reconnects with
     a wait growing from `RECONNECT_MIN_MS` to `RECONNECT_MAX_MS`. `watch`
-    reports the link going down and up, `failure` gives `NOT_RUNNING_HINT`
-    (not running, or this page's origin is not allowed) or `LINK_DOWN_HINT`
+    reports the link going down and up, `failure` gives `notRunningHint()`
+    (not running, this page's origin is not allowed, or blocked: it names
+    the page the service serves, `deviceServicePageUrl`, for Safari) or `LINK_DOWN_HINT`
     (the service closed the page with 1013: it lost the device), and
     `release` stops reconnecting when another pair is chosen. It carries
     notes too (`carriesNotes`): a channel voice message is its own frame,
@@ -162,6 +165,11 @@ Device link and transports (`.ts`):
     `workerTimers`, which a background tab does not throttle).
   - `withDeviceService`, `browserPorts`: the service listed beside Web MIDI's
     pairs (alone where the browser has no Web MIDI), `DEVICE_SERVICE_NAME`.
+  - `servedByService`, `deviceServiceUrlFor`: a page loaded over `http:`
+    from the service's host (`deviceServiceHost`) on a port that is neither
+    `devServerPort()` nor `previewPort()` was served by the service, and
+    connects to it on its own port, without a pick and whatever other ports
+    are listed (`App`'s `page`); any other page uses the default port.
 - `timedSend.ts`: `holdUntil` holds a send with a future `timestamp` until
   then, for the pairs with no scheduler underneath (the Device service's, in
   the browser and the plugin), on `Timers`: `mainThreadTimers`, or

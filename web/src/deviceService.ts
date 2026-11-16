@@ -18,7 +18,13 @@
  * asked to open, so the page recovers when the service appears.
  */
 
-import { deviceServiceUrl } from "../pkg/integral_wasm.js";
+import {
+  devServerPort,
+  deviceServiceHost,
+  deviceServicePageUrl,
+  deviceServiceUrl,
+  previewPort,
+} from "../pkg/integral_wasm.js";
 import type { MidiListener, MidiPortPair, MidiPorts } from "./midi";
 import { holdUntil, workerTimers, type Timers } from "./timedSend";
 
@@ -40,9 +46,13 @@ export const RECONNECT_MAX_MS = 5000;
  */
 export const CONNECT_TIMEOUT_MS = 3000;
 
-/** What the user is told when the service does not answer. */
-export const NOT_RUNNING_HINT =
-  "Device service not running, this page's origin isn't allowed (--ws-origin), or the browser blocked the connection (Safari does from an https page). Start it with `integral-cli bridge` (or `just bridge`); this page connects as soon as it can.";
+/**
+ * What the user is told when the service does not answer. It names the page
+ * the service serves at its default port, which Safari can use.
+ */
+export function notRunningHint(): string {
+  return `Device service not running, this page's origin isn't allowed (--ws-origin), or the browser blocked the connection (Safari does from an https page: open ${deviceServicePageUrl()} instead). Start it with \`integral-cli bridge\` (or \`just bridge\`); this page connects as soon as it can.`;
+}
 
 /** What the user is told when the service closes the page: no device link. */
 export const LINK_DOWN_HINT =
@@ -115,7 +125,7 @@ export function deviceServicePair(
   // The connection is lost or never came: say why, and retry if wanted.
   const fail = (code?: number) => {
     socket = null;
-    failure = code === LINK_DOWN_CLOSE_CODE ? LINK_DOWN_HINT : NOT_RUNNING_HINT;
+    failure = code === LINK_DOWN_CLOSE_CODE ? LINK_DOWN_HINT : notRunningHint();
     setUp(false);
     settle(new Error(failure));
     if (wanted) {
@@ -233,12 +243,53 @@ export function withDeviceService(
   };
 }
 
+/** The part of the page's `location` that says who served it. */
+export interface PageLocation {
+  /** The scheme with its colon, as `location.protocol` (`"http:"`). */
+  readonly protocol: string;
+  /** The host without the port, as `location.hostname`. */
+  readonly hostname: string;
+  /** The port as `location.port`: empty when it is the protocol's. */
+  readonly port: string;
+}
+
+/** The port a page at `page` was loaded from, explicit or the protocol's. */
+function pagePort(page: PageLocation): number {
+  return page.port === "" ? 80 : Number(page.port);
+}
+
+/**
+ * Whether the Device service served the page at `page`: over `http:` from its
+ * host, on a port that is neither the dev server's nor the preview's. Such a
+ * page talks to the service on its own port, whatever `--ws-port` it runs
+ * with, and the service is the port it is there for.
+ */
+export function servedByService(page: PageLocation): boolean {
+  if (page.protocol !== "http:" || page.hostname !== deviceServiceHost())
+    return false;
+  const port = pagePort(page);
+  return port !== devServerPort() && port !== previewPort();
+}
+
+/**
+ * The Device service's WebSocket URL for the page at `page`: the page's own
+ * port when the service served it, the default port otherwise (and with no
+ * page).
+ */
+export function deviceServiceUrlFor(page?: PageLocation): string {
+  return page && servedByService(page)
+    ? deviceServiceUrl(pagePort(page))
+    : deviceServiceUrl();
+}
+
 /**
  * The ports of a browser: Web MIDI's, if there is Web MIDI, and the Device
- * service.
+ * service, reached from the page at `page` ({@link deviceServiceUrlFor}).
  */
 export async function browserPorts(
   webMidi: () => Promise<MidiPorts>,
+  page?: PageLocation,
+  makeSocket?: SocketFactory,
 ): Promise<MidiPorts> {
   let midi: MidiPorts | null = null;
   try {
@@ -246,5 +297,8 @@ export async function browserPorts(
   } catch {
     // A browser without Web MIDI can still use the service.
   }
-  return withDeviceService(midi, deviceServicePair(deviceServiceUrl()));
+  return withDeviceService(
+    midi,
+    deviceServicePair(deviceServiceUrlFor(page), makeSocket),
+  );
 }

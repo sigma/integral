@@ -30,6 +30,7 @@ createRoot(document.getElementById("root")!).render(
     <App
       openPorts={bridge ? () => pluginPorts(bridge) : undefined}
       connectOnlyPort={bridge !== null}
+      page={bridge ? undefined : window.location}
       plugin={bridge ?? undefined}
     />
   </StrictMode>,

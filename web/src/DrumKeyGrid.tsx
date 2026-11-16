@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { noteName, isBlackKey } from "./pcm-drum/types";
+import { isBlackKey } from "./pcm-drum/types";
+import { noteName } from "./useKeyboard";
 import css from "./DrumKeyGrid.module.css";
 
 /** Colors for Comp+EQ unit routing indicators (1-6). Index 0 = PART (no color). */

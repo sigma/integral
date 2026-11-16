@@ -18,8 +18,9 @@ struct SentRead {
     /// Where the next reply to it starts: the device answers a long read in
     /// DT1s of ascending addresses.
     cursor: u32,
-    /// The addresses written since the request left.
-    stale: Vec<Range<u32>>,
+    /// The addresses written since the request left, with the bytes
+    /// written there, oldest first.
+    stale: Vec<(Range<u32>, Vec<u8>)>,
     /// When the request left (ms).
     sent_at: f64,
 }
@@ -53,7 +54,8 @@ impl SentReads {
             let written = start..start + dt1.data.len() as u32;
             for read in &mut self.reads {
                 if let Some(hit) = overlap(&read.span, &written) {
-                    read.stale.push(hit);
+                    let bytes = &dt1.data[(hit.start - start) as usize..(hit.end - start) as usize];
+                    read.stale.push((hit, bytes.to_vec()));
                 }
             }
         }
@@ -75,13 +77,28 @@ impl SentReads {
         let read = &mut self.reads[i];
         read.cursor = reply.end;
         let mut fresh = vec![reply.clone()];
-        for stale in &read.stale {
+        for (stale, _) in &read.stale {
             fresh = fresh.into_iter().flat_map(|r| minus(r, stale)).collect();
         }
         if read.cursor >= read.span.end {
             self.reads.remove(i);
         }
         fresh
+    }
+
+    /// The writes sent since the read of `span` that left at `sent_at`, as
+    /// (first address, bytes), oldest first: what its reply must not undo.
+    /// Empty if no such read is outstanding. Unlike [`reply`](Self::reply)
+    /// it does not answer the read.
+    pub fn written_since(&self, span: &Range<u32>, sent_at: f64) -> Vec<(u32, &[u8])> {
+        (self.reads.iter())
+            .find(|r| r.span == *span && r.sent_at == sent_at)
+            .map(|r| {
+                (r.stale.iter())
+                    .map(|(at, bytes)| (at.start, bytes.as_slice()))
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// Forget the reads sent `timeout_ms` or longer before `now_ms`.
@@ -180,6 +197,17 @@ mod tests {
             pairs(t.reply(&(13..16), 3.0, TIMEOUT)),
             [(13, 14), (15, 16)]
         );
+    }
+
+    #[test]
+    fn written_since_gives_the_bytes_written_after_that_read_left() {
+        let mut t = SentReads::default();
+        t.sent(&rq1(10, 4), 0.0, TIMEOUT);
+        t.sent(&sysex::build_dt1(0x10, &at(12), &[7, 8, 9]), 1.0, TIMEOUT);
+        assert_eq!(t.written_since(&(10..14), 0.0), [(12, &[7, 8][..])]);
+        assert!(t.written_since(&(10..14), 1.0).is_empty(), "another read");
+        t.reply(&(10..14), 2.0, TIMEOUT);
+        assert!(t.written_since(&(10..14), 0.0).is_empty(), "answered");
     }
 
     #[test]

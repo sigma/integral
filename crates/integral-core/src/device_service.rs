@@ -38,6 +38,12 @@ pub fn websocket_url(port: u16) -> String {
     format!("ws://{WEBSOCKET_HOST}:{port}")
 }
 
+/// The URL of the web app the service serves on `port`, the page Safari
+/// reaches the device from.
+pub fn page_url(port: u16) -> String {
+    format!("http://{WEBSOCKET_HOST}:{port}/")
+}
+
 /// The origins the endpoint admits by default: the dev server and the
 /// preview server, each as `localhost` and as `127.0.0.1`, and the deployed
 /// app ([`DEPLOYED_ORIGIN`]).
@@ -61,6 +67,11 @@ mod tests {
     #[test]
     fn the_url_names_the_loopback_address_and_the_port() {
         assert_eq!(websocket_url(WEBSOCKET_PORT), "ws://127.0.0.1:4707");
+    }
+
+    #[test]
+    fn the_page_url_is_http_on_the_loopback_address_and_the_port() {
+        assert_eq!(page_url(WEBSOCKET_PORT), "http://127.0.0.1:4707/");
     }
 
     #[test]

@@ -75,7 +75,10 @@ export interface UseMixerResult {
    * on the next call. Resolves with the names known then.
    */
   loadStudioSetNames: (force?: boolean) => Promise<Map<number, string>>;
-  /** Read the whole mixer state again, e.g. after a Pack import. */
+  /**
+   * Read the whole mixer state again, e.g. after a Pack import. The Temporary
+   * may differ from the stored slot by then, so the catalog's names are left alone.
+   */
   reload: () => void;
   /** Copy core's state again, without a device read: after a write that bypassed these setters (a tone editor's). */
   sync: () => void;
@@ -83,7 +86,18 @@ export interface UseMixerResult {
 }
 
 /** How often a running mixer load is checked for reads given up on (ms). */
-const LOAD_POLL_MS = 250;
+export const LOAD_POLL_MS = 250;
+
+/** How long a Studio Set change waits before it reads the mixer (ms). */
+export const STUDIO_SET_SWITCH_DELAY_MS = 500;
+
+/**
+ * Where a mixer load's Temporary came from: `slot`, just loaded from the
+ * stored slot at `studioSetPC` (the first read, a Studio Set change); or
+ * `reread`, a read of the Temporary as it stands (after an Init, an edit,
+ * a retry, a plugin refresh), which may differ from the slot by then.
+ */
+type LoadSource = "slot" | "reread";
 
 export function useMixer(service: IntegraService | null): UseMixerResult {
   const [state, setState] = useState<MixerState>(defaultMixerState);
@@ -91,6 +105,11 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   stateRef.current = state;
   const loadPollRef = useRef(0);
   const rafId = useRef(0);
+  /**
+   * Where the running (or last) mixer load came from. Only a load from the
+   * slot names it in the catalog; a re-read leaves the names alone (#613).
+   */
+  const loadSource = useRef<LoadSource>("slot");
 
   // Sync Rust DeviceState → React state.
   // Preserves UI-only fields (selectedPart, studioSetNames).
@@ -106,6 +125,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
       const loading = service.device.mixerLoading();
       const failedBlocks = service.device.mixerFailedBlocks();
       const routing = service.device.effectiveRouting();
+      const fromSlot = loadSource.current === "slot";
       setState((prev) => ({
         studioSetName: rs.studioSetName ?? "",
         studioSetPC: rs.studioSetPC ?? 0,
@@ -128,9 +148,9 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
         loading,
         failedBlocks,
         routing,
-        // The current Studio Set's name is known once the load is done.
+        // The current Studio Set's name is known once a load from its slot is done.
         studioSetNames:
-          prev.loading && !loading && rs.studioSetName
+          fromSlot && prev.loading && !loading && rs.studioSetName
             ? new Map([...prev.studioSetNames, [rs.studioSetPC, rs.studioSetName]])
             : prev.studioSetNames,
       }));
@@ -156,8 +176,9 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
   // -----------------------------------------------------------------------
 
   const loadState = useCallback(
-    (svc: IntegraService) => {
+    (svc: IntegraService, source: LoadSource) => {
       clearInterval(loadPollRef.current);
+      loadSource.current = source;
       svc.device.loadMixer();
       setState((prev) => ({ ...prev, loading: true }));
       // Replies sync through onDt1; this also notices reads given up on.
@@ -172,11 +193,11 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
 
   useEffect(() => {
     if (!service) return;
-    loadState(service);
+    loadState(service, "slot");
   }, [service, loadState]);
 
   const reload = useCallback(() => {
-    if (service) void loadState(service);
+    if (service) loadState(service, "reread");
   }, [service, loadState]);
 
   // -----------------------------------------------------------------------
@@ -258,7 +279,7 @@ export function useMixer(service: IntegraService | null): UseMixerResult {
     (pc: number) => {
       if (!service) return;
       service.device.switchStudioSet(pc);
-      setTimeout(() => loadState(service), 500);
+      setTimeout(() => loadState(service, "slot"), STUDIO_SET_SWITCH_DELAY_MS);
     },
     [service, loadState],
   );

@@ -568,6 +568,33 @@ fn text_no_value_has_does_not_parse() {
 }
 
 #[test]
+fn a_control_source_parses_only_as_a_source_its_list_offers() {
+    use integral_core::host_params::HostFormat;
+    use integral_core::mfx_params::{ControlSourceKind, control_source_choices};
+    use integral_core::param_registry::ParamFormat;
+
+    for kind in [
+        ControlSourceKind::Mfx,
+        ControlSourceKind::Matrix,
+        ControlSourceKind::SystemControl,
+    ] {
+        let source = HostFormat::Field(ParamFormat::ControlSource(kind));
+        let max = kind.max().into();
+        // The unused 32 shows as the bare number, which names no source.
+        assert_eq!(source.format(32), "32");
+        assert_eq!(source.parse("32", 0, max), None, "{kind:?}");
+        assert_eq!(source.parse("CC01", 0, max), Some(1), "{kind:?}");
+        for (value, name) in control_source_choices(kind) {
+            assert_eq!(
+                source.parse(name, 0, max),
+                Some(value.into()),
+                "{kind:?} {name}"
+            );
+        }
+    }
+}
+
+#[test]
 fn a_new_instance_has_a_target_per_part_except_the_studio_set_plugin() {
     use integral_core::device_spec::INTEGRA7;
     use integral_core::host_params::Binding;

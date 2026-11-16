@@ -27,7 +27,7 @@ use crate::pcm_synth::{
     LFO_WAVEFORM_STEP, PCMS_PARTIAL_COUNT, PcmSynthPartial, PcmSynthPmt, PcmsPartialField,
     PcmsPmtField,
 };
-use crate::sn_acoustic::{SnAcousticCommon, SnaCommonField, sna_offsets};
+use crate::sn_acoustic::{SnAcousticCommon, SnaCommonField, SnaInstrument, sna_offsets};
 use crate::sn_synth::{
     OSC_WAVE_PCM, OSC_WAVE_SUPER_SAW, SnSynthCommon, SnSynthPartial, SnsPartialField,
 };
@@ -317,14 +317,15 @@ pub fn part_setting_relevance(field: PartSetting, scale_tune_switch: bool) -> Re
     }
 }
 
-/// Whether the tone of bank MSB `tone_bank_msb` and Tone Category
-/// `tone_category` ignores its Part's scale. The Parameter Guide's SCALE tab
-/// lists the scale as unavailable on SN-A Organ and SN Drum Kit tones.
-pub fn tone_ignores_scale(tone_bank_msb: u8, tone_category: u8) -> bool {
+/// Whether the tone of bank MSB `tone_bank_msb`, playing SN-A instrument
+/// `sna_instrument` (`None` while unread), ignores its Part's scale. The
+/// Parameter Guide's SCALE tab lists the scale as unavailable on SN Drum
+/// Kits and on "SN-A (Organ)": the TW Organ instrument, whatever the tone's
+/// Category.
+pub fn tone_ignores_scale(tone_bank_msb: u8, sna_instrument: Option<SnaInstrument>) -> bool {
     match params::tone_type_from_bank_msb(tone_bank_msb) {
         Some(params::ToneType::SnDrum) => true,
-        // shortcut: the Guide's "SN-A (Organ)" is TW Organ, an instrument (Inst Variation 65, Number 0, see `sna_offsets`); the mixer reads a tone's Category, not its instrument, so an SN-A tone categorised Organ stands in for it. Read SN-A Common `00 20`-`00 21` with the category if a re-categorised tone shows the wrong note.
-        Some(params::ToneType::SnAcoustic) => tone_category == crate::svd::ORGAN_CATEGORY,
+        Some(params::ToneType::SnAcoustic) => sna_instrument == Some(SnaInstrument::TW_ORGAN),
         _ => false,
     }
 }
@@ -920,15 +921,57 @@ mod tests {
     }
 
     #[test]
-    fn sn_drum_kits_and_sn_a_organs_ignore_the_scale() {
-        use crate::svd::ORGAN_CATEGORY as ORGAN;
+    fn sn_drum_kits_and_sn_a_tw_organs_ignore_the_scale() {
+        let tw_organ = Some(instrument("TW Organ"));
+        assert!(tone_ignores_scale(88, None)); // SN-D
+        assert!(tone_ignores_scale(89, tw_organ)); // SN-A TW Organ
+        assert!(!tone_ignores_scale(89, None)); // not read yet
+        assert!(!tone_ignores_scale(87, tw_organ)); // a PCM tone plays the scale
+        assert!(!tone_ignores_scale(86, None)); // PCM-D
+        assert!(!tone_ignores_scale(95, tw_organ)); // SN-S
+        assert!(!tone_ignores_scale(0, None)); // not read yet
+    }
+
+    /// The SN-A instrument Roland's list names `name`.
+    fn instrument(name: &str) -> SnaInstrument {
+        let i = crate::sn_acoustic::sna_insts()
+            .iter()
+            .find(|i| i.name == name)
+            .unwrap();
+        SnaInstrument {
+            variation: i.variation,
+            number: i.inst_number,
+        }
+    }
+
+    /// The Part an SN-A tone's category read leaves: the mixer load's reply
+    /// holds Category `category`, then the tone's `instrument`.
+    fn sna_tone_read(category: u8, instrument: SnaInstrument) -> PartState {
+        use crate::mixer_load::{MixerBlock, category_read_offset};
+        let mut state = crate::state::MixerState::default();
+        let block = MixerBlock::ToneCategory { part: 0, msb: 89 };
+        let (_, size) = block.request().unwrap();
+        let mut data = vec![0; size.value() as usize];
+        data[0] = category;
+        data[category_read_offset(SnaCommonField::InstVariation)] = instrument.variation;
+        data[category_read_offset(SnaCommonField::InstNumber)] = instrument.number;
+        state.parts[0].tone_bank_msb = 89;
+        block.apply(&mut state, &data);
+        state.parts[0].clone()
+    }
+
+    #[test]
+    fn a_re_categorised_tw_organ_tone_ignores_the_scale() {
         const AC_PIANO: u8 = 1;
-        assert!(tone_ignores_scale(88, crate::svd::DRUMS_CATEGORY)); // SN-D
-        assert!(tone_ignores_scale(89, ORGAN)); // SN-A TW Organ
-        assert!(!tone_ignores_scale(89, AC_PIANO));
-        assert!(!tone_ignores_scale(87, ORGAN)); // a PCM organ plays the scale
-        assert!(!tone_ignores_scale(86, crate::svd::DRUMS_CATEGORY)); // PCM-D
-        assert!(!tone_ignores_scale(95, ORGAN)); // SN-S
-        assert!(!tone_ignores_scale(0, 0)); // not read yet
+        let part = sna_tone_read(AC_PIANO, instrument("TW Organ"));
+        assert_eq!(part.tone_category, AC_PIANO);
+        assert!(tone_ignores_scale(part.tone_bank_msb, part.sna_instrument));
+    }
+
+    #[test]
+    fn an_organ_categorised_tone_of_another_instrument_plays_the_scale() {
+        let part = sna_tone_read(crate::svd::ORGAN_CATEGORY, instrument("French Accordion"));
+        assert_eq!(part.tone_category, crate::svd::ORGAN_CATEGORY);
+        assert!(!tone_ignores_scale(part.tone_bank_msb, part.sna_instrument));
     }
 }

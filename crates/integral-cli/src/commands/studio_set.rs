@@ -12,9 +12,7 @@ use anyhow::{Context, Result};
 use integral_core::device::DeviceState;
 use integral_core::device_spec::MIDI_CHANNELS;
 use integral_core::host_params::HostFormat;
-use integral_core::mfx_params::control_source_name;
 use integral_core::mixer_load::MixerBlock;
-use integral_core::param_registry::ParamFormat;
 use integral_core::state::{MixerState, StudioSetSettings};
 use integral_core::studio_set_settings::StudioSetField;
 
@@ -60,17 +58,6 @@ fn display(field: StudioSetField, raw: i32) -> String {
     field.spec().format.format(raw)
 }
 
-/// Whether `format` names `raw`: a Control Source list skips a value (the
-/// unused 32), which it shows as the bare number.
-fn names_value(format: &ParamFormat, raw: i32) -> bool {
-    match format {
-        ParamFormat::ControlSource(kind) => {
-            u8::try_from(raw).is_ok_and(|v| control_source_name(*kind, v).is_some())
-        }
-        _ => true,
-    }
-}
-
 /// Parse a `studio-set set` argument pair: a registry field name (exact,
 /// as `studio-set show` prints it) and a value in its display form (`96`,
 /// `CC16`, `BEND`, `ON`; the value's case and spaces are ignored), into the
@@ -86,7 +73,6 @@ pub fn parse_assignment(name: &str, value: &str) -> Result<(StudioSetField, i32)
     let spec = field.spec();
     let raw = HostFormat::Field(spec.format.clone())
         .parse(value, spec.min, spec.max)
-        .filter(|&raw| names_value(&spec.format, raw))
         .with_context(|| {
             format!(
                 "invalid value `{value}` for {name} ({}): expected {} to {}",
